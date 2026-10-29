@@ -1490,10 +1490,74 @@ jobs:
             echo "SS2_TEST_BUILD_FALLBACK=PASS"
             echo "SS2_FAST_PATH_VALIDATION=PASS"
 
+
+  ss2-workspace-producer:
+    docker:
+      - image: cimg/python:3.12
+    resource_class: small
+    steps:
+      - checkout
+      - run:
+          name: Produce synthetic APK handoff and matching build fingerprints
+          command: |
+            set -euo pipefail
+            ROOT="$CIRCLE_WORKING_DIRECTORY"
+            mkdir -p "$ROOT/ss2-apk/stage-3" "$ROOT/afterbird-delta/.build/args"
+            git -C "$ROOT/afterbird-delta" init -q
+            git -C "$ROOT/afterbird-delta" config user.email ss2-test@example.invalid
+            git -C "$ROOT/afterbird-delta" config user.name SS2-Test
+            printf 'is_debug=false\n' > "$ROOT/afterbird-delta/.build/args/release.gn"
+            git -C "$ROOT/afterbird-delta" add .build/args/release.gn
+            git -C "$ROOT/afterbird-delta" commit -qm 'synthetic delta for workspace test'
+            DELTA_SHA="$(git -C "$ROOT/afterbird-delta" rev-parse HEAD)"
+            ARGS_SHA="$(sha256sum "$ROOT/afterbird-delta/.build/args/release.gn" | awk '{print $1}')"
+            APK="$ROOT/ss2-apk/stage-3/ChromePublic.apk"
+            python3 - "$APK" \<<'PY'
+            import sys, zipfile
+            with zipfile.ZipFile(sys.argv[1], "w", zipfile.ZIP_DEFLATED) as z:
+                z.writestr("AndroidManifest.xml", "synthetic test manifest")
+                z.writestr("classes.dex", "synthetic test dex")
+            PY
+            APK_SHA="$(sha256sum "$APK" | awk '{print $1}')"
+            printf 'BUILD_FINISHED=true\nAPK_ARCHIVE_VALID=true\nAPK_SHA256=%s\nCHROMIUM_TAG=151.0.7922.38\nAFTERBIRD_SHA=%s\nRELEASE_ARGS_SHA256=%s\n' "$APK_SHA" "$DELTA_SHA" "$ARGS_SHA" > "$ROOT/ss2-apk/stage-3/status.txt"
+            echo "SS2_WORKSPACE_PRODUCER=PASS sha256=$APK_SHA"
+      - persist_to_workspace:
+          root: .
+          paths:
+            - ss2-apk/stage-3
+            - afterbird-delta
+  ss2-workspace-consumer:
+    docker:
+      - image: cimg/python:3.12
+    resource_class: small
+    steps:
+      - checkout
+      - attach_workspace:
+          at: .
+      - run:
+          name: Validate APK received through CircleCI workspace
+          command: |
+            set -euo pipefail
+            ROOT="$CIRCLE_WORKING_DIRECTORY"
+            bash "$ROOT/.circleci/scripts/ss2-validate-apk-handoff.sh" "$ROOT" "151.0.7922.38"
+            echo "SS2_WORKSPACE_CONSUMER=PASS"
+
 workflows:
   ss2-fast-path-validation:
     jobs:
       - ss2-fast-path-validation:
+          filters:
+            branches:
+              only: ci/ss2-apk-fast-path
+  ss2-workspace-handoff-integration:
+    jobs:
+      - ss2-workspace-producer:
+          filters:
+            branches:
+              only: ci/ss2-apk-fast-path
+      - ss2-workspace-consumer:
+          requires:
+            - ss2-workspace-producer
           filters:
             branches:
               only: ci/ss2-apk-fast-path
