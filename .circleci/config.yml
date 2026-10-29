@@ -1527,7 +1527,15 @@ PY
               grep -F 'projects/rbe-chromium-untrusted/instances/default_instance' "$GCLIENT"
               cd "$ROOT/brave-work"
               ./src/build/install-build-deps.sh --android
-              ./src/brave/node_modules/.bin/gclient sync
+              GCLIENT_BIN="$(command -v gclient || true)"
+              if [ -z "$GCLIENT_BIN" ]; then
+                for candidate in "$ROOT/brave-work/depot_tools/gclient" "$ROOT/brave-work/src/depot_tools/gclient"; do
+                  if [ -x "$candidate" ]; then GCLIENT_BIN="$candidate"; break; fi
+                done
+              fi
+              test -n "$GCLIENT_BIN" && [ -x "$GCLIENT_BIN" ] || { echo "BRAVE_RBE_CONFIG_GATE=FAIL gclient executable not found" >&2; exit 1; }
+              echo "Using gclient: $GCLIENT_BIN"
+              "$GCLIENT_BIN" sync
               printf '%s\n' \
                 'rbe_service=remote.buildbuddy.io:443' \
                 'use_remoteexec=true' \
