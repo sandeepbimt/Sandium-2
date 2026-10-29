@@ -1304,7 +1304,7 @@ jobs:
             ROOT="$CIRCLE_WORKING_DIRECTORY"
             APK="$ROOT/afterbird-chromium/src/out/afterbird_production/apks/ChromePublic.apk"
             mkdir -p "$ROOT/afterbird-baseline" "$ROOT/.ss2-cache"
-            if [ -s "$APK" ] && python3 - "$APK" <<'PY'
+            if [ -s "$APK" ] && python3 - "$APK" \<<'PY'
             import sys, zipfile
             with zipfile.ZipFile(sys.argv[1]) as archive:
                 bad = archive.testzip()
