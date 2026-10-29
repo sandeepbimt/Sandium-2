@@ -1,0 +1,1312 @@
+version: 2.1
+
+jobs:
+  c4-afterbird-staged-build:
+    parameters:
+      stage_index:
+        type: integer
+    machine:
+      image: ubuntu-2404:current
+    resource_class: large
+    steps:
+      - run:
+          name: Record stage start time and validate BuildBuddy credentials
+          command: |
+            # Do not enable xtrace: credentials must never be printed.
+            set -eu
+            echo "export STAGE_START_TS=$(date +%s)" >> "$BASH_ENV"
+            echo "STAGE_INDEX=<< parameters.stage_index >>"
+            if [ -z "$(printenv BUILDBUDDY_API_KEY 2>/dev/null || true)" ]; then
+              echo "MISSING_REQUIRED_SECRET=BUILDBUDDY_API_KEY" >&2
+              echo "Add this as a CircleCI project environment variable before running the staged build." >&2
+              exit 1
+            fi
+            HELPER=/tmp/sandfox-buildbuddy-credential-helper.py
+            printf '%s\n' \
+              '#!/usr/bin/env python3' \
+              'import json' \
+              'import os' \
+              'import sys' \
+              '' \
+              'if len(sys.argv) < 2 or sys.argv[1] != "get":' \
+              '    raise SystemExit(1)' \
+              'sys.stdin.read()' \
+              'key = os.environ["BUILDBUDDY_API_KEY"]' \
+              'print(json.dumps({"headers": {"x-buildbuddy-api-key": [key]}}))' \
+              > "$HELPER"
+            chmod 700 "$HELPER"
+            echo 'export SISO_CREDENTIAL_HELPER=/tmp/sandfox-buildbuddy-credential-helper.py' >> "$BASH_ENV"
+      - checkout
+
+      - when:
+          condition:
+            not:
+              equal: [1, << parameters.stage_index >>]
+          steps:
+            - attach_workspace:
+                at: .
+            - run:
+                name: Recreate pinned Chromium source for this stage
+                command: |
+                  set -euo pipefail
+                  ROOT="$CIRCLE_WORKING_DIRECTORY"
+                  export PATH="$ROOT/depot_tools:$PATH"
+                  export DEPOT_TOOLS_UPDATE=0
+                  WORKDIR="$ROOT/afterbird-chromium"
+                  SRC_DIR="$WORKDIR/src"
+                  AFTERBIRD_DIR="$ROOT/afterbird-delta"
+                  CHROMIUM_TAG="151.0.7922.38"
+                  CHROMIUM_URL="https://chromium.googlesource.com/chromium/src.git"
+                  test -d "$ROOT/depot_tools/.git"
+                  test -s "$AFTERBIRD_DIR/.build/args/release.gn"
+                  mkdir -p "$SRC_DIR"
+                  git -C "$SRC_DIR" init
+                  git -C "$SRC_DIR" remote add origin "$CHROMIUM_URL"
+                  git -C "$SRC_DIR" \
+                    -c protocol.version=2 \
+                    -c http.lowSpeedLimit=0 \
+                    -c http.lowSpeedTime=300 \
+                    fetch --no-tags --depth=1 origin \
+                    "+refs/tags/$CHROMIUM_TAG:refs/tags/$CHROMIUM_TAG"
+                  git -C "$SRC_DIR" checkout --force --detach "$CHROMIUM_TAG"
+                  test "$(git -C "$SRC_DIR" describe --tags --exact-match)" = "$CHROMIUM_TAG"
+                  printf '%s\n' \
+                    'solutions = [' \
+                    '  {' \
+                    '    "name": "src",' \
+                    '    "url": "https://chromium.googlesource.com/chromium/src.git",' \
+                    '    "managed": False,' \
+                    '    "custom_deps": {},' \
+                    '    "custom_vars": {},' \
+                    '  },' \
+                    ']' \
+                    'target_os = ["android"]' > "$WORKDIR/.gclient"
+                  cd "$WORKDIR"
+                  gclient sync -D --no-history --nohooks
+                  gclient runhooks
+                  cd "$SRC_DIR"
+                  git clean -ffd
+                  mkdir -p "$SRC_DIR/chrome/android/java/res_chromium_base"
+                  cp -a "$AFTERBIRD_DIR/chrome/android/java/res_chromium_base/." \
+                    "$SRC_DIR/chrome/android/java/res_chromium_base/"
+                  for patch in "$AFTERBIRD_DIR"/patches/m151/*.patch; do
+                    echo "Applying $patch"
+                    git apply --check "$patch"
+                    git apply "$patch"
+                  done
+                  echo "SOURCE_RECREATION=PASS tag=$CHROMIUM_TAG"
+                  du -sh "$SRC_DIR"
+      - run:
+          name: Validate checkpoint archive mechanics
+          command: |
+            set -eux
+            if ! command -v zstd >/dev/null 2>&1; then
+              sudo apt-get update -qq
+              sudo apt-get install -y zstd
+            fi
+            if [ "<< parameters.stage_index >>" -ne 1 ]; then
+              echo "Stage 2: zstd is available; the archive self-test ran in stage 1."
+              exit 0
+            fi
+            T="$(mktemp -d)"
+            trap 'rm -rf "$T"' EXIT
+            mkdir -p "$T/input/out/afterbird_production/obj/sample" "$T/restore"
+            printf 'state payload\n' > "$T/input/out/afterbird_production/.siso_fs_state"
+            printf 'journal payload\n' > "$T/input/out/afterbird_production/.siso_fs_state.journal"
+            printf 'object payload\n' > "$T/input/out/afterbird_production/obj/sample/sample.o"
+            touch -d '2026-01-02 03:04:05.123456789 UTC' "$T/input/out/afterbird_production/obj/sample/sample.o"
+            BEFORE="$(stat --format='%y' "$T/input/out/afterbird_production/obj/sample/sample.o")"
+            tar -c -I 'zstd -T1 -3' \
+              --format=posix \
+              --pax-option='delete=atime,delete=ctime' \
+              -f "$T/checkpoint.tar.zst" \
+              -C "$T/input" out/afterbird_production
+            tar -x -I 'zstd -T1 -d' -f "$T/checkpoint.tar.zst" -C "$T/restore"
+            cmp "$T/input/out/afterbird_production/.siso_fs_state" "$T/restore/out/afterbird_production/.siso_fs_state"
+            cmp "$T/input/out/afterbird_production/.siso_fs_state.journal" "$T/restore/out/afterbird_production/.siso_fs_state.journal"
+            cmp "$T/input/out/afterbird_production/obj/sample/sample.o" "$T/restore/out/afterbird_production/obj/sample/sample.o"
+            AFTER="$(stat --format='%y' "$T/restore/out/afterbird_production/obj/sample/sample.o")"
+            test "$BEFORE" = "$AFTER"
+            echo "CHECKPOINT-SELF-TEST=PASS"
+            echo "PAX nanosecond mtime preserved: $AFTER"
+            echo "Both Siso state files were preserved."
+
+            mkdir -p "$T/journal-only-input/out/afterbird_production/obj/sample" "$T/journal-only-restore"
+            printf 'build graph payload\n' > "$T/journal-only-input/out/afterbird_production/build.ninja"
+            printf 'GN args payload\n' > "$T/journal-only-input/out/afterbird_production/args.gn"
+            printf 'journal payload\n' > "$T/journal-only-input/out/afterbird_production/.siso_fs_state.journal"
+            printf 'accumulated object payload\n' > "$T/journal-only-input/out/afterbird_production/obj/sample/sample.o"
+            tar -c -I 'zstd -T1 -3' --format=posix --pax-option='delete=atime,delete=ctime' -f "$T/journal-only.tar.zst" -C "$T/journal-only-input" out/afterbird_production
+            tar -x -I 'zstd -T1 -d' -f "$T/journal-only.tar.zst" -C "$T/journal-only-restore"
+            JOURNAL_ONLY_OUT="$T/journal-only-restore/out/afterbird_production"
+            test ! -e "$JOURNAL_ONLY_OUT/.siso_fs_state"
+            test -s "$JOURNAL_ONLY_OUT/.siso_fs_state.journal"
+            test -s "$JOURNAL_ONLY_OUT/build.ninja"
+            test -s "$JOURNAL_ONLY_OUT/args.gn"
+            test -s "$JOURNAL_ONLY_OUT/obj/sample/sample.o"
+            echo "CHECKPOINT-JOURNAL-ONLY-SELF-TEST=PASS; graph, args, journal, and compiled output survive without a base state."
+      - when:
+          condition:
+            equal: [1, << parameters.stage_index >>]
+          steps:
+            - restore_cache:
+                name: Restore latest prior-workflow checkpoint for stage 1
+                keys:
+                  - sandfox-c4-siso-checkpoint-v4-journal-recovery-{{ .Branch }}-
+      - when:
+          condition:
+            equal: [2, << parameters.stage_index >>]
+          steps:
+            - restore_cache:
+                name: Restore stage 1 checkpoint
+                keys:
+                  - sandfox-c4-siso-checkpoint-v4-journal-recovery-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-1
+      - when:
+          condition:
+            equal: [3, << parameters.stage_index >>]
+          steps:
+            - restore_cache:
+                name: Restore stage 2 checkpoint
+                keys:
+                  - sandfox-c4-siso-checkpoint-v4-journal-recovery-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-2
+      - when:
+          condition:
+            equal: [4, << parameters.stage_index >>]
+          steps:
+            - restore_cache:
+                name: Restore stage 3 checkpoint
+                keys:
+                  - sandfox-c4-siso-checkpoint-v4-journal-recovery-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-3
+      - when:
+          condition:
+            equal: [5, << parameters.stage_index >>]
+          steps:
+            - restore_cache:
+                name: Restore stage 4 checkpoint
+                keys:
+                  - sandfox-c4-siso-checkpoint-v4-journal-recovery-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-4
+      - run:
+          name: Measure build VM
+          command: |
+            set -eux
+            echo "=== BUILD VM: DISK ==="
+            df -hT
+            echo "=== BUILD VM: RAM ==="
+            free -h
+            echo "=== BUILD VM: CPU ==="
+            nproc
+            uname -a
+      - run:
+          name: Install depot_tools
+          command: |
+            set -eux
+            if [ "<< parameters.stage_index >>" -ne 1 ]; then
+              echo "Stage 2: reusing the exact source tree from stage 1; skipping fresh setup."
+              exit 0
+            fi
+            if [ ! -d "$CIRCLE_WORKING_DIRECTORY/depot_tools/.git" ]; then
+              git clone --depth 1 https://chromium.googlesource.com/chromium/tools/depot_tools.git "$CIRCLE_WORKING_DIRECTORY/depot_tools"
+            fi
+            "$CIRCLE_WORKING_DIRECTORY/depot_tools/ensure_bootstrap"
+            echo 'export PATH="$CIRCLE_WORKING_DIRECTORY/depot_tools:$PATH"' >> "$BASH_ENV"
+            echo 'export DEPOT_TOOLS_UPDATE=0' >> "$BASH_ENV"
+      - run:
+          name: Checkout pinned Chromium source
+          command: |
+            set -eux
+            if [ "<< parameters.stage_index >>" -ne 1 ]; then
+              echo "Stage 2: reusing the exact source tree from stage 1; skipping fresh setup."
+              exit 0
+            fi
+            export PATH="$CIRCLE_WORKING_DIRECTORY/depot_tools:$PATH"
+            CHROMIUM_TAG="151.0.7922.38"
+            CHROMIUM_URL="https://chromium.googlesource.com/chromium/src.git"
+            WORKDIR="$CIRCLE_WORKING_DIRECTORY/afterbird-chromium"
+            SRC_DIR="$WORKDIR/src"
+            mkdir -p "$SRC_DIR"
+            git -C "$SRC_DIR" init
+            git -C "$SRC_DIR" remote add origin "$CHROMIUM_URL"
+            git -C "$SRC_DIR" \
+              -c protocol.version=2 \
+              -c http.lowSpeedLimit=0 \
+              -c http.lowSpeedTime=300 \
+              fetch --no-tags --depth=1 origin \
+              "+refs/tags/$CHROMIUM_TAG:refs/tags/$CHROMIUM_TAG"
+            git -C "$SRC_DIR" checkout --force --detach "$CHROMIUM_TAG"
+            test "$(git -C "$SRC_DIR" describe --tags --exact-match)" = "$CHROMIUM_TAG"
+            echo "Pinned Chromium tag: $CHROMIUM_TAG"
+            git -C "$SRC_DIR" rev-parse HEAD
+      - run:
+          name: Prepare Chromium Android dependency sync
+          command: |
+            set -eux
+            if [ "<< parameters.stage_index >>" -ne 1 ]; then
+              echo "Stage 2: reusing the exact source tree from stage 1; skipping fresh setup."
+              exit 0
+            fi
+            export PATH="$CIRCLE_WORKING_DIRECTORY/depot_tools:$PATH"
+            WORKDIR="$CIRCLE_WORKING_DIRECTORY/afterbird-chromium"
+            printf '%s\n' \
+              'solutions = [' \
+              '  {' \
+              '    "name": "src",' \
+              '    "url": "https://chromium.googlesource.com/chromium/src.git",' \
+              '    "managed": False,' \
+              '    "custom_deps": {},' \
+              '    "custom_vars": {},' \
+              '  },' \
+              ']' \
+              'target_os = ["android"]' > "$WORKDIR/.gclient"
+            cat "$WORKDIR/.gclient"
+      - run:
+          name: Sync Chromium Android dependencies
+          command: |
+            set -eux
+            if [ "<< parameters.stage_index >>" -ne 1 ]; then
+              echo "Stage 2: reusing the exact source tree from stage 1; skipping fresh setup."
+              exit 0
+            fi
+            export PATH="$CIRCLE_WORKING_DIRECTORY/depot_tools:$PATH"
+            export DEPOT_TOOLS_UPDATE=0
+            cd "$CIRCLE_WORKING_DIRECTORY/afterbird-chromium"
+            gclient sync -D --no-history --nohooks
+      - run:
+          name: Fetch pinned Afterbird delta
+          command: |
+            set -eux
+            if [ "<< parameters.stage_index >>" -ne 1 ]; then
+              echo "Stage 2: reusing the exact source tree from stage 1; skipping fresh setup."
+              exit 0
+            fi
+            AFTERBIRD_DIR="$CIRCLE_WORKING_DIRECTORY/afterbird-delta"
+            AFTERBIRD_URL="https://github.com/danosito/afterbird.git"
+            AFTERBIRD_SHA="5ff224f9ef8f8a0792abd2babc9f7164e8dcdb3e"
+            mkdir -p "$AFTERBIRD_DIR"
+            git -C "$AFTERBIRD_DIR" init
+            git -C "$AFTERBIRD_DIR" remote add origin "$AFTERBIRD_URL"
+            git -C "$AFTERBIRD_DIR" fetch --depth=1 origin "$AFTERBIRD_SHA"
+            git -C "$AFTERBIRD_DIR" sparse-checkout init --no-cone
+            git -C "$AFTERBIRD_DIR" sparse-checkout set --no-cone \
+              'patches/m151/*.patch' \
+              'chrome/android/java/res_chromium_base/**' \
+              '.build/args/release.gn'
+            git -C "$AFTERBIRD_DIR" checkout --force --detach "$AFTERBIRD_SHA"
+            test "$(git -C "$AFTERBIRD_DIR" rev-parse HEAD)" = "$AFTERBIRD_SHA"
+            test -f "$AFTERBIRD_DIR/.build/args/release.gn"
+            test -d "$AFTERBIRD_DIR/patches/m151"
+            test -d "$AFTERBIRD_DIR/chrome/android/java/res_chromium_base"
+            echo "=== AFTERBIRD DELTA ==="
+            git -C "$AFTERBIRD_DIR" rev-parse HEAD
+            du -sh "$AFTERBIRD_DIR"
+      - run:
+          name: Install Chromium host build dependencies
+          command: |
+            set -eux
+            # Each CircleCI job gets a fresh VM; source/build outputs persist,
+            # but apt-installed host libraries do not.
+            export DEBIAN_FRONTEND=noninteractive
+            cd "$CIRCLE_WORKING_DIRECTORY/afterbird-chromium/src"
+            ./build/install-build-deps.sh --no-chromeos-fonts
+      - run:
+          name: Run Chromium hooks
+          command: |
+            set -eux
+            if [ "<< parameters.stage_index >>" -ne 1 ]; then
+              echo "Stage 2: reusing the exact source tree from stage 1; skipping fresh setup."
+              exit 0
+            fi
+            export PATH="$CIRCLE_WORKING_DIRECTORY/depot_tools:$PATH"
+            export DEPOT_TOOLS_UPDATE=0
+            cd "$CIRCLE_WORKING_DIRECTORY/afterbird-chromium"
+            gclient runhooks
+      - run:
+          name: Apply pinned Afterbird delta
+          command: |
+            set -eux
+            if [ "<< parameters.stage_index >>" -ne 1 ]; then
+              echo "Stage 2: reusing the exact source tree from stage 1; skipping fresh setup."
+              exit 0
+            fi
+            export PATH="$CIRCLE_WORKING_DIRECTORY/depot_tools:$PATH"
+            SRC_DIR="$CIRCLE_WORKING_DIRECTORY/afterbird-chromium/src"
+            AFTERBIRD_DIR="$CIRCLE_WORKING_DIRECTORY/afterbird-delta"
+            cd "$SRC_DIR"
+            git clean -ffd
+            mkdir -p "$SRC_DIR/chrome/android/java/res_chromium_base"
+            cp -a "$AFTERBIRD_DIR/chrome/android/java/res_chromium_base/." \
+              "$SRC_DIR/chrome/android/java/res_chromium_base/"
+            for patch in "$AFTERBIRD_DIR"/patches/m151/*.patch; do
+              echo "Applying $patch"
+              git apply --check "$patch"
+              git apply "$patch"
+            done
+            git status --short
+      - run:
+          name: Normalize Clang crash diagnostics path for REAPI
+          command: |
+            set -euo pipefail
+            SRC_DIR="$CIRCLE_WORKING_DIRECTORY/afterbird-chromium/src"
+            FILE="$SRC_DIR/build/config/compiler/compiler.gni"
+            test -s "$FILE"
+            OLD_COUNT="$(grep -Ec '^[[:space:]]*clang_diagnostic_dir = rebase_path\("//out/clang-crashreports", root_build_dir\)[[:space:]]*$' "$FILE" || true)"
+            NEW_COUNT="$(grep -Ec '^[[:space:]]*clang_diagnostic_dir = "clang-crashreports"[[:space:]]*$' "$FILE" || true)"
+            if [ "$OLD_COUNT" -eq 1 ] && [ "$NEW_COUNT" -eq 0 ]; then
+              sed -i 's#clang_diagnostic_dir = rebase_path("//out/clang-crashreports", root_build_dir)#clang_diagnostic_dir = "clang-crashreports"#' "$FILE"
+            elif [ "$OLD_COUNT" -ne 0 ] || [ "$NEW_COUNT" -ne 1 ]; then
+              echo "Unexpected clang_diagnostic_dir definition; refusing to patch an unknown compiler.gni layout." >&2
+              exit 1
+            fi
+            test "$(grep -Ec '^[[:space:]]*clang_diagnostic_dir = "clang-crashreports"[[:space:]]*$' "$FILE")" -eq 1
+            ! grep -Eq '^[[:space:]]*clang_diagnostic_dir = rebase_path\("//out/clang-crashreports", root_build_dir\)[[:space:]]*$' "$FILE"
+            echo "CLANG_DIAGNOSTIC_PATH_NORMALIZATION=PASS"
+
+      - run:
+          name: Configure Siso BuildBuddy REAPI and action cache
+          command: |
+            set -euo pipefail
+            export PATH="$CIRCLE_WORKING_DIRECTORY/depot_tools:$PATH"
+            SRC_DIR="$CIRCLE_WORKING_DIRECTORY/afterbird-chromium/src"
+            HELPER=/tmp/sandfox-buildbuddy-credential-helper.py
+            BACKEND=/tmp/sandfox-buildbuddy-backend.star
+            test -x "$HELPER"
+            REAPI_ADDRESS="$(printenv AFTERBIRD_REAPI_ADDRESS 2>/dev/null || true)"
+            REAPI_INSTANCE="$(printenv AFTERBIRD_REAPI_INSTANCE 2>/dev/null || true)"
+            [ -n "$REAPI_ADDRESS" ] || REAPI_ADDRESS=remote.buildbuddy.io:443
+            [ -n "$REAPI_INSTANCE" ] || REAPI_INSTANCE=default
+            printf '%s\n' \
+              '# SANDFOX BuildBuddy REAPI backend configuration.' \
+              'load("@builtin//struct.star", "module")' \
+              '' \
+              'def __platform_properties(ctx):' \
+              '    return {' \
+              '        "default": {' \
+              '            "OSFamily": "Linux",' \
+              '        },' \
+              '        "large": {' \
+              '            "OSFamily": "Linux",' \
+              '        },' \
+              '    }' \
+              '' \
+              'backend = module(' \
+              '    "backend",' \
+              '    platform_properties = __platform_properties,' \
+              ')' > "$BACKEND"
+            python3 "$SRC_DIR/build/config/siso/configure_siso.py" \
+              --reapi_instance "$REAPI_INSTANCE" \
+              --reapi_address "$REAPI_ADDRESS" \
+              --reapi_backend_config_path "$BACKEND" \
+              --credential-helper "$HELPER"
+            printf '%s\n' 'ninja -re_cache_enable_write=true' > "$SRC_DIR/build/config/siso/.sisorc"
+            printf 'export SISO_REAPI_ADDRESS=%q\n' "$REAPI_ADDRESS" >> "$BASH_ENV"
+            printf 'export SISO_REAPI_INSTANCE=%q\n' "$REAPI_INSTANCE" >> "$BASH_ENV"
+            echo 'export SISO_LIMITS=local=8,remote=80' >> "$BASH_ENV"
+            echo "=== CONFIGURED SISO REAPI ENDPOINT ==="
+            grep -E '^(SISO_REAPI_ADDRESS|SISO_REAPI_INSTANCE|SISO_CREDENTIAL_HELPER)=' "$SRC_DIR/build/config/siso/.sisoenv"
+            echo "=== SISO CACHE-WRITE CONFIG ==="
+            cat "$SRC_DIR/build/config/siso/.sisorc"
+            test -s "$SRC_DIR/build/config/siso/backend_config/backend.star"
+
+      - run:
+          name: Prepare canonical Afterbird GN args with remote Siso enabled
+          command: |
+            set -euo pipefail
+            RELEASE_ARGS="$CIRCLE_WORKING_DIRECTORY/afterbird-delta/.build/args/release.gn"
+            ARGS_FILE="$CIRCLE_WORKING_DIRECTORY/sandfox-release-args.gn"
+            test -s "$RELEASE_ARGS"
+            sed -E '/^[[:space:]]*(use_remoteexec|use_siso|use_reclient)[[:space:]]*=/d' "$RELEASE_ARGS" > "$ARGS_FILE"
+            printf '\nuse_remoteexec = true\nuse_siso = true\nuse_reclient = false\n' >> "$ARGS_FILE"
+            test "$(grep -Ec '^use_remoteexec = true$' "$ARGS_FILE")" -eq 1
+            test "$(grep -Ec '^use_siso = true$' "$ARGS_FILE")" -eq 1
+            test "$(grep -Ec '^use_reclient = false$' "$ARGS_FILE")" -eq 1
+            echo "=== EXPLICIT REMOTE BUILD GN ARGS ==="
+            grep -E '^(use_remoteexec|use_siso|use_reclient) = ' "$ARGS_FILE"
+
+      - run:
+          name: Restore matching checkpoint or prepare fresh GN graph
+          command: |
+            set -eux
+            export PATH="$CIRCLE_WORKING_DIRECTORY/depot_tools:$PATH"
+            SRC_DIR="$CIRCLE_WORKING_DIRECTORY/afterbird-chromium/src"
+            OUT_DIR="$SRC_DIR/out/afterbird_production"
+            AFTERBIRD_DIR="$CIRCLE_WORKING_DIRECTORY/afterbird-delta"
+            CHROMIUM_TAG="151.0.7922.38"
+            AFTERBIRD_SHA="5ff224f9ef8f8a0792abd2babc9f7164e8dcdb3e"
+            ARGS_FILE="$CIRCLE_WORKING_DIRECTORY/sandfox-release-args.gn"
+            SISO_ENV_FILE="$SRC_DIR/build/config/siso/.sisoenv"
+            SISO_RC_FILE="$SRC_DIR/build/config/siso/.sisorc"
+            SISO_BACKEND_FILE="$SRC_DIR/build/config/siso/backend_config/backend.star"
+            test -s "$ARGS_FILE"
+            test -s "$SISO_ENV_FILE"
+            test -s "$SISO_RC_FILE"
+            test -s "$SISO_BACKEND_FILE"
+            test "$(git -C "$SRC_DIR" describe --tags --exact-match)" = "$CHROMIUM_TAG"
+            test "$(git -C "$AFTERBIRD_DIR" rev-parse HEAD)" = "$AFTERBIRD_SHA"
+            ARGS_SHA="$(sha256sum "$ARGS_FILE" | awk '{print $1}')"
+            SISO_ENV_SHA="$(sha256sum "$SISO_ENV_FILE" | awk '{print $1}')"
+            SISO_RC_SHA="$(sha256sum "$SISO_RC_FILE" | awk '{print $1}')"
+            SISO_BACKEND_SHA="$(sha256sum "$SISO_BACKEND_FILE" | awk '{print $1}')"
+            CLANG_COMPILER_GNI_SHA="$(sha256sum "$SRC_DIR/build/config/compiler/compiler.gni" | awk '{print $1}')"
+            CHROMIUM_SHA="$(git -C "$SRC_DIR" rev-parse HEAD)"
+            printf '%s\n' \
+              'schema=5' \
+              'source_timestamp_policy=epoch_946684800_full_tree_v1' \
+              'siso_state_policy=journal_only_recovery_v1' \
+              "clang_compiler_gni_sha=$CLANG_COMPILER_GNI_SHA" \
+              "chromium_tag=$CHROMIUM_TAG" \
+              "chromium_sha=$CHROMIUM_SHA" \
+              "afterbird_sha=$AFTERBIRD_SHA" \
+              "args_sha=$ARGS_SHA" \
+              "siso_env_sha=$SISO_ENV_SHA" \
+              "siso_rc_sha=$SISO_RC_SHA" \
+              "siso_backend_sha=$SISO_BACKEND_SHA" \
+              'target=//chrome/android:chrome_public_apk' \
+              'out=out/afterbird_production' \
+              'target_cpu=arm64' \
+              > "$CIRCLE_WORKING_DIRECTORY/current-checkpoint.meta"
+
+            RESTORED="false"
+            CHECKPOINT_STATE_MODE="FRESH"
+            if [ -s "$CIRCLE_WORKING_DIRECTORY/checkpoint.tar.zst" ] \
+               && [ -s "$CIRCLE_WORKING_DIRECTORY/checkpoint.meta" ]; then
+              if cmp -s "$CIRCLE_WORKING_DIRECTORY/current-checkpoint.meta" \
+                        "$CIRCLE_WORKING_DIRECTORY/checkpoint.meta"; then
+                echo "Checkpoint fingerprint matches pinned build inputs."
+                if tar -x -I 'zstd -T0 -d' \
+                     -f "$CIRCLE_WORKING_DIRECTORY/checkpoint.tar.zst" -C "$SRC_DIR"; then
+                  STATE_FILE="$OUT_DIR/.siso_fs_state"
+                  JOURNAL_FILE="$STATE_FILE.journal"
+                  if [ -s "$OUT_DIR/build.ninja" ] \
+                     && [ -s "$OUT_DIR/args.gn" ] \
+                     && cmp -s "$ARGS_FILE" "$OUT_DIR/args.gn"; then
+                    if [ -s "$STATE_FILE" ]; then
+                      RESTORED="true"
+                      if [ -s "$JOURNAL_FILE" ]; then
+                        CHECKPOINT_STATE_MODE="BASE_AND_JOURNAL"
+                        echo "CHECKPOINT_JOURNAL=DEFERRED_TO_SISO_STARTUP; Siso must reconcile the restored journal."
+                      else
+                        CHECKPOINT_STATE_MODE="BASE_ONLY"
+                      fi
+                    elif [ -s "$JOURNAL_FILE" ]; then
+                      # Pinned Siso supports a missing base: it replays a valid journal
+                      # into an empty state and saves the recovered base. Preserve outputs.
+                      RESTORED="true"
+                      CHECKPOINT_STATE_MODE="JOURNAL_ONLY"
+                      echo "CHECKPOINT_RESTORE=JOURNAL_ONLY_RECOVERY_REQUIRED"
+                      echo "CHECKPOINT_JOURNAL_BYTES=$(stat -c '%s' "$JOURNAL_FILE")"
+                    else
+                      echo "Checkpoint has matching graph/args but neither a base state nor a nonempty journal."
+                      rm -rf "$OUT_DIR"
+                    fi
+                  else
+                    echo "Checkpoint is missing build graph or matching GN args."
+                    rm -rf "$OUT_DIR"
+                  fi
+                else
+                  echo "Checkpoint extraction failed; rejecting it."
+                  rm -rf "$OUT_DIR"
+                fi
+              else
+                echo "Checkpoint fingerprint mismatch; refusing stale outputs."
+                diff -u "$CIRCLE_WORKING_DIRECTORY/checkpoint.meta" \
+                        "$CIRCLE_WORKING_DIRECTORY/current-checkpoint.meta" || true
+              fi
+            else
+              echo "No previous checkpoint was found in CircleCI cache."
+            fi
+
+            if [ "$RESTORED" = "true" ]; then
+              echo "CHECKPOINT_RESTORE=ACCEPTED mode=$CHECKPOINT_STATE_MODE"
+              echo "CHECKPOINT_ARCHIVE_SHA256=$(sha256sum "$CIRCLE_WORKING_DIRECTORY/checkpoint.tar.zst" | awk '{print $1}')"
+              if [ -s "$OUT_DIR/.siso_fs_state" ]; then
+                echo "RESTORED_SISO_STATE_SHA256=$(sha256sum "$OUT_DIR/.siso_fs_state" | awk '{print $1}')"
+              fi
+              if [ -s "$OUT_DIR/.siso_fs_state.journal" ]; then
+                echo "RESTORED_SISO_JOURNAL_SHA256=$(sha256sum "$OUT_DIR/.siso_fs_state.journal" | awk '{print $1}')"
+              fi
+              RESTORED_OBJECTS="$(find "$OUT_DIR/obj" -type f -name '*.o' 2>/dev/null | wc -l | tr -d ' ')"
+              echo "RESTORED_OBJECT_COUNT=$RESTORED_OBJECTS"
+            elif [ "<< parameters.stage_index >>" -eq 1 ]; then
+              rm -rf "$OUT_DIR"
+              mkdir -p "$OUT_DIR"
+              cp "$ARGS_FILE" "$OUT_DIR/args.gn"
+              cd "$SRC_DIR"
+              gn gen "$OUT_DIR"
+              CHECKPOINT_STATE_MODE="FRESH"
+              echo "CHECKPOINT_RESTORE=MISS_OR_REJECTED; GN_SETUP=FRESH"
+            else
+              echo "Stage << parameters.stage_index >> could not restore a valid matching checkpoint; refusing a false resume." >&2
+              exit 1
+            fi
+
+            echo "export CHECKPOINT_RESTORED=$RESTORED" >> "$BASH_ENV"
+            echo "export CHECKPOINT_STATE_MODE=$CHECKPOINT_STATE_MODE" >> "$BASH_ENV"
+            STAGE_START_OBJECTS="$(find "$OUT_DIR/obj" -type f -name '*.o' 2>/dev/null | wc -l | tr -d ' ')"
+            STAGE_START_OUTPUTS="$(find "$OUT_DIR/obj" "$OUT_DIR/gen" "$OUT_DIR/apks" -type f 2>/dev/null | wc -l | tr -d ' ')"
+            echo "export STAGE_START_OBJECTS=$STAGE_START_OBJECTS" >> "$BASH_ENV"
+            echo "export STAGE_START_OUTPUTS=$STAGE_START_OUTPUTS" >> "$BASH_ENV"
+            echo "STAGE_START_OBJECT_COUNT=$STAGE_START_OBJECTS"
+            echo "STAGE_START_BUILD_OUTPUT_COUNT=$STAGE_START_OUTPUTS"
+            echo "=== OUTPUT SIZE ==="
+            du -sh "$OUT_DIR"
+            echo "=== DISK AFTER RESTORE / GN ==="
+            df -hT
+
+            FRONTIER_FILE="$CIRCLE_WORKING_DIRECTORY/stage-frontier-cumulative.txt"
+            FRONTIER_BEFORE="$CIRCLE_WORKING_DIRECTORY/stage-frontier-before.txt"
+            if [ "$RESTORED" = "true" ] && [ -s "$FRONTIER_FILE" ]; then
+              cp "$FRONTIER_FILE" "$FRONTIER_BEFORE"
+            elif [ "<< parameters.stage_index >>" -ne 1 ]; then
+              echo "CHECKPOINT_FRONTIER=REJECTED; continuation checkpoint lacks a cumulative action-label frontier." >&2
+              exit 1
+            else
+              rm -f "$FRONTIER_FILE" "$FRONTIER_BEFORE"
+            fi
+
+            if [ "<< parameters.stage_index >>" -eq 1 ]; then
+              echo "export CHECKPOINT_RESTORED=$RESTORED" >> "$BASH_ENV"
+            else
+              echo "export CHECKPOINT_RESTORED=$RESTORED" >> "$BASH_ENV"
+            fi
+            STAGE_START_OBJECTS="$(find "$OUT_DIR/obj" -type f -name '*.o' 2>/dev/null | wc -l | tr -d ' ')"
+            STAGE_START_OUTPUTS="$(find "$OUT_DIR/obj" "$OUT_DIR/gen" "$OUT_DIR/apks" -type f 2>/dev/null | wc -l | tr -d ' ')"
+            echo "export STAGE_START_OBJECTS=$STAGE_START_OBJECTS" >> "$BASH_ENV"
+            echo "export STAGE_START_OUTPUTS=$STAGE_START_OUTPUTS" >> "$BASH_ENV"
+            echo "STAGE_START_OBJECT_COUNT=$STAGE_START_OBJECTS"
+            echo "STAGE_START_BUILD_OUTPUT_COUNT=$STAGE_START_OUTPUTS"
+            echo "=== OUTPUT SIZE ==="
+            du -sh "$OUT_DIR"
+            echo "=== DISK AFTER RESTORE / GN ==="
+            df -hT
+
+      - run:
+          name: Normalize source filesystem baseline for Siso continuation
+          command: |
+            set -euo pipefail
+            SRC_DIR="$CIRCLE_WORKING_DIRECTORY/afterbird-chromium/src"
+            SRC_OUT="$SRC_DIR/out"
+            OUT_DIR="$SRC_OUT/afterbird_production"
+            SOURCE_TIMESTAMP_EPOCH=946684800
+            test -s "$SRC_DIR/DEPS"
+            test -s "$SRC_DIR/build/config/compiler/compiler.gni"
+            test -s "$OUT_DIR/build.ninja"
+            test -e "$OUT_DIR/build.ninja.stamp"
+
+            # Run after checkpoint extraction or fresh GN generation. Normalize
+            # files, directories, and symlinks, while preserving Git metadata and out/.
+            # Extracting out/ after normalization would change the source-root mtime.
+            find "$SRC_DIR" \
+              \( -name .git -o -path "$SRC_OUT" \) -prune -o \
+              -exec touch -h -d "@$SOURCE_TIMESTAMP_EPOCH" {} +
+
+            for path in \
+              "$SRC_DIR" \
+              "$SRC_DIR/DEPS" \
+              "$SRC_DIR/build/config/compiler/compiler.gni" \
+              "$SRC_DIR/third_party/icu/common/icudtl.dat"; do
+              test -e "$path" || { echo "SOURCE_TIMESTAMP_VERIFY=FAIL missing=$path" >&2; exit 1; }
+              actual="$(stat -c '%Y' "$path")"
+              test "$actual" -eq "$SOURCE_TIMESTAMP_EPOCH" || {
+                echo "SOURCE_TIMESTAMP_VERIFY=FAIL path=$path actual=$actual expected=$SOURCE_TIMESTAMP_EPOCH" >&2
+                exit 1
+              }
+            done
+            stamp_time="$(stat -c '%Y' "$OUT_DIR/build.ninja.stamp")"
+            test "$stamp_time" -gt "$SOURCE_TIMESTAMP_EPOCH" || {
+              echo "SOURCE_TIMESTAMP_VERIFY=FAIL build.ninja.stamp is not newer than normalized source inputs" >&2
+              exit 1
+            }
+            echo "SOURCE_TIMESTAMP_POLICY=epoch_946684800_full_tree_v1"
+            echo "SOURCE_TIMESTAMP_VERIFY=PASS source_epoch=$SOURCE_TIMESTAMP_EPOCH build_ninja_stamp_epoch=$stamp_time"
+
+      - run:
+          name: Ensure Siso generator action pool is eight
+          command: |
+            set -euo pipefail
+            OUT_DIR="$CIRCLE_WORKING_DIRECTORY/afterbird-chromium/src/out/afterbird_production"
+            BUILD_NINJA="$OUT_DIR/build.ninja"
+            test -s "$BUILD_NINJA"
+            python3 -c '
+            import pathlib, sys
+            path = pathlib.Path(sys.argv[1])
+            lines = path.read_text().splitlines()
+            matches = [i for i, line in enumerate(lines) if line == "pool build_toolchain_action_pool"]
+            if len(matches) != 1:
+                raise SystemExit("Expected exactly one build_toolchain_action_pool definition; found " + str(len(matches)))
+            i = matches[0]
+            if i + 1 >= len(lines) or not lines[i + 1].strip().startswith("depth = "):
+                raise SystemExit("Pool depth line missing or has unexpected format")
+            current = int(lines[i + 1].strip().split("=", 1)[1])
+            if current < 8:
+                lines[i + 1] = "  depth = 8"
+                path.write_text(chr(10).join(lines) + chr(10))
+            print("build_toolchain_action_pool depth:", current, "->", max(current, 8))
+            ' "$BUILD_NINJA"
+            grep -A 1 '^pool build_toolchain_action_pool$' "$BUILD_NINJA"
+
+      - run:
+          name: Validate APK target and enforce remote-execution configuration
+          command: |
+            set -euo pipefail
+            export PATH="$CIRCLE_WORKING_DIRECTORY/depot_tools:$PATH"
+            SRC_DIR="$CIRCLE_WORKING_DIRECTORY/afterbird-chromium/src"
+            OUT_DIR="$SRC_DIR/out/afterbird_production"
+            SISO_ENV_FILE="$SRC_DIR/build/config/siso/.sisoenv"
+            SISO_RC_FILE="$SRC_DIR/build/config/siso/.sisorc"
+            SISO_BACKEND_FILE="$SRC_DIR/build/config/siso/backend_config/backend.star"
+            HELPER=/tmp/sandfox-buildbuddy-credential-helper.py
+            export PATH="$SRC_DIR/buildtools/linux64:$PATH"
+            cd "$SRC_DIR"
+            test -s "$OUT_DIR/build.ninja"
+            if grep -Fq -- '-fcrash-diagnostics-dir=../clang-crashreports' "$OUT_DIR/build.ninja"; then
+              echo "REAPI_DIAGNOSTIC_PATH_GATE=FAIL; generated build.ninja still contains a parent-relative crash diagnostics path." >&2
+              exit 1
+            fi
+            # GN may encode this compiler argument differently in build.ninja;
+            # the source setting is checked before GN generation. Here reject only
+            # the exact parent-relative argument that REAPI rejected.
+            echo "REAPI_DIAGNOSTIC_PATH_GATE=PASS"
+            test -s "$OUT_DIR/args.gn"
+            grep -Fx 'use_remoteexec = true' "$OUT_DIR/args.gn"
+            grep -Fx 'use_siso = true' "$OUT_DIR/args.gn"
+            grep -Fx 'use_reclient = false' "$OUT_DIR/args.gn"
+            test -s "$SISO_ENV_FILE"
+            grep -Eq '^SISO_REAPI_ADDRESS=.+:443$' "$SISO_ENV_FILE"
+            grep -Eq '^SISO_REAPI_INSTANCE=.+$' "$SISO_ENV_FILE"
+            grep -Fx "SISO_CREDENTIAL_HELPER=$HELPER" "$SISO_ENV_FILE"
+            test -x "$HELPER"
+            grep -Fx 'ninja -re_cache_enable_write=true' "$SISO_RC_FILE"
+            test -s "$SISO_BACKEND_FILE"
+            command -v autoninja >/dev/null
+            TARGET="$(gn ls "$OUT_DIR" //chrome/android:chrome_public_apk)"
+            test "$TARGET" = "//chrome/android:chrome_public_apk"
+            echo "REMOTE_EXECUTION_CONFIG_GATE=PASS"
+            echo "STRICT_REMOTE_GATE=ENABLED_IN_BUILD_COMMAND"
+            echo "=== PRE-BUILD DISK ==="
+            df -hT
+            echo "=== PRE-BUILD RAM ==="
+            free -h
+            echo "=== SOURCE SIZE ==="
+            du -sh "$SRC_DIR"
+            echo "=== OUTPUT SIZE ==="
+            du -sh "$OUT_DIR"
+            echo "=== SISO STATE AT BUILD START ==="
+            ls -lh "$OUT_DIR"/.siso_fs_state* 2>&1 || true
+            echo "CHECKPOINT_RESTORED=$(printenv CHECKPOINT_RESTORED || true)"
+            echo "STAGE_START_OBJECT_COUNT=$(printenv STAGE_START_OBJECTS || true)"
+            echo "STAGE_START_BUILD_OUTPUT_COUNT=$(printenv STAGE_START_OUTPUTS || true)"
+
+      - run:
+          name: Build bounded Siso slice and save checkpoint
+          no_output_timeout: 50m
+          command: |
+            set -eu
+            export PATH="$CIRCLE_WORKING_DIRECTORY/depot_tools:$PATH"
+            SRC_DIR="$CIRCLE_WORKING_DIRECTORY/afterbird-chromium/src"
+            OUT_DIR="$SRC_DIR/out/afterbird_production"
+            BUILD_LOG="$CIRCLE_WORKING_DIRECTORY/build_stdout.log"
+            DIAG="$CIRCLE_WORKING_DIRECTORY/stage-diag.txt"
+            APK="$OUT_DIR/apks/ChromePublic.apk"
+            MAX_STAGE_WALL_SECONDS=2820
+            : > "$BUILD_LOG"
+            : > "$DIAG"
+            : > "$CIRCLE_WORKING_DIRECTORY/siso_output.txt"
+            : > "$CIRCLE_WORKING_DIRECTORY/siso_failed_targets.txt"
+            START_TS="${STAGE_START_TS:-$(date +%s)}"
+            ELAPSED=$(( $(date +%s) - START_TS ))
+            REMAINING=$(( MAX_STAGE_WALL_SECONDS - ELAPSED ))
+            RET=124
+            {
+              echo "stage=<< parameters.stage_index >>"
+              echo "stage_started_epoch=$START_TS"
+              echo "build_start_epoch=$(date +%s)"
+              echo "elapsed_before_compile_seconds=$ELAPSED"
+              echo "stage_wall_budget_seconds=$MAX_STAGE_WALL_SECONDS"
+              echo "remaining_compile_seconds=$REMAINING"
+              echo "checkpoint_restored=${CHECKPOINT_RESTORED:-unknown}"
+              echo "checkpoint_state_mode=${CHECKPOINT_STATE_MODE:-unknown}"
+              echo "chromium_tag=151.0.7922.38"
+              echo "afterbird_sha=5ff224f9ef8f8a0792abd2babc9f7164e8dcdb3e"
+              echo "source_timestamp_policy=epoch_946684800_full_tree_v1"
+              echo "checkpoint_identity:"
+              cat "$CIRCLE_WORKING_DIRECTORY/current-checkpoint.meta"
+              echo
+              echo "=== SISO STATE BEFORE COMPILE ==="
+              ls -lh "$OUT_DIR"/.siso_fs_state* 2>&1 || true
+            } | tee -a "$DIAG"
+            METRICS_FILE="$OUT_DIR/sandfox-stage-metrics.jsonl"
+            METRICS_ARTIFACT="$CIRCLE_WORKING_DIRECTORY/siso-stage-metrics.jsonl"
+            COUNT_FILE="$CIRCLE_WORKING_DIRECTORY/siso-metric-counts.txt"
+            CACHE_ACTIONS=0
+            LOCAL_ACTIONS=0
+            NO_EXEC_ACTIONS=0
+            METRIC_ACTION_RECORDS=0
+            METRIC_RECORDS=0
+            METRICS_PRESENT=false
+            REMOTE_EXEC_LOG_COUNT=0
+            HANDOVER_GATE_FAILED=false
+            JOURNAL_RECOVERY_FAILED=false
+            JOURNAL_RECOVERY_EXPECTED=false
+            JOURNAL_RECOVERY_PASSED=false
+            CHECKPOINT_STATE_MODE="${CHECKPOINT_STATE_MODE:-UNKNOWN}"
+            SISO_INFO_FILE="$OUT_DIR/siso.INFO"
+            SISO_INFO_BASELINE="$CIRCLE_WORKING_DIRECTORY/siso.INFO.before-stage"
+            if [ -s "$SISO_INFO_FILE" ]; then
+              cp "$SISO_INFO_FILE" "$SISO_INFO_BASELINE"
+            else
+              : > "$SISO_INFO_BASELINE"
+            fi
+            case "$CHECKPOINT_STATE_MODE" in
+              JOURNAL_ONLY|BASE_AND_JOURNAL) JOURNAL_RECOVERY_EXPECTED=true ;;
+            esac
+            OBJECTS_BEFORE="$(printenv STAGE_START_OBJECTS 2>/dev/null || true)"
+            OUTPUTS_BEFORE="$(printenv STAGE_START_OUTPUTS 2>/dev/null || true)"
+            [ -n "$OBJECTS_BEFORE" ] || OBJECTS_BEFORE=0
+            [ -n "$OUTPUTS_BEFORE" ] || OUTPUTS_BEFORE=0
+            current_siso_info_lines() {
+              [ -f "$SISO_INFO_FILE" ] || return 0
+              if cmp -s "$SISO_INFO_BASELINE" "$SISO_INFO_FILE"; then
+                return 0
+              fi
+              diff -U0 "$SISO_INFO_BASELINE" "$SISO_INFO_FILE" 2>/dev/null | sed -n '/^+/ { /^+++/d; s/^+//; p; }' || true
+            }
+            fresh_siso_info_matches() {
+              FRESH_SISO_PATTERN="$1"
+              current_siso_info_lines | grep -Eiq "$FRESH_SISO_PATTERN"
+            }
+            journal_recovery_log_seen() {
+              if grep -Eiq 'reconcile from journal [1-9][0-9]* entries \(broken=false\)' "$BUILD_LOG" 2>/dev/null; then
+                return 0
+              fi
+              fresh_siso_info_matches 'reconcile from journal [1-9][0-9]* entries \(broken=false\)'
+            }
+            remote_exec_seen() {
+              REMOTE_SIGNATURE_PATTERN='is_local=false|use reapi "remote\\.buildbuddy\\.io:443"|step state: remote exec|exec remote execute'
+              if grep -hi -E "$REMOTE_SIGNATURE_PATTERN" "$BUILD_LOG" 2>/dev/null | grep -q .; then
+                return 0
+              fi
+              if fresh_siso_info_matches "$REMOTE_SIGNATURE_PATTERN"; then
+                return 0
+              fi
+              grep -Eq '"is_remote"[[:space:]]*:[[:space:]]*true' "$OUT_DIR/sandfox-stage-metrics.jsonl" 2>/dev/null
+            }
+            rm -f "$METRICS_FILE"
+            : > "$METRICS_ARTIFACT"
+            : > "$COUNT_FILE"
+            if [ -s "$APK" ]; then
+              echo "APK already exists in restored output; no compile slice needed." | tee -a "$DIAG"
+              RET=0
+            elif [ "$REMAINING" -le 0 ]; then
+              echo "Setup consumed the stage wall budget; preserving the existing checkpoint." | tee -a "$DIAG"
+              RET=124
+            else
+              echo "Running autoninja/Siso with strict remote execution for at most $REMAINING seconds." | tee -a "$DIAG"
+              export SISO_LIMITS=local=8,remote=80
+              set +e
+              # Start the build in its own process group so a failed early
+              # remote-execution gate can stop the whole build, not just tee.
+              setsid -w timeout --signal=INT --kill-after=90s "$REMAINING"s \
+                bash -c 'set -o pipefail; autoninja -strict_remote -metrics_json sandfox-stage-metrics.jsonl -C "$1" -j80 chrome_public_apk 2>&1 | tee "$2"' \
+                _ "$OUT_DIR" "$BUILD_LOG" &
+              BUILD_PID=$!
+              REMOTE_GATE_SECONDS=240
+              REMOTE_GATE_INTERVAL=15
+              REMOTE_GATE_ELAPSED=0
+              REMOTE_GATE_PASSED=false
+              while [ "$REMOTE_GATE_ELAPSED" -lt "$REMOTE_GATE_SECONDS" ]; do
+                if grep -Fq 'Regenerating ninja files' "$BUILD_LOG" 2>/dev/null; then
+                  echo "INCREMENTAL_HANDOVER_GATE=FAIL; GN regenerated despite the normalized source baseline. Stopping before spending the stage compile budget." | tee -a "$DIAG" >&2
+                  HANDOVER_GATE_FAILED=true
+                  break
+                fi
+                if [ "$JOURNAL_RECOVERY_EXPECTED" = true ] && [ "$JOURNAL_RECOVERY_PASSED" != true ]; then
+                  if journal_recovery_log_seen; then
+                    if [ -s "$OUT_DIR/.siso_fs_state" ]; then
+                      JOURNAL_RECOVERY_PASSED=true
+                      echo "SISO_JOURNAL_RECOVERY=PASS mode=$CHECKPOINT_STATE_MODE; current-stage journal reconciliation created a valid base state." | tee -a "$DIAG"
+                    fi
+                  elif remote_exec_seen; then
+                    echo "SISO_JOURNAL_RECOVERY=FAIL; remote execution began before current-stage journal reconciliation was confirmed. Stopping to prevent a silent cold resume." | tee -a "$DIAG" >&2
+                    JOURNAL_RECOVERY_FAILED=true
+                    break
+                  fi
+                fi
+                if remote_exec_seen; then
+                  if [ "$JOURNAL_RECOVERY_EXPECTED" = true ] && [ "$JOURNAL_RECOVERY_PASSED" != true ]; then
+                    echo "SISO_JOURNAL_RECOVERY=FAIL; refusing to accept remote work without confirmed journal replay." | tee -a "$DIAG" >&2
+                    JOURNAL_RECOVERY_FAILED=true
+                    break
+                  fi
+                  REMOTE_GATE_PASSED=true
+                  echo "EARLY_REMOTE_EXECUTION_GATE=PASS elapsed_seconds=$REMOTE_GATE_ELAPSED" | tee -a "$DIAG"
+                  break
+                fi
+                if ! kill -0 "$BUILD_PID" 2>/dev/null; then
+                  break
+                fi
+                sleep "$REMOTE_GATE_INTERVAL"
+                REMOTE_GATE_ELAPSED=$((REMOTE_GATE_ELAPSED + REMOTE_GATE_INTERVAL))
+              done
+              if [ "$HANDOVER_GATE_FAILED" = true ] || [ "$JOURNAL_RECOVERY_FAILED" = true ]; then
+                kill -INT -- "-$BUILD_PID" 2>/dev/null || true
+                sleep 5
+                kill -TERM -- "-$BUILD_PID" 2>/dev/null || true
+                sleep 5
+                kill -KILL -- "-$BUILD_PID" 2>/dev/null || true
+                wait "$BUILD_PID"
+                RET=125
+              elif [ "$REMOTE_GATE_PASSED" != true ] && kill -0 "$BUILD_PID" 2>/dev/null; then
+                echo "EARLY_REMOTE_EXECUTION_GATE=FAIL; no current-stage REAPI evidence within $REMOTE_GATE_SECONDS seconds; stopping build to avoid wasting the stage." | tee -a "$DIAG" >&2
+                kill -INT -- "-$BUILD_PID" 2>/dev/null || true
+                sleep 10
+                kill -TERM -- "-$BUILD_PID" 2>/dev/null || true
+                sleep 5
+                kill -KILL -- "-$BUILD_PID" 2>/dev/null || true
+                wait "$BUILD_PID"
+                RET=125
+              else
+                if [ "$REMOTE_GATE_PASSED" = true ]; then
+                  echo "INCREMENTAL_HANDOVER_GATE=PASS; no Ninja regeneration and current-stage remote execution confirmed." | tee -a "$DIAG"
+                fi
+                wait "$BUILD_PID"
+                RET=$?
+                if [ "$REMOTE_GATE_PASSED" != true ] && [ ! -s "$APK" ]; then
+                  echo "EARLY_REMOTE_EXECUTION_GATE=FAIL; build ended before current-stage remote execution could be verified." | tee -a "$DIAG" >&2
+                  RET=125
+                fi
+              fi
+              set -e
+            fi
+            if [ -s "$APK" ]; then
+              echo "APK_PRESENT_AFTER_BUILD=true" | tee -a "$DIAG"
+              RET=0
+            elif [ "$RET" -eq 0 ]; then
+              echo "BUILD_FAILURE: autoninja returned success but ChromePublic.apk is missing." | tee -a "$DIAG"
+              RET=1
+            fi
+            echo "autoninja_exit_code=$RET" | tee -a "$DIAG"
+            siso_alive() { pgrep -x siso >/dev/null 2>&1; }
+            SISO_FORCED_KILL=0
+            for _ in $(seq 1 60); do
+              siso_alive || break
+              sleep 2
+            done
+            if siso_alive; then
+              echo "SISO_SHUTDOWN=FAILED; refusing to checkpoint while Siso may still write." | tee -a "$DIAG"
+              PIDS="$(pgrep -x siso || true)"
+              if [ -n "$PIDS" ]; then
+                kill -KILL $PIDS 2>/dev/null || true
+              fi
+              SISO_FORCED_KILL=1
+            else
+              echo "SISO_SHUTDOWN=CLEAN" | tee -a "$DIAG"
+            fi
+            if [ -s "$METRICS_FILE" ]; then
+              METRICS_PRESENT=true
+              cp "$METRICS_FILE" "$METRICS_ARTIFACT"
+              METRIC_RECORDS="$(wc -l < "$METRICS_FILE" | tr -d ' ')"
+              METRIC_PARSER="$CIRCLE_WORKING_DIRECTORY/parse-siso-metrics.py"
+              printf '%s\n' \
+                '#!/usr/bin/env python3' \
+                'import json' \
+                'import sys' \
+                '' \
+                'action_records = 0' \
+                'cached = 0' \
+                'local = 0' \
+                'no_exec = 0' \
+                'with open(sys.argv[1], encoding="utf-8") as source:' \
+                '    for line_number, line in enumerate(source, 1):' \
+                '        if not line.strip():' \
+                '            continue' \
+                '        try:' \
+                '            record = json.loads(line)' \
+                '        except json.JSONDecodeError as exc:' \
+                '            raise SystemExit(f"Invalid Siso JSONL at line {line_number}: {exc}")' \
+                '        if not isinstance(record, dict) or "step_id" not in record or not isinstance(record.get("outputs"), list):' \
+                '            continue' \
+                '        action_records += 1' \
+                '        cached += record.get("cached") is True' \
+                '        local += record.get("is_local") is True' \
+                '        no_exec += record.get("no_exec") is True' \
+                '' \
+                'print(f"metric_action_record_count={action_records}")' \
+                'print(f"cache_action_count={cached}")' \
+                'print(f"local_action_count={local}")' \
+                'print(f"no_exec_action_count={no_exec}")' \
+                > "$METRIC_PARSER"
+              python3 "$METRIC_PARSER" "$METRICS_ARTIFACT" > "$COUNT_FILE"
+              METRIC_ACTION_RECORDS="$(sed -n 's/^metric_action_record_count=//p' "$COUNT_FILE" | tail -n 1)"
+              CACHE_ACTIONS="$(sed -n 's/^cache_action_count=//p' "$COUNT_FILE" | tail -n 1)"
+              LOCAL_ACTIONS="$(sed -n 's/^local_action_count=//p' "$COUNT_FILE" | tail -n 1)"
+              NO_EXEC_ACTIONS="$(sed -n 's/^no_exec_action_count=//p' "$COUNT_FILE" | tail -n 1)"
+            else
+              echo "SISO_METRICS_FILE=MISSING" | tee -a "$DIAG"
+            fi
+            # This counts distinct remote-execution log signatures, not actual
+            # remote actions; Siso JSONL does not contain an is_remote field.
+            REMOTE_EXEC_LOG_COUNT="$(
+              {
+                grep -hi -E 'is_local=false|use reapi "remote\.buildbuddy\.io:443"|step state: remote exec|exec remote execute' "$BUILD_LOG" 2>/dev/null || true
+                current_siso_info_lines | grep -hi -E 'is_local=false|use reapi "remote\.buildbuddy\.io:443"|step state: remote exec|exec remote execute' || true
+              } | sort -u | wc -l | tr -d ' '
+            )"
+            echo "SISO_METRIC_RECORD_COUNT=$METRIC_RECORDS" | tee -a "$DIAG"
+            echo "SISO_METRIC_ACTION_RECORD_COUNT=$METRIC_ACTION_RECORDS" | tee -a "$DIAG"
+            echo "SISO_CACHE_ACTION_RECORD_COUNT=$CACHE_ACTIONS" | tee -a "$DIAG"
+            echo "SISO_LOCAL_ACTION_RECORD_COUNT=$LOCAL_ACTIONS" | tee -a "$DIAG"
+            echo "SISO_NO_EXEC_ACTION_RECORD_COUNT=$NO_EXEC_ACTIONS" | tee -a "$DIAG"
+            echo "REMOTE_EXEC_LOG_SIGNATURE_COUNT=$REMOTE_EXEC_LOG_COUNT" | tee -a "$DIAG"
+            rm -f "$METRICS_FILE"
+
+            FRONTIER_FILE="$CIRCLE_WORKING_DIRECTORY/stage-frontier-cumulative.txt"
+            FRONTIER_BEFORE="$CIRCLE_WORKING_DIRECTORY/stage-frontier-before.txt"
+            FRONTIER_CURRENT="$CIRCLE_WORKING_DIRECTORY/stage-frontier-current.txt"
+            FRONTIER_NEW="$CIRCLE_WORKING_DIRECTORY/stage-frontier-new.txt"
+            FRONTIER_NEXT="$CIRCLE_WORKING_DIRECTORY/stage-frontier-next.txt"
+            sed -nE 's/^\[[0-9]+\/[0-9]+\][[:space:]]+[^[:space:]]+[[:space:]]+F[[:space:]]+(.*)$/\1/p' "$BUILD_LOG" \
+              | LC_ALL=C sort -u > "$FRONTIER_CURRENT"
+            grep -Fvx 'Regenerating ninja files' "$FRONTIER_CURRENT" > "$FRONTIER_NEXT" || true
+            mv "$FRONTIER_NEXT" "$FRONTIER_CURRENT"
+            FRONTIER_COMPLETED_LABEL_COUNT="$(wc -l < "$FRONTIER_CURRENT" | tr -d ' ')"
+            FRONTIER_PRIOR_LABEL_COUNT=0
+            if [ -s "$FRONTIER_BEFORE" ]; then
+              FRONTIER_PRIOR_LABEL_COUNT="$(wc -l < "$FRONTIER_BEFORE" | tr -d ' ')"
+              comm -23 "$FRONTIER_CURRENT" "$FRONTIER_BEFORE" > "$FRONTIER_NEW"
+              cat "$FRONTIER_BEFORE" "$FRONTIER_CURRENT" | LC_ALL=C sort -u > "$FRONTIER_NEXT"
+              mv "$FRONTIER_NEXT" "$FRONTIER_FILE"
+            else
+              cp "$FRONTIER_CURRENT" "$FRONTIER_NEW"
+              cp "$FRONTIER_CURRENT" "$FRONTIER_FILE"
+            fi
+            FRONTIER_NEW_LABEL_COUNT="$(wc -l < "$FRONTIER_NEW" | tr -d ' ')"
+            echo "ACTION_FRONTIER_PRIOR_UNIQUE_LABEL_COUNT=$FRONTIER_PRIOR_LABEL_COUNT" | tee -a "$DIAG"
+            echo "ACTION_FRONTIER_CURRENT_UNIQUE_LABEL_COUNT=$FRONTIER_COMPLETED_LABEL_COUNT" | tee -a "$DIAG"
+            echo "ACTION_FRONTIER_NEW_UNIQUE_LABEL_COUNT=$FRONTIER_NEW_LABEL_COUNT" | tee -a "$DIAG"
+
+            STATE="$OUT_DIR/.siso_fs_state"
+            JOURNAL="$OUT_DIR/.siso_fs_state.journal"
+            OBJECT_COUNT="$(find "$OUT_DIR/obj" -type f -name '*.o' 2>/dev/null | wc -l | tr -d ' ')"
+            OUTPUT_COUNT="$(find "$OUT_DIR/obj" "$OUT_DIR/gen" "$OUT_DIR/apks" -type f 2>/dev/null | wc -l | tr -d ' ')"
+            echo "object_file_count_before=$OBJECTS_BEFORE" | tee -a "$DIAG"
+            echo "object_file_count_after=$OBJECT_COUNT" | tee -a "$DIAG"
+            echo "object_file_count_delta=$((OBJECT_COUNT - OBJECTS_BEFORE))" | tee -a "$DIAG"
+            echo "build_output_count_before=$OUTPUTS_BEFORE" | tee -a "$DIAG"
+            echo "build_output_count_after=$OUTPUT_COUNT" | tee -a "$DIAG"
+            echo "build_output_count_delta=$((OUTPUT_COUNT - OUTPUTS_BEFORE))" | tee -a "$DIAG"
+            echo "remote_exec_log_signature_count=$REMOTE_EXEC_LOG_COUNT" | tee -a "$DIAG"
+            echo "cache_action_count=$CACHE_ACTIONS" | tee -a "$DIAG"
+            echo "local_action_count=$LOCAL_ACTIONS" | tee -a "$DIAG"
+            echo "no_exec_action_count=$NO_EXEC_ACTIONS" | tee -a "$DIAG"
+            ls -lh "$STATE" "$JOURNAL" 2>&1 | tee -a "$DIAG" || true
+            if [ "$SISO_FORCED_KILL" -ne 0 ]; then
+              echo "CHECKPOINT_SAVE=REJECTED reason=siso_did_not_exit_cleanly" | tee -a "$DIAG"
+              tail -n 80 "$BUILD_LOG" 2>&1 | tee -a "$DIAG" || true
+              exit 1
+            fi
+            if [ "$JOURNAL_RECOVERY_FAILED" = true ]; then
+              echo "CHECKPOINT_SAVE=REJECTED reason=journal_only_recovery_gate_failed" | tee -a "$DIAG"
+              tail -n 100 "$BUILD_LOG" 2>&1 | tee -a "$DIAG" || true
+              tail -n 100 "$OUT_DIR/siso.INFO" 2>&1 | tee -a "$DIAG" || true
+              exit 1
+            fi
+            if [ "$JOURNAL_RECOVERY_EXPECTED" = true ] && [ "$JOURNAL_RECOVERY_PASSED" != true ]; then
+              echo "CHECKPOINT_SAVE=REJECTED reason=prior_siso_journal_recovery_not_confirmed" | tee -a "$DIAG"
+              tail -n 100 "$BUILD_LOG" 2>&1 | tee -a "$DIAG" || true
+              tail -n 100 "$OUT_DIR/siso.INFO" 2>&1 | tee -a "$DIAG" || true
+              exit 1
+            fi
+            if [ "$HANDOVER_GATE_FAILED" = true ]; then
+              echo "CHECKPOINT_SAVE=REJECTED reason=unexpected_gn_regeneration_after_timestamp_normalization" | tee -a "$DIAG"
+              {
+                echo "=== FIRST 40 BUILD LOG LINES ==="
+                head -n 40 "$BUILD_LOG" 2>/dev/null || true
+                echo "=== LAST 80 BUILD LOG LINES ==="
+                tail -n 80 "$BUILD_LOG" 2>/dev/null || true
+              } >> "$DIAG"
+              cat "$DIAG"
+              exit 1
+            fi
+            CHECKPOINT_SAVE_MODE=""
+            if [ -s "$STATE" ]; then
+              if [ -s "$JOURNAL" ]; then
+                CHECKPOINT_SAVE_MODE="BASE_AND_JOURNAL"
+              else
+                CHECKPOINT_SAVE_MODE="BASE_ONLY"
+              fi
+            elif [ -s "$JOURNAL" ]; then
+              # A closed journal is a supported recovery input for pinned Siso.
+              # Preserve all outputs and replay this journal at the next stage.
+              CHECKPOINT_SAVE_MODE="JOURNAL_ONLY"
+              echo "CHECKPOINT_SAVE_MODE=JOURNAL_ONLY; preserving journal and outputs for next-stage Siso reconciliation." | tee -a "$DIAG"
+              echo "CHECKPOINT_JOURNAL_BYTES=$(stat -c '%s' "$JOURNAL")" | tee -a "$DIAG"
+            else
+              echo "CHECKPOINT_SAVE=REJECTED reason=neither_siso_base_state_nor_nonempty_journal" | tee -a "$DIAG"
+              tail -n 200 "$OUT_DIR/siso_output" 2>&1 | tee -a "$DIAG" || true
+              exit 1
+            fi
+            if [ -s "$JOURNAL" ]; then
+              echo "CHECKPOINT_JOURNAL=INCLUDED_FOR_SISO_STARTUP_RECONCILIATION" | tee -a "$DIAG"
+            fi
+            echo "Packing output with POSIX/PAX metadata; Siso journal is not excluded." | tee -a "$DIAG"
+            PACK_START="$(date +%s)"
+            rm -f "$CIRCLE_WORKING_DIRECTORY/checkpoint.tar.zst.tmp"
+            set +e
+            tar -c -I 'zstd -T0 -3' \
+              --format=posix \
+              --pax-option='delete=atime,delete=ctime' \
+              --checkpoint=100000 \
+              --checkpoint-action='echo=CHECKPOINT_PACK_PROGRESS checkpoint=%u' \
+              --warning=no-file-changed \
+              -f "$CIRCLE_WORKING_DIRECTORY/checkpoint.tar.zst.tmp" \
+              -C "$SRC_DIR" out/afterbird_production
+            TAR_RET=$?
+            set -e
+            if [ "$TAR_RET" -ne 0 ]; then
+              echo "CHECKPOINT_SAVE=REJECTED reason=tar_exit_$TAR_RET" | tee -a "$DIAG"
+              exit 1
+            fi
+            mv "$CIRCLE_WORKING_DIRECTORY/checkpoint.tar.zst.tmp" "$CIRCLE_WORKING_DIRECTORY/checkpoint.tar.zst"
+            cp "$CIRCLE_WORKING_DIRECTORY/current-checkpoint.meta" "$CIRCLE_WORKING_DIRECTORY/checkpoint.meta"
+            PACK_END="$(date +%s)"
+            echo "checkpoint_pack_seconds=$((PACK_END - PACK_START))" | tee -a "$DIAG"
+            echo "checkpoint_size_bytes=$(stat -c '%s' "$CIRCLE_WORKING_DIRECTORY/checkpoint.tar.zst")" | tee -a "$DIAG"
+            echo "CHECKPOINT_SAVE=PASS state_mode=$CHECKPOINT_SAVE_MODE" | tee -a "$DIAG"
+            APK_PRESENT=false
+            if [ -s "$APK" ]; then APK_PRESENT=true; fi
+            printf '%s\n' \
+              "stage_index=<< parameters.stage_index >>" \
+              "build_exit_code=$RET" \
+              "object_count_before=$OBJECTS_BEFORE" \
+              "object_count_after=$OBJECT_COUNT" \
+              "output_count_before=$OUTPUTS_BEFORE" \
+              "output_count_after=$OUTPUT_COUNT" \
+              "remote_exec_log_signature_count=$REMOTE_EXEC_LOG_COUNT" \
+              "cache_action_count=$CACHE_ACTIONS" \
+              "local_action_count=$LOCAL_ACTIONS" \
+              "no_exec_action_count=$NO_EXEC_ACTIONS" \
+              "metric_action_record_count=$METRIC_ACTION_RECORDS" \
+              "metric_record_count=$METRIC_RECORDS" \
+              "metrics_present=$METRICS_PRESENT" \
+              "prior_frontier_label_count=$FRONTIER_PRIOR_LABEL_COUNT" \
+              "completed_frontier_label_count=$FRONTIER_COMPLETED_LABEL_COUNT" \
+              "new_frontier_label_count=$FRONTIER_NEW_LABEL_COUNT" \
+              "checkpoint_state_mode=$CHECKPOINT_STATE_MODE" \
+              "checkpoint_save_state_mode=$CHECKPOINT_SAVE_MODE" \
+              "journal_recovery_expected=$JOURNAL_RECOVERY_EXPECTED" \
+              "journal_recovery_passed=$JOURNAL_RECOVERY_PASSED" \
+              "strict_remote=enabled" \
+              "checkpoint_save=PASS" \
+              "apk_present=$APK_PRESENT" \
+              > "$CIRCLE_WORKING_DIRECTORY/stage-build-result.txt"
+            if [ -d "$OUT_DIR/siso_output" ]; then
+              find "$OUT_DIR/siso_output" -maxdepth 3 -type f -printf '%T@ %s %p\n' \
+                | sort -nr | head -n 200 > "$CIRCLE_WORKING_DIRECTORY/siso_output.txt"
+            elif [ -s "$OUT_DIR/siso_output" ]; then
+              cp "$OUT_DIR/siso_output" "$CIRCLE_WORKING_DIRECTORY/siso_output.txt"
+            fi
+            if [ -s "$OUT_DIR/.siso_failed_targets" ]; then
+              cp "$OUT_DIR/.siso_failed_targets" "$CIRCLE_WORKING_DIRECTORY/siso_failed_targets.txt"
+            fi
+            {
+              echo
+              echo "=== FINAL RESOURCE SNAPSHOT ==="
+              df -hT
+              free -h
+              echo "=== FINAL CHECKPOINT STATE ==="
+              ls -lh "$STATE" "$JOURNAL" 2>&1 || true
+              echo "=== SISO STATE/JOURNAL REFERENCES IN BUILD LOG ==="
+              grep -n -i -m 25 'fs_state\|journal\|load.*state\|state.*load\|restat' "$BUILD_LOG" 2>/dev/null || true
+              echo
+              echo "=== FIRST 60 BUILD LOG LINES ==="
+              head -n 60 "$BUILD_LOG" 2>/dev/null || true
+              echo
+              echo "=== LAST 60 BUILD PROGRESS LINES ==="
+              tail -n 60 "$BUILD_LOG" 2>/dev/null || true
+              echo
+              echo "=== SISO OUTPUT TAIL (last 200 lines) ==="
+              tail -n 200 "$OUT_DIR/siso_output" 2>/dev/null || true
+              echo
+              echo "=== CHECKPOINT ARCHIVE ==="
+              ls -lh "$CIRCLE_WORKING_DIRECTORY/checkpoint.tar.zst" "$CIRCLE_WORKING_DIRECTORY/checkpoint.meta"
+              echo "=== END OF STAGE DIAGNOSTICS ==="
+            } >> "$DIAG"
+            cat "$DIAG"
+      - when:
+          condition: always
+          steps:
+            - run:
+                name: Emit durable diagnostics on failure or timeout
+                command: |
+                  set +e
+                  if [ -f "$CIRCLE_WORKING_DIRECTORY/stage-diag.txt" ]; then
+                    cat "$CIRCLE_WORKING_DIRECTORY/stage-diag.txt"
+                  fi
+                  if [ -f "$CIRCLE_WORKING_DIRECTORY/build_stdout.log" ]; then
+                    echo "=== BUILD OUTPUT TAIL ==="
+                    tail -n 100 "$CIRCLE_WORKING_DIRECTORY/build_stdout.log"
+                  fi
+            - store_artifacts:
+                path: stage-diag.txt
+                destination: checkpoint-stage-<< parameters.stage_index >>/stage-diag.txt
+            - store_artifacts:
+                path: build_stdout.log
+                destination: checkpoint-stage-<< parameters.stage_index >>/build_stdout.log
+            - store_artifacts:
+                path: siso_output.txt
+                destination: checkpoint-stage-<< parameters.stage_index >>/siso_output.txt
+            - store_artifacts:
+                path: siso_failed_targets.txt
+                destination: checkpoint-stage-<< parameters.stage_index >>/siso_failed_targets.txt
+            - store_artifacts:
+                path: siso-stage-metrics.jsonl
+                destination: checkpoint-stage-<< parameters.stage_index >>/siso-stage-metrics.jsonl
+            - store_artifacts:
+                path: stage-build-result.txt
+                destination: checkpoint-stage-<< parameters.stage_index >>/stage-build-result.txt
+      - run:
+          name: Skip full source snapshot packaging
+          command: |
+            set -euo pipefail
+            test -s "$CIRCLE_WORKING_DIRECTORY/afterbird-chromium/src/out/afterbird_production/build.ninja"
+            echo "SOURCE_HANDOFF=PINNED_RECHECKOUT_PER_STAGE; full source tar disabled to stay within CircleCI job deadline."
+      - when:
+          condition:
+            equal: [1, << parameters.stage_index >>]
+          steps:
+            - persist_to_workspace:
+                root: .
+                paths:
+                  - afterbird-delta
+                  - depot_tools
+                  - current-checkpoint.meta
+
+      - save_cache:
+          name: Save latest build-output checkpoint for the next stage or workflow
+          key: sandfox-c4-siso-checkpoint-v4-journal-recovery-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-<< parameters.stage_index >>
+          paths:
+            - checkpoint.tar.zst
+            - checkpoint.meta
+            - stage-frontier-cumulative.txt
+      - run:
+          name: Record APK status
+          command: |
+            set -eux
+            APK="$CIRCLE_WORKING_DIRECTORY/afterbird-chromium/src/out/afterbird_production/apks/ChromePublic.apk"
+            mkdir -p "$CIRCLE_WORKING_DIRECTORY/afterbird-baseline"
+            if [ -s "$APK" ]; then
+              cp "$APK" "$CIRCLE_WORKING_DIRECTORY/afterbird-baseline/ChromePublic.apk"
+              printf 'BUILD_FINISHED=true\n' > "$CIRCLE_WORKING_DIRECTORY/afterbird-baseline/status.txt"
+            else
+              printf 'BUILD_FINISHED=false\nCheckpoint saved; APK is not complete yet.\n' > "$CIRCLE_WORKING_DIRECTORY/afterbird-baseline/status.txt"
+            fi
+            cat "$CIRCLE_WORKING_DIRECTORY/afterbird-baseline/status.txt"
+      - store_artifacts:
+          path: afterbird-baseline
+          destination: afterbird-baseline
+      - run:
+          name: Validate remote work, checkpoint progress, and five-stage APK limit
+          command: |
+            set -euo pipefail
+            STAGE_INDEX=<< parameters.stage_index >>
+            APK="$CIRCLE_WORKING_DIRECTORY/afterbird-chromium/src/out/afterbird_production/apks/ChromePublic.apk"
+            RESULT="$CIRCLE_WORKING_DIRECTORY/stage-build-result.txt"
+            if [ -s "$APK" ]; then
+              echo "APK_GATE=PASS; ChromePublic.apk exists and is non-empty."
+              exit 0
+            fi
+            if [ ! -s "$RESULT" ]; then
+              echo "STAGE_GATE=FAIL; no durable stage-result record was produced." >&2
+              exit 1
+            fi
+            result_value() { sed -n "s/^$1=//p" "$RESULT" | tail -n 1; }
+            BUILD_EXIT="$(result_value build_exit_code)"
+            OBJECTS_BEFORE="$(result_value object_count_before)"
+            OBJECTS_AFTER="$(result_value object_count_after)"
+            OUTPUTS_BEFORE="$(result_value output_count_before)"
+            OUTPUTS_AFTER="$(result_value output_count_after)"
+            REMOTE_EXEC_LOG_SIGNATURES="$(result_value remote_exec_log_signature_count)"
+            CACHE_ACTIONS="$(result_value cache_action_count)"
+            LOCAL_ACTIONS="$(result_value local_action_count)"
+            NO_EXEC_ACTIONS="$(result_value no_exec_action_count)"
+            METRIC_ACTION_RECORDS="$(result_value metric_action_record_count)"
+            METRICS_PRESENT="$(result_value metrics_present)"
+            METRIC_RECORDS="$(result_value metric_record_count)"
+            PRIOR_FRONTIER_LABELS="$(result_value prior_frontier_label_count)"
+            COMPLETED_FRONTIER_LABELS="$(result_value completed_frontier_label_count)"
+            NEW_FRONTIER_LABELS="$(result_value new_frontier_label_count)"
+            STRICT_REMOTE="$(result_value strict_remote)"
+            CHECKPOINT_SAVE="$(result_value checkpoint_save)"
+            test "$CHECKPOINT_SAVE" = "PASS" || { echo "STAGE_GATE=FAIL; safe checkpoint missing." >&2; exit 1; }
+            test "$STRICT_REMOTE" = "enabled" || { echo "STAGE_GATE=FAIL; strict remote mode not enabled." >&2; exit 1; }
+            if [ "$BUILD_EXIT" -ne 124 ]; then
+              echo "STAGE_GATE=FAIL; no APK and build exit status $BUILD_EXIT (expected bounded timeout)." >&2
+              exit 1
+            fi
+            case "$OBJECTS_BEFORE:$OBJECTS_AFTER:$OUTPUTS_BEFORE:$OUTPUTS_AFTER:$REMOTE_EXEC_LOG_SIGNATURES:$CACHE_ACTIONS:$LOCAL_ACTIONS:$NO_EXEC_ACTIONS:$METRIC_ACTION_RECORDS:$METRIC_RECORDS:$PRIOR_FRONTIER_LABELS:$COMPLETED_FRONTIER_LABELS:$NEW_FRONTIER_LABELS" in
+              *[!0-9:]*|:*|*::*)
+                echo "STAGE_GATE=FAIL; progress counters missing or malformed." >&2
+                exit 1
+                ;;
+            esac
+            if [ "$METRICS_PRESENT" != "true" ] && [ "$REMOTE_EXEC_LOG_SIGNATURES" -le 0 ]; then
+              echo "STAGE_GATE=FAIL; no Siso metrics file and no remote-execution log evidence." >&2
+              exit 1
+            fi
+            if [ "$REMOTE_EXEC_LOG_SIGNATURES" -le 0 ]; then
+              echo "STAGE_GATE=FAIL; Siso logs do not prove REAPI execution occurred." >&2
+              exit 1
+            fi
+            if [ "$NEW_FRONTIER_LABELS" -le 0 ] && [ "$OUTPUTS_AFTER" -le "$OUTPUTS_BEFORE" ] && [ "$OBJECTS_AFTER" -le "$OBJECTS_BEFORE" ]; then
+              echo "STAGE_GATE=FAIL; no new completed action/output labels and no new output paths; refusing to spend another stage repeating work." >&2
+              echo "Frontier labels: prior=$PRIOR_FRONTIER_LABELS current=$COMPLETED_FRONTIER_LABELS new=$NEW_FRONTIER_LABELS" >&2
+              echo "Path counts: objects=$OBJECTS_BEFORE->$OBJECTS_AFTER outputs=$OUTPUTS_BEFORE->$OUTPUTS_AFTER" >&2
+              exit 1
+            fi
+            echo "STAGE_PROGRESS_GATE=PASS new_frontier_labels=$NEW_FRONTIER_LABELS current_unique_labels=$COMPLETED_FRONTIER_LABELS prior_cumulative_labels=$PRIOR_FRONTIER_LABELS objects=$OBJECTS_BEFORE->$OBJECTS_AFTER outputs=$OUTPUTS_BEFORE->$OUTPUTS_AFTER remote_log_signatures=$REMOTE_EXEC_LOG_SIGNATURES cache_action_records=$CACHE_ACTIONS local_action_records=$LOCAL_ACTIONS no_exec_action_records=$NO_EXEC_ACTIONS"
+            if [ "$STAGE_INDEX" -eq 5 ]; then
+              echo "MAX_STAGES_REACHED=5; APK was not produced." >&2
+              exit 1
+            fi
+            echo "STAGE_CONTINUATION=PASS; next stage will resume and must make useful progress."
+
+workflows:
+  c4-afterbird-staged-checkpoint-build:
+    jobs:
+      - c4-afterbird-staged-build:
+          name: c4-afterbird-stage-1
+          stage_index: 1
+          filters:
+            branches:
+              only: sandfox/checkpoint-stage-v1
+      - c4-afterbird-staged-build:
+          name: c4-afterbird-stage-2
+          stage_index: 2
+          requires:
+            - c4-afterbird-stage-1
+          filters:
+            branches:
+              only: sandfox/checkpoint-stage-v1
+      - c4-afterbird-staged-build:
+          name: c4-afterbird-stage-3
+          stage_index: 3
+          requires:
+            - c4-afterbird-stage-2
+          filters:
+            branches:
+              only: sandfox/checkpoint-stage-v1
+      - c4-afterbird-staged-build:
+          name: c4-afterbird-stage-4
+          stage_index: 4
+          requires:
+            - c4-afterbird-stage-3
+          filters:
+            branches:
+              only: sandfox/checkpoint-stage-v1
+      - c4-afterbird-staged-build:
+          name: c4-afterbird-stage-5
+          stage_index: 5
+          requires:
+            - c4-afterbird-stage-4
+          filters:
+            branches:
+              only: sandfox/checkpoint-stage-v1
