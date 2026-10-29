@@ -1502,6 +1502,32 @@ jobs:
               exit 1
             fi
             echo "SS2_TEST_BUILD_FALLBACK=PASS"
+            # Exercise the exact simple APK=true/false filesystem predicate used at the start of stages 2-5.
+            GATE_ROOT="$T/gate-root"
+            mkdir -p "$GATE_ROOT/ss2-apk/stage-3"
+            gate_apk_check() {
+              local found=""
+              if [ -d "$GATE_ROOT/ss2-apk" ]; then
+                found="$(find "$GATE_ROOT/ss2-apk" -mindepth 2 -maxdepth 2 -type f -name 'ChromePublic.apk' -size +0c -print -quit)"
+              fi
+              if [ -n "$found" ]; then
+                echo "APK=true"
+                return 0
+              fi
+              echo "APK=false"
+              return 1
+            }
+            if gate_apk_check; then
+              echo "SS2_TEST_GATE_EMPTY=FAIL (empty gate incorrectly true)" >&2
+              exit 1
+            fi
+            printf 'synthetic apk' > "$GATE_ROOT/ss2-apk/stage-3/ChromePublic.apk"
+            if ! gate_apk_check; then
+              echo "SS2_TEST_GATE_APK_PRESENT=FAIL (APK not detected)" >&2
+              exit 1
+            fi
+            echo "SS2_TEST_GATE_EMPTY=PASS"
+            echo "SS2_TEST_GATE_APK_PRESENT=PASS"
             echo "SS2_FAST_PATH_VALIDATION=PASS"
 
 
