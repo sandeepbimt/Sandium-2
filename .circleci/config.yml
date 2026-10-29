@@ -1493,19 +1493,38 @@ jobs:
             test -n "$CHROMIUM_TAG"
             if [ "<< parameters.stage_index >>" = "1" ]; then
               pnpm config set store-dir "$HOME/.cache/pnpm-store"
-              pnpm run init --target_os=android --target_arch=arm64 --no-history
-              cd "$ROOT/brave-work"
-              ./src/build/install-build-deps.sh --android
-              printf '%s\n' \
-                'rbe_service=remote.buildbuddy.io:443' \
-                'use_remoteexec=true' \
-                'gn_args_use_siso=true' \
-                'gn_args_use_reclient=false' \
-                'siso_limits_local=8' \
-                'siso_limits_remote=80' \
-                > "$ROOT/brave-work/src/brave/.env"
-              cd "$ROOT/brave-work/src/brave"
-              pnpm run build Debug --target_os=android --target_arch=arm64 --target_android_output_format=apk --use_remoteexec=true --gn use_siso:true --gn use_reclient:false --prepare_only
+              SRC_DIR="$ROOT/brave-work/src"
+              OUT="$SRC_DIR/out/android_Debug_arm64"
+              SOURCE_REUSE=false
+
+              # A restored cache may already contain a complete, pinned Brave checkout and GN graph.
+              # If so, do not run pnpm init/gclient sync again: that was the previous run's expensive
+              # work and can take tens of minutes even when it ultimately changes nothing.
+              if [ -s "$OUT/build.ninja" ] && [ -s "$OUT/args.gn" ] && \
+                 [ -s "$OUT/args_generated.gni" ] && [ -s "$SRC_DIR/.gclient" ] && \
+                 [ -x "$SRC_DIR/build/install-build-deps.sh" ] && \
+                 [ "$(git -C "$SRC_DIR/brave" describe --tags --exact-match 2>/dev/null || true)" = "v1.98.62" ] && \
+                 [ -s "$SRC_DIR/build/config/siso/.sisoenv" ] && [ -s "$SRC_DIR/build/config/siso/.sisorc" ]; then
+                SOURCE_REUSE=true
+                echo "BRAVE_SOURCE_REUSE=PASS; pinned source and GN graph already restored. Skipping pnpm init/gclient sync."
+              fi
+
+              if [ "$SOURCE_REUSE" != true ]; then
+                pnpm run init --target_os=android --target_arch=arm64 --no-history
+                cd "$ROOT/brave-work"
+                ./src/build/install-build-deps.sh --android
+                printf '%s\n' \
+                  'rbe_service=remote.buildbuddy.io:443' \
+                  'use_remoteexec=true' \
+                  'gn_args_use_siso=true' \
+                  'gn_args_use_reclient=false' \
+                  'siso_limits_local=8' \
+                  'siso_limits_remote=80' \
+                  > "$SRC_DIR/brave/.env"
+                cd "$SRC_DIR/brave"
+                pnpm run build Debug --target_os=android --target_arch=arm64 --target_android_output_format=apk --use_remoteexec=true --gn use_siso:true --gn use_reclient:false --prepare_only
+                echo "BRAVE_SOURCE_REUSE=MISS; source initialization completed."
+              fi
             fi
       - save_cache:
           key: sandium-brave-node-v1-24.16.0
