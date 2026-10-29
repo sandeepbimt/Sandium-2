@@ -1045,7 +1045,7 @@ jobs:
                 CHECKPOINT_STATE_AVAILABLE=true
               fi
               STAGE_PROGRESS_AVAILABLE=false
-              if [ "$NEW_FRONTIER_LABEL_COUNT" -gt 0 ] || [ "$OBJECT_COUNT" -gt "$OBJECTS_BEFORE" ] || [ "$OUTPUT_COUNT" -gt "$OUTPUTS_BEFORE" ]; then
+              if [ "$FRONTIER_NEW_LABEL_COUNT" -gt 0 ] || [ "$OBJECT_COUNT" -gt "$OBJECTS_BEFORE" ] || [ "$OUTPUT_COUNT" -gt "$OUTPUTS_BEFORE" ]; then
                 STAGE_PROGRESS_AVAILABLE=true
               fi
               if [ "$CHECKPOINT_STATE_AVAILABLE" = true ] && [ "$REMOTE_EXEC_LOG_COUNT" -gt 0 ] \
