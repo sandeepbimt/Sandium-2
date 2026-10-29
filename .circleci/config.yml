@@ -1515,14 +1515,29 @@ jobs:
           name: Validate build graph and remote-execution settings
           command: |
             set -euo pipefail
-            OUT="$CIRCLE_WORKING_DIRECTORY/brave-work/src/out/android_Debug_arm64"
+            ROOT="$CIRCLE_WORKING_DIRECTORY"
+            OUT="$ROOT/brave-work/src/out/android_Debug_arm64"
             if [ "<< parameters.stage_index >>" = "1" ]; then
-              test -s "$OUT/build.ninja"
-              test -s "$OUT/args.gn"
-              test -s "$OUT/args_generated.gni"
-              grep -Eq 'use_remoteexec[[:space:]]*=[[:space:]]*true' "$OUT/args_generated.gni"
-              grep -Eq 'use_siso[[:space:]]*=[[:space:]]*true' "$OUT/args_generated.gni"
-              grep -Eq 'use_reclient[[:space:]]*=[[:space:]]*false' "$OUT/args_generated.gni"
+              for required in build.ninja args.gn; do
+                if [ ! -s "$OUT/$required" ]; then
+                  echo "BRAVE_BUILD_GRAPH_GATE=FAIL missing=$OUT/$required" >&2
+                  find "$ROOT/brave-work/src/out" -maxdepth 4 -type f \( -name build.ninja -o -name args.gn -o -name args_generated.gni \) -print 2>/dev/null | head -100 >&2 || true
+                  exit 1
+                fi
+              done
+              echo "=== GN args relevant to remote execution ==="
+              grep -nE 'use_remoteexec|use_siso|use_reclient|reclient|remote' "$OUT/args.gn" || true
+              require_arg() {
+                local name="$1" expected="$2"
+                if ! grep -Eq "^[[:space:]]*${name}[[:space:]]*=[[:space:]]*${expected}([[:space:]]|$)" "$OUT/args.gn"; then
+                  echo "BRAVE_REMOTE_EXECUTION_CONFIG_GATE=FAIL expected ${name} = ${expected} in $OUT/args.gn" >&2
+                  exit 1
+                fi
+              }
+              require_arg use_remoteexec true
+              require_arg use_siso true
+              require_arg use_reclient false
+              echo "BRAVE_BUILD_GRAPH_GATE=PASS"
               echo "BRAVE_REMOTE_EXECUTION_CONFIG_GATE=PASS"
             fi
       - run:
