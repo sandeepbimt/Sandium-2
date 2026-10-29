@@ -1422,6 +1422,46 @@ jobs:
     resource_class: large
     steps:
       - checkout
+      - when:
+          condition:
+            equal: [1, << parameters.stage_index >>]
+          steps:
+            - restore_cache:
+                name: Restore most recent Brave checkpoint from earlier runs
+                keys:
+                  - sandium-brave-out-v1-{{ .Branch }}-
+      - when:
+          condition:
+            equal: [2, << parameters.stage_index >>]
+          steps:
+            - restore_cache:
+                name: Restore Stage 1 Brave checkpoint
+                keys:
+                  - sandium-brave-out-v1-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-1
+      - when:
+          condition:
+            equal: [3, << parameters.stage_index >>]
+          steps:
+            - restore_cache:
+                name: Restore Stage 2 Brave checkpoint
+                keys:
+                  - sandium-brave-out-v1-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-2
+      - when:
+          condition:
+            equal: [4, << parameters.stage_index >>]
+          steps:
+            - restore_cache:
+                name: Restore Stage 3 Brave checkpoint
+                keys:
+                  - sandium-brave-out-v1-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-3
+      - when:
+          condition:
+            equal: [5, << parameters.stage_index >>]
+          steps:
+            - restore_cache:
+                name: Restore Stage 4 Brave checkpoint
+                keys:
+                  - sandium-brave-out-v1-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-4
       - restore_cache:
           keys:
             - sandium-brave-node-v1-24.16.0
@@ -1514,7 +1554,7 @@ jobs:
       - save_cache:
           key: sandium-brave-out-v1-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-<< parameters.stage_index >>
           paths:
-            - brave-work/src/out/android_Debug_arm64
+            - brave-work
           when: always
       - run:
           name: Export APK status and artifacts
