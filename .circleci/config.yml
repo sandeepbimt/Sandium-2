@@ -1513,8 +1513,21 @@ jobs:
                 pnpm run init --target_os=android --target_arch=arm64 --no-history
               fi
 
+              # Chromium's default Siso instance may be rbe-chrome-untrusted, which is
+              # reserved for Google corporate machines. Pin the public contributor
+              # instance in .gclient, then regenerate Siso backend config from that pin.
+              GCLIENT="$ROOT/brave-work/.gclient"
+              test -s "$GCLIENT" || { echo "BRAVE_RBE_CONFIG_GATE=FAIL missing $GCLIENT" >&2; exit 1; }
+              if ! grep -q 'SANDIUM_BRAVE_RBE_INSTANCE' "$GCLIENT"; then
+                cat >> "$GCLIENT" <<'PY'
+# SANDIUM_BRAVE_RBE_INSTANCE: public Chromium contributor remote-execution instance.
+solutions[0].setdefault("custom_vars", {})["rbe_instance"] = "projects/rbe-chromium-untrusted/instances/default_instance"
+PY
+              fi
+              grep -F 'projects/rbe-chromium-untrusted/instances/default_instance' "$GCLIENT"
               cd "$ROOT/brave-work"
               ./src/build/install-build-deps.sh --android
+              ./src/brave/node_modules/.bin/gclient sync
               printf '%s\n' \
                 'rbe_service=remote.buildbuddy.io:443' \
                 'use_remoteexec=true' \
