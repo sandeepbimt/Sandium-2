@@ -50,7 +50,7 @@ jobs:
                 command: |
                   set -euo pipefail
                   ROOT="$CIRCLE_WORKING_DIRECTORY"
-                  if "$ROOT/.circleci/scripts/ss2-validate-apk-handoff.sh" "$ROOT" "151.0.7922.38"; then
+                  if bash "$ROOT/.circleci/scripts/ss2-validate-apk-handoff.sh" "$ROOT" "151.0.7922.38"; then
                     echo "Skipping Chromium source recreation, dependency setup, and compilation."
                     circleci-agent step halt
                   fi
@@ -1476,10 +1476,10 @@ jobs:
             PY
             APK_SHA="$(sha256sum "$APK" | awk '{print $1}')"
             printf 'BUILD_FINISHED=true\\nAPK_ARCHIVE_VALID=true\\nAPK_SHA256=%s\\nCHROMIUM_TAG=151.0.7922.38\\nAFTERBIRD_SHA=%s\\nRELEASE_ARGS_SHA256=%s\\n' "$APK_SHA" "$DELTA_SHA" "$ARGS_SHA" > "$STATUS"
-            "$CIRCLE_WORKING_DIRECTORY/.circleci/scripts/ss2-validate-apk-handoff.sh" "$ROOT" "151.0.7922.38"
+            bash "$CIRCLE_WORKING_DIRECTORY/.circleci/scripts/ss2-validate-apk-handoff.sh" "$ROOT" "151.0.7922.38"
             echo "SS2_TEST_REAL_PREDICATE_HANDOFF=PASS"
             mv "$ROOT/ss2-apk/stage-3" "$ROOT/ss2-apk/stage-4"
-            "$CIRCLE_WORKING_DIRECTORY/.circleci/scripts/ss2-validate-apk-handoff.sh" "$ROOT" "151.0.7922.38"
+            bash "$CIRCLE_WORKING_DIRECTORY/.circleci/scripts/ss2-validate-apk-handoff.sh" "$ROOT" "151.0.7922.38"
             echo "SS2_TEST_NEXT_STAGE_REUSE=PASS"
             echo "SS2_FAST_PATH_VALIDATION=PASS"
 
