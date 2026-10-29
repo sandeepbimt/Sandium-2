@@ -46,6 +46,28 @@ jobs:
             - attach_workspace:
                 at: .
             - run:
+                name: SS2 fast-exit when a verified APK already exists
+                command: |
+                  set -euo pipefail
+                  ROOT="$CIRCLE_WORKING_DIRECTORY"
+                  shopt -s nullglob
+                  for candidate in "$ROOT"/ss2-apk/stage-*; do
+                    APK="$candidate/ChromePublic.apk"
+                    STATUS="$candidate/status.txt"
+                    [ -s "$APK" ] && [ -s "$STATUS" ] || continue
+                    grep -Fxq 'BUILD_FINISHED=true' "$STATUS" || continue
+                    EXPECTED_SHA="$(sed -n 's/^APK_SHA256=//p' "$STATUS" | tail -n 1)"
+                    [ -n "$EXPECTED_SHA" ] || continue
+                    ACTUAL_SHA="$(sha256sum "$APK" | awk '{print $1}')"
+                    [ "$ACTUAL_SHA" = "$EXPECTED_SHA" ] || continue
+                    if python3 -c 'import sys,zipfile; z=zipfile.ZipFile(sys.argv[1]); bad=z.testzip(); sys.exit(1 if bad else 0)' "$APK"; then
+                      echo "SS2_FAST_EXIT=PASS verified APK from $(basename "$candidate"); sha256=$ACTUAL_SHA"
+                      echo "Skipping Chromium source recreation, dependency setup, and compilation."
+                      circleci-agent step halt
+                    fi
+                  done
+                  echo "SS2_FAST_EXIT=MISS; no valid APK from an earlier stage; continue full build."
+            - run:
                 name: Recreate pinned Chromium source for this stage
                 command: |
                   set -euo pipefail
@@ -297,8 +319,7 @@ jobs:
             test -d "$AFTERBIRD_DIR/chrome/android/java/res_chromium_base"
             echo "=== AFTERBIRD DELTA ==="
             git -C "$AFTERBIRD_DIR" rev-parse HEAD
-            du -sh "$AFTERBIRD_DIR"
-      - run:
+            du -sh "$AFTERBIRD_DIR"      - run:
           name: Install Chromium host build dependencies
           command: |
             set -eux
@@ -597,7 +618,6 @@ jobs:
             find "$SRC_DIR" \
               \( -name .git -o -path "$SRC_OUT" \) -prune -o \
               -exec touch -h -d "@$SOURCE_TIMESTAMP_EPOCH" {} +
-
             for path in \
               "$SRC_DIR" \
               "$SRC_DIR/DEPS" \
@@ -897,8 +917,7 @@ jobs:
                 sleep 10
                 kill -TERM -- "-$BUILD_PID" 2>/dev/null || true
                 sleep 5
-                kill -KILL -- "-$BUILD_PID" 2>/dev/null || true
-                wait "$BUILD_PID"
+                kill -KILL -- "-$BUILD_PID" 2>/dev/null || true                wait "$BUILD_PID"
                 RET=125
               else
                 if [ "$REMOTE_GATE_PASSED" = true ]; then
@@ -1197,8 +1216,7 @@ jobs:
               tail -n 60 "$BUILD_LOG" 2>/dev/null || true
               echo
               echo "=== SISO OUTPUT TAIL (last 200 lines) ==="
-              tail -n 200 "$OUT_DIR/siso_output" 2>/dev/null || true
-              echo
+              tail -n 200 "$OUT_DIR/siso_output" 2>/dev/null || true              echo
               echo "=== CHECKPOINT ARCHIVE ==="
               ls -lh "$CIRCLE_WORKING_DIRECTORY/checkpoint.tar.zst" "$CIRCLE_WORKING_DIRECTORY/checkpoint.meta"
               echo "=== END OF STAGE DIAGNOSTICS ==="
@@ -1281,6 +1299,27 @@ jobs:
               printf 'BUILD_FINISHED=false\nCheckpoint saved; APK is not complete yet.\n' > "$CIRCLE_WORKING_DIRECTORY/afterbird-baseline/status.txt"
             fi
             cat "$CIRCLE_WORKING_DIRECTORY/afterbird-baseline/status.txt"
+      - run:
+          name: Prepare SS2 stage-specific APK handoff
+          command: |
+            set -euo pipefail
+            ROOT="$CIRCLE_WORKING_DIRECTORY"
+            APK="$ROOT/afterbird-chromium/src/out/afterbird_production/apks/ChromePublic.apk"
+            HANDOFF="$ROOT/ss2-apk/stage-<< parameters.stage_index >>"
+            mkdir -p "$HANDOFF"
+            if [ -s "$APK" ] && python3 -c 'import sys,zipfile; z=zipfile.ZipFile(sys.argv[1]); bad=z.testzip(); print("APK_ARCHIVE_VALID=true" if bad is None else "APK_ARCHIVE_INVALID entry="+bad); sys.exit(1 if bad else 0)' "$APK"; then
+              cp "$APK" "$HANDOFF/ChromePublic.apk"
+              APK_SHA256="$(sha256sum "$HANDOFF/ChromePublic.apk" | awk '{print $1}')"
+              printf 'BUILD_FINISHED=true\\nAPK_ARCHIVE_VALID=true\\nAPK_SHA256=%s\\nCHROMIUM_TAG=151.0.7922.38\\nAFTERBIRD_SHA=5ff224f9ef8f8a0792abd2babc9f7164e8dcdb3e\\n' "$APK_SHA256" > "$HANDOFF/status.txt"
+              echo "SS2_APK_HANDOFF=READY stage=<< parameters.stage_index >> sha256=$APK_SHA256"
+            else
+              printf 'BUILD_FINISHED=false\\n' > "$HANDOFF/status.txt"
+              echo "SS2_APK_HANDOFF=NO_VALID_APK stage=<< parameters.stage_index >>"
+            fi
+      - persist_to_workspace:
+          root: .
+          paths:
+            - ss2-apk/stage-<< parameters.stage_index >>
       - store_artifacts:
           path: afterbird-baseline
           destination: afterbird-baseline
