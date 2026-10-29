@@ -1501,7 +1501,7 @@ jobs:
 
               # Test source checkout independently from the GN output. A missing/incomplete GN graph
               # must not force pnpm init/gclient sync to re-fetch Chromium's entire dependency tree.
-              if [ -s "$SRC_DIR/.gclient" ] && [ -d "$SRC_DIR/.git" ] && \
+              if [ -s "$ROOT/brave-work/.gclient" ] && [ -e "$SRC_DIR/.git" ] && \
                  [ -x "$SRC_DIR/build/install-build-deps.sh" ] && \
                  [ "$(git -C "$CORE_DIR" describe --tags --exact-match 2>/dev/null || true)" = "v1.98.62" ] && \
                  [ "$(git -C "$SRC_DIR" rev-parse HEAD 2>/dev/null || true)" = "$CHROMIUM_PIN" ] && \
