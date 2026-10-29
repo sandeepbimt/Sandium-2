@@ -329,7 +329,8 @@ jobs:
             test -d "$AFTERBIRD_DIR/chrome/android/java/res_chromium_base"
             echo "=== AFTERBIRD DELTA ==="
             git -C "$AFTERBIRD_DIR" rev-parse HEAD
-            du -sh "$AFTERBIRD_DIR"      - run:
+            du -sh "$AFTERBIRD_DIR"
+      - run:
           name: Install Chromium host build dependencies
           command: |
             set -eux
