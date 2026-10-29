@@ -1565,12 +1565,7 @@ jobs:
             OUT="$ROOT/brave-work/src/out/android_Debug_arm64"
             mkdir -p "$ROOT/brave-apk"
             APK="$(find "$OUT/apks" -maxdepth 1 -type f -name '*.apk' -size +0c 2>/dev/null | head -n 1 || true)"
-            if [ -n "$APK" ] && python3 - "$APK" <<'PY'
-            import sys, zipfile
-            with zipfile.ZipFile(sys.argv[1]) as z:
-                if z.testzip():
-                    raise SystemExit(1)
-            PY
+            if [ -n "$APK" ] && python3 -c 'import sys,zipfile; z=zipfile.ZipFile(sys.argv[1]); bad=z.testzip(); z.close(); sys.exit(1 if bad else 0)' "$APK"
             then
               cp "$APK" "$ROOT/brave-apk/Sandium-Brave-test.apk"
               echo "BUILD_FINISHED=true" > "$ROOT/brave-apk/status.txt"
