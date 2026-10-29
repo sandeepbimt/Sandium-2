@@ -1909,7 +1909,7 @@ jobs:
             done
             test "$(stat -c '%Y' "$OUT_DIR/build.ninja.stamp")" -gt "$SOURCE_TIMESTAMP_EPOCH"
 
-            TARGET="$(gn ls "$OUT_DIR" brave)"
+            TARGET="$(gn ls "$OUT_DIR" //brave:brave)"
             test -n "$TARGET"
             grep -Eq 'use_remoteexec[[:space:]]*=[[:space:]]*true' "$OUT_DIR/args_generated.gni"
             grep -Eq 'use_siso[[:space:]]*=[[:space:]]*true' "$OUT_DIR/args_generated.gni"
@@ -2171,6 +2171,20 @@ jobs:
             OUTPUT_COUNT="$(find "$OUT_DIR/obj" "$OUT_DIR/gen" "$OUT_DIR/apks" -type f 2>/dev/null | wc -l | tr -d ' ')"
             echo "object_file_count=$OBJECT_COUNT" | tee -a "$DIAG"
             echo "build_output_count=$OUTPUT_COUNT" | tee -a "$DIAG"
+            FRONTIER_CUM="$ROOT/brave-stage-frontier-cumulative.txt"
+            FRONTIER_CUR="$ROOT/brave-stage-frontier-current.txt"
+            FRONTIER_NEW="$ROOT/brave-stage-frontier-new.txt"
+            sed -nE 's/^\\[[0-9]+\\/[0-9]+\\][[:space:]]+[^[:space:]]+[[:space:]]+F[[:space:]]+(.*)$/\\1/p' "$BUILD_LOG" | LC_ALL=C sort -u > "$FRONTIER_CUR"
+            if [ -s "$FRONTIER_CUM" ]; then
+              comm -23 "$FRONTIER_CUR" "$FRONTIER_CUM" > "$FRONTIER_NEW" || true
+              cat "$FRONTIER_CUM" "$FRONTIER_CUR" | LC_ALL=C sort -u > "$FRONTIER_CUM.tmp"
+              mv "$FRONTIER_CUM.tmp" "$FRONTIER_CUM"
+            else
+              cp "$FRONTIER_CUR" "$FRONTIER_CUM"
+              cp "$FRONTIER_CUR" "$FRONTIER_NEW"
+            fi
+            echo "ACTION_FRONTIER_PRIOR_COUNT=$(wc -l < "$FRONTIER_CUM" | tr -d ' ')" | tee -a "$DIAG"
+            echo "ACTION_FRONTIER_NEW_COUNT=$(wc -l < "$FRONTIER_NEW" | tr -d ' ')" | tee -a "$DIAG"
             echo "remote_exec_gate_passed=$REMOTE_GATE_PASSED" | tee -a "$DIAG"
             echo "raw_autoninja_exit_code=$RAW_RET" | tee -a "$DIAG"
             echo "effective_stage_exit_code=$RET" | tee -a "$DIAG"
@@ -2197,34 +2211,36 @@ jobs:
             - brave-stage-frontier-cumulative.txt
           when: always
 
-      - run:
-          name: Record APK status and publish a testable Brave APK
-          when: always
-          command: |
-            set -eu
-            ROOT="$CIRCLE_WORKING_DIRECTORY"
-            OUT_DIR="$ROOT/brave-work/src/out/android_Debug_arm64"
-            mkdir -p "$ROOT/.ssbrave-cache" "$ROOT/brave-apk"
-            APK=""
-            if [ -d "$OUT_DIR/apks" ]; then
-              APK="$(find "$OUT_DIR/apks" -maxdepth 1 -type f -name '*.apk' -size +0c | sort | head -n 1)"
-            fi
-            if [ -n "$APK" ] && python3 - "$APK" <<'PY'
-            import sys, zipfile
-            with zipfile.ZipFile(sys.argv[1]) as archive:
-                bad = archive.testzip()
-                if bad:
-                    raise SystemExit("corrupt APK archive member: " + bad)
-            PY
-            then
-              cp "$APK" "$ROOT/brave-apk/Sandium-Brave-test.apk"
-              printf 'BUILD_FINISHED=true\nAPK_ARCHIVE_VALID=true\nAPK_SOURCE=%s\n' "$APK" > "$ROOT/.ssbrave-cache/apk-status.txt"
-              printf 'BUILD_FINISHED=true\nAPK_ARCHIVE_VALID=true\n' > "$ROOT/brave-apk/status.txt"
-            else
-              printf 'BUILD_FINISHED=false\nAPK_ARCHIVE_VALID=false\n' > "$ROOT/.ssbrave-cache/apk-status.txt"
-              printf 'BUILD_FINISHED=false\nAPK_ARCHIVE_VALID=false\n' > "$ROOT/brave-apk/status.txt"
-            fi
-            cat "$ROOT/.ssbrave-cache/apk-status.txt"
+      - when:
+          condition: always
+          steps:
+            - run:
+                name: Record APK status and publish a testable Brave APK
+                command: |
+                set -eu
+                ROOT="$CIRCLE_WORKING_DIRECTORY"
+                OUT_DIR="$ROOT/brave-work/src/out/android_Debug_arm64"
+                mkdir -p "$ROOT/.ssbrave-cache" "$ROOT/brave-apk"
+                APK=""
+                if [ -d "$OUT_DIR/apks" ]; then
+                  APK="$(find "$OUT_DIR/apks" -maxdepth 1 -type f -name '*.apk' -size +0c | sort | head -n 1)"
+                fi
+                if [ -n "$APK" ] && python3 - "$APK" <<'PY'
+                import sys, zipfile
+                with zipfile.ZipFile(sys.argv[1]) as archive:
+                    bad = archive.testzip()
+                    if bad:
+                        raise SystemExit("corrupt APK archive member: " + bad)
+                PY
+                then
+                  cp "$APK" "$ROOT/brave-apk/Sandium-Brave-test.apk"
+                  printf 'BUILD_FINISHED=true\nAPK_ARCHIVE_VALID=true\nAPK_SOURCE=%s\n' "$APK" > "$ROOT/.ssbrave-cache/apk-status.txt"
+                  printf 'BUILD_FINISHED=true\nAPK_ARCHIVE_VALID=true\n' > "$ROOT/brave-apk/status.txt"
+                else
+                  printf 'BUILD_FINISHED=false\nAPK_ARCHIVE_VALID=false\n' > "$ROOT/.ssbrave-cache/apk-status.txt"
+                  printf 'BUILD_FINISHED=false\nAPK_ARCHIVE_VALID=false\n' > "$ROOT/brave-apk/status.txt"
+                fi
+                cat "$ROOT/.ssbrave-cache/apk-status.txt"
 
       - save_cache:
           name: Save stage-specific Brave APK completion marker
@@ -2233,25 +2249,24 @@ jobs:
             - .ssbrave-cache/apk-status.txt
           when: always
 
-      - store_artifacts:
-          path: brave-apk
-          destination: brave-apk
-          when: always
-
-      - store_artifacts:
-          path: brave-stage-diag.txt
-          destination: brave-diagnostics/stage-diag.txt
-          when: always
-
-      - store_artifacts:
-          path: brave-build.log
-          destination: brave-diagnostics/brave-build.log
-          when: always
-
-      - store_artifacts:
-          path: brave-stage-result.txt
-          destination: brave-diagnostics/stage-result.txt
-          when: always
+      - when:
+          condition: always
+          steps:
+            - store_artifacts:
+                path: brave-apk
+                destination: brave-apk
+      
+            - store_artifacts:
+                path: brave-stage-diag.txt
+                destination: brave-diagnostics/stage-diag.txt
+      
+            - store_artifacts:
+                path: brave-build.log
+                destination: brave-diagnostics/brave-build.log
+      
+            - store_artifacts:
+                path: brave-stage-result.txt
+                destination: brave-diagnostics/stage-result.txt
 
 
 workflows:
