@@ -696,8 +696,10 @@ jobs:
             echo "STAGE_START_BUILD_OUTPUT_COUNT=$(printenv STAGE_START_OUTPUTS || true)"
 
       - run:
-          name: Build bounded Siso slice and save checkpoint
+          name: Build bounded Siso slice, retry transient failures, and save checkpoint
           no_output_timeout: 50m
+          max_auto_reruns: 2
+          auto_rerun_delay: 30s
           command: |
             set -eu
             export PATH="$CIRCLE_WORKING_DIRECTORY/depot_tools:$PATH"
@@ -707,6 +709,37 @@ jobs:
             DIAG="$CIRCLE_WORKING_DIRECTORY/stage-diag.txt"
             APK="$OUT_DIR/apks/ChromePublic.apk"
             MAX_STAGE_WALL_SECONDS=2820
+            TRANSIENT_INFRA_SIGNATURE='spawn-helper:.*(connection reset by peer|broken pipe|unexpected EOF)|unknown service google[.]longrunning[.]Operations|code = DeadlineExceeded|Infra failure: .*remote-exec|rpc error: code = (Unavailable|DeadlineExceeded|ResourceExhausted|Aborted)|transport is closing|connection reset by peer'
+            ATTEMPT_ROOT="$CIRCLE_WORKING_DIRECTORY/stage-retry-history/stage-<< parameters.stage_index >>"
+            ATTEMPT_COUNTER="$ATTEMPT_ROOT/attempt-count"
+            mkdir -p "$ATTEMPT_ROOT"
+            PREVIOUS_ATTEMPT=0
+            if [ -s "$ATTEMPT_COUNTER" ]; then
+              PREVIOUS_ATTEMPT="$(cat "$ATTEMPT_COUNTER")"
+              case "$PREVIOUS_ATTEMPT" in *[!0-9]*|'') PREVIOUS_ATTEMPT=0 ;; esac
+            fi
+            ATTEMPT=$((PREVIOUS_ATTEMPT + 1))
+            if [ "$PREVIOUS_ATTEMPT" -gt 0 ]; then
+              PRIOR_ATTEMPT_DIR="$ATTEMPT_ROOT/attempt-$PREVIOUS_ATTEMPT"
+              mkdir -p "$PRIOR_ATTEMPT_DIR"
+              for ARTIFACT_NAME in build_stdout.log stage-diag.txt siso-stage-metrics.jsonl siso_output.txt siso_failed_targets.txt stage-build-result.txt stage-frontier-cumulative.txt stage-frontier-current.txt stage-frontier-new.txt; do
+                if [ -s "$CIRCLE_WORKING_DIRECTORY/$ARTIFACT_NAME" ]; then
+                  cp -f "$CIRCLE_WORKING_DIRECTORY/$ARTIFACT_NAME" "$PRIOR_ATTEMPT_DIR/$ARTIFACT_NAME"
+                fi
+              done
+              echo "Archived attempt $PREVIOUS_ATTEMPT diagnostics before retry."
+            fi
+            echo "$ATTEMPT" > "$ATTEMPT_COUNTER"
+            REMOTE_JOBS=80
+            RETRY_CONCURRENCY_REDUCED=false
+            if [ "$PREVIOUS_ATTEMPT" -gt 0 ]; then
+              PREVIOUS_LOG="$ATTEMPT_ROOT/attempt-$PREVIOUS_ATTEMPT/build_stdout.log"
+              if [ -s "$PREVIOUS_LOG" ] && grep -Eiq "$TRANSIENT_INFRA_SIGNATURE" "$PREVIOUS_LOG"; then
+                REMOTE_JOBS=64
+                RETRY_CONCURRENCY_REDUCED=true
+                echo "Retrying after transient infrastructure failure with remote concurrency reduced from 80 to 64."
+              fi
+            fi
             : > "$BUILD_LOG"
             : > "$DIAG"
             : > "$CIRCLE_WORKING_DIRECTORY/siso_output.txt"
@@ -717,6 +750,10 @@ jobs:
             RET=124
             {
               echo "stage=<< parameters.stage_index >>"
+              echo "stage_build_attempt=$ATTEMPT"
+              echo "stage_auto_retry_limit=2"
+              echo "remote_job_limit=$REMOTE_JOBS"
+              echo "retry_concurrency_reduced=$RETRY_CONCURRENCY_REDUCED"
               echo "stage_started_epoch=$START_TS"
               echo "build_start_epoch=$(date +%s)"
               echo "elapsed_before_compile_seconds=$ELAPSED"
@@ -799,14 +836,14 @@ jobs:
               echo "Setup consumed the stage wall budget; preserving the existing checkpoint." | tee -a "$DIAG"
               RET=124
             else
-              echo "Running autoninja/Siso with strict remote execution and REAPI keep-exec-stream enabled for at most $REMAINING seconds." | tee -a "$DIAG"
-              export SISO_LIMITS=local=8,remote=80
+              echo "Running autoninja/Siso with strict remote execution, keep-exec-stream, remote_jobs=$REMOTE_JOBS, for at most $REMAINING seconds." | tee -a "$DIAG"
+              export SISO_LIMITS="local=8,remote=$REMOTE_JOBS"
               set +e
               # Start the build in its own process group so a failed early
               # remote-execution gate can stop the whole build, not just tee.
               setsid -w timeout --signal=INT --kill-after=90s "$REMAINING"s \
-                bash -c 'set -o pipefail; autoninja -strict_remote --reapi_keep_exec_stream -metrics_json sandfox-stage-metrics.jsonl -C "$1" -j80 chrome_public_apk 2>&1 | tee "$2"' \
-                _ "$OUT_DIR" "$BUILD_LOG" &
+                bash -c 'set -o pipefail; autoninja -strict_remote --reapi_keep_exec_stream -metrics_json sandfox-stage-metrics.jsonl -C "$1" -j"$3" chrome_public_apk 2>&1 | tee "$2"' \
+                _ "$OUT_DIR" "$BUILD_LOG" "$REMOTE_JOBS" &
               BUILD_PID=$!
               REMOTE_GATE_SECONDS=240
               REMOTE_GATE_INTERVAL=15
@@ -883,7 +920,7 @@ jobs:
               echo "BUILD_FAILURE: autoninja returned success but ChromePublic.apk is missing." | tee -a "$DIAG"
               RET=1
             fi
-            echo "autoninja_exit_code=$RET" | tee -a "$DIAG"
+            RAW_BUILD_EXIT="$RET"
             siso_alive() { pgrep -x siso >/dev/null 2>&1; }
             SISO_FORCED_KILL=0
             for _ in $(seq 1 60); do
@@ -997,6 +1034,37 @@ jobs:
             echo "cache_action_count=$CACHE_ACTIONS" | tee -a "$DIAG"
             echo "local_action_count=$LOCAL_ACTIONS" | tee -a "$DIAG"
             echo "no_exec_action_count=$NO_EXEC_ACTIONS" | tee -a "$DIAG"
+            TRANSIENT_INFRA_RETRY=false
+            TRANSIENT_INFRA_SEEN=false
+            if [ "$RAW_BUILD_EXIT" -ne 0 ] && [ "$RAW_BUILD_EXIT" -ne 124 ] && [ ! -s "$APK" ] \
+               && grep -Eiq "$TRANSIENT_INFRA_SIGNATURE" "$BUILD_LOG"; then
+              TRANSIENT_INFRA_SEEN=true
+              RETRY_REMAINING=$((MAX_STAGE_WALL_SECONDS - ($(date +%s) - START_TS)))
+              CHECKPOINT_STATE_AVAILABLE=false
+              if [ -s "$STATE" ] || [ -s "$JOURNAL" ]; then
+                CHECKPOINT_STATE_AVAILABLE=true
+              fi
+              STAGE_PROGRESS_AVAILABLE=false
+              if [ "$NEW_FRONTIER_LABEL_COUNT" -gt 0 ] || [ "$OBJECT_COUNT" -gt "$OBJECTS_BEFORE" ] || [ "$OUTPUT_COUNT" -gt "$OUTPUTS_BEFORE" ]; then
+                STAGE_PROGRESS_AVAILABLE=true
+              fi
+              if [ "$CHECKPOINT_STATE_AVAILABLE" = true ] && [ "$REMOTE_EXEC_LOG_COUNT" -gt 0 ] \
+                 && [ "$ATTEMPT" -lt 3 ] && [ "$RETRY_REMAINING" -ge 600 ]; then
+                TRANSIENT_INFRA_RETRY=true
+                echo "TRANSIENT_INFRA_RECOVERY=RETRY; attempt=$ATTEMPT; exit=$RAW_BUILD_EXIT; remaining_stage_seconds=$RETRY_REMAINING; checkpoint state and remote execution evidence are present." | tee -a "$DIAG"
+              elif [ "$CHECKPOINT_STATE_AVAILABLE" = true ] && [ "$REMOTE_EXEC_LOG_COUNT" -gt 0 ] && [ "$STAGE_PROGRESS_AVAILABLE" = true ]; then
+                RET=124
+                echo "TRANSIENT_INFRA_RECOVERY=CONTINUE_FROM_CHECKPOINT; attempt=$ATTEMPT; raw_exit=$RAW_BUILD_EXIT; remaining_stage_seconds=$RETRY_REMAINING; useful progress and remote execution are preserved, so this stage will hand off instead of failing." | tee -a "$DIAG"
+              else
+                echo "TRANSIENT_INFRA_RECOVERY=UNSAFE_TO_CONTINUE; attempt=$ATTEMPT; checkpoint_state=$CHECKPOINT_STATE_AVAILABLE; stage_progress=$STAGE_PROGRESS_AVAILABLE; remote_signatures=$REMOTE_EXEC_LOG_COUNT." | tee -a "$DIAG"
+              fi
+            fi
+            echo "autoninja_exit_code=$RET" | tee -a "$DIAG"
+            echo "raw_autoninja_exit_code=$RAW_BUILD_EXIT" | tee -a "$DIAG"
+            echo "stage_build_attempt=$ATTEMPT" | tee -a "$DIAG"
+            echo "transient_infra_seen=$TRANSIENT_INFRA_SEEN" | tee -a "$DIAG"
+            echo "transient_infra_retry_requested=$TRANSIENT_INFRA_RETRY" | tee -a "$DIAG"
+            echo "retry_concurrency_reduced=$RETRY_CONCURRENCY_REDUCED" | tee -a "$DIAG"
             ls -lh "$STATE" "$JOURNAL" 2>&1 | tee -a "$DIAG" || true
             if [ "$SISO_FORCED_KILL" -ne 0 ]; then
               echo "CHECKPOINT_SAVE=REJECTED reason=siso_did_not_exit_cleanly" | tee -a "$DIAG"
@@ -1076,6 +1144,11 @@ jobs:
             printf '%s\n' \
               "stage_index=<< parameters.stage_index >>" \
               "build_exit_code=$RET" \
+              "raw_autoninja_exit_code=$RAW_BUILD_EXIT" \
+              "stage_build_attempt=$ATTEMPT" \
+              "transient_infra_seen=$TRANSIENT_INFRA_SEEN" \
+              "transient_infra_retry_requested=$TRANSIENT_INFRA_RETRY" \
+              "retry_concurrency_reduced=$RETRY_CONCURRENCY_REDUCED" \
               "object_count_before=$OBJECTS_BEFORE" \
               "object_count_after=$OBJECT_COUNT" \
               "output_count_before=$OUTPUTS_BEFORE" \
@@ -1131,6 +1204,10 @@ jobs:
               echo "=== END OF STAGE DIAGNOSTICS ==="
             } >> "$DIAG"
             cat "$DIAG"
+            if [ "$TRANSIENT_INFRA_RETRY" = true ]; then
+              echo "TRANSIENT_INFRA_RETRY=STEP_AUTO_RERUN_REQUESTED; the bounded build step failed only on a recognized transport/process signature, and its checkpoint was saved."
+              exit 75
+            fi
       - when:
           condition: always
           steps:
@@ -1163,6 +1240,9 @@ jobs:
             - store_artifacts:
                 path: stage-build-result.txt
                 destination: checkpoint-stage-<< parameters.stage_index >>/stage-build-result.txt
+            - store_artifacts:
+                path: stage-retry-history
+                destination: checkpoint-stage-<< parameters.stage_index >>/retry-history
       - run:
           name: Skip full source snapshot packaging
           command: |
@@ -1187,6 +1267,7 @@ jobs:
             - checkpoint.tar.zst
             - checkpoint.meta
             - stage-frontier-cumulative.txt
+          when: always
       - run:
           name: Record APK status
           command: |
