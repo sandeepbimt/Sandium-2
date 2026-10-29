@@ -1527,9 +1527,14 @@ jobs:
               grep -F 'projects/rbe-chromium-untrusted/instances/default_instance' "$GCLIENT"
               cd "$ROOT/brave-work"
               ./src/build/install-build-deps.sh --android
+              # The Brave staged jobs install depot_tools at the workspace root,
+              # not under brave-work. Add that known location before resolving gclient.
+              if [ -d "$ROOT/depot_tools" ]; then
+                export PATH="$ROOT/depot_tools:$PATH"
+              fi
               GCLIENT_BIN="$(command -v gclient || true)"
               if [ -z "$GCLIENT_BIN" ]; then
-                for candidate in "$ROOT/brave-work/depot_tools/gclient" "$ROOT/brave-work/src/depot_tools/gclient"; do
+                for candidate in "$ROOT/depot_tools/gclient" "$ROOT/brave-work/depot_tools/gclient" "$ROOT/brave-work/src/depot_tools/gclient"; do
                   if [ -x "$candidate" ]; then GCLIENT_BIN="$candidate"; break; fi
                 done
               fi
