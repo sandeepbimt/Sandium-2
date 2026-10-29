@@ -1406,8 +1406,8 @@ jobs:
             echo "STAGE_CONTINUATION=PASS; next stage will resume and must make useful progress."
 
   ss2-fast-path-validation:
-    machine:
-      image: ubuntu-2404:current
+    docker:
+      - image: cimg/python:3.12
     resource_class: small
     steps:
       - checkout
