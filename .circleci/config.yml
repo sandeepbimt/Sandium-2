@@ -1429,7 +1429,7 @@ jobs:
             ARGS_SHA="$(sha256sum "$ROOT/afterbird-delta/.build/args/release.gn" | awk '{print $1}')"
             APK="$ROOT/ss2-apk/stage-3/ChromePublic.apk"
             STATUS="$ROOT/ss2-apk/stage-3/status.txt"
-            python3 - "$APK" <<'PY'
+            python3 - "$APK" \<<'PY'
             import sys, zipfile
             with zipfile.ZipFile(sys.argv[1], "w", zipfile.ZIP_DEFLATED) as z:
                 z.writestr("AndroidManifest.xml", "test manifest")
@@ -1453,7 +1453,7 @@ jobs:
               expected_sha="$(sed -n 's/^APK_SHA256=//p' "$status" | tail -n 1)"
               actual_sha="$(sha256sum "$apk" | awk '{print $1}')"
               [ -n "$expected_sha" ] && [ "$actual_sha" = "$expected_sha" ] || return 1
-              python3 - "$apk" <<'PY'
+              python3 - "$apk" \<<'PY'
             import sys, zipfile
             try:
                 with zipfile.ZipFile(sys.argv[1]) as z:
