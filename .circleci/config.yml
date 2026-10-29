@@ -1496,14 +1496,14 @@ jobs:
               pnpm run init --target_os=android --target_arch=arm64 --no-history
               cd "$ROOT/brave-work"
               ./src/build/install-build-deps.sh --android
-              cat > "$ROOT/brave-work/src/brave/.env" <<EOF
-            rbe_service=remote.buildbuddy.io:443
-            use_remoteexec=true
-            gn_args_use_siso=true
-            gn_args_use_reclient=false
-            siso_limits_local=8
-            siso_limits_remote=80
-            EOF
+              printf '%s\n' \
+                'rbe_service=remote.buildbuddy.io:443' \
+                'use_remoteexec=true' \
+                'gn_args_use_siso=true' \
+                'gn_args_use_reclient=false' \
+                'siso_limits_local=8' \
+                'siso_limits_remote=80' \
+                > "$ROOT/brave-work/src/brave/.env"
               cd "$ROOT/brave-work/src/brave"
               pnpm run build Debug --target_os=android --target_arch=arm64 --target_android_output_format=apk --use_remoteexec=true --gn use_siso:true --gn use_reclient:false --prepare_only
             fi
