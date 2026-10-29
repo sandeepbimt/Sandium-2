@@ -1421,101 +1421,13 @@ jobs:
       image: ubuntu-2404:current
     resource_class: large
     steps:
-      - run:
-          name: Record Brave stage start and check BuildBuddy credentials
-          command: |
-            set -eu
-            echo "export BRAVE_STAGE_START_TS=$(date +%s)" >> "$BASH_ENV"
-            echo "BRAVE_STAGE=<< parameters.stage_index >>"
-            if [ -z "$(printenv BUILDBUDDY_API_KEY 2>/dev/null || true)" ]; then
-              echo "MISSING_REQUIRED_SECRET=BUILDBUDDY_API_KEY" >&2
-              echo "Configure the same CircleCI BuildBuddy API key used by the working Chromium pipeline." >&2
-              exit 1
-            fi
-            HELPER=/tmp/sandium-brave-buildbuddy-credential-helper.py
-            printf '%s\n' \
-              '#!/usr/bin/env python3' \
-              'import json, os, sys' \
-              'if len(sys.argv) < 2 or sys.argv[1] != "get": raise SystemExit(1)' \
-              'sys.stdin.read()' \
-              'print(json.dumps({"headers": {"x-buildbuddy-api-key": [os.environ["BUILDBUDDY_API_KEY"]]}}))' \
-              > "$HELPER"
-            chmod 700 "$HELPER"
-            echo "BRAVE_REAPI_CREDENTIAL_HELPER=READY"
-
-      - restore_cache:
-          name: Restore APK completion marker for this exact source revision
-          keys:
-            - sandium-brave-apk-v1-{{ .Branch }}-{{ .Revision }}-stage-
-
-      - run:
-          name: Fast exit if a valid Brave APK is already recorded
-          command: |
-            set -eu
-            STATUS="$CIRCLE_WORKING_DIRECTORY/.ssbrave-cache/apk-status.txt"
-            if [ -s "$STATUS" ] && grep -qx 'BUILD_FINISHED=true' "$STATUS" && grep -qx 'APK_ARCHIVE_VALID=true' "$STATUS"; then
-              echo "APK=true"
-              echo "BRAVE_FAST_EXIT=PASS stage=<< parameters.stage_index >>; valid APK was already produced for this revision."
-              cat "$STATUS"
-              circleci-agent step halt
-            fi
-            echo "APK=false; continuing Brave stage."
-
       - checkout
-
-      - when:
-          condition:
-            equal: [1, << parameters.stage_index >>]
-          steps:
-            - restore_cache:
-                name: Restore most recent compatible Brave checkpoint from prior runs
-                keys:
-                  - sandium-brave-checkpoint-v1-{{ .Branch }}-
-
-      - when:
-          condition:
-            equal: [2, << parameters.stage_index >>]
-          steps:
-            - restore_cache:
-                name: Restore Stage 1 Brave compilation checkpoint
-                keys:
-                  - sandium-brave-checkpoint-v1-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-1
-
-      - when:
-          condition:
-            equal: [3, << parameters.stage_index >>]
-          steps:
-            - restore_cache:
-                name: Restore Stage 2 Brave compilation checkpoint
-                keys:
-                  - sandium-brave-checkpoint-v1-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-2
-
-      - when:
-          condition:
-            equal: [4, << parameters.stage_index >>]
-          steps:
-            - restore_cache:
-                name: Restore Stage 3 Brave compilation checkpoint
-                keys:
-                  - sandium-brave-checkpoint-v1-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-3
-
-      - when:
-          condition:
-            equal: [5, << parameters.stage_index >>]
-          steps:
-            - restore_cache:
-                name: Restore Stage 4 Brave compilation checkpoint
-                keys:
-                  - sandium-brave-checkpoint-v1-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-4
-
-
       - restore_cache:
-          name: Restore pinned Node runtime
           keys:
             - sandium-brave-node-v1-24.16.0
-
       - run:
-          name: Install pinned Node.js 24.16.0 and pnpm 11.11.0
+          name: Prepare pinned Brave Android source
+          no_output_timeout: 45m
           command: |
             set -euo pipefail
             ROOT="$CIRCLE_WORKING_DIRECTORY"
@@ -1527,747 +1439,109 @@ jobs:
               rm -f "$ROOT/node-v24.16.0.tar.xz"
             fi
             export PATH="$NODE_DIR/bin:$PATH"
-            node --version
-            npm --version
             npm install --global pnpm@11.11.0
-            pnpm --version
-            test "$(node --version)" = "v24.16.0"
-            test "$(pnpm --version)" = "11.11.0"
             echo "export PATH=\"$NODE_DIR/bin:\$PATH\"" >> "$BASH_ENV"
-
-      - save_cache:
-          name: Save pinned Node runtime for later stages and runs
-          key: sandium-brave-node-v1-24.16.0
-          paths:
-            - node-runtime
-
-      - restore_cache:
-          name: Restore pnpm package store across stages and runs
-          keys:
-            - sandium-brave-pnpm-store-v1-11.11.0
-
-      - run:
-          name: Checkout pinned Brave Core and initialize matching Chromium source
-          no_output_timeout: 45m
-          command: |
-            set -euo pipefail
-            ROOT="$CIRCLE_WORKING_DIRECTORY"
-            WORKDIR="$ROOT/brave-work"
-            SRC_DIR="$WORKDIR/src"
-            CORE_DIR="$SRC_DIR/brave"
-            BRAVE_CORE_TAG="v1.98.62"
-            REAPI_ADDRESS="$(printenv AFTERBIRD_REAPI_ADDRESS 2>/dev/null || true)"
-            [ -n "$REAPI_ADDRESS" ] || REAPI_ADDRESS="remote.buildbuddy.io:443"
-
-            rm -rf "$WORKDIR"
-            mkdir -p "$CORE_DIR" "$HOME/.cache/pnpm-store"
-            export PATH="$ROOT/node-runtime/bin:$PATH"
-            pnpm config set store-dir "$HOME/.cache/pnpm-store"
-
-            git clone --depth 1 --branch "$BRAVE_CORE_TAG" https://github.com/brave/brave-core.git "$CORE_DIR"
-            test "$(git -C "$CORE_DIR" describe --tags --exact-match)" = "$BRAVE_CORE_TAG"
-
-            # Use Brave's normal .env configuration. No credentials are written here.
-            cat > "$CORE_DIR/.env" <<EOF
-            rbe_service=$REAPI_ADDRESS
+            mkdir -p "$ROOT/brave-work"
+            if [ ! -d "$ROOT/brave-work/src/brave/.git" ]; then
+              git clone --depth 1 --branch v1.98.62 https://github.com/brave/brave-core.git "$ROOT/brave-work/src/brave"
+            fi
+            cd "$ROOT/brave-work/src/brave"
+            CHROMIUM_TAG="$(node -e 'console.log(JSON.parse(require("fs").readFileSync("package.json")).config.projects.chrome.tag)')"
+            echo "BRAVE_CORE_TAG=v1.98.62"
+            echo "CHROMIUM_TAG=$CHROMIUM_TAG"
+            echo "BRAVE_STAGE=<< parameters.stage_index >>"
+            test -n "$CHROMIUM_TAG"
+            if [ "<< parameters.stage_index >>" = "1" ]; then
+              pnpm config set store-dir "$HOME/.cache/pnpm-store"
+              pnpm run init --target_os=android --target_arch=arm64 --no-history
+              cd "$ROOT/brave-work"
+              ./src/build/install-build-deps.sh --android
+              cat > "$ROOT/brave-work/src/brave/.env" <<EOF
+            rbe_service=remote.buildbuddy.io:443
             use_remoteexec=true
             gn_args_use_siso=true
             gn_args_use_reclient=false
             siso_limits_local=8
             siso_limits_remote=80
             EOF
-
-            CHROMIUM_TAG="$(cd "$CORE_DIR" && node -e 'console.log(JSON.parse(require("fs").readFileSync("package.json")).config.projects.chrome.tag)')"
-            test "$CHROMIUM_TAG" = "156.0.8078.74"
-            echo "BRAVE_CORE_TAG=$BRAVE_CORE_TAG"
-            echo "BRAVE_CORE_SHA=$(git -C "$CORE_DIR" rev-parse HEAD)"
-            echo "CHROMIUM_TAG=$CHROMIUM_TAG"
-            echo "REAPI_ADDRESS=$REAPI_ADDRESS"
-
-            cd "$CORE_DIR"
-            pnpm run init --target_os=android --target_arch=arm64 --no-history
-
-            cd "$WORKDIR"
-            ./src/build/install-build-deps.sh --android
-
-            # Carry forward the proven REAPI diagnostic-path fix with a strict source guard.
-            FILE="$SRC_DIR/build/config/compiler/compiler.gni"
-            test -s "$FILE"
-            OLD_COUNT="$(grep -Ec '^[[:space:]]*clang_diagnostic_dir = rebase_path\("//out/clang-crashreports", root_build_dir\)[[:space:]]*  c4-afterbird-staged-checkpoint-build:
-    jobs:
-      - c4-afterbird-staged-build:
-          name: c4-afterbird-stage-1
-          stage_index: 1
-          filters:
-            branches:
-              only:
-                - sandfox/checkpoint-stage-v1
-                - ss2-from-ss1
-      - c4-afterbird-staged-build:
-          name: c4-afterbird-stage-2
-          stage_index: 2
-          requires:
-            - c4-afterbird-stage-1
-          filters:
-            branches:
-              only:
-                - sandfox/checkpoint-stage-v1
-                - ss2-from-ss1
-      - c4-afterbird-staged-build:
-          name: c4-afterbird-stage-3
-          stage_index: 3
-          requires:
-            - c4-afterbird-stage-2
-          filters:
-            branches:
-              only:
-                - sandfox/checkpoint-stage-v1
-                - ss2-from-ss1
-      - c4-afterbird-staged-build:
-          name: c4-afterbird-stage-4
-          stage_index: 4
-          requires:
-            - c4-afterbird-stage-3
-          filters:
-            branches:
-              only:
-                - sandfox/checkpoint-stage-v1
-                - ss2-from-ss1
-      - c4-afterbird-staged-build:
-          name: c4-afterbird-stage-5
-          stage_index: 5
-          requires:
-            - c4-afterbird-stage-4
-          filters:
-            branches:
-              only:
-                - sandfox/checkpoint-stage-v1
-                - ss2-from-ss1 "$FILE" || true)"
-            NEW_COUNT="$(grep -Ec '^[[:space:]]*clang_diagnostic_dir = "clang-crashreports"[[:space:]]*  c4-afterbird-staged-checkpoint-build:
-    jobs:
-      - c4-afterbird-staged-build:
-          name: c4-afterbird-stage-1
-          stage_index: 1
-          filters:
-            branches:
-              only:
-                - sandfox/checkpoint-stage-v1
-                - ss2-from-ss1
-      - c4-afterbird-staged-build:
-          name: c4-afterbird-stage-2
-          stage_index: 2
-          requires:
-            - c4-afterbird-stage-1
-          filters:
-            branches:
-              only:
-                - sandfox/checkpoint-stage-v1
-                - ss2-from-ss1
-      - c4-afterbird-staged-build:
-          name: c4-afterbird-stage-3
-          stage_index: 3
-          requires:
-            - c4-afterbird-stage-2
-          filters:
-            branches:
-              only:
-                - sandfox/checkpoint-stage-v1
-                - ss2-from-ss1
-      - c4-afterbird-staged-build:
-          name: c4-afterbird-stage-4
-          stage_index: 4
-          requires:
-            - c4-afterbird-stage-3
-          filters:
-            branches:
-              only:
-                - sandfox/checkpoint-stage-v1
-                - ss2-from-ss1
-      - c4-afterbird-staged-build:
-          name: c4-afterbird-stage-5
-          stage_index: 5
-          requires:
-            - c4-afterbird-stage-4
-          filters:
-            branches:
-              only:
-                - sandfox/checkpoint-stage-v1
-                - ss2-from-ss1 "$FILE" || true)"
-            if [ "$OLD_COUNT" -eq 1 ] && [ "$NEW_COUNT" -eq 0 ]; then
-              sed -i 's#clang_diagnostic_dir = rebase_path("//out/clang-crashreports", root_build_dir)#clang_diagnostic_dir = "clang-crashreports"#' "$FILE"
-            elif [ "$OLD_COUNT" -ne 0 ] || [ "$NEW_COUNT" -ne 1 ]; then
-              echo "REAPI_DIAGNOSTIC_PATH_GATE=FAIL; unexpected compiler.gni layout." >&2
+              cd "$ROOT/brave-work/src/brave"
+              pnpm run build Debug --target_os=android --target_arch=arm64 --target_android_output_format=apk --use_remoteexec=true --gn use_siso:true --gn use_reclient:false --prepare_only
+            fi
+      - save_cache:
+          key: sandium-brave-node-v1-24.16.0
+          paths:
+            - node-runtime
+      - run:
+          name: Validate build graph and remote-execution settings
+          command: |
+            set -euo pipefail
+            OUT="$CIRCLE_WORKING_DIRECTORY/brave-work/src/out/android_Debug_arm64"
+            if [ "<< parameters.stage_index >>" = "1" ]; then
+              test -s "$OUT/build.ninja"
+              test -s "$OUT/args.gn"
+              test -s "$OUT/args_generated.gni"
+              grep -Eq 'use_remoteexec[[:space:]]*=[[:space:]]*true' "$OUT/args_generated.gni"
+              grep -Eq 'use_siso[[:space:]]*=[[:space:]]*true' "$OUT/args_generated.gni"
+              grep -Eq 'use_reclient[[:space:]]*=[[:space:]]*false' "$OUT/args_generated.gni"
+              echo "BRAVE_REMOTE_EXECUTION_CONFIG_GATE=PASS"
+            fi
+      - run:
+          name: Build bounded Brave Android APK slice
+          no_output_timeout: 45m
+          command: |
+            set -euo pipefail
+            ROOT="$CIRCLE_WORKING_DIRECTORY"
+            OUT="$ROOT/brave-work/src/out/android_Debug_arm64"
+            if [ -s "$OUT/apks/Brave.apk" ]; then
+              echo "APK=true; stage can exit early."
+              exit 0
+            fi
+            if [ ! -s "$OUT/build.ninja" ]; then
+              echo "Build graph missing. This stage requires the previous checkpoint." >&2
               exit 1
             fi
-            grep -Eq '^[[:space:]]*clang_diagnostic_dir = "clang-crashreports"[[:space:]]*  c4-afterbird-staged-checkpoint-build:
-    jobs:
-      - c4-afterbird-staged-build:
-          name: c4-afterbird-stage-1
-          stage_index: 1
-          filters:
-            branches:
-              only:
-                - sandfox/checkpoint-stage-v1
-                - ss2-from-ss1
-      - c4-afterbird-staged-build:
-          name: c4-afterbird-stage-2
-          stage_index: 2
-          requires:
-            - c4-afterbird-stage-1
-          filters:
-            branches:
-              only:
-                - sandfox/checkpoint-stage-v1
-                - ss2-from-ss1
-      - c4-afterbird-staged-build:
-          name: c4-afterbird-stage-3
-          stage_index: 3
-          requires:
-            - c4-afterbird-stage-2
-          filters:
-            branches:
-              only:
-                - sandfox/checkpoint-stage-v1
-                - ss2-from-ss1
-      - c4-afterbird-staged-build:
-          name: c4-afterbird-stage-4
-          stage_index: 4
-          requires:
-            - c4-afterbird-stage-3
-          filters:
-            branches:
-              only:
-                - sandfox/checkpoint-stage-v1
-                - ss2-from-ss1
-      - c4-afterbird-staged-build:
-          name: c4-afterbird-stage-5
-          stage_index: 5
-          requires:
-            - c4-afterbird-stage-4
-          filters:
-            branches:
-              only:
-                - sandfox/checkpoint-stage-v1
-                - ss2-from-ss1 "$FILE"
-            echo "REAPI_DIAGNOSTIC_PATH_GATE=PASS"
-            echo "BRAVE_SOURCE_SETUP=PASS"
-
+            if [ -z "$(printenv BUILDBUDDY_API_KEY 2>/dev/null || true)" ]; then
+              echo "MISSING_REQUIRED_SECRET=BUILDBUDDY_API_KEY" >&2
+              exit 1
+            fi
+            if [ "<< parameters.stage_index >>" = "1" ]; then
+              echo "Stage 1 prepared the build graph. Compilation begins in the next stage."
+              exit 0
+            fi
+            export SISO_LIMITS="local=8,remote=80"
+            timeout --signal=INT --kill-after=60s 2700s autoninja -strict_remote --reapi_keep_exec_stream -C "$OUT" -j80 brave
+            find "$OUT/apks" -maxdepth 1 -type f -name '*.apk' -size +0c -print -quit | grep -q .
       - save_cache:
-          name: Save pnpm package store for later stages and runs
-          key: sandium-brave-pnpm-store-v1-11.11.0
+          key: sandium-brave-out-v1-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-<< parameters.stage_index >>
           paths:
-            - ~/.cache/pnpm-store
+            - brave-work/src/out/android_Debug_arm64
           when: always
-
       - run:
-          name: Configure Brave Siso for BuildBuddy remote execution
-          command: |
-            set -euo pipefail
-            ROOT="$CIRCLE_WORKING_DIRECTORY"
-            SRC_DIR="$ROOT/brave-work/src"
-            SISO_DIR="$SRC_DIR/build/config/siso"
-            HELPER=/tmp/sandium-brave-buildbuddy-credential-helper.py
-            REAPI_ADDRESS="$(printenv AFTERBIRD_REAPI_ADDRESS 2>/dev/null || true)"
-            REAPI_INSTANCE="$(printenv AFTERBIRD_REAPI_INSTANCE 2>/dev/null || true)"
-            [ -n "$REAPI_ADDRESS" ] || REAPI_ADDRESS="remote.buildbuddy.io:443"
-            [ -n "$REAPI_INSTANCE" ] || REAPI_INSTANCE="default"
-
-            test -x "$HELPER"
-            test -s "$SISO_DIR/configure_siso.py"
-            test -s "$SISO_DIR/backend_config/google.star"
-            test -s "$SISO_DIR/brave_siso_config.star"
-            python3 "$SISO_DIR/configure_siso.py" \
-              --reapi_instance "$REAPI_INSTANCE" \
-              --reapi_address "$REAPI_ADDRESS" \
-              --reapi_backend_config_path google.star \
-              --credential-helper "$HELPER"
-
-            SISO_ENV="$SISO_DIR/.sisoenv"
-            SISO_RC="$SISO_DIR/.sisorc"
-            test -s "$SISO_ENV"
-            test -s "$SISO_RC"
-            grep -Fx "SISO_REAPI_ADDRESS=$REAPI_ADDRESS" "$SISO_ENV"
-            grep -Fx "SISO_REAPI_INSTANCE=$REAPI_INSTANCE" "$SISO_ENV"
-            grep -Fx "SISO_CREDENTIAL_HELPER=$HELPER" "$SISO_ENV"
-            grep -Fq -- '-reapi_keep_exec_stream' "$SISO_RC"
-            if ! grep -Fxq 'ninja -re_cache_enable_write=true' "$SISO_RC"; then
-              printf '%s\n' 'ninja -re_cache_enable_write=true' >> "$SISO_RC"
-            fi
-            grep -Fx 'ninja -re_cache_enable_write=true' "$SISO_RC"
-            test -s "$SISO_DIR/backend_config/backend.star"
-            echo "BRAVE_SISO_REAPI_CONFIG=PASS"
-            echo "BRAVE_SISO_CUSTOM_CONFIG=PASS"
-
-      - run:
-          name: Restore compatible checkpoint or generate Brave Android build graph
-          command: |
-            set -euo pipefail
-            ROOT="$CIRCLE_WORKING_DIRECTORY"
-            WORKDIR="$ROOT/brave-work"
-            SRC_DIR="$WORKDIR/src"
-            CORE_DIR="$SRC_DIR/brave"
-            OUT_DIR="$SRC_DIR/out/android_Debug_arm64"
-            CHECKPOINT="$ROOT/brave-checkpoint.tar.zst"
-            CHECKPOINT_META="$ROOT/brave-checkpoint.meta"
-            CURRENT_META="$ROOT/current-brave-checkpoint.meta"
-            STAGE_INDEX="<< parameters.stage_index >>"
-            RESTORED=false
-
-            write_source_identity() {
-              CORE_SHA="$(git -C "$CORE_DIR" rev-parse HEAD)"
-              CHROMIUM_SHA="$(git -C "$SRC_DIR" rev-parse HEAD)"
-              PACKAGE_SHA="$(cat "$CORE_DIR/package.json" "$CORE_DIR/pnpm-lock.yaml" "$CORE_DIR/DEPS" "$SRC_DIR/DEPS" | sha256sum | awk '{print $1}')"
-              ENV_SHA="$(sha256sum "$CORE_DIR/.env" | awk '{print $1}')"
-              SISO_ENV_SHA="$(sha256sum "$SRC_DIR/build/config/siso/.sisoenv" | awk '{print $1}')"
-              SISO_RC_SHA="$(sha256sum "$SRC_DIR/build/config/siso/.sisorc" | awk '{print $1}')"
-              SISO_BACKEND_SHA="$(sha256sum "$SRC_DIR/build/config/siso/backend_config/backend.star" | awk '{print $1}')"
-              BRAVE_SISO_SHA="$(sha256sum "$SRC_DIR/build/config/siso/brave_siso_config.star" | awk '{print $1}')"
-              CLANG_GNI_SHA="$(sha256sum "$SRC_DIR/build/config/compiler/compiler.gni" | awk '{print $1}')"
-              printf '%s\n' \
-                'schema=1' \
-                'source_timestamp_policy=epoch_946684800_full_tree_v2_depth_first_dirs' \
-                "brave_core_sha=$CORE_SHA" \
-                "chromium_sha=$CHROMIUM_SHA" \
-                "package_deps_sha=$PACKAGE_SHA" \
-                "env_sha=$ENV_SHA" \
-                "siso_env_sha=$SISO_ENV_SHA" \
-                "siso_rc_sha=$SISO_RC_SHA" \
-                "siso_backend_sha=$SISO_BACKEND_SHA" \
-                "brave_siso_sha=$BRAVE_SISO_SHA" \
-                "clang_compiler_gni_sha=$CLANG_GNI_SHA" \
-                'build_config=Debug' \
-                'target_os=android' \
-                'target_cpu=arm64' \
-                'target=brave' \
-                'out=out/android_Debug_arm64' \
-                > "$ROOT/brave-source-identity.txt"
-            }
-
-            if [ -s "$CHECKPOINT" ] && [ -s "$CHECKPOINT_META" ]; then
-              echo "CHECKPOINT_CANDIDATE=FOUND"
-              if tar -x -I 'zstd -T0 -d' -f "$CHECKPOINT" -C "$SRC_DIR"; then
-                if [ -s "$OUT_DIR/build.ninja" ] && [ -s "$OUT_DIR/args.gn" ] && [ -s "$OUT_DIR/args_generated.gni" ]; then
-                  write_source_identity
-                  ARGS_SHA="$(cat "$OUT_DIR/args.gn" "$OUT_DIR/args_generated.gni" | sha256sum | awk '{print $1}')"
-                  cat "$ROOT/brave-source-identity.txt" > "$CURRENT_META"
-                  printf 'args_sha=%s\n' "$ARGS_SHA" >> "$CURRENT_META"
-                  if cmp -s "$CURRENT_META" "$CHECKPOINT_META" && { [ -s "$OUT_DIR/.siso_fs_state" ] || [ -s "$OUT_DIR/.siso_fs_state.journal" ] || [ -e "$OUT_DIR/build.ninja.stamp" ]; }; then
-                    RESTORED=true
-                    echo "CHECKPOINT_RESTORE=ACCEPTED; compatible Brave graph and outputs restored."
-                  else
-                    echo "CHECKPOINT_RESTORE=REJECTED; Brave inputs or GN arguments differ."
-                    rm -rf "$OUT_DIR"
-                  fi
-                else
-                  echo "CHECKPOINT_RESTORE=REJECTED; build graph or GN arguments missing."
-                  rm -rf "$OUT_DIR"
-                fi
-              else
-                echo "CHECKPOINT_RESTORE=REJECTED; archive extraction failed."
-                rm -rf "$OUT_DIR"
-              fi
-            else
-              echo "CHECKPOINT_CANDIDATE=NOT_FOUND"
-            fi
-
-            if [ "$RESTORED" != true ]; then
-              if [ "$STAGE_INDEX" -ne 1 ]; then
-                echo "CHECKPOINT_RESTORE=FAIL; continuation stage refuses a cold build." >&2
-                exit 1
-              fi
-              export PATH="$ROOT/node-runtime/bin:$PATH"
-              cd "$CORE_DIR"
-              pnpm run build Debug \
-                --target_os=android \
-                --target_arch=arm64 \
-                --target_android_output_format=apk \
-                --use_remoteexec=true \
-                --gn use_siso:true \
-                --gn use_reclient:false \
-                --prepare_only
-              test -s "$OUT_DIR/build.ninja"
-              test -s "$OUT_DIR/args.gn"
-              test -s "$OUT_DIR/args_generated.gni"
-              echo "GN_SETUP=FRESH"
-            fi
-
-            SOURCE_TIMESTAMP_EPOCH=946684800
-            test -s "$OUT_DIR/build.ninja"
-            test -e "$OUT_DIR/build.ninja.stamp"
-            find "$SRC_DIR" \
-              \( -name .git -o -path "$SRC_DIR/out" \) -prune -o \
-              -exec touch -h -d "@$SOURCE_TIMESTAMP_EPOCH" {} +
-            find "$SRC_DIR" \
-              \( -name .git -o -path "$SRC_DIR/out" \) -prune -o \
-              -type d -print0 \
-              | python3 -c 'import sys; z=bytes([0]); p=[x for x in sys.stdin.buffer.read().split(z) if x]; p.sort(key=lambda x: (x.count(b"/"), x), reverse=True); sys.stdout.buffer.write(z.join(p) + (z if p else b""))' \
-              | xargs -0 -r touch -h -d "@$SOURCE_TIMESTAMP_EPOCH"
-
-            for path in "$SRC_DIR" "$SRC_DIR/build" "$SRC_DIR/build/config" "$SRC_DIR/third_party" "$SRC_DIR/DEPS" "$SRC_DIR/build/config/compiler/compiler.gni"; do
-              test -e "$path"
-              test "$(stat -c '%Y' "$path")" -eq "$SOURCE_TIMESTAMP_EPOCH"
-            done
-            test "$(stat -c '%Y' "$OUT_DIR/build.ninja.stamp")" -gt "$SOURCE_TIMESTAMP_EPOCH"
-
-            TARGET="$(gn ls "$OUT_DIR" //brave:brave)"
-            test -n "$TARGET"
-            grep -Eq 'use_remoteexec[[:space:]]*=[[:space:]]*true' "$OUT_DIR/args_generated.gni"
-            grep -Eq 'use_siso[[:space:]]*=[[:space:]]*true' "$OUT_DIR/args_generated.gni"
-            grep -Eq 'use_reclient[[:space:]]*=[[:space:]]*false' "$OUT_DIR/args_generated.gni"
-            grep -Eq '^SISO_REAPI_ADDRESS=.+:443  c4-afterbird-staged-checkpoint-build:
-    jobs:
-      - c4-afterbird-staged-build:
-          name: c4-afterbird-stage-1
-          stage_index: 1
-          filters:
-            branches:
-              only:
-                - sandfox/checkpoint-stage-v1
-                - ss2-from-ss1
-      - c4-afterbird-staged-build:
-          name: c4-afterbird-stage-2
-          stage_index: 2
-          requires:
-            - c4-afterbird-stage-1
-          filters:
-            branches:
-              only:
-                - sandfox/checkpoint-stage-v1
-                - ss2-from-ss1
-      - c4-afterbird-staged-build:
-          name: c4-afterbird-stage-3
-          stage_index: 3
-          requires:
-            - c4-afterbird-stage-2
-          filters:
-            branches:
-              only:
-                - sandfox/checkpoint-stage-v1
-                - ss2-from-ss1
-      - c4-afterbird-staged-build:
-          name: c4-afterbird-stage-4
-          stage_index: 4
-          requires:
-            - c4-afterbird-stage-3
-          filters:
-            branches:
-              only:
-                - sandfox/checkpoint-stage-v1
-                - ss2-from-ss1
-      - c4-afterbird-staged-build:
-          name: c4-afterbird-stage-5
-          stage_index: 5
-          requires:
-            - c4-afterbird-stage-4
-          filters:
-            branches:
-              only:
-                - sandfox/checkpoint-stage-v1
-                - ss2-from-ss1 "$SRC_DIR/build/config/siso/.sisoenv"
-            echo "BRAVE_REMOTE_EXECUTION_CONFIG_GATE=PASS"
-            echo "RESTORED_CHECKPOINT=$RESTORED"
-            echo "RESTORED_OBJECT_COUNT=$(find "$OUT_DIR/obj" -type f -name '*.o' 2>/dev/null | wc -l | tr -d ' ')"
-            du -sh "$OUT_DIR"
-            df -hT
-            free -h
-
-      - run:
-          name: Build bounded Brave APK slice and save checkpoint
-          no_output_timeout: 45m
-          max_auto_reruns: 1
-          auto_rerun_delay: 30s
+          name: Export APK status and artifacts
+          when: always
           command: |
             set -eu
             ROOT="$CIRCLE_WORKING_DIRECTORY"
-            SRC_DIR="$ROOT/brave-work/src"
-            OUT_DIR="$SRC_DIR/out/android_Debug_arm64"
-            BUILD_LOG="$ROOT/brave-build.log"
-            DIAG="$ROOT/brave-stage-diag.txt"
-            METRICS="$OUT_DIR/brave-stage-metrics.jsonl"
-            MAX_STAGE_WALL_SECONDS=2820
-            REMOTE_JOBS=80
-            REMAINING=$((MAX_STAGE_WALL_SECONDS - ($(date +%s) - BRAVE_STAGE_START_TS)))
-            [ "$REMAINING" -ge 0 ] || REMAINING=0
-            RET=0
-            REMOTE_GATE_PASSED=false
-            SISO_FORCED_KILL=0
-            : > "$BUILD_LOG"
-            : > "$DIAG"
-            rm -f "$METRICS"
-
-            echo "stage=<< parameters.stage_index >>" | tee -a "$DIAG"
-            echo "chromium_tag=156.0.8078.74" | tee -a "$DIAG"
-            echo "brave_core_tag=v1.98.62" | tee -a "$DIAG"
-            echo "remote_jobs=$REMOTE_JOBS" | tee -a "$DIAG"
-            echo "remaining_stage_seconds=$REMAINING" | tee -a "$DIAG"
-            echo "=== RESTORED STATE ===" | tee -a "$DIAG"
-            ls -lh "$OUT_DIR"/.siso_fs_state* 2>&1 | tee -a "$DIAG" || true
-
-            if find "$OUT_DIR/apks" -maxdepth 1 -type f -name '*.apk' -size +0c 2>/dev/null | grep -q .; then
-              echo "APK_ALREADY_PRESENT=true; compile skipped." | tee -a "$DIAG"
-              RET=0
-            elif [ "$REMAINING" -le 180 ]; then
-              echo "BUILD_SLICE=SKIPPED; setup used the stage wall budget; preserving current graph/checkpoint." | tee -a "$DIAG"
-              RET=124
-            else
-              export SISO_LIMITS="local=8,remote=$REMOTE_JOBS"
-              echo "Running strict-remote autoninja for up to $REMAINING seconds." | tee -a "$DIAG"
-              setsid -w timeout --signal=INT --kill-after=90s "${REMAINING}s" \
-                bash -c 'set -o pipefail; autoninja -strict_remote --reapi_keep_exec_stream -metrics_json brave-stage-metrics.jsonl -C "$1" -j"$2" brave 2>&1 | tee "$3"' \
-                _ "$OUT_DIR" "$REMOTE_JOBS" "$BUILD_LOG" &
-              BUILD_PID=$!
-              REMOTE_GATE_SECONDS=180
-              REMOTE_GATE_INTERVAL=15
-              REMOTE_GATE_ELAPSED=0
-              while [ "$REMOTE_GATE_ELAPSED" -lt "$REMOTE_GATE_SECONDS" ]; do
-                if grep -Eiq 'is_local=false|step state: remote exec|exec remote execute|use reapi "remote\.buildbuddy\.io:443"' "$BUILD_LOG" 2>/dev/null; then
-                  REMOTE_GATE_PASSED=true
-                  echo "EARLY_REMOTE_EXECUTION_GATE=PASS elapsed_seconds=$REMOTE_GATE_ELAPSED" | tee -a "$DIAG"
-                  break
-                fi
-                if ! kill -0 "$BUILD_PID" 2>/dev/null; then
-                  break
-                fi
-                sleep "$REMOTE_GATE_INTERVAL"
-                REMOTE_GATE_ELAPSED=$((REMOTE_GATE_ELAPSED + REMOTE_GATE_INTERVAL))
-              done
-              if [ "$REMOTE_GATE_PASSED" != true ] && kill -0 "$BUILD_PID" 2>/dev/null; then
-                echo "EARLY_REMOTE_EXECUTION_GATE=FAIL; no REAPI evidence within $REMOTE_GATE_SECONDS seconds. Stopping to avoid expensive local compilation." | tee -a "$DIAG" >&2
-                kill -INT -- "-$BUILD_PID" 2>/dev/null || true
-                sleep 5
-                kill -TERM -- "-$BUILD_PID" 2>/dev/null || true
-                sleep 5
-                kill -KILL -- "-$BUILD_PID" 2>/dev/null || true
-                wait "$BUILD_PID" || true
-                RET=125
-              else
-                if [ "$REMOTE_GATE_PASSED" != true ]; then
-                  echo "EARLY_REMOTE_EXECUTION_GATE=FAIL; build ended before REAPI evidence." | tee -a "$DIAG" >&2
-                  RET=125
-                else
-                  wait "$BUILD_PID"
-                  RET=$?
-                fi
-              fi
-            fi
-
-            RAW_RET="$RET"
-            if pgrep -x siso >/dev/null 2>&1; then
-              for _ in $(seq 1 60); do
-                pgrep -x siso >/dev/null 2>&1 || break
-                sleep 2
-              done
-              if pgrep -x siso >/dev/null 2>&1; then
-                echo "SISO_SHUTDOWN=FAILED; refusing to save a live state." | tee -a "$DIAG"
-                pkill -KILL -x siso 2>/dev/null || true
-                SISO_FORCED_KILL=1
-              fi
-            fi
-
-            APK=""
-            if [ -d "$OUT_DIR/apks" ]; then
-              APK="$(find "$OUT_DIR/apks" -maxdepth 1 -type f -name '*.apk' -size +0c | sort | head -n 1)"
-            fi
-            APK_PRESENT=false
+            OUT="$ROOT/brave-work/src/out/android_Debug_arm64"
+            mkdir -p "$ROOT/brave-apk"
+            APK="$(find "$OUT/apks" -maxdepth 1 -type f -name '*.apk' -size +0c 2>/dev/null | head -n 1 || true)"
             if [ -n "$APK" ] && python3 - "$APK" <<'PY'
             import sys, zipfile
-            with zipfile.ZipFile(sys.argv[1]) as archive:
-                bad = archive.testzip()
-                if bad:
-                    raise SystemExit("corrupt APK archive member: " + bad)
+            with zipfile.ZipFile(sys.argv[1]) as z:
+                if z.testzip():
+                    raise SystemExit(1)
             PY
             then
-              APK_PRESENT=true
-              mkdir -p "$ROOT/brave-apk"
               cp "$APK" "$ROOT/brave-apk/Sandium-Brave-test.apk"
-              echo "APK_PRESENT_AFTER_BUILD=true path=$APK" | tee -a "$DIAG"
-              RAW_RET=0
+              echo "BUILD_FINISHED=true" > "$ROOT/brave-apk/status.txt"
+              echo "APK_ARCHIVE_VALID=true" >> "$ROOT/brave-apk/status.txt"
             else
-              echo "APK_PRESENT_AFTER_BUILD=false" | tee -a "$DIAG"
+              echo "BUILD_FINISHED=false" > "$ROOT/brave-apk/status.txt"
+              echo "APK_ARCHIVE_VALID=false" >> "$ROOT/brave-apk/status.txt"
             fi
-
-            if [ "$SISO_FORCED_KILL" -ne 0 ]; then
-              RET=1
-            elif [ "$RAW_RET" -eq 124 ] && [ "$APK_PRESENT" != true ]; then
-              RET=0
-              echo "BUILD_SLICE=TIMEOUT_CHECKPOINTED; continue with next stage." | tee -a "$DIAG"
-            elif [ "$RAW_RET" -eq 125 ] && [ "$APK_PRESENT" != true ]; then
-              RET=1
-            elif [ "$RAW_RET" -ne 0 ] && [ "$APK_PRESENT" != true ]; then
-              RET="$RAW_RET"
-            else
-              RET=0
-            fi
-
-            if [ ! -s "$OUT_DIR/build.ninja" ] || [ ! -s "$OUT_DIR/args.gn" ] || [ ! -s "$OUT_DIR/args_generated.gni" ]; then
-              echo "CHECKPOINT_SAVE=REJECTED; required build graph or GN args missing." | tee -a "$DIAG"
-              cat "$DIAG"
-              exit 1
-            fi
-
-            CORE_DIR="$SRC_DIR/brave"
-            write_source_identity() {
-              CORE_SHA="$(git -C "$CORE_DIR" rev-parse HEAD)"
-              CHROMIUM_SHA="$(git -C "$SRC_DIR" rev-parse HEAD)"
-              PACKAGE_SHA="$(cat "$CORE_DIR/package.json" "$CORE_DIR/pnpm-lock.yaml" "$CORE_DIR/DEPS" "$SRC_DIR/DEPS" | sha256sum | awk '{print $1}')"
-              ENV_SHA="$(sha256sum "$CORE_DIR/.env" | awk '{print $1}')"
-              SISO_ENV_SHA="$(sha256sum "$SRC_DIR/build/config/siso/.sisoenv" | awk '{print $1}')"
-              SISO_RC_SHA="$(sha256sum "$SRC_DIR/build/config/siso/.sisorc" | awk '{print $1}')"
-              SISO_BACKEND_SHA="$(sha256sum "$SRC_DIR/build/config/siso/backend_config/backend.star" | awk '{print $1}')"
-              BRAVE_SISO_SHA="$(sha256sum "$SRC_DIR/build/config/siso/brave_siso_config.star" | awk '{print $1}')"
-              CLANG_GNI_SHA="$(sha256sum "$SRC_DIR/build/config/compiler/compiler.gni" | awk '{print $1}')"
-              printf '%s\n' \
-                'schema=1' \
-                'source_timestamp_policy=epoch_946684800_full_tree_v2_depth_first_dirs' \
-                "brave_core_sha=$CORE_SHA" \
-                "chromium_sha=$CHROMIUM_SHA" \
-                "package_deps_sha=$PACKAGE_SHA" \
-                "env_sha=$ENV_SHA" \
-                "siso_env_sha=$SISO_ENV_SHA" \
-                "siso_rc_sha=$SISO_RC_SHA" \
-                "siso_backend_sha=$SISO_BACKEND_SHA" \
-                "brave_siso_sha=$BRAVE_SISO_SHA" \
-                "clang_compiler_gni_sha=$CLANG_GNI_SHA" \
-                'build_config=Debug' \
-                'target_os=android' \
-                'target_cpu=arm64' \
-                'target=brave' \
-                'out=out/android_Debug_arm64' \
-                > "$ROOT/brave-source-identity.txt"
-            }
-            write_source_identity
-            ARGS_SHA="$(cat "$OUT_DIR/args.gn" "$OUT_DIR/args_generated.gni" | sha256sum | awk '{print $1}')"
-            cat "$ROOT/brave-source-identity.txt" > "$ROOT/brave-checkpoint.meta"
-            printf 'args_sha=%s\n' "$ARGS_SHA" >> "$ROOT/brave-checkpoint.meta"
-
-            CHECKPOINT_STATE_MODE="GRAPH_ONLY"
-            if [ -s "$OUT_DIR/.siso_fs_state" ]; then
-              if [ -s "$OUT_DIR/.siso_fs_state.journal" ]; then
-                CHECKPOINT_STATE_MODE="BASE_AND_JOURNAL"
-              else
-                CHECKPOINT_STATE_MODE="BASE_ONLY"
-              fi
-            elif [ -s "$OUT_DIR/.siso_fs_state.journal" ]; then
-              CHECKPOINT_STATE_MODE="JOURNAL_ONLY"
-            fi
-            echo "CHECKPOINT_STATE_MODE=$CHECKPOINT_STATE_MODE" | tee -a "$DIAG"
-
-            if [ "$SISO_FORCED_KILL" -ne 0 ]; then
-              echo "CHECKPOINT_SAVE=REJECTED reason=siso_did_not_exit_cleanly" | tee -a "$DIAG"
-              RET=1
-            else
-              PACK_START="$(date +%s)"
-              rm -f "$ROOT/brave-checkpoint.tar.zst.tmp"
-              tar -c -I 'zstd -T0 -3' --format=posix --pax-option='delete=atime,delete=ctime' \
-                -f "$ROOT/brave-checkpoint.tar.zst.tmp" -C "$SRC_DIR" out/android_Debug_arm64
-              mv "$ROOT/brave-checkpoint.tar.zst.tmp" "$ROOT/brave-checkpoint.tar.zst"
-              PACK_END="$(date +%s)"
-              echo "checkpoint_pack_seconds=$((PACK_END - PACK_START))" | tee -a "$DIAG"
-              echo "checkpoint_size_bytes=$(stat -c '%s' "$ROOT/brave-checkpoint.tar.zst")" | tee -a "$DIAG"
-              echo "CHECKPOINT_SAVE=PASS" | tee -a "$DIAG"
-            fi
-
-            OBJECT_COUNT="$(find "$OUT_DIR/obj" -type f -name '*.o' 2>/dev/null | wc -l | tr -d ' ')"
-            OUTPUT_COUNT="$(find "$OUT_DIR/obj" "$OUT_DIR/gen" "$OUT_DIR/apks" -type f 2>/dev/null | wc -l | tr -d ' ')"
-            echo "object_file_count=$OBJECT_COUNT" | tee -a "$DIAG"
-            echo "build_output_count=$OUTPUT_COUNT" | tee -a "$DIAG"
-            FRONTIER_CUM="$ROOT/brave-stage-frontier-cumulative.txt"
-            FRONTIER_CUR="$ROOT/brave-stage-frontier-current.txt"
-            FRONTIER_NEW="$ROOT/brave-stage-frontier-new.txt"
-            sed -nE 's/^\[[0-9]+\/[0-9]+\][[:space:]]+[^[:space:]]+[[:space:]]+F[[:space:]]+(.*)$/\1/p' "$BUILD_LOG" | LC_ALL=C sort -u > "$FRONTIER_CUR"
-            if [ -s "$FRONTIER_CUM" ]; then
-              comm -23 "$FRONTIER_CUR" "$FRONTIER_CUM" > "$FRONTIER_NEW" || true
-              cat "$FRONTIER_CUM" "$FRONTIER_CUR" | LC_ALL=C sort -u > "$FRONTIER_CUM.tmp"
-              mv "$FRONTIER_CUM.tmp" "$FRONTIER_CUM"
-            else
-              cp "$FRONTIER_CUR" "$FRONTIER_CUM"
-              cp "$FRONTIER_CUR" "$FRONTIER_NEW"
-            fi
-            echo "ACTION_FRONTIER_PRIOR_COUNT=$(wc -l < "$FRONTIER_CUM" | tr -d ' ')" | tee -a "$DIAG"
-            echo "ACTION_FRONTIER_NEW_COUNT=$(wc -l < "$FRONTIER_NEW" | tr -d ' ')" | tee -a "$DIAG"
-            echo "remote_exec_gate_passed=$REMOTE_GATE_PASSED" | tee -a "$DIAG"
-            echo "raw_autoninja_exit_code=$RAW_RET" | tee -a "$DIAG"
-            echo "effective_stage_exit_code=$RET" | tee -a "$DIAG"
-            printf '%s\n' \
-              "stage_index=<< parameters.stage_index >>" \
-              "build_exit_code=$RET" \
-              "raw_autoninja_exit_code=$RAW_RET" \
-              "remote_exec_gate_passed=$REMOTE_GATE_PASSED" \
-              "checkpoint_state_mode=$CHECKPOINT_STATE_MODE" \
-              "object_count=$OBJECT_COUNT" \
-              "output_count=$OUTPUT_COUNT" \
-              "apk_present=$APK_PRESENT" \
-              "checkpoint_save=PASS" \
-              > "$ROOT/brave-stage-result.txt"
-            cat "$DIAG"
-            if [ "$RET" -ne 0 ]; then exit "$RET"; fi
-
-      - save_cache:
-          name: Save Brave checkpoint for the next stage and future runs
-          key: sandium-brave-checkpoint-v1-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-<< parameters.stage_index >>
-          paths:
-            - brave-checkpoint.tar.zst
-            - brave-checkpoint.meta
-            - brave-stage-frontier-cumulative.txt
-          when: always
-
-      - when:
-          condition: always
-          steps:
-            - run:
-                name: Record APK status and publish a testable Brave APK
-                command: |
-                    set -eu
-                    ROOT="$CIRCLE_WORKING_DIRECTORY"
-                    OUT_DIR="$ROOT/brave-work/src/out/android_Debug_arm64"
-                    mkdir -p "$ROOT/.ssbrave-cache" "$ROOT/brave-apk"
-                    APK=""
-                    if [ -d "$OUT_DIR/apks" ]; then
-                      APK="$(find "$OUT_DIR/apks" -maxdepth 1 -type f -name '*.apk' -size +0c | sort | head -n 1)"
-                    fi
-                    if [ -n "$APK" ] && python3 - "$APK" <<'PY'
-                    import sys, zipfile
-                    with zipfile.ZipFile(sys.argv[1]) as archive:
-                        bad = archive.testzip()
-                        if bad:
-                            raise SystemExit("corrupt APK archive member: " + bad)
-                    PY
-                    then
-                      cp "$APK" "$ROOT/brave-apk/Sandium-Brave-test.apk"
-                      printf 'BUILD_FINISHED=true\nAPK_ARCHIVE_VALID=true\nAPK_SOURCE=%s\n' "$APK" > "$ROOT/.ssbrave-cache/apk-status.txt"
-                      printf 'BUILD_FINISHED=true\nAPK_ARCHIVE_VALID=true\n' > "$ROOT/brave-apk/status.txt"
-                    else
-                      printf 'BUILD_FINISHED=false\nAPK_ARCHIVE_VALID=false\n' > "$ROOT/.ssbrave-cache/apk-status.txt"
-                      printf 'BUILD_FINISHED=false\nAPK_ARCHIVE_VALID=false\n' > "$ROOT/brave-apk/status.txt"
-                    fi
-                    cat "$ROOT/.ssbrave-cache/apk-status.txt"
-
-      - save_cache:
-          name: Save stage-specific Brave APK completion marker
-          key: sandium-brave-apk-v1-{{ .Branch }}-{{ .Revision }}-stage-<< parameters.stage_index >>
-          paths:
-            - .ssbrave-cache/apk-status.txt
-          when: always
-
-      - when:
-          condition: always
-          steps:
-            - store_artifacts:
-                path: brave-apk
-                destination: brave-apk
-      
-            - store_artifacts:
-                path: brave-stage-diag.txt
-                destination: brave-diagnostics/stage-diag.txt
-      
-            - store_artifacts:
-                path: brave-build.log
-                destination: brave-diagnostics/brave-build.log
-      
-            - store_artifacts:
-                path: brave-stage-result.txt
-                destination: brave-diagnostics/stage-result.txt
-
+      - store_artifacts:
+          path: brave-apk
+          destination: brave-apk
 
 workflows:
   c4-afterbird-staged-checkpoint-build:
@@ -2320,7 +1594,6 @@ workflows:
               only:
                 - sandfox/checkpoint-stage-v1
                 - ss2-from-ss1
-
   brave-android-staged-checkpoint-build:
     jobs:
       - brave-android-staged-build:
@@ -2328,41 +1601,32 @@ workflows:
           stage_index: 1
           filters:
             branches:
-              only:
-                - sandium/brave-android-poc
+              only: sandium/brave-android-poc
       - brave-android-staged-build:
           name: brave-android-stage-2
           stage_index: 2
-          requires:
-            - brave-android-stage-1
+          requires: [brave-android-stage-1]
           filters:
             branches:
-              only:
-                - sandium/brave-android-poc
+              only: sandium/brave-android-poc
       - brave-android-staged-build:
           name: brave-android-stage-3
           stage_index: 3
-          requires:
-            - brave-android-stage-2
+          requires: [brave-android-stage-2]
           filters:
             branches:
-              only:
-                - sandium/brave-android-poc
+              only: sandium/brave-android-poc
       - brave-android-staged-build:
           name: brave-android-stage-4
           stage_index: 4
-          requires:
-            - brave-android-stage-3
+          requires: [brave-android-stage-3]
           filters:
             branches:
-              only:
-                - sandium/brave-android-poc
+              only: sandium/brave-android-poc
       - brave-android-staged-build:
           name: brave-android-stage-5
           stage_index: 5
-          requires:
-            - brave-android-stage-4
+          requires: [brave-android-stage-4]
           filters:
             branches:
-              only:
-                - sandium/brave-android-poc
+              only: sandium/brave-android-poc
