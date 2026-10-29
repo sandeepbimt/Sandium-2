@@ -1494,37 +1494,42 @@ jobs:
             if [ "<< parameters.stage_index >>" = "1" ]; then
               pnpm config set store-dir "$HOME/.cache/pnpm-store"
               SRC_DIR="$ROOT/brave-work/src"
+              CORE_DIR="$SRC_DIR/brave"
               OUT="$SRC_DIR/out/android_Debug_arm64"
               SOURCE_REUSE=false
+              CHROMIUM_PIN="d331de35ca8ab1358c7a17e4bd41627d55eaef51"
 
-              # A restored cache may already contain a complete, pinned Brave checkout and GN graph.
-              # If so, do not run pnpm init/gclient sync again: that was the previous run's expensive
-              # work and can take tens of minutes even when it ultimately changes nothing.
-              if [ -s "$OUT/build.ninja" ] && [ -s "$OUT/args.gn" ] && \
-                 [ -s "$OUT/args_generated.gni" ] && [ -s "$SRC_DIR/.gclient" ] && \
+              # Test source checkout independently from the GN output. A missing/incomplete GN graph
+              # must not force pnpm init/gclient sync to re-fetch Chromium's entire dependency tree.
+              if [ -s "$SRC_DIR/.gclient" ] && [ -d "$SRC_DIR/.git" ] && \
                  [ -x "$SRC_DIR/build/install-build-deps.sh" ] && \
-                 [ "$(git -C "$SRC_DIR/brave" describe --tags --exact-match 2>/dev/null || true)" = "v1.98.62" ] && \
-                 [ -s "$SRC_DIR/build/config/siso/.sisoenv" ] && [ -s "$SRC_DIR/build/config/siso/.sisorc" ]; then
+                 [ "$(git -C "$CORE_DIR" describe --tags --exact-match 2>/dev/null || true)" = "v1.98.62" ] && \
+                 [ "$(git -C "$SRC_DIR" rev-parse HEAD 2>/dev/null || true)" = "$CHROMIUM_PIN" ] && \
+                 [ -d "$SRC_DIR/third_party" ] && [ -d "$SRC_DIR/build" ]; then
                 SOURCE_REUSE=true
-                echo "BRAVE_SOURCE_REUSE=PASS; pinned source and GN graph already restored. Skipping pnpm init/gclient sync."
+                echo "BRAVE_SOURCE_REUSE=PASS; pinned Brave Core and Chromium source restored. Skipping pnpm init/gclient sync."
+              else
+                echo "BRAVE_SOURCE_REUSE=MISS; source checkout incomplete or pin mismatch; source sync required."
+                pnpm run init --target_os=android --target_arch=arm64 --no-history
               fi
 
-              if [ "$SOURCE_REUSE" != true ]; then
-                pnpm run init --target_os=android --target_arch=arm64 --no-history
-                cd "$ROOT/brave-work"
-                ./src/build/install-build-deps.sh --android
-                printf '%s\n' \
-                  'rbe_service=remote.buildbuddy.io:443' \
-                  'use_remoteexec=true' \
-                  'gn_args_use_siso=true' \
-                  'gn_args_use_reclient=false' \
-                  'siso_limits_local=8' \
-                  'siso_limits_remote=80' \
-                  > "$SRC_DIR/brave/.env"
-                cd "$SRC_DIR/brave"
-                pnpm run build Debug --target_os=android --target_arch=arm64 --target_android_output_format=apk --use_remoteexec=true --gn use_siso:true --gn use_reclient:false --prepare_only
-                echo "BRAVE_SOURCE_REUSE=MISS; source initialization completed."
+              cd "$ROOT/brave-work"
+              ./src/build/install-build-deps.sh --android
+              printf '%s\n' \
+                'rbe_service=remote.buildbuddy.io:443' \
+                'use_remoteexec=true' \
+                'gn_args_use_siso=true' \
+                'gn_args_use_reclient=false' \
+                'siso_limits_local=8' \
+                'siso_limits_remote=80' \
+                > "$CORE_DIR/.env"
+              cd "$CORE_DIR"
+              if [ -s "$OUT/build.ninja" ] && [ -s "$OUT/args.gn" ]; then
+                echo "BRAVE_GN_GRAPH_REUSE=PASS; existing GN graph retained."
+              else
+                echo "BRAVE_GN_GRAPH_REUSE=MISS; source sync skipped if source pin matched; generating GN graph."
               fi
+              pnpm run build Debug --target_os=android --target_arch=arm64 --target_android_output_format=apk --use_remoteexec=true --gn use_siso:true --gn use_reclient:false --prepare_only
             fi
       - save_cache:
           key: sandium-brave-node-v1-24.16.0
