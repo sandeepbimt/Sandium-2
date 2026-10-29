@@ -56,6 +56,16 @@ jobs:
                     STATUS="$candidate/status.txt"
                     [ -s "$APK" ] && [ -s "$STATUS" ] || continue
                     grep -Fxq 'BUILD_FINISHED=true' "$STATUS" || continue
+                    grep -Fxq 'APK_ARCHIVE_VALID=true' "$STATUS" || continue
+                    # Do not reuse an APK built from a different Chromium/delta/config baseline.
+                    grep -Fxq 'CHROMIUM_TAG=151.0.7922.38' "$STATUS" || continue
+                    test -d "$ROOT/afterbird-delta/.git" || continue
+                    CURRENT_DELTA_SHA="$(git -C "$ROOT/afterbird-delta" rev-parse HEAD)"
+                    EXPECTED_DELTA_SHA="$(sed -n 's/^AFTERBIRD_SHA=//p' "$STATUS" | tail -n 1)"
+                    [ -n "$EXPECTED_DELTA_SHA" ] && [ "$CURRENT_DELTA_SHA" = "$EXPECTED_DELTA_SHA" ] || continue
+                    CURRENT_ARGS_SHA="$(sha256sum "$ROOT/afterbird-delta/.build/args/release.gn" | awk '{print $1}')"
+                    EXPECTED_ARGS_SHA="$(sed -n 's/^RELEASE_ARGS_SHA256=//p' "$STATUS" | tail -n 1)"
+                    [ -n "$EXPECTED_ARGS_SHA" ] && [ "$CURRENT_ARGS_SHA" = "$EXPECTED_ARGS_SHA" ] || continue
                     EXPECTED_SHA="$(sed -n 's/^APK_SHA256=//p' "$STATUS" | tail -n 1)"
                     [ -n "$EXPECTED_SHA" ] || continue
                     ACTUAL_SHA="$(sha256sum "$APK" | awk '{print $1}')"
@@ -1309,7 +1319,9 @@ jobs:
             if [ -s "$APK" ] && python3 -c 'import sys,zipfile; z=zipfile.ZipFile(sys.argv[1]); bad=z.testzip(); print("APK_ARCHIVE_VALID=true" if bad is None else "APK_ARCHIVE_INVALID entry="+bad); sys.exit(1 if bad else 0)' "$APK"; then
               cp "$APK" "$HANDOFF/ChromePublic.apk"
               APK_SHA256="$(sha256sum "$HANDOFF/ChromePublic.apk" | awk '{print $1}')"
-              printf 'BUILD_FINISHED=true\nAPK_ARCHIVE_VALID=true\nAPK_SHA256=%s\nCHROMIUM_TAG=151.0.7922.38\nAFTERBIRD_SHA=5ff224f9ef8f8a0792abd2babc9f7164e8dcdb3e\n' "$APK_SHA256" > "$HANDOFF/status.txt"
+              AFTERBIRD_SHA="$(git -C "$ROOT/afterbird-delta" rev-parse HEAD)"
+              RELEASE_ARGS_SHA256="$(sha256sum "$ROOT/afterbird-delta/.build/args/release.gn" | awk '{print $1}')"
+              printf 'BUILD_FINISHED=true\nAPK_ARCHIVE_VALID=true\nAPK_SHA256=%s\nCHROMIUM_TAG=151.0.7922.38\nAFTERBIRD_SHA=%s\nRELEASE_ARGS_SHA256=%s\n' "$APK_SHA256" "$AFTERBIRD_SHA" "$RELEASE_ARGS_SHA256" > "$HANDOFF/status.txt"
               echo "SS2_APK_HANDOFF=READY stage=<< parameters.stage_index >> sha256=$APK_SHA256"
             else
               printf 'BUILD_FINISHED=false\n' > "$HANDOFF/status.txt"
