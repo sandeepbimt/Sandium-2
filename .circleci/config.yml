@@ -17,12 +17,12 @@ jobs:
               equal: [1, << parameters.stage_index >>]
           steps:
             - attach_workspace:
-                at: .
+                at: /tmp/ss2-previous-stage-workspace
             - run:
                 name: APK=true fast gate before all other stage work
                 command: |
                   set -euo pipefail
-                  ROOT="$CIRCLE_WORKING_DIRECTORY"
+                  ROOT="/tmp/ss2-previous-stage-workspace"
                   APK_FOUND=""
                   if [ -d "$ROOT/ss2-apk" ]; then
                     APK_FOUND="$(find "$ROOT/ss2-apk" -mindepth 2 -maxdepth 2 -type f -name 'ChromePublic.apk' -size +0c -print -quit)"
@@ -63,6 +63,24 @@ jobs:
             chmod 700 "$HELPER"
             echo 'export SISO_CREDENTIAL_HELPER=/tmp/sandfox-buildbuddy-credential-helper.py' >> "$BASH_ENV"
       - checkout
+
+      # Only reached when the APK gate missed; restore prior-stage work after checkout.
+      - when:
+          condition:
+            not:
+              equal: [1, << parameters.stage_index >>]
+          steps:
+            - run:
+                name: Restore prior-stage workspace after APK=false
+                command: |
+                  set -euo pipefail
+                  PREVIOUS="/tmp/ss2-previous-stage-workspace"
+                  if [ -d "$PREVIOUS" ]; then
+                    cp -a "$PREVIOUS/." "$CIRCLE_WORKING_DIRECTORY/"
+                    echo "APK=false; restored prior-stage workspace for continued build."
+                  else
+                    echo "No prior-stage workspace found; continue with normal build."
+                  fi
 
       - when:
           condition:
