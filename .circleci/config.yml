@@ -1438,7 +1438,9 @@ jobs:
             APK_SHA="$(sha256sum "$APK" | awk '{print $1}')"
             printf 'BUILD_FINISHED=true\nAPK_ARCHIVE_VALID=true\nAPK_SHA256=%s\nCHROMIUM_TAG=151.0.7922.38\nAFTERBIRD_SHA=%s\nRELEASE_ARGS_SHA256=%s\n' "$APK_SHA" "$DELTA_SHA" "$ARGS_SHA" > "$STATUS"
             validate_candidate() {
-              local candidate="$1" apk="$candidate/ChromePublic.apk" status="$candidate/status.txt"
+              local candidate="$1"
+              local apk="$candidate/ChromePublic.apk"
+              local status="$candidate/status.txt"
               [ -s "$apk" ] && [ -s "$status" ] || return 1
               grep -Fxq 'BUILD_FINISHED=true' "$status" || return 1
               grep -Fxq 'APK_ARCHIVE_VALID=true' "$status" || return 1
