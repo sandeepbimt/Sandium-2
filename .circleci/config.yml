@@ -1481,6 +1481,13 @@ jobs:
             mv "$ROOT/ss2-apk/stage-3" "$ROOT/ss2-apk/stage-4"
             bash "$CIRCLE_WORKING_DIRECTORY/.circleci/scripts/ss2-validate-apk-handoff.sh" "$ROOT" "151.0.7922.38"
             echo "SS2_TEST_NEXT_STAGE_REUSE=PASS"
+            # Missing/incompatible handoff must reject fast exit so the normal build path can continue.
+            rm -rf "$ROOT/ss2-apk/stage-4"
+            if bash "$CIRCLE_WORKING_DIRECTORY/.circleci/scripts/ss2-validate-apk-handoff.sh" "$ROOT" "151.0.7922.38"; then
+              echo "SS2_TEST_BUILD_FALLBACK=FAIL (accepted absent APK)" >&2
+              exit 1
+            fi
+            echo "SS2_TEST_BUILD_FALLBACK=PASS"
             echo "SS2_FAST_PATH_VALIDATION=PASS"
 
 workflows:
