@@ -1407,7 +1407,9 @@ workflows:
           stage_index: 1
           filters:
             branches:
-              only: sandfox/checkpoint-stage-v1
+              only:
+                - sandfox/checkpoint-stage-v1
+                - ss2-from-ss1
       - c4-afterbird-staged-build:
           name: c4-afterbird-stage-2
           stage_index: 2
@@ -1415,7 +1417,9 @@ workflows:
             - c4-afterbird-stage-1
           filters:
             branches:
-              only: sandfox/checkpoint-stage-v1
+              only:
+                - sandfox/checkpoint-stage-v1
+                - ss2-from-ss1
       - c4-afterbird-staged-build:
           name: c4-afterbird-stage-3
           stage_index: 3
@@ -1423,7 +1427,9 @@ workflows:
             - c4-afterbird-stage-2
           filters:
             branches:
-              only: sandfox/checkpoint-stage-v1
+              only:
+                - sandfox/checkpoint-stage-v1
+                - ss2-from-ss1
       - c4-afterbird-staged-build:
           name: c4-afterbird-stage-4
           stage_index: 4
@@ -1431,7 +1437,9 @@ workflows:
             - c4-afterbird-stage-3
           filters:
             branches:
-              only: sandfox/checkpoint-stage-v1
+              only:
+                - sandfox/checkpoint-stage-v1
+                - ss2-from-ss1
       - c4-afterbird-staged-build:
           name: c4-afterbird-stage-5
           stage_index: 5
@@ -1439,4 +1447,6 @@ workflows:
             - c4-afterbird-stage-4
           filters:
             branches:
-              only: sandfox/checkpoint-stage-v1
+              only:
+                - sandfox/checkpoint-stage-v1
+                - ss2-from-ss1
