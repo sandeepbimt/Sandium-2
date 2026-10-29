@@ -799,13 +799,13 @@ jobs:
               echo "Setup consumed the stage wall budget; preserving the existing checkpoint." | tee -a "$DIAG"
               RET=124
             else
-              echo "Running autoninja/Siso with strict remote execution for at most $REMAINING seconds." | tee -a "$DIAG"
+              echo "Running autoninja/Siso with strict remote execution and REAPI keep-exec-stream enabled for at most $REMAINING seconds." | tee -a "$DIAG"
               export SISO_LIMITS=local=8,remote=80
               set +e
               # Start the build in its own process group so a failed early
               # remote-execution gate can stop the whole build, not just tee.
               setsid -w timeout --signal=INT --kill-after=90s "$REMAINING"s \
-                bash -c 'set -o pipefail; autoninja -strict_remote -metrics_json sandfox-stage-metrics.jsonl -C "$1" -j80 chrome_public_apk 2>&1 | tee "$2"' \
+                bash -c 'set -o pipefail; autoninja -strict_remote --reapi_keep_exec_stream -metrics_json sandfox-stage-metrics.jsonl -C "$1" -j80 chrome_public_apk 2>&1 | tee "$2"' \
                 _ "$OUT_DIR" "$BUILD_LOG" &
               BUILD_PID=$!
               REMOTE_GATE_SECONDS=240
@@ -1239,7 +1239,11 @@ jobs:
             test "$CHECKPOINT_SAVE" = "PASS" || { echo "STAGE_GATE=FAIL; safe checkpoint missing." >&2; exit 1; }
             test "$STRICT_REMOTE" = "enabled" || { echo "STAGE_GATE=FAIL; strict remote mode not enabled." >&2; exit 1; }
             if [ "$BUILD_EXIT" -ne 124 ]; then
-              echo "STAGE_GATE=FAIL; no APK and build exit status $BUILD_EXIT (expected bounded timeout)." >&2
+              if grep -Eiq 'unknown service google\.longrunning\.Operations|code = DeadlineExceeded|Infra failure: .*remote-exec' "$CIRCLE_WORKING_DIRECTORY/build_stdout.log" 2>/dev/null; then
+                echo "STAGE_GATE=FAIL; remote-execution transport/protocol failure (exit $BUILD_EXIT), not an expected bounded time slice. Checkpoint was saved before this gate." >&2
+              else
+                echo "STAGE_GATE=FAIL; build ended before the bounded time slice (exit $BUILD_EXIT); inspect the preserved stage diagnostics." >&2
+              fi
               exit 1
             fi
             case "$OBJECTS_BEFORE:$OBJECTS_AFTER:$OUTPUTS_BEFORE:$OUTPUTS_AFTER:$REMOTE_EXEC_LOG_SIGNATURES:$CACHE_ACTIONS:$LOCAL_ACTIONS:$NO_EXEC_ACTIONS:$METRIC_ACTION_RECORDS:$METRIC_RECORDS:$PRIOR_FRONTIER_LABELS:$COMPLETED_FRONTIER_LABELS:$NEW_FRONTIER_LABELS" in
