@@ -1471,7 +1471,7 @@ jobs:
               exit 1
             fi
             cp "$T/status.good" "$STATUS"
-            printf 'CHROMIUM_TAG=999.0.0.0\n' >> "$STATUS"
+            sed -i 's/^CHROMIUM_TAG=.*/CHROMIUM_TAG=999.0.0.0/' "$STATUS"
             if validate_candidate "$ROOT/ss2-apk/stage-3"; then
               echo "SS2_TEST_WRONG_REVISION=FAIL (incorrectly accepted)" >&2
               exit 1
