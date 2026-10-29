@@ -1519,10 +1519,10 @@ jobs:
               GCLIENT="$ROOT/brave-work/.gclient"
               test -s "$GCLIENT" || { echo "BRAVE_RBE_CONFIG_GATE=FAIL missing $GCLIENT" >&2; exit 1; }
               if ! grep -q 'SANDIUM_BRAVE_RBE_INSTANCE' "$GCLIENT"; then
-                cat >> "$GCLIENT" <<'PY'
-# SANDIUM_BRAVE_RBE_INSTANCE: public Chromium contributor remote-execution instance.
-solutions[0].setdefault("custom_vars", {})["rbe_instance"] = "projects/rbe-chromium-untrusted/instances/default_instance"
-PY
+                printf '%s\n' \
+                  '# SANDIUM_BRAVE_RBE_INSTANCE: public Chromium contributor remote-execution instance.' \
+                  'solutions[0].setdefault("custom_vars", {})["rbe_instance"] = "projects/rbe-chromium-untrusted/instances/default_instance"' \
+                  >> "$GCLIENT"
               fi
               grep -F 'projects/rbe-chromium-untrusted/instances/default_instance' "$GCLIENT"
               cd "$ROOT/brave-work"
