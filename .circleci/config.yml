@@ -9,6 +9,35 @@ jobs:
       image: ubuntu-2404:current
     resource_class: large
     steps:
+      # SS2 is SS1 plus an early APK completion-marker check. Keep this before checkout.
+      - when:
+          condition:
+            not:
+              equal: [1, << parameters.stage_index >>]
+          steps:
+            - restore_cache:
+                name: SS2 restore latest APK completion marker
+                keys:
+                  - sandium-ss2-apk-completion-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-
+            - run:
+                name: SS2 APK=true fast gate before checkout
+                command: |
+                  set -eu
+                  STAGE_INDEX="<< parameters.stage_index >>"
+                  STATUS="$CIRCLE_WORKING_DIRECTORY/.ss2-cache/apk-completion-status.txt"
+                  if [ -s "$STATUS" ] && grep -qx 'BUILD_FINISHED=true' "$STATUS"; then
+                    echo "APK=true"
+                    echo "SS2_FAST_EXIT=PASS stage=$STAGE_INDEX; prior stage recorded a ZIP-verified APK."
+                    cat "$STATUS"
+                    circleci-agent step halt
+                  fi
+                  echo "APK=false"
+                  echo "SS2_FAST_EXIT=MISS stage=$STAGE_INDEX; continue existing SS1 build."
+            - run:
+                name: Remove SS2 marker before checkout when APK=false
+                command: |
+                  set -eu
+                  rm -rf "$CIRCLE_WORKING_DIRECTORY/.ss2-cache"
       - run:
           name: Record stage start time and validate BuildBuddy credentials
           command: |
@@ -1271,16 +1300,32 @@ jobs:
       - run:
           name: Record APK status
           command: |
-            set -eux
-            APK="$CIRCLE_WORKING_DIRECTORY/afterbird-chromium/src/out/afterbird_production/apks/ChromePublic.apk"
-            mkdir -p "$CIRCLE_WORKING_DIRECTORY/afterbird-baseline"
-            if [ -s "$APK" ]; then
-              cp "$APK" "$CIRCLE_WORKING_DIRECTORY/afterbird-baseline/ChromePublic.apk"
-              printf 'BUILD_FINISHED=true\n' > "$CIRCLE_WORKING_DIRECTORY/afterbird-baseline/status.txt"
+            set -eu
+            ROOT="$CIRCLE_WORKING_DIRECTORY"
+            APK="$ROOT/afterbird-chromium/src/out/afterbird_production/apks/ChromePublic.apk"
+            mkdir -p "$ROOT/afterbird-baseline" "$ROOT/.ss2-cache"
+            if [ -s "$APK" ] && python3 - "$APK" <<'PY'
+            import sys, zipfile
+            with zipfile.ZipFile(sys.argv[1]) as archive:
+                bad = archive.testzip()
+                if bad:
+                    raise SystemExit(f"corrupt APK archive member: {bad}")
+            PY
+            then
+              cp "$APK" "$ROOT/afterbird-baseline/ChromePublic.apk"
+              printf 'BUILD_FINISHED=true\nAPK_ARCHIVE_VALID=true\n' > "$ROOT/afterbird-baseline/status.txt"
+              printf 'BUILD_FINISHED=true\nAPK_ARCHIVE_VALID=true\n' > "$ROOT/.ss2-cache/apk-completion-status.txt"
             else
-              printf 'BUILD_FINISHED=false\nCheckpoint saved; APK is not complete yet.\n' > "$CIRCLE_WORKING_DIRECTORY/afterbird-baseline/status.txt"
+              printf 'BUILD_FINISHED=false\nAPK_ARCHIVE_VALID=false\nCheckpoint saved; APK is not complete and ZIP-valid.\n' > "$ROOT/afterbird-baseline/status.txt"
+              printf 'BUILD_FINISHED=false\nAPK_ARCHIVE_VALID=false\n' > "$ROOT/.ss2-cache/apk-completion-status.txt"
             fi
-            cat "$CIRCLE_WORKING_DIRECTORY/afterbird-baseline/status.txt"
+            cat "$ROOT/afterbird-baseline/status.txt"
+      - save_cache:
+          name: SS2 save stage-specific APK completion marker
+          key: sandium-ss2-apk-completion-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-<< parameters.stage_index >>
+          paths:
+            - .ss2-cache/apk-completion-status.txt
+          when: always
       - store_artifacts:
           path: afterbird-baseline
           destination: afterbird-baseline
