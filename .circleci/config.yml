@@ -627,8 +627,22 @@ jobs:
               \( -name .git -o -path "$SRC_OUT" \) -prune -o \
               -exec touch -h -d "@$SOURCE_TIMESTAMP_EPOCH" {} +
 
+            # The first pass touches directories before their children. Those
+            # child updates then advance parent mtimes and can force Ninja to
+            # regenerate build.ninja on every restored stage. Re-touch source
+            # directories deepest-first, after all descendants are normalized.
+            # Keep .git and out/ excluded from this pass.
+            find "$SRC_DIR" \
+              \( -name .git -o -path "$SRC_OUT" \) -prune -o \
+              -type d -print0 \
+              | python3 -c 'import sys; z=bytes([0]); p=[x for x in sys.stdin.buffer.read().split(z) if x]; p.sort(key=lambda x: (x.count(b"/"), x), reverse=True); sys.stdout.buffer.write(z.join(p) + (z if p else b""))' \
+              | xargs -0 -r touch -h -d "@$SOURCE_TIMESTAMP_EPOCH"
+
             for path in \
               "$SRC_DIR" \
+              "$SRC_DIR/build" \
+              "$SRC_DIR/build/config" \
+              "$SRC_DIR/third_party" \
               "$SRC_DIR/DEPS" \
               "$SRC_DIR/build/config/compiler/compiler.gni" \
               "$SRC_DIR/third_party/icu/common/icudtl.dat"; do
