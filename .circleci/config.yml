@@ -1593,7 +1593,7 @@ jobs:
             # Carry forward the proven REAPI diagnostic-path fix with a strict source guard.
             FILE="$SRC_DIR/build/config/compiler/compiler.gni"
             test -s "$FILE"
-            OLD_COUNT="$(grep -Ec '^[[:space:]]*clang_diagnostic_dir = rebase_path\\("//out/clang-crashreports", root_build_dir\\)[[:space:]]*  c4-afterbird-staged-checkpoint-build:
+            OLD_COUNT="$(grep -Ec '^[[:space:]]*clang_diagnostic_dir = rebase_path\("//out/clang-crashreports", root_build_dir\)[[:space:]]*  c4-afterbird-staged-checkpoint-build:
     jobs:
       - c4-afterbird-staged-build:
           name: c4-afterbird-stage-1
@@ -2020,7 +2020,7 @@ jobs:
               REMOTE_GATE_INTERVAL=15
               REMOTE_GATE_ELAPSED=0
               while [ "$REMOTE_GATE_ELAPSED" -lt "$REMOTE_GATE_SECONDS" ]; do
-                if grep -Eiq 'is_local=false|step state: remote exec|exec remote execute|use reapi "remote\\.buildbuddy\\.io:443"' "$BUILD_LOG" 2>/dev/null; then
+                if grep -Eiq 'is_local=false|step state: remote exec|exec remote execute|use reapi "remote\.buildbuddy\.io:443"' "$BUILD_LOG" 2>/dev/null; then
                   REMOTE_GATE_PASSED=true
                   echo "EARLY_REMOTE_EXECUTION_GATE=PASS elapsed_seconds=$REMOTE_GATE_ELAPSED" | tee -a "$DIAG"
                   break
@@ -2174,7 +2174,7 @@ jobs:
             FRONTIER_CUM="$ROOT/brave-stage-frontier-cumulative.txt"
             FRONTIER_CUR="$ROOT/brave-stage-frontier-current.txt"
             FRONTIER_NEW="$ROOT/brave-stage-frontier-new.txt"
-            sed -nE 's/^\\[[0-9]+\\/[0-9]+\\][[:space:]]+[^[:space:]]+[[:space:]]+F[[:space:]]+(.*)$/\\1/p' "$BUILD_LOG" | LC_ALL=C sort -u > "$FRONTIER_CUR"
+            sed -nE 's/^\[[0-9]+\/[0-9]+\][[:space:]]+[^[:space:]]+[[:space:]]+F[[:space:]]+(.*)$/\1/p' "$BUILD_LOG" | LC_ALL=C sort -u > "$FRONTIER_CUR"
             if [ -s "$FRONTIER_CUM" ]; then
               comm -23 "$FRONTIER_CUR" "$FRONTIER_CUM" > "$FRONTIER_NEW" || true
               cat "$FRONTIER_CUM" "$FRONTIER_CUR" | LC_ALL=C sort -u > "$FRONTIER_CUM.tmp"
@@ -2217,30 +2217,30 @@ jobs:
             - run:
                 name: Record APK status and publish a testable Brave APK
                 command: |
-                set -eu
-                ROOT="$CIRCLE_WORKING_DIRECTORY"
-                OUT_DIR="$ROOT/brave-work/src/out/android_Debug_arm64"
-                mkdir -p "$ROOT/.ssbrave-cache" "$ROOT/brave-apk"
-                APK=""
-                if [ -d "$OUT_DIR/apks" ]; then
-                  APK="$(find "$OUT_DIR/apks" -maxdepth 1 -type f -name '*.apk' -size +0c | sort | head -n 1)"
-                fi
-                if [ -n "$APK" ] && python3 - "$APK" <<'PY'
-                import sys, zipfile
-                with zipfile.ZipFile(sys.argv[1]) as archive:
-                    bad = archive.testzip()
-                    if bad:
-                        raise SystemExit("corrupt APK archive member: " + bad)
-                PY
-                then
-                  cp "$APK" "$ROOT/brave-apk/Sandium-Brave-test.apk"
-                  printf 'BUILD_FINISHED=true\nAPK_ARCHIVE_VALID=true\nAPK_SOURCE=%s\n' "$APK" > "$ROOT/.ssbrave-cache/apk-status.txt"
-                  printf 'BUILD_FINISHED=true\nAPK_ARCHIVE_VALID=true\n' > "$ROOT/brave-apk/status.txt"
-                else
-                  printf 'BUILD_FINISHED=false\nAPK_ARCHIVE_VALID=false\n' > "$ROOT/.ssbrave-cache/apk-status.txt"
-                  printf 'BUILD_FINISHED=false\nAPK_ARCHIVE_VALID=false\n' > "$ROOT/brave-apk/status.txt"
-                fi
-                cat "$ROOT/.ssbrave-cache/apk-status.txt"
+                    set -eu
+                    ROOT="$CIRCLE_WORKING_DIRECTORY"
+                    OUT_DIR="$ROOT/brave-work/src/out/android_Debug_arm64"
+                    mkdir -p "$ROOT/.ssbrave-cache" "$ROOT/brave-apk"
+                    APK=""
+                    if [ -d "$OUT_DIR/apks" ]; then
+                      APK="$(find "$OUT_DIR/apks" -maxdepth 1 -type f -name '*.apk' -size +0c | sort | head -n 1)"
+                    fi
+                    if [ -n "$APK" ] && python3 - "$APK" <<'PY'
+                    import sys, zipfile
+                    with zipfile.ZipFile(sys.argv[1]) as archive:
+                        bad = archive.testzip()
+                        if bad:
+                            raise SystemExit("corrupt APK archive member: " + bad)
+                    PY
+                    then
+                      cp "$APK" "$ROOT/brave-apk/Sandium-Brave-test.apk"
+                      printf 'BUILD_FINISHED=true\nAPK_ARCHIVE_VALID=true\nAPK_SOURCE=%s\n' "$APK" > "$ROOT/.ssbrave-cache/apk-status.txt"
+                      printf 'BUILD_FINISHED=true\nAPK_ARCHIVE_VALID=true\n' > "$ROOT/brave-apk/status.txt"
+                    else
+                      printf 'BUILD_FINISHED=false\nAPK_ARCHIVE_VALID=false\n' > "$ROOT/.ssbrave-cache/apk-status.txt"
+                      printf 'BUILD_FINISHED=false\nAPK_ARCHIVE_VALID=false\n' > "$ROOT/brave-apk/status.txt"
+                    fi
+                    cat "$ROOT/.ssbrave-cache/apk-status.txt"
 
       - save_cache:
           name: Save stage-specific Brave APK completion marker
