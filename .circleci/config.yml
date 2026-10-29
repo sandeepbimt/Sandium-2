@@ -1468,14 +1468,14 @@ jobs:
             echo "SS2_TEST_WRONG_REVISION=PASS"
             echo "SS2_TEST_INVALID_ARCHIVE=PASS"
             # Integration-test the exact shared predicate used by the real staged workflow.
-            python3 - "$APK" <<'PY'
+            python3 - "$APK" \\<<'PY'
             import sys, zipfile
             with zipfile.ZipFile(sys.argv[1], "w", zipfile.ZIP_DEFLATED) as z:
                 z.writestr("AndroidManifest.xml", "integration test manifest")
                 z.writestr("classes.dex", "integration test dex")
             PY
             APK_SHA="$(sha256sum "$APK" | awk '{print $1}')"
-            printf 'BUILD_FINISHED=true\\nAPK_ARCHIVE_VALID=true\\nAPK_SHA256=%s\\nCHROMIUM_TAG=151.0.7922.38\\nAFTERBIRD_SHA=%s\\nRELEASE_ARGS_SHA256=%s\\n' "$APK_SHA" "$DELTA_SHA" "$ARGS_SHA" > "$STATUS"
+            printf 'BUILD_FINISHED=true\nAPK_ARCHIVE_VALID=true\nAPK_SHA256=%s\nCHROMIUM_TAG=151.0.7922.38\nAFTERBIRD_SHA=%s\nRELEASE_ARGS_SHA256=%s\n' "$APK_SHA" "$DELTA_SHA" "$ARGS_SHA" > "$STATUS"
             bash "$CIRCLE_WORKING_DIRECTORY/.circleci/scripts/ss2-validate-apk-handoff.sh" "$ROOT" "151.0.7922.38"
             echo "SS2_TEST_REAL_PREDICATE_HANDOFF=PASS"
             mv "$ROOT/ss2-apk/stage-3" "$ROOT/ss2-apk/stage-4"
