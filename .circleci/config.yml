@@ -297,7 +297,8 @@ jobs:
           command: |
             set -eux
             if [ "<< parameters.stage_index >>" -ne 1 ]; then
-              echo "Stage 2: reusing the exact source tree from stage 1; skipping fresh setup."              exit 0
+              echo "Stage 2: reusing the exact source tree from stage 1; skipping fresh setup."
+              exit 0
             fi
             AFTERBIRD_DIR="$CIRCLE_WORKING_DIRECTORY/afterbird-delta"
             AFTERBIRD_URL="https://github.com/danosito/afterbird.git"
@@ -895,7 +896,8 @@ jobs:
                   echo "EARLY_REMOTE_EXECUTION_GATE=PASS elapsed_seconds=$REMOTE_GATE_ELAPSED" | tee -a "$DIAG"
                   break
                 fi
-                if ! kill -0 "$BUILD_PID" 2>/dev/null; then                  break
+                if ! kill -0 "$BUILD_PID" 2>/dev/null; then
+                  break
                 fi
                 sleep "$REMOTE_GATE_INTERVAL"
                 REMOTE_GATE_ELAPSED=$((REMOTE_GATE_ELAPSED + REMOTE_GATE_INTERVAL))
@@ -1194,7 +1196,8 @@ jobs:
               cp "$OUT_DIR/siso_output" "$CIRCLE_WORKING_DIRECTORY/siso_output.txt"
             fi
             if [ -s "$OUT_DIR/.siso_failed_targets" ]; then
-              cp "$OUT_DIR/.siso_failed_targets" "$CIRCLE_WORKING_DIRECTORY/siso_failed_targets.txt"            fi
+              cp "$OUT_DIR/.siso_failed_targets" "$CIRCLE_WORKING_DIRECTORY/siso_failed_targets.txt"
+            fi
             {
               echo
               echo "=== FINAL RESOURCE SNAPSHOT ==="
@@ -1309,7 +1312,7 @@ jobs:
               printf 'BUILD_FINISHED=true\nAPK_ARCHIVE_VALID=true\nAPK_SHA256=%s\nCHROMIUM_TAG=151.0.7922.38\nAFTERBIRD_SHA=5ff224f9ef8f8a0792abd2babc9f7164e8dcdb3e\n' "$APK_SHA256" > "$HANDOFF/status.txt"
               echo "SS2_APK_HANDOFF=READY stage=<< parameters.stage_index >> sha256=$APK_SHA256"
             else
-              printf 'BUILD_FINISHED=false\\n' > "$HANDOFF/status.txt"
+              printf 'BUILD_FINISHED=false\n' > "$HANDOFF/status.txt"
               echo "SS2_APK_HANDOFF=NO_VALID_APK stage=<< parameters.stage_index >>"
             fi
       - persist_to_workspace:
