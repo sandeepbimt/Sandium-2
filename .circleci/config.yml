@@ -25,7 +25,7 @@ jobs:
                   set -eu
                   STAGE_INDEX="<< parameters.stage_index >>"
                   STATUS="$CIRCLE_WORKING_DIRECTORY/.ss2-cache/apk-completion-status.txt"
-                  if [ -s "$STATUS" ] && grep -qx 'BUILD_FINISHED=true' "$STATUS"; then
+                  if [ -s "$STATUS" ] && grep -qx 'BUILD_FINISHED=true' "$STATUS" && grep -qx 'APK_ARCHIVE_VALID=true' "$STATUS"; then
                     echo "APK=true"
                     echo "SS2_FAST_EXIT=PASS stage=$STAGE_INDEX; prior stage recorded a ZIP-verified APK."
                     cat "$STATUS"
