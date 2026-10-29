@@ -1405,7 +1405,97 @@ jobs:
             fi
             echo "STAGE_CONTINUATION=PASS; next stage will resume and must make useful progress."
 
+  ss2-fast-path-validation:
+    machine:
+      image: ubuntu-2404:current
+    resource_class: small
+    steps:
+      - checkout
+      - run:
+          name: Validate SS2 APK fast-path acceptance and rejection cases
+          command: |
+            set -euo pipefail
+            T="$(mktemp -d)"
+            trap 'rm -rf "$T"' EXIT
+            ROOT="$T"
+            mkdir -p "$ROOT/ss2-apk/stage-3" "$ROOT/afterbird-delta/.build/args"
+            git -C "$ROOT/afterbird-delta" init -q
+            git -C "$ROOT/afterbird-delta" config user.email ss2-test@example.invalid
+            git -C "$ROOT/afterbird-delta" config user.name SS2-Test
+            printf 'is_debug=false\n' > "$ROOT/afterbird-delta/.build/args/release.gn"
+            git -C "$ROOT/afterbird-delta" add .build/args/release.gn
+            git -C "$ROOT/afterbird-delta" commit -qm 'test delta'
+            DELTA_SHA="$(git -C "$ROOT/afterbird-delta" rev-parse HEAD)"
+            ARGS_SHA="$(sha256sum "$ROOT/afterbird-delta/.build/args/release.gn" | awk '{print $1}')"
+            APK="$ROOT/ss2-apk/stage-3/ChromePublic.apk"
+            STATUS="$ROOT/ss2-apk/stage-3/status.txt"
+            python3 - "$APK" <<'PY'
+            import sys, zipfile
+            with zipfile.ZipFile(sys.argv[1], "w", zipfile.ZIP_DEFLATED) as z:
+                z.writestr("AndroidManifest.xml", "test manifest")
+                z.writestr("classes.dex", "test dex")
+            PY
+            APK_SHA="$(sha256sum "$APK" | awk '{print $1}')"
+            printf 'BUILD_FINISHED=true\nAPK_ARCHIVE_VALID=true\nAPK_SHA256=%s\nCHROMIUM_TAG=151.0.7922.38\nAFTERBIRD_SHA=%s\nRELEASE_ARGS_SHA256=%s\n' "$APK_SHA" "$DELTA_SHA" "$ARGS_SHA" > "$STATUS"
+            validate_candidate() {
+              local candidate="$1" apk="$candidate/ChromePublic.apk" status="$candidate/status.txt"
+              [ -s "$apk" ] && [ -s "$status" ] || return 1
+              grep -Fxq 'BUILD_FINISHED=true' "$status" || return 1
+              grep -Fxq 'APK_ARCHIVE_VALID=true' "$status" || return 1
+              grep -Fxq 'CHROMIUM_TAG=151.0.7922.38' "$status" || return 1
+              local current_delta expected_delta current_args expected_args expected_sha actual_sha
+              current_delta="$(git -C "$ROOT/afterbird-delta" rev-parse HEAD)"
+              expected_delta="$(sed -n 's/^AFTERBIRD_SHA=//p' "$status" | tail -n 1)"
+              [ -n "$expected_delta" ] && [ "$current_delta" = "$expected_delta" ] || return 1
+              current_args="$(sha256sum "$ROOT/afterbird-delta/.build/args/release.gn" | awk '{print $1}')"
+              expected_args="$(sed -n 's/^RELEASE_ARGS_SHA256=//p' "$status" | tail -n 1)"
+              [ -n "$expected_args" ] && [ "$current_args" = "$expected_args" ] || return 1
+              expected_sha="$(sed -n 's/^APK_SHA256=//p' "$status" | tail -n 1)"
+              actual_sha="$(sha256sum "$apk" | awk '{print $1}')"
+              [ -n "$expected_sha" ] && [ "$actual_sha" = "$expected_sha" ] || return 1
+              python3 - "$apk" <<'PY'
+            import sys, zipfile
+            try:
+                with zipfile.ZipFile(sys.argv[1]) as z:
+                    sys.exit(0 if z.testzip() is None else 1)
+            except Exception:
+                sys.exit(1)
+            PY
+            }
+            validate_candidate "$ROOT/ss2-apk/stage-3"
+            echo "SS2_TEST_VALID_APK=PASS"
+            cp "$STATUS" "$T/status.good"
+            printf 'APK_SHA256=wrong\n' >> "$STATUS"
+            if validate_candidate "$ROOT/ss2-apk/stage-3"; then
+              echo "SS2_TEST_BAD_CHECKSUM=FAIL (incorrectly accepted)" >&2
+              exit 1
+            fi
+            cp "$T/status.good" "$STATUS"
+            printf 'CHROMIUM_TAG=999.0.0.0\n' >> "$STATUS"
+            if validate_candidate "$ROOT/ss2-apk/stage-3"; then
+              echo "SS2_TEST_WRONG_REVISION=FAIL (incorrectly accepted)" >&2
+              exit 1
+            fi
+            cp "$T/status.good" "$STATUS"
+            printf 'not a zip' > "$APK"
+            APK_SHA="$(sha256sum "$APK" | awk '{print $1}')"
+            sed -i "s/^APK_SHA256=.*/APK_SHA256=$APK_SHA/" "$STATUS"
+            if validate_candidate "$ROOT/ss2-apk/stage-3"; then
+              echo "SS2_TEST_INVALID_ARCHIVE=FAIL (incorrectly accepted)" >&2
+              exit 1
+            fi
+            echo "SS2_TEST_BAD_CHECKSUM=PASS"
+            echo "SS2_TEST_WRONG_REVISION=PASS"
+            echo "SS2_TEST_INVALID_ARCHIVE=PASS"
+            echo "SS2_FAST_PATH_VALIDATION=PASS"
+
 workflows:
+  ss2-fast-path-validation:
+    jobs:
+      - ss2-fast-path-validation:
+          filters:
+            branches:
+              only: ci/ss2-apk-fast-path
   c4-afterbird-staged-checkpoint-build:
     jobs:
       - c4-afterbird-staged-build:
