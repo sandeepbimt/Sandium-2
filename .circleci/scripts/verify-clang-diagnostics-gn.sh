@@ -35,8 +35,33 @@ test -x "$GN" || {
 
 # Do not grep build.ninja: GN stores compiler flags on the config/target,
 # not necessarily as literal text in the top-level Ninja manifest.
-# Query the effective GN compiler config after build.ts has regenerated the graph.
-CFLAGS_JSON="$("$GN" desc "$OUT" //build/config/compiler:compiler cflags --format=json)"
+# Query GN directly and preserve both output streams if the query itself fails.
+# The previous command substitution swallowed GN stdout; with set -e, a nonzero
+# exit ended the job without showing the reason or a CLANG_DIAGNOSTIC_GN_GATE marker.
+echo "CLANG_DIAGNOSTIC_GN_QUERY=START label=//build/config/compiler:compiler field=cflags"
+GN_QUERY_STDOUT="$(mktemp)"
+GN_QUERY_STDERR="$(mktemp)"
+if "$GN" desc "$OUT" //build/config/compiler:compiler cflags --format=json \
+  >"$GN_QUERY_STDOUT" 2>"$GN_QUERY_STDERR"; then
+  CFLAGS_JSON="$(cat "$GN_QUERY_STDOUT")"
+  if [ -s "$GN_QUERY_STDERR" ]; then
+    echo "CLANG_DIAGNOSTIC_GN_QUERY_STDERR_BEGIN"
+    cat "$GN_QUERY_STDERR"
+    echo "CLANG_DIAGNOSTIC_GN_QUERY_STDERR_END"
+  fi
+else
+  GN_QUERY_STATUS=$?
+  echo "CLANG_DIAGNOSTIC_GN_GATE=FAIL gn desc exited with status $GN_QUERY_STATUS" >&2
+  echo "CLANG_DIAGNOSTIC_GN_STDOUT_BEGIN" >&2
+  cat "$GN_QUERY_STDOUT" >&2
+  echo "CLANG_DIAGNOSTIC_GN_STDOUT_END" >&2
+  echo "CLANG_DIAGNOSTIC_GN_STDERR_BEGIN" >&2
+  cat "$GN_QUERY_STDERR" >&2
+  echo "CLANG_DIAGNOSTIC_GN_STDERR_END" >&2
+  rm -f "$GN_QUERY_STDOUT" "$GN_QUERY_STDERR"
+  exit 1
+fi
+rm -f "$GN_QUERY_STDOUT" "$GN_QUERY_STDERR"
 printf '%s' "$CFLAGS_JSON" | python3 -c '
 import json
 import sys
