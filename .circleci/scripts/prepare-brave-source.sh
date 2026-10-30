@@ -128,9 +128,11 @@ PY
   stat -c 'BRAVE_PYTHON_REMOTE_WRAPPER_MODE=%a path=%n' "$PYTHON_REMOTE_WRAPPER"
   echo "BRAVE_PYTHON_REMOTE_WRAPPER_GATE=PASS"
 
-  # Siso canonicalizes output-directory working paths to out/x by default.
-  # BuildBuddy rejects these requests when that alias is absent from the input
-  # tree. Keep each remote action's real out/<config> working directory.
+  # BuildBuddy validates REAPI Command.working_directory by walking the
+  # action's Merkle input tree. Siso's empty directory marker alone is not
+  # enough for this BuildBuddy path; anchor the tree with the real GN args file.
+  # Keep canonicalization enabled so remote action paths remain cache-stable
+  # as out/x, and explicitly include ./args.gn in every remote rule.
   BRAVE_SISO_CONFIG="$SRC_DIR/build/config/siso/brave_siso_config.star"
   test -s "$BRAVE_SISO_CONFIG" || {
     echo "BRAVE_SISO_BUILDBUDDY_WORKDIR_GATE=FAIL Brave Siso config missing: $BRAVE_SISO_CONFIG" >&2
@@ -143,7 +145,22 @@ import sys
 config = Path(sys.argv[1])
 source = config.read_text(encoding="utf-8")
 marker = '    __remove_labels_from_platforms(step_config)\n'
-patch = (
+
+new_block = (
+    marker
+    + '\n'
+    + '    # Materialize the Ninja working directory in every remote action input tree.\n'
+    + '    # BuildBuddy requires Command.working_directory to exist in the REAPI Merkle tree.\n'
+    + '    for rule in step_config["rules"]:\n'
+    + '        if rule.get("remote", False):\n'
+    + '            rule["canonicalize_dir"] = True\n'
+    + '            inputs = rule.get("inputs", [])\n'
+    + '            if "./args.gn" not in inputs:\n'
+    + '                inputs.append("./args.gn")\n'
+    + '            rule["inputs"] = inputs\n'
+)
+
+old_block = (
     marker
     + '\n'
     + '    # BuildBuddy needs the actual output-directory working path in the REAPI input tree.\n'
@@ -152,18 +169,22 @@ patch = (
     + '        if rule.get("remote", False):\n'
     + '            rule["canonicalize_dir"] = False\n'
 )
-needle = '            rule["canonicalize_dir"] = False'
-if needle in source:
+
+if new_block != source and '            rule["canonicalize_dir"] = True' in source and '"./args.gn"' in source:
     print("BRAVE_SISO_BUILDBUDDY_WORKDIR_GATE=PASS already configured")
+elif old_block in source:
+    config.write_text(source.replace(old_block, new_block, 1), encoding="utf-8")
+    print("BRAVE_SISO_BUILDBUDDY_WORKDIR_GATE=PASS replaced ineffective canonicalize_dir=false workaround")
+elif source.count(marker) == 1:
+    config.write_text(source.replace(marker, new_block, 1), encoding="utf-8")
+    print("BRAVE_SISO_BUILDBUDDY_WORKDIR_GATE=PASS added explicit ./args.gn input anchor")
 else:
-    if source.count(marker) != 1:
-        raise SystemExit(
-            "BRAVE_SISO_BUILDBUDDY_WORKDIR_GATE=FAIL expected exactly one Brave Siso config insertion point"
-        )
-    config.write_text(source.replace(marker, patch, 1), encoding="utf-8")
-    print("BRAVE_SISO_BUILDBUDDY_WORKDIR_GATE=PASS patched remote rules")
+    raise SystemExit(
+        "BRAVE_SISO_BUILDBUDDY_WORKDIR_GATE=FAIL expected one known insertion point or old workaround"
+    )
 PY
-  grep -n -A5 -B2 'canonicalize_dir' "$BRAVE_SISO_CONFIG"
+  grep -n -A8 -B2 'canonicalize_dir' "$BRAVE_SISO_CONFIG"
+  grep -n -F '"./args.gn"' "$BRAVE_SISO_CONFIG"
 
   # Delay host-package installation until sync/configuration succeeds.
   cd "$ROOT/brave-work"
