@@ -1618,69 +1618,69 @@ jobs:
                 --credential-helper "$HELPER"
               # Brave's runhooks generated the native .sisorc immediately before this step.
               # Preserve those flags and add Sandium's BuildBuddy action-cache write flag.
-              python3 - "$SRC_DIR/build/config/siso/.sisorc" <<'PY'
-              from pathlib import Path
-              import os
-              import shlex
-              import stat
-              import sys
-              import tempfile
+            python3 - "$SRC_DIR/build/config/siso/.sisorc" <<'PY'
+            from pathlib import Path
+            import os
+            import shlex
+            import stat
+            import sys
+            import tempfile
 
-              sisorc = Path(sys.argv[1])
-              if not sisorc.is_file() or sisorc.stat().st_size == 0:
-                  raise SystemExit("BRAVE_SISO_CONFIG_GATE=FAIL Brave-generated .sisorc is missing or empty")
+            sisorc = Path(sys.argv[1])
+            if not sisorc.is_file() or sisorc.stat().st_size == 0:
+                raise SystemExit("BRAVE_SISO_CONFIG_GATE=FAIL Brave-generated .sisorc is missing or empty")
 
-              original = sisorc.read_text(encoding="utf-8")
-              lines = original.splitlines()
-              ninja_indexes = [
-                  index for index, line in enumerate(lines)
-                  if line.strip() and not line.lstrip().startswith("#")
-                  and shlex.split(line)[0] == "ninja"
-              ]
-              if len(ninja_indexes) != 1:
-                  raise SystemExit(
-                      "BRAVE_SISO_CONFIG_GATE=FAIL expected exactly one Brave-generated ninja command in .sisorc"
-                  )
+            original = sisorc.read_text(encoding="utf-8")
+            lines = original.splitlines()
+            ninja_indexes = [
+                index for index, line in enumerate(lines)
+                if line.strip() and not line.lstrip().startswith("#")
+                and shlex.split(line)[0] == "ninja"
+            ]
+            if len(ninja_indexes) != 1:
+                raise SystemExit(
+                    "BRAVE_SISO_CONFIG_GATE=FAIL expected exactly one Brave-generated ninja command in .sisorc"
+                )
 
-              ninja_index = ninja_indexes[0]
-              tokens = shlex.split(lines[ninja_index])
-              required = [
-                  ("-reapi_keep_exec_stream",),
-                  ("-fs_min_flush_timeout", "300s"),
-                  ("-reapi_byte_stream_read_threshold", "1024"),
-                  ("-config", "googlechrome"),
-              ]
-              for sequence in required:
-                  found = any(
-                      tokens[position:position + len(sequence)] == list(sequence)
-                      for position in range(len(tokens) - len(sequence) + 1)
-                  )
-                  if not found:
-                      raise SystemExit(
-                          "BRAVE_SISO_CONFIG_GATE=FAIL missing Brave native Siso flag sequence: "
-                          + " ".join(sequence)
-                      )
+            ninja_index = ninja_indexes[0]
+            tokens = shlex.split(lines[ninja_index])
+            required = [
+                ("-reapi_keep_exec_stream",),
+                ("-fs_min_flush_timeout", "300s"),
+                ("-reapi_byte_stream_read_threshold", "1024"),
+                ("-config", "googlechrome"),
+            ]
+            for sequence in required:
+                found = any(
+                    tokens[position:position + len(sequence)] == list(sequence)
+                    for position in range(len(tokens) - len(sequence) + 1)
+                )
+                if not found:
+                    raise SystemExit(
+                        "BRAVE_SISO_CONFIG_GATE=FAIL missing Brave native Siso flag sequence: "
+                        + " ".join(sequence)
+                    )
 
-              if "-re_cache_enable_write=true" not in tokens:
-                  lines[ninja_index] = lines[ninja_index].rstrip() + " -re_cache_enable_write=true"
+            if "-re_cache_enable_write=true" not in tokens:
+                lines[ninja_index] = lines[ninja_index].rstrip() + " -re_cache_enable_write=true"
 
-              updated = "\n".join(lines) + "\n"
-              if updated != original:
-                  mode = stat.S_IMODE(sisorc.stat().st_mode)
-                  fd, temporary = tempfile.mkstemp(prefix=".sisorc.sandium.", dir=str(sisorc.parent))
-                  try:
-                      with os.fdopen(fd, "w", encoding="utf-8") as output:
-                          output.write(updated)
-                      os.chmod(temporary, mode)
-                      os.replace(temporary, sisorc)
-                  finally:
-                      if os.path.exists(temporary):
-                          os.unlink(temporary)
+            updated = "\n".join(lines) + "\n"
+            if updated != original:
+                mode = stat.S_IMODE(sisorc.stat().st_mode)
+                fd, temporary = tempfile.mkstemp(prefix=".sisorc.sandium.", dir=str(sisorc.parent))
+                try:
+                    with os.fdopen(fd, "w", encoding="utf-8") as output:
+                        output.write(updated)
+                    os.chmod(temporary, mode)
+                    os.replace(temporary, sisorc)
+                finally:
+                    if os.path.exists(temporary):
+                        os.unlink(temporary)
 
-              print("BRAVE_SISO_NATIVE_FLAGS=PASS")
-              print("BRAVE_SISO_CACHE_WRITE=PASS")
-              print(sisorc.read_text(encoding="utf-8"), end="")
-              PY
+            print("BRAVE_SISO_NATIVE_FLAGS=PASS")
+            print("BRAVE_SISO_CACHE_WRITE=PASS")
+            print(sisorc.read_text(encoding="utf-8"), end="")
+            PY
 
               SISO_ENV="$SRC_DIR/build/config/siso/.sisoenv"
               SISO_RC="$SRC_DIR/build/config/siso/.sisorc"
@@ -1691,7 +1691,7 @@ jobs:
               grep -Fx "SISO_REAPI_ADDRESS=$REAPI_ADDRESS" "$SISO_ENV" || { echo "BRAVE_RBE_CONFIG_GATE=FAIL wrong Siso REAPI address" >&2; cat "$SISO_ENV" >&2; exit 1; }
               grep -Fx "SISO_REAPI_INSTANCE=$REAPI_INSTANCE" "$SISO_ENV" || { echo "BRAVE_RBE_CONFIG_GATE=FAIL wrong Siso REAPI instance" >&2; cat "$SISO_ENV" >&2; exit 1; }
               grep -Fx "SISO_CREDENTIAL_HELPER=$HELPER" "$SISO_ENV" || { echo "BRAVE_RBE_CONFIG_GATE=FAIL credential helper not persisted in .sisoenv" >&2; cat "$SISO_ENV" >&2; exit 1; }
-              grep -Fx 'ninja -re_cache_enable_write=true' "$SISO_RC" || { echo "BRAVE_RBE_CONFIG_GATE=FAIL Siso action-cache writes not enabled" >&2; cat "$SISO_RC" >&2; exit 1; }
+              grep -Fq -- '-re_cache_enable_write=true' "$SISO_RC" || { echo "BRAVE_RBE_CONFIG_GATE=FAIL Siso action-cache writes not enabled" >&2; cat "$SISO_RC" >&2; exit 1; }
               printf 'export SISO_REAPI_ADDRESS=%q\n' "$REAPI_ADDRESS" >> "$BASH_ENV"
               printf 'export SISO_REAPI_INSTANCE=%q\n' "$REAPI_INSTANCE" >> "$BASH_ENV"
               echo 'export SISO_LIMITS=local=8,remote=80' >> "$BASH_ENV"
