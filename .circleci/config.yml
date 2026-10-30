@@ -1596,7 +1596,7 @@ jobs:
             fi
       - run:
           name: Verify BuildBuddy remote worker before Android compilation
-          no_output_timeout: 5m
+          no_output_timeout: 15m
           command: |
             set -euo pipefail
             export BRAVE_STAGE_INDEX="<< parameters.stage_index >>"
