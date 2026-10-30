@@ -1459,7 +1459,7 @@ jobs:
             - restore_cache:
                 name: Restore most recent Brave checkpoint from earlier runs
                 keys:
-                  - sandium-brave-valid-v2-{{ .Branch }}-
+                  - sandium-brave-valid-v3-{{ .Branch }}-
                   - sandium-brave-out-v1-sandium/brave-android-poc-6057c3ed-f9d6-4c74-b2e9-f4b09f838e8f-stage-1
                   - sandium-brave-out-v1-{{ .Branch }}-
       - when:
@@ -1469,7 +1469,7 @@ jobs:
             - restore_cache:
                 name: Restore Stage 1 Brave checkpoint
                 keys:
-                  - sandium-brave-valid-v2-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-1
+                  - sandium-brave-valid-v3-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-1
       - when:
           condition:
             equal: [3, << parameters.stage_index >>]
@@ -1477,7 +1477,7 @@ jobs:
             - restore_cache:
                 name: Restore Stage 2 Brave checkpoint
                 keys:
-                  - sandium-brave-valid-v2-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-2
+                  - sandium-brave-valid-v3-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-2
       - when:
           condition:
             equal: [4, << parameters.stage_index >>]
@@ -1485,7 +1485,7 @@ jobs:
             - restore_cache:
                 name: Restore Stage 3 Brave checkpoint
                 keys:
-                  - sandium-brave-valid-v2-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-3
+                  - sandium-brave-valid-v3-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-3
       - when:
           condition:
             equal: [5, << parameters.stage_index >>]
@@ -1493,7 +1493,7 @@ jobs:
             - restore_cache:
                 name: Restore Stage 4 Brave checkpoint
                 keys:
-                  - sandium-brave-valid-v2-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-4
+                  - sandium-brave-valid-v3-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-4
       - restore_cache:
           keys:
             - sandium-brave-node-v1-24.16.0
@@ -1796,7 +1796,7 @@ jobs:
             cat "$ROOT/brave-work/.sandium/checkpoint-manifest.txt"
       - save_cache:
           name: Save validated Brave workspace checkpoint
-          key: sandium-brave-valid-v2-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-<< parameters.stage_index >>
+          key: sandium-brave-valid-v3-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-<< parameters.stage_index >>
           paths:
             - brave-work
       - run:
@@ -1929,7 +1929,7 @@ workflows:
             cat "$ROOT/brave-work/.sandium/checkpoint-manifest.txt"
       - save_cache:
           name: Save validated Brave workspace checkpoint
-          key: sandium-brave-valid-v2-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-<< parameters.stage_index >>
+          key: sandium-brave-valid-v3-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-<< parameters.stage_index >>
           paths:
             - brave-work
       - run:
@@ -2062,7 +2062,7 @@ workflows:
             cat "$ROOT/brave-work/.sandium/checkpoint-manifest.txt"
       - save_cache:
           name: Save validated Brave workspace checkpoint
-          key: sandium-brave-valid-v2-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-<< parameters.stage_index >>
+          key: sandium-brave-valid-v3-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-<< parameters.stage_index >>
           paths:
             - brave-work
       - run:
@@ -2198,7 +2198,7 @@ workflows:
             cat "$ROOT/brave-work/.sandium/checkpoint-manifest.txt"
       - save_cache:
           name: Save validated Brave workspace checkpoint
-          key: sandium-brave-valid-v2-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-<< parameters.stage_index >>
+          key: sandium-brave-valid-v3-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-<< parameters.stage_index >>
           paths:
             - brave-work
       - run:
