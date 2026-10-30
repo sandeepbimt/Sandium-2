@@ -1546,7 +1546,7 @@ jobs:
                 *) echo "BRAVE_RBE_CONFIG_GATE=FAIL unexpected REAPI address (expected host:443): $REAPI_ADDRESS" >&2; exit 1 ;;
               esac
               ENV_FILE="$CORE_DIR/.env"
-              ENV_TMP="$(mktemp "$CORE_DIR/.env.tmp.XXXXXX")
+              ENV_TMP="$(mktemp "$CORE_DIR/.env.tmp.XXXXXX")"
               if [ -f "$ENV_FILE" ]; then
                 grep -Ev '^(rbe_service|use_remoteexec)=' "$ENV_FILE" > "$ENV_TMP" || true
               fi
