@@ -240,7 +240,12 @@ PY
   # SISO_CREDENTIAL_HELPER into .sisoenv (not merely the shell environment).
   HELPER=/tmp/sandium-buildbuddy-credential-helper.py
   BACKEND=/tmp/sandium-buildbuddy-backend.star
+  REMOTE_CONTAINER_IMAGE="docker://ubuntu:22.04"
   test -x "$HELPER" || { echo "BRAVE_RBE_CONFIG_GATE=FAIL credential helper missing: $HELPER" >&2; exit 1; }
+  # BuildBuddy Cloud defaults to Ubuntu 16.04 (glibc 2.23). Chromium 151's
+  # bundled host tools require GLIBC_2.25, so every executor size must use
+  # the supported Jammy image. Chromium's current Linux build infrastructure
+  # is based on Ubuntu 22.04.
   printf '%s\n' \
     '# SANDIUM BuildBuddy backend configuration.' \
     'load("@builtin//struct.star", "module")' \
@@ -249,9 +254,11 @@ PY
     '    return {' \
     '        "default": {' \
     '            "OSFamily": "Linux",' \
+    "            \"container-image\": \"$REMOTE_CONTAINER_IMAGE\"," \
     '        },' \
     '        "large": {' \
     '            "OSFamily": "Linux",' \
+    "            \"container-image\": \"$REMOTE_CONTAINER_IMAGE\"," \
     '        },' \
     '    }' \
     '' \
@@ -259,11 +266,17 @@ PY
     '    "backend",' \
     '    platform_properties = __platform_properties,' \
     ')' > "$BACKEND"
+  grep -Fq "container-image" "$BACKEND" || { echo "BRAVE_RBE_CONFIG_GATE=FAIL container image property missing from backend config" >&2; exit 1; }
+  grep -Fq "$REMOTE_CONTAINER_IMAGE" "$BACKEND" || { echo "BRAVE_RBE_CONFIG_GATE=FAIL wrong remote container image in backend config" >&2; exit 1; }
   python3 "$SRC_DIR/build/config/siso/configure_siso.py" \
     --reapi_instance "$REAPI_INSTANCE" \
     --reapi_address "$REAPI_ADDRESS" \
     --reapi_backend_config_path "$BACKEND" \
     --credential-helper "$HELPER"
+  SISO_BACKEND="$SRC_DIR/build/config/siso/backend_config/backend.star"
+  test -s "$SISO_BACKEND" || { echo "BRAVE_RBE_CONFIG_GATE=FAIL generated Siso backend config missing" >&2; exit 1; }
+  grep -Fq "$REMOTE_CONTAINER_IMAGE" "$SISO_BACKEND" || { echo "BRAVE_RBE_CONFIG_GATE=FAIL configured Siso backend lost remote container image" >&2; cat "$SISO_BACKEND" >&2; exit 1; }
+  echo "BRAVE_RBE_CONTAINER_IMAGE=$REMOTE_CONTAINER_IMAGE"
   # Brave's runhooks generated the native .sisorc immediately before this step.
   # Preserve those flags and add Sandium's BuildBuddy action-cache write flag.
 python3 - "$SRC_DIR/build/config/siso/.sisorc" <<'PY'
