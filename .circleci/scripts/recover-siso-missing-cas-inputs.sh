@@ -39,7 +39,7 @@ with open(log_path, encoding="utf-8", errors="replace") as stream:
     for line in stream:
         if not line.startswith("FAILED: "):
             continue
-        match = re.search(r'"(\\./[^"\\s]+)"', line)
+        match = re.search(r'"(\./[^"\s]+)"', line)
         if not match:
             raise SystemExit("BRAVE_CAS_LOCAL_RECOVERY=FAIL could not parse a FAILED output: " + line.rstrip())
         target = match.group(1)[2:]
@@ -64,8 +64,8 @@ if [ "${#TARGETS[@]}" -eq 0 ]; then
   exit 1
 fi
 
-printf 'BRAVE_CAS_LOCAL_RECOVERY=START mode=offline-local targets=%s\\n' "${#TARGETS[@]}"
-printf 'BRAVE_CAS_LOCAL_RECOVERY_TARGET=%s\\n' "${TARGETS[@]}"
+printf 'BRAVE_CAS_LOCAL_RECOVERY=START mode=offline-local targets=%s\n' "\${#TARGETS[@]}"
+printf 'BRAVE_CAS_LOCAL_RECOVERY_TARGET=%s\n' "\${TARGETS[@]}"
 command -v autoninja >/dev/null 2>&1 || {
   echo "BRAVE_CAS_LOCAL_RECOVERY=FAIL autoninja is not on PATH" >&2
   exit 1
