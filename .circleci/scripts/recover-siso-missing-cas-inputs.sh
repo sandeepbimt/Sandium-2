@@ -64,8 +64,8 @@ if [ "${#TARGETS[@]}" -eq 0 ]; then
   exit 1
 fi
 
-printf 'BRAVE_CAS_LOCAL_RECOVERY=START mode=offline-local targets=%s\n' "\${#TARGETS[@]}"
-printf 'BRAVE_CAS_LOCAL_RECOVERY_TARGET=%s\n' "\${TARGETS[@]}"
+printf 'BRAVE_CAS_LOCAL_RECOVERY=START mode=offline-local targets=%s\n' "${#TARGETS[@]}"
+printf 'BRAVE_CAS_LOCAL_RECOVERY_TARGET=%s\n' "${TARGETS[@]}"
 command -v autoninja >/dev/null 2>&1 || {
   echo "BRAVE_CAS_LOCAL_RECOVERY=FAIL autoninja is not on PATH" >&2
   exit 1
