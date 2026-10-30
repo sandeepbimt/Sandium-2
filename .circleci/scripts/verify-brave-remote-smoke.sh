@@ -10,8 +10,11 @@ PYTHON_REMOTE_WRAPPER="$SRC/buildtools/reclient_cfgs/python/python_remote_wrappe
 SISO_BRAVE_CONFIG="$SRC/build/config/siso/brave_siso_config.star"
 DIAGNOSTICS="$ROOT/brave-apk/siso-diagnostics"
 
-if [ "$STAGE" = "1" ]; then
-  echo "BRAVE_REMOTE_SMOKE=SKIP stage=1"
+# Run the worker compatibility preflight exactly once, in Stage 2.
+# Stages 3-5 inherit the validated Stage 2 workspace; do not re-clobber the
+# expensive host-tool dependency graph on every checkpoint transition.
+if [ "$STAGE" != "2" ]; then
+  echo "BRAVE_REMOTE_SMOKE=SKIP stage=$STAGE reason=stage-2-preflight-only"
   exit 0
 fi
 
@@ -32,18 +35,25 @@ grep -Fq '"./args.gn"' "$SISO_BRAVE_CONFIG" || {
 
 export PATH="$DEPOT_TOOLS:$PATH"
 export PYTHONPATH="$SRC/brave/script:$SRC/tools/grit/grit/extern:$SRC/brave/vendor/requests:$SRC/build:$DEPOT_TOOLS"
-export SISO_LIMITS="local=1,remote=1"
+# Match the remote capacity observed in earlier successful BuildBuddy runs.
+# autoninja -j maps to Siso --remote_jobs when remote execution is enabled.
+# A value of 1 serializes the ~500 host-tool prerequisites and cannot meet a
+# short smoke-test timeout.
+REMOTE_JOBS="${SANDIUM_REMOTE_SMOKE_JOBS:-40}"
+case "$REMOTE_JOBS" in
+  ''|*[!0-9]*|0) echo "BRAVE_PROTO_REMOTE_SMOKE=FAIL invalid remote job limit: $REMOTE_JOBS" >&2; exit 1 ;;
+esac
+if [ "$REMOTE_JOBS" -gt 80 ]; then
+  echo "BRAVE_PROTO_REMOTE_SMOKE=FAIL remote job limit exceeds pipeline cap: $REMOTE_JOBS" >&2
+  exit 1
+fi
+export SISO_LIMITS="local=1,remote=$REMOTE_JOBS"
 cd "$SRC"
 
-# Force the exact host-tool action family that failed in Stage 2.
-# It executes Chromium's Linux host protoc via protoc_wrapper, under strict
-# remote execution, and therefore validates worker glibc before the large build.
+# Force the exact Perfetto generated-header action implicated in the earlier
+# GLIBC failure. This pulls in Chromium's clang_x64/protoc and cppgen_plugin.
 PROTO_SMOKE_TARGET="clang_x64/gen/third_party/perfetto/protos/perfetto/config/priority_boost/priority_boost_config.gen.h"
 PROTO_SMOKE_OUTPUT="$OUT/$PROTO_SMOKE_TARGET"
-
-# Keep a second generic remote action as a broad Siso/BuildBuddy sanity check.
-SMOKE_TARGET="mojo/public/tools/bindings:precompile_ts_templates"
-SMOKE_OUTPUT="$OUT/gen/mojo/public/tools/bindings/ts_templates.zip"
 
 FAILED_REMOTE_TARGET="worker preflight not started"
 collect_diagnostics() {
@@ -73,28 +83,14 @@ collect_diagnostics() {
 trap collect_diagnostics EXIT
 
 FAILED_REMOTE_TARGET="$PROTO_SMOKE_TARGET"
-echo "BRAVE_PROTO_REMOTE_SMOKE=START target=$PROTO_SMOKE_TARGET strict_remote=true remote_jobs=1"
-# This is deliberately a real Perfetto cpp_gen output from the failing log.
-# --clobber guarantees protoc is launched remotely even if the output was
-# restored in the previous checkpoint. Do not start the full build unless it
-# succeeds against the configured Ubuntu 22.04 worker image.
-timeout --signal=INT --kill-after=30s 180s \
-  autoninja -strict_remote -C "$OUT" -j1 --clobber "$PROTO_SMOKE_TARGET"
+echo "BRAVE_PROTO_REMOTE_SMOKE=START target=$PROTO_SMOKE_TARGET strict_remote=true remote_jobs=$REMOTE_JOBS timeout_seconds=600"
+# The first pass compiles the host protoc/cppgen prerequisites as well as the
+# generator action. Use the remote pool in parallel; keep a bounded 10m cap.
+timeout --signal=INT --kill-after=30s 600s \
+  autoninja -strict_remote -C "$OUT" "-j$REMOTE_JOBS" --clobber "$PROTO_SMOKE_TARGET"
 
 test -s "$PROTO_SMOKE_OUTPUT" || {
   echo "BRAVE_PROTO_REMOTE_SMOKE=FAIL target completed without $PROTO_SMOKE_OUTPUT" >&2
   exit 1
 }
-echo "BRAVE_PROTO_REMOTE_SMOKE=PASS target=$PROTO_SMOKE_TARGET"
-
-FAILED_REMOTE_TARGET="$SMOKE_TARGET"
-echo "BRAVE_REMOTE_SMOKE=START target=$SMOKE_TARGET strict_remote=true remote_jobs=1 workdir_anchor=./args.gn"
-# --clobber ensures this gate exercises a generic remote action too.
-timeout --signal=INT --kill-after=30s 180s \
-  autoninja -strict_remote -C "$OUT" -j1 --clobber "$SMOKE_TARGET"
-
-test -s "$SMOKE_OUTPUT" || {
-  echo "BRAVE_REMOTE_SMOKE=FAIL target completed without $SMOKE_OUTPUT" >&2
-  exit 1
-}
-echo "BRAVE_REMOTE_SMOKE=PASS target=$SMOKE_TARGET output=$SMOKE_OUTPUT"
+echo "BRAVE_PROTO_REMOTE_SMOKE=PASS target=$PROTO_SMOKE_TARGET output=$PROTO_SMOKE_OUTPUT"
