@@ -1585,7 +1585,7 @@ jobs:
               else
                 echo "BRAVE_GN_GRAPH_REUSE=MISS; source sync skipped if source pin matched; generating GN graph."
               fi
-              pnpm run build Debug --target_os=android --target_arch=arm64 --target_android_output_format=apk --use_remoteexec=true --gn use_siso:true --gn use_reclient:false --target brave --ninja=-n
+              pnpm run build Debug --target_os=android --target_arch=arm64 --target_android_output_format=apk --gn use_remoteexec:true --gn use_siso:true --gn use_reclient:false --target brave --ninja=-n
             fi
       - save_cache:
           name: Save Ubuntu Android build-dependency package cache
