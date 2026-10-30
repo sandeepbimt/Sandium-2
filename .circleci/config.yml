@@ -1456,7 +1456,7 @@ jobs:
             - restore_cache:
                 name: Restore most recent Brave checkpoint from earlier runs
                 keys:
-                  - sandium-brave-out-v1-{{ .Branch }}-
+                  - sandium-brave-valid-v2-{{ .Branch }}-
       - when:
           condition:
             equal: [2, << parameters.stage_index >>]
@@ -1464,7 +1464,7 @@ jobs:
             - restore_cache:
                 name: Restore Stage 1 Brave checkpoint
                 keys:
-                  - sandium-brave-out-v1-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-1
+                  - sandium-brave-valid-v2-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-1
       - when:
           condition:
             equal: [3, << parameters.stage_index >>]
@@ -1472,7 +1472,7 @@ jobs:
             - restore_cache:
                 name: Restore Stage 2 Brave checkpoint
                 keys:
-                  - sandium-brave-out-v1-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-2
+                  - sandium-brave-valid-v2-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-2
       - when:
           condition:
             equal: [4, << parameters.stage_index >>]
@@ -1480,7 +1480,7 @@ jobs:
             - restore_cache:
                 name: Restore Stage 3 Brave checkpoint
                 keys:
-                  - sandium-brave-out-v1-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-3
+                  - sandium-brave-valid-v2-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-3
       - when:
           condition:
             equal: [5, << parameters.stage_index >>]
@@ -1488,7 +1488,7 @@ jobs:
             - restore_cache:
                 name: Restore Stage 4 Brave checkpoint
                 keys:
-                  - sandium-brave-out-v1-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-4
+                  - sandium-brave-valid-v2-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-4
       - restore_cache:
           keys:
             - sandium-brave-node-v1-24.16.0
@@ -1648,13 +1648,58 @@ jobs:
               exit 0
             fi
             export SISO_LIMITS="local=8,remote=80"
-            timeout --signal=INT --kill-after=60s 2700s autoninja -strict_remote --reapi_keep_exec_stream -C "$OUT" -j80 brave
-            find "$OUT/apks" -maxdepth 1 -type f -name '*.apk' -size +0c -print -quit | grep -q .
+            BUILD_RC=0
+            timeout --signal=INT --kill-after=60s 2700s autoninja -strict_remote --reapi_keep_exec_stream -C "$OUT" -j80 brave || BUILD_RC=$?
+            if [ "$BUILD_RC" -eq 124 ] || [ "$BUILD_RC" -eq 130 ]; then
+              echo "BRAVE_BUILD_SLICE=PAUSED; bounded stage time reached; preserving validated incremental outputs."
+            elif [ "$BUILD_RC" -ne 0 ]; then
+              echo "BRAVE_BUILD_SLICE=FAIL exit=$BUILD_RC" >&2
+              exit "$BUILD_RC"
+            fi
+            if [ -s "$OUT/apks/Brave.apk" ]; then
+              echo "BRAVE_APK=FOUND"
+            elif [ ! -s "$OUT/build.ninja" ] || [ ! -d "$OUT/obj" ]; then
+              echo "BRAVE_CHECKPOINT_VALIDATION=FAIL; expected GN graph or compilation output missing." >&2
+              exit 1
+            else
+              echo "BRAVE_CHECKPOINT_VALIDATION=PASS; GN graph and incremental output tree retained."
+            fi
+      - run:
+          name: Validate Brave checkpoint before saving
+          command: |
+            set -euo pipefail
+            ROOT="$CIRCLE_WORKING_DIRECTORY"
+            SRC="$ROOT/brave-work/src"
+            CORE="$SRC/brave"
+            OUT="$SRC/out/android_Debug_arm64"
+            test -d "$SRC/.git" || { echo "CHECKPOINT_SAVE=REFUSED missing Chromium Git checkout" >&2; exit 1; }
+            test -d "$CORE/.git" || { echo "CHECKPOINT_SAVE=REFUSED missing Brave Git checkout" >&2; exit 1; }
+            test -s "$ROOT/brave-work/.gclient" || { echo "CHECKPOINT_SAVE=REFUSED missing .gclient" >&2; exit 1; }
+            test -s "$OUT/build.ninja" || { echo "CHECKPOINT_SAVE=REFUSED missing build.ninja" >&2; exit 1; }
+            test -s "$OUT/args.gn" || { echo "CHECKPOINT_SAVE=REFUSED missing args.gn" >&2; exit 1; }
+            CHROMIUM_SHA="$(git -C "$SRC" rev-parse HEAD)"
+            BRAVE_TAG="$(git -C "$CORE" describe --tags --exact-match 2>/dev/null || true)"
+            test "$CHROMIUM_SHA" = "d331de35ca8ab1358c7a17e4bd41627d55eaef51" || { echo "CHECKPOINT_SAVE=REFUSED Chromium SHA mismatch: $CHROMIUM_SHA" >&2; exit 1; }
+            test "$BRAVE_TAG" = "v1.98.62" || { echo "CHECKPOINT_SAVE=REFUSED Brave tag mismatch: $BRAVE_TAG" >&2; exit 1; }
+            mkdir -p "$ROOT/brave-work/.sandium"
+            {
+              echo "CHECKPOINT_VALID=true"
+              echo "BRAVE_CORE_TAG=$BRAVE_TAG"
+              echo "CHROMIUM_SHA=$CHROMIUM_SHA"
+              echo "TARGET=android-arm64"
+              echo "BUILD_TYPE=Debug"
+              echo "STAGE=<< parameters.stage_index >>"
+              date -u + "SAVED_AT=%Y-%m-%dT%H:%M:%SZ"
+              du -sh "$ROOT/brave-work"
+              du -sh "$OUT"
+            } > "$ROOT/brave-work/.sandium/checkpoint-manifest.txt"
+            echo "CHECKPOINT_SAVE=PASS"
+            cat "$ROOT/brave-work/.sandium/checkpoint-manifest.txt"
       - save_cache:
-          key: sandium-brave-out-v1-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-<< parameters.stage_index >>
+          name: Save validated Brave workspace checkpoint
+          key: sandium-brave-valid-v2-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-<< parameters.stage_index >>
           paths:
             - brave-work
-          when: always
       - run:
           name: Export APK status and artifacts
           when: always
