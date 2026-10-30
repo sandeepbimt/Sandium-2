@@ -235,39 +235,22 @@ PY
     | sudo tee /etc/apt/apt.conf.d/99sandium-workspace-cache >/dev/null
   ./src/build/install-build-deps.sh --android
 
-  # Configure Siso explicitly after Brave hooks. Chromium 156's
-  # configure_siso.py supports these exact options. This also writes
-  # SISO_CREDENTIAL_HELPER into .sisoenv (not merely the shell environment).
+  # Re-run the pinned Chromium Siso configurator after Brave hooks with
+  # Brave's native google.star backend, and persist BuildBuddy credentials.
   HELPER=/tmp/sandium-buildbuddy-credential-helper.py
-  BACKEND=/tmp/sandium-buildbuddy-backend.star
-  REMOTE_CONTAINER_IMAGE="docker://ubuntu:22.04"
+  # Brave v1.98.62 sets reapi_backend_config_path=google.star in its pinned
+  # build/commands/lib/config.ts. This is Chromium's pinned Siso backend file:
+  # it selects the same siso-chromium worker image Chromium itself validates.
+  # Do not replace it with a generic distro image or an OSFamily-only backend.
+  BACKEND="$SRC_DIR/build/config/siso/backend_config/google.star"
   test -x "$HELPER" || { echo "BRAVE_RBE_CONFIG_GATE=FAIL credential helper missing: $HELPER" >&2; exit 1; }
-  # BuildBuddy Cloud defaults to Ubuntu 16.04 (glibc 2.23). Chromium 151's
-  # bundled host tools require GLIBC_2.25, so every executor size must use
-  # the supported Jammy image. Chromium's current Linux build infrastructure
-  # is based on Ubuntu 22.04.
-  printf '%s\n' \
-    '# SANDIUM BuildBuddy backend configuration.' \
-    'load("@builtin//struct.star", "module")' \
-    '' \
-    'def __platform_properties(ctx):' \
-    '    return {' \
-    '        "default": {' \
-    '            "OSFamily": "Linux",' \
-    "            \"container-image\": \"$REMOTE_CONTAINER_IMAGE\"," \
-    '        },' \
-    '        "large": {' \
-    '            "OSFamily": "Linux",' \
-    "            \"container-image\": \"$REMOTE_CONTAINER_IMAGE\"," \
-    '        },' \
-    '    }' \
-    '' \
-    'backend = module(' \
-    '    "backend",' \
-    '    platform_properties = __platform_properties,' \
-    ')' > "$BACKEND"
-  grep -Fq "container-image" "$BACKEND" || { echo "BRAVE_RBE_CONFIG_GATE=FAIL container image property missing from backend config" >&2; exit 1; }
-  grep -Fq "$REMOTE_CONTAINER_IMAGE" "$BACKEND" || { echo "BRAVE_RBE_CONFIG_GATE=FAIL wrong remote container image in backend config" >&2; exit 1; }
+  test -s "$BACKEND" || { echo "BRAVE_RBE_CONFIG_GATE=FAIL pinned Chromium google.star missing: $BACKEND" >&2; exit 1; }
+  EXPECTED_CONTAINER_IMAGE="$(sed -n 's/^[[:space:]]*container_image = "\\(docker:[^"]*\\)".*/\\1/p' "$BACKEND" | head -n 1)"
+  test -n "$EXPECTED_CONTAINER_IMAGE" || {
+    echo "BRAVE_RBE_CONFIG_GATE=FAIL pinned google.star does not declare a Docker container image" >&2
+    cat "$BACKEND" >&2
+    exit 1
+  }
   python3 "$SRC_DIR/build/config/siso/configure_siso.py" \
     --reapi_instance "$REAPI_INSTANCE" \
     --reapi_address "$REAPI_ADDRESS" \
@@ -275,8 +258,12 @@ PY
     --credential-helper "$HELPER"
   SISO_BACKEND="$SRC_DIR/build/config/siso/backend_config/backend.star"
   test -s "$SISO_BACKEND" || { echo "BRAVE_RBE_CONFIG_GATE=FAIL generated Siso backend config missing" >&2; exit 1; }
-  grep -Fq "$REMOTE_CONTAINER_IMAGE" "$SISO_BACKEND" || { echo "BRAVE_RBE_CONFIG_GATE=FAIL configured Siso backend lost remote container image" >&2; cat "$SISO_BACKEND" >&2; exit 1; }
-  echo "BRAVE_RBE_CONTAINER_IMAGE=$REMOTE_CONTAINER_IMAGE"
+  grep -Fq "$EXPECTED_CONTAINER_IMAGE" "$SISO_BACKEND" || {
+    echo "BRAVE_RBE_CONFIG_GATE=FAIL generated Siso backend does not use pinned Chromium image: $EXPECTED_CONTAINER_IMAGE" >&2
+    cat "$SISO_BACKEND" >&2
+    exit 1
+  }
+  echo "BRAVE_RBE_CONTAINER_IMAGE=$EXPECTED_CONTAINER_IMAGE"
   # Brave's runhooks generated the native .sisorc immediately before this step.
   # Preserve those flags and add Sandium's BuildBuddy action-cache write flag.
 python3 - "$SRC_DIR/build/config/siso/.sisorc" <<'PY'
