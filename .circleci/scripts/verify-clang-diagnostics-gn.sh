@@ -33,6 +33,19 @@ test -x "$GN" || {
   exit 1
 }
 
+# GN evaluates Android version scripts with Chromium's bundled host Python.
+# Those scripts import Brave's brave_version_utils from brave/script. The normal
+# Brave build wrapper supplies these paths; this standalone GN diagnostic query
+# must reproduce the same environment explicitly.
+BRAVE_DEPOT_TOOLS="$SRC/brave/vendor/depot_tools"
+export PYTHONPATH="$SRC/brave/script:$SRC/tools/grit/grit/extern:$SRC/brave/vendor/requests:$SRC/build:$BRAVE_DEPOT_TOOLS${PYTHONPATH:+:$PYTHONPATH}"
+GN_HOST_PYTHON="$SRC/third_party/cpython3/host/bin/python3"
+test -x "$GN_HOST_PYTHON" || {
+  echo "CLANG_DIAGNOSTIC_BRAVE_PYTHONPATH_GATE=FAIL bundled host Python missing: $GN_HOST_PYTHON" >&2
+  exit 1
+}
+"$GN_HOST_PYTHON" -c 'from brave_version_utils import generate_base_version_code; assert generate_base_version_code(1, 2) > 0; print("CLANG_DIAGNOSTIC_BRAVE_PYTHONPATH_GATE=PASS")'
+
 # Do not grep build.ninja: GN stores compiler flags on the config/target,
 # not necessarily as literal text in the top-level Ninja manifest.
 # Query GN directly and preserve both output streams if the query itself fails.
