@@ -1702,6 +1702,9 @@ jobs:
             grep -Fx 'use_siso=true' "$ARGS_GENERATED" >/dev/null || { echo "CHECKPOINT_SAVE=REFUSED generated use_siso missing" >&2; exit 1; }
             grep -Fx 'use_reclient=false' "$ARGS_GENERATED" >/dev/null || { echo "CHECKPOINT_SAVE=REFUSED generated use_reclient missing" >&2; exit 1; }
             test -s "$SISO_ENV" && test -s "$SISO_RC" && test -s "$SISO_BACKEND" || { echo "CHECKPOINT_SAVE=REFUSED Siso configuration incomplete" >&2; exit 1; }
+            SISO_BRAVE_CONFIG="$SRC/build/config/siso/brave_siso_config.star"
+            test -s "$SISO_BRAVE_CONFIG" || { echo "CHECKPOINT_SAVE=REFUSED missing Brave Siso configuration" >&2; exit 1; }
+            grep -Fq 'rule["canonicalize_dir"] = False' "$SISO_BRAVE_CONFIG" || { echo "CHECKPOINT_SAVE=REFUSED BuildBuddy working-directory canonicalization fix missing" >&2; exit 1; }
             grep -Fx "SISO_CREDENTIAL_HELPER=/tmp/sandium-buildbuddy-credential-helper.py" "$SISO_ENV" >/dev/null || { echo "CHECKPOINT_SAVE=REFUSED Siso credential helper not configured" >&2; exit 1; }
             for REQUIRED_SISO_FLAG in \
               '-reapi_keep_exec_stream' \
