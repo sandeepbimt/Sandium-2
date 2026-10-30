@@ -1546,10 +1546,16 @@ jobs:
                 *:443) ;;
                 *) echo "BRAVE_RBE_CONFIG_GATE=FAIL unexpected REAPI address (expected host:443): $REAPI_ADDRESS" >&2; exit 1 ;;
               esac
+              ENV_FILE="$CORE_DIR/.env"
+              ENV_TMP="$(mktemp)"
+              if [ -f "$ENV_FILE" ]; then
+                grep -Ev '^(rbe_service|use_remoteexec)=' "$ENV_FILE" > "$ENV_TMP" || true
+              fi
               printf '%s\n' \
                 "rbe_service=$REAPI_ADDRESS" \
                 'use_remoteexec=true' \
-                > "$CORE_DIR/.env"
+                >> "$ENV_TMP"
+              mv "$ENV_TMP" "$ENV_FILE"
               echo "BRAVE_RBE_ENDPOINT=$REAPI_ADDRESS"
               echo "BRAVE_RBE_INSTANCE=$REAPI_INSTANCE"
               export DEPOT_TOOLS_UPDATE=0
@@ -1679,7 +1685,7 @@ jobs:
                 if ! grep -Eq "^[[:space:]]*${name}[[:space:]]*=[[:space:]]*${expected}[[:space:]]*$" "$ARGS_GENERATED"; then
                   echo "BRAVE_REMOTE_EXECUTION_CONFIG_GATE=FAIL expected ${name}=${expected} in $ARGS_GENERATED" >&2
                   echo "=== Brave .env RBE setting ===" >&2
-                  grep -nE '^(use_remoteexec|gn_args_use_siso|gn_args_use_reclient)=' "$ROOT/brave-work/src/brave/.env" >&2 || true
+                  grep -nE '^(rbe_service|use_remoteexec)=' "$ROOT/brave-work/src/brave/.env" >&2 || true
                   echo "=== generated args file ===" >&2
                   grep -nE 'use_remoteexec|use_siso|use_reclient' "$ARGS_GENERATED" >&2 || true
                   echo "=== args.gn imports ===" >&2
