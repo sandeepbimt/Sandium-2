@@ -1535,14 +1535,24 @@ jobs:
               # Use Brave's native RBE configuration path. At v1.98.62,
               # pnpm sync reads rbe_service from brave/.env and writes the
               # reapi_* custom_vars into .gclient before running Chromium hooks.
+              REAPI_ADDRESS="$(printenv SANDIUM_REAPI_ADDRESS 2>/dev/null || true)"
+              REAPI_INSTANCE="$(printenv SANDIUM_REAPI_INSTANCE 2>/dev/null || true)"
+              [ -n "$REAPI_ADDRESS" ] || REAPI_ADDRESS="remote.buildbuddy.io:443"
+              [ -n "$REAPI_INSTANCE" ] || REAPI_INSTANCE="default"
+              case "$REAPI_ADDRESS" in
+                *:443) ;;
+                *) echo "BRAVE_RBE_CONFIG_GATE=FAIL unexpected REAPI address (expected host:443): $REAPI_ADDRESS" >&2; exit 1 ;;
+              esac
               printf '%s\n' \
-                'rbe_service=remote.buildbuddy.io:443' \
+                "rbe_service=$REAPI_ADDRESS" \
                 'use_remoteexec=true' \
                 'gn_args_use_siso=true' \
                 'gn_args_use_reclient=false' \
                 'siso_limits_local=8' \
                 'siso_limits_remote=80' \
                 > "$CORE_DIR/.env"
+              echo "BRAVE_RBE_ENDPOINT=$REAPI_ADDRESS"
+              echo "BRAVE_RBE_INSTANCE=$REAPI_INSTANCE"
               export DEPOT_TOOLS_UPDATE=0
 
               # Reuse the pinned source tree, but refresh Brave's generated Siso config.
@@ -1571,13 +1581,53 @@ jobs:
                 | sudo tee /etc/apt/apt.conf.d/99sandium-workspace-cache >/dev/null
               ./src/build/install-build-deps.sh --android
 
-              # Confirm that Brave generated the intended BuildBuddy Siso backend before GN/build.
+              # Configure Siso explicitly after Brave hooks. Chromium 156's
+              # configure_siso.py supports these exact options. This also writes
+              # SISO_CREDENTIAL_HELPER into .sisoenv (not merely the shell environment).
+              HELPER=/tmp/sandium-buildbuddy-credential-helper.py
+              BACKEND=/tmp/sandium-buildbuddy-backend.star
+              test -x "$HELPER" || { echo "BRAVE_RBE_CONFIG_GATE=FAIL credential helper missing: $HELPER" >&2; exit 1; }
+              printf '%s\n' \
+                '# SAN D I U M BuildBuddy backend configuration.' \
+                'load("@builtin//struct.star", "module")' \
+                '' \
+                'def __platform_properties(ctx):' \
+                '    return {' \
+                '        "default": {' \
+                '            "OSFamily": "Linux",' \
+                '        },' \
+                '        "large": {' \
+                '            "OSFamily": "Linux",' \
+                '        },' \
+                '    }' \
+                '' \
+                'backend = module(' \
+                '    "backend",' \
+                '    platform_properties = __platform_properties,' \
+                ')' > "$BACKEND"
+              python3 "$SRC_DIR/build/config/siso/configure_siso.py" \
+                --reapi_instance "$REAPI_INSTANCE" \
+                --reapi_address "$REAPI_ADDRESS" \
+                --reapi_backend_config_path "$BACKEND" \
+                --credential-helper "$HELPER"
+              printf '%s\n' 'ninja -re_cache_enable_write=true' > "$SRC_DIR/build/config/siso/.sisorc"
+
               SISO_ENV="$SRC_DIR/build/config/siso/.sisoenv"
+              SISO_RC="$SRC_DIR/build/config/siso/.sisorc"
               SISO_BACKEND="$SRC_DIR/build/config/siso/backend_config/backend.star"
               test -s "$SISO_ENV" || { echo "BRAVE_RBE_CONFIG_GATE=FAIL missing $SISO_ENV" >&2; exit 1; }
+              test -s "$SISO_RC" || { echo "BRAVE_RBE_CONFIG_GATE=FAIL missing $SISO_RC" >&2; exit 1; }
               test -s "$SISO_BACKEND" || { echo "BRAVE_RBE_CONFIG_GATE=FAIL missing $SISO_BACKEND" >&2; exit 1; }
-              grep -F 'SISO_REAPI_ADDRESS=remote.buildbuddy.io:443' "$SISO_ENV" || { echo "BRAVE_RBE_CONFIG_GATE=FAIL Siso is not configured for remote.buildbuddy.io" >&2; cat "$SISO_ENV" >&2; exit 1; }
-              grep -F 'SISO_REAPI_INSTANCE=default' "$SISO_ENV" || { echo "BRAVE_RBE_CONFIG_GATE=FAIL expected Siso REAPI instance=default" >&2; cat "$SISO_ENV" >&2; exit 1; }
+              grep -Fx "SISO_REAPI_ADDRESS=$REAPI_ADDRESS" "$SISO_ENV" || { echo "BRAVE_RBE_CONFIG_GATE=FAIL wrong Siso REAPI address" >&2; cat "$SISO_ENV" >&2; exit 1; }
+              grep -Fx "SISO_REAPI_INSTANCE=$REAPI_INSTANCE" "$SISO_ENV" || { echo "BRAVE_RBE_CONFIG_GATE=FAIL wrong Siso REAPI instance" >&2; cat "$SISO_ENV" >&2; exit 1; }
+              grep -Fx "SISO_CREDENTIAL_HELPER=$HELPER" "$SISO_ENV" || { echo "BRAVE_RBE_CONFIG_GATE=FAIL credential helper not persisted in .sisoenv" >&2; cat "$SISO_ENV" >&2; exit 1; }
+              grep -Fx 'ninja -re_cache_enable_write=true' "$SISO_RC" || { echo "BRAVE_RBE_CONFIG_GATE=FAIL Siso action-cache writes not enabled" >&2; cat "$SISO_RC" >&2; exit 1; }
+              printf 'export SISO_REAPI_ADDRESS=%q\n' "$REAPI_ADDRESS" >> "$BASH_ENV"
+              printf 'export SISO_REAPI_INSTANCE=%q\n' "$REAPI_INSTANCE" >> "$BASH_ENV"
+              echo 'export SISO_LIMITS=local=8,remote=80' >> "$BASH_ENV"
+              echo "BRAVE_RBE_CONFIG_GATE=PASS"
+              grep -E '^(SISO_REAPI_ADDRESS|SISO_REAPI_INSTANCE|SISO_CREDENTIAL_HELPER)=' "$SISO_ENV"
+              cat "$SISO_RC"
 
               cd "$CORE_DIR"
               if [ -s "$OUT/build.ninja" ] && [ -s "$OUT/args.gn" ]; then
@@ -1585,7 +1635,7 @@ jobs:
               else
                 echo "BRAVE_GN_GRAPH_REUSE=MISS; source sync skipped if source pin matched; generating GN graph."
               fi
-              pnpm run build Debug --target_os=android --target_arch=arm64 --target_android_output_format=apk --use_remoteexec=true --gn use_remoteexec:true --gn use_siso:true --gn use_reclient:false --target brave --ninja=-n
+              pnpm run build Debug --target_os=android --target_arch=arm64 --target_android_output_format=apk --use_remoteexec=true --gn use_siso:true --gn use_reclient:false --target brave --ninja=-n
             fi
       - save_cache:
           name: Save Ubuntu Android build-dependency package cache
@@ -1611,16 +1661,21 @@ jobs:
                   exit 1
                 fi
               done
-              echo "=== GN args relevant to remote execution ==="
-              grep -nE 'use_remoteexec|use_siso|use_reclient|reclient|remote' "$OUT/args.gn" || true
+              ARGS_GENERATED="$OUT/args_generated.gni"
+              test -s "$ARGS_GENERATED" || { echo "BRAVE_REMOTE_EXECUTION_CONFIG_GATE=FAIL missing $ARGS_GENERATED" >&2; exit 1; }
+              grep -F 'args_generated.gni' "$OUT/args.gn" >/dev/null || { echo "BRAVE_REMOTE_EXECUTION_CONFIG_GATE=FAIL args.gn does not import args_generated.gni" >&2; cat "$OUT/args.gn" >&2; exit 1; }
+              echo "=== Actual generated GN args (args_generated.gni) ==="
+              grep -nE 'use_remoteexec|use_siso|use_reclient' "$ARGS_GENERATED" || true
               require_arg() {
                 local name="$1" expected="$2"
-                if ! grep -Eq "^[[:space:]]*${name}[[:space:]]*=[[:space:]]*${expected}([[:space:]]|$)" "$OUT/args.gn"; then
-                  echo "BRAVE_REMOTE_EXECUTION_CONFIG_GATE=FAIL expected ${name} = ${expected} in $OUT/args.gn" >&2
+                if ! grep -Eq "^[[:space:]]*${name}[[:space:]]*=[[:space:]]*${expected}[[:space:]]*$" "$ARGS_GENERATED"; then
+                  echo "BRAVE_REMOTE_EXECUTION_CONFIG_GATE=FAIL expected ${name}=${expected} in $ARGS_GENERATED" >&2
                   echo "=== Brave .env RBE setting ===" >&2
-                  grep -n '^use_remoteexec=' "$ROOT/brave-work/src/brave/.env" >&2 || true
-                  echo "=== Actual generated args.gn remote settings ===" >&2
-                  grep -nE 'use_remoteexec|use_siso|use_reclient' "$OUT/args.gn" >&2 || true
+                  grep -nE '^(use_remoteexec|gn_args_use_siso|gn_args_use_reclient)=' "$ROOT/brave-work/src/brave/.env" >&2 || true
+                  echo "=== generated args file ===" >&2
+                  grep -nE 'use_remoteexec|use_siso|use_reclient' "$ARGS_GENERATED" >&2 || true
+                  echo "=== args.gn imports ===" >&2
+                  grep -n 'args_generated.gni' "$OUT/args.gn" >&2 || true
                   echo "=== end diagnostics ===" >&2
                   exit 1
                 fi
