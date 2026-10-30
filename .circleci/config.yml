@@ -1672,8 +1672,8 @@ jobs:
             SRC="$ROOT/brave-work/src"
             CORE="$SRC/brave"
             OUT="$SRC/out/android_Debug_arm64"
-            test -d "$SRC/.git" || { echo "CHECKPOINT_SAVE=REFUSED missing Chromium Git checkout" >&2; exit 1; }
-            test -d "$CORE/.git" || { echo "CHECKPOINT_SAVE=REFUSED missing Brave Git checkout" >&2; exit 1; }
+            test -e "$SRC/.git" || { echo "CHECKPOINT_SAVE=REFUSED missing Chromium Git checkout" >&2; exit 1; }
+            test -e "$CORE/.git" || { echo "CHECKPOINT_SAVE=REFUSED missing Brave Git checkout" >&2; exit 1; }
             test -s "$ROOT/brave-work/.gclient" || { echo "CHECKPOINT_SAVE=REFUSED missing .gclient" >&2; exit 1; }
             test -s "$OUT/build.ninja" || { echo "CHECKPOINT_SAVE=REFUSED missing build.ninja" >&2; exit 1; }
             test -s "$OUT/args.gn" || { echo "CHECKPOINT_SAVE=REFUSED missing args.gn" >&2; exit 1; }
@@ -1689,7 +1689,7 @@ jobs:
               echo "TARGET=android-arm64"
               echo "BUILD_TYPE=Debug"
               echo "STAGE=<< parameters.stage_index >>"
-              date -u + "SAVED_AT=%Y-%m-%dT%H:%M:%SZ"
+              date -u +"SAVED_AT=%Y-%m-%dT%H:%M:%SZ"
               du -sh "$ROOT/brave-work"
               du -sh "$OUT"
             } > "$ROOT/brave-work/.sandium/checkpoint-manifest.txt"
