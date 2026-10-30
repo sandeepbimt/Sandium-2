@@ -1464,6 +1464,10 @@ jobs:
                   - sandium-brave-valid-v3-{{ .Branch }}-
                   - sandium-brave-out-v1-sandium/brave-android-poc-6057c3ed-f9d6-4c74-b2e9-f4b09f838e8f-stage-1
                   - sandium-brave-out-v1-{{ .Branch }}-
+            - restore_cache:
+                name: Overlay latest completed prior-workflow incremental Android output
+                keys:
+                  - sandium-brave-out-v2-{{ .Branch }}-
       - when:
           condition:
             equal: [2, << parameters.stage_index >>]
@@ -1522,6 +1526,40 @@ jobs:
             set -euo pipefail
             export BRAVE_STAGE_INDEX="<< parameters.stage_index >>"
             bash .circleci/scripts/prepare-brave-source.sh
+      - when:
+          condition:
+            equal: [1, << parameters.stage_index >>]
+          steps:
+            - run:
+                name: Validate restored prior-workflow Android output checkpoint
+                command: |
+                  set -euo pipefail
+                  ROOT="$CIRCLE_WORKING_DIRECTORY"
+                  SRC="$ROOT/brave-work/src"
+                  CORE="$SRC/brave"
+                  OUT="$SRC/out/android_Debug_arm64"
+                  MANIFEST="$OUT/.sandium/checkpoint-manifest.txt"
+                  if [ ! -s "$MANIFEST" ]; then
+                    echo "CROSS_WORKFLOW_OUTPUT_REUSE=MISS; no prior output checkpoint restored; continue from pinned Stage 1 source."
+                    exit 0
+                  fi
+                  grep -Fx 'CHECKPOINT_VALID=true' "$MANIFEST" >/dev/null || { echo "CROSS_WORKFLOW_OUTPUT_REUSE=FAIL invalid checkpoint marker" >&2; exit 1; }
+                  grep -Fx 'BRAVE_CORE_TAG=v1.98.62' "$MANIFEST" >/dev/null || { echo "CROSS_WORKFLOW_OUTPUT_REUSE=FAIL Brave version mismatch" >&2; exit 1; }
+                  grep -Fx 'CHROMIUM_SHA=d331de35ca8ab1358c7a17e4bd41627d55eaef51' "$MANIFEST" >/dev/null || { echo "CROSS_WORKFLOW_OUTPUT_REUSE=FAIL Chromium pin mismatch" >&2; exit 1; }
+                  grep -Fx 'TARGET=android-arm64' "$MANIFEST" >/dev/null || { echo "CROSS_WORKFLOW_OUTPUT_REUSE=FAIL target mismatch" >&2; exit 1; }
+                  grep -Fx 'BUILD_TYPE=Debug' "$MANIFEST" >/dev/null || { echo "CROSS_WORKFLOW_OUTPUT_REUSE=FAIL build type mismatch" >&2; exit 1; }
+                  test -s "$OUT/build.ninja" || { echo "CROSS_WORKFLOW_OUTPUT_REUSE=FAIL restored build.ninja missing" >&2; exit 1; }
+                  test -s "$OUT/args.gn" || { echo "CROSS_WORKFLOW_OUTPUT_REUSE=FAIL restored args.gn missing" >&2; exit 1; }
+                  test -s "$SRC/build/config/siso/.sisoenv" || { echo "CROSS_WORKFLOW_OUTPUT_REUSE=FAIL current Siso environment missing" >&2; exit 1; }
+                  test -s "$SRC/build/config/siso/.sisorc" || { echo "CROSS_WORKFLOW_OUTPUT_REUSE=FAIL current Siso rc missing" >&2; exit 1; }
+                  test -s "$SRC/build/config/siso/backend_config/backend.star" || { echo "CROSS_WORKFLOW_OUTPUT_REUSE=FAIL current Siso backend missing" >&2; exit 1; }
+                  EXPECTED_OBJECTS="$(sed -n 's/^COMPILED_OBJECT_COUNT=//p' "$MANIFEST")"
+                  ACTUAL_OBJECTS="$(find "$OUT/obj" -type f -name '*.o' 2>/dev/null | wc -l | tr -d ' ')"
+                  case "$EXPECTED_OBJECTS" in ''|*[!0-9]*) echo "CROSS_WORKFLOW_OUTPUT_REUSE=FAIL invalid object count in manifest" >&2; exit 1 ;; esac
+                  test "$ACTUAL_OBJECTS" -ge "$EXPECTED_OBJECTS" || { echo "CROSS_WORKFLOW_OUTPUT_REUSE=FAIL object count expected_at_least=$EXPECTED_OBJECTS actual=$ACTUAL_OBJECTS" >&2; exit 1; }
+                  echo "CROSS_WORKFLOW_OUTPUT_REUSE=PASS stage=$(sed -n 's/^STAGE=//p' "$MANIFEST") objects=$ACTUAL_OBJECTS"
+                  echo "Restored checkpoint manifest:"
+                  cat "$MANIFEST"
       - save_cache:
           name: Save Ubuntu Android build-dependency package cache
           key: sandium-brave-apt-v1-ubuntu2404-{{ .Branch }}-{{ epoch }}
