@@ -16,11 +16,16 @@ if [ "$STAGE" = "1" ]; then
 fi
 
 test -s "$OUT/build.ninja" || { echo "BRAVE_REMOTE_SMOKE=FAIL missing build.ninja" >&2; exit 1; }
+test -s "$OUT/args.gn" || { echo "BRAVE_REMOTE_SMOKE=FAIL missing args.gn anchor input" >&2; exit 1; }
 test -x "$DEPOT_TOOLS/autoninja" || { echo "BRAVE_REMOTE_SMOKE=FAIL Brave autoninja is not executable" >&2; exit 1; }
 test -s "$PYTHON_REMOTE_WRAPPER" || { echo "BRAVE_REMOTE_SMOKE=FAIL Brave Python remote wrapper missing" >&2; exit 1; }
 test -x "$PYTHON_REMOTE_WRAPPER" || { echo "BRAVE_REMOTE_SMOKE=FAIL Brave Python remote wrapper lacks executable mode" >&2; exit 1; }
-grep -Fq 'rule["canonicalize_dir"] = False' "$SISO_BRAVE_CONFIG" || {
-  echo "BRAVE_REMOTE_SMOKE=FAIL BuildBuddy working-directory canonicalization patch missing" >&2
+grep -Fq 'rule["canonicalize_dir"] = True' "$SISO_BRAVE_CONFIG" || {
+  echo "BRAVE_REMOTE_SMOKE=FAIL Siso output-directory canonicalization must remain enabled" >&2
+  exit 1
+}
+grep -Fq '"./args.gn"' "$SISO_BRAVE_CONFIG" || {
+  echo "BRAVE_REMOTE_SMOKE=FAIL Siso rules do not include the explicit ./args.gn working-directory anchor" >&2
   exit 1
 }
 
@@ -46,7 +51,8 @@ collect_diagnostics() {
       echo "STAGE=$STAGE"
       echo "TARGET=$SMOKE_TARGET"
       echo "WRAPPER_MODE=$(stat -c '%a' "$PYTHON_REMOTE_WRAPPER" 2>/dev/null || echo unavailable)"
-      echo "SISO_CANONICALIZE_DIR=false"
+      echo "SISO_CANONICALIZE_DIR=true"
+      echo "SISO_WORKDIR_ANCHOR=./args.gn"
       date -u +"FAILED_AT=%Y-%m-%dT%H:%M:%SZ"
     } > "$DIAGNOSTICS/remote-smoke-status.txt"
     echo "Siso diagnostics copied to $DIAGNOSTICS" >&2
@@ -55,7 +61,7 @@ collect_diagnostics() {
 }
 trap collect_diagnostics EXIT
 
-echo "BRAVE_REMOTE_SMOKE=START target=$SMOKE_TARGET strict_remote=true remote_jobs=1"
+echo "BRAVE_REMOTE_SMOKE=START target=$SMOKE_TARGET strict_remote=true remote_jobs=1 workdir_anchor=./args.gn"
 # --clobber ensures this gate exercises the remote worker instead of silently
 # passing because a prior checkpoint already contains the generated output.
 timeout --signal=INT --kill-after=30s 180s \
