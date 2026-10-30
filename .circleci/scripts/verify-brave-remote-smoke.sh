@@ -45,6 +45,7 @@ PROTO_SMOKE_OUTPUT="$OUT/$PROTO_SMOKE_TARGET"
 SMOKE_TARGET="mojo/public/tools/bindings:precompile_ts_templates"
 SMOKE_OUTPUT="$OUT/gen/mojo/public/tools/bindings/ts_templates.zip"
 
+FAILED_REMOTE_TARGET="worker preflight not started"
 collect_diagnostics() {
   local rc=$?
   if [ "$rc" -ne 0 ]; then
@@ -57,7 +58,9 @@ collect_diagnostics() {
     {
       echo "BRAVE_REMOTE_SMOKE=FAIL"
       echo "STAGE=$STAGE"
-      echo "TARGET=$SMOKE_TARGET"
+      echo "FAILED_TARGET=$FAILED_REMOTE_TARGET"
+      echo "PROTO_TARGET=$PROTO_SMOKE_TARGET"
+      echo "GENERIC_TARGET=$SMOKE_TARGET"
       echo "WRAPPER_MODE=$(stat -c '%a' "$PYTHON_REMOTE_WRAPPER" 2>/dev/null || echo unavailable)"
       echo "SISO_CANONICALIZE_DIR=true"
       echo "SISO_WORKDIR_ANCHOR=./args.gn"
@@ -69,6 +72,7 @@ collect_diagnostics() {
 }
 trap collect_diagnostics EXIT
 
+FAILED_REMOTE_TARGET="$PROTO_SMOKE_TARGET"
 echo "BRAVE_PROTO_REMOTE_SMOKE=START target=$PROTO_SMOKE_TARGET strict_remote=true remote_jobs=1"
 # This is deliberately a real Perfetto cpp_gen output from the failing log.
 # --clobber guarantees protoc is launched remotely even if the output was
@@ -83,6 +87,7 @@ test -s "$PROTO_SMOKE_OUTPUT" || {
 }
 echo "BRAVE_PROTO_REMOTE_SMOKE=PASS target=$PROTO_SMOKE_TARGET"
 
+FAILED_REMOTE_TARGET="$SMOKE_TARGET"
 echo "BRAVE_REMOTE_SMOKE=START target=$SMOKE_TARGET strict_remote=true remote_jobs=1 workdir_anchor=./args.gn"
 # --clobber ensures this gate exercises a generic remote action too.
 timeout --signal=INT --kill-after=30s 180s \
