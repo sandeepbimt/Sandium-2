@@ -69,6 +69,45 @@ if [ "${BRAVE_STAGE_INDEX:?BRAVE_STAGE_INDEX is required}" = "1" ]; then
     pnpm run init --target_os=android --target_arch=arm64 --no-history
   fi
 
+  # Match the proven SSfull REAPI fix: compiler crash diagnostics must stay
+  # inside this GN output directory. The upstream rebase_path("//out/...", ...)
+  # produces ../clang-crashreports in compile commands; BuildBuddy rejects
+  # that parent-relative output path during REAPI command validation.
+  CLANG_COMPILER_GNI="$SRC_DIR/build/config/compiler/compiler.gni"
+  test -s "$CLANG_COMPILER_GNI" || {
+    echo "CLANG_DIAGNOSTIC_PATH_GATE=FAIL missing $CLANG_COMPILER_GNI" >&2
+    exit 1
+  }
+  python3 - "$CLANG_COMPILER_GNI" <<'PY'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+text = path.read_text(encoding="utf-8")
+old = 'clang_diagnostic_dir = rebase_path("//out/clang-crashreports", root_build_dir)'
+new = 'clang_diagnostic_dir = "clang-crashreports"'
+old_count = text.count(old)
+new_count = text.count(new)
+
+if old_count == 1 and new_count == 0:
+    text = text.replace(old, new, 1)
+    path.write_text(text, encoding="utf-8")
+    print("CLANG_DIAGNOSTIC_PATH_NORMALIZATION=PATCHED")
+elif old_count == 0 and new_count == 1:
+    print("CLANG_DIAGNOSTIC_PATH_NORMALIZATION=ALREADY_PATCHED")
+else:
+    raise SystemExit(
+        "CLANG_DIAGNOSTIC_PATH_GATE=FAIL expected exactly one upstream "
+        "rebase_path assignment or exactly one normalized assignment "
+        "(old=%d new=%d)" % (old_count, new_count)
+    )
+
+verified = path.read_text(encoding="utf-8")
+if verified.count(new) != 1 or old in verified:
+    raise SystemExit("CLANG_DIAGNOSTIC_PATH_GATE=FAIL post-write verification failed")
+print("CLANG_DIAGNOSTIC_PATH_GATE=PASS path=clang-crashreports")
+PY
+
   # Make the permission fix durable: Brave's runhooks generator rewrites this
   # wrapper, so patch the generator to preserve executable mode on regeneration.
   BRAVE_CUSTOM_CONFIG="$CORE_DIR/third_party/reclient_configs/brave_custom/brave_custom.py"
@@ -317,4 +356,14 @@ PY
   export SISO_LIMITS=local=8,remote=80
   echo "BRAVE_STAGE1_VALIDATION_MODE=DRY_RUN_NO_COMPILATION"
   pnpm run build Debug --target_os=android --target_arch=arm64 --target_android_output_format=apk --use_remoteexec=true --gn use_siso:true --gn use_reclient:false --target brave --ninja=n
+  test -s "$OUT/build.ninja" || { echo "CLANG_DIAGNOSTIC_PATH_GATE=FAIL build.ninja missing after GN preparation" >&2; exit 1; }
+  grep -Fq -- '-fcrash-diagnostics-dir=clang-crashreports' "$OUT/build.ninja" || {
+    echo "CLANG_DIAGNOSTIC_PATH_GATE=FAIL generated Ninja graph does not contain normalized crash-diagnostics output path" >&2
+    exit 1
+  }
+  if grep -Fq -- '-fcrash-diagnostics-dir=../clang-crashreports' "$OUT/build.ninja"; then
+    echo "CLANG_DIAGNOSTIC_PATH_GATE=FAIL parent-relative crash-diagnostics output path remains in build.ninja" >&2
+    exit 1
+  fi
+  echo "CLANG_DIAGNOSTIC_NINJA_GRAPH_GATE=PASS no parent-relative compiler diagnostic outputs"
 fi
