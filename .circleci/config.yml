@@ -1628,7 +1628,12 @@ jobs:
             test -x "$BRAVE_DEPOT_TOOLS/autoninja" || { echo "BRAVE_GCLIENT_ROOT_GATE=FAIL Brave autoninja missing" >&2; exit 1; }
             export PATH="$BRAVE_DEPOT_TOOLS:$PATH"
             cd "$BRAVE_SRC"
-            PYTHONPATH="$BRAVE_DEPOT_TOOLS${PYTHONPATH:+:$PYTHONPATH}" python3 - "$BRAVE_SRC" \<<'PY'
+            # Match Brave's own Config.defaultOptions Python import paths.
+            # Direct autoninja invocation bypasses Brave's Node build wrapper,
+            # which normally adds these directories before GN exec_script runs.
+            export PYTHONPATH="$BRAVE_SRC/brave/script:$BRAVE_SRC/tools/grit/grit/extern:$BRAVE_SRC/brave/vendor/requests:$BRAVE_SRC/build:$BRAVE_DEPOT_TOOLS${PYTHONPATH:+:$PYTHONPATH}"
+            "$BRAVE_SRC/third_party/cpython3/host/bin/python3" -c 'from brave_version_utils import generate_base_version_code; assert generate_base_version_code(1, 2) > 0; print("BRAVE_PYTHONPATH_GATE=PASS")'
+            python3 - "$BRAVE_SRC" \<<'PY'
             import os
             import sys
             import gclient_paths
