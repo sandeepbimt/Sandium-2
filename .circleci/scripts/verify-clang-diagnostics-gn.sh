@@ -28,6 +28,10 @@ test -s "$OUT/build.ninja" || {
   echo "CLANG_DIAGNOSTIC_GN_GATE=FAIL build.ninja missing; GN graph was not generated" >&2
   exit 1
 }
+test -s "$SRC/.gn" || {
+  echo "CLANG_DIAGNOSTIC_GN_GATE=FAIL Chromium source-root marker missing: $SRC/.gn" >&2
+  exit 1
+}
 test -x "$GN" || {
   echo "CLANG_DIAGNOSTIC_GN_GATE=FAIL GN executable missing: $GN" >&2
   exit 1
@@ -45,6 +49,13 @@ test -x "$GN_HOST_PYTHON" || {
   exit 1
 }
 "$GN_HOST_PYTHON" -c 'from brave_version_utils import generate_base_version_code; assert generate_base_version_code(1, 2) > 0; print("CLANG_DIAGNOSTIC_BRAVE_PYTHONPATH_GATE=PASS")'
+
+# GN resolves the Chromium root from the current directory (or --root). Each
+# CircleCI run step starts at the repository root, so explicitly enter SRC.
+# This is essential when the helper is called by the checkpoint-validation
+# step, which runs in a fresh shell after source preparation has completed.
+cd "$SRC"
+echo "CLANG_DIAGNOSTIC_GN_ROOT=$(pwd)"
 
 # Do not grep build.ninja: GN stores compiler flags on the config/target,
 # not necessarily as literal text in the top-level Ninja manifest.
