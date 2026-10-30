@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT="$CIRCLE_WORKING_DIRECTORY"
 STAGE="$BRAVE_STAGE_INDEX"
 SRC="$ROOT/brave-work/src"
-OUT="$SRC/out/android_Debug_arm64"
+OUT="$SRC/out/android_Release_arm64"
 DEPOT_TOOLS="$SRC/brave/vendor/depot_tools"
 PYTHON_REMOTE_WRAPPER="$SRC/buildtools/reclient_cfgs/python/python_remote_wrapper"
 SISO_BRAVE_CONFIG="$SRC/build/config/siso/brave_siso_config.star"

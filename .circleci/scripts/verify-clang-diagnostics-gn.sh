@@ -7,7 +7,7 @@ if [ -z "$ROOT" ]; then
   exit 1
 fi
 SRC="$ROOT/brave-work/src"
-OUT="$SRC/out/android_Debug_arm64"
+OUT="$SRC/out/android_Release_arm64"
 COMPILER_GNI="$SRC/build/config/compiler/compiler.gni"
 GN="$SRC/buildtools/linux64/gn"
 
@@ -28,6 +28,31 @@ test -s "$OUT/build.ninja" || {
   echo "CLANG_DIAGNOSTIC_GN_GATE=FAIL build.ninja missing; GN graph was not generated" >&2
   exit 1
 }
+ARGS_GENERATED="$OUT/args_generated.gni"
+test -s "$ARGS_GENERATED" || {
+  echo "BRAVE_RELEASE_GN_GATE=FAIL args_generated.gni missing" >&2
+  exit 1
+}
+require_release_arg() {
+  if ! grep -Fqx "$1" "$ARGS_GENERATED"; then
+    echo "BRAVE_RELEASE_GN_GATE=FAIL missing generated GN arg: $1" >&2
+    exit 1
+  fi
+}
+require_release_arg 'is_debug=false'
+require_release_arg 'is_official_build=false'
+require_release_arg 'is_component_build=false'
+require_release_arg 'is_java_debug=false'
+require_release_arg 'symbol_level=1'
+require_release_arg 'enable_android_secondary_abi=false'
+require_release_arg 'enable_updater=false'
+require_release_arg 'enable_update_notifications=false'
+require_release_arg 'android_channel="default"'
+require_release_arg 'chrome_public_manifest_package="com.brave.browser_default"'
+require_release_arg 'brave_channel="development"'
+require_release_arg 'target_android_output_format="apk"'
+echo "BRAVE_RELEASE_GN_GATE=PASS"
+
 test -s "$SRC/.gn" || {
   echo "CLANG_DIAGNOSTIC_GN_GATE=FAIL Chromium source-root marker missing: $SRC/.gn" >&2
   exit 1
