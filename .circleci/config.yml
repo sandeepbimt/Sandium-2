@@ -1539,9 +1539,8 @@ jobs:
               # pnpm sync reads rbe_service from brave/.env and writes the
               # reapi_* custom_vars into .gclient before running Chromium hooks.
               REAPI_ADDRESS="$(printenv SANDIUM_REAPI_ADDRESS 2>/dev/null || true)"
-              REAPI_INSTANCE="$(printenv SANDIUM_REAPI_INSTANCE 2>/dev/null || true)"
+              REAPI_INSTANCE="default"
               [ -n "$REAPI_ADDRESS" ] || REAPI_ADDRESS="remote.buildbuddy.io:443"
-              [ -n "$REAPI_INSTANCE" ] || REAPI_INSTANCE="default"
               case "$REAPI_ADDRESS" in
                 *:443) ;;
                 *) echo "BRAVE_RBE_CONFIG_GATE=FAIL unexpected REAPI address (expected host:443): $REAPI_ADDRESS" >&2; exit 1 ;;
@@ -1666,7 +1665,14 @@ jobs:
             test -s "$SISO_RC" || { echo "BRAVE_STAGE_CONFIG_GATE=FAIL missing Siso .sisorc" >&2; exit 1; }
             test -s "$SISO_BACKEND" || { echo "BRAVE_STAGE_CONFIG_GATE=FAIL missing Siso backend.star" >&2; exit 1; }
             grep -Fx "SISO_CREDENTIAL_HELPER=/tmp/sandium-buildbuddy-credential-helper.py" "$SISO_ENV" >/dev/null || { echo "BRAVE_STAGE_CONFIG_GATE=FAIL Siso credential helper path mismatch" >&2; cat "$SISO_ENV" >&2; exit 1; }
+            SISO_ADDRESS="$(sed -n 's/^SISO_REAPI_ADDRESS=//p' "$SISO_ENV" | tail -n 1)"
+            SISO_INSTANCE="$(sed -n 's/^SISO_REAPI_INSTANCE=//p' "$SISO_ENV" | tail -n 1)"
+            test -n "$SISO_ADDRESS" && [[ "$SISO_ADDRESS" == *:443 ]] || { echo "BRAVE_STAGE_CONFIG_GATE=FAIL invalid Siso REAPI address" >&2; cat "$SISO_ENV" >&2; exit 1; }
+            test "$SISO_INSTANCE" = "default" || { echo "BRAVE_STAGE_CONFIG_GATE=FAIL Siso instance differs from pinned Brave .gclient default" >&2; cat "$SISO_ENV" >&2; exit 1; }
+            grep -Fx 'ninja -re_cache_enable_write=true' "$SISO_RC" >/dev/null || { echo "BRAVE_STAGE_CONFIG_GATE=FAIL Siso cache writes disabled" >&2; cat "$SISO_RC" >&2; exit 1; }
             test -x /tmp/sandium-buildbuddy-credential-helper.py || { echo "BRAVE_STAGE_CONFIG_GATE=FAIL helper missing on this runner" >&2; exit 1; }
+            test "${SISO_LIMITS:-}" = "local=8,remote=80" || { echo "BRAVE_STAGE_CONFIG_GATE=FAIL unexpected SISO_LIMITS: ${SISO_LIMITS:-unset}" >&2; exit 1; }
+            command -v autoninja >/dev/null || { echo "BRAVE_STAGE_CONFIG_GATE=FAIL autoninja missing from PATH" >&2; exit 1; }
             if [ "<< parameters.stage_index >>" = "1" ]; then
               for required in build.ninja args.gn; do
                 if [ ! -s "$OUT/$required" ]; then
@@ -1777,6 +1783,11 @@ jobs:
               echo "TARGET=android-arm64"
               echo "BUILD_TYPE=Debug"
               echo "STAGE=<< parameters.stage_index >>"
+              echo "ARGS_GENERATED_SHA256=$(sha256sum "$ARGS_GENERATED" | awk '{print $1}')"
+              echo "SISO_ENV_SHA256=$(sha256sum "$SISO_ENV" | awk '{print $1}')"
+              echo "SISO_RC_SHA256=$(sha256sum "$SISO_RC" | awk '{print $1}')"
+              echo "SISO_BACKEND_SHA256=$(sha256sum "$SISO_BACKEND" | awk '{print $1}')"
+              echo "COMPILED_OBJECT_COUNT=$(find "$OUT/obj" -type f -name '*.o' 2>/dev/null | wc -l | tr -d ' ')"
               date -u +"SAVED_AT=%Y-%m-%dT%H:%M:%SZ"
               du -sh "$ROOT/brave-work"
               du -sh "$OUT"
