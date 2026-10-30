@@ -1447,6 +1447,9 @@ jobs:
               > "$HELPER"
             chmod 700 "$HELPER"
             echo 'export SISO_CREDENTIAL_HELPER=/tmp/sandium-buildbuddy-credential-helper.py' >> "$BASH_ENV"
+            echo 'export PATH="$CIRCLE_WORKING_DIRECTORY/brave-work/depot_tools:$PATH"' >> "$BASH_ENV"
+            echo 'export DEPOT_TOOLS_UPDATE=0' >> "$BASH_ENV"
+            echo 'export SISO_LIMITS=local=8,remote=80' >> "$BASH_ENV"
             echo "SISO_CREDENTIAL_HELPER=CONFIGURED (secret value not printed)"
       - checkout
       - when:
@@ -1546,10 +1549,6 @@ jobs:
               printf '%s\n' \
                 "rbe_service=$REAPI_ADDRESS" \
                 'use_remoteexec=true' \
-                'gn_args_use_siso=true' \
-                'gn_args_use_reclient=false' \
-                'siso_limits_local=8' \
-                'siso_limits_remote=80' \
                 > "$CORE_DIR/.env"
               echo "BRAVE_RBE_ENDPOINT=$REAPI_ADDRESS"
               echo "BRAVE_RBE_INSTANCE=$REAPI_INSTANCE"
@@ -1588,7 +1587,7 @@ jobs:
               BACKEND=/tmp/sandium-buildbuddy-backend.star
               test -x "$HELPER" || { echo "BRAVE_RBE_CONFIG_GATE=FAIL credential helper missing: $HELPER" >&2; exit 1; }
               printf '%s\n' \
-                '# SAN D I U M BuildBuddy backend configuration.' \
+                '# SANDIUM BuildBuddy backend configuration.' \
                 'load("@builtin//struct.star", "module")' \
                 '' \
                 'def __platform_properties(ctx):' \
@@ -1635,6 +1634,7 @@ jobs:
               else
                 echo "BRAVE_GN_GRAPH_REUSE=MISS; source sync skipped if source pin matched; generating GN graph."
               fi
+              export SISO_LIMITS=local=8,remote=80
               pnpm run build Debug --target_os=android --target_arch=arm64 --target_android_output_format=apk --use_remoteexec=true --gn use_siso:true --gn use_reclient:false --target brave --ninja=-n
             fi
       - save_cache:
@@ -1653,6 +1653,14 @@ jobs:
             set -euo pipefail
             ROOT="$CIRCLE_WORKING_DIRECTORY"
             OUT="$ROOT/brave-work/src/out/android_Debug_arm64"
+            SISO_ENV="$ROOT/brave-work/src/build/config/siso/.sisoenv"
+            SISO_RC="$ROOT/brave-work/src/build/config/siso/.sisorc"
+            SISO_BACKEND="$ROOT/brave-work/src/build/config/siso/backend_config/backend.star"
+            test -s "$SISO_ENV" || { echo "BRAVE_STAGE_CONFIG_GATE=FAIL missing Siso .sisoenv" >&2; exit 1; }
+            test -s "$SISO_RC" || { echo "BRAVE_STAGE_CONFIG_GATE=FAIL missing Siso .sisorc" >&2; exit 1; }
+            test -s "$SISO_BACKEND" || { echo "BRAVE_STAGE_CONFIG_GATE=FAIL missing Siso backend.star" >&2; exit 1; }
+            grep -Fx "SISO_CREDENTIAL_HELPER=/tmp/sandium-buildbuddy-credential-helper.py" "$SISO_ENV" >/dev/null || { echo "BRAVE_STAGE_CONFIG_GATE=FAIL Siso credential helper path mismatch" >&2; cat "$SISO_ENV" >&2; exit 1; }
+            test -x /tmp/sandium-buildbuddy-credential-helper.py || { echo "BRAVE_STAGE_CONFIG_GATE=FAIL helper missing on this runner" >&2; exit 1; }
             if [ "<< parameters.stage_index >>" = "1" ]; then
               for required in build.ninja args.gn; do
                 if [ ! -s "$OUT/$required" ]; then
@@ -1739,6 +1747,414 @@ jobs:
             test -s "$ROOT/brave-work/.gclient" || { echo "CHECKPOINT_SAVE=REFUSED missing .gclient" >&2; exit 1; }
             test -s "$OUT/build.ninja" || { echo "CHECKPOINT_SAVE=REFUSED missing build.ninja" >&2; exit 1; }
             test -s "$OUT/args.gn" || { echo "CHECKPOINT_SAVE=REFUSED missing args.gn" >&2; exit 1; }
+            ARGS_GENERATED="$OUT/args_generated.gni"
+            SISO_ENV="$SRC/build/config/siso/.sisoenv"
+            SISO_RC="$SRC/build/config/siso/.sisorc"
+            SISO_BACKEND="$SRC/build/config/siso/backend_config/backend.star"
+            test -s "$ARGS_GENERATED" || { echo "CHECKPOINT_SAVE=REFUSED missing args_generated.gni" >&2; exit 1; }
+            grep -F 'args_generated.gni' "$OUT/args.gn" >/dev/null || { echo "CHECKPOINT_SAVE=REFUSED args.gn import missing" >&2; exit 1; }
+            grep -Eq '^use_remoteexec=true
+            BRAVE_TAG="$(git -C "$CORE" describe --tags --exact-match 2>/dev/null || true)"
+            test "$CHROMIUM_SHA" = "d331de35ca8ab1358c7a17e4bd41627d55eaef51" || { echo "CHECKPOINT_SAVE=REFUSED Chromium SHA mismatch: $CHROMIUM_SHA" >&2; exit 1; }
+            test "$BRAVE_TAG" = "v1.98.62" || { echo "CHECKPOINT_SAVE=REFUSED Brave tag mismatch: $BRAVE_TAG" >&2; exit 1; }
+            mkdir -p "$ROOT/brave-work/.sandium"
+            {
+              echo "CHECKPOINT_VALID=true"
+              echo "BRAVE_CORE_TAG=$BRAVE_TAG"
+              echo "CHROMIUM_SHA=$CHROMIUM_SHA"
+              echo "TARGET=android-arm64"
+              echo "BUILD_TYPE=Debug"
+              echo "STAGE=<< parameters.stage_index >>"
+              date -u +"SAVED_AT=%Y-%m-%dT%H:%M:%SZ"
+              du -sh "$ROOT/brave-work"
+              du -sh "$OUT"
+            } > "$ROOT/brave-work/.sandium/checkpoint-manifest.txt"
+            echo "CHECKPOINT_SAVE=PASS"
+            cat "$ROOT/brave-work/.sandium/checkpoint-manifest.txt"
+      - save_cache:
+          name: Save validated Brave workspace checkpoint
+          key: sandium-brave-valid-v2-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-<< parameters.stage_index >>
+          paths:
+            - brave-work
+      - run:
+          name: Export APK status and artifacts
+          when: always
+          command: |
+            set -eu
+            ROOT="$CIRCLE_WORKING_DIRECTORY"
+            OUT="$ROOT/brave-work/src/out/android_Debug_arm64"
+            mkdir -p "$ROOT/brave-apk"
+            APK="$(find "$OUT/apks" -maxdepth 1 -type f -name '*.apk' -size +0c 2>/dev/null | head -n 1 || true)"
+            if [ -n "$APK" ] && python3 -c 'import sys,zipfile; z=zipfile.ZipFile(sys.argv[1]); bad=z.testzip(); z.close(); sys.exit(1 if bad else 0)' "$APK"
+            then
+              cp "$APK" "$ROOT/brave-apk/Sandium-Brave-test.apk"
+              echo "BUILD_FINISHED=true" > "$ROOT/brave-apk/status.txt"
+              echo "APK_ARCHIVE_VALID=true" >> "$ROOT/brave-apk/status.txt"
+            else
+              echo "BUILD_FINISHED=false" > "$ROOT/brave-apk/status.txt"
+              echo "APK_ARCHIVE_VALID=false" >> "$ROOT/brave-apk/status.txt"
+            fi
+      - store_artifacts:
+          path: brave-apk
+          destination: brave-apk
+
+workflows:
+  c4-afterbird-staged-checkpoint-build:
+    jobs:
+      - c4-afterbird-staged-build:
+          name: c4-afterbird-stage-1
+          stage_index: 1
+          filters:
+            branches:
+              only:
+                - sandfox/checkpoint-stage-v1
+                - ss2-from-ss1
+      - c4-afterbird-staged-build:
+          name: c4-afterbird-stage-2
+          stage_index: 2
+          requires:
+            - c4-afterbird-stage-1
+          filters:
+            branches:
+              only:
+                - sandfox/checkpoint-stage-v1
+                - ss2-from-ss1
+      - c4-afterbird-staged-build:
+          name: c4-afterbird-stage-3
+          stage_index: 3
+          requires:
+            - c4-afterbird-stage-2
+          filters:
+            branches:
+              only:
+                - sandfox/checkpoint-stage-v1
+                - ss2-from-ss1
+      - c4-afterbird-staged-build:
+          name: c4-afterbird-stage-4
+          stage_index: 4
+          requires:
+            - c4-afterbird-stage-3
+          filters:
+            branches:
+              only:
+                - sandfox/checkpoint-stage-v1
+                - ss2-from-ss1
+      - c4-afterbird-staged-build:
+          name: c4-afterbird-stage-5
+          stage_index: 5
+          requires:
+            - c4-afterbird-stage-4
+          filters:
+            branches:
+              only:
+                - sandfox/checkpoint-stage-v1
+                - ss2-from-ss1
+  brave-android-staged-checkpoint-build:
+    jobs:
+      - brave-android-staged-build:
+          name: brave-android-stage-1
+          stage_index: 1
+          filters:
+            branches:
+              only: sandium/brave-android-poc
+      - brave-android-staged-build:
+          name: brave-android-stage-2
+          stage_index: 2
+          requires: [brave-android-stage-1]
+          filters:
+            branches:
+              only: sandium/brave-android-poc
+      - brave-android-staged-build:
+          name: brave-android-stage-3
+          stage_index: 3
+          requires: [brave-android-stage-2]
+          filters:
+            branches:
+              only: sandium/brave-android-poc
+      - brave-android-staged-build:
+          name: brave-android-stage-4
+          stage_index: 4
+          requires: [brave-android-stage-3]
+          filters:
+            branches:
+              only: sandium/brave-android-poc
+      - brave-android-staged-build:
+          name: brave-android-stage-5
+          stage_index: 5
+          requires: [brave-android-stage-4]
+          filters:
+            branches:
+              only: sandium/brave-android-poc
+ "$ARGS_GENERATED" || { echo "CHECKPOINT_SAVE=REFUSED generated use_remoteexec missing" >&2; exit 1; }
+            grep -Eq '^use_siso=true
+            BRAVE_TAG="$(git -C "$CORE" describe --tags --exact-match 2>/dev/null || true)"
+            test "$CHROMIUM_SHA" = "d331de35ca8ab1358c7a17e4bd41627d55eaef51" || { echo "CHECKPOINT_SAVE=REFUSED Chromium SHA mismatch: $CHROMIUM_SHA" >&2; exit 1; }
+            test "$BRAVE_TAG" = "v1.98.62" || { echo "CHECKPOINT_SAVE=REFUSED Brave tag mismatch: $BRAVE_TAG" >&2; exit 1; }
+            mkdir -p "$ROOT/brave-work/.sandium"
+            {
+              echo "CHECKPOINT_VALID=true"
+              echo "BRAVE_CORE_TAG=$BRAVE_TAG"
+              echo "CHROMIUM_SHA=$CHROMIUM_SHA"
+              echo "TARGET=android-arm64"
+              echo "BUILD_TYPE=Debug"
+              echo "STAGE=<< parameters.stage_index >>"
+              date -u +"SAVED_AT=%Y-%m-%dT%H:%M:%SZ"
+              du -sh "$ROOT/brave-work"
+              du -sh "$OUT"
+            } > "$ROOT/brave-work/.sandium/checkpoint-manifest.txt"
+            echo "CHECKPOINT_SAVE=PASS"
+            cat "$ROOT/brave-work/.sandium/checkpoint-manifest.txt"
+      - save_cache:
+          name: Save validated Brave workspace checkpoint
+          key: sandium-brave-valid-v2-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-<< parameters.stage_index >>
+          paths:
+            - brave-work
+      - run:
+          name: Export APK status and artifacts
+          when: always
+          command: |
+            set -eu
+            ROOT="$CIRCLE_WORKING_DIRECTORY"
+            OUT="$ROOT/brave-work/src/out/android_Debug_arm64"
+            mkdir -p "$ROOT/brave-apk"
+            APK="$(find "$OUT/apks" -maxdepth 1 -type f -name '*.apk' -size +0c 2>/dev/null | head -n 1 || true)"
+            if [ -n "$APK" ] && python3 -c 'import sys,zipfile; z=zipfile.ZipFile(sys.argv[1]); bad=z.testzip(); z.close(); sys.exit(1 if bad else 0)' "$APK"
+            then
+              cp "$APK" "$ROOT/brave-apk/Sandium-Brave-test.apk"
+              echo "BUILD_FINISHED=true" > "$ROOT/brave-apk/status.txt"
+              echo "APK_ARCHIVE_VALID=true" >> "$ROOT/brave-apk/status.txt"
+            else
+              echo "BUILD_FINISHED=false" > "$ROOT/brave-apk/status.txt"
+              echo "APK_ARCHIVE_VALID=false" >> "$ROOT/brave-apk/status.txt"
+            fi
+      - store_artifacts:
+          path: brave-apk
+          destination: brave-apk
+
+workflows:
+  c4-afterbird-staged-checkpoint-build:
+    jobs:
+      - c4-afterbird-staged-build:
+          name: c4-afterbird-stage-1
+          stage_index: 1
+          filters:
+            branches:
+              only:
+                - sandfox/checkpoint-stage-v1
+                - ss2-from-ss1
+      - c4-afterbird-staged-build:
+          name: c4-afterbird-stage-2
+          stage_index: 2
+          requires:
+            - c4-afterbird-stage-1
+          filters:
+            branches:
+              only:
+                - sandfox/checkpoint-stage-v1
+                - ss2-from-ss1
+      - c4-afterbird-staged-build:
+          name: c4-afterbird-stage-3
+          stage_index: 3
+          requires:
+            - c4-afterbird-stage-2
+          filters:
+            branches:
+              only:
+                - sandfox/checkpoint-stage-v1
+                - ss2-from-ss1
+      - c4-afterbird-staged-build:
+          name: c4-afterbird-stage-4
+          stage_index: 4
+          requires:
+            - c4-afterbird-stage-3
+          filters:
+            branches:
+              only:
+                - sandfox/checkpoint-stage-v1
+                - ss2-from-ss1
+      - c4-afterbird-staged-build:
+          name: c4-afterbird-stage-5
+          stage_index: 5
+          requires:
+            - c4-afterbird-stage-4
+          filters:
+            branches:
+              only:
+                - sandfox/checkpoint-stage-v1
+                - ss2-from-ss1
+  brave-android-staged-checkpoint-build:
+    jobs:
+      - brave-android-staged-build:
+          name: brave-android-stage-1
+          stage_index: 1
+          filters:
+            branches:
+              only: sandium/brave-android-poc
+      - brave-android-staged-build:
+          name: brave-android-stage-2
+          stage_index: 2
+          requires: [brave-android-stage-1]
+          filters:
+            branches:
+              only: sandium/brave-android-poc
+      - brave-android-staged-build:
+          name: brave-android-stage-3
+          stage_index: 3
+          requires: [brave-android-stage-2]
+          filters:
+            branches:
+              only: sandium/brave-android-poc
+      - brave-android-staged-build:
+          name: brave-android-stage-4
+          stage_index: 4
+          requires: [brave-android-stage-3]
+          filters:
+            branches:
+              only: sandium/brave-android-poc
+      - brave-android-staged-build:
+          name: brave-android-stage-5
+          stage_index: 5
+          requires: [brave-android-stage-4]
+          filters:
+            branches:
+              only: sandium/brave-android-poc
+ "$ARGS_GENERATED" || { echo "CHECKPOINT_SAVE=REFUSED generated use_siso missing" >&2; exit 1; }
+            grep -Eq '^use_reclient=false
+            BRAVE_TAG="$(git -C "$CORE" describe --tags --exact-match 2>/dev/null || true)"
+            test "$CHROMIUM_SHA" = "d331de35ca8ab1358c7a17e4bd41627d55eaef51" || { echo "CHECKPOINT_SAVE=REFUSED Chromium SHA mismatch: $CHROMIUM_SHA" >&2; exit 1; }
+            test "$BRAVE_TAG" = "v1.98.62" || { echo "CHECKPOINT_SAVE=REFUSED Brave tag mismatch: $BRAVE_TAG" >&2; exit 1; }
+            mkdir -p "$ROOT/brave-work/.sandium"
+            {
+              echo "CHECKPOINT_VALID=true"
+              echo "BRAVE_CORE_TAG=$BRAVE_TAG"
+              echo "CHROMIUM_SHA=$CHROMIUM_SHA"
+              echo "TARGET=android-arm64"
+              echo "BUILD_TYPE=Debug"
+              echo "STAGE=<< parameters.stage_index >>"
+              date -u +"SAVED_AT=%Y-%m-%dT%H:%M:%SZ"
+              du -sh "$ROOT/brave-work"
+              du -sh "$OUT"
+            } > "$ROOT/brave-work/.sandium/checkpoint-manifest.txt"
+            echo "CHECKPOINT_SAVE=PASS"
+            cat "$ROOT/brave-work/.sandium/checkpoint-manifest.txt"
+      - save_cache:
+          name: Save validated Brave workspace checkpoint
+          key: sandium-brave-valid-v2-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-<< parameters.stage_index >>
+          paths:
+            - brave-work
+      - run:
+          name: Export APK status and artifacts
+          when: always
+          command: |
+            set -eu
+            ROOT="$CIRCLE_WORKING_DIRECTORY"
+            OUT="$ROOT/brave-work/src/out/android_Debug_arm64"
+            mkdir -p "$ROOT/brave-apk"
+            APK="$(find "$OUT/apks" -maxdepth 1 -type f -name '*.apk' -size +0c 2>/dev/null | head -n 1 || true)"
+            if [ -n "$APK" ] && python3 -c 'import sys,zipfile; z=zipfile.ZipFile(sys.argv[1]); bad=z.testzip(); z.close(); sys.exit(1 if bad else 0)' "$APK"
+            then
+              cp "$APK" "$ROOT/brave-apk/Sandium-Brave-test.apk"
+              echo "BUILD_FINISHED=true" > "$ROOT/brave-apk/status.txt"
+              echo "APK_ARCHIVE_VALID=true" >> "$ROOT/brave-apk/status.txt"
+            else
+              echo "BUILD_FINISHED=false" > "$ROOT/brave-apk/status.txt"
+              echo "APK_ARCHIVE_VALID=false" >> "$ROOT/brave-apk/status.txt"
+            fi
+      - store_artifacts:
+          path: brave-apk
+          destination: brave-apk
+
+workflows:
+  c4-afterbird-staged-checkpoint-build:
+    jobs:
+      - c4-afterbird-staged-build:
+          name: c4-afterbird-stage-1
+          stage_index: 1
+          filters:
+            branches:
+              only:
+                - sandfox/checkpoint-stage-v1
+                - ss2-from-ss1
+      - c4-afterbird-staged-build:
+          name: c4-afterbird-stage-2
+          stage_index: 2
+          requires:
+            - c4-afterbird-stage-1
+          filters:
+            branches:
+              only:
+                - sandfox/checkpoint-stage-v1
+                - ss2-from-ss1
+      - c4-afterbird-staged-build:
+          name: c4-afterbird-stage-3
+          stage_index: 3
+          requires:
+            - c4-afterbird-stage-2
+          filters:
+            branches:
+              only:
+                - sandfox/checkpoint-stage-v1
+                - ss2-from-ss1
+      - c4-afterbird-staged-build:
+          name: c4-afterbird-stage-4
+          stage_index: 4
+          requires:
+            - c4-afterbird-stage-3
+          filters:
+            branches:
+              only:
+                - sandfox/checkpoint-stage-v1
+                - ss2-from-ss1
+      - c4-afterbird-staged-build:
+          name: c4-afterbird-stage-5
+          stage_index: 5
+          requires:
+            - c4-afterbird-stage-4
+          filters:
+            branches:
+              only:
+                - sandfox/checkpoint-stage-v1
+                - ss2-from-ss1
+  brave-android-staged-checkpoint-build:
+    jobs:
+      - brave-android-staged-build:
+          name: brave-android-stage-1
+          stage_index: 1
+          filters:
+            branches:
+              only: sandium/brave-android-poc
+      - brave-android-staged-build:
+          name: brave-android-stage-2
+          stage_index: 2
+          requires: [brave-android-stage-1]
+          filters:
+            branches:
+              only: sandium/brave-android-poc
+      - brave-android-staged-build:
+          name: brave-android-stage-3
+          stage_index: 3
+          requires: [brave-android-stage-2]
+          filters:
+            branches:
+              only: sandium/brave-android-poc
+      - brave-android-staged-build:
+          name: brave-android-stage-4
+          stage_index: 4
+          requires: [brave-android-stage-3]
+          filters:
+            branches:
+              only: sandium/brave-android-poc
+      - brave-android-staged-build:
+          name: brave-android-stage-5
+          stage_index: 5
+          requires: [brave-android-stage-4]
+          filters:
+            branches:
+              only: sandium/brave-android-poc
+ "$ARGS_GENERATED" || { echo "CHECKPOINT_SAVE=REFUSED generated use_reclient missing" >&2; exit 1; }
+            test -s "$SISO_ENV" && test -s "$SISO_RC" && test -s "$SISO_BACKEND" || { echo "CHECKPOINT_SAVE=REFUSED Siso configuration incomplete" >&2; exit 1; }
+            grep -Fx "SISO_CREDENTIAL_HELPER=/tmp/sandium-buildbuddy-credential-helper.py" "$SISO_ENV" >/dev/null || { echo "CHECKPOINT_SAVE=REFUSED Siso credential helper not configured" >&2; exit 1; }
+            test -x /tmp/sandium-buildbuddy-credential-helper.py || { echo "CHECKPOINT_SAVE=REFUSED credential helper not executable" >&2; exit 1; }
             CHROMIUM_SHA="$(git -C "$SRC" rev-parse HEAD)"
             BRAVE_TAG="$(git -C "$CORE" describe --tags --exact-match 2>/dev/null || true)"
             test "$CHROMIUM_SHA" = "d331de35ca8ab1358c7a17e4bd41627d55eaef51" || { echo "CHECKPOINT_SAVE=REFUSED Chromium SHA mismatch: $CHROMIUM_SHA" >&2; exit 1; }
