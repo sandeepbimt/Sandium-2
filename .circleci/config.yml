@@ -1546,7 +1546,7 @@ jobs:
                 *) echo "BRAVE_RBE_CONFIG_GATE=FAIL unexpected REAPI address (expected host:443): $REAPI_ADDRESS" >&2; exit 1 ;;
               esac
               ENV_FILE="$CORE_DIR/.env"
-              ENV_TMP="$(mktemp)"
+              ENV_TMP="$(mktemp "$CORE_DIR/.env.tmp.XXXXXX")
               if [ -f "$ENV_FILE" ]; then
                 grep -Ev '^(rbe_service|use_remoteexec)=' "$ENV_FILE" > "$ENV_TMP" || true
               fi
@@ -1787,7 +1787,11 @@ jobs:
               echo "SISO_ENV_SHA256=$(sha256sum "$SISO_ENV" | awk '{print $1}')"
               echo "SISO_RC_SHA256=$(sha256sum "$SISO_RC" | awk '{print $1}')"
               echo "SISO_BACKEND_SHA256=$(sha256sum "$SISO_BACKEND" | awk '{print $1}')"
-              echo "COMPILED_OBJECT_COUNT=$(find "$OUT/obj" -type f -name '*.o' 2>/dev/null | wc -l | tr -d ' ')"
+              OBJECT_COUNT=0
+              if [ -d "$OUT/obj" ]; then
+                OBJECT_COUNT="$(find "$OUT/obj" -type f -name '*.o' | wc -l | tr -d ' ')"
+              fi
+              echo "COMPILED_OBJECT_COUNT=$OBJECT_COUNT"
               date -u +"SAVED_AT=%Y-%m-%dT%H:%M:%SZ"
               du -sh "$ROOT/brave-work"
               du -sh "$OUT"
