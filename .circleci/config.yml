@@ -1616,7 +1616,71 @@ jobs:
                 --reapi_address "$REAPI_ADDRESS" \
                 --reapi_backend_config_path "$BACKEND" \
                 --credential-helper "$HELPER"
-              printf '%s\n' 'ninja -re_cache_enable_write=true' > "$SRC_DIR/build/config/siso/.sisorc"
+              # Brave's runhooks generated the native .sisorc immediately before this step.
+              # Preserve those flags and add Sandium's BuildBuddy action-cache write flag.
+              python3 - "$SRC_DIR/build/config/siso/.sisorc" <<'PY'
+              from pathlib import Path
+              import os
+              import shlex
+              import stat
+              import sys
+              import tempfile
+
+              sisorc = Path(sys.argv[1])
+              if not sisorc.is_file() or sisorc.stat().st_size == 0:
+                  raise SystemExit("BRAVE_SISO_CONFIG_GATE=FAIL Brave-generated .sisorc is missing or empty")
+
+              original = sisorc.read_text(encoding="utf-8")
+              lines = original.splitlines()
+              ninja_indexes = [
+                  index for index, line in enumerate(lines)
+                  if line.strip() and not line.lstrip().startswith("#")
+                  and shlex.split(line)[0] == "ninja"
+              ]
+              if len(ninja_indexes) != 1:
+                  raise SystemExit(
+                      "BRAVE_SISO_CONFIG_GATE=FAIL expected exactly one Brave-generated ninja command in .sisorc"
+                  )
+
+              ninja_index = ninja_indexes[0]
+              tokens = shlex.split(lines[ninja_index])
+              required = [
+                  ("-reapi_keep_exec_stream",),
+                  ("-fs_min_flush_timeout", "300s"),
+                  ("-reapi_byte_stream_read_threshold", "1024"),
+                  ("-config", "googlechrome"),
+              ]
+              for sequence in required:
+                  found = any(
+                      tokens[position:position + len(sequence)] == list(sequence)
+                      for position in range(len(tokens) - len(sequence) + 1)
+                  )
+                  if not found:
+                      raise SystemExit(
+                          "BRAVE_SISO_CONFIG_GATE=FAIL missing Brave native Siso flag sequence: "
+                          + " ".join(sequence)
+                      )
+
+              if "-re_cache_enable_write=true" not in tokens:
+                  lines[ninja_index] = lines[ninja_index].rstrip() + " -re_cache_enable_write=true"
+
+              updated = "\n".join(lines) + "\n"
+              if updated != original:
+                  mode = stat.S_IMODE(sisorc.stat().st_mode)
+                  fd, temporary = tempfile.mkstemp(prefix=".sisorc.sandium.", dir=str(sisorc.parent))
+                  try:
+                      with os.fdopen(fd, "w", encoding="utf-8") as output:
+                          output.write(updated)
+                      os.chmod(temporary, mode)
+                      os.replace(temporary, sisorc)
+                  finally:
+                      if os.path.exists(temporary):
+                          os.unlink(temporary)
+
+              print("BRAVE_SISO_NATIVE_FLAGS=PASS")
+              print("BRAVE_SISO_CACHE_WRITE=PASS")
+              print(sisorc.read_text(encoding="utf-8"), end="")
+              PY
 
               SISO_ENV="$SRC_DIR/build/config/siso/.sisoenv"
               SISO_RC="$SRC_DIR/build/config/siso/.sisorc"
@@ -1642,7 +1706,8 @@ jobs:
                 echo "BRAVE_GN_GRAPH_REUSE=MISS; source sync skipped if source pin matched; generating GN graph."
               fi
               export SISO_LIMITS=local=8,remote=80
-              pnpm run build Debug --target_os=android --target_arch=arm64 --target_android_output_format=apk --use_remoteexec=true --gn use_siso:true --gn use_reclient:false --target brave --ninja=-n
+              echo "BRAVE_STAGE1_VALIDATION_MODE=DRY_RUN_NO_COMPILATION"
+              pnpm run build Debug --target_os=android --target_arch=arm64 --target_android_output_format=apk --use_remoteexec=true --gn use_siso:true --gn use_reclient:false --target brave --ninja=n
             fi
       - save_cache:
           name: Save Ubuntu Android build-dependency package cache
@@ -1671,7 +1736,18 @@ jobs:
             SISO_INSTANCE="$(sed -n 's/^SISO_REAPI_INSTANCE=//p' "$SISO_ENV" | tail -n 1)"
             test -n "$SISO_ADDRESS" && [[ "$SISO_ADDRESS" == *:443 ]] || { echo "BRAVE_STAGE_CONFIG_GATE=FAIL invalid Siso REAPI address" >&2; cat "$SISO_ENV" >&2; exit 1; }
             test "$SISO_INSTANCE" = "default" || { echo "BRAVE_STAGE_CONFIG_GATE=FAIL Siso instance differs from pinned Brave .gclient default" >&2; cat "$SISO_ENV" >&2; exit 1; }
-            grep -Fx 'ninja -re_cache_enable_write=true' "$SISO_RC" >/dev/null || { echo "BRAVE_STAGE_CONFIG_GATE=FAIL Siso cache writes disabled" >&2; cat "$SISO_RC" >&2; exit 1; }
+            for REQUIRED_SISO_FLAG in \
+              '-reapi_keep_exec_stream' \
+              '-fs_min_flush_timeout 300s' \
+              '-reapi_byte_stream_read_threshold 1024' \
+              '-config googlechrome' \
+              '-re_cache_enable_write=true'; do
+              grep -Fq -- "$REQUIRED_SISO_FLAG" "$SISO_RC" || {
+                echo "BRAVE_STAGE_CONFIG_GATE=FAIL missing Siso flag: $REQUIRED_SISO_FLAG" >&2
+                cat "$SISO_RC" >&2
+                exit 1
+              }
+            done
             test -x /tmp/sandium-buildbuddy-credential-helper.py || { echo "BRAVE_STAGE_CONFIG_GATE=FAIL helper missing on this runner" >&2; exit 1; }
             test "${SISO_LIMITS:-}" = "local=8,remote=80" || { echo "BRAVE_STAGE_CONFIG_GATE=FAIL unexpected SISO_LIMITS: ${SISO_LIMITS:-unset}" >&2; exit 1; }
             BRAVE_DEPOT_TOOLS="$ROOT/brave-work/src/brave/vendor/depot_tools"
@@ -1740,7 +1816,9 @@ jobs:
             fi
             export SISO_LIMITS="local=8,remote=80"
             BUILD_RC=0
-            timeout --signal=INT --kill-after=60s 2700s autoninja -strict_remote --reapi_keep_exec_stream -C "$OUT" -j80 brave || BUILD_RC=$?
+            # Brave's preserved .sisorc supplies --reapi_keep_exec_stream and the
+            # googlechrome remote-execution configuration to autoninja/Siso.
+            timeout --signal=INT --kill-after=60s 2700s autoninja -strict_remote -C "$OUT" -j80 brave || BUILD_RC=$?
             if [ "$BUILD_RC" -eq 124 ] || [ "$BUILD_RC" -eq 130 ]; then
               echo "BRAVE_BUILD_SLICE=PAUSED; bounded stage time reached; preserving validated incremental outputs."
             elif [ "$BUILD_RC" -ne 0 ]; then
@@ -1779,6 +1857,17 @@ jobs:
             grep -Fx 'use_reclient=false' "$ARGS_GENERATED" >/dev/null || { echo "CHECKPOINT_SAVE=REFUSED generated use_reclient missing" >&2; exit 1; }
             test -s "$SISO_ENV" && test -s "$SISO_RC" && test -s "$SISO_BACKEND" || { echo "CHECKPOINT_SAVE=REFUSED Siso configuration incomplete" >&2; exit 1; }
             grep -Fx "SISO_CREDENTIAL_HELPER=/tmp/sandium-buildbuddy-credential-helper.py" "$SISO_ENV" >/dev/null || { echo "CHECKPOINT_SAVE=REFUSED Siso credential helper not configured" >&2; exit 1; }
+            for REQUIRED_SISO_FLAG in \
+              '-reapi_keep_exec_stream' \
+              '-fs_min_flush_timeout 300s' \
+              '-reapi_byte_stream_read_threshold 1024' \
+              '-config googlechrome' \
+              '-re_cache_enable_write=true'; do
+              grep -Fq -- "$REQUIRED_SISO_FLAG" "$SISO_RC" || {
+                echo "CHECKPOINT_SAVE=REFUSED missing Siso flag: $REQUIRED_SISO_FLAG" >&2
+                exit 1
+              }
+            done
             test -x /tmp/sandium-buildbuddy-credential-helper.py || { echo "CHECKPOINT_SAVE=REFUSED credential helper not executable" >&2; exit 1; }
             CHROMIUM_SHA="$(git -C "$SRC" rev-parse HEAD)"
             BRAVE_TAG="$(git -C "$CORE" describe --tags --exact-match 2>/dev/null || true)"
