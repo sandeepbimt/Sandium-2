@@ -1477,25 +1477,37 @@ jobs:
             equal: [3, << parameters.stage_index >>]
           steps:
             - restore_cache:
-                name: Restore Stage 2 Brave checkpoint
+                name: Restore Stage 1 pinned Brave source and build graph
                 keys:
-                  - sandium-brave-valid-v3-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-2
+                  - sandium-brave-valid-v3-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-1
+            - restore_cache:
+                name: Overlay Stage 2 incremental Android output only
+                keys:
+                  - sandium-brave-out-v2-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-2
       - when:
           condition:
             equal: [4, << parameters.stage_index >>]
           steps:
             - restore_cache:
-                name: Restore Stage 3 Brave checkpoint
+                name: Restore Stage 1 pinned Brave source and build graph
                 keys:
-                  - sandium-brave-valid-v3-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-3
+                  - sandium-brave-valid-v3-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-1
+            - restore_cache:
+                name: Overlay Stage 3 incremental Android output only
+                keys:
+                  - sandium-brave-out-v2-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-3
       - when:
           condition:
             equal: [5, << parameters.stage_index >>]
           steps:
             - restore_cache:
-                name: Restore Stage 4 Brave checkpoint
+                name: Restore Stage 1 pinned Brave source and build graph
                 keys:
-                  - sandium-brave-valid-v3-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-4
+                  - sandium-brave-valid-v3-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-1
+            - restore_cache:
+                name: Overlay Stage 4 incremental Android output only
+                keys:
+                  - sandium-brave-out-v2-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-4
       - restore_cache:
           keys:
             - sandium-brave-node-v1-24.16.0
@@ -1746,13 +1758,31 @@ jobs:
               du -sh "$ROOT/brave-work"
               du -sh "$OUT"
             } > "$ROOT/brave-work/.sandium/checkpoint-manifest.txt"
+            mkdir -p "$OUT/.sandium"
+            cp "$ROOT/brave-work/.sandium/checkpoint-manifest.txt" "$OUT/.sandium/checkpoint-manifest.txt"
             echo "CHECKPOINT_SAVE=PASS"
             cat "$ROOT/brave-work/.sandium/checkpoint-manifest.txt"
-      - save_cache:
-          name: Save validated Brave workspace checkpoint
-          key: sandium-brave-valid-v3-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-<< parameters.stage_index >>
-          paths:
-            - brave-work
+            echo "CHECKPOINT_ARCHIVE_SCOPE=out-only for stages 2-5"
+            du -sh "$OUT"
+      - when:
+          condition:
+            equal: [1, << parameters.stage_index >>]
+          steps:
+            - save_cache:
+                name: Save full pinned Brave source and initial build graph (Stage 1 base)
+                key: sandium-brave-valid-v3-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-1
+                paths:
+                  - brave-work
+      - when:
+          condition:
+            not:
+              equal: [1, << parameters.stage_index >>]
+          steps:
+            - save_cache:
+                name: Save incremental Android output only (Stages 2-5)
+                key: sandium-brave-out-v2-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-<< parameters.stage_index >>
+                paths:
+                  - brave-work/src/out/android_Debug_arm64
       - run:
           name: Export APK status and artifacts
           when: always
