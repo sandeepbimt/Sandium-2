@@ -80,14 +80,31 @@ import json
 import sys
 
 try:
-    flags = json.load(sys.stdin)
+    payload = json.load(sys.stdin)
 except Exception as exc:
     raise SystemExit("CLANG_DIAGNOSTIC_GN_GATE=FAIL gn desc did not return valid JSON: %s" % exc)
 
-if isinstance(flags, dict):
-    flags = flags.get("cflags")
+# GN --format=json always wraps the selected target/config in a dictionary
+# keyed by its fully qualified label, even when only one label was requested.
+if isinstance(payload, dict) and isinstance(payload.get("cflags"), list):
+    # Retain compatibility with direct-property JSON from older GN versions.
+    flags = payload["cflags"]
+elif isinstance(payload, dict) and len(payload) == 1:
+    label, description = next(iter(payload.items()))
+    if not isinstance(description, dict) or "cflags" not in description:
+        raise SystemExit(
+            "CLANG_DIAGNOSTIC_GN_GATE=FAIL GN JSON entry for %s has no cflags property; keys=%r"
+            % (label, sorted(description.keys()) if isinstance(description, dict) else type(description).__name__)
+        )
+    flags = description["cflags"]
+else:
+    raise SystemExit(
+        "CLANG_DIAGNOSTIC_GN_GATE=FAIL unexpected GN cflags JSON root: %s"
+        % (list(payload.keys()) if isinstance(payload, dict) else type(payload).__name__)
+    )
+
 if not isinstance(flags, list) or not all(isinstance(flag, str) for flag in flags):
-    raise SystemExit("CLANG_DIAGNOSTIC_GN_GATE=FAIL unexpected GN cflags JSON shape")
+    raise SystemExit("CLANG_DIAGNOSTIC_GN_GATE=FAIL GN cflags property is not a string list")
 
 diagnostic_flags = [
     flag for flag in flags
