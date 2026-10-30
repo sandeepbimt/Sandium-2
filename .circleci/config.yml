@@ -1629,20 +1629,20 @@ jobs:
             export PATH="$BRAVE_DEPOT_TOOLS:$PATH"
             cd "$BRAVE_SRC"
             PYTHONPATH="$BRAVE_DEPOT_TOOLS${PYTHONPATH:+:$PYTHONPATH}" python3 - "$BRAVE_SRC" <<'PY'
-import os
-import sys
-import gclient_paths
+            import os
+            import sys
+            import gclient_paths
 
-expected = os.path.realpath(sys.argv[1])
-actual = gclient_paths.GetPrimarySolutionPath()
-if actual is None:
-    raise SystemExit("BRAVE_GCLIENT_ROOT_GATE=FAIL gclient_paths returned None")
-actual = os.path.realpath(actual)
-if actual != expected:
-    raise SystemExit(
-        "BRAVE_GCLIENT_ROOT_GATE=FAIL expected=%s actual=%s" % (expected, actual)
-    )
-print("BRAVE_GCLIENT_ROOT_GATE=PASS src=%s" % actual)
+            expected = os.path.realpath(sys.argv[1])
+            actual = gclient_paths.GetPrimarySolutionPath()
+            if actual is None:
+                raise SystemExit("BRAVE_GCLIENT_ROOT_GATE=FAIL gclient_paths returned None")
+            actual = os.path.realpath(actual)
+            if actual != expected:
+                raise SystemExit(
+                    "BRAVE_GCLIENT_ROOT_GATE=FAIL expected=%s actual=%s" % (expected, actual)
+                )
+            print("BRAVE_GCLIENT_ROOT_GATE=PASS src=%s" % actual)
 PY
             export SISO_LIMITS="local=8,remote=80"
             BUILD_RC=0
