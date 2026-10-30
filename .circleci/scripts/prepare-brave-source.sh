@@ -154,14 +154,14 @@ patch = (
 )
 needle = '            rule["canonicalize_dir"] = False'
 if needle in source:
-    print("BRAVE_SISO_BUILDBY_WORKDIR_GATE=PASS already configured")
+    print("BRAVE_SISO_BUILDBUDDY_WORKDIR_GATE=PASS already configured")
 else:
     if source.count(marker) != 1:
         raise SystemExit(
-            "BRAVE_SISO_BUILDBY_WORKDIR_GATE=FAIL expected exactly one Brave Siso config insertion point"
+            "BRAVE_SISO_BUILDBUDDY_WORKDIR_GATE=FAIL expected exactly one Brave Siso config insertion point"
         )
     config.write_text(source.replace(marker, patch, 1), encoding="utf-8")
-    print("BRAVE_SISO_BUILDBY_WORKDIR_GATE=PASS patched remote rules")
+    print("BRAVE_SISO_BUILDBUDDY_WORKDIR_GATE=PASS patched remote rules")
 PY
   grep -n -A5 -B2 'canonicalize_dir' "$BRAVE_SISO_CONFIG"
 
