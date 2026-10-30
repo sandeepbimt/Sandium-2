@@ -1457,6 +1457,8 @@ jobs:
                 name: Restore most recent Brave checkpoint from earlier runs
                 keys:
                   - sandium-brave-valid-v2-{{ .Branch }}-
+                  - sandium-brave-out-v1-sandium/brave-android-poc-6057c3ed-f9d6-4c74-b2e9-f4b09f838e8f-stage-1
+                  - sandium-brave-out-v1-{{ .Branch }}-
       - when:
           condition:
             equal: [2, << parameters.stage_index >>]
