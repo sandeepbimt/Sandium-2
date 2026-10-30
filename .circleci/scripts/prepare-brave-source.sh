@@ -69,6 +69,49 @@ if [ "${BRAVE_STAGE_INDEX:?BRAVE_STAGE_INDEX is required}" = "1" ]; then
     pnpm run init --target_os=android --target_arch=arm64 --no-history
   fi
 
+  # Make the permission fix durable: Brave's runhooks generator rewrites this
+  # wrapper, so patch the generator to preserve executable mode on regeneration.
+  BRAVE_CUSTOM_CONFIG="$CORE_DIR/third_party/reclient_configs/brave_custom/brave_custom.py"
+  test -s "$BRAVE_CUSTOM_CONFIG" || {
+    echo "BRAVE_PYTHON_REMOTE_WRAPPER_GATE=FAIL Brave wrapper generator missing" >&2
+    exit 1
+  }
+  python3 - "$BRAVE_CUSTOM_CONFIG" <<'PY'
+from pathlib import Path
+import sys
+
+source_file = Path(sys.argv[1])
+source = source_file.read_text(encoding="utf-8")
+marker = (
+    "    FileUtils.write_text_file(\n"
+    "        (f'{Paths.src_dir}/buildtools/reclient_cfgs/python/'\n"
+    "         'python_remote_wrapper'),\n"
+    "        ShellTemplate(python_remote_wrapper_template).substitute(\n"
+    "            template_vars))\n"
+)
+needle = "    os.chmod(wrapper_path, 0o755)"
+if needle in source:
+    print("BRAVE_PYTHON_REMOTE_WRAPPER_GENERATOR_GATE=PASS already patched")
+else:
+    replacement = (
+        "    wrapper_path = (\n"
+        "        f'{Paths.src_dir}/buildtools/reclient_cfgs/python/'\n"
+        "        'python_remote_wrapper'\n"
+        "    )\n"
+        "    FileUtils.write_text_file(\n"
+        "        wrapper_path,\n"
+        "        ShellTemplate(python_remote_wrapper_template).substitute(\n"
+        "            template_vars))\n"
+        "    os.chmod(wrapper_path, 0o755)\n"
+    )
+    if source.count(marker) != 1:
+        raise SystemExit(
+            "BRAVE_PYTHON_REMOTE_WRAPPER_GENERATOR_GATE=FAIL expected one known Brave generator block"
+        )
+    source_file.write_text(source.replace(marker, replacement, 1), encoding="utf-8")
+    print("BRAVE_PYTHON_REMOTE_WRAPPER_GENERATOR_GATE=PASS patched")
+PY
+
   # Brave writes its remote Python wrapper as plain text. Siso executes this
   # path directly on BuildBuddy workers, so persist the executable bit before
   # the Stage 1 workspace checkpoint is created.
@@ -90,7 +133,7 @@ if [ "${BRAVE_STAGE_INDEX:?BRAVE_STAGE_INDEX is required}" = "1" ]; then
   # tree. Keep each remote action's real out/<config> working directory.
   BRAVE_SISO_CONFIG="$SRC_DIR/build/config/siso/brave_siso_config.star"
   test -s "$BRAVE_SISO_CONFIG" || {
-    echo "BRAVE_SISO_BUILDDY_WORKDIR_GATE=FAIL Brave Siso config missing: $BRAVE_SISO_CONFIG" >&2
+    echo "BRAVE_SISO_BUILDBUDDY_WORKDIR_GATE=FAIL Brave Siso config missing: $BRAVE_SISO_CONFIG" >&2
     exit 1
   }
   python3 - "$BRAVE_SISO_CONFIG" <<'PY'
