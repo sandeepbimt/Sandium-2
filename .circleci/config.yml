@@ -1527,20 +1527,18 @@ jobs:
               grep -F 'projects/rbe-chromium-untrusted/instances/default_instance' "$GCLIENT"
               cd "$ROOT/brave-work"
               ./src/build/install-build-deps.sh --android
-              # The Brave staged jobs install depot_tools at the workspace root,
-              # not under brave-work. Add that known location before resolving gclient.
-              if [ -d "$ROOT/depot_tools" ]; then
-                export PATH="$ROOT/depot_tools:$PATH"
+              # Source-reuse restores Chromium/Brave but may not restore depot_tools.
+              # Provision it explicitly so gclient is deterministic on every fresh runner.
+              DEPOT_TOOLS="$ROOT/brave-work/depot_tools"
+              if [ ! -f "$DEPOT_TOOLS/gclient" ]; then
+                rm -rf "$DEPOT_TOOLS"
+                git clone --depth 1 https://chromium.googlesource.com/chromium/tools/depot_tools.git "$DEPOT_TOOLS"
               fi
-              GCLIENT_BIN="$(command -v gclient || true)"
-              if [ -z "$GCLIENT_BIN" ]; then
-                for candidate in "$ROOT/depot_tools/gclient" "$ROOT/brave-work/depot_tools/gclient" "$ROOT/brave-work/src/depot_tools/gclient"; do
-                  if [ -x "$candidate" ]; then GCLIENT_BIN="$candidate"; break; fi
-                done
-              fi
-              test -n "$GCLIENT_BIN" && [ -x "$GCLIENT_BIN" ] || { echo "BRAVE_RBE_CONFIG_GATE=FAIL gclient executable not found" >&2; exit 1; }
+              export PATH="$DEPOT_TOOLS:$PATH"
+              GCLIENT_BIN="$DEPOT_TOOLS/gclient"
+              test -f "$GCLIENT_BIN" || { echo "BRAVE_RBE_CONFIG_GATE=FAIL depot_tools checkout missing gclient" >&2; exit 1; }
               echo "Using gclient: $GCLIENT_BIN"
-              "$GCLIENT_BIN" sync
+              python3 "$GCLIENT_BIN" sync
               printf '%s\n' \
                 'rbe_service=remote.buildbuddy.io:443' \
                 'use_remoteexec=true' \
