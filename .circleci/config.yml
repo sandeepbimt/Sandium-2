@@ -860,7 +860,7 @@ jobs:
               fresh_siso_info_matches 'reconcile from journal [1-9][0-9]* entries \(broken=false\)'
             }
             remote_exec_seen() {
-              REMOTE_SIGNATURE_PATTERN='is_local=false|use reapi "remote\\.buildbuddy\\.io:443"|step state: remote exec|exec remote execute'
+              REMOTE_SIGNATURE_PATTERN='is_local=false|use reapi "remote\.buildbuddy\.io:443"|step state: remote exec|exec remote execute'
               if grep -hi -E "$REMOTE_SIGNATURE_PATTERN" "$BUILD_LOG" 2>/dev/null | grep -q .; then
                 return 0
               fi
@@ -1433,17 +1433,17 @@ jobs:
               exit 1
             fi
             HELPER=/tmp/sandium-buildbuddy-credential-helper.py
-            printf '%s\\n' \\
-              '#!/usr/bin/env python3' \\
-              'import json' \\
-              'import os' \\
-              'import sys' \\
-              '' \\
-              'if len(sys.argv) < 2 or sys.argv[1] != "get":' \\
-              '    raise SystemExit(1)' \\
-              'sys.stdin.read()' \\
-              'key = os.environ["BUILDBUDDY_API_KEY"]' \\
-              'print(json.dumps({"headers": {"x-buildbuddy-api-key": [key]}}))' \\
+            printf '%s\n' \
+              '#!/usr/bin/env python3' \
+              'import json' \
+              'import os' \
+              'import sys' \
+              '' \
+              'if len(sys.argv) < 2 or sys.argv[1] != "get":' \
+              '    raise SystemExit(1)' \
+              'sys.stdin.read()' \
+              'key = os.environ["BUILDBUDDY_API_KEY"]' \
+              'print(json.dumps({"headers": {"x-buildbuddy-api-key": [key]}}))' \
               > "$HELPER"
             chmod 700 "$HELPER"
             echo 'export SISO_CREDENTIAL_HELPER=/tmp/sandium-buildbuddy-credential-helper.py' >> "$BASH_ENV"
@@ -1564,8 +1564,8 @@ jobs:
               # Keep apt indexes and downloaded .deb files in CircleCI's workspace cache.
               # The VM is fresh for every workflow, so /var/cache/apt cannot persist by itself.
               mkdir -p "$ROOT/.apt-cache/archives/partial" "$ROOT/.apt-cache/lists/partial"
-              printf 'Dir::Cache::archives "%s";\\nDir::State::lists "%s";\\n' \\
-                "$ROOT/.apt-cache/archives" "$ROOT/.apt-cache/lists" \\
+              printf 'Dir::Cache::archives "%s";\nDir::State::lists "%s";\n' \
+                "$ROOT/.apt-cache/archives" "$ROOT/.apt-cache/lists" \
                 | sudo tee /etc/apt/apt.conf.d/99sandium-workspace-cache >/dev/null
               ./src/build/install-build-deps.sh --android
 
