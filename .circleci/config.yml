@@ -1674,7 +1674,7 @@ jobs:
             BUILD_RC=0
             # Brave's preserved .sisorc supplies --reapi_keep_exec_stream and the
             # googlechrome remote-execution configuration to autoninja/Siso.
-            timeout --signal=INT --kill-after=60s 2700s autoninja -strict_remote -C "$OUT" -j80 brave || BUILD_RC=$?
+            timeout --signal=INT --kill-after=60s 1800s autoninja -strict_remote -C "$OUT" -j80 brave || BUILD_RC=$?
             if [ "$BUILD_RC" -eq 124 ] || [ "$BUILD_RC" -eq 130 ]; then
               echo "BRAVE_BUILD_SLICE=PAUSED; bounded stage time reached; preserving validated incremental outputs."
             elif [ "$BUILD_RC" -ne 0 ]; then
