@@ -1663,6 +1663,23 @@ jobs:
             # Brave's preserved .sisorc supplies --reapi_keep_exec_stream and the
             # googlechrome remote-execution configuration to autoninja/Siso.
             timeout --signal=INT --kill-after=60s 1500s autoninja -strict_remote -C "$OUT" -j80 brave || BUILD_RC=$?
+
+            # Siso treats REAPI FailedPrecondition/missing-CAS-input errors as
+            # non-fallback failures. Recover only those failed object outputs
+            # locally, then resume the normal strict-remote Brave build.
+            CAS_RECOVERY_COUNT=0
+            while [ "$BUILD_RC" -ne 0 ] && [ "$BUILD_RC" -ne 124 ] && [ "$BUILD_RC" -ne 130 ] \
+              && [ "$CAS_RECOVERY_COUNT" -lt 2 ] \
+              && [ -s "$OUT/siso_output" ] \
+              && grep -Eq 'rpc error: code = FailedPrecondition desc = download inputs: could not fetch inputs: Digest hash:.*not found' "$OUT/siso_output"; do
+              CAS_RECOVERY_COUNT=$((CAS_RECOVERY_COUNT + 1))
+              echo "BRAVE_CAS_LOCAL_RECOVERY_ATTEMPT=$CAS_RECOVERY_COUNT"
+              bash "$ROOT/.circleci/scripts/recover-siso-missing-cas-inputs.sh" "$OUT"
+              BUILD_RC=0
+              echo "BRAVE_BUILD_RESUME=START mode=strict-remote timeout_seconds=900"
+              timeout --signal=INT --kill-after=60s 900s autoninja -strict_remote -C "$OUT" -j80 brave || BUILD_RC=$?
+            done
+
             if [ "$BUILD_RC" -eq 124 ] || [ "$BUILD_RC" -eq 130 ]; then
               echo "BRAVE_BUILD_SLICE=PAUSED; bounded stage time reached; preserving validated incremental outputs."
             elif [ "$BUILD_RC" -ne 0 ]; then
