@@ -25,7 +25,7 @@ if [ "${BRAVE_STAGE_INDEX:?BRAVE_STAGE_INDEX is required}" = "1" ]; then
   pnpm config set store-dir "$HOME/.cache/pnpm-store"
   SRC_DIR="$ROOT/brave-work/src"
   CORE_DIR="$SRC_DIR/brave"
-  OUT="$SRC_DIR/out/android_Debug_arm64"
+  OUT="$SRC_DIR/out/android_Release_arm64"
   SOURCE_REUSE=false
   CHROMIUM_PIN="d331de35ca8ab1358c7a17e4bd41627d55eaef51"
 
@@ -373,6 +373,6 @@ PY
   fi
   export SISO_LIMITS=local=8,remote=80
   echo "BRAVE_STAGE1_VALIDATION_MODE=DRY_RUN_NO_COMPILATION"
-  pnpm run build Debug --target_os=android --target_arch=arm64 --target_android_output_format=apk --use_remoteexec=true --gn use_siso:true --gn use_reclient:false --target brave --ninja=n
+  pnpm run build Release --target_os=android --target_arch=arm64 --target_android_output_format=apk --use_remoteexec=true --gn use_siso:true --gn use_reclient:false --gn is_java_debug:false --gn enable_android_secondary_abi:false --target brave --ninja=n
   bash "$ROOT/.circleci/scripts/verify-clang-diagnostics-gn.sh"
 fi

@@ -1525,7 +1525,7 @@ jobs:
           command: |
             set -euo pipefail
             ROOT="$CIRCLE_WORKING_DIRECTORY"
-            OUT="$ROOT/brave-work/src/out/android_Debug_arm64"
+            OUT="$ROOT/brave-work/src/out/android_Release_arm64"
             SISO_ENV="$ROOT/brave-work/src/build/config/siso/.sisoenv"
             SISO_RC="$ROOT/brave-work/src/build/config/siso/.sisorc"
             SISO_BACKEND="$ROOT/brave-work/src/build/config/siso/backend_config/backend.star"
@@ -1607,7 +1607,7 @@ jobs:
           command: |
             set -euo pipefail
             ROOT="$CIRCLE_WORKING_DIRECTORY"
-            OUT="$ROOT/brave-work/src/out/android_Debug_arm64"
+            OUT="$ROOT/brave-work/src/out/android_Release_arm64"
             if [ -s "$OUT/apks/Brave.apk" ]; then
               echo "APK=true; stage can exit early."
               exit 0
@@ -1662,7 +1662,7 @@ jobs:
             BUILD_RC=0
             # Brave's preserved .sisorc supplies --reapi_keep_exec_stream and the
             # googlechrome remote-execution configuration to autoninja/Siso.
-            timeout --signal=INT --kill-after=60s 2100s autoninja -strict_remote -C "$OUT" -j80 brave || BUILD_RC=$?
+            timeout --signal=INT --kill-after=60s 1500s autoninja -strict_remote -C "$OUT" -j80 brave || BUILD_RC=$?
             if [ "$BUILD_RC" -eq 124 ] || [ "$BUILD_RC" -eq 130 ]; then
               echo "BRAVE_BUILD_SLICE=PAUSED; bounded stage time reached; preserving validated incremental outputs."
             elif [ "$BUILD_RC" -ne 0 ]; then
@@ -1684,7 +1684,7 @@ jobs:
             ROOT="$CIRCLE_WORKING_DIRECTORY"
             SRC="$ROOT/brave-work/src"
             CORE="$SRC/brave"
-            OUT="$SRC/out/android_Debug_arm64"
+            OUT="$SRC/out/android_Release_arm64"
             test -e "$SRC/.git" || { echo "CHECKPOINT_SAVE=REFUSED missing Chromium Git checkout" >&2; exit 1; }
             test -e "$CORE/.git" || { echo "CHECKPOINT_SAVE=REFUSED missing Brave Git checkout" >&2; exit 1; }
             test -s "$ROOT/brave-work/.gclient" || { echo "CHECKPOINT_SAVE=REFUSED missing .gclient" >&2; exit 1; }
@@ -1731,7 +1731,7 @@ jobs:
               echo "BRAVE_CORE_TAG=$BRAVE_TAG"
               echo "CHROMIUM_SHA=$CHROMIUM_SHA"
               echo "TARGET=android-arm64"
-              echo "BUILD_TYPE=Debug"
+              echo "BUILD_TYPE=Release"
               echo "STAGE=<< parameters.stage_index >>"
               echo "ARGS_GENERATED_SHA256=$(sha256sum "$ARGS_GENERATED" | awk '{print $1}')"
               echo "SISO_ENV_SHA256=$(sha256sum "$SISO_ENV" | awk '{print $1}')"
@@ -1759,7 +1759,7 @@ jobs:
           command: |
             set -eu
             ROOT="$CIRCLE_WORKING_DIRECTORY"
-            OUT="$ROOT/brave-work/src/out/android_Debug_arm64"
+            OUT="$ROOT/brave-work/src/out/android_Release_arm64"
             mkdir -p "$ROOT/brave-apk"
             DIAGNOSTICS="$ROOT/brave-apk/siso-diagnostics"
             mkdir -p "$DIAGNOSTICS"
