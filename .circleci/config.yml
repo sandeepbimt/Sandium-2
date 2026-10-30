@@ -1643,7 +1643,7 @@ jobs:
                     "BRAVE_GCLIENT_ROOT_GATE=FAIL expected=%s actual=%s" % (expected, actual)
                 )
             print("BRAVE_GCLIENT_ROOT_GATE=PASS src=%s" % actual)
-PY
+            PY
             export SISO_LIMITS="local=8,remote=80"
             BUILD_RC=0
             # Brave's preserved .sisorc supplies --reapi_keep_exec_stream and the
