@@ -16,25 +16,7 @@ if [ "$STAGE" = "1" ]; then
 fi
 
 test -s "$OUT/build.ninja" || { echo "BRAVE_REMOTE_SMOKE=FAIL missing build.ninja" >&2; exit 1; }
-COMPILER_GNI="$SRC/build/config/compiler/compiler.gni"
-test -s "$COMPILER_GNI" || { echo "BRAVE_REMOTE_SMOKE=FAIL compiler.gni missing" >&2; exit 1; }
-grep -Fq 'clang_diagnostic_dir = "clang-crashreports"' "$COMPILER_GNI" || {
-  echo "BRAVE_REMOTE_SMOKE=FAIL compiler.gni still uses a parent-relative crash diagnostics path" >&2
-  exit 1
-}
-if grep -Fq 'clang_diagnostic_dir = rebase_path("//out/clang-crashreports", root_build_dir)' "$COMPILER_GNI"; then
-  echo "BRAVE_REMOTE_SMOKE=FAIL upstream parent-relative clang diagnostics setting remains" >&2
-  exit 1
-fi
-grep -Fq -- '-fcrash-diagnostics-dir=clang-crashreports' "$OUT/build.ninja" || {
-  echo "BRAVE_REMOTE_SMOKE=FAIL generated build.ninja lacks normalized crash diagnostics flag" >&2
-  exit 1
-}
-if grep -Fq -- '-fcrash-diagnostics-dir=../clang-crashreports' "$OUT/build.ninja"; then
-  echo "BRAVE_REMOTE_SMOKE=FAIL generated build.ninja still contains forbidden parent-relative output path" >&2
-  exit 1
-fi
-echo "CLANG_DIAGNOSTIC_NINJA_GRAPH_GATE=PASS"
+bash "$ROOT/.circleci/scripts/verify-clang-diagnostics-gn.sh"
 test -s "$OUT/args.gn" || { echo "BRAVE_REMOTE_SMOKE=FAIL missing args.gn anchor input" >&2; exit 1; }
 test -x "$DEPOT_TOOLS/autoninja" || { echo "BRAVE_REMOTE_SMOKE=FAIL Brave autoninja is not executable" >&2; exit 1; }
 test -s "$PYTHON_REMOTE_WRAPPER" || { echo "BRAVE_REMOTE_SMOKE=FAIL Brave Python remote wrapper missing" >&2; exit 1; }
