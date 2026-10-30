@@ -1706,18 +1706,7 @@ jobs:
             test -s "$SISO_BRAVE_CONFIG" || { echo "CHECKPOINT_SAVE=REFUSED missing Brave Siso configuration" >&2; exit 1; }
             grep -Fq 'rule["canonicalize_dir"] = True' "$SISO_BRAVE_CONFIG" || { echo "CHECKPOINT_SAVE=REFUSED Siso canonical workdir must remain enabled" >&2; exit 1; }
             grep -Fq '"./args.gn"' "$SISO_BRAVE_CONFIG" || { echo "CHECKPOINT_SAVE=REFUSED Siso remote rules lack explicit ./args.gn workdir anchor" >&2; exit 1; }
-            COMPILER_GNI="$SRC/build/config/compiler/compiler.gni"
-            test -s "$COMPILER_GNI" || { echo "CHECKPOINT_SAVE=REFUSED missing compiler.gni" >&2; exit 1; }
-            grep -Fq 'clang_diagnostic_dir = "clang-crashreports"' "$COMPILER_GNI" || { echo "CHECKPOINT_SAVE=REFUSED Clang diagnostics path is not normalized for REAPI" >&2; exit 1; }
-            if grep -Fq 'clang_diagnostic_dir = rebase_path("//out/clang-crashreports", root_build_dir)' "$COMPILER_GNI"; then
-              echo "CHECKPOINT_SAVE=REFUSED parent-relative Clang diagnostics output remains in compiler.gni" >&2
-              exit 1
-            fi
-            grep -Fq -- '-fcrash-diagnostics-dir=clang-crashreports' "$OUT/build.ninja" || { echo "CHECKPOINT_SAVE=REFUSED generated Ninja graph lacks normalized Clang diagnostics output" >&2; exit 1; }
-            if grep -Fq -- '-fcrash-diagnostics-dir=../clang-crashreports' "$OUT/build.ninja"; then
-              echo "CHECKPOINT_SAVE=REFUSED generated Ninja graph still contains forbidden parent-relative Clang output path" >&2
-              exit 1
-            fi
+            bash "$ROOT/.circleci/scripts/verify-clang-diagnostics-gn.sh"
             echo "CHECKPOINT_CLANG_DIAGNOSTIC_PATH_GATE=PASS"
             grep -Fx "SISO_CREDENTIAL_HELPER=/tmp/sandium-buildbuddy-credential-helper.py" "$SISO_ENV" >/dev/null || { echo "CHECKPOINT_SAVE=REFUSED Siso credential helper not configured" >&2; exit 1; }
             for REQUIRED_SISO_FLAG in \
