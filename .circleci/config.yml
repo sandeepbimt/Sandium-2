@@ -1496,7 +1496,7 @@ jobs:
               SRC_DIR="$ROOT/brave-work/src"
               CORE_DIR="$SRC_DIR/brave"
               OUT="$SRC_DIR/out/android_Debug_arm64"
-SOURCE_REUSE=false
+              SOURCE_REUSE=false
               CHROMIUM_PIN="d331de35ca8ab1358c7a17e4bd41627d55eaef51"
 
               # Use Brave's native RBE configuration path. At v1.98.62,
