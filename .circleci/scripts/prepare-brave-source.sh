@@ -69,6 +69,59 @@ if [ "${BRAVE_STAGE_INDEX:?BRAVE_STAGE_INDEX is required}" = "1" ]; then
     pnpm run init --target_os=android --target_arch=arm64 --no-history
   fi
 
+  # Brave writes its remote Python wrapper as plain text. Siso executes this
+  # path directly on BuildBuddy workers, so persist the executable bit before
+  # the Stage 1 workspace checkpoint is created.
+  PYTHON_REMOTE_WRAPPER="$SRC_DIR/buildtools/reclient_cfgs/python/python_remote_wrapper"
+  test -s "$PYTHON_REMOTE_WRAPPER" || {
+    echo "BRAVE_PYTHON_REMOTE_WRAPPER_GATE=FAIL generated wrapper missing: $PYTHON_REMOTE_WRAPPER" >&2
+    exit 1
+  }
+  chmod 755 "$PYTHON_REMOTE_WRAPPER"
+  test -x "$PYTHON_REMOTE_WRAPPER" || {
+    echo "BRAVE_PYTHON_REMOTE_WRAPPER_GATE=FAIL wrapper is not executable after chmod" >&2
+    exit 1
+  }
+  stat -c 'BRAVE_PYTHON_REMOTE_WRAPPER_MODE=%a path=%n' "$PYTHON_REMOTE_WRAPPER"
+  echo "BRAVE_PYTHON_REMOTE_WRAPPER_GATE=PASS"
+
+  # Siso canonicalizes output-directory working paths to out/x by default.
+  # BuildBuddy rejects these requests when that alias is absent from the input
+  # tree. Keep each remote action's real out/<config> working directory.
+  BRAVE_SISO_CONFIG="$SRC_DIR/build/config/siso/brave_siso_config.star"
+  test -s "$BRAVE_SISO_CONFIG" || {
+    echo "BRAVE_SISO_BUILDDY_WORKDIR_GATE=FAIL Brave Siso config missing: $BRAVE_SISO_CONFIG" >&2
+    exit 1
+  }
+  python3 - "$BRAVE_SISO_CONFIG" <<'PY'
+from pathlib import Path
+import sys
+
+config = Path(sys.argv[1])
+source = config.read_text(encoding="utf-8")
+marker = '    __remove_labels_from_platforms(step_config)\n'
+patch = (
+    marker
+    + '\n'
+    + '    # BuildBuddy needs the actual output-directory working path in the REAPI input tree.\n'
+    + '    # Avoid Siso rewriting out/<config> to the synthetic out/x directory.\n'
+    + '    for rule in step_config["rules"]:\n'
+    + '        if rule.get("remote", False):\n'
+    + '            rule["canonicalize_dir"] = False\n'
+)
+needle = '            rule["canonicalize_dir"] = False'
+if needle in source:
+    print("BRAVE_SISO_BUILDBY_WORKDIR_GATE=PASS already configured")
+else:
+    if source.count(marker) != 1:
+        raise SystemExit(
+            "BRAVE_SISO_BUILDBY_WORKDIR_GATE=FAIL expected exactly one Brave Siso config insertion point"
+        )
+    config.write_text(source.replace(marker, patch, 1), encoding="utf-8")
+    print("BRAVE_SISO_BUILDBY_WORKDIR_GATE=PASS patched remote rules")
+PY
+  grep -n -A5 -B2 'canonicalize_dir' "$BRAVE_SISO_CONFIG"
+
   # Delay host-package installation until sync/configuration succeeds.
   cd "$ROOT/brave-work"
   # Keep apt indexes and downloaded .deb files in CircleCI's workspace cache.
