@@ -35,6 +35,13 @@ export PYTHONPATH="$SRC/brave/script:$SRC/tools/grit/grit/extern:$SRC/brave/vend
 export SISO_LIMITS="local=1,remote=1"
 cd "$SRC"
 
+# Force the exact host-tool action family that failed in Stage 2.
+# It executes Chromium's Linux host protoc via protoc_wrapper, under strict
+# remote execution, and therefore validates worker glibc before the large build.
+PROTO_SMOKE_TARGET="clang_x64/gen/third_party/perfetto/protos/perfetto/config/priority_boost/priority_boost_config.gen.h"
+PROTO_SMOKE_OUTPUT="$OUT/$PROTO_SMOKE_TARGET"
+
+# Keep a second generic remote action as a broad Siso/BuildBuddy sanity check.
 SMOKE_TARGET="mojo/public/tools/bindings:precompile_ts_templates"
 SMOKE_OUTPUT="$OUT/gen/mojo/public/tools/bindings/ts_templates.zip"
 
@@ -62,9 +69,22 @@ collect_diagnostics() {
 }
 trap collect_diagnostics EXIT
 
+echo "BRAVE_PROTO_REMOTE_SMOKE=START target=$PROTO_SMOKE_TARGET strict_remote=true remote_jobs=1"
+# This is deliberately a real Perfetto cpp_gen output from the failing log.
+# --clobber guarantees protoc is launched remotely even if the output was
+# restored in the previous checkpoint. Do not start the full build unless it
+# succeeds against the configured Ubuntu 22.04 worker image.
+timeout --signal=INT --kill-after=30s 180s \
+  autoninja -strict_remote -C "$OUT" -j1 --clobber "$PROTO_SMOKE_TARGET"
+
+test -s "$PROTO_SMOKE_OUTPUT" || {
+  echo "BRAVE_PROTO_REMOTE_SMOKE=FAIL target completed without $PROTO_SMOKE_OUTPUT" >&2
+  exit 1
+}
+echo "BRAVE_PROTO_REMOTE_SMOKE=PASS target=$PROTO_SMOKE_TARGET"
+
 echo "BRAVE_REMOTE_SMOKE=START target=$SMOKE_TARGET strict_remote=true remote_jobs=1 workdir_anchor=./args.gn"
-# --clobber ensures this gate exercises the remote worker instead of silently
-# passing because a prior checkpoint already contains the generated output.
+# --clobber ensures this gate exercises a generic remote action too.
 timeout --signal=INT --kill-after=30s 180s \
   autoninja -strict_remote -C "$OUT" -j1 --clobber "$SMOKE_TARGET"
 
