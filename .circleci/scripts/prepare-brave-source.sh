@@ -245,7 +245,25 @@ PY
   BACKEND="$SRC_DIR/build/config/siso/backend_config/google.star"
   test -x "$HELPER" || { echo "BRAVE_RBE_CONFIG_GATE=FAIL credential helper missing: $HELPER" >&2; exit 1; }
   test -s "$BACKEND" || { echo "BRAVE_RBE_CONFIG_GATE=FAIL pinned Chromium google.star missing: $BACKEND" >&2; exit 1; }
-  EXPECTED_CONTAINER_IMAGE="$(sed -n 's/^[[:space:]]*container_image = "\\(docker:[^"]*\\)".*/\\1/p' "$BACKEND" | head -n 1)"
+  EXPECTED_CONTAINER_IMAGE="$(python3 - "$BACKEND" <<'PY'
+import re
+import sys
+from pathlib import Path
+
+source = Path(sys.argv[1]).read_text(encoding="utf-8")
+images = re.findall(
+    r'^\\s*container_image\\s*=\\s*["\\']([^"\\']+)["\\']',
+    source,
+    flags=re.MULTILINE,
+)
+if len(images) != 1:
+    raise SystemExit(
+        "expected exactly one literal container_image in pinned google.star; found %d"
+        % len(images)
+    )
+print(images[0])
+PY
+)"
   test -n "$EXPECTED_CONTAINER_IMAGE" || {
     echo "BRAVE_RBE_CONFIG_GATE=FAIL pinned google.star does not declare a Docker container image" >&2
     cat "$BACKEND" >&2
