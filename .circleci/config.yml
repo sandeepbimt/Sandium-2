@@ -1447,7 +1447,9 @@ jobs:
               > "$HELPER"
             chmod 700 "$HELPER"
             echo 'export SISO_CREDENTIAL_HELPER=/tmp/sandium-buildbuddy-credential-helper.py' >> "$BASH_ENV"
-            echo 'export PATH="$CIRCLE_WORKING_DIRECTORY/brave-work/depot_tools:$PATH"' >> "$BASH_ENV"
+            # Brave v1.98.62 installs depot_tools at vendor/depot_tools relative to src/brave.
+            # Keep this separate from the Afterbird sibling checkout layout.
+            echo 'export PATH="$CIRCLE_WORKING_DIRECTORY/brave-work/src/brave/vendor/depot_tools:$PATH"' >> "$BASH_ENV"
             echo 'export DEPOT_TOOLS_UPDATE=0' >> "$BASH_ENV"
             echo 'export SISO_LIMITS=local=8,remote=80' >> "$BASH_ENV"
             echo "SISO_CREDENTIAL_HELPER=CONFIGURED (secret value not printed)"
@@ -1672,7 +1674,14 @@ jobs:
             grep -Fx 'ninja -re_cache_enable_write=true' "$SISO_RC" >/dev/null || { echo "BRAVE_STAGE_CONFIG_GATE=FAIL Siso cache writes disabled" >&2; cat "$SISO_RC" >&2; exit 1; }
             test -x /tmp/sandium-buildbuddy-credential-helper.py || { echo "BRAVE_STAGE_CONFIG_GATE=FAIL helper missing on this runner" >&2; exit 1; }
             test "${SISO_LIMITS:-}" = "local=8,remote=80" || { echo "BRAVE_STAGE_CONFIG_GATE=FAIL unexpected SISO_LIMITS: ${SISO_LIMITS:-unset}" >&2; exit 1; }
-            command -v autoninja >/dev/null || { echo "BRAVE_STAGE_CONFIG_GATE=FAIL autoninja missing from PATH" >&2; exit 1; }
+            BRAVE_DEPOT_TOOLS="$ROOT/brave-work/src/brave/vendor/depot_tools"
+            test -x "$BRAVE_DEPOT_TOOLS/autoninja" || {
+              echo "BRAVE_STAGE_CONFIG_GATE=FAIL Brave-managed depot_tools/autoninja missing at $BRAVE_DEPOT_TOOLS/autoninja" >&2
+              ls -ld "$BRAVE_DEPOT_TOOLS" "$BRAVE_DEPOT_TOOLS/autoninja" 2>&1 || true
+              exit 1
+            }
+            export PATH="$BRAVE_DEPOT_TOOLS:$PATH"
+            command -v autoninja >/dev/null || { echo "BRAVE_STAGE_CONFIG_GATE=FAIL autoninja missing from PATH after adding Brave depot_tools" >&2; exit 1; }
             if [ "<< parameters.stage_index >>" = "1" ]; then
               for required in build.ninja args.gn; do
                 if [ ! -s "$OUT/$required" ]; then
