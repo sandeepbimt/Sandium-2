@@ -1628,7 +1628,7 @@ jobs:
             test -x "$BRAVE_DEPOT_TOOLS/autoninja" || { echo "BRAVE_GCLIENT_ROOT_GATE=FAIL Brave autoninja missing" >&2; exit 1; }
             export PATH="$BRAVE_DEPOT_TOOLS:$PATH"
             cd "$BRAVE_SRC"
-            PYTHONPATH="$BRAVE_DEPOT_TOOLS${PYTHONPATH:+:$PYTHONPATH}" python3 - "$BRAVE_SRC" <<'PY'
+            PYTHONPATH="$BRAVE_DEPOT_TOOLS${PYTHONPATH:+:$PYTHONPATH}" python3 - "$BRAVE_SRC" \<<'PY'
             import os
             import sys
             import gclient_paths
