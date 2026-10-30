@@ -1492,6 +1492,10 @@ jobs:
       - restore_cache:
           keys:
             - sandium-brave-node-v1-24.16.0
+      - restore_cache:
+          name: Restore Ubuntu Android build-dependency package cache
+          keys:
+            - sandium-brave-apt-v1-ubuntu2404-
       - run:
           name: Prepare pinned Brave Android source
           no_output_timeout: 45m
@@ -1557,6 +1561,12 @@ jobs:
 
               # Delay host-package installation until sync/configuration succeeds.
               cd "$ROOT/brave-work"
+              # Keep apt indexes and downloaded .deb files in CircleCI's workspace cache.
+              # The VM is fresh for every workflow, so /var/cache/apt cannot persist by itself.
+              mkdir -p "$ROOT/.apt-cache/archives/partial" "$ROOT/.apt-cache/lists/partial"
+              printf 'Dir::Cache::archives "%s";\\nDir::State::lists "%s";\\n' \\
+                "$ROOT/.apt-cache/archives" "$ROOT/.apt-cache/lists" \\
+                | sudo tee /etc/apt/apt.conf.d/99sandium-workspace-cache >/dev/null
               ./src/build/install-build-deps.sh --android
 
               # Confirm that Brave generated the intended BuildBuddy Siso backend before GN/build.
@@ -1575,6 +1585,12 @@ jobs:
               fi
               pnpm run build Debug --target_os=android --target_arch=arm64 --target_android_output_format=apk --use_remoteexec=true --gn use_siso:true --gn use_reclient:false --target brave --ninja=-n
             fi
+      - save_cache:
+          name: Save Ubuntu Android build-dependency package cache
+          key: sandium-brave-apt-v1-ubuntu2404-{{ .Branch }}-{{ epoch }}
+          paths:
+            - .apt-cache
+          when: always
       - save_cache:
           key: sandium-brave-node-v1-24.16.0
           paths:
