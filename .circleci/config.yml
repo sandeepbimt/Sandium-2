@@ -1585,7 +1585,7 @@ jobs:
               else
                 echo "BRAVE_GN_GRAPH_REUSE=MISS; source sync skipped if source pin matched; generating GN graph."
               fi
-              pnpm run build Debug --target_os=android --target_arch=arm64 --target_android_output_format=apk --gn use_remoteexec:true --gn use_siso:true --gn use_reclient:false --target brave --ninja=-n
+              pnpm run build Debug --target_os=android --target_arch=arm64 --target_android_output_format=apk --use_remoteexec=true --gn use_remoteexec:true --gn use_siso:true --gn use_reclient:false --target brave --ninja=-n
             fi
       - save_cache:
           name: Save Ubuntu Android build-dependency package cache
@@ -1617,6 +1617,11 @@ jobs:
                 local name="$1" expected="$2"
                 if ! grep -Eq "^[[:space:]]*${name}[[:space:]]*=[[:space:]]*${expected}([[:space:]]|$)" "$OUT/args.gn"; then
                   echo "BRAVE_REMOTE_EXECUTION_CONFIG_GATE=FAIL expected ${name} = ${expected} in $OUT/args.gn" >&2
+                  echo "=== Brave .env RBE setting ===" >&2
+                  grep -n '^use_remoteexec=' "$ROOT/brave-work/src/brave/.env" >&2 || true
+                  echo "=== Actual generated args.gn remote settings ===" >&2
+                  grep -nE 'use_remoteexec|use_siso|use_reclient' "$OUT/args.gn" >&2 || true
+                  echo "=== end diagnostics ===" >&2
                   exit 1
                 fi
               }
