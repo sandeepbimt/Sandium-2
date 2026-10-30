@@ -1615,6 +1615,35 @@ jobs:
               echo "Stage 1 prepared the build graph. Compilation begins in the next stage."
               exit 0
             fi
+            # autoninja's Android build-server helper discovers the Chromium
+            # checkout through gclient_paths.GetPrimarySolutionPath(), which
+            # searches upward from the current directory for .gclient. CircleCI
+            # starts each run step at the repository root, outside brave-work.
+            # Run from the restored primary solution so the helper resolves the
+            # same pinned Chromium src tree instead of receiving None.
+            BRAVE_SRC="$ROOT/brave-work/src"
+            BRAVE_DEPOT_TOOLS="$BRAVE_SRC/brave/vendor/depot_tools"
+            test -s "$ROOT/brave-work/.gclient" || { echo "BRAVE_GCLIENT_ROOT_GATE=FAIL missing .gclient" >&2; exit 1; }
+            test -s "$ROOT/brave-work/.gclient_entries" || { echo "BRAVE_GCLIENT_ROOT_GATE=FAIL missing .gclient_entries; gclient sync did not establish the checkout." >&2; exit 1; }
+            test -x "$BRAVE_DEPOT_TOOLS/autoninja" || { echo "BRAVE_GCLIENT_ROOT_GATE=FAIL Brave autoninja missing" >&2; exit 1; }
+            export PATH="$BRAVE_DEPOT_TOOLS:$PATH"
+            cd "$BRAVE_SRC"
+            PYTHONPATH="$BRAVE_DEPOT_TOOLS${PYTHONPATH:+:$PYTHONPATH}" python3 - "$BRAVE_SRC" <<'PY'
+import os
+import sys
+import gclient_paths
+
+expected = os.path.realpath(sys.argv[1])
+actual = gclient_paths.GetPrimarySolutionPath()
+if actual is None:
+    raise SystemExit("BRAVE_GCLIENT_ROOT_GATE=FAIL gclient_paths returned None")
+actual = os.path.realpath(actual)
+if actual != expected:
+    raise SystemExit(
+        "BRAVE_GCLIENT_ROOT_GATE=FAIL expected=%s actual=%s" % (expected, actual)
+    )
+print("BRAVE_GCLIENT_ROOT_GATE=PASS src=%s" % actual)
+PY
             export SISO_LIMITS="local=8,remote=80"
             BUILD_RC=0
             # Brave's preserved .sisorc supplies --reapi_keep_exec_stream and the
