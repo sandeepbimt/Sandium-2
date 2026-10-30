@@ -246,20 +246,20 @@ PY
   test -x "$HELPER" || { echo "BRAVE_RBE_CONFIG_GATE=FAIL credential helper missing: $HELPER" >&2; exit 1; }
   test -s "$BACKEND" || { echo "BRAVE_RBE_CONFIG_GATE=FAIL pinned Chromium google.star missing: $BACKEND" >&2; exit 1; }
   EXPECTED_CONTAINER_IMAGE="$(python3 - "$BACKEND" <<'PY'
-import re
+import ast
 import sys
 from pathlib import Path
 
 source = Path(sys.argv[1]).read_text(encoding="utf-8")
-images = re.findall(
-    r'^\\s*container_image\\s*=\\s*["\\']([^"\\']+)["\\']',
-    source,
-    flags=re.MULTILINE,
-)
-if len(images) != 1:
+images = []
+for line in source.splitlines():
+    left, separator, right = line.partition("=")
+    if separator and left.strip() == "container_image":
+        images.append(ast.literal_eval(right.strip()))
+if len(images) != 1 or not isinstance(images[0], str) or not images[0].startswith("docker://"):
     raise SystemExit(
-        "expected exactly one literal container_image in pinned google.star; found %d"
-        % len(images)
+        "expected exactly one literal docker container_image in pinned google.star; found %r"
+        % images
     )
 print(images[0])
 PY
