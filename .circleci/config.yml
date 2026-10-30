@@ -1521,7 +1521,7 @@ jobs:
                 SOURCE_REUSE=true
                 echo "BRAVE_SOURCE_REUSE=PASS; pinned source restored. Skipping full init; refreshing config via Brave pnpm sync."
                 cd "$CORE_DIR"
-                pnpm run sync --target_os=android --target_arch=arm64 --no-history
+                pnpm run sync --target_os=android --target_arch=arm64 --no-history --sync_chromium=false
               else
                 echo "BRAVE_SOURCE_REUSE=MISS; source checkout incomplete or pin mismatch; full init required."
                 cd "$CORE_DIR"
