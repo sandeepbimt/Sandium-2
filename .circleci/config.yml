@@ -1527,18 +1527,23 @@ jobs:
               grep -F 'projects/rbe-chromium-untrusted/instances/default_instance' "$GCLIENT"
               cd "$ROOT/brave-work"
               ./src/build/install-build-deps.sh --android
-              # Source-reuse restores Chromium/Brave but may not restore depot_tools.
-              # Provision it explicitly so gclient is deterministic on every fresh runner.
+              # Source-reuse may restore Chromium/Brave without depot_tools.
+              # Match the known-good Chromium pipeline: bootstrap the shell wrappers,
+              # put depot_tools on PATH, disable self-update, then invoke gclient directly.
               DEPOT_TOOLS="$ROOT/brave-work/depot_tools"
-              if [ ! -f "$DEPOT_TOOLS/gclient" ]; then
+              if [ ! -d "$DEPOT_TOOLS/.git" ]; then
                 rm -rf "$DEPOT_TOOLS"
                 git clone --depth 1 https://chromium.googlesource.com/chromium/tools/depot_tools.git "$DEPOT_TOOLS"
               fi
+              test -x "$DEPOT_TOOLS/ensure_bootstrap" || { echo "BRAVE_RBE_CONFIG_GATE=FAIL ensure_bootstrap missing" >&2; exit 1; }
+              "$DEPOT_TOOLS/ensure_bootstrap"
               export PATH="$DEPOT_TOOLS:$PATH"
+              export DEPOT_TOOLS_UPDATE=0
               GCLIENT_BIN="$DEPOT_TOOLS/gclient"
-              test -f "$GCLIENT_BIN" || { echo "BRAVE_RBE_CONFIG_GATE=FAIL depot_tools checkout missing gclient" >&2; exit 1; }
-              echo "Using gclient: $GCLIENT_BIN"
-              python3 "$GCLIENT_BIN" sync
+              test -x "$GCLIENT_BIN" || { echo "BRAVE_RBE_CONFIG_GATE=FAIL executable gclient wrapper missing" >&2; exit 1; }
+              echo "Using bootstrapped gclient wrapper: $GCLIENT_BIN"
+              cd "$ROOT/brave-work"
+              "$GCLIENT_BIN" sync
               printf '%s\n' \
                 'rbe_service=remote.buildbuddy.io:443' \
                 'use_remoteexec=true' \
