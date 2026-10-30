@@ -356,14 +356,5 @@ PY
   export SISO_LIMITS=local=8,remote=80
   echo "BRAVE_STAGE1_VALIDATION_MODE=DRY_RUN_NO_COMPILATION"
   pnpm run build Debug --target_os=android --target_arch=arm64 --target_android_output_format=apk --use_remoteexec=true --gn use_siso:true --gn use_reclient:false --target brave --ninja=n
-  test -s "$OUT/build.ninja" || { echo "CLANG_DIAGNOSTIC_PATH_GATE=FAIL build.ninja missing after GN preparation" >&2; exit 1; }
-  grep -Fq -- '-fcrash-diagnostics-dir=clang-crashreports' "$OUT/build.ninja" || {
-    echo "CLANG_DIAGNOSTIC_PATH_GATE=FAIL generated Ninja graph does not contain normalized crash-diagnostics output path" >&2
-    exit 1
-  }
-  if grep -Fq -- '-fcrash-diagnostics-dir=../clang-crashreports' "$OUT/build.ninja"; then
-    echo "CLANG_DIAGNOSTIC_PATH_GATE=FAIL parent-relative crash-diagnostics output path remains in build.ninja" >&2
-    exit 1
-  fi
-  echo "CLANG_DIAGNOSTIC_NINJA_GRAPH_GATE=PASS no parent-relative compiler diagnostic outputs"
+  bash "$ROOT/.circleci/scripts/verify-clang-diagnostics-gn.sh"
 fi
