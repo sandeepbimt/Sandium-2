@@ -38,6 +38,26 @@ jobs:
                 command: |
                   set -eu
                   rm -rf "$CIRCLE_WORKING_DIRECTORY/.ss2-cache"
+      - when:
+          condition:
+            not:
+              equal: [1, << parameters.stage_index >>]
+          steps:
+            - restore_cache:
+                name: Restore verified Brave APK completion marker
+                keys:
+                  - sandium-brave-apk-complete-v1-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}
+            - run:
+                name: Exit later stages when verified APK already exists
+                command: |
+                  set -euo pipefail
+                  STATUS="$CIRCLE_WORKING_DIRECTORY/brave-work/.sandium/apk-completion-status.txt"
+                  if [ -s "$STATUS" ] && grep -qx "BUILD_FINISHED=true" "$STATUS" && grep -qx "APK_ARCHIVE_VALID=true" "$STATUS" && grep -qx "APK_SIGNATURE_VALID=true" "$STATUS" && grep -qx "APK_PACKAGE_ID_VALID=true" "$STATUS"; then
+                    echo "BRAVE_APK=true; prior stage published a ZIP-, signature-, and package-verified APK."
+                    cat "$STATUS"
+                    circleci-agent step halt
+                  fi
+                  echo "BRAVE_APK=false; continue checkpoint restore and incremental compilation."
       - run:
           name: Record stage start time and validate BuildBuddy credentials
           command: |
@@ -1704,6 +1724,94 @@ jobs:
               echo "BRAVE_CHECKPOINT_VALIDATION=PASS; GN graph and incremental output tree retained."
             fi
       - run:
+          name: Export APK status and artifacts
+          when: always
+          command: |
+            set -eu
+            ROOT="$CIRCLE_WORKING_DIRECTORY"
+            OUT="$ROOT/brave-work/src/out/android_Release_arm64"
+            mkdir -p "$ROOT/brave-apk"
+            DIAGNOSTICS="$ROOT/brave-apk/siso-diagnostics"
+            mkdir -p "$DIAGNOSTICS"
+            for file in siso.INFO siso_output siso_failed_commands.sh sandium-brave-siso-metrics.json; do
+              if [ -e "$OUT/$file" ]; then cp -a "$OUT/$file" "$DIAGNOSTICS/"; fi
+            done
+            CHECKPOINT_DIAGNOSTICS="$ROOT/brave-work/.sandium/checkpoint-diagnostics"
+            if [ -d "$CHECKPOINT_DIAGNOSTICS" ]; then
+              cp -a "$CHECKPOINT_DIAGNOSTICS" "$ROOT/brave-apk/"
+            fi
+            APK="$OUT/apks/BraveMonoarm64.apk"
+            ANDROID_BUILD_TOOLS="$ROOT/brave-work/src/third_party/android_sdk/public/build-tools/37.0.0"
+            APKSIGNER="$ANDROID_BUILD_TOOLS/apksigner"
+            AAPT="$ANDROID_BUILD_TOOLS/aapt"
+            fail_apk_validation() {
+              echo "APK_VALIDATION=FAIL $*" >&2
+              echo "BUILD_FINISHED=false" > "$ROOT/brave-apk/status.txt"
+              echo "APK_ARCHIVE_VALID=$ARCHIVE_VALID" >> "$ROOT/brave-apk/status.txt"
+              echo "APK_SIGNATURE_VALID=$SIGNATURE_VALID" >> "$ROOT/brave-apk/status.txt"
+              echo "APK_PACKAGE_ID_VALID=false" >> "$ROOT/brave-apk/status.txt"
+              exit 1
+            }
+            ARCHIVE_VALID=false
+            SIGNATURE_VALID=not_checked
+            if [ -s "$APK" ]; then
+              if ! python3 -c 'import sys,zipfile; z=zipfile.ZipFile(sys.argv[1]); bad=z.testzip(); z.close(); sys.exit(1 if bad else 0)' "$APK"; then
+                fail_apk_validation "ZIP integrity check failed: $APK"
+              fi
+              ARCHIVE_VALID=true
+              test -x "$APKSIGNER" || fail_apk_validation "pinned apksigner missing: $APKSIGNER"
+              test -x "$AAPT" || fail_apk_validation "pinned aapt missing: $AAPT"
+              if ! "$APKSIGNER" verify --verbose --print-certs "$APK" > "$ROOT/brave-apk/apk-signature.txt" 2>&1; then
+                cat "$ROOT/brave-apk/apk-signature.txt" >&2
+                fail_apk_validation "APK signature verification failed"
+              fi
+              SIGNATURE_VALID=true
+              cat "$ROOT/brave-apk/apk-signature.txt"
+              if ! "$AAPT" dump badging "$APK" > "$ROOT/brave-apk/apk-badging.txt"; then
+                fail_apk_validation "aapt could not read APK manifest"
+              fi
+              APK_PACKAGE_ID="$(sed -n "s/^package: name='\\([^']*\\)'.*/\\1/p" "$ROOT/brave-apk/apk-badging.txt" | head -n 1)"
+              EXPECTED_PACKAGE_ID="com.brave.browser_default"
+              if [ "$APK_PACKAGE_ID" != "$EXPECTED_PACKAGE_ID" ]; then
+                fail_apk_validation "expected package $EXPECTED_PACKAGE_ID, got ${APK_PACKAGE_ID:-<missing>}"
+              fi
+              cp "$APK" "$ROOT/brave-apk/Sandium-Brave-test.apk"
+              echo "BUILD_FINISHED=true" > "$ROOT/brave-apk/status.txt"
+              echo "APK_ARCHIVE_VALID=true" >> "$ROOT/brave-apk/status.txt"
+              echo "APK_SIGNATURE_VALID=true" >> "$ROOT/brave-apk/status.txt"
+              echo "APK_PACKAGE_ID_VALID=true" >> "$ROOT/brave-apk/status.txt"
+              echo "APK_PACKAGE_ID=$APK_PACKAGE_ID" >> "$ROOT/brave-apk/status.txt"
+              echo "APK_SIZE_BYTES=$(stat -c '%s' "$APK")" >> "$ROOT/brave-apk/status.txt"
+            else
+              echo "BUILD_FINISHED=false" > "$ROOT/brave-apk/status.txt"
+              echo "APK_ARCHIVE_VALID=false" >> "$ROOT/brave-apk/status.txt"
+              echo "APK_SIGNATURE_VALID=not_yet_built" >> "$ROOT/brave-apk/status.txt"
+              echo "APK_PACKAGE_ID_VALID=not_yet_built" >> "$ROOT/brave-apk/status.txt"
+            fi
+      - store_artifacts:
+          path: brave-apk
+          destination: brave-apk
+
+      - run:
+          name: Stop after publishing a verified Brave APK
+          command: |
+            set -euo pipefail
+            STATUS="$CIRCLE_WORKING_DIRECTORY/brave-apk/status.txt"
+            if [ -s "$STATUS" ] && grep -qx "BUILD_FINISHED=true" "$STATUS" && grep -qx "APK_ARCHIVE_VALID=true" "$STATUS" && grep -qx "APK_SIGNATURE_VALID=true" "$STATUS" && grep -qx "APK_PACKAGE_ID_VALID=true" "$STATUS"; then
+              mkdir -p "$CIRCLE_WORKING_DIRECTORY/brave-work/.sandium"
+              cp "$STATUS" "$CIRCLE_WORKING_DIRECTORY/brave-work/.sandium/apk-completion-status.txt"
+              echo "BRAVE_APK_ARTIFACT=STORED_BEFORE_CHECKPOINT_UPLOAD"
+              echo "BRAVE_APK_COMPLETION_MARKER=SAVE"
+              circleci-agent step halt
+            fi
+            echo "BRAVE_APK_COMPLETION_MARKER=MISS; preserve normal checkpoint continuation."
+      - save_cache:
+          name: Save small verified APK completion marker
+          key: sandium-brave-apk-complete-v1-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}
+          paths:
+            - brave-work/.sandium/apk-completion-status.txt
+
+      - run:
           name: Validate Brave checkpoint before saving
           command: |
             set -euo pipefail
@@ -1785,74 +1893,6 @@ jobs:
           key: sandium-brave-valid-v3-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-<< parameters.stage_index >>
           paths:
             - brave-work
-      - run:
-          name: Export APK status and artifacts
-          when: always
-          command: |
-            set -eu
-            ROOT="$CIRCLE_WORKING_DIRECTORY"
-            OUT="$ROOT/brave-work/src/out/android_Release_arm64"
-            mkdir -p "$ROOT/brave-apk"
-            DIAGNOSTICS="$ROOT/brave-apk/siso-diagnostics"
-            mkdir -p "$DIAGNOSTICS"
-            for file in siso.INFO siso_output siso_failed_commands.sh sandium-brave-siso-metrics.json; do
-              if [ -e "$OUT/$file" ]; then cp -a "$OUT/$file" "$DIAGNOSTICS/"; fi
-            done
-            CHECKPOINT_DIAGNOSTICS="$ROOT/brave-work/.sandium/checkpoint-diagnostics"
-            if [ -d "$CHECKPOINT_DIAGNOSTICS" ]; then
-              cp -a "$CHECKPOINT_DIAGNOSTICS" "$ROOT/brave-apk/"
-            fi
-            APK="$OUT/apks/BraveMonoarm64.apk"
-            ANDROID_BUILD_TOOLS="$ROOT/brave-work/src/third_party/android_sdk/public/build-tools/37.0.0"
-            APKSIGNER="$ANDROID_BUILD_TOOLS/apksigner"
-            AAPT="$ANDROID_BUILD_TOOLS/aapt"
-            fail_apk_validation() {
-              echo "APK_VALIDATION=FAIL $*" >&2
-              echo "BUILD_FINISHED=false" > "$ROOT/brave-apk/status.txt"
-              echo "APK_ARCHIVE_VALID=$ARCHIVE_VALID" >> "$ROOT/brave-apk/status.txt"
-              echo "APK_SIGNATURE_VALID=$SIGNATURE_VALID" >> "$ROOT/brave-apk/status.txt"
-              echo "APK_PACKAGE_ID_VALID=false" >> "$ROOT/brave-apk/status.txt"
-              exit 1
-            }
-            ARCHIVE_VALID=false
-            SIGNATURE_VALID=not_checked
-            if [ -s "$APK" ]; then
-              if ! python3 -c 'import sys,zipfile; z=zipfile.ZipFile(sys.argv[1]); bad=z.testzip(); z.close(); sys.exit(1 if bad else 0)' "$APK"; then
-                fail_apk_validation "ZIP integrity check failed: $APK"
-              fi
-              ARCHIVE_VALID=true
-              test -x "$APKSIGNER" || fail_apk_validation "pinned apksigner missing: $APKSIGNER"
-              test -x "$AAPT" || fail_apk_validation "pinned aapt missing: $AAPT"
-              if ! "$APKSIGNER" verify --verbose --print-certs "$APK" > "$ROOT/brave-apk/apk-signature.txt" 2>&1; then
-                cat "$ROOT/brave-apk/apk-signature.txt" >&2
-                fail_apk_validation "APK signature verification failed"
-              fi
-              SIGNATURE_VALID=true
-              cat "$ROOT/brave-apk/apk-signature.txt"
-              if ! "$AAPT" dump badging "$APK" > "$ROOT/brave-apk/apk-badging.txt"; then
-                fail_apk_validation "aapt could not read APK manifest"
-              fi
-              APK_PACKAGE_ID="$(sed -n "s/^package: name='\\([^']*\\)'.*/\\1/p" "$ROOT/brave-apk/apk-badging.txt" | head -n 1)"
-              EXPECTED_PACKAGE_ID="com.brave.browser_default"
-              if [ "$APK_PACKAGE_ID" != "$EXPECTED_PACKAGE_ID" ]; then
-                fail_apk_validation "expected package $EXPECTED_PACKAGE_ID, got ${APK_PACKAGE_ID:-<missing>}"
-              fi
-              cp "$APK" "$ROOT/brave-apk/Sandium-Brave-test.apk"
-              echo "BUILD_FINISHED=true" > "$ROOT/brave-apk/status.txt"
-              echo "APK_ARCHIVE_VALID=true" >> "$ROOT/brave-apk/status.txt"
-              echo "APK_SIGNATURE_VALID=true" >> "$ROOT/brave-apk/status.txt"
-              echo "APK_PACKAGE_ID_VALID=true" >> "$ROOT/brave-apk/status.txt"
-              echo "APK_PACKAGE_ID=$APK_PACKAGE_ID" >> "$ROOT/brave-apk/status.txt"
-              echo "APK_SIZE_BYTES=$(stat -c '%s' "$APK")" >> "$ROOT/brave-apk/status.txt"
-            else
-              echo "BUILD_FINISHED=false" > "$ROOT/brave-apk/status.txt"
-              echo "APK_ARCHIVE_VALID=false" >> "$ROOT/brave-apk/status.txt"
-              echo "APK_SIGNATURE_VALID=not_yet_built" >> "$ROOT/brave-apk/status.txt"
-              echo "APK_PACKAGE_ID_VALID=not_yet_built" >> "$ROOT/brave-apk/status.txt"
-            fi
-      - store_artifacts:
-          path: brave-apk
-          destination: brave-apk
 
 workflows:
   c4-afterbird-staged-checkpoint-build:
