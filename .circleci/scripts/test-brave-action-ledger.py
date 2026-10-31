@@ -66,22 +66,39 @@ def main():
         git(core, "tag", "v1.98.62")
 
         autoninja = root / "autoninja"
-        autoninja.write_text(
-            "#!/usr/bin/env python3\\n"
-            "import json, os, pathlib, sys\\n"
-            "args=sys.argv[1:]\\n"
-            "out=pathlib.Path(args[args.index('-C')+1])\\n"
-            "metrics=args[args.index('-metrics_json')+1]\\n"
-            "ids=json.loads(pathlib.Path(os.environ['LEDGER_TEST_PENDING_IDS']).read_text())\\n"
-            "if '-n' in args:\\n"
-            " p=out/metrics\\n"
-            " with p.open('w', encoding='utf-8') as f:\\n"
-            "  for i in ids:\\n"
-            "   row={'step_id':f'//obj/action-{i:03d}.o','rule':'cxx','action':'compile','outputs':[f'obj/action-{i:03d}.o'],'cmdhash':f'cmdhash-{i:03d}','digest':f'sha256:{i:064x}','is_remote':True,'is_local':False,'cached':False,'no_exec':True,'err':False}\\n"
-            "   f.write(json.dumps(row)+'\\n')\\n"
-            " if not ids: print('ninja: no work to do.')\\n"
-            " else: print(f'DRY_RUN_PENDING_ACTIONS={len(ids)}')\\n",
-            encoding="utf-8")
+        autoninja.write_text("""#!/usr/bin/env python3
+import json
+import os
+import pathlib
+import sys
+
+args = sys.argv[1:]
+out = pathlib.Path(args[args.index("-C") + 1])
+metrics = args[args.index("-metrics_json") + 1]
+ids = json.loads(pathlib.Path(os.environ["LEDGER_TEST_PENDING_IDS"]).read_text())
+if "-n" in args:
+    path = out / metrics
+    with path.open("w", encoding="utf-8") as f:
+        for i in ids:
+            row = {
+                "step_id": f"//obj/action-{i:03d}.o",
+                "rule": "cxx",
+                "action": "compile",
+                "outputs": [f"obj/action-{i:03d}.o"],
+                "cmdhash": f"cmdhash-{i:03d}",
+                "digest": f"sha256:{i:064x}",
+                "is_remote": True,
+                "is_local": False,
+                "cached": False,
+                "no_exec": True,
+                "err": False,
+            }
+            f.write(json.dumps(row) + "\\n")
+    if not ids:
+        print("ninja: no work to do.")
+    else:
+        print(f"DRY_RUN_PENDING_ACTIONS={len(ids)}")
+""", encoding="utf-8")
         autoninja.chmod(0o755)
         pending_file = root / "pending_ids.json"
         env = os.environ.copy()
