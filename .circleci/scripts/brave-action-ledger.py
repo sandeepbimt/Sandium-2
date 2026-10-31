@@ -23,7 +23,7 @@ import time
 from pathlib import Path
 
 SCHEMA = 1
-PROGRESS = re.compile(r"^\\s*\\[(\\d+)\\s*/\\s*(\\d+)\\]")
+PROGRESS = re.compile(r"^\s*\[(\d+)\s*/\s*(\d+)\]")
 
 def die(message: str) -> None:
     print(message, file=sys.stderr)
@@ -98,7 +98,7 @@ def dry_run_count(autoninja: Path, src: Path, out: Path, jobs: int) -> tuple[int
         no_work = False
         tail = []
         for line in log:
-            line = line.rstrip("\\r\\n")
+            line = line.rstrip("\r\n")
             if line:
                 tail.append(line)
                 tail = tail[-10:]
@@ -109,13 +109,13 @@ def dry_run_count(autoninja: Path, src: Path, out: Path, jobs: int) -> tuple[int
             if "no work to do" in line.lower():
                 no_work = True
         if rc:
-            die("ACTION_PLAN_DRY_RUN=FAIL autoninja returned %d\\n%s" %
-                (rc, "\\n".join(tail)))
+            die("ACTION_PLAN_DRY_RUN=FAIL autoninja returned %d\n%s" %
+                (rc, "\n".join(tail)))
     if not ordinals:
         if no_work or not tail:
             return 0, {"progress_ordinals": 0, "display_denominators": []}
-        die("ACTION_PLAN_DRY_RUN=FAIL unrecognised dry-run output; refusing to guess\\n%s"
-            % "\\n".join(tail))
+        die("ACTION_PLAN_DRY_RUN=FAIL unrecognised dry-run output; refusing to guess\n%s"
+            % "\n".join(tail))
     maximum = max(ordinals)
     if min(ordinals) != 1 or len(ordinals) != maximum:
         die("ACTION_PLAN_DRY_RUN=FAIL non-contiguous progress ordinals "
@@ -140,7 +140,7 @@ def save(path: Path, data: dict):
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as f:
             json.dump(data, f, sort_keys=True, indent=2)
-            f.write("\\n")
+            f.write("\n")
             f.flush()
             os.fsync(f.fileno())
         os.replace(tmp, path)
@@ -156,7 +156,7 @@ def metric_key(row: dict):
     if not isinstance(outputs, list):
         output = row.get("output")
         outputs = [output] if isinstance(output, str) and output else []
-    outputs = sorted({x.replace("\\\\", "/") for x in outputs if isinstance(x, str) and x})
+    outputs = sorted({x.replace("\\", "/") for x in outputs if isinstance(x, str) and x})
     if not outputs:
         die(f"ACTION_METRICS_SCHEMA=FAIL step_id={step_id!r} has no outputs")
     digest, cmdhash = str(row.get("digest") or ""), str(row.get("cmdhash") or "")
