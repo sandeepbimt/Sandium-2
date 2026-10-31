@@ -23,7 +23,7 @@ import time
 from pathlib import Path
 
 SCHEMA = 2
-PROGRESS = re.compile(r"^\s*\[(\d+)\s*/\s*(\d+)\]")
+PROGRESS = re.compile(r"\[(\d+)\s*/\s*(\d+)\]")
 
 def die(message: str) -> None:
     print(message, file=sys.stderr)
@@ -78,9 +78,9 @@ def fingerprint(src: Path, out: Path) -> dict:
 
 def dry_run_actions(autoninja: Path, src: Path, out: Path, jobs: int,
                     stage: int, build: str, workflow: str) -> tuple[set[str], dict]:
-    # Run Siso's native dry-run and collect its own action metrics. Dry-run
-    # builds the scheduler plan but does not execute the commands; the action
-    # identities are therefore the exact pending frontier for this target.
+    # Siso dry-run writes one StepMetric JSONL row for every planned action.
+    # The visible [x/y] progress is an independent cross-check on metric
+    # coverage; we never substitute the display counter for action identities.
     safe = re.sub(r"[^A-Za-z0-9_.-]", "_", f"{workflow}-{build}-stage-{stage}")
     metrics_name = f".sandium-action-plan-{safe}.jsonl"
     metrics_path = out / metrics_name
@@ -100,8 +100,8 @@ def dry_run_actions(autoninja: Path, src: Path, out: Path, jobs: int,
             die("ACTION_PLAN_DRY_RUN=FAIL timed out after 900 seconds")
         log.flush()
         log.seek(0)
-        tail = []
-        no_work = False
+        tail, no_work = [], False
+        progress_ordinals, progress_denominators = set(), set()
         for line in log:
             line = line.rstrip("\r\n")
             if line:
@@ -109,25 +109,47 @@ def dry_run_actions(autoninja: Path, src: Path, out: Path, jobs: int,
                 tail = tail[-20:]
             if "no work to do" in line.lower():
                 no_work = True
+            for match in PROGRESS.finditer(line):
+                progress_ordinals.add(int(match.group(1)))
+                progress_denominators.add(int(match.group(2)))
         if rc:
-            die("ACTION_PLAN_DRY_RUN=FAIL autoninja returned %d\\n%s" %
-                (rc, "\\n".join(tail)))
+            die("ACTION_PLAN_DRY_RUN=FAIL autoninja returned %d\n%s" %
+                (rc, "\n".join(tail)))
     actions, stats = read_metrics(out, "__no_plan_metrics_prefix__", [metrics_path])
-    if not actions:
-        if no_work and stats["action_records"] == 0:
-            metrics_path.unlink(missing_ok=True)
-            return set(), {"metrics_file": metrics_name, "metrics": stats,
-                           "no_work": True}
-        die("ACTION_PLAN_DRY_RUN=FAIL Siso dry-run did not emit per-action metrics; "
-            "cannot produce an exact pending action set. Output tail:\\n%s" %
-            "\\n".join(tail))
     if stats["failed_records"]:
         die("ACTION_PLAN_DRY_RUN=FAIL dry-run metrics contain %d failed action records" %
             stats["failed_records"])
     keys = set(actions)
+    if progress_denominators:
+        displayed_total = max(progress_denominators)
+        displayed_last = max(progress_ordinals) if progress_ordinals else 0
+        if displayed_total != len(keys):
+            die("ACTION_PLAN_METRIC_COVERAGE=FAIL Siso dry-run denominator=%d but unique action identities=%d; "
+                "refusing to start compilation" % (displayed_total, len(keys)))
+        if displayed_last != displayed_total:
+            die("ACTION_PLAN_METRIC_COVERAGE=FAIL Siso dry-run reached ordinal=%d of %d but captured %d action identities" %
+                (displayed_last, displayed_total, len(keys)))
+    elif keys:
+        # Siso may suppress the progress UI in non-interactive output. The
+        # metric set remains authoritative, but record this for audit.
+        displayed_total, displayed_last = None, None
+    else:
+        displayed_total, displayed_last = 0, 0
+    if not keys:
+        if no_work and stats["action_records"] == 0:
+            metrics_path.unlink(missing_ok=True)
+            return set(), {"metrics_file": metrics_name, "metrics": stats,
+                           "no_work": True, "progress_denominators": [],
+                           "displayed_last_ordinal": 0}
+        die("ACTION_PLAN_DRY_RUN=FAIL Siso dry-run did not emit per-action metrics; "
+            "cannot produce an exact pending action set. Output tail:\n%s" %
+            "\n".join(tail))
     metrics_path.unlink(missing_ok=True)
     return keys, {"metrics_file": metrics_name, "metrics": stats,
-                  "no_work": False, "action_count": len(keys)}
+                  "no_work": False, "action_count": len(keys),
+                  "progress_denominators": sorted(progress_denominators),
+                  "displayed_last_ordinal": displayed_last}
+
 
 
 def load(path: Path):
@@ -376,7 +398,7 @@ def main():
         save(path, ledger)
         print(f"ACTION_HANDOFF_GATE=PASS pending={pending}/{expected}")
         print(f"SANDIUM_BUILD_MATH={done}/{total} complete; {pending}/{expected} pending")
-        print(f"ACTION_PLAN_DRY_RUN=PASS ordinals={pending} denominators={dry['display_denominators']}")
+        print(f"ACTION_PLAN_DRY_RUN=PASS action_identities={pending} progress_denominators={dry.get('progress_denominators')}")
         return
 
     if ledger is None or ledger.get("identity", {}).get("fingerprint") != ident.get("fingerprint"):
