@@ -157,8 +157,8 @@ def metric_key(row: dict):
         output = row.get("output")
         outputs = [output] if isinstance(output, str) and output else []
     outputs = sorted({x.replace("\\", "/") for x in outputs if isinstance(x, str) and x})
-    if not outputs:
-        die(f"ACTION_METRICS_SCHEMA=FAIL step_id={step_id!r} has no outputs")
+    if not outputs and row.get("no_exec") is not True:
+        die(f"ACTION_METRICS_SCHEMA=FAIL step_id={step_id!r} has no outputs and is not a no_exec handler")
     digest, cmdhash = str(row.get("digest") or ""), str(row.get("cmdhash") or "")
     rule, action = str(row.get("rule") or ""), str(row.get("action") or "")
     if digest and cmdhash:
@@ -218,15 +218,15 @@ def read_metrics(out: Path, prefix: str, extra_files=()):
     return {k: v for k, v in actions.items() if v.get("success")}, stats
 
 def normalize_output(path: str, out: Path) -> str:
-    value = path.replace("\\\\", "/")
+    value = path.replace("\\", "/")
     if os.path.isabs(value):
         try:
-            value = os.path.relpath(value, str(out)).replace("\\\\", "/")
+            value = os.path.relpath(value, str(out)).replace("\\", "/")
         except ValueError:
             pass
     while value.startswith("./"):
         value = value[2:]
-    return os.path.normpath(value).replace("\\\\", "/")
+    return os.path.normpath(value).replace("\\", "/")
 
 
 def ninja_log_outputs(out: Path) -> set[str]:
@@ -238,7 +238,7 @@ def ninja_log_outputs(out: Path) -> set[str]:
         for line in f:
             if line.startswith("#"):
                 continue
-            fields = line.rstrip("\\r\\n").split("\\t")
+            fields = line.rstrip("\r\n").split("\t")
             if len(fields) >= 4 and fields[3]:
                 outputs.add(normalize_output(fields[3], out))
     return outputs
@@ -281,7 +281,7 @@ def main():
             # action history from every retained rotation before establishing
             # the denominator for a checkpoint created before this ledger.
             legacy_files = []
-            legacy_re = re.compile(r"^sandium-brave-siso-metrics(?:\\.\\d+)?\\.json$")
+            legacy_re = re.compile(r"^sandium-brave-siso-metrics(?:\.\d+)?\.json$")
             for candidate in out.glob("sandium-brave-siso-metrics*"):
                 if candidate.is_file() and legacy_re.match(candidate.name):
                     legacy_files.append(candidate)
