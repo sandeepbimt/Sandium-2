@@ -1426,7 +1426,7 @@ jobs:
             equal: [2, << parameters.stage_index >>]
           steps:
             - restore_cache:
-                name: Restore stage 1 APK completion marker
+                name: Restore latest prior APK completion marker for stage 2
                 keys:
                   - sandium-brave-apk-complete-v1-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-1
             - run:
@@ -1445,9 +1445,10 @@ jobs:
             equal: [3, << parameters.stage_index >>]
           steps:
             - restore_cache:
-                name: Restore stage 2 APK completion marker
+                name: Restore latest prior APK completion marker for stage 3
                 keys:
                   - sandium-brave-apk-complete-v1-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-2
+                  - sandium-brave-apk-complete-v1-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-1
             - run:
                 name: Exit stage 3 when prior stage published verified APK
                 command: |
@@ -1464,9 +1465,11 @@ jobs:
             equal: [4, << parameters.stage_index >>]
           steps:
             - restore_cache:
-                name: Restore stage 3 APK completion marker
+                name: Restore latest prior APK completion marker for stage 4
                 keys:
                   - sandium-brave-apk-complete-v1-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-3
+                  - sandium-brave-apk-complete-v1-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-2
+                  - sandium-brave-apk-complete-v1-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-1
             - run:
                 name: Exit stage 4 when prior stage published verified APK
                 command: |
@@ -1483,9 +1486,12 @@ jobs:
             equal: [5, << parameters.stage_index >>]
           steps:
             - restore_cache:
-                name: Restore stage 4 APK completion marker
+                name: Restore latest prior APK completion marker for stage 5
                 keys:
                   - sandium-brave-apk-complete-v1-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-4
+                  - sandium-brave-apk-complete-v1-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-3
+                  - sandium-brave-apk-complete-v1-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-2
+                  - sandium-brave-apk-complete-v1-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-1
             - run:
                 name: Exit stage 5 when prior stage published verified APK
                 command: |
