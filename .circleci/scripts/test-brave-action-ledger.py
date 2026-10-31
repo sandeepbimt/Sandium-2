@@ -118,7 +118,16 @@ if "-n" in args:
 
         stage1_metrics = out / "test-stage1-0.jsonl"
         write_metrics(stage1_metrics, range(88))
+        # Simulate the remote smoke target and main build both executing the
+        # same successful work unit in one stage: never silently deduplicate.
+        with stage1_metrics.open("a", encoding="utf-8") as stream:
+            stream.write(json.dumps(metric(0)) + "\\n")
         pending_file.write_text(json.dumps(list(range(88, 100))), encoding="utf-8")
+        duplicate_stage = run(["complete", *common, "--stage", "1", "--build", "101",
+                               "--workflow", "workflow-one",
+                               "--metrics-prefix", "test-stage1-"], env, expected=2)
+        assert "ACTION_DUPLICATE_WITHIN_STAGE=FAIL" in duplicate_stage, duplicate_stage
+        write_metrics(stage1_metrics, range(88))
         done1 = run(["complete", *common, "--stage", "1", "--build", "101",
                      "--workflow", "workflow-one",
                      "--metrics-prefix", "test-stage1-"], env)
