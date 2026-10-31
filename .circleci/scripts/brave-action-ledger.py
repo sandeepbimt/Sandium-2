@@ -115,6 +115,7 @@ def dry_run_actions(autoninja: Path, src: Path, out: Path, jobs: int,
     actions, stats = read_metrics(out, "__no_plan_metrics_prefix__", [metrics_path])
     if not actions:
         if no_work and stats["action_records"] == 0:
+            metrics_path.unlink(missing_ok=True)
             return set(), {"metrics_file": metrics_name, "metrics": stats,
                            "no_work": True}
         die("ACTION_PLAN_DRY_RUN=FAIL Siso dry-run did not emit per-action metrics; "
@@ -124,6 +125,7 @@ def dry_run_actions(autoninja: Path, src: Path, out: Path, jobs: int,
         die("ACTION_PLAN_DRY_RUN=FAIL dry-run metrics contain %d failed action records" %
             stats["failed_records"])
     keys = set(actions)
+    metrics_path.unlink(missing_ok=True)
     return keys, {"metrics_file": metrics_name, "metrics": stats,
                   "no_work": False, "action_count": len(keys)}
 
