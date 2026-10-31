@@ -1677,13 +1677,6 @@ jobs:
               echo "BRAVE_REMOTE_EXECUTION_CONFIG_GATE=PASS"
             fi
       - run:
-          name: Verify BuildBuddy remote worker before Android compilation
-          no_output_timeout: 15m
-          command: |
-            set -euo pipefail
-            export BRAVE_STAGE_INDEX="<< parameters.stage_index >>"
-            bash .circleci/scripts/verify-brave-remote-smoke.sh
-      - run:
           name: Plan exact pending Brave actions and enforce the handoff frontier
           no_output_timeout: 20m
           command: |
@@ -1706,6 +1699,13 @@ jobs:
               --build "${CIRCLE_BUILD_NUM:-local}" \
               --workflow "${CIRCLE_WORKFLOW_ID:-local}" \
               --jobs 80
+      - run:
+          name: Verify BuildBuddy remote worker before Android compilation
+          no_output_timeout: 15m
+          command: |
+            set -euo pipefail
+            export BRAVE_STAGE_INDEX="<< parameters.stage_index >>"
+            bash .circleci/scripts/verify-brave-remote-smoke.sh
       - run:
           name: Build bounded Brave Android APK slice
           no_output_timeout: 45m
