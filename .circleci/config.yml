@@ -1669,7 +1669,8 @@ jobs:
             export SISO_LIMITS="local=8,remote=80"
             # Brave's preserved .sisorc supplies --reapi_keep_exec_stream and the
             # googlechrome remote-execution configuration to autoninja/Siso.
-            timeout --signal=INT --kill-after=60s 1500s autoninja -strict_remote -metrics_json sandium-brave-siso-metrics.json -C "$OUT" -j80 brave || BUILD_RC=$?
+            echo "BRAVE_BUILD_SLICE_BUDGET_SECONDS=2100 (35 minutes); avoid cutting off near-complete Siso action queues at the old 25-minute boundary."
+timeout --signal=INT --kill-after=60s 2100s autoninja -strict_remote -metrics_json sandium-brave-siso-metrics.json -C "$OUT" -j80 brave || BUILD_RC=$?
             INITIAL_BUILD_RC="$BUILD_RC"
 
             # Siso treats REAPI FailedPrecondition/missing-CAS-input errors as
