@@ -172,11 +172,13 @@ def metric_key(row: dict):
     key = sha(json.dumps(ident, sort_keys=True, separators=(",", ":")).encode())
     return key, ident
 
-def read_metrics(out: Path, prefix: str):
+def read_metrics(out: Path, prefix: str, extra_files=()):
     actions, stats = {}, {"files": [], "records": 0, "action_records": 0,
                           "summary_records": 0, "failed_records": 0,
                           "duplicate_records": 0}
-    files = sorted(p for p in out.glob(prefix + "*.jsonl") if p.is_file())
+    files = {p for p in out.glob(prefix + "*.jsonl") if p.is_file()}
+    files.update(p for p in extra_files if p.is_file())
+    files = sorted(files)
     for path in files:
         if not path.stat().st_size:
             continue
@@ -215,6 +217,41 @@ def read_metrics(out: Path, prefix: str):
                 }
     return {k: v for k, v in actions.items() if v.get("success")}, stats
 
+def normalize_output(path: str, out: Path) -> str:
+    value = path.replace("\\\\", "/")
+    if os.path.isabs(value):
+        try:
+            value = os.path.relpath(value, str(out)).replace("\\\\", "/")
+        except ValueError:
+            pass
+    while value.startswith("./"):
+        value = value[2:]
+    return os.path.normpath(value).replace("\\\\", "/")
+
+
+def ninja_log_outputs(out: Path) -> set[str]:
+    log = out / ".ninja_log"
+    if not log.is_file():
+        return set()
+    outputs = set()
+    with log.open(encoding="utf-8", errors="replace") as f:
+        for line in f:
+            if line.startswith("#"):
+                continue
+            fields = line.rstrip("\\r\\n").split("\\t")
+            if len(fields) >= 4 and fields[3]:
+                outputs.add(normalize_output(fields[3], out))
+    return outputs
+
+
+def metric_outputs(actions: dict, out: Path) -> set[str]:
+    outputs = set()
+    for item in actions.values():
+        for value in item["identity"].get("outputs", []):
+            outputs.add(normalize_output(value, out))
+    return outputs
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("phase", choices=["plan", "complete"])
@@ -239,13 +276,53 @@ def main():
         if ledger is None:
             if a.stage != 1:
                 die("ACTION_LEDGER_BOOTSTRAP=FAIL stage >1 has no persisted action ledger")
+            # Siso's logWriter truncates the current metrics file and rotates
+            # previous invocations to .1, .2, ... .9. Recover the legacy
+            # action history from every retained rotation before establishing
+            # the denominator for a checkpoint created before this ledger.
+            legacy_files = []
+            legacy_re = re.compile(r"^sandium-brave-siso-metrics(?:\\.\\d+)?\\.json$")
+            for candidate in out.glob("sandium-brave-siso-metrics*"):
+                if candidate.is_file() and legacy_re.match(candidate.name):
+                    legacy_files.append(candidate)
+            seed_actions, seed_stats = read_metrics(out, "__no_legacy_seed_match__", legacy_files)
+            object_files = list((out / "obj").rglob("*.o")) if (out / "obj").is_dir() else []
+            if object_files and not seed_actions:
+                die("ACTION_LEDGER_BOOTSTRAP=REFUSED legacy checkpoint has %d object files but no usable retained Siso action metrics; "
+                    "cannot claim an exact completed/remaining denominator" % len(object_files))
+            logged_outputs = ninja_log_outputs(out)
+            covered_outputs = metric_outputs(seed_actions, out)
+            uncovered = sorted(logged_outputs - covered_outputs)
+            if uncovered:
+                die("ACTION_LEDGER_BOOTSTRAP=REFUSED retained metrics do not cover %d outputs in .ninja_log; "
+                    "old action history is incomplete (examples: %s)" %
+                    (len(uncovered), ", ".join(uncovered[:8])))
+            if object_files and not logged_outputs:
+                die("ACTION_LEDGER_BOOTSTRAP=REFUSED object files exist but .ninja_log has no output records")
+            seed_completed = {}
+            for key, item in seed_actions.items():
+                seed_completed[key] = {
+                    "identity": item["identity"], "completed_by": "legacy-siso-metrics",
+                    "completed_at_epoch": int(time.time()), "cached": item["cached"],
+                    "is_remote": item["is_remote"], "is_local": item["is_local"],
+                    "no_exec": item["no_exec"]}
             ledger = {"schema_version": SCHEMA, "identity": ident,
-                      "baseline_scope": "pending_actions_at_first_ledger_managed_stage",
-                      "planned_total": pending, "completed": {}, "stages": [],
+                      "baseline_scope": "retained_completed_actions_plus_current_pending_graph",
+                      "planned_total": len(seed_completed) + pending,
+                      "completed": seed_completed, "stages": [],
+                      "legacy_seed": {"files": seed_stats["files"],
+                                      "unique_completed_actions": len(seed_completed),
+                                      "ninja_log_outputs": len(logged_outputs),
+                                      "covered_ninja_log_outputs": len(logged_outputs)},
                       "created_at_epoch": int(time.time())}
-            print("ACTION_LEDGER_BOOTSTRAP=PASS baseline=pending_actions_at_first_managed_stage")
+            print("ACTION_LEDGER_BOOTSTRAP=PASS retained_completed=%d pending=%d total=%d metrics_files=%d" %
+                  (len(seed_completed), pending, len(seed_completed) + pending, len(seed_stats["files"])))
         elif ledger.get("identity", {}).get("fingerprint") != ident.get("fingerprint"):
             die("ACTION_LEDGER_IDENTITY=FAIL build graph/source/config fingerprint changed")
+        active_before = ledger.get("active_stage")
+        if active_before and active_before.get("run_id") != run_id:
+            die("ACTION_LEDGER_RECOVERY=FAIL unfinished prior stage %s; do not overwrite its action frontier" %
+                active_before.get("run_id"))
         total, done = int(ledger["planned_total"]), len(ledger["completed"])
         expected = total - done
         if expected < 0:
