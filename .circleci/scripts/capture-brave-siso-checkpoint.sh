@@ -59,6 +59,11 @@ record_file() {
     record_file SISO_INFO "$OUT/siso.INFO" no
     record_file SISO_OUTPUT "$OUT/siso_output" no
     record_file SISO_METRICS "$OUT/sandium-brave-siso-metrics.json" no
+    record_file ACTION_LEDGER "$ROOT/brave-work/.sandium/action-ledger.json" no
+    for metrics_file in "$OUT"/sandium-brave-action-stage-*.jsonl; do
+      [ -f "$metrics_file" ] || continue
+      echo "SISO_METRICS_RUN_FILE=$(basename "$metrics_file") SIZE_BYTES=$(stat -c '%s' "$metrics_file")"
+    done
     if [ -s "$OUT/build.ninja" ]; then
       echo "BUILD_NINJA_EDGE_COUNT=$(grep -c '^build ' "$OUT/build.ninja" || true)"
     else
