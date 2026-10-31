@@ -323,56 +323,20 @@ def main():
         if ledger is None:
             if a.stage != 1:
                 die("ACTION_LEDGER_BOOTSTRAP=FAIL stage >1 has no persisted action ledger")
-            # Siso's logWriter truncates the current metrics file and rotates
-            # previous invocations to .1, .2, ... .9. Recover the legacy
-            # action history from every retained rotation before establishing
-            # the denominator for a checkpoint created before this ledger.
-            legacy_files = []
-            legacy_re = re.compile(r"^sandium-brave-siso-metrics(?:\.\d+)?\.json$")
-            for candidate in out.glob("sandium-brave-siso-metrics*"):
-                if candidate.is_file() and legacy_re.match(candidate.name):
-                    legacy_files.append(candidate)
-            seed_actions, seed_stats = read_metrics(out, "__no_legacy_seed_match__", legacy_files)
-            object_files = list((out / "obj").rglob("*.o")) if (out / "obj").is_dir() else []
-            if object_files and not seed_actions:
-                die("ACTION_LEDGER_BOOTSTRAP=REFUSED legacy checkpoint has %d object files but no usable retained Siso action metrics; "
-                    "cannot claim an exact completed/remaining denominator" % len(object_files))
-            logged_outputs = ninja_log_outputs(out)
-            covered_outputs = metric_outputs(seed_actions, out)
-            uncovered = sorted(logged_outputs - covered_outputs)
-            if uncovered:
-                die("ACTION_LEDGER_BOOTSTRAP=REFUSED retained metrics do not cover %d outputs in .ninja_log; "
-                    "old action history is incomplete (examples: %s)" %
-                    (len(uncovered), ", ".join(uncovered[:8])))
-            if object_files and not logged_outputs:
-                die("ACTION_LEDGER_BOOTSTRAP=REFUSED object files exist but .ninja_log has no output records")
-            # A retained metrics row may describe an action that is pending
-            # again because its output was invalidated. The live Siso dry-run
-            # is authoritative: such an action belongs to pending, not done.
-            stale_completed = set(seed_actions).intersection(pending_keys)
-            seed_completed = {}
-            for key, item in seed_actions.items():
-                if key in stale_completed:
-                    continue
-                seed_completed[key] = {
-                    "identity": item["identity"], "completed_by": "legacy-siso-metrics",
-                    "completed_at_epoch": int(time.time()), "cached": item["cached"],
-                    "is_remote": item["is_remote"], "is_local": item["is_local"],
-                    "no_exec": item["no_exec"]}
+            # Preserve every restored object/generated output. Do not infer
+            # historical completion from object counts or incomplete old
+            # metrics. The live Siso dry-run is the exact residual-work
+            # baseline; all earlier restored outputs are outside this ledger.
             ledger = {"schema_version": SCHEMA, "identity": ident,
-                      "baseline_scope": "retained_completed_actions_plus_live_siso_pending_action_set",
-                      "planned_total": len(seed_completed) + pending,
-                      "completed": seed_completed, "stages": [],
+                      "baseline_scope": "remaining_actions_at_restored_checkpoint",
+                      "planned_total": pending, "completed": {}, "stages": [],
                       "next_pending_action_keys": sorted(pending_keys),
-                      "legacy_seed": {"files": seed_stats["files"],
-                                      "unique_completed_actions": len(seed_completed),
-                                      "stale_metric_actions_reclassified_pending": len(stale_completed),
-                                      "ninja_log_outputs": len(logged_outputs),
-                                      "covered_ninja_log_outputs": len(logged_outputs)},
+                      "legacy_seed": {"historical_object_files_excluded": True,
+                                      "historical_metrics_used": False,
+                                      "restored_object_file_count": len(list((out / "obj").rglob("*.o"))) if (out / "obj").is_dir() else 0},
                       "created_at_epoch": int(time.time())}
-            print("ACTION_LEDGER_BOOTSTRAP=PASS retained_completed=%d pending=%d total=%d metrics_files=%d reclassified_pending=%d" %
-                  (len(seed_completed), pending, len(seed_completed) + pending,
-                   len(seed_stats["files"]), len(stale_completed)))
+            print("ACTION_LEDGER_BOOTSTRAP=PASS scope=remaining-work pending=%d total=%d historical_objects_preserved=true" %
+                  (pending, pending))
         elif ledger.get("identity", {}).get("fingerprint") != ident.get("fingerprint"):
             die("ACTION_LEDGER_IDENTITY=FAIL build graph/source/config fingerprint changed")
         active_before = ledger.get("active_stage")
