@@ -22,7 +22,7 @@ import tempfile
 import time
 from pathlib import Path
 
-SCHEMA = 1
+SCHEMA = 2
 PROGRESS = re.compile(r"^\s*\[(\d+)\s*/\s*(\d+)\]")
 
 def die(message: str) -> None:
@@ -114,10 +114,7 @@ def dry_run_actions(autoninja: Path, src: Path, out: Path, jobs: int,
                 (rc, "\\n".join(tail)))
     actions, stats = read_metrics(out, "__no_plan_metrics_prefix__", [metrics_path])
     if not actions:
-        if no_work and not metrics_path.exists():
-            return set(), {"metrics_file": metrics_name, "metrics": stats,
-                           "no_work": True}
-        if no_work and stats["records"] == 0:
+        if no_work and stats["action_records"] == 0:
             return set(), {"metrics_file": metrics_name, "metrics": stats,
                            "no_work": True}
         die("ACTION_PLAN_DRY_RUN=FAIL Siso dry-run did not emit per-action metrics; "
@@ -138,8 +135,16 @@ def load(path: Path):
         data = json.loads(path.read_text(encoding="utf-8"))
     except Exception as e:
         die(f"ACTION_LEDGER_READ=FAIL {path}: {e}")
-    if data.get("schema_version") != SCHEMA or not isinstance(data.get("completed"), dict):
-        die("ACTION_LEDGER_SCHEMA=FAIL invalid schema/completed map")
+    if not isinstance(data.get("completed"), dict):
+        die("ACTION_LEDGER_SCHEMA=FAIL invalid completed map")
+    if data.get("schema_version") == 1 and not data.get("next_pending_action_keys"):
+        # Schema 1 tracked counts and metric keys but did not persist the exact
+        # pending action set. It cannot be upgraded by assuming its counts were
+        # correct. Stage 1 will reconstruct the ledger from retained Siso logs.
+        print("ACTION_LEDGER_MIGRATION=REBUILD_FROM_RETAINED_METRICS schema=1", file=sys.stderr)
+        return None
+    if data.get("schema_version") != SCHEMA:
+        die("ACTION_LEDGER_SCHEMA=FAIL unsupported schema %r" % data.get("schema_version"))
     return data
 
 def save(path: Path, data: dict):
