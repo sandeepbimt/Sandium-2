@@ -169,17 +169,15 @@ def metric_key(row: dict):
     if not isinstance(outputs, list):
         output = row.get("output")
         outputs = [output] if isinstance(output, str) and output else []
-    outputs = sorted({x.replace("\\", "/") for x in outputs if isinstance(x, str) and x})
-    if not outputs and row.get("no_exec") is not True:
-        die(f"ACTION_METRICS_SCHEMA=FAIL step_id={step_id!r} has no outputs and is not a no_exec handler")
+    outputs = sorted({x.replace("\\\\", "/") for x in outputs if isinstance(x, str) and x})
     digest, cmdhash = str(row.get("digest") or ""), str(row.get("cmdhash") or "")
     rule, action = str(row.get("rule") or ""), str(row.get("action") or "")
     if cmdhash:
-        # Digest binds the action to its current input Merkle tree and is kept
-        # for audit, but it is intentionally not part of the logical work-unit
-        # key. The same output/command must not become "new work" just because
-        # a restored dependency digest changed between stages.
-        ident = {"outputs": outputs, "cmdhash": cmdhash,
+        # StepID is stable within this immutable generated Ninja graph and
+        # covers outputless/phony command steps. Input digest is retained for
+        # audit but excluded from the logical work-unit key, so a rerun of the
+        # same command/output remains recognizable even if its inputs differ.
+        ident = {"step_id": step_id, "outputs": outputs, "cmdhash": cmdhash,
                  "rule": rule, "action": action, "action_digest": digest,
                  "mode": "command-output-action"}
         stable = {k: v for k, v in ident.items() if k != "action_digest"}
