@@ -1612,6 +1612,7 @@ jobs:
           no_output_timeout: 45m
           command: |
             set -euo pipefail
+            export BRAVE_STAGE_INDEX="<< parameters.stage_index >>"
             ROOT="$CIRCLE_WORKING_DIRECTORY"
             OUT="$ROOT/brave-work/src/out/android_Release_arm64"
             if [ -s "$OUT/apks/BraveMonoarm64.apk" ]; then

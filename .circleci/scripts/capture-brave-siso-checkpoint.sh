@@ -43,6 +43,8 @@ record_file() {
   echo "CIRCLE_BUILD_NUM=$BUILD_NUM"
   echo "CIRCLE_WORKFLOW_ID=$WORKFLOW_ID"
   echo "CAPTURED_AT_UTC=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  echo "CAPTURED_EPOCH=$(date +%s)"
+  echo "BUILD_EXIT_CODE=$(printenv BRAVE_BUILD_EXIT_CODE || echo not_set)"
   echo "OUT_EXISTS=$([ -d "$OUT" ] && echo true || echo false)"
   if [ -d "$OUT" ]; then
     record_file BUILD_NINJA "$OUT/build.ninja"
@@ -188,6 +190,11 @@ fi
 
 if [ "$PHASE" = "after-build" ]; then
   BEFORE_REPORT="$STAGE_DIR/$SAFE_RUN_ID-before-build.txt"
+  BEFORE_EPOCH="$(sed -n 's/^CAPTURED_EPOCH=//p' "$BEFORE_REPORT" | head -n 1)"
+  AFTER_EPOCH="$(sed -n 's/^CAPTURED_EPOCH=//p' "$REPORT" | head -n 1)"
+  if [ -n "$BEFORE_EPOCH" ] && [ -n "$AFTER_EPOCH" ] && [ "$AFTER_EPOCH" -ge "$BEFORE_EPOCH" ]; then
+    echo "BUILD_WINDOW_SECONDS=$((AFTER_EPOCH - BEFORE_EPOCH))" | tee -a "$REPORT"
+  fi
   if [ -f "$BEFORE_REPORT" ]; then
     BEFORE_BYTES="$(sed -n 's/^SISO_OUTPUT_SIZE_BYTES=//p' "$BEFORE_REPORT" | head -n 1)"
     NOW_BYTES="$(sed -n 's/^SISO_OUTPUT_SIZE_BYTES=//p' "$REPORT" | head -n 1)"
