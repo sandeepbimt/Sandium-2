@@ -1845,7 +1845,7 @@ jobs:
             for file in siso.INFO siso_output siso_failed_commands.sh sandium-brave-siso-metrics.json; do
               if [ -e "$OUT/$file" ]; then cp -a "$OUT/$file" "$DIAGNOSTICS/"; fi
             done
-            for file in "$OUT"/sandium-brave-siso-metrics*.json "$OUT"/sandium-brave-action-stage-*.jsonl; do
+            for file in "$OUT"/sandium-brave-siso-metrics*.json "$OUT"/sandium-brave-action-stage-*.jsonl "$OUT"/.sandium-action-plan-*.jsonl; do
               [ -f "$file" ] && cp -a "$file" "$DIAGNOSTICS/"
             done
             LEDGER="$ROOT/brave-work/.sandium/action-ledger.json"
@@ -1993,16 +1993,20 @@ jobs:
 
             with open(sys.argv[1], encoding="utf-8") as f:
                 ledger = json.load(f)
-            if ledger.get("schema_version") != 1:
-                raise SystemExit("CHECKPOINT_ACTION_LEDGER=FAIL unsupported schema")
+            if ledger.get("schema_version") != 2:
+                raise SystemExit("CHECKPOINT_ACTION_LEDGER=FAIL exact action-set schema 2 is required")
             if ledger.get("active_stage"):
                 raise SystemExit("CHECKPOINT_ACTION_LEDGER=FAIL active stage was not reconciled")
             total = int(ledger.get("planned_total", -1))
             completed = len(ledger.get("completed", {}))
-            if total < 0 or completed > total:
-                raise SystemExit("CHECKPOINT_ACTION_LEDGER=FAIL invalid completed/total values")
-            print("CHECKPOINT_ACTION_LEDGER=PASS completed=%d total=%d remaining=%d" %
-                  (completed, total, total - completed))
+            pending_keys = ledger.get("next_pending_action_keys")
+            if total < 0 or completed > total or not isinstance(pending_keys, list):
+                raise SystemExit("CHECKPOINT_ACTION_LEDGER=FAIL invalid completed/total/pending fields")
+            remaining = total - completed
+            if len(pending_keys) != remaining or len(set(pending_keys)) != remaining:
+                raise SystemExit("CHECKPOINT_ACTION_LEDGER=FAIL persisted pending action set does not equal total-completed")
+            print("CHECKPOINT_ACTION_LEDGER=PASS completed=%d total=%d remaining=%d pending_keys=%d" %
+                  (completed, total, remaining, len(pending_keys)))
             PY
             {
               echo "CHECKPOINT_VALID=true"
