@@ -1684,6 +1684,28 @@ jobs:
             export BRAVE_STAGE_INDEX="<< parameters.stage_index >>"
             bash .circleci/scripts/verify-brave-remote-smoke.sh
       - run:
+          name: Plan exact pending Brave actions and enforce the handoff frontier
+          no_output_timeout: 20m
+          command: |
+            set -euo pipefail
+            ROOT="$CIRCLE_WORKING_DIRECTORY"
+            SRC="$ROOT/brave-work/src"
+            OUT="$SRC/out/android_Release_arm64"
+            DEPOT_TOOLS="$SRC/brave/vendor/depot_tools"
+            export PATH="$DEPOT_TOOLS:$PATH"
+            export DEPOT_TOOLS_UPDATE=0
+            export SISO_LIMITS="local=8,remote=80"
+            export PYTHONPATH="$SRC/brave/script:$SRC/tools/grit/grit/extern:$SRC/brave/vendor/requests:$SRC/build:$DEPOT_TOOLS${PYTHONPATH:+:$PYTHONPATH}"
+            python3 -m py_compile .circleci/scripts/brave-action-ledger.py
+            python3 .circleci/scripts/brave-action-ledger.py plan \
+              --src "$SRC" \
+              --out "$OUT" \
+              --autoninja "$DEPOT_TOOLS/autoninja" \
+              --stage "<< parameters.stage_index >>" \
+              --build "${CIRCLE_BUILD_NUM:-local}" \
+              --workflow "${CIRCLE_WORKFLOW_ID:-local}" \
+              --jobs 80
+      - run:
           name: Build bounded Brave Android APK slice
           no_output_timeout: 45m
           command: |
@@ -1743,10 +1765,14 @@ jobs:
             INITIAL_BUILD_RC=0
             trap 'rc=$?; BRAVE_BUILD_EXIT_CODE="${BUILD_RC:-$rc}" BRAVE_BUILD_INITIAL_EXIT_CODE="${INITIAL_BUILD_RC:-not_set}" BRAVE_BUILD_INITIAL_TIMEOUT="$([ "${INITIAL_BUILD_RC:-0}" -eq 124 ] && echo true || ([ "${INITIAL_BUILD_RC:-0}" -eq 130 ] && echo true || echo false))" bash "$ROOT/.circleci/scripts/capture-brave-siso-checkpoint.sh" after-build || echo "BRAVE_SISO_DIAGNOSTICS=WARNING after-build capture failed"; exit "$rc"' EXIT
             export SISO_LIMITS="local=8,remote=80"
+            # Each CircleCI job gets a unique metrics file because Siso rotates
+            # and truncates a reused -metrics_json filename at invocation start.
+            METRICS_PREFIX="sandium-brave-action-stage-${BRAVE_STAGE_INDEX}-build-${CIRCLE_BUILD_NUM:-local}-attempt-"
+            METRICS_FILE="${METRICS_PREFIX}0.jsonl"
             # Brave's preserved .sisorc supplies --reapi_keep_exec_stream and the
             # googlechrome remote-execution configuration to autoninja/Siso.
-            echo "BRAVE_BUILD_SLICE_BUDGET_SECONDS=2100 (35 minutes); avoid cutting off near-complete Siso action queues at the old 25-minute boundary."
-            timeout --signal=INT --kill-after=60s 2100s autoninja -strict_remote -metrics_json sandium-brave-siso-metrics.json -C "$OUT" -j80 brave || BUILD_RC=$?
+            echo "BRAVE_BUILD_SLICE_BUDGET_SECONDS=2100 (35 minutes); metrics=$METRICS_FILE"
+            timeout --signal=INT --kill-after=60s 2100s autoninja -strict_remote -metrics_json "$METRICS_FILE" -C "$OUT" -j80 brave || BUILD_RC=$?
             INITIAL_BUILD_RC="$BUILD_RC"
 
             # Siso treats REAPI FailedPrecondition/missing-CAS-input errors as
@@ -1762,7 +1788,8 @@ jobs:
               bash "$ROOT/.circleci/scripts/recover-siso-missing-cas-inputs.sh" "$OUT"
               BUILD_RC=0
               echo "BRAVE_BUILD_RESUME=START mode=strict-remote timeout_seconds=900"
-              timeout --signal=INT --kill-after=60s 900s autoninja -strict_remote -C "$OUT" -j80 brave || BUILD_RC=$?
+              RECOVERY_METRICS_FILE="${METRICS_PREFIX}${CAS_RECOVERY_COUNT}.jsonl"
+              timeout --signal=INT --kill-after=60s 900s autoninja -strict_remote -metrics_json "$RECOVERY_METRICS_FILE" -C "$OUT" -j80 brave || BUILD_RC=$?
             done
 
             if [ "$BUILD_RC" -eq 124 ] || [ "$BUILD_RC" -eq 130 ]; then
@@ -1779,6 +1806,31 @@ jobs:
             else
               echo "BRAVE_CHECKPOINT_VALIDATION=PASS; GN graph and incremental output tree retained."
             fi
+      - run:
+          name: Reconcile Siso action metrics with the remaining action frontier
+          no_output_timeout: 20m
+          command: |
+            set -euo pipefail
+            ROOT="$CIRCLE_WORKING_DIRECTORY"
+            SRC="$ROOT/brave-work/src"
+            OUT="$SRC/out/android_Release_arm64"
+            DEPOT_TOOLS="$SRC/brave/vendor/depot_tools"
+            STAGE="<< parameters.stage_index >>"
+            BUILD_NUM="${CIRCLE_BUILD_NUM:-local}"
+            METRICS_PREFIX="sandium-brave-action-stage-${STAGE}-build-${BUILD_NUM}-attempt-"
+            export PATH="$DEPOT_TOOLS:$PATH"
+            export DEPOT_TOOLS_UPDATE=0
+            export SISO_LIMITS="local=8,remote=80"
+            export PYTHONPATH="$SRC/brave/script:$SRC/tools/grit/grit/extern:$SRC/brave/vendor/requests:$SRC/build:$DEPOT_TOOLS${PYTHONPATH:+:$PYTHONPATH}"
+            python3 .circleci/scripts/brave-action-ledger.py complete \
+              --src "$SRC" \
+              --out "$OUT" \
+              --autoninja "$DEPOT_TOOLS/autoninja" \
+              --stage "$STAGE" \
+              --build "$BUILD_NUM" \
+              --workflow "${CIRCLE_WORKFLOW_ID:-local}" \
+              --jobs 80 \
+              --metrics-prefix "$METRICS_PREFIX"
       - run:
           name: Export APK status and artifacts
           when: always
