@@ -355,6 +355,8 @@ def main():
         die(f"ACTION_REEXECUTION_GATE=FAIL {len(revisited)} previously completed actions appeared again")
     before, added = int(active["pending_before"]), len(metrics)
     after, after_dry = dry_run_count(autoninja, src, out, a.jobs)
+    if before > 0 and added == 0 and after == before:
+        die("ACTION_STAGE_NO_PROGRESS=FAIL this stage completed zero new actions and left the pending frontier unchanged")
     if added + after != before:
         die("ACTION_COMPLETION_MATH=FAIL before=%d successful_new_actions=%d after=%d stats=%s dry=%s" %
             (before, added, after, json.dumps(stats, sort_keys=True), json.dumps(after_dry, sort_keys=True)))
