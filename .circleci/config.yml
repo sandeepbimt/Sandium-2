@@ -1510,6 +1510,12 @@ jobs:
             set -euo pipefail
             export BRAVE_STAGE_INDEX="<< parameters.stage_index >>"
             bash .circleci/scripts/prepare-brave-source.sh
+      - run:
+          name: Diagnose restored Siso checkpoint and compare prior stage
+          command: |
+            set -euo pipefail
+            export BRAVE_STAGE_INDEX="<< parameters.stage_index >>"
+            bash .circleci/scripts/capture-brave-siso-checkpoint.sh restore
       - save_cache:
           name: Save Ubuntu Android build-dependency package cache
           key: sandium-brave-apt-v1-ubuntu2404-{{ .Branch }}-{{ epoch }}
@@ -1658,6 +1664,8 @@ jobs:
                 )
             print("BRAVE_GCLIENT_ROOT_GATE=PASS src=%s" % actual)
             PY
+            bash "$ROOT/.circleci/scripts/capture-brave-siso-checkpoint.sh" before-build
+            trap 'rc=$?; BRAVE_BUILD_EXIT_CODE="$rc" bash "$ROOT/.circleci/scripts/capture-brave-siso-checkpoint.sh" after-build || echo "BRAVE_SISO_DIAGNOSTICS=WARNING after-build capture failed"; exit "$rc"' EXIT
             export SISO_LIMITS="local=8,remote=80"
             BUILD_RC=0
             # Brave's preserved .sisorc supplies --reapi_keep_exec_stream and the
@@ -1765,6 +1773,12 @@ jobs:
             } > "$ROOT/brave-work/.sandium/checkpoint-manifest.txt"
             echo "CHECKPOINT_SAVE=PASS"
             cat "$ROOT/brave-work/.sandium/checkpoint-manifest.txt"
+      - run:
+          name: Capture final Siso checkpoint state before cache save
+          command: |
+            set -euo pipefail
+            export BRAVE_STAGE_INDEX="<< parameters.stage_index >>"
+            bash .circleci/scripts/capture-brave-siso-checkpoint.sh checkpoint-ready
       - save_cache:
           name: Save validated Brave workspace checkpoint
           key: sandium-brave-valid-v3-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-<< parameters.stage_index >>
@@ -1783,6 +1797,10 @@ jobs:
             for file in siso.INFO siso_output siso_failed_commands.sh; do
               if [ -e "$OUT/$file" ]; then cp -a "$OUT/$file" "$DIAGNOSTICS/"; fi
             done
+            CHECKPOINT_DIAGNOSTICS="$ROOT/brave-work/.sandium/checkpoint-diagnostics"
+            if [ -d "$CHECKPOINT_DIAGNOSTICS" ]; then
+              cp -a "$CHECKPOINT_DIAGNOSTICS" "$ROOT/brave-apk/"
+            fi
             APK="$OUT/apks/BraveMonoarm64.apk"
             ANDROID_BUILD_TOOLS="$ROOT/brave-work/src/third_party/android_sdk/public/build-tools/37.0.0"
             APKSIGNER="$ANDROID_BUILD_TOOLS/apksigner"
