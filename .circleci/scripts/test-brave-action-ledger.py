@@ -136,7 +136,14 @@ if "-n" in args:
 
         # A previously completed action must not execute again.
         stage2_metrics = out / "test-stage2-0.jsonl"
-        write_metrics(stage2_metrics, [0, *range(88, 99)])
+        duplicate_action = metric(0)
+        # Same output + command, but a different input action digest must still
+        # be recognized as the same logical work unit and rejected.
+        duplicate_action["digest"] = "sha256:" + ("f" * 64)
+        rows = [duplicate_action, *(metric(i) for i in range(88, 99))]
+        with stage2_metrics.open("w", encoding="utf-8") as stream:
+            for row in rows:
+                stream.write(json.dumps(row) + "\\n")
         pending_file.write_text("[]", encoding="utf-8")
         duplicate = run(["complete", *common, "--stage", "2", "--build", "202",
                          "--workflow", "workflow-two",
