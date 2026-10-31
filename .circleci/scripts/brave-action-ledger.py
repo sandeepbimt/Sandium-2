@@ -386,8 +386,24 @@ def main():
     revisited = set(metrics).intersection(previous)
     if revisited:
         die(f"ACTION_REEXECUTION_GATE=FAIL {len(revisited)} previously completed actions appeared again")
-    before, added = int(active["pending_before"]), len(metrics)
-    after, after_dry = dry_run_count(autoninja, src, out, a.jobs)
+    pending_before_keys = set(active.get("pending_action_keys", []))
+    if len(pending_before_keys) != int(active.get("pending_before", -1)):
+        die("ACTION_LEDGER_STAGE=FAIL missing or invalid pending action identity set")
+    unknown = set(metrics) - pending_before_keys
+    if unknown:
+        die("ACTION_UNPLANNED_EXECUTION=FAIL %d successful action(s) were not in the stage's pre-build dry-run set; examples=%s" %
+            (len(unknown), sorted(unknown)[:5]))
+    before, added = len(pending_before_keys), len(metrics)
+    after_keys, after_dry = dry_run_actions(autoninja, src, out, a.jobs,
+                                             a.stage, a.build, a.workflow)
+    expected_after_keys = pending_before_keys - set(metrics)
+    if after_keys != expected_after_keys:
+        appeared = sorted(after_keys - expected_after_keys)
+        vanished = sorted(expected_after_keys - after_keys)
+        die("ACTION_COMPLETION_SET=FAIL pending-before minus completed does not equal live post-build pending set; "
+            "unexpected_pending=%d unexpectedly_resolved=%d examples_pending=%s examples_resolved=%s" %
+            (len(appeared), len(vanished), appeared[:5], vanished[:5]))
+    after = len(after_keys)
     if before > 0 and added == 0 and after == before:
         die("ACTION_STAGE_NO_PROGRESS=FAIL this stage completed zero new actions and left the pending frontier unchanged")
     if added + after != before:
@@ -406,6 +422,7 @@ def main():
                              "after_dry_run": after_dry,
                              "completed_total": len(ledger["completed"]),
                              "recorded_at_epoch": now})
+    ledger["next_pending_action_keys"] = sorted(after_keys)
     ledger.pop("active_stage", None)
     total, done = int(ledger["planned_total"]), len(ledger["completed"])
     if done > total:
