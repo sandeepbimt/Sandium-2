@@ -67,23 +67,30 @@ def main():
 
         autoninja = root / "autoninja"
         autoninja.write_text(
-            "#!/usr/bin/env python3\n"
-            "import os\n"
-            "n=int(open(os.environ['LEDGER_TEST_PENDING']).read())\n"
-            "if n == 0:\n"
-            " print('ninja: no work to do.')\n"
-            "else:\n"
-            " for i in range(1,n+1): print(f'[{i}/{n}] test action {i}')\n",
+            "#!/usr/bin/env python3\\n"
+            "import json, os, pathlib, sys\\n"
+            "args=sys.argv[1:]\\n"
+            "out=pathlib.Path(args[args.index('-C')+1])\\n"
+            "metrics=args[args.index('-metrics_json')+1]\\n"
+            "ids=json.loads(pathlib.Path(os.environ['LEDGER_TEST_PENDING_IDS']).read_text())\\n"
+            "if '-n' in args:\\n"
+            " p=out/metrics\\n"
+            " with p.open('w', encoding='utf-8') as f:\\n"
+            "  for i in ids:\\n"
+            "   row={'step_id':f'//obj/action-{i:03d}.o','rule':'cxx','action':'compile','outputs':[f'obj/action-{i:03d}.o'],'cmdhash':f'cmdhash-{i:03d}','digest':f'sha256:{i:064x}','is_remote':True,'is_local':False,'cached':False,'no_exec':True,'err':False}\\n"
+            "   f.write(json.dumps(row)+'\\n')\\n"
+            " if not ids: print('ninja: no work to do.')\\n"
+            " else: print(f'DRY_RUN_PENDING_ACTIONS={len(ids)}')\\n",
             encoding="utf-8")
         autoninja.chmod(0o755)
-        pending_file = root / "pending.txt"
+        pending_file = root / "pending_ids.json"
         env = os.environ.copy()
-        env["LEDGER_TEST_PENDING"] = str(pending_file)
+        env["LEDGER_TEST_PENDING_IDS"] = str(pending_file)
 
         common = ["--src", str(src), "--out", str(out),
                   "--autoninja", str(autoninja), "--jobs", "80"]
 
-        pending_file.write_text("100", encoding="utf-8")
+        pending_file.write_text(json.dumps(list(range(100))), encoding="utf-8")
         out.mkdir(parents=True, exist_ok=True)
         out.mkdir(parents=True, exist_ok=True)
         plan1 = run(["plan", *common, "--stage", "1", "--build", "101",
@@ -92,7 +99,7 @@ def main():
 
         stage1_metrics = out / "test-stage1-0.jsonl"
         write_metrics(stage1_metrics, range(88))
-        pending_file.write_text("12", encoding="utf-8")
+        pending_file.write_text(json.dumps(list(range(88, 100))), encoding="utf-8")
         done1 = run(["complete", *common, "--stage", "1", "--build", "101",
                      "--workflow", "workflow-one",
                      "--metrics-prefix", "test-stage1-"], env)
@@ -113,7 +120,7 @@ def main():
         # A previously completed action must not execute again.
         stage2_metrics = out / "test-stage2-0.jsonl"
         write_metrics(stage2_metrics, [0, *range(88, 99)])
-        pending_file.write_text("0", encoding="utf-8")
+        pending_file.write_text("[]", encoding="utf-8")
         duplicate = run(["complete", *common, "--stage", "2", "--build", "202",
                          "--workflow", "workflow-two",
                          "--metrics-prefix", "test-stage2-"], env, expected=2)
