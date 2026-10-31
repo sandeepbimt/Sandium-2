@@ -97,6 +97,8 @@ if "-n" in args:
     if not ids:
         print("ninja: no work to do.")
     else:
+        for i in range(1, len(ids) + 1):
+            print(f"[{i}/{len(ids)}] dry-run action")
         print(f"DRY_RUN_PENDING_ACTIONS={len(ids)}")
 """, encoding="utf-8")
         autoninja.chmod(0o755)
