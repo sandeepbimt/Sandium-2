@@ -1697,6 +1697,7 @@ jobs:
             export SISO_LIMITS="local=8,remote=80"
             export PYTHONPATH="$SRC/brave/script:$SRC/tools/grit/grit/extern:$SRC/brave/vendor/requests:$SRC/build:$DEPOT_TOOLS${PYTHONPATH:+:$PYTHONPATH}"
             python3 -m py_compile .circleci/scripts/brave-action-ledger.py
+            python3 .circleci/scripts/test-brave-action-ledger.py
             python3 .circleci/scripts/brave-action-ledger.py plan \
               --src "$SRC" \
               --out "$OUT" \
@@ -1844,6 +1845,11 @@ jobs:
             for file in siso.INFO siso_output siso_failed_commands.sh sandium-brave-siso-metrics.json; do
               if [ -e "$OUT/$file" ]; then cp -a "$OUT/$file" "$DIAGNOSTICS/"; fi
             done
+            for file in "$OUT"/sandium-brave-siso-metrics*.json "$OUT"/sandium-brave-action-stage-*.jsonl; do
+              [ -f "$file" ] && cp -a "$file" "$DIAGNOSTICS/"
+            done
+            LEDGER="$ROOT/brave-work/.sandium/action-ledger.json"
+            if [ -s "$LEDGER" ]; then cp -a "$LEDGER" "$DIAGNOSTICS/"; fi
             CHECKPOINT_DIAGNOSTICS="$ROOT/brave-work/.sandium/checkpoint-diagnostics"
             if [ -d "$CHECKPOINT_DIAGNOSTICS" ]; then
               cp -a "$CHECKPOINT_DIAGNOSTICS" "$ROOT/brave-apk/"
@@ -1979,8 +1985,29 @@ jobs:
             test "$CHROMIUM_SHA" = "d331de35ca8ab1358c7a17e4bd41627d55eaef51" || { echo "CHECKPOINT_SAVE=REFUSED Chromium SHA mismatch: $CHROMIUM_SHA" >&2; exit 1; }
             test "$BRAVE_TAG" = "v1.98.62" || { echo "CHECKPOINT_SAVE=REFUSED Brave tag mismatch: $BRAVE_TAG" >&2; exit 1; }
             mkdir -p "$ROOT/brave-work/.sandium"
+            ACTION_LEDGER="$ROOT/brave-work/.sandium/action-ledger.json"
+            test -s "$ACTION_LEDGER" || { echo "CHECKPOINT_SAVE=REFUSED missing action-level continuation ledger" >&2; exit 1; }
+            python3 - "$ACTION_LEDGER" <<'PY'
+            import json
+            import sys
+
+            with open(sys.argv[1], encoding="utf-8") as f:
+                ledger = json.load(f)
+            if ledger.get("schema_version") != 1:
+                raise SystemExit("CHECKPOINT_ACTION_LEDGER=FAIL unsupported schema")
+            if ledger.get("active_stage"):
+                raise SystemExit("CHECKPOINT_ACTION_LEDGER=FAIL active stage was not reconciled")
+            total = int(ledger.get("planned_total", -1))
+            completed = len(ledger.get("completed", {}))
+            if total < 0 or completed > total:
+                raise SystemExit("CHECKPOINT_ACTION_LEDGER=FAIL invalid completed/total values")
+            print("CHECKPOINT_ACTION_LEDGER=PASS completed=%d total=%d remaining=%d" %
+                  (completed, total, total - completed))
+            PY
             {
               echo "CHECKPOINT_VALID=true"
+              echo "ACTION_LEDGER_TOTAL=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["planned_total"])' "$ACTION_LEDGER")"
+              echo "ACTION_LEDGER_COMPLETED=$(python3 -c 'import json,sys; print(len(json.load(open(sys.argv[1]))["completed"]))' "$ACTION_LEDGER")"
               echo "BRAVE_CORE_TAG=$BRAVE_TAG"
               echo "CHROMIUM_SHA=$CHROMIUM_SHA"
               echo "TARGET=android-arm64"
