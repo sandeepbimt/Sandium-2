@@ -45,6 +45,8 @@ record_file() {
   echo "CAPTURED_AT_UTC=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
   echo "CAPTURED_EPOCH=$(date +%s)"
   echo "BUILD_EXIT_CODE=$(printenv BRAVE_BUILD_EXIT_CODE || echo not_set)"
+  echo "BUILD_INITIAL_EXIT_CODE=$(printenv BRAVE_BUILD_INITIAL_EXIT_CODE || echo not_set)"
+  echo "BUILD_INITIAL_TIMEOUT=$(printenv BRAVE_BUILD_INITIAL_TIMEOUT || echo not_set)"
   echo "OUT_EXISTS=$([ -d "$OUT" ] && echo true || echo false)"
   if [ -d "$OUT" ]; then
     record_file BUILD_NINJA "$OUT/build.ninja"
@@ -56,6 +58,7 @@ record_file() {
     record_file NINJA_DEPS "$OUT/.ninja_deps"
     record_file SISO_INFO "$OUT/siso.INFO" no
     record_file SISO_OUTPUT "$OUT/siso_output" no
+    record_file SISO_METRICS "$OUT/sandium-brave-siso-metrics.json" no
     if [ -s "$OUT/build.ninja" ]; then
       echo "BUILD_NINJA_EDGE_COUNT=$(grep -c '^build ' "$OUT/build.ninja" || true)"
     else

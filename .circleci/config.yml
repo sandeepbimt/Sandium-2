@@ -1666,12 +1666,14 @@ jobs:
             print("BRAVE_GCLIENT_ROOT_GATE=PASS src=%s" % actual)
             PY
             bash "$ROOT/.circleci/scripts/capture-brave-siso-checkpoint.sh" before-build
-            trap 'rc=$?; BRAVE_BUILD_EXIT_CODE="$rc" bash "$ROOT/.circleci/scripts/capture-brave-siso-checkpoint.sh" after-build || echo "BRAVE_SISO_DIAGNOSTICS=WARNING after-build capture failed"; exit "$rc"' EXIT
-            export SISO_LIMITS="local=8,remote=80"
             BUILD_RC=0
+            INITIAL_BUILD_RC=0
+            trap 'rc=$?; BRAVE_BUILD_EXIT_CODE="${BUILD_RC:-$rc}" BRAVE_BUILD_INITIAL_EXIT_CODE="${INITIAL_BUILD_RC:-not_set}" BRAVE_BUILD_INITIAL_TIMEOUT="$([ "${INITIAL_BUILD_RC:-0}" -eq 124 ] && echo true || ([ "${INITIAL_BUILD_RC:-0}" -eq 130 ] && echo true || echo false))" bash "$ROOT/.circleci/scripts/capture-brave-siso-checkpoint.sh" after-build || echo "BRAVE_SISO_DIAGNOSTICS=WARNING after-build capture failed"; exit "$rc"' EXIT
+            export SISO_LIMITS="local=8,remote=80"
             # Brave's preserved .sisorc supplies --reapi_keep_exec_stream and the
             # googlechrome remote-execution configuration to autoninja/Siso.
-            timeout --signal=INT --kill-after=60s 1500s autoninja -strict_remote -C "$OUT" -j80 brave || BUILD_RC=$?
+            timeout --signal=INT --kill-after=60s 1500s autoninja -strict_remote -metrics_json sandium-brave-siso-metrics.json -C "$OUT" -j80 brave || BUILD_RC=$?
+            INITIAL_BUILD_RC="$BUILD_RC"
 
             # Siso treats REAPI FailedPrecondition/missing-CAS-input errors as
             # non-fallback failures. Recover only those failed object outputs
@@ -1795,7 +1797,7 @@ jobs:
             mkdir -p "$ROOT/brave-apk"
             DIAGNOSTICS="$ROOT/brave-apk/siso-diagnostics"
             mkdir -p "$DIAGNOSTICS"
-            for file in siso.INFO siso_output siso_failed_commands.sh; do
+            for file in siso.INFO siso_output siso_failed_commands.sh sandium-brave-siso-metrics.json; do
               if [ -e "$OUT/$file" ]; then cp -a "$OUT/$file" "$DIAGNOSTICS/"; fi
             done
             CHECKPOINT_DIAGNOSTICS="$ROOT/brave-work/.sandium/checkpoint-diagnostics"
