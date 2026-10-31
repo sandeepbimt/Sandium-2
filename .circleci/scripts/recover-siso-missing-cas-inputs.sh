@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-OUT="${1:?usage: recover-siso-missing-cas-inputs.sh <out-dir>}"
+OUT="${1:?usage: recover-siso-missing-cas-inputs.sh <out-dir> <metrics-jsonl>}"
+METRICS_FILE="${2:?usage: recover-siso-missing-cas-inputs.sh <out-dir> <metrics-jsonl>}"
 OUT="$(realpath "$OUT")"
 ROOT="${CIRCLE_WORKING_DIRECTORY:?CIRCLE_WORKING_DIRECTORY must be set}"
 LOG="$OUT/siso_output"
@@ -76,7 +77,7 @@ command -v autoninja >/dev/null 2>&1 || {
 # full target build. This avoids changing the normal remote execution policy.
 export SISO_LIMITS="local=8"
 timeout --signal=INT --kill-after=30s 600s \
-  autoninja --offline -C "$OUT" -j8 "${TARGETS[@]}" \
+  autoninja --offline -metrics_json "$METRICS_FILE" -C "$OUT" -j8 "${TARGETS[@]}" \
   2>&1 | tee "$DIAGNOSTICS/missing-cas-local-recovery-$STAMP.log"
 
 for target in "${TARGETS[@]}"; do
