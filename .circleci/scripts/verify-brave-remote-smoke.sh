@@ -10,11 +10,12 @@ PYTHON_REMOTE_WRAPPER="$SRC/buildtools/reclient_cfgs/python/python_remote_wrappe
 SISO_BRAVE_CONFIG="$SRC/build/config/siso/brave_siso_config.star"
 DIAGNOSTICS="$ROOT/brave-apk/siso-diagnostics"
 
-# Run the worker compatibility preflight exactly once, in Stage 2.
-# Stages 3-5 inherit the validated Stage 2 workspace; do not re-clobber the
-# expensive host-tool dependency graph on every checkpoint transition.
-if [ "$STAGE" != "2" ]; then
-  echo "BRAVE_REMOTE_SMOKE=SKIP stage=$STAGE reason=stage-2-preflight-only"
+# Run the worker compatibility preflight exactly once, in Stage 1, after
+# the exact pending action set has been snapshotted by brave-action-ledger.py.
+# Do not clobber: smoke actions must be a subset of that snapshot and may not
+# rerun work completed in an earlier checkpoint. Stage 2+ inherit this result.
+if [ "$STAGE" != "1" ]; then
+  echo "BRAVE_REMOTE_SMOKE=SKIP stage=$STAGE reason=stage-1-preflight-only"
   exit 0
 fi
 
@@ -86,8 +87,10 @@ FAILED_REMOTE_TARGET="$PROTO_SMOKE_TARGET"
 echo "BRAVE_PROTO_REMOTE_SMOKE=START target=$PROTO_SMOKE_TARGET strict_remote=true remote_jobs=$REMOTE_JOBS timeout_seconds=600"
 # The first pass compiles the host protoc/cppgen prerequisites as well as the
 # generator action. Use the remote pool in parallel; keep a bounded 10m cap.
+METRICS_PREFIX="sandium-brave-action-stage-${STAGE}-build-${CIRCLE_BUILD_NUM:-local}-attempt-"
+SMOKE_METRICS="${METRICS_PREFIX}smoke.jsonl"
 timeout --signal=INT --kill-after=30s 600s \
-  autoninja -strict_remote -C "$OUT" "-j$REMOTE_JOBS" --clobber "$PROTO_SMOKE_TARGET"
+  autoninja -strict_remote -metrics_json "$SMOKE_METRICS" -C "$OUT" "-j$REMOTE_JOBS" "$PROTO_SMOKE_TARGET"
 
 test -s "$PROTO_SMOKE_OUTPUT" || {
   echo "BRAVE_PROTO_REMOTE_SMOKE=FAIL target completed without $PROTO_SMOKE_OUTPUT" >&2
