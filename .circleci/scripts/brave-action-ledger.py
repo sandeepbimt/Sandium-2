@@ -76,11 +76,17 @@ def fingerprint(src: Path, out: Path) -> dict:
                                             separators=(",", ":")).encode())
     return result
 
-def dry_run_count(autoninja: Path, src: Path, out: Path, jobs: int) -> tuple[int, dict]:
-    # Count the unique progress ordinals, not Siso's displayed denominator:
-    # Siso may revise that denominator as it discovers/schedules dependencies.
-    cmd = [str(autoninja), "-strict_remote", "-n", "-C", str(out),
-           f"-j{jobs}", "brave"]
+def dry_run_actions(autoninja: Path, src: Path, out: Path, jobs: int,
+                    stage: int, build: str, workflow: str) -> tuple[set[str], dict]:
+    # Run Siso's native dry-run and collect its own action metrics. Dry-run
+    # builds the scheduler plan but does not execute the commands; the action
+    # identities are therefore the exact pending frontier for this target.
+    safe = re.sub(r"[^A-Za-z0-9_.-]", "_", f"{workflow}-{build}-stage-{stage}")
+    metrics_name = f".sandium-action-plan-{safe}.jsonl"
+    metrics_path = out / metrics_name
+    metrics_path.unlink(missing_ok=True)
+    cmd = [str(autoninja), "-strict_remote", "-n", "-metrics_json",
+           metrics_name, "-C", str(out), f"-j{jobs}", "brave"]
     env = os.environ.copy()
     env["SISO_LIMITS"] = "local=8,remote=80"
     with tempfile.TemporaryFile(mode="w+t", encoding="utf-8", errors="replace") as log:
@@ -94,34 +100,36 @@ def dry_run_count(autoninja: Path, src: Path, out: Path, jobs: int) -> tuple[int
             die("ACTION_PLAN_DRY_RUN=FAIL timed out after 900 seconds")
         log.flush()
         log.seek(0)
-        ordinals, denominators = set(), set()
-        no_work = False
         tail = []
+        no_work = False
         for line in log:
             line = line.rstrip("\r\n")
             if line:
                 tail.append(line)
-                tail = tail[-10:]
-            m = PROGRESS.match(line)
-            if m:
-                ordinals.add(int(m.group(1)))
-                denominators.add(int(m.group(2)))
+                tail = tail[-20:]
             if "no work to do" in line.lower():
                 no_work = True
         if rc:
-            die("ACTION_PLAN_DRY_RUN=FAIL autoninja returned %d\n%s" %
-                (rc, "\n".join(tail)))
-    if not ordinals:
-        if no_work or not tail:
-            return 0, {"progress_ordinals": 0, "display_denominators": []}
-        die("ACTION_PLAN_DRY_RUN=FAIL unrecognised dry-run output; refusing to guess\n%s"
-            % "\n".join(tail))
-    maximum = max(ordinals)
-    if min(ordinals) != 1 or len(ordinals) != maximum:
-        die("ACTION_PLAN_DRY_RUN=FAIL non-contiguous progress ordinals "
-            f"unique={len(ordinals)} max={maximum} denominators={sorted(denominators)}")
-    return len(ordinals), {"progress_ordinals": len(ordinals),
-                           "display_denominators": sorted(denominators)}
+            die("ACTION_PLAN_DRY_RUN=FAIL autoninja returned %d\\n%s" %
+                (rc, "\\n".join(tail)))
+    actions, stats = read_metrics(out, "__no_plan_metrics_prefix__", [metrics_path])
+    if not actions:
+        if no_work and not metrics_path.exists():
+            return set(), {"metrics_file": metrics_name, "metrics": stats,
+                           "no_work": True}
+        if no_work and stats["records"] == 0:
+            return set(), {"metrics_file": metrics_name, "metrics": stats,
+                           "no_work": True}
+        die("ACTION_PLAN_DRY_RUN=FAIL Siso dry-run did not emit per-action metrics; "
+            "cannot produce an exact pending action set. Output tail:\\n%s" %
+            "\\n".join(tail))
+    if stats["failed_records"]:
+        die("ACTION_PLAN_DRY_RUN=FAIL dry-run metrics contain %d failed action records" %
+            stats["failed_records"])
+    keys = set(actions)
+    return keys, {"metrics_file": metrics_name, "metrics": stats,
+                  "no_work": False, "action_count": len(keys)}
+
 
 def load(path: Path):
     if not path.exists():
@@ -276,7 +284,9 @@ def main():
     path = src.parent / ".sandium" / "action-ledger.json"
     ident = fingerprint(src, out)
     ledger = load(path)
-    pending, dry = dry_run_count(autoninja, src, out, a.jobs)
+    pending_keys, dry = dry_run_actions(autoninja, src, out, a.jobs,
+                                             a.stage, a.build, a.workflow)
+    pending = len(pending_keys)
     run_id = f"{a.workflow}:{a.build}:stage-{a.stage}"
 
     if a.phase == "plan":
@@ -306,24 +316,33 @@ def main():
                     (len(uncovered), ", ".join(uncovered[:8])))
             if object_files and not logged_outputs:
                 die("ACTION_LEDGER_BOOTSTRAP=REFUSED object files exist but .ninja_log has no output records")
+            # A retained metrics row may describe an action that is pending
+            # again because its output was invalidated. The live Siso dry-run
+            # is authoritative: such an action belongs to pending, not done.
+            stale_completed = set(seed_actions).intersection(pending_keys)
             seed_completed = {}
             for key, item in seed_actions.items():
+                if key in stale_completed:
+                    continue
                 seed_completed[key] = {
                     "identity": item["identity"], "completed_by": "legacy-siso-metrics",
                     "completed_at_epoch": int(time.time()), "cached": item["cached"],
                     "is_remote": item["is_remote"], "is_local": item["is_local"],
                     "no_exec": item["no_exec"]}
             ledger = {"schema_version": SCHEMA, "identity": ident,
-                      "baseline_scope": "retained_completed_actions_plus_current_pending_graph",
+                      "baseline_scope": "retained_completed_actions_plus_live_siso_pending_action_set",
                       "planned_total": len(seed_completed) + pending,
                       "completed": seed_completed, "stages": [],
+                      "next_pending_action_keys": sorted(pending_keys),
                       "legacy_seed": {"files": seed_stats["files"],
                                       "unique_completed_actions": len(seed_completed),
+                                      "stale_metric_actions_reclassified_pending": len(stale_completed),
                                       "ninja_log_outputs": len(logged_outputs),
                                       "covered_ninja_log_outputs": len(logged_outputs)},
                       "created_at_epoch": int(time.time())}
-            print("ACTION_LEDGER_BOOTSTRAP=PASS retained_completed=%d pending=%d total=%d metrics_files=%d" %
-                  (len(seed_completed), pending, len(seed_completed) + pending, len(seed_stats["files"])))
+            print("ACTION_LEDGER_BOOTSTRAP=PASS retained_completed=%d pending=%d total=%d metrics_files=%d reclassified_pending=%d" %
+                  (len(seed_completed), pending, len(seed_completed) + pending,
+                   len(seed_stats["files"]), len(stale_completed)))
         elif ledger.get("identity", {}).get("fingerprint") != ident.get("fingerprint"):
             die("ACTION_LEDGER_IDENTITY=FAIL build graph/source/config fingerprint changed")
         active_before = ledger.get("active_stage")
@@ -337,11 +356,18 @@ def main():
         if pending != expected:
             die("ACTION_HANDOFF_GATE=FAIL expected_pending=%d dry_run_pending=%d completed=%d total=%d; "
                 "stopping before compilation" % (expected, pending, done, total))
+        expected_keys = set(ledger.get("next_pending_action_keys", []))
+        if expected_keys != pending_keys:
+            added = sorted(pending_keys - expected_keys)
+            missing = sorted(expected_keys - pending_keys)
+            die("ACTION_HANDOFF_SET_GATE=FAIL pending action identity set changed; "
+                "new=%d missing=%d examples_new=%s examples_missing=%s" %
+                (len(added), len(missing), added[:5], missing[:5]))
         ledger["active_stage"] = {"run_id": run_id, "workflow": a.workflow,
                                   "build": a.build, "stage": a.stage,
-                                  "pending_before": pending, "completed_before": done,
-                                  "planned_total": total, "dry_run": dry,
-                                  "planned_at_epoch": int(time.time())}
+                                  "pending_before": pending, "pending_action_keys": sorted(pending_keys),
+                                  "completed_before": done, "planned_total": total,
+                                  "dry_run": dry, "planned_at_epoch": int(time.time())}
         save(path, ledger)
         print(f"ACTION_HANDOFF_GATE=PASS pending={pending}/{expected}")
         print(f"SANDIUM_BUILD_MATH={done}/{total} complete; {pending}/{expected} pending")
