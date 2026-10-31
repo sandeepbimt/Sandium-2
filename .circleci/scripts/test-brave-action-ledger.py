@@ -107,12 +107,12 @@ def main():
         assert "SANDIUM_BUILD_MATH=88/100 complete; 12/12 pending" in done1, done1
 
         # The Stage 2 preflight must reject a replay-sized graph before compile.
-        pending_file.write_text("100", encoding="utf-8")
+        pending_file.write_text(json.dumps(list(range(100))), encoding="utf-8")
         wrong_plan = run(["plan", *common, "--stage", "2", "--build", "202",
                           "--workflow", "workflow-two"], env, expected=2)
         assert "ACTION_HANDOFF_GATE=FAIL expected_pending=12 dry_run_pending=100" in wrong_plan, wrong_plan
 
-        pending_file.write_text("12", encoding="utf-8")
+        pending_file.write_text(json.dumps(list(range(88, 100))), encoding="utf-8")
         plan2 = run(["plan", *common, "--stage", "2", "--build", "202",
                      "--workflow", "workflow-two"], env)
         assert "SANDIUM_BUILD_MATH=88/100 complete; 12/12 pending" in plan2, plan2
