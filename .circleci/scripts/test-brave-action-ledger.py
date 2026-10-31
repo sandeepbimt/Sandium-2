@@ -143,7 +143,7 @@ if "-n" in args:
         rows = [duplicate_action, *(metric(i) for i in range(88, 99))]
         with stage2_metrics.open("w", encoding="utf-8") as stream:
             for row in rows:
-                stream.write(json.dumps(row) + "\\n")
+                stream.write(json.dumps(row) + "\n")
         pending_file.write_text("[]", encoding="utf-8")
         duplicate = run(["complete", *common, "--stage", "2", "--build", "202",
                          "--workflow", "workflow-two",
