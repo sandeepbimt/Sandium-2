@@ -217,7 +217,8 @@ def metric_key(row: dict):
 def read_metrics(out: Path, prefix: str, extra_files=()):
     actions, stats = {}, {"files": [], "records": 0, "action_records": 0,
                           "summary_records": 0, "failed_records": 0,
-                          "duplicate_records": 0}
+                          "duplicate_records": 0,
+                          "successful_duplicate_records": 0}
     files = {p for p in out.glob(prefix + "*.jsonl") if p.is_file()}
     files.update(p for p in extra_files if p.is_file())
     files = sorted(files)
@@ -245,11 +246,13 @@ def read_metrics(out: Path, prefix: str, extra_files=()):
                 failed = any(row.get(k) is True for k in ("err", "scandeps_err", "deps_log_err"))
                 if failed:
                     stats["failed_records"] += 1
-                    if key not in actions:
-                        actions[key] = {"success": False, "identity": ident}
+                    stats["duplicate_records"] += int(key in actions)
+                    actions[key] = {"success": False, "identity": ident}
                     continue
                 if key in actions:
                     stats["duplicate_records"] += 1
+                    if actions[key].get("success"):
+                        stats["successful_duplicate_records"] += 1
                 actions[key] = {
                     "success": True, "identity": ident,
                     "cached": bool(row.get("cached")),
@@ -407,6 +410,9 @@ def main():
     if active.get("run_id") != run_id:
         die(f"ACTION_LEDGER_STAGE=FAIL active={active.get('run_id')} current={run_id}")
     metrics, stats = read_metrics(out, a.metrics_prefix)
+    if stats["successful_duplicate_records"]:
+        die("ACTION_DUPLICATE_WITHIN_STAGE=FAIL %d actions were successfully recorded more than once in this stage" %
+            stats["successful_duplicate_records"])
     if not stats["files"] and int(active.get("pending_before", 0)):
         die(f"ACTION_METRICS_MISSING=FAIL no files match {a.metrics_prefix}*.jsonl")
     previous = ledger["completed"]
