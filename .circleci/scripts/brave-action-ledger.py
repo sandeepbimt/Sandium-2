@@ -161,15 +161,22 @@ def metric_key(row: dict):
         die(f"ACTION_METRICS_SCHEMA=FAIL step_id={step_id!r} has no outputs and is not a no_exec handler")
     digest, cmdhash = str(row.get("digest") or ""), str(row.get("cmdhash") or "")
     rule, action = str(row.get("rule") or ""), str(row.get("action") or "")
-    if digest and cmdhash:
-        ident = {"outputs": outputs, "digest": digest, "cmdhash": cmdhash,
-                 "rule": rule, "action": action, "mode": "reapi-action"}
+    if cmdhash:
+        # Digest binds the action to its current input Merkle tree and is kept
+        # for audit, but it is intentionally not part of the logical work-unit
+        # key. The same output/command must not become "new work" just because
+        # a restored dependency digest changed between stages.
+        ident = {"outputs": outputs, "cmdhash": cmdhash,
+                 "rule": rule, "action": action, "action_digest": digest,
+                 "mode": "command-output-action"}
+        stable = {k: v for k, v in ident.items() if k != "action_digest"}
     elif row.get("no_exec") is True:
         ident = {"outputs": outputs, "step_id": step_id, "rule": rule,
                  "action": action, "mode": "no-exec-step"}
+        stable = ident
     else:
-        die(f"ACTION_METRICS_SCHEMA=FAIL step_id={step_id!r} missing digest/cmdhash")
-    key = sha(json.dumps(ident, sort_keys=True, separators=(",", ":")).encode())
+        die(f"ACTION_METRICS_SCHEMA=FAIL step_id={step_id!r} missing cmdhash")
+    key = sha(json.dumps(stable, sort_keys=True, separators=(",", ":")).encode())
     return key, ident
 
 def read_metrics(out: Path, prefix: str, extra_files=()):
