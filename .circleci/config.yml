@@ -1792,11 +1792,12 @@ jobs:
               && grep -Eq 'rpc error: code = FailedPrecondition desc = download inputs: could not (fetch inputs|get input tree): Digest hash:.*not found' "$OUT/siso_output"; do
               CAS_RECOVERY_COUNT=$((CAS_RECOVERY_COUNT + 1))
               echo "BRAVE_CAS_LOCAL_RECOVERY_ATTEMPT=$CAS_RECOVERY_COUNT"
-              bash "$ROOT/.circleci/scripts/recover-siso-missing-cas-inputs.sh" "$OUT"
+              LOCAL_RECOVERY_METRICS_FILE="${METRICS_PREFIX}${CAS_RECOVERY_COUNT}-local-recovery.jsonl"
+              bash "$ROOT/.circleci/scripts/recover-siso-missing-cas-inputs.sh" "$OUT" "$LOCAL_RECOVERY_METRICS_FILE"
               BUILD_RC=0
               echo "BRAVE_BUILD_RESUME=START mode=strict-remote timeout_seconds=900"
-              RECOVERY_METRICS_FILE="${METRICS_PREFIX}${CAS_RECOVERY_COUNT}.jsonl"
-              timeout --signal=INT --kill-after=60s 900s autoninja -strict_remote -metrics_json "$RECOVERY_METRICS_FILE" -C "$OUT" -j80 brave || BUILD_RC=$?
+              RESUME_METRICS_FILE="${METRICS_PREFIX}${CAS_RECOVERY_COUNT}-resume.jsonl"
+              timeout --signal=INT --kill-after=60s 900s autoninja -strict_remote -metrics_json "$RESUME_METRICS_FILE" -C "$OUT" -j80 brave || BUILD_RC=$?
             done
 
             if [ "$BUILD_RC" -eq 124 ] || [ "$BUILD_RC" -eq 130 ]; then
