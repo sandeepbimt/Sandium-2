@@ -1627,10 +1627,7 @@ jobs:
               echo "MISSING_REQUIRED_SECRET=BUILDBUDDY_API_KEY" >&2
               exit 1
             fi
-            if [ "<< parameters.stage_index >>" = "1" ]; then
-              echo "Stage 1 prepared the build graph. Compilation begins in the next stage."
-              exit 0
-            fi
+            echo "BRAVE_STAGE_COMPILE=START stage=<< parameters.stage_index >>; every stage must contribute real bounded compilation."
             # autoninja's Android build-server helper discovers the Chromium
             # checkout through gclient_paths.GetPrimarySolutionPath(), which
             # searches upward from the current directory for .gclient. CircleCI
