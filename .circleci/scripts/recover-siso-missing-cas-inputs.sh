@@ -16,7 +16,7 @@ if [ ! -s "$FAILED_COMMANDS" ]; then
   echo "BRAVE_CAS_LOCAL_RECOVERY=FAIL missing Siso failed-command script: $FAILED_COMMANDS" >&2
   exit 1
 fi
-if ! grep -Eq 'rpc error: code = FailedPrecondition desc = download inputs: could not fetch inputs: Digest hash:.*not found' "$LOG"; then
+if ! grep -Eq 'rpc error: code = FailedPrecondition desc = download inputs: could not (fetch inputs|get input tree): Digest hash:.*not found' "$LOG"; then
   echo "BRAVE_CAS_LOCAL_RECOVERY=FAIL log does not contain the expected missing-CAS-input signature" >&2
   exit 1
 fi
