@@ -1426,11 +1426,11 @@ jobs:
             equal: [2, << parameters.stage_index >>]
           steps:
             - restore_cache:
-                name: Restore verified APK marker for stage 2
+                name: Restore verified ARM64 APK + AAB marker for stage 2
                 keys:
                   - sandium-brave-aab-complete-v1-{{ .Branch }}-{{ .Revision }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-1
             - run:
-                name: Stop stage 2 when a prior stage published a verified APK
+                name: Stop stage 2 when prior stage published validated distribution artifacts
                 command: |
                   set -euo pipefail
                   STATUS="$CIRCLE_WORKING_DIRECTORY/brave-work/.sandium/apk-completion-status.txt"
@@ -1445,12 +1445,12 @@ jobs:
             equal: [3, << parameters.stage_index >>]
           steps:
             - restore_cache:
-                name: Restore verified APK marker for stage 3
+                name: Restore verified ARM64 APK + AAB marker for stage 3
                 keys:
                   - sandium-brave-aab-complete-v1-{{ .Branch }}-{{ .Revision }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-2
                   - sandium-brave-aab-complete-v1-{{ .Branch }}-{{ .Revision }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-1
             - run:
-                name: Stop stage 3 when a prior stage published a verified APK
+                name: Stop stage 3 when prior stage published validated distribution artifacts
                 command: |
                   set -euo pipefail
                   STATUS="$CIRCLE_WORKING_DIRECTORY/brave-work/.sandium/apk-completion-status.txt"
@@ -1465,13 +1465,13 @@ jobs:
             equal: [4, << parameters.stage_index >>]
           steps:
             - restore_cache:
-                name: Restore verified APK marker for stage 4
+                name: Restore verified ARM64 APK + AAB marker for stage 4
                 keys:
                   - sandium-brave-aab-complete-v1-{{ .Branch }}-{{ .Revision }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-3
                   - sandium-brave-aab-complete-v1-{{ .Branch }}-{{ .Revision }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-2
                   - sandium-brave-aab-complete-v1-{{ .Branch }}-{{ .Revision }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-1
             - run:
-                name: Stop stage 4 when a prior stage published a verified APK
+                name: Stop stage 4 when prior stage published validated distribution artifacts
                 command: |
                   set -euo pipefail
                   STATUS="$CIRCLE_WORKING_DIRECTORY/brave-work/.sandium/apk-completion-status.txt"
@@ -1486,14 +1486,14 @@ jobs:
             equal: [5, << parameters.stage_index >>]
           steps:
             - restore_cache:
-                name: Restore verified APK marker for stage 5
+                name: Restore verified ARM64 APK + AAB marker for stage 5
                 keys:
                   - sandium-brave-aab-complete-v1-{{ .Branch }}-{{ .Revision }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-4
                   - sandium-brave-aab-complete-v1-{{ .Branch }}-{{ .Revision }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-3
                   - sandium-brave-aab-complete-v1-{{ .Branch }}-{{ .Revision }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-2
                   - sandium-brave-aab-complete-v1-{{ .Branch }}-{{ .Revision }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-1
             - run:
-                name: Stop stage 5 when a prior stage published a verified APK
+                name: Stop stage 5 when prior stage published validated distribution artifacts
                 command: |
                   set -euo pipefail
                   STATUS="$CIRCLE_WORKING_DIRECTORY/brave-work/.sandium/apk-completion-status.txt"
@@ -1554,7 +1554,7 @@ jobs:
             equal: [1, << parameters.stage_index >>]
           steps:
             - restore_cache:
-                name: Restore verified APK marker from the same source revision
+                name: Restore verified ARM64 APK + AAB marker from the same source revision
                 keys:
                   - sandium-brave-aab-complete-v1-{{ .Branch }}-{{ .Revision }}-
             - run:
@@ -1816,7 +1816,7 @@ jobs:
               fi
             fi
       - run:
-          name: Build bounded Brave Android APK slice
+          name: Build bounded Brave Android distribution slice
           no_output_timeout: 45m
           command: |
             set -euo pipefail
@@ -2047,7 +2047,7 @@ jobs:
           path: brave-apk
           destination: brave-apk
       - run:
-          name: Record APK completion marker
+          name: Record APK + AAB distribution completion marker
           when: always
           command: |
             set -euo pipefail
@@ -2060,9 +2060,9 @@ jobs:
             else
               printf 'BUILD_FINISHED=false\nAPK_ARCHIVE_VALID=false\nAPK_SIGNATURE_VALID=not_yet_built\nAPK_PACKAGE_ID_VALID=false\nAAB_ARCHIVE_VALID=false\nAAB_SIGNATURE_VALID=not_yet_built\nAAB_BUNDLE_VALID=false\n' > "$MARKER"
             fi
-            echo "BRAVE_APK_COMPLETION_MARKER=$(grep -qx 'BUILD_FINISHED=true' "$MARKER" && echo VERIFIED || echo INCOMPLETE)"
+            echo "BRAVE_DISTRIBUTION_COMPLETION_MARKER=$(grep -qx 'BUILD_FINISHED=true' "$MARKER" && echo VERIFIED || echo INCOMPLETE)"
       - save_cache:
-          name: Save small revision-scoped verified APK marker
+          name: Save small revision-scoped verified APK + AAB marker
           key: sandium-brave-aab-complete-v1-{{ .Branch }}-{{ .Revision }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-<< parameters.stage_index >>
           paths:
             - brave-work/.sandium/apk-completion-status.txt
@@ -2101,7 +2101,7 @@ jobs:
               --jobs 80 \
               --metrics-prefix "$METRICS_PREFIX"
       - run:
-          name: Skip checkpoint upload after publishing a verified APK
+          name: Skip checkpoint upload after publishing validated distribution artifacts
           command: |
             set -euo pipefail
             MARKER="$CIRCLE_WORKING_DIRECTORY/brave-work/.sandium/apk-completion-status.txt"
@@ -2206,7 +2206,7 @@ jobs:
             - brave-workspace-checkpoint.tar.zst
             - brave-workspace-checkpoint.meta
       - run:
-          name: Final five-stage completion gate
+          name: Final five-stage distribution completion gate
           command: |
             set -euo pipefail
             ROOT="$CIRCLE_WORKING_DIRECTORY"
@@ -2217,14 +2217,14 @@ jobs:
             test -s "$ROOT/brave-workspace-checkpoint.tar.zst" || { echo "FINAL_STAGE_GATE=FAIL no portable checkpoint was packed" >&2; exit 1; }
             PENDING="$(python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); print(int(d["planned_total"])-len(d["completed"]))' "$LEDGER")"
             if [ -s "$APK_STATUS" ] && grep -qx "BUILD_FINISHED=true" "$APK_STATUS" && grep -qx "APK_ARCHIVE_VALID=true" "$APK_STATUS" && grep -qx "APK_SIGNATURE_VALID=true" "$APK_STATUS" && grep -qx "APK_PACKAGE_ID_VALID=true" "$APK_STATUS" && grep -qx "AAB_ARCHIVE_VALID=true" "$APK_STATUS" && grep -qx "AAB_SIGNATURE_VALID=true" "$APK_STATUS" && grep -qx "AAB_BUNDLE_VALID=true" "$APK_STATUS"; then
-              echo "FINAL_STAGE_GATE=PASS APK validated and artifact published."
+              echo "FINAL_STAGE_GATE=PASS ARM64 APK and AAB validated and artifacts published."
               exit 0
             fi
             if [ "$STAGE" -lt 5 ]; then
               echo "FINAL_STAGE_GATE=PASS checkpoint saved; residual work=$PENDING; next stage will resume the exact pending action set."
               exit 0
             fi
-            echo "FINAL_STAGE_GATE=FAIL five stages exhausted without a verified Brave APK; residual work=$PENDING" >&2
+            echo "FINAL_STAGE_GATE=FAIL five stages exhausted without verified ARM64 APK and AAB; residual work=$PENDING" >&2
             exit 1
 
 workflows:
