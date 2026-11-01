@@ -257,7 +257,7 @@ if "-n" in args:
         status_path = src.parent / ".sandium" / "build-stage-status.txt"
         status_path.parent.mkdir(parents=True, exist_ok=True)
         status_path.write_text(
-            "BUILD_EXIT_CODE=124\\nBUILD_REASON=TIME_SLICE_COMPLETE\\n",
+            "BUILD_EXIT_CODE=124\nBUILD_REASON=TIME_SLICE_COMPLETE\n",
             encoding="utf-8")
         pending_file.write_text(json.dumps(list(range(20))), encoding="utf-8")
         slice_plan = run(["plan", *common, "--stage", "1", "--build", "505",
@@ -267,7 +267,7 @@ if "-n" in args:
         write_metrics(slice_metrics, range(8))
         with slice_metrics.open("a", encoding="utf-8") as stream:
             for i in range(2000, 2003):
-                stream.write(json.dumps(metric(i)) + "\\n")
+                stream.write(json.dumps(metric(i)) + "\n")
         pending_file.write_text("[]", encoding="utf-8")
         slice_done = run(["complete", *common, "--stage", "1", "--build", "505",
                           "--workflow", "time-slice-workflow",
