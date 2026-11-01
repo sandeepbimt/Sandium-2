@@ -351,15 +351,29 @@ def main():
         # identities; do not infer or reopen unrelated work.
         reopened = set(pending_keys).intersection(ledger.get("completed", {}))
         if reopened:
+            invalidation_marker = src.parent / ".sandium" / "invalid-apk-output-for-ledger"
+            if not invalidation_marker.is_file():
+                die("ACTION_REEXECUTION_GATE=FAIL %d previously completed action(s) are pending again without an explicit invalid-APK recovery marker" % len(reopened))
+            apk_action_keys = set()
+            for key in reopened:
+                identity = ledger["completed"][key].get("identity", {})
+                outputs = identity.get("outputs", [])
+                step_id = str(identity.get("step_id", ""))
+                if any("BraveMonoarm64.apk" in str(output) for output in outputs) or "BraveMonoarm64.apk" in step_id:
+                    apk_action_keys.add(key)
+            if apk_action_keys != reopened:
+                die("ACTION_REEXECUTION_GATE=FAIL invalid-APK marker may reopen only the APK-producing action; unrelated completed actions reappeared=%d" %
+                    len(reopened - apk_action_keys))
             for key in reopened:
                 ledger["completed"].pop(key, None)
             ledger.setdefault("invalidated_action_reopens", []).append({
                 "stage_run": run_id, "action_keys": sorted(reopened),
-                "reason": "live_siso_dry_run_reports_previously_completed_action_pending",
+                "reason": "APK preflight removed an invalid BraveMonoarm64.apk output",
                 "recorded_at_epoch": int(time.time())})
             ledger["next_pending_action_keys"] = sorted(
                 set(ledger.get("next_pending_action_keys", [])) | reopened)
-            print("ACTION_INVALIDATED_OUTPUTS_REOPENED=%d" % len(reopened))
+            invalidation_marker.unlink(missing_ok=True)
+            print("ACTION_INVALIDATED_APK_ACTION_REOPENED=%d" % len(reopened))
         total, done = int(ledger["planned_total"]), len(ledger["completed"])
         expected = total - done
         if expected < 0:
