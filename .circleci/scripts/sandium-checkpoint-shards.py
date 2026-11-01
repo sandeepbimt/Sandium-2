@@ -261,7 +261,7 @@ def archive_worker(index: int, total: int, roots: list[Path],
         "--checkpoint-action=echo=SHARD_%02d_TAR_CHECKPOINT=%%u" % index,
         "-C", str(root), "--null", "-T", str(list_file),
     ]
-    zstd_command = ["zstd", "-T1", "--fast=3", "-q", "-o", str(temporary)]
+    zstd_command = ["zstd", "-T1", "--fast=5", "-q", "-o", str(temporary)]
     started = time.monotonic()
     tar_rc = -1
     zstd_rc = -1
@@ -384,7 +384,7 @@ def archive(root: Path, workers: int) -> None:
         "created_at": datetime.now(timezone.utc).isoformat(),
         "workers": len(results),
         "max_workers": workers,
-        "compression": "zstd --fast=3 -T1 per worker",
+        "compression": "zstd --fast=5 -T1 per worker",
         "source_bytes": source_bytes,
         "archive_bytes": total_archive_bytes,
         "largest_shard_bytes": largest_shard_bytes,
