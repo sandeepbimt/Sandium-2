@@ -60,9 +60,17 @@ if [ "${BRAVE_STAGE_INDEX:?BRAVE_STAGE_INDEX is required}" = "1" ]; then
      [ "$(git -C "$SRC_DIR" rev-parse HEAD 2>/dev/null || true)" = "$CHROMIUM_PIN" ] && \
      [ -d "$SRC_DIR/third_party" ] && [ -d "$SRC_DIR/build" ]; then
     SOURCE_REUSE=true
-    echo "BRAVE_SOURCE_REUSE=PASS; pinned source restored. Skipping full init; refreshing config via Brave pnpm sync."
-    cd "$CORE_DIR"
-    pnpm run sync --target_os=android --target_arch=arm64 --no-history --sync_chromium=false
+    echo "BRAVE_SOURCE_REUSE=PASS; pinned source restored."
+    if [ -s "$ROOT/brave-work/.sandium/workspace-checkpoint-restored" ]; then
+      # The archive already contains the matching .gclient, generated GN/Siso
+      # configuration, Ninja metadata and Siso filesystem journal. Re-running
+      # pnpm sync here can rewrite that state and invalidate the checkpoint.
+      echo "BRAVE_CHECKPOINT_PRESERVATION=PASS; skipping pnpm sync on restored workspace."
+    else
+      echo "BRAVE_SOURCE_REUSE=PASS; no portable checkpoint marker; refreshing Brave config."
+      cd "$CORE_DIR"
+      pnpm run sync --target_os=android --target_arch=arm64 --no-history --sync_chromium=false
+    fi
   else
     echo "BRAVE_SOURCE_REUSE=MISS; source checkout incomplete or pin mismatch; full init required."
     cd "$CORE_DIR"
