@@ -1825,6 +1825,15 @@ jobs:
               echo "BRAVE_RESTORED_APK=ABSENT"
               exit 0
             fi
+            MANIFEST="$ROOT/brave-work/.sandium/checkpoint-manifest.txt"
+            CURRENT_REVISION="${CIRCLE_SHA1:-{{ .Revision }}}"
+            REFERENCE_REVISION="$(sed -n 's/^REFERENCE_SOURCE_REVISION=//p' "$MANIFEST" | head -n 1)"
+            if [ -z "$REFERENCE_REVISION" ] || [ "$REFERENCE_REVISION" != "$CURRENT_REVISION" ]; then
+              echo "BRAVE_RESTORED_APK=STALE_REFERENCE; reference_revision=${REFERENCE_REVISION:-missing} current_revision=$CURRENT_REVISION"
+              rm -f "$APK"
+              touch "$ROOT/brave-work/.sandium/invalid-apk-output-for-ledger"
+              exit 0
+            fi
             VALID=true
             if ! python3 -c 'import sys,zipfile; z=zipfile.ZipFile(sys.argv[1]); bad=z.testzip(); z.close(); sys.exit(1 if bad else 0)' "$APK"; then VALID=false; fi
             if [ "$VALID" = true ] && [ -x "$TOOLS/apksigner" ] && [ -x "$TOOLS/aapt" ]; then
@@ -2145,109 +2154,109 @@ jobs:
           condition:
             equal: [reference, << pipeline.parameters.sandium_build_mode >>]
           steps:
-          - run:
-              name: Validate Brave checkpoint before saving
-              command: |
-                set -euo pipefail
-                ROOT="$CIRCLE_WORKING_DIRECTORY"
-                SRC="$ROOT/brave-work/src"
-                CORE="$SRC/brave"
-                OUT="$SRC/out/android_Release_arm64"
-                test -e "$SRC/.git" || { echo "CHECKPOINT_SAVE=REFUSED missing Chromium Git checkout" >&2; exit 1; }
-                test -e "$CORE/.git" || { echo "CHECKPOINT_SAVE=REFUSED missing Brave Git checkout" >&2; exit 1; }
-                test -s "$ROOT/brave-work/.gclient" || { echo "CHECKPOINT_SAVE=REFUSED missing .gclient" >&2; exit 1; }
-                PYTHON_REMOTE_WRAPPER="$SRC/buildtools/reclient_cfgs/python/python_remote_wrapper"
-                test -x "$PYTHON_REMOTE_WRAPPER" || { echo "CHECKPOINT_SAVE=REFUSED Brave Python remote wrapper is not executable" >&2; exit 1; }
-                test -s "$OUT/build.ninja" || { echo "CHECKPOINT_SAVE=REFUSED missing build.ninja" >&2; exit 1; }
-                test -s "$OUT/args.gn" || { echo "CHECKPOINT_SAVE=REFUSED missing args.gn" >&2; exit 1; }
-                ARGS_GENERATED="$OUT/args_generated.gni"
-                SISO_ENV="$SRC/build/config/siso/.sisoenv"
-                SISO_RC="$SRC/build/config/siso/.sisorc"
-                SISO_BACKEND="$SRC/build/config/siso/backend_config/backend.star"
-                test -s "$ARGS_GENERATED" || { echo "CHECKPOINT_SAVE=REFUSED missing args_generated.gni" >&2; exit 1; }
-                grep -F 'args_generated.gni' "$OUT/args.gn" >/dev/null || { echo "CHECKPOINT_SAVE=REFUSED args.gn import missing" >&2; exit 1; }
-                grep -Fx 'use_remoteexec=true' "$ARGS_GENERATED" >/dev/null || { echo "CHECKPOINT_SAVE=REFUSED generated use_remoteexec missing" >&2; exit 1; }
-                grep -Fx 'use_siso=true' "$ARGS_GENERATED" >/dev/null || { echo "CHECKPOINT_SAVE=REFUSED generated use_siso missing" >&2; exit 1; }
-                grep -Fx 'use_reclient=false' "$ARGS_GENERATED" >/dev/null || { echo "CHECKPOINT_SAVE=REFUSED generated use_reclient missing" >&2; exit 1; }
-                test -s "$SISO_ENV" && test -s "$SISO_RC" && test -s "$SISO_BACKEND" || { echo "CHECKPOINT_SAVE=REFUSED Siso configuration incomplete" >&2; exit 1; }
-                SISO_BRAVE_CONFIG="$SRC/build/config/siso/brave_siso_config.star"
-                test -s "$SISO_BRAVE_CONFIG" || { echo "CHECKPOINT_SAVE=REFUSED missing Brave Siso configuration" >&2; exit 1; }
-                grep -Fq 'rule["canonicalize_dir"] = True' "$SISO_BRAVE_CONFIG" || { echo "CHECKPOINT_SAVE=REFUSED Siso canonical workdir must remain enabled" >&2; exit 1; }
-                grep -Fq '"./args.gn"' "$SISO_BRAVE_CONFIG" || { echo "CHECKPOINT_SAVE=REFUSED Siso remote rules lack explicit ./args.gn workdir anchor" >&2; exit 1; }
-                bash "$ROOT/.circleci/scripts/verify-clang-diagnostics-gn.sh"
-                echo "CHECKPOINT_CLANG_DIAGNOSTIC_PATH_GATE=PASS"
-                grep -Fx "SISO_CREDENTIAL_HELPER=/tmp/sandium-buildbuddy-credential-helper.py" "$SISO_ENV" >/dev/null || { echo "CHECKPOINT_SAVE=REFUSED Siso credential helper not configured" >&2; exit 1; }
-                for REQUIRED_SISO_FLAG in \
-                  '-reapi_keep_exec_stream' \
-                  '-fs_min_flush_timeout 300s' \
-                  '-reapi_byte_stream_read_threshold 1024' \
-                  '-config googlechrome' \
-                  '-re_cache_enable_write=true'; do
-                  grep -Fq -- "$REQUIRED_SISO_FLAG" "$SISO_RC" || {
-                    echo "CHECKPOINT_SAVE=REFUSED missing Siso flag: $REQUIRED_SISO_FLAG" >&2
-                    exit 1
-                  }
-                done
-                test -x /tmp/sandium-buildbuddy-credential-helper.py || { echo "CHECKPOINT_SAVE=REFUSED credential helper not executable" >&2; exit 1; }
-                CHROMIUM_SHA="$(git -C "$SRC" rev-parse HEAD)"
-                BRAVE_TAG="$(git -C "$CORE" describe --tags --exact-match 2>/dev/null || true)"
-                test "$CHROMIUM_SHA" = "d331de35ca8ab1358c7a17e4bd41627d55eaef51" || { echo "CHECKPOINT_SAVE=REFUSED Chromium SHA mismatch: $CHROMIUM_SHA" >&2; exit 1; }
-                test "$BRAVE_TAG" = "v1.98.62" || { echo "CHECKPOINT_SAVE=REFUSED Brave tag mismatch: $BRAVE_TAG" >&2; exit 1; }
-                mkdir -p "$ROOT/brave-work/.sandium"
-                ACTION_LEDGER="$ROOT/brave-work/.sandium/action-ledger.json"
-                test -s "$ACTION_LEDGER" || { echo "CHECKPOINT_SAVE=REFUSED missing action-level continuation ledger" >&2; exit 1; }
-                python3 -c 'import json,sys; p=sys.argv[1]; d=json.load(open(p,encoding="utf-8")); total=int(d.get("planned_total",-1)); completed=len(d.get("completed",{})); pending=d.get("next_pending_action_keys"); remaining=total-completed; assert d.get("schema_version")==2, "CHECKPOINT_ACTION_LEDGER=FAIL schema"; assert not d.get("active_stage"), "CHECKPOINT_ACTION_LEDGER=FAIL active stage"; assert total>=0 and completed<=total and isinstance(pending,list), "CHECKPOINT_ACTION_LEDGER=FAIL invalid fields"; assert len(pending)==remaining and len(set(pending))==remaining, "CHECKPOINT_ACTION_LEDGER=FAIL pending set mismatch"; print("CHECKPOINT_ACTION_LEDGER=PASS completed=%d total=%d remaining=%d" % (completed,total,remaining))' "$ACTION_LEDGER"
-                APK_VALIDATED=false
-                APK_MARKER="$ROOT/brave-work/.sandium/apk-completion-status.txt"
-                if [ -s "$APK_MARKER" ] && grep -qx "BUILD_FINISHED=true" "$APK_MARKER" && grep -qx "APK_ARCHIVE_VALID=true" "$APK_MARKER" && grep -qx "APK_SIGNATURE_VALID=true" "$APK_MARKER" && grep -qx "APK_PACKAGE_ID_VALID=true" "$APK_MARKER" && grep -qx "APK_BRANDING_VALID=true" "$APK_MARKER"; then
-                  APK_VALIDATED=true
-                fi
-                {
-                  echo "CHECKPOINT_VALID=true"
-                  echo "REFERENCE_MODE=reference"
-                  echo "APK_VALIDATED=$APK_VALIDATED"
-                  echo "REFERENCE_READY=$APK_VALIDATED"
-                  echo "REFERENCE_SOURCE_REVISION={{ .Revision }}"
-                  echo "ACTION_LEDGER_TOTAL=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["planned_total"])' "$ACTION_LEDGER")"
-                  echo "ACTION_LEDGER_COMPLETED=$(python3 -c 'import json,sys; print(len(json.load(open(sys.argv[1]))["completed"]))' "$ACTION_LEDGER")"
-                  echo "BRAVE_CORE_TAG=$BRAVE_TAG"
-                  echo "CHROMIUM_SHA=$CHROMIUM_SHA"
-                  echo "TARGET=android-arm64"
-                  echo "BUILD_TYPE=Release"
-                  echo "STAGE=<< parameters.stage_index >>"
-                  echo "ARGS_GENERATED_SHA256=$(sha256sum "$ARGS_GENERATED" | awk '{print $1}')"
-                  echo "SISO_ENV_SHA256=$(sha256sum "$SISO_ENV" | awk '{print $1}')"
-                  echo "SISO_RC_SHA256=$(sha256sum "$SISO_RC" | awk '{print $1}')"
-                  echo "SISO_BACKEND_SHA256=$(sha256sum "$SISO_BACKEND" | awk '{print $1}')"
-                  OBJECT_COUNT=0
-                  if [ -d "$OUT/obj" ]; then
-                    OBJECT_COUNT="$(find "$OUT/obj" -type f -name '*.o' | wc -l | tr -d ' ')"
+            - run:
+                name: Validate Brave checkpoint before saving
+                command: |
+                  set -euo pipefail
+                  ROOT="$CIRCLE_WORKING_DIRECTORY"
+                  SRC="$ROOT/brave-work/src"
+                  CORE="$SRC/brave"
+                  OUT="$SRC/out/android_Release_arm64"
+                  test -e "$SRC/.git" || { echo "CHECKPOINT_SAVE=REFUSED missing Chromium Git checkout" >&2; exit 1; }
+                  test -e "$CORE/.git" || { echo "CHECKPOINT_SAVE=REFUSED missing Brave Git checkout" >&2; exit 1; }
+                  test -s "$ROOT/brave-work/.gclient" || { echo "CHECKPOINT_SAVE=REFUSED missing .gclient" >&2; exit 1; }
+                  PYTHON_REMOTE_WRAPPER="$SRC/buildtools/reclient_cfgs/python/python_remote_wrapper"
+                  test -x "$PYTHON_REMOTE_WRAPPER" || { echo "CHECKPOINT_SAVE=REFUSED Brave Python remote wrapper is not executable" >&2; exit 1; }
+                  test -s "$OUT/build.ninja" || { echo "CHECKPOINT_SAVE=REFUSED missing build.ninja" >&2; exit 1; }
+                  test -s "$OUT/args.gn" || { echo "CHECKPOINT_SAVE=REFUSED missing args.gn" >&2; exit 1; }
+                  ARGS_GENERATED="$OUT/args_generated.gni"
+                  SISO_ENV="$SRC/build/config/siso/.sisoenv"
+                  SISO_RC="$SRC/build/config/siso/.sisorc"
+                  SISO_BACKEND="$SRC/build/config/siso/backend_config/backend.star"
+                  test -s "$ARGS_GENERATED" || { echo "CHECKPOINT_SAVE=REFUSED missing args_generated.gni" >&2; exit 1; }
+                  grep -F 'args_generated.gni' "$OUT/args.gn" >/dev/null || { echo "CHECKPOINT_SAVE=REFUSED args.gn import missing" >&2; exit 1; }
+                  grep -Fx 'use_remoteexec=true' "$ARGS_GENERATED" >/dev/null || { echo "CHECKPOINT_SAVE=REFUSED generated use_remoteexec missing" >&2; exit 1; }
+                  grep -Fx 'use_siso=true' "$ARGS_GENERATED" >/dev/null || { echo "CHECKPOINT_SAVE=REFUSED generated use_siso missing" >&2; exit 1; }
+                  grep -Fx 'use_reclient=false' "$ARGS_GENERATED" >/dev/null || { echo "CHECKPOINT_SAVE=REFUSED generated use_reclient missing" >&2; exit 1; }
+                  test -s "$SISO_ENV" && test -s "$SISO_RC" && test -s "$SISO_BACKEND" || { echo "CHECKPOINT_SAVE=REFUSED Siso configuration incomplete" >&2; exit 1; }
+                  SISO_BRAVE_CONFIG="$SRC/build/config/siso/brave_siso_config.star"
+                  test -s "$SISO_BRAVE_CONFIG" || { echo "CHECKPOINT_SAVE=REFUSED missing Brave Siso configuration" >&2; exit 1; }
+                  grep -Fq 'rule["canonicalize_dir"] = True' "$SISO_BRAVE_CONFIG" || { echo "CHECKPOINT_SAVE=REFUSED Siso canonical workdir must remain enabled" >&2; exit 1; }
+                  grep -Fq '"./args.gn"' "$SISO_BRAVE_CONFIG" || { echo "CHECKPOINT_SAVE=REFUSED Siso remote rules lack explicit ./args.gn workdir anchor" >&2; exit 1; }
+                  bash "$ROOT/.circleci/scripts/verify-clang-diagnostics-gn.sh"
+                  echo "CHECKPOINT_CLANG_DIAGNOSTIC_PATH_GATE=PASS"
+                  grep -Fx "SISO_CREDENTIAL_HELPER=/tmp/sandium-buildbuddy-credential-helper.py" "$SISO_ENV" >/dev/null || { echo "CHECKPOINT_SAVE=REFUSED Siso credential helper not configured" >&2; exit 1; }
+                  for REQUIRED_SISO_FLAG in \
+                    '-reapi_keep_exec_stream' \
+                    '-fs_min_flush_timeout 300s' \
+                    '-reapi_byte_stream_read_threshold 1024' \
+                    '-config googlechrome' \
+                    '-re_cache_enable_write=true'; do
+                    grep -Fq -- "$REQUIRED_SISO_FLAG" "$SISO_RC" || {
+                      echo "CHECKPOINT_SAVE=REFUSED missing Siso flag: $REQUIRED_SISO_FLAG" >&2
+                      exit 1
+                    }
+                  done
+                  test -x /tmp/sandium-buildbuddy-credential-helper.py || { echo "CHECKPOINT_SAVE=REFUSED credential helper not executable" >&2; exit 1; }
+                  CHROMIUM_SHA="$(git -C "$SRC" rev-parse HEAD)"
+                  BRAVE_TAG="$(git -C "$CORE" describe --tags --exact-match 2>/dev/null || true)"
+                  test "$CHROMIUM_SHA" = "d331de35ca8ab1358c7a17e4bd41627d55eaef51" || { echo "CHECKPOINT_SAVE=REFUSED Chromium SHA mismatch: $CHROMIUM_SHA" >&2; exit 1; }
+                  test "$BRAVE_TAG" = "v1.98.62" || { echo "CHECKPOINT_SAVE=REFUSED Brave tag mismatch: $BRAVE_TAG" >&2; exit 1; }
+                  mkdir -p "$ROOT/brave-work/.sandium"
+                  ACTION_LEDGER="$ROOT/brave-work/.sandium/action-ledger.json"
+                  test -s "$ACTION_LEDGER" || { echo "CHECKPOINT_SAVE=REFUSED missing action-level continuation ledger" >&2; exit 1; }
+                  python3 -c 'import json,sys; p=sys.argv[1]; d=json.load(open(p,encoding="utf-8")); total=int(d.get("planned_total",-1)); completed=len(d.get("completed",{})); pending=d.get("next_pending_action_keys"); remaining=total-completed; assert d.get("schema_version")==2, "CHECKPOINT_ACTION_LEDGER=FAIL schema"; assert not d.get("active_stage"), "CHECKPOINT_ACTION_LEDGER=FAIL active stage"; assert total>=0 and completed<=total and isinstance(pending,list), "CHECKPOINT_ACTION_LEDGER=FAIL invalid fields"; assert len(pending)==remaining and len(set(pending))==remaining, "CHECKPOINT_ACTION_LEDGER=FAIL pending set mismatch"; print("CHECKPOINT_ACTION_LEDGER=PASS completed=%d total=%d remaining=%d" % (completed,total,remaining))' "$ACTION_LEDGER"
+                  APK_VALIDATED=false
+                  APK_MARKER="$ROOT/brave-work/.sandium/apk-completion-status.txt"
+                  if [ -s "$APK_MARKER" ] && grep -qx "BUILD_FINISHED=true" "$APK_MARKER" && grep -qx "APK_ARCHIVE_VALID=true" "$APK_MARKER" && grep -qx "APK_SIGNATURE_VALID=true" "$APK_MARKER" && grep -qx "APK_PACKAGE_ID_VALID=true" "$APK_MARKER" && grep -qx "APK_BRANDING_VALID=true" "$APK_MARKER"; then
+                    APK_VALIDATED=true
                   fi
-                  echo "COMPILED_OBJECT_COUNT=$OBJECT_COUNT"
-                  date -u +"SAVED_AT=%Y-%m-%dT%H:%M:%SZ"
-                  du -sh "$ROOT/brave-work"
-                  du -sh "$OUT"
-                } > "$ROOT/brave-work/.sandium/checkpoint-manifest.txt"
-                echo "CHECKPOINT_SAVE=PASS"
-                cat "$ROOT/brave-work/.sandium/checkpoint-manifest.txt"
-          - run:
-              name: Capture final Siso checkpoint state before cache save
-              command: |
-                set -euo pipefail
-                export BRAVE_STAGE_INDEX="<< parameters.stage_index >>"
-                bash .circleci/scripts/capture-brave-siso-checkpoint.sh checkpoint-ready
-          - run:
-              name: Pack validated Brave workspace checkpoint
-              no_output_timeout: 45m
-              command: |
-                set -euo pipefail
-                bash .circleci/scripts/archive-brave-workspace.sh archive
-          - save_cache:
-              name: Save reference-build stage handoff checkpoint
-              key: sandium-brave-handoff-v1-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-<< parameters.stage_index >>
-              paths:
-                - brave-workspace-checkpoint.tar.zst
-                - brave-workspace-checkpoint.meta
+                  {
+                    echo "CHECKPOINT_VALID=true"
+                    echo "REFERENCE_MODE=reference"
+                    echo "APK_VALIDATED=$APK_VALIDATED"
+                    echo "REFERENCE_READY=$APK_VALIDATED"
+                    echo "REFERENCE_SOURCE_REVISION={{ .Revision }}"
+                    echo "ACTION_LEDGER_TOTAL=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["planned_total"])' "$ACTION_LEDGER")"
+                    echo "ACTION_LEDGER_COMPLETED=$(python3 -c 'import json,sys; print(len(json.load(open(sys.argv[1]))["completed"]))' "$ACTION_LEDGER")"
+                    echo "BRAVE_CORE_TAG=$BRAVE_TAG"
+                    echo "CHROMIUM_SHA=$CHROMIUM_SHA"
+                    echo "TARGET=android-arm64"
+                    echo "BUILD_TYPE=Release"
+                    echo "STAGE=<< parameters.stage_index >>"
+                    echo "ARGS_GENERATED_SHA256=$(sha256sum "$ARGS_GENERATED" | awk '{print $1}')"
+                    echo "SISO_ENV_SHA256=$(sha256sum "$SISO_ENV" | awk '{print $1}')"
+                    echo "SISO_RC_SHA256=$(sha256sum "$SISO_RC" | awk '{print $1}')"
+                    echo "SISO_BACKEND_SHA256=$(sha256sum "$SISO_BACKEND" | awk '{print $1}')"
+                    OBJECT_COUNT=0
+                    if [ -d "$OUT/obj" ]; then
+                      OBJECT_COUNT="$(find "$OUT/obj" -type f -name '*.o' | wc -l | tr -d ' ')"
+                    fi
+                    echo "COMPILED_OBJECT_COUNT=$OBJECT_COUNT"
+                    date -u +"SAVED_AT=%Y-%m-%dT%H:%M:%SZ"
+                    du -sh "$ROOT/brave-work"
+                    du -sh "$OUT"
+                  } > "$ROOT/brave-work/.sandium/checkpoint-manifest.txt"
+                  echo "CHECKPOINT_SAVE=PASS"
+                  cat "$ROOT/brave-work/.sandium/checkpoint-manifest.txt"
+            - run:
+                name: Capture final Siso checkpoint state before cache save
+                command: |
+                  set -euo pipefail
+                  export BRAVE_STAGE_INDEX="<< parameters.stage_index >>"
+                  bash .circleci/scripts/capture-brave-siso-checkpoint.sh checkpoint-ready
+            - run:
+                name: Pack validated Brave workspace checkpoint
+                no_output_timeout: 45m
+                command: |
+                  set -euo pipefail
+                  bash .circleci/scripts/archive-brave-workspace.sh archive
+            - save_cache:
+                name: Save reference-build stage handoff checkpoint
+                key: sandium-brave-handoff-v1-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-<< parameters.stage_index >>
+                paths:
+                  - brave-workspace-checkpoint.tar.zst
+                  - brave-workspace-checkpoint.meta
       - run:
           name: Final five-stage completion gate
           command: |
