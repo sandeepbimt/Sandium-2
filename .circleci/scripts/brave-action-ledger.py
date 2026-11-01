@@ -432,12 +432,20 @@ def main():
     print(f"SANDIUM_BUILD_MATH={done}/{total} complete; {remaining}/{remaining} pending")
     if remaining == 0:
         apk = out / "apks" / "BraveMonoarm64.apk"
-        if not apk.is_file() or not apk.stat().st_size:
-            die("ACTION_LEDGER_FINAL=FAIL no work remains but BraveMonoarm64.apk is missing")
+        marker = src.parent / ".sandium" / "apk-completion-status.txt"
+        required = {
+            "BUILD_FINISHED=true",
+            "APK_ARCHIVE_VALID=true",
+            "APK_SIGNATURE_VALID=true",
+            "APK_PACKAGE_ID_VALID=true",
+        }
+        marker_lines = set(marker.read_text(encoding="utf-8").splitlines()) if marker.is_file() else set()
+        if not apk.is_file() or not apk.stat().st_size or not required.issubset(marker_lines):
+            die("ACTION_LEDGER_FINAL=FAIL no actions remain but APK ZIP/signature/package validation marker is absent")
         ledger["build_complete"] = True
         ledger["completed_at_epoch"] = now
         save(path, ledger)
-        print(f"SANDIUM_ACTION_FRONTIER=COMPLETE total={total}")
+        print(f"SANDIUM_ACTION_FRONTIER=COMPLETE total={total} apk_validated=true")
     else:
         print(f"SANDIUM_ACTION_FRONTIER=CONTINUE remaining={remaining}; next stage must dry-run to exactly {remaining}")
 
