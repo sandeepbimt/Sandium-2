@@ -169,10 +169,10 @@ if "-n" in args:
         marker = src.parent / ".sandium" / "apk-completion-status.txt"
         marker.parent.mkdir(parents=True, exist_ok=True)
         marker.write_text(
-            "BUILD_FINISHED=true\\n"
-            "APK_ARCHIVE_VALID=true\\n"
-            "APK_SIGNATURE_VALID=true\\n"
-            "APK_PACKAGE_ID_VALID=true\\n",
+            "BUILD_FINISHED=true\n"
+            "APK_ARCHIVE_VALID=true\n"
+            "APK_SIGNATURE_VALID=true\n"
+            "APK_PACKAGE_ID_VALID=true\n",
             encoding="utf-8")
         done2 = run(["complete", *common, "--stage", "2", "--build", "202",
                      "--workflow", "workflow-two",
