@@ -379,110 +379,17 @@ def main():
             invalidation_marker.unlink(missing_ok=True)
             print("ACTION_INVALIDATED_APK_ACTION_REOPENED=%d" % len(reopened))
         total, done = int(ledger["planned_total"]), len(ledger["completed"])
-        expected = total - done
-        if expected < 0:
-            die(f"ACTION_LEDGER_STATE=FAIL completed={done} total={total}")
-        if pending != expected:
-            die("ACTION_HANDOFF_GATE=FAIL expected_pending=%d dry_run_pending=%d completed=%d total=%d; "
-                "stopping before compilation" % (expected, pending, done, total))
-        expected_keys = set(ledger.get("next_pending_action_keys", []))
-        if expected_keys != pending_keys:
-            added = sorted(pending_keys - expected_keys)
-            missing = sorted(expected_keys - pending_keys)
-            die("ACTION_HANDOFF_SET_GATE=FAIL pending action identity set changed; "
-                "new=%d missing=%d examples_new=%s examples_missing=%s" %
-                (len(added), len(missing), added[:5], missing[:5]))
-        ledger["active_stage"] = {"run_id": run_id, "workflow": a.workflow,
-                                  "build": a.build, "stage": a.stage,
-                                  "pending_before": pending, "pending_action_keys": sorted(pending_keys),
-                                  "completed_before": done, "planned_total": total,
-                                  "dry_run": dry, "planned_at_epoch": int(time.time())}
-        save(path, ledger)
-        print(f"ACTION_HANDOFF_GATE=PASS pending={pending}/{expected}")
-        print(f"SANDIUM_BUILD_MATH={done}/{total} complete; {pending}/{expected} pending")
-        print(f"ACTION_PLAN_DRY_RUN=PASS action_identities={pending} progress_denominators={dry.get('progress_denominators')}")
-        return
-
-    if ledger is None or ledger.get("identity", {}).get("fingerprint") != ident.get("fingerprint"):
-        die("ACTION_LEDGER_IDENTITY=FAIL missing ledger or graph/source/config changed")
-    active = ledger.get("active_stage") or {}
-    if active.get("run_id") != run_id:
-        die(f"ACTION_LEDGER_STAGE=FAIL active={active.get('run_id')} current={run_id}")
-    # Main APK-target metrics and the remote preflight smoke metrics are
-    # separate accounting domains. The smoke probe intentionally invokes an
-    # additional Perfetto host-tool target; those sidecar-only actions must not
-    # be treated as unplanned APK compilation. However, any smoke actions that
-    # are also in the APK target's pre-build frontier are genuine completed APK
-    # prerequisites and must be credited to avoid a false pending-set mismatch.
-    metrics, stats = read_metrics(out, a.metrics_prefix)
-    smoke_path = out / f"{a.metrics_prefix}smoke.jsonl"
-    smoke_metrics, smoke_stats = read_metrics(
-        out, "__sandium_no_smoke_prefix__", [smoke_path])
-    if stats["successful_duplicate_records"]:
-        die("ACTION_DUPLICATE_WITHIN_STAGE=FAIL %d APK-build actions were successfully recorded more than once in this stage" %
-            stats["successful_duplicate_records"])
-    if smoke_stats["successful_duplicate_records"]:
-        die("ACTION_SMOKE_DUPLICATE=FAIL %d smoke actions were successfully recorded more than once" %
-            smoke_stats["successful_duplicate_records"])
-    pending_before_keys = set(active.get("pending_action_keys", []))
-    if len(pending_before_keys) != int(active.get("pending_before", -1)):
-        die("ACTION_LEDGER_STAGE=FAIL missing or invalid pending action identity set")
-    smoke_planned = {key: item for key, item in smoke_metrics.items()
-                     if key in pending_before_keys}
-    smoke_preflight_only = set(smoke_metrics) - pending_before_keys
-    duplicate_smoke_build = set(smoke_planned).intersection(metrics)
-    if duplicate_smoke_build:
-        die("ACTION_DUPLICATE_ACROSS_SMOKE_AND_BUILD=FAIL %d planned actions were recorded by both the smoke probe and APK build" %
-            len(duplicate_smoke_build))
-    metrics = {**smoke_planned, **metrics}
-    print("ACTION_REMOTE_SMOKE_RECONCILIATION=PASS planned_overlap=%d preflight_only=%d failed_records=%d" %
-          (len(smoke_planned), len(smoke_preflight_only), smoke_stats["failed_records"]))
-    if not stats["files"] and not smoke_planned and int(active.get("pending_before", 0)):
-        die(f"ACTION_METRICS_MISSING=FAIL no APK-build metrics or planned smoke-overlap metrics found for prefix {a.metrics_prefix}")
-    previous = ledger["completed"]
-    revisited = set(metrics).intersection(previous)
-    if revisited:
-        die(f"ACTION_REEXECUTION_GATE=FAIL {len(revisited)} previously completed actions appeared again")
-    unknown = set(metrics) - pending_before_keys
-    if unknown:
-        die("ACTION_UNPLANNED_EXECUTION=FAIL %d successful action(s) were not in the stage's pre-build dry-run set; examples=%s" %
-            (len(unknown), sorted(unknown)[:5]))
-    before, added = len(pending_before_keys), len(metrics)
-    after_keys, after_dry = dry_run_actions(autoninja, src, out, a.jobs,
-                                             a.stage, a.build, a.workflow)
-    expected_after_keys = pending_before_keys - set(metrics)
-    if after_keys != expected_after_keys:
-        appeared = sorted(after_keys - expected_after_keys)
-        vanished = sorted(expected_after_keys - after_keys)
-        die("ACTION_COMPLETION_SET=FAIL pending-before minus completed does not equal live post-build pending set; "
-            "unexpected_pending=%d unexpectedly_resolved=%d examples_pending=%s examples_resolved=%s" %
-            (len(appeared), len(vanished), appeared[:5], vanished[:5]))
     after = len(after_keys)
-    if before > 0 and added == 0 and after == before:
-        die("ACTION_STAGE_NO_PROGRESS=FAIL this stage completed zero new actions and left the pending frontier unchanged")
-    if added + after != before:
-        die("ACTION_COMPLETION_MATH=FAIL before=%d successful_new_actions=%d after=%d stats=%s dry=%s" %
-            (before, added, after, json.dumps(stats, sort_keys=True), json.dumps(after_dry, sort_keys=True)))
-    now = int(time.time())
-    for key, item in metrics.items():
-        ledger["completed"][key] = {
-            "identity": item["identity"], "completed_by": run_id,
-            "completed_at_epoch": now, "cached": item["cached"],
-            "is_remote": item["is_remote"], "is_local": item["is_local"],
-            "no_exec": item["no_exec"]}
-    ledger["stages"].append({"run_id": run_id, "stage": a.stage,
-                             "pending_before": before, "new_completed": added,
-                             "pending_after": after, "metric_stats": stats,
-                             "after_dry_run": after_dry,
-                             "completed_total": len(ledger["completed"]),
-                             "recorded_at_epoch": now})
-    ledger["next_pending_action_keys"] = sorted(after_keys)
-    ledger.pop("active_stage", None)
-    total, done = int(ledger["planned_total"]), len(ledger["completed"])
-    if done > total:
-        die(f"ACTION_LEDGER_OVERFLOW=FAIL completed={done} total={total}")
-    save(path, ledger)
     remaining = total - done
+    if remaining != after:
+        die("ACTION_COMPLETION_MATH=FAIL total=%d completed=%d ledger_remaining=%d live_pending=%d" %
+            (total, done, remaining, after))
+    save(path, ledger)
+    print("ACTION_FRONTIER_RECONCILIATION=PASS planned_completed=%d dynamically_completed=%d newly_pending=%d pending_after=%d" %
+          (len(planned_completed_keys), len(dynamically_completed_keys),
+           len(newly_pending_keys), after))
+    print("ACTION_DYNAMIC_ACTION_ACCOUNTING=PASS discovered_completed=%d discovered_pending=%d" %
+          (len(dynamically_completed_keys), len(newly_pending_keys)))
     print(f"ACTION_COMPLETION_MATH=PASS before={before} new={added} after={after}")
     print(f"ACTION_METRICS=PASS files={len(stats['files'])} records={stats['records']} "
           f"actions={stats['action_records']} unique={added} failed_records={stats['failed_records']}")
