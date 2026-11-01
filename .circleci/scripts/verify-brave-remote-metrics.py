@@ -5,12 +5,16 @@ import json
 import sys
 from pathlib import Path
 
+def fail(message: str) -> None:
+    print(message, file=sys.stderr)
+    raise SystemExit(2)
+
 def main() -> None:
     if len(sys.argv) != 2:
-        raise SystemExit("usage: verify-brave-remote-metrics.py METRICS.jsonl")
+        fail("usage: verify-brave-remote-metrics.py METRICS.jsonl")
     path = Path(sys.argv[1])
     if not path.is_file() or path.stat().st_size == 0:
-        raise SystemExit("BRAVE_REMOTE_EXECUTION_GATE=FAIL missing or empty Siso metrics: %s" % path)
+        fail("BRAVE_REMOTE_EXECUTION_GATE=FAIL missing or empty Siso metrics: %s" % path)
 
     fresh_remote = 0
     remote_cache_hits = 0
@@ -24,8 +28,8 @@ def main() -> None:
             try:
                 row = json.loads(line)
             except json.JSONDecodeError as exc:
-                raise SystemExit("BRAVE_REMOTE_EXECUTION_GATE=FAIL invalid JSON %s:%d: %s" %
-                                 (path, number, exc))
+                fail("BRAVE_REMOTE_EXECUTION_GATE=FAIL invalid JSON %s:%d: %s" %
+                     (path, number, exc))
             if not isinstance(row, dict) or not row.get("step_id"):
                 continue
             action_records += 1
@@ -42,13 +46,13 @@ def main() -> None:
                 local += 1
 
     if failures:
-        raise SystemExit("BRAVE_REMOTE_EXECUTION_GATE=FAIL smoke metrics contain %d failed action records" % failures)
+        fail("BRAVE_REMOTE_EXECUTION_GATE=FAIL smoke metrics contain %d failed action records" % failures)
     if not action_records:
-        raise SystemExit("BRAVE_REMOTE_EXECUTION_GATE=FAIL no per-action Siso metrics were recorded")
+        fail("BRAVE_REMOTE_EXECUTION_GATE=FAIL no per-action Siso metrics were recorded")
     if fresh_remote < 1:
-        raise SystemExit("BRAVE_REMOTE_EXECUTION_GATE=FAIL no fresh remote worker execution; "
-                         "remote_cache_hits=%d local_actions=%d action_records=%d" %
-                         (remote_cache_hits, local, action_records))
+        fail("BRAVE_REMOTE_EXECUTION_GATE=FAIL no fresh remote worker execution; "
+             "remote_cache_hits=%d local_actions=%d action_records=%d" %
+             (remote_cache_hits, local, action_records))
     print("BRAVE_REMOTE_EXECUTION_GATE=PASS fresh_remote_actions=%d remote_cache_hits=%d "
           "local_actions=%d action_records=%d" %
           (fresh_remote, remote_cache_hits, local, action_records))
