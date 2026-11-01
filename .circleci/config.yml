@@ -1434,7 +1434,7 @@ jobs:
                 command: |
                   set -euo pipefail
                   STATUS="$CIRCLE_WORKING_DIRECTORY/brave-work/.sandium/apk-completion-status.txt"
-                  if [ -s "$STATUS" ] && grep -qx "BUILD_FINISHED=true" "$STATUS" && grep -qx "APK_ARCHIVE_VALID=true" "$STATUS" && grep -qx "APK_SIGNATURE_VALID=true" "$STATUS" && grep -qx "APK_PACKAGE_ID_VALID=true" "$STATUS"; then
+                  if [ -s "$STATUS" ] && grep -qx "BUILD_FINISHED=true" "$STATUS" && grep -qx "APK_ARCHIVE_VALID=true" "$STATUS" && grep -qx "APK_SIGNATURE_VALID=true" "$STATUS" && grep -qx "APK_PACKAGE_ID_VALID=true" && grep -qx "APK_BRANDING_VALID=true" "$STATUS"; then
                     echo "BRAVE_APK=ALREADY_PUBLISHED"
                     cat "$STATUS"
                     circleci-agent step halt
@@ -1454,7 +1454,7 @@ jobs:
                 command: |
                   set -euo pipefail
                   STATUS="$CIRCLE_WORKING_DIRECTORY/brave-work/.sandium/apk-completion-status.txt"
-                  if [ -s "$STATUS" ] && grep -qx "BUILD_FINISHED=true" "$STATUS" && grep -qx "APK_ARCHIVE_VALID=true" "$STATUS" && grep -qx "APK_SIGNATURE_VALID=true" "$STATUS" && grep -qx "APK_PACKAGE_ID_VALID=true" "$STATUS"; then
+                  if [ -s "$STATUS" ] && grep -qx "BUILD_FINISHED=true" "$STATUS" && grep -qx "APK_ARCHIVE_VALID=true" "$STATUS" && grep -qx "APK_SIGNATURE_VALID=true" "$STATUS" && grep -qx "APK_PACKAGE_ID_VALID=true" && grep -qx "APK_BRANDING_VALID=true" "$STATUS"; then
                     echo "BRAVE_APK=ALREADY_PUBLISHED"
                     cat "$STATUS"
                     circleci-agent step halt
@@ -1475,7 +1475,7 @@ jobs:
                 command: |
                   set -euo pipefail
                   STATUS="$CIRCLE_WORKING_DIRECTORY/brave-work/.sandium/apk-completion-status.txt"
-                  if [ -s "$STATUS" ] && grep -qx "BUILD_FINISHED=true" "$STATUS" && grep -qx "APK_ARCHIVE_VALID=true" "$STATUS" && grep -qx "APK_SIGNATURE_VALID=true" "$STATUS" && grep -qx "APK_PACKAGE_ID_VALID=true" "$STATUS"; then
+                  if [ -s "$STATUS" ] && grep -qx "BUILD_FINISHED=true" "$STATUS" && grep -qx "APK_ARCHIVE_VALID=true" "$STATUS" && grep -qx "APK_SIGNATURE_VALID=true" "$STATUS" && grep -qx "APK_PACKAGE_ID_VALID=true" && grep -qx "APK_BRANDING_VALID=true" "$STATUS"; then
                     echo "BRAVE_APK=ALREADY_PUBLISHED"
                     cat "$STATUS"
                     circleci-agent step halt
@@ -1497,7 +1497,7 @@ jobs:
                 command: |
                   set -euo pipefail
                   STATUS="$CIRCLE_WORKING_DIRECTORY/brave-work/.sandium/apk-completion-status.txt"
-                  if [ -s "$STATUS" ] && grep -qx "BUILD_FINISHED=true" "$STATUS" && grep -qx "APK_ARCHIVE_VALID=true" "$STATUS" && grep -qx "APK_SIGNATURE_VALID=true" "$STATUS" && grep -qx "APK_PACKAGE_ID_VALID=true" "$STATUS"; then
+                  if [ -s "$STATUS" ] && grep -qx "BUILD_FINISHED=true" "$STATUS" && grep -qx "APK_ARCHIVE_VALID=true" "$STATUS" && grep -qx "APK_SIGNATURE_VALID=true" "$STATUS" && grep -qx "APK_PACKAGE_ID_VALID=true" && grep -qx "APK_BRANDING_VALID=true" "$STATUS"; then
                     echo "BRAVE_APK=ALREADY_PUBLISHED"
                     cat "$STATUS"
                     circleci-agent step halt
@@ -1546,6 +1546,7 @@ jobs:
             bash -n .circleci/scripts/verify-brave-remote-smoke.sh
             bash -n .circleci/scripts/capture-brave-siso-checkpoint.sh
             bash -n .circleci/scripts/prepare-brave-source.sh
+            bash -n .circleci/scripts/apply-sandium-branding.sh
             bash -n .circleci/scripts/recover-siso-missing-cas-inputs.sh
             echo "BRAVE_PIPELINE_SELF_TEST=PASS"
       - when:
@@ -1561,7 +1562,7 @@ jobs:
                 command: |
                   set -euo pipefail
                   STATUS="$CIRCLE_WORKING_DIRECTORY/brave-work/.sandium/apk-completion-status.txt"
-                  if [ -s "$STATUS" ] && grep -qx "BUILD_FINISHED=true" "$STATUS" && grep -qx "APK_ARCHIVE_VALID=true" "$STATUS" && grep -qx "APK_SIGNATURE_VALID=true" "$STATUS" && grep -qx "APK_PACKAGE_ID_VALID=true" "$STATUS"; then
+                  if [ -s "$STATUS" ] && grep -qx "BUILD_FINISHED=true" "$STATUS" && grep -qx "APK_ARCHIVE_VALID=true" "$STATUS" && grep -qx "APK_SIGNATURE_VALID=true" "$STATUS" && grep -qx "APK_PACKAGE_ID_VALID=true" && grep -qx "APK_BRANDING_VALID=true" "$STATUS"; then
                     echo "BRAVE_APK=ALREADY_PUBLISHED for revision {{ .Revision }}"
                     cat "$STATUS"
                     circleci-agent step halt
@@ -1748,16 +1749,19 @@ jobs:
                 "$TOOLS/aapt" dump badging "$APK" > "$ROOT/brave-work/.sandium/restored-apk-badging.txt" 2>/dev/null || VALID=false
               fi
               PACKAGE=""
+              APP_LABEL=""
               if [ "$VALID" = true ]; then
                 PACKAGE="$(sed -n "s/^package: name='\\([^']*\\)'.*/\\1/p" "$ROOT/brave-work/.sandium/restored-apk-badging.txt" 2>/dev/null | head -n 1)"
+                APP_LABEL="$(sed -n "s/^application-label:'\\(.*\\)'$/\\1/p" "$ROOT/brave-work/.sandium/restored-apk-badging.txt" 2>/dev/null | head -n 1)"
                 [ "$PACKAGE" = "com.brave.browser_default" ] || VALID=false
+                [ "$APP_LABEL" = "Sandium Browser" ] || VALID=false
               fi
             else
               VALID=false
             fi
             if [ "$VALID" = true ]; then
               touch "$ROOT/brave-work/.sandium/restored-apk-valid"
-              echo "BRAVE_RESTORED_APK=VALID package=com.brave.browser_default bytes=$(stat -c '%s' "$APK")"
+              echo "BRAVE_RESTORED_APK=VALID package=com.brave.browser_default label=Sandium Browser bytes=$(stat -c '%s' "$APK")"
             else
               echo "BRAVE_RESTORED_APK=INVALID; reopening only the APK output action."
               touch "$ROOT/brave-work/.sandium/invalid-apk-output-for-ledger"
@@ -1929,6 +1933,7 @@ jobs:
             ARCHIVE_VALID=false
             SIGNATURE_VALID=not_checked
             PACKAGE_VALID=false
+            BRANDING_VALID=false
             APK_ERROR=""
             if [ -s "$APK" ]; then
               if python3 -c 'import sys,zipfile; z=zipfile.ZipFile(sys.argv[1]); bad=z.testzip(); z.close(); sys.exit(1 if bad else 0)' "$APK"; then
@@ -1943,10 +1948,18 @@ jobs:
                   SIGNATURE_VALID=true
                   if "$TOOLS/aapt" dump badging "$APK" > "$ROOT/brave-apk/apk-badging.txt" 2>&1; then
                     PACKAGE="$(sed -n "s/^package: name='\\([^']*\\)'.*/\\1/p" "$ROOT/brave-apk/apk-badging.txt" | head -n 1)"
+                    APP_LABEL="$(sed -n "s/^application-label:'\\(.*\\)'$/\\1/p" "$ROOT/brave-apk/apk-badging.txt" | head -n 1)"
                     if [ "$PACKAGE" = "com.brave.browser_default" ]; then
                       PACKAGE_VALID=true
                     else
                       APK_ERROR="expected package com.brave.browser_default; got ${PACKAGE:-<missing>}"
+                    fi
+                    if [ "$APP_LABEL" = "Sandium Browser" ]; then
+                      BRANDING_VALID=true
+                      echo "SANDIUM_APK_LABEL_GATE=PASS label=$APP_LABEL"
+                    else
+                      APK_ERROR="expected app label Sandium Browser; got ${APP_LABEL:-<missing>}"
+                      echo "SANDIUM_APK_LABEL_GATE=FAIL $APK_ERROR"
                     fi
                   else
                     APK_ERROR="aapt could not read the APK manifest"
@@ -1956,13 +1969,14 @@ jobs:
                 fi
               fi
             fi
-            if [ -s "$APK" ] && [ "$ARCHIVE_VALID" = true ] && [ "$SIGNATURE_VALID" = true ] && [ "$PACKAGE_VALID" = true ]; then
+            if [ -s "$APK" ] && [ "$ARCHIVE_VALID" = true ] && [ "$SIGNATURE_VALID" = true ] && [ "$PACKAGE_VALID" = true ] && [ "$BRANDING_VALID" = true ]; then
               cp "$APK" "$ROOT/brave-apk/Sandium-Brave-test.apk"
               {
                 echo "BUILD_FINISHED=true"
                 echo "APK_ARCHIVE_VALID=true"
                 echo "APK_SIGNATURE_VALID=true"
                 echo "APK_PACKAGE_ID_VALID=true"
+                echo "APK_BRANDING_VALID=true"
                 echo "APK_PACKAGE_ID=com.brave.browser_default"
                 echo "APK_SIZE_BYTES=$(stat -c '%s' "$APK")"
               } > "$ROOT/brave-apk/status.txt"
@@ -1973,6 +1987,7 @@ jobs:
                 echo "APK_ARCHIVE_VALID=$ARCHIVE_VALID"
                 echo "APK_SIGNATURE_VALID=$SIGNATURE_VALID"
                 echo "APK_PACKAGE_ID_VALID=$PACKAGE_VALID"
+                echo "APK_BRANDING_VALID=$BRANDING_VALID"
                 echo "APK_VALIDATION_ERROR=${APK_ERROR:-APK not produced}"
               } > "$ROOT/brave-apk/status.txt"
               echo "BRAVE_APK_VALIDATION=FAIL ${APK_ERROR:-APK not produced}"
@@ -1994,7 +2009,7 @@ jobs:
             if [ -s "$STATUS" ]; then
               cp "$STATUS" "$MARKER"
             else
-              printf 'BUILD_FINISHED=false\nAPK_ARCHIVE_VALID=false\nAPK_SIGNATURE_VALID=not_yet_built\nAPK_PACKAGE_ID_VALID=false\n' > "$MARKER"
+              printf 'BUILD_FINISHED=false\nAPK_ARCHIVE_VALID=false\nAPK_SIGNATURE_VALID=not_yet_built\nAPK_PACKAGE_ID_VALID=false\nAPK_BRANDING_VALID=false\n' > "$MARKER"
             fi
             echo "BRAVE_APK_COMPLETION_MARKER=$(grep -qx 'BUILD_FINISHED=true' "$MARKER" && echo VERIFIED || echo INCOMPLETE)"
       - save_cache:
@@ -2041,7 +2056,7 @@ jobs:
           command: |
             set -euo pipefail
             MARKER="$CIRCLE_WORKING_DIRECTORY/brave-work/.sandium/apk-completion-status.txt"
-            if [ -s "$MARKER" ] && grep -qx "BUILD_FINISHED=true" "$MARKER" && grep -qx "APK_ARCHIVE_VALID=true" "$MARKER" && grep -qx "APK_SIGNATURE_VALID=true" "$MARKER" && grep -qx "APK_PACKAGE_ID_VALID=true" "$MARKER"; then
+            if [ -s "$MARKER" ] && grep -qx "BUILD_FINISHED=true" "$MARKER" && grep -qx "APK_ARCHIVE_VALID=true" "$MARKER" && grep -qx "APK_SIGNATURE_VALID=true" "$MARKER" && grep -qx "APK_PACKAGE_ID_VALID=true" && grep -qx "APK_BRANDING_VALID=true" "$MARKER"; then
               echo "BRAVE_APK_ARTIFACT=STORED_BEFORE_CHECKPOINT_UPLOAD"
               echo "BRAVE_CHECKPOINT_UPLOAD=SKIPPED; build and APK validation are complete."
               circleci-agent step halt
@@ -2152,7 +2167,7 @@ jobs:
             test -s "$LEDGER" || { echo "FINAL_STAGE_GATE=FAIL missing action ledger" >&2; exit 1; }
             test -s "$ROOT/brave-workspace-checkpoint.tar.zst" || { echo "FINAL_STAGE_GATE=FAIL no portable checkpoint was packed" >&2; exit 1; }
             PENDING="$(python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); print(int(d["planned_total"])-len(d["completed"]))' "$LEDGER")"
-            if [ -s "$APK_STATUS" ] && grep -qx "BUILD_FINISHED=true" "$APK_STATUS" && grep -qx "APK_ARCHIVE_VALID=true" "$APK_STATUS" && grep -qx "APK_SIGNATURE_VALID=true" "$APK_STATUS" && grep -qx "APK_PACKAGE_ID_VALID=true" "$APK_STATUS"; then
+            if [ -s "$APK_STATUS" ] && grep -qx "BUILD_FINISHED=true" "$APK_STATUS" && grep -qx "APK_ARCHIVE_VALID=true" "$APK_STATUS" && grep -qx "APK_SIGNATURE_VALID=true" "$APK_STATUS" && grep -qx "APK_PACKAGE_ID_VALID=true" && grep -qx "APK_BRANDING_VALID=true" "$APK_STATUS"; then
               echo "FINAL_STAGE_GATE=PASS APK validated and artifact published."
               exit 0
             fi

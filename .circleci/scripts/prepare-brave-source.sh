@@ -77,6 +77,9 @@ if [ "${BRAVE_STAGE_INDEX:?BRAVE_STAGE_INDEX is required}" = "1" ]; then
     pnpm run init --target_os=android --target_arch=arm64 --no-history
   fi
 
+  # Apply Sandium launcher artwork and app display name to the pinned sources.
+  bash "$ROOT/.circleci/scripts/apply-sandium-branding.sh"
+
   # Match the proven SSfull REAPI fix: compiler crash diagnostics must stay
   # inside this GN output directory. The upstream rebase_path("//out/...", ...)
   # produces ../clang-crashreports in compile commands; BuildBuddy rejects
