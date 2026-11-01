@@ -1793,16 +1793,16 @@ jobs:
             mkdir -p "$ROOT/brave-work/.sandium"
             STATUS="$ROOT/brave-work/.sandium/remote-smoke-status.txt"
             if [ -s "$ROOT/brave-work/.sandium/restored-apk-valid" ]; then
-              printf 'REMOTE_SMOKE=SKIPPED_VALID_APK\\n' > "$STATUS"
+              printf 'REMOTE_SMOKE=SKIPPED_VALID_APK\n' > "$STATUS"
               echo "BRAVE_REMOTE_SMOKE=SKIPPED reason=already-verified-apk"
             else
               export BRAVE_STAGE_INDEX="<< parameters.stage_index >>"
               if bash .circleci/scripts/verify-brave-remote-smoke.sh; then
-                printf 'REMOTE_SMOKE=PASS\\n' > "$STATUS"
+                printf 'REMOTE_SMOKE=PASS\n' > "$STATUS"
                 echo "BRAVE_REMOTE_SMOKE_STATUS=PASS"
               else
                 RC=$?
-                printf 'REMOTE_SMOKE=FAIL\\nREMOTE_SMOKE_EXIT_CODE=%s\\n' "$RC" > "$STATUS"
+                printf 'REMOTE_SMOKE=FAIL\nREMOTE_SMOKE_EXIT_CODE=%s\n' "$RC" > "$STATUS"
                 echo "BRAVE_REMOTE_SMOKE_STATUS=FAIL exit=$RC; retaining successful smoke-action metrics for reconciliation."
               fi
             fi
@@ -1819,7 +1819,7 @@ jobs:
             SMOKE_STATUS="$STATUS_DIR/remote-smoke-status.txt"
             if [ -s "$STATUS_DIR/restored-apk-valid" ]; then
               echo "BRAVE_APK=ALREADY_PRESENT_AND_VERIFIED"
-              printf 'BUILD_EXIT_CODE=0\\nBUILD_REASON=RESTORED_VALID_APK\\n' > "$BUILD_STATUS"
+              printf 'BUILD_EXIT_CODE=0\nBUILD_REASON=RESTORED_VALID_APK\n' > "$BUILD_STATUS"
               exit 0
             fi
             if [ ! -s "$OUT/build.ninja" ]; then
@@ -1832,7 +1832,7 @@ jobs:
             fi
             if ! grep -qx 'REMOTE_SMOKE=PASS' "$SMOKE_STATUS" 2>/dev/null; then
               echo "BRAVE_BUILD=SKIPPED remote worker smoke did not pass; reconciling completed smoke work."
-              printf 'BUILD_EXIT_CODE=125\\nBUILD_REASON=REMOTE_SMOKE_FAILED\\n' > "$BUILD_STATUS"
+              printf 'BUILD_EXIT_CODE=125\nBUILD_REASON=REMOTE_SMOKE_FAILED\n' > "$BUILD_STATUS"
               exit 0
             fi
             ROOT_SRC="$ROOT/brave-work/src"
@@ -1994,7 +1994,7 @@ jobs:
             if [ -s "$STATUS" ]; then
               cp "$STATUS" "$MARKER"
             else
-              printf 'BUILD_FINISHED=false\\nAPK_ARCHIVE_VALID=false\\nAPK_SIGNATURE_VALID=not_yet_built\\nAPK_PACKAGE_ID_VALID=false\\n' > "$MARKER"
+              printf 'BUILD_FINISHED=false\nAPK_ARCHIVE_VALID=false\nAPK_SIGNATURE_VALID=not_yet_built\nAPK_PACKAGE_ID_VALID=false\n' > "$MARKER"
             fi
             echo "BRAVE_APK_COMPLETION_MARKER=$(grep -qx 'BUILD_FINISHED=true' "$MARKER" && echo VERIFIED || echo INCOMPLETE)"
       - save_cache:
