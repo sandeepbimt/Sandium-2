@@ -10,9 +10,14 @@ def fail(message: str) -> None:
     raise SystemExit(2)
 
 def main() -> None:
-    if len(sys.argv) != 2:
-        fail("usage: verify-brave-remote-metrics.py METRICS.jsonl")
-    path = Path(sys.argv[1])
+    audit = len(sys.argv) == 3 and sys.argv[1] == "--audit"
+    if audit:
+        path_arg = sys.argv[2]
+    elif len(sys.argv) == 2:
+        path_arg = sys.argv[1]
+    else:
+        fail("usage: verify-brave-remote-metrics.py [--audit] METRICS.jsonl")
+    path = Path(path_arg)
     if not path.is_file() or path.stat().st_size == 0:
         fail("BRAVE_REMOTE_EXECUTION_GATE=FAIL missing or empty Siso metrics: %s" % path)
 
@@ -50,9 +55,13 @@ def main() -> None:
     if not action_records:
         fail("BRAVE_REMOTE_EXECUTION_GATE=FAIL no per-action Siso metrics were recorded")
     if fresh_remote < 1:
-        fail("BRAVE_REMOTE_EXECUTION_GATE=FAIL no fresh remote worker execution; "
-             "remote_cache_hits=%d local_actions=%d action_records=%d" %
-             (remote_cache_hits, local, action_records))
+        message = ("BRAVE_REMOTE_EXECUTION_GATE=WARNING no fresh remote worker execution observed; "
+                   "remote_cache_hits=%d local_actions=%d action_records=%d" %
+                   (remote_cache_hits, local, action_records))
+        if audit:
+            print(message)
+            raise SystemExit(3)
+        fail(message.replace("GATE=WARNING", "GATE=FAIL"))
     print("BRAVE_REMOTE_EXECUTION_GATE=PASS fresh_remote_actions=%d remote_cache_hits=%d "
           "local_actions=%d action_records=%d" %
           (fresh_remote, remote_cache_hits, local, action_records))

@@ -38,6 +38,10 @@ def main():
         ]) + "\n", encoding="utf-8")
         output = run(path, expected=2)
         assert "no fresh remote worker execution" in output, output
+        audit = subprocess.run([sys.executable, str(CHECKER), "--audit", str(path)],
+                               text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        assert audit.returncode == 3, audit.stdout
+        assert "BRAVE_REMOTE_EXECUTION_GATE=WARNING no fresh remote worker execution" in audit.stdout, audit.stdout
 
         path.write_text(json.dumps(row("remote-failed", remote=True, err=True)) + "\n", encoding="utf-8")
         output = run(path, expected=2)
