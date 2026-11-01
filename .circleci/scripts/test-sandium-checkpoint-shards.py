@@ -11,8 +11,8 @@ import tempfile
 
 HELPER = Path(__file__).with_name("sandium-checkpoint-shards.py")
 
-def run(*args: str) -> str:
-    proc = subprocess.run([sys.executable, str(HELPER), *args],
+def run(*args: str, env: dict[str, str] | None = None) -> str:
+    proc = subprocess.run([sys.executable, str(HELPER), *args], env=env,
                           stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
     if proc.returncode:
         raise AssertionError("command failed (%s):\n%s" % (args, proc.stdout))
@@ -83,13 +83,41 @@ def main() -> None:
         source_mtime = timed_file.stat().st_mtime_ns
         source_mode = wrapper.stat().st_mode & 0o777
 
-        run("archive", "--root", str(root), "--workers", "8")
+        # Inject one transient GNU-tar exit status 1 after a complete tar stream.
+        # The shard helper must discard that attempt and rebuild the affected shard.
+        real_tar = shutil.which("tar")
+        assert real_tar
+        fake_bin = root / "fake-bin"
+        fake_bin.mkdir()
+        fake_tar = fake_bin / "tar"
+        fake_tar.write_text(
+            "#!/usr/bin/env bash\n"
+            "set +e\n"
+            "\"$SANDIUM_REAL_TAR\" \"$@\"\n"
+            "status=$?\n"
+            "if [ \"$status\" -eq 0 ] && mkdir \"$SANDIUM_TAR_FAIL_ONCE_LOCK\" 2>/dev/null; then\n"
+            "  echo SANDIUM_TEST_INJECTED_TAR_EXIT_1 >&2\n"
+            "  exit 1\n"
+            "fi\n"
+            "exit \"$status\"\n",
+            encoding="utf-8",
+        )
+        os.chmod(fake_tar, 0o755)
+        test_env = os.environ.copy()
+        test_env["PATH"] = str(fake_bin) + os.pathsep + test_env["PATH"]
+        test_env["SANDIUM_REAL_TAR"] = real_tar
+        test_env["SANDIUM_TAR_FAIL_ONCE_LOCK"] = str(root / "tar-fail-once.lock")
+        archive_output = run("archive", "--root", str(root), "--workers", "8", env=test_env)
+        assert "SANDIUM_SHARD_ARCHIVE_RETRY=START" in archive_output, archive_output
+        assert "SANDIUM_TEST_INJECTED_TAR_EXIT_1" in archive_output, archive_output
         manifest_path = root / "brave-workspace-checkpoint.manifest.json"
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
         shards = manifest["shards"]
         assert 4 <= manifest["workers"] <= 8, manifest
         assert len(shards) == manifest["workers"], manifest
         assert all(int(shard["size_bytes"]) > 0 for shard in shards), manifest
+        assert all(int(shard["archive_attempts"]) in (1, 2) for shard in shards), manifest
+        assert any(int(shard["archive_attempts"]) == 2 for shard in shards), manifest
         assert len({shard["sha256"] for shard in shards}) == len(shards), manifest
         verified = run("verify", "--root", str(root), "--workers", "8", "--zstd-test")
         assert "SANDIUM_SHARD_VERIFY=PASS" in verified, verified
