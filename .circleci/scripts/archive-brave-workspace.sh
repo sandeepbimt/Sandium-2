@@ -59,11 +59,14 @@ case "$MODE" in
       [ -s "$OUT/build.ninja" ] || fail "restored archive is missing the pinned build graph"
       validate_ledger
       echo "BRAVE_WORKSPACE_ARCHIVE_RESTORE=PASS"
-    elif [ "${BRAVE_STAGE_INDEX:-1}" = "1" ] && [ -s "$WORK/.gclient" ] && [ -s "$OUT/build.ninja" ]; then
-      # One-time compatibility path for the existing v3 direct-directory cache.
-      echo "BRAVE_WORKSPACE_ARCHIVE_RESTORE=LEGACY_DIRECT_CACHE"
+    elif [ -s "$WORK/.gclient" ] && [ -s "$OUT/build.ninja" ]; then
+      # One-time migration path when CircleCI restored the previous v3
+      # direct-directory cache instead of the new single-file archive.
+      echo "BRAVE_WORKSPACE_ARCHIVE_RESTORE=LEGACY_DIRECT_CACHE stage=${BRAVE_STAGE_INDEX:-unknown}"
+    elif [ "${BRAVE_STAGE_INDEX:-1}" = "1" ]; then
+      echo "BRAVE_WORKSPACE_ARCHIVE_RESTORE=FIRST_BUILD no prior checkpoint; source initialization will create the baseline"
     else
-      fail "no workspace archive was restored for stage ${BRAVE_STAGE_INDEX:-unknown}"
+      fail "no workspace archive or legacy checkpoint was restored for stage ${BRAVE_STAGE_INDEX:-unknown}"
     fi
     ;;
   archive)
