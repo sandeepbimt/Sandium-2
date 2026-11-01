@@ -379,6 +379,149 @@ def main():
             invalidation_marker.unlink(missing_ok=True)
             print("ACTION_INVALIDATED_APK_ACTION_REOPENED=%d" % len(reopened))
         total, done = int(ledger["planned_total"]), len(ledger["completed"])
+        expected = total - done
+        if expected < 0:
+            die(f"ACTION_LEDGER_STATE=FAIL completed={done} total={total}")
+        if pending != expected:
+            die("ACTION_HANDOFF_GATE=FAIL expected_pending=%d dry_run_pending=%d completed=%d total=%d; "
+                "stopping before compilation" % (expected, pending, done, total))
+        expected_keys = set(ledger.get("next_pending_action_keys", []))
+        if expected_keys != pending_keys:
+            added = sorted(pending_keys - expected_keys)
+            missing = sorted(expected_keys - pending_keys)
+            die("ACTION_HANDOFF_SET_GATE=FAIL pending action identity set changed; "
+                "new=%d missing=%d examples_new=%s examples_missing=%s" %
+                (len(added), len(missing), added[:5], missing[:5]))
+        ledger["active_stage"] = {"run_id": run_id, "workflow": a.workflow,
+                                  "build": a.build, "stage": a.stage,
+                                  "pending_before": pending, "pending_action_keys": sorted(pending_keys),
+                                  "completed_before": done, "planned_total": total,
+                                  "dry_run": dry, "planned_at_epoch": int(time.time())}
+        save(path, ledger)
+        print(f"ACTION_HANDOFF_GATE=PASS pending={pending}/{expected}")
+        print(f"SANDIUM_BUILD_MATH={done}/{total} complete; {pending}/{expected} pending")
+        print(f"ACTION_PLAN_DRY_RUN=PASS action_identities={pending} progress_denominators={dry.get('progress_denominators')}")
+        return
+
+    if ledger is None or ledger.get("identity", {}).get("fingerprint") != ident.get("fingerprint"):
+        die("ACTION_LEDGER_IDENTITY=FAIL missing ledger or graph/source/config changed")
+    active = ledger.get("active_stage") or {}
+    if active.get("run_id") != run_id:
+        die(f"ACTION_LEDGER_STAGE=FAIL active={active.get('run_id')} current={run_id}")
+    # Main APK-target metrics and the remote preflight smoke metrics are
+    # separate accounting domains. The smoke probe intentionally invokes an
+    # additional Perfetto host-tool target; those sidecar-only actions must not
+    # be treated as unplanned APK compilation. However, any smoke actions that
+    # are also in the APK target's pre-build frontier are genuine completed APK
+    # prerequisites and must be credited to avoid a false pending-set mismatch.
+    metrics, stats = read_metrics(out, a.metrics_prefix)
+    smoke_path = out / f"{a.metrics_prefix}smoke.jsonl"
+    smoke_metrics, smoke_stats = read_metrics(
+        out, "__sandium_no_smoke_prefix__", [smoke_path])
+    if stats["successful_duplicate_records"]:
+        die("ACTION_DUPLICATE_WITHIN_STAGE=FAIL %d APK-build actions were successfully recorded more than once in this stage" %
+            stats["successful_duplicate_records"])
+    if smoke_stats["successful_duplicate_records"]:
+        die("ACTION_SMOKE_DUPLICATE=FAIL %d smoke actions were successfully recorded more than once" %
+            smoke_stats["successful_duplicate_records"])
+    pending_before_keys = set(active.get("pending_action_keys", []))
+    if len(pending_before_keys) != int(active.get("pending_before", -1)):
+        die("ACTION_LEDGER_STAGE=FAIL missing or invalid pending action identity set")
+    smoke_planned = {key: item for key, item in smoke_metrics.items()
+                     if key in pending_before_keys}
+    smoke_preflight_only = set(smoke_metrics) - pending_before_keys
+    duplicate_smoke_build = set(smoke_planned).intersection(metrics)
+    if duplicate_smoke_build:
+        die("ACTION_DUPLICATE_ACROSS_SMOKE_AND_BUILD=FAIL %d planned actions were recorded by both the smoke probe and APK build" %
+            len(duplicate_smoke_build))
+    metrics = {**smoke_planned, **metrics}
+    print("ACTION_REMOTE_SMOKE_RECONCILIATION=PASS planned_overlap=%d preflight_only=%d failed_records=%d" %
+          (len(smoke_planned), len(smoke_preflight_only), smoke_stats["failed_records"]))
+    if not stats["files"] and not smoke_planned and int(active.get("pending_before", 0)):
+        die(f"ACTION_METRICS_MISSING=FAIL no APK-build metrics or planned smoke-overlap metrics found for prefix {a.metrics_prefix}")
+    previous = ledger["completed"]
+    revisited = set(metrics).intersection(previous)
+    if revisited:
+        die(f"ACTION_REEXECUTION_GATE=FAIL {len(revisited)} previously completed actions appeared again")
+
+    # Siso's real execution can discover additional actions after the dry-run
+    # frontier was captured (for example, generated/dynamic dependency work).
+    # Reconcile three independent sets:
+    #   P = pending action identities recorded before compilation
+    #   M = successful action identities reported by Siso during this stage
+    #   A = identities still pending in a fresh post-build dry-run
+    #
+    # A planned action must either be in M or remain in A. Every successful
+    # action in M must be absent from A. New actions in M-P are counted as
+    # dynamically discovered completed work; new actions in A-P are added to
+    # the persistent pending frontier. This preserves exact accounting without
+    # rejecting legitimate Siso graph discovery or weakening duplicate checks.
+    before = len(pending_before_keys)
+    after_keys, after_dry = dry_run_actions(
+        autoninja, src, out, a.jobs, a.stage, a.build, a.workflow)
+    planned_completed_keys = set(metrics).intersection(pending_before_keys)
+    dynamically_completed_keys = set(metrics) - pending_before_keys
+    planned_remaining_keys = pending_before_keys - planned_completed_keys
+    still_pending_planned_keys = after_keys.intersection(pending_before_keys)
+    newly_pending_keys = after_keys - pending_before_keys
+
+    # A metric must never claim that an action completed while the same action
+    # remains pending in the live Siso graph.
+    metric_still_pending = set(metrics).intersection(after_keys)
+    if metric_still_pending:
+        die("ACTION_METRIC_STILL_PENDING=FAIL %d successful action(s) remain pending after execution; examples=%s" %
+            (len(metric_still_pending), sorted(metric_still_pending)[:5]))
+
+    # Every action from the pre-build plan must be accounted for by either a
+    # successful metric or the post-build pending graph. Missing from both
+    # means the accounting data is incomplete or the graph changed improperly.
+    if planned_remaining_keys != still_pending_planned_keys:
+        vanished = sorted(planned_remaining_keys - still_pending_planned_keys)
+        unexpected = sorted(still_pending_planned_keys - planned_remaining_keys)
+        die("ACTION_PLANNED_FRONTIER_MISMATCH=FAIL planned_not_completed=%d but_still_pending=%d "
+            "unaccounted_vanished=%d unexpected_planned_pending=%d examples_vanished=%s examples_pending=%s" %
+            (len(planned_remaining_keys), len(still_pending_planned_keys),
+             len(vanished), len(unexpected), vanished[:5], unexpected[:5]))
+
+    # A previously completed action must not reappear in the next frontier.
+    reappeared = after_keys.intersection(previous)
+    if reappeared:
+        die("ACTION_REEXECUTION_PENDING=FAIL %d previously completed action(s) reappeared in the post-build frontier; examples=%s" %
+            (len(reappeared), sorted(reappeared)[:5]))
+
+    added = len(metrics)
+    if before > 0 and added == 0 and not newly_pending_keys and len(after_keys) == before:
+        die("ACTION_STAGE_NO_PROGRESS=FAIL this stage completed zero new actions and left the pending frontier unchanged")
+
+    # Newly discovered work is part of the build denominator, not an error.
+    # Completed discoveries increase both total and completed; still-pending
+    # discoveries increase total and remain in the next stage's exact frontier.
+    newly_accounted = len(dynamically_completed_keys) + len(newly_pending_keys)
+    ledger["planned_total"] = int(ledger["planned_total"]) + newly_accounted
+    now = int(time.time())
+    for key, item in metrics.items():
+        ledger["completed"][key] = {
+            "identity": item["identity"], "completed_by": run_id,
+            "completed_at_epoch": now, "cached": item["cached"],
+            "is_remote": item["is_remote"], "is_local": item["is_local"],
+            "no_exec": item["no_exec"]}
+    ledger["stages"].append({
+        "run_id": run_id, "stage": a.stage,
+        "pending_before": before,
+        "planned_completed": len(planned_completed_keys),
+        "dynamically_completed": len(dynamically_completed_keys),
+        "newly_pending": len(newly_pending_keys),
+        "newly_discovered_action_keys": sorted(dynamically_completed_keys | newly_pending_keys),
+        "new_completed": added,
+        "pending_after": len(after_keys),
+        "metric_stats": stats,
+        "after_dry_run": after_dry,
+        "completed_total": len(ledger["completed"]),
+        "planned_total_after": ledger["planned_total"],
+        "recorded_at_epoch": now})
+    ledger["next_pending_action_keys"] = sorted(after_keys)
+    ledger.pop("active_stage", None)
+    total, done = int(ledger["planned_total"]), len(ledger["completed"])
     after = len(after_keys)
     remaining = total - done
     if remaining != after:
