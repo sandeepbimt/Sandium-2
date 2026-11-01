@@ -1426,15 +1426,15 @@ jobs:
             equal: [2, << parameters.stage_index >>]
           steps:
             - restore_cache:
-                name: Restore verified APK marker for stage 2
+                name: Restore verified ARM64 APK + AAB marker for stage 2
                 keys:
-                  - sandium-brave-apk-complete-v2-{{ .Branch }}-{{ .Revision }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-1
+                  - sandium-brave-aab-complete-v1-{{ .Branch }}-{{ .Revision }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-1
             - run:
-                name: Stop stage 2 when a prior stage published a verified APK
+                name: Stop stage 2 when prior stage published validated distribution artifacts
                 command: |
                   set -euo pipefail
                   STATUS="$CIRCLE_WORKING_DIRECTORY/brave-work/.sandium/apk-completion-status.txt"
-                  if [ -s "$STATUS" ] && grep -qx "BUILD_FINISHED=true" "$STATUS" && grep -qx "APK_ARCHIVE_VALID=true" "$STATUS" && grep -qx "APK_SIGNATURE_VALID=true" "$STATUS" && grep -qx "APK_PACKAGE_ID_VALID=true" "$STATUS"; then
+                  if [ -s "$STATUS" ] && grep -qx "BUILD_FINISHED=true" "$STATUS" && grep -qx "APK_ARCHIVE_VALID=true" "$STATUS" && grep -qx "APK_SIGNATURE_VALID=true" "$STATUS" && grep -qx "APK_PACKAGE_ID_VALID=true" "$STATUS" && grep -qx "AAB_ARCHIVE_VALID=true" "$STATUS" && grep -qx "AAB_SIGNATURE_VALID=true" "$STATUS" && grep -qx "AAB_BUNDLE_VALID=true" "$STATUS"; then
                     echo "BRAVE_APK=ALREADY_PUBLISHED"
                     cat "$STATUS"
                     circleci-agent step halt
@@ -1445,16 +1445,16 @@ jobs:
             equal: [3, << parameters.stage_index >>]
           steps:
             - restore_cache:
-                name: Restore verified APK marker for stage 3
+                name: Restore verified ARM64 APK + AAB marker for stage 3
                 keys:
-                  - sandium-brave-apk-complete-v2-{{ .Branch }}-{{ .Revision }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-2
-                  - sandium-brave-apk-complete-v2-{{ .Branch }}-{{ .Revision }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-1
+                  - sandium-brave-aab-complete-v1-{{ .Branch }}-{{ .Revision }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-2
+                  - sandium-brave-aab-complete-v1-{{ .Branch }}-{{ .Revision }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-1
             - run:
-                name: Stop stage 3 when a prior stage published a verified APK
+                name: Stop stage 3 when prior stage published validated distribution artifacts
                 command: |
                   set -euo pipefail
                   STATUS="$CIRCLE_WORKING_DIRECTORY/brave-work/.sandium/apk-completion-status.txt"
-                  if [ -s "$STATUS" ] && grep -qx "BUILD_FINISHED=true" "$STATUS" && grep -qx "APK_ARCHIVE_VALID=true" "$STATUS" && grep -qx "APK_SIGNATURE_VALID=true" "$STATUS" && grep -qx "APK_PACKAGE_ID_VALID=true" "$STATUS"; then
+                  if [ -s "$STATUS" ] && grep -qx "BUILD_FINISHED=true" "$STATUS" && grep -qx "APK_ARCHIVE_VALID=true" "$STATUS" && grep -qx "APK_SIGNATURE_VALID=true" "$STATUS" && grep -qx "APK_PACKAGE_ID_VALID=true" "$STATUS" && grep -qx "AAB_ARCHIVE_VALID=true" "$STATUS" && grep -qx "AAB_SIGNATURE_VALID=true" "$STATUS" && grep -qx "AAB_BUNDLE_VALID=true" "$STATUS"; then
                     echo "BRAVE_APK=ALREADY_PUBLISHED"
                     cat "$STATUS"
                     circleci-agent step halt
@@ -1465,17 +1465,17 @@ jobs:
             equal: [4, << parameters.stage_index >>]
           steps:
             - restore_cache:
-                name: Restore verified APK marker for stage 4
+                name: Restore verified ARM64 APK + AAB marker for stage 4
                 keys:
-                  - sandium-brave-apk-complete-v2-{{ .Branch }}-{{ .Revision }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-3
-                  - sandium-brave-apk-complete-v2-{{ .Branch }}-{{ .Revision }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-2
-                  - sandium-brave-apk-complete-v2-{{ .Branch }}-{{ .Revision }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-1
+                  - sandium-brave-aab-complete-v1-{{ .Branch }}-{{ .Revision }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-3
+                  - sandium-brave-aab-complete-v1-{{ .Branch }}-{{ .Revision }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-2
+                  - sandium-brave-aab-complete-v1-{{ .Branch }}-{{ .Revision }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-1
             - run:
-                name: Stop stage 4 when a prior stage published a verified APK
+                name: Stop stage 4 when prior stage published validated distribution artifacts
                 command: |
                   set -euo pipefail
                   STATUS="$CIRCLE_WORKING_DIRECTORY/brave-work/.sandium/apk-completion-status.txt"
-                  if [ -s "$STATUS" ] && grep -qx "BUILD_FINISHED=true" "$STATUS" && grep -qx "APK_ARCHIVE_VALID=true" "$STATUS" && grep -qx "APK_SIGNATURE_VALID=true" "$STATUS" && grep -qx "APK_PACKAGE_ID_VALID=true" "$STATUS"; then
+                  if [ -s "$STATUS" ] && grep -qx "BUILD_FINISHED=true" "$STATUS" && grep -qx "APK_ARCHIVE_VALID=true" "$STATUS" && grep -qx "APK_SIGNATURE_VALID=true" "$STATUS" && grep -qx "APK_PACKAGE_ID_VALID=true" "$STATUS" && grep -qx "AAB_ARCHIVE_VALID=true" "$STATUS" && grep -qx "AAB_SIGNATURE_VALID=true" "$STATUS" && grep -qx "AAB_BUNDLE_VALID=true" "$STATUS"; then
                     echo "BRAVE_APK=ALREADY_PUBLISHED"
                     cat "$STATUS"
                     circleci-agent step halt
@@ -1486,18 +1486,18 @@ jobs:
             equal: [5, << parameters.stage_index >>]
           steps:
             - restore_cache:
-                name: Restore verified APK marker for stage 5
+                name: Restore verified ARM64 APK + AAB marker for stage 5
                 keys:
-                  - sandium-brave-apk-complete-v2-{{ .Branch }}-{{ .Revision }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-4
-                  - sandium-brave-apk-complete-v2-{{ .Branch }}-{{ .Revision }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-3
-                  - sandium-brave-apk-complete-v2-{{ .Branch }}-{{ .Revision }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-2
-                  - sandium-brave-apk-complete-v2-{{ .Branch }}-{{ .Revision }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-1
+                  - sandium-brave-aab-complete-v1-{{ .Branch }}-{{ .Revision }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-4
+                  - sandium-brave-aab-complete-v1-{{ .Branch }}-{{ .Revision }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-3
+                  - sandium-brave-aab-complete-v1-{{ .Branch }}-{{ .Revision }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-2
+                  - sandium-brave-aab-complete-v1-{{ .Branch }}-{{ .Revision }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-1
             - run:
-                name: Stop stage 5 when a prior stage published a verified APK
+                name: Stop stage 5 when prior stage published validated distribution artifacts
                 command: |
                   set -euo pipefail
                   STATUS="$CIRCLE_WORKING_DIRECTORY/brave-work/.sandium/apk-completion-status.txt"
-                  if [ -s "$STATUS" ] && grep -qx "BUILD_FINISHED=true" "$STATUS" && grep -qx "APK_ARCHIVE_VALID=true" "$STATUS" && grep -qx "APK_SIGNATURE_VALID=true" "$STATUS" && grep -qx "APK_PACKAGE_ID_VALID=true" "$STATUS"; then
+                  if [ -s "$STATUS" ] && grep -qx "BUILD_FINISHED=true" "$STATUS" && grep -qx "APK_ARCHIVE_VALID=true" "$STATUS" && grep -qx "APK_SIGNATURE_VALID=true" "$STATUS" && grep -qx "APK_PACKAGE_ID_VALID=true" "$STATUS" && grep -qx "AAB_ARCHIVE_VALID=true" "$STATUS" && grep -qx "AAB_SIGNATURE_VALID=true" "$STATUS" && grep -qx "AAB_BUNDLE_VALID=true" "$STATUS"; then
                     echo "BRAVE_APK=ALREADY_PUBLISHED"
                     cat "$STATUS"
                     circleci-agent step halt
@@ -1540,8 +1540,9 @@ jobs:
           name: Run lightweight Brave continuation self-test
           command: |
             set -euo pipefail
-            python3 -m py_compile .circleci/scripts/brave-action-ledger.py
+            python3 -m py_compile .circleci/scripts/brave-action-ledger.py .circleci/scripts/analyze-brave-apk-size.py .circleci/scripts/test-analyze-brave-apk-size.py
             python3 .circleci/scripts/test-brave-action-ledger.py
+            python3 .circleci/scripts/test-analyze-brave-apk-size.py
             bash -n .circleci/scripts/archive-brave-workspace.sh
             bash -n .circleci/scripts/verify-brave-remote-smoke.sh
             bash -n .circleci/scripts/capture-brave-siso-checkpoint.sh
@@ -1553,15 +1554,15 @@ jobs:
             equal: [1, << parameters.stage_index >>]
           steps:
             - restore_cache:
-                name: Restore verified APK marker from the same source revision
+                name: Restore verified ARM64 APK + AAB marker from the same source revision
                 keys:
-                  - sandium-brave-apk-complete-v2-{{ .Branch }}-{{ .Revision }}-
+                  - sandium-brave-aab-complete-v1-{{ .Branch }}-{{ .Revision }}-
             - run:
                 name: Stop when this revision already has a published APK
                 command: |
                   set -euo pipefail
                   STATUS="$CIRCLE_WORKING_DIRECTORY/brave-work/.sandium/apk-completion-status.txt"
-                  if [ -s "$STATUS" ] && grep -qx "BUILD_FINISHED=true" "$STATUS" && grep -qx "APK_ARCHIVE_VALID=true" "$STATUS" && grep -qx "APK_SIGNATURE_VALID=true" "$STATUS" && grep -qx "APK_PACKAGE_ID_VALID=true" "$STATUS"; then
+                  if [ -s "$STATUS" ] && grep -qx "BUILD_FINISHED=true" "$STATUS" && grep -qx "APK_ARCHIVE_VALID=true" "$STATUS" && grep -qx "APK_SIGNATURE_VALID=true" "$STATUS" && grep -qx "APK_PACKAGE_ID_VALID=true" "$STATUS" && grep -qx "AAB_ARCHIVE_VALID=true" "$STATUS" && grep -qx "AAB_SIGNATURE_VALID=true" "$STATUS" && grep -qx "AAB_BUNDLE_VALID=true" "$STATUS"; then
                     echo "BRAVE_APK=ALREADY_PUBLISHED for revision {{ .Revision }}"
                     cat "$STATUS"
                     circleci-agent step halt
@@ -1726,42 +1727,50 @@ jobs:
               echo "BRAVE_REMOTE_EXECUTION_CONFIG_GATE=PASS"
             fi
       - run:
-          name: Verify restored Brave APK before scheduling build work
+          name: Verify restored ARM64 APK and AAB before scheduling build work
           command: |
             set -euo pipefail
             ROOT="$CIRCLE_WORKING_DIRECTORY"
-            OUT="$ROOT/brave-work/src/out/android_Release_arm64"
-            APK="$OUT/apks/BraveMonoarm64.apk"
-            TOOLS="$ROOT/brave-work/src/third_party/android_sdk/public/build-tools/37.0.0"
-            mkdir -p "$ROOT/brave-work/.sandium"
-            rm -f "$ROOT/brave-work/.sandium/restored-apk-valid"
-            rm -f "$ROOT/brave-work/.sandium/invalid-apk-output-for-ledger"
-            if [ ! -s "$APK" ]; then
-              echo "BRAVE_RESTORED_APK=ABSENT"
+            SRC="$ROOT/brave-work/src"
+            OUT="$SRC/out/android_Release_arm64"
+            APK="$OUT/apks/Bravearm64Universal.apk"
+            AAB="$OUT/apks/BraveMonoarm64.aab"
+            TOOLS="$SRC/third_party/android_sdk/public/build-tools/37.0.0"
+            JARSIGNER="$SRC/third_party/jdk/current/bin/jarsigner"
+            JAVA="$SRC/third_party/jdk/current/bin/java"
+            BUNDLETOOL="$SRC/third_party/android_build_tools/bundletool/cipd/bundletool.jar"
+            STATE="$ROOT/brave-work/.sandium"
+            mkdir -p "$STATE"
+            rm -f "$STATE/restored-distribution-valid"
+            rm -f "$STATE/invalid-distribution-output-for-ledger"
+
+            if [ ! -s "$APK" ] && [ ! -s "$AAB" ]; then
+              echo "BRAVE_RESTORED_DISTRIBUTION=ABSENT"
               exit 0
             fi
-            VALID=true
-            if ! python3 -c 'import sys,zipfile; z=zipfile.ZipFile(sys.argv[1]); bad=z.testzip(); z.close(); sys.exit(1 if bad else 0)' "$APK"; then VALID=false; fi
-            if [ "$VALID" = true ] && [ -x "$TOOLS/apksigner" ] && [ -x "$TOOLS/aapt" ]; then
-              "$TOOLS/apksigner" verify "$APK" >/dev/null 2>&1 || VALID=false
-              if [ "$VALID" = true ]; then
-                "$TOOLS/aapt" dump badging "$APK" > "$ROOT/brave-work/.sandium/restored-apk-badging.txt" 2>/dev/null || VALID=false
+
+            APK_VALID=false
+            if [ -s "$APK" ] && [ -x "$TOOLS/apksigner" ] && [ -x "$TOOLS/aapt" ]; then
+              if python3 -c 'import sys,zipfile; z=zipfile.ZipFile(sys.argv[1]); bad=z.testzip(); z.close(); sys.exit(1 if bad else 0)' "$APK"                 && "$TOOLS/apksigner" verify "$APK" >/dev/null 2>&1                 && "$TOOLS/aapt" dump badging "$APK" > "$STATE/restored-apk-badging.txt" 2>/dev/null                 && grep -q "^package: name='com.brave.browser_default'" "$STATE/restored-apk-badging.txt"; then
+                APK_VALID=true
               fi
-              PACKAGE=""
-              if [ "$VALID" = true ]; then
-                PACKAGE="$(sed -n "s/^package: name='\\([^']*\\)'.*/\\1/p" "$ROOT/brave-work/.sandium/restored-apk-badging.txt" 2>/dev/null | head -n 1)"
-                [ "$PACKAGE" = "com.brave.browser_default" ] || VALID=false
-              fi
-            else
-              VALID=false
             fi
-            if [ "$VALID" = true ]; then
-              touch "$ROOT/brave-work/.sandium/restored-apk-valid"
-              echo "BRAVE_RESTORED_APK=VALID package=com.brave.browser_default bytes=$(stat -c '%s' "$APK")"
+
+            AAB_VALID=false
+            if [ -s "$AAB" ] && [ -x "$JARSIGNER" ] && [ -x "$JAVA" ] && [ -s "$BUNDLETOOL" ]; then
+              if python3 -c 'import sys,zipfile; z=zipfile.ZipFile(sys.argv[1]); bad=z.testzip(); z.close(); sys.exit(1 if bad else 0)' "$AAB"                 && "$JARSIGNER" -verify "$AAB" >/dev/null 2>&1                 && "$JAVA" -jar "$BUNDLETOOL" validate --bundle="$AAB" >/dev/null 2>&1; then
+                AAB_VALID=true
+              fi
+            fi
+
+            if [ "$APK_VALID" = true ] && [ "$AAB_VALID" = true ]; then
+              touch "$STATE/restored-distribution-valid"
+              echo "BRAVE_RESTORED_DISTRIBUTION=VALID apk_bytes=$(stat -c '%s' "$APK") aab_bytes=$(stat -c '%s' "$AAB") package=com.brave.browser_default"
             else
-              echo "BRAVE_RESTORED_APK=INVALID; reopening only the APK output action."
-              touch "$ROOT/brave-work/.sandium/invalid-apk-output-for-ledger"
-              rm -f "$APK"
+              echo "BRAVE_RESTORED_DISTRIBUTION=INVALID apk_valid=$APK_VALID aab_valid=$AAB_VALID; reopening only missing/invalid distribution outputs."
+              touch "$STATE/invalid-distribution-output-for-ledger"
+              if [ "$APK_VALID" != true ]; then rm -f "$APK"; fi
+              if [ "$AAB_VALID" != true ]; then rm -f "$AAB"; fi
             fi
       - run:
           name: Plan exact pending Brave actions and enforce the handoff frontier
@@ -1792,7 +1801,7 @@ jobs:
             ROOT="$CIRCLE_WORKING_DIRECTORY"
             mkdir -p "$ROOT/brave-work/.sandium"
             STATUS="$ROOT/brave-work/.sandium/remote-smoke-status.txt"
-            if [ -s "$ROOT/brave-work/.sandium/restored-apk-valid" ]; then
+            if [ -s "$ROOT/brave-work/.sandium/restored-distribution-valid" ]; then
               printf 'REMOTE_SMOKE=SKIPPED_VALID_APK\n' > "$STATUS"
               echo "BRAVE_REMOTE_SMOKE=SKIPPED reason=already-verified-apk"
             else
@@ -1807,7 +1816,7 @@ jobs:
               fi
             fi
       - run:
-          name: Build bounded Brave Android APK slice
+          name: Build bounded Brave Android distribution slice
           no_output_timeout: 45m
           command: |
             set -euo pipefail
@@ -1817,7 +1826,7 @@ jobs:
             mkdir -p "$STATUS_DIR"
             BUILD_STATUS="$STATUS_DIR/build-stage-status.txt"
             SMOKE_STATUS="$STATUS_DIR/remote-smoke-status.txt"
-            if [ -s "$STATUS_DIR/restored-apk-valid" ]; then
+            if [ -s "$STATUS_DIR/restored-distribution-valid" ]; then
               echo "BRAVE_APK=ALREADY_PRESENT_AND_VERIFIED"
               printf 'BUILD_EXIT_CODE=0\nBUILD_REASON=RESTORED_VALID_APK\n' > "$BUILD_STATUS"
               exit 0
@@ -1858,7 +1867,7 @@ jobs:
             STAGE_BUILD_BUDGET_SECONDS=1800
             STAGE_BUILD_DEADLINE=$((SECONDS + STAGE_BUILD_BUDGET_SECONDS))
             echo "BRAVE_BUILD_SLICE_BUDGET_SECONDS=${STAGE_BUILD_BUDGET_SECONDS} (30 minutes including CAS recovery/resume); metrics=$METRICS_FILE"
-            timeout --signal=INT --kill-after=60s "${STAGE_BUILD_BUDGET_SECONDS}s" autoninja -strict_remote -metrics_json "$METRICS_FILE" -C "$OUT" -j80 brave || BUILD_RC=$?
+            timeout --signal=INT --kill-after=60s "${STAGE_BUILD_BUDGET_SECONDS}s" autoninja -strict_remote -metrics_json "$METRICS_FILE" -C "$OUT" -j80 create_dist || BUILD_RC=$?
             INITIAL_BUILD_RC="$BUILD_RC"
             while [ "$BUILD_RC" -ne 0 ] && [ "$BUILD_RC" -ne 124 ] && [ "$BUILD_RC" -ne 130 ] \
               && [ "$CAS_RECOVERY_COUNT" -lt 2 ] \
@@ -1883,7 +1892,7 @@ jobs:
                 echo "BRAVE_BUILD_RESUME=START mode=strict-remote timeout_seconds=$REMAINING_STAGE_SECONDS (remaining stage budget)"
                 RESUME_METRICS_FILE="${METRICS_PREFIX}${CAS_RECOVERY_COUNT}-resume.jsonl"
                 BUILD_RC=0
-                timeout --signal=INT --kill-after=60s "${REMAINING_STAGE_SECONDS}s" autoninja -strict_remote -metrics_json "$RESUME_METRICS_FILE" -C "$OUT" -j80 brave || BUILD_RC=$?
+                timeout --signal=INT --kill-after=60s "${REMAINING_STAGE_SECONDS}s" autoninja -strict_remote -metrics_json "$RESUME_METRICS_FILE" -C "$OUT" -j80 create_dist || BUILD_RC=$?
               else
                 BUILD_RC=$?
                 echo "BRAVE_CAS_LOCAL_RECOVERY=FAIL exit=$BUILD_RC; preserving outputs and metrics."
@@ -1907,15 +1916,19 @@ jobs:
             } > "$BUILD_STATUS"
             echo "BRAVE_BUILD_STAGE_STATUS=RECORDED exit=$BUILD_RC reason=$BUILD_REASON"
       - run:
-          name: Export APK status and artifacts
+          name: Export and audit ARM64 APK plus AAB artifacts
           when: always
           command: |
             set -uo pipefail
             ROOT="$CIRCLE_WORKING_DIRECTORY"
             SRC="$ROOT/brave-work/src"
             OUT="$SRC/out/android_Release_arm64"
-            APK="$OUT/apks/BraveMonoarm64.apk"
+            APK="$OUT/apks/Bravearm64Universal.apk"
+            AAB="$OUT/apks/BraveMonoarm64.aab"
             TOOLS="$SRC/third_party/android_sdk/public/build-tools/37.0.0"
+            JARSIGNER="$SRC/third_party/jdk/current/bin/jarsigner"
+            JAVA="$SRC/third_party/jdk/current/bin/java"
+            BUNDLETOOL="$SRC/third_party/android_build_tools/bundletool/cipd/bundletool.jar"
             DIAGNOSTICS="$ROOT/brave-apk/siso-diagnostics"
             mkdir -p "$ROOT/brave-apk" "$DIAGNOSTICS"
             for file in siso.INFO siso_output siso_failed_commands.sh; do
@@ -1926,38 +1939,79 @@ jobs:
             done
             CHECKPOINT_DIAGNOSTICS="$ROOT/brave-work/.sandium/checkpoint-diagnostics"
             if [ -d "$CHECKPOINT_DIAGNOSTICS" ]; then cp -a "$CHECKPOINT_DIAGNOSTICS" "$ROOT/brave-apk/"; fi
-            ARCHIVE_VALID=false
-            SIGNATURE_VALID=not_checked
-            PACKAGE_VALID=false
+
+            APK_ARCHIVE_VALID=false
+            APK_SIGNATURE_VALID=not_checked
+            APK_PACKAGE_ID_VALID=false
             APK_ERROR=""
             if [ -s "$APK" ]; then
               if python3 -c 'import sys,zipfile; z=zipfile.ZipFile(sys.argv[1]); bad=z.testzip(); z.close(); sys.exit(1 if bad else 0)' "$APK"; then
-                ARCHIVE_VALID=true
+                APK_ARCHIVE_VALID=true
               else
-                APK_ERROR="ZIP integrity check failed"
+                APK_ERROR="APK ZIP integrity check failed"
               fi
-              if [ "$ARCHIVE_VALID" = true ]; then
+              if [ "$APK_ARCHIVE_VALID" = true ]; then
                 if [ ! -x "$TOOLS/apksigner" ] || [ ! -x "$TOOLS/aapt" ]; then
                   APK_ERROR="pinned Android apksigner/aapt tools are missing"
                 elif "$TOOLS/apksigner" verify --verbose --print-certs "$APK" > "$ROOT/brave-apk/apk-signature.txt" 2>&1; then
-                  SIGNATURE_VALID=true
+                  APK_SIGNATURE_VALID=true
                   if "$TOOLS/aapt" dump badging "$APK" > "$ROOT/brave-apk/apk-badging.txt" 2>&1; then
                     PACKAGE="$(sed -n "s/^package: name='\\([^']*\\)'.*/\\1/p" "$ROOT/brave-apk/apk-badging.txt" | head -n 1)"
                     if [ "$PACKAGE" = "com.brave.browser_default" ]; then
-                      PACKAGE_VALID=true
+                      APK_PACKAGE_ID_VALID=true
                     else
                       APK_ERROR="expected package com.brave.browser_default; got ${PACKAGE:-<missing>}"
                     fi
                   else
-                    APK_ERROR="aapt could not read the APK manifest"
+                    APK_ERROR="aapt could not read the ARM64 APK manifest"
                   fi
                 else
-                  APK_ERROR="APK signature verification failed"
+                  APK_ERROR="ARM64 APK signature verification failed"
                 fi
               fi
+            else
+              APK_ERROR="Bravearm64Universal.apk was not produced"
             fi
-            if [ -s "$APK" ] && [ "$ARCHIVE_VALID" = true ] && [ "$SIGNATURE_VALID" = true ] && [ "$PACKAGE_VALID" = true ]; then
-              cp "$APK" "$ROOT/brave-apk/Sandium-Brave-test.apk"
+
+            AAB_ARCHIVE_VALID=false
+            AAB_SIGNATURE_VALID=not_checked
+            AAB_BUNDLE_VALID=false
+            AAB_ERROR=""
+            if [ -s "$AAB" ]; then
+              if python3 -c 'import sys,zipfile; z=zipfile.ZipFile(sys.argv[1]); bad=z.testzip(); z.close(); sys.exit(1 if bad else 0)' "$AAB"; then
+                AAB_ARCHIVE_VALID=true
+              else
+                AAB_ERROR="AAB ZIP integrity check failed"
+              fi
+              if [ "$AAB_ARCHIVE_VALID" = true ]; then
+                if [ ! -x "$JARSIGNER" ] || [ ! -x "$JAVA" ] || [ ! -s "$BUNDLETOOL" ]; then
+                  AAB_ERROR="pinned JDK jarsigner/java or bundletool is missing"
+                elif "$JARSIGNER" -verify "$AAB" > "$ROOT/brave-apk/aab-signature.txt" 2>&1; then
+                  AAB_SIGNATURE_VALID=true
+                  if "$JAVA" -jar "$BUNDLETOOL" validate --bundle="$AAB" > "$ROOT/brave-apk/aab-validation.txt" 2>&1; then
+                    AAB_BUNDLE_VALID=true
+                  else
+                    AAB_ERROR="bundletool rejected the AAB"
+                  fi
+                else
+                  AAB_ERROR="AAB JAR signature verification failed"
+                fi
+              fi
+            else
+              AAB_ERROR="BraveMonoarm64.aab was not produced"
+            fi
+
+            if [ -s "$APK" ]; then
+              python3 .circleci/scripts/analyze-brave-apk-size.py "$APK" --output "$ROOT/brave-apk/apk-size-report.txt" || echo "APK_SIZE_AUDIT=WARNING report generation failed"
+            fi
+            if [ -s "$AAB" ]; then
+              python3 .circleci/scripts/analyze-brave-apk-size.py "$AAB" --output "$ROOT/brave-apk/aab-size-report.txt" || echo "AAB_SIZE_AUDIT=WARNING report generation failed"
+            fi
+
+            if [ "$APK_ARCHIVE_VALID" = true ] && [ "$APK_SIGNATURE_VALID" = true ] && [ "$APK_PACKAGE_ID_VALID" = true ] \
+              && [ "$AAB_ARCHIVE_VALID" = true ] && [ "$AAB_SIGNATURE_VALID" = true ] && [ "$AAB_BUNDLE_VALID" = true ]; then
+              cp "$APK" "$ROOT/brave-apk/Sandium-Brave-arm64.apk"
+              cp "$AAB" "$ROOT/brave-apk/Sandium-Brave-arm64.aab"
               {
                 echo "BUILD_FINISHED=true"
                 echo "APK_ARCHIVE_VALID=true"
@@ -1965,17 +2019,27 @@ jobs:
                 echo "APK_PACKAGE_ID_VALID=true"
                 echo "APK_PACKAGE_ID=com.brave.browser_default"
                 echo "APK_SIZE_BYTES=$(stat -c '%s' "$APK")"
+                echo "AAB_ARCHIVE_VALID=true"
+                echo "AAB_SIGNATURE_VALID=true"
+                echo "AAB_BUNDLE_VALID=true"
+                echo "AAB_SIZE_BYTES=$(stat -c '%s' "$AAB")"
+                echo "DISTRIBUTION_FORMAT=AAB+ARM64_UNIVERSAL_APK"
               } > "$ROOT/brave-apk/status.txt"
-              echo "BRAVE_APK_VALIDATION=PASS"
+              echo "BRAVE_DISTRIBUTION_VALIDATION=PASS"
             else
               {
                 echo "BUILD_FINISHED=false"
-                echo "APK_ARCHIVE_VALID=$ARCHIVE_VALID"
-                echo "APK_SIGNATURE_VALID=$SIGNATURE_VALID"
-                echo "APK_PACKAGE_ID_VALID=$PACKAGE_VALID"
-                echo "APK_VALIDATION_ERROR=${APK_ERROR:-APK not produced}"
+                echo "APK_ARCHIVE_VALID=$APK_ARCHIVE_VALID"
+                echo "APK_SIGNATURE_VALID=$APK_SIGNATURE_VALID"
+                echo "APK_PACKAGE_ID_VALID=$APK_PACKAGE_ID_VALID"
+                echo "APK_VALIDATION_ERROR=${APK_ERROR:-none}"
+                echo "AAB_ARCHIVE_VALID=$AAB_ARCHIVE_VALID"
+                echo "AAB_SIGNATURE_VALID=$AAB_SIGNATURE_VALID"
+                echo "AAB_BUNDLE_VALID=$AAB_BUNDLE_VALID"
+                echo "AAB_VALIDATION_ERROR=${AAB_ERROR:-none}"
+                echo "DISTRIBUTION_FORMAT=AAB+ARM64_UNIVERSAL_APK"
               } > "$ROOT/brave-apk/status.txt"
-              echo "BRAVE_APK_VALIDATION=FAIL ${APK_ERROR:-APK not produced}"
+              echo "BRAVE_DISTRIBUTION_VALIDATION=FAIL apk=${APK_ERROR:-passed} aab=${AAB_ERROR:-passed}"
             fi
             LEDGER="$ROOT/brave-work/.sandium/action-ledger.json"
             if [ -s "$LEDGER" ]; then cp -a "$LEDGER" "$DIAGNOSTICS/"; fi
@@ -1983,7 +2047,7 @@ jobs:
           path: brave-apk
           destination: brave-apk
       - run:
-          name: Record APK completion marker
+          name: Record APK + AAB distribution completion marker
           when: always
           command: |
             set -euo pipefail
@@ -1994,12 +2058,12 @@ jobs:
             if [ -s "$STATUS" ]; then
               cp "$STATUS" "$MARKER"
             else
-              printf 'BUILD_FINISHED=false\nAPK_ARCHIVE_VALID=false\nAPK_SIGNATURE_VALID=not_yet_built\nAPK_PACKAGE_ID_VALID=false\n' > "$MARKER"
+              printf 'BUILD_FINISHED=false\nAPK_ARCHIVE_VALID=false\nAPK_SIGNATURE_VALID=not_yet_built\nAPK_PACKAGE_ID_VALID=false\nAAB_ARCHIVE_VALID=false\nAAB_SIGNATURE_VALID=not_yet_built\nAAB_BUNDLE_VALID=false\n' > "$MARKER"
             fi
-            echo "BRAVE_APK_COMPLETION_MARKER=$(grep -qx 'BUILD_FINISHED=true' "$MARKER" && echo VERIFIED || echo INCOMPLETE)"
+            echo "BRAVE_DISTRIBUTION_COMPLETION_MARKER=$(grep -qx 'BUILD_FINISHED=true' "$MARKER" && echo VERIFIED || echo INCOMPLETE)"
       - save_cache:
-          name: Save small revision-scoped verified APK marker
-          key: sandium-brave-apk-complete-v2-{{ .Branch }}-{{ .Revision }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-<< parameters.stage_index >>
+          name: Save small revision-scoped verified APK + AAB marker
+          key: sandium-brave-aab-complete-v1-{{ .Branch }}-{{ .Revision }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-<< parameters.stage_index >>
           paths:
             - brave-work/.sandium/apk-completion-status.txt
           when: always
@@ -2037,11 +2101,11 @@ jobs:
               --jobs 80 \
               --metrics-prefix "$METRICS_PREFIX"
       - run:
-          name: Skip checkpoint upload after publishing a verified APK
+          name: Skip checkpoint upload after publishing validated distribution artifacts
           command: |
             set -euo pipefail
             MARKER="$CIRCLE_WORKING_DIRECTORY/brave-work/.sandium/apk-completion-status.txt"
-            if [ -s "$MARKER" ] && grep -qx "BUILD_FINISHED=true" "$MARKER" && grep -qx "APK_ARCHIVE_VALID=true" "$MARKER" && grep -qx "APK_SIGNATURE_VALID=true" "$MARKER" && grep -qx "APK_PACKAGE_ID_VALID=true" "$MARKER"; then
+            if [ -s "$MARKER" ] && grep -qx "BUILD_FINISHED=true" "$MARKER" && grep -qx "APK_ARCHIVE_VALID=true" "$MARKER" && grep -qx "APK_SIGNATURE_VALID=true" "$MARKER" && grep -qx "APK_PACKAGE_ID_VALID=true" "$MARKER" && grep -qx "AAB_ARCHIVE_VALID=true" "$MARKER" && grep -qx "AAB_SIGNATURE_VALID=true" "$MARKER" && grep -qx "AAB_BUNDLE_VALID=true" "$MARKER"; then
               echo "BRAVE_APK_ARTIFACT=STORED_BEFORE_CHECKPOINT_UPLOAD"
               echo "BRAVE_CHECKPOINT_UPLOAD=SKIPPED; build and APK validation are complete."
               circleci-agent step halt
@@ -2142,7 +2206,7 @@ jobs:
             - brave-workspace-checkpoint.tar.zst
             - brave-workspace-checkpoint.meta
       - run:
-          name: Final five-stage completion gate
+          name: Final five-stage distribution completion gate
           command: |
             set -euo pipefail
             ROOT="$CIRCLE_WORKING_DIRECTORY"
@@ -2152,15 +2216,15 @@ jobs:
             test -s "$LEDGER" || { echo "FINAL_STAGE_GATE=FAIL missing action ledger" >&2; exit 1; }
             test -s "$ROOT/brave-workspace-checkpoint.tar.zst" || { echo "FINAL_STAGE_GATE=FAIL no portable checkpoint was packed" >&2; exit 1; }
             PENDING="$(python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); print(int(d["planned_total"])-len(d["completed"]))' "$LEDGER")"
-            if [ -s "$APK_STATUS" ] && grep -qx "BUILD_FINISHED=true" "$APK_STATUS" && grep -qx "APK_ARCHIVE_VALID=true" "$APK_STATUS" && grep -qx "APK_SIGNATURE_VALID=true" "$APK_STATUS" && grep -qx "APK_PACKAGE_ID_VALID=true" "$APK_STATUS"; then
-              echo "FINAL_STAGE_GATE=PASS APK validated and artifact published."
+            if [ -s "$APK_STATUS" ] && grep -qx "BUILD_FINISHED=true" "$APK_STATUS" && grep -qx "APK_ARCHIVE_VALID=true" "$APK_STATUS" && grep -qx "APK_SIGNATURE_VALID=true" "$APK_STATUS" && grep -qx "APK_PACKAGE_ID_VALID=true" "$APK_STATUS" && grep -qx "AAB_ARCHIVE_VALID=true" "$APK_STATUS" && grep -qx "AAB_SIGNATURE_VALID=true" "$APK_STATUS" && grep -qx "AAB_BUNDLE_VALID=true" "$APK_STATUS"; then
+              echo "FINAL_STAGE_GATE=PASS ARM64 APK and AAB validated and artifacts published."
               exit 0
             fi
             if [ "$STAGE" -lt 5 ]; then
               echo "FINAL_STAGE_GATE=PASS checkpoint saved; residual work=$PENDING; next stage will resume the exact pending action set."
               exit 0
             fi
-            echo "FINAL_STAGE_GATE=FAIL five stages exhausted without a verified Brave APK; residual work=$PENDING" >&2
+            echo "FINAL_STAGE_GATE=FAIL five stages exhausted without verified ARM64 APK and AAB; residual work=$PENDING" >&2
             exit 1
 
 workflows:
@@ -2214,39 +2278,39 @@ workflows:
               only:
                 - sandfox/checkpoint-stage-v1
                 - ss2-from-ss1
-  brave-android-staged-checkpoint-build:
+  BRAVE-FULL:
     jobs:
       - brave-android-staged-build:
-          name: brave-android-stage-1
+          name: BRAVE-FULL-stage-1
           stage_index: 1
           filters:
             branches:
               only: sandium/brave-android-poc
       - brave-android-staged-build:
-          name: brave-android-stage-2
+          name: BRAVE-FULL-stage-2
           stage_index: 2
-          requires: [brave-android-stage-1]
+          requires: [BRAVE-FULL-stage-1]
           filters:
             branches:
               only: sandium/brave-android-poc
       - brave-android-staged-build:
-          name: brave-android-stage-3
+          name: BRAVE-FULL-stage-3
           stage_index: 3
-          requires: [brave-android-stage-2]
+          requires: [BRAVE-FULL-stage-2]
           filters:
             branches:
               only: sandium/brave-android-poc
       - brave-android-staged-build:
-          name: brave-android-stage-4
+          name: BRAVE-FULL-stage-4
           stage_index: 4
-          requires: [brave-android-stage-3]
+          requires: [BRAVE-FULL-stage-3]
           filters:
             branches:
               only: sandium/brave-android-poc
       - brave-android-staged-build:
-          name: brave-android-stage-5
+          name: BRAVE-FULL-stage-5
           stage_index: 5
-          requires: [brave-android-stage-4]
+          requires: [BRAVE-FULL-stage-4]
           filters:
             branches:
               only: sandium/brave-android-poc

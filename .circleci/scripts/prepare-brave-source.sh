@@ -381,6 +381,7 @@ PY
   fi
   export SISO_LIMITS=local=8,remote=80
   echo "BRAVE_STAGE1_VALIDATION_MODE=DRY_RUN_NO_COMPILATION"
-  pnpm run build Release --target_os=android --target_arch=arm64 --target_android_output_format=apk --use_remoteexec=true --gn use_siso:true --gn use_reclient:false --gn is_java_debug:false --gn enable_android_secondary_abi:false --gn is_official_build:false --gn enable_updater:false --gn enable_update_notifications:false --gn android_channel:default --gn chrome_public_manifest_package:com.brave.browser_default --gn brave_channel:development --target brave --ninja=n
+  # Emit an App Bundle and Brave's ARM64 universal APK. In Brave v1.98.62, CI explicitly enables the secondary ABI for non-official APK builds, so an APK-format build can silently package both 32-bit and 64-bit libraries even when the GN flag is passed as false. The AAB path avoids that APK-only CI override; create_dist invokes Brave's AAB-to-ARM64-universal conversion target.
+  pnpm run build Release --target_os=android --target_arch=arm64 --target_android_output_format=aab --android_aab_to_apk --use_remoteexec=true --gn use_siso:true --gn use_reclient:false --gn is_java_debug:false --gn enable_android_secondary_abi:false --gn is_official_build:false --gn enable_updater:false --gn enable_update_notifications:false --gn android_channel:default --gn chrome_public_manifest_package:com.brave.browser_default --gn brave_channel:development --target create_dist --ninja=n
   bash "$ROOT/.circleci/scripts/verify-clang-diagnostics-gn.sh"
 fi

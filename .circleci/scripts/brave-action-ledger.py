@@ -66,7 +66,7 @@ def fingerprint(src: Path, out: Path) -> dict:
         name = str(p.relative_to(src)) if p.is_relative_to(src) else str(p)
         hashes[name] = file_sha(p) if p.is_file() else None
     result = {
-        "target": "brave", "build_type": "Release",
+        "target": "create_dist", "build_type": "Release",
         "target_os": "android", "target_arch": "arm64",
         "chromium_sha": git(src, "rev-parse", "HEAD"),
         "brave_tag": git(core, "describe", "--tags", "--exact-match"),
@@ -86,7 +86,7 @@ def dry_run_actions(autoninja: Path, src: Path, out: Path, jobs: int,
     metrics_path = out / metrics_name
     metrics_path.unlink(missing_ok=True)
     cmd = [str(autoninja), "-strict_remote", "-n", "-metrics_json",
-           metrics_name, "-C", str(out), f"-j{jobs}", "brave"]
+           metrics_name, "-C", str(out), f"-j{jobs}", "create_dist"]
     env = os.environ.copy()
     env["SISO_LIMITS"] = "local=8,remote=80"
     with tempfile.TemporaryFile(mode="w+t", encoding="utf-8", errors="replace") as log:
@@ -349,35 +349,36 @@ def main():
         if active_before and active_before.get("run_id") != run_id:
             die("ACTION_LEDGER_RECOVERY=FAIL unfinished prior stage %s; do not overwrite its action frontier" %
                 active_before.get("run_id"))
-        # If a previously completed output was removed (for example, a restored
-        # APK failed ZIP/signature/package validation), Siso's live dry-run puts
-        # that action back into the pending set. Reopen only those exact action
-        # identities; do not infer or reopen unrelated work.
+        # If a previously completed distribution output was removed (the
+        # ARM64 universal APK or its source AAB failed validation), Siso's live
+        # dry-run puts that exact action back into the pending set. Reopen only
+        # those distribution-output actions; never infer unrelated work.
         reopened = set(pending_keys).intersection(ledger.get("completed", {}))
         if reopened:
-            invalidation_marker = src.parent / ".sandium" / "invalid-apk-output-for-ledger"
+            invalidation_marker = src.parent / ".sandium" / "invalid-distribution-output-for-ledger"
             if not invalidation_marker.is_file():
                 die("ACTION_REEXECUTION_GATE=FAIL %d previously completed action(s) are pending again without an explicit invalid-APK recovery marker" % len(reopened))
-            apk_action_keys = set()
+            distribution_action_keys = set()
+            allowed_outputs = ("Bravearm64Universal.apk", "BraveMonoarm64.aab")
             for key in reopened:
                 identity = ledger["completed"][key].get("identity", {})
                 outputs = identity.get("outputs", [])
                 step_id = str(identity.get("step_id", ""))
-                if any("BraveMonoarm64.apk" in str(output) for output in outputs) or "BraveMonoarm64.apk" in step_id:
-                    apk_action_keys.add(key)
-            if apk_action_keys != reopened:
-                die("ACTION_REEXECUTION_GATE=FAIL invalid-APK marker may reopen only the APK-producing action; unrelated completed actions reappeared=%d" %
-                    len(reopened - apk_action_keys))
+                if any(any(name in str(output) for name in allowed_outputs) for output in outputs) or any(name in step_id for name in allowed_outputs):
+                    distribution_action_keys.add(key)
+            if distribution_action_keys != reopened:
+                die("ACTION_REEXECUTION_GATE=FAIL invalid-distribution marker may reopen only ARM64 APK/AAB output actions; unrelated completed actions reappeared=%d" %
+                    len(reopened - distribution_action_keys))
             for key in reopened:
                 ledger["completed"].pop(key, None)
             ledger.setdefault("invalidated_action_reopens", []).append({
                 "stage_run": run_id, "action_keys": sorted(reopened),
-                "reason": "APK preflight removed an invalid BraveMonoarm64.apk output",
+                "reason": "distribution preflight removed an invalid Brave ARM64 APK or AAB output",
                 "recorded_at_epoch": int(time.time())})
             ledger["next_pending_action_keys"] = sorted(
                 set(ledger.get("next_pending_action_keys", [])) | reopened)
             invalidation_marker.unlink(missing_ok=True)
-            print("ACTION_INVALIDATED_APK_ACTION_REOPENED=%d" % len(reopened))
+            print("ACTION_INVALIDATED_DISTRIBUTION_ACTIONS_REOPENED=%d" % len(reopened))
         total, done = int(ledger["planned_total"]), len(ledger["completed"])
         expected = total - done
         if expected < 0:
@@ -488,20 +489,24 @@ def main():
           f"actions={stats['action_records']} unique={added} failed_records={stats['failed_records']}")
     print(f"SANDIUM_BUILD_MATH={done}/{total} complete; {remaining}/{remaining} pending")
     if remaining == 0:
-        apk = out / "apks" / "BraveMonoarm64.apk"
+        apk = out / "apks" / "Bravearm64Universal.apk"
+        aab = out / "apks" / "BraveMonoarm64.aab"
         marker = src.parent / ".sandium" / "apk-completion-status.txt"
         required = {
             "BUILD_FINISHED=true",
             "APK_ARCHIVE_VALID=true",
             "APK_SIGNATURE_VALID=true",
             "APK_PACKAGE_ID_VALID=true",
+            "AAB_ARCHIVE_VALID=true",
+            "AAB_SIGNATURE_VALID=true",
+            "AAB_BUNDLE_VALID=true",
         }
         marker_lines = set(marker.read_text(encoding="utf-8").splitlines()) if marker.is_file() else set()
-        if apk.is_file() and apk.stat().st_size and required.issubset(marker_lines):
+        if apk.is_file() and apk.stat().st_size and aab.is_file() and aab.stat().st_size and required.issubset(marker_lines):
             ledger["build_complete"] = True
             ledger["completed_at_epoch"] = now
             save(path, ledger)
-            print(f"SANDIUM_ACTION_FRONTIER=COMPLETE total={total} apk_validated=true")
+            print(f"SANDIUM_ACTION_FRONTIER=COMPLETE total={total} apk_validated=true aab_validated=true")
         else:
             # All current graph actions have completed, but the APK did not
             # pass validation. Save this closed frontier; the next stage's APK
