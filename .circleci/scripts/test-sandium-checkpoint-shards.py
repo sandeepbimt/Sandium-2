@@ -109,8 +109,13 @@ def main() -> None:
             assert required.is_file(), str(required)
 
         shard_path = root / "brave-workspace-checkpoint.shards" / shards[0]["name"]
-        with shard_path.open("ab") as stream:
-            stream.write(b"tamper")
+        # Flip one byte without changing length so verification proves the
+        # SHA-256 check, rather than merely detecting a truncated/extended file.
+        with shard_path.open("r+b") as stream:
+            first = stream.read(1)
+            assert first, "empty shard"
+            stream.seek(0)
+            stream.write(bytes([first[0] ^ 0x01]))
         bad = subprocess.run([sys.executable, str(HELPER), "verify", "--root", str(root),
                               "--workers", "8"], stdout=subprocess.PIPE,
                              stderr=subprocess.STDOUT, text=True)
