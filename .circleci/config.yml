@@ -1735,6 +1735,7 @@ jobs:
             TOOLS="$ROOT/brave-work/src/third_party/android_sdk/public/build-tools/37.0.0"
             mkdir -p "$ROOT/brave-work/.sandium"
             rm -f "$ROOT/brave-work/.sandium/restored-apk-valid"
+            rm -f "$ROOT/brave-work/.sandium/invalid-apk-output-for-ledger"
             if [ ! -s "$APK" ]; then
               echo "BRAVE_RESTORED_APK=ABSENT"
               exit 0
@@ -1758,7 +1759,8 @@ jobs:
               touch "$ROOT/brave-work/.sandium/restored-apk-valid"
               echo "BRAVE_RESTORED_APK=VALID package=com.brave.browser_default bytes=$(stat -c '%s' "$APK")"
             else
-              echo "BRAVE_RESTORED_APK=INVALID; removing stale APK so Ninja schedules its output action."
+              echo "BRAVE_RESTORED_APK=INVALID; reopening only the APK output action."
+              touch "$ROOT/brave-work/.sandium/invalid-apk-output-for-ledger"
               rm -f "$APK"
             fi
       - run:
