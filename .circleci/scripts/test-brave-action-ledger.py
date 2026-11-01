@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Small integration test for brave-action-ledger.py's 88/100 -> 12/12 math."""
+"""Regression test for dynamic Siso action discovery and staged frontier handoff."""
 from __future__ import annotations
 import json
 import os
