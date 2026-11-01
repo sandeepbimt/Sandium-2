@@ -50,8 +50,8 @@ PY
 
 case "$MODE" in
   restore)
+    ensure_zstd
     if [ -s "$ARCHIVE" ]; then
-      ensure_zstd
       echo "BRAVE_WORKSPACE_ARCHIVE_RESTORE=START bytes=$(stat -c '%s' "$ARCHIVE")"
       zstd -t "$ARCHIVE" >/dev/null || fail "checkpoint archive failed zstd integrity test"
       zstd -dc "$ARCHIVE" | tar -xf - -C "$ROOT"
