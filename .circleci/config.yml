@@ -1426,83 +1426,83 @@ jobs:
             equal: [2, << parameters.stage_index >>]
           steps:
             - restore_cache:
-                name: Restore latest prior APK completion marker for stage 2
+                name: Restore verified APK marker for stage 2
                 keys:
-                  - sandium-brave-apk-complete-v1-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-1
+                  - sandium-brave-apk-complete-v2-{{ .Branch }}-{{ .Revision }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-1
             - run:
-                name: Exit stage 2 when prior stage published verified APK
+                name: Stop stage 2 when a prior stage published a verified APK
                 command: |
                   set -euo pipefail
                   STATUS="$CIRCLE_WORKING_DIRECTORY/brave-work/.sandium/apk-completion-status.txt"
                   if [ -s "$STATUS" ] && grep -qx "BUILD_FINISHED=true" "$STATUS" && grep -qx "APK_ARCHIVE_VALID=true" "$STATUS" && grep -qx "APK_SIGNATURE_VALID=true" "$STATUS" && grep -qx "APK_PACKAGE_ID_VALID=true" "$STATUS"; then
-                    echo "BRAVE_APK=true; prior stage published verified APK."
+                    echo "BRAVE_APK=ALREADY_PUBLISHED"
                     cat "$STATUS"
                     circleci-agent step halt
                   fi
-                  echo "BRAVE_APK=false; continue incremental build."
+                  echo "BRAVE_APK=NOT_YET_PUBLISHED"
       - when:
           condition:
             equal: [3, << parameters.stage_index >>]
           steps:
             - restore_cache:
-                name: Restore latest prior APK completion marker for stage 3
+                name: Restore verified APK marker for stage 3
                 keys:
-                  - sandium-brave-apk-complete-v1-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-2
-                  - sandium-brave-apk-complete-v1-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-1
+                  - sandium-brave-apk-complete-v2-{{ .Branch }}-{{ .Revision }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-2
+                  - sandium-brave-apk-complete-v2-{{ .Branch }}-{{ .Revision }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-1
             - run:
-                name: Exit stage 3 when prior stage published verified APK
+                name: Stop stage 3 when a prior stage published a verified APK
                 command: |
                   set -euo pipefail
                   STATUS="$CIRCLE_WORKING_DIRECTORY/brave-work/.sandium/apk-completion-status.txt"
                   if [ -s "$STATUS" ] && grep -qx "BUILD_FINISHED=true" "$STATUS" && grep -qx "APK_ARCHIVE_VALID=true" "$STATUS" && grep -qx "APK_SIGNATURE_VALID=true" "$STATUS" && grep -qx "APK_PACKAGE_ID_VALID=true" "$STATUS"; then
-                    echo "BRAVE_APK=true; prior stage published verified APK."
+                    echo "BRAVE_APK=ALREADY_PUBLISHED"
                     cat "$STATUS"
                     circleci-agent step halt
                   fi
-                  echo "BRAVE_APK=false; continue incremental build."
+                  echo "BRAVE_APK=NOT_YET_PUBLISHED"
       - when:
           condition:
             equal: [4, << parameters.stage_index >>]
           steps:
             - restore_cache:
-                name: Restore latest prior APK completion marker for stage 4
+                name: Restore verified APK marker for stage 4
                 keys:
-                  - sandium-brave-apk-complete-v1-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-3
-                  - sandium-brave-apk-complete-v1-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-2
-                  - sandium-brave-apk-complete-v1-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-1
+                  - sandium-brave-apk-complete-v2-{{ .Branch }}-{{ .Revision }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-3
+                  - sandium-brave-apk-complete-v2-{{ .Branch }}-{{ .Revision }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-2
+                  - sandium-brave-apk-complete-v2-{{ .Branch }}-{{ .Revision }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-1
             - run:
-                name: Exit stage 4 when prior stage published verified APK
+                name: Stop stage 4 when a prior stage published a verified APK
                 command: |
                   set -euo pipefail
                   STATUS="$CIRCLE_WORKING_DIRECTORY/brave-work/.sandium/apk-completion-status.txt"
                   if [ -s "$STATUS" ] && grep -qx "BUILD_FINISHED=true" "$STATUS" && grep -qx "APK_ARCHIVE_VALID=true" "$STATUS" && grep -qx "APK_SIGNATURE_VALID=true" "$STATUS" && grep -qx "APK_PACKAGE_ID_VALID=true" "$STATUS"; then
-                    echo "BRAVE_APK=true; prior stage published verified APK."
+                    echo "BRAVE_APK=ALREADY_PUBLISHED"
                     cat "$STATUS"
                     circleci-agent step halt
                   fi
-                  echo "BRAVE_APK=false; continue incremental build."
+                  echo "BRAVE_APK=NOT_YET_PUBLISHED"
       - when:
           condition:
             equal: [5, << parameters.stage_index >>]
           steps:
             - restore_cache:
-                name: Restore latest prior APK completion marker for stage 5
+                name: Restore verified APK marker for stage 5
                 keys:
-                  - sandium-brave-apk-complete-v1-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-4
-                  - sandium-brave-apk-complete-v1-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-3
-                  - sandium-brave-apk-complete-v1-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-2
-                  - sandium-brave-apk-complete-v1-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-1
+                  - sandium-brave-apk-complete-v2-{{ .Branch }}-{{ .Revision }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-4
+                  - sandium-brave-apk-complete-v2-{{ .Branch }}-{{ .Revision }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-3
+                  - sandium-brave-apk-complete-v2-{{ .Branch }}-{{ .Revision }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-2
+                  - sandium-brave-apk-complete-v2-{{ .Branch }}-{{ .Revision }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-1
             - run:
-                name: Exit stage 5 when prior stage published verified APK
+                name: Stop stage 5 when a prior stage published a verified APK
                 command: |
                   set -euo pipefail
                   STATUS="$CIRCLE_WORKING_DIRECTORY/brave-work/.sandium/apk-completion-status.txt"
                   if [ -s "$STATUS" ] && grep -qx "BUILD_FINISHED=true" "$STATUS" && grep -qx "APK_ARCHIVE_VALID=true" "$STATUS" && grep -qx "APK_SIGNATURE_VALID=true" "$STATUS" && grep -qx "APK_PACKAGE_ID_VALID=true" "$STATUS"; then
-                    echo "BRAVE_APK=true; prior stage published verified APK."
+                    echo "BRAVE_APK=ALREADY_PUBLISHED"
                     cat "$STATUS"
                     circleci-agent step halt
                   fi
-                  echo "BRAVE_APK=false; continue incremental build."
+                  echo "BRAVE_APK=NOT_YET_PUBLISHED"
       - run:
           name: Configure Siso BuildBuddy API-key credential helper
           command: |
@@ -1536,13 +1536,42 @@ jobs:
             echo 'export SISO_LIMITS=local=8,remote=80' >> "$BASH_ENV"
             echo "SISO_CREDENTIAL_HELPER=CONFIGURED (secret value not printed)"
       - checkout
+      - run:
+          name: Run lightweight Brave continuation self-test
+          command: |
+            set -euo pipefail
+            python3 -m py_compile .circleci/scripts/brave-action-ledger.py
+            python3 .circleci/scripts/test-brave-action-ledger.py
+            bash -n .circleci/scripts/archive-brave-workspace.sh
+            bash -n .circleci/scripts/verify-brave-remote-smoke.sh
+            echo "BRAVE_PIPELINE_SELF_TEST=PASS"
       - when:
           condition:
             equal: [1, << parameters.stage_index >>]
           steps:
             - restore_cache:
-                name: Restore most recent Brave checkpoint from earlier runs
+                name: Restore verified APK marker from the same source revision
                 keys:
+                  - sandium-brave-apk-complete-v2-{{ .Branch }}-{{ .Revision }}-
+            - run:
+                name: Stop when this revision already has a published APK
+                command: |
+                  set -euo pipefail
+                  STATUS="$CIRCLE_WORKING_DIRECTORY/brave-work/.sandium/apk-completion-status.txt"
+                  if [ -s "$STATUS" ] && grep -qx "BUILD_FINISHED=true" "$STATUS" && grep -qx "APK_ARCHIVE_VALID=true" "$STATUS" && grep -qx "APK_SIGNATURE_VALID=true" "$STATUS" && grep -qx "APK_PACKAGE_ID_VALID=true" "$STATUS"; then
+                    echo "BRAVE_APK=ALREADY_PUBLISHED for revision {{ .Revision }}"
+                    cat "$STATUS"
+                    circleci-agent step halt
+                  fi
+                  echo "BRAVE_APK=NOT_YET_PUBLISHED"
+      - when:
+          condition:
+            equal: [1, << parameters.stage_index >>]
+          steps:
+            - restore_cache:
+                name: Restore latest portable Brave checkpoint or legacy v3 cache
+                keys:
+                  - sandium-brave-workspace-v1-{{ .Branch }}-
                   - sandium-brave-valid-v3-{{ .Branch }}-
                   - sandium-brave-out-v1-sandium/brave-android-poc-6057c3ed-f9d6-4c74-b2e9-f4b09f838e8f-stage-1
                   - sandium-brave-out-v1-{{ .Branch }}-
@@ -1551,33 +1580,44 @@ jobs:
             equal: [2, << parameters.stage_index >>]
           steps:
             - restore_cache:
-                name: Restore Stage 1 Brave checkpoint
+                name: Restore Stage 1 portable checkpoint or legacy cache
                 keys:
+                  - sandium-brave-workspace-v1-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-1
                   - sandium-brave-valid-v3-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-1
       - when:
           condition:
             equal: [3, << parameters.stage_index >>]
           steps:
             - restore_cache:
-                name: Restore Stage 2 Brave checkpoint
+                name: Restore Stage 2 portable checkpoint or legacy cache
                 keys:
+                  - sandium-brave-workspace-v1-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-2
                   - sandium-brave-valid-v3-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-2
       - when:
           condition:
             equal: [4, << parameters.stage_index >>]
           steps:
             - restore_cache:
-                name: Restore Stage 3 Brave checkpoint
+                name: Restore Stage 3 portable checkpoint or legacy cache
                 keys:
+                  - sandium-brave-workspace-v1-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-3
                   - sandium-brave-valid-v3-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-3
       - when:
           condition:
             equal: [5, << parameters.stage_index >>]
           steps:
             - restore_cache:
-                name: Restore Stage 4 Brave checkpoint
+                name: Restore Stage 4 portable checkpoint or legacy cache
                 keys:
+                  - sandium-brave-workspace-v1-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-4
                   - sandium-brave-valid-v3-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-4
+      - run:
+          name: Restore and validate portable Brave checkpoint archive
+          no_output_timeout: 20m
+          command: |
+            set -euo pipefail
+            export BRAVE_STAGE_INDEX="<< parameters.stage_index >>"
+            bash .circleci/scripts/archive-brave-workspace.sh restore
       - restore_cache:
           keys:
             - sandium-brave-node-v1-24.16.0
