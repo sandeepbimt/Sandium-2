@@ -197,14 +197,16 @@ def metric_key(row: dict):
     digest, cmdhash = str(row.get("digest") or ""), str(row.get("cmdhash") or "")
     rule, action = str(row.get("rule") or ""), str(row.get("action") or "")
     if cmdhash:
-        # StepID is stable within this immutable generated Ninja graph and
-        # covers outputless/phony command steps. Input digest is retained for
-        # audit but excluded from the logical work-unit key, so a rerun of the
-        # same command/output remains recognizable even if its inputs differ.
+        # StepID + outputs + rule/action are the logical Ninja work-unit
+        # identity inside the pinned graph. Command hash and input digest stay
+        # in the ledger for audit, but are excluded from the key because a
+        # strict-remote -> offline-local CAS recovery can legitimately change
+        # execution flags while rebuilding the same declared output.
         ident = {"step_id": step_id, "outputs": outputs, "cmdhash": cmdhash,
                  "rule": rule, "action": action, "action_digest": digest,
-                 "mode": "command-output-action"}
-        stable = {k: v for k, v in ident.items() if k != "action_digest"}
+                 "mode": "ninja-step-output"}
+        stable = {"step_id": step_id, "outputs": outputs,
+                  "rule": rule, "action": action, "mode": "ninja-step-output"}
     elif row.get("no_exec") is True:
         ident = {"outputs": outputs, "step_id": step_id, "rule": rule,
                  "action": action, "mode": "no-exec-step"}
