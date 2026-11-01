@@ -254,6 +254,13 @@ if "-n" in args:
         # not fully accounted for. Preserve those exact planned identities as
         # pending; the next stage must reproduce them before it may compile.
         (src.parent / ".sandium" / "action-ledger.json").unlink()
+        # This fixture must not inherit the verified APK marker created by
+        # the earlier APK-gated pruning test; otherwise the production-safe
+        # stale-plan pruning branch correctly takes precedence.
+        stale_marker = src.parent / ".sandium" / "apk-completion-status.txt"
+        stale_marker.unlink(missing_ok=True)
+        stale_apk = out / "apks" / "BraveMonoarm64.apk"
+        stale_apk.unlink(missing_ok=True)
         status_path = src.parent / ".sandium" / "build-stage-status.txt"
         status_path.parent.mkdir(parents=True, exist_ok=True)
         status_path.write_text(
