@@ -1588,6 +1588,9 @@ jobs:
                 name: Restore latest reference or bootstrap legacy checkpoint
                 keys:
                   - sandium-brave-reference-v1-{{ .Branch }}-
+                  # If bootstrap has not yet promoted a reference, continue the
+                  # newest verified per-stage handoff from the prior workflow.
+                  - sandium-brave-handoff-v1-{{ .Branch }}-
                   - sandium-brave-workspace-v1-{{ .Branch }}-
                   - sandium-brave-valid-v3-{{ .Branch }}-
                   - sandium-brave-out-v1-sandium/brave-android-poc-6057c3ed-f9d6-4c74-b2e9-f4b09f838e8f-stage-1
