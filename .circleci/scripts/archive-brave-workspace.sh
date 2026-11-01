@@ -86,12 +86,19 @@ case "$MODE" in
     echo "BRAVE_WORKSPACE_ARCHIVE_SOURCE=$WORK"
     echo "BRAVE_WORKSPACE_ARCHIVE_OUTPUT=$TMP"
     START="$(date +%s)"
+    echo "BRAVE_WORKSPACE_ARCHIVE_INPUT_SIZE=$(du -sh "$WORK" | awk '{print $1}')"
+    echo "BRAVE_WORKSPACE_ARCHIVE_OUTPUT_FILESYSTEM=$(df -h "$ROOT" | tail -n 1 | awk '{print $4 " available of " $2}')"
+    # Chromium object files and generated outputs are already compressed or
+    # poorly compressible. Prefer faster zstd compression to preserve the
+    # remaining CircleCI machine deadline, and report tar progress.
     tar -c \
       --format=posix \
       --pax-option='delete=atime,delete=ctime' \
       --warning=no-file-changed \
+      --checkpoint=50000 \
+      --checkpoint-action=echo='BRAVE_ARCHIVE_TAR_CHECKPOINT=%u' \
       -C "$ROOT" brave-work \
-      | zstd -T0 -1 -q -o "$TMP"
+      | zstd -T0 --fast=3 -q -o "$TMP"
     [ -s "$TMP" ] || fail "tar/zstd produced an empty checkpoint"
     zstd -t "$TMP" >/dev/null || fail "new checkpoint failed zstd integrity test"
     mv "$TMP" "$ARCHIVE"
