@@ -58,7 +58,9 @@ case "$MODE" in
       [ -s "$WORK/.gclient" ] || fail "restored archive is missing brave-work/.gclient"
       [ -s "$OUT/build.ninja" ] || fail "restored archive is missing the pinned build graph"
       validate_ledger
-      echo "BRAVE_WORKSPACE_ARCHIVE_RESTORE=PASS"
+      mkdir -p "$WORK/.sandium"
+      touch "$WORK/.sandium/workspace-checkpoint-restored"
+      echo "BRAVE_WORKSPACE_ARCHIVE_RESTORE=PASS checkpoint=RESTORED"
     elif [ -s "$WORK/.gclient" ] && [ -s "$OUT/build.ninja" ]; then
       # One-time migration path when CircleCI restored the previous v3
       # direct-directory cache instead of the new single-file archive.
