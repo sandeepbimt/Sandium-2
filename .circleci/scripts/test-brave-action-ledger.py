@@ -137,9 +137,9 @@ if "-n" in args:
                 row.pop("cmdhash")
                 row.pop("digest")
                 row["no_exec"] = True
-                stream.write(json.dumps(row) + "\\n")
+                stream.write(json.dumps(row) + "\n")
             for i in range(1000, 1010):
-                stream.write(json.dumps(metric(i)) + "\\n")
+                stream.write(json.dumps(metric(i)) + "\n")
         write_metrics(stage1_metrics, range(8, 88))
         done1 = run(["complete", *common, "--stage", "1", "--build", "101",
                      "--workflow", "workflow-one",
