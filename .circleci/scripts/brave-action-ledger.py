@@ -490,6 +490,7 @@ def main():
     print(f"SANDIUM_BUILD_MATH={done}/{total} complete; {remaining}/{remaining} pending")
     if remaining == 0:
         apk = out / "apks" / "Bravearm64Universal.apk"
+        aab = out / "apks" / "BraveMonoarm64.aab"
         marker = src.parent / ".sandium" / "apk-completion-status.txt"
         required = {
             "BUILD_FINISHED=true",
@@ -501,11 +502,11 @@ def main():
             "AAB_BUNDLE_VALID=true",
         }
         marker_lines = set(marker.read_text(encoding="utf-8").splitlines()) if marker.is_file() else set()
-        if apk.is_file() and apk.stat().st_size and required.issubset(marker_lines):
+        if apk.is_file() and apk.stat().st_size and aab.is_file() and aab.stat().st_size and required.issubset(marker_lines):
             ledger["build_complete"] = True
             ledger["completed_at_epoch"] = now
             save(path, ledger)
-            print(f"SANDIUM_ACTION_FRONTIER=COMPLETE total={total} apk_validated=true")
+            print(f"SANDIUM_ACTION_FRONTIER=COMPLETE total={total} apk_validated=true aab_validated=true")
         else:
             # All current graph actions have completed, but the APK did not
             # pass validation. Save this closed frontier; the next stage's APK
