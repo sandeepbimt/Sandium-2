@@ -121,6 +121,7 @@ case "$MODE" in
       echo "ACTION_LEDGER_TOTAL=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["planned_total"])' "$LEDGER")"
       echo "ACTION_LEDGER_COMPLETED=$(python3 -c 'import json,sys; print(len(json.load(open(sys.argv[1]))["completed"]))' "$LEDGER")"
     } > "$ROOT/brave-workspace-checkpoint.meta"
+    touch "$WORK/.sandium/workspace-archive-created-this-run"
     cat "$ROOT/brave-workspace-checkpoint.meta"
     echo "BRAVE_WORKSPACE_ARCHIVE_CREATE=PASS"
     ;;

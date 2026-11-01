@@ -1703,6 +1703,9 @@ jobs:
             MODE="<< pipeline.parameters.sandium_build_mode >>"
             ROOT="$CIRCLE_WORKING_DIRECTORY"
             mkdir -p "$ROOT/brave-work/.sandium"
+            # This marker distinguishes an archive created by this run from the
+            # immutable archive restored at the start of a normal build.
+            rm -f "$ROOT/brave-work/.sandium/workspace-archive-created-this-run"
             printf 'SANDIUM_BUILD_MODE=%s\n' "$MODE" > "$ROOT/brave-work/.sandium/build-mode.txt"
             echo "SANDIUM_BUILD_MODE=$MODE"
             if [ "$MODE" = "normal" ]; then
@@ -2270,8 +2273,9 @@ jobs:
             if [ "$MODE" = "reference" ]; then
               test -s "$ROOT/brave-workspace-checkpoint.tar.zst" || { echo "FINAL_STAGE_GATE=FAIL reference mode did not create a stage handoff archive" >&2; exit 1; }
               test -s "$ROOT/brave-workspace-checkpoint.meta" || { echo "FINAL_STAGE_GATE=FAIL reference archive metadata missing" >&2; exit 1; }
+              test -s "$ROOT/brave-work/.sandium/workspace-archive-created-this-run" || { echo "FINAL_STAGE_GATE=FAIL reference archive was not created during this stage" >&2; exit 1; }
             elif [ "$MODE" = "normal" ]; then
-              test ! -e "$ROOT/brave-workspace-checkpoint.tar.zst" || { echo "FINAL_STAGE_GATE=FAIL normal mode unexpectedly created a workspace archive" >&2; exit 1; }
+              test ! -e "$ROOT/brave-work/.sandium/workspace-archive-created-this-run" || { echo "FINAL_STAGE_GATE=FAIL normal mode unexpectedly created a workspace archive" >&2; exit 1; }
             else
               echo "FINAL_STAGE_GATE=FAIL unknown mode=$MODE" >&2
               exit 1
