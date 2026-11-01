@@ -197,22 +197,21 @@ def metric_key(row: dict):
     digest, cmdhash = str(row.get("digest") or ""), str(row.get("cmdhash") or "")
     rule, action = str(row.get("rule") or ""), str(row.get("action") or "")
     if cmdhash:
-        # StepID + outputs + rule/action are the logical Ninja work-unit
-        # identity inside the pinned graph. Command hash and input digest stay
-        # in the ledger for audit, but are excluded from the key because a
-        # strict-remote -> offline-local CAS recovery can legitimately change
-        # execution flags while rebuilding the same declared output.
+        # Preserve execution-specific command/digest data for audit, but keep
+        # the ledger key independent of execution mode. Siso dry-run records
+        # can be marked no_exec and omit cmdhash, while the matching real
+        # execution record includes cmdhash. Both must identify the same Ninja
+        # work unit across the pre-build plan and post-build reconciliation.
         ident = {"step_id": step_id, "outputs": outputs, "cmdhash": cmdhash,
                  "rule": rule, "action": action, "action_digest": digest,
                  "mode": "ninja-step-output"}
-        stable = {"step_id": step_id, "outputs": outputs,
-                  "rule": rule, "action": action, "mode": "ninja-step-output"}
     elif row.get("no_exec") is True:
         ident = {"outputs": outputs, "step_id": step_id, "rule": rule,
                  "action": action, "mode": "no-exec-step"}
-        stable = ident
     else:
         die(f"ACTION_METRICS_SCHEMA=FAIL step_id={step_id!r} missing cmdhash")
+    stable = {"step_id": step_id, "outputs": outputs,
+              "rule": rule, "action": action}
     key = sha(json.dumps(stable, sort_keys=True, separators=(",", ":")).encode())
     return key, ident
 
