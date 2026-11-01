@@ -2507,9 +2507,7 @@ workflows:
           requires: [SANDIUM-FULL-MODE-stage-5]
           filters:
             branches:
-              only:
-                - sandium/brave-android-poc
-                - sandium/archive-zstd-fast5
+              only: sandium/brave-android-poc
   sandium-fast-mode:
     when:
       equal: [fast, << pipeline.parameters.sandium_build_mode >>]
