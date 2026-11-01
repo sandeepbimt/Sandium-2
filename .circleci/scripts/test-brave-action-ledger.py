@@ -165,6 +165,14 @@ if "-n" in args:
         write_metrics(stage2_metrics, range(88, 100))
         (out / "apks").mkdir(parents=True, exist_ok=True)
         (out / "apks" / "BraveMonoarm64.apk").write_bytes(b"test-apk")
+        marker = src.parent / ".sandium" / "apk-completion-status.txt"
+        marker.parent.mkdir(parents=True, exist_ok=True)
+        marker.write_text(
+            "BUILD_FINISHED=true\\n"
+            "APK_ARCHIVE_VALID=true\\n"
+            "APK_SIGNATURE_VALID=true\\n"
+            "APK_PACKAGE_ID_VALID=true\\n",
+            encoding="utf-8")
         done2 = run(["complete", *common, "--stage", "2", "--build", "202",
                      "--workflow", "workflow-two",
                      "--metrics-prefix", "test-stage2-"], env)
