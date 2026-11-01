@@ -51,6 +51,15 @@ PY
 case "$MODE" in
   restore)
     ensure_zstd
+    # Normal builds restore only the immutable, promoted reference cache.
+    # Adapt its stored filenames to the common restore path without rewriting it.
+    if [ ! -s "$ARCHIVE" ] && [ -s "$ROOT/brave-reference-ready.tar.zst" ]; then
+      cp "$ROOT/brave-reference-ready.tar.zst" "$ARCHIVE"
+      if [ -s "$ROOT/brave-reference-ready.meta" ]; then
+        cp "$ROOT/brave-reference-ready.meta" "$ROOT/brave-workspace-checkpoint.meta"
+      fi
+      echo "BRAVE_REFERENCE_ARCHIVE=RESTORED"
+    fi
     if [ -s "$ARCHIVE" ]; then
       echo "BRAVE_WORKSPACE_ARCHIVE_RESTORE=START bytes=$(stat -c '%s' "$ARCHIVE")"
       zstd -t "$ARCHIVE" >/dev/null || fail "checkpoint archive failed zstd integrity test"
