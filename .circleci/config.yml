@@ -1726,42 +1726,50 @@ jobs:
               echo "BRAVE_REMOTE_EXECUTION_CONFIG_GATE=PASS"
             fi
       - run:
-          name: Verify restored Brave APK before scheduling build work
+          name: Verify restored ARM64 APK and AAB before scheduling build work
           command: |
             set -euo pipefail
             ROOT="$CIRCLE_WORKING_DIRECTORY"
-            OUT="$ROOT/brave-work/src/out/android_Release_arm64"
+            SRC="$ROOT/brave-work/src"
+            OUT="$SRC/out/android_Release_arm64"
             APK="$OUT/apks/Bravearm64Universal.apk"
-            TOOLS="$ROOT/brave-work/src/third_party/android_sdk/public/build-tools/37.0.0"
-            mkdir -p "$ROOT/brave-work/.sandium"
-            rm -f "$ROOT/brave-work/.sandium/restored-distribution-valid"
-            rm -f "$ROOT/brave-work/.sandium/invalid-distribution-output-for-ledger"
-            if [ ! -s "$APK" ]; then
-              echo "BRAVE_RESTORED_APK=ABSENT"
+            AAB="$OUT/apks/BraveMonoarm64.aab"
+            TOOLS="$SRC/third_party/android_sdk/public/build-tools/37.0.0"
+            JARSIGNER="$SRC/third_party/jdk/current/bin/jarsigner"
+            JAVA="$SRC/third_party/jdk/current/bin/java"
+            BUNDLETOOL="$SRC/third_party/android_build_tools/bundletool/cipd/bundletool.jar"
+            STATE="$ROOT/brave-work/.sandium"
+            mkdir -p "$STATE"
+            rm -f "$STATE/restored-distribution-valid"
+            rm -f "$STATE/invalid-distribution-output-for-ledger"
+
+            if [ ! -s "$APK" ] && [ ! -s "$AAB" ]; then
+              echo "BRAVE_RESTORED_DISTRIBUTION=ABSENT"
               exit 0
             fi
-            VALID=true
-            if ! python3 -c 'import sys,zipfile; z=zipfile.ZipFile(sys.argv[1]); bad=z.testzip(); z.close(); sys.exit(1 if bad else 0)' "$APK"; then VALID=false; fi
-            if [ "$VALID" = true ] && [ -x "$TOOLS/apksigner" ] && [ -x "$TOOLS/aapt" ]; then
-              "$TOOLS/apksigner" verify "$APK" >/dev/null 2>&1 || VALID=false
-              if [ "$VALID" = true ]; then
-                "$TOOLS/aapt" dump badging "$APK" > "$ROOT/brave-work/.sandium/restored-apk-badging.txt" 2>/dev/null || VALID=false
+
+            APK_VALID=false
+            if [ -s "$APK" ] && [ -x "$TOOLS/apksigner" ] && [ -x "$TOOLS/aapt" ]; then
+              if python3 -c 'import sys,zipfile; z=zipfile.ZipFile(sys.argv[1]); bad=z.testzip(); z.close(); sys.exit(1 if bad else 0)' "$APK"                 && "$TOOLS/apksigner" verify "$APK" >/dev/null 2>&1                 && "$TOOLS/aapt" dump badging "$APK" > "$STATE/restored-apk-badging.txt" 2>/dev/null                 && grep -q "^package: name='com.brave.browser_default'" "$STATE/restored-apk-badging.txt"; then
+                APK_VALID=true
               fi
-              PACKAGE=""
-              if [ "$VALID" = true ]; then
-                PACKAGE="$(sed -n "s/^package: name='\\([^']*\\)'.*/\\1/p" "$ROOT/brave-work/.sandium/restored-apk-badging.txt" 2>/dev/null | head -n 1)"
-                [ "$PACKAGE" = "com.brave.browser_default" ] || VALID=false
-              fi
-            else
-              VALID=false
             fi
-            if [ "$VALID" = true ]; then
-              touch "$ROOT/brave-work/.sandium/restored-distribution-valid"
-              echo "BRAVE_RESTORED_APK=VALID package=com.brave.browser_default bytes=$(stat -c '%s' "$APK")"
+
+            AAB_VALID=false
+            if [ -s "$AAB" ] && [ -x "$JARSIGNER" ] && [ -x "$JAVA" ] && [ -s "$BUNDLETOOL" ]; then
+              if python3 -c 'import sys,zipfile; z=zipfile.ZipFile(sys.argv[1]); bad=z.testzip(); z.close(); sys.exit(1 if bad else 0)' "$AAB"                 && "$JARSIGNER" -verify "$AAB" >/dev/null 2>&1                 && "$JAVA" -jar "$BUNDLETOOL" validate --bundle="$AAB" >/dev/null 2>&1; then
+                AAB_VALID=true
+              fi
+            fi
+
+            if [ "$APK_VALID" = true ] && [ "$AAB_VALID" = true ]; then
+              touch "$STATE/restored-distribution-valid"
+              echo "BRAVE_RESTORED_DISTRIBUTION=VALID apk_bytes=$(stat -c '%s' "$APK") aab_bytes=$(stat -c '%s' "$AAB") package=com.brave.browser_default"
             else
-              echo "BRAVE_RESTORED_APK=INVALID; reopening only the APK output action."
-              touch "$ROOT/brave-work/.sandium/invalid-distribution-output-for-ledger"
-              rm -f "$APK"
+              echo "BRAVE_RESTORED_DISTRIBUTION=INVALID apk_valid=$APK_VALID aab_valid=$AAB_VALID; reopening only missing/invalid distribution outputs."
+              touch "$STATE/invalid-distribution-output-for-ledger"
+              if [ "$APK_VALID" != true ]; then rm -f "$APK"; fi
+              if [ "$AAB_VALID" != true ]; then rm -f "$AAB"; fi
             fi
       - run:
           name: Plan exact pending Brave actions and enforce the handoff frontier
