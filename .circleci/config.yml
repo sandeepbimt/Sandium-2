@@ -1540,8 +1540,13 @@ jobs:
           name: Run lightweight Brave continuation self-test
           command: |
             set -euo pipefail
+            python3 -m py_compile .circleci/scripts/brave-action-ledger.py
+            python3 .circleci/scripts/test-brave-action-ledger.py
             bash -n .circleci/scripts/archive-brave-workspace.sh
             bash -n .circleci/scripts/verify-brave-remote-smoke.sh
+            bash -n .circleci/scripts/capture-brave-siso-checkpoint.sh
+            bash -n .circleci/scripts/prepare-brave-source.sh
+            bash -n .circleci/scripts/recover-siso-missing-cas-inputs.sh
             echo "BRAVE_PIPELINE_SELF_TEST=PASS"
       - when:
           condition:
@@ -1741,8 +1746,11 @@ jobs:
               if [ "$VALID" = true ]; then
                 "$TOOLS/aapt" dump badging "$APK" > "$ROOT/brave-work/.sandium/restored-apk-badging.txt" 2>/dev/null || VALID=false
               fi
-              PACKAGE="$(sed -n "s/^package: name='\\([^']*\\)'.*/\\1/p" "$ROOT/brave-work/.sandium/restored-apk-badging.txt" 2>/dev/null | head -n 1)"
-              [ "$PACKAGE" = "com.brave.browser_default" ] || VALID=false
+              PACKAGE=""
+              if [ "$VALID" = true ]; then
+                PACKAGE="$(sed -n "s/^package: name='\\([^']*\\)'.*/\\1/p" "$ROOT/brave-work/.sandium/restored-apk-badging.txt" 2>/dev/null | head -n 1)"
+                [ "$PACKAGE" = "com.brave.browser_default" ] || VALID=false
+              fi
             else
               VALID=false
             fi
