@@ -147,7 +147,7 @@ mv "$TMP" "$REPORT"
 echo "BRAVE_SISO_DIAGNOSTICS_REPORT=$REPORT"
 grep -E '^(PHASE|STAGE|BUILD_NINJA_EDGE_COUNT|SISO_STATE_(EXISTS|SIZE_BYTES|SHA256)|SISO_JOURNAL_(EXISTS|SIZE_BYTES|SHA256)|NINJA_(LOG|DEPS)_(EXISTS|SIZE_BYTES|SHA256)|OBJ_O_COUNT|OBJ_DWO_COUNT|OBJ_PCM_COUNT|GEN_FILE_COUNT|GEN_TOTAL_BYTES|APK_FILE_COUNT)=' "$REPORT" || true
 
-if [ "$PHASE" = "restore" ]; then
+if [ "$PHASE" = "restore" ] && [ "$STAGE" -gt 1 ]; then
   PREV_STAGE="$((STAGE - 1))"
   PREV_DIR="$DIAG_ROOT/stage-$PREV_STAGE"
   COMPARISON="$STAGE_DIR/$SAFE_RUN_ID-handoff-comparison.txt"
@@ -158,10 +158,11 @@ import sys
 
 diag_root, prev_dir, current_path, comparison_path, stage, prev_stage = sys.argv[1:]
 stage = int(stage)
+workflow_id = os.environ.get("CIRCLE_WORKFLOW_ID", "local")
 if stage > 1:
-    candidates = glob.glob(os.path.join(prev_dir, "*-checkpoint-ready.txt"))
+    candidates = glob.glob(os.path.join(prev_dir, "*-" + workflow_id + "-checkpoint-ready.txt"))
 else:
-    candidates = glob.glob(os.path.join(diag_root, "stage-*", "*-checkpoint-ready.txt"))
+    candidates = []
 candidates = [p for p in candidates if os.path.isfile(p)]
 candidates.sort(key=lambda p: os.path.getmtime(p), reverse=True)
 
