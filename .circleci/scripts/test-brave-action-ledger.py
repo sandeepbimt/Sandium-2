@@ -85,9 +85,9 @@ if "-n" in args:
                 "rule": "cxx",
                 "action": "compile",
                 "outputs": [f"obj/action-{i:03d}.o"],
-                "cmdhash": f"cmdhash-{i:03d}",
-                "digest": f"sha256:{i:064x}",
-                "is_remote": True,
+                # Siso dry-run records may omit execution-only hashes.
+                # The ledger key must still match the later real action row.
+                "is_remote": False,
                 "is_local": False,
                 "cached": False,
                 "no_exec": True,
@@ -127,10 +127,24 @@ if "-n" in args:
                                "--workflow", "workflow-one",
                                "--metrics-prefix", "test-stage1-"], env, expected=2)
         assert "ACTION_DUPLICATE_WITHIN_STAGE=FAIL" in duplicate_stage, duplicate_stage
-        write_metrics(stage1_metrics, range(88))
+        # The Perfetto remote-worker smoke target is a sidecar graph. Eight
+        # smoke actions overlap the APK plan and count as completed APK work;
+        # unrelated smoke-only actions must not poison APK reconciliation.
+        smoke_metrics = out / "test-stage1-smoke.jsonl"
+        with smoke_metrics.open("w", encoding="utf-8") as stream:
+            for i in range(8):
+                row = metric(i)
+                row.pop("cmdhash")
+                row.pop("digest")
+                row["no_exec"] = True
+                stream.write(json.dumps(row) + "\\n")
+            for i in range(1000, 1010):
+                stream.write(json.dumps(metric(i)) + "\\n")
+        write_metrics(stage1_metrics, range(8, 88))
         done1 = run(["complete", *common, "--stage", "1", "--build", "101",
                      "--workflow", "workflow-one",
                      "--metrics-prefix", "test-stage1-"], env)
+        assert "ACTION_REMOTE_SMOKE_RECONCILIATION=PASS planned_overlap=8 preflight_only=10" in done1, done1
         assert "ACTION_COMPLETION_MATH=PASS before=100 new=88 after=12" in done1, done1
         assert "SANDIUM_BUILD_MATH=88/100 complete; 12/12 pending" in done1, done1
 
