@@ -1706,7 +1706,7 @@ jobs:
           keys:
             - sandium-brave-apt-v1-ubuntu2404-
       - run:
-          name: SANDIUM FULL/FAST MODE: Restore checkpoint with up to 8 parallel workers
+          name: SANDIUM FULL/FAST MODE - Restore checkpoint with up to 8 parallel workers
           no_output_timeout: 30m
           command: |
             set -euo pipefail
@@ -2288,7 +2288,7 @@ jobs:
                   export BRAVE_STAGE_INDEX="<< parameters.stage_index >>"
                   bash .circleci/scripts/capture-brave-siso-checkpoint.sh checkpoint-ready
             - run:
-                name: SANDIUM-FULL-MODE: Create 8 parallel checkpoint shards
+                name: SANDIUM-FULL-MODE - Create 8 parallel checkpoint shards
                 no_output_timeout: 45m
                 command: |
                   set -euo pipefail
