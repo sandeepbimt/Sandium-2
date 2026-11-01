@@ -1734,8 +1734,8 @@ jobs:
             APK="$OUT/apks/Bravearm64Universal.apk"
             TOOLS="$ROOT/brave-work/src/third_party/android_sdk/public/build-tools/37.0.0"
             mkdir -p "$ROOT/brave-work/.sandium"
-            rm -f "$ROOT/brave-work/.sandium/restored-apk-valid"
-            rm -f "$ROOT/brave-work/.sandium/invalid-apk-output-for-ledger"
+            rm -f "$ROOT/brave-work/.sandium/restored-distribution-valid"
+            rm -f "$ROOT/brave-work/.sandium/invalid-distribution-output-for-ledger"
             if [ ! -s "$APK" ]; then
               echo "BRAVE_RESTORED_APK=ABSENT"
               exit 0
@@ -1756,11 +1756,11 @@ jobs:
               VALID=false
             fi
             if [ "$VALID" = true ]; then
-              touch "$ROOT/brave-work/.sandium/restored-apk-valid"
+              touch "$ROOT/brave-work/.sandium/restored-distribution-valid"
               echo "BRAVE_RESTORED_APK=VALID package=com.brave.browser_default bytes=$(stat -c '%s' "$APK")"
             else
               echo "BRAVE_RESTORED_APK=INVALID; reopening only the APK output action."
-              touch "$ROOT/brave-work/.sandium/invalid-apk-output-for-ledger"
+              touch "$ROOT/brave-work/.sandium/invalid-distribution-output-for-ledger"
               rm -f "$APK"
             fi
       - run:
@@ -1792,7 +1792,7 @@ jobs:
             ROOT="$CIRCLE_WORKING_DIRECTORY"
             mkdir -p "$ROOT/brave-work/.sandium"
             STATUS="$ROOT/brave-work/.sandium/remote-smoke-status.txt"
-            if [ -s "$ROOT/brave-work/.sandium/restored-apk-valid" ]; then
+            if [ -s "$ROOT/brave-work/.sandium/restored-distribution-valid" ]; then
               printf 'REMOTE_SMOKE=SKIPPED_VALID_APK\n' > "$STATUS"
               echo "BRAVE_REMOTE_SMOKE=SKIPPED reason=already-verified-apk"
             else
@@ -1817,7 +1817,7 @@ jobs:
             mkdir -p "$STATUS_DIR"
             BUILD_STATUS="$STATUS_DIR/build-stage-status.txt"
             SMOKE_STATUS="$STATUS_DIR/remote-smoke-status.txt"
-            if [ -s "$STATUS_DIR/restored-apk-valid" ]; then
+            if [ -s "$STATUS_DIR/restored-distribution-valid" ]; then
               echo "BRAVE_APK=ALREADY_PRESENT_AND_VERIFIED"
               printf 'BUILD_EXIT_CODE=0\nBUILD_REASON=RESTORED_VALID_APK\n' > "$BUILD_STATUS"
               exit 0
@@ -2049,7 +2049,7 @@ jobs:
             if [ -s "$STATUS" ]; then
               cp "$STATUS" "$MARKER"
             else
-              printf 'BUILD_FINISHED=false\nAPK_ARCHIVE_VALID=false\nAPK_SIGNATURE_VALID=not_yet_built\nAPK_PACKAGE_ID_VALID=false\n' > "$MARKER"
+              printf 'BUILD_FINISHED=false\nAPK_ARCHIVE_VALID=false\nAPK_SIGNATURE_VALID=not_yet_built\nAPK_PACKAGE_ID_VALID=false\nAAB_ARCHIVE_VALID=false\nAAB_SIGNATURE_VALID=not_yet_built\nAAB_BUNDLE_VALID=false\n' > "$MARKER"
             fi
             echo "BRAVE_APK_COMPLETION_MARKER=$(grep -qx 'BUILD_FINISHED=true' "$MARKER" && echo VERIFIED || echo INCOMPLETE)"
       - save_cache:
