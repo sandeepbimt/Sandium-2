@@ -145,8 +145,10 @@ def dry_run_actions(autoninja: Path, src: Path, out: Path, jobs: int,
             "cannot produce an exact pending action set. Output tail:\n%s" %
             "\n".join(tail))
     metrics_path.unlink(missing_ok=True)
+    manifest_stub = bool(keys and len(keys) <= 2 and not progress_denominators)
     return keys, {"metrics_file": metrics_name, "metrics": stats,
                   "no_work": False, "action_count": len(keys),
+                  "manifest_stub": manifest_stub,
                   "progress_denominators": sorted(progress_denominators),
                   "displayed_last_ordinal": displayed_last}
 
@@ -424,6 +426,9 @@ def main():
     if smoke_stats["successful_duplicate_records"]:
         die("ACTION_SMOKE_DUPLICATE=FAIL %d smoke actions were successfully recorded more than once" %
             smoke_stats["successful_duplicate_records"])
+    if stats["failed_records"] or smoke_stats["failed_records"]:
+        die("ACTION_METRICS_FAILURE=FAIL apk_build_failed_records=%d remote_smoke_failed_records=%d" %
+            (stats["failed_records"], smoke_stats["failed_records"]))
     pending_before_keys = set(active.get("pending_action_keys", []))
     if len(pending_before_keys) != int(active.get("pending_before", -1)):
         die("ACTION_LEDGER_STAGE=FAIL missing or invalid pending action identity set")
@@ -495,19 +500,46 @@ def main():
         die("ACTION_PLANNED_FRONTIER_MISMATCH=FAIL unexpected_planned_pending=%d examples=%s" %
             (len(unexpected), sorted(unexpected)[:5]))
     pruned_planned_keys = set()
+    pruned_reason = None
     if vanished:
-        if after_keys or not apk_validated:
+        initial_dry = active.get("dry_run") or {}
+        initial_action_count = int(initial_dry.get("action_count", before))
+        after_action_count = int(after_dry.get("action_count", len(after_keys)))
+        # Before its first real invocation, Siso can expose only the two
+        # manifest/bootstrap nodes to a -n metrics probe. The first real build
+        # then rebuilds the manifest and expands the graph into actual actions.
+        provisional_manifest = bool(
+            initial_dry.get("manifest_stub") or
+            (initial_action_count <= 2 and not initial_dry.get("progress_denominators"))
+        )
+        expanded_live_graph = (
+            provisional_manifest and
+            after_action_count >= max(32, initial_action_count * 10) and
+            (bool(dynamically_completed_keys) or bool(newly_pending_keys))
+        )
+        if expanded_live_graph:
+            pruned_planned_keys = set(vanished)
+            pruned_reason = "provisional_manifest_nodes_superseded_by_expanded_siso_graph"
+            print("ACTION_PRUNED_MANIFEST_STUB=PASS count=%d initial_actions=%d expanded_pending=%d "
+                  "dynamically_completed=%d; reason=%s" %
+                  (len(pruned_planned_keys), initial_action_count, after_action_count,
+                   len(dynamically_completed_keys), pruned_reason))
+        elif not after_keys and apk_validated:
+            pruned_planned_keys = set(vanished)
+            pruned_reason = "stale_plan_nodes_absent_from_closed_graph_with_verified_apk"
+            print("ACTION_PRUNED_STALE_PLAN=PASS count=%d; reason=%s" %
+                  (len(pruned_planned_keys), pruned_reason))
+        else:
             die("ACTION_PLANNED_FRONTIER_MISMATCH=FAIL planned_not_completed=%d but_still_pending=%d "
-                "unaccounted_vanished=%d apk_validated=%s examples_vanished=%s examples_pending=%s" %
+                "unaccounted_vanished=%d apk_validated=%s initial_plan_actions=%d expanded_pending=%d "
+                "manifest_stub=%s examples_vanished=%s examples_pending=%s" %
                 (len(planned_remaining_keys), len(still_pending_planned_keys),
-                 len(vanished), apk_validated, sorted(vanished)[:5], []))
-        pruned_planned_keys = set(vanished)
+                 len(vanished), apk_validated, initial_action_count, after_action_count,
+                 provisional_manifest, sorted(vanished)[:5], sorted(still_pending_planned_keys)[:5]))
         planned_remaining_keys -= pruned_planned_keys
         ledger["planned_total"] = int(ledger["planned_total"]) - len(pruned_planned_keys)
         if ledger["planned_total"] < len(ledger["completed"]):
             die("ACTION_PRUNED_ACCOUNTING=FAIL pruned actions would make completed exceed planned total")
-        print("ACTION_PRUNED_STALE_PLAN=PASS count=%d; reason=absent_from_post_build_graph_and_verified_apk" %
-              len(pruned_planned_keys))
 
     # A previously completed action must not reappear in the next frontier.
     reappeared = after_keys.intersection(previous)
@@ -538,6 +570,7 @@ def main():
         "dynamically_completed": len(dynamically_completed_keys),
         "pruned_from_final_graph": len(pruned_planned_keys),
         "pruned_action_keys": sorted(pruned_planned_keys),
+        "pruned_reason": pruned_reason,
         "newly_pending": len(newly_pending_keys),
         "newly_discovered_action_keys": sorted(dynamically_completed_keys | newly_pending_keys),
         "new_completed": added,

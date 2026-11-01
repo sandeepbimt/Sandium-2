@@ -96,6 +96,8 @@ if "-n" in args:
             f.write(json.dumps(row) + "\\n")
     if not ids:
         print("ninja: no work to do.")
+    elif os.environ.get("LEDGER_TEST_MANIFEST_STUB") == "1":
+        print("schedule pending:1+ready:0 (node:161001 edge:2)")
     else:
         for i in range(1, len(ids) + 1):
             print(f"[{i}/{len(ids)}] dry-run action")
@@ -225,7 +227,29 @@ if "-n" in args:
         assert "SANDIUM_BUILD_MATH=166/166 complete; 0/0 pending" in done3, done3
         assert "SANDIUM_ACTION_FRONTIER=COMPLETE total=166" in done3, done3
 
-    print("BRAVE_ACTION_LEDGER_SELF_TEST=PASS dynamic discovery + pending handoff + two stale plan nodes removed after verified APK")
+        # Regression for build 675: the first -n probe saw only two Siso
+        # manifest/bootstrap nodes. The real time-sliced build expanded the
+        # graph, completed 60 actions and left 40 for the next stage. Those
+        # provisional nodes must be pruned without requiring the APK first.
+        (src.parent / ".sandium" / "action-ledger.json").unlink()
+        pending_file.write_text(json.dumps([9000, 9001]), encoding="utf-8")
+        env["LEDGER_TEST_MANIFEST_STUB"] = "1"
+        stub_plan = run(["plan", *common, "--stage", "1", "--build", "404",
+                         "--workflow", "manifest-stub-workflow"], env)
+        assert "ACTION_PLAN_DRY_RUN=PASS action_identities=2 progress_denominators=[]" in stub_plan, stub_plan
+        env["LEDGER_TEST_MANIFEST_STUB"] = "0"
+        manifest_metrics = out / "test-manifest-stage1-0.jsonl"
+        write_metrics(manifest_metrics, range(10000, 10060))
+        pending_file.write_text(json.dumps(list(range(11000, 11040))), encoding="utf-8")
+        manifest_done = run(["complete", *common, "--stage", "1", "--build", "404",
+                             "--workflow", "manifest-stub-workflow",
+                             "--metrics-prefix", "test-manifest-stage1-"], env)
+        assert "ACTION_PRUNED_MANIFEST_STUB=PASS count=2 initial_actions=2 expanded_pending=40 dynamically_completed=60" in manifest_done, manifest_done
+        assert "ACTION_FRONTIER_RECONCILIATION=PASS planned_completed=0 dynamically_completed=60 newly_pending=40 pending_after=40" in manifest_done, manifest_done
+        assert "ACTION_COMPLETION_MATH=PASS before=2 new=60 after=40" in manifest_done, manifest_done
+        assert "SANDIUM_BUILD_MATH=60/100 complete; 40/40 pending" in manifest_done, manifest_done
+
+    print("BRAVE_ACTION_LEDGER_SELF_TEST=PASS dynamic discovery + pending handoff + APK-gated pruning + manifest-stub expansion")
 
 if __name__ == "__main__":
     main()
