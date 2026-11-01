@@ -138,7 +138,7 @@ if "-n" in args:
         pending_file.write_text(json.dumps(list(range(100))), encoding="utf-8")
         wrong_plan = run(["plan", *common, "--stage", "2", "--build", "202",
                           "--workflow", "workflow-two"], env, expected=2)
-        assert "ACTION_HANDOFF_GATE=FAIL expected_pending=12 dry_run_pending=100" in wrong_plan, wrong_plan
+        assert "ACTION_REEXECUTION_GATE=FAIL" in wrong_plan, wrong_plan
 
         pending_file.write_text(json.dumps(list(range(88, 100))), encoding="utf-8")
         plan2 = run(["plan", *common, "--stage", "2", "--build", "202",
