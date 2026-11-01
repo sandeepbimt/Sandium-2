@@ -64,6 +64,8 @@ case "$MODE" in
     elif [ -s "$WORK/.gclient" ] && [ -s "$OUT/build.ninja" ]; then
       # One-time migration path when CircleCI restored the previous v3
       # direct-directory cache instead of the new single-file archive.
+      mkdir -p "$WORK/.sandium"
+      touch "$WORK/.sandium/workspace-checkpoint-restored"
       echo "BRAVE_WORKSPACE_ARCHIVE_RESTORE=LEGACY_DIRECT_CACHE stage=${BRAVE_STAGE_INDEX:-unknown}"
     elif [ "${BRAVE_STAGE_INDEX:-1}" = "1" ]; then
       echo "BRAVE_WORKSPACE_ARCHIVE_RESTORE=FIRST_BUILD no prior checkpoint; source initialization will create the baseline"
