@@ -191,21 +191,21 @@ if "-n" in args:
         write_metrics(stage2_metrics, range(88, 99))
         with stage2_metrics.open("a", encoding="utf-8") as stream:
             stream.write(json.dumps(metric(3000)) + "\n")
-        pending_file.write_text(json.dumps([99, 4000]), encoding="utf-8")
+        pending_file.write_text(json.dumps([99, 4000, 4001]), encoding="utf-8")
         dynamic = run(["complete", *common, "--stage", "2", "--build", "202",
                        "--workflow", "workflow-two",
                        "--metrics-prefix", "test-stage2-"], env)
-        assert "ACTION_FRONTIER_RECONCILIATION=PASS planned_completed=11 dynamically_completed=1 newly_pending=1 pending_after=2" in dynamic, dynamic
-        assert "ACTION_DYNAMIC_ACTION_ACCOUNTING=PASS discovered_completed=1 discovered_pending=1" in dynamic, dynamic
-        assert "SANDIUM_BUILD_MATH=165/167 complete; 2/2 pending" in dynamic, dynamic
+        assert "ACTION_FRONTIER_RECONCILIATION=PASS planned_completed=11 dynamically_completed=1 newly_pending=2 pending_after=3" in dynamic, dynamic
+        assert "ACTION_DYNAMIC_ACTION_ACCOUNTING=PASS discovered_completed=1 discovered_pending=2" in dynamic, dynamic
+        assert "SANDIUM_BUILD_MATH=165/168 complete; 3/3 pending" in dynamic, dynamic
 
         # The next stage must receive the exact augmented frontier, including
         # newly discovered action 4000, and complete the original final action.
         stage3_plan = run(["plan", *common, "--stage", "3", "--build", "303",
                            "--workflow", "workflow-three"], env)
-        assert "ACTION_HANDOFF_GATE=PASS pending=2/2" in stage3_plan, stage3_plan
+        assert "ACTION_HANDOFF_GATE=PASS pending=3/3" in stage3_plan, stage3_plan
         stage3_metrics = out / "test-stage3-0.jsonl"
-        write_metrics(stage3_metrics, [99, 4000])
+        write_metrics(stage3_metrics, [99])
         pending_file.write_text("[]", encoding="utf-8")
         (out / "apks").mkdir(parents=True, exist_ok=True)
         (out / "apks" / "BraveMonoarm64.apk").write_bytes(b"test-apk")
@@ -220,11 +220,11 @@ if "-n" in args:
         done3 = run(["complete", *common, "--stage", "3", "--build", "303",
                      "--workflow", "workflow-three",
                      "--metrics-prefix", "test-stage3-"], env)
-        assert "ACTION_COMPLETION_MATH=PASS before=2 new=2 after=0" in done3, done3
-        assert "SANDIUM_BUILD_MATH=167/167 complete; 0/0 pending" in done3, done3
-        assert "SANDIUM_ACTION_FRONTIER=COMPLETE total=167" in done3, done3
+        assert "ACTION_PRUNED_STALE_PLAN=PASS count=2; reason=absent_from_post_build_graph_and_verified_apk\nACTION_COMPLETION_MATH=PASS before=3 new=1 after=0" in done3, done3
+        assert "SANDIUM_BUILD_MATH=166/166 complete; 0/0 pending" in done3, done3
+        assert "SANDIUM_ACTION_FRONTIER=COMPLETE total=166" in done3, done3
 
-    print("BRAVE_ACTION_LEDGER_SELF_TEST=PASS 65 dynamically completed actions + newly discovered pending handoff + final APK completion")
+    print("BRAVE_ACTION_LEDGER_SELF_TEST=PASS dynamic discovery + pending handoff + two stale plan nodes removed after verified APK")
 
 if __name__ == "__main__":
     main()
