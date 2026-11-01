@@ -93,7 +93,7 @@ if "-n" in args:
                 "no_exec": True,
                 "err": False,
             }
-            f.write(json.dumps(row) + "\n")
+            f.write(json.dumps(row) + "\\n")
     if not ids:
         print("ninja: no work to do.")
     else:
