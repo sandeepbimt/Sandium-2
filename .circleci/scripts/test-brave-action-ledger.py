@@ -191,6 +191,7 @@ if "-n" in args:
         write_metrics(stage2_metrics, range(88, 100))
         (out / "apks").mkdir(parents=True, exist_ok=True)
         (out / "apks" / "Bravearm64Universal.apk").write_bytes(b"test-apk")
+        (out / "apks" / "BraveMonoarm64.aab").write_bytes(b"test-aab")
         marker = src.parent / ".sandium" / "apk-completion-status.txt"
         marker.parent.mkdir(parents=True, exist_ok=True)
         marker.write_text(
