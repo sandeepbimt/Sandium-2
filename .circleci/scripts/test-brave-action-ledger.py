@@ -151,6 +151,7 @@ if "-n" in args:
         # Same output + command, but a different input action digest must still
         # be recognized as the same logical work unit and rejected.
         duplicate_action["digest"] = "sha256:" + ("f" * 64)
+        duplicate_action["cmdhash"] = "different-execution-mode-command-hash"
         rows = [duplicate_action, *(metric(i) for i in range(88, 99))]
         with stage2_metrics.open("w", encoding="utf-8") as stream:
             for row in rows:
