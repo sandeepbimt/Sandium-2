@@ -180,7 +180,7 @@ if "-n" in args:
         # fail; only sidecar smoke metrics receive the narrow preflight filter.
         write_metrics(stage2_metrics, range(88, 99))
         with stage2_metrics.open("a", encoding="utf-8") as stream:
-            stream.write(json.dumps(metric(2000)) + "\\n")
+            stream.write(json.dumps(metric(2000)) + "\n")
         pending_file.write_text("[]", encoding="utf-8")
         unplanned = run(["complete", *common, "--stage", "2", "--build", "202",
                          "--workflow", "workflow-two",
