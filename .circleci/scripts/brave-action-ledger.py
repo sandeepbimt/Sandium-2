@@ -343,6 +343,21 @@ def main():
         if active_before and active_before.get("run_id") != run_id:
             die("ACTION_LEDGER_RECOVERY=FAIL unfinished prior stage %s; do not overwrite its action frontier" %
                 active_before.get("run_id"))
+        # If a previously completed output was removed (for example, a restored
+        # APK failed ZIP/signature/package validation), Siso's live dry-run puts
+        # that action back into the pending set. Reopen only those exact action
+        # identities; do not infer or reopen unrelated work.
+        reopened = set(pending_keys).intersection(ledger.get("completed", {}))
+        if reopened:
+            for key in reopened:
+                ledger["completed"].pop(key, None)
+            ledger.setdefault("invalidated_action_reopens", []).append({
+                "stage_run": run_id, "action_keys": sorted(reopened),
+                "reason": "live_siso_dry_run_reports_previously_completed_action_pending",
+                "recorded_at_epoch": int(time.time())})
+            ledger["next_pending_action_keys"] = sorted(
+                set(ledger.get("next_pending_action_keys", [])) | reopened)
+            print("ACTION_INVALIDATED_OUTPUTS_REOPENED=%d" % len(reopened))
         total, done = int(ledger["planned_total"]), len(ledger["completed"])
         expected = total - done
         if expected < 0:
@@ -440,12 +455,20 @@ def main():
             "APK_PACKAGE_ID_VALID=true",
         }
         marker_lines = set(marker.read_text(encoding="utf-8").splitlines()) if marker.is_file() else set()
-        if not apk.is_file() or not apk.stat().st_size or not required.issubset(marker_lines):
-            die("ACTION_LEDGER_FINAL=FAIL no actions remain but APK ZIP/signature/package validation marker is absent")
-        ledger["build_complete"] = True
-        ledger["completed_at_epoch"] = now
-        save(path, ledger)
-        print(f"SANDIUM_ACTION_FRONTIER=COMPLETE total={total} apk_validated=true")
+        if apk.is_file() and apk.stat().st_size and required.issubset(marker_lines):
+            ledger["build_complete"] = True
+            ledger["completed_at_epoch"] = now
+            save(path, ledger)
+            print(f"SANDIUM_ACTION_FRONTIER=COMPLETE total={total} apk_validated=true")
+        else:
+            # All current graph actions have completed, but the APK did not
+            # pass validation. Save this closed frontier; the next stage's APK
+            # preflight removes the invalid output and plan() will reopen only
+            # the exact actions Siso says are pending again.
+            ledger["build_complete"] = False
+            ledger["apk_validation_pending"] = True
+            save(path, ledger)
+            print("SANDIUM_ACTION_FRONTIER=GRAPH_COMPLETE_APK_UNVALIDATED; next stage may reopen invalidated APK actions")
     else:
         print(f"SANDIUM_ACTION_FRONTIER=CONTINUE remaining={remaining}; next stage must dry-run to exactly {remaining}")
 
