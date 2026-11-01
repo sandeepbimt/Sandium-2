@@ -220,7 +220,12 @@ def read_metrics(out: Path, prefix: str, extra_files=()):
                           "summary_records": 0, "failed_records": 0,
                           "duplicate_records": 0,
                           "successful_duplicate_records": 0}
-    files = {p for p in out.glob(prefix + "*.jsonl") if p.is_file()}
+    # The remote-worker smoke test has its own target and its own
+    # metrics file. Do not mix that sidecar graph into the main APK target's
+    # action set; complete() reads the smoke file separately and credits only
+    # smoke actions that overlap the APK plan.
+    files = {p for p in out.glob(prefix + "*.jsonl")
+             if p.is_file() and not p.name.endswith("smoke.jsonl")}
     files.update(p for p in extra_files if p.is_file())
     files = sorted(files)
     for path in files:
@@ -403,19 +408,41 @@ def main():
     active = ledger.get("active_stage") or {}
     if active.get("run_id") != run_id:
         die(f"ACTION_LEDGER_STAGE=FAIL active={active.get('run_id')} current={run_id}")
+    # Main APK-target metrics and the remote preflight smoke metrics are
+    # separate accounting domains. The smoke probe intentionally invokes an
+    # additional Perfetto host-tool target; those sidecar-only actions must not
+    # be treated as unplanned APK compilation. However, any smoke actions that
+    # are also in the APK target's pre-build frontier are genuine completed APK
+    # prerequisites and must be credited to avoid a false pending-set mismatch.
     metrics, stats = read_metrics(out, a.metrics_prefix)
+    smoke_path = out / f"{a.metrics_prefix}smoke.jsonl"
+    smoke_metrics, smoke_stats = read_metrics(
+        out, "__sandium_no_smoke_prefix__", [smoke_path])
     if stats["successful_duplicate_records"]:
-        die("ACTION_DUPLICATE_WITHIN_STAGE=FAIL %d actions were successfully recorded more than once in this stage" %
+        die("ACTION_DUPLICATE_WITHIN_STAGE=FAIL %d APK-build actions were successfully recorded more than once in this stage" %
             stats["successful_duplicate_records"])
-    if not stats["files"] and int(active.get("pending_before", 0)):
-        die(f"ACTION_METRICS_MISSING=FAIL no files match {a.metrics_prefix}*.jsonl")
+    if smoke_stats["successful_duplicate_records"]:
+        die("ACTION_SMOKE_DUPLICATE=FAIL %d smoke actions were successfully recorded more than once" %
+            smoke_stats["successful_duplicate_records"])
+    pending_before_keys = set(active.get("pending_action_keys", []))
+    if len(pending_before_keys) != int(active.get("pending_before", -1)):
+        die("ACTION_LEDGER_STAGE=FAIL missing or invalid pending action identity set")
+    smoke_planned = {key: item for key, item in smoke_metrics.items()
+                     if key in pending_before_keys}
+    smoke_preflight_only = set(smoke_metrics) - pending_before_keys
+    duplicate_smoke_build = set(smoke_planned).intersection(metrics)
+    if duplicate_smoke_build:
+        die("ACTION_DUPLICATE_ACROSS_SMOKE_AND_BUILD=FAIL %d planned actions were recorded by both the smoke probe and APK build" %
+            len(duplicate_smoke_build))
+    metrics = {**smoke_planned, **metrics}
+    print("ACTION_REMOTE_SMOKE_RECONCILIATION=PASS planned_overlap=%d preflight_only=%d failed_records=%d" %
+          (len(smoke_planned), len(smoke_preflight_only), smoke_stats["failed_records"]))
+    if not stats["files"] and not smoke_planned and int(active.get("pending_before", 0)):
+        die(f"ACTION_METRICS_MISSING=FAIL no APK-build metrics or planned smoke-overlap metrics found for prefix {a.metrics_prefix}")
     previous = ledger["completed"]
     revisited = set(metrics).intersection(previous)
     if revisited:
         die(f"ACTION_REEXECUTION_GATE=FAIL {len(revisited)} previously completed actions appeared again")
-    pending_before_keys = set(active.get("pending_action_keys", []))
-    if len(pending_before_keys) != int(active.get("pending_before", -1)):
-        die("ACTION_LEDGER_STAGE=FAIL missing or invalid pending action identity set")
     unknown = set(metrics) - pending_before_keys
     if unknown:
         die("ACTION_UNPLANNED_EXECUTION=FAIL %d successful action(s) were not in the stage's pre-build dry-run set; examples=%s" %
