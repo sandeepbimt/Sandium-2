@@ -50,3 +50,5 @@ jobs:
           bash -n .circleci/scripts/verify-brave-remote-smoke.sh
       - name: Test staged action-frontier reconciliation
         run: python3 .circleci/scripts/test-brave-action-ledger.py
+      - name: Test fresh remote-execution proof
+        run: python3 .circleci/scripts/test-brave-remote-metrics.py

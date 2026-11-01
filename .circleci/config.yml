@@ -1654,7 +1654,7 @@ jobs:
               - equal: [fast, << pipeline.parameters.sandium_build_mode >>]
           steps:
             - restore_cache:
-                name: Restore immutable reference for normal Stage 2
+                name: Restore immutable reference for FAST MODE Stage 2
                 keys:
                   - sandium-brave-reference-v1-{{ .Branch }}-
       - when:
@@ -1664,7 +1664,7 @@ jobs:
               - equal: [fast, << pipeline.parameters.sandium_build_mode >>]
           steps:
             - restore_cache:
-                name: Restore immutable reference for normal Stage 3
+                name: Restore immutable reference for FAST MODE Stage 3
                 keys:
                   - sandium-brave-reference-v1-{{ .Branch }}-
       - when:
@@ -1674,7 +1674,7 @@ jobs:
               - equal: [fast, << pipeline.parameters.sandium_build_mode >>]
           steps:
             - restore_cache:
-                name: Restore immutable reference for normal Stage 4
+                name: Restore immutable reference for FAST MODE Stage 4
                 keys:
                   - sandium-brave-reference-v1-{{ .Branch }}-
       - when:
@@ -1684,7 +1684,7 @@ jobs:
               - equal: [fast, << pipeline.parameters.sandium_build_mode >>]
           steps:
             - restore_cache:
-                name: Restore immutable reference for normal Stage 5
+                name: Restore immutable reference for FAST MODE Stage 5
                 keys:
                   - sandium-brave-reference-v1-{{ .Branch }}-
       - restore_cache:
@@ -2319,7 +2319,7 @@ jobs:
     resource_class: medium
     steps:
       - run:
-          name: Skip reference promotion for normal builds
+          name: Skip reference promotion in FAST MODE
           command: |
             set -euo pipefail
             MODE="<< pipeline.parameters.sandium_build_mode >>"
@@ -2396,29 +2396,6 @@ jobs:
             test -s "$CIRCLE_WORKING_DIRECTORY/reference-candidate-manifest.txt"
             echo "SANDIUM_LATEST_REFERENCE=PROMOTED"
             cat "$CIRCLE_WORKING_DIRECTORY/reference-candidate-manifest.txt"
-
-  sandium-ci-validation:
-    machine:
-      image: ubuntu-2404:current
-    resource_class: medium
-    steps:
-      - checkout
-      - run:
-          name: Validate SANDIUM FULL/FAST MODE continuation and remote execution guards
-          command: |
-            set -euo pipefail
-            python3 -m py_compile .circleci/scripts/brave-action-ledger.py
-            python3 .circleci/scripts/test-brave-action-ledger.py
-            python3 -m py_compile .circleci/scripts/verify-brave-remote-metrics.py
-            python3 .circleci/scripts/test-brave-remote-metrics.py
-            bash -n .circleci/scripts/verify-brave-remote-smoke.sh
-            bash -n .circleci/scripts/archive-brave-workspace.sh
-            grep -Fq 'default: full' .circleci/config.yml
-            grep -Fq 'sandium-full-mode:' .circleci/config.yml
-            grep -Fq 'sandium-fast-mode:' .circleci/config.yml
-            grep -Fq 'SANDIUM_CI_NAME=SANDIUM-FULL-MODE' .circleci/config.yml
-            grep -Fq 'SANDIUM_CI_NAME=SANDIUM-FAST-MODE' .circleci/config.yml
-            echo "SANDIUM_CI_VALIDATION=PASS"
 
 workflows:
   c4-afterbird-staged-checkpoint-build:
@@ -2553,7 +2530,3 @@ workflows:
           filters:
             branches:
               only: sandium/brave-android-poc
-  sandium-ci-validation:
-    when: pipeline.git.branch == "sandium/ci-fix-validation"
-    jobs:
-      - sandium-ci-validation
