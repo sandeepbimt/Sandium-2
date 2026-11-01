@@ -1907,7 +1907,7 @@ jobs:
             } > "$BUILD_STATUS"
             echo "BRAVE_BUILD_STAGE_STATUS=RECORDED exit=$BUILD_RC reason=$BUILD_REASON"
       - run:
-          name: Export APK status and artifacts
+          name: Export and audit ARM64 APK plus AAB artifacts
           when: always
           command: |
             set -uo pipefail
@@ -1915,7 +1915,11 @@ jobs:
             SRC="$ROOT/brave-work/src"
             OUT="$SRC/out/android_Release_arm64"
             APK="$OUT/apks/Bravearm64Universal.apk"
+            AAB="$OUT/apks/BraveMonoarm64.aab"
             TOOLS="$SRC/third_party/android_sdk/public/build-tools/37.0.0"
+            JARSIGNER="$SRC/third_party/jdk/current/bin/jarsigner"
+            JAVA="$SRC/third_party/jdk/current/bin/java"
+            BUNDLETOOL="$SRC/third_party/android_build_tools/bundletool/cipd/bundletool.jar"
             DIAGNOSTICS="$ROOT/brave-apk/siso-diagnostics"
             mkdir -p "$ROOT/brave-apk" "$DIAGNOSTICS"
             for file in siso.INFO siso_output siso_failed_commands.sh; do
@@ -1926,38 +1930,79 @@ jobs:
             done
             CHECKPOINT_DIAGNOSTICS="$ROOT/brave-work/.sandium/checkpoint-diagnostics"
             if [ -d "$CHECKPOINT_DIAGNOSTICS" ]; then cp -a "$CHECKPOINT_DIAGNOSTICS" "$ROOT/brave-apk/"; fi
-            ARCHIVE_VALID=false
-            SIGNATURE_VALID=not_checked
-            PACKAGE_VALID=false
+
+            APK_ARCHIVE_VALID=false
+            APK_SIGNATURE_VALID=not_checked
+            APK_PACKAGE_ID_VALID=false
             APK_ERROR=""
             if [ -s "$APK" ]; then
               if python3 -c 'import sys,zipfile; z=zipfile.ZipFile(sys.argv[1]); bad=z.testzip(); z.close(); sys.exit(1 if bad else 0)' "$APK"; then
-                ARCHIVE_VALID=true
+                APK_ARCHIVE_VALID=true
               else
-                APK_ERROR="ZIP integrity check failed"
+                APK_ERROR="APK ZIP integrity check failed"
               fi
-              if [ "$ARCHIVE_VALID" = true ]; then
+              if [ "$APK_ARCHIVE_VALID" = true ]; then
                 if [ ! -x "$TOOLS/apksigner" ] || [ ! -x "$TOOLS/aapt" ]; then
                   APK_ERROR="pinned Android apksigner/aapt tools are missing"
                 elif "$TOOLS/apksigner" verify --verbose --print-certs "$APK" > "$ROOT/brave-apk/apk-signature.txt" 2>&1; then
-                  SIGNATURE_VALID=true
+                  APK_SIGNATURE_VALID=true
                   if "$TOOLS/aapt" dump badging "$APK" > "$ROOT/brave-apk/apk-badging.txt" 2>&1; then
                     PACKAGE="$(sed -n "s/^package: name='\\([^']*\\)'.*/\\1/p" "$ROOT/brave-apk/apk-badging.txt" | head -n 1)"
                     if [ "$PACKAGE" = "com.brave.browser_default" ]; then
-                      PACKAGE_VALID=true
+                      APK_PACKAGE_ID_VALID=true
                     else
                       APK_ERROR="expected package com.brave.browser_default; got ${PACKAGE:-<missing>}"
                     fi
                   else
-                    APK_ERROR="aapt could not read the APK manifest"
+                    APK_ERROR="aapt could not read the ARM64 APK manifest"
                   fi
                 else
-                  APK_ERROR="APK signature verification failed"
+                  APK_ERROR="ARM64 APK signature verification failed"
                 fi
               fi
+            else
+              APK_ERROR="Bravearm64Universal.apk was not produced"
             fi
-            if [ -s "$APK" ] && [ "$ARCHIVE_VALID" = true ] && [ "$SIGNATURE_VALID" = true ] && [ "$PACKAGE_VALID" = true ]; then
+
+            AAB_ARCHIVE_VALID=false
+            AAB_SIGNATURE_VALID=not_checked
+            AAB_BUNDLE_VALID=false
+            AAB_ERROR=""
+            if [ -s "$AAB" ]; then
+              if python3 -c 'import sys,zipfile; z=zipfile.ZipFile(sys.argv[1]); bad=z.testzip(); z.close(); sys.exit(1 if bad else 0)' "$AAB"; then
+                AAB_ARCHIVE_VALID=true
+              else
+                AAB_ERROR="AAB ZIP integrity check failed"
+              fi
+              if [ "$AAB_ARCHIVE_VALID" = true ]; then
+                if [ ! -x "$JARSIGNER" ] || [ ! -x "$JAVA" ] || [ ! -s "$BUNDLETOOL" ]; then
+                  AAB_ERROR="pinned JDK jarsigner/java or bundletool is missing"
+                elif "$JARSIGNER" -verify "$AAB" > "$ROOT/brave-apk/aab-signature.txt" 2>&1; then
+                  AAB_SIGNATURE_VALID=true
+                  if "$JAVA" -jar "$BUNDLETOOL" validate --bundle="$AAB" > "$ROOT/brave-apk/aab-validation.txt" 2>&1; then
+                    AAB_BUNDLE_VALID=true
+                  else
+                    AAB_ERROR="bundletool rejected the AAB"
+                  fi
+                else
+                  AAB_ERROR="AAB JAR signature verification failed"
+                fi
+              fi
+            else
+              AAB_ERROR="BraveMonoarm64.aab was not produced"
+            fi
+
+            if [ -s "$APK" ]; then
+              python3 .circleci/scripts/analyze-brave-apk-size.py "$APK" --output "$ROOT/brave-apk/apk-size-report.txt" || echo "APK_SIZE_AUDIT=WARNING report generation failed"
+            fi
+            if [ -s "$AAB" ]; then
+              python3 .circleci/scripts/analyze-brave-apk-size.py "$AAB" --output "$ROOT/brave-apk/aab-size-report.txt" || echo "AAB_SIZE_AUDIT=WARNING report generation failed"
+            fi
+
+            if [ "$APK_ARCHIVE_VALID" = true ] && [ "$APK_SIGNATURE_VALID" = true ] && [ "$APK_PACKAGE_ID_VALID" = true ] \
+              && [ "$AAB_ARCHIVE_VALID" = true ] && [ "$AAB_SIGNATURE_VALID" = true ] && [ "$AAB_BUNDLE_VALID" = true ]; then
               cp "$APK" "$ROOT/brave-apk/Sandium-Brave-arm64.apk"
+              cp "$AAB" "$ROOT/brave-apk/Sandium-Brave-arm64.aab"
               {
                 echo "BUILD_FINISHED=true"
                 echo "APK_ARCHIVE_VALID=true"
@@ -1965,17 +2010,27 @@ jobs:
                 echo "APK_PACKAGE_ID_VALID=true"
                 echo "APK_PACKAGE_ID=com.brave.browser_default"
                 echo "APK_SIZE_BYTES=$(stat -c '%s' "$APK")"
+                echo "AAB_ARCHIVE_VALID=true"
+                echo "AAB_SIGNATURE_VALID=true"
+                echo "AAB_BUNDLE_VALID=true"
+                echo "AAB_SIZE_BYTES=$(stat -c '%s' "$AAB")"
+                echo "DISTRIBUTION_FORMAT=AAB+ARM64_UNIVERSAL_APK"
               } > "$ROOT/brave-apk/status.txt"
-              echo "BRAVE_APK_VALIDATION=PASS"
+              echo "BRAVE_DISTRIBUTION_VALIDATION=PASS"
             else
               {
                 echo "BUILD_FINISHED=false"
-                echo "APK_ARCHIVE_VALID=$ARCHIVE_VALID"
-                echo "APK_SIGNATURE_VALID=$SIGNATURE_VALID"
-                echo "APK_PACKAGE_ID_VALID=$PACKAGE_VALID"
-                echo "APK_VALIDATION_ERROR=${APK_ERROR:-APK not produced}"
+                echo "APK_ARCHIVE_VALID=$APK_ARCHIVE_VALID"
+                echo "APK_SIGNATURE_VALID=$APK_SIGNATURE_VALID"
+                echo "APK_PACKAGE_ID_VALID=$APK_PACKAGE_ID_VALID"
+                echo "APK_VALIDATION_ERROR=${APK_ERROR:-none}"
+                echo "AAB_ARCHIVE_VALID=$AAB_ARCHIVE_VALID"
+                echo "AAB_SIGNATURE_VALID=$AAB_SIGNATURE_VALID"
+                echo "AAB_BUNDLE_VALID=$AAB_BUNDLE_VALID"
+                echo "AAB_VALIDATION_ERROR=${AAB_ERROR:-none}"
+                echo "DISTRIBUTION_FORMAT=AAB+ARM64_UNIVERSAL_APK"
               } > "$ROOT/brave-apk/status.txt"
-              echo "BRAVE_APK_VALIDATION=FAIL ${APK_ERROR:-APK not produced}"
+              echo "BRAVE_DISTRIBUTION_VALIDATION=FAIL apk=${APK_ERROR:-passed} aab=${AAB_ERROR:-passed}"
             fi
             LEDGER="$ROOT/brave-work/.sandium/action-ledger.json"
             if [ -s "$LEDGER" ]; then cp -a "$LEDGER" "$DIAGNOSTICS/"; fi
