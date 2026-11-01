@@ -2016,6 +2016,13 @@ jobs:
             STAGE="<< parameters.stage_index >>"
             BUILD_NUM="${CIRCLE_BUILD_NUM:-local}"
             METRICS_PREFIX="sandium-brave-action-stage-${STAGE}-build-${BUILD_NUM}-attempt-"
+            # The self-test runs before source preparation. If an earlier step
+            # failed, there is no build graph to reconcile; do not turn that
+            # primary failure into a misleading secondary Git-directory error.
+            if [ ! -d "$SRC/.git" ] || [ ! -s "$OUT/build.ninja" ] || [ ! -x "$DEPOT_TOOLS/autoninja" ]; then
+              echo "ACTION_LEDGER_RECONCILIATION=SKIPPED no prepared Brave checkout/build graph (stage=$STAGE)"
+              exit 0
+            fi
             export PATH="$DEPOT_TOOLS:$PATH"
             export DEPOT_TOOLS_UPDATE=0
             export SISO_LIMITS="local=8,remote=80"
