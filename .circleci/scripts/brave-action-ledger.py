@@ -472,16 +472,42 @@ def main():
         die("ACTION_METRIC_STILL_PENDING=FAIL %d successful action(s) remain pending after execution; examples=%s" %
             (len(metric_still_pending), sorted(metric_still_pending)[:5]))
 
-    # Every action from the pre-build plan must be accounted for by either a
-    # successful metric or the post-build pending graph. Missing from both
-    # means the accounting data is incomplete or the graph changed improperly.
-    if planned_remaining_keys != still_pending_planned_keys:
-        vanished = sorted(planned_remaining_keys - still_pending_planned_keys)
-        unexpected = sorted(still_pending_planned_keys - planned_remaining_keys)
-        die("ACTION_PLANNED_FRONTIER_MISMATCH=FAIL planned_not_completed=%d but_still_pending=%d "
-            "unaccounted_vanished=%d unexpected_planned_pending=%d examples_vanished=%s examples_pending=%s" %
-            (len(planned_remaining_keys), len(still_pending_planned_keys),
-             len(vanished), len(unexpected), vanished[:5], unexpected[:5]))
+    # A verified APK is the deliverable. Siso can prune stale planned nodes
+    # when its graph is re-evaluated after compilation. Do not call those nodes
+    # "completed": record them as pruned and remove them from the denominator,
+    # but only when the live graph is fully closed and the APK has passed every
+    # archive/signature/package check. If work remains or the APK is invalid,
+    # retain the strict frontier failure.
+    apk = out / "apks" / "BraveMonoarm64.apk"
+    marker = src.parent / ".sandium" / "apk-completion-status.txt"
+    required = {
+        "BUILD_FINISHED=true",
+        "APK_ARCHIVE_VALID=true",
+        "APK_SIGNATURE_VALID=true",
+        "APK_PACKAGE_ID_VALID=true",
+    }
+    marker_lines = set(marker.read_text(encoding="utf-8").splitlines()) if marker.is_file() else set()
+    apk_validated = apk.is_file() and apk.stat().st_size > 0 and required.issubset(marker_lines)
+
+    vanished = planned_remaining_keys - still_pending_planned_keys
+    unexpected = still_pending_planned_keys - planned_remaining_keys
+    if unexpected:
+        die("ACTION_PLANNED_FRONTIER_MISMATCH=FAIL unexpected_planned_pending=%d examples=%s" %
+            (len(unexpected), sorted(unexpected)[:5]))
+    pruned_planned_keys = set()
+    if vanished:
+        if after_keys or not apk_validated:
+            die("ACTION_PLANNED_FRONTIER_MISMATCH=FAIL planned_not_completed=%d but_still_pending=%d "
+                "unaccounted_vanished=%d apk_validated=%s examples_vanished=%s examples_pending=%s" %
+                (len(planned_remaining_keys), len(still_pending_planned_keys),
+                 len(vanished), apk_validated, sorted(vanished)[:5], []))
+        pruned_planned_keys = set(vanished)
+        planned_remaining_keys -= pruned_planned_keys
+        ledger["planned_total"] = int(ledger["planned_total"]) - len(pruned_planned_keys)
+        if ledger["planned_total"] < len(ledger["completed"]):
+            die("ACTION_PRUNED_ACCOUNTING=FAIL pruned actions would make completed exceed planned total")
+        print("ACTION_PRUNED_STALE_PLAN=PASS count=%d; reason=absent_from_post_build_graph_and_verified_apk" %
+              len(pruned_planned_keys))
 
     # A previously completed action must not reappear in the next frontier.
     reappeared = after_keys.intersection(previous)
@@ -510,6 +536,8 @@ def main():
         "pending_before": before,
         "planned_completed": len(planned_completed_keys),
         "dynamically_completed": len(dynamically_completed_keys),
+        "pruned_from_final_graph": len(pruned_planned_keys),
+        "pruned_action_keys": sorted(pruned_planned_keys),
         "newly_pending": len(newly_pending_keys),
         "newly_discovered_action_keys": sorted(dynamically_completed_keys | newly_pending_keys),
         "new_completed": added,
@@ -538,16 +566,7 @@ def main():
           f"actions={stats['action_records']} unique={added} failed_records={stats['failed_records']}")
     print(f"SANDIUM_BUILD_MATH={done}/{total} complete; {remaining}/{remaining} pending")
     if remaining == 0:
-        apk = out / "apks" / "BraveMonoarm64.apk"
-        marker = src.parent / ".sandium" / "apk-completion-status.txt"
-        required = {
-            "BUILD_FINISHED=true",
-            "APK_ARCHIVE_VALID=true",
-            "APK_SIGNATURE_VALID=true",
-            "APK_PACKAGE_ID_VALID=true",
-        }
-        marker_lines = set(marker.read_text(encoding="utf-8").splitlines()) if marker.is_file() else set()
-        if apk.is_file() and apk.stat().st_size and required.issubset(marker_lines):
+        if apk_validated:
             ledger["build_complete"] = True
             ledger["completed_at_epoch"] = now
             save(path, ledger)
