@@ -1,12 +1,16 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT="$CIRCLE_WORKING_DIRECTORY"
+ROOT="${CIRCLE_WORKING_DIRECTORY:?CIRCLE_WORKING_DIRECTORY is required}"
 SRC_DIR="$ROOT/brave-work/src"
 CORE_DIR="$SRC_DIR/brave"
 BRAND_DIR="$ROOT/.circleci/branding"
+SOURCE_DIR="$BRAND_DIR/source"
+GENERATED_DIR="$ROOT/.sandium-branding-generated"
 CHROMIUM_PIN="d331de35ca8ab1358c7a17e4bd41627d55eaef51"
 BRAVE_PIN="v1.98.62"
+DENSITIES=(mdpi hdpi xhdpi xxhdpi xxxhdpi)
+ASSETS=(app_icon.png layered_app_icon.png layered_app_icon_background.png)
 
 fail() {
   echo "SANDIUM_BRANDING_GATE=FAIL $*" >&2
@@ -21,22 +25,59 @@ actual_brave="$(git -C "$CORE_DIR" describe --tags --exact-match 2>/dev/null || 
 [ "$actual_brave" = "$BRAVE_PIN" ] || fail "unexpected Brave source pin: $actual_brave"
 echo "SANDIUM_BRANDING_SOURCE_GATE=PASS brave=$actual_brave chromium=$actual_chromium"
 
+python3 .circleci/scripts/generate-sandium-density-assets.py \
+  --source-dir "$SOURCE_DIR" \
+  --output-dir "$GENERATED_DIR" \
+  --gn-file "$SRC_DIR/chrome/android/BUILD.gn"
+
 RESOURCE_DIR="$SRC_DIR/chrome/android/java/res_chromium_base"
-for name in app_icon.png layered_app_icon.png layered_app_icon_background.png; do
-  source="$BRAND_DIR/mipmap-xxxhdpi/$name"
-  [ -s "$source" ] || fail "missing checked-in branding asset: $source"
+for density in "${DENSITIES[@]}"; do
+  source_dir="$GENERATED_DIR/mipmap-$density"
+  target_dir="$RESOURCE_DIR/mipmap-$density"
+  mkdir -p "$target_dir"
+  for name in "${ASSETS[@]}"; do
+    source="$source_dir/$name"
+    target="$target_dir/$name"
+    [ -s "$source" ] || fail "generated density asset missing: $source"
+    cp "$source" "$target"
+  done
+  echo "SANDIUM_BRANDING_DENSITY_COPY=PASS density=$density"
 done
-mkdir -p "$RESOURCE_DIR/mipmap-xxxhdpi"
-cp "$BRAND_DIR/mipmap-xxxhdpi/app_icon.png" "$RESOURCE_DIR/mipmap-xxxhdpi/app_icon.png"
-cp "$BRAND_DIR/mipmap-xxxhdpi/layered_app_icon.png" "$RESOURCE_DIR/mipmap-xxxhdpi/layered_app_icon.png"
-cp "$BRAND_DIR/mipmap-xxxhdpi/layered_app_icon_background.png" "$RESOURCE_DIR/mipmap-xxxhdpi/layered_app_icon_background.png"
 
 python3 - "$SRC_DIR" <<'PY'
 from pathlib import Path
-import re
+import struct
 import sys
 
 src = Path(sys.argv[1])
+resource_root = src / "chrome/android/java/res_chromium_base"
+expected_sizes = {
+    "mdpi": 48,
+    "hdpi": 72,
+    "xhdpi": 96,
+    "xxhdpi": 144,
+    "xxxhdpi": 192,
+}
+assets = (
+    "app_icon.png",
+    "layered_app_icon.png",
+    "layered_app_icon_background.png",
+)
+for density, size in expected_sizes.items():
+    for name in assets:
+        path = resource_root / f"mipmap-{density}" / name
+        if not path.is_file():
+            raise SystemExit(f"SANDIUM_BRANDING_GATE=FAIL copied resource missing: {path}")
+        data = path.read_bytes()
+        if len(data) < 24 or data[:8] != b"\x89PNG\r\n\x1a\n":
+            raise SystemExit(f"SANDIUM_BRANDING_GATE=FAIL invalid PNG: {path}")
+        width, height = struct.unpack(">II", data[16:24])
+        if (width, height) != (size, size):
+            raise SystemExit(
+                f"SANDIUM_BRANDING_GATE=FAIL wrong dimensions for {path}: "
+                f"{width}x{height}; expected {size}x{size}"
+            )
+    print(f"SANDIUM_BRANDING_DENSITY_GATE=PASS density={density} size={size}")
 
 def replace_once(path: Path, old: str, new: str, gate: str) -> None:
     if not path.is_file():
@@ -50,32 +91,9 @@ def replace_once(path: Path, old: str, new: str, gate: str) -> None:
     elif old_count == 0 and new_count == 1:
         print(f"{gate}=ALREADY_PATCHED")
     else:
-        raise SystemExit(f"SANDIUM_BRANDING_GATE=FAIL {gate} marker counts old={old_count} new={new_count}")
-
-# Keep one high-density master; Android scales the mipmap for other display densities.
-gn = src / "chrome/android/BUILD.gn"
-if not gn.is_file():
-    raise SystemExit(f"SANDIUM_BRANDING_GATE=FAIL missing {gn}")
-source = gn.read_text(encoding="utf-8")
-pattern = re.compile(
-    r'^\s*"java/res_chromium_base/mipmap-(?:hdpi|mdpi|xhdpi|xxhdpi)/'
-    r'(?:app_icon|layered_app_icon|layered_app_icon_background)\.png",\s*\n',
-    re.MULTILINE,
-)
-source, removed = pattern.subn("", source)
-master = re.findall(
-    r'^\s*"java/res_chromium_base/mipmap-xxxhdpi/'
-    r'(?:app_icon|layered_app_icon|layered_app_icon_background)\.png",\s*$',
-    source,
-    re.MULTILINE,
-)
-if removed == 24 and len(master) == 6:
-    gn.write_text(source, encoding="utf-8")
-    print("SANDIUM_BRANDING_RESOURCE_DENSITY_GATE=PATCHED")
-elif removed == 0 and len(master) == 6:
-    print("SANDIUM_BRANDING_RESOURCE_DENSITY_GATE=ALREADY_PATCHED")
-else:
-    raise SystemExit(f"SANDIUM_BRANDING_GATE=FAIL resource list counts removed={removed} master={len(master)}")
+        raise SystemExit(
+            f"SANDIUM_BRANDING_GATE=FAIL {gate} marker counts old={old_count} new={new_count}"
+        )
 
 launcher = src / "chrome/android/java/res_base/drawable/ic_launcher.xml"
 replace_once(
@@ -85,7 +103,7 @@ replace_once(
     "SANDIUM_BRANDING_ADAPTIVE_BACKGROUND",
 )
 
-foreground = src / "chrome/android/java/res_chromium_base/mipmap-nodpi/layered_app_icon_foreground.xml"
+foreground = resource_root / "mipmap-nodpi/layered_app_icon_foreground.xml"
 foreground.write_text(
     '<?xml version="1.0" encoding="utf-8"?>\n'
     '<bitmap xmlns:android="http://schemas.android.com/apk/res/android"\n'
@@ -95,7 +113,7 @@ foreground.write_text(
 )
 print("SANDIUM_BRANDING_ADAPTIVE_FOREGROUND=PASS")
 
-themed = src / "chrome/android/java/res_chromium_base/drawable/themed_app_icon.xml"
+themed = resource_root / "drawable/themed_app_icon.xml"
 themed.write_text(
     '<?xml version="1.0" encoding="utf-8"?>\n'
     '<bitmap xmlns:android="http://schemas.android.com/apk/res/android"\n'
@@ -125,7 +143,4 @@ for path, marker in checks.items():
 print("SANDIUM_BRANDING_RESOURCE_GATE=PASS")
 PY
 
-for name in app_icon.png layered_app_icon.png layered_app_icon_background.png; do
-  [ -s "$RESOURCE_DIR/mipmap-xxxhdpi/$name" ] || fail "branding asset was not copied: $name"
-done
-echo "SANDIUM_BRANDING_GATE=PASS app_label=Sandium Browser launcher=Sandium adaptive=enabled"
+echo "SANDIUM_BRANDING_GATE=PASS app_label=Sandium Browser densities=mdpi,hdpi,xhdpi,xxhdpi,xxxhdpi adaptive=enabled"

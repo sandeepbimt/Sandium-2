@@ -1547,6 +1547,7 @@ jobs:
             bash -n .circleci/scripts/capture-brave-siso-checkpoint.sh
             bash -n .circleci/scripts/prepare-brave-source.sh
             bash -n .circleci/scripts/apply-sandium-branding.sh
+            python3 -m py_compile .circleci/scripts/generate-sandium-density-assets.py
             bash -n .circleci/scripts/recover-siso-missing-cas-inputs.sh
             echo "BRAVE_PIPELINE_SELF_TEST=PASS"
       - when:
