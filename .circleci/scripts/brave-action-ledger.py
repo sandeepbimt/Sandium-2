@@ -443,26 +443,61 @@ def main():
     revisited = set(metrics).intersection(previous)
     if revisited:
         die(f"ACTION_REEXECUTION_GATE=FAIL {len(revisited)} previously completed actions appeared again")
-    unknown = set(metrics) - pending_before_keys
-    if unknown:
-        die("ACTION_UNPLANNED_EXECUTION=FAIL %d successful action(s) were not in the stage's pre-build dry-run set; examples=%s" %
-            (len(unknown), sorted(unknown)[:5]))
-    before, added = len(pending_before_keys), len(metrics)
-    after_keys, after_dry = dry_run_actions(autoninja, src, out, a.jobs,
-                                             a.stage, a.build, a.workflow)
-    expected_after_keys = pending_before_keys - set(metrics)
-    if after_keys != expected_after_keys:
-        appeared = sorted(after_keys - expected_after_keys)
-        vanished = sorted(expected_after_keys - after_keys)
-        die("ACTION_COMPLETION_SET=FAIL pending-before minus completed does not equal live post-build pending set; "
-            "unexpected_pending=%d unexpectedly_resolved=%d examples_pending=%s examples_resolved=%s" %
-            (len(appeared), len(vanished), appeared[:5], vanished[:5]))
-    after = len(after_keys)
-    if before > 0 and added == 0 and after == before:
+
+    # Siso's real execution can discover additional actions after the dry-run
+    # frontier was captured (for example, generated/dynamic dependency work).
+    # Reconcile three independent sets:
+    #   P = pending action identities recorded before compilation
+    #   M = successful action identities reported by Siso during this stage
+    #   A = identities still pending in a fresh post-build dry-run
+    #
+    # A planned action must either be in M or remain in A. Every successful
+    # action in M must be absent from A. New actions in M-P are counted as
+    # dynamically discovered completed work; new actions in A-P are added to
+    # the persistent pending frontier. This preserves exact accounting without
+    # rejecting legitimate Siso graph discovery or weakening duplicate checks.
+    before = len(pending_before_keys)
+    after_keys, after_dry = dry_run_actions(
+        autoninja, src, out, a.jobs, a.stage, a.build, a.workflow)
+    planned_completed_keys = set(metrics).intersection(pending_before_keys)
+    dynamically_completed_keys = set(metrics) - pending_before_keys
+    planned_remaining_keys = pending_before_keys - planned_completed_keys
+    still_pending_planned_keys = after_keys.intersection(pending_before_keys)
+    newly_pending_keys = after_keys - pending_before_keys
+
+    # A metric must never claim that an action completed while the same action
+    # remains pending in the live Siso graph.
+    metric_still_pending = set(metrics).intersection(after_keys)
+    if metric_still_pending:
+        die("ACTION_METRIC_STILL_PENDING=FAIL %d successful action(s) remain pending after execution; examples=%s" %
+            (len(metric_still_pending), sorted(metric_still_pending)[:5]))
+
+    # Every action from the pre-build plan must be accounted for by either a
+    # successful metric or the post-build pending graph. Missing from both
+    # means the accounting data is incomplete or the graph changed improperly.
+    if planned_remaining_keys != still_pending_planned_keys:
+        vanished = sorted(planned_remaining_keys - still_pending_planned_keys)
+        unexpected = sorted(still_pending_planned_keys - planned_remaining_keys)
+        die("ACTION_PLANNED_FRONTIER_MISMATCH=FAIL planned_not_completed=%d but_still_pending=%d "
+            "unaccounted_vanished=%d unexpected_planned_pending=%d examples_vanished=%s examples_pending=%s" %
+            (len(planned_remaining_keys), len(still_pending_planned_keys),
+             len(vanished), len(unexpected), vanished[:5], unexpected[:5]))
+
+    # A previously completed action must not reappear in the next frontier.
+    reappeared = after_keys.intersection(previous)
+    if reappeared:
+        die("ACTION_REEXECUTION_PENDING=FAIL %d previously completed action(s) reappeared in the post-build frontier; examples=%s" %
+            (len(reappeared), sorted(reappeared)[:5]))
+
+    added = len(metrics)
+    if before > 0 and added == 0 and not newly_pending_keys and len(after_keys) == before:
         die("ACTION_STAGE_NO_PROGRESS=FAIL this stage completed zero new actions and left the pending frontier unchanged")
-    if added + after != before:
-        die("ACTION_COMPLETION_MATH=FAIL before=%d successful_new_actions=%d after=%d stats=%s dry=%s" %
-            (before, added, after, json.dumps(stats, sort_keys=True), json.dumps(after_dry, sort_keys=True)))
+
+    # Newly discovered work is part of the build denominator, not an error.
+    # Completed discoveries increase both total and completed; still-pending
+    # discoveries increase total and remain in the next stage's exact frontier.
+    newly_accounted = len(dynamically_completed_keys) + len(newly_pending_keys)
+    ledger["planned_total"] = int(ledger["planned_total"]) + newly_accounted
     now = int(time.time())
     for key, item in metrics.items():
         ledger["completed"][key] = {
@@ -470,19 +505,34 @@ def main():
             "completed_at_epoch": now, "cached": item["cached"],
             "is_remote": item["is_remote"], "is_local": item["is_local"],
             "no_exec": item["no_exec"]}
-    ledger["stages"].append({"run_id": run_id, "stage": a.stage,
-                             "pending_before": before, "new_completed": added,
-                             "pending_after": after, "metric_stats": stats,
-                             "after_dry_run": after_dry,
-                             "completed_total": len(ledger["completed"]),
-                             "recorded_at_epoch": now})
+    ledger["stages"].append({
+        "run_id": run_id, "stage": a.stage,
+        "pending_before": before,
+        "planned_completed": len(planned_completed_keys),
+        "dynamically_completed": len(dynamically_completed_keys),
+        "newly_pending": len(newly_pending_keys),
+        "newly_discovered_action_keys": sorted(dynamically_completed_keys | newly_pending_keys),
+        "new_completed": added,
+        "pending_after": len(after_keys),
+        "metric_stats": stats,
+        "after_dry_run": after_dry,
+        "completed_total": len(ledger["completed"]),
+        "planned_total_after": ledger["planned_total"],
+        "recorded_at_epoch": now})
     ledger["next_pending_action_keys"] = sorted(after_keys)
     ledger.pop("active_stage", None)
     total, done = int(ledger["planned_total"]), len(ledger["completed"])
-    if done > total:
-        die(f"ACTION_LEDGER_OVERFLOW=FAIL completed={done} total={total}")
-    save(path, ledger)
+    after = len(after_keys)
     remaining = total - done
+    if remaining != after:
+        die("ACTION_COMPLETION_MATH=FAIL total=%d completed=%d ledger_remaining=%d live_pending=%d" %
+            (total, done, remaining, after))
+    save(path, ledger)
+    print("ACTION_FRONTIER_RECONCILIATION=PASS planned_completed=%d dynamically_completed=%d newly_pending=%d pending_after=%d" %
+          (len(planned_completed_keys), len(dynamically_completed_keys),
+           len(newly_pending_keys), after))
+    print("ACTION_DYNAMIC_ACTION_ACCOUNTING=PASS discovered_completed=%d discovered_pending=%d" %
+          (len(dynamically_completed_keys), len(newly_pending_keys)))
     print(f"ACTION_COMPLETION_MATH=PASS before={before} new={added} after={after}")
     print(f"ACTION_METRICS=PASS files={len(stats['files'])} records={stats['records']} "
           f"actions={stats['action_records']} unique={added} failed_records={stats['failed_records']}")

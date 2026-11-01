@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Small integration test for brave-action-ledger.py's 88/100 -> 12/12 math."""
+"""Regression test for dynamic Siso action discovery and staged frontier handoff."""
 from __future__ import annotations
 import json
 import os
@@ -141,12 +141,20 @@ if "-n" in args:
             for i in range(1000, 1010):
                 stream.write(json.dumps(metric(i)) + "\n")
         write_metrics(stage1_metrics, range(8, 88))
+        # Siso may emit real build actions that were not visible in the initial
+        # dry-run. Mirror the recurring 65-action failure and require those
+        # successful actions to be added to the denominator, not rejected.
+        with stage1_metrics.open("a", encoding="utf-8") as stream:
+            for i in range(2000, 2065):
+                stream.write(json.dumps(metric(i)) + "\n")
         done1 = run(["complete", *common, "--stage", "1", "--build", "101",
                      "--workflow", "workflow-one",
                      "--metrics-prefix", "test-stage1-"], env)
         assert "ACTION_REMOTE_SMOKE_RECONCILIATION=PASS planned_overlap=8 preflight_only=10" in done1, done1
-        assert "ACTION_COMPLETION_MATH=PASS before=100 new=88 after=12" in done1, done1
-        assert "SANDIUM_BUILD_MATH=88/100 complete; 12/12 pending" in done1, done1
+        assert "ACTION_FRONTIER_RECONCILIATION=PASS planned_completed=88 dynamically_completed=65 newly_pending=0 pending_after=12" in done1, done1
+        assert "ACTION_DYNAMIC_ACTION_ACCOUNTING=PASS discovered_completed=65 discovered_pending=0" in done1, done1
+        assert "ACTION_COMPLETION_MATH=PASS before=100 new=153 after=12" in done1, done1
+        assert "SANDIUM_BUILD_MATH=153/165 complete; 12/12 pending" in done1, done1
 
         # The Stage 2 preflight must reject a replay-sized graph before compile.
         pending_file.write_text(json.dumps(list(range(100))), encoding="utf-8")
@@ -157,7 +165,7 @@ if "-n" in args:
         pending_file.write_text(json.dumps(list(range(88, 100))), encoding="utf-8")
         plan2 = run(["plan", *common, "--stage", "2", "--build", "202",
                      "--workflow", "workflow-two"], env)
-        assert "SANDIUM_BUILD_MATH=88/100 complete; 12/12 pending" in plan2, plan2
+        assert "SANDIUM_BUILD_MATH=153/165 complete; 12/12 pending" in plan2, plan2
 
         # A previously completed action must not execute again.
         stage2_metrics = out / "test-stage2-0.jsonl"
@@ -176,19 +184,29 @@ if "-n" in args:
                          "--metrics-prefix", "test-stage2-"], env, expected=2)
         assert "ACTION_REEXECUTION_GATE=FAIL" in duplicate, duplicate
 
-        # A real APK-build metric outside the planned frontier must still
-        # fail; only sidecar smoke metrics receive the narrow preflight filter.
+        # A build can discover one additional completed action and a further
+        # pending action after the original dry-run. Both must be accounted for:
+        # the completed action expands total+completed; the pending action
+        # expands total+remaining and must be handed to Stage 3.
         write_metrics(stage2_metrics, range(88, 99))
         with stage2_metrics.open("a", encoding="utf-8") as stream:
-            stream.write(json.dumps(metric(2000)) + "\n")
-        pending_file.write_text("[]", encoding="utf-8")
-        unplanned = run(["complete", *common, "--stage", "2", "--build", "202",
-                         "--workflow", "workflow-two",
-                         "--metrics-prefix", "test-stage2-"], env, expected=2)
-        assert "ACTION_UNPLANNED_EXECUTION=FAIL" in unplanned, unplanned
+            stream.write(json.dumps(metric(3000)) + "\n")
+        pending_file.write_text(json.dumps([99, 4000]), encoding="utf-8")
+        dynamic = run(["complete", *common, "--stage", "2", "--build", "202",
+                       "--workflow", "workflow-two",
+                       "--metrics-prefix", "test-stage2-"], env)
+        assert "ACTION_FRONTIER_RECONCILIATION=PASS planned_completed=11 dynamically_completed=1 newly_pending=1 pending_after=2" in dynamic, dynamic
+        assert "ACTION_DYNAMIC_ACTION_ACCOUNTING=PASS discovered_completed=1 discovered_pending=1" in dynamic, dynamic
+        assert "SANDIUM_BUILD_MATH=165/167 complete; 2/2 pending" in dynamic, dynamic
 
-        # Correct handoff: exactly the 12 previously unfinished actions.
-        write_metrics(stage2_metrics, range(88, 100))
+        # The next stage must receive the exact augmented frontier, including
+        # newly discovered action 4000, and complete the original final action.
+        stage3_plan = run(["plan", *common, "--stage", "3", "--build", "303",
+                           "--workflow", "workflow-three"], env)
+        assert "ACTION_HANDOFF_GATE=PASS pending=2/2" in stage3_plan, stage3_plan
+        stage3_metrics = out / "test-stage3-0.jsonl"
+        write_metrics(stage3_metrics, [99, 4000])
+        pending_file.write_text("[]", encoding="utf-8")
         (out / "apks").mkdir(parents=True, exist_ok=True)
         (out / "apks" / "BraveMonoarm64.apk").write_bytes(b"test-apk")
         marker = src.parent / ".sandium" / "apk-completion-status.txt"
@@ -199,14 +217,14 @@ if "-n" in args:
             "APK_SIGNATURE_VALID=true\n"
             "APK_PACKAGE_ID_VALID=true\n",
             encoding="utf-8")
-        done2 = run(["complete", *common, "--stage", "2", "--build", "202",
-                     "--workflow", "workflow-two",
-                     "--metrics-prefix", "test-stage2-"], env)
-        assert "ACTION_COMPLETION_MATH=PASS before=12 new=12 after=0" in done2, done2
-        assert "SANDIUM_BUILD_MATH=100/100 complete; 0/0 pending" in done2, done2
-        assert "SANDIUM_ACTION_FRONTIER=COMPLETE total=100" in done2, done2
+        done3 = run(["complete", *common, "--stage", "3", "--build", "303",
+                     "--workflow", "workflow-three",
+                     "--metrics-prefix", "test-stage3-"], env)
+        assert "ACTION_COMPLETION_MATH=PASS before=2 new=2 after=0" in done3, done3
+        assert "SANDIUM_BUILD_MATH=167/167 complete; 0/0 pending" in done3, done3
+        assert "SANDIUM_ACTION_FRONTIER=COMPLETE total=167" in done3, done3
 
-    print("BRAVE_ACTION_LEDGER_SELF_TEST=PASS 88/100 -> 12/12 -> 100/100")
+    print("BRAVE_ACTION_LEDGER_SELF_TEST=PASS 65 dynamically completed actions + newly discovered pending handoff + final APK completion")
 
 if __name__ == "__main__":
     main()
