@@ -1609,13 +1609,6 @@ jobs:
                 keys:
                   - sandium-brave-workspace-v1-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-4
                   - sandium-brave-valid-v3-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-4
-      - run:
-          name: Restore and validate portable Brave checkpoint archive
-          no_output_timeout: 20m
-          command: |
-            set -euo pipefail
-            export BRAVE_STAGE_INDEX="<< parameters.stage_index >>"
-            bash .circleci/scripts/archive-brave-workspace.sh restore
       - restore_cache:
           keys:
             - sandium-brave-node-v1-24.16.0
@@ -1623,6 +1616,13 @@ jobs:
           name: Restore Ubuntu Android build-dependency package cache
           keys:
             - sandium-brave-apt-v1-ubuntu2404-
+      - run:
+          name: Restore and validate portable Brave checkpoint archive
+          no_output_timeout: 20m
+          command: |
+            set -euo pipefail
+            export BRAVE_STAGE_INDEX="<< parameters.stage_index >>"
+            bash .circleci/scripts/archive-brave-workspace.sh restore
       - run:
           name: Prepare pinned Brave Android source
           no_output_timeout: 45m
@@ -2131,11 +2131,39 @@ jobs:
             set -euo pipefail
             export BRAVE_STAGE_INDEX="<< parameters.stage_index >>"
             bash .circleci/scripts/capture-brave-siso-checkpoint.sh checkpoint-ready
+      - run:
+          name: Pack validated Brave workspace checkpoint
+          no_output_timeout: 45m
+          command: |
+            set -euo pipefail
+            bash .circleci/scripts/archive-brave-workspace.sh archive
       - save_cache:
-          name: Save validated Brave workspace checkpoint
-          key: sandium-brave-valid-v3-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-<< parameters.stage_index >>
+          name: Save single-file portable Brave checkpoint
+          key: sandium-brave-workspace-v1-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-<< parameters.stage_index >>
           paths:
-            - brave-work
+            - brave-workspace-checkpoint.tar.zst
+            - brave-workspace-checkpoint.meta
+      - run:
+          name: Final five-stage completion gate
+          command: |
+            set -euo pipefail
+            ROOT="$CIRCLE_WORKING_DIRECTORY"
+            STAGE="<< parameters.stage_index >>"
+            LEDGER="$ROOT/brave-work/.sandium/action-ledger.json"
+            APK_STATUS="$ROOT/brave-work/.sandium/apk-completion-status.txt"
+            test -s "$LEDGER" || { echo "FINAL_STAGE_GATE=FAIL missing action ledger" >&2; exit 1; }
+            test -s "$ROOT/brave-workspace-checkpoint.tar.zst" || { echo "FINAL_STAGE_GATE=FAIL no portable checkpoint was packed" >&2; exit 1; }
+            PENDING="$(python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); print(int(d["planned_total"])-len(d["completed"]))' "$LEDGER")"
+            if [ -s "$APK_STATUS" ] && grep -qx "BUILD_FINISHED=true" "$APK_STATUS" && grep -qx "APK_ARCHIVE_VALID=true" "$APK_STATUS" && grep -qx "APK_SIGNATURE_VALID=true" "$APK_STATUS" && grep -qx "APK_PACKAGE_ID_VALID=true" "$APK_STATUS"; then
+              echo "FINAL_STAGE_GATE=PASS APK validated and artifact published."
+              exit 0
+            fi
+            if [ "$STAGE" -lt 5 ]; then
+              echo "FINAL_STAGE_GATE=PASS checkpoint saved; residual work=$PENDING; next stage will resume the exact pending action set."
+              exit 0
+            fi
+            echo "FINAL_STAGE_GATE=FAIL five stages exhausted without a verified Brave APK; residual work=$PENDING" >&2
+            exit 1
 
 workflows:
   c4-afterbird-staged-checkpoint-build:
