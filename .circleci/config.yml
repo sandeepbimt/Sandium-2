@@ -1540,8 +1540,9 @@ jobs:
           name: Run lightweight Brave continuation self-test
           command: |
             set -euo pipefail
-            python3 -m py_compile .circleci/scripts/brave-action-ledger.py
+            python3 -m py_compile .circleci/scripts/brave-action-ledger.py .circleci/scripts/analyze-brave-apk-size.py .circleci/scripts/test-analyze-brave-apk-size.py
             python3 .circleci/scripts/test-brave-action-ledger.py
+            python3 .circleci/scripts/test-analyze-brave-apk-size.py
             bash -n .circleci/scripts/archive-brave-workspace.sh
             bash -n .circleci/scripts/verify-brave-remote-smoke.sh
             bash -n .circleci/scripts/capture-brave-siso-checkpoint.sh
