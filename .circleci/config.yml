@@ -1548,8 +1548,9 @@ jobs:
           name: Run lightweight Brave continuation self-test
           command: |
             set -euo pipefail
-            python3 -m py_compile .circleci/scripts/brave-action-ledger.py
+            python3 -m py_compile .circleci/scripts/brave-action-ledger.py .circleci/scripts/sandium-checkpoint-shards.py .circleci/scripts/test-sandium-checkpoint-shards.py
             python3 .circleci/scripts/test-brave-action-ledger.py
+            python3 .circleci/scripts/test-sandium-checkpoint-shards.py
             python3 -m py_compile .circleci/scripts/verify-brave-remote-metrics.py
             python3 .circleci/scripts/test-brave-remote-metrics.py
             bash -n .circleci/scripts/archive-brave-workspace.sh
@@ -1589,9 +1590,10 @@ jobs:
             - restore_cache:
                 name: Restore latest reference or bootstrap legacy checkpoint
                 keys:
+                  - sandium-brave-reference-v2-{{ .Branch }}-
+                  - sandium-brave-handoff-v2-{{ .Branch }}-
+                  # Migration fallbacks for the previous single-file reference/handoff format.
                   - sandium-brave-reference-v1-{{ .Branch }}-
-                  # If bootstrap has not yet promoted a reference, continue the
-                  # newest verified per-stage handoff from the prior workflow.
                   - sandium-brave-handoff-v1-{{ .Branch }}-
                   - sandium-brave-workspace-v1-{{ .Branch }}-
                   - sandium-brave-valid-v3-{{ .Branch }}-
@@ -1606,6 +1608,7 @@ jobs:
             - restore_cache:
                 name: Restore latest promoted Sandium reference
                 keys:
+                  - sandium-brave-reference-v2-{{ .Branch }}-
                   - sandium-brave-reference-v1-{{ .Branch }}-
       - when:
           condition:
@@ -1616,6 +1619,7 @@ jobs:
             - restore_cache:
                 name: Restore reference Stage 1 handoff
                 keys:
+                  - sandium-brave-handoff-v2-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-1
                   - sandium-brave-handoff-v1-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-1
       - when:
           condition:
@@ -1626,6 +1630,7 @@ jobs:
             - restore_cache:
                 name: Restore reference Stage 2 handoff
                 keys:
+                  - sandium-brave-handoff-v2-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-2
                   - sandium-brave-handoff-v1-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-2
       - when:
           condition:
@@ -1636,6 +1641,7 @@ jobs:
             - restore_cache:
                 name: Restore reference Stage 3 handoff
                 keys:
+                  - sandium-brave-handoff-v2-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-3
                   - sandium-brave-handoff-v1-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-3
       - when:
           condition:
@@ -1646,6 +1652,7 @@ jobs:
             - restore_cache:
                 name: Restore reference Stage 4 handoff
                 keys:
+                  - sandium-brave-handoff-v2-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-4
                   - sandium-brave-handoff-v1-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-4
       - when:
           condition:
@@ -1656,6 +1663,7 @@ jobs:
             - restore_cache:
                 name: Restore immutable reference for FAST MODE Stage 2
                 keys:
+                  - sandium-brave-reference-v2-{{ .Branch }}-
                   - sandium-brave-reference-v1-{{ .Branch }}-
       - when:
           condition:
@@ -1666,6 +1674,7 @@ jobs:
             - restore_cache:
                 name: Restore immutable reference for FAST MODE Stage 3
                 keys:
+                  - sandium-brave-reference-v2-{{ .Branch }}-
                   - sandium-brave-reference-v1-{{ .Branch }}-
       - when:
           condition:
@@ -1676,6 +1685,7 @@ jobs:
             - restore_cache:
                 name: Restore immutable reference for FAST MODE Stage 4
                 keys:
+                  - sandium-brave-reference-v2-{{ .Branch }}-
                   - sandium-brave-reference-v1-{{ .Branch }}-
       - when:
           condition:
@@ -1686,6 +1696,7 @@ jobs:
             - restore_cache:
                 name: Restore immutable reference for FAST MODE Stage 5
                 keys:
+                  - sandium-brave-reference-v2-{{ .Branch }}-
                   - sandium-brave-reference-v1-{{ .Branch }}-
       - restore_cache:
           keys:
@@ -1695,11 +1706,12 @@ jobs:
           keys:
             - sandium-brave-apt-v1-ubuntu2404-
       - run:
-          name: Restore and validate portable Brave checkpoint archive
-          no_output_timeout: 20m
+          name: SANDIUM FULL/FAST MODE: Restore checkpoint with up to 8 parallel workers
+          no_output_timeout: 30m
           command: |
             set -euo pipefail
             export BRAVE_STAGE_INDEX="<< parameters.stage_index >>"
+            export SANDIUM_ARCHIVE_WORKERS=8
             bash .circleci/scripts/archive-brave-workspace.sh restore
       - run:
           name: Select Sandium build mode and validate reference
@@ -1915,7 +1927,7 @@ jobs:
             fi
       - run:
           name: Build bounded Brave Android APK slice
-          no_output_timeout: 45m
+          no_output_timeout: 50m
           command: |
             set -euo pipefail
             ROOT="$CIRCLE_WORKING_DIRECTORY"
@@ -1966,7 +1978,7 @@ jobs:
             METRICS_FILE="${METRICS_PREFIX}0.jsonl"
             BUILD_MODE="<< pipeline.parameters.sandium_build_mode >>"
             case "$BUILD_MODE" in
-              full) STAGE_BUILD_BUDGET_SECONDS=1200 ;;
+              full) STAGE_BUILD_BUDGET_SECONDS=2400 ;;
               fast) STAGE_BUILD_BUDGET_SECONDS=2700 ;;
               *) echo "BRAVE_BUILD_MODE_GATE=FAIL unsupported mode=$BUILD_MODE" >&2; exit 2 ;;
             esac
@@ -1990,14 +2002,14 @@ jobs:
               REMAINING_STAGE_SECONDS=$((STAGE_BUILD_DEADLINE - SECONDS))
               if [ "$REMAINING_STAGE_SECONDS" -le 0 ]; then
                 BUILD_RC=124
-                echo "BRAVE_BUILD_RESUME=SKIPPED stage 30-minute budget exhausted before CAS recovery."
+                echo "BRAVE_BUILD_RESUME=SKIPPED stage build budget exhausted before CAS recovery."
                 break
               fi
               if timeout --signal=INT --kill-after=60s "${REMAINING_STAGE_SECONDS}s" bash "$ROOT/.circleci/scripts/recover-siso-missing-cas-inputs.sh" "$OUT" "$LOCAL_RECOVERY_METRICS_FILE"; then
                 REMAINING_STAGE_SECONDS=$((STAGE_BUILD_DEADLINE - SECONDS))
                 if [ "$REMAINING_STAGE_SECONDS" -le 0 ]; then
                   BUILD_RC=124
-                  echo "BRAVE_BUILD_RESUME=SKIPPED stage 30-minute budget exhausted after CAS recovery."
+                  echo "BRAVE_BUILD_RESUME=SKIPPED stage build budget exhausted after CAS recovery."
                   break
                 fi
                 echo "BRAVE_BUILD_RESUME=START mode=strict-remote timeout_seconds=$REMAINING_STAGE_SECONDS (remaining stage budget)"
@@ -2276,17 +2288,18 @@ jobs:
                   export BRAVE_STAGE_INDEX="<< parameters.stage_index >>"
                   bash .circleci/scripts/capture-brave-siso-checkpoint.sh checkpoint-ready
             - run:
-                name: Pack validated Brave workspace checkpoint
+                name: SANDIUM-FULL-MODE: Create 8 parallel checkpoint shards
                 no_output_timeout: 45m
                 command: |
                   set -euo pipefail
+                  export SANDIUM_ARCHIVE_WORKERS=8
                   bash .circleci/scripts/archive-brave-workspace.sh archive
             - save_cache:
-                name: Save reference-build stage handoff checkpoint
-                key: sandium-brave-handoff-v1-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-<< parameters.stage_index >>
+                name: Save FULL MODE parallel stage handoff shards
+                key: sandium-brave-handoff-v2-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-<< parameters.stage_index >>
                 paths:
-                  - brave-workspace-checkpoint.tar.zst
-                  - brave-workspace-checkpoint.meta
+                  - brave-workspace-checkpoint.shards
+                  - brave-workspace-checkpoint.manifest.json
       - run:
           name: Final five-stage completion gate
           command: |
@@ -2298,8 +2311,8 @@ jobs:
             test -s "$LEDGER" || { echo "FINAL_STAGE_GATE=FAIL missing action ledger" >&2; exit 1; }
             MODE="<< pipeline.parameters.sandium_build_mode >>"
             if [ "$MODE" = "full" ]; then
-              test -s "$ROOT/brave-workspace-checkpoint.tar.zst" || { echo "FINAL_STAGE_GATE=FAIL FULL MODE did not create a stage handoff archive" >&2; exit 1; }
-              test -s "$ROOT/brave-workspace-checkpoint.meta" || { echo "FINAL_STAGE_GATE=FAIL FULL MODE archive metadata missing" >&2; exit 1; }
+              test -d "$ROOT/brave-workspace-checkpoint.shards" || { echo "FINAL_STAGE_GATE=FAIL FULL MODE did not create the parallel shard directory" >&2; exit 1; }
+              test -s "$ROOT/brave-workspace-checkpoint.manifest.json" || { echo "FINAL_STAGE_GATE=FAIL FULL MODE shard manifest missing" >&2; exit 1; }
               test -s "$ROOT/brave-work/.sandium/workspace-archive-created-this-run" || { echo "FINAL_STAGE_GATE=FAIL FULL MODE archive was not created during this stage" >&2; exit 1; }
             elif [ "$MODE" = "fast" ]; then
               test ! -e "$ROOT/brave-work/.sandium/workspace-archive-created-this-run" || { echo "FINAL_STAGE_GATE=FAIL FAST MODE unexpectedly created a workspace archive" >&2; exit 1; }
@@ -2343,24 +2356,22 @@ jobs:
               circleci-agent step halt
             fi
             echo "SANDIUM_FULL_MODE_REFERENCE_PROMOTION=START"
+      - checkout
       - restore_cache:
-          name: Restore APK-producing reference-build handoff
+          name: Restore APK-producing FULL MODE shard handoff
           keys:
-            - sandium-brave-handoff-v1-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-
+            - sandium-brave-handoff-v2-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-
       - restore_cache:
           name: Restore verified APK marker from reference-build stages
           keys:
             - sandium-brave-apk-complete-v2-{{ .Branch }}-{{ .Revision }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-
       - run:
-          name: Verify and prepare immutable reference candidate
+          name: Verify all FULL MODE shards and prepare immutable reference
           command: |
             set -euo pipefail
             ROOT="$CIRCLE_WORKING_DIRECTORY"
-            ARCHIVE="$ROOT/brave-workspace-checkpoint.tar.zst"
-            META="$ROOT/brave-workspace-checkpoint.meta"
             APK_MARKER="$ROOT/brave-work/.sandium/apk-completion-status.txt"
-            READY_ARCHIVE="$ROOT/brave-reference-ready.tar.zst"
-            READY_META="$ROOT/brave-reference-ready.meta"
+            SHARD_MANIFEST="$ROOT/brave-workspace-checkpoint.manifest.json"
             fail() { echo "REFERENCE_PROMOTION=FAIL $*" >&2; exit 1; }
             [ -s "$APK_MARKER" ] || fail "APK completion marker missing"
             for pair in \
@@ -2371,45 +2382,51 @@ jobs:
               "APK_BRANDING_VALID=true"; do
               grep -Fx "$pair" "$APK_MARKER" >/dev/null || fail "APK marker lacks $pair"
             done
-            [ -s "$ARCHIVE" ] || fail "APK-producing stage handoff archive missing"
-            [ -s "$META" ] || fail "archive metadata missing"
-            command -v zstd >/dev/null 2>&1 || { sudo apt-get update -qq && sudo apt-get install -y zstd; }
-            zstd -t "$ARCHIVE" >/dev/null || fail "checkpoint zstd integrity check failed"
-            EXPECTED_SHA="$(sed -n 's/^ARCHIVE_SHA256=//p' "$META" | head -n 1)"
-            ACTUAL_SHA="$(sha256sum "$ARCHIVE" | awk '{print $1}')"
-            [ -n "$EXPECTED_SHA" ] && [ "$EXPECTED_SHA" = "$ACTUAL_SHA" ] || fail "checkpoint SHA256 mismatch"
-            MANIFEST="$(zstd -dc "$ARCHIVE" | tar -xOf - brave-work/.sandium/checkpoint-manifest.txt)"
-            printf '%s\n' "$MANIFEST" > "$ROOT/reference-candidate-manifest.txt"
-            for pair in \
-              "CHECKPOINT_VALID=true" \
-              "REFERENCE_MODE=reference" \
-              "APK_VALIDATED=true" \
-              "REFERENCE_READY=true" \
-              "CHROMIUM_SHA=d331de35ca8ab1358c7a17e4bd41627d55eaef51" \
-              "BRAVE_CORE_TAG=v1.98.62" \
-              "TARGET=android-arm64" \
-              "BUILD_TYPE=Release"; do
-              printf '%s\n' "$MANIFEST" | grep -Fx "$pair" >/dev/null || fail "checkpoint manifest lacks $pair"
-            done
-            cp "$ARCHIVE" "$READY_ARCHIVE"
-            cp "$META" "$READY_META"
+            export SANDIUM_ARCHIVE_WORKERS=8
+            bash .circleci/scripts/archive-brave-workspace.sh verify
+            python3 - "$SHARD_MANIFEST" "$ROOT/reference-candidate-manifest.txt" <<'PY'
+import json
+import sys
+from pathlib import Path
+data = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+checkpoint = data.get("checkpoint_manifest", {})
+required = {
+    "CHECKPOINT_VALID": "true",
+    "REFERENCE_MODE": "reference",
+    "APK_VALIDATED": "true",
+    "REFERENCE_READY": "true",
+    "CHROMIUM_SHA": "d331de35ca8ab1358c7a17e4bd41627d55eaef51",
+    "BRAVE_CORE_TAG": "v1.98.62",
+    "TARGET": "android-arm64",
+    "BUILD_TYPE": "Release",
+}
+for key, expected in required.items():
+    actual = checkpoint.get(key)
+    if actual != expected:
+        raise SystemExit("REFERENCE_PROMOTION=FAIL %s=%r expected=%r" % (key, actual, expected))
+Path(sys.argv[2]).write_text(
+    "\n".join("%s=%s" % (key, value) for key, value in sorted(checkpoint.items())) + "\n",
+    encoding="utf-8",
+)
+print("REFERENCE_PROMOTION=PASS workers=%s shards=%s source_bytes=%s archive_bytes=%s" %
+      (data.get("workers"), len(data.get("shards", [])), data.get("source_bytes"), data.get("archive_bytes")))
+PY
             echo "REFERENCE_PROMOTION=CANDIDATE_VERIFIED"
-            echo "REFERENCE_ARCHIVE_BYTES=$(stat -c '%s' "$READY_ARCHIVE")"
-            echo "REFERENCE_ARCHIVE_SHA256=$ACTUAL_SHA"
       - save_cache:
-          name: Promote immutable latest Sandium reference
-          key: sandium-brave-reference-v1-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}
+          name: Promote immutable latest Sandium parallel-shard reference
+          key: sandium-brave-reference-v2-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}
           paths:
-            - brave-reference-ready.tar.zst
-            - brave-reference-ready.meta
+            - brave-workspace-checkpoint.shards
+            - brave-workspace-checkpoint.manifest.json
             - reference-candidate-manifest.txt
       - run:
-          name: Confirm reference promotion
+          name: Confirm parallel-shard reference promotion
           command: |
             set -euo pipefail
-            test -s "$CIRCLE_WORKING_DIRECTORY/brave-reference-ready.tar.zst"
+            test -d "$CIRCLE_WORKING_DIRECTORY/brave-workspace-checkpoint.shards"
+            test -s "$CIRCLE_WORKING_DIRECTORY/brave-workspace-checkpoint.manifest.json"
             test -s "$CIRCLE_WORKING_DIRECTORY/reference-candidate-manifest.txt"
-            echo "SANDIUM_LATEST_REFERENCE=PROMOTED"
+            echo "SANDIUM_LATEST_REFERENCE=PROMOTED format=parallel-shards workers=8"
             cat "$CIRCLE_WORKING_DIRECTORY/reference-candidate-manifest.txt"
 
 workflows:

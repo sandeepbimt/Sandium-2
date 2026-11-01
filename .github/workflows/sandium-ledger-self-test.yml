@@ -9,6 +9,10 @@ on:
       - ".circleci/scripts/verify-brave-remote-metrics.py"
       - ".circleci/scripts/test-brave-remote-metrics.py"
       - ".circleci/scripts/test-brave-build-flow.py"
+      - ".circleci/scripts/sandium-checkpoint-shards.py"
+      - ".circleci/scripts/test-sandium-checkpoint-shards.py"
+      - ".circleci/scripts/archive-brave-workspace.sh"
+      - ".circleci/scripts/verify-brave-reference.sh"
       - ".circleci/scripts/verify-brave-remote-smoke.sh"
       - ".github/workflows/sandium-ledger-self-test.yml"
   pull_request:
@@ -19,6 +23,10 @@ on:
       - ".circleci/scripts/verify-brave-remote-metrics.py"
       - ".circleci/scripts/test-brave-remote-metrics.py"
       - ".circleci/scripts/test-brave-build-flow.py"
+      - ".circleci/scripts/sandium-checkpoint-shards.py"
+      - ".circleci/scripts/test-sandium-checkpoint-shards.py"
+      - ".circleci/scripts/archive-brave-workspace.sh"
+      - ".circleci/scripts/verify-brave-reference.sh"
       - ".circleci/scripts/verify-brave-remote-smoke.sh"
       - ".github/workflows/sandium-ledger-self-test.yml"
   workflow_dispatch:
@@ -42,7 +50,7 @@ jobs:
         run: |
           curl -1sLf 'https://packages.circleci.com/public/setup.deb.sh' | sudo -E bash
           sudo apt-get update -qq
-          sudo apt-get install -y circleci
+          sudo apt-get install -y circleci zstd
           circleci version
       - name: Validate CircleCI pipeline configuration
         run: circleci config validate .circleci/config.yml
@@ -53,7 +61,11 @@ jobs:
             .circleci/scripts/test-brave-action-ledger.py \
             .circleci/scripts/verify-brave-remote-metrics.py \
             .circleci/scripts/test-brave-remote-metrics.py \
-            .circleci/scripts/test-brave-build-flow.py
+            .circleci/scripts/test-brave-build-flow.py \
+            .circleci/scripts/sandium-checkpoint-shards.py \
+            .circleci/scripts/test-sandium-checkpoint-shards.py
+          bash -n .circleci/scripts/archive-brave-workspace.sh
+          bash -n .circleci/scripts/verify-brave-reference.sh
           bash -n .circleci/scripts/verify-brave-remote-smoke.sh
       - name: Test staged action-frontier reconciliation
         run: python3 .circleci/scripts/test-brave-action-ledger.py
@@ -61,3 +73,5 @@ jobs:
         run: python3 .circleci/scripts/test-brave-remote-metrics.py
       - name: Test smoke-warning build continuation
         run: python3 .circleci/scripts/test-brave-build-flow.py
+      - name: Test parallel checkpoint archive and restore
+        run: python3 .circleci/scripts/test-sandium-checkpoint-shards.py
