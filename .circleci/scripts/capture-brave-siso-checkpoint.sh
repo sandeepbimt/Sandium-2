@@ -52,6 +52,9 @@ record_file() {
     record_file BUILD_NINJA "$OUT/build.ninja"
     record_file ARGS_GN "$OUT/args.gn"
     record_file ARGS_GENERATED "$OUT/args_generated.gni"
+    record_file SISO_ENV "$ROOT/brave-work/src/build/config/siso/.sisoenv"
+    record_file SISO_RC "$ROOT/brave-work/src/build/config/siso/.sisorc"
+    record_file SISO_BACKEND "$ROOT/brave-work/src/build/config/siso/backend_config/backend.star"
     record_file SISO_STATE "$OUT/.siso_fs_state"
     record_file SISO_JOURNAL "$OUT/.siso_fs_state.journal"
     record_file NINJA_LOG "$OUT/.ninja_log"
@@ -144,25 +147,38 @@ mv "$TMP" "$REPORT"
 echo "BRAVE_SISO_DIAGNOSTICS_REPORT=$REPORT"
 grep -E '^(PHASE|STAGE|BUILD_NINJA_EDGE_COUNT|SISO_STATE_(EXISTS|SIZE_BYTES|SHA256)|SISO_JOURNAL_(EXISTS|SIZE_BYTES|SHA256)|NINJA_(LOG|DEPS)_(EXISTS|SIZE_BYTES|SHA256)|OBJ_O_COUNT|OBJ_DWO_COUNT|OBJ_PCM_COUNT|GEN_FILE_COUNT|GEN_TOTAL_BYTES|APK_FILE_COUNT)=' "$REPORT" || true
 
-if [ "$PHASE" = "restore" ] && [ "$STAGE" -gt 1 ]; then
+if [ "$PHASE" = "restore" ]; then
   PREV_STAGE="$((STAGE - 1))"
   PREV_DIR="$DIAG_ROOT/stage-$PREV_STAGE"
   COMPARISON="$STAGE_DIR/$SAFE_RUN_ID-handoff-comparison.txt"
-  python3 - "$PREV_DIR" "$REPORT" "$COMPARISON" "$PREV_STAGE" "$STAGE" <<'PY'
+  python3 - "$DIAG_ROOT" "$PREV_DIR" "$REPORT" "$COMPARISON" "$STAGE" "$PREV_STAGE" <<'PY'
 import glob
 import os
 import sys
 
-prev_dir, current_path, comparison_path, prev_stage, stage = sys.argv[1:]
-candidates = glob.glob(os.path.join(prev_dir, "*-checkpoint-ready.txt"))
+diag_root, prev_dir, current_path, comparison_path, stage, prev_stage = sys.argv[1:]
+stage = int(stage)
+if stage > 1:
+    candidates = glob.glob(os.path.join(prev_dir, "*-checkpoint-ready.txt"))
+else:
+    candidates = glob.glob(os.path.join(diag_root, "stage-*", "*-checkpoint-ready.txt"))
 candidates = [p for p in candidates if os.path.isfile(p)]
 candidates.sort(key=lambda p: os.path.getmtime(p), reverse=True)
+
 keys = [
-    "BUILD_NINJA_SHA256", "ARGS_GN_SHA256", "SISO_STATE_SHA256",
-    "SISO_JOURNAL_SHA256", "NINJA_LOG_SHA256", "NINJA_DEPS_SHA256",
-    "OBJ_O_COUNT", "OBJ_DWO_COUNT", "OBJ_PCM_COUNT", "OBJ_TOTAL_BYTES",
-    "GEN_FILE_COUNT", "GEN_TOTAL_BYTES"
+    "BUILD_NINJA_SHA256", "ARGS_GN_SHA256", "ARGS_GENERATED_SHA256",
+    "SISO_ENV_SHA256", "SISO_RC_SHA256", "SISO_BACKEND_SHA256",
+    "SISO_STATE_EXISTS", "SISO_STATE_SIZE_BYTES", "SISO_STATE_SHA256",
+    "SISO_JOURNAL_EXISTS", "SISO_JOURNAL_SIZE_BYTES", "SISO_JOURNAL_SHA256",
+    "NINJA_LOG_EXISTS", "NINJA_LOG_SIZE_BYTES", "NINJA_LOG_SHA256",
+    "NINJA_DEPS_EXISTS", "NINJA_DEPS_SIZE_BYTES", "NINJA_DEPS_SHA256",
+    "OBJ_O_COUNT", "OBJ_TOTAL_BYTES", "GEN_FILE_COUNT", "GEN_TOTAL_BYTES",
 ]
+required = [
+    "BUILD_NINJA_SHA256", "ARGS_GN_SHA256",
+    "NINJA_LOG_EXISTS", "NINJA_DEPS_EXISTS",
+]
+
 def read_values(path):
     result = {}
     with open(path, encoding="utf-8", errors="replace") as source:
@@ -173,25 +189,44 @@ def read_values(path):
     return result
 
 with open(comparison_path, "w", encoding="utf-8") as report:
-    report.write("PREVIOUS_STAGE=%s\nCURRENT_STAGE=%s\n" % (prev_stage, stage))
+    report.write("CURRENT_STAGE=%s\n" % stage)
     if not candidates:
-        report.write("HANDOFF_COMPARISON=NO_PREVIOUS_CHECKPOINT_READY_REPORT\n")
-    else:
-        previous_path = candidates[0]
-        previous = read_values(previous_path)
-        current = read_values(current_path)
-        report.write("PREVIOUS_REPORT=%s\n" % previous_path)
-        for key in keys:
-            left = previous.get(key, "<missing>")
-            right = current.get(key, "<missing>")
-            if left == "<missing>" or right == "<missing>":
-                status = "NOT_COMPARABLE"
-            elif left == right:
-                status = "MATCH"
-            else:
-                status = "DIFFERENT"
-            report.write("%s=%s previous=%s current=%s\n" % (key, status, left, right))
-        report.write("HANDOFF_COMPARISON=COMPLETE\n")
+        report.write("HANDOFF_COMPARISON=NO_PRIOR_CHECKPOINT_REPORT; first build or legacy checkpoint predates durable reports.\n")
+        print(open(comparison_path, encoding="utf-8").read(), end="")
+        raise SystemExit(0)
+
+    previous_path = candidates[0]
+    previous = read_values(previous_path)
+    current = read_values(current_path)
+    report.write("PREVIOUS_REPORT=%s\n" % previous_path)
+    report.write("PREVIOUS_STAGE=%s\n" % (prev_stage if stage > 1 else os.path.basename(os.path.dirname(previous_path))))
+    differences = []
+    missing_required = []
+    for key in keys:
+        left = previous.get(key, "<missing>")
+        right = current.get(key, "<missing>")
+        if left == "<missing>" or right == "<missing>" or left == "unavailable" or right == "unavailable":
+            status = "NOT_COMPARABLE"
+            if key in required:
+                missing_required.append(key)
+        elif left == right:
+            status = "MATCH"
+        else:
+            status = "DIFFERENT"
+            differences.append((key, left, right))
+        report.write("%s=%s previous=%s current=%s\n" % (key, status, left, right))
+
+    prior_siso = previous.get("SISO_STATE_EXISTS") == "true" or previous.get("SISO_JOURNAL_EXISTS") == "true"
+    current_siso = current.get("SISO_STATE_EXISTS") == "true" or current.get("SISO_JOURNAL_EXISTS") == "true"
+    if not prior_siso or not current_siso:
+        missing_required.append("SISO_STATE_OR_JOURNAL")
+    if differences or missing_required:
+        report.write("HANDOFF_COMPARISON=FAIL differences=%d missing_required=%s\n" %
+                     (len(differences), ",".join(sorted(set(missing_required)))))
+        report.flush()
+        print(open(comparison_path, encoding="utf-8").read(), end="")
+        raise SystemExit(1)
+    report.write("HANDOFF_COMPARISON=PASS; restored build graph, Siso state/journal, Ninja logs, and compiled-output counts are unchanged.\n")
 print(open(comparison_path, encoding="utf-8").read(), end="")
 PY
 fi
