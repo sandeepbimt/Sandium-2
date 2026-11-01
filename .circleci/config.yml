@@ -1978,7 +1978,7 @@ jobs:
             METRICS_FILE="${METRICS_PREFIX}0.jsonl"
             BUILD_MODE="<< pipeline.parameters.sandium_build_mode >>"
             case "$BUILD_MODE" in
-              full) STAGE_BUILD_BUDGET_SECONDS=2400 ;;
+              full) STAGE_BUILD_BUDGET_SECONDS=900 ;;
               fast) STAGE_BUILD_BUDGET_SECONDS=2700 ;;
               *) echo "BRAVE_BUILD_MODE_GATE=FAIL unsupported mode=$BUILD_MODE" >&2; exit 2 ;;
             esac
