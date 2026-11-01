@@ -1721,53 +1721,99 @@ jobs:
               echo "BRAVE_REMOTE_EXECUTION_CONFIG_GATE=PASS"
             fi
       - run:
-          name: Plan exact pending Brave actions and enforce the handoff frontier
-          no_output_timeout: 20m
-          com      - run:
-          name: Verify restored Brave APK before scheduling any build work
+          name: Verify restored Brave APK before scheduling build work
           command: |
             set -euo pipefail
             ROOT="$CIRCLE_WORKING_DIRECTORY"
             OUT="$ROOT/brave-work/src/out/android_Release_arm64"
             APK="$OUT/apks/BraveMonoarm64.apk"
-            ANDROID_BUILD_TOOLS="$ROOT/brave-work/src/third_party/android_sdk/public/build-tools/37.0.0"
-            APKSIGNER="$ANDROID_BUILD_TOOLS/apksigner"
-            AAPT="$ANDROID_BUILD_TOOLS/aapt"
+            TOOLS="$ROOT/brave-work/src/third_party/android_sdk/public/build-tools/37.0.0"
+            mkdir -p "$ROOT/brave-work/.sandium"
+            rm -f "$ROOT/brave-work/.sandium/restored-apk-valid"
             if [ ! -s "$APK" ]; then
               echo "BRAVE_RESTORED_APK=ABSENT"
               exit 0
             fi
             VALID=true
-            python3 -c 'import sys,zipfile; z=zipfile.ZipFile(sys.argv[1]); bad=z.testzip(); z.close(); sys.exit(1 if bad else 0)' "$APK" || VALID=false
-            if [ "$VALID" = true ] && [ -x "$APKSIGNER" ] && [ -x "$AAPT" ]; then
-              "$APKSIGNER" verify "$APK" >/dev/null 2>&1 || VALID=false
-              "$AAPT" dump badging "$APK" > "$ROOT/brave-work/.sandium/restored-apk-badging.txt" 2>/dev/null || VALID=false
-              PACKAGE="$(sed -n "s/^package: name='\\([^']*\\)'.*/\\1/p" "$ROOT/brave-work/.san      - run:
+            if ! python3 -c 'import sys,zipfile; z=zipfile.ZipFile(sys.argv[1]); bad=z.testzip(); z.close(); sys.exit(1 if bad else 0)' "$APK"; then VALID=false; fi
+            if [ "$VALID" = true ] && [ -x "$TOOLS/apksigner" ] && [ -x "$TOOLS/aapt" ]; then
+              "$TOOLS/apksigner" verify "$APK" >/dev/null 2>&1 || VALID=false
+              if [ "$VALID" = true ]; then
+                "$TOOLS/aapt" dump badging "$APK" > "$ROOT/brave-work/.sandium/restored-apk-badging.txt" 2>/dev/null || VALID=false
+              fi
+              PACKAGE="$(sed -n "s/^package: name='\\([^']*\\)'.*/\\1/p" "$ROOT/brave-work/.sandium/restored-apk-badging.txt" 2>/dev/null | head -n 1)"
+              [ "$PACKAGE" = "com.brave.browser_default" ] || VALID=false
+            else
+              VALID=false
+            fi
+            if [ "$VALID" = true ]; then
+              touch "$ROOT/brave-work/.sandium/restored-apk-valid"
+              echo "BRAVE_RESTORED_APK=VALID package=com.brave.browser_default bytes=$(stat -c '%s' "$APK")"
+            else
+              echo "BRAVE_RESTORED_APK=INVALID; removing stale APK so Ninja schedules its output action."
+              rm -f "$APK"
+            fi
+      - run:
+          name: Plan exact pending Brave actions and enforce the handoff frontier
+          no_output_timeout: 20m
+          command: |
+            set -euo pipefail
+            ROOT="$CIRCLE_WORKING_DIRECTORY"
+            SRC="$ROOT/brave-work/src"
+            OUT="$SRC/out/android_Release_arm64"
+            DEPOT_TOOLS="$SRC/brave/vendor/depot_tools"
+            export PATH="$DEPOT_TOOLS:$PATH"
+            export DEPOT_TOOLS_UPDATE=0
+            export SISO_LIMITS="local=8,remote=80"
+            export PYTHONPATH="$SRC/brave/script:$SRC/tools/grit/grit/extern:$SRC/brave/vendor/requests:$SRC/build:$DEPOT_TOOLS${PYTHONPATH:+:$PYTHONPATH}"
+            python3 .circleci/scripts/brave-action-ledger.py plan \
+              --src "$SRC" \
+              --out "$OUT" \
+              --autoninja "$DEPOT_TOOLS/autoninja" \
+              --stage "<< parameters.stage_index >>" \
+              --build "${CIRCLE_BUILD_NUM:-local}" \
+              --workflow "${CIRCLE_WORKFLOW_ID:-local}" \
+              --jobs 80
+      - run:
           name: Verify BuildBuddy remote worker before Android compilation
           no_output_timeout: 15m
           command: |
             set -uo pipefail
             ROOT="$CIRCLE_WORKING_DIRECTORY"
             mkdir -p "$ROOT/brave-work/.sandium"
-            STATUS="$ROOT/brave-work/.s      - run:
+            STATUS="$ROOT/brave-work/.sandium/remote-smoke-status.txt"
+            if [ -s "$ROOT/brave-work/.sandium/restored-apk-valid" ]; then
+              printf 'REMOTE_SMOKE=SKIPPED_VALID_APK\\n' > "$STATUS"
+              echo "BRAVE_REMOTE_SMOKE=SKIPPED reason=already-verified-apk"
+            else
+              export BRAVE_STAGE_INDEX="<< parameters.stage_index >>"
+              if bash .circleci/scripts/verify-brave-remote-smoke.sh; then
+                printf 'REMOTE_SMOKE=PASS\\n' > "$STATUS"
+                echo "BRAVE_REMOTE_SMOKE_STATUS=PASS"
+              else
+                RC=$?
+                printf 'REMOTE_SMOKE=FAIL\\nREMOTE_SMOKE_EXIT_CODE=%s\\n' "$RC" > "$STATUS"
+                echo "BRAVE_REMOTE_SMOKE_STATUS=FAIL exit=$RC; action reconciliation will preserve any successful smoke work."
+              fi
+            fi
+      - run:
           name: Build bounded Brave Android APK slice
           no_output_timeout: 45m
           command: |
             set -euo pipefail
-            export BRAVE_STAGE_INDEX="<< parameters.stage_index >>"
             ROOT="$CIRCLE_WORKING_DIRECTORY"
             OUT="$ROOT/brave-work/src/out/android_Release_arm64"
             STATUS_DIR="$ROOT/brave-work/.sandium"
             mkdir -p "$STATUS_DIR"
             BUILD_STATUS="$STATUS_DIR/build-stage-status.txt"
             SMOKE_STATUS="$STATUS_DIR/remote-smoke-status.txt"
-            if [ -s "$OUT/apks/BraveMonoarm64.apk" ]; then
-              echo "BRAVE_APK=ALREADY_PRESENT; restored APK was ZIP/signature/package validated before planning."
+            if [ -s "$STATUS_DIR/restored-apk-valid" ]; then
+              echo "BRAVE_APK=ALREADY_PRESENT_AND_VERIFIED"
               printf 'BUILD_EXIT_CODE=0\\nBUILD_REASON=RESTORED_VALID_APK\\n' > "$BUILD_STATUS"
               exit 0
             fi
             if [ ! -s "$OUT/build.ninja" ]; then
-              echo "Build graph missing. This stage requires the previous checkpoint." >&2
+              echo "BRAVE_BUILD_GRAPH_GATE=FAIL missing $OUT/build.ninja" >&2
               exit 1
             fi
             if [ -z "$(printenv BUILDBUDDY_API_KEY 2>/dev/null || true)" ]; then
@@ -1775,41 +1821,29 @@ jobs:
               exit 1
             fi
             if ! grep -qx 'REMOTE_SMOKE=PASS' "$SMOKE_STATUS" 2>/dev/null; then
-              echo "BRAVE_BUILD=SKIPPED remote worker smoke did not pass; action reconciliation will retain any smoke progress."
+              echo "BRAVE_BUILD=SKIPPED remote worker smoke did not pass; reconciling any completed smoke work."
               printf 'BUILD_EXIT_CODE=125\\nBUILD_REASON=REMOTE_SMOKE_FAILED\\n' > "$BUILD_STATUS"
               exit 0
             fi
-            echo "BRAVE_STAGE_COMPILE=START stage=<< parameters.stage_index >>; bounded Release ARM64 build."
-            BRAVE_SRC="$ROOT/brave-work/src"
-            BRAVE_DEPOT_TOOLS="$BRAVE_SRC/brave/vendor/depot_tools"
+            ROOT_SRC="$ROOT/brave-work/src"
+            BRAVE_DEPOT_TOOLS="$ROOT_SRC/brave/vendor/depot_tools"
             test -s "$ROOT/brave-work/.gclient" || { echo "BRAVE_GCLIENT_ROOT_GATE=FAIL missing .gclient" >&2; exit 1; }
-            test -s "$ROOT/brave-work/.gclient_entries" || { echo "BRAVE_GCLIENT_ROOT_GATE=FAIL missing .gclient_entries; gclient sync did not establish the checkout." >&2; exit 1; }
+            test -s "$ROOT/brave-work/.gclient_entries" || { echo "BRAVE_GCLIENT_ROOT_GATE=FAIL missing .gclient_entries" >&2; exit 1; }
             test -x "$BRAVE_DEPOT_TOOLS/autoninja" || { echo "BRAVE_GCLIENT_ROOT_GATE=FAIL Brave autoninja missing" >&2; exit 1; }
             export PATH="$BRAVE_DEPOT_TOOLS:$PATH"
-            cd "$BRAVE_SRC"
-            export PYTHONPATH="$BRAVE_SRC/brave/script:$BRAVE_SRC/tools/grit/grit/extern:$BRAVE_SRC/brave/vendor/requests:$BRAVE_SRC/build:$BRAVE_DEPOT_TOOLS${PYTHONPATH:+:$PYTHONPATH}"
-            "$BRAVE_SRC/third_party/cpython3/host/bin/python3" -c 'from brave_version_utils import generate_base_version_code; assert generate_base_version_code(1, 2) > 0; print("BRAVE_PYTHONPATH_GATE=PASS")'
-            python3 - "$BRAVE_SRC" \\<<'PY'
-            import os
-            import sys
-            import gclient_paths
-
-            expected = os.path.realpath(sys.argv[1])
-            actual = gclient_paths.GetPrimarySolutionPath()
-            if actual is None:
-                raise SystemExit("BRAVE_GCLIENT_ROOT_GATE=FAIL gclient_paths returned None")
-            actual = os.path.realpath(actual)
-            if actual != expected:
-                raise SystemExit("BRAVE_GCLIENT_ROOT_GATE=FAIL expected=%s actual=%s" % (expected, actual))
-            print("BRAVE_GCLIENT_ROOT_GATE=PASS src=%s" % actual)
-            PY
+            export DEPOT_TOOLS_UPDATE=0
+            cd "$ROOT_SRC"
+            export PYTHONPATH="$ROOT_SRC/brave/script:$ROOT_SRC/tools/grit/grit/extern:$ROOT_SRC/brave/vendor/requests:$ROOT_SRC/build:$BRAVE_DEPOT_TOOLS${PYTHONPATH:+:$PYTHONPATH}"
+            "$ROOT_SRC/third_party/cpython3/host/bin/python3" -c 'from brave_version_utils import generate_base_version_code; assert generate_base_version_code(1, 2) > 0; print("BRAVE_PYTHONPATH_GATE=PASS")'
+            python3 -c 'import os,sys,gclient_paths; expected=os.path.realpath(sys.argv[1]); actual=gclient_paths.GetPrimarySolutionPath(); assert actual is not None and os.path.realpath(actual)==expected, "BRAVE_GCLIENT_ROOT_GATE=FAIL expected=%s actual=%s" % (expected,actual); print("BRAVE_GCLIENT_ROOT_GATE=PASS src=%s" % actual)' "$ROOT_SRC"
+            export BRAVE_STAGE_INDEX="<< parameters.stage_index >>"
             bash "$ROOT/.circleci/scripts/capture-brave-siso-checkpoint.sh" before-build
             BUILD_RC=0
             INITIAL_BUILD_RC=0
             CAS_RECOVERY_COUNT=0
             trap 'rc=$?; BRAVE_BUILD_EXIT_CODE="${BUILD_RC:-$rc}" BRAVE_BUILD_INITIAL_EXIT_CODE="${INITIAL_BUILD_RC:-not_set}" BRAVE_BUILD_INITIAL_TIMEOUT="$([ "${INITIAL_BUILD_RC:-0}" -eq 124 ] && echo true || ([ "${INITIAL_BUILD_RC:-0}" -eq 130 ] && echo true || echo false))" bash "$ROOT/.circleci/scripts/capture-brave-siso-checkpoint.sh" after-build || echo "BRAVE_SISO_DIAGNOSTICS=WARNING after-build capture failed"; exit "$rc"' EXIT
             export SISO_LIMITS="local=8,remote=80"
-            METRICS_PREFIX="sandium-brave-action-stage-${BRAVE_STAGE_INDEX}-build-${CIRCLE_BUILD_NUM:-local}-attempt-"
+            METRICS_PREFIX="sandium-brave-action-stage-<< parameters.stage_index >>-build-${CIRCLE_BUILD_NUM:-local}-attempt-"
             METRICS_FILE="${METRICS_PREFIX}0.jsonl"
             echo "BRAVE_BUILD_SLICE_BUDGET_SECONDS=2100 (35 minutes); metrics=$METRICS_FILE"
             timeout --signal=INT --kill-after=60s 2100s autoninja -strict_remote -metrics_json "$METRICS_FILE" -C "$OUT" -j80 brave || BUILD_RC=$?
@@ -1829,7 +1863,7 @@ jobs:
                 timeout --signal=INT --kill-after=60s 900s autoninja -strict_remote -metrics_json "$RESUME_METRICS_FILE" -C "$OUT" -j80 brave || BUILD_RC=$?
               else
                 BUILD_RC=$?
-                echo "BRAVE_CAS_LOCAL_RECOVERY=FAIL exit=$BUILD_RC; preserving metrics and partial outputs."
+                echo "BRAVE_CAS_LOCAL_RECOVERY=FAIL exit=$BUILD_RC; preserving outputs and metrics."
                 break
               fi
             done
@@ -1840,7 +1874,7 @@ jobs:
               BUILD_REASON="BUILD_COMMAND_SUCCESS"
             else
               BUILD_REASON="RECOVERABLE_BUILD_ERROR"
-              echo "BRAVE_BUILD_COMMAND=NONZERO exit=$BUILD_RC; successful action records will be checkpointed before the workflow decides whether to retry."
+              echo "BRAVE_BUILD_COMMAND=NONZERO exit=$BUILD_RC; checkpointing completed actions before retrying the remainder."
             fi
             {
               echo "BUILD_EXIT_CODE=$BUILD_RC"
@@ -1849,14 +1883,33 @@ jobs:
               echo "CAS_RECOVERY_ATTEMPTS=$CAS_RECOVERY_COUNT"
               echo "BUILD_WINDOW_FINISHED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
             } > "$BUILD_STATUS"
-            if [ -s "$OUT/apks/BraveMonoarm64.apk" ]; then
-              echo "BRAVE_APK=FOUND"
-            elif [ ! -s "$OUT/build.ninja" ] || [ ! -d "$OUT/obj" ]; then
-              echo "BRAVE_CHECKPOINT_VALIDATION=FAIL; expected GN graph or compilation output missing." >&2
-              printf 'BUILD_CHECKPOINT_VALIDATION=FAIL\\n' >> "$BUILD_STATUS"
-            else
-              echo "BRAVE_CHECKPOINT_VALIDATION=PASS; GN graph and incremental output tree retained."
-            fi
+            echo "BRAVE_BUILD_STAGE_STATUS=RECORDED exit=$BUILD_RC reason=$BUILD_REASON"
+      - run:
+          name: Reconcile Siso action metrics with the remaining action frontier
+          when: always
+          no_output_timeout: 20m
+          command: |
+            set -euo pipefail
+            ROOT="$CIRCLE_WORKING_DIRECTORY"
+            SRC="$ROOT/brave-work/src"
+            OUT="$SRC/out/android_Release_arm64"
+            DEPOT_TOOLS="$SRC/brave/vendor/depot_tools"
+            STAGE="<< parameters.stage_index >>"
+            BUILD_NUM="${CIRCLE_BUILD_NUM:-local}"
+            METRICS_PREFIX="sandium-brave-action-stage-${STAGE}-build-${BUILD_NUM}-attempt-"
+            export PATH="$DEPOT_TOOLS:$PATH"
+            export DEPOT_TOOLS_UPDATE=0
+            export SISO_LIMITS="local=8,remote=80"
+            export PYTHONPATH="$SRC/brave/script:$SRC/tools/grit/grit/extern:$SRC/brave/vendor/requests:$SRC/build:$DEPOT_TOOLS${PYTHONPATH:+:$PYTHONPATH}"
+            python3 .circleci/scripts/brave-action-ledger.py complete \
+              --src "$SRC" \
+              --out "$OUT" \
+              --autoninja "$DEPOT_TOOLS/autoninja" \
+              --stage "$STAGE" \
+              --build "$BUILD_NUM" \
+              --workflow "${CIRCLE_WORKFLOW_ID:-local}" \
+              --jobs 80 \
+              --metrics-prefix "$METRICS_PREFIX"
       - run:
           name: Reconcile Siso action metrics with the remaining action frontier
           no_output_timeout: 20m
