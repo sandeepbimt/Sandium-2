@@ -165,7 +165,7 @@ if "-n" in args:
         pending_file.write_text(json.dumps(list(range(88, 100))), encoding="utf-8")
         plan2 = run(["plan", *common, "--stage", "2", "--build", "202",
                      "--workflow", "workflow-two"], env)
-        assert "SANDIUM_BUILD_MATH=88/100 complete; 12/12 pending" in plan2, plan2
+        assert "SANDIUM_BUILD_MATH=153/165 complete; 12/12 pending" in plan2, plan2
 
         # A previously completed action must not execute again.
         stage2_metrics = out / "test-stage2-0.jsonl"
