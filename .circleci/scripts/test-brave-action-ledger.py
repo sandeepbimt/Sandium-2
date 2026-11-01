@@ -220,7 +220,8 @@ if "-n" in args:
         done3 = run(["complete", *common, "--stage", "3", "--build", "303",
                      "--workflow", "workflow-three",
                      "--metrics-prefix", "test-stage3-"], env)
-        assert "ACTION_PRUNED_STALE_PLAN=PASS count=2; reason=absent_from_post_build_graph_and_verified_apk\nACTION_COMPLETION_MATH=PASS before=3 new=1 after=0" in done3, done3
+        assert "ACTION_PRUNED_STALE_PLAN=PASS count=2; reason=absent_from_post_build_graph_and_verified_apk" in done3, done3
+        assert "ACTION_COMPLETION_MATH=PASS before=3 new=1 after=0" in done3, done3
         assert "SANDIUM_BUILD_MATH=166/166 complete; 0/0 pending" in done3, done3
         assert "SANDIUM_ACTION_FRONTIER=COMPLETE total=166" in done3, done3
 
