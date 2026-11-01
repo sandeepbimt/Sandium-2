@@ -93,14 +93,12 @@ def main() -> None:
         fake_bin.mkdir()
         fake_zstd = fake_bin / "zstd"
         fake_zstd.write_text(
-            "#!/usr/bin/env bash\\n"
-            "printf '%s\\n' \"$*\" >> \"$SANDIUM_ZSTD_ARGS_LOG\"\\n"
-            "exec \"$SANDIUM_REAL_ZSTD\" \"$@\"\\n",
+            "#!/usr/bin/env bash\n"
+            "printf '%s\\n' \"$*\" >> \"$SANDIUM_ZSTD_ARGS_LOG\"\n"
+            "exec \"$SANDIUM_REAL_ZSTD\" \"$@\"\n",
             encoding="utf-8",
         )
         os.chmod(fake_zstd, 0o755)
-        fake_bin = root / "fake-bin"
-        fake_bin.mkdir()
         fake_tar = fake_bin / "tar"
         fake_tar.write_text(
             "#!/usr/bin/env bash\n"
