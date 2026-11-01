@@ -71,7 +71,7 @@ collect_diagnostics() {
       echo "STAGE=$STAGE"
       echo "FAILED_TARGET=$FAILED_REMOTE_TARGET"
       echo "PROTO_TARGET=$PROTO_SMOKE_TARGET"
-      echo "GENERIC_TARGET=$SMOKE_TARGET"
+      echo "GENERIC_TARGET=$PROTO_SMOKE_TARGET"
       echo "WRAPPER_MODE=$(stat -c '%a' "$PYTHON_REMOTE_WRAPPER" 2>/dev/null || echo unavailable)"
       echo "SISO_CANONICALIZE_DIR=true"
       echo "SISO_WORKDIR_ANCHOR=./args.gn"
