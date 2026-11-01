@@ -176,6 +176,17 @@ if "-n" in args:
                          "--metrics-prefix", "test-stage2-"], env, expected=2)
         assert "ACTION_REEXECUTION_GATE=FAIL" in duplicate, duplicate
 
+        # A real APK-build metric outside the planned frontier must still
+        # fail; only sidecar smoke metrics receive the narrow preflight filter.
+        write_metrics(stage2_metrics, range(88, 99))
+        with stage2_metrics.open("a", encoding="utf-8") as stream:
+            stream.write(json.dumps(metric(2000)) + "\\n")
+        pending_file.write_text("[]", encoding="utf-8")
+        unplanned = run(["complete", *common, "--stage", "2", "--build", "202",
+                         "--workflow", "workflow-two",
+                         "--metrics-prefix", "test-stage2-"], env, expected=2)
+        assert "ACTION_UNPLANNED_EXECUTION=FAIL" in unplanned, unplanned
+
         # Correct handoff: exactly the 12 previously unfinished actions.
         write_metrics(stage2_metrics, range(88, 100))
         (out / "apks").mkdir(parents=True, exist_ok=True)
