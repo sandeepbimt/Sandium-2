@@ -1434,7 +1434,7 @@ jobs:
                 command: |
                   set -euo pipefail
                   STATUS="$CIRCLE_WORKING_DIRECTORY/brave-work/.sandium/apk-completion-status.txt"
-                  if [ -s "$STATUS" ] && grep -qx "BUILD_FINISHED=true" "$STATUS" && grep -qx "APK_ARCHIVE_VALID=true" "$STATUS" && grep -qx "APK_SIGNATURE_VALID=true" "$STATUS" && grep -qx "APK_PACKAGE_ID_VALID=true" "$STATUS"; then && grep -qx "AAB_ARCHIVE_VALID=true" "$STATUS"; then && grep -qx "AAB_SIGNATURE_VALID=true" "$STATUS"; then && grep -qx "AAB_BUNDLE_VALID=true" "$STATUS"; then
+                  if [ -s "$STATUS" ] && grep -qx "BUILD_FINISHED=true" "$STATUS" && grep -qx "APK_ARCHIVE_VALID=true" "$STATUS" && grep -qx "APK_SIGNATURE_VALID=true" "$STATUS" && grep -qx "APK_PACKAGE_ID_VALID=true" "$STATUS" && grep -qx "AAB_ARCHIVE_VALID=true" "$STATUS" && grep -qx "AAB_SIGNATURE_VALID=true" "$STATUS" && grep -qx "AAB_BUNDLE_VALID=true" "$STATUS"; then
                     echo "BRAVE_APK=ALREADY_PUBLISHED"
                     cat "$STATUS"
                     circleci-agent step halt
@@ -1454,7 +1454,7 @@ jobs:
                 command: |
                   set -euo pipefail
                   STATUS="$CIRCLE_WORKING_DIRECTORY/brave-work/.sandium/apk-completion-status.txt"
-                  if [ -s "$STATUS" ] && grep -qx "BUILD_FINISHED=true" "$STATUS" && grep -qx "APK_ARCHIVE_VALID=true" "$STATUS" && grep -qx "APK_SIGNATURE_VALID=true" "$STATUS" && grep -qx "APK_PACKAGE_ID_VALID=true" "$STATUS"; then && grep -qx "AAB_ARCHIVE_VALID=true" "$STATUS"; then && grep -qx "AAB_SIGNATURE_VALID=true" "$STATUS"; then && grep -qx "AAB_BUNDLE_VALID=true" "$STATUS"; then
+                  if [ -s "$STATUS" ] && grep -qx "BUILD_FINISHED=true" "$STATUS" && grep -qx "APK_ARCHIVE_VALID=true" "$STATUS" && grep -qx "APK_SIGNATURE_VALID=true" "$STATUS" && grep -qx "APK_PACKAGE_ID_VALID=true" "$STATUS" && grep -qx "AAB_ARCHIVE_VALID=true" "$STATUS" && grep -qx "AAB_SIGNATURE_VALID=true" "$STATUS" && grep -qx "AAB_BUNDLE_VALID=true" "$STATUS"; then
                     echo "BRAVE_APK=ALREADY_PUBLISHED"
                     cat "$STATUS"
                     circleci-agent step halt
@@ -1475,7 +1475,7 @@ jobs:
                 command: |
                   set -euo pipefail
                   STATUS="$CIRCLE_WORKING_DIRECTORY/brave-work/.sandium/apk-completion-status.txt"
-                  if [ -s "$STATUS" ] && grep -qx "BUILD_FINISHED=true" "$STATUS" && grep -qx "APK_ARCHIVE_VALID=true" "$STATUS" && grep -qx "APK_SIGNATURE_VALID=true" "$STATUS" && grep -qx "APK_PACKAGE_ID_VALID=true" "$STATUS"; then && grep -qx "AAB_ARCHIVE_VALID=true" "$STATUS"; then && grep -qx "AAB_SIGNATURE_VALID=true" "$STATUS"; then && grep -qx "AAB_BUNDLE_VALID=true" "$STATUS"; then
+                  if [ -s "$STATUS" ] && grep -qx "BUILD_FINISHED=true" "$STATUS" && grep -qx "APK_ARCHIVE_VALID=true" "$STATUS" && grep -qx "APK_SIGNATURE_VALID=true" "$STATUS" && grep -qx "APK_PACKAGE_ID_VALID=true" "$STATUS" && grep -qx "AAB_ARCHIVE_VALID=true" "$STATUS" && grep -qx "AAB_SIGNATURE_VALID=true" "$STATUS" && grep -qx "AAB_BUNDLE_VALID=true" "$STATUS"; then
                     echo "BRAVE_APK=ALREADY_PUBLISHED"
                     cat "$STATUS"
                     circleci-agent step halt
@@ -1497,7 +1497,7 @@ jobs:
                 command: |
                   set -euo pipefail
                   STATUS="$CIRCLE_WORKING_DIRECTORY/brave-work/.sandium/apk-completion-status.txt"
-                  if [ -s "$STATUS" ] && grep -qx "BUILD_FINISHED=true" "$STATUS" && grep -qx "APK_ARCHIVE_VALID=true" "$STATUS" && grep -qx "APK_SIGNATURE_VALID=true" "$STATUS" && grep -qx "APK_PACKAGE_ID_VALID=true" "$STATUS"; then && grep -qx "AAB_ARCHIVE_VALID=true" "$STATUS"; then && grep -qx "AAB_SIGNATURE_VALID=true" "$STATUS"; then && grep -qx "AAB_BUNDLE_VALID=true" "$STATUS"; then
+                  if [ -s "$STATUS" ] && grep -qx "BUILD_FINISHED=true" "$STATUS" && grep -qx "APK_ARCHIVE_VALID=true" "$STATUS" && grep -qx "APK_SIGNATURE_VALID=true" "$STATUS" && grep -qx "APK_PACKAGE_ID_VALID=true" "$STATUS" && grep -qx "AAB_ARCHIVE_VALID=true" "$STATUS" && grep -qx "AAB_SIGNATURE_VALID=true" "$STATUS" && grep -qx "AAB_BUNDLE_VALID=true" "$STATUS"; then
                     echo "BRAVE_APK=ALREADY_PUBLISHED"
                     cat "$STATUS"
                     circleci-agent step halt
@@ -1561,7 +1561,7 @@ jobs:
                 command: |
                   set -euo pipefail
                   STATUS="$CIRCLE_WORKING_DIRECTORY/brave-work/.sandium/apk-completion-status.txt"
-                  if [ -s "$STATUS" ] && grep -qx "BUILD_FINISHED=true" "$STATUS" && grep -qx "APK_ARCHIVE_VALID=true" "$STATUS" && grep -qx "APK_SIGNATURE_VALID=true" "$STATUS" && grep -qx "APK_PACKAGE_ID_VALID=true" "$STATUS"; then && grep -qx "AAB_ARCHIVE_VALID=true" "$STATUS"; then && grep -qx "AAB_SIGNATURE_VALID=true" "$STATUS"; then && grep -qx "AAB_BUNDLE_VALID=true" "$STATUS"; then
+                  if [ -s "$STATUS" ] && grep -qx "BUILD_FINISHED=true" "$STATUS" && grep -qx "APK_ARCHIVE_VALID=true" "$STATUS" && grep -qx "APK_SIGNATURE_VALID=true" "$STATUS" && grep -qx "APK_PACKAGE_ID_VALID=true" "$STATUS" && grep -qx "AAB_ARCHIVE_VALID=true" "$STATUS" && grep -qx "AAB_SIGNATURE_VALID=true" "$STATUS" && grep -qx "AAB_BUNDLE_VALID=true" "$STATUS"; then
                     echo "BRAVE_APK=ALREADY_PUBLISHED for revision {{ .Revision }}"
                     cat "$STATUS"
                     circleci-agent step halt
@@ -2096,7 +2096,7 @@ jobs:
           command: |
             set -euo pipefail
             MARKER="$CIRCLE_WORKING_DIRECTORY/brave-work/.sandium/apk-completion-status.txt"
-            if [ -s "$MARKER" ] && grep -qx "BUILD_FINISHED=true" "$MARKER" && grep -qx "APK_ARCHIVE_VALID=true" "$MARKER" && grep -qx "APK_SIGNATURE_VALID=true" "$MARKER" && grep -qx "APK_PACKAGE_ID_VALID=true" "$MARKER"; then && grep -qx "AAB_ARCHIVE_VALID=true" "$MARKER"; then && grep -qx "AAB_SIGNATURE_VALID=true" "$MARKER"; then && grep -qx "AAB_BUNDLE_VALID=true" "$MARKER"; then
+            if [ -s "$MARKER" ] && grep -qx "BUILD_FINISHED=true" "$MARKER" && grep -qx "APK_ARCHIVE_VALID=true" "$MARKER" && grep -qx "APK_SIGNATURE_VALID=true" "$MARKER" && grep -qx "APK_PACKAGE_ID_VALID=true" "$MARKER" && grep -qx "AAB_ARCHIVE_VALID=true" "$MARKER" && grep -qx "AAB_SIGNATURE_VALID=true" "$MARKER" && grep -qx "AAB_BUNDLE_VALID=true" "$MARKER"; then
               echo "BRAVE_APK_ARTIFACT=STORED_BEFORE_CHECKPOINT_UPLOAD"
               echo "BRAVE_CHECKPOINT_UPLOAD=SKIPPED; build and APK validation are complete."
               circleci-agent step halt
@@ -2207,7 +2207,7 @@ jobs:
             test -s "$LEDGER" || { echo "FINAL_STAGE_GATE=FAIL missing action ledger" >&2; exit 1; }
             test -s "$ROOT/brave-workspace-checkpoint.tar.zst" || { echo "FINAL_STAGE_GATE=FAIL no portable checkpoint was packed" >&2; exit 1; }
             PENDING="$(python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); print(int(d["planned_total"])-len(d["completed"]))' "$LEDGER")"
-            if [ -s "$APK_STATUS" ] && grep -qx "BUILD_FINISHED=true" "$APK_STATUS" && grep -qx "APK_ARCHIVE_VALID=true" "$APK_STATUS" && grep -qx "APK_SIGNATURE_VALID=true" "$APK_STATUS" && grep -qx "APK_PACKAGE_ID_VALID=true" "$APK_STATUS"; then && grep -qx "AAB_ARCHIVE_VALID=true" "$APK_STATUS"; then && grep -qx "AAB_SIGNATURE_VALID=true" "$APK_STATUS"; then && grep -qx "AAB_BUNDLE_VALID=true" "$APK_STATUS"; then
+            if [ -s "$APK_STATUS" ] && grep -qx "BUILD_FINISHED=true" "$APK_STATUS" && grep -qx "APK_ARCHIVE_VALID=true" "$APK_STATUS" && grep -qx "APK_SIGNATURE_VALID=true" "$APK_STATUS" && grep -qx "APK_PACKAGE_ID_VALID=true" "$APK_STATUS" && grep -qx "AAB_ARCHIVE_VALID=true" "$APK_STATUS" && grep -qx "AAB_SIGNATURE_VALID=true" "$APK_STATUS" && grep -qx "AAB_BUNDLE_VALID=true" "$APK_STATUS"; then
               echo "FINAL_STAGE_GATE=PASS APK validated and artifact published."
               exit 0
             fi
