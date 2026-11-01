@@ -84,16 +84,20 @@ collect_diagnostics() {
 trap collect_diagnostics EXIT
 
 FAILED_REMOTE_TARGET="$PROTO_SMOKE_TARGET"
-echo "BRAVE_PROTO_REMOTE_SMOKE=START target=$PROTO_SMOKE_TARGET strict_remote=true remote_jobs=$REMOTE_JOBS timeout_seconds=600"
+echo "BRAVE_PROTO_REMOTE_SMOKE=START target=$PROTO_SMOKE_TARGET strict_remote=true cache_read=false remote_jobs=$REMOTE_JOBS timeout_seconds=600"
+# Remove only the smoke output so the target must execute. Disable REAPI cache
+# reads for this probe: a cache hit is not proof that a worker executed.
+rm -f "$PROTO_SMOKE_OUTPUT"
 # The first pass compiles the host protoc/cppgen prerequisites as well as the
 # generator action. Use the remote pool in parallel; keep a bounded 10m cap.
 METRICS_PREFIX="sandium-brave-action-stage-${STAGE}-build-${CIRCLE_BUILD_NUM:-local}-attempt-"
 SMOKE_METRICS="${METRICS_PREFIX}smoke.jsonl"
 timeout --signal=INT --kill-after=30s 600s \
-  autoninja -strict_remote -metrics_json "$SMOKE_METRICS" -C "$OUT" "-j$REMOTE_JOBS" "$PROTO_SMOKE_TARGET"
+  autoninja -strict_remote -re_cache_enable_read=false -metrics_json "$SMOKE_METRICS" -C "$OUT" "-j$REMOTE_JOBS" "$PROTO_SMOKE_TARGET"
 
 test -s "$PROTO_SMOKE_OUTPUT" || {
   echo "BRAVE_PROTO_REMOTE_SMOKE=FAIL target completed without $PROTO_SMOKE_OUTPUT" >&2
   exit 1
 }
-echo "BRAVE_PROTO_REMOTE_SMOKE=PASS target=$PROTO_SMOKE_TARGET output=$PROTO_SMOKE_OUTPUT"
+python3 .circleci/scripts/verify-brave-remote-metrics.py "$OUT/$SMOKE_METRICS"
+echo "BRAVE_PROTO_REMOTE_SMOKE=PASS target=$PROTO_SMOKE_TARGET output=$PROTO_SMOKE_OUTPUT fresh_remote_execution=verified"

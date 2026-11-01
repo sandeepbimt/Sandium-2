@@ -3,13 +3,21 @@ name: Sandium lightweight ledger self-test
 on:
   push:
     paths:
+      - ".circleci/config.yml"
       - ".circleci/scripts/brave-action-ledger.py"
       - ".circleci/scripts/test-brave-action-ledger.py"
+      - ".circleci/scripts/verify-brave-remote-metrics.py"
+      - ".circleci/scripts/test-brave-remote-metrics.py"
+      - ".circleci/scripts/verify-brave-remote-smoke.sh"
       - ".github/workflows/sandium-ledger-self-test.yml"
   pull_request:
     paths:
+      - ".circleci/config.yml"
       - ".circleci/scripts/brave-action-ledger.py"
       - ".circleci/scripts/test-brave-action-ledger.py"
+      - ".circleci/scripts/verify-brave-remote-metrics.py"
+      - ".circleci/scripts/test-brave-remote-metrics.py"
+      - ".circleci/scripts/verify-brave-remote-smoke.sh"
       - ".github/workflows/sandium-ledger-self-test.yml"
   workflow_dispatch:
 
@@ -28,10 +36,23 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Compile ledger and test scripts
+      - name: Install CircleCI CLI
+        run: |
+          curl -1sLf 'https://packages.circleci.com/public/setup.deb.sh' | sudo -E bash
+          sudo apt-get update -qq
+          sudo apt-get install -y circleci
+          circleci version
+      - name: Validate CircleCI pipeline configuration
+        run: circleci config validate .circleci/config.yml
+      - name: Compile ledger and remote-execution test scripts
         run: |
           python3 -m py_compile \
             .circleci/scripts/brave-action-ledger.py \
-            .circleci/scripts/test-brave-action-ledger.py
+            .circleci/scripts/test-brave-action-ledger.py \
+            .circleci/scripts/verify-brave-remote-metrics.py \
+            .circleci/scripts/test-brave-remote-metrics.py
+          bash -n .circleci/scripts/verify-brave-remote-smoke.sh
       - name: Test staged action-frontier reconciliation
         run: python3 .circleci/scripts/test-brave-action-ledger.py
+      - name: Test fresh remote-execution proof
+        run: python3 .circleci/scripts/test-brave-remote-metrics.py
