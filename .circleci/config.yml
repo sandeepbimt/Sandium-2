@@ -2384,33 +2384,7 @@ jobs:
             done
             export SANDIUM_ARCHIVE_WORKERS=8
             bash .circleci/scripts/archive-brave-workspace.sh verify
-            python3 - "$SHARD_MANIFEST" "$ROOT/reference-candidate-manifest.txt" <<'PY'
-            import json
-            import sys
-            from pathlib import Path
-            data = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
-            checkpoint = data.get("checkpoint_manifest", {})
-            required = {
-                "CHECKPOINT_VALID": "true",
-                "REFERENCE_MODE": "reference",
-                "APK_VALIDATED": "true",
-                "REFERENCE_READY": "true",
-                "CHROMIUM_SHA": "d331de35ca8ab1358c7a17e4bd41627d55eaef51",
-                "BRAVE_CORE_TAG": "v1.98.62",
-                "TARGET": "android-arm64",
-                "BUILD_TYPE": "Release",
-            }
-            for key, expected in required.items():
-                actual = checkpoint.get(key)
-                if actual != expected:
-                    raise SystemExit("REFERENCE_PROMOTION=FAIL %s=%r expected=%r" % (key, actual, expected))
-            Path(sys.argv[2]).write_text(
-                "\n".join("%s=%s" % (key, value) for key, value in sorted(checkpoint.items())) + "\n",
-                encoding="utf-8",
-            )
-            print("REFERENCE_PROMOTION=PASS workers=%s shards=%s source_bytes=%s archive_bytes=%s" %
-                  (data.get("workers"), len(data.get("shards", [])), data.get("source_bytes"), data.get("archive_bytes")))
-            PY
+            python3 -c 'import json,sys; from pathlib import Path; d=json.loads(Path(sys.argv[1]).read_text(encoding="utf-8")); c=d.get("checkpoint_manifest",{}); req={"CHECKPOINT_VALID":"true","REFERENCE_MODE":"reference","APK_VALIDATED":"true","REFERENCE_READY":"true","CHROMIUM_SHA":"d331de35ca8ab1358c7a17e4bd41627d55eaef51","BRAVE_CORE_TAG":"v1.98.62","TARGET":"android-arm64","BUILD_TYPE":"Release"}; bad=[k for k,v in req.items() if c.get(k)!=v]; assert not bad, "REFERENCE_PROMOTION=FAIL missing or incorrect keys: "+",".join(bad); Path(sys.argv[2]).write_text("\\n".join("%s=%s" % (k,v) for k,v in sorted(c.items()))+"\\n",encoding="utf-8"); print("REFERENCE_PROMOTION=PASS workers=%s shards=%s source_bytes=%s archive_bytes=%s" % (d.get("workers"),len(d.get("shards",[])),d.get("source_bytes"),d.get("archive_bytes")))' "$SHARD_MANIFEST" "$ROOT/reference-candidate-manifest.txt"
             echo "REFERENCE_PROMOTION=CANDIDATE_VERIFIED"
       - save_cache:
           name: Promote immutable latest Sandium parallel-shard reference
