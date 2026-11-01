@@ -1,12 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT="${CIRCLE_WORKING_DIRECTORY:?CIRCLE_WORKING_DIRECTORY is required}"
+ROOT="$(cd "${CIRCLE_WORKING_DIRECTORY:?CIRCLE_WORKING_DIRECTORY is required}" && pwd)"
 SRC_DIR="$ROOT/brave-work/src"
 CORE_DIR="$SRC_DIR/brave"
+SCRIPT_DIR="$ROOT/.circleci/scripts"
 BRAND_DIR="$ROOT/.circleci/branding"
 SOURCE_DIR="$BRAND_DIR/source"
 GENERATED_DIR="$ROOT/.sandium-branding-generated"
+GENERATOR="$SCRIPT_DIR/generate-sandium-density-assets.py"
 CHROMIUM_PIN="d331de35ca8ab1358c7a17e4bd41627d55eaef51"
 BRAVE_PIN="v1.98.62"
 DENSITIES=(mdpi hdpi xhdpi xxhdpi xxxhdpi)
@@ -25,7 +27,13 @@ actual_brave="$(git -C "$CORE_DIR" describe --tags --exact-match 2>/dev/null || 
 [ "$actual_brave" = "$BRAVE_PIN" ] || fail "unexpected Brave source pin: $actual_brave"
 echo "SANDIUM_BRANDING_SOURCE_GATE=PASS brave=$actual_brave chromium=$actual_chromium"
 
-python3 .circleci/scripts/generate-sandium-density-assets.py \
+[ -s "$GENERATOR" ] || fail "density generator not found at project-root path: $GENERATOR"
+[ -d "$SOURCE_DIR" ] || fail "branding source directory missing: $SOURCE_DIR"
+for name in "${ASSETS[@]}"; do
+  [ -s "$SOURCE_DIR/$name" ] || fail "branding master image missing: $SOURCE_DIR/$name"
+done
+
+python3 "$GENERATOR" \
   --source-dir "$SOURCE_DIR" \
   --output-dir "$GENERATED_DIR" \
   --gn-file "$SRC_DIR/chrome/android/BUILD.gn"
