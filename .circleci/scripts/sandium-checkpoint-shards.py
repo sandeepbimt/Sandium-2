@@ -257,25 +257,63 @@ def archive_worker(index: int, total: int, roots: list[Path],
         "tar", "-c",
         "--format=posix",
         "--pax-option=delete=atime,delete=ctime",
-        "--warning=no-file-changed",
         "--checkpoint=100000",
         "--checkpoint-action=echo=SHARD_%02d_TAR_CHECKPOINT=%%u" % index,
         "-C", str(root), "--null", "-T", str(list_file),
     ]
     zstd_command = ["zstd", "-T1", "--fast=3", "-q", "-o", str(temporary)]
     started = time.monotonic()
-    tar = subprocess.Popen(tar_command, stdout=subprocess.PIPE, stderr=None)
-    assert tar.stdout is not None
-    zstd = subprocess.Popen(zstd_command, stdin=tar.stdout, stdout=subprocess.DEVNULL)
-    tar.stdout.close()
-    zstd_rc = zstd.wait()
-    tar_rc = tar.wait()
-    elapsed = time.monotonic() - started
+    tar_rc = -1
+    zstd_rc = -1
+    tar_diagnostic = ""
+    attempts = 0
+
+    # GNU tar returns 1 when files change while being read. This is not a
+    # successful snapshot: retry once after the build/checkpoint has settled.
+    # Keep the diagnostic enabled so repeated mutations are visible in CircleCI.
+    for attempts in range(1, 3):
+        temporary.unlink(missing_ok=True)
+        with tempfile.TemporaryFile() as tar_stderr:
+            tar = subprocess.Popen(tar_command, stdout=subprocess.PIPE, stderr=tar_stderr)
+            assert tar.stdout is not None
+            zstd = subprocess.Popen(zstd_command, stdin=tar.stdout, stdout=subprocess.DEVNULL)
+            tar.stdout.close()
+            zstd_rc = zstd.wait()
+            tar_rc = tar.wait()
+            tar_stderr.seek(0)
+            tar_diagnostic = tar_stderr.read().decode("utf-8", "replace").strip()
+
+        # Preserve the useful 100k-file progress markers while also surfacing
+        # tar warnings that were previously hidden by --warning=no-file-changed.
+        for line in tar_diagnostic.splitlines():
+            if "SHARD_%02d_TAR_CHECKPOINT=" % index in line:
+                print(line, flush=True)
+            elif line:
+                print("SANDIUM_TAR_DIAGNOSTIC shard=%02d %s" % (index, line),
+                      file=sys.stderr, flush=True)
+
+        valid_output = temporary.is_file() and temporary.stat().st_size > 0
+        if tar_rc == 0 and zstd_rc == 0 and valid_output:
+            break
+
+        if tar_rc == 1 and zstd_rc == 0 and attempts == 1:
+            print(
+                "SANDIUM_SHARD_ARCHIVE_RETRY=START shard=%02d reason=tar_exit_1 "
+                "detail=%s" % (index, tar_diagnostic[-1000:] or "no tar diagnostic"),
+                flush=True,
+            )
+            time.sleep(2)
+            continue
+        break
+
     list_file.unlink(missing_ok=True)
+    elapsed = time.monotonic() - started
     if tar_rc != 0 or zstd_rc != 0 or not temporary.is_file() or temporary.stat().st_size == 0:
         temporary.unlink(missing_ok=True)
-        raise RuntimeError("shard %02d failed: tar_exit=%d zstd_exit=%d" %
-                           (index, tar_rc, zstd_rc))
+        raise RuntimeError(
+            "shard %02d failed after %d attempt(s): tar_exit=%d zstd_exit=%d tar_stderr=%s"
+            % (index, attempts, tar_rc, zstd_rc, tar_diagnostic[-2000:] or "<empty>")
+        )
     os.replace(temporary, destination)
     size_bytes = destination.stat().st_size
     return {
@@ -283,9 +321,9 @@ def archive_worker(index: int, total: int, roots: list[Path],
         "size_bytes": size_bytes,
         "sha256": sha256_file(destination),
         "archive_seconds": round(elapsed, 3),
+        "archive_attempts": attempts,
         "root_paths": [path.relative_to(root).as_posix() for path in roots],
     }
-
 
 def archive(root: Path, workers: int) -> None:
     work = root / WORK_NAME
@@ -318,9 +356,9 @@ def archive(root: Path, workers: int) -> None:
             try:
                 result = future.result()
                 results.append(result)
-                print("SANDIUM_SHARD_ARCHIVE=PASS name=%s bytes=%d seconds=%.1f roots=%d sha256=%s" %
+                print("SANDIUM_SHARD_ARCHIVE=PASS name=%s bytes=%d seconds=%.1f attempts=%d roots=%d sha256=%s" %
                       (result["name"], result["size_bytes"], result["archive_seconds"],
-                       len(result["root_paths"]), result["sha256"]))
+                       result["archive_attempts"], len(result["root_paths"]), result["sha256"]))
             except Exception as exc:
                 errors.append(str(exc))
                 print("SANDIUM_SHARD_ARCHIVE=FAIL " + str(exc), file=sys.stderr)
