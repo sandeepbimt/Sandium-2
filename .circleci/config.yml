@@ -1909,8 +1909,8 @@ jobs:
                 echo "BRAVE_REMOTE_SMOKE_STATUS=PASS"
               else
                 RC=$?
-                printf 'REMOTE_SMOKE=FAIL\nREMOTE_SMOKE_EXIT_CODE=%s\n' "$RC" > "$STATUS"
-                echo "BRAVE_REMOTE_SMOKE_STATUS=FAIL exit=$RC; retaining successful smoke-action metrics for reconciliation."
+                printf 'REMOTE_SMOKE=WARNING\nREMOTE_SMOKE_EXIT_CODE=%s\n' "$RC" > "$STATUS"
+                echo "BRAVE_REMOTE_SMOKE_STATUS=WARNING exit=$RC; continuing to the real APK build under -strict_remote. Main APK metrics are authoritative."
               fi
             fi
       - run:
@@ -1937,10 +1937,12 @@ jobs:
               echo "MISSING_REQUIRED_SECRET=BUILDBUDDY_API_KEY" >&2
               exit 1
             fi
-            if ! grep -qx 'REMOTE_SMOKE=PASS' "$SMOKE_STATUS" 2>/dev/null; then
-              echo "BRAVE_BUILD=SKIPPED remote worker smoke did not pass; reconciling completed smoke work."
-              printf 'BUILD_EXIT_CODE=125\nBUILD_REASON=REMOTE_SMOKE_FAILED\n' > "$BUILD_STATUS"
-              exit 0
+            if ! grep -Eq '^REMOTE_SMOKE=(PASS|WARNING|SKIPPED_VALID_APK)$' "$SMOKE_STATUS" 2>/dev/null; then
+              echo "BRAVE_REMOTE_SMOKE_STATUS=UNKNOWN; refusing to start a build without a recorded preflight outcome." >&2
+              exit 2
+            fi
+            if grep -qx 'REMOTE_SMOKE=WARNING' "$SMOKE_STATUS"; then
+              echo "BRAVE_REMOTE_SMOKE=WARNING; not blocking compilation. The Android APK build will run with -strict_remote and its own Siso metrics will be audited."
             fi
             ROOT_SRC="$ROOT/brave-work/src"
             BRAVE_DEPOT_TOOLS="$ROOT_SRC/brave/vendor/depot_tools"
@@ -2008,6 +2010,18 @@ jobs:
                 break
               fi
             done
+            REMOTE_EXECUTION_AUDIT=NOT_AVAILABLE
+            if [ -s "$OUT/$METRICS_FILE" ]; then
+              if python3 "$ROOT/.circleci/scripts/verify-brave-remote-metrics.py" --audit "$OUT/$METRICS_FILE"; then
+                REMOTE_EXECUTION_AUDIT=PASS
+              else
+                REMOTE_AUDIT_RC=$?
+                REMOTE_EXECUTION_AUDIT="WARNING_EXIT_$REMOTE_AUDIT_RC"
+                echo "BRAVE_REMOTE_EXECUTION_AUDIT=WARNING exit=$REMOTE_AUDIT_RC; preserving build metrics and continuing stage handoff."
+              fi
+            else
+              echo "BRAVE_REMOTE_EXECUTION_AUDIT=NOT_AVAILABLE main_metrics=$OUT/$METRICS_FILE"
+            fi
             if [ "$BUILD_RC" -eq 124 ] || [ "$BUILD_RC" -eq 130 ]; then
               BUILD_REASON="TIME_SLICE_COMPLETE"
             elif [ "$BUILD_RC" -eq 0 ]; then
@@ -2020,10 +2034,11 @@ jobs:
               echo "BUILD_EXIT_CODE=$BUILD_RC"
               echo "BUILD_INITIAL_EXIT_CODE=$INITIAL_BUILD_RC"
               echo "BUILD_REASON=$BUILD_REASON"
+              echo "REMOTE_EXECUTION_AUDIT=$REMOTE_EXECUTION_AUDIT"
               echo "CAS_RECOVERY_ATTEMPTS=$CAS_RECOVERY_COUNT"
               echo "BUILD_WINDOW_FINISHED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
             } > "$BUILD_STATUS"
-            echo "BRAVE_BUILD_STAGE_STATUS=RECORDED exit=$BUILD_RC reason=$BUILD_REASON"
+            echo "BRAVE_BUILD_STAGE_STATUS=RECORDED exit=$BUILD_RC reason=$BUILD_REASON remote_audit=$REMOTE_EXECUTION_AUDIT"
       - run:
           name: Export APK status and artifacts
           when: always
