@@ -45,7 +45,7 @@ def elf_machine(archive: zipfile.ZipFile, name: str) -> str:
     try:
         with archive.open(name) as stream:
             header = stream.read(20)
-        if len(header) < 20 or header[:4] != b"\\x7fELF":
+        if len(header) < 20 or header[:4] != bytes((127, 69, 76, 70)):
             return "not-ELF"
         endian = "<" if header[5] == 1 else ">" if header[5] == 2 else None
         if endian is None:
@@ -167,7 +167,7 @@ def make_report(source: Path) -> str:
             "a separate ELF section-table inspection."
         )
         lines.append("APK_SIZE_AUDIT=PASS")
-        return "\\n".join(lines) + "\\n"
+        return chr(10).join(lines) + chr(10)
 
 
 def main() -> int:
