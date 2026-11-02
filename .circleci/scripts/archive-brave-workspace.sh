@@ -20,26 +20,8 @@ ensure_zstd() {
 }
 validate_ledger() {
   [ -s "$LEDGER" ] || fail "missing action ledger: $LEDGER"
-  python3 - "$LEDGER" <<'PY'
-import json
-import sys
-with open(sys.argv[1], encoding="utf-8") as stream:
-    ledger = json.load(stream)
-if ledger.get("schema_version") != 2:
-    raise SystemExit("BRAVE_WORKSPACE_ARCHIVE=FAIL unsupported ledger schema")
-if ledger.get("active_stage"):
-    raise SystemExit("BRAVE_WORKSPACE_ARCHIVE=FAIL an action stage is still active")
-total = int(ledger.get("planned_total", -1))
-completed = len(ledger.get("completed", {}))
-pending = ledger.get("next_pending_action_keys")
-remaining = total - completed
-if total < 0 or completed > total or not isinstance(pending, list):
-    raise SystemExit("BRAVE_WORKSPACE_ARCHIVE=FAIL invalid action-ledger fields")
-if len(pending) != remaining or len(set(pending)) != remaining:
-    raise SystemExit("BRAVE_WORKSPACE_ARCHIVE=FAIL pending action set does not reconcile with total-completed")
-print("BRAVE_WORKSPACE_ACTION_LEDGER=PASS completed=%d total=%d pending=%d" %
-      (completed, total, remaining))
-PY
+  python3 "$ROOT/.circleci/scripts/validate-brave-action-ledger.py" "$LEDGER" \
+    || fail "action ledger did not pass three-way checkpoint reconciliation"
 }
 case "$MODE" in
   restore)
