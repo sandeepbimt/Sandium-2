@@ -96,7 +96,10 @@ case "$MODE" in
     python3 "$ROOT/.circleci/scripts/sandium-checkpoint-shards.py" archive --root "$ROOT" --workers "$WORKERS"
     [ -d "$SHARDS" ] || fail "parallel shard directory was not created"
     [ -s "$SHARD_MANIFEST" ] || fail "parallel shard manifest was not created"
-    touch "$WORK/.sandium/workspace-archive-created-this-run"
+    python3 "$ROOT/.circleci/scripts/checkpoint-stage-receipt.py" write \
+      --root "$ROOT" \
+      --stage "${BRAVE_STAGE_INDEX:?BRAVE_STAGE_INDEX is required for FULL MODE archive receipt}" \
+      --workflow-id "${CIRCLE_WORKFLOW_ID:?CIRCLE_WORKFLOW_ID is required for FULL MODE archive receipt}"
     echo "BRAVE_WORKSPACE_ARCHIVE_CREATE=PASS format=parallel-tar-zstd-shards workers=$WORKERS"
     ;;
   verify)
