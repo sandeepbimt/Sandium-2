@@ -24,6 +24,43 @@ def run(*args: str, env: dict[str, str] | None = None) -> str:
     return proc.stdout
 
 
+def test_idle_build_server_shutdown(root: Path) -> None:
+    work = root / "idle-server-fixture" / "brave-work"
+    script = work / "src" / "build" / "android" / "fast_local_dev_server.py"
+    script.parent.mkdir(parents=True)
+    log = work / "src" / "out" / "android_Release_arm64" / "buildserver.log.2"
+    log.parent.mkdir(parents=True)
+    script.write_text(
+        "import sys, time\\n"
+        "stream = open(sys.argv[1], 'a', encoding='utf-8')\\n"
+        "stream.write('server-ready\\n'); stream.flush()\\n"
+        "time.sleep(60)\\n",
+        encoding="utf-8",
+    )
+    process = subprocess.Popen(
+        [sys.executable, str(script), "--exit-on-idle", "--quiet", str(log)]
+    )
+    try:
+        for _ in range(40):
+            if log.exists() and log.stat().st_size:
+                break
+            if process.poll() is not None:
+                raise AssertionError("idle server fixture exited before test")
+            time.sleep(0.05)
+        assert log.exists() and log.stat().st_size, "fixture server did not open its log"
+        writers = SHARD_MODULE.find_open_writers(work)
+        assert any(item["pid"] == str(process.pid) for item in writers), writers
+
+        SHARD_MODULE.stop_idle_build_servers(work, timeout=5.0)
+        process.wait(timeout=2.0)
+        assert process.returncode is not None
+        assert not SHARD_MODULE.find_open_writers(work)
+    finally:
+        if process.poll() is None:
+            process.terminate()
+            process.wait(timeout=2.0)
+
+
 def test_hardlink_snapshot(root: Path) -> None:
     work = root / "snapshot-fixture" / "brave-work"
     source_dir = work / "src" / "out" / "android_Release_arm64" / "obj" / "base"
@@ -135,6 +172,7 @@ def main() -> None:
 
         # Prove that the hard-link namespace snapshot is isolated from later
         # creates/removals/replacements in the live build workspace.
+        test_idle_build_server_shutdown(root)
         test_hardlink_snapshot(root)
         staging_file = output / "obj" / "component-00" / "temporary.stamp.staging"
         staging_file.write_text("not a final build output\\n", encoding="utf-8")
