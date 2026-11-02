@@ -473,19 +473,35 @@ def main():
     # be treated as unplanned APK compilation. However, any smoke actions that
     # are also in the APK target's pre-build frontier are genuine completed APK
     # prerequisites and must be credited to avoid a false pending-set mismatch.
-    metrics, stats = read_metrics(out, a.metrics_prefix)
+    reported_metrics, stats = read_metrics(out, a.metrics_prefix)
+    failed_main_keys = {
+        key for key, item in reported_metrics.items()
+        if item.get("success") is not True
+    }
+    # Failed Siso records are diagnostic evidence, not completed work. Keep
+    # only successful records in the completed-action set; failed identities
+    # must remain in the live post-build frontier for the next stage to retry.
+    metrics = {
+        key: item for key, item in reported_metrics.items()
+        if item.get("success") is True
+    }
     smoke_path = out / f"{a.metrics_prefix}smoke.jsonl"
-    smoke_metrics, smoke_stats = read_metrics(
+    reported_smoke_metrics, smoke_stats = read_metrics(
         out, "__sandium_no_smoke_prefix__", [smoke_path])
+    failed_smoke_keys = {
+        key for key, item in reported_smoke_metrics.items()
+        if item.get("success") is not True
+    }
+    smoke_metrics = {
+        key: item for key, item in reported_smoke_metrics.items()
+        if item.get("success") is True
+    }
     if stats["successful_duplicate_records"]:
         die("ACTION_DUPLICATE_WITHIN_STAGE=FAIL %d APK-build actions were successfully recorded more than once in this stage" %
             stats["successful_duplicate_records"])
     if smoke_stats["successful_duplicate_records"]:
         die("ACTION_SMOKE_DUPLICATE=FAIL %d smoke actions were successfully recorded more than once" %
             smoke_stats["successful_duplicate_records"])
-    if stats["failed_records"] or smoke_stats["failed_records"]:
-        die("ACTION_METRICS_FAILURE=FAIL apk_build_failed_records=%d remote_smoke_failed_records=%d" %
-            (stats["failed_records"], smoke_stats["failed_records"]))
     pending_before_keys = set(active.get("pending_action_keys", []))
     if len(pending_before_keys) != int(active.get("pending_before", -1)):
         die("ACTION_LEDGER_STAGE=FAIL missing or invalid pending action identity set")
@@ -497,6 +513,17 @@ def main():
         die("ACTION_DUPLICATE_ACROSS_SMOKE_AND_BUILD=FAIL %d planned actions were recorded by both the smoke probe and APK build" %
             len(duplicate_smoke_build))
     metrics = {**smoke_planned, **metrics}
+    failed_action_keys = (
+        failed_main_keys | (failed_smoke_keys & pending_before_keys)
+    ) - set(metrics)
+    if failed_action_keys:
+        print("ACTION_FAILED_ACTION_HANDOFF=CHECKING failed_pending=%d examples=%s; "
+              "failed records are not credited as completed" %
+              (len(failed_action_keys), sorted(failed_action_keys)[:5]))
+    elif stats["failed_records"] or smoke_stats["failed_records"]:
+        print("ACTION_FAILED_ACTION_HANDOFF=RECOVERED failed_records=%d; "
+              "all final action identities have successful records" %
+              (stats["failed_records"] + smoke_stats["failed_records"]))
     print("ACTION_REMOTE_SMOKE_RECONCILIATION=PASS planned_overlap=%d preflight_only=%d failed_records=%d" %
           (len(smoke_planned), len(smoke_preflight_only), smoke_stats["failed_records"]))
     if not stats["files"] and not smoke_planned and int(active.get("pending_before", 0)):
@@ -524,6 +551,11 @@ def main():
     before = len(pending_before_keys)
     after_keys, after_dry = dry_run_actions(
         autoninja, src, out, a.jobs, a.stage, a.build, a.workflow)
+    failed_not_pending = failed_action_keys - after_keys
+    if failed_not_pending:
+        die("ACTION_FAILED_HANDOFF=FAIL %d failed Siso action(s) are absent from the live post-build frontier; "
+            "refusing to mark them complete or silently drop them. examples=%s" %
+            (len(failed_not_pending), sorted(failed_not_pending)[:5]))
     planned_completed_keys = set(metrics).intersection(pending_before_keys)
     dynamically_completed_keys = set(metrics) - pending_before_keys
     planned_remaining_keys = pending_before_keys - planned_completed_keys
@@ -642,7 +674,12 @@ def main():
 
     added = len(metrics)
     if before > 0 and added == 0 and not newly_pending_keys and len(after_keys) == before:
-        die("ACTION_STAGE_NO_PROGRESS=FAIL this stage completed zero new actions and left the pending frontier unchanged")
+        if failed_action_keys:
+            print("ACTION_STAGE_NO_PROGRESS=HANDOFF failed_actions=%d remain pending; "
+                  "next stage will retry the exact failed action identities" %
+                  len(failed_action_keys))
+        else:
+            die("ACTION_STAGE_NO_PROGRESS=FAIL this stage completed zero new actions and left the pending frontier unchanged")
 
     # Newly discovered work is part of the build denominator, not an error.
     # Completed discoveries increase both total and completed; still-pending
@@ -669,6 +706,8 @@ def main():
         "new_completed": added,
         "pending_after": len(handoff_pending_keys),
         "metric_stats": stats,
+        "failed_action_keys_handed_off": sorted(failed_action_keys),
+        "failed_action_count_handed_off": len(failed_action_keys),
         "after_dry_run": after_dry,
         "completed_total": len(ledger["completed"]),
         "checkpoint_satisfied_total": len(checkpoint_satisfied),
@@ -692,8 +731,13 @@ def main():
     print("ACTION_DYNAMIC_ACTION_ACCOUNTING=PASS discovered_completed=%d discovered_pending=%d" %
           (len(dynamically_completed_keys), len(newly_pending_keys)))
     print(f"ACTION_COMPLETION_MATH=PASS before={before} new={added} after={after}")
-    print(f"ACTION_METRICS=PASS files={len(stats['files'])} records={stats['records']} "
-          f"actions={stats['action_records']} unique={added} failed_records={stats['failed_records']}")
+    if failed_action_keys:
+        print(f"ACTION_METRICS=HANDOFF_READY files={len(stats['files'])} records={stats['records']} "
+              f"successful_unique={added} failed_records={stats['failed_records']} "
+              f"failed_pending={len(failed_action_keys)}")
+    else:
+        print(f"ACTION_METRICS=PASS files={len(stats['files'])} records={stats['records']} "
+              f"actions={stats['action_records']} unique={added} failed_records={stats['failed_records']}")
     print(f"SANDIUM_BUILD_MATH=metric_completed={done} checkpoint_satisfied={checkpoint_done} "
           f"pending={remaining} total={total}")
     if remaining == 0:

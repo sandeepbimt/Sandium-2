@@ -328,6 +328,41 @@ if "-n" in args:
                               "--metrics-prefix", "test-restored-stage2-"], env)
         assert "SANDIUM_BUILD_MATH=metric_completed=30 checkpoint_satisfied=50 pending=20 total=100" in restored_done2, restored_done2
 
+        # A failed link/action record must never be credited as completed.
+        # It remains in the exact pending frontier and can finish in Stage 2.
+        (src.parent / ".sandium" / "action-ledger.json").unlink(missing_ok=True)
+        (src.parent / ".sandium" / "apk-completion-status.txt").unlink(missing_ok=True)
+        (out / "apks" / "BraveMonoarm64.apk").unlink(missing_ok=True)
+        pending_file.write_text(json.dumps([7000]), encoding="utf-8")
+        failed_plan = run(["plan", *common, "--stage", "1", "--build", "808",
+                           "--workflow", "failed-action-workflow"], env)
+        assert "ACTION_HANDOFF_GATE=PASS live_siso_pending=1/1" in failed_plan, failed_plan
+        failed_metrics = out / "test-failed-stage1-0.jsonl"
+        failed_row = metric(7000)
+        failed_row["err"] = True
+        with failed_metrics.open("w", encoding="utf-8") as stream:
+            stream.write(json.dumps(failed_row) + "\\n")
+        pending_file.write_text(json.dumps([7000]), encoding="utf-8")
+        failed_done = run(["complete", *common, "--stage", "1", "--build", "808",
+                           "--workflow", "failed-action-workflow",
+                           "--metrics-prefix", "test-failed-stage1-"], env)
+        assert "ACTION_FAILED_ACTION_HANDOFF=CHECKING failed_pending=1" in failed_done, failed_done
+        assert "ACTION_STAGE_NO_PROGRESS=HANDOFF failed_actions=1 remain pending" in failed_done, failed_done
+        assert "ACTION_METRICS=HANDOFF_READY" in failed_done, failed_done
+        assert "SANDIUM_BUILD_MATH=metric_completed=0 checkpoint_satisfied=0 pending=1 total=1" in failed_done, failed_done
+        assert "SANDIUM_ACTION_FRONTIER=CONTINUE remaining=1" in failed_done, failed_done
+
+        stage2_retry_plan = run(["plan", *common, "--stage", "2", "--build", "809",
+                                 "--workflow", "failed-action-retry"], env)
+        assert "ACTION_HANDOFF_GATE=PASS live_siso_pending=1/1" in stage2_retry_plan, stage2_retry_plan
+        write_metrics(out / "test-failed-stage2-0.jsonl", [7000])
+        pending_file.write_text("[]", encoding="utf-8")
+        failed_retry_done = run(["complete", *common, "--stage", "2", "--build", "809",
+                                 "--workflow", "failed-action-retry",
+                                 "--metrics-prefix", "test-failed-stage2-"], env)
+        assert "SANDIUM_BUILD_MATH=metric_completed=1 checkpoint_satisfied=0 pending=0 total=1" in failed_retry_done, failed_retry_done
+
+
     print("BRAVE_ACTION_LEDGER_SELF_TEST=PASS dynamic discovery + pending handoff + APK-gated pruning + manifest-stub expansion + bounded-slice recovery")
 
 if __name__ == "__main__":

@@ -1780,7 +1780,7 @@ jobs:
               '-reapi_keep_exec_stream' \
               '-fs_min_flush_timeout 300s' \
               '-reapi_byte_stream_read_threshold 1024' \
-              '-config googlechrome' \
+              '-config googlechrome,remote-link' \
               '-re_cache_enable_write=true'; do
               grep -Fq -- "$REQUIRED_SISO_FLAG" "$SISO_RC" || {
                 echo "BRAVE_STAGE_CONFIG_GATE=FAIL missing Siso flag: $REQUIRED_SISO_FLAG" >&2
@@ -1979,7 +1979,7 @@ jobs:
             METRICS_FILE="${METRICS_PREFIX}0.jsonl"
             BUILD_MODE="<< pipeline.parameters.sandium_build_mode >>"
             case "$BUILD_MODE" in
-              full) STAGE_BUILD_BUDGET_SECONDS=900 ;;
+              full) STAGE_BUILD_BUDGET_SECONDS=1200 ;;
               fast) STAGE_BUILD_BUDGET_SECONDS=2700 ;;
               *) echo "BRAVE_BUILD_MODE_GATE=FAIL unsupported mode=$BUILD_MODE" >&2; exit 2 ;;
             esac
@@ -2036,25 +2036,44 @@ jobs:
               echo "BRAVE_REMOTE_EXECUTION_AUDIT=NOT_AVAILABLE main_metrics=$OUT/$METRICS_FILE"
             fi
             BUILD_TIME_SLICE_EXPIRED=false
-            if [ "$BUILD_RC" -eq 124 ] || [ "$BUILD_RC" -eq 130 ] || [ "$BUILD_RC" -eq 137 ] || [ "$BUILD_RC" -eq 143 ] || [ "$SECONDS" -ge "$STAGE_BUILD_DEADLINE" ]; then
+            BUILD_COMMAND_SUCCEEDED=false
+            BUILD_SLICE_INCOMPLETE=true
+            # GNU timeout returns 124 when the stage budget expires. Signal-like
+            # exit codes (130/137/143) alone are NOT proof of a time-slice expiry:
+            # a local OOM killer or an externally killed compiler can return them
+            # much earlier than the budget. Classify those as failed work instead.
+            if [ "$BUILD_RC" -eq 124 ] || [ "$SECONDS" -ge "$STAGE_BUILD_DEADLINE" ]; then
               BUILD_TIME_SLICE_EXPIRED=true
               BUILD_REASON="TIME_SLICE_COMPLETE"
             elif [ "$BUILD_RC" -eq 0 ]; then
               BUILD_REASON="BUILD_COMMAND_SUCCESS"
+              BUILD_COMMAND_SUCCEEDED=true
+              BUILD_SLICE_INCOMPLETE=false
             else
-              BUILD_REASON="RECOVERABLE_BUILD_ERROR"
-              echo "BRAVE_BUILD_COMMAND=NONZERO exit=$BUILD_RC; persisting completed actions for the next stage."
+              BUILD_REASON="ACTION_FAILED_HANDOFF"
+              echo "BRAVE_BUILD_COMMAND=INCOMPLETE exit=$BUILD_RC; no APK success is claimed. "
+              echo "Completed actions may be checkpointed; failed actions must remain pending for the next stage."
             fi
             {
               echo "BUILD_EXIT_CODE=$BUILD_RC"
               echo "BUILD_INITIAL_EXIT_CODE=$INITIAL_BUILD_RC"
               echo "BUILD_REASON=$BUILD_REASON"
               echo "BUILD_TIME_SLICE_EXPIRED=$BUILD_TIME_SLICE_EXPIRED"
+              echo "BUILD_COMMAND_SUCCEEDED=$BUILD_COMMAND_SUCCEEDED"
+              echo "BUILD_SLICE_INCOMPLETE=$BUILD_SLICE_INCOMPLETE"
+              echo "BUILD_HANDOFF_ALLOWED=true"
+              echo "STAGE_BUILD_BUDGET_SECONDS=$STAGE_BUILD_BUDGET_SECONDS"
               echo "REMOTE_EXECUTION_AUDIT=$REMOTE_EXECUTION_AUDIT"
               echo "CAS_RECOVERY_ATTEMPTS=$CAS_RECOVERY_COUNT"
               echo "BUILD_WINDOW_FINISHED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
             } > "$BUILD_STATUS"
-            echo "BRAVE_BUILD_STAGE_STATUS=RECORDED exit=$BUILD_RC reason=$BUILD_REASON remote_audit=$REMOTE_EXECUTION_AUDIT"
+            if [ "$BUILD_COMMAND_SUCCEEDED" = true ]; then
+              echo "BRAVE_BUILD_STAGE_STATUS=COMMAND_SUCCESS exit=$BUILD_RC reason=$BUILD_REASON remote_audit=$REMOTE_EXECUTION_AUDIT"
+            else
+              echo "BRAVE_BUILD_STAGE_STATUS=INCOMPLETE exit=$BUILD_RC reason=$BUILD_REASON "
+              echo "build_budget_seconds=$STAGE_BUILD_BUDGET_SECONDS; time_slice_expired=$BUILD_TIME_SLICE_EXPIRED; "
+              echo "failed Siso actions are not completed work and must remain pending at handoff."
+            fi
       - run:
           name: Export APK status and artifacts
           when: always
@@ -2236,7 +2255,7 @@ jobs:
                     '-reapi_keep_exec_stream' \
                     '-fs_min_flush_timeout 300s' \
                     '-reapi_byte_stream_read_threshold 1024' \
-                    '-config googlechrome' \
+                    '-config googlechrome,remote-link' \
                     '-re_cache_enable_write=true'; do
                     grep -Fq -- "$REQUIRED_SISO_FLAG" "$SISO_RC" || {
                       echo "CHECKPOINT_SAVE=REFUSED missing Siso flag: $REQUIRED_SISO_FLAG" >&2
