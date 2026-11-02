@@ -513,8 +513,13 @@ def main():
                     build_status[key.strip()] = value.strip()
         time_slice_complete = (
             build_status.get("BUILD_REASON") == "TIME_SLICE_COMPLETE" and
-            build_status.get("BUILD_EXIT_CODE") in {"124", "130"}
+            build_status.get("BUILD_TIME_SLICE_EXPIRED") == "true"
         )
+        print("ACTION_BUILD_STATUS_DIAGNOSTIC path=%s exists=%s reason=%s exit=%s time_slice_expired=%s" %
+              (build_status_path, build_status_path.is_file(),
+               build_status.get("BUILD_REASON", "missing"),
+               build_status.get("BUILD_EXIT_CODE", "missing"),
+               build_status.get("BUILD_TIME_SLICE_EXPIRED", "missing")))
         if time_slice_complete and not after_keys and not apk_validated:
             # A deliberate timeout can leave Siso's post-build -n probe
             # temporarily reporting an empty graph even though the original
