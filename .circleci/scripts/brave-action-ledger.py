@@ -553,7 +553,7 @@ def main():
                   "dynamically_completed=%d; reason=%s" %
                   (len(pruned_planned_keys), initial_action_count, after_action_count,
                    len(dynamically_completed_keys), pruned_reason))
-        elif time_slice_complete and not after_keys and not apk_validated:
+        elif time_slice_complete and not apk_validated:
             # handled above: retain the unaccounted planned actions as pending
             # rather than treating graph disappearance as successful completion.
             pass
