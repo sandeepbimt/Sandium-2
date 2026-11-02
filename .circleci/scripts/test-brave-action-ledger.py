@@ -116,7 +116,7 @@ if "-n" in args:
         out.mkdir(parents=True, exist_ok=True)
         plan1 = run(["plan", *common, "--stage", "1", "--build", "101",
                      "--workflow", "workflow-one"], env)
-        assert "ACTION_HANDOFF_GATE=PASS pending=100/100" in plan1, plan1
+        assert "ACTION_HANDOFF_GATE=PASS live_siso_pending=100/100" in plan1, plan1
 
         stage1_metrics = out / "test-stage1-0.jsonl"
         write_metrics(stage1_metrics, range(88))
@@ -206,7 +206,7 @@ if "-n" in args:
         # newly discovered action 4000, and complete the original final action.
         stage3_plan = run(["plan", *common, "--stage", "3", "--build", "303",
                            "--workflow", "workflow-three"], env)
-        assert "ACTION_HANDOFF_GATE=PASS pending=3/3" in stage3_plan, stage3_plan
+        assert "ACTION_HANDOFF_GATE=PASS live_siso_pending=3/3" in stage3_plan, stage3_plan
         stage3_metrics = out / "test-stage3-0.jsonl"
         write_metrics(stage3_metrics, [99])
         pending_file.write_text("[]", encoding="utf-8")
@@ -270,7 +270,7 @@ if "-n" in args:
         pending_file.write_text(json.dumps(list(range(20))), encoding="utf-8")
         slice_plan = run(["plan", *common, "--stage", "1", "--build", "505",
                           "--workflow", "time-slice-workflow"], env)
-        assert "ACTION_HANDOFF_GATE=PASS pending=20/20" in slice_plan, slice_plan
+        assert "ACTION_HANDOFF_GATE=PASS live_siso_pending=20/20" in slice_plan, slice_plan
         slice_metrics = out / "test-timeslice-stage1-0.jsonl"
         write_metrics(slice_metrics, range(8))
         with slice_metrics.open("a", encoding="utf-8") as stream:
@@ -289,7 +289,7 @@ if "-n" in args:
         pending_file.write_text(json.dumps(list(range(8, 20)) + list(range(2003, 2006))), encoding="utf-8")
         slice_stage2 = run(["plan", *common, "--stage", "2", "--build", "506",
                             "--workflow", "time-slice-next"], env)
-        assert "ACTION_HANDOFF_GATE=PASS pending=15/15" in slice_stage2, slice_stage2
+        assert "ACTION_HANDOFF_GATE=PASS live_siso_pending=15/15" in slice_stage2, slice_stage2
         assert "SANDIUM_BUILD_MATH=metric_completed=11 checkpoint_satisfied=0 pending=15 total=26" in slice_stage2, slice_stage2
 
 
