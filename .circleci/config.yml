@@ -2471,6 +2471,7 @@ workflows:
               only:
                 - sandium/brave-android-poc
                 - sandium/archive-zstd-fast5
+                - sandium/fix-archive-completion-gate
       - brave-android-staged-build:
           name: SANDIUM-FULL-MODE-stage-2
           stage_index: 2
@@ -2480,6 +2481,7 @@ workflows:
               only:
                 - sandium/brave-android-poc
                 - sandium/archive-zstd-fast5
+                - sandium/fix-archive-completion-gate
       - brave-android-staged-build:
           name: SANDIUM-FULL-MODE-stage-3
           stage_index: 3
@@ -2489,6 +2491,7 @@ workflows:
               only:
                 - sandium/brave-android-poc
                 - sandium/archive-zstd-fast5
+                - sandium/fix-archive-completion-gate
       - brave-android-staged-build:
           name: SANDIUM-FULL-MODE-stage-4
           stage_index: 4
@@ -2498,6 +2501,7 @@ workflows:
               only:
                 - sandium/brave-android-poc
                 - sandium/archive-zstd-fast5
+                - sandium/fix-archive-completion-gate
       - brave-android-staged-build:
           name: SANDIUM-FULL-MODE-stage-5
           stage_index: 5
@@ -2507,6 +2511,7 @@ workflows:
               only:
                 - sandium/brave-android-poc
                 - sandium/archive-zstd-fast5
+                - sandium/fix-archive-completion-gate
       - promote-brave-reference:
           name: SANDIUM-FULL-MODE-reference-promotion
           requires: [SANDIUM-FULL-MODE-stage-5]
