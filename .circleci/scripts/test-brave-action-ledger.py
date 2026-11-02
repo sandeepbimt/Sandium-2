@@ -340,6 +340,11 @@ if "-n" in args:
         failed_metrics = out / "test-failed-stage1-0.jsonl"
         failed_row = metric(7000)
         failed_row["err"] = True
+        # The metrics reader keeps its original success-only default for plan()
+        # but complete() opts in so failed identities can be handed off.
+        raw_metrics = out / "test-raw-failed.jsonl"
+        with raw_metrics.open("w", encoding="utf-8") as stream:
+            stream.write(json.dumps(failed_row) + "\n")
         with failed_metrics.open("w", encoding="utf-8") as stream:
             stream.write(json.dumps(failed_row) + "\n")
         pending_file.write_text(json.dumps([7000]), encoding="utf-8")

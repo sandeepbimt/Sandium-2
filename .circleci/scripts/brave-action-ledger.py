@@ -217,7 +217,7 @@ def metric_key(row: dict):
     key = sha(json.dumps(stable, sort_keys=True, separators=(",", ":")).encode())
     return key, ident
 
-def read_metrics(out: Path, prefix: str, extra_files=()):
+def read_metrics(out: Path, prefix: str, extra_files=(), include_failed: bool = False):
     actions, stats = {}, {"files": [], "records": 0, "action_records": 0,
                           "summary_records": 0, "failed_records": 0,
                           "duplicate_records": 0,
@@ -268,7 +268,7 @@ def read_metrics(out: Path, prefix: str, extra_files=()):
                     "is_local": bool(row.get("is_local")),
                     "no_exec": bool(row.get("no_exec")),
                 }
-    return {k: v for k, v in actions.items() if v.get("success")}, stats
+    return actions if include_failed else {k: v for k, v in actions.items() if v.get("success")}, stats
 
 def normalize_output(path: str, out: Path) -> str:
     value = path.replace("\\", "/")
@@ -473,7 +473,7 @@ def main():
     # be treated as unplanned APK compilation. However, any smoke actions that
     # are also in the APK target's pre-build frontier are genuine completed APK
     # prerequisites and must be credited to avoid a false pending-set mismatch.
-    reported_metrics, stats = read_metrics(out, a.metrics_prefix)
+    reported_metrics, stats = read_metrics(out, a.metrics_prefix, include_failed=True)
     failed_main_keys = {
         key for key, item in reported_metrics.items()
         if item.get("success") is not True
@@ -487,7 +487,7 @@ def main():
     }
     smoke_path = out / f"{a.metrics_prefix}smoke.jsonl"
     reported_smoke_metrics, smoke_stats = read_metrics(
-        out, "__sandium_no_smoke_prefix__", [smoke_path])
+        out, "__sandium_no_smoke_prefix__", [smoke_path], include_failed=True)
     failed_smoke_keys = {
         key for key, item in reported_smoke_metrics.items()
         if item.get("success") is not True
