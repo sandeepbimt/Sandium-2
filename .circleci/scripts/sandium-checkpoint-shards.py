@@ -384,8 +384,13 @@ def stop_idle_build_servers(work: Path, timeout: float = 10.0) -> None:
     while remaining and time.monotonic() < deadline:
         for pid in list(remaining):
             try:
+                stat_text = (proc_root / str(pid) / "stat").read_text(encoding="ascii")
+                state = stat_text[stat_text.rfind(")") + 2:].split()[0]
+                if state == "Z":
+                    remaining.pop(pid, None)
+                    continue
                 os.kill(pid, 0)
-            except ProcessLookupError:
+            except (ProcessLookupError, FileNotFoundError):
                 remaining.pop(pid, None)
             except PermissionError:
                 pass
