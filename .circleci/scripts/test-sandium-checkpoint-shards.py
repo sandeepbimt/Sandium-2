@@ -26,13 +26,13 @@ def run(*args: str, env: dict[str, str] | None = None) -> str:
 def test_transient_tar_races(root: Path, output: Path) -> None:
     base_dir = output / "obj" / "base"
     base_dir.mkdir(parents=True, exist_ok=True)
-    staging_path = base_dir / "tristate_java__errorprone.stamp.staging"
+
     sample = (
-        "tar: SHARD_02_TAR_CHECKPOINT=100000\\n"
+        "tar: SHARD_02_TAR_CHECKPOINT=100000\n"
         "tar: brave-work/src/out/android_Release_arm64/obj/base/"
-        "tristate_java__errorprone.stamp.staging: File removed before we read it\\n"
+        "tristate_java__errorprone.stamp.staging: File removed before we read it\n"
         "tar: brave-work/src/out/android_Release_arm64/obj/base: "
-        "file changed as we read it\\n"
+        "file changed as we read it\n"
     )
     accepted = SHARD_MODULE.validate_tar_diagnostics(root, sample)
     assert len(accepted) == 2, accepted
@@ -157,7 +157,7 @@ def main() -> None:
             "\"$SANDIUM_REAL_TAR\" \"$@\"\n"
             "status=$?\n"
             "if [ \"$status\" -eq 0 ] && mkdir \"$SANDIUM_TAR_FAIL_ONCE_LOCK\" 2>/dev/null; then\n"
-            "  echo SANDIUM_TEST_INJECTED_TAR_EXIT_1 >&2\n"
+            "  printf '%s\\n' SANDIUM_TEST_INJECTED_TAR_EXIT_1 > \"$SANDIUM_TAR_FAIL_ONCE_LOG\"\n"
             "  exit 1\n"
             "fi\n"
             "exit \"$status\"\n",

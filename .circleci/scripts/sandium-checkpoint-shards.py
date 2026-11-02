@@ -265,7 +265,7 @@ def validate_tar_diagnostics(root: Path, diagnostic: str) -> list[dict[str, str]
         line = raw_line.strip()
         if not line:
             continue
-        if re.search(r"SHARD_\\d+_TAR_CHECKPOINT=\\d+$", line):
+        if re.search(r"SHARD_\d+_TAR_CHECKPOINT=\d+$", line):
             continue
 
         match = race_pattern.fullmatch(line)
