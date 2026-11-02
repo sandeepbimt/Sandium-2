@@ -1548,8 +1548,9 @@ jobs:
           name: Run lightweight Brave continuation self-test
           command: |
             set -euo pipefail
-            python3 -m py_compile .circleci/scripts/brave-action-ledger.py .circleci/scripts/sandium-checkpoint-shards.py .circleci/scripts/test-sandium-checkpoint-shards.py
+            python3 -m py_compile .circleci/scripts/brave-action-ledger.py .circleci/scripts/sandium-checkpoint-shards.py .circleci/scripts/test-sandium-checkpoint-shards.py .circleci/scripts/validate-brave-action-ledger.py .circleci/scripts/test-validate-brave-action-ledger.py
             python3 .circleci/scripts/test-brave-action-ledger.py
+            python3 .circleci/scripts/test-validate-brave-action-ledger.py
             python3 .circleci/scripts/test-sandium-checkpoint-shards.py
             python3 -m py_compile .circleci/scripts/verify-brave-remote-metrics.py
             python3 .circleci/scripts/test-brave-remote-metrics.py
@@ -2250,7 +2251,9 @@ jobs:
                   mkdir -p "$ROOT/brave-work/.sandium"
                   ACTION_LEDGER="$ROOT/brave-work/.sandium/action-ledger.json"
                   test -s "$ACTION_LEDGER" || { echo "CHECKPOINT_SAVE=REFUSED missing action-level continuation ledger" >&2; exit 1; }
-                  python3 -c 'import json,sys; p=sys.argv[1]; d=json.load(open(p,encoding="utf-8")); total=int(d.get("planned_total",-1)); completed=len(d.get("completed",{})); pending=d.get("next_pending_action_keys"); remaining=total-completed; assert d.get("schema_version")==2, "CHECKPOINT_ACTION_LEDGER=FAIL schema"; assert not d.get("active_stage"), "CHECKPOINT_ACTION_LEDGER=FAIL active stage"; assert total>=0 and completed<=total and isinstance(pending,list), "CHECKPOINT_ACTION_LEDGER=FAIL invalid fields"; assert len(pending)==remaining and len(set(pending))==remaining, "CHECKPOINT_ACTION_LEDGER=FAIL pending set mismatch"; print("CHECKPOINT_ACTION_LEDGER=PASS completed=%d total=%d remaining=%d" % (completed,total,remaining))' "$ACTION_LEDGER"
+                  LEDGER_COUNTS="$(python3 "$ROOT/.circleci/scripts/validate-brave-action-ledger.py" --counts "$ACTION_LEDGER")"
+                  read -r ACTION_LEDGER_TOTAL ACTION_LEDGER_COMPLETED ACTION_LEDGER_CHECKPOINT_SATISFIED ACTION_LEDGER_PENDING <<< "$LEDGER_COUNTS"
+                  echo "CHECKPOINT_ACTION_LEDGER=PASS metric_completed=$ACTION_LEDGER_COMPLETED checkpoint_satisfied=$ACTION_LEDGER_CHECKPOINT_SATISFIED pending=$ACTION_LEDGER_PENDING total=$ACTION_LEDGER_TOTAL"
                   APK_VALIDATED=false
                   APK_MARKER="$ROOT/brave-work/.sandium/apk-completion-status.txt"
                   if [ -s "$APK_MARKER" ] && grep -qx "BUILD_FINISHED=true" "$APK_MARKER" && grep -qx "APK_ARCHIVE_VALID=true" "$APK_MARKER" && grep -qx "APK_SIGNATURE_VALID=true" "$APK_MARKER" && grep -qx "APK_PACKAGE_ID_VALID=true" "$APK_MARKER" && grep -qx "APK_BRANDING_VALID=true" "$APK_MARKER"; then
@@ -2262,8 +2265,10 @@ jobs:
                     echo "APK_VALIDATED=$APK_VALIDATED"
                     echo "REFERENCE_READY=$APK_VALIDATED"
                     echo "REFERENCE_SOURCE_REVISION={{ .Revision }}"
-                    echo "ACTION_LEDGER_TOTAL=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["planned_total"])' "$ACTION_LEDGER")"
-                    echo "ACTION_LEDGER_COMPLETED=$(python3 -c 'import json,sys; print(len(json.load(open(sys.argv[1]))["completed"]))' "$ACTION_LEDGER")"
+                    echo "ACTION_LEDGER_TOTAL=$ACTION_LEDGER_TOTAL"
+                    echo "ACTION_LEDGER_COMPLETED=$ACTION_LEDGER_COMPLETED"
+                    echo "ACTION_LEDGER_CHECKPOINT_SATISFIED=$ACTION_LEDGER_CHECKPOINT_SATISFIED"
+                    echo "ACTION_LEDGER_PENDING=$ACTION_LEDGER_PENDING"
                     echo "BRAVE_CORE_TAG=$BRAVE_TAG"
                     echo "CHROMIUM_SHA=$CHROMIUM_SHA"
                     echo "TARGET=android-arm64"
@@ -2325,7 +2330,8 @@ jobs:
               echo "FINAL_STAGE_GATE=FAIL unknown mode=$MODE" >&2
               exit 1
             fi
-            PENDING="$(python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); print(int(d["planned_total"])-len(d["completed"]))' "$LEDGER")"
+            LEDGER_COUNTS="$(python3 "$ROOT/.circleci/scripts/validate-brave-action-ledger.py" --counts "$LEDGER")"
+            read -r LEDGER_TOTAL LEDGER_COMPLETED LEDGER_CHECKPOINT_SATISFIED PENDING <<< "$LEDGER_COUNTS"
             if [ -s "$APK_STATUS" ] && grep -qx "BUILD_FINISHED=true" "$APK_STATUS" && grep -qx "APK_ARCHIVE_VALID=true" "$APK_STATUS" && grep -qx "APK_SIGNATURE_VALID=true" "$APK_STATUS" && grep -qx "APK_PACKAGE_ID_VALID=true" && grep -qx "APK_BRANDING_VALID=true" "$APK_STATUS"; then
               if [ "$MODE" = "full" ]; then
                 grep -qx "REFERENCE_READY=true" "$ROOT/brave-work/.sandium/checkpoint-manifest.txt" || { echo "FINAL_STAGE_GATE=FAIL APK passed but reference manifest is not ready" >&2; exit 1; }
