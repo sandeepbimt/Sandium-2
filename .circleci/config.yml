@@ -2042,13 +2042,13 @@ jobs:
             # exit codes (130/137/143) alone are NOT proof of a time-slice expiry:
             # a local OOM killer or an externally killed compiler can return them
             # much earlier than the budget. Classify those as failed work instead.
-            if [ "$BUILD_RC" -eq 124 ] || [ "$SECONDS" -ge "$STAGE_BUILD_DEADLINE" ]; then
-              BUILD_TIME_SLICE_EXPIRED=true
-              BUILD_REASON="TIME_SLICE_COMPLETE"
-            elif [ "$BUILD_RC" -eq 0 ]; then
+            if [ "$BUILD_RC" -eq 0 ]; then
               BUILD_REASON="BUILD_COMMAND_SUCCESS"
               BUILD_COMMAND_SUCCEEDED=true
               BUILD_SLICE_INCOMPLETE=false
+            elif [ "$BUILD_RC" -eq 124 ] || [ "$SECONDS" -ge "$STAGE_BUILD_DEADLINE" ]; then
+              BUILD_TIME_SLICE_EXPIRED=true
+              BUILD_REASON="TIME_SLICE_COMPLETE"
             else
               BUILD_REASON="ACTION_FAILED_HANDOFF"
               echo "BRAVE_BUILD_COMMAND=INCOMPLETE exit=$BUILD_RC; no APK success is claimed. "

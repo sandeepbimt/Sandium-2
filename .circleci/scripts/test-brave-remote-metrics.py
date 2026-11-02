@@ -36,27 +36,27 @@ def main():
 
         # The large libchrome shared-library link must never execute on the
         # CircleCI host after remote-link is enabled in the pinned Siso config.
-        path.write_text("\\n".join([
+        path.write_text("\n".join([
             json.dumps(row("remote-compile", remote=True)),
             json.dumps(row("libchrome-remote", remote=True, action="solink",
                            outputs=["libchrome.so"], err=True)),
-        ]) + "\\n", encoding="utf-8")
+        ]) + "\n", encoding="utf-8")
         output = run(path, expected=2)
         assert "BRAVE_LINK_REMOTE_GATE=PASS libchrome_solink_records=1 local_executions=0" in output, output
 
-        path.write_text("\\n".join([
+        path.write_text("\n".join([
             json.dumps(row("remote-compile", remote=True)),
             json.dumps(row("libchrome-local", remote=False, action="solink",
                            outputs=["libchrome.so"])),
-        ]) + "\\n", encoding="utf-8")
+        ]) + "\n", encoding="utf-8")
         output = run(path, expected=2)
         assert "BRAVE_LINK_REMOTE_GATE=FAIL libchrome.so SOLINK was executed locally" in output, output
 
-        path.write_text("\\n".join([
+        path.write_text("\n".join([
             json.dumps(row("remote-compile", remote=True)),
             json.dumps(row("libchrome-cache", remote=False, cached=True, action="solink",
                            outputs=["libchrome.so"])),
-        ]) + "\\n", encoding="utf-8")
+        ]) + "\n", encoding="utf-8")
         output = run(path)
         assert "BRAVE_LINK_REMOTE_GATE=PASS libchrome_solink_records=1 local_executions=0" in output, output
 
