@@ -9,6 +9,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 
 HELPER = Path(__file__).with_name("sandium-checkpoint-shards.py")
 SPEC = importlib.util.spec_from_file_location("sandium_checkpoint_shards", HELPER)
@@ -31,10 +32,10 @@ def test_idle_build_server_shutdown(root: Path) -> None:
     log = work / "src" / "out" / "android_Release_arm64" / "buildserver.log.2"
     log.parent.mkdir(parents=True)
     script.write_text(
-        "import sys, time\\n"
-        "stream = open(sys.argv[1], 'a', encoding='utf-8')\\n"
-        "stream.write('server-ready\\n'); stream.flush()\\n"
-        "time.sleep(60)\\n",
+        "import sys, time\n"
+        "stream = open(sys.argv[1], 'a', encoding='utf-8')\n"
+        "stream.write('server-ready\n'); stream.flush()\n"
+        "time.sleep(60)\n",
         encoding="utf-8",
     )
     process = subprocess.Popen(
@@ -175,7 +176,7 @@ def main() -> None:
         test_idle_build_server_shutdown(root)
         test_hardlink_snapshot(root)
         staging_file = output / "obj" / "component-00" / "temporary.stamp.staging"
-        staging_file.write_text("not a final build output\\n", encoding="utf-8")
+        staging_file.write_text("not a final build output\n", encoding="utf-8")
 
         # Inject one transient GNU-tar exit status 1 after a complete tar stream.
         # The shard helper must discard that attempt and rebuild the affected shard.
@@ -188,7 +189,7 @@ def main() -> None:
         fake_zstd = fake_bin / "zstd"
         fake_zstd.write_text(
             "#!/usr/bin/env bash\n"
-            "printf '%s\\n' \"$*\" >> \"$SANDIUM_ZSTD_ARGS_LOG\"\n"
+            "printf '%s\n' \"$*\" >> \"$SANDIUM_ZSTD_ARGS_LOG\"\n"
             "exec \"$SANDIUM_REAL_ZSTD\" \"$@\"\n",
             encoding="utf-8",
         )
@@ -200,7 +201,7 @@ def main() -> None:
             "\"$SANDIUM_REAL_TAR\" \"$@\"\n"
             "status=$?\n"
             "if [ \"$status\" -eq 0 ] && mkdir \"$SANDIUM_TAR_FAIL_ONCE_LOCK\" 2>/dev/null; then\n"
-            "  printf '%s\\n' SANDIUM_TEST_INJECTED_TAR_EXIT_1 > \"$SANDIUM_TAR_FAIL_ONCE_LOG\"\n"
+            "  printf '%s\n' SANDIUM_TEST_INJECTED_TAR_EXIT_1 > \"$SANDIUM_TAR_FAIL_ONCE_LOG\"\n"
             "  exit 1\n"
             "fi\n"
             "exit \"$status\"\n",
