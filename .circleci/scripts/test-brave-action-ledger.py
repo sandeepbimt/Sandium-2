@@ -180,7 +180,8 @@ if "-n" in args:
         with stage2_metrics.open("w", encoding="utf-8") as stream:
             for row in rows:
                 stream.write(json.dumps(row) + "\n")
-        pending_file.write_text("[]", encoding="utf-8")
+        # Simulate Siso discovering three additional pending actions after the timed slice.
+        pending_file.write_text(json.dumps(list(range(2003, 2006))), encoding="utf-8")
         duplicate = run(["complete", *common, "--stage", "2", "--build", "202",
                          "--workflow", "workflow-two",
                          "--metrics-prefix", "test-stage2-"], env, expected=2)
@@ -279,13 +280,13 @@ if "-n" in args:
         slice_done = run(["complete", *common, "--stage", "1", "--build", "505",
                           "--workflow", "time-slice-workflow",
                           "--metrics-prefix", "test-timeslice-stage1-"], env)
-        assert "ACTION_TIME_SLICE_FRONTIER_PRESERVED=PASS planned_remaining=12 dynamic_pending=0 live_post_build_pending=0" in slice_done, slice_done
-        assert "ACTION_FRONTIER_RECONCILIATION=PASS planned_completed=8 dynamically_completed=3 newly_pending=0 pending_after=12" in slice_done, slice_done
-        assert "SANDIUM_BUILD_MATH=11/23 complete; 12/12 pending" in slice_done, slice_done
+        assert "ACTION_TIME_SLICE_FRONTIER_PRESERVED=PASS planned_remaining=12 dynamic_pending=3 live_post_build_pending=3" in slice_done, slice_done
+        assert "ACTION_FRONTIER_RECONCILIATION=PASS planned_completed=8 dynamically_completed=3 newly_pending=3 pending_after=15" in slice_done, slice_done
+        assert "SANDIUM_BUILD_MATH=11/26 complete; 15/15 pending" in slice_done, slice_done
 
         # The next stage is allowed to continue only if its fresh Siso dry-run
         # reconstructs the exact 12-action frontier from the saved checkpoint.
-        pending_file.write_text(json.dumps(list(range(8, 20))), encoding="utf-8")
+        pending_file.write_text(json.dumps(list(range(8, 20)) + list(range(2003, 2006))), encoding="utf-8")
         slice_stage2 = run(["plan", *common, "--stage", "2", "--build", "506",
                             "--workflow", "time-slice-next"], env)
         assert "ACTION_HANDOFF_GATE=PASS pending=12/12" in slice_stage2, slice_stage2
