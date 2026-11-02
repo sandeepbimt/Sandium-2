@@ -1429,6 +1429,7 @@ jobs:
       image: ubuntu-2404:current
     resource_class: large
     steps:
+      - checkout
       - when:
           condition:
             equal: [2, << parameters.stage_index >>]
@@ -1543,7 +1544,6 @@ jobs:
             echo 'export DEPOT_TOOLS_UPDATE=0' >> "$BASH_ENV"
             echo 'export SISO_LIMITS=local=8,remote=80' >> "$BASH_ENV"
             echo "SISO_CREDENTIAL_HELPER=CONFIGURED (secret value not printed)"
-      - checkout
       - run:
           name: Run lightweight Brave continuation self-test
           command: |
