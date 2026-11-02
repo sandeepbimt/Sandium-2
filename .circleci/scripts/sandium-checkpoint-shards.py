@@ -246,17 +246,24 @@ def parse_checkpoint_manifest(path: Path) -> dict[str, str]:
 
 
 
-def collect_staging_parent_directories(roots: list[Path]) -> set[Path]:
-    """Find directories that contain Ninja's transient *.staging files."""
+def collect_staging_parent_directories(
+    roots: list[Path],
+    build_output_root: Path,
+) -> set[Path]:
+    """Find Ninja staging parents only inside this shard's build-output roots."""
     staging_parents: set[Path] = set()
+    output_root = build_output_root.resolve()
     for root_path in roots:
-        if root_path.is_file():
-            if root_path.name.endswith(".staging"):
-                staging_parents.add(root_path.parent.resolve())
+        path = root_path.resolve()
+        if path.is_file():
+            if path.name.endswith(".staging"):
+                staging_parents.add(path.parent)
             continue
-        if not root_path.is_dir():
+        if not path.is_dir():
             continue
-        for directory, _subdirs, filenames in os.walk(root_path, followlinks=False):
+        if path != output_root and output_root not in path.parents:
+            continue
+        for directory, _subdirs, filenames in os.walk(path, followlinks=False):
             if any(filename.endswith(".staging") for filename in filenames):
                 staging_parents.add(Path(directory).resolve())
     return staging_parents
@@ -346,7 +353,10 @@ def archive_worker(index: int, total: int, roots: list[Path],
         "--checkpoint-action=echo=SHARD_%02d_TAR_CHECKPOINT=%%u" % index,
         "-C", str(root), "--null", "-T", str(list_file),
     ]
-    staging_parent_directories = collect_staging_parent_directories(roots)
+    build_output_root = root / WORK_NAME / "src" / "out" / OUTPUT_NAME
+    staging_parent_directories = collect_staging_parent_directories(
+        roots, build_output_root
+    )
     print(
         "SANDIUM_ARCHIVE_STAGING_SCAN=PASS shard=%02d directories=%d" %
         (index, len(staging_parent_directories)),
