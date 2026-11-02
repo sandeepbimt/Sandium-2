@@ -12,6 +12,7 @@ import concurrent.futures
 import hashlib
 import json
 import os
+import re
 import shutil
 import stat
 import subprocess
@@ -243,6 +244,60 @@ def parse_checkpoint_manifest(path: Path) -> dict[str, str]:
     return result
 
 
+
+
+def validate_tar_diagnostics(root: Path, diagnostic: str) -> list[dict[str, str]]:
+    """Allow only known ephemeral staging-file and directory-metadata races.
+
+    GNU tar can observe Ninja's short-lived *.staging files being removed while
+    it enumerates obj/ directories. Those temporary files are not checkpoint
+    outputs. Directory mtime changes caused by that cleanup are also harmless.
+    Any changed/removed non-staging file, unreadable file, or unknown tar error
+    remains fatal so a live compiler output is never silently accepted.
+    """
+    accepted: list[dict[str, str]] = []
+    unexpected: list[str] = []
+    race_pattern = re.compile(
+        r"^tar: (.+): (File removed before we read it|file changed as we read it)$"
+    )
+
+    for raw_line in diagnostic.splitlines():
+        line = raw_line.strip()
+        if not line:
+            continue
+        if re.search(r"SHARD_\\d+_TAR_CHECKPOINT=\\d+$", line):
+            continue
+
+        match = race_pattern.fullmatch(line)
+        if not match:
+            unexpected.append(line)
+            continue
+
+        raw_path, reason = match.groups()
+        candidate = Path(raw_path)
+        if not candidate.is_absolute():
+            candidate = root / candidate
+
+        if candidate.name.endswith(".staging"):
+            accepted.append({
+                "path": raw_path,
+                "reason": "ephemeral_ninja_staging_file",
+            })
+        elif reason == "file changed as we read it" and candidate.is_dir():
+            accepted.append({
+                "path": raw_path,
+                "reason": "directory_metadata_changed_during_staging_cleanup",
+            })
+        else:
+            unexpected.append(line)
+
+    if unexpected:
+        raise RuntimeError(
+            "archive encountered non-transient read errors: " +
+            "; ".join(unexpected[:10])
+        )
+    return accepted
+
 def archive_worker(index: int, total: int, roots: list[Path],
                    root: Path, stage_dir: Path) -> dict[str, Any]:
     name = "shard-%02d-of-%02d.tar.zst" % (index, total)
@@ -257,6 +312,12 @@ def archive_worker(index: int, total: int, roots: list[Path],
         "tar", "-c",
         "--format=posix",
         "--pax-option=delete=atime,delete=ctime",
+        # Ninja creates/removes these short-lived atomic-write files while
+        # finalizing generated stamps. They are never valid build outputs.
+        "--exclude=*.staging",
+        # Convert transient read races into diagnostics; the classifier below
+        # accepts only staging files and directory-metadata changes.
+        "--ignore-failed-read",
         "--checkpoint=100000",
         "--checkpoint-action=echo=SHARD_%02d_TAR_CHECKPOINT=%%u" % index,
         "-C", str(root), "--null", "-T", str(list_file),
@@ -266,6 +327,7 @@ def archive_worker(index: int, total: int, roots: list[Path],
     tar_rc = -1
     zstd_rc = -1
     tar_diagnostic = ""
+    accepted_read_races: list[dict[str, str]] = []
     attempts = 0
 
     # GNU tar returns 1 when files change while being read. This is not a
@@ -291,6 +353,17 @@ def archive_worker(index: int, total: int, roots: list[Path],
             elif line:
                 print("SANDIUM_TAR_DIAGNOSTIC shard=%02d %s" % (index, line),
                       file=sys.stderr, flush=True)
+
+        try:
+            accepted_read_races = validate_tar_diagnostics(root, tar_diagnostic)
+        except RuntimeError as exc:
+            raise RuntimeError("shard %02d: %s" % (index, exc)) from exc
+        for race in accepted_read_races:
+            print(
+                "SANDIUM_ARCHIVE_TRANSIENT_READ=IGNORED shard=%02d reason=%s path=%s" %
+                (index, race["reason"], race["path"]),
+                flush=True,
+            )
 
         valid_output = temporary.is_file() and temporary.stat().st_size > 0
         if tar_rc == 0 and zstd_rc == 0 and valid_output:
@@ -322,6 +395,7 @@ def archive_worker(index: int, total: int, roots: list[Path],
         "sha256": sha256_file(destination),
         "archive_seconds": round(elapsed, 3),
         "archive_attempts": attempts,
+        "accepted_transient_read_races": accepted_read_races,
         "root_paths": [path.relative_to(root).as_posix() for path in roots],
     }
 
@@ -390,6 +464,10 @@ def archive(root: Path, workers: int) -> None:
         "largest_shard_bytes": largest_shard_bytes,
         "average_shard_bytes": int(average_shard_bytes),
         "shard_balance_ratio": shard_balance_ratio,
+        "excluded_transient_patterns": ["*.staging"],
+        "accepted_transient_read_race_count": sum(
+            len(item.get("accepted_transient_read_races", [])) for item in results
+        ),
         "directory_metadata": dirs,
         "checkpoint_manifest": checkpoint_manifest,
         "checkpoint_manifest_sha256": sha256_file(checkpoint_file),

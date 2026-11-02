@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Round-trip and integrity regression tests for parallel Sandium checkpoints."""
 from __future__ import annotations
+import importlib.util
 import json
 import os
 from pathlib import Path
@@ -10,6 +11,10 @@ import sys
 import tempfile
 
 HELPER = Path(__file__).with_name("sandium-checkpoint-shards.py")
+SPEC = importlib.util.spec_from_file_location("sandium_checkpoint_shards", HELPER)
+assert SPEC and SPEC.loader
+SHARD_MODULE = importlib.util.module_from_spec(SPEC)
+SPEC.loader.exec_module(SHARD_MODULE)
 
 def run(*args: str, env: dict[str, str] | None = None) -> str:
     proc = subprocess.run([sys.executable, str(HELPER), *args], env=env,
@@ -17,6 +22,45 @@ def run(*args: str, env: dict[str, str] | None = None) -> str:
     if proc.returncode:
         raise AssertionError("command failed (%s):\n%s" % (args, proc.stdout))
     return proc.stdout
+
+def test_transient_tar_races(root: Path, output: Path) -> None:
+    base_dir = output / "obj" / "base"
+    base_dir.mkdir(parents=True, exist_ok=True)
+    staging_path = base_dir / "tristate_java__errorprone.stamp.staging"
+    sample = (
+        "tar: SHARD_02_TAR_CHECKPOINT=100000\\n"
+        "tar: brave-work/src/out/android_Release_arm64/obj/base/"
+        "tristate_java__errorprone.stamp.staging: File removed before we read it\\n"
+        "tar: brave-work/src/out/android_Release_arm64/obj/base: "
+        "file changed as we read it\\n"
+    )
+    accepted = SHARD_MODULE.validate_tar_diagnostics(root, sample)
+    assert len(accepted) == 2, accepted
+    assert {item["reason"] for item in accepted} == {
+        "ephemeral_ninja_staging_file",
+        "directory_metadata_changed_during_staging_cleanup",
+    }, accepted
+
+    # A regular compiler output changing while archived is NOT benign.
+    unsafe = (
+        "tar: brave-work/src/out/android_Release_arm64/obj/base/"
+        "libbase.a: file changed as we read it"
+    )
+    try:
+        SHARD_MODULE.validate_tar_diagnostics(root, unsafe)
+    except RuntimeError as exc:
+        assert "non-transient read errors" in str(exc), str(exc)
+    else:
+        raise AssertionError("changing a regular build output must remain fatal")
+
+    # Unreadable/unknown tar diagnostics must also remain fatal.
+    try:
+        SHARD_MODULE.validate_tar_diagnostics(root, "tar: Permission denied")
+    except RuntimeError as exc:
+        assert "non-transient read errors" in str(exc), str(exc)
+    else:
+        raise AssertionError("unknown tar diagnostics must remain fatal")
+
 
 def main() -> None:
     if not shutil.which("zstd") or not shutil.which("tar"):
@@ -83,6 +127,13 @@ def main() -> None:
         source_mtime = timed_file.stat().st_mtime_ns
         source_mode = wrapper.stat().st_mode & 0o777
 
+        # Verify the exact transient Ninja staging-file race seen in CircleCI.
+        # Staging files must be excluded; directory-only mtime changes are benign,
+        # while regular output-file changes and unknown tar errors stay fatal.
+        test_transient_tar_races(root, output)
+        staging_file = output / "obj" / "component-00" / "temporary.stamp.staging"
+        staging_file.write_text("not a final build output\\n", encoding="utf-8")
+
         # Inject one transient GNU-tar exit status 1 after a complete tar stream.
         # The shard helper must discard that attempt and rebuild the affected shard.
         real_tar = shutil.which("tar")
@@ -119,9 +170,10 @@ def main() -> None:
         test_env["SANDIUM_REAL_ZSTD"] = real_zstd
         test_env["SANDIUM_ZSTD_ARGS_LOG"] = str(root / "zstd-args.log")
         test_env["SANDIUM_TAR_FAIL_ONCE_LOCK"] = str(root / "tar-fail-once.lock")
+        test_env["SANDIUM_TAR_FAIL_ONCE_LOG"] = str(root / "tar-fail-once.log")
         archive_output = run("archive", "--root", str(root), "--workers", "8", env=test_env)
         assert "SANDIUM_SHARD_ARCHIVE_RETRY=START" in archive_output, archive_output
-        assert "SANDIUM_TEST_INJECTED_TAR_EXIT_1" in archive_output, archive_output
+        assert (root / "tar-fail-once.log").read_text(encoding="utf-8").strip() == "SANDIUM_TEST_INJECTED_TAR_EXIT_1"
         zstd_args = (root / "zstd-args.log").read_text(encoding="utf-8").splitlines()
         assert zstd_args and all("--fast=5" in args for args in zstd_args), zstd_args
         manifest_path = root / "brave-workspace-checkpoint.manifest.json"
@@ -131,6 +183,8 @@ def main() -> None:
         assert len(shards) == manifest["workers"], manifest
         assert all(int(shard["size_bytes"]) > 0 for shard in shards), manifest
         assert all(int(shard["archive_attempts"]) in (1, 2) for shard in shards), manifest
+        assert manifest["excluded_transient_patterns"] == ["*.staging"], manifest
+        assert not any(shard["accepted_transient_read_races"] for shard in shards), manifest
         assert any(int(shard["archive_attempts"]) == 2 for shard in shards), manifest
         assert len({shard["sha256"] for shard in shards}) == len(shards), manifest
         verified = run("verify", "--root", str(root), "--workers", "8", "--zstd-test")
@@ -141,6 +195,7 @@ def main() -> None:
         assert "SANDIUM_PARALLEL_RESTORE=PASS" in restored, restored
         for relative, payload in expected.items():
             assert (root / relative).read_bytes() == payload, "payload mismatch: " + relative
+        assert not staging_file.exists(), "Ninja .staging file must not enter checkpoint archive"
         assert (src / "third_party" / "empty-directory").is_dir()
         assert link.is_symlink() and os.readlink(link) == "empty-directory"
         assert (wrapper.stat().st_mode & 0o777) == source_mode
@@ -162,7 +217,7 @@ def main() -> None:
                               "--workers", "8"], stdout=subprocess.PIPE,
                              stderr=subprocess.STDOUT, text=True)
         assert bad.returncode != 0 and "SHA256 mismatch" in bad.stdout, bad.stdout
-    print("SANDIUM_PARALLEL_CHECKPOINT_TEST=PASS 8-way archive/verify/restore; symlink/mode/mtime preservation; tamper detection")
+    print("SANDIUM_PARALLEL_CHECKPOINT_TEST=PASS 8-way archive/verify/restore; transient staging-race handling; non-transient mutation rejection; symlink/mode/mtime preservation; tamper detection")
 
 if __name__ == "__main__":
     main()
