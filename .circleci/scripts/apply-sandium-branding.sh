@@ -152,3 +152,7 @@ print("SANDIUM_BRANDING_RESOURCE_GATE=PASS")
 PY
 
 echo "SANDIUM_BRANDING_GATE=PASS app_label=Sandium Browser densities=mdpi,hdpi,xhdpi,xxhdpi,xxxhdpi adaptive=enabled"
+
+# Apply the first Sandium-native Shields UI adaptation after the source pin
+# has been verified and before the Android build graph is generated.
+bash "$SCRIPT_DIR/apply-sandium-shields-ui.sh"
