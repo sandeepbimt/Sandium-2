@@ -1443,7 +1443,7 @@ jobs:
                 command: |
                   set -euo pipefail
                   STATUS="$CIRCLE_WORKING_DIRECTORY/brave-work/.sandium/apk-completion-status.txt"
-                  if python3 "$CIRCLE_WORKING_DIRECTORY/.circleci/scripts/check-apk-completion-marker.py" "$STATUS" "$STATUS"; then
+                  if python3 "$CIRCLE_WORKING_DIRECTORY/.circleci/scripts/check-apk-completion-marker.py" "$STATUS"; then
                     echo "BRAVE_APK=ALREADY_PUBLISHED"
                     cat "$STATUS"
                     circleci-agent step halt
@@ -1463,7 +1463,7 @@ jobs:
                 command: |
                   set -euo pipefail
                   STATUS="$CIRCLE_WORKING_DIRECTORY/brave-work/.sandium/apk-completion-status.txt"
-                  if python3 "$CIRCLE_WORKING_DIRECTORY/.circleci/scripts/check-apk-completion-marker.py" "$STATUS" "$STATUS"; then
+                  if python3 "$CIRCLE_WORKING_DIRECTORY/.circleci/scripts/check-apk-completion-marker.py" "$STATUS"; then
                     echo "BRAVE_APK=ALREADY_PUBLISHED"
                     cat "$STATUS"
                     circleci-agent step halt
@@ -1484,7 +1484,7 @@ jobs:
                 command: |
                   set -euo pipefail
                   STATUS="$CIRCLE_WORKING_DIRECTORY/brave-work/.sandium/apk-completion-status.txt"
-                  if python3 "$CIRCLE_WORKING_DIRECTORY/.circleci/scripts/check-apk-completion-marker.py" "$STATUS" "$STATUS"; then
+                  if python3 "$CIRCLE_WORKING_DIRECTORY/.circleci/scripts/check-apk-completion-marker.py" "$STATUS"; then
                     echo "BRAVE_APK=ALREADY_PUBLISHED"
                     cat "$STATUS"
                     circleci-agent step halt
@@ -1506,7 +1506,7 @@ jobs:
                 command: |
                   set -euo pipefail
                   STATUS="$CIRCLE_WORKING_DIRECTORY/brave-work/.sandium/apk-completion-status.txt"
-                  if python3 "$CIRCLE_WORKING_DIRECTORY/.circleci/scripts/check-apk-completion-marker.py" "$STATUS" "$STATUS"; then
+                  if python3 "$CIRCLE_WORKING_DIRECTORY/.circleci/scripts/check-apk-completion-marker.py" "$STATUS"; then
                     echo "BRAVE_APK=ALREADY_PUBLISHED"
                     cat "$STATUS"
                     circleci-agent step halt
@@ -1576,7 +1576,7 @@ jobs:
                 command: |
                   set -euo pipefail
                   STATUS="$CIRCLE_WORKING_DIRECTORY/brave-work/.sandium/apk-completion-status.txt"
-                  if python3 "$CIRCLE_WORKING_DIRECTORY/.circleci/scripts/check-apk-completion-marker.py" "$STATUS" "$STATUS"; then
+                  if python3 "$CIRCLE_WORKING_DIRECTORY/.circleci/scripts/check-apk-completion-marker.py" "$STATUS"; then
                     echo "BRAVE_APK=ALREADY_PUBLISHED for revision {{ .Revision }}"
                     cat "$STATUS"
                     circleci-agent step halt
@@ -2211,7 +2211,7 @@ jobs:
                   mkdir -p "$ROOT/brave-work/.sandium"
                   APK_VALIDATED=false
                   APK_MARKER="$ROOT/brave-work/.sandium/apk-completion-status.txt"
-                  if python3 "$ROOT/.circleci/scripts/check-apk-completion-marker.py" "$APK_MARKER" "$APK_MARKER"; then
+                  if python3 "$ROOT/.circleci/scripts/check-apk-completion-marker.py" "$APK_MARKER"; then
                     APK_VALIDATED=true
                   fi
                   {
@@ -2279,7 +2279,7 @@ jobs:
               echo "FINAL_STAGE_GATE=FAIL unknown mode=$MODE" >&2
               exit 1
             fi
-            if python3 "$ROOT/.circleci/scripts/check-apk-completion-marker.py" "$APK_STATUS" "$APK_STATUS"; then
+            if python3 "$ROOT/.circleci/scripts/check-apk-completion-marker.py" "$APK_STATUS"; then
               if [ "$MODE" = "full" ]; then
                 grep -qx "REFERENCE_READY=true" "$ROOT/brave-work/.sandium/checkpoint-manifest.txt" || { echo "FINAL_STAGE_GATE=FAIL APK passed but reference manifest is not ready" >&2; exit 1; }
                 echo "FINAL_STAGE_GATE=PASS FULL MODE APK validated; handoff archive saved; reference promotion follows."
