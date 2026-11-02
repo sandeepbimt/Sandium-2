@@ -341,7 +341,7 @@ if "-n" in args:
         failed_row = metric(7000)
         failed_row["err"] = True
         with failed_metrics.open("w", encoding="utf-8") as stream:
-            stream.write(json.dumps(failed_row) + "\\n")
+            stream.write(json.dumps(failed_row) + "\n")
         pending_file.write_text(json.dumps([7000]), encoding="utf-8")
         failed_done = run(["complete", *common, "--stage", "1", "--build", "808",
                            "--workflow", "failed-action-workflow",

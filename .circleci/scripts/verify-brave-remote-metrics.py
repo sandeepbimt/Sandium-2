@@ -40,11 +40,13 @@ def main() -> None:
             if not isinstance(row, dict) or not row.get("step_id"):
                 continue
             action_records += 1
-            outputs = row.get("outputs", [])
+            outputs = row.get("outputs")
+            if not isinstance(outputs, list):
+                outputs = []
             is_libchrome_link = (
                 row.get("action") == "solink" and
                 any(str(output).endswith("/libchrome.so") or str(output) == "libchrome.so"
-                    for output in outputs if isinstance(outputs, list))
+                    for output in outputs)
             )
             if is_libchrome_link:
                 libchrome_link_records += 1
