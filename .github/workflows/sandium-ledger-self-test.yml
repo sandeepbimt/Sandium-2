@@ -67,7 +67,7 @@ jobs:
             .circleci/scripts/test-brave-remote-metrics.py \
             .circleci/scripts/test-brave-build-flow.py \
             .circleci/scripts/sandium-checkpoint-shards.py \
-            .circleci/scripts/test-sandium-checkpoint-shards.py
+            .circleci/scripts/test-sandium-checkpoint-shards.py \
             .circleci/scripts/checkpoint-stage-receipt.py \
             .circleci/scripts/test-checkpoint-stage-receipt.py
           bash -n .circleci/scripts/archive-brave-workspace.sh
