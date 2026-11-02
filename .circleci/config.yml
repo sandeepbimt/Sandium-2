@@ -6,7 +6,7 @@ parameters:
   sandium_build_mode:
     type: enum
     enum: [full, fast]
-    default: full
+    default: fast
 
 jobs:
   c4-afterbird-staged-build:
@@ -1609,6 +1609,11 @@ jobs:
             - restore_cache:
                 name: Restore latest promoted Sandium reference
                 keys:
+                  # Canonical immutable reference is owned by the accepted clean-base branch.
+                  # Do not use the current feature branch's empty cache namespace as the only lookup.
+                  - sandium-brave-reference-v2-sandium/fix-archive-completion-gate-
+                  - sandium-brave-reference-v1-sandium/fix-archive-completion-gate-
+                  # Preserve same-branch lookup for branches with their own formally promoted reference.
                   - sandium-brave-reference-v2-{{ .Branch }}-
                   - sandium-brave-reference-v1-{{ .Branch }}-
       - when:
@@ -1664,6 +1669,11 @@ jobs:
             - restore_cache:
                 name: Restore immutable reference for FAST MODE Stage 2
                 keys:
+                  # Canonical immutable reference is owned by the accepted clean-base branch.
+                  # Do not use the current feature branch's empty cache namespace as the only lookup.
+                  - sandium-brave-reference-v2-sandium/fix-archive-completion-gate-
+                  - sandium-brave-reference-v1-sandium/fix-archive-completion-gate-
+                  # Preserve same-branch lookup for branches with their own formally promoted reference.
                   - sandium-brave-reference-v2-{{ .Branch }}-
                   - sandium-brave-reference-v1-{{ .Branch }}-
       - when:
@@ -1675,6 +1685,11 @@ jobs:
             - restore_cache:
                 name: Restore immutable reference for FAST MODE Stage 3
                 keys:
+                  # Canonical immutable reference is owned by the accepted clean-base branch.
+                  # Do not use the current feature branch's empty cache namespace as the only lookup.
+                  - sandium-brave-reference-v2-sandium/fix-archive-completion-gate-
+                  - sandium-brave-reference-v1-sandium/fix-archive-completion-gate-
+                  # Preserve same-branch lookup for branches with their own formally promoted reference.
                   - sandium-brave-reference-v2-{{ .Branch }}-
                   - sandium-brave-reference-v1-{{ .Branch }}-
       - when:
@@ -1686,6 +1701,11 @@ jobs:
             - restore_cache:
                 name: Restore immutable reference for FAST MODE Stage 4
                 keys:
+                  # Canonical immutable reference is owned by the accepted clean-base branch.
+                  # Do not use the current feature branch's empty cache namespace as the only lookup.
+                  - sandium-brave-reference-v2-sandium/fix-archive-completion-gate-
+                  - sandium-brave-reference-v1-sandium/fix-archive-completion-gate-
+                  # Preserve same-branch lookup for branches with their own formally promoted reference.
                   - sandium-brave-reference-v2-{{ .Branch }}-
                   - sandium-brave-reference-v1-{{ .Branch }}-
       - when:
@@ -1697,6 +1717,11 @@ jobs:
             - restore_cache:
                 name: Restore immutable reference for FAST MODE Stage 5
                 keys:
+                  # Canonical immutable reference is owned by the accepted clean-base branch.
+                  # Do not use the current feature branch's empty cache namespace as the only lookup.
+                  - sandium-brave-reference-v2-sandium/fix-archive-completion-gate-
+                  - sandium-brave-reference-v1-sandium/fix-archive-completion-gate-
+                  # Preserve same-branch lookup for branches with their own formally promoted reference.
                   - sandium-brave-reference-v2-{{ .Branch }}-
                   - sandium-brave-reference-v1-{{ .Branch }}-
       - restore_cache:
@@ -2483,6 +2508,7 @@ workflows:
               only:
                 - sandium/brave-android-poc
                 - sandium/archive-zstd-fast5
+                - sandium/branding-stage
       - brave-android-staged-build:
           name: SANDIUM-FAST-MODE-stage-2
           stage_index: 2
@@ -2492,6 +2518,7 @@ workflows:
               only:
                 - sandium/brave-android-poc
                 - sandium/archive-zstd-fast5
+                - sandium/branding-stage
       - brave-android-staged-build:
           name: SANDIUM-FAST-MODE-stage-3
           stage_index: 3
@@ -2501,6 +2528,7 @@ workflows:
               only:
                 - sandium/brave-android-poc
                 - sandium/archive-zstd-fast5
+                - sandium/branding-stage
       - brave-android-staged-build:
           name: SANDIUM-FAST-MODE-stage-4
           stage_index: 4
@@ -2510,6 +2538,7 @@ workflows:
               only:
                 - sandium/brave-android-poc
                 - sandium/archive-zstd-fast5
+                - sandium/branding-stage
       - brave-android-staged-build:
           name: SANDIUM-FAST-MODE-stage-5
           stage_index: 5
@@ -2519,3 +2548,4 @@ workflows:
               only:
                 - sandium/brave-android-poc
                 - sandium/archive-zstd-fast5
+                - sandium/branding-stage
