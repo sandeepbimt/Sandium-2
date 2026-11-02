@@ -276,7 +276,7 @@ if "-n" in args:
         with slice_metrics.open("a", encoding="utf-8") as stream:
             for i in range(2000, 2003):
                 stream.write(json.dumps(metric(i)) + "\n")
-        pending_file.write_text("[]", encoding="utf-8")
+        pending_file.write_text(json.dumps(list(range(2003, 2006))), encoding="utf-8")
         slice_done = run(["complete", *common, "--stage", "1", "--build", "505",
                           "--workflow", "time-slice-workflow",
                           "--metrics-prefix", "test-timeslice-stage1-"], env)
@@ -289,8 +289,8 @@ if "-n" in args:
         pending_file.write_text(json.dumps(list(range(8, 20)) + list(range(2003, 2006))), encoding="utf-8")
         slice_stage2 = run(["plan", *common, "--stage", "2", "--build", "506",
                             "--workflow", "time-slice-next"], env)
-        assert "ACTION_HANDOFF_GATE=PASS pending=12/12" in slice_stage2, slice_stage2
-        assert "SANDIUM_BUILD_MATH=11/23 complete; 12/12 pending" in slice_stage2, slice_stage2
+        assert "ACTION_HANDOFF_GATE=PASS pending=15/15" in slice_stage2, slice_stage2
+        assert "SANDIUM_BUILD_MATH=11/26 complete; 15/15 pending" in slice_stage2, slice_stage2
 
     print("BRAVE_ACTION_LEDGER_SELF_TEST=PASS dynamic discovery + pending handoff + APK-gated pruning + manifest-stub expansion + bounded-slice recovery")
 
