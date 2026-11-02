@@ -14,6 +14,7 @@ import hashlib
 import json
 import os
 import shutil
+import signal
 import stat
 import subprocess
 import sys
@@ -326,6 +327,84 @@ def find_open_writers(work: Path) -> list[dict[str, str]]:
     return writers
 
 
+def stop_idle_build_servers(work: Path, timeout: float = 10.0) -> None:
+    """Gracefully stop only Chromium's idle local-dev server before snapshotting.
+
+    The server's buildserver.log is inside the workspace and remains open for
+    append, which correctly blocks a consistent hard-link snapshot. Restrict
+    termination to the known script under this workspace with --exit-on-idle.
+    """
+    work_root = str(work.resolve())
+    targets: list[tuple[int, str]] = []
+    proc_root = Path("/proc")
+    if not proc_root.is_dir():
+        raise RuntimeError("/proc is unavailable; cannot stop idle build servers")
+
+    for process in proc_root.iterdir():
+        if not process.name.isdigit():
+            continue
+        try:
+            argv = [
+                os.fsdecode(item) for item in
+                (process / "cmdline").read_bytes().split(b"\\0") if item
+            ]
+        except OSError:
+            continue
+        if "--exit-on-idle" not in argv:
+            continue
+        script_paths = [
+            item for item in argv
+            if item.endswith("/build/android/fast_local_dev_server.py")
+        ]
+        if not script_paths:
+            continue
+        script_path = os.path.normpath(script_paths[0])
+        try:
+            if os.path.commonpath((work_root, script_path)) != work_root:
+                continue
+        except ValueError:
+            continue
+        try:
+            os.kill(int(process.name), signal.SIGTERM)
+            targets.append((int(process.name), " ".join(argv)[:240]))
+        except ProcessLookupError:
+            continue
+        except PermissionError as exc:
+            raise RuntimeError(
+                "cannot stop idle Android build server pid=%s: %s" %
+                (process.name, exc)
+            ) from exc
+
+    if not targets:
+        print("SANDIUM_BUILD_SERVER_SHUTDOWN=NONE", flush=True)
+        return
+
+    deadline = time.monotonic() + timeout
+    remaining = {pid: command for pid, command in targets}
+    while remaining and time.monotonic() < deadline:
+        for pid in list(remaining):
+            try:
+                os.kill(pid, 0)
+            except ProcessLookupError:
+                remaining.pop(pid, None)
+            except PermissionError:
+                pass
+        if remaining:
+            time.sleep(0.25)
+
+    if remaining:
+        raise RuntimeError(
+            "idle Android build server did not stop after SIGTERM: %s" %
+            [{"pid": pid, "command": command}
+             for pid, command in remaining.items()]
+        )
+    print(
+        "SANDIUM_BUILD_SERVER_SHUTDOWN=PASS stopped=%d method=SIGTERM" %
+        len(targets),
+        flush=True,
+    )
+
+
 def create_hardlink_snapshot(
     work: Path,
     snapshot_work: Path,
@@ -549,6 +628,7 @@ def archive(root: Path, workers: int) -> None:
     ))
     snapshot_work = snapshot_parent / WORK_NAME
     try:
+        stop_idle_build_servers(work)
         snapshot_info = create_hardlink_snapshot(work, snapshot_work)
         candidates, structural = discover_candidates(snapshot_parent, snapshot_work)
         candidates, sizes = expand_heavy_candidates(snapshot_parent, candidates, workers)
