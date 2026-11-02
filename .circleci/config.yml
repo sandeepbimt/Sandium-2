@@ -1591,7 +1591,10 @@ jobs:
             - restore_cache:
                 name: Restore latest reference or bootstrap legacy checkpoint
                 keys:
-                  # Prefer the latest verified Full Mode reference produced by the accepted clean-base branch.
+                  # Prefer the latest successful Full Mode checkpoint from the accepted clean-base branch.
+                  - sandium-brave-handoff-v2-sandium/fix-archive-completion-gate-
+                  # A promoted immutable reference is a separate cache type; retain it as a secondary option.
+                  - sandium-brave-reference-v2-sandium/fix-archive-completion-gate-
                   - sandium-brave-reference-v2-sandium/brave-android-poc-
                   - sandium-brave-reference-v2-{{ .Branch }}-
                   - sandium-brave-handoff-v2-{{ .Branch }}-
