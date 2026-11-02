@@ -11,6 +11,8 @@ on:
       - ".circleci/scripts/test-brave-build-flow.py"
       - ".circleci/scripts/sandium-checkpoint-shards.py"
       - ".circleci/scripts/test-sandium-checkpoint-shards.py"
+      - ".circleci/scripts/checkpoint-stage-receipt.py"
+      - ".circleci/scripts/test-checkpoint-stage-receipt.py"
       - ".circleci/scripts/archive-brave-workspace.sh"
       - ".circleci/scripts/verify-brave-reference.sh"
       - ".circleci/scripts/verify-brave-remote-smoke.sh"
@@ -25,6 +27,8 @@ on:
       - ".circleci/scripts/test-brave-build-flow.py"
       - ".circleci/scripts/sandium-checkpoint-shards.py"
       - ".circleci/scripts/test-sandium-checkpoint-shards.py"
+      - ".circleci/scripts/checkpoint-stage-receipt.py"
+      - ".circleci/scripts/test-checkpoint-stage-receipt.py"
       - ".circleci/scripts/archive-brave-workspace.sh"
       - ".circleci/scripts/verify-brave-reference.sh"
       - ".circleci/scripts/verify-brave-remote-smoke.sh"
@@ -64,6 +68,8 @@ jobs:
             .circleci/scripts/test-brave-build-flow.py \
             .circleci/scripts/sandium-checkpoint-shards.py \
             .circleci/scripts/test-sandium-checkpoint-shards.py
+            .circleci/scripts/checkpoint-stage-receipt.py \
+            .circleci/scripts/test-checkpoint-stage-receipt.py
           bash -n .circleci/scripts/archive-brave-workspace.sh
           bash -n .circleci/scripts/verify-brave-reference.sh
           bash -n .circleci/scripts/verify-brave-remote-smoke.sh
@@ -73,5 +79,7 @@ jobs:
         run: python3 .circleci/scripts/test-brave-remote-metrics.py
       - name: Test smoke-warning build continuation
         run: python3 .circleci/scripts/test-brave-build-flow.py
+      - name: Test final stage archive completion gate
+        run: python3 .circleci/scripts/test-checkpoint-stage-receipt.py
       - name: Test parallel checkpoint archive and restore
         run: python3 .circleci/scripts/test-sandium-checkpoint-shards.py
