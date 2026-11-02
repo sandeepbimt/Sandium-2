@@ -99,5 +99,5 @@ test -s "$PROTO_SMOKE_OUTPUT" || {
   echo "BRAVE_PROTO_REMOTE_SMOKE=FAIL target completed without $PROTO_SMOKE_OUTPUT" >&2
   exit 1
 }
-python3 .circleci/scripts/verify-brave-remote-metrics.py "$OUT/$SMOKE_METRICS"
+python3 "$ROOT/.circleci/scripts/verify-brave-remote-metrics.py" "$OUT/$SMOKE_METRICS"
 echo "BRAVE_PROTO_REMOTE_SMOKE=PASS target=$PROTO_SMOKE_TARGET output=$PROTO_SMOKE_OUTPUT fresh_remote_execution=verified"
