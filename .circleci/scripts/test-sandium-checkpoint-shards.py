@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Round-trip and integrity regression tests for parallel Sandium checkpoints."""
 from __future__ import annotations
+import importlib.util
 import json
 import os
 from pathlib import Path
@@ -8,8 +9,13 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 
 HELPER = Path(__file__).with_name("sandium-checkpoint-shards.py")
+SPEC = importlib.util.spec_from_file_location("sandium_checkpoint_shards", HELPER)
+assert SPEC and SPEC.loader
+SHARD_MODULE = importlib.util.module_from_spec(SPEC)
+SPEC.loader.exec_module(SHARD_MODULE)
 
 def run(*args: str, env: dict[str, str] | None = None) -> str:
     proc = subprocess.run([sys.executable, str(HELPER), *args], env=env,
@@ -17,6 +23,91 @@ def run(*args: str, env: dict[str, str] | None = None) -> str:
     if proc.returncode:
         raise AssertionError("command failed (%s):\n%s" % (args, proc.stdout))
     return proc.stdout
+
+
+def test_idle_build_server_shutdown(root: Path) -> None:
+    work = root / "idle-server-fixture" / "brave-work"
+    script = work / "src" / "build" / "android" / "fast_local_dev_server.py"
+    script.parent.mkdir(parents=True)
+    log = work / "src" / "out" / "android_Release_arm64" / "buildserver.log.2"
+    log.parent.mkdir(parents=True)
+    script.write_text(
+        "import sys, time\n"
+        "stream = open(sys.argv[-1], 'a', encoding='utf-8')\n"
+        "stream.write('ready'); stream.flush()\n"
+        "time.sleep(60)\n",
+        encoding="utf-8",
+    )
+    process = subprocess.Popen(
+        [sys.executable, str(script), "--exit-on-idle", "--quiet", str(log)]
+    )
+    try:
+        for _ in range(40):
+            if log.exists() and log.stat().st_size:
+                break
+            if process.poll() is not None:
+                raise AssertionError("idle server fixture exited before test")
+            time.sleep(0.05)
+        assert log.exists() and log.stat().st_size, "fixture server did not open its log"
+        writers = SHARD_MODULE.find_open_writers(work)
+        assert any(item["pid"] == str(process.pid) for item in writers), writers
+
+        SHARD_MODULE.stop_idle_build_servers(work, timeout=5.0)
+        process.wait(timeout=2.0)
+        assert process.returncode is not None
+        assert not SHARD_MODULE.find_open_writers(work)
+    finally:
+        if process.poll() is None:
+            process.terminate()
+            process.wait(timeout=2.0)
+
+
+def test_hardlink_snapshot(root: Path) -> None:
+    work = root / "snapshot-fixture" / "brave-work"
+    source_dir = work / "src" / "out" / "android_Release_arm64" / "obj" / "base"
+    source_dir.mkdir(parents=True)
+    source_file = source_dir / "stable-output.bin"
+    source_file.write_bytes(b"original compiled output")
+    staging_file = source_dir / "temporary.stamp.staging"
+    staging_file.write_bytes(b"partial temporary output")
+
+    with source_file.open("ab") as writer:
+        writers = SHARD_MODULE.find_open_writers(work)
+        assert any(
+            item["pid"] == str(os.getpid()) and item["path"] == str(source_file)
+            for item in writers
+        ), writers
+
+    snapshot_parent = root / "snapshot-fixture" / "snapshot"
+    snapshot_work = snapshot_parent / "brave-work"
+    result = SHARD_MODULE.create_hardlink_snapshot(work, snapshot_work)
+    snapshot_file = snapshot_work / source_file.relative_to(work)
+    snapshot_dir = snapshot_file.parent
+    snapshot_dir_mtime = snapshot_dir.stat().st_mtime_ns
+
+    assert result["method"] == "same-filesystem-hardlink-directory-snapshot", result
+    assert result["inventory_stable"] is True, result
+    assert result["hardlinked_files"] == 1, result
+    assert result["excluded_staging_files"] == 1, result
+    assert source_file.stat().st_ino == snapshot_file.stat().st_ino
+    assert not (snapshot_dir / staging_file.name).exists()
+
+    # Atomic replacement/removal in the live workspace must not change the
+    # namespace or contents already captured by the hard-link snapshot.
+    replacement = source_dir / "stable-output.bin.new"
+    replacement.write_bytes(b"new live output")
+    os.replace(replacement, source_file)
+    (source_dir / "created-after-snapshot.bin").write_bytes(b"late output")
+    (source_dir / "removed-after-snapshot.bin").write_bytes(b"late output")
+    (source_dir / "removed-after-snapshot.bin").unlink()
+
+    assert snapshot_file.read_bytes() == b"original compiled output"
+    assert snapshot_file.stat().st_ino != source_file.stat().st_ino
+    assert not (snapshot_dir / "created-after-snapshot.bin").exists()
+    assert not (snapshot_dir / "removed-after-snapshot.bin").exists()
+    assert snapshot_dir.stat().st_mtime_ns == snapshot_dir_mtime
+    shutil.rmtree(snapshot_parent, ignore_errors=True)
+
 
 def main() -> None:
     if not shutil.which("zstd") or not shutil.which("tar"):
@@ -44,9 +135,6 @@ def main() -> None:
         (output / "args.gn").write_text('target_os = "android"\n', encoding="utf-8")
         (output / "args_generated.gni").write_text("use_siso=true\n", encoding="utf-8")
         (output / ".siso_fs_state.journal").write_text("journal-state\n", encoding="utf-8")
-        (work / ".sandium" / "action-ledger.json").write_text(
-            json.dumps({"schema_version": 2, "planned_total": 2, "completed": {},
-                        "next_pending_action_keys": ["a", "b"]}), encoding="utf-8")
         checkpoint_lines = [
             "CHECKPOINT_VALID=true", "REFERENCE_MODE=reference",
             "APK_VALIDATED=true", "REFERENCE_READY=true",
@@ -83,6 +171,13 @@ def main() -> None:
         source_mtime = timed_file.stat().st_mtime_ns
         source_mode = wrapper.stat().st_mode & 0o777
 
+        # Prove that the hard-link namespace snapshot is isolated from later
+        # creates/removals/replacements in the live build workspace.
+        test_idle_build_server_shutdown(root)
+        test_hardlink_snapshot(root)
+        staging_file = output / "obj" / "component-00" / "temporary.stamp.staging"
+        staging_file.write_text("not a final build output\n", encoding="utf-8")
+
         # Inject one transient GNU-tar exit status 1 after a complete tar stream.
         # The shard helper must discard that attempt and rebuild the affected shard.
         real_tar = shutil.which("tar")
@@ -94,7 +189,7 @@ def main() -> None:
         fake_zstd = fake_bin / "zstd"
         fake_zstd.write_text(
             "#!/usr/bin/env bash\n"
-            "printf '%s\\n' \"$*\" >> \"$SANDIUM_ZSTD_ARGS_LOG\"\n"
+            "printf '%s\n' \"$*\" >> \"$SANDIUM_ZSTD_ARGS_LOG\"\n"
             "exec \"$SANDIUM_REAL_ZSTD\" \"$@\"\n",
             encoding="utf-8",
         )
@@ -106,7 +201,7 @@ def main() -> None:
             "\"$SANDIUM_REAL_TAR\" \"$@\"\n"
             "status=$?\n"
             "if [ \"$status\" -eq 0 ] && mkdir \"$SANDIUM_TAR_FAIL_ONCE_LOCK\" 2>/dev/null; then\n"
-            "  echo SANDIUM_TEST_INJECTED_TAR_EXIT_1 >&2\n"
+            "  printf '%s\n' SANDIUM_TEST_INJECTED_TAR_EXIT_1 > \"$SANDIUM_TAR_FAIL_ONCE_LOG\"\n"
             "  exit 1\n"
             "fi\n"
             "exit \"$status\"\n",
@@ -119,9 +214,10 @@ def main() -> None:
         test_env["SANDIUM_REAL_ZSTD"] = real_zstd
         test_env["SANDIUM_ZSTD_ARGS_LOG"] = str(root / "zstd-args.log")
         test_env["SANDIUM_TAR_FAIL_ONCE_LOCK"] = str(root / "tar-fail-once.lock")
+        test_env["SANDIUM_TAR_FAIL_ONCE_LOG"] = str(root / "tar-fail-once.log")
         archive_output = run("archive", "--root", str(root), "--workers", "8", env=test_env)
         assert "SANDIUM_SHARD_ARCHIVE_RETRY=START" in archive_output, archive_output
-        assert "SANDIUM_TEST_INJECTED_TAR_EXIT_1" in archive_output, archive_output
+        assert (root / "tar-fail-once.log").read_text(encoding="utf-8").strip() == "SANDIUM_TEST_INJECTED_TAR_EXIT_1"
         zstd_args = (root / "zstd-args.log").read_text(encoding="utf-8").splitlines()
         assert zstd_args and all("--fast=5" in args for args in zstd_args), zstd_args
         manifest_path = root / "brave-workspace-checkpoint.manifest.json"
@@ -131,6 +227,12 @@ def main() -> None:
         assert len(shards) == manifest["workers"], manifest
         assert all(int(shard["size_bytes"]) > 0 for shard in shards), manifest
         assert all(int(shard["archive_attempts"]) in (1, 2) for shard in shards), manifest
+        assert manifest["excluded_transient_patterns"] == ["*.staging"], manifest
+        assert manifest["accepted_transient_read_race_count"] == 0, manifest
+        assert manifest["source_snapshot"]["method"] == "same-filesystem-hardlink-directory-snapshot", manifest
+        assert manifest["source_snapshot"]["inventory_stable"] is True, manifest
+        assert manifest["source_snapshot"]["hardlinked_files"] > 0, manifest
+        assert manifest["source_snapshot"]["excluded_staging_files"] == 1, manifest
         assert any(int(shard["archive_attempts"]) == 2 for shard in shards), manifest
         assert len({shard["sha256"] for shard in shards}) == len(shards), manifest
         verified = run("verify", "--root", str(root), "--workers", "8", "--zstd-test")
@@ -141,6 +243,7 @@ def main() -> None:
         assert "SANDIUM_PARALLEL_RESTORE=PASS" in restored, restored
         for relative, payload in expected.items():
             assert (root / relative).read_bytes() == payload, "payload mismatch: " + relative
+        assert not staging_file.exists(), "Ninja .staging file must not enter checkpoint archive"
         assert (src / "third_party" / "empty-directory").is_dir()
         assert link.is_symlink() and os.readlink(link) == "empty-directory"
         assert (wrapper.stat().st_mode & 0o777) == source_mode
@@ -162,7 +265,7 @@ def main() -> None:
                               "--workers", "8"], stdout=subprocess.PIPE,
                              stderr=subprocess.STDOUT, text=True)
         assert bad.returncode != 0 and "SHA256 mismatch" in bad.stdout, bad.stdout
-    print("SANDIUM_PARALLEL_CHECKPOINT_TEST=PASS 8-way archive/verify/restore; symlink/mode/mtime preservation; tamper detection")
+    print("SANDIUM_PARALLEL_CHECKPOINT_TEST=PASS 8-way hard-link snapshot/archive/verify/restore; live-workspace isolation; staging exclusion; symlink/mode/mtime preservation; tar retry; tamper detection")
 
 if __name__ == "__main__":
     main()

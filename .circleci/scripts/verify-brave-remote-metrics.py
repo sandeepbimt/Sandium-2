@@ -26,6 +26,8 @@ def main() -> None:
     local = 0
     failures = 0
     action_records = 0
+    libchrome_link_records = 0
+    libchrome_link_nonremote = 0
     with path.open(encoding="utf-8", errors="replace") as stream:
         for number, line in enumerate(stream, 1):
             if not line.strip():
@@ -38,6 +40,18 @@ def main() -> None:
             if not isinstance(row, dict) or not row.get("step_id"):
                 continue
             action_records += 1
+            outputs = row.get("outputs")
+            if not isinstance(outputs, list):
+                outputs = []
+            is_libchrome_link = (
+                row.get("action") == "solink" and
+                any(str(output).endswith("/libchrome.so") or str(output) == "libchrome.so"
+                    for output in outputs)
+            )
+            if is_libchrome_link:
+                libchrome_link_records += 1
+                if row.get("is_remote") is not True and row.get("cached") is not True:
+                    libchrome_link_nonremote += 1
             failed = any(row.get(key) is True for key in ("err", "scandeps_err", "deps_log_err"))
             if failed:
                 failures += 1
@@ -50,6 +64,14 @@ def main() -> None:
             elif row.get("is_local") is True:
                 local += 1
 
+    if libchrome_link_nonremote:
+        fail("BRAVE_LINK_REMOTE_GATE=FAIL libchrome.so SOLINK was executed locally in %d record(s); "
+             "check -config googlechrome,remote-link" % libchrome_link_nonremote)
+    if libchrome_link_records:
+        print("BRAVE_LINK_REMOTE_GATE=PASS libchrome_solink_records=%d local_executions=0" %
+              libchrome_link_records)
+    else:
+        print("BRAVE_LINK_REMOTE_GATE=NOT_APPLICABLE libchrome.so was not scheduled in this stage")
     if failures:
         fail("BRAVE_REMOTE_EXECUTION_GATE=FAIL smoke metrics contain %d failed action records" % failures)
     if not action_records:

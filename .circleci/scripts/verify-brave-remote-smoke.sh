@@ -10,10 +10,9 @@ PYTHON_REMOTE_WRAPPER="$SRC/buildtools/reclient_cfgs/python/python_remote_wrappe
 SISO_BRAVE_CONFIG="$SRC/build/config/siso/brave_siso_config.star"
 DIAGNOSTICS="$ROOT/brave-apk/siso-diagnostics"
 
-# Run the worker compatibility preflight exactly once, in Stage 1, after
-# the exact pending action set has been snapshotted by brave-action-ledger.py.
-# Do not clobber: smoke actions must be a subset of that snapshot and may not
-# rerun work completed in an earlier checkpoint. Stage 2+ inherit this result.
+# Run the worker compatibility preflight exactly once, in Stage 1.
+# Stage 2+ inherit this result; the real Ninja/Siso build resumes from its
+# restored native build state and remote action cache.
 if [ "$STAGE" != "1" ]; then
   echo "BRAVE_REMOTE_SMOKE=SKIP stage=$STAGE reason=stage-1-preflight-only"
   exit 0
@@ -90,7 +89,7 @@ echo "BRAVE_PROTO_REMOTE_SMOKE=START target=$PROTO_SMOKE_TARGET strict_remote=tr
 rm -f "$PROTO_SMOKE_OUTPUT"
 # The first pass compiles the host protoc/cppgen prerequisites as well as the
 # generator action. Use the remote pool in parallel; keep a bounded 10m cap.
-METRICS_PREFIX="sandium-brave-action-stage-${STAGE}-build-${CIRCLE_BUILD_NUM:-local}-attempt-"
+METRICS_PREFIX="sandium-brave-siso-stage-${STAGE}-build-${CIRCLE_BUILD_NUM:-local}-attempt-"
 SMOKE_METRICS="${METRICS_PREFIX}smoke.jsonl"
 timeout --signal=INT --kill-after=30s 600s \
   autoninja -strict_remote -re_cache_enable_read=false -metrics_json "$SMOKE_METRICS" -C "$OUT" "-j$REMOTE_JOBS" "$PROTO_SMOKE_TARGET"
@@ -99,5 +98,5 @@ test -s "$PROTO_SMOKE_OUTPUT" || {
   echo "BRAVE_PROTO_REMOTE_SMOKE=FAIL target completed without $PROTO_SMOKE_OUTPUT" >&2
   exit 1
 }
-python3 .circleci/scripts/verify-brave-remote-metrics.py "$OUT/$SMOKE_METRICS"
+python3 "$ROOT/.circleci/scripts/verify-brave-remote-metrics.py" "$OUT/$SMOKE_METRICS"
 echo "BRAVE_PROTO_REMOTE_SMOKE=PASS target=$PROTO_SMOKE_TARGET output=$PROTO_SMOKE_OUTPUT fresh_remote_execution=verified"

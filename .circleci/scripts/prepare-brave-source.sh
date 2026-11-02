@@ -294,7 +294,8 @@ PY
   }
   echo "BRAVE_RBE_CONTAINER_IMAGE=$EXPECTED_CONTAINER_IMAGE"
   # Brave's runhooks generated the native .sisorc immediately before this step.
-  # Preserve those flags and add Sandium's BuildBuddy action-cache write flag.
+  # Preserve native flags, enable the pinned Chromium remote-link rules, and
+  # retain Sandium's BuildBuddy action-cache write flag.
 python3 - "$SRC_DIR/build/config/siso/.sisorc" <<'PY'
 from pathlib import Path
 import os
@@ -325,7 +326,6 @@ required = [
     ("-reapi_keep_exec_stream",),
     ("-fs_min_flush_timeout", "300s"),
     ("-reapi_byte_stream_read_threshold", "1024"),
-    ("-config", "googlechrome"),
 ]
 for sequence in required:
     found = any(
@@ -337,6 +337,18 @@ for sequence in required:
             "BRAVE_SISO_CONFIG_GATE=FAIL missing Brave native Siso flag sequence: "
             + " ".join(sequence)
         )
+
+config_positions = [i for i, token in enumerate(tokens) if token == "-config"]
+if len(config_positions) != 1 or config_positions[0] + 1 >= len(tokens):
+    raise SystemExit("BRAVE_SISO_CONFIG_GATE=FAIL expected exactly one -config value")
+config_index = config_positions[0] + 1
+config_values = tokens[config_index].split(",")
+if "googlechrome" not in config_values:
+    raise SystemExit("BRAVE_SISO_CONFIG_GATE=FAIL Brave googlechrome config must be retained")
+if "remote-link" not in config_values:
+    config_values.append("remote-link")
+    tokens[config_index] = ",".join(config_values)
+    lines[ninja_index] = shlex.join(tokens)
 
 if "-re_cache_enable_write=true" not in tokens:
     lines[ninja_index] = lines[ninja_index].rstrip() + " -re_cache_enable_write=true"
@@ -355,6 +367,7 @@ if updated != original:
             os.unlink(temporary)
 
 print("BRAVE_SISO_NATIVE_FLAGS=PASS")
+print("BRAVE_SISO_REMOTE_LINK=ENABLED")
 print("BRAVE_SISO_CACHE_WRITE=PASS")
 print(sisorc.read_text(encoding="utf-8"), end="")
 PY
