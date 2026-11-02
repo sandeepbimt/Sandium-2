@@ -346,7 +346,7 @@ def stop_idle_build_servers(work: Path, timeout: float = 10.0) -> None:
         try:
             argv = [
                 os.fsdecode(item) for item in
-                (process / "cmdline").read_bytes().split(b"\\0") if item
+                (process / "cmdline").read_bytes().split(b"\0") if item
             ]
         except OSError:
             continue
