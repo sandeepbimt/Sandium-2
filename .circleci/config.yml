@@ -1611,8 +1611,8 @@ jobs:
                 keys:
                   # Canonical immutable reference is owned by the accepted clean-base branch.
                   # Do not use the current feature branch's empty cache namespace as the only lookup.
-                  - sandium-brave-reference-v2-sandium/fix-archive-completion-gate-
-                  - sandium-brave-reference-v1-sandium/fix-archive-completion-gate-
+                  - sandium-brave-reference-v2-sandium/brave-android-poc-
+                  - sandium-brave-reference-v1-sandium/brave-android-poc-
                   # Preserve same-branch lookup for branches with their own formally promoted reference.
                   - sandium-brave-reference-v2-{{ .Branch }}-
                   - sandium-brave-reference-v1-{{ .Branch }}-
@@ -1671,8 +1671,8 @@ jobs:
                 keys:
                   # Canonical immutable reference is owned by the accepted clean-base branch.
                   # Do not use the current feature branch's empty cache namespace as the only lookup.
-                  - sandium-brave-reference-v2-sandium/fix-archive-completion-gate-
-                  - sandium-brave-reference-v1-sandium/fix-archive-completion-gate-
+                  - sandium-brave-reference-v2-sandium/brave-android-poc-
+                  - sandium-brave-reference-v1-sandium/brave-android-poc-
                   # Preserve same-branch lookup for branches with their own formally promoted reference.
                   - sandium-brave-reference-v2-{{ .Branch }}-
                   - sandium-brave-reference-v1-{{ .Branch }}-
@@ -1687,8 +1687,8 @@ jobs:
                 keys:
                   # Canonical immutable reference is owned by the accepted clean-base branch.
                   # Do not use the current feature branch's empty cache namespace as the only lookup.
-                  - sandium-brave-reference-v2-sandium/fix-archive-completion-gate-
-                  - sandium-brave-reference-v1-sandium/fix-archive-completion-gate-
+                  - sandium-brave-reference-v2-sandium/brave-android-poc-
+                  - sandium-brave-reference-v1-sandium/brave-android-poc-
                   # Preserve same-branch lookup for branches with their own formally promoted reference.
                   - sandium-brave-reference-v2-{{ .Branch }}-
                   - sandium-brave-reference-v1-{{ .Branch }}-
@@ -1703,8 +1703,8 @@ jobs:
                 keys:
                   # Canonical immutable reference is owned by the accepted clean-base branch.
                   # Do not use the current feature branch's empty cache namespace as the only lookup.
-                  - sandium-brave-reference-v2-sandium/fix-archive-completion-gate-
-                  - sandium-brave-reference-v1-sandium/fix-archive-completion-gate-
+                  - sandium-brave-reference-v2-sandium/brave-android-poc-
+                  - sandium-brave-reference-v1-sandium/brave-android-poc-
                   # Preserve same-branch lookup for branches with their own formally promoted reference.
                   - sandium-brave-reference-v2-{{ .Branch }}-
                   - sandium-brave-reference-v1-{{ .Branch }}-
@@ -1719,8 +1719,8 @@ jobs:
                 keys:
                   # Canonical immutable reference is owned by the accepted clean-base branch.
                   # Do not use the current feature branch's empty cache namespace as the only lookup.
-                  - sandium-brave-reference-v2-sandium/fix-archive-completion-gate-
-                  - sandium-brave-reference-v1-sandium/fix-archive-completion-gate-
+                  - sandium-brave-reference-v2-sandium/brave-android-poc-
+                  - sandium-brave-reference-v1-sandium/brave-android-poc-
                   # Preserve same-branch lookup for branches with their own formally promoted reference.
                   - sandium-brave-reference-v2-{{ .Branch }}-
                   - sandium-brave-reference-v1-{{ .Branch }}-
