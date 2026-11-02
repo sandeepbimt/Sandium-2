@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import concurrent.futures
+import errno
 import hashlib
 import json
 import os
@@ -379,14 +380,9 @@ def create_hardlink_snapshot(
                 copy_function=hardlink_file,
                 ignore=ignore_staging,
             )
-        except OSError as exc:
+        except shutil.Error as exc:
             shutil.rmtree(snapshot_work, ignore_errors=True)
-            if exc.errno in (getattr(os, "EXDEV", 18),):
-                raise RuntimeError(
-                    "same-filesystem hard-link snapshot is unavailable; "
-                    "refusing a 68-GB data-copy fallback"
-                ) from exc
-            last_reason = "snapshot copy encountered %s: %s" % (type(exc).__name__, exc)
+            last_reason = "workspace changed while hard-link snapshot was being created: %s" % exc
             print(
                 "SANDIUM_ARCHIVE_SNAPSHOT_RETRY=START attempt=%d reason=%s" %
                 (attempt, last_reason),
@@ -394,9 +390,18 @@ def create_hardlink_snapshot(
             )
             time.sleep(3)
             continue
-        except shutil.Error as exc:
+        except OSError as exc:
             shutil.rmtree(snapshot_work, ignore_errors=True)
-            last_reason = "workspace changed while hard-link snapshot was being created: %s" % exc
+            if exc.errno in {
+                errno.EXDEV, errno.EPERM, errno.EACCES,
+                getattr(errno, "EOPNOTSUPP", 95),
+                getattr(errno, "ENOTSUP", 95),
+            }:
+                raise RuntimeError(
+                    "same-filesystem hard-link snapshot is unsupported or denied; "
+                    "refusing a 68-GB data-copy fallback"
+                ) from exc
+            last_reason = "snapshot copy encountered %s: %s" % (type(exc).__name__, exc)
             print(
                 "SANDIUM_ARCHIVE_SNAPSHOT_RETRY=START attempt=%d reason=%s" %
                 (attempt, last_reason),
@@ -473,9 +478,8 @@ def archive_worker(index: int, total: int, roots: list[Path],
     tar_diagnostic = ""
     attempts = 0
 
-    # GNU tar returns 1 when files change while being read. This is not a
-    # successful snapshot: retry once after the build/checkpoint has settled.
-    # Keep the diagnostic enabled so repeated mutations are visible in CircleCI.
+    # The archive source is a hard-link namespace snapshot. Retry one
+    # infrastructure-level tar exit, but never suppress tar read/change warnings.
     for attempts in range(1, 3):
         temporary.unlink(missing_ok=True)
         with tempfile.TemporaryFile() as tar_stderr:

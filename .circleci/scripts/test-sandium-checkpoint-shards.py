@@ -33,6 +33,13 @@ def test_hardlink_snapshot(root: Path) -> None:
     staging_file = source_dir / "temporary.stamp.staging"
     staging_file.write_bytes(b"partial temporary output")
 
+    with source_file.open("ab") as writer:
+        writers = SHARD_MODULE.find_open_writers(work)
+        assert any(
+            item["pid"] == str(os.getpid()) and item["path"] == str(source_file)
+            for item in writers
+        ), writers
+
     snapshot_parent = root / "snapshot-fixture" / "snapshot"
     snapshot_work = snapshot_parent / "brave-work"
     result = SHARD_MODULE.create_hardlink_snapshot(work, snapshot_work)
