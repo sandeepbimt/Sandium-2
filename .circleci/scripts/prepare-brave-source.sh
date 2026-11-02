@@ -53,6 +53,22 @@ if [ "${BRAVE_STAGE_INDEX:?BRAVE_STAGE_INDEX is required}" = "1" ]; then
   echo "BRAVE_RBE_INSTANCE=$REAPI_INSTANCE"
   export DEPOT_TOOLS_UPDATE=0
 
+  # A portable receipt is written only after the entire preparation step has
+  # passed all source, branding, Siso, GN, and diagnostic gates. It is bound to
+  # the exact Brave/Chromium pins, REAPI endpoint, and hashes/modes of the
+  # generated preparation outputs. A mismatch simply falls back to the
+  # original pnpm sync + gclient hooks path.
+  PREP_RECEIPT_ARGS=(
+    --root "$ROOT"
+    --brave-tag "v1.98.62"
+    --chromium-pin "$CHROMIUM_PIN"
+    --reapi-address "$REAPI_ADDRESS"
+  )
+  PREP_RECEIPT_VALID=false
+  if python3 "$ROOT/.circleci/scripts/source-prep-receipt.py" verify "${PREP_RECEIPT_ARGS[@]}"; then
+    PREP_RECEIPT_VALID=true
+  fi
+
   # Reuse the pinned source tree, but refresh Brave's generated Siso config.
   if [ -s "$ROOT/brave-work/.gclient" ] && [ -e "$SRC_DIR/.git" ] && \
      [ -x "$SRC_DIR/build/install-build-deps.sh" ] && \
@@ -62,12 +78,16 @@ if [ "${BRAVE_STAGE_INDEX:?BRAVE_STAGE_INDEX is required}" = "1" ]; then
     SOURCE_REUSE=true
     echo "BRAVE_SOURCE_REUSE=PASS; pinned source restored."
     if [ -s "$ROOT/brave-work/.sandium/workspace-checkpoint-restored" ]; then
-      # The archive already contains the matching .gclient, generated GN/Siso
-      # configuration, Ninja metadata and Siso filesystem journal. Re-running
-      # pnpm sync here can rewrite that state and invalidate the checkpoint.
+      # Preserve the existing restored-workspace behavior.
       echo "BRAVE_CHECKPOINT_PRESERVATION=PASS; skipping pnpm sync on restored workspace."
+    elif [ "$PREP_RECEIPT_VALID" = true ]; then
+      # The portable receipt proves the exact pinned source/configuration and
+      # all required generated files are unchanged. Avoid redundant gclient
+      # sync/runhooks; all later Sandium, package, Siso, GN, and diagnostic
+      # gates below still run normally.
+      echo "BRAVE_SOURCE_SYNC=SKIPPED reason=verified_portable_preparation_receipt"
     else
-      echo "BRAVE_SOURCE_REUSE=PASS; no portable checkpoint marker; refreshing Brave config."
+      echo "BRAVE_SOURCE_REUSE=PASS; no matching portable preparation receipt; refreshing Brave config."
       cd "$CORE_DIR"
       pnpm run sync --target_os=android --target_arch=arm64 --no-history --sync_chromium=false
     fi
@@ -384,6 +404,30 @@ PY
   fi
   export SISO_LIMITS=local=8,remote=80
   echo "BRAVE_STAGE1_VALIDATION_MODE=DRY_RUN_NO_COMPILATION"
-  pnpm run build Release --target_os=android --target_arch=arm64 --target_android_output_format=apk --use_remoteexec=true --gn use_siso:true --gn use_reclient:false --gn is_java_debug:false --gn enable_android_secondary_abi:false --gn is_official_build:false --gn enable_updater:false --gn enable_update_notifications:false --gn android_channel:default --gn chrome_public_manifest_package:com.brave.browser_default --gn brave_channel:development --target brave --ninja=n
+  # The Siso -n dry-run emits tens of thousands of command lines (the attached
+  # run exceeded CircleCI's 50 MB step-output limit). Capture the unchanged
+  # command output locally; print a compact success summary or a useful failure
+  # tail. Exit status and build arguments remain exactly the same.
+  GN_DRY_RUN_LOG="$(mktemp /tmp/sandium-brave-gn-dry-run.XXXXXX.log)"
+  if pnpm run build Release --target_os=android --target_arch=arm64 --target_android_output_format=apk --use_remoteexec=true --gn use_siso:true --gn use_reclient:false --gn is_java_debug:false --gn enable_android_secondary_abi:false --gn is_official_build:false --gn enable_updater:false --gn enable_update_notifications:false --gn android_channel:default --gn chrome_public_manifest_package:com.brave.browser_default --gn brave_channel:development --target brave --ninja=n >"$GN_DRY_RUN_LOG" 2>&1; then
+    echo "BRAVE_GN_DRY_RUN=PASS bytes=$(stat -c '%s' "$GN_DRY_RUN_LOG")"
+    grep -E 'Done\. Made [0-9]+ targets|schedule pending:|build start:|no work to do' "$GN_DRY_RUN_LOG" | tail -n 20 || true
+    rm -f "$GN_DRY_RUN_LOG"
+  else
+    GN_DRY_RUN_RC=$?
+    echo "BRAVE_GN_DRY_RUN=FAIL exit=$GN_DRY_RUN_RC; last 120 log lines follow." >&2
+    tail -n 120 "$GN_DRY_RUN_LOG" >&2 || true
+    rm -f "$GN_DRY_RUN_LOG"
+    exit "$GN_DRY_RUN_RC"
+  fi
   bash "$ROOT/.circleci/scripts/verify-clang-diagnostics-gn.sh"
+
+  # Write the receipt last. Failure to create an optimization receipt must
+  # never fail an otherwise valid preparation; it only means next run uses
+  # the original full synchronization path.
+  if python3 "$ROOT/.circleci/scripts/source-prep-receipt.py" write "${PREP_RECEIPT_ARGS[@]}"; then
+    echo "BRAVE_SOURCE_PREPARATION_RECEIPT=READY"
+  else
+    echo "BRAVE_SOURCE_PREPARATION_RECEIPT=WARNING; next run will perform normal sync."
+  fi
 fi
