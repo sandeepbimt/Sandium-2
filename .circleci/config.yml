@@ -1591,6 +1591,8 @@ jobs:
             - restore_cache:
                 name: Restore latest reference or bootstrap legacy checkpoint
                 keys:
+                  # Prefer the latest verified Full Mode reference produced by the accepted clean-base branch.
+                  - sandium-brave-reference-v2-sandium/brave-android-poc-
                   - sandium-brave-reference-v2-{{ .Branch }}-
                   - sandium-brave-handoff-v2-{{ .Branch }}-
                   # Migration fallbacks for the previous single-file reference/handoff format.
