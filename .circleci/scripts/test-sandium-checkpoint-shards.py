@@ -49,7 +49,7 @@ def test_transient_tar_races(root: Path, output: Path) -> None:
         "libbase.a: file changed as we read it"
     )
     try:
-        SHARD_MODULE.validate_tar_diagnostics(root, unsafe)
+        SHARD_MODULE.validate_tar_diagnostics(root, unsafe, set())
     except RuntimeError as exc:
         assert "non-transient read errors" in str(exc), str(exc)
     else:
@@ -71,7 +71,7 @@ def test_transient_tar_races(root: Path, output: Path) -> None:
 
     # Unreadable/unknown tar diagnostics must also remain fatal.
     try:
-        SHARD_MODULE.validate_tar_diagnostics(root, "tar: Permission denied")
+        SHARD_MODULE.validate_tar_diagnostics(root, "tar: Permission denied", set())
     except RuntimeError as exc:
         assert "non-transient read errors" in str(exc), str(exc)
     else:
