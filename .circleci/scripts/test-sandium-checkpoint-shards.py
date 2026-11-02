@@ -33,7 +33,7 @@ def test_idle_build_server_shutdown(root: Path) -> None:
     log.parent.mkdir(parents=True)
     script.write_text(
         "import sys, time\n"
-        "stream = open(sys.argv[1], 'a', encoding='utf-8')\n"
+        "stream = open(sys.argv[-1], 'a', encoding='utf-8')\n"
         "stream.write('ready'); stream.flush()\n"
         "time.sleep(60)\n",
         encoding="utf-8",
