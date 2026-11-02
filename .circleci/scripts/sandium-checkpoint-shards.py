@@ -246,7 +246,27 @@ def parse_checkpoint_manifest(path: Path) -> dict[str, str]:
 
 
 
-def validate_tar_diagnostics(root: Path, diagnostic: str) -> list[dict[str, str]]:
+def collect_staging_parent_directories(roots: list[Path]) -> set[Path]:
+    """Find directories that contain Ninja's transient *.staging files."""
+    staging_parents: set[Path] = set()
+    for root_path in roots:
+        if root_path.is_file():
+            if root_path.name.endswith(".staging"):
+                staging_parents.add(root_path.parent.resolve())
+            continue
+        if not root_path.is_dir():
+            continue
+        for directory, _subdirs, filenames in os.walk(root_path, followlinks=False):
+            if any(filename.endswith(".staging") for filename in filenames):
+                staging_parents.add(Path(directory).resolve())
+    return staging_parents
+
+
+def validate_tar_diagnostics(
+    root: Path,
+    diagnostic: str,
+    staging_parent_directories: set[Path],
+) -> list[dict[str, str]]:
     """Allow only known ephemeral staging-file and directory-metadata races.
 
     GNU tar can observe Ninja's short-lived *.staging files being removed while
@@ -283,7 +303,11 @@ def validate_tar_diagnostics(root: Path, diagnostic: str) -> list[dict[str, str]
                 "path": raw_path,
                 "reason": "ephemeral_ninja_staging_file",
             })
-        elif reason == "file changed as we read it" and candidate.is_dir():
+        elif (
+            reason == "file changed as we read it"
+            and candidate.is_dir()
+            and candidate.resolve() in staging_parent_directories
+        ):
             accepted.append({
                 "path": raw_path,
                 "reason": "directory_metadata_changed_during_staging_cleanup",
@@ -322,6 +346,12 @@ def archive_worker(index: int, total: int, roots: list[Path],
         "--checkpoint-action=echo=SHARD_%02d_TAR_CHECKPOINT=%%u" % index,
         "-C", str(root), "--null", "-T", str(list_file),
     ]
+    staging_parent_directories = collect_staging_parent_directories(roots)
+    print(
+        "SANDIUM_ARCHIVE_STAGING_SCAN=PASS shard=%02d directories=%d" %
+        (index, len(staging_parent_directories)),
+        flush=True,
+    )
     zstd_command = ["zstd", "-T1", "--fast=5", "-q", "-o", str(temporary)]
     started = time.monotonic()
     tar_rc = -1
@@ -355,7 +385,9 @@ def archive_worker(index: int, total: int, roots: list[Path],
                       file=sys.stderr, flush=True)
 
         try:
-            accepted_read_races = validate_tar_diagnostics(root, tar_diagnostic)
+            accepted_read_races = validate_tar_diagnostics(
+                root, tar_diagnostic, staging_parent_directories
+            )
         except RuntimeError as exc:
             raise RuntimeError("shard %02d: %s" % (index, exc)) from exc
         for race in accepted_read_races:

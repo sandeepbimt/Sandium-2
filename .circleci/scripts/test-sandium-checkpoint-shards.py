@@ -34,7 +34,9 @@ def test_transient_tar_races(root: Path, output: Path) -> None:
         "tar: brave-work/src/out/android_Release_arm64/obj/base: "
         "file changed as we read it\n"
     )
-    accepted = SHARD_MODULE.validate_tar_diagnostics(root, sample)
+    accepted = SHARD_MODULE.validate_tar_diagnostics(
+        root, sample, {base_dir.resolve()}
+    )
     assert len(accepted) == 2, accepted
     assert {item["reason"] for item in accepted} == {
         "ephemeral_ninja_staging_file",
@@ -52,6 +54,20 @@ def test_transient_tar_races(root: Path, output: Path) -> None:
         assert "non-transient read errors" in str(exc), str(exc)
     else:
         raise AssertionError("changing a regular build output must remain fatal")
+
+
+    # A changed directory without a known staging cleanup is not benign.
+    try:
+        SHARD_MODULE.validate_tar_diagnostics(
+            root,
+            "tar: brave-work/src/out/android_Release_arm64/obj/base: "
+            "file changed as we read it",
+            set(),
+        )
+    except RuntimeError as exc:
+        assert "non-transient read errors" in str(exc), str(exc)
+    else:
+        raise AssertionError("unexplained directory mutation must remain fatal")
 
     # Unreadable/unknown tar diagnostics must also remain fatal.
     try:
