@@ -264,7 +264,7 @@ if "-n" in args:
         status_path = src.parent / ".sandium" / "build-stage-status.txt"
         status_path.parent.mkdir(parents=True, exist_ok=True)
         status_path.write_text(
-            "BUILD_EXIT_CODE=124\nBUILD_REASON=TIME_SLICE_COMPLETE\n",
+            "BUILD_EXIT_CODE=137\nBUILD_REASON=TIME_SLICE_COMPLETE\nBUILD_TIME_SLICE_EXPIRED=true\n",
             encoding="utf-8")
         pending_file.write_text(json.dumps(list(range(20))), encoding="utf-8")
         slice_plan = run(["plan", *common, "--stage", "1", "--build", "505",
