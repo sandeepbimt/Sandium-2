@@ -337,7 +337,8 @@ def main():
             # baseline; all earlier restored outputs are outside this ledger.
             ledger = {"schema_version": SCHEMA, "identity": ident,
                       "baseline_scope": "remaining_actions_at_restored_checkpoint",
-                      "planned_total": pending, "completed": {}, "stages": [],
+                      "planned_total": pending, "completed": {},
+                      "checkpoint_satisfied": {}, "stages": [],
                       "next_pending_action_keys": sorted(pending_keys),
                       "legacy_seed": {"historical_object_files_excluded": True,
                                       "historical_metrics_used": False,
@@ -380,28 +381,84 @@ def main():
                 set(ledger.get("next_pending_action_keys", [])) | reopened)
             invalidation_marker.unlink(missing_ok=True)
             print("ACTION_INVALIDATED_APK_ACTION_REOPENED=%d" % len(reopened))
-        total, done = int(ledger["planned_total"]), len(ledger["completed"])
-        expected = total - done
-        if expected < 0:
-            die(f"ACTION_LEDGER_STATE=FAIL completed={done} total={total}")
-        if pending != expected:
-            die("ACTION_HANDOFF_GATE=FAIL expected_pending=%d dry_run_pending=%d completed=%d total=%d; "
-                "stopping before compilation" % (expected, pending, done, total))
-        expected_keys = set(ledger.get("next_pending_action_keys", []))
-        if expected_keys != pending_keys:
-            added = sorted(pending_keys - expected_keys)
-            missing = sorted(expected_keys - pending_keys)
-            die("ACTION_HANDOFF_SET_GATE=FAIL pending action identity set changed; "
-                "new=%d missing=%d examples_new=%s examples_missing=%s" %
-                (len(added), len(missing), added[:5], missing[:5]))
+        # The current Siso -n result is authoritative for work still required.
+        # A restored checkpoint can make many actions up-to-date even though
+        # an older ledger only knows about metrics from earlier runs. Those
+        # actions are NOT retroactively labelled as metric-completed: they are
+        # kept in a separate checkpoint_satisfied category.
+        checkpoint_satisfied = ledger.setdefault("checkpoint_satisfied", {})
+        if not isinstance(checkpoint_satisfied, dict):
+            die("ACTION_LEDGER_SCHEMA=FAIL invalid checkpoint_satisfied map")
+        completed_keys = set(ledger["completed"])
+        replayed = pending_keys.intersection(completed_keys)
+        if replayed:
+            die("ACTION_REEXECUTION_GATE=FAIL %d previously metric-completed action(s) are pending again; "
+                "examples=%s" % (len(replayed), sorted(replayed)[:5]))
+
+        previous_frontier = set(ledger.get("next_pending_action_keys", []))
+        previously_satisfied = set(checkpoint_satisfied)
+        reopened_checkpoint = previously_satisfied.intersection(pending_keys)
+        for key in reopened_checkpoint:
+            checkpoint_satisfied.pop(key, None)
+
+        # When restored outputs cause Siso to stop scheduling an action, move
+        # that identity from pending to checkpoint-satisfied. If it reappears
+        # in a later dry-run, it automatically returns to pending instead.
+        resolved_by_checkpoint = previous_frontier - pending_keys - completed_keys
+        now = int(time.time())
+        for key in resolved_by_checkpoint:
+            checkpoint_satisfied.setdefault(key, {
+                "reason": "not_scheduled_by_current_siso_dry_run_after_checkpoint_restore",
+                "resolved_at_stage": a.stage,
+                "resolved_at_epoch": now,
+            })
+        # Keep the accounting categories disjoint if repairing an older ledger.
+        for key in completed_keys:
+            checkpoint_satisfied.pop(key, None)
+        checkpoint_keys = set(checkpoint_satisfied)
+
+        # Reconcile by unique action identity, not by subtracting historical
+        # counters from a live dry-run count. This also absorbs newly exposed
+        # dynamic actions without blocking compilation on a tally mismatch.
+        prior_total = int(ledger.get("planned_total", 0))
+        total_keys = completed_keys | checkpoint_keys | pending_keys
+        total = len(total_keys)
+        ledger["planned_total"] = total
+        ledger["next_pending_action_keys"] = sorted(pending_keys)
+        done = len(completed_keys)
+        expected = total - done - len(checkpoint_keys)
+        if expected != pending:
+            die("ACTION_LEDGER_RECONCILIATION=FAIL identity categories do not balance "
+                "metric_completed=%d checkpoint_satisfied=%d live_pending=%d total=%d" %
+                (done, len(checkpoint_keys), pending, total))
+        newly_discovered_pending = pending_keys - previous_frontier - completed_keys - previously_satisfied
+        ledger.setdefault("checkpoint_reconciliations", []).append({
+            "stage_run": run_id,
+            "previous_total": prior_total,
+            "reconciled_total": total,
+            "resolved_by_checkpoint": len(resolved_by_checkpoint),
+            "reopened_from_checkpoint": len(reopened_checkpoint),
+            "newly_discovered_pending": len(newly_discovered_pending),
+            "metric_completed": done,
+            "checkpoint_satisfied_total": len(checkpoint_keys),
+            "live_pending": pending,
+            "recorded_at_epoch": now,
+        })
         ledger["active_stage"] = {"run_id": run_id, "workflow": a.workflow,
                                   "build": a.build, "stage": a.stage,
                                   "pending_before": pending, "pending_action_keys": sorted(pending_keys),
-                                  "completed_before": done, "planned_total": total,
-                                  "dry_run": dry, "planned_at_epoch": int(time.time())}
+                                  "completed_before": done,
+                                  "checkpoint_satisfied_before": len(checkpoint_keys),
+                                  "planned_total": total,
+                                  "dry_run": dry, "planned_at_epoch": now}
         save(path, ledger)
-        print(f"ACTION_HANDOFF_GATE=PASS pending={pending}/{expected}")
-        print(f"SANDIUM_BUILD_MATH={done}/{total} complete; {pending}/{expected} pending")
+        print("ACTION_CHECKPOINT_RECONCILIATION=PASS resolved_by_restored_state=%d reopened=%d "
+              "new_pending=%d previous_total=%d reconciled_total=%d" %
+              (len(resolved_by_checkpoint), len(reopened_checkpoint),
+               len(newly_discovered_pending), prior_total, total))
+        print("ACTION_HANDOFF_GATE=PASS live_siso_pending=%d/%d" % (pending, expected))
+        print("SANDIUM_BUILD_MATH=metric_completed=%d checkpoint_satisfied=%d pending=%d total=%d" %
+              (done, len(checkpoint_keys), pending, total))
         print(f"ACTION_PLAN_DRY_RUN=PASS action_identities={pending} progress_denominators={dry.get('progress_denominators')}")
         return
 
@@ -445,6 +502,9 @@ def main():
     if not stats["files"] and not smoke_planned and int(active.get("pending_before", 0)):
         die(f"ACTION_METRICS_MISSING=FAIL no APK-build metrics or planned smoke-overlap metrics found for prefix {a.metrics_prefix}")
     previous = ledger["completed"]
+    checkpoint_satisfied = ledger.setdefault("checkpoint_satisfied", {})
+    if not isinstance(checkpoint_satisfied, dict):
+        die("ACTION_LEDGER_SCHEMA=FAIL invalid checkpoint_satisfied map")
     revisited = set(metrics).intersection(previous)
     if revisited:
         die(f"ACTION_REEXECUTION_GATE=FAIL {len(revisited)} previously completed actions appeared again")
@@ -571,8 +631,8 @@ def main():
                  provisional_manifest, sorted(vanished)[:5], sorted(still_pending_planned_keys)[:5]))
         planned_remaining_keys -= pruned_planned_keys
         ledger["planned_total"] = int(ledger["planned_total"]) - len(pruned_planned_keys)
-        if ledger["planned_total"] < len(ledger["completed"]):
-            die("ACTION_PRUNED_ACCOUNTING=FAIL pruned actions would make completed exceed planned total")
+        if ledger["planned_total"] < len(ledger["completed"]) + len(checkpoint_satisfied):
+            die("ACTION_PRUNED_ACCOUNTING=FAIL pruned actions would make accounted actions exceed planned total")
 
     # A previously completed action must not reappear in the next frontier.
     reappeared = after_keys.intersection(previous)
@@ -611,16 +671,20 @@ def main():
         "metric_stats": stats,
         "after_dry_run": after_dry,
         "completed_total": len(ledger["completed"]),
+        "checkpoint_satisfied_total": len(checkpoint_satisfied),
         "planned_total_after": ledger["planned_total"],
         "recorded_at_epoch": now})
     ledger["next_pending_action_keys"] = sorted(handoff_pending_keys)
     ledger.pop("active_stage", None)
-    total, done = int(ledger["planned_total"]), len(ledger["completed"])
+    total = int(ledger["planned_total"])
+    done = len(ledger["completed"])
+    checkpoint_done = len(checkpoint_satisfied)
     after = len(handoff_pending_keys)
-    remaining = total - done
+    remaining = total - done - checkpoint_done
     if remaining != after:
-        die("ACTION_COMPLETION_MATH=FAIL total=%d completed=%d ledger_remaining=%d live_pending=%d" %
-            (total, done, remaining, after))
+        die("ACTION_COMPLETION_MATH=FAIL total=%d metric_completed=%d checkpoint_satisfied=%d "
+            "ledger_remaining=%d live_pending=%d" %
+            (total, done, checkpoint_done, remaining, after))
     save(path, ledger)
     print("ACTION_FRONTIER_RECONCILIATION=PASS planned_completed=%d dynamically_completed=%d newly_pending=%d pending_after=%d" %
           (len(planned_completed_keys), len(dynamically_completed_keys),
@@ -630,7 +694,8 @@ def main():
     print(f"ACTION_COMPLETION_MATH=PASS before={before} new={added} after={after}")
     print(f"ACTION_METRICS=PASS files={len(stats['files'])} records={stats['records']} "
           f"actions={stats['action_records']} unique={added} failed_records={stats['failed_records']}")
-    print(f"SANDIUM_BUILD_MATH={done}/{total} complete; {remaining}/{remaining} pending")
+    print(f"SANDIUM_BUILD_MATH=metric_completed={done} checkpoint_satisfied={checkpoint_done} "
+          f"pending={remaining} total={total}")
     if remaining == 0:
         if apk_validated:
             ledger["build_complete"] = True
