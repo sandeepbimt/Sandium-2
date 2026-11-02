@@ -117,7 +117,6 @@ def discover_candidates(root: Path, work: Path) -> tuple[list[Path], list[Path]]
     # A valid workspace must contain the checkpoint metadata and build graph.
     required = [
         work / ".gclient",
-        work / ".sandium" / "action-ledger.json",
         src / ".git",
         src / "brave" / ".git",
         output / "build.ninja",

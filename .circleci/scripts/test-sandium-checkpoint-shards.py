@@ -97,9 +97,6 @@ def main() -> None:
         (output / "args.gn").write_text('target_os = "android"\n', encoding="utf-8")
         (output / "args_generated.gni").write_text("use_siso=true\n", encoding="utf-8")
         (output / ".siso_fs_state.journal").write_text("journal-state\n", encoding="utf-8")
-        (work / ".sandium" / "action-ledger.json").write_text(
-            json.dumps({"schema_version": 2, "planned_total": 2, "completed": {},
-                        "next_pending_action_keys": ["a", "b"]}), encoding="utf-8")
         checkpoint_lines = [
             "CHECKPOINT_VALID=true", "REFERENCE_MODE=reference",
             "APK_VALIDATED=true", "REFERENCE_READY=true",

@@ -22,6 +22,12 @@ def main() -> None:
     forbidden = [
         "BRAVE_BUILD=SKIPPED remote worker smoke did not pass",
         "BUILD_REASON=REMOTE_SMOKE_FAILED",
+        "brave-action-ledger.py",
+        "validate-brave-action-ledger.py",
+        "action-ledger.json",
+        "Plan exact pending Brave actions",
+        "Reconcile Siso action metrics with the remaining action frontier",
+        "ACTION_LEDGER",
     ]
     for token in forbidden:
         if token in text:

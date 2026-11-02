@@ -7,7 +7,6 @@ ARCHIVE="$ROOT/brave-workspace-checkpoint.tar.zst"
 SHARDS="$ROOT/brave-workspace-checkpoint.shards"
 SHARD_MANIFEST="$ROOT/brave-workspace-checkpoint.manifest.json"
 OUT="$WORK/src/out/android_Release_arm64"
-LEDGER="$WORK/.sandium/action-ledger.json"
 MANIFEST="$WORK/.sandium/checkpoint-manifest.txt"
 WORKERS="${SANDIUM_ARCHIVE_WORKERS:-8}"
 fail() { echo "BRAVE_WORKSPACE_ARCHIVE=FAIL $*" >&2; exit 1; }
@@ -17,11 +16,6 @@ ensure_zstd() {
     sudo apt-get install -y zstd
   fi
   command -v zstd >/dev/null 2>&1 || fail "zstd is unavailable"
-}
-validate_ledger() {
-  [ -s "$LEDGER" ] || fail "missing action ledger: $LEDGER"
-  python3 "$ROOT/.circleci/scripts/validate-brave-action-ledger.py" "$LEDGER" \
-    || fail "action ledger did not pass three-way checkpoint reconciliation"
 }
 case "$MODE" in
   restore)
@@ -33,7 +27,6 @@ case "$MODE" in
       python3 "$ROOT/.circleci/scripts/sandium-checkpoint-shards.py" restore --root "$ROOT" --workers "$WORKERS"
       [ -s "$WORK/.gclient" ] || fail "restored shards are missing brave-work/.gclient"
       [ -s "$OUT/build.ninja" ] || fail "restored shards are missing the pinned build graph"
-      validate_ledger
       mkdir -p "$WORK/.sandium"
       touch "$WORK/.sandium/workspace-checkpoint-restored"
       echo "BRAVE_WORKSPACE_ARCHIVE_RESTORE=PASS checkpoint=PARALLEL_SHARDS"
@@ -43,14 +36,12 @@ case "$MODE" in
       [ ! -s "$ROOT/brave-reference-ready.meta" ] || cp "$ROOT/brave-reference-ready.meta" "$ROOT/brave-workspace-checkpoint.meta"
       zstd -t "$ARCHIVE" >/dev/null || fail "legacy reference archive failed zstd integrity test"
       zstd -dc "$ARCHIVE" | tar -xf - -C "$ROOT"
-      validate_ledger
       mkdir -p "$WORK/.sandium"
       touch "$WORK/.sandium/workspace-checkpoint-restored"
       echo "BRAVE_WORKSPACE_ARCHIVE_RESTORE=PASS checkpoint=LEGACY_SINGLE_FILE"
     elif [ -s "$ARCHIVE" ]; then
       zstd -t "$ARCHIVE" >/dev/null || fail "legacy checkpoint archive failed zstd integrity test"
       zstd -dc "$ARCHIVE" | tar -xf - -C "$ROOT"
-      validate_ledger
       mkdir -p "$WORK/.sandium"
       touch "$WORK/.sandium/workspace-checkpoint-restored"
       echo "BRAVE_WORKSPACE_ARCHIVE_RESTORE=PASS checkpoint=LEGACY_SINGLE_FILE"
@@ -70,7 +61,6 @@ case "$MODE" in
     [ -s "$OUT/build.ninja" ] || fail "missing $OUT/build.ninja"
     [ -s "$MANIFEST" ] || fail "missing validated checkpoint manifest"
     grep -qx "CHECKPOINT_VALID=true" "$MANIFEST" || fail "checkpoint manifest is not marked valid"
-    validate_ledger
     ensure_zstd
     echo "SANDIUM-FULL-MODE archive: parallel workers=$WORKERS"
     echo "BRAVE_WORKSPACE_ARCHIVE_INPUT_SIZE=$(du -sh "$WORK" | awk '{print $1}')"

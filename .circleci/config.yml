@@ -1548,10 +1548,9 @@ jobs:
           name: Run lightweight Brave continuation self-test
           command: |
             set -euo pipefail
-            python3 -m py_compile .circleci/scripts/brave-action-ledger.py .circleci/scripts/sandium-checkpoint-shards.py .circleci/scripts/test-sandium-checkpoint-shards.py .circleci/scripts/validate-brave-action-ledger.py .circleci/scripts/test-validate-brave-action-ledger.py
-            python3 .circleci/scripts/test-brave-action-ledger.py
-            python3 .circleci/scripts/test-validate-brave-action-ledger.py
+            python3 -m py_compile .circleci/scripts/sandium-checkpoint-shards.py .circleci/scripts/test-sandium-checkpoint-shards.py .circleci/scripts/checkpoint-stage-receipt.py .circleci/scripts/test-checkpoint-stage-receipt.py
             python3 .circleci/scripts/test-sandium-checkpoint-shards.py
+            python3 .circleci/scripts/test-checkpoint-stage-receipt.py
             python3 -m py_compile .circleci/scripts/verify-brave-remote-metrics.py
             python3 .circleci/scripts/test-brave-remote-metrics.py
             bash -n .circleci/scripts/archive-brave-workspace.sh
@@ -1843,7 +1842,6 @@ jobs:
             TOOLS="$ROOT/brave-work/src/third_party/android_sdk/public/build-tools/37.0.0"
             mkdir -p "$ROOT/brave-work/.sandium"
             rm -f "$ROOT/brave-work/.sandium/restored-apk-valid"
-            rm -f "$ROOT/brave-work/.sandium/invalid-apk-output-for-ledger"
             if [ ! -s "$APK" ]; then
               echo "BRAVE_RESTORED_APK=ABSENT"
               exit 0
@@ -1854,7 +1852,6 @@ jobs:
             if [ -z "$REFERENCE_REVISION" ] || [ "$REFERENCE_REVISION" != "$CURRENT_REVISION" ]; then
               echo "BRAVE_RESTORED_APK=STALE_REFERENCE; reference_revision=${REFERENCE_REVISION:-missing} current_revision=$CURRENT_REVISION"
               rm -f "$APK"
-              touch "$ROOT/brave-work/.sandium/invalid-apk-output-for-ledger"
               exit 0
             fi
             VALID=true
@@ -1880,30 +1877,8 @@ jobs:
               echo "BRAVE_RESTORED_APK=VALID package=com.brave.browser_default label=Sandium Browser bytes=$(stat -c '%s' "$APK")"
             else
               echo "BRAVE_RESTORED_APK=INVALID; reopening only the APK output action."
-              touch "$ROOT/brave-work/.sandium/invalid-apk-output-for-ledger"
               rm -f "$APK"
             fi
-      - run:
-          name: Plan exact pending Brave actions and enforce the handoff frontier
-          no_output_timeout: 20m
-          command: |
-            set -euo pipefail
-            ROOT="$CIRCLE_WORKING_DIRECTORY"
-            SRC="$ROOT/brave-work/src"
-            OUT="$SRC/out/android_Release_arm64"
-            DEPOT_TOOLS="$SRC/brave/vendor/depot_tools"
-            export PATH="$DEPOT_TOOLS:$PATH"
-            export DEPOT_TOOLS_UPDATE=0
-            export SISO_LIMITS="local=8,remote=80"
-            export PYTHONPATH="$SRC/brave/script:$SRC/tools/grit/grit/extern:$SRC/brave/vendor/requests:$SRC/build:$DEPOT_TOOLS${PYTHONPATH:+:$PYTHONPATH}"
-            python3 .circleci/scripts/brave-action-ledger.py plan \
-              --src "$SRC" \
-              --out "$OUT" \
-              --autoninja "$DEPOT_TOOLS/autoninja" \
-              --stage "<< parameters.stage_index >>" \
-              --build "${CIRCLE_BUILD_NUM:-local}" \
-              --workflow "${CIRCLE_WORKFLOW_ID:-local}" \
-              --jobs 80
       - run:
           name: Verify BuildBuddy remote worker before Android compilation
           no_output_timeout: 15m
@@ -1975,7 +1950,7 @@ jobs:
             CAS_RECOVERY_COUNT=0
             trap 'rc=$?; BRAVE_BUILD_EXIT_CODE="${BUILD_RC:-$rc}" BRAVE_BUILD_INITIAL_EXIT_CODE="${INITIAL_BUILD_RC:-not_set}" BRAVE_BUILD_INITIAL_TIMEOUT="$([ "${INITIAL_BUILD_RC:-0}" -eq 124 ] && echo true || ([ "${INITIAL_BUILD_RC:-0}" -eq 130 ] && echo true || echo false))" bash "$ROOT/.circleci/scripts/capture-brave-siso-checkpoint.sh" after-build || echo "BRAVE_SISO_DIAGNOSTICS=WARNING after-build capture failed"; exit "$rc"' EXIT
             export SISO_LIMITS="local=8,remote=80"
-            METRICS_PREFIX="sandium-brave-action-stage-<< parameters.stage_index >>-build-${CIRCLE_BUILD_NUM:-local}-attempt-"
+            METRICS_PREFIX="sandium-brave-siso-stage-<< parameters.stage_index >>-build-${CIRCLE_BUILD_NUM:-local}-attempt-"
             METRICS_FILE="${METRICS_PREFIX}0.jsonl"
             BUILD_MODE="<< pipeline.parameters.sandium_build_mode >>"
             case "$BUILD_MODE" in
@@ -2072,7 +2047,7 @@ jobs:
             else
               echo "BRAVE_BUILD_STAGE_STATUS=INCOMPLETE exit=$BUILD_RC reason=$BUILD_REASON "
               echo "build_budget_seconds=$STAGE_BUILD_BUDGET_SECONDS; time_slice_expired=$BUILD_TIME_SLICE_EXPIRED; "
-              echo "failed Siso actions are not completed work and must remain pending at handoff."
+              echo "The build did not finish in this slice; the next stage will resume using Ninja/Siso native state."
             fi
       - run:
           name: Export APK status and artifacts
@@ -2089,7 +2064,7 @@ jobs:
             for file in siso.INFO siso_output siso_failed_commands.sh; do
               if [ -e "$OUT/$file" ]; then cp -a "$OUT/$file" "$DIAGNOSTICS/"; fi
             done
-            for file in "$OUT"/sandium-brave-siso-metrics*.json "$OUT"/sandium-brave-action-stage-*.jsonl "$OUT"/.sandium-action-plan-*.jsonl; do
+            for file in "$OUT"/sandium-brave-siso-metrics*.json "$OUT"/sandium-brave-siso-stage-*.jsonl; do
               if [ -f "$file" ]; then cp -a "$file" "$DIAGNOSTICS/"; fi
             done
             CHECKPOINT_DIAGNOSTICS="$ROOT/brave-work/.sandium/checkpoint-diagnostics"
@@ -2156,8 +2131,6 @@ jobs:
               } > "$ROOT/brave-apk/status.txt"
               echo "BRAVE_APK_VALIDATION=FAIL ${APK_ERROR:-APK not produced}"
             fi
-            LEDGER="$ROOT/brave-work/.sandium/action-ledger.json"
-            if [ -s "$LEDGER" ]; then cp -a "$LEDGER" "$DIAGNOSTICS/"; fi
       - store_artifacts:
           path: brave-apk
           destination: brave-apk
@@ -2182,39 +2155,6 @@ jobs:
           paths:
             - brave-work/.sandium/apk-completion-status.txt
           when: always
-      - run:
-          name: Reconcile Siso action metrics with the remaining action frontier
-          when: always
-          no_output_timeout: 20m
-          command: |
-            set -euo pipefail
-            ROOT="$CIRCLE_WORKING_DIRECTORY"
-            SRC="$ROOT/brave-work/src"
-            OUT="$SRC/out/android_Release_arm64"
-            DEPOT_TOOLS="$SRC/brave/vendor/depot_tools"
-            STAGE="<< parameters.stage_index >>"
-            BUILD_NUM="${CIRCLE_BUILD_NUM:-local}"
-            METRICS_PREFIX="sandium-brave-action-stage-${STAGE}-build-${BUILD_NUM}-attempt-"
-            # The self-test runs before source preparation. If an earlier step
-            # failed, there is no build graph to reconcile; do not turn that
-            # primary failure into a misleading secondary Git-directory error.
-            if [ ! -d "$SRC/.git" ] || [ ! -s "$OUT/build.ninja" ] || [ ! -x "$DEPOT_TOOLS/autoninja" ]; then
-              echo "ACTION_LEDGER_RECONCILIATION=SKIPPED no prepared Brave checkout/build graph (stage=$STAGE)"
-              exit 0
-            fi
-            export PATH="$DEPOT_TOOLS:$PATH"
-            export DEPOT_TOOLS_UPDATE=0
-            export SISO_LIMITS="local=8,remote=80"
-            export PYTHONPATH="$SRC/brave/script:$SRC/tools/grit/grit/extern:$SRC/brave/vendor/requests:$SRC/build:$DEPOT_TOOLS${PYTHONPATH:+:$PYTHONPATH}"
-            python3 .circleci/scripts/brave-action-ledger.py complete \
-              --src "$SRC" \
-              --out "$OUT" \
-              --autoninja "$DEPOT_TOOLS/autoninja" \
-              --stage "$STAGE" \
-              --build "$BUILD_NUM" \
-              --workflow "${CIRCLE_WORKFLOW_ID:-local}" \
-              --jobs 80 \
-              --metrics-prefix "$METRICS_PREFIX"
       - when:
           condition:
             equal: [full, << pipeline.parameters.sandium_build_mode >>]
@@ -2268,16 +2208,6 @@ jobs:
                   test "$CHROMIUM_SHA" = "d331de35ca8ab1358c7a17e4bd41627d55eaef51" || { echo "CHECKPOINT_SAVE=REFUSED Chromium SHA mismatch: $CHROMIUM_SHA" >&2; exit 1; }
                   test "$BRAVE_TAG" = "v1.98.62" || { echo "CHECKPOINT_SAVE=REFUSED Brave tag mismatch: $BRAVE_TAG" >&2; exit 1; }
                   mkdir -p "$ROOT/brave-work/.sandium"
-                  ACTION_LEDGER="$ROOT/brave-work/.sandium/action-ledger.json"
-                  test -s "$ACTION_LEDGER" || { echo "CHECKPOINT_SAVE=REFUSED missing action-level continuation ledger" >&2; exit 1; }
-                  LEDGER_COUNTS="$(python3 "$ROOT/.circleci/scripts/validate-brave-action-ledger.py" --counts "$ACTION_LEDGER")"
-                  set -- $LEDGER_COUNTS
-                  [ "$#" -eq 4 ] || { echo "CHECKPOINT_ACTION_LEDGER=FAIL validator returned an unexpected field count" >&2; exit 1; }
-                  ACTION_LEDGER_TOTAL="$1"
-                  ACTION_LEDGER_COMPLETED="$2"
-                  ACTION_LEDGER_CHECKPOINT_SATISFIED="$3"
-                  ACTION_LEDGER_PENDING="$4"
-                  echo "CHECKPOINT_ACTION_LEDGER=PASS metric_completed=$ACTION_LEDGER_COMPLETED checkpoint_satisfied=$ACTION_LEDGER_CHECKPOINT_SATISFIED pending=$ACTION_LEDGER_PENDING total=$ACTION_LEDGER_TOTAL"
                   APK_VALIDATED=false
                   APK_MARKER="$ROOT/brave-work/.sandium/apk-completion-status.txt"
                   if [ -s "$APK_MARKER" ] && grep -qx "BUILD_FINISHED=true" "$APK_MARKER" && grep -qx "APK_ARCHIVE_VALID=true" "$APK_MARKER" && grep -qx "APK_SIGNATURE_VALID=true" "$APK_MARKER" && grep -qx "APK_PACKAGE_ID_VALID=true" "$APK_MARKER" && grep -qx "APK_BRANDING_VALID=true" "$APK_MARKER"; then
@@ -2289,10 +2219,6 @@ jobs:
                     echo "APK_VALIDATED=$APK_VALIDATED"
                     echo "REFERENCE_READY=$APK_VALIDATED"
                     echo "REFERENCE_SOURCE_REVISION={{ .Revision }}"
-                    echo "ACTION_LEDGER_TOTAL=$ACTION_LEDGER_TOTAL"
-                    echo "ACTION_LEDGER_COMPLETED=$ACTION_LEDGER_COMPLETED"
-                    echo "ACTION_LEDGER_CHECKPOINT_SATISFIED=$ACTION_LEDGER_CHECKPOINT_SATISFIED"
-                    echo "ACTION_LEDGER_PENDING=$ACTION_LEDGER_PENDING"
                     echo "BRAVE_CORE_TAG=$BRAVE_TAG"
                     echo "CHROMIUM_SHA=$CHROMIUM_SHA"
                     echo "TARGET=android-arm64"
@@ -2339,9 +2265,7 @@ jobs:
             set -euo pipefail
             ROOT="$CIRCLE_WORKING_DIRECTORY"
             STAGE="<< parameters.stage_index >>"
-            LEDGER="$ROOT/brave-work/.sandium/action-ledger.json"
             APK_STATUS="$ROOT/brave-work/.sandium/apk-completion-status.txt"
-            test -s "$LEDGER" || { echo "FINAL_STAGE_GATE=FAIL missing action ledger" >&2; exit 1; }
             MODE="<< pipeline.parameters.sandium_build_mode >>"
             if [ "$MODE" = "full" ]; then
               python3 "$ROOT/.circleci/scripts/checkpoint-stage-receipt.py" verify \
@@ -2354,14 +2278,7 @@ jobs:
               echo "FINAL_STAGE_GATE=FAIL unknown mode=$MODE" >&2
               exit 1
             fi
-            LEDGER_COUNTS="$(python3 "$ROOT/.circleci/scripts/validate-brave-action-ledger.py" --counts "$LEDGER")"
-            set -- $LEDGER_COUNTS
-            [ "$#" -eq 4 ] || { echo "FINAL_STAGE_GATE=FAIL validator returned an unexpected field count" >&2; exit 1; }
-            LEDGER_TOTAL="$1"
-            LEDGER_COMPLETED="$2"
-            LEDGER_CHECKPOINT_SATISFIED="$3"
-            PENDING="$4"
-            if [ -s "$APK_STATUS" ] && grep -qx "BUILD_FINISHED=true" "$APK_STATUS" && grep -qx "APK_ARCHIVE_VALID=true" "$APK_STATUS" && grep -qx "APK_SIGNATURE_VALID=true" "$APK_STATUS" && grep -qx "APK_PACKAGE_ID_VALID=true" && grep -qx "APK_BRANDING_VALID=true" "$APK_STATUS"; then
+            if [ -s "$APK_STATUS" ] && grep -qx "BUILD_FINISHED=true" "$APK_STATUS" && grep -qx "APK_ARCHIVE_VALID=true" "$APK_STATUS" && grep -qx "APK_SIGNATURE_VALID=true" "$APK_STATUS" && grep -qx "APK_PACKAGE_ID_VALID=true" "$APK_STATUS" && grep -qx "APK_BRANDING_VALID=true" "$APK_STATUS"; then
               if [ "$MODE" = "full" ]; then
                 grep -qx "REFERENCE_READY=true" "$ROOT/brave-work/.sandium/checkpoint-manifest.txt" || { echo "FINAL_STAGE_GATE=FAIL APK passed but reference manifest is not ready" >&2; exit 1; }
                 echo "FINAL_STAGE_GATE=PASS FULL MODE APK validated; handoff archive saved; reference promotion follows."
@@ -2372,13 +2289,13 @@ jobs:
             fi
             if [ "$STAGE" -lt 5 ]; then
               if [ "$MODE" = "full" ]; then
-                echo "FINAL_STAGE_GATE=PASS FULL MODE handoff saved; residual work=$PENDING; next stage resumes the exact pending action set."
+                echo "FINAL_STAGE_GATE=PASS FULL MODE handoff saved; next stage resumes from the native Ninja/Siso build state."
               else
-                echo "FINAL_STAGE_GATE=PASS FAST MODE; immutable reference restored and BuildBuddy remote action cache carries completed work; residual work=$PENDING."
+                echo "FINAL_STAGE_GATE=PASS FAST MODE; immutable reference restored and BuildBuddy remote action cache remains available."
               fi
               exit 0
             fi
-            echo "FINAL_STAGE_GATE=FAIL five stages exhausted without a verified Brave APK; residual work=$PENDING" >&2
+            echo "FINAL_STAGE_GATE=FAIL five stages exhausted without a verified Brave APK." >&2
             exit 1
 
   promote-brave-reference:

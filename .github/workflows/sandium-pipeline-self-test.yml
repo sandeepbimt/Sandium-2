@@ -1,0 +1,75 @@
+name: Sandium pipeline self-test
+
+on:
+  push:
+    paths:
+      - ".circleci/config.yml"
+      - ".circleci/scripts/archive-brave-workspace.sh"
+      - ".circleci/scripts/sandium-checkpoint-shards.py"
+      - ".circleci/scripts/test-sandium-checkpoint-shards.py"
+      - ".circleci/scripts/checkpoint-stage-receipt.py"
+      - ".circleci/scripts/test-checkpoint-stage-receipt.py"
+      - ".circleci/scripts/verify-brave-remote-metrics.py"
+      - ".circleci/scripts/test-brave-remote-metrics.py"
+      - ".circleci/scripts/test-brave-build-flow.py"
+      - ".github/workflows/sandium-pipeline-self-test.yml"
+  pull_request:
+    paths:
+      - ".circleci/config.yml"
+      - ".circleci/scripts/archive-brave-workspace.sh"
+      - ".circleci/scripts/sandium-checkpoint-shards.py"
+      - ".circleci/scripts/test-sandium-checkpoint-shards.py"
+      - ".circleci/scripts/checkpoint-stage-receipt.py"
+      - ".circleci/scripts/test-checkpoint-stage-receipt.py"
+      - ".circleci/scripts/verify-brave-remote-metrics.py"
+      - ".circleci/scripts/test-brave-remote-metrics.py"
+      - ".circleci/scripts/test-brave-build-flow.py"
+      - ".github/workflows/sandium-pipeline-self-test.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  pipeline:
+    name: Pipeline syntax, archive and artifact-gate tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install CircleCI CLI
+        run: |
+          curl -1sLf https://packages.circleci.com/public/setup.deb.sh | sudo -E bash
+          sudo apt-get update -qq
+          sudo apt-get install -y circleci zstd
+          circleci version
+      - name: Validate CircleCI pipeline configuration
+        run: circleci config validate .circleci/config.yml
+      - name: Compile retained pipeline helpers
+        run: |
+          python3 -m py_compile \
+            .circleci/scripts/sandium-checkpoint-shards.py \
+            .circleci/scripts/test-sandium-checkpoint-shards.py \
+            .circleci/scripts/checkpoint-stage-receipt.py \
+            .circleci/scripts/test-checkpoint-stage-receipt.py \
+            .circleci/scripts/verify-brave-remote-metrics.py \
+            .circleci/scripts/test-brave-remote-metrics.py \
+            .circleci/scripts/test-brave-build-flow.py
+          bash -n .circleci/scripts/archive-brave-workspace.sh
+          bash -n .circleci/scripts/verify-brave-reference.sh
+          bash -n .circleci/scripts/verify-brave-remote-smoke.sh
+          bash -n .circleci/scripts/capture-brave-siso-checkpoint.sh
+          bash -n .circleci/scripts/prepare-brave-source.sh
+      - name: Test checkpoint archive and restore without action ledger
+        run: python3 .circleci/scripts/test-sandium-checkpoint-shards.py
+      - name: Test stage archive receipt
+        run: python3 .circleci/scripts/test-checkpoint-stage-receipt.py
+      - name: Test remote execution diagnostics
+        run: python3 .circleci/scripts/test-brave-remote-metrics.py
+      - name: Test build flow continuation
+        run: python3 .circleci/scripts/test-brave-build-flow.py
