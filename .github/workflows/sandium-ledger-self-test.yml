@@ -11,6 +11,9 @@ on:
       - ".circleci/scripts/test-brave-build-flow.py"
       - ".circleci/scripts/sandium-checkpoint-shards.py"
       - ".circleci/scripts/test-sandium-checkpoint-shards.py"
+      - ".circleci/scripts/prepare-brave-source.sh"
+      - ".circleci/scripts/source-prep-receipt.py"
+      - ".circleci/scripts/test-source-prep-receipt.py"
       - ".circleci/scripts/archive-brave-workspace.sh"
       - ".circleci/scripts/verify-brave-reference.sh"
       - ".circleci/scripts/verify-brave-remote-smoke.sh"
@@ -63,10 +66,16 @@ jobs:
             .circleci/scripts/test-brave-remote-metrics.py \
             .circleci/scripts/test-brave-build-flow.py \
             .circleci/scripts/sandium-checkpoint-shards.py \
-            .circleci/scripts/test-sandium-checkpoint-shards.py
+            .circleci/scripts/test-sandium-checkpoint-shards.py \
+            .circleci/scripts/source-prep-receipt.py \
+            .circleci/scripts/test-source-prep-receipt.py
+          bash -n .circleci/scripts/prepare-brave-source.sh
+          bash -n .circleci/scripts/apply-sandium-branding.sh
           bash -n .circleci/scripts/archive-brave-workspace.sh
           bash -n .circleci/scripts/verify-brave-reference.sh
           bash -n .circleci/scripts/verify-brave-remote-smoke.sh
+      - name: Test pinned source-preparation receipt and safe fallback
+        run: python3 .circleci/scripts/test-source-prep-receipt.py
       - name: Test staged action-frontier reconciliation
         run: python3 .circleci/scripts/test-brave-action-ledger.py
       - name: Test fresh remote-execution proof
