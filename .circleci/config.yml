@@ -2252,7 +2252,12 @@ jobs:
                   ACTION_LEDGER="$ROOT/brave-work/.sandium/action-ledger.json"
                   test -s "$ACTION_LEDGER" || { echo "CHECKPOINT_SAVE=REFUSED missing action-level continuation ledger" >&2; exit 1; }
                   LEDGER_COUNTS="$(python3 "$ROOT/.circleci/scripts/validate-brave-action-ledger.py" --counts "$ACTION_LEDGER")"
-                  read -r ACTION_LEDGER_TOTAL ACTION_LEDGER_COMPLETED ACTION_LEDGER_CHECKPOINT_SATISFIED ACTION_LEDGER_PENDING <<< "$LEDGER_COUNTS"
+                  set -- $LEDGER_COUNTS
+                  [ "$#" -eq 4 ] || { echo "CHECKPOINT_ACTION_LEDGER=FAIL validator returned an unexpected field count" >&2; exit 1; }
+                  ACTION_LEDGER_TOTAL="$1"
+                  ACTION_LEDGER_COMPLETED="$2"
+                  ACTION_LEDGER_CHECKPOINT_SATISFIED="$3"
+                  ACTION_LEDGER_PENDING="$4"
                   echo "CHECKPOINT_ACTION_LEDGER=PASS metric_completed=$ACTION_LEDGER_COMPLETED checkpoint_satisfied=$ACTION_LEDGER_CHECKPOINT_SATISFIED pending=$ACTION_LEDGER_PENDING total=$ACTION_LEDGER_TOTAL"
                   APK_VALIDATED=false
                   APK_MARKER="$ROOT/brave-work/.sandium/apk-completion-status.txt"
@@ -2331,7 +2336,12 @@ jobs:
               exit 1
             fi
             LEDGER_COUNTS="$(python3 "$ROOT/.circleci/scripts/validate-brave-action-ledger.py" --counts "$LEDGER")"
-            read -r LEDGER_TOTAL LEDGER_COMPLETED LEDGER_CHECKPOINT_SATISFIED PENDING <<< "$LEDGER_COUNTS"
+            set -- $LEDGER_COUNTS
+            [ "$#" -eq 4 ] || { echo "FINAL_STAGE_GATE=FAIL validator returned an unexpected field count" >&2; exit 1; }
+            LEDGER_TOTAL="$1"
+            LEDGER_COMPLETED="$2"
+            LEDGER_CHECKPOINT_SATISFIED="$3"
+            PENDING="$4"
             if [ -s "$APK_STATUS" ] && grep -qx "BUILD_FINISHED=true" "$APK_STATUS" && grep -qx "APK_ARCHIVE_VALID=true" "$APK_STATUS" && grep -qx "APK_SIGNATURE_VALID=true" "$APK_STATUS" && grep -qx "APK_PACKAGE_ID_VALID=true" && grep -qx "APK_BRANDING_VALID=true" "$APK_STATUS"; then
               if [ "$MODE" = "full" ]; then
                 grep -qx "REFERENCE_READY=true" "$ROOT/brave-work/.sandium/checkpoint-manifest.txt" || { echo "FINAL_STAGE_GATE=FAIL APK passed but reference manifest is not ready" >&2; exit 1; }
