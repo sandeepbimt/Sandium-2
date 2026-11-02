@@ -501,8 +501,37 @@ def main():
             (len(unexpected), sorted(unexpected)[:5]))
     pruned_planned_keys = set()
     pruned_reason = None
+    handoff_pending_keys = set(after_keys)
     if vanished:
         initial_dry = active.get("dry_run") or {}
+        build_status_path = src.parent / ".sandium" / "build-stage-status.txt"
+        build_status = {}
+        if build_status_path.is_file():
+            for line in build_status_path.read_text(encoding="utf-8", errors="replace").splitlines():
+                if "=" in line:
+                    key, value = line.split("=", 1)
+                    build_status[key.strip()] = value.strip()
+        time_slice_complete = (
+            build_status.get("BUILD_REASON") == "TIME_SLICE_COMPLETE" and
+            build_status.get("BUILD_TIME_SLICE_EXPIRED") == "true"
+        )
+        print("ACTION_BUILD_STATUS_DIAGNOSTIC path=%s exists=%s reason=%s exit=%s time_slice_expired=%s" %
+              (build_status_path, build_status_path.is_file(),
+               build_status.get("BUILD_REASON", "missing"),
+               build_status.get("BUILD_EXIT_CODE", "missing"),
+               build_status.get("BUILD_TIME_SLICE_EXPIRED", "missing")))
+        if time_slice_complete and not apk_validated:
+            # A deliberate timeout can leave Siso's post-build -n probe
+            # temporarily reporting an empty graph even though the original
+            # planned frontier was not accounted for by successful metrics.
+            # Never relabel those actions as completed or pruned. Preserve
+            # their exact identities for the next stage, whose fresh -n probe
+            # must reproduce this frontier before any compilation is allowed.
+            handoff_pending_keys = set(planned_remaining_keys) | set(newly_pending_keys)
+            print("ACTION_TIME_SLICE_FRONTIER_PRESERVED=PASS "
+                  "planned_remaining=%d dynamic_pending=%d live_post_build_pending=%d "
+                  "next_stage_must_revalidate=true" %
+                  (len(planned_remaining_keys), len(newly_pending_keys), len(after_keys)))
         initial_action_count = int(initial_dry.get("action_count", before))
         after_action_count = int(after_dry.get("action_count", len(after_keys)))
         # Before its first real invocation, Siso can expose only the two
@@ -524,6 +553,10 @@ def main():
                   "dynamically_completed=%d; reason=%s" %
                   (len(pruned_planned_keys), initial_action_count, after_action_count,
                    len(dynamically_completed_keys), pruned_reason))
+        elif time_slice_complete and not apk_validated:
+            # handled above: retain the unaccounted planned actions as pending
+            # rather than treating graph disappearance as successful completion.
+            pass
         elif not after_keys and apk_validated:
             pruned_planned_keys = set(vanished)
             pruned_reason = "stale_plan_nodes_absent_from_closed_graph_with_verified_apk"
@@ -574,16 +607,16 @@ def main():
         "newly_pending": len(newly_pending_keys),
         "newly_discovered_action_keys": sorted(dynamically_completed_keys | newly_pending_keys),
         "new_completed": added,
-        "pending_after": len(after_keys),
+        "pending_after": len(handoff_pending_keys),
         "metric_stats": stats,
         "after_dry_run": after_dry,
         "completed_total": len(ledger["completed"]),
         "planned_total_after": ledger["planned_total"],
         "recorded_at_epoch": now})
-    ledger["next_pending_action_keys"] = sorted(after_keys)
+    ledger["next_pending_action_keys"] = sorted(handoff_pending_keys)
     ledger.pop("active_stage", None)
     total, done = int(ledger["planned_total"]), len(ledger["completed"])
-    after = len(after_keys)
+    after = len(handoff_pending_keys)
     remaining = total - done
     if remaining != after:
         die("ACTION_COMPLETION_MATH=FAIL total=%d completed=%d ledger_remaining=%d live_pending=%d" %

@@ -86,9 +86,19 @@ def main() -> None:
         # Inject one transient GNU-tar exit status 1 after a complete tar stream.
         # The shard helper must discard that attempt and rebuild the affected shard.
         real_tar = shutil.which("tar")
-        assert real_tar
+        real_zstd = shutil.which("zstd")
+        assert real_tar and real_zstd
+        # Record compression arguments while forwarding to the real zstd binary.
         fake_bin = root / "fake-bin"
         fake_bin.mkdir()
+        fake_zstd = fake_bin / "zstd"
+        fake_zstd.write_text(
+            "#!/usr/bin/env bash\n"
+            "printf '%s\\n' \"$*\" >> \"$SANDIUM_ZSTD_ARGS_LOG\"\n"
+            "exec \"$SANDIUM_REAL_ZSTD\" \"$@\"\n",
+            encoding="utf-8",
+        )
+        os.chmod(fake_zstd, 0o755)
         fake_tar = fake_bin / "tar"
         fake_tar.write_text(
             "#!/usr/bin/env bash\n"
@@ -106,10 +116,14 @@ def main() -> None:
         test_env = os.environ.copy()
         test_env["PATH"] = str(fake_bin) + os.pathsep + test_env["PATH"]
         test_env["SANDIUM_REAL_TAR"] = real_tar
+        test_env["SANDIUM_REAL_ZSTD"] = real_zstd
+        test_env["SANDIUM_ZSTD_ARGS_LOG"] = str(root / "zstd-args.log")
         test_env["SANDIUM_TAR_FAIL_ONCE_LOCK"] = str(root / "tar-fail-once.lock")
         archive_output = run("archive", "--root", str(root), "--workers", "8", env=test_env)
         assert "SANDIUM_SHARD_ARCHIVE_RETRY=START" in archive_output, archive_output
         assert "SANDIUM_TEST_INJECTED_TAR_EXIT_1" in archive_output, archive_output
+        zstd_args = (root / "zstd-args.log").read_text(encoding="utf-8").splitlines()
+        assert zstd_args and all("--fast=5" in args for args in zstd_args), zstd_args
         manifest_path = root / "brave-workspace-checkpoint.manifest.json"
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
         shards = manifest["shards"]

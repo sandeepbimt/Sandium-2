@@ -1978,7 +1978,7 @@ jobs:
             METRICS_FILE="${METRICS_PREFIX}0.jsonl"
             BUILD_MODE="<< pipeline.parameters.sandium_build_mode >>"
             case "$BUILD_MODE" in
-              full) STAGE_BUILD_BUDGET_SECONDS=2400 ;;
+              full) STAGE_BUILD_BUDGET_SECONDS=900 ;;
               fast) STAGE_BUILD_BUDGET_SECONDS=2700 ;;
               *) echo "BRAVE_BUILD_MODE_GATE=FAIL unsupported mode=$BUILD_MODE" >&2; exit 2 ;;
             esac
@@ -2034,7 +2034,9 @@ jobs:
             else
               echo "BRAVE_REMOTE_EXECUTION_AUDIT=NOT_AVAILABLE main_metrics=$OUT/$METRICS_FILE"
             fi
-            if [ "$BUILD_RC" -eq 124 ] || [ "$BUILD_RC" -eq 130 ]; then
+            BUILD_TIME_SLICE_EXPIRED=false
+            if [ "$BUILD_RC" -eq 124 ] || [ "$BUILD_RC" -eq 130 ] || [ "$BUILD_RC" -eq 137 ] || [ "$BUILD_RC" -eq 143 ] || [ "$SECONDS" -ge "$STAGE_BUILD_DEADLINE" ]; then
+              BUILD_TIME_SLICE_EXPIRED=true
               BUILD_REASON="TIME_SLICE_COMPLETE"
             elif [ "$BUILD_RC" -eq 0 ]; then
               BUILD_REASON="BUILD_COMMAND_SUCCESS"
@@ -2046,6 +2048,7 @@ jobs:
               echo "BUILD_EXIT_CODE=$BUILD_RC"
               echo "BUILD_INITIAL_EXIT_CODE=$INITIAL_BUILD_RC"
               echo "BUILD_REASON=$BUILD_REASON"
+              echo "BUILD_TIME_SLICE_EXPIRED=$BUILD_TIME_SLICE_EXPIRED"
               echo "REMOTE_EXECUTION_AUDIT=$REMOTE_EXECUTION_AUDIT"
               echo "CAS_RECOVERY_ATTEMPTS=$CAS_RECOVERY_COUNT"
               echo "BUILD_WINDOW_FINISHED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
@@ -2463,35 +2466,45 @@ workflows:
           stage_index: 1
           filters:
             branches:
-              only: sandium/brave-android-poc
+              only:
+                - sandium/brave-android-poc
+                - sandium/archive-zstd-fast5
       - brave-android-staged-build:
           name: SANDIUM-FULL-MODE-stage-2
           stage_index: 2
           requires: [SANDIUM-FULL-MODE-stage-1]
           filters:
             branches:
-              only: sandium/brave-android-poc
+              only:
+                - sandium/brave-android-poc
+                - sandium/archive-zstd-fast5
       - brave-android-staged-build:
           name: SANDIUM-FULL-MODE-stage-3
           stage_index: 3
           requires: [SANDIUM-FULL-MODE-stage-2]
           filters:
             branches:
-              only: sandium/brave-android-poc
+              only:
+                - sandium/brave-android-poc
+                - sandium/archive-zstd-fast5
       - brave-android-staged-build:
           name: SANDIUM-FULL-MODE-stage-4
           stage_index: 4
           requires: [SANDIUM-FULL-MODE-stage-3]
           filters:
             branches:
-              only: sandium/brave-android-poc
+              only:
+                - sandium/brave-android-poc
+                - sandium/archive-zstd-fast5
       - brave-android-staged-build:
           name: SANDIUM-FULL-MODE-stage-5
           stage_index: 5
           requires: [SANDIUM-FULL-MODE-stage-4]
           filters:
             branches:
-              only: sandium/brave-android-poc
+              only:
+                - sandium/brave-android-poc
+                - sandium/archive-zstd-fast5
       - promote-brave-reference:
           name: SANDIUM-FULL-MODE-reference-promotion
           requires: [SANDIUM-FULL-MODE-stage-5]
@@ -2507,32 +2520,42 @@ workflows:
           stage_index: 1
           filters:
             branches:
-              only: sandium/brave-android-poc
+              only:
+                - sandium/brave-android-poc
+                - sandium/archive-zstd-fast5
       - brave-android-staged-build:
           name: SANDIUM-FAST-MODE-stage-2
           stage_index: 2
           requires: [SANDIUM-FAST-MODE-stage-1]
           filters:
             branches:
-              only: sandium/brave-android-poc
+              only:
+                - sandium/brave-android-poc
+                - sandium/archive-zstd-fast5
       - brave-android-staged-build:
           name: SANDIUM-FAST-MODE-stage-3
           stage_index: 3
           requires: [SANDIUM-FAST-MODE-stage-2]
           filters:
             branches:
-              only: sandium/brave-android-poc
+              only:
+                - sandium/brave-android-poc
+                - sandium/archive-zstd-fast5
       - brave-android-staged-build:
           name: SANDIUM-FAST-MODE-stage-4
           stage_index: 4
           requires: [SANDIUM-FAST-MODE-stage-3]
           filters:
             branches:
-              only: sandium/brave-android-poc
+              only:
+                - sandium/brave-android-poc
+                - sandium/archive-zstd-fast5
       - brave-android-staged-build:
           name: SANDIUM-FAST-MODE-stage-5
           stage_index: 5
           requires: [SANDIUM-FAST-MODE-stage-4]
           filters:
             branches:
-              only: sandium/brave-android-poc
+              only:
+                - sandium/brave-android-poc
+                - sandium/archive-zstd-fast5

@@ -180,7 +180,8 @@ if "-n" in args:
         with stage2_metrics.open("w", encoding="utf-8") as stream:
             for row in rows:
                 stream.write(json.dumps(row) + "\n")
-        pending_file.write_text("[]", encoding="utf-8")
+        # Simulate Siso discovering three additional pending actions after the timed slice.
+        pending_file.write_text(json.dumps(list(range(2003, 2006))), encoding="utf-8")
         duplicate = run(["complete", *common, "--stage", "2", "--build", "202",
                          "--workflow", "workflow-two",
                          "--metrics-prefix", "test-stage2-"], env, expected=2)
@@ -249,7 +250,49 @@ if "-n" in args:
         assert "ACTION_COMPLETION_MATH=PASS before=2 new=60 after=40" in manifest_done, manifest_done
         assert "SANDIUM_BUILD_MATH=60/100 complete; 40/40 pending" in manifest_done, manifest_done
 
-    print("BRAVE_ACTION_LEDGER_SELF_TEST=PASS dynamic discovery + pending handoff + APK-gated pruning + manifest-stub expansion")
+        # Regression: a deliberate 15-minute build slice may leave the
+        # post-build Siso dry-run empty even though the pre-build frontier was
+        # not fully accounted for. Preserve those exact planned identities as
+        # pending; the next stage must reproduce them before it may compile.
+        (src.parent / ".sandium" / "action-ledger.json").unlink()
+        # This fixture must not inherit the verified APK marker created by
+        # the earlier APK-gated pruning test; otherwise the production-safe
+        # stale-plan pruning branch correctly takes precedence.
+        stale_marker = src.parent / ".sandium" / "apk-completion-status.txt"
+        stale_marker.unlink(missing_ok=True)
+        stale_apk = out / "apks" / "BraveMonoarm64.apk"
+        stale_apk.unlink(missing_ok=True)
+        status_path = src.parent / ".sandium" / "build-stage-status.txt"
+        status_path.parent.mkdir(parents=True, exist_ok=True)
+        status_path.write_text(
+            "BUILD_EXIT_CODE=137\nBUILD_REASON=TIME_SLICE_COMPLETE\nBUILD_TIME_SLICE_EXPIRED=true\n",
+            encoding="utf-8")
+        pending_file.write_text(json.dumps(list(range(20))), encoding="utf-8")
+        slice_plan = run(["plan", *common, "--stage", "1", "--build", "505",
+                          "--workflow", "time-slice-workflow"], env)
+        assert "ACTION_HANDOFF_GATE=PASS pending=20/20" in slice_plan, slice_plan
+        slice_metrics = out / "test-timeslice-stage1-0.jsonl"
+        write_metrics(slice_metrics, range(8))
+        with slice_metrics.open("a", encoding="utf-8") as stream:
+            for i in range(2000, 2003):
+                stream.write(json.dumps(metric(i)) + "\n")
+        pending_file.write_text(json.dumps(list(range(2003, 2006))), encoding="utf-8")
+        slice_done = run(["complete", *common, "--stage", "1", "--build", "505",
+                          "--workflow", "time-slice-workflow",
+                          "--metrics-prefix", "test-timeslice-stage1-"], env)
+        assert "ACTION_TIME_SLICE_FRONTIER_PRESERVED=PASS planned_remaining=12 dynamic_pending=3 live_post_build_pending=3" in slice_done, slice_done
+        assert "ACTION_FRONTIER_RECONCILIATION=PASS planned_completed=8 dynamically_completed=3 newly_pending=3 pending_after=15" in slice_done, slice_done
+        assert "SANDIUM_BUILD_MATH=11/26 complete; 15/15 pending" in slice_done, slice_done
+
+        # The next stage is allowed to continue only if its fresh Siso dry-run
+        # reconstructs the exact 12-action frontier from the saved checkpoint.
+        pending_file.write_text(json.dumps(list(range(8, 20)) + list(range(2003, 2006))), encoding="utf-8")
+        slice_stage2 = run(["plan", *common, "--stage", "2", "--build", "506",
+                            "--workflow", "time-slice-next"], env)
+        assert "ACTION_HANDOFF_GATE=PASS pending=15/15" in slice_stage2, slice_stage2
+        assert "SANDIUM_BUILD_MATH=11/26 complete; 15/15 pending" in slice_stage2, slice_stage2
+
+    print("BRAVE_ACTION_LEDGER_SELF_TEST=PASS dynamic discovery + pending handoff + APK-gated pruning + manifest-stub expansion + bounded-slice recovery")
 
 if __name__ == "__main__":
     main()
