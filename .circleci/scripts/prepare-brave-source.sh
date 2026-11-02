@@ -12,6 +12,8 @@ export PATH="$NODE_DIR/bin:$PATH"
 npm install --global pnpm@11.11.0
 echo "export PATH=\"$NODE_DIR/bin:\$PATH\"" >> "$BASH_ENV"
 mkdir -p "$ROOT/brave-work"
+SRC_DIR="$ROOT/brave-work/src"
+CORE_DIR="$SRC_DIR/brave"
 if [ ! -d "$ROOT/brave-work/src/brave/.git" ]; then
   git clone --depth 1 --branch v1.98.62 https://github.com/brave/brave-core.git "$ROOT/brave-work/src/brave"
 fi
@@ -79,6 +81,10 @@ if [ "${BRAVE_STAGE_INDEX:?BRAVE_STAGE_INDEX is required}" = "1" ]; then
 
   # Apply Sandium launcher artwork and app display name to the pinned sources.
   bash "$ROOT/.circleci/scripts/apply-sandium-branding.sh"
+  python3 "$ROOT/.circleci/scripts/apply-sandium-extended-branding.py" \
+    --src "$SRC_DIR" --core "$CORE_DIR" \
+    --source "$ROOT/.circleci/branding/source" \
+    --generated "$ROOT/.sandium-branding-extended-generated"
 
   # Match the proven SSfull REAPI fix: compiler crash diagnostics must stay
   # inside this GN output directory. The upstream rebase_path("//out/...", ...)
@@ -399,4 +405,17 @@ PY
   echo "BRAVE_STAGE1_VALIDATION_MODE=DRY_RUN_NO_COMPILATION"
   pnpm run build Release --target_os=android --target_arch=arm64 --target_android_output_format=apk --use_remoteexec=true --gn use_siso:true --gn use_reclient:false --gn is_java_debug:false --gn enable_android_secondary_abi:false --gn is_official_build:false --gn enable_updater:false --gn enable_update_notifications:false --gn android_channel:default --gn chrome_public_manifest_package:com.brave.browser_default --gn brave_channel:development --target brave --ninja=n
   bash "$ROOT/.circleci/scripts/verify-clang-diagnostics-gn.sh"
+fi
+
+# FAST MODE restores the immutable reference independently for every active stage.
+# Reapply only the lightweight brand overlays after each restore; do not run pnpm
+# init/sync or regenerate GN/Siso/Ninja state here.
+if [ "${BRAVE_STAGE_INDEX:?BRAVE_STAGE_INDEX is required}" != "1" ]; then
+  echo "SANDIUM_BRANDING_REAPPLY=START stage=$BRAVE_STAGE_INDEX"
+  bash "$ROOT/.circleci/scripts/apply-sandium-branding.sh"
+  python3 "$ROOT/.circleci/scripts/apply-sandium-extended-branding.py" \
+    --src "$SRC_DIR" --core "$CORE_DIR" \
+    --source "$ROOT/.circleci/branding/source" \
+    --generated "$ROOT/.sandium-branding-extended-generated"
+  echo "SANDIUM_BRANDING_REAPPLY=PASS stage=$BRAVE_STAGE_INDEX"
 fi
