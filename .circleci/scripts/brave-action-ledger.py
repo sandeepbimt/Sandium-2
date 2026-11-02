@@ -520,7 +520,7 @@ def main():
                build_status.get("BUILD_REASON", "missing"),
                build_status.get("BUILD_EXIT_CODE", "missing"),
                build_status.get("BUILD_TIME_SLICE_EXPIRED", "missing")))
-        if time_slice_complete and not after_keys and not apk_validated:
+        if time_slice_complete and not apk_validated:
             # A deliberate timeout can leave Siso's post-build -n probe
             # temporarily reporting an empty graph even though the original
             # planned frontier was not accounted for by successful metrics.
