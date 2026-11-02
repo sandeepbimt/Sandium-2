@@ -2295,6 +2295,7 @@ jobs:
                 no_output_timeout: 45m
                 command: |
                   set -euo pipefail
+                  export BRAVE_STAGE_INDEX="<< parameters.stage_index >>"
                   export SANDIUM_ARCHIVE_WORKERS=8
                   bash .circleci/scripts/archive-brave-workspace.sh archive
             - save_cache:
@@ -2314,9 +2315,10 @@ jobs:
             test -s "$LEDGER" || { echo "FINAL_STAGE_GATE=FAIL missing action ledger" >&2; exit 1; }
             MODE="<< pipeline.parameters.sandium_build_mode >>"
             if [ "$MODE" = "full" ]; then
-              test -d "$ROOT/brave-workspace-checkpoint.shards" || { echo "FINAL_STAGE_GATE=FAIL FULL MODE did not create the parallel shard directory" >&2; exit 1; }
-              test -s "$ROOT/brave-workspace-checkpoint.manifest.json" || { echo "FINAL_STAGE_GATE=FAIL FULL MODE shard manifest missing" >&2; exit 1; }
-              test -s "$ROOT/brave-work/.sandium/workspace-archive-created-this-run" || { echo "FINAL_STAGE_GATE=FAIL FULL MODE archive was not created during this stage" >&2; exit 1; }
+              python3 "$ROOT/.circleci/scripts/checkpoint-stage-receipt.py" verify \
+                --root "$ROOT" \
+                --stage "$STAGE" \
+                --workflow-id "$CIRCLE_WORKFLOW_ID"
             elif [ "$MODE" = "fast" ]; then
               test ! -e "$ROOT/brave-work/.sandium/workspace-archive-created-this-run" || { echo "FINAL_STAGE_GATE=FAIL FAST MODE unexpectedly created a workspace archive" >&2; exit 1; }
             else
