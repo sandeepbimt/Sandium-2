@@ -12,7 +12,6 @@ import concurrent.futures
 import hashlib
 import json
 import os
-import re
 import shutil
 import stat
 import subprocess
@@ -246,128 +245,232 @@ def parse_checkpoint_manifest(path: Path) -> dict[str, str]:
 
 
 
-def collect_staging_parent_directories(
-    roots: list[Path],
-    build_output_root: Path,
-) -> set[Path]:
-    """Find Ninja staging parents only inside this shard's build-output roots."""
-    staging_parents: set[Path] = set()
-    output_root = build_output_root.resolve()
-    for root_path in roots:
-        path = root_path.resolve()
-        if path.is_file():
-            if path.name.endswith(".staging"):
-                staging_parents.add(path.parent)
-            continue
-        if not path.is_dir():
-            continue
-        if path != output_root and output_root not in path.parents:
-            continue
-        for directory, _subdirs, filenames in os.walk(path, followlinks=False):
-            if any(filename.endswith(".staging") for filename in filenames):
-                staging_parents.add(Path(directory).resolve())
-    return staging_parents
 
 
-def validate_tar_diagnostics(
-    root: Path,
-    diagnostic: str,
-    staging_parent_directories: set[Path],
-) -> list[dict[str, str]]:
-    """Allow only known ephemeral staging-file and directory-metadata races.
+def directory_inventory(root: Path) -> dict[str, tuple[int, int, int, int]]:
+    """Fingerprint every directory entry point that can gain/lose children."""
+    inventory: dict[str, tuple[int, int, int, int]] = {}
+    for directory, _subdirs, _files in os.walk(root, followlinks=False):
+        path = Path(directory)
+        info = os.stat(path, follow_symlinks=False)
+        relative = "." if path == root else path.relative_to(root).as_posix()
+        inventory[relative] = (
+            info.st_dev, info.st_ino, info.st_mtime_ns, info.st_ctime_ns
+        )
+    return inventory
 
-    GNU tar can observe Ninja's short-lived *.staging files being removed while
-    it enumerates obj/ directories. Those temporary files are not checkpoint
-    outputs. Directory mtime changes caused by that cleanup are also harmless.
-    Any changed/removed non-staging file, unreadable file, or unknown tar error
-    remains fatal so a live compiler output is never silently accepted.
+
+def find_open_writers(work: Path) -> list[dict[str, str]]:
+    """Find processes holding writable file descriptors anywhere in brave-work."""
+    target_root = str(work.resolve())
+    writers: list[dict[str, str]] = []
+    proc_root = Path("/proc")
+    if not proc_root.is_dir():
+        raise RuntimeError("/proc is unavailable; cannot prove workspace quiescence")
+
+    for process in proc_root.iterdir():
+        if not process.name.isdigit():
+            continue
+        fd_dir = process / "fd"
+        fdinfo_dir = process / "fdinfo"
+        try:
+            command = (process / "cmdline").read_bytes().replace(b"\0", b" ").decode(
+                "utf-8", "replace"
+            ).strip()
+        except OSError:
+            command = "<unavailable>"
+        try:
+            descriptors = list(fd_dir.iterdir())
+        except OSError:
+            continue
+
+        for descriptor in descriptors:
+            try:
+                target = os.readlink(descriptor)
+            except OSError:
+                continue
+            if target.endswith(" (deleted)"):
+                target = target[:-10]
+            if not os.path.isabs(target):
+                continue
+            try:
+                if os.path.commonpath((target_root, os.path.normpath(target))) != target_root:
+                    continue
+            except ValueError:
+                continue
+
+            try:
+                info = (fdinfo_dir / descriptor.name).read_text(encoding="ascii")
+            except OSError:
+                continue
+            flags_line = next(
+                (line for line in info.splitlines() if line.startswith("flags:")),
+                None,
+            )
+            if flags_line is None:
+                continue
+            try:
+                flags = int(flags_line.split(":", 1)[1].strip(), 8)
+            except ValueError:
+                continue
+            if (flags & os.O_ACCMODE) == os.O_RDONLY:
+                continue
+
+            writers.append({
+                "pid": process.name,
+                "command": command[:240],
+                "path": target,
+            })
+            break
+
+    return writers
+
+
+def create_hardlink_snapshot(
+    work: Path,
+    snapshot_work: Path,
+    attempts: int = 3,
+) -> dict[str, Any]:
+    """Create a stable, same-filesystem namespace snapshot without copying file data.
+
+    Directories are recreated, regular files are hard-linked, symlinks are
+    copied as symlinks, and Ninja *.staging files are excluded. A before/after
+    directory inventory plus writable-FD scans rejects any source-tree
+    mutation detected during snapshot creation.
     """
-    accepted: list[dict[str, str]] = []
-    unexpected: list[str] = []
-    race_pattern = re.compile(
-        r"^tar: (.+): (File removed before we read it|file changed as we read it)$"
+    work = work.resolve()
+    snapshot_work = snapshot_work.resolve()
+    if snapshot_work == work or work in snapshot_work.parents:
+        raise RuntimeError("snapshot destination must be outside the source workspace")
+
+    last_reason = "workspace did not become quiescent"
+    for attempt in range(1, attempts + 1):
+        active_before = find_open_writers(work)
+        if active_before:
+            last_reason = "open writable descriptors before snapshot: %s" % active_before[:5]
+            print(
+                "SANDIUM_ARCHIVE_QUIESCENCE=WAIT attempt=%d writers=%d examples=%s" %
+                (attempt, len(active_before), active_before[:3]),
+                flush=True,
+            )
+            time.sleep(5)
+            continue
+
+        before = directory_inventory(work)
+        shutil.rmtree(snapshot_work, ignore_errors=True)
+        snapshot_work.parent.mkdir(parents=True, exist_ok=True)
+        counts = {"hardlinked_files": 0, "excluded_staging_files": 0}
+
+        def ignore_staging(_directory: str, names: list[str]) -> list[str]:
+            ignored = [name for name in names if name.endswith(".staging")]
+            counts["excluded_staging_files"] += len(ignored)
+            return ignored
+
+        def hardlink_file(source: str, destination: str) -> str:
+            os.link(source, destination, follow_symlinks=False)
+            counts["hardlinked_files"] += 1
+            return destination
+
+        try:
+            shutil.copytree(
+                work,
+                snapshot_work,
+                symlinks=True,
+                copy_function=hardlink_file,
+                ignore=ignore_staging,
+            )
+        except OSError as exc:
+            shutil.rmtree(snapshot_work, ignore_errors=True)
+            if exc.errno in (getattr(os, "EXDEV", 18),):
+                raise RuntimeError(
+                    "same-filesystem hard-link snapshot is unavailable; "
+                    "refusing a 68-GB data-copy fallback"
+                ) from exc
+            last_reason = "snapshot copy encountered %s: %s" % (type(exc).__name__, exc)
+            print(
+                "SANDIUM_ARCHIVE_SNAPSHOT_RETRY=START attempt=%d reason=%s" %
+                (attempt, last_reason),
+                flush=True,
+            )
+            time.sleep(3)
+            continue
+        except shutil.Error as exc:
+            shutil.rmtree(snapshot_work, ignore_errors=True)
+            last_reason = "workspace changed while hard-link snapshot was being created: %s" % exc
+            print(
+                "SANDIUM_ARCHIVE_SNAPSHOT_RETRY=START attempt=%d reason=%s" %
+                (attempt, last_reason),
+                flush=True,
+            )
+            time.sleep(3)
+            continue
+
+        after = directory_inventory(work)
+        active_after = find_open_writers(work)
+        if before == after and not active_after:
+            snapshot_directories = directory_inventory(snapshot_work)
+            result = {
+                "method": "same-filesystem-hardlink-directory-snapshot",
+                "inventory_stable": True,
+                "source_directory_count": len(before),
+                "snapshot_directory_count": len(snapshot_directories),
+                "hardlinked_files": counts["hardlinked_files"],
+                "excluded_staging_files": counts["excluded_staging_files"],
+                "quiescence_writable_fds_before": 0,
+                "quiescence_writable_fds_after": 0,
+                "snapshot_attempt": attempt,
+            }
+            print(
+                "SANDIUM_ARCHIVE_SNAPSHOT=PASS method=hardlink "
+                "directories=%d hardlinked_files=%d excluded_staging=%d attempt=%d" %
+                (len(before), counts["hardlinked_files"],
+                 counts["excluded_staging_files"], attempt),
+                flush=True,
+            )
+            return result
+
+        last_reason = (
+            "source directory inventory changed=%s writable_descriptors_after=%d" %
+            (before != after, len(active_after))
+        )
+        shutil.rmtree(snapshot_work, ignore_errors=True)
+        print(
+            "SANDIUM_ARCHIVE_SNAPSHOT_RETRY=START attempt=%d reason=%s examples=%s" %
+            (attempt, last_reason, active_after[:3]),
+            flush=True,
+        )
+        time.sleep(3)
+
+    raise RuntimeError(
+        "workspace did not reach a stable snapshot after %d attempt(s): %s" %
+        (attempts, last_reason)
     )
 
-    for raw_line in diagnostic.splitlines():
-        line = raw_line.strip()
-        if not line:
-            continue
-        if re.search(r"SHARD_\d+_TAR_CHECKPOINT=\d+$", line):
-            continue
-
-        match = race_pattern.fullmatch(line)
-        if not match:
-            unexpected.append(line)
-            continue
-
-        raw_path, reason = match.groups()
-        candidate = Path(raw_path)
-        if not candidate.is_absolute():
-            candidate = root / candidate
-
-        if candidate.name.endswith(".staging"):
-            accepted.append({
-                "path": raw_path,
-                "reason": "ephemeral_ninja_staging_file",
-            })
-        elif (
-            reason == "file changed as we read it"
-            and candidate.is_dir()
-            and candidate.resolve() in staging_parent_directories
-        ):
-            accepted.append({
-                "path": raw_path,
-                "reason": "directory_metadata_changed_during_staging_cleanup",
-            })
-        else:
-            unexpected.append(line)
-
-    if unexpected:
-        raise RuntimeError(
-            "archive encountered non-transient read errors: " +
-            "; ".join(unexpected[:10])
-        )
-    return accepted
-
 def archive_worker(index: int, total: int, roots: list[Path],
-                   root: Path, stage_dir: Path) -> dict[str, Any]:
+                   source_root: Path, stage_dir: Path) -> dict[str, Any]:
     name = "shard-%02d-of-%02d.tar.zst" % (index, total)
     destination = stage_dir / name
     temporary = stage_dir / (name + ".tmp")
     list_file = stage_dir / (name + ".roots0")
     with list_file.open("wb") as stream:
         for path in roots:
-            stream.write(os.fsencode(path.relative_to(root).as_posix()) + b"\0")
+            stream.write(os.fsencode(path.relative_to(source_root).as_posix()) + b"\0")
 
     tar_command = [
         "tar", "-c",
         "--format=posix",
         "--pax-option=delete=atime,delete=ctime",
-        # Ninja creates/removes these short-lived atomic-write files while
-        # finalizing generated stamps. They are never valid build outputs.
+        # Temporary Ninja outputs are not part of a stable handoff.
         "--exclude=*.staging",
-        # Convert transient read races into diagnostics; the classifier below
-        # accepts only staging files and directory-metadata changes.
-        "--ignore-failed-read",
         "--checkpoint=100000",
         "--checkpoint-action=echo=SHARD_%02d_TAR_CHECKPOINT=%%u" % index,
-        "-C", str(root), "--null", "-T", str(list_file),
+        "-C", str(source_root), "--null", "-T", str(list_file),
     ]
-    build_output_root = root / WORK_NAME / "src" / "out" / OUTPUT_NAME
-    staging_parent_directories = collect_staging_parent_directories(
-        roots, build_output_root
-    )
-    print(
-        "SANDIUM_ARCHIVE_STAGING_SCAN=PASS shard=%02d directories=%d" %
-        (index, len(staging_parent_directories)),
-        flush=True,
-    )
     zstd_command = ["zstd", "-T1", "--fast=5", "-q", "-o", str(temporary)]
     started = time.monotonic()
     tar_rc = -1
     zstd_rc = -1
     tar_diagnostic = ""
-    accepted_read_races: list[dict[str, str]] = []
     attempts = 0
 
     # GNU tar returns 1 when files change while being read. This is not a
@@ -394,19 +497,7 @@ def archive_worker(index: int, total: int, roots: list[Path],
                 print("SANDIUM_TAR_DIAGNOSTIC shard=%02d %s" % (index, line),
                       file=sys.stderr, flush=True)
 
-        try:
-            accepted_read_races = validate_tar_diagnostics(
-                root, tar_diagnostic, staging_parent_directories
-            )
-        except RuntimeError as exc:
-            raise RuntimeError("shard %02d: %s" % (index, exc)) from exc
-        for race in accepted_read_races:
-            print(
-                "SANDIUM_ARCHIVE_TRANSIENT_READ=IGNORED shard=%02d reason=%s path=%s" %
-                (index, race["reason"], race["path"]),
-                flush=True,
-            )
-
+        # tar reads an immutable directory namespace; do not suppress read/change warnings.
         valid_output = temporary.is_file() and temporary.stat().st_size > 0
         if tar_rc == 0 and zstd_rc == 0 and valid_output:
             break
@@ -437,9 +528,9 @@ def archive_worker(index: int, total: int, roots: list[Path],
         "sha256": sha256_file(destination),
         "archive_seconds": round(elapsed, 3),
         "archive_attempts": attempts,
-        "accepted_transient_read_races": accepted_read_races,
-        "root_paths": [path.relative_to(root).as_posix() for path in roots],
+        "root_paths": [path.relative_to(source_root).as_posix() for path in roots],
     }
+
 
 def archive(root: Path, workers: int) -> None:
     work = root / WORK_NAME
@@ -450,82 +541,109 @@ def archive(root: Path, workers: int) -> None:
     shutil.rmtree(stage_dir, ignore_errors=True)
     stage_dir.mkdir(parents=True)
 
-    candidates, structural = discover_candidates(root, work)
-    candidates, sizes = expand_heavy_candidates(root, candidates, workers)
-    buckets = assign_buckets(candidates, sizes, workers)
-    if not buckets:
-        fail("no non-empty archive workers could be planned")
-    dirs = directory_metadata(root, candidates, structural)
-    checkpoint_file = work / ".sandium" / "checkpoint-manifest.txt"
-    checkpoint_manifest = parse_checkpoint_manifest(checkpoint_file)
+    snapshot_parent = Path(tempfile.mkdtemp(
+        prefix=".sandium-archive-snapshot-", dir=str(root)
+    ))
+    snapshot_work = snapshot_parent / WORK_NAME
+    try:
+        snapshot_info = create_hardlink_snapshot(work, snapshot_work)
+        candidates, structural = discover_candidates(snapshot_parent, snapshot_work)
+        candidates, sizes = expand_heavy_candidates(snapshot_parent, candidates, workers)
+        buckets = assign_buckets(candidates, sizes, workers)
+        if not buckets:
+            fail("no non-empty archive workers could be planned")
+        dirs = directory_metadata(snapshot_parent, candidates, structural)
+        checkpoint_file = snapshot_work / ".sandium" / "checkpoint-manifest.txt"
+        checkpoint_manifest = parse_checkpoint_manifest(checkpoint_file)
 
-    print("SANDIUM_PARALLEL_ARCHIVE=START workers=%d candidates=%d" %
-          (len(buckets), len(candidates)))
-    results: list[dict[str, Any]] = []
-    errors: list[str] = []
-    with concurrent.futures.ThreadPoolExecutor(max_workers=len(buckets)) as pool:
-        futures = {
-            pool.submit(archive_worker, index, len(buckets), bucket, root, stage_dir): index
-            for index, bucket in enumerate(buckets, 1)
+        print("SANDIUM_PARALLEL_ARCHIVE=START workers=%d candidates=%d source_snapshot=hardlink" %
+              (len(buckets), len(candidates)), flush=True)
+        results: list[dict[str, Any]] = []
+        errors: list[str] = []
+        with concurrent.futures.ThreadPoolExecutor(max_workers=len(buckets)) as pool:
+            futures = {
+                pool.submit(
+                    archive_worker, index, len(buckets), bucket,
+                    snapshot_parent, stage_dir
+                ): index
+                for index, bucket in enumerate(buckets, 1)
+            }
+            for future in concurrent.futures.as_completed(futures):
+                try:
+                    result = future.result()
+                    results.append(result)
+                    print(
+                        "SANDIUM_SHARD_ARCHIVE=PASS name=%s bytes=%d seconds=%.1f "
+                        "attempts=%d roots=%d sha256=%s" %
+                        (result["name"], result["size_bytes"], result["archive_seconds"],
+                         result["archive_attempts"], len(result["root_paths"]),
+                         result["sha256"]),
+                        flush=True,
+                    )
+                except Exception as exc:
+                    errors.append(str(exc))
+                    print("SANDIUM_SHARD_ARCHIVE=FAIL " + str(exc), file=sys.stderr)
+
+        if errors:
+            shutil.rmtree(stage_dir, ignore_errors=True)
+            fail(
+                "parallel archive failed; no manifest will be published: " +
+                "; ".join(errors)
+            )
+
+        # The source namespace is immutable now. Publish the full shard set and
+        # manifest only after every strict tar+zstd worker and SHA pass succeeds.
+        results.sort(key=lambda item: item["name"])
+        shutil.rmtree(shard_dir, ignore_errors=True)
+        os.replace(stage_dir, shard_dir)
+        total_archive_bytes = sum(item["size_bytes"] for item in results)
+        source_bytes = sum(sizes.values())
+        largest_shard_bytes = max(item["size_bytes"] for item in results)
+        average_shard_bytes = total_archive_bytes / len(results)
+        shard_balance_ratio = round(largest_shard_bytes / max(1.0, average_shard_bytes), 3)
+        payload = {
+            "schema_version": SCHEMA_VERSION,
+            "format": "independent-tar+zstd-shards",
+            "workspace_root": WORK_NAME,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "workers": len(results),
+            "max_workers": workers,
+            "compression": "zstd --fast=5 -T1 per worker",
+            "source_bytes": source_bytes,
+            "archive_bytes": total_archive_bytes,
+            "largest_shard_bytes": largest_shard_bytes,
+            "average_shard_bytes": int(average_shard_bytes),
+            "shard_balance_ratio": shard_balance_ratio,
+            "excluded_transient_patterns": ["*.staging"],
+            "source_snapshot": snapshot_info,
+            "accepted_transient_read_race_count": 0,
+            "directory_metadata": dirs,
+            "checkpoint_manifest": checkpoint_manifest,
+            "checkpoint_manifest_sha256": sha256_file(checkpoint_file),
+            "shards": results,
         }
-        for future in concurrent.futures.as_completed(futures):
-            try:
-                result = future.result()
-                results.append(result)
-                print("SANDIUM_SHARD_ARCHIVE=PASS name=%s bytes=%d seconds=%.1f attempts=%d roots=%d sha256=%s" %
-                      (result["name"], result["size_bytes"], result["archive_seconds"],
-                       result["archive_attempts"], len(result["root_paths"]), result["sha256"]))
-            except Exception as exc:
-                errors.append(str(exc))
-                print("SANDIUM_SHARD_ARCHIVE=FAIL " + str(exc), file=sys.stderr)
-
-    if errors:
-        shutil.rmtree(stage_dir, ignore_errors=True)
-        fail("parallel archive failed; no manifest will be published: " + "; ".join(errors))
-
-    # Keep a directory/manifest pair as a single logical version. The manifest
-    # is published last and is the commit marker used by restore/promotion.
-    results.sort(key=lambda item: item["name"])
-    shutil.rmtree(shard_dir, ignore_errors=True)
-    os.replace(stage_dir, shard_dir)
-    total_archive_bytes = sum(item["size_bytes"] for item in results)
-    source_bytes = sum(sizes.values())
-    largest_shard_bytes = max(item["size_bytes"] for item in results)
-    average_shard_bytes = total_archive_bytes / len(results)
-    shard_balance_ratio = round(largest_shard_bytes / max(1.0, average_shard_bytes), 3)
-    payload = {
-        "schema_version": SCHEMA_VERSION,
-        "format": "independent-tar+zstd-shards",
-        "workspace_root": WORK_NAME,
-        "created_at": datetime.now(timezone.utc).isoformat(),
-        "workers": len(results),
-        "max_workers": workers,
-        "compression": "zstd --fast=5 -T1 per worker",
-        "source_bytes": source_bytes,
-        "archive_bytes": total_archive_bytes,
-        "largest_shard_bytes": largest_shard_bytes,
-        "average_shard_bytes": int(average_shard_bytes),
-        "shard_balance_ratio": shard_balance_ratio,
-        "excluded_transient_patterns": ["*.staging"],
-        "accepted_transient_read_race_count": sum(
-            len(item.get("accepted_transient_read_races", [])) for item in results
-        ),
-        "directory_metadata": dirs,
-        "checkpoint_manifest": checkpoint_manifest,
-        "checkpoint_manifest_sha256": sha256_file(checkpoint_file),
-        "shards": results,
-    }
-    temporary_manifest = manifest_path.with_suffix(manifest_path.suffix + ".tmp")
-    temporary_manifest.write_text(json.dumps(payload, sort_keys=True, indent=2) + "\n",
-                                  encoding="utf-8")
-    os.replace(temporary_manifest, manifest_path)
-    print("SANDIUM_PARALLEL_ARCHIVE=PASS workers=%d shards=%d source_bytes=%d archive_bytes=%d largest_shard_bytes=%d average_shard_bytes=%d balance_ratio=%s" %
-          (len(results), len(results), source_bytes, total_archive_bytes,
-           largest_shard_bytes, int(average_shard_bytes), shard_balance_ratio))
-    if shard_balance_ratio > 1.50:
-        print("SANDIUM_SHARD_BALANCE=WARNING largest compressed shard is %.2fx the average; inspect per-shard timings." %
-              shard_balance_ratio)
-
+        temporary_manifest = manifest_path.with_suffix(manifest_path.suffix + ".tmp")
+        temporary_manifest.write_text(
+            json.dumps(payload, sort_keys=True, indent=2) + "\n",
+            encoding="utf-8",
+        )
+        os.replace(temporary_manifest, manifest_path)
+        print(
+            "SANDIUM_PARALLEL_ARCHIVE=PASS workers=%d shards=%d source_bytes=%d "
+            "archive_bytes=%d largest_shard_bytes=%d average_shard_bytes=%d "
+            "balance_ratio=%s snapshot=hardlink" %
+            (len(results), len(results), source_bytes, total_archive_bytes,
+             largest_shard_bytes, int(average_shard_bytes), shard_balance_ratio),
+            flush=True,
+        )
+        if shard_balance_ratio > 1.50:
+            print(
+                "SANDIUM_SHARD_BALANCE=WARNING largest compressed shard is %.2fx "
+                "the average; inspect per-shard timings." % shard_balance_ratio,
+                flush=True,
+            )
+    finally:
+        shutil.rmtree(snapshot_parent, ignore_errors=True)
 
 def load_manifest(root: Path) -> tuple[dict[str, Any], Path]:
     manifest_path = root / MANIFEST_NAME

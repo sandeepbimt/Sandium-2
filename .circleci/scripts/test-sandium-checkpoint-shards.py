@@ -23,59 +23,45 @@ def run(*args: str, env: dict[str, str] | None = None) -> str:
         raise AssertionError("command failed (%s):\n%s" % (args, proc.stdout))
     return proc.stdout
 
-def test_transient_tar_races(root: Path, output: Path) -> None:
-    base_dir = output / "obj" / "base"
-    base_dir.mkdir(parents=True, exist_ok=True)
 
-    sample = (
-        "tar: SHARD_02_TAR_CHECKPOINT=100000\n"
-        "tar: brave-work/src/out/android_Release_arm64/obj/base/"
-        "tristate_java__errorprone.stamp.staging: File removed before we read it\n"
-        "tar: brave-work/src/out/android_Release_arm64/obj/base: "
-        "file changed as we read it\n"
-    )
-    accepted = SHARD_MODULE.validate_tar_diagnostics(
-        root, sample, {base_dir.resolve()}
-    )
-    assert len(accepted) == 2, accepted
-    assert {item["reason"] for item in accepted} == {
-        "ephemeral_ninja_staging_file",
-        "directory_metadata_changed_during_staging_cleanup",
-    }, accepted
+def test_hardlink_snapshot(root: Path) -> None:
+    work = root / "snapshot-fixture" / "brave-work"
+    source_dir = work / "src" / "out" / "android_Release_arm64" / "obj" / "base"
+    source_dir.mkdir(parents=True)
+    source_file = source_dir / "stable-output.bin"
+    source_file.write_bytes(b"original compiled output")
+    staging_file = source_dir / "temporary.stamp.staging"
+    staging_file.write_bytes(b"partial temporary output")
 
-    # A regular compiler output changing while archived is NOT benign.
-    unsafe = (
-        "tar: brave-work/src/out/android_Release_arm64/obj/base/"
-        "libbase.a: file changed as we read it"
-    )
-    try:
-        SHARD_MODULE.validate_tar_diagnostics(root, unsafe, set())
-    except RuntimeError as exc:
-        assert "non-transient read errors" in str(exc), str(exc)
-    else:
-        raise AssertionError("changing a regular build output must remain fatal")
+    snapshot_parent = root / "snapshot-fixture" / "snapshot"
+    snapshot_work = snapshot_parent / "brave-work"
+    result = SHARD_MODULE.create_hardlink_snapshot(work, snapshot_work)
+    snapshot_file = snapshot_work / source_file.relative_to(work)
+    snapshot_dir = snapshot_file.parent
+    snapshot_dir_mtime = snapshot_dir.stat().st_mtime_ns
 
+    assert result["method"] == "same-filesystem-hardlink-directory-snapshot", result
+    assert result["inventory_stable"] is True, result
+    assert result["hardlinked_files"] == 1, result
+    assert result["excluded_staging_files"] == 1, result
+    assert source_file.stat().st_ino == snapshot_file.stat().st_ino
+    assert not (snapshot_dir / staging_file.name).exists()
 
-    # A changed directory without a known staging cleanup is not benign.
-    try:
-        SHARD_MODULE.validate_tar_diagnostics(
-            root,
-            "tar: brave-work/src/out/android_Release_arm64/obj/base: "
-            "file changed as we read it",
-            set(),
-        )
-    except RuntimeError as exc:
-        assert "non-transient read errors" in str(exc), str(exc)
-    else:
-        raise AssertionError("unexplained directory mutation must remain fatal")
+    # Atomic replacement/removal in the live workspace must not change the
+    # namespace or contents already captured by the hard-link snapshot.
+    replacement = source_dir / "stable-output.bin.new"
+    replacement.write_bytes(b"new live output")
+    os.replace(replacement, source_file)
+    (source_dir / "created-after-snapshot.bin").write_bytes(b"late output")
+    (source_dir / "removed-after-snapshot.bin").write_bytes(b"late output")
+    (source_dir / "removed-after-snapshot.bin").unlink()
 
-    # Unreadable/unknown tar diagnostics must also remain fatal.
-    try:
-        SHARD_MODULE.validate_tar_diagnostics(root, "tar: Permission denied", set())
-    except RuntimeError as exc:
-        assert "non-transient read errors" in str(exc), str(exc)
-    else:
-        raise AssertionError("unknown tar diagnostics must remain fatal")
+    assert snapshot_file.read_bytes() == b"original compiled output"
+    assert snapshot_file.stat().st_ino != source_file.stat().st_ino
+    assert not (snapshot_dir / "created-after-snapshot.bin").exists()
+    assert not (snapshot_dir / "removed-after-snapshot.bin").exists()
+    assert snapshot_dir.stat().st_mtime_ns == snapshot_dir_mtime
+    shutil.rmtree(snapshot_parent, ignore_errors=True)
 
 
 def main() -> None:
@@ -143,10 +129,9 @@ def main() -> None:
         source_mtime = timed_file.stat().st_mtime_ns
         source_mode = wrapper.stat().st_mode & 0o777
 
-        # Verify the exact transient Ninja staging-file race seen in CircleCI.
-        # Staging files must be excluded; directory-only mtime changes are benign,
-        # while regular output-file changes and unknown tar errors stay fatal.
-        test_transient_tar_races(root, output)
+        # Prove that the hard-link namespace snapshot is isolated from later
+        # creates/removals/replacements in the live build workspace.
+        test_hardlink_snapshot(root)
         staging_file = output / "obj" / "component-00" / "temporary.stamp.staging"
         staging_file.write_text("not a final build output\\n", encoding="utf-8")
 
@@ -200,7 +185,11 @@ def main() -> None:
         assert all(int(shard["size_bytes"]) > 0 for shard in shards), manifest
         assert all(int(shard["archive_attempts"]) in (1, 2) for shard in shards), manifest
         assert manifest["excluded_transient_patterns"] == ["*.staging"], manifest
-        assert not any(shard["accepted_transient_read_races"] for shard in shards), manifest
+        assert manifest["accepted_transient_read_race_count"] == 0, manifest
+        assert manifest["source_snapshot"]["method"] == "same-filesystem-hardlink-directory-snapshot", manifest
+        assert manifest["source_snapshot"]["inventory_stable"] is True, manifest
+        assert manifest["source_snapshot"]["hardlinked_files"] > 0, manifest
+        assert manifest["source_snapshot"]["excluded_staging_files"] == 1, manifest
         assert any(int(shard["archive_attempts"]) == 2 for shard in shards), manifest
         assert len({shard["sha256"] for shard in shards}) == len(shards), manifest
         verified = run("verify", "--root", str(root), "--workers", "8", "--zstd-test")
@@ -233,7 +222,7 @@ def main() -> None:
                               "--workers", "8"], stdout=subprocess.PIPE,
                              stderr=subprocess.STDOUT, text=True)
         assert bad.returncode != 0 and "SHA256 mismatch" in bad.stdout, bad.stdout
-    print("SANDIUM_PARALLEL_CHECKPOINT_TEST=PASS 8-way archive/verify/restore; transient staging-race handling; non-transient mutation rejection; symlink/mode/mtime preservation; tamper detection")
+    print("SANDIUM_PARALLEL_CHECKPOINT_TEST=PASS 8-way hard-link snapshot/archive/verify/restore; live-workspace isolation; staging exclusion; symlink/mode/mtime preservation; tar retry; tamper detection")
 
 if __name__ == "__main__":
     main()
