@@ -156,7 +156,7 @@ if "-n" in args:
         assert "ACTION_FRONTIER_RECONCILIATION=PASS planned_completed=88 dynamically_completed=65 newly_pending=0 pending_after=12" in done1, done1
         assert "ACTION_DYNAMIC_ACTION_ACCOUNTING=PASS discovered_completed=65 discovered_pending=0" in done1, done1
         assert "ACTION_COMPLETION_MATH=PASS before=100 new=153 after=12" in done1, done1
-        assert "SANDIUM_BUILD_MATH=153/165 complete; 12/12 pending" in done1, done1
+        assert "SANDIUM_BUILD_MATH=metric_completed=153 checkpoint_satisfied=0 pending=12 total=165" in done1, done1
 
         # The Stage 2 preflight must reject a replay-sized graph before compile.
         pending_file.write_text(json.dumps(list(range(100))), encoding="utf-8")
@@ -167,7 +167,7 @@ if "-n" in args:
         pending_file.write_text(json.dumps(list(range(88, 100))), encoding="utf-8")
         plan2 = run(["plan", *common, "--stage", "2", "--build", "202",
                      "--workflow", "workflow-two"], env)
-        assert "SANDIUM_BUILD_MATH=153/165 complete; 12/12 pending" in plan2, plan2
+        assert "SANDIUM_BUILD_MATH=metric_completed=153 checkpoint_satisfied=0 pending=12 total=165" in plan2, plan2
 
         # A previously completed action must not execute again.
         stage2_metrics = out / "test-stage2-0.jsonl"
@@ -200,7 +200,7 @@ if "-n" in args:
                        "--metrics-prefix", "test-stage2-"], env)
         assert "ACTION_FRONTIER_RECONCILIATION=PASS planned_completed=11 dynamically_completed=1 newly_pending=2 pending_after=3" in dynamic, dynamic
         assert "ACTION_DYNAMIC_ACTION_ACCOUNTING=PASS discovered_completed=1 discovered_pending=2" in dynamic, dynamic
-        assert "SANDIUM_BUILD_MATH=165/168 complete; 3/3 pending" in dynamic, dynamic
+        assert "SANDIUM_BUILD_MATH=metric_completed=165 checkpoint_satisfied=0 pending=3 total=168" in dynamic, dynamic
 
         # The next stage must receive the exact augmented frontier, including
         # newly discovered action 4000, and complete the original final action.
@@ -225,7 +225,7 @@ if "-n" in args:
                      "--metrics-prefix", "test-stage3-"], env)
         assert "ACTION_PRUNED_STALE_PLAN=PASS count=2; reason=stale_plan_nodes_absent_from_closed_graph_with_verified_apk" in done3, done3
         assert "ACTION_COMPLETION_MATH=PASS before=3 new=1 after=0" in done3, done3
-        assert "SANDIUM_BUILD_MATH=166/166 complete; 0/0 pending" in done3, done3
+        assert "SANDIUM_BUILD_MATH=metric_completed=166 checkpoint_satisfied=0 pending=0 total=166" in done3, done3
         assert "SANDIUM_ACTION_FRONTIER=COMPLETE total=166" in done3, done3
 
         # Regression for build 675: the first -n probe saw only two Siso
@@ -248,7 +248,7 @@ if "-n" in args:
         assert "ACTION_PRUNED_MANIFEST_STUB=PASS count=2 initial_actions=2 expanded_pending=40 dynamically_completed=60" in manifest_done, manifest_done
         assert "ACTION_FRONTIER_RECONCILIATION=PASS planned_completed=0 dynamically_completed=60 newly_pending=40 pending_after=40" in manifest_done, manifest_done
         assert "ACTION_COMPLETION_MATH=PASS before=2 new=60 after=40" in manifest_done, manifest_done
-        assert "SANDIUM_BUILD_MATH=60/100 complete; 40/40 pending" in manifest_done, manifest_done
+        assert "SANDIUM_BUILD_MATH=metric_completed=60 checkpoint_satisfied=0 pending=40 total=100" in manifest_done, manifest_done
 
         # Regression: a deliberate 15-minute build slice may leave the
         # post-build Siso dry-run empty even though the pre-build frontier was
@@ -282,7 +282,7 @@ if "-n" in args:
                           "--metrics-prefix", "test-timeslice-stage1-"], env)
         assert "ACTION_TIME_SLICE_FRONTIER_PRESERVED=PASS planned_remaining=12 dynamic_pending=3 live_post_build_pending=3" in slice_done, slice_done
         assert "ACTION_FRONTIER_RECONCILIATION=PASS planned_completed=8 dynamically_completed=3 newly_pending=3 pending_after=15" in slice_done, slice_done
-        assert "SANDIUM_BUILD_MATH=11/26 complete; 15/15 pending" in slice_done, slice_done
+        assert "SANDIUM_BUILD_MATH=metric_completed=11 checkpoint_satisfied=0 pending=15 total=26" in slice_done, slice_done
 
         # The next stage is allowed to continue only if its fresh Siso dry-run
         # reconstructs the exact 12-action frontier from the saved checkpoint.
@@ -290,7 +290,43 @@ if "-n" in args:
         slice_stage2 = run(["plan", *common, "--stage", "2", "--build", "506",
                             "--workflow", "time-slice-next"], env)
         assert "ACTION_HANDOFF_GATE=PASS pending=15/15" in slice_stage2, slice_stage2
-        assert "SANDIUM_BUILD_MATH=11/26 complete; 15/15 pending" in slice_stage2, slice_stage2
+        assert "SANDIUM_BUILD_MATH=metric_completed=11 checkpoint_satisfied=0 pending=15 total=26" in slice_stage2, slice_stage2
+
+
+        # A restored checkpoint can make many previously pending actions
+        # disappear from the live Siso dry-run without producing fresh metric
+        # rows. They must be classified separately, not treated as completed
+        # metrics and not allowed to block the next compilation slice.
+        (src.parent / ".sandium" / "action-ledger.json").unlink(missing_ok=True)
+        (src.parent / ".sandium" / "apk-completion-status.txt").unlink(missing_ok=True)
+        (out / "apks" / "BraveMonoarm64.apk").unlink(missing_ok=True)
+        pending_file.write_text(json.dumps(list(range(100))), encoding="utf-8")
+        restored_plan1 = run(["plan", *common, "--stage", "1", "--build", "606",
+                              "--workflow", "restored-state-workflow"], env)
+        assert "ACTION_HANDOFF_GATE=PASS live_siso_pending=100/100" in restored_plan1, restored_plan1
+        restored_stage1_metrics = out / "test-restored-stage1-0.jsonl"
+        write_metrics(restored_stage1_metrics, range(20))
+        pending_file.write_text(json.dumps(list(range(20, 100))), encoding="utf-8")
+        restored_done1 = run(["complete", *common, "--stage", "1", "--build", "606",
+                              "--workflow", "restored-state-workflow",
+                              "--metrics-prefix", "test-restored-stage1-"], env)
+        assert "SANDIUM_BUILD_MATH=metric_completed=20 checkpoint_satisfied=0 pending=80 total=100" in restored_done1, restored_done1
+
+        # A second invocation sees only 30 of the prior 80 pending actions.
+        # The other 50 are already satisfied by the restored Siso/output state.
+        pending_file.write_text(json.dumps(list(range(20, 50))), encoding="utf-8")
+        restored_plan2 = run(["plan", *common, "--stage", "2", "--build", "607",
+                              "--workflow", "restored-state-next"], env)
+        assert "ACTION_CHECKPOINT_RECONCILIATION=PASS resolved_by_restored_state=50 reopened=0 new_pending=0 previous_total=100 reconciled_total=100" in restored_plan2, restored_plan2
+        assert "SANDIUM_BUILD_MATH=metric_completed=20 checkpoint_satisfied=50 pending=30 total=100" in restored_plan2, restored_plan2
+
+        restored_stage2_metrics = out / "test-restored-stage2-0.jsonl"
+        write_metrics(restored_stage2_metrics, range(20, 30))
+        pending_file.write_text(json.dumps(list(range(30, 50))), encoding="utf-8")
+        restored_done2 = run(["complete", *common, "--stage", "2", "--build", "607",
+                              "--workflow", "restored-state-next",
+                              "--metrics-prefix", "test-restored-stage2-"], env)
+        assert "SANDIUM_BUILD_MATH=metric_completed=30 checkpoint_satisfied=50 pending=20 total=100" in restored_done2, restored_done2
 
     print("BRAVE_ACTION_LEDGER_SELF_TEST=PASS dynamic discovery + pending handoff + APK-gated pruning + manifest-stub expansion + bounded-slice recovery")
 
