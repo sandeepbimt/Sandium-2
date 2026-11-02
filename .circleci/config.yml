@@ -1609,13 +1609,12 @@ jobs:
             - restore_cache:
                 name: Restore latest promoted Sandium reference
                 keys:
-                  # Canonical immutable reference is owned by the accepted clean-base branch.
-                  # Do not use the current feature branch's empty cache namespace as the only lookup.
-                  - sandium-brave-reference-v2-sandium/brave-android-poc-
-                  - sandium-brave-reference-v1-sandium/brave-android-poc-
-                  # Preserve same-branch lookup for branches with their own formally promoted reference.
-                  - sandium-brave-reference-v2-{{ .Branch }}-
-                  - sandium-brave-reference-v1-{{ .Branch }}-
+                  # Canonical 26 GiB accepted FULL MODE Stage-1 handoff:
+                  # branch sandium/fix-archive-completion-gate, commit 3c8004b,
+                  # workflow d0bc6af6-e2a7-451e-8561-3c90eb48c2e1.
+                  # Restore this exact immutable checkpoint first; do not substitute
+                  # an unverified branch-local cache.
+                  - sandium-brave-handoff-v2-sandium/fix-archive-completion-gate-d0bc6af6-e2a7-451e-8561-3c90eb48c2e1-stage-1
       - when:
           condition:
             and:
@@ -1669,13 +1668,12 @@ jobs:
             - restore_cache:
                 name: Restore immutable reference for FAST MODE Stage 2
                 keys:
-                  # Canonical immutable reference is owned by the accepted clean-base branch.
-                  # Do not use the current feature branch's empty cache namespace as the only lookup.
-                  - sandium-brave-reference-v2-sandium/brave-android-poc-
-                  - sandium-brave-reference-v1-sandium/brave-android-poc-
-                  # Preserve same-branch lookup for branches with their own formally promoted reference.
-                  - sandium-brave-reference-v2-{{ .Branch }}-
-                  - sandium-brave-reference-v1-{{ .Branch }}-
+                  # Canonical 26 GiB accepted FULL MODE Stage-1 handoff:
+                  # branch sandium/fix-archive-completion-gate, commit 3c8004b,
+                  # workflow d0bc6af6-e2a7-451e-8561-3c90eb48c2e1.
+                  # Restore this exact immutable checkpoint first; do not substitute
+                  # an unverified branch-local cache.
+                  - sandium-brave-handoff-v2-sandium/fix-archive-completion-gate-d0bc6af6-e2a7-451e-8561-3c90eb48c2e1-stage-1
       - when:
           condition:
             and:
@@ -1685,13 +1683,12 @@ jobs:
             - restore_cache:
                 name: Restore immutable reference for FAST MODE Stage 3
                 keys:
-                  # Canonical immutable reference is owned by the accepted clean-base branch.
-                  # Do not use the current feature branch's empty cache namespace as the only lookup.
-                  - sandium-brave-reference-v2-sandium/brave-android-poc-
-                  - sandium-brave-reference-v1-sandium/brave-android-poc-
-                  # Preserve same-branch lookup for branches with their own formally promoted reference.
-                  - sandium-brave-reference-v2-{{ .Branch }}-
-                  - sandium-brave-reference-v1-{{ .Branch }}-
+                  # Canonical 26 GiB accepted FULL MODE Stage-1 handoff:
+                  # branch sandium/fix-archive-completion-gate, commit 3c8004b,
+                  # workflow d0bc6af6-e2a7-451e-8561-3c90eb48c2e1.
+                  # Restore this exact immutable checkpoint first; do not substitute
+                  # an unverified branch-local cache.
+                  - sandium-brave-handoff-v2-sandium/fix-archive-completion-gate-d0bc6af6-e2a7-451e-8561-3c90eb48c2e1-stage-1
       - when:
           condition:
             and:
@@ -1701,13 +1698,12 @@ jobs:
             - restore_cache:
                 name: Restore immutable reference for FAST MODE Stage 4
                 keys:
-                  # Canonical immutable reference is owned by the accepted clean-base branch.
-                  # Do not use the current feature branch's empty cache namespace as the only lookup.
-                  - sandium-brave-reference-v2-sandium/brave-android-poc-
-                  - sandium-brave-reference-v1-sandium/brave-android-poc-
-                  # Preserve same-branch lookup for branches with their own formally promoted reference.
-                  - sandium-brave-reference-v2-{{ .Branch }}-
-                  - sandium-brave-reference-v1-{{ .Branch }}-
+                  # Canonical 26 GiB accepted FULL MODE Stage-1 handoff:
+                  # branch sandium/fix-archive-completion-gate, commit 3c8004b,
+                  # workflow d0bc6af6-e2a7-451e-8561-3c90eb48c2e1.
+                  # Restore this exact immutable checkpoint first; do not substitute
+                  # an unverified branch-local cache.
+                  - sandium-brave-handoff-v2-sandium/fix-archive-completion-gate-d0bc6af6-e2a7-451e-8561-3c90eb48c2e1-stage-1
       - when:
           condition:
             and:
@@ -1717,13 +1713,12 @@ jobs:
             - restore_cache:
                 name: Restore immutable reference for FAST MODE Stage 5
                 keys:
-                  # Canonical immutable reference is owned by the accepted clean-base branch.
-                  # Do not use the current feature branch's empty cache namespace as the only lookup.
-                  - sandium-brave-reference-v2-sandium/brave-android-poc-
-                  - sandium-brave-reference-v1-sandium/brave-android-poc-
-                  # Preserve same-branch lookup for branches with their own formally promoted reference.
-                  - sandium-brave-reference-v2-{{ .Branch }}-
-                  - sandium-brave-reference-v1-{{ .Branch }}-
+                  # Canonical 26 GiB accepted FULL MODE Stage-1 handoff:
+                  # branch sandium/fix-archive-completion-gate, commit 3c8004b,
+                  # workflow d0bc6af6-e2a7-451e-8561-3c90eb48c2e1.
+                  # Restore this exact immutable checkpoint first; do not substitute
+                  # an unverified branch-local cache.
+                  - sandium-brave-handoff-v2-sandium/fix-archive-completion-gate-d0bc6af6-e2a7-451e-8561-3c90eb48c2e1-stage-1
       - restore_cache:
           keys:
             - sandium-brave-node-v1-24.16.0
