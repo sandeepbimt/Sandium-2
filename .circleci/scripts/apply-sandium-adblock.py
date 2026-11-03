@@ -53,36 +53,56 @@ def replace_once(path: Path, old: str, new: str, marker: str, label: str) -> Non
 
 
 def apply_manager_patch(core: Path) -> None:
+    """Keep Brave's upstream empty-provider no-op; never force an invalid update."""
     manager = core / (
         "components/brave_shields/core/browser/"
         "ad_block_component_service_manager.cc"
     )
-    old = """  // If there are currently no components to update, then run the callback with
+    if not manager.is_file():
+        raise SystemExit(f"SANDIUM_ADBLOCK_GATE=FAIL missing {manager}")
+    source = manager.read_text(encoding="utf-8")
+    expected = """  // If there are currently no components to update, then run the callback with
   // a success value in a future turn.
   if (component_filters_providers_.empty()) {
     std::move(callback).Run(true);
     return;
   }
-
-  std::vector<std::string> component_ids = {
 """
-    new = """  // SANDIUM_FILTER_CATALOGUE_BOOTSTRAP: first-run Android has no regional
-  // providers until the catalogue component is installed. Do not report a
-  // false success here; always request Brave's default resources and catalogue.
-  if (brave_component_updater::BraveOnDemandUpdater::GetInstance()
-          ->is_component_update_disabled()) {
-    std::move(callback).Run(false);
-    return;
-  }
+    if expected not in source:
+        raise SystemExit(
+            "SANDIUM_ADBLOCK_GATE=FAIL Brave empty-provider no-op was changed; "
+            "refusing to force an update without registered filter providers"
+        )
+    if "SANDIUM_FILTER_CATALOGUE_BOOTSTRAP" in source:
+        raise SystemExit(
+            "SANDIUM_ADBLOCK_GATE=FAIL stale manager override is present"
+        )
+    print("SANDIUM_ADBLOCK_MANAGER=PASS upstream_empty_provider_noop_preserved")
 
-  std::vector<std::string> component_ids = {
+
+def apply_component_updater_patch(core: Path) -> None:
+    main_parts = core / "browser/brave_browser_main_parts.cc"
+    old = """int ChromeBrowserMainParts::PreMainMessageLoopRun() {
+  brave_component_updater::BraveOnDemandUpdater::GetInstance()
+      ->RegisterOnDemandUpdater(
+"""
+    new = """int ChromeBrowserMainParts::PreMainMessageLoopRun() {
+#if BUILDFLAG(IS_ANDROID)
+  // SANDIUM_BRAVE_COMPONENT_UPDATES: Shields' filter catalogue and regional
+  // filter components are delivered by Brave's component updater. Brave's
+  // explicit allow switch overrides --disable-component-update for Android.
+  base::CommandLine::ForCurrentProcess()->AppendSwitch(
+      "allow-brave-component-update");
+#endif
+  brave_component_updater::BraveOnDemandUpdater::GetInstance()
+      ->RegisterOnDemandUpdater(
 """
     replace_once(
-        manager,
+        main_parts,
         old,
         new,
-        "SANDIUM_FILTER_CATALOGUE_BOOTSTRAP",
-        "catalogue-bootstrap-and-disabled-updater-gate",
+        "SANDIUM_BRAVE_COMPONENT_UPDATES",
+        "android-brave-component-updater-enable",
     )
 
 
@@ -437,6 +457,7 @@ def apply_adapter_patch(core: Path) -> None:
 
 def apply_patches(core: Path) -> None:
     apply_manager_patch(core)
+    apply_component_updater_patch(core)
     apply_fragment_patch(core)
     apply_adapter_patch(core)
 
@@ -446,6 +467,9 @@ def verify_patches(core: Path) -> None:
         core / "components/brave_shields/core/browser/"
         "ad_block_component_service_manager.cc"
     ).read_text(encoding="utf-8")
+    main_parts = (core / "browser/brave_browser_main_parts.cc").read_text(
+        encoding="utf-8"
+    )
     fragment = (
         core / "android/java/org/chromium/chrome/browser/shields/"
         "ContentFilteringFragment.java"
@@ -456,7 +480,8 @@ def verify_patches(core: Path) -> None:
     ).read_text(encoding="utf-8")
 
     required = (
-        ("manager", "SANDIUM_FILTER_CATALOGUE_BOOTSTRAP", manager),
+        ("manager", "if (component_filters_providers_.empty())", manager),
+        ("main_parts", "SANDIUM_BRAVE_COMPONENT_UPDATES", main_parts),
         ("fragment", "SANDIUM_FILTER_LIST_CATALOGUE_STATE_MACHINE", fragment),
         ("fragment", "SANDIUM_MANUAL_FILTER_LIST_UPDATE", fragment),
         ("fragment", "SANDIUM_FILTER_LIST_HANDLER_CLEANUP", fragment),
@@ -469,10 +494,16 @@ def verify_patches(core: Path) -> None:
             "SANDIUM_ADBLOCK_GATE=FAIL patch verification missing "
             + ", ".join(missing)
         )
+    if "SANDIUM_FILTER_CATALOGUE_BOOTSTRAP" in manager:
+        raise SystemExit("SANDIUM_ADBLOCK_GATE=FAIL stale forced-update manager patch remains")
+    if 'AppendSwitch(\n      "allow-brave-component-update")' not in main_parts:
+        raise SystemExit("SANDIUM_ADBLOCK_GATE=FAIL Android component-updater override missing")
     if len(FRESH_INSTALL_FILTER_UUIDS) != len(set(FRESH_INSTALL_FILTER_UUIDS)):
         raise SystemExit("SANDIUM_ADBLOCK_GATE=FAIL duplicate selected filter UUID")
     print(
         "SANDIUM_ADBLOCK_GATE=PASS "
+        "component_updater=enabled_android "
+        "upstream_empty_provider_noop=preserved "
         "native_catalogue=bootstrapped "
         "update_retries=bounded "
         "adapter_refresh=verified "

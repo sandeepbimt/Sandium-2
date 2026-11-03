@@ -82,6 +82,21 @@ ADAPTER_FIXTURE = """    public void setFilterLists(Value filterLists[]) {
     }
 """
 
+MAIN_PARTS_FIXTURE = """#include "base/command_line.h"
+#include "build/build_config.h"
+
+int ChromeBrowserMainParts::PreMainMessageLoopRun() {
+  brave_component_updater::BraveOnDemandUpdater::GetInstance()
+      ->RegisterOnDemandUpdater(
+          base::CommandLine::ForCurrentProcess()->HasSwitch(
+              switches::kDisableComponentUpdate),
+          &g_browser_process->component_updater()->GetOnDemandUpdater());
+
+  return ChromeBrowserMainParts_ChromiumImpl::PreMainMessageLoopRun();
+}
+"""
+
+
 
 def main() -> None:
     assert len(FRESH_INSTALL_FILTER_UUIDS) == 6
@@ -101,11 +116,13 @@ def main() -> None:
             "android/java/org/chromium/chrome/browser/shields/"
             "ContentFilteringAdapter.java"
         )
-        for path in (manager, fragment, adapter):
+        main_parts = core / "browser/brave_browser_main_parts.cc"
+        for path in (manager, fragment, adapter, main_parts):
             path.parent.mkdir(parents=True, exist_ok=True)
         manager.write_text(MANAGER_FIXTURE, encoding="utf-8")
         fragment.write_text(FRAGMENT_FIXTURE, encoding="utf-8")
         adapter.write_text(ADAPTER_FIXTURE, encoding="utf-8")
+        main_parts.write_text(MAIN_PARTS_FIXTURE, encoding="utf-8")
 
         apply_patches(core)
         verify_patches(core)
@@ -116,6 +133,12 @@ def main() -> None:
 
         fragment_text = fragment.read_text(encoding="utf-8")
         adapter_text = adapter.read_text(encoding="utf-8")
+        main_parts_text = main_parts.read_text(encoding="utf-8")
+        manager_text = manager.read_text(encoding="utf-8")
+        assert "allow-brave-component-update" in main_parts_text
+        assert "SANDIUM_BRAVE_COMPONENT_UPDATES" in main_parts_text
+        assert "if (component_filters_providers_.empty())" in manager_text
+        assert "SANDIUM_FILTER_CATALOGUE_BOOTSTRAP" not in manager_text
         assert "requestFilterListCatalogueRefresh" in fragment_text
         assert "MAX_FILTER_LIST_UPDATE_ATTEMPTS = 3" in fragment_text
         assert "notifyDataSetChanged();" in adapter_text
