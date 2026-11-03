@@ -92,13 +92,17 @@ def main():
     svg=f'''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" role="img" aria-label="Sandium Browser"><defs><linearGradient id="s" x1="3" y1="2" x2="22" y2="23" gradientUnits="userSpaceOnUse"><stop stop-color="#45E0D2"/><stop offset="1" stop-color="#176FB5"/></linearGradient></defs><path d="{scale_path(S,24/128)}" fill="url(#s)" fill-rule="evenodd"/><path d="{scale_path(F,24/128)}" fill="#B1FFF2"/></svg>'''
     web=src/"ui/webui/resources/images/chrome_logo_dark.svg"; web.parent.mkdir(parents=True,exist_ok=True); web.write_text(svg,encoding="utf-8")
     word=out/"sandium_wordmark.svg"; word.parent.mkdir(parents=True,exist_ok=True); word.write_text(f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 160" role="img" aria-label="Sandium Browser"><path d="{S}" fill="#22CFCB"/><text x="150" y="75" font-family="Inter,Arial,sans-serif" font-size="57" font-weight="650" fill="#E7F5F7">SANDIUM</text><text x="154" y="119" font-size="20" letter-spacing="7" fill="#42D3CF">BROWSER</text></svg>',encoding="utf-8")
-    for f in (core/"browser/ui/android/strings/android_brave_strings.grd",src/"chrome/browser/ui/android/strings/android_brave_strings.grd"):
-        if not f.is_file(): fail(f"missing Android string file {f}")
-        t=f.read_text(encoding="utf-8"); pat=re.compile(r'(<message\s+name="IDS_BRAVE_ONBOARDING_SPLASH_LOGO_DESCRIPTION"[^>]*>)(.*?)(</message>)',re.S); m=pat.search(t)
-        if not m: fail(f"splash logo accessibility string missing {f}")
-        body=m.group(2)
-        if "Sandium Browser logo" not in body:
-            if body.count("Brave logo")!=1: fail(f"unexpected splash description {body.strip()}")
-            f.write_text(t[:m.start(2)]+body.replace("Brave logo","Sandium Browser logo",1)+t[m.end(2):],encoding="utf-8")
+    # This GRD is owned by brave-core. Chromium's src checkout does not
+    # contain chrome/browser/ui/android/strings/android_brave_strings.grd.
+    f=core/"browser/ui/android/strings/android_brave_strings.grd"
+    if not f.is_file(): fail(f"missing Brave Android string file {f}")
+    t=f.read_text(encoding="utf-8")
+    pat=re.compile(r'(<message\s+name="IDS_BRAVE_ONBOARDING_SPLASH_LOGO_DESCRIPTION"[^>]*>)(.*?)(</message>)',re.S)
+    m=pat.search(t)
+    if not m: fail(f"splash logo accessibility string missing {f}")
+    body=m.group(2)
+    if "Sandium Browser logo" not in body:
+        if body.count("Brave logo")!=1: fail(f"unexpected splash description {body.strip()}")
+        f.write_text(t[:m.start(2)]+body.replace("Brave logo","Sandium Browser logo",1)+t[m.end(2):],encoding="utf-8")
     print("SANDIUM_EXTENDED_BRANDING_GATE=PASS logo=162dp splash=288dp animation=preserved wordmarks=6_RGBA_PNG webui=PASS metadata=PASS accessibility=PASS")
 if __name__=="__main__": main()
