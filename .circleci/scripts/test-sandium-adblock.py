@@ -286,7 +286,7 @@ def main() -> None:
         assert "global_disable_preserved=" in main_parts_text
         assert "RemoveSwitch(switches::kDisableComponentUpdate)" not in main_parts_text
         assert "switches::kDisableComponentUpdate" in main_parts_text
-        assert main_parts_text.count("RegisterOnDemandUpdater(") == 1
+        assert main_parts_text.count("->RegisterOnDemandUpdater(") == 1
         assert "&g_browser_process->component_updater()->GetOnDemandUpdater()" not in main_parts_text
         assert "&updater_service->GetOnDemandUpdater()" in main_parts_text
         assert "if (component_filters_providers_.empty())" in manager_text
