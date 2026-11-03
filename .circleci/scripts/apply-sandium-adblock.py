@@ -172,14 +172,27 @@ def apply_manager_patch(core: Path) -> None:
 
 def apply_early_component_updater_patch(core: Path) -> None:
     main_delegate = core / "app/brave_main_delegate.cc"
+    replace_once(
+        main_delegate,
+        '#include "base/lazy_instance.h"\n',
+        '#include "base/lazy_instance.h"\n#include "base/logging.h"\n',
+        '#include "base/logging.h"',
+        "early-component-updater-log-include",
+    )
     old = """void BraveMainDelegate::AppendCommandLineOptions() {
   auto* command_line = base::CommandLine::ForCurrentProcess();
 """
     new = """void BraveMainDelegate::AppendCommandLineOptions() {
   auto* command_line = base::CommandLine::ForCurrentProcess();
 #if BUILDFLAG(IS_ANDROID)
-  // SANDIUM_COMPONENT_UPDATER_EARLY_ENABLE: set Brave's component override
-  // before any browser service can register filter catalogue components.
+  // SANDIUM_COMPONENT_UPDATER_EARLY_ENABLE: component updater captures the
+  // global disable switch when BrowserProcessImpl creates its service.
+  // Clear it here, before service construction, and retain Brave's own override.
+  const bool component_updates_were_disabled =
+      command_line->HasSwitch(switches::kDisableComponentUpdate);
+  command_line->RemoveSwitch(switches::kDisableComponentUpdate);
+  LOG(WARNING) << "SANDIUM_COMPONENT_UPDATER_GLOBAL_DISABLE_REMOVED previous="
+               << component_updates_were_disabled;
   command_line->AppendSwitch("allow-brave-component-update");
 #endif
 """
@@ -194,20 +207,42 @@ def apply_early_component_updater_patch(core: Path) -> None:
 
 def apply_component_updater_patch(core: Path) -> None:
     main_parts = core / "browser/brave_browser_main_parts.cc"
+    replace_once(
+        main_parts,
+        '#include "base/command_line.h"\n',
+        '#include "base/command_line.h"\n#include "base/logging.h"\n',
+        '#include "base/logging.h"',
+        "main-parts-component-updater-log-include",
+    )
     old = """int ChromeBrowserMainParts::PreMainMessageLoopRun() {
   brave_component_updater::BraveOnDemandUpdater::GetInstance()
       ->RegisterOnDemandUpdater(
 """
     new = """int ChromeBrowserMainParts::PreMainMessageLoopRun() {
 #if BUILDFLAG(IS_ANDROID)
-  // SANDIUM_BRAVE_COMPONENT_UPDATES: Shields' filter catalogue and regional
-  // filter components are delivered by Brave's component updater. Brave's
-  // explicit allow switch overrides --disable-component-update for Android.
-  base::CommandLine::ForCurrentProcess()->AppendSwitch(
-      "allow-brave-component-update");
+  // SANDIUM_BRAVE_COMPONENT_UPDATES: Chromium's ComponentUpdateService
+  // permanently captures --disable-component-update at construction.
+  // Remove it before the first component_updater() call, not just from Brave's
+  // wrapper-level policy, so Brave catalogue downloads can actually execute.
+  auto* command_line = base::CommandLine::ForCurrentProcess();
+  const bool component_updates_were_disabled =
+      command_line->HasSwitch(switches::kDisableComponentUpdate);
+  command_line->RemoveSwitch(switches::kDisableComponentUpdate);
+  command_line->AppendSwitch("allow-brave-component-update");
+  LOG(WARNING) << "SANDIUM_COMPONENT_UPDATER_GLOBAL_GATE enabled previous="
+               << component_updates_were_disabled;
 #endif
+  auto* updater_service = g_browser_process->component_updater();
+  CHECK(updater_service);
+  LOG(INFO) << "SANDIUM_COMPONENT_UPDATER_SERVICE_CREATED ready=true"
+            << " global_disable_switch="
+            << base::CommandLine::ForCurrentProcess()->HasSwitch(
+                   switches::kDisableComponentUpdate);
   brave_component_updater::BraveOnDemandUpdater::GetInstance()
       ->RegisterOnDemandUpdater(
+          base::CommandLine::ForCurrentProcess()->HasSwitch(
+              switches::kDisableComponentUpdate),
+          &updater_service->GetOnDemandUpdater());
 """
     replace_once(
         main_parts,
@@ -782,6 +817,8 @@ def verify_patches(core: Path) -> None:
         ("manager", "SANDIUM_EMPTY_FILTER_CATALOGUE_UPDATE=REQUEST", manager),
         ("updater_header", "SANDIUM_ON_DEMAND_UPDATER_READINESS", updater_header),
         ("main_parts", "SANDIUM_BRAVE_COMPONENT_UPDATES", main_parts),
+        ("main_parts", "SANDIUM_COMPONENT_UPDATER_SERVICE_CREATED", main_parts),
+        ("main_delegate", "SANDIUM_COMPONENT_UPDATER_GLOBAL_DISABLE_REMOVED", main_delegate),
         ("main_delegate", "SANDIUM_COMPONENT_UPDATER_EARLY_ENABLE", main_delegate),
         ("component_delegate", "SANDIUM_COMPONENT_REGISTRATION", component_delegate),
         ("component_installer", "SANDIUM_ADBLOCK_COMPONENT_REGISTERED", component_installer),
@@ -802,8 +839,12 @@ def verify_patches(core: Path) -> None:
         )
     if "SANDIUM_FILTER_CATALOGUE_BOOTSTRAP" in manager:
         raise SystemExit("SANDIUM_ADBLOCK_GATE=FAIL stale forced-update manager patch remains")
-    if 'AppendSwitch(\n      "allow-brave-component-update")' not in main_parts:
-        raise SystemExit("SANDIUM_ADBLOCK_GATE=FAIL Android component-updater override missing")
+    if 'RemoveSwitch(switches::kDisableComponentUpdate)' not in main_parts:
+        raise SystemExit("SANDIUM_ADBLOCK_GATE=FAIL global component-update disable switch was not removed before service creation")
+    if 'RemoveSwitch(switches::kDisableComponentUpdate)' not in main_delegate:
+        raise SystemExit("SANDIUM_ADBLOCK_GATE=FAIL global component-update disable switch was not removed during early startup")
+    if 'AppendSwitch(\n      "allow-brave-component-update")' in main_parts:
+        raise SystemExit("SANDIUM_ADBLOCK_GATE=FAIL obsolete late-only updater override remains")
     if 'AppendSwitch("allow-brave-component-update")' not in main_delegate:
         raise SystemExit("SANDIUM_ADBLOCK_GATE=FAIL early Android component-updater override missing")
     if "LOG(INFO) << \"SANDIUM_FILTER_CATALOG_PARSED bytes=\"" not in manager:
@@ -813,6 +854,7 @@ def verify_patches(core: Path) -> None:
     print(
         "SANDIUM_ADBLOCK_GATE=PASS "
         "component_updater=enabled_android "
+        "global_update_switch=cleared_before_service_init "
         "empty_catalogue_bootstrap_refresh=enabled "
         "native_catalogue=refresh-request-enabled "
         "update_retries=bounded "

@@ -118,7 +118,9 @@ ADAPTER_FIXTURE = """    public void setFilterLists(Value filterLists[]) {
 """
 
 MAIN_PARTS_FIXTURE = """#include "base/command_line.h"
+#include "base/check.h"
 #include "build/build_config.h"
+#include "chrome/common/chrome_switches.h"
 
 int ChromeBrowserMainParts::PreMainMessageLoopRun() {
   brave_component_updater::BraveOnDemandUpdater::GetInstance()
@@ -131,7 +133,10 @@ int ChromeBrowserMainParts::PreMainMessageLoopRun() {
 }
 """
 
-MAIN_DELEGATE_FIXTURE = """void BraveMainDelegate::AppendCommandLineOptions() {
+MAIN_DELEGATE_FIXTURE = """#include "base/lazy_instance.h"
+#include "chrome/common/chrome_switches.h"
+
+void BraveMainDelegate::AppendCommandLineOptions() {
   auto* command_line = base::CommandLine::ForCurrentProcess();
   command_line->AppendSwitch(switches::kDisableDomainReliability);
 }
@@ -263,6 +268,8 @@ def main() -> None:
         updater_header_text = updater_header.read_text(encoding="utf-8")
         assert "allow-brave-component-update" in main_parts_text
         assert "SANDIUM_COMPONENT_UPDATER_EARLY_ENABLE" in main_delegate_text
+        assert "SANDIUM_COMPONENT_UPDATER_GLOBAL_DISABLE_REMOVED" in main_delegate_text
+        assert "RemoveSwitch(switches::kDisableComponentUpdate)" in main_delegate_text
         assert "SANDIUM_COMPONENT_REGISTRATION" in component_delegate_text
         assert "SANDIUM_ADBLOCK_COMPONENT_REGISTERED" in installer_text
         assert "SANDIUM_FILTER_CATALOG_COMPONENT_READY" in catalog_provider_text
@@ -275,6 +282,9 @@ def main() -> None:
         assert "SANDIUM_ON_DEMAND_UPDATER_READINESS" in updater_header_text
         assert "SANDIUM_FILTER_LIST_UI_COUNT" in filter_service_text
         assert "SANDIUM_BRAVE_COMPONENT_UPDATES" in main_parts_text
+        assert "SANDIUM_COMPONENT_UPDATER_SERVICE_CREATED" in main_parts_text
+        assert "SANDIUM_COMPONENT_UPDATER_GLOBAL_GATE" in main_parts_text
+        assert "RemoveSwitch(switches::kDisableComponentUpdate)" in main_parts_text
         assert "if (component_filters_providers_.empty())" in manager_text
         assert "requestFilterListCatalogueRefresh" in fragment_text
         assert "MAX_FILTER_LIST_UPDATE_ATTEMPTS = 3" in fragment_text
