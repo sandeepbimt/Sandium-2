@@ -4,12 +4,16 @@ from __future__ import annotations
 
 import tempfile
 from pathlib import Path
+import runpy
 
-from apply_sandium_adblock import (
-    FRESH_INSTALL_FILTER_UUIDS,
-    apply_patches,
-    verify_patches,
+# The production patch filename intentionally uses hyphens, so it cannot be
+# imported with a normal "from module import ..." statement.
+_PATCH = runpy.run_path(
+    str(Path(__file__).with_name("apply-sandium-adblock.py"))
 )
+FRESH_INSTALL_FILTER_UUIDS = _PATCH["FRESH_INSTALL_FILTER_UUIDS"]
+apply_patches = _PATCH["apply_patches"]
+verify_patches = _PATCH["verify_patches"]
 
 MANAGER_FIXTURE = """  // If there are currently no components to update, then run the callback with
   // a success value in a future turn.
