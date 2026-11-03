@@ -289,7 +289,9 @@ def main() -> None:
         assert "SANDIUM_COMPONENT_UPDATER_EFFECTIVE_URL" in main_delegate_text
         assert '" dev_switch="' in main_delegate_text
         assert '" dev_feature="' in main_delegate_text
-        assert "brave_component_updater::kUseGoUpdateDev" not in main_delegate_text
+        # The diagnostic may read the dev switch, but Sandium must never force it.
+        assert """command_line->HasSwitch(
+                      brave_component_updater::kUseGoUpdateDev)""" in main_delegate_text
         assert "AppendSwitch(brave_component_updater::kUseGoUpdateDev)" not in main_delegate_text
         assert "#if BUILDFLAG(IS_ANDROID)" in main_delegate_text
         assert "BUILDFLAG(OFFICIAL_BUILD)" not in main_delegate_text
