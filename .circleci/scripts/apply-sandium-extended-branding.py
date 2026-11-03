@@ -68,7 +68,16 @@ def main():
     logo.parent.mkdir(parents=True,exist_ok=True); splash.parent.mkdir(parents=True,exist_ok=True)
     logo.write_text(vector(162,False),encoding="utf-8"); splash.write_text(vector(288,True),encoding="utf-8")
     animated=splash.with_name("ic_brave_splash_animated.xml")
-    if not animated.is_file() or 'android:name="brave_logo"' not in animated.read_text() or 'android:pivotX="144"' not in animated.read_text() or 'android:pivotY="144"' not in animated.read_text(): fail("Brave animated splash target/pivot contract changed")
+    # Brave's animated-vector wrapper declares the animation target, while
+    # the drawable referenced by that wrapper owns the named group and pivot.
+    # Validate each part in its correct upstream resource instead of looking
+    # for drawable-group pivot attributes in the animated-vector wrapper.
+    animated_text=animated.read_text(encoding="utf-8") if animated.is_file() else ""
+    splash_text=splash.read_text(encoding="utf-8")
+    if not animated.is_file() or 'android:name="brave_logo"' not in animated_text or 'android:animation="@animator/ic_brave_splash_scale"' not in animated_text:
+        fail("Brave animated splash target contract changed")
+    if '<group android:name="brave_logo" android:pivotX="144" android:pivotY="144">' not in splash_text:
+        fail("Brave splash drawable group/pivot contract changed")
     specs=(("default_100_percent","product_logo_name_48.png",154,48,False),("default_200_percent","product_logo_name_48.png",309,96,False),("default_100_percent","product_logo_white.png",184,58,True),("default_200_percent","product_logo_white.png",368,114,True))
     for density,name,w,h,white in specs: product(out/"product-logos"/density/name,w,h,white)
     favicon(out/"product-logos/default_100_percent/product_logo_16.png",16); favicon(out/"product-logos/default_200_percent/product_logo_16.png",32)
