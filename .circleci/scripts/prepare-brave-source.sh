@@ -426,3 +426,11 @@ if [ "${BRAVE_STAGE_INDEX:?BRAVE_STAGE_INDEX is required}" != "1" ]; then
     --generated "$ROOT/.sandium-branding-extended-generated"
   echo "SANDIUM_BRANDING_REAPPLY=PASS stage=$BRAVE_STAGE_INDEX"
 fi
+
+
+# Apply the pinned Brave content-filter fix on every stage. FAST MODE stages
+# restore the immutable reference independently, so this source overlay must be
+# re-applied after each restore rather than only on Stage 1.
+echo "SANDIUM_ADBLOCK_PATCH=START stage=$BRAVE_STAGE_INDEX"
+python3 "$ROOT/.circleci/scripts/apply-sandium-adblock.py" --core "$CORE_DIR"
+echo "SANDIUM_ADBLOCK_PATCH=PASS stage=$BRAVE_STAGE_INDEX"

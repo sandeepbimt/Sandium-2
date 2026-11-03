@@ -1561,6 +1561,7 @@ jobs:
             bash -n .circleci/scripts/prepare-brave-source.sh
             bash -n .circleci/scripts/apply-sandium-branding.sh
             python3 -m py_compile .circleci/scripts/generate-sandium-density-assets.py
+            python3 -m py_compile .circleci/scripts/apply-sandium-adblock.py
             bash -n .circleci/scripts/recover-siso-missing-cas-inputs.sh
             echo "BRAVE_PIPELINE_SELF_TEST=PASS"
       - when:
@@ -2504,6 +2505,7 @@ workflows:
                 - sandium/brave-android-poc
                 - sandium/archive-zstd-fast5
                 - sandium/branding-stage
+                - sandium/ublock-filter-lists
       - brave-android-staged-build:
           name: SANDIUM-FAST-MODE-stage-2
           stage_index: 2
@@ -2514,6 +2516,7 @@ workflows:
                 - sandium/brave-android-poc
                 - sandium/archive-zstd-fast5
                 - sandium/branding-stage
+                - sandium/ublock-filter-lists
       - brave-android-staged-build:
           name: SANDIUM-FAST-MODE-stage-3
           stage_index: 3
@@ -2524,6 +2527,7 @@ workflows:
                 - sandium/brave-android-poc
                 - sandium/archive-zstd-fast5
                 - sandium/branding-stage
+                - sandium/ublock-filter-lists
       - brave-android-staged-build:
           name: SANDIUM-FAST-MODE-stage-4
           stage_index: 4
@@ -2534,6 +2538,7 @@ workflows:
                 - sandium/brave-android-poc
                 - sandium/archive-zstd-fast5
                 - sandium/branding-stage
+                - sandium/ublock-filter-lists
       - brave-android-staged-build:
           name: SANDIUM-FAST-MODE-stage-5
           stage_index: 5
@@ -2544,3 +2549,4 @@ workflows:
                 - sandium/brave-android-poc
                 - sandium/archive-zstd-fast5
                 - sandium/branding-stage
+                - sandium/ublock-filter-lists
