@@ -275,7 +275,7 @@ def main() -> None:
         assert "#if BUILDFLAG(IS_ANDROID)" in main_delegate_text
         assert "BUILDFLAG(OFFICIAL_BUILD)" not in main_delegate_text
         assert '#include "build/branding_buildflags.h"' not in main_delegate_text
-        assert "SANDIUM_COMPONENT_UPDATER_DEV_ENDPOINT" in main_delegate_text
+        assert "SANDIUM_COMPONENT_UPDATER_DEV_ENDPOINT" not in main_delegate_text
         assert "RemoveSwitch(switches::kDisableComponentUpdate)" not in main_delegate_text
         assert "SANDIUM_COMPONENT_REGISTRATION" in component_delegate_text
         assert "SANDIUM_ADBLOCK_COMPONENT_REGISTERED" in installer_text
