@@ -17,6 +17,10 @@ verify_patches = _PATCH["verify_patches"]
 
 MANAGER_FIXTURE = """#include "base/location.h"
 
+void AdBlockComponentServiceManager::UpdateFilterLists(
+    base::OnceCallback<void(bool)> callback) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+
   // If there are currently no components to update, then run the callback with
   // a success value in a future turn.
   if (component_filters_providers_.empty()) {
@@ -25,6 +29,23 @@ MANAGER_FIXTURE = """#include "base/location.h"
   }
 
   std::vector<std::string> component_ids = {
+      kAdBlockResourceComponentId,
+      kAdBlockFilterListCatalogComponentId,
+  };
+
+  for (const auto& [key, provider] : component_filters_providers_) {
+    component_ids.push_back(provider->component_id());
+  }
+
+  auto on_updated = [](decltype(callback) cb, update_client::Error error) {
+    std::move(cb).Run(error == update_client::Error::NONE ||
+                      error == update_client::Error::UPDATE_IN_PROGRESS);
+  };
+
+  brave_component_updater::BraveOnDemandUpdater::GetInstance()->OnDemandUpdate(
+      component_ids, component_updater::OnDemandUpdater::Priority::FOREGROUND,
+      base::BindOnce(on_updated, std::move(callback)));
+}
 
 void AdBlockComponentServiceManager::OnFilterListCatalogLoaded(
     const std::string& catalog_json) {
@@ -32,6 +53,11 @@ void AdBlockComponentServiceManager::OnFilterListCatalogLoaded(
   SetFilterListCatalog(FilterListCatalogFromJSON(catalog_json));
 
   update_check_timer_.Start(
+"""
+
+UPDATER_HEADER_FIXTURE = """  bool is_component_update_disabled() { return is_component_update_disabled_; }
+};
+
 """
 
 FRAGMENT_FIXTURE = """import android.content.Context;
@@ -197,9 +223,14 @@ def main() -> None:
             "components/brave_shields/content/browser/"
             "filter_list_service.cc"
         )
+        updater_header = core / (
+            "components/brave_component_updater/browser/"
+            "brave_on_demand_updater.h"
+        )
         for path in (
             manager, fragment, adapter, main_parts, main_delegate,
-            component_delegate, installer, catalog_provider, filter_service
+            component_delegate, installer, catalog_provider, filter_service,
+            updater_header
         ):
             path.parent.mkdir(parents=True, exist_ok=True)
         manager.write_text(MANAGER_FIXTURE, encoding="utf-8")
@@ -211,6 +242,7 @@ def main() -> None:
         installer.write_text(INSTALLER_FIXTURE, encoding="utf-8")
         catalog_provider.write_text(CATALOG_PROVIDER_FIXTURE, encoding="utf-8")
         filter_service.write_text(FILTER_SERVICE_FIXTURE, encoding="utf-8")
+        updater_header.write_text(UPDATER_HEADER_FIXTURE, encoding="utf-8")
 
         apply_patches(core)
         verify_patches(core)
@@ -228,16 +260,21 @@ def main() -> None:
         installer_text = installer.read_text(encoding="utf-8")
         catalog_provider_text = catalog_provider.read_text(encoding="utf-8")
         filter_service_text = filter_service.read_text(encoding="utf-8")
+        updater_header_text = updater_header.read_text(encoding="utf-8")
         assert "allow-brave-component-update" in main_parts_text
         assert "SANDIUM_COMPONENT_UPDATER_EARLY_ENABLE" in main_delegate_text
         assert "SANDIUM_COMPONENT_REGISTRATION" in component_delegate_text
         assert "SANDIUM_ADBLOCK_COMPONENT_REGISTERED" in installer_text
         assert "SANDIUM_FILTER_CATALOG_COMPONENT_READY" in catalog_provider_text
         assert "SANDIUM_FILTER_CATALOG_PARSED" in manager_text
+        assert "SANDIUM_EMPTY_FILTER_CATALOGUE_UPDATE=REQUEST" in manager_text
+        assert "kAdBlockFilterListCatalogComponentId" in manager_text
+        assert "kAdBlockResourceComponentId" in manager_text
+        assert "std::move(callback).Run(true);" not in manager_text
+        assert "is_on_demand_updater_registered()" in updater_header_text
         assert "SANDIUM_FILTER_LIST_UI_COUNT" in filter_service_text
         assert "SANDIUM_BRAVE_COMPONENT_UPDATES" in main_parts_text
         assert "if (component_filters_providers_.empty())" in manager_text
-        assert "SANDIUM_FILTER_CATALOGUE_BOOTSTRAP" not in manager_text
         assert "requestFilterListCatalogueRefresh" in fragment_text
         assert "MAX_FILTER_LIST_UPDATE_ATTEMPTS = 3" in fragment_text
         assert "notifyDataSetChanged();" in adapter_text

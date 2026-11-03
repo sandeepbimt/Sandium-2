@@ -52,32 +52,122 @@ def replace_once(path: Path, old: str, new: str, marker: str, label: str) -> Non
     print(f"SANDIUM_ADBLOCK_PATCH={label}:APPLIED")
 
 
+def apply_on_demand_updater_header_patch(core: Path) -> None:
+    header = core / (
+        "components/brave_component_updater/browser/"
+        "brave_on_demand_updater.h"
+    )
+    replace_once(
+        header,
+        "  bool is_component_update_disabled() { return is_component_update_disabled_; }\n",
+        "  bool is_component_update_disabled() { return is_component_update_disabled_; }\n\n"
+        "  // SANDIUM_ON_DEMAND_UPDATER_READINESS: avoid invoking the updater before\n"
+        "  // Brave has connected the browser-process OnDemandUpdater instance.\n"
+        "  bool is_on_demand_updater_registered() const {\n"
+        "    return on_demand_updater_ != nullptr;\n"
+        "  }\n",
+        "is_on_demand_updater_registered()",
+        "on-demand-updater-readiness-accessor",
+    )
+
+
 def apply_manager_patch(core: Path) -> None:
-    """Keep Brave's upstream empty-provider no-op; never force an invalid update."""
+    """Make an empty catalogue actively refresh Brave's two bootstrap components."""
     manager = core / (
         "components/brave_shields/core/browser/"
         "ad_block_component_service_manager.cc"
     )
-    if not manager.is_file():
-        raise SystemExit(f"SANDIUM_ADBLOCK_GATE=FAIL missing {manager}")
-    source = manager.read_text(encoding="utf-8")
-    expected = """  // If there are currently no components to update, then run the callback with
+    old = """void AdBlockComponentServiceManager::UpdateFilterLists(
+    base::OnceCallback<void(bool)> callback) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+
+  // If there are currently no components to update, then run the callback with
   // a success value in a future turn.
   if (component_filters_providers_.empty()) {
     std::move(callback).Run(true);
     return;
   }
+
+  std::vector<std::string> component_ids = {
+      kAdBlockResourceComponentId,
+      kAdBlockFilterListCatalogComponentId,
+  };
+
+  for (const auto& [key, provider] : component_filters_providers_) {
+    component_ids.push_back(provider->component_id());
+  }
+
+  auto on_updated = [](decltype(callback) cb, update_client::Error error) {
+    std::move(cb).Run(error == update_client::Error::NONE ||
+                      error == update_client::Error::UPDATE_IN_PROGRESS);
+  };
+
+  brave_component_updater::BraveOnDemandUpdater::GetInstance()->OnDemandUpdate(
+      component_ids, component_updater::OnDemandUpdater::Priority::FOREGROUND,
+      base::BindOnce(on_updated, std::move(callback)));
+}
 """
-    if expected not in source:
-        raise SystemExit(
-            "SANDIUM_ADBLOCK_GATE=FAIL Brave empty-provider no-op was changed; "
-            "refusing to force an update without registered filter providers"
-        )
-    if "SANDIUM_FILTER_CATALOGUE_BOOTSTRAP" in source:
-        raise SystemExit(
-            "SANDIUM_ADBLOCK_GATE=FAIL stale manager override is present"
-        )
-    print("SANDIUM_ADBLOCK_MANAGER=PASS upstream_empty_provider_noop_preserved")
+    new = """void AdBlockComponentServiceManager::UpdateFilterLists(
+    base::OnceCallback<void(bool)> callback) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+
+  auto on_updated = [](base::OnceCallback<void(bool)> cb,
+                       update_client::Error error) {
+    std::move(cb).Run(error == update_client::Error::NONE ||
+                      error == update_client::Error::UPDATE_IN_PROGRESS);
+  };
+
+  auto* on_demand_updater =
+      brave_component_updater::BraveOnDemandUpdater::GetInstance();
+  if (component_filters_providers_.empty()) {
+    // SANDIUM_EMPTY_FILTER_CATALOGUE_UPDATE: the old upstream branch returned
+    // success here without requesting anything. Refresh the two components
+    // which make the catalogue and default filter resources available.
+    if (!on_demand_updater->is_on_demand_updater_registered() ||
+        on_demand_updater->is_component_update_disabled()) {
+      LOG(WARNING)
+          << "SANDIUM_EMPTY_FILTER_CATALOGUE_UPDATE=SKIPPED updater_ready="
+          << on_demand_updater->is_on_demand_updater_registered()
+          << " updates_disabled="
+          << on_demand_updater->is_component_update_disabled();
+      std::move(callback).Run(false);
+      return;
+    }
+    std::vector<std::string> bootstrap_component_ids = {
+        kAdBlockResourceComponentId,
+        kAdBlockFilterListCatalogComponentId,
+    };
+    LOG(WARNING) << "SANDIUM_EMPTY_FILTER_CATALOGUE_UPDATE=REQUEST";
+    on_demand_updater->OnDemandUpdate(
+        bootstrap_component_ids,
+        component_updater::OnDemandUpdater::Priority::FOREGROUND,
+        base::BindOnce(on_updated, std::move(callback)));
+    return;
+  }
+
+  std::vector<std::string> component_ids = {
+      kAdBlockResourceComponentId,
+      kAdBlockFilterListCatalogComponentId,
+  };
+
+  for (const auto& [key, provider] : component_filters_providers_) {
+    component_ids.push_back(provider->component_id());
+  }
+
+  on_demand_updater->OnDemandUpdate(
+      component_ids, component_updater::OnDemandUpdater::Priority::FOREGROUND,
+      base::BindOnce(on_updated, std::move(callback)));
+}
+"""
+    replace_once(
+        manager,
+        old,
+        new,
+        "SANDIUM_EMPTY_FILTER_CATALOGUE_UPDATE",
+        "empty-catalogue-bootstrap-component-update",
+    )
+
+
 
 
 def apply_early_component_updater_patch(core: Path) -> None:
@@ -634,6 +724,7 @@ def apply_runtime_diagnostics_patch(core: Path) -> None:
 
 
 def apply_patches(core: Path) -> None:
+    apply_on_demand_updater_header_patch(core)
     apply_manager_patch(core)
     apply_early_component_updater_patch(core)
     apply_component_updater_patch(core)
@@ -684,6 +775,7 @@ def verify_patches(core: Path) -> None:
 
     required = (
         ("manager", "if (component_filters_providers_.empty())", manager),
+        ("manager", "SANDIUM_EMPTY_FILTER_CATALOGUE_UPDATE=REQUEST", manager),
         ("main_parts", "SANDIUM_BRAVE_COMPONENT_UPDATES", main_parts),
         ("main_delegate", "SANDIUM_COMPONENT_UPDATER_EARLY_ENABLE", main_delegate),
         ("component_delegate", "SANDIUM_COMPONENT_REGISTRATION", component_delegate),
@@ -716,7 +808,7 @@ def verify_patches(core: Path) -> None:
     print(
         "SANDIUM_ADBLOCK_GATE=PASS "
         "component_updater=enabled_android "
-        "upstream_empty_provider_noop=preserved "
+        "empty_catalogue_bootstrap_refresh=enabled "
         "native_catalogue=bootstrapped "
         "update_retries=bounded "
         "adapter_refresh=verified "
