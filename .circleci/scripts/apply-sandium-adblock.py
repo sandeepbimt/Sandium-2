@@ -8,11 +8,14 @@ from pathlib import Path
 
 PIN = "v1.98.62"
 
-# These UUIDs are entries in Brave's filter-list catalogue. Brave's hidden
-# default components already include uBO core, privacy, badware, resource
-# abuse, unbreak, quick-fixes, link-shorteners and cookie-notice rules.
-# The visible additions below complement those defaults without duplicating
-# the same URLs as custom subscriptions.
+# Brave's hidden default components already ship the uBlock Origin core
+# lists (General, Badware risks, Resource abuse, Unbreak, Quick Fixes and
+# link shorteners), uBlock Origin Privacy, EasyList/EasyPrivacy, URLhaus,
+# and Brave's Android-specific rules. The default-enabled Cookie Notice
+# component also includes uBlock filters – Cookie Notices.
+#
+# The UUIDs below are additional visible Brave catalogue lists selected by
+# Sandium. They complement the built-in uBO lists through Brave Shields.
 FRESH_INSTALL_FILTER_UUIDS = (
     "4C07DB6B-6377-4347-836D-68702CF1494A",  # IndianList.
     "E2FA7D98-0BD5-493E-8AF4-950604ADE9CB",  # Tracking URL protection.
@@ -98,6 +101,10 @@ def apply_manager_patch(core: Path) -> None:
   }
 
   auto on_updated = [](decltype(callback) cb, update_client::Error error) {
+    // Preserve the updater's exact result for diagnosis instead of reducing
+    // every failure to the generic "Filter list could not be updated" toast.
+    LOG(WARNING) << "SANDIUM_FILTER_CATALOG_UPDATE_RESULT error="
+                 << static_cast<int>(error);
     std::move(cb).Run(error == update_client::Error::NONE ||
                       error == update_client::Error::UPDATE_IN_PROGRESS);
   };
@@ -826,6 +833,7 @@ def verify_patches(core: Path) -> None:
         ("main_delegate", "SANDIUM_COMPONENT_UPDATER_EARLY_ENABLE", main_delegate),
         ("component_delegate", "SANDIUM_COMPONENT_REGISTRATION", component_delegate),
         ("component_installer", "SANDIUM_ADBLOCK_COMPONENT_REGISTERED", component_installer),
+        ("manager", "SANDIUM_FILTER_CATALOG_UPDATE_RESULT", manager),
         ("catalog_provider", "SANDIUM_FILTER_CATALOG_COMPONENT_READY", catalog_provider),
         ("manager", "SANDIUM_FILTER_CATALOG_PARSED", manager),
         ("filter_service", "SANDIUM_FILTER_LIST_UI_COUNT", filter_service),
@@ -872,6 +880,7 @@ def verify_patches(core: Path) -> None:
         "empty_catalogue_bootstrap_refresh=enabled "
         "native_catalogue=refresh-request-enabled "
         "update_retries=bounded "
+        "update_result_codes=logged "
         "adapter_refresh=verified "
         f"curated_lists={len(FRESH_INSTALL_FILTER_UUIDS)}"
     )
