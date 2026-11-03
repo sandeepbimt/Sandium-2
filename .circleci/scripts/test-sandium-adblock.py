@@ -271,7 +271,10 @@ def main() -> None:
         assert "SANDIUM_BRAVE_COMPONENT_UPDATE_OVERRIDE" in main_delegate_text
         assert "SANDIUM_COMPONENT_UPDATER_ENDPOINT=development" in main_delegate_text
         assert "brave_component_updater::kUseGoUpdateDev" in main_delegate_text
-        assert "#if !BUILDFLAG(OFFICIAL_BUILD)" in main_delegate_text
+        assert "#if BUILDFLAG(IS_ANDROID)" in main_delegate_text
+        assert "BUILDFLAG(OFFICIAL_BUILD)" not in main_delegate_text
+        assert '#include "build/branding_buildflags.h"' not in main_delegate_text
+        assert "SANDIUM_COMPONENT_UPDATER_DEV_ENDPOINT" in main_delegate_text
         assert "RemoveSwitch(switches::kDisableComponentUpdate)" not in main_delegate_text
         assert "SANDIUM_COMPONENT_REGISTRATION" in component_delegate_text
         assert "SANDIUM_ADBLOCK_COMPONENT_REGISTERED" in installer_text
