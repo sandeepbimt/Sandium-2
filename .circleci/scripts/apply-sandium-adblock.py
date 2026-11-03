@@ -756,6 +756,10 @@ def verify_patches(core: Path) -> None:
         core / "components/brave_shields/core/browser/"
         "ad_block_filter_list_catalog_provider.cc"
     ).read_text(encoding="utf-8")
+    updater_header = (
+        core / "components/brave_component_updater/browser/"
+        "brave_on_demand_updater.h"
+    ).read_text(encoding="utf-8")
     manager = (
         core / "components/brave_shields/core/browser/"
         "ad_block_component_service_manager.cc"
@@ -776,6 +780,7 @@ def verify_patches(core: Path) -> None:
     required = (
         ("manager", "if (component_filters_providers_.empty())", manager),
         ("manager", "SANDIUM_EMPTY_FILTER_CATALOGUE_UPDATE=REQUEST", manager),
+        ("updater_header", "SANDIUM_ON_DEMAND_UPDATER_READINESS", updater_header),
         ("main_parts", "SANDIUM_BRAVE_COMPONENT_UPDATES", main_parts),
         ("main_delegate", "SANDIUM_COMPONENT_UPDATER_EARLY_ENABLE", main_delegate),
         ("component_delegate", "SANDIUM_COMPONENT_REGISTRATION", component_delegate),
@@ -809,7 +814,7 @@ def verify_patches(core: Path) -> None:
         "SANDIUM_ADBLOCK_GATE=PASS "
         "component_updater=enabled_android "
         "empty_catalogue_bootstrap_refresh=enabled "
-        "native_catalogue=bootstrapped "
+        "native_catalogue=refresh-request-enabled "
         "update_retries=bounded "
         "adapter_refresh=verified "
         f"curated_lists={len(FRESH_INSTALL_FILTER_UUIDS)}"

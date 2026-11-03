@@ -272,6 +272,7 @@ def main() -> None:
         assert "kAdBlockResourceComponentId" in manager_text
         assert "std::move(callback).Run(true);" not in manager_text
         assert "is_on_demand_updater_registered()" in updater_header_text
+        assert "SANDIUM_ON_DEMAND_UPDATER_READINESS" in updater_header_text
         assert "SANDIUM_FILTER_LIST_UI_COUNT" in filter_service_text
         assert "SANDIUM_BRAVE_COMPONENT_UPDATES" in main_parts_text
         assert "if (component_filters_providers_.empty())" in manager_text
