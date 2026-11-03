@@ -266,10 +266,10 @@ def main() -> None:
         catalog_provider_text = catalog_provider.read_text(encoding="utf-8")
         filter_service_text = filter_service.read_text(encoding="utf-8")
         updater_header_text = updater_header.read_text(encoding="utf-8")
-        assert "allow-brave-component-update" in main_parts_text
+        assert "allow-brave-component-update" in main_delegate_text
         assert "SANDIUM_COMPONENT_UPDATER_EARLY_ENABLE" in main_delegate_text
-        assert "SANDIUM_COMPONENT_UPDATER_GLOBAL_DISABLE_REMOVED" in main_delegate_text
-        assert "RemoveSwitch(switches::kDisableComponentUpdate)" in main_delegate_text
+        assert "SANDIUM_BRAVE_COMPONENT_UPDATE_OVERRIDE" in main_delegate_text
+        assert "RemoveSwitch(switches::kDisableComponentUpdate)" not in main_delegate_text
         assert "SANDIUM_COMPONENT_REGISTRATION" in component_delegate_text
         assert "SANDIUM_ADBLOCK_COMPONENT_REGISTERED" in installer_text
         assert "SANDIUM_FILTER_CATALOG_COMPONENT_READY" in catalog_provider_text
@@ -283,8 +283,9 @@ def main() -> None:
         assert "SANDIUM_FILTER_LIST_UI_COUNT" in filter_service_text
         assert "SANDIUM_BRAVE_COMPONENT_UPDATES" in main_parts_text
         assert "SANDIUM_COMPONENT_UPDATER_SERVICE_CREATED" in main_parts_text
-        assert "SANDIUM_COMPONENT_UPDATER_GLOBAL_GATE" in main_parts_text
-        assert "RemoveSwitch(switches::kDisableComponentUpdate)" in main_parts_text
+        assert "global_disable_preserved=" in main_parts_text
+        assert "RemoveSwitch(switches::kDisableComponentUpdate)" not in main_parts_text
+        assert "switches::kDisableComponentUpdate" in main_parts_text
         assert main_parts_text.count("RegisterOnDemandUpdater(") == 1
         assert "&g_browser_process->component_updater()->GetOnDemandUpdater()" not in main_parts_text
         assert "&updater_service->GetOnDemandUpdater()" in main_parts_text
