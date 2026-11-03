@@ -420,7 +420,15 @@ fi
 if [ "${BRAVE_STAGE_INDEX:?BRAVE_STAGE_INDEX is required}" != "1" ]; then
   echo "SANDIUM_BRANDING_REAPPLY=START stage=$BRAVE_STAGE_INDEX"
   bash "$ROOT/.circleci/scripts/apply-sandium-branding.sh"
-  python3 "$ROOT/.circleci/scripts/apply-sandium-extended-branding.py" \
+
+  # Every CircleCI machine is fresh. Stage 1's system Pillow package does not
+  # survive into Stage 2+, so install it in the same system Python used below.
+  # Do not use pip --user here: on Ubuntu 24.04 it can target a different
+  # interpreter/user-site and still leave /usr/bin/python3 unable to import PIL.
+  sudo apt-get update -qq
+  sudo apt-get install -y python3-pil
+  /usr/bin/python3 -c 'from PIL import Image, ImageDraw, ImageFont; print("SANDIUM_PIL_PREFLIGHT=PASS stage=$BRAVE_STAGE_INDEX")'
+  /usr/bin/python3 "$ROOT/.circleci/scripts/apply-sandium-extended-branding.py" \
     --src "$SRC_DIR" --core "$CORE_DIR" \
     --source "$ROOT/.circleci/branding/source" \
     --generated "$ROOT/.sandium-branding-extended-generated"
