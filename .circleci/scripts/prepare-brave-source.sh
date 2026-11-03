@@ -79,9 +79,16 @@ if [ "${BRAVE_STAGE_INDEX:?BRAVE_STAGE_INDEX is required}" = "1" ]; then
     pnpm run init --target_os=android --target_arch=arm64 --no-history
   fi
 
+  # Pillow is required by the extended branding generator. Install the
+  # distro package for Ubuntu's system Python and invoke that same interpreter;
+  # pip --user can target a different Python environment on CircleCI images.
+  sudo apt-get update -qq
+  sudo apt-get install -y python3-pil
+  /usr/bin/python3 -c 'from PIL import Image, ImageDraw, ImageFont; print("SANDIUM_PIL_PREFLIGHT=PASS")'
+
   # Apply Sandium launcher artwork and app display name to the pinned sources.
   bash "$ROOT/.circleci/scripts/apply-sandium-branding.sh"
-  python3 "$ROOT/.circleci/scripts/apply-sandium-extended-branding.py" \
+  /usr/bin/python3 "$ROOT/.circleci/scripts/apply-sandium-extended-branding.py" \
     --src "$SRC_DIR" --core "$CORE_DIR" \
     --source "$ROOT/.circleci/branding/source" \
     --generated "$ROOT/.sandium-branding-extended-generated"
