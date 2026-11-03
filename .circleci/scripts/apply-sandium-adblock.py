@@ -183,7 +183,7 @@ def apply_early_component_updater_patch(core: Path) -> None:
     replace_once(
         main_delegate,
         '#include "base/lazy_instance.h"\n',
-        '#include "base/lazy_instance.h"\n#include "base/logging.h"\n',
+        '#include "base/lazy_instance.h"\n#include "base/logging.h"\n#include "build/branding_buildflags.h"\n',
         '#include "base/logging.h"',
         "early-component-updater-log-include",
     )
@@ -193,6 +193,14 @@ def apply_early_component_updater_patch(core: Path) -> None:
     new = """void BraveMainDelegate::AppendCommandLineOptions() {
   auto* command_line = base::CommandLine::ForCurrentProcess();
 #if BUILDFLAG(IS_ANDROID)
+#if !BUILDFLAG(OFFICIAL_BUILD)
+  // SANDIUM_COMPONENT_UPDATER_DEV_ENDPOINT: this Sandium artifact is a
+  // non-official Developer Build. Brave's component QA workflow uses its
+  // development manifest, which is separate from the production manifest.
+  // Official Android builds continue to use the production endpoint.
+  command_line->AppendSwitch(brave_component_updater::kUseGoUpdateDev);
+  LOG(WARNING) << "SANDIUM_COMPONENT_UPDATER_ENDPOINT=development";
+#endif
   // SANDIUM_COMPONENT_UPDATER_EARLY_ENABLE: keep Chromium's global
   // component-update policy intact, but explicitly permit Brave's components.
   // BraveOnDemandUpdater::RegisterOnDemandUpdater() applies this Brave-only
@@ -832,6 +840,7 @@ def verify_patches(core: Path) -> None:
         ("main_parts", "SANDIUM_COMPONENT_UPDATER_SERVICE_CREATED", main_parts),
         ("main_delegate", "SANDIUM_BRAVE_COMPONENT_UPDATE_OVERRIDE", main_delegate),
         ("main_delegate", "SANDIUM_COMPONENT_UPDATER_EARLY_ENABLE", main_delegate),
+        ("main_delegate", "SANDIUM_COMPONENT_UPDATER_ENDPOINT=development", main_delegate),
         ("component_delegate", "SANDIUM_COMPONENT_REGISTRATION", component_delegate),
         ("component_installer", "SANDIUM_ADBLOCK_COMPONENT_REGISTERED", component_installer),
         ("manager", "SANDIUM_FILTER_CATALOG_UPDATE_RESULT", manager),
