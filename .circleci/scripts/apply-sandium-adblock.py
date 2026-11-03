@@ -193,13 +193,13 @@ def apply_early_component_updater_patch(core: Path) -> None:
     new = """void BraveMainDelegate::AppendCommandLineOptions() {
   auto* command_line = base::CommandLine::ForCurrentProcess();
 #if BUILDFLAG(IS_ANDROID)
-  // SANDIUM_COMPONENT_UPDATER_DEV_ENDPOINT: Sandium's Android build is
-  // configured as a non-official Developer Build, so select Brave's
-  // development component manifest. This avoids relying on an undefined
-  // OFFICIAL_BUILD C++ buildflag; the updater switch is already declared by
-  // Brave's existing browser/switches.h include above.
-  command_line->AppendSwitch(brave_component_updater::kUseGoUpdateDev);
-  LOG(WARNING) << "SANDIUM_COMPONENT_UPDATER_ENDPOINT=development";
+  // SANDIUM_COMPONENT_UPDATER_PRODUCTION_ENDPOINT: match Brave's released
+  // Android browser. Brave's dev and production updater manifests are
+  // independent; the dev endpoint is reserved for component QA and must not
+  // replace the release component catalogue in distributable builds.
+  // With kUseDevUpdaterUrl disabled by default and no dev switch appended,
+  // BraveMainDelegate::GetUpdateURLHost() selects UPDATER_PROD_ENDPOINT.
+  LOG(WARNING) << "SANDIUM_COMPONENT_UPDATER_ENDPOINT=production";
 
   // SANDIUM_COMPONENT_UPDATER_EARLY_ENABLE: keep Chromium's global
   // component-update policy intact, but explicitly permit Brave's components.
@@ -840,7 +840,7 @@ def verify_patches(core: Path) -> None:
         ("main_parts", "SANDIUM_COMPONENT_UPDATER_SERVICE_CREATED", main_parts),
         ("main_delegate", "SANDIUM_BRAVE_COMPONENT_UPDATE_OVERRIDE", main_delegate),
         ("main_delegate", "SANDIUM_COMPONENT_UPDATER_EARLY_ENABLE", main_delegate),
-        ("main_delegate", "SANDIUM_COMPONENT_UPDATER_ENDPOINT=development", main_delegate),
+        ("main_delegate", "SANDIUM_COMPONENT_UPDATER_ENDPOINT=production", main_delegate),
         ("component_delegate", "SANDIUM_COMPONENT_REGISTRATION", component_delegate),
         ("component_installer", "SANDIUM_ADBLOCK_COMPONENT_REGISTERED", component_installer),
         ("manager", "SANDIUM_FILTER_CATALOG_UPDATE_RESULT", manager),
