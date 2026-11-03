@@ -80,6 +80,9 @@ def apply_manager_patch(core: Path) -> None:
         "components/brave_shields/core/browser/"
         "ad_block_component_service_manager.cc"
     )
+    # Match the pinned upstream source exactly. Keep Sandium diagnostics in
+    # the replacement, never in the source-side anchor: otherwise a clean
+    # Brave checkout cannot match this patch.
     old = """void AdBlockComponentServiceManager::UpdateFilterLists(
     base::OnceCallback<void(bool)> callback) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
@@ -101,10 +104,6 @@ def apply_manager_patch(core: Path) -> None:
   }
 
   auto on_updated = [](decltype(callback) cb, update_client::Error error) {
-    // Preserve the updater's exact result for diagnosis instead of reducing
-    // every failure to the generic "Filter list could not be updated" toast.
-    LOG(WARNING) << "SANDIUM_FILTER_CATALOG_UPDATE_RESULT error="
-                 << static_cast<int>(error);
     std::move(cb).Run(error == update_client::Error::NONE ||
                       error == update_client::Error::UPDATE_IN_PROGRESS);
   };
@@ -120,6 +119,8 @@ def apply_manager_patch(core: Path) -> None:
 
   auto on_updated = [](base::OnceCallback<void(bool)> cb,
                        update_client::Error error) {
+    LOG(WARNING) << "SANDIUM_FILTER_CATALOG_UPDATE_RESULT error="
+                 << static_cast<int>(error);
     std::move(cb).Run(error == update_client::Error::NONE ||
                       error == update_client::Error::UPDATE_IN_PROGRESS);
   };
