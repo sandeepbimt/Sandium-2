@@ -183,7 +183,7 @@ def apply_early_component_updater_patch(core: Path) -> None:
     replace_once(
         main_delegate,
         '#include "base/lazy_instance.h"\n',
-        '#include "base/lazy_instance.h"\n#include "base/logging.h"\n#include "build/branding_buildflags.h"\n',
+        '#include "base/lazy_instance.h"\n#include "base/logging.h"\n',
         '#include "base/logging.h"',
         "early-component-updater-log-include",
     )
@@ -193,14 +193,14 @@ def apply_early_component_updater_patch(core: Path) -> None:
     new = """void BraveMainDelegate::AppendCommandLineOptions() {
   auto* command_line = base::CommandLine::ForCurrentProcess();
 #if BUILDFLAG(IS_ANDROID)
-#if !BUILDFLAG(OFFICIAL_BUILD)
-  // SANDIUM_COMPONENT_UPDATER_DEV_ENDPOINT: this Sandium artifact is a
-  // non-official Developer Build. Brave's component QA workflow uses its
-  // development manifest, which is separate from the production manifest.
-  // Official Android builds continue to use the production endpoint.
+  // SANDIUM_COMPONENT_UPDATER_DEV_ENDPOINT: Sandium's Android build is
+  // configured as a non-official Developer Build, so select Brave's
+  // development component manifest. This avoids relying on an undefined
+  // OFFICIAL_BUILD C++ buildflag; the updater switch is already declared by
+  // Brave's existing browser/switches.h include above.
   command_line->AppendSwitch(brave_component_updater::kUseGoUpdateDev);
   LOG(WARNING) << "SANDIUM_COMPONENT_UPDATER_ENDPOINT=development";
-#endif
+
   // SANDIUM_COMPONENT_UPDATER_EARLY_ENABLE: keep Chromium's global
   // component-update policy intact, but explicitly permit Brave's components.
   // BraveOnDemandUpdater::RegisterOnDemandUpdater() applies this Brave-only
