@@ -269,6 +269,9 @@ def main() -> None:
         assert "allow-brave-component-update" in main_delegate_text
         assert "SANDIUM_COMPONENT_UPDATER_EARLY_ENABLE" in main_delegate_text
         assert "SANDIUM_BRAVE_COMPONENT_UPDATE_OVERRIDE" in main_delegate_text
+        assert "SANDIUM_COMPONENT_UPDATER_ENDPOINT=development" in main_delegate_text
+        assert "use-dev-goupdater-url" in main_delegate_text
+        assert "#if !BUILDFLAG(OFFICIAL_BUILD)" in main_delegate_text
         assert "RemoveSwitch(switches::kDisableComponentUpdate)" not in main_delegate_text
         assert "SANDIUM_COMPONENT_REGISTRATION" in component_delegate_text
         assert "SANDIUM_ADBLOCK_COMPONENT_REGISTERED" in installer_text
