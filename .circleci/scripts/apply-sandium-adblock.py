@@ -80,6 +80,28 @@ def apply_manager_patch(core: Path) -> None:
     print("SANDIUM_ADBLOCK_MANAGER=PASS upstream_empty_provider_noop_preserved")
 
 
+def apply_early_component_updater_patch(core: Path) -> None:
+    main_delegate = core / "app/brave_main_delegate.cc"
+    old = """void BraveMainDelegate::AppendCommandLineOptions() {
+  auto* command_line = base::CommandLine::ForCurrentProcess();
+"""
+    new = """void BraveMainDelegate::AppendCommandLineOptions() {
+  auto* command_line = base::CommandLine::ForCurrentProcess();
+#if BUILDFLAG(IS_ANDROID)
+  // SANDIUM_COMPONENT_UPDATER_EARLY_ENABLE: set Brave's component override
+  // before any browser service can register filter catalogue components.
+  command_line->AppendSwitch("allow-brave-component-update");
+#endif
+"""
+    replace_once(
+        main_delegate,
+        old,
+        new,
+        "SANDIUM_COMPONENT_UPDATER_EARLY_ENABLE",
+        "early-android-component-updater-enable",
+    )
+
+
 def apply_component_updater_patch(core: Path) -> None:
     main_parts = core / "browser/brave_browser_main_parts.cc"
     old = """int ChromeBrowserMainParts::PreMainMessageLoopRun() {
@@ -455,9 +477,167 @@ def apply_adapter_patch(core: Path) -> None:
     )
 
 
+def apply_runtime_diagnostics_patch(core: Path) -> None:
+    delegate = core / (
+        "components/brave_component_updater/browser/"
+        "brave_component_updater_delegate.cc"
+    )
+    replace_once(
+        delegate,
+        '#include "base/task/sequenced_task_runner.h"\n',
+        '#include "base/logging.h"\n#include "base/task/sequenced_task_runner.h"\n',
+        '#include "base/logging.h"',
+        "component-registration-log-include",
+    )
+    replace_once(
+        delegate,
+        """  if (!BraveOnDemandUpdater::GetInstance()->is_component_update_disabled()) {
+    RegisterComponent(base::to_address(component_updater_), component_name,
+                      component_base64_public_key,
+                      std::move(registered_callback),
+                      std::move(ready_callback));
+  }
+""",
+        """  const bool updates_disabled =
+      BraveOnDemandUpdater::GetInstance()->is_component_update_disabled();
+  LOG(INFO) << "SANDIUM_COMPONENT_REGISTRATION name=" << component_name
+            << " disabled=" << updates_disabled;
+  if (!updates_disabled) {
+    RegisterComponent(base::to_address(component_updater_), component_name,
+                      component_base64_public_key,
+                      std::move(registered_callback),
+                      std::move(ready_callback));
+  } else {
+    LOG(ERROR) << "SANDIUM_COMPONENT_REGISTRATION_BLOCKED name="
+               << component_name;
+  }
+""",
+        "SANDIUM_COMPONENT_REGISTRATION",
+        "component-registration-runtime-log",
+    )
+
+    installer = core / (
+        "components/brave_shields/core/browser/"
+        "ad_block_component_installer.cc"
+    )
+    replace_once(
+        installer,
+        '#include "base/functional/callback.h"\n',
+        '#include "base/functional/callback.h"\n#include "base/logging.h"\n',
+        '#include "base/logging.h"',
+        "component-installer-log-include",
+    )
+    replace_once(
+        installer,
+        """void OnRegistered(const std::string& component_id) {
+  // Unlike other components, which are only installed but not updated in
+  // `OnRegistered`, we do always want to update the ad block component upon
+  // registration.
+  BraveOnDemandUpdater::GetInstance()->OnDemandUpdate(
+""",
+        """void OnRegistered(const std::string& component_id) {
+  // Unlike other components, which are only installed but not updated in
+  // `OnRegistered`, we do always want to update the ad block component upon
+  // registration.
+  LOG(INFO) << "SANDIUM_ADBLOCK_COMPONENT_REGISTERED id=" << component_id;
+  BraveOnDemandUpdater::GetInstance()->OnDemandUpdate(
+""",
+        "SANDIUM_ADBLOCK_COMPONENT_REGISTERED",
+        "adblock-component-registered-log",
+    )
+
+    catalog = core / (
+        "components/brave_shields/core/browser/"
+        "ad_block_filter_list_catalog_provider.cc"
+    )
+    replace_once(
+        catalog,
+        '#include "base/files/file_path.h"\n',
+        '#include "base/files/file_path.h"\n#include "base/logging.h"\n',
+        '#include "base/logging.h"',
+        "catalog-provider-log-include",
+    )
+    replace_once(
+        catalog,
+        """  component_path_ = path;
+
+  // Load the filter list catalog (as a string)
+""",
+        """  component_path_ = path;
+  LOG(INFO) << "SANDIUM_FILTER_CATALOG_COMPONENT_READY path=" << path.value();
+
+  // Load the filter list catalog (as a string)
+""",
+        "SANDIUM_FILTER_CATALOG_COMPONENT_READY",
+        "catalog-component-ready-log",
+    )
+
+    manager = core / (
+        "components/brave_shields/core/browser/"
+        "ad_block_component_service_manager.cc"
+    )
+    replace_once(
+        manager,
+        '#include "base/location.h"\n',
+        '#include "base/location.h"\n#include "base/logging.h"\n',
+        '#include "base/logging.h"',
+        "catalog-manager-log-include",
+    )
+    replace_once(
+        manager,
+        """void AdBlockComponentServiceManager::OnFilterListCatalogLoaded(
+    const std::string& catalog_json) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  SetFilterListCatalog(FilterListCatalogFromJSON(catalog_json));
+
+""",
+        """void AdBlockComponentServiceManager::OnFilterListCatalogLoaded(
+    const std::string& catalog_json) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  auto catalog = FilterListCatalogFromJSON(catalog_json);
+  LOG(INFO) << "SANDIUM_FILTER_CATALOG_PARSED bytes=" << catalog_json.size()
+            << " entries=" << catalog.size();
+  SetFilterListCatalog(std::move(catalog));
+
+""",
+        "SANDIUM_FILTER_CATALOG_PARSED",
+        "catalog-parse-runtime-log",
+    )
+
+    filter_service = core / (
+        "components/brave_shields/content/browser/"
+        "filter_list_service.cc"
+    )
+    replace_once(
+        filter_service,
+        '#include "base/feature_list.h"\n',
+        '#include "base/feature_list.h"\n#include "base/logging.h"\n',
+        '#include "base/logging.h"',
+        "filter-service-log-include",
+    )
+    replace_once(
+        filter_service,
+        """void FilterListService::GetFilterLists(GetFilterListsCallback callback) {
+  std::move(callback).Run(
+      ad_block_service_->component_service_manager()->GetRegionalLists());
+}
+""",
+        """void FilterListService::GetFilterLists(GetFilterListsCallback callback) {
+  auto lists = ad_block_service_->component_service_manager()->GetRegionalLists();
+  LOG(INFO) << "SANDIUM_FILTER_LIST_UI_COUNT=" << lists.size();
+  std::move(callback).Run(std::move(lists));
+}
+""",
+        "SANDIUM_FILTER_LIST_UI_COUNT",
+        "filter-list-ui-count-log",
+    )
+
+
 def apply_patches(core: Path) -> None:
     apply_manager_patch(core)
+    apply_early_component_updater_patch(core)
     apply_component_updater_patch(core)
+    apply_runtime_diagnostics_patch(core)
     apply_fragment_patch(core)
     apply_adapter_patch(core)
 
@@ -470,6 +650,29 @@ def verify_patches(core: Path) -> None:
     main_parts = (core / "browser/brave_browser_main_parts.cc").read_text(
         encoding="utf-8"
     )
+    main_delegate = (core / "app/brave_main_delegate.cc").read_text(
+        encoding="utf-8"
+    )
+    component_delegate = (
+        core / "components/brave_component_updater/browser/"
+        "brave_component_updater_delegate.cc"
+    ).read_text(encoding="utf-8")
+    component_installer = (
+        core / "components/brave_shields/core/browser/"
+        "ad_block_component_installer.cc"
+    ).read_text(encoding="utf-8")
+    catalog_provider = (
+        core / "components/brave_shields/core/browser/"
+        "ad_block_filter_list_catalog_provider.cc"
+    ).read_text(encoding="utf-8")
+    manager = (
+        core / "components/brave_shields/core/browser/"
+        "ad_block_component_service_manager.cc"
+    ).read_text(encoding="utf-8")
+    filter_service = (
+        core / "components/brave_shields/content/browser/"
+        "filter_list_service.cc"
+    ).read_text(encoding="utf-8")
     fragment = (
         core / "android/java/org/chromium/chrome/browser/shields/"
         "ContentFilteringFragment.java"
@@ -482,6 +685,12 @@ def verify_patches(core: Path) -> None:
     required = (
         ("manager", "if (component_filters_providers_.empty())", manager),
         ("main_parts", "SANDIUM_BRAVE_COMPONENT_UPDATES", main_parts),
+        ("main_delegate", "SANDIUM_COMPONENT_UPDATER_EARLY_ENABLE", main_delegate),
+        ("component_delegate", "SANDIUM_COMPONENT_REGISTRATION", component_delegate),
+        ("component_installer", "SANDIUM_ADBLOCK_COMPONENT_REGISTERED", component_installer),
+        ("catalog_provider", "SANDIUM_FILTER_CATALOG_COMPONENT_READY", catalog_provider),
+        ("manager", "SANDIUM_FILTER_CATALOG_PARSED", manager),
+        ("filter_service", "SANDIUM_FILTER_LIST_UI_COUNT", filter_service),
         ("fragment", "SANDIUM_FILTER_LIST_CATALOGUE_STATE_MACHINE", fragment),
         ("fragment", "SANDIUM_MANUAL_FILTER_LIST_UPDATE", fragment),
         ("fragment", "SANDIUM_FILTER_LIST_HANDLER_CLEANUP", fragment),
@@ -498,6 +707,10 @@ def verify_patches(core: Path) -> None:
         raise SystemExit("SANDIUM_ADBLOCK_GATE=FAIL stale forced-update manager patch remains")
     if 'AppendSwitch(\n      "allow-brave-component-update")' not in main_parts:
         raise SystemExit("SANDIUM_ADBLOCK_GATE=FAIL Android component-updater override missing")
+    if 'AppendSwitch("allow-brave-component-update")' not in main_delegate:
+        raise SystemExit("SANDIUM_ADBLOCK_GATE=FAIL early Android component-updater override missing")
+    if "LOG(INFO) << \"SANDIUM_FILTER_CATALOG_PARSED bytes=\"" not in manager:
+        raise SystemExit("SANDIUM_ADBLOCK_GATE=FAIL catalogue parse diagnostic missing")
     if len(FRESH_INSTALL_FILTER_UUIDS) != len(set(FRESH_INSTALL_FILTER_UUIDS)):
         raise SystemExit("SANDIUM_ADBLOCK_GATE=FAIL duplicate selected filter UUID")
     print(

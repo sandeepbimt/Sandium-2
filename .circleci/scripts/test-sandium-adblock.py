@@ -15,7 +15,9 @@ FRESH_INSTALL_FILTER_UUIDS = _PATCH["FRESH_INSTALL_FILTER_UUIDS"]
 apply_patches = _PATCH["apply_patches"]
 verify_patches = _PATCH["verify_patches"]
 
-MANAGER_FIXTURE = """  // If there are currently no components to update, then run the callback with
+MANAGER_FIXTURE = """#include "base/location.h"
+
+  // If there are currently no components to update, then run the callback with
   // a success value in a future turn.
   if (component_filters_providers_.empty()) {
     std::move(callback).Run(true);
@@ -23,6 +25,13 @@ MANAGER_FIXTURE = """  // If there are currently no components to update, then r
   }
 
   std::vector<std::string> component_ids = {
+
+void AdBlockComponentServiceManager::OnFilterListCatalogLoaded(
+    const std::string& catalog_json) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  SetFilterListCatalog(FilterListCatalogFromJSON(catalog_json));
+
+  update_check_timer_.Start(
 """
 
 FRAGMENT_FIXTURE = """import android.content.Context;
@@ -96,6 +105,60 @@ int ChromeBrowserMainParts::PreMainMessageLoopRun() {
 }
 """
 
+MAIN_DELEGATE_FIXTURE = """void BraveMainDelegate::AppendCommandLineOptions() {
+  auto* command_line = base::CommandLine::ForCurrentProcess();
+  command_line->AppendSwitch(switches::kDisableDomainReliability);
+}
+"""
+
+COMPONENT_DELEGATE_FIXTURE = """#include "base/task/sequenced_task_runner.h"
+
+void BraveComponentUpdaterDelegate::Register(
+    const std::string& component_name,
+    const std::string& component_base64_public_key,
+    base::OnceClosure registered_callback,
+    BraveComponent::ReadyCallback ready_callback) {
+  if (!BraveOnDemandUpdater::GetInstance()->is_component_update_disabled()) {
+    RegisterComponent(base::to_address(component_updater_), component_name,
+                      component_base64_public_key,
+                      std::move(registered_callback),
+                      std::move(ready_callback));
+  }
+}
+"""
+
+INSTALLER_FIXTURE = """#include "base/functional/callback.h"
+
+void OnRegistered(const std::string& component_id) {
+  // Unlike other components, which are only installed but not updated in
+  // `OnRegistered`, we do always want to update the ad block component upon
+  // registration.
+  BraveOnDemandUpdater::GetInstance()->OnDemandUpdate(
+      component_id, component_updater::OnDemandUpdater::Priority::FOREGROUND);
+}
+"""
+
+CATALOG_PROVIDER_FIXTURE = """#include "base/files/file_path.h"
+
+void AdBlockFilterListCatalogProvider::OnComponentReady(
+    const base::FilePath& path) {
+  TRACE_EVENT("brave.adblock",
+              "AdBlockFilterListCatalogProvider::OnComponentReady",
+              perfetto::Flow::FromPointer(this), "path", path.value());
+  component_path_ = path;
+
+  // Load the filter list catalog (as a string)
+}
+"""
+
+FILTER_SERVICE_FIXTURE = """#include "base/feature_list.h"
+
+void FilterListService::GetFilterLists(GetFilterListsCallback callback) {
+  std::move(callback).Run(
+      ad_block_service_->component_service_manager()->GetRegionalLists());
+}
+"""
+
 
 
 def main() -> None:
@@ -117,12 +180,37 @@ def main() -> None:
             "ContentFilteringAdapter.java"
         )
         main_parts = core / "browser/brave_browser_main_parts.cc"
-        for path in (manager, fragment, adapter, main_parts):
+        main_delegate = core / "app/brave_main_delegate.cc"
+        component_delegate = core / (
+            "components/brave_component_updater/browser/"
+            "brave_component_updater_delegate.cc"
+        )
+        installer = core / (
+            "components/brave_shields/core/browser/"
+            "ad_block_component_installer.cc"
+        )
+        catalog_provider = core / (
+            "components/brave_shields/core/browser/"
+            "ad_block_filter_list_catalog_provider.cc"
+        )
+        filter_service = core / (
+            "components/brave_shields/content/browser/"
+            "filter_list_service.cc"
+        )
+        for path in (
+            manager, fragment, adapter, main_parts, main_delegate,
+            component_delegate, installer, catalog_provider, filter_service
+        ):
             path.parent.mkdir(parents=True, exist_ok=True)
         manager.write_text(MANAGER_FIXTURE, encoding="utf-8")
         fragment.write_text(FRAGMENT_FIXTURE, encoding="utf-8")
         adapter.write_text(ADAPTER_FIXTURE, encoding="utf-8")
         main_parts.write_text(MAIN_PARTS_FIXTURE, encoding="utf-8")
+        main_delegate.write_text(MAIN_DELEGATE_FIXTURE, encoding="utf-8")
+        component_delegate.write_text(COMPONENT_DELEGATE_FIXTURE, encoding="utf-8")
+        installer.write_text(INSTALLER_FIXTURE, encoding="utf-8")
+        catalog_provider.write_text(CATALOG_PROVIDER_FIXTURE, encoding="utf-8")
+        filter_service.write_text(FILTER_SERVICE_FIXTURE, encoding="utf-8")
 
         apply_patches(core)
         verify_patches(core)
@@ -135,7 +223,18 @@ def main() -> None:
         adapter_text = adapter.read_text(encoding="utf-8")
         main_parts_text = main_parts.read_text(encoding="utf-8")
         manager_text = manager.read_text(encoding="utf-8")
+        main_delegate_text = main_delegate.read_text(encoding="utf-8")
+        component_delegate_text = component_delegate.read_text(encoding="utf-8")
+        installer_text = installer.read_text(encoding="utf-8")
+        catalog_provider_text = catalog_provider.read_text(encoding="utf-8")
+        filter_service_text = filter_service.read_text(encoding="utf-8")
         assert "allow-brave-component-update" in main_parts_text
+        assert "SANDIUM_COMPONENT_UPDATER_EARLY_ENABLE" in main_delegate_text
+        assert "SANDIUM_COMPONENT_REGISTRATION" in component_delegate_text
+        assert "SANDIUM_ADBLOCK_COMPONENT_REGISTERED" in installer_text
+        assert "SANDIUM_FILTER_CATALOG_COMPONENT_READY" in catalog_provider_text
+        assert "SANDIUM_FILTER_CATALOG_PARSED" in manager_text
+        assert "SANDIUM_FILTER_LIST_UI_COUNT" in filter_service_text
         assert "SANDIUM_BRAVE_COMPONENT_UPDATES" in main_parts_text
         assert "if (component_filters_providers_.empty())" in manager_text
         assert "SANDIUM_FILTER_CATALOGUE_BOOTSTRAP" not in manager_text
