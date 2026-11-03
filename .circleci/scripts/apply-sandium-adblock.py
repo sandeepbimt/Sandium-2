@@ -851,7 +851,9 @@ def verify_patches(core: Path) -> None:
         raise SystemExit("SANDIUM_ADBLOCK_GATE=FAIL early Brave-only component-updater override missing")
     if 'global_disable_preserved=' not in main_parts:
         raise SystemExit("SANDIUM_ADBLOCK_GATE=FAIL global updater policy diagnostic missing")
-    if main_parts.count("RegisterOnDemandUpdater(") != 1:
+    # Count the actual member invocation, not explanatory comments that
+    # may mention the method name.
+    if main_parts.count("->RegisterOnDemandUpdater(") != 1:
         raise SystemExit("SANDIUM_ADBLOCK_GATE=FAIL updater registration call is not unique")
     if "&g_browser_process->component_updater()->GetOnDemandUpdater()" in main_parts:
         raise SystemExit("SANDIUM_ADBLOCK_GATE=FAIL stale upstream updater argument remains")
