@@ -222,6 +222,30 @@ def apply_early_component_updater_patch(core: Path) -> None:
         "early-android-component-updater-enable",
     )
 
+    # Log the URL selected by Brave's real GetUpdateURLHost() path, not merely
+    # the endpoint Sandium intends to use. This distinguishes a production
+    # buildflag/configuration issue from a dev switch or feature override.
+    old_effective_url = """  std::string update_url = GetUpdateURLHost();
+  if (!update_url.empty()) {
+"""
+    new_effective_url = """  std::string update_url = GetUpdateURLHost();
+  LOG(WARNING) << "SANDIUM_COMPONENT_UPDATER_EFFECTIVE_URL=" << update_url
+               << " dev_switch="
+               << command_line->HasSwitch(
+                      brave_component_updater::kUseGoUpdateDev)
+               << " dev_feature="
+               << base::FeatureList::IsEnabled(
+                      brave_component_updater::kUseDevUpdaterUrl);
+  if (!update_url.empty()) {
+"""
+    replace_once(
+        main_delegate,
+        old_effective_url,
+        new_effective_url,
+        "SANDIUM_COMPONENT_UPDATER_EFFECTIVE_URL",
+        "effective-component-updater-url-diagnostic",
+    )
+
 
 def apply_component_updater_patch(core: Path) -> None:
     main_parts = core / "browser/brave_browser_main_parts.cc"
@@ -841,6 +865,7 @@ def verify_patches(core: Path) -> None:
         ("main_delegate", "SANDIUM_BRAVE_COMPONENT_UPDATE_OVERRIDE", main_delegate),
         ("main_delegate", "SANDIUM_COMPONENT_UPDATER_EARLY_ENABLE", main_delegate),
         ("main_delegate", "SANDIUM_COMPONENT_UPDATER_ENDPOINT=production", main_delegate),
+        ("main_delegate", "SANDIUM_COMPONENT_UPDATER_EFFECTIVE_URL", main_delegate),
         ("component_delegate", "SANDIUM_COMPONENT_REGISTRATION", component_delegate),
         ("component_installer", "SANDIUM_ADBLOCK_COMPONENT_REGISTERED", component_installer),
         ("manager", "SANDIUM_FILTER_CATALOG_UPDATE_RESULT", manager),

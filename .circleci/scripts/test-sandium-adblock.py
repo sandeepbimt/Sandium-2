@@ -140,6 +140,22 @@ void BraveMainDelegate::AppendCommandLineOptions() {
   auto* command_line = base::CommandLine::ForCurrentProcess();
   command_line->AppendSwitch(switches::kDisableDomainReliability);
 }
+
+std::optional<int> BraveMainDelegate::PostEarlyInitialization(
+    ChromeMainDelegate::InvokedIn invoked_in) {
+  auto result = ChromeMainDelegate::PostEarlyInitialization(invoked_in);
+  if (result.has_value()) {
+    return result;
+  }
+  auto* command_line = base::CommandLine::ForCurrentProcess();
+  std::string update_url = GetUpdateURLHost();
+  if (!update_url.empty()) {
+    command_line->AppendSwitchASCII(
+        switches::kComponentUpdater,
+        base::StrCat({"url-source=", update_url}));
+  }
+  return result;
+}
 """
 
 COMPONENT_DELEGATE_FIXTURE = """#include "base/task/sequenced_task_runner.h"
@@ -270,6 +286,9 @@ def main() -> None:
         assert "SANDIUM_COMPONENT_UPDATER_EARLY_ENABLE" in main_delegate_text
         assert "SANDIUM_BRAVE_COMPONENT_UPDATE_OVERRIDE" in main_delegate_text
         assert "SANDIUM_COMPONENT_UPDATER_ENDPOINT=production" in main_delegate_text
+        assert "SANDIUM_COMPONENT_UPDATER_EFFECTIVE_URL" in main_delegate_text
+        assert '" dev_switch="' in main_delegate_text
+        assert '" dev_feature="' in main_delegate_text
         assert "brave_component_updater::kUseGoUpdateDev" not in main_delegate_text
         assert "AppendSwitch(brave_component_updater::kUseGoUpdateDev)" not in main_delegate_text
         assert "#if BUILDFLAG(IS_ANDROID)" in main_delegate_text
