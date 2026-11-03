@@ -217,13 +217,17 @@ def apply_component_updater_patch(core: Path) -> None:
     old = """int ChromeBrowserMainParts::PreMainMessageLoopRun() {
   brave_component_updater::BraveOnDemandUpdater::GetInstance()
       ->RegisterOnDemandUpdater(
+          base::CommandLine::ForCurrentProcess()->HasSwitch(
+              switches::kDisableComponentUpdate),
+          &g_browser_process->component_updater()->GetOnDemandUpdater());
+
+  return ChromeBrowserMainParts_ChromiumImpl::PreMainMessageLoopRun();
+}
 """
     new = """int ChromeBrowserMainParts::PreMainMessageLoopRun() {
 #if BUILDFLAG(IS_ANDROID)
-  // SANDIUM_BRAVE_COMPONENT_UPDATES: Chromium's ComponentUpdateService
-  // permanently captures --disable-component-update at construction.
-  // Remove it before the first component_updater() call, not just from Brave's
-  // wrapper-level policy, so Brave catalogue downloads can actually execute.
+  // SANDIUM_BRAVE_COMPONENT_UPDATES: clear the global gate before creating
+  // or retrieving the ComponentUpdateService, so Brave catalogue updates run.
   auto* command_line = base::CommandLine::ForCurrentProcess();
   const bool component_updates_were_disabled =
       command_line->HasSwitch(switches::kDisableComponentUpdate);
@@ -243,6 +247,9 @@ def apply_component_updater_patch(core: Path) -> None:
           base::CommandLine::ForCurrentProcess()->HasSwitch(
               switches::kDisableComponentUpdate),
           &updater_service->GetOnDemandUpdater());
+
+  return ChromeBrowserMainParts_ChromiumImpl::PreMainMessageLoopRun();
+}
 """
     replace_once(
         main_parts,
@@ -841,6 +848,10 @@ def verify_patches(core: Path) -> None:
         raise SystemExit("SANDIUM_ADBLOCK_GATE=FAIL stale forced-update manager patch remains")
     if 'RemoveSwitch(switches::kDisableComponentUpdate)' not in main_parts:
         raise SystemExit("SANDIUM_ADBLOCK_GATE=FAIL global component-update disable switch was not removed before service creation")
+    if main_parts.count("RegisterOnDemandUpdater(") != 1:
+        raise SystemExit("SANDIUM_ADBLOCK_GATE=FAIL updater registration call is not unique")
+    if "&g_browser_process->component_updater()->GetOnDemandUpdater()" in main_parts:
+        raise SystemExit("SANDIUM_ADBLOCK_GATE=FAIL stale upstream updater argument remains")
     if 'RemoveSwitch(switches::kDisableComponentUpdate)' not in main_delegate:
         raise SystemExit("SANDIUM_ADBLOCK_GATE=FAIL global component-update disable switch was not removed during early startup")
     if 'AppendSwitch(\n      "allow-brave-component-update")' in main_parts:

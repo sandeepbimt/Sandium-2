@@ -285,6 +285,9 @@ def main() -> None:
         assert "SANDIUM_COMPONENT_UPDATER_SERVICE_CREATED" in main_parts_text
         assert "SANDIUM_COMPONENT_UPDATER_GLOBAL_GATE" in main_parts_text
         assert "RemoveSwitch(switches::kDisableComponentUpdate)" in main_parts_text
+        assert main_parts_text.count("RegisterOnDemandUpdater(") == 1
+        assert "&g_browser_process->component_updater()->GetOnDemandUpdater()" not in main_parts_text
+        assert "&updater_service->GetOnDemandUpdater()" in main_parts_text
         assert "if (component_filters_providers_.empty())" in manager_text
         assert "requestFilterListCatalogueRefresh" in fragment_text
         assert "MAX_FILTER_LIST_UPDATE_ATTEMPTS = 3" in fragment_text
