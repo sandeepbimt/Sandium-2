@@ -12,14 +12,23 @@ case "$SLICE_SECONDS" in ''|*[!0-9]*) echo "PINNING_SLICE=FAIL invalid seconds=$
 [ "$SLICE_SECONDS" -le 1800 ] || SLICE_SECONDS=1800
 [ "$SLICE_SECONDS" -ge 60 ] || { echo "PINNING_SLICE=FAIL minimum 60 seconds" >&2; exit 2; }
 mkdir -p "$STATE"
+# A no-op source slice must not create another multi-gigabyte archive.
+rm -f "$STATE/source-archive-unchanged"
+OLD_REQUEST_ID="$(sed -n 's/^REFRESH_REQUEST_ID=//p' "$STATE/source-prep-progress.txt" 2>/dev/null | head -n 1 || true)"
+PIN_REQUEST_ID="$(sed -n 's/^REFRESH_REQUEST_ID=//p' "$PINS" 2>/dev/null | head -n 1 || true)"
+if { [ -n "$OLD_REQUEST_ID" ] && [ "$OLD_REQUEST_ID" != "$REQUEST_ID" ]; } || \
+   { [ -n "$PIN_REQUEST_ID" ] && [ "$PIN_REQUEST_ID" != "$REQUEST_ID" ]; }; then
+  echo "PINNING_REFRESH_REQUEST=NEW previous_progress=${OLD_REQUEST_ID:-unknown} previous_pins=${PIN_REQUEST_ID:-legacy-or-missing} current=$REQUEST_ID"
+  rm -f "$PINS" "$STATE/source-sync-complete" "$STATE/source-runhooks-complete" \
+    "$STATE/source-configure-complete" "$STATE/source-gn-complete" \
+    "$STATE/source-ready-restored" "$STATE/source-ready" "$STATE/source-archive-unchanged"
+fi
 if [ ! -s "$PINS" ]; then
   if [ "$STAGE" = "1" ]; then
-    # A protected compiled reference may predate the independent source-pin
-    # metadata. Stage 1 is the only stage allowed to bootstrap pins: the
-    # prepare script derives the Chromium tag from the pinned Brave package,
-    # resolves its exact upstream SHA, and atomically writes source-pins.env
-    # before attempting Chromium sync. Never infer pins in later stages.
-    echo "PINNING_BOOTSTRAP=REQUIRED stage=1 reason=base-checkpoint-has-no-source-pins"
+    # Stage 1 alone may bootstrap a new source pin. Resolve the latest stable
+    # Brave release, derive its Chromium tag from Brave Core, and resolve that
+    # exact Chromium tag to an immutable SHA before source synchronization.
+    echo "PINNING_BOOTSTRAP=REQUIRED stage=1 reason=source-pins-missing-or-refresh-request-changed"
     rm -f "$STATE/source-sync-complete" "$STATE/source-runhooks-complete" \
       "$STATE/source-configure-complete" "$STATE/source-gn-complete" \
       "$STATE/source-ready-restored" "$STATE/source-ready"
@@ -27,11 +36,6 @@ if [ ! -s "$PINS" ]; then
     echo "PINNING_GATE=FAIL source-pins.env missing after stage checkpoint restore; refusing to guess pins" >&2
     exit 1
   fi
-fi
-OLD_REQUEST_ID="$(sed -n 's/^REFRESH_REQUEST_ID=//p' "$STATE/source-prep-progress.txt" 2>/dev/null | head -n 1 || true)"
-if [ -n "$OLD_REQUEST_ID" ] && [ "$OLD_REQUEST_ID" != "$REQUEST_ID" ]; then
-  echo "PINNING_REFRESH_REQUEST=NEW previous=$OLD_REQUEST_ID current=$REQUEST_ID"
-  rm -f "$STATE/source-sync-complete" "$STATE/source-runhooks-complete" "$STATE/source-configure-complete" "$STATE/source-gn-complete" "$STATE/source-ready-restored" "$STATE/source-ready"
 fi
 START_SECONDS=$SECONDS
 DEADLINE=$((START_SECONDS + SLICE_SECONDS))
@@ -43,7 +47,7 @@ run_phase() {
   if [ "$remaining" -le 0 ]; then TIME_SLICE_EXPIRED=true; return 2; fi
   echo "PINNING_PHASE=START phase=$phase stage=$STAGE remaining_seconds=$remaining budget_seconds=$SLICE_SECONDS"
   set +e
-  BRAVE_STAGE_INDEX="$phase_stage" SANDIUM_SOURCE_PREP_PHASE="$phase" timeout --signal=INT --kill-after=30s "${remaining}s" bash "$ROOT/.circleci/scripts/prepare-brave-source.sh"
+  BRAVE_STAGE_INDEX="$phase_stage" SANDIUM_PINNING_STAGE_INDEX="$STAGE" SANDIUM_SOURCE_PREP_PHASE="$phase" timeout --signal=INT --kill-after=30s "${remaining}s" bash "$ROOT/.circleci/scripts/prepare-brave-source.sh"
   local rc=$?
   set -e
   if [ "$rc" -eq 0 ]; then touch "$marker"; echo "PINNING_PHASE=PASS phase=$phase elapsed_seconds=$((SECONDS-START_SECONDS))"; return 0; fi
@@ -87,7 +91,15 @@ if [ "$READY" = true ]; then
   python3 "$ROOT/.circleci/scripts/sandium-source-shards.py" verify --root "$ROOT" --workers 8 --ready --zstd-test
   echo "SANDIUM_PINNING_ARCHIVE=PASS ready=true stage=$STAGE"
 else
-  python3 "$ROOT/.circleci/scripts/sandium-source-shards.py" archive --root "$ROOT" --workers 8 --stage "$STAGE"
-  python3 "$ROOT/.circleci/scripts/sandium-source-shards.py" verify --root "$ROOT" --workers 8
-  echo "SANDIUM_PINNING_ARCHIVE=PASS ready=false stage=$STAGE; next stage resumes"
+  if [ "$STAGE" = "1" ]; then
+    python3 "$ROOT/.circleci/scripts/sandium-source-shards.py" archive --root "$ROOT" --workers 8 --stage "$STAGE"
+  else
+    python3 "$ROOT/.circleci/scripts/sandium-source-shards.py" archive --root "$ROOT" --workers 8 --stage "$STAGE" --skip-if-unchanged
+  fi
+  if [ -s "$STATE/source-archive-unchanged" ]; then
+    echo "SANDIUM_PINNING_ARCHIVE=REUSE unchanged_source_state=true stage=$STAGE; do not upload duplicate shards"
+  else
+    python3 "$ROOT/.circleci/scripts/sandium-source-shards.py" verify --root "$ROOT" --workers 8
+    echo "SANDIUM_PINNING_ARCHIVE=PASS ready=false stage=$STAGE; next stage resumes"
+  fi
 fi
