@@ -7,11 +7,21 @@ WORK="$ROOT/brave-work"
 case "$MODE" in
   base)
     if [ -d "$ROOT/brave-source-checkpoint.shards" ] && [ -s "$ROOT/brave-source-checkpoint.manifest.json" ]; then
-      echo "SOURCE_PREP_BASE=PINNED_SOURCE_READY"
-      python3 "$ROOT/.circleci/scripts/sandium-source-shards.py" verify --root "$ROOT" --workers 8 --ready --zstd-test
-      python3 "$ROOT/.circleci/scripts/sandium-source-shards.py" restore --root "$ROOT" --workers 8 --ready
-      mkdir -p "$WORK/.sandium"
-      touch "$WORK/.sandium/source-ready-restored"
+      READY="$(python3 -c 'import json,sys; print("true" if json.load(open(sys.argv[1],encoding="utf-8")).get("ready") is True else "false")' "$ROOT/brave-source-checkpoint.manifest.json")"
+      if [ "$READY" = "true" ]; then
+        echo "SOURCE_PREP_BASE=PINNED_SOURCE_READY"
+        python3 "$ROOT/.circleci/scripts/sandium-source-shards.py" verify --root "$ROOT" --workers 8 --ready --zstd-test
+        python3 "$ROOT/.circleci/scripts/sandium-source-shards.py" restore --root "$ROOT" --workers 8 --ready
+        mkdir -p "$WORK/.sandium"
+        touch "$WORK/.sandium/source-ready-restored" "$WORK/.sandium/source-sync-complete" \
+          "$WORK/.sandium/source-runhooks-complete" "$WORK/.sandium/source-configure-complete" \
+          "$WORK/.sandium/source-gn-complete"
+      else
+        echo "SOURCE_PREP_BASE=PINNING_PROGRESS"
+        python3 "$ROOT/.circleci/scripts/sandium-source-shards.py" verify --root "$ROOT" --workers 8
+        python3 "$ROOT/.circleci/scripts/sandium-source-shards.py" restore --root "$ROOT" --workers 8
+        mkdir -p "$WORK/.sandium"
+      fi
     elif [ -d "$ROOT/brave-workspace-checkpoint.shards" ] && [ -s "$ROOT/brave-workspace-checkpoint.manifest.json" ]; then
       echo "SOURCE_PREP_BASE=FULL_WORKSPACE_REFERENCE"
       export BRAVE_STAGE_INDEX=1
