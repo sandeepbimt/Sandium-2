@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate a cached Sandium APK completion marker defensively.
+"""Validate a cached vanilla Brave APK completion marker defensively.
 
 Accepts LF/CRLF, an optional UTF-8 BOM, and surrounding whitespace. Reports
 exactly which required flags are absent or not true.
@@ -14,7 +14,7 @@ REQUIRED = (
     "APK_ARCHIVE_VALID",
     "APK_SIGNATURE_VALID",
     "APK_PACKAGE_ID_VALID",
-    "APK_BRANDING_VALID",
+    "APK_APP_IDENTITY_VALID",
 )
 
 
