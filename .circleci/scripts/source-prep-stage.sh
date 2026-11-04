@@ -12,7 +12,22 @@ case "$SLICE_SECONDS" in ''|*[!0-9]*) echo "PINNING_SLICE=FAIL invalid seconds=$
 [ "$SLICE_SECONDS" -le 1800 ] || SLICE_SECONDS=1800
 [ "$SLICE_SECONDS" -ge 60 ] || { echo "PINNING_SLICE=FAIL minimum 60 seconds" >&2; exit 2; }
 mkdir -p "$STATE"
-[ -s "$PINS" ] || { echo "PINNING_GATE=FAIL source-pins.env missing after checkpoint restore" >&2; exit 1; }
+if [ ! -s "$PINS" ]; then
+  if [ "$STAGE" = "1" ]; then
+    # A protected compiled reference may predate the independent source-pin
+    # metadata. Stage 1 is the only stage allowed to bootstrap pins: the
+    # prepare script derives the Chromium tag from the pinned Brave package,
+    # resolves its exact upstream SHA, and atomically writes source-pins.env
+    # before attempting Chromium sync. Never infer pins in later stages.
+    echo "PINNING_BOOTSTRAP=REQUIRED stage=1 reason=base-checkpoint-has-no-source-pins"
+    rm -f "$STATE/source-sync-complete" "$STATE/source-runhooks-complete" \
+      "$STATE/source-configure-complete" "$STATE/source-gn-complete" \
+      "$STATE/source-ready-restored" "$STATE/source-ready"
+  else
+    echo "PINNING_GATE=FAIL source-pins.env missing after stage checkpoint restore; refusing to guess pins" >&2
+    exit 1
+  fi
+fi
 OLD_REQUEST_ID="$(sed -n 's/^REFRESH_REQUEST_ID=//p' "$STATE/source-prep-progress.txt" 2>/dev/null | head -n 1 || true)"
 if [ -n "$OLD_REQUEST_ID" ] && [ "$OLD_REQUEST_ID" != "$REQUEST_ID" ]; then
   echo "PINNING_REFRESH_REQUEST=NEW previous=$OLD_REQUEST_ID current=$REQUEST_ID"
