@@ -55,7 +55,7 @@ run_brave_sync() {
   fi
 
   sync_started=$SECONDS
-  npm_package_version="$(node -p "require(\'./package.json\').version")" node ./build/commands/scripts/sync.ts "$@"
+  npm_package_version="$(node -p "require('./package.json').version")" node ./build/commands/scripts/sync.ts "$@"
   echo "BRAVE_UPSTREAM_SYNC_SECONDS=$((SECONDS - sync_started))"
 }
 if [ "$BRAVE_STAGE_INDEX" = "1" ]; then
