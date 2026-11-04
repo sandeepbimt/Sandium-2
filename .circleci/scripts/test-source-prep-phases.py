@@ -38,7 +38,9 @@ assert 'echo "REFRESH_REQUEST_ID=$REQUEST_ID"' in prepare
 assert "SANDIUM_SOURCE_HANDOFF=PASS" in (ROOT / ".circleci/scripts/sandium-source-shards.py").read_text(encoding="utf-8")
 assert "BRAVE_SOURCE_SYNC=REUSE" in prepare and "source-runhooks-complete" in prepare
 assert "install-build-deps.sh --android" not in prepare
-assert "SOURCE_PREP_BASE=PINNING_PROGRESS" in restore
+assert "SOURCE_PREP_BASE=VALID_PROGRESS_CHECKPOINT" in restore
+assert "SOURCE_PREP_BASE=FRESH_BOOTSTRAP_REQUIRED" in restore
+assert "all-cumulative-stage-data-restored" in restore
 assert "PINNING_READY=true" in config and "persist_to_workspace:" in config and "attach_workspace:" in config
 assert 'echo "REFRESH_REQUEST_ID=$REFRESH_REQUEST_ID"' in config
 assert 'echo "CHROMIUM_SHA=$CHROMIUM_SHA"' in config
