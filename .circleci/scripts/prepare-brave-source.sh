@@ -141,6 +141,7 @@ if [ "$BRAVE_STAGE_INDEX" = "1" ]; then
   CORE_DIR="$SRC_DIR/brave"
   OUT="$SRC_DIR/out/android_Release_arm64"
   SOURCE_REUSE=false
+  SOURCE_ARCHIVE_PIN_MATCH=false
 
 
   # Reuse the pinned source tree, but refresh Brave's generated Siso config.
@@ -152,6 +153,7 @@ if [ "$BRAVE_STAGE_INDEX" = "1" ]; then
     SOURCE_REUSE=true
     echo "BRAVE_SOURCE_REUSE=PASS; pinned source restored."
     if [ -s "$ROOT/brave-work/.sandium/workspace-checkpoint-restored" ]; then
+      if [ -s "$ROOT/brave-work/.sandium/source-ready-restored" ]; then SOURCE_ARCHIVE_PIN_MATCH=true; fi
       # The archive already contains the matching .gclient, generated GN/Siso
       # configuration, Ninja metadata and Siso filesystem journal. Re-running
       # pnpm sync here can rewrite that state and invalidate the checkpoint.
@@ -227,7 +229,7 @@ if [ "$BRAVE_STAGE_INDEX" = "1" ]; then
 
 fi
 
-if [ -s "$ROOT/brave-work/.sandium/source-ready-restored" ] && [ "$SOURCE_PREP_PHASE" = "all" ]; then
+if [ -s "$ROOT/brave-work/.sandium/source-ready-restored" ] && [ "$SOURCE_ARCHIVE_PIN_MATCH" = "true" ] && [ "$SOURCE_PREP_PHASE" = "all" ]; then
   test -s "$ROOT/brave-work/.sandium/source-pins.env"
   test -s "$OUT/build.ninja" && test -s "$OUT/args.gn" && test -s "$OUT/args_generated.gni" || {
     echo "BRAVE_SOURCE_READY_GATE=FAIL restored source-ready reference lacks the pinned GN graph" >&2
