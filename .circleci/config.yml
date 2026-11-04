@@ -1902,7 +1902,7 @@ jobs:
               require_arg target_android_output_format '"aab"'
               require_arg android_channel '"default"'
               require_arg brave_channel '"development"'
-              require_arg chrome_public_manifest_package '"com.brave.browser_default_default"'
+              require_arg chrome_public_manifest_package '"com.brave.browser_default"'
               echo "BRAVE_BUILD_GRAPH_GATE=PASS"
               echo "BRAVE_REMOTE_EXECUTION_CONFIG_GATE=PASS"
             fi
@@ -2446,7 +2446,7 @@ jobs:
             done
             export SANDIUM_ARCHIVE_WORKERS=8
             bash .circleci/scripts/archive-brave-workspace.sh verify
-            python3 -c 'import json,sys; from pathlib import Path; d=json.loads(Path(sys.argv[1]).read_text(encoding="utf-8")); c=d.get("checkpoint_manifest",{}); req={"CHECKPOINT_VALID":"true","REFERENCE_MODE":"reference","APK_VALIDATED":"true","REFERENCE_READY":"true","CHROMIUM_TAG":"157.0.8103.30","BRAVE_CORE_TAG":"v1.99.54","TARGET":"android-arm64","BUILD_TYPE":"Release","OFFICIAL_BUILD":"true","TARGET_ANDROID_OUTPUT_FORMAT":"aab","ANDROID_AAB_TO_APK":"true","PACKAGE_ID":"com.brave.browser_default","APP_LABEL":"Brave","APK_FILENAME":"Bravearm64Universal.apk"}; bad=[k for k,v in req.items() if c.get(k)!=v]; sha=c.get("CHROMIUM_SHA",""); import re; assert re.fullmatch(r"[0-9a-f]{40}",sha), "REFERENCE_PROMOTION=FAIL invalid Chromium SHA"; assert not bad, "REFERENCE_PROMOTION=FAIL missing or incorrect keys: "+",".join(bad); Path(sys.argv[2]).write_text("\\n".join("%s=%s" % (k,v) for k,v in sorted(c.items()))+"\\n",encoding="utf-8"); print("REFERENCE_PROMOTION=PASS workers=%s shards=%s source_bytes=%s archive_bytes=%s" % (d.get("workers"),len(d.get("shards",[])),d.get("source_bytes"),d.get("archive_bytes")))' "$SHARD_MANIFEST" "$ROOT/reference-candidate-manifest.txt"
+            python3 -c 'import json,sys; from pathlib import Path; d=json.loads(Path(sys.argv[1]).read_text(encoding="utf-8")); c=d.get("checkpoint_manifest",{}); req={"CHECKPOINT_VALID":"true","REFERENCE_MODE":"reference","APK_VALIDATED":"true","REFERENCE_READY":"true","CHROMIUM_TAG":"157.0.8103.30","BRAVE_CORE_TAG":"v1.99.54","TARGET":"android-arm64","BUILD_TYPE":"Release","OFFICIAL_BUILD":"false","TARGET_ANDROID_OUTPUT_FORMAT":"aab","ANDROID_AAB_TO_APK":"true","BRAVE_CHANNEL":"development","PACKAGE_ID":"com.brave.browser_default","APP_LABEL":"Sandium Browser","APK_FILENAME":"Bravearm64Universal.apk"}; bad=[k for k,v in req.items() if c.get(k)!=v]; sha=c.get("CHROMIUM_SHA",""); import re; assert re.fullmatch(r"[0-9a-f]{40}",sha), "REFERENCE_PROMOTION=FAIL invalid Chromium SHA"; assert not bad, "REFERENCE_PROMOTION=FAIL missing or incorrect keys: "+",".join(bad); Path(sys.argv[2]).write_text("\\n".join("%s=%s" % (k,v) for k,v in sorted(c.items()))+"\\n",encoding="utf-8"); print("REFERENCE_PROMOTION=PASS workers=%s shards=%s source_bytes=%s archive_bytes=%s" % (d.get("workers"),len(d.get("shards",[])),d.get("source_bytes"),d.get("archive_bytes")))' "$SHARD_MANIFEST" "$ROOT/reference-candidate-manifest.txt"
             echo "REFERENCE_PROMOTION=CANDIDATE_VERIFIED"
       - save_cache:
           name: Promote immutable latest Sandium parallel-shard reference
