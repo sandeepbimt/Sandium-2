@@ -1490,6 +1490,8 @@ jobs:
                 name: Restore latest pinned source, compiled reference, or protected canonical base
                 keys:
                   - sandium-brave-pinning-progress-v2-{{ checksum ".circleci/source-pin-refresh-id" }}-
+# Any prior run's newest cumulative progress checkpoint (each stage archive is cumulative).
+                  - sandium-brave-pinning-progress-v2-
                   - sandium-brave-pinned-source-v2-
                   - sandium-brave-reference-v3-{{ .Branch }}-
 # Restore the furthest cumulative reference available; it includes all completed earlier stages.
@@ -1576,15 +1578,11 @@ jobs:
             mkdir -p "$ROOT/pinning-status"
             READY=false
             if [ -s "$ROOT/brave-work/.sandium/source-ready" ] && [ -s "$ROOT/brave-source-checkpoint.manifest.json" ]; then
-              READY="$(python3 - "$ROOT/brave-source-checkpoint.manifest.json" <<'PY'
-            import json,sys
-            data=json.load(open(sys.argv[1],encoding="utf-8"))
-            print("true" if data.get("ready") is True else "false")
-            PY
-            )"
+              READY="$(python3 -c 'import json,sys; print("true" if json.load(open(sys.argv[1],encoding="utf-8")).get("ready") is True else "false")' "$ROOT/brave-source-checkpoint.manifest.json")"
             fi
             {
               if [ "$READY" = "true" ]; then echo "PINNING_READY=true"; else echo "PINNING_READY=false"; fi
+              if [ -s "$ROOT/brave-work/.sandium/source-prep-progress.txt" ] && grep -qx 'READY_ALREADY=true' "$ROOT/brave-work/.sandium/source-prep-progress.txt"; then echo "READY_ALREADY=true"; fi
               echo "STAGE=$STAGE"
               echo "WORKFLOW_ID=${CIRCLE_WORKFLOW_ID:-unknown}"
             } > "$ROOT/pinning-status/stage-$STAGE-result.env"

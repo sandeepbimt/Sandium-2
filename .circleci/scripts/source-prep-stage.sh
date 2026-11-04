@@ -63,6 +63,10 @@ run_phase sync 1 "$STATE/source-sync-complete" || { rc=$?; [ "$rc" -eq 2 ] || ex
 if [ "$TIME_SLICE_EXPIRED" = false ]; then run_phase hooks 2 "$STATE/source-runhooks-complete" || { rc=$?; [ "$rc" -eq 2 ] || exit "$rc"; }; fi
 if [ "$TIME_SLICE_EXPIRED" = false ]; then run_phase configure 3 "$STATE/source-configure-complete" || { rc=$?; [ "$rc" -eq 2 ] || exit "$rc"; }; fi
 if [ "$TIME_SLICE_EXPIRED" = false ]; then run_phase gn 4 "$STATE/source-gn-complete" || { rc=$?; [ "$rc" -eq 2 ] || exit "$rc"; }; fi
+RESTORED_READY=false
+if [ -s "$STATE/source-ready-restored" ] && [ "$PIN_REQUEST_ID" = "$REQUEST_ID" ]; then
+  RESTORED_READY=true
+fi
 READY=false; PHASE=pinning-incomplete
 if [ -s "$STATE/source-sync-complete" ] && [ -s "$STATE/source-runhooks-complete" ] && [ -s "$STATE/source-configure-complete" ] && [ -s "$STATE/source-gn-complete" ]; then
   test -s "$WORK/.gclient"; test -s "$WORK/.gclient_entries"; test -s "$PINS"
@@ -83,13 +87,19 @@ fi
 {
   echo "STAGE=$STAGE"; echo "PHASE=$PHASE"; echo "WORKFLOW_ID=${CIRCLE_WORKFLOW_ID:-local}"
   echo "REFRESH_REQUEST_ID=$REQUEST_ID"; cat "$PINS"
+  if [ "$RESTORED_READY" = true ] && [ "$READY" = true ]; then echo "READY_ALREADY=true"; fi
   echo "PINNING_SECONDS=$((SECONDS-START_SECONDS))"; echo "SAVED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 } > "$STATE/source-prep-progress.txt"
 export SANDIUM_ARCHIVE_WORKERS=8
 if [ "$READY" = true ]; then
-  python3 "$ROOT/.circleci/scripts/sandium-source-shards.py" archive --root "$ROOT" --workers 8 --stage "$STAGE" --ready
-  python3 "$ROOT/.circleci/scripts/sandium-source-shards.py" verify --root "$ROOT" --workers 8 --ready --zstd-test
-  echo "SANDIUM_PINNING_ARCHIVE=PASS ready=true stage=$STAGE"
+  if [ "$RESTORED_READY" = true ]; then
+    touch "$STATE/source-archive-unchanged"
+    echo "SANDIUM_PINNING_ARCHIVE=REUSE already-verified-ready-reference=true stage=$STAGE; no duplicate archive"
+  else
+    python3 "$ROOT/.circleci/scripts/sandium-source-shards.py" archive --root "$ROOT" --workers 8 --stage "$STAGE" --ready
+    python3 "$ROOT/.circleci/scripts/sandium-source-shards.py" verify --root "$ROOT" --workers 8 --ready --zstd-test
+    echo "SANDIUM_PINNING_ARCHIVE=PASS ready=true stage=$STAGE"
+  fi
 else
   if [ "$STAGE" = "1" ]; then
     python3 "$ROOT/.circleci/scripts/sandium-source-shards.py" archive --root "$ROOT" --workers 8 --stage "$STAGE"
