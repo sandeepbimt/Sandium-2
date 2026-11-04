@@ -5,7 +5,7 @@ parameters:
   # Switch the default to FAST MODE after FULL MODE promotion succeeds.
   sandium_build_mode:
     type: enum
-    enum: [full, fast]
+    enum: [full, fast, source-prep]
     default: fast
 
 jobs:
@@ -1434,6 +1434,137 @@ jobs:
             fi
             echo "STAGE_CONTINUATION=PASS; next stage will resume and must make useful progress."
 
+  brave-source-preparation-stage:
+    parameters:
+      stage_index:
+        type: integer
+    machine:
+      image: ubuntu-2404:current
+    resource_class: large
+    steps:
+      - run:
+          name: Validate BuildBuddy credentials and create source-prep helper
+          command: |
+            set -eu
+            if [ -z "$(printenv BUILDBUDDY_API_KEY 2>/dev/null || true)" ]; then
+              echo "MISSING_REQUIRED_SECRET=BUILDBUDDY_API_KEY" >&2
+              exit 1
+            fi
+            HELPER=/tmp/sandium-buildbuddy-credential-helper.py
+            printf '%s\n' \
+              '#!/usr/bin/env python3' \
+              'import json' \
+              'import os' \
+              'import sys' \
+              '' \
+              'if len(sys.argv) < 2 or sys.argv[1] != "get":' \
+              '    raise SystemExit(1)' \
+              'sys.stdin.read()' \
+              'key = os.environ["BUILDBUDDY_API_KEY"]' \
+              'print(json.dumps({"headers": {"x-buildbuddy-api-key": [key]}}))' \
+              > "$HELPER"
+            chmod 700 "$HELPER"
+      - checkout
+      - when:
+          condition:
+            equal: [1, << parameters.stage_index >>]
+          steps:
+            - restore_cache:
+                name: Restore latest pinned source, compiled reference, or protected canonical base
+                keys:
+                  - sandium-brave-pinned-source-v1-
+                  - sandium-brave-reference-v3-{{ .Branch }}-
+                  - sandium-brave-handoff-v2-sandium/fix-archive-completion-gate-d0bc6af6-e2a7-451e-8561-3c90eb48c2e1-stage-1
+      - when:
+          condition:
+            equal: [2, << parameters.stage_index >>]
+          steps:
+            - restore_cache:
+                name: Restore source-preparation Stage 1 checkpoint
+                keys:
+                  - sandium-brave-source-progress-v1-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-1
+      - when:
+          condition:
+            equal: [3, << parameters.stage_index >>]
+          steps:
+            - restore_cache:
+                name: Restore source-preparation Stage 2 checkpoint
+                keys:
+                  - sandium-brave-source-progress-v1-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-2
+      - when:
+          condition:
+            equal: [4, << parameters.stage_index >>]
+          steps:
+            - restore_cache:
+                name: Restore source-preparation Stage 3 checkpoint
+                keys:
+                  - sandium-brave-source-progress-v1-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-3
+      - when:
+          condition:
+            equal: [5, << parameters.stage_index >>]
+          steps:
+            - restore_cache:
+                name: Restore source-preparation Stage 4 checkpoint
+                keys:
+                  - sandium-brave-source-progress-v1-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-4
+      - restore_cache:
+          name: Restore pinned Node 24 and pnpm 11 runtime
+          keys:
+            - sandium-brave-node-v2-24.16.0-pnpm-11.11.0
+      - restore_cache:
+          name: Restore Ubuntu Android build-dependency package cache
+          keys:
+            - sandium-brave-apt-v1-ubuntu2404-
+      - run:
+          name: Restore prior source-preparation checkpoint
+          command: |
+            set -euo pipefail
+            ROOT="$CIRCLE_WORKING_DIRECTORY"
+            export SANDIUM_ARCHIVE_WORKERS=8
+            if [ "<< parameters.stage_index >>" = "1" ]; then
+              bash .circleci/scripts/restore-brave-source-checkpoint.sh base
+            else
+              bash .circleci/scripts/restore-brave-source-checkpoint.sh progress
+            fi
+      - run:
+          name: Prepare pinned Brave source in resumable phase << parameters.stage_index >>
+          no_output_timeout: 45m
+          command: |
+            set -euo pipefail
+            bash .circleci/scripts/source-prep-stage.sh "<< parameters.stage_index >>"
+      - when:
+          condition:
+            not:
+              equal: [5, << parameters.stage_index >>]
+          steps:
+            - save_cache:
+                name: Save source-preparation stage << parameters.stage_index >> checkpoint
+                key: sandium-brave-source-progress-v1-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-<< parameters.stage_index >>
+                paths:
+                  - brave-source-checkpoint.shards
+                  - brave-source-checkpoint.manifest.json
+      - when:
+          condition:
+            equal: [5, << parameters.stage_index >>]
+          steps:
+            - save_cache:
+                name: Promote immutable pinned Brave/Chromium source-ready reference
+                key: sandium-brave-pinned-source-v1-v1.99.54-157.0.8103.30-{{ .Environment.CIRCLE_WORKFLOW_ID }}
+                paths:
+                  - brave-source-checkpoint.shards
+                  - brave-source-checkpoint.manifest.json
+      - save_cache:
+          name: Save Android package download cache
+          key: sandium-brave-apt-v1-ubuntu2404-{{ .Branch }}-{{ epoch }}
+          paths:
+            - .apt-cache
+          when: always
+      - save_cache:
+          name: Save pinned Node and pnpm runtime
+          key: sandium-brave-node-v2-24.16.0-pnpm-11.11.0
+          paths:
+            - node-runtime
+
   brave-android-staged-build:
     parameters:
       stage_index:
@@ -1608,9 +1739,9 @@ jobs:
             - restore_cache:
                 name: Restore v1.99.54 reference or protected canonical 26GB checkpoint
                 keys:
+                  # Prefer a compiled reference, then source-ready Chromium 157, then protected canonical base.
                   - sandium-brave-reference-v3-{{ .Branch }}-
-                        # Restore the accepted canonical 26GB v1.98.62 checkpoint as
-                  # the protected source/dependency base for this separate upgrade.
+                  - sandium-brave-pinned-source-v1-v1.99.54-157.0.8103.30-
                   - sandium-brave-handoff-v2-sandium/fix-archive-completion-gate-d0bc6af6-e2a7-451e-8561-3c90eb48c2e1-stage-1
                   # Migration fallbacks for the previous single-file reference/handoff format.
                   - sandium-brave-reference-v1-{{ .Branch }}-
@@ -2529,11 +2660,57 @@ workflows:
               only:
                 - sandfox/checkpoint-stage-v1
                 - ss2-from-ss1
+  sandium-source-preparation:
+    when:
+      equal: [source-prep, << pipeline.parameters.sandium_build_mode >>]
+    jobs:
+      - brave-source-preparation-stage:
+          name: SANDIUM-SOURCE-PREP-stage-1
+          stage_index: 1
+          filters:
+            branches:
+              only:
+                - brave/vanilla-v1.99.54
+      - brave-source-preparation-stage:
+          name: SANDIUM-SOURCE-PREP-stage-2
+          stage_index: 2
+          requires: [SANDIUM-SOURCE-PREP-stage-1]
+          filters:
+            branches:
+              only:
+                - brave/vanilla-v1.99.54
+      - brave-source-preparation-stage:
+          name: SANDIUM-SOURCE-PREP-stage-3
+          stage_index: 3
+          requires: [SANDIUM-SOURCE-PREP-stage-2]
+          filters:
+            branches:
+              only:
+                - brave/vanilla-v1.99.54
+      - brave-source-preparation-stage:
+          name: SANDIUM-SOURCE-PREP-stage-4
+          stage_index: 4
+          requires: [SANDIUM-SOURCE-PREP-stage-3]
+          filters:
+            branches:
+              only:
+                - brave/vanilla-v1.99.54
+      - brave-source-preparation-stage:
+          name: SANDIUM-SOURCE-PREP-stage-5
+          stage_index: 5
+          requires: [SANDIUM-SOURCE-PREP-stage-4]
+          filters:
+            branches:
+              only:
+                - brave/vanilla-v1.99.54
   sandium-full-mode:
     when:
-      or:
-        - equal: [full, << pipeline.parameters.sandium_build_mode >>]
-        - equal: [brave/vanilla-v1.99.54, << pipeline.git.branch >>]
+      and:
+        - not:
+            equal: [source-prep, << pipeline.parameters.sandium_build_mode >>]
+        - or:
+            - equal: [full, << pipeline.parameters.sandium_build_mode >>]
+            - equal: [brave/vanilla-v1.99.54, << pipeline.git.branch >>]
     jobs:
       - brave-android-staged-build:
           name: SANDIUM-FULL-MODE-stage-1
