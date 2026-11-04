@@ -24,9 +24,36 @@ mkdir -p "$ROOT/brave-work"
 SRC_DIR="$ROOT/brave-work/src"
 CORE_DIR="$SRC_DIR/brave"
 OUT="$SRC_DIR/out/android_Release_arm64"
-BRAVE_CORE_TAG="v1.99.54"
-CHROMIUM_URL="https://chromium.googlesource.com/chromium/src.git"
 BRAVE_STAGE_INDEX="${BRAVE_STAGE_INDEX:?BRAVE_STAGE_INDEX is required}"
+CHROMIUM_URL="https://chromium.googlesource.com/chromium/src.git"
+PINS_FILE="$ROOT/brave-work/.sandium/source-pins.env"
+REQUEST_ID_FILE="$ROOT/.circleci/source-pin-refresh-id"
+REQUEST_ID="$(tr -d '\\r\\n' < "$REQUEST_ID_FILE")"
+STORED_PIN_REQUEST_ID="$(sed -n 's/^REFRESH_REQUEST_ID=//p' "$PINS_FILE" 2>/dev/null | head -n 1 || true)"
+if [ "$BRAVE_STAGE_INDEX" != "1" ]; then
+  test -s "$PINS_FILE" || { echo "BRAVE_PIN_METADATA_GATE=FAIL later phase has no source-pins.env" >&2; exit 1; }
+  BRAVE_CORE_TAG="$(sed -n 's/^BRAVE_CORE_TAG=//p' "$PINS_FILE" | head -n 1)"
+  test -n "$BRAVE_CORE_TAG" || { echo "BRAVE_PIN_METADATA_GATE=FAIL stored Brave tag is empty" >&2; exit 1; }
+  echo "BRAVE_RELEASE_PIN=RESTORED tag=$BRAVE_CORE_TAG request_id=$REQUEST_ID"
+elif [ -s "$PINS_FILE" ] && { [ -z "$STORED_PIN_REQUEST_ID" ] || [ "$STORED_PIN_REQUEST_ID" = "$REQUEST_ID" ]; }; then
+  # Keep an in-progress request pinned to its original Brave/Chromium pair.
+  # Legacy checkpoints without the request field are migrated after the
+  # package's Chromium tag and both actual Git checkouts are verified.
+  BRAVE_CORE_TAG="$(sed -n 's/^BRAVE_CORE_TAG=//p' "$PINS_FILE" | head -n 1)"
+  test -n "$BRAVE_CORE_TAG" || { echo "BRAVE_PIN_METADATA_GATE=FAIL stored Brave tag is empty" >&2; exit 1; }
+  echo "BRAVE_RELEASE_PIN=RESUME tag=$BRAVE_CORE_TAG request_id=$REQUEST_ID"
+elif [ -n "${SANDIUM_BRAVE_CORE_TAG:-}" ]; then
+  BRAVE_CORE_TAG="$SANDIUM_BRAVE_CORE_TAG"
+  echo "BRAVE_RELEASE_PIN=OVERRIDE tag=$BRAVE_CORE_TAG"
+else
+  RELEASE_JSON="$(curl -fsSL --retry 3 --retry-all-errors --connect-timeout 15 --max-time 45 \\
+    -H 'Accept: application/vnd.github+json' \\
+    -H 'X-GitHub-Api-Version: 2022-11-28' \\
+    -H 'User-Agent: Sandium-Pinned-Data-Save' \\
+    https://api.github.com/repos/brave/brave-browser/releases/latest)"
+  BRAVE_CORE_TAG="$(python3 -c 'import json,re,sys; d=json.load(sys.stdin); tag=d.get("tag_name",""); assert not d.get("draft") and not d.get("prerelease"); assert re.fullmatch(r"v[0-9]+\\.[0-9]+\\.[0-9]+",tag), "latest Brave release is not a stable version tag: "+repr(tag); print(tag)' <<< "$RELEASE_JSON")"
+  echo "BRAVE_RELEASE_PIN=LATEST_STABLE_RESOLVED tag=$BRAVE_CORE_TAG source=brave-browser/releases/latest"
+fi
 
 # Separate dependency installation from Brave sync. A successful install is
 # reusable only for the exact package, lockfile and npm-config fingerprint.
@@ -88,30 +115,48 @@ else
 fi
 cd "$CORE_DIR"
 CHROMIUM_TAG="$(node -e 'console.log(JSON.parse(require("fs").readFileSync("package.json")).config.projects.chrome.tag)')"
-if [ "$BRAVE_STAGE_INDEX" = "1" ] && [ ! -s "$ROOT/brave-work/.sandium/source-pins.env" ]; then
-  # First-ever bootstrap only. A restored Stage 1 progress checkpoint already
-  # contains the exact resolved pin; reuse it across workflow retries instead
-  # of repeating the remote tag lookup.
-  CHROMIUM_PIN="$(git ls-remote "$CHROMIUM_URL" "refs/tags/$CHROMIUM_TAG" "refs/tags/$CHROMIUM_TAG^{}" | awk -v ref="refs/tags/$CHROMIUM_TAG" '$2 == ref { plain=$1 } $2 == ref"^{}" { peeled=$1 } END { if (peeled != "") print peeled; else if (plain != "") print plain; else exit 1 }')"
-  echo "BRAVE_CHROMIUM_REMOTE_LOOKUP=PERFORMED stage=1"
+if [ "$BRAVE_STAGE_INDEX" = "1" ]; then
+  PINNED_BRAVE_TAG="$(sed -n 's/^BRAVE_CORE_TAG=//p' "$PINS_FILE" 2>/dev/null | head -n 1 || true)"
+  PINNED_CHROMIUM_TAG="$(sed -n 's/^CHROMIUM_TAG=//p' "$PINS_FILE" 2>/dev/null | head -n 1 || true)"
+  if [ ! -s "$PINS_FILE" ] || [ "$PINNED_BRAVE_TAG" != "$BRAVE_CORE_TAG" ] || [ "$PINNED_CHROMIUM_TAG" != "$CHROMIUM_TAG" ]; then
+    # Resolve the exact commit behind the Chromium tag required by this Brave
+    # release. Record it before sync so all stages and retries retain one pin.
+    CHROMIUM_PIN="$(git ls-remote "$CHROMIUM_URL" "refs/tags/$CHROMIUM_TAG" "refs/tags/$CHROMIUM_TAG^{}" | awk -v ref="refs/tags/$CHROMIUM_TAG" '$2 == ref { plain=$1 } $2 == ref"^{}" { peeled=$1 } END { if (peeled != "") print peeled; else if (plain != "") print plain; else exit 1 }')"
+    echo "BRAVE_CHROMIUM_REMOTE_LOOKUP=PERFORMED stage=1 tag=$CHROMIUM_TAG"
+  else
+    CHROMIUM_PIN="$(sed -n 's/^CHROMIUM_SHA=//p' "$PINS_FILE" | head -n 1)"
+    echo "BRAVE_CHROMIUM_PIN_METADATA=RESTORED brave=$BRAVE_CORE_TAG chromium=$CHROMIUM_TAG sha=$CHROMIUM_PIN request_id=${STORED_PIN_REQUEST_ID:-legacy}"
+  fi
 else
-  PINS_FILE="$ROOT/brave-work/.sandium/source-pins.env"
   test -s "$PINS_FILE" || {
     echo "BRAVE_SOURCE_REUSE=FAIL restored source-pins.env is missing" >&2
     exit 1
   }
+  PINNED_BRAVE_TAG="$(sed -n 's/^BRAVE_CORE_TAG=//p' "$PINS_FILE" | head -n 1)"
   PINNED_CHROMIUM_TAG="$(sed -n 's/^CHROMIUM_TAG=//p' "$PINS_FILE" | head -n 1)"
   CHROMIUM_PIN="$(sed -n 's/^CHROMIUM_SHA=//p' "$PINS_FILE" | head -n 1)"
-  if [ "$BRAVE_STAGE_INDEX" = "1" ]; then
-    echo "BRAVE_CHROMIUM_PIN_REUSE=PASS restored request pin=$CHROMIUM_PIN"
-  else
-    echo "BRAVE_CHROMIUM_REMOTE_LOOKUP=SKIPPED stage=$BRAVE_STAGE_INDEX sha=$CHROMIUM_PIN"
-  fi
-  test "$PINNED_CHROMIUM_TAG" = "$CHROMIUM_TAG" || {
-    echo "BRAVE_SOURCE_REUSE=FAIL restored Chromium tag differs from Brave package.json" >&2
+  test "$PINNED_BRAVE_TAG" = "$BRAVE_CORE_TAG" || {
+    echo "BRAVE_SOURCE_PIN_GATE=FAIL stored Brave tag=$PINNED_BRAVE_TAG differs from phase tag=$BRAVE_CORE_TAG" >&2
     exit 1
   }
-  echo "BRAVE_CHROMIUM_REMOTE_LOOKUP=SKIPPED stage=$BRAVE_STAGE_INDEX sha=$CHROMIUM_PIN"
+  test "$PINNED_CHROMIUM_TAG" = "$CHROMIUM_TAG" || {
+    echo "BRAVE_SOURCE_PIN_GATE=FAIL stored Chromium tag=$PINNED_CHROMIUM_TAG differs from Brave package tag=$CHROMIUM_TAG" >&2
+    exit 1
+  }
+  echo "BRAVE_CHROMIUM_PIN_METADATA=RESTORED stage=$BRAVE_STAGE_INDEX tag=$CHROMIUM_TAG sha=$CHROMIUM_PIN"
+fi
+test -n "$CHROMIUM_PIN" && [ "${#CHROMIUM_PIN}" -eq 40 ] || {
+  echo "BRAVE_CHROMIUM_PIN_GATE=FAIL expected a full 40-character commit SHA" >&2
+  exit 1
+}
+CURRENT_CHROMIUM_CHECKOUT_SHA="$(git -C "$SRC_DIR" rev-parse HEAD 2>/dev/null || true)"
+if [ "$CURRENT_CHROMIUM_CHECKOUT_SHA" = "$CHROMIUM_PIN" ]; then
+  echo "BRAVE_CHROMIUM_CHECKOUT=TARGET sha=$CURRENT_CHROMIUM_CHECKOUT_SHA"
+else
+  echo "BRAVE_CHROMIUM_CHECKOUT=NEEDS_UPDATE current=${CURRENT_CHROMIUM_CHECKOUT_SHA:-missing} target=$CHROMIUM_PIN; metadata alone is not source reuse"
+fi
+if [ -n "${SANDIUM_PINNING_STAGE_INDEX:-}" ]; then
+  echo "SANDIUM_PINNING_STAGE_INDEX=$SANDIUM_PINNING_STAGE_INDEX BRAVE_SOURCE_PHASE_INDEX=$BRAVE_STAGE_INDEX"
 fi
 echo "BRAVE_CORE_TAG=$BRAVE_CORE_TAG"
 echo "CHROMIUM_TAG=$CHROMIUM_TAG"
@@ -122,10 +167,13 @@ test "${#CHROMIUM_PIN}" -eq 40
 if [ "$BRAVE_STAGE_INDEX" = "1" ]; then
   mkdir -p "$ROOT/brave-work/.sandium"
   PINS_TMP="$ROOT/brave-work/.sandium/source-pins.env.tmp"
+  BRAVE_CORE_SHA="$(git -C "$CORE_DIR" rev-parse HEAD)"
   {
     echo "BRAVE_CORE_TAG=$BRAVE_CORE_TAG"
+    echo "BRAVE_CORE_SHA=$BRAVE_CORE_SHA"
     echo "CHROMIUM_TAG=$CHROMIUM_TAG"
     echo "CHROMIUM_SHA=$CHROMIUM_PIN"
+    echo "REFRESH_REQUEST_ID=$REQUEST_ID"
   } > "$PINS_TMP"
   mv "$PINS_TMP" "$ROOT/brave-work/.sandium/source-pins.env"
   echo "BRAVE_SOURCE_PINS=RECORDED before sync for resumable checkpointing"
@@ -254,6 +302,12 @@ if [ "$BRAVE_STAGE_INDEX" != "1" ]; then
     echo "BRAVE_SOURCE_PIN_GATE=FAIL restored Brave tag mismatch" >&2
     exit 1
   }
+  EXPECTED_BRAVE_SHA="$(sed -n 's/^BRAVE_CORE_SHA=//p' "$PINS_FILE" | head -n 1)"
+  ACTUAL_BRAVE_SHA="$(git -C "$CORE_DIR" rev-parse HEAD)"
+  if [ -n "$EXPECTED_BRAVE_SHA" ] && [ "$ACTUAL_BRAVE_SHA" != "$EXPECTED_BRAVE_SHA" ]; then
+    echo "BRAVE_SOURCE_PIN_GATE=FAIL restored Brave SHA mismatch expected=$EXPECTED_BRAVE_SHA actual=$ACTUAL_BRAVE_SHA" >&2
+    exit 1
+  fi
   test "$ACTUAL_CHROMIUM_SHA" = "$CHROMIUM_PIN" || {
     echo "BRAVE_SOURCE_PIN_GATE=FAIL restored Chromium SHA mismatch expected=$CHROMIUM_PIN actual=$ACTUAL_CHROMIUM_SHA" >&2
     exit 1
