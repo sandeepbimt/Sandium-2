@@ -614,6 +614,7 @@ if [ "$SOURCE_PREP_PHASE" = "final" ]; then
   exit 0
 fi
 
+if [ "$BRAVE_STAGE_INDEX" != "1" ]; then
   ACTUAL_CHROMIUM_SHA="$(git -C "$SRC_DIR" rev-parse HEAD)"
   ACTUAL_BRAVE_TAG="$(git -C "$CORE_DIR" describe --tags --exact-match 2>/dev/null || true)"
   test "$ACTUAL_BRAVE_TAG" = "$BRAVE_CORE_TAG" || {
