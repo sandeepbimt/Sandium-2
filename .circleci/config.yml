@@ -1643,7 +1643,7 @@ jobs:
             set -euo pipefail
             ROOT="$CIRCLE_WORKING_DIRECTORY"
             python3 .circleci/scripts/sandium-source-shards.py verify --root "$ROOT" --workers 8 --ready --zstd-test
-            python3 - "$ROOT" "$ROOT/.circleci/source-pin-refresh-id" <<'PY'
+            python3 - "$ROOT" "$ROOT/.circleci/source-pin-refresh-id" \<<'PY'
             import json,sys
             from pathlib import Path
             root=Path(sys.argv[1])
