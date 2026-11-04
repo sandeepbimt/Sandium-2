@@ -9,6 +9,19 @@ parameters:
     default: fast
 
 jobs:
+  sandium-source-prep-validation:
+    docker:
+      - image: cimg/python:3.12
+    resource_class: small
+    steps:
+      - checkout
+      - run:
+          name: Validate pinned Brave source preparation logic
+          command: |
+            set -euo pipefail
+            bash -n .circleci/scripts/prepare-brave-source.sh
+            python3 .circleci/scripts/test-brave-source-sync-strategy.py
+            echo "SANDIUM_SOURCE_PREP_VALIDATION=PASS"
   c4-afterbird-staged-build:
     parameters:
       stage_index:
@@ -2459,6 +2472,13 @@ jobs:
             cat "$CIRCLE_WORKING_DIRECTORY/reference-candidate-manifest.txt"
 
 workflows:
+  sandium-source-prep-validation:
+    jobs:
+      - sandium-source-prep-validation:
+          filters:
+            branches:
+              only:
+                - optimization/incremental-brave-source-sync
   c4-afterbird-staged-checkpoint-build:
     jobs:
       - c4-afterbird-staged-build:
