@@ -40,7 +40,9 @@ with tempfile.TemporaryDirectory(prefix="sandium-source-checkpoint-test-") as te
     (work / ".gclient_entries").write_text("entries\n", encoding="utf-8")
     (src / "build" / "install-build-deps.sh").write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
     (src / "third_party" / "sample" / "dep.txt").write_text("dependency\n", encoding="utf-8")
-    (core / "package.json").write_text('{"version":"1.99.54"}\n', encoding="utf-8")
+    (core / "package.json").write_text(
+        '{"version":"1.99.54","config":{"projects":{"chrome":{"tag":"157.0.8103.30"}}}}\n',
+        encoding="utf-8")
     (core / "pnpm-lock.yaml").write_text("lockfileVersion: '9.0'\n", encoding="utf-8")
     (core / "node_modules" / ".modules.yaml").write_text("layoutVersion: 9\n", encoding="utf-8")
     (src / "build" / "config" / "siso" / ".sisoenv").write_text("SISO_REAPI_ADDRESS=remote.buildbuddy.io:443\n", encoding="utf-8")
@@ -79,8 +81,10 @@ with tempfile.TemporaryDirectory(prefix="sandium-source-checkpoint-test-") as te
     run(["git", "-C", str(core), "add", "README.md", "package.json", "pnpm-lock.yaml"])
     run(["git", "-C", str(core), "commit", "-m", "test Brave Core"])
     run(["git", "-C", str(core), "tag", "v1.99.54"])
+    brave_sha = run(["git", "-C", str(core), "rev-parse", "HEAD"])
     (work / ".sandium" / "source-pins.env").write_text(
-        "BRAVE_CORE_TAG=v1.99.54\nCHROMIUM_TAG=157.0.8103.30\nCHROMIUM_SHA=%s\n" % ("0" * 40),
+        "BRAVE_CORE_TAG=v1.99.54\nBRAVE_CORE_SHA=%s\nCHROMIUM_TAG=157.0.8103.30\nCHROMIUM_SHA=%s\nREFRESH_REQUEST_ID=unit-test\n"
+        % (brave_sha, "0" * 40),
         encoding="utf-8")
 
     # A timed-out gclient sync can leave a valid previous Chromium HEAD but a
@@ -105,7 +109,7 @@ with tempfile.TemporaryDirectory(prefix="sandium-source-checkpoint-test-") as te
     # set instead of rebuilding and uploading the same archive.
     previous_manifest = module.sha256_file(root / module.MANIFEST_NAME)
     (work / ".sandium" / "source-prep-progress.txt").write_text(
-        "STAGE=2\\nPHASE=pinning-incomplete\\nREFRESH_REQUEST_ID=unit-test\\n", encoding="utf-8")
+        "STAGE=2\nPHASE=pinning-incomplete\nREFRESH_REQUEST_ID=unit-test\n", encoding="utf-8")
     module.archive(root, workers=2, stage=2, ready=False, skip_if_unchanged=True)
     assert (work / ".sandium" / "source-archive-unchanged").is_file()
     assert module.sha256_file(root / module.MANIFEST_NAME) == previous_manifest
@@ -114,12 +118,12 @@ with tempfile.TemporaryDirectory(prefix="sandium-source-checkpoint-test-") as te
 
     # A real source change advances the fingerprint and creates a new cumulative
     # archive that the next stage can restore.
-    (src / "README.md").write_text("chromium source advanced\\n", encoding="utf-8")
+    (src / "README.md").write_text("chromium source advanced\n", encoding="utf-8")
     run(["git", "-C", str(src), "add", "README.md"])
     run(["git", "-C", str(src), "commit", "-m", "test chromium source update"])
     chromium_sha = run(["git", "-C", str(src), "rev-parse", "HEAD"])
     (work / ".sandium" / "source-prep-progress.txt").write_text(
-        "STAGE=3\\nPHASE=pinning-incomplete\\nREFRESH_REQUEST_ID=unit-test\\n", encoding="utf-8")
+        "STAGE=3\nPHASE=pinning-incomplete\nREFRESH_REQUEST_ID=unit-test\n", encoding="utf-8")
     module.archive(root, workers=2, stage=3, ready=False, skip_if_unchanged=True)
     assert not (work / ".sandium" / "source-archive-unchanged").exists()
     advanced = module.verify(root, workers=2, zstd_test=False, require_ready=False)
@@ -129,10 +133,11 @@ with tempfile.TemporaryDirectory(prefix="sandium-source-checkpoint-test-") as te
     # Complete the source pin and prove that the same archive format promotes
     # the exact source-ready state, while still excluding compiled objects.
     (work / ".sandium" / "source-pins.env").write_text(
-        "BRAVE_CORE_TAG=v1.99.54\nCHROMIUM_TAG=157.0.8103.30\nCHROMIUM_SHA=%s\n" % chromium_sha,
+        "BRAVE_CORE_TAG=v1.99.54\nBRAVE_CORE_SHA=%s\nCHROMIUM_TAG=157.0.8103.30\nCHROMIUM_SHA=%s\nREFRESH_REQUEST_ID=unit-test\n"
+        % (brave_sha, chromium_sha),
         encoding="utf-8")
     (work / ".sandium" / "source-prep-progress.txt").write_text(
-        "STAGE=2\nPHASE=source-ready\nREFRESH_REQUEST_ID=unit-test\n", encoding="utf-8")
+        "STAGE=4\nPHASE=source-ready\nREFRESH_REQUEST_ID=unit-test\n", encoding="utf-8")
     module.archive(root, workers=2, stage=2, ready=True)
     payload = module.verify(root, workers=2, zstd_test=True, require_ready=True)
     assert payload["ready"] is True
