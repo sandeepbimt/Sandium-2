@@ -111,6 +111,17 @@ echo "CHROMIUM_PIN=$CHROMIUM_PIN"
 echo "BRAVE_STAGE=${BRAVE_STAGE_INDEX:?BRAVE_STAGE_INDEX is required}"
 test -n "$CHROMIUM_TAG"
 test "${#CHROMIUM_PIN}" -eq 40
+if [ "$BRAVE_STAGE_INDEX" = "1" ]; then
+  mkdir -p "$ROOT/brave-work/.sandium"
+  PINS_TMP="$ROOT/brave-work/.sandium/source-pins.env.tmp"
+  {
+    echo "BRAVE_CORE_TAG=$BRAVE_CORE_TAG"
+    echo "CHROMIUM_TAG=$CHROMIUM_TAG"
+    echo "CHROMIUM_SHA=$CHROMIUM_PIN"
+  } > "$PINS_TMP"
+  mv "$PINS_TMP" "$ROOT/brave-work/.sandium/source-pins.env"
+  echo "BRAVE_SOURCE_PINS=RECORDED before sync for resumable checkpointing"
+fi
 SOURCE_PREP_PHASE="${SANDIUM_SOURCE_PREP_PHASE:-all}"
 pnpm config set store-dir "$HOME/.cache/pnpm-store"
   # Use Brave's native RBE configuration path. At v1.99.54,
@@ -153,17 +164,14 @@ if [ "$BRAVE_STAGE_INDEX" = "1" ]; then
      [ -d "$SRC_DIR/third_party" ] && [ -d "$SRC_DIR/build" ]; then
     SOURCE_REUSE=true
     echo "BRAVE_SOURCE_REUSE=PASS; pinned source restored."
-    if [ -s "$ROOT/brave-work/.sandium/workspace-checkpoint-restored" ]; then
+    if [ -s "$ROOT/brave-work/.sandium/source-sync-complete" ]; then
       if [ -s "$ROOT/brave-work/.sandium/source-ready-restored" ]; then SOURCE_ARCHIVE_PIN_MATCH=true; fi
-      # The archive already contains the matching .gclient, generated GN/Siso
-      # configuration, Ninja metadata and Siso filesystem journal. Re-running
-      # pnpm sync here can rewrite that state and invalidate the checkpoint.
-      echo "BRAVE_CHECKPOINT_PRESERVATION=PASS; skipping pnpm sync on restored workspace."
+      echo "BRAVE_SOURCE_SYNC=REUSE; previous source sync is complete."
     else
-      echo "BRAVE_SOURCE_REUSE=PASS; no portable checkpoint marker; refreshing Brave config."
+      echo "BRAVE_SOURCE_REUSE=PASS; resume Chromium sync from restored source tree."
       cd "$CORE_DIR"
       if [ "$SOURCE_PREP_PHASE" = "sync" ]; then
-        run_brave_sync --target_os=android --target_arch=arm64 --no-history --sync_chromium=false --nohooks
+        run_brave_sync --target_os=android --target_arch=arm64 --no-history --nohooks
       else
         run_brave_sync --target_os=android --target_arch=arm64 --no-history --sync_chromium=false
       fi
@@ -270,6 +278,13 @@ if [ "$BRAVE_STAGE_INDEX" != "1" ]; then
 fi
 
 if [ "$SOURCE_PREP_PHASE" = "sync" ]; then
+  ACTUAL_SYNC_SHA="$(git -C "$SRC_DIR" rev-parse HEAD)"
+  test "$ACTUAL_SYNC_SHA" = "$CHROMIUM_PIN" || {
+    echo "BRAVE_SOURCE_PIN_GATE=FAIL sync returned before pinned Chromium SHA expected=$CHROMIUM_PIN actual=$ACTUAL_SYNC_SHA" >&2
+    exit 1
+  }
+  mkdir -p "$ROOT/brave-work/.sandium"
+  touch "$ROOT/brave-work/.sandium/source-sync-complete"
   echo "SANDIUM_SOURCE_PREP_PHASE=sync PASS; Chromium sync completed without runhooks."
   exit 0
 fi
@@ -283,6 +298,8 @@ if [ "$SOURCE_PREP_PHASE" = "hooks" ]; then
     exit 1
   }
   "$CORE_DIR/vendor/depot_tools/gclient" runhooks
+  mkdir -p "$ROOT/brave-work/.sandium"
+  touch "$ROOT/brave-work/.sandium/source-runhooks-complete"
   echo "BRAVE_GCLIENT_RUNHOOKS=PASS"
   exit 0
 fi
@@ -441,15 +458,7 @@ PY
   grep -n -A8 -B2 'canonicalize_dir' "$BRAVE_SISO_CONFIG"
   grep -n -F '"./args.gn"' "$BRAVE_SISO_CONFIG"
 
-  # Delay host-package installation until sync/configuration succeeds.
-  cd "$ROOT/brave-work"
-  # Keep apt indexes and downloaded .deb files in CircleCI's workspace cache.
-  # The VM is fresh for every workflow, so /var/cache/apt cannot persist by itself.
-  mkdir -p "$ROOT/.apt-cache/archives/partial" "$ROOT/.apt-cache/lists/partial"
-  printf 'Dir::Cache::archives "%s";\nDir::State::lists "%s";\n' \
-    "$ROOT/.apt-cache/archives" "$ROOT/.apt-cache/lists" \
-    | sudo tee /etc/apt/apt.conf.d/99sandium-workspace-cache >/dev/null
-  ./src/build/install-build-deps.sh --android
+  # Host Android packages are installed by compilation jobs, not source pinning.
 
   # Re-run the pinned Chromium Siso configurator after Brave hooks with
   # Brave's native google.star backend, and persist BuildBuddy credentials.
@@ -598,7 +607,7 @@ fi
 
 if [ "$SOURCE_PREP_PHASE" = "gn" ] || [ "$BRAVE_STAGE_INDEX" = "1" ]; then
   cd "$CORE_DIR"
-  if [ -s "$OUT/build.ninja" ] && [ -s "$OUT/args.gn" ]; then
+  if [ -s "$ROOT/brave-work/.sandium/source-gn-complete" ] && [ -s "$OUT/build.ninja" ] && [ -s "$OUT/args.gn" ]; then
     echo "BRAVE_GN_GRAPH_REUSE=PASS; existing GN graph retained."
   else
     echo "BRAVE_GN_GRAPH_REUSE=MISS; source sync skipped if source pin matched; generating GN graph."
