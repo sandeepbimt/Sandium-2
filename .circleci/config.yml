@@ -1639,9 +1639,9 @@ jobs:
             import re
             brave_tag=source.get("brave_core_tag","")
             chromium_tag=source.get("chromium_tag","")
-            if not re.fullmatch(r"v[0-9]+\\.[0-9]+\\.[0-9]+",brave_tag):
+            if not re.fullmatch(r"v[0-9]+[.][0-9]+[.][0-9]+",brave_tag):
                 raise SystemExit("PINNING_REFERENCE_PROMOTION=FAIL Brave pin is not a stable release tag: %r"%brave_tag)
-            if not re.fullmatch(r"[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+",chromium_tag):
+            if not re.fullmatch(r"[0-9]+[.][0-9]+[.][0-9]+[.][0-9]+",chromium_tag):
                 raise SystemExit("PINNING_REFERENCE_PROMOTION=FAIL Chromium pin is not a four-part version: %r"%chromium_tag)
             if source.get("chromium_tag_from_brave_package")!=chromium_tag:
                 raise SystemExit("PINNING_REFERENCE_PROMOTION=FAIL Chromium tag does not match Brave Core package.json")
