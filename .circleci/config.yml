@@ -1740,8 +1740,8 @@ jobs:
                 name: Restore v1.99.54 reference or protected canonical 26GB checkpoint
                 keys:
                   # Prefer a compiled reference, then source-ready Chromium 157, then protected canonical base.
-                  - sandium-brave-reference-v3-{{ .Branch }}-
                   - sandium-brave-pinned-source-v1-v1.99.54-157.0.8103.30-
+                  - sandium-brave-reference-v3-{{ .Branch }}-
                   - sandium-brave-handoff-v2-sandium/fix-archive-completion-gate-d0bc6af6-e2a7-451e-8561-3c90eb48c2e1-stage-1
                   # Migration fallbacks for the previous single-file reference/handoff format.
                   - sandium-brave-reference-v1-{{ .Branch }}-
@@ -1766,8 +1766,8 @@ jobs:
                   # workflow d0bc6af6-e2a7-451e-8561-3c90eb48c2e1.
                   # Restore this exact immutable checkpoint first; do not substitute
                   # an unverified branch-local cache.
-                  - sandium-brave-reference-v3-brave/vanilla-v1.99.54-
                   - sandium-brave-pinned-source-v1-v1.99.54-157.0.8103.30-
+                  - sandium-brave-reference-v3-brave/vanilla-v1.99.54-
                   - sandium-brave-handoff-v2-sandium/fix-archive-completion-gate-d0bc6af6-e2a7-451e-8561-3c90eb48c2e1-stage-1
       - when:
           condition:
@@ -1838,7 +1838,6 @@ jobs:
                   # Restore this exact immutable checkpoint first; do not substitute
                   # an unverified branch-local cache.
                   - sandium-brave-reference-v3-brave/vanilla-v1.99.54-
-                  - sandium-brave-pinned-source-v1-v1.99.54-157.0.8103.30-
                   - sandium-brave-handoff-v2-sandium/fix-archive-completion-gate-d0bc6af6-e2a7-451e-8561-3c90eb48c2e1-stage-1
       - when:
           condition:
@@ -1857,7 +1856,6 @@ jobs:
                   # Restore this exact immutable checkpoint first; do not substitute
                   # an unverified branch-local cache.
                   - sandium-brave-reference-v3-brave/vanilla-v1.99.54-
-                  - sandium-brave-pinned-source-v1-v1.99.54-157.0.8103.30-
                   - sandium-brave-handoff-v2-sandium/fix-archive-completion-gate-d0bc6af6-e2a7-451e-8561-3c90eb48c2e1-stage-1
       - when:
           condition:
@@ -1876,7 +1874,6 @@ jobs:
                   # Restore this exact immutable checkpoint first; do not substitute
                   # an unverified branch-local cache.
                   - sandium-brave-reference-v3-brave/vanilla-v1.99.54-
-                  - sandium-brave-pinned-source-v1-v1.99.54-157.0.8103.30-
                   - sandium-brave-handoff-v2-sandium/fix-archive-completion-gate-d0bc6af6-e2a7-451e-8561-3c90eb48c2e1-stage-1
       - when:
           condition:
@@ -1895,7 +1892,6 @@ jobs:
                   # Restore this exact immutable checkpoint first; do not substitute
                   # an unverified branch-local cache.
                   - sandium-brave-reference-v3-brave/vanilla-v1.99.54-
-                  - sandium-brave-pinned-source-v1-v1.99.54-157.0.8103.30-
                   - sandium-brave-handoff-v2-sandium/fix-archive-completion-gate-d0bc6af6-e2a7-451e-8561-3c90eb48c2e1-stage-1
       - restore_cache:
           keys:
