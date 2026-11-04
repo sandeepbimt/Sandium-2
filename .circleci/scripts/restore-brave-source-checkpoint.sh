@@ -7,9 +7,11 @@ WORK="$ROOT/brave-work"
 case "$MODE" in
   base)
     if [ -d "$ROOT/brave-source-checkpoint.shards" ] && [ -s "$ROOT/brave-source-checkpoint.manifest.json" ]; then
-      echo "SOURCE_PREP_BASE=SOURCE_READY_OR_PRIOR_SOURCE"
-      python3 "$ROOT/.circleci/scripts/sandium-source-shards.py" verify --root "$ROOT" --workers 8
-      python3 "$ROOT/.circleci/scripts/sandium-source-shards.py" restore --root "$ROOT" --workers 8
+      echo "SOURCE_PREP_BASE=PINNED_SOURCE_READY"
+      python3 "$ROOT/.circleci/scripts/sandium-source-shards.py" verify --root "$ROOT" --workers 8 --ready --zstd-test
+      python3 "$ROOT/.circleci/scripts/sandium-source-shards.py" restore --root "$ROOT" --workers 8 --ready
+      mkdir -p "$WORK/.sandium"
+      touch "$WORK/.sandium/source-ready-restored"
     elif [ -d "$ROOT/brave-workspace-checkpoint.shards" ] && [ -s "$ROOT/brave-workspace-checkpoint.manifest.json" ]; then
       echo "SOURCE_PREP_BASE=FULL_WORKSPACE_REFERENCE"
       export BRAVE_STAGE_INDEX=1
