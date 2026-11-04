@@ -1588,13 +1588,18 @@ jobs:
           condition:
             and:
               - equal: [1, << parameters.stage_index >>]
-              - equal: [full, << pipeline.parameters.sandium_build_mode >>]
+              - or:
+                  - equal: [full, << pipeline.parameters.sandium_build_mode >>]
+                  - equal: [brave/vanilla-v1.99.54, << pipeline.git.branch >>]
           steps:
             - restore_cache:
                 name: Restore latest reference or bootstrap legacy checkpoint
                 keys:
                   - sandium-brave-reference-v2-{{ .Branch }}-
                   - sandium-brave-handoff-v2-{{ .Branch }}-
+                  # Restore the accepted canonical 26GB v1.98.62 checkpoint as
+                  # the protected source/dependency base for this separate upgrade.
+                  - sandium-brave-handoff-v2-sandium/fix-archive-completion-gate-d0bc6af6-e2a7-451e-8561-3c90eb48c2e1-stage-1
                   # Migration fallbacks for the previous single-file reference/handoff format.
                   - sandium-brave-reference-v1-{{ .Branch }}-
                   - sandium-brave-handoff-v1-{{ .Branch }}-
@@ -1607,6 +1612,8 @@ jobs:
             and:
               - equal: [1, << parameters.stage_index >>]
               - equal: [fast, << pipeline.parameters.sandium_build_mode >>]
+              - not:
+                  equal: [brave/vanilla-v1.99.54, << pipeline.git.branch >>]
           steps:
             - restore_cache:
                 name: Restore latest promoted Sandium reference
@@ -1616,12 +1623,15 @@ jobs:
                   # workflow d0bc6af6-e2a7-451e-8561-3c90eb48c2e1.
                   # Restore this exact immutable checkpoint first; do not substitute
                   # an unverified branch-local cache.
+                  - sandium-brave-reference-v2-brave/vanilla-v1.99.54-
                   - sandium-brave-handoff-v2-sandium/fix-archive-completion-gate-d0bc6af6-e2a7-451e-8561-3c90eb48c2e1-stage-1
       - when:
           condition:
             and:
               - equal: [2, << parameters.stage_index >>]
-              - equal: [full, << pipeline.parameters.sandium_build_mode >>]
+              - or:
+                  - equal: [full, << pipeline.parameters.sandium_build_mode >>]
+                  - equal: [brave/vanilla-v1.99.54, << pipeline.git.branch >>]
           steps:
             - restore_cache:
                 name: Restore reference Stage 1 handoff
@@ -1632,7 +1642,9 @@ jobs:
           condition:
             and:
               - equal: [3, << parameters.stage_index >>]
-              - equal: [full, << pipeline.parameters.sandium_build_mode >>]
+              - or:
+                  - equal: [full, << pipeline.parameters.sandium_build_mode >>]
+                  - equal: [brave/vanilla-v1.99.54, << pipeline.git.branch >>]
           steps:
             - restore_cache:
                 name: Restore reference Stage 2 handoff
@@ -1643,7 +1655,9 @@ jobs:
           condition:
             and:
               - equal: [4, << parameters.stage_index >>]
-              - equal: [full, << pipeline.parameters.sandium_build_mode >>]
+              - or:
+                  - equal: [full, << pipeline.parameters.sandium_build_mode >>]
+                  - equal: [brave/vanilla-v1.99.54, << pipeline.git.branch >>]
           steps:
             - restore_cache:
                 name: Restore reference Stage 3 handoff
@@ -1654,7 +1668,9 @@ jobs:
           condition:
             and:
               - equal: [5, << parameters.stage_index >>]
-              - equal: [full, << pipeline.parameters.sandium_build_mode >>]
+              - or:
+                  - equal: [full, << pipeline.parameters.sandium_build_mode >>]
+                  - equal: [brave/vanilla-v1.99.54, << pipeline.git.branch >>]
           steps:
             - restore_cache:
                 name: Restore reference Stage 4 handoff
@@ -1666,6 +1682,8 @@ jobs:
             and:
               - equal: [2, << parameters.stage_index >>]
               - equal: [fast, << pipeline.parameters.sandium_build_mode >>]
+              - not:
+                  equal: [brave/vanilla-v1.99.54, << pipeline.git.branch >>]
           steps:
             - restore_cache:
                 name: Restore immutable reference for FAST MODE Stage 2
@@ -1675,12 +1693,15 @@ jobs:
                   # workflow d0bc6af6-e2a7-451e-8561-3c90eb48c2e1.
                   # Restore this exact immutable checkpoint first; do not substitute
                   # an unverified branch-local cache.
+                  - sandium-brave-reference-v2-brave/vanilla-v1.99.54-
                   - sandium-brave-handoff-v2-sandium/fix-archive-completion-gate-d0bc6af6-e2a7-451e-8561-3c90eb48c2e1-stage-1
       - when:
           condition:
             and:
               - equal: [3, << parameters.stage_index >>]
               - equal: [fast, << pipeline.parameters.sandium_build_mode >>]
+              - not:
+                  equal: [brave/vanilla-v1.99.54, << pipeline.git.branch >>]
           steps:
             - restore_cache:
                 name: Restore immutable reference for FAST MODE Stage 3
@@ -1690,12 +1711,15 @@ jobs:
                   # workflow d0bc6af6-e2a7-451e-8561-3c90eb48c2e1.
                   # Restore this exact immutable checkpoint first; do not substitute
                   # an unverified branch-local cache.
+                  - sandium-brave-reference-v2-brave/vanilla-v1.99.54-
                   - sandium-brave-handoff-v2-sandium/fix-archive-completion-gate-d0bc6af6-e2a7-451e-8561-3c90eb48c2e1-stage-1
       - when:
           condition:
             and:
               - equal: [4, << parameters.stage_index >>]
               - equal: [fast, << pipeline.parameters.sandium_build_mode >>]
+              - not:
+                  equal: [brave/vanilla-v1.99.54, << pipeline.git.branch >>]
           steps:
             - restore_cache:
                 name: Restore immutable reference for FAST MODE Stage 4
@@ -1705,12 +1729,15 @@ jobs:
                   # workflow d0bc6af6-e2a7-451e-8561-3c90eb48c2e1.
                   # Restore this exact immutable checkpoint first; do not substitute
                   # an unverified branch-local cache.
+                  - sandium-brave-reference-v2-brave/vanilla-v1.99.54-
                   - sandium-brave-handoff-v2-sandium/fix-archive-completion-gate-d0bc6af6-e2a7-451e-8561-3c90eb48c2e1-stage-1
       - when:
           condition:
             and:
               - equal: [5, << parameters.stage_index >>]
               - equal: [fast, << pipeline.parameters.sandium_build_mode >>]
+              - not:
+                  equal: [brave/vanilla-v1.99.54, << pipeline.git.branch >>]
           steps:
             - restore_cache:
                 name: Restore immutable reference for FAST MODE Stage 5
@@ -1720,6 +1747,7 @@ jobs:
                   # workflow d0bc6af6-e2a7-451e-8561-3c90eb48c2e1.
                   # Restore this exact immutable checkpoint first; do not substitute
                   # an unverified branch-local cache.
+                  - sandium-brave-reference-v2-brave/vanilla-v1.99.54-
                   - sandium-brave-handoff-v2-sandium/fix-archive-completion-gate-d0bc6af6-e2a7-451e-8561-3c90eb48c2e1-stage-1
       - restore_cache:
           keys:
@@ -1741,6 +1769,7 @@ jobs:
           command: |
             set -euo pipefail
             MODE="<< pipeline.parameters.sandium_build_mode >>"
+            if [ "${CIRCLE_BRANCH:-}" = "brave/vanilla-v1.99.54" ]; then MODE=full; fi
             ROOT="$CIRCLE_WORKING_DIRECTORY"
             mkdir -p "$ROOT/brave-work/.sandium"
             # This marker distinguishes an archive created by this run from the
@@ -1750,9 +1779,14 @@ jobs:
             echo "SANDIUM_BUILD_MODE=$MODE"
             if [ "$MODE" = "fast" ]; then
               echo "SANDIUM_CI_NAME=SANDIUM-FAST-MODE"
-              bash "$ROOT/.circleci/scripts/verify-brave-reference.sh"
+              EXPECTED_BRAVE_CORE_TAG=v1.99.54 EXPECTED_CHROMIUM_TAG=157.0.8103.30 EXPECTED_VANILLA_RELEASE=true bash "$ROOT/.circleci/scripts/verify-brave-reference.sh"
             elif [ "$MODE" = "full" ]; then
               echo "SANDIUM_CI_NAME=SANDIUM-FULL-MODE"
+              if [ "${CIRCLE_BRANCH:-}" = "brave/vanilla-v1.99.54" ] && [ "<< parameters.stage_index >>" = "1" ]; then
+                echo "CANONICAL_REFERENCE_VALIDATION=START commit=3c8004b; expected Brave v1.98.62 / Chromium SHA d331de35..."
+                EXPECTED_BRAVE_CORE_TAG=v1.98.62 EXPECTED_CHROMIUM_TAG="" EXPECTED_CHROMIUM_SHA=d331de35ca8ab1358c7a17e4bd41627d55eaef51 EXPECTED_VANILLA_RELEASE=false bash "$ROOT/.circleci/scripts/verify-brave-reference.sh"
+                echo "CANONICAL_REFERENCE_VALIDATION=PASS; the immutable 26GB source/dependency reference is verified before version upgrade."
+              fi
               echo "SANDIUM_FULL_MODE=FORCED; stage budget=20 minutes; checkpoint promotion required."
             else
               echo "SANDIUM_BUILD_MODE_GATE=FAIL unsupported mode=$MODE" >&2
@@ -1822,6 +1856,9 @@ jobs:
             }
             export PATH="$BRAVE_DEPOT_TOOLS:$PATH"
             command -v autoninja >/dev/null || { echo "BRAVE_STAGE_CONFIG_GATE=FAIL autoninja missing from PATH after adding Brave depot_tools" >&2; exit 1; }
+            APK_TARGET="$(gn ls "$OUT" //brave/build/android:sign_app_convert_aab_to_apk)"
+            test "$APK_TARGET" = "//brave/build/android:sign_app_convert_aab_to_apk" || { echo "BRAVE_BUILD_TARGET_GATE=FAIL official Universal APK conversion target missing" >&2; exit 1; }
+            echo "BRAVE_BUILD_TARGET_GATE=PASS target=$APK_TARGET"
             if [ "<< parameters.stage_index >>" = "1" ]; then
               for required in build.ninja args.gn; do
                 if [ ! -s "$OUT/$required" ]; then
@@ -1852,6 +1889,11 @@ jobs:
               require_arg use_remoteexec true
               require_arg use_siso true
               require_arg use_reclient false
+              require_arg is_official_build true
+              require_arg android_aab_to_apk true
+              require_arg target_android_output_format '"aab"'
+              require_arg android_channel '"stable"'
+              require_arg chrome_public_manifest_package '"com.brave.browser"'
               echo "BRAVE_BUILD_GRAPH_GATE=PASS"
               echo "BRAVE_REMOTE_EXECUTION_CONFIG_GATE=PASS"
             fi
@@ -1861,7 +1903,7 @@ jobs:
             set -euo pipefail
             ROOT="$CIRCLE_WORKING_DIRECTORY"
             OUT="$ROOT/brave-work/src/out/android_Release_arm64"
-            APK="$OUT/apks/BraveMonoarm64.apk"
+            APK="$OUT/apks/Bravearm64Universal.apk"
             TOOLS="$ROOT/brave-work/src/third_party/android_sdk/public/build-tools/37.0.0"
             mkdir -p "$ROOT/brave-work/.sandium"
             rm -f "$ROOT/brave-work/.sandium/restored-apk-valid"
@@ -1889,15 +1931,15 @@ jobs:
               if [ "$VALID" = true ]; then
                 PACKAGE="$(sed -n "s/^package: name='\\([^']*\\)'.*/\\1/p" "$ROOT/brave-work/.sandium/restored-apk-badging.txt" 2>/dev/null | head -n 1)"
                 APP_LABEL="$(sed -n "s/^application-label:'\\(.*\\)'$/\\1/p" "$ROOT/brave-work/.sandium/restored-apk-badging.txt" 2>/dev/null | head -n 1)"
-                [ "$PACKAGE" = "com.brave.browser_default" ] || VALID=false
-                [ "$APP_LABEL" = "Sandium Browser" ] || VALID=false
+                [ "$PACKAGE" = "com.brave.browser" ] || VALID=false
+                [ "$APP_LABEL" = "Brave" ] || VALID=false
               fi
             else
               VALID=false
             fi
             if [ "$VALID" = true ]; then
               touch "$ROOT/brave-work/.sandium/restored-apk-valid"
-              echo "BRAVE_RESTORED_APK=VALID package=com.brave.browser_default label=Sandium Browser bytes=$(stat -c '%s' "$APK")"
+              echo "BRAVE_RESTORED_APK=VALID package=com.brave.browser label=Brave bytes=$(stat -c '%s' "$APK")"
             else
               echo "BRAVE_RESTORED_APK=INVALID; reopening only the APK output action."
               rm -f "$APK"
@@ -1976,6 +2018,8 @@ jobs:
             METRICS_PREFIX="sandium-brave-siso-stage-<< parameters.stage_index >>-build-${CIRCLE_BUILD_NUM:-local}-attempt-"
             METRICS_FILE="${METRICS_PREFIX}0.jsonl"
             BUILD_MODE="<< pipeline.parameters.sandium_build_mode >>"
+            if [ "${CIRCLE_BRANCH:-}" = "brave/vanilla-v1.99.54" ]; then BUILD_MODE=full; fi
+            if [ "${CIRCLE_BRANCH:-}" = "brave/vanilla-v1.99.54" ]; then MODE=full; fi
             case "$BUILD_MODE" in
               full) STAGE_BUILD_BUDGET_SECONDS=1200 ;;
               fast) STAGE_BUILD_BUDGET_SECONDS=2700 ;;
@@ -1989,7 +2033,7 @@ jobs:
               echo "SANDIUM_CI_NAME=SANDIUM-FAST-MODE"
             fi
             echo "BRAVE_BUILD_SLICE_BUDGET_SECONDS=$STAGE_BUILD_BUDGET_SECONDS metrics=$METRICS_FILE"
-            timeout --signal=INT --kill-after=60s "${STAGE_BUILD_BUDGET_SECONDS}s" autoninja -strict_remote -metrics_json "$METRICS_FILE" -C "$OUT" -j80 brave || BUILD_RC=$?
+            timeout --signal=INT --kill-after=60s "${STAGE_BUILD_BUDGET_SECONDS}s" autoninja -strict_remote -metrics_json "$METRICS_FILE" -C "$OUT" -j80 create_dist || BUILD_RC=$?
             INITIAL_BUILD_RC="$BUILD_RC"
             while [ "$BUILD_RC" -ne 0 ] && [ "$BUILD_RC" -ne 124 ] && [ "$BUILD_RC" -ne 130 ] \
               && [ "$CAS_RECOVERY_COUNT" -lt 2 ] \
@@ -2014,7 +2058,7 @@ jobs:
                 echo "BRAVE_BUILD_RESUME=START mode=strict-remote timeout_seconds=$REMAINING_STAGE_SECONDS (remaining stage budget)"
                 RESUME_METRICS_FILE="${METRICS_PREFIX}${CAS_RECOVERY_COUNT}-resume.jsonl"
                 BUILD_RC=0
-                timeout --signal=INT --kill-after=60s "${REMAINING_STAGE_SECONDS}s" autoninja -strict_remote -metrics_json "$RESUME_METRICS_FILE" -C "$OUT" -j80 brave || BUILD_RC=$?
+                timeout --signal=INT --kill-after=60s "${REMAINING_STAGE_SECONDS}s" autoninja -strict_remote -metrics_json "$RESUME_METRICS_FILE" -C "$OUT" -j80 create_dist || BUILD_RC=$?
               else
                 BUILD_RC=$?
                 echo "BRAVE_CAS_LOCAL_RECOVERY=FAIL exit=$BUILD_RC; preserving outputs and metrics."
@@ -2080,7 +2124,7 @@ jobs:
             ROOT="$CIRCLE_WORKING_DIRECTORY"
             SRC="$ROOT/brave-work/src"
             OUT="$SRC/out/android_Release_arm64"
-            APK="$OUT/apks/BraveMonoarm64.apk"
+            APK="$OUT/apks/Bravearm64Universal.apk"
             TOOLS="$SRC/third_party/android_sdk/public/build-tools/37.0.0"
             DIAGNOSTICS="$ROOT/brave-apk/siso-diagnostics"
             mkdir -p "$ROOT/brave-apk" "$DIAGNOSTICS"
@@ -2095,7 +2139,7 @@ jobs:
             ARCHIVE_VALID=false
             SIGNATURE_VALID=not_checked
             PACKAGE_VALID=false
-            BRANDING_VALID=false
+            APP_IDENTITY_VALID=false
             APK_ERROR=""
             if [ -s "$APK" ]; then
               if python3 -c 'import sys,zipfile; z=zipfile.ZipFile(sys.argv[1]); bad=z.testzip(); z.close(); sys.exit(1 if bad else 0)' "$APK"; then
@@ -2111,17 +2155,17 @@ jobs:
                   if "$TOOLS/aapt" dump badging "$APK" > "$ROOT/brave-apk/apk-badging.txt" 2>&1; then
                     PACKAGE="$(sed -n "s/^package: name='\\([^']*\\)'.*/\\1/p" "$ROOT/brave-apk/apk-badging.txt" | head -n 1)"
                     APP_LABEL="$(sed -n "s/^application-label:'\\(.*\\)'$/\\1/p" "$ROOT/brave-apk/apk-badging.txt" | head -n 1)"
-                    if [ "$PACKAGE" = "com.brave.browser_default" ]; then
+                    if [ "$PACKAGE" = "com.brave.browser" ]; then
                       PACKAGE_VALID=true
                     else
-                      APK_ERROR="expected package com.brave.browser_default; got ${PACKAGE:-<missing>}"
+                      APK_ERROR="expected package com.brave.browser; got ${PACKAGE:-<missing>}"
                     fi
-                    if [ "$APP_LABEL" = "Sandium Browser" ]; then
-                      BRANDING_VALID=true
-                      echo "SANDIUM_APK_LABEL_GATE=PASS label=$APP_LABEL"
+                    if [ "$APP_LABEL" = "Brave" ]; then
+                      APP_IDENTITY_VALID=true
+                      echo "BRAVE_APP_LABEL_GATE=PASS label=$APP_LABEL"
                     else
-                      APK_ERROR="expected app label Sandium Browser; got ${APP_LABEL:-<missing>}"
-                      echo "SANDIUM_APK_LABEL_GATE=FAIL $APK_ERROR"
+                      APK_ERROR="expected app label Brave; got ${APP_LABEL:-<missing>}"
+                      echo "BRAVE_APP_LABEL_GATE=FAIL $APK_ERROR"
                     fi
                   else
                     APK_ERROR="aapt could not read the APK manifest"
@@ -2131,15 +2175,17 @@ jobs:
                 fi
               fi
             fi
-            if [ -s "$APK" ] && [ "$ARCHIVE_VALID" = true ] && [ "$SIGNATURE_VALID" = true ] && [ "$PACKAGE_VALID" = true ] && [ "$BRANDING_VALID" = true ]; then
-              cp "$APK" "$ROOT/brave-apk/Sandium-Brave-test.apk"
+            if [ -s "$APK" ] && [ "$ARCHIVE_VALID" = true ] && [ "$SIGNATURE_VALID" = true ] && [ "$PACKAGE_VALID" = true ] && [ "$APP_IDENTITY_VALID" = true ]; then
+              cp "$APK" "$ROOT/brave-apk/Bravearm64Universal.apk"
               {
                 echo "BUILD_FINISHED=true"
                 echo "APK_ARCHIVE_VALID=true"
                 echo "APK_SIGNATURE_VALID=true"
                 echo "APK_PACKAGE_ID_VALID=true"
-                echo "APK_BRANDING_VALID=true"
-                echo "APK_PACKAGE_ID=com.brave.browser_default"
+                echo "APK_APP_IDENTITY_VALID=true"
+                echo "APK_PACKAGE_ID=com.brave.browser"
+                echo "APK_APP_LABEL=Brave"
+                echo "APK_FILENAME=Bravearm64Universal.apk"
                 echo "APK_SIZE_BYTES=$(stat -c '%s' "$APK")"
               } > "$ROOT/brave-apk/status.txt"
               echo "BRAVE_APK_VALIDATION=PASS"
@@ -2149,7 +2195,7 @@ jobs:
                 echo "APK_ARCHIVE_VALID=$ARCHIVE_VALID"
                 echo "APK_SIGNATURE_VALID=$SIGNATURE_VALID"
                 echo "APK_PACKAGE_ID_VALID=$PACKAGE_VALID"
-                echo "APK_BRANDING_VALID=$BRANDING_VALID"
+                echo "APK_APP_IDENTITY_VALID=$APP_IDENTITY_VALID"
                 echo "APK_VALIDATION_ERROR=${APK_ERROR:-APK not produced}"
               } > "$ROOT/brave-apk/status.txt"
               echo "BRAVE_APK_VALIDATION=FAIL ${APK_ERROR:-APK not produced}"
@@ -2169,7 +2215,7 @@ jobs:
             if [ -s "$STATUS" ]; then
               cp "$STATUS" "$MARKER"
             else
-              printf 'BUILD_FINISHED=false\nAPK_ARCHIVE_VALID=false\nAPK_SIGNATURE_VALID=not_yet_built\nAPK_PACKAGE_ID_VALID=false\nAPK_BRANDING_VALID=false\n' > "$MARKER"
+              printf 'BUILD_FINISHED=false\nAPK_ARCHIVE_VALID=false\nAPK_SIGNATURE_VALID=not_yet_built\nAPK_PACKAGE_ID_VALID=false\nAPK_APP_IDENTITY_VALID=false\n' > "$MARKER"
             fi
             echo "BRAVE_APK_COMPLETION_MARKER=$(grep -qx 'BUILD_FINISHED=true' "$MARKER" && echo VERIFIED || echo INCOMPLETE)"
       - save_cache:
@@ -2180,7 +2226,9 @@ jobs:
           when: always
       - when:
           condition:
-            equal: [full, << pipeline.parameters.sandium_build_mode >>]
+            or:
+              - equal: [full, << pipeline.parameters.sandium_build_mode >>]
+              - equal: [brave/vanilla-v1.99.54, << pipeline.git.branch >>]
           steps:
             - run:
                 name: Validate Brave checkpoint before saving
@@ -2226,10 +2274,15 @@ jobs:
                     }
                   done
                   test -x /tmp/sandium-buildbuddy-credential-helper.py || { echo "CHECKPOINT_SAVE=REFUSED credential helper not executable" >&2; exit 1; }
-                  CHROMIUM_SHA="$(git -C "$SRC" rev-parse HEAD)"
+                  test -s "$ROOT/brave-work/.sandium/source-pins.env" || { echo "CHECKPOINT_SAVE=REFUSED source-pins.env missing" >&2; exit 1; }
+                  source "$ROOT/brave-work/.sandium/source-pins.env"
+                  ACTUAL_CHROMIUM_SHA="$(git -C "$SRC" rev-parse HEAD)"
                   BRAVE_TAG="$(git -C "$CORE" describe --tags --exact-match 2>/dev/null || true)"
-                  test "$CHROMIUM_SHA" = "d331de35ca8ab1358c7a17e4bd41627d55eaef51" || { echo "CHECKPOINT_SAVE=REFUSED Chromium SHA mismatch: $CHROMIUM_SHA" >&2; exit 1; }
-                  test "$BRAVE_TAG" = "v1.98.62" || { echo "CHECKPOINT_SAVE=REFUSED Brave tag mismatch: $BRAVE_TAG" >&2; exit 1; }
+                  test "$BRAVE_CORE_TAG" = "v1.99.54" || { echo "CHECKPOINT_SAVE=REFUSED Brave pin mismatch: $BRAVE_CORE_TAG" >&2; exit 1; }
+                  test "$CHROMIUM_TAG" = "157.0.8103.30" || { echo "CHECKPOINT_SAVE=REFUSED Chromium tag mismatch: $CHROMIUM_TAG" >&2; exit 1; }
+                  test "$ACTUAL_CHROMIUM_SHA" = "$CHROMIUM_SHA" || { echo "CHECKPOINT_SAVE=REFUSED Chromium SHA mismatch: $ACTUAL_CHROMIUM_SHA expected $CHROMIUM_SHA" >&2; exit 1; }
+                  test "$BRAVE_TAG" = "$BRAVE_CORE_TAG" || { echo "CHECKPOINT_SAVE=REFUSED Brave tag mismatch: $BRAVE_TAG" >&2; exit 1; }
+                  CHROMIUM_SHA="$ACTUAL_CHROMIUM_SHA"
                   mkdir -p "$ROOT/brave-work/.sandium"
                   APK_VALIDATED=false
                   APK_MARKER="$ROOT/brave-work/.sandium/apk-completion-status.txt"
@@ -2243,9 +2296,16 @@ jobs:
                     echo "REFERENCE_READY=$APK_VALIDATED"
                     echo "REFERENCE_SOURCE_REVISION={{ .Revision }}"
                     echo "BRAVE_CORE_TAG=$BRAVE_TAG"
+                    echo "CHROMIUM_TAG=$CHROMIUM_TAG"
                     echo "CHROMIUM_SHA=$CHROMIUM_SHA"
                     echo "TARGET=android-arm64"
                     echo "BUILD_TYPE=Release"
+                    echo "OFFICIAL_BUILD=true"
+                    echo "TARGET_ANDROID_OUTPUT_FORMAT=aab"
+                    echo "ANDROID_AAB_TO_APK=true"
+                    echo "PACKAGE_ID=com.brave.browser"
+                    echo "APP_LABEL=Brave"
+                    echo "APK_FILENAME=Bravearm64Universal.apk"
                     echo "STAGE=<< parameters.stage_index >>"
                     echo "ARGS_GENERATED_SHA256=$(sha256sum "$ARGS_GENERATED" | awk '{print $1}')"
                     echo "SISO_ENV_SHA256=$(sha256sum "$SISO_ENV" | awk '{print $1}')"
@@ -2290,6 +2350,7 @@ jobs:
             STAGE="<< parameters.stage_index >>"
             APK_STATUS="$ROOT/brave-work/.sandium/apk-completion-status.txt"
             MODE="<< pipeline.parameters.sandium_build_mode >>"
+            if [ "${CIRCLE_BRANCH:-}" = "brave/vanilla-v1.99.54" ]; then MODE=full; fi
             if [ "$MODE" = "full" ]; then
               python3 "$ROOT/.circleci/scripts/checkpoint-stage-receipt.py" verify \
                 --root "$ROOT" \
@@ -2331,6 +2392,7 @@ jobs:
           command: |
             set -euo pipefail
             MODE="<< pipeline.parameters.sandium_build_mode >>"
+            if [ "${CIRCLE_BRANCH:-}" = "brave/vanilla-v1.99.54" ]; then MODE=full; fi
             if [ "$MODE" != "full" ]; then
               echo "SANDIUM_REFERENCE_PROMOTION=SKIPPED mode=$MODE"
               circleci-agent step halt
@@ -2359,12 +2421,12 @@ jobs:
               "APK_ARCHIVE_VALID=true" \
               "APK_SIGNATURE_VALID=true" \
               "APK_PACKAGE_ID_VALID=true" \
-              "APK_BRANDING_VALID=true"; do
+              "APK_APP_IDENTITY_VALID=true"; do
               grep -Fx "$pair" "$APK_MARKER" >/dev/null || fail "APK marker lacks $pair"
             done
             export SANDIUM_ARCHIVE_WORKERS=8
             bash .circleci/scripts/archive-brave-workspace.sh verify
-            python3 -c 'import json,sys; from pathlib import Path; d=json.loads(Path(sys.argv[1]).read_text(encoding="utf-8")); c=d.get("checkpoint_manifest",{}); req={"CHECKPOINT_VALID":"true","REFERENCE_MODE":"reference","APK_VALIDATED":"true","REFERENCE_READY":"true","CHROMIUM_SHA":"d331de35ca8ab1358c7a17e4bd41627d55eaef51","BRAVE_CORE_TAG":"v1.98.62","TARGET":"android-arm64","BUILD_TYPE":"Release"}; bad=[k for k,v in req.items() if c.get(k)!=v]; assert not bad, "REFERENCE_PROMOTION=FAIL missing or incorrect keys: "+",".join(bad); Path(sys.argv[2]).write_text("\\n".join("%s=%s" % (k,v) for k,v in sorted(c.items()))+"\\n",encoding="utf-8"); print("REFERENCE_PROMOTION=PASS workers=%s shards=%s source_bytes=%s archive_bytes=%s" % (d.get("workers"),len(d.get("shards",[])),d.get("source_bytes"),d.get("archive_bytes")))' "$SHARD_MANIFEST" "$ROOT/reference-candidate-manifest.txt"
+            python3 -c 'import json,sys; from pathlib import Path; d=json.loads(Path(sys.argv[1]).read_text(encoding="utf-8")); c=d.get("checkpoint_manifest",{}); req={"CHECKPOINT_VALID":"true","REFERENCE_MODE":"reference","APK_VALIDATED":"true","REFERENCE_READY":"true","CHROMIUM_TAG":"157.0.8103.30","BRAVE_CORE_TAG":"v1.99.54","TARGET":"android-arm64","BUILD_TYPE":"Release","OFFICIAL_BUILD":"true","TARGET_ANDROID_OUTPUT_FORMAT":"aab","ANDROID_AAB_TO_APK":"true","PACKAGE_ID":"com.brave.browser","APP_LABEL":"Brave","APK_FILENAME":"Bravearm64Universal.apk"}; bad=[k for k,v in req.items() if c.get(k)!=v]; sha=c.get("CHROMIUM_SHA",""); import re; assert re.fullmatch(r"[0-9a-f]{40}",sha), "REFERENCE_PROMOTION=FAIL invalid Chromium SHA"; assert not bad, "REFERENCE_PROMOTION=FAIL missing or incorrect keys: "+",".join(bad); Path(sys.argv[2]).write_text("\\n".join("%s=%s" % (k,v) for k,v in sorted(c.items()))+"\\n",encoding="utf-8"); print("REFERENCE_PROMOTION=PASS workers=%s shards=%s source_bytes=%s archive_bytes=%s" % (d.get("workers"),len(d.get("shards",[])),d.get("source_bytes"),d.get("archive_bytes")))' "$SHARD_MANIFEST" "$ROOT/reference-candidate-manifest.txt"
             echo "REFERENCE_PROMOTION=CANDIDATE_VERIFIED"
       - save_cache:
           name: Promote immutable latest Sandium parallel-shard reference
@@ -2436,7 +2498,9 @@ workflows:
                 - ss2-from-ss1
   sandium-full-mode:
     when:
-      equal: [full, << pipeline.parameters.sandium_build_mode >>]
+      or:
+        - equal: [full, << pipeline.parameters.sandium_build_mode >>]
+        - equal: [brave/vanilla-v1.99.54, << pipeline.git.branch >>]
     jobs:
       - brave-android-staged-build:
           name: SANDIUM-FULL-MODE-stage-1
@@ -2447,6 +2511,7 @@ workflows:
                 - sandium/brave-android-poc
                 - sandium/archive-zstd-fast5
                 - sandium/fix-archive-completion-gate
+                - brave/vanilla-v1.99.54
       - brave-android-staged-build:
           name: SANDIUM-FULL-MODE-stage-2
           stage_index: 2
@@ -2457,6 +2522,7 @@ workflows:
                 - sandium/brave-android-poc
                 - sandium/archive-zstd-fast5
                 - sandium/fix-archive-completion-gate
+                - brave/vanilla-v1.99.54
       - brave-android-staged-build:
           name: SANDIUM-FULL-MODE-stage-3
           stage_index: 3
@@ -2467,6 +2533,7 @@ workflows:
                 - sandium/brave-android-poc
                 - sandium/archive-zstd-fast5
                 - sandium/fix-archive-completion-gate
+                - brave/vanilla-v1.99.54
       - brave-android-staged-build:
           name: SANDIUM-FULL-MODE-stage-4
           stage_index: 4
@@ -2477,6 +2544,7 @@ workflows:
                 - sandium/brave-android-poc
                 - sandium/archive-zstd-fast5
                 - sandium/fix-archive-completion-gate
+                - brave/vanilla-v1.99.54
       - brave-android-staged-build:
           name: SANDIUM-FULL-MODE-stage-5
           stage_index: 5
@@ -2487,12 +2555,15 @@ workflows:
                 - sandium/brave-android-poc
                 - sandium/archive-zstd-fast5
                 - sandium/fix-archive-completion-gate
+                - brave/vanilla-v1.99.54
       - promote-brave-reference:
           name: SANDIUM-FULL-MODE-reference-promotion
           requires: [SANDIUM-FULL-MODE-stage-5]
           filters:
             branches:
-              only: sandium/brave-android-poc
+              only:
+                - sandium/brave-android-poc
+                - brave/vanilla-v1.99.54
   sandium-fast-mode:
     when:
       equal: [fast, << pipeline.parameters.sandium_build_mode >>]
