@@ -115,19 +115,38 @@ if [ "${BRAVE_STAGE_INDEX:?BRAVE_STAGE_INDEX is required}" = "1" ]; then
       cd "$CORE_DIR"
       pnpm run sync --target_os=android --target_arch=arm64 --no-history --sync_chromium=false
     fi
-  else
-    echo "BRAVE_SOURCE_REUSE=MISS; source checkout incomplete or release pin mismatch; initializing vanilla Brave v1.99.54."
-    # The restored 26GB reference is v1.98.62/Chromium 156. Its generated
-    # Ninja graph and Siso filesystem state are not valid for the v1.99.54 /
-    # Chromium 157 release. Keep the canonical archive untouched, but discard
-    # only this runner's incompatible output directory before GN regeneration.
+  elif [ -s "$ROOT/brave-work/.gclient" ] && \
+       [ -e "$SRC_DIR/.git" ] && \
+       [ -e "$CORE_DIR/.git" ] && \
+       [ -x "$SRC_DIR/build/install-build-deps.sh" ] && \
+       [ -d "$SRC_DIR/third_party" ] && [ -d "$SRC_DIR/build" ] && \
+       [ "$(git -C "$CORE_DIR" describe --tags --exact-match 2>/dev/null || true)" = "$BRAVE_CORE_TAG" ]; then
+    # SANDIUM_INCREMENTAL_SOURCE_UPGRADE: use regular sync without init/force
+    # when the old Chromium checkout and its dependencies are already present.
+    CURRENT_CHROMIUM_SHA="$(git -C "$SRC_DIR" rev-parse HEAD)"
+    echo "BRAVE_SOURCE_INCREMENTAL_SYNC=START current=$CURRENT_CHROMIUM_SHA target_tag=$CHROMIUM_TAG target_sha=$CHROMIUM_PIN"
     if [ -d "$OUT" ]; then
       echo "BRAVE_VERSION_UPGRADE_CLEAN_OUT=START path=$OUT"
       rm -rf "$OUT"
       echo "BRAVE_VERSION_UPGRADE_CLEAN_OUT=PASS"
     fi
     cd "$CORE_DIR"
+    SOURCE_SYNC_STARTED=$SECONDS
+    pnpm run sync --target_os=android --target_arch=arm64 --no-history
+    SOURCE_SYNC_SECONDS=$((SECONDS - SOURCE_SYNC_STARTED))
+    echo "BRAVE_SOURCE_INCREMENTAL_SYNC=PASS duration_seconds=$SOURCE_SYNC_SECONDS current_before=$CURRENT_CHROMIUM_SHA target=$CHROMIUM_PIN"
+  else
+    echo "BRAVE_SOURCE_REUSE=MISS; no complete Chromium checkout; using one-time Brave initialization."
+    if [ -d "$OUT" ]; then
+      echo "BRAVE_VERSION_UPGRADE_CLEAN_OUT=START path=$OUT"
+      rm -rf "$OUT"
+      echo "BRAVE_VERSION_UPGRADE_CLEAN_OUT=PASS"
+    fi
+    cd "$CORE_DIR"
+    SOURCE_INIT_STARTED=$SECONDS
     pnpm run init --target_os=android --target_arch=arm64 --no-history
+    SOURCE_INIT_SECONDS=$((SECONDS - SOURCE_INIT_STARTED))
+    echo "BRAVE_SOURCE_INITIALIZATION=COMPLETE duration_seconds=$SOURCE_INIT_SECONDS"
   fi
 
   ACTUAL_CHROMIUM_SHA="$(git -C "$SRC_DIR" rev-parse HEAD)"
