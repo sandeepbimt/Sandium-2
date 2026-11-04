@@ -873,7 +873,7 @@ def validate_restored_workspace(root: Path, payload: dict[str, Any]) -> None:
     )
 
 
-def main() -> None
+def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("command", choices=("archive", "verify", "restore"))
     parser.add_argument("--root", required=True)
