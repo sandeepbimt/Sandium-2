@@ -50,12 +50,12 @@ run_brave_sync() {
       echo "BRAVE_PNPM_INSTALL_GATE=FAIL node_modules layout is incomplete" >&2
       exit 1
     }
-    printf '%s\\n' "$fingerprint" > "$marker"
+    printf '%s\n' "$fingerprint" > "$marker"
     echo "BRAVE_PNPM_INSTALL=PASS duration_seconds=$((SECONDS - install_started)) fingerprint=$fingerprint"
   fi
 
   sync_started=$SECONDS
-  node ./build/commands/scripts/sync.ts "$@"
+  npm_package_version="$(node -p "require(\'./package.json\').version")" node ./build/commands/scripts/sync.ts "$@"
   echo "BRAVE_UPSTREAM_SYNC_SECONDS=$((SECONDS - sync_started))"
 }
 if [ "$BRAVE_STAGE_INDEX" = "1" ]; then
