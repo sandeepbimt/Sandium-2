@@ -20,7 +20,8 @@ ensure_zstd() {
 case "$MODE" in
   restore)
     ensure_zstd
-    # New references and handoffs restore the same manifest + shard directory.
+    # Prefer the compiled workspace handoff if one is available. Otherwise
+    # restore the independent source-only pinned Brave/Chromium reference.
     if [ -e "$SHARDS" ] || [ -e "$SHARD_MANIFEST" ]; then
       [ -d "$SHARDS" ] && [ -s "$SHARD_MANIFEST" ] || fail "partial parallel checkpoint set: shard directory or manifest is missing"
       echo "BRAVE_WORKSPACE_ARCHIVE_RESTORE=PARALLEL_SHARDS workers=$WORKERS"
@@ -30,6 +31,17 @@ case "$MODE" in
       mkdir -p "$WORK/.sandium"
       touch "$WORK/.sandium/workspace-checkpoint-restored"
       echo "BRAVE_WORKSPACE_ARCHIVE_RESTORE=PASS checkpoint=PARALLEL_SHARDS"
+    elif [ -d "$ROOT/brave-source-checkpoint.shards" ] && [ -s "$ROOT/brave-source-checkpoint.manifest.json" ]; then
+      echo "BRAVE_WORKSPACE_ARCHIVE_RESTORE=SOURCE_READY_START"
+      python3 "$ROOT/.circleci/scripts/sandium-source-shards.py" verify --root "$ROOT" --workers "$WORKERS" --ready --zstd-test
+      python3 "$ROOT/.circleci/scripts/sandium-source-shards.py" restore --root "$ROOT" --workers "$WORKERS" --ready
+      [ -s "$WORK/.gclient" ] || fail "source-ready archive is missing brave-work/.gclient"
+      [ -s "$WORK/.sandium/source-pins.env" ] || fail "source-ready archive is missing source pins"
+      [ -s "$OUT/build.ninja" ] && [ -s "$OUT/args.gn" ] || fail "source-ready archive is missing its GN graph"
+      mkdir -p "$WORK/.sandium"
+      touch "$WORK/.sandium/workspace-checkpoint-restored"
+      touch "$WORK/.sandium/source-ready-restored"
+      echo "BRAVE_WORKSPACE_ARCHIVE_RESTORE=PASS checkpoint=SOURCE_READY_ONLY"
     elif [ -s "$ROOT/brave-reference-ready.tar.zst" ] && [ ! -s "$ARCHIVE" ]; then
       # Migration path for v1 single-file references.
       cp "$ROOT/brave-reference-ready.tar.zst" "$ARCHIVE"
