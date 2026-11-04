@@ -10,6 +10,11 @@ verify = (ROOT / ".circleci/scripts/verify-pinned-source-reference.sh").read_tex
 for marker in ("source-sync-complete", "source-runhooks-complete", "source-configure-complete", "source-gn-complete"):
     assert marker in stage
 assert "SANDIUM_PIN_SLICE_SECONDS" in stage and "1800" in stage
+assert "PINNING_BOOTSTRAP=REQUIRED stage=1" in stage
+assert 'if [ "$STAGE" = "1" ]; then' in stage
+assert "resolves its exact upstream SHA" in stage
+assert "refusing to guess pins" in stage
+assert 'if [ "$STAGE" = "1" ]; then' in stage and "PINNING_GATE=FAIL source-pins.env missing after stage checkpoint restore" in stage
 assert "--signal=INT --kill-after=30s" in stage
 assert "SANDIUM_PINNING_ARCHIVE=PASS" in stage and "--ready --zstd-test" in stage
 assert "BRAVE_SOURCE_PINS=RECORDED before sync" in prepare
