@@ -24,7 +24,7 @@ assert "SANDIUM_SOURCE_PREP_STAGE=4 action=generate-gn-graph-no-compilation" in 
 assert "SANDIUM_SOURCE_READY=PASS" in stage
 assert "sandium-source-shards.py" in stage
 assert "BRAVE_SOURCE_READY_REUSE=PASS" in prepare
-assert "sandium-source-checkpoint.manifest.json" in archive
+assert "brave-source-checkpoint.manifest.json" in archive
 assert "source-ready-restored" in archive
 assert "enum: [full, fast, source-prep]" in config
 assert "sandium-source-preparation:" in config
