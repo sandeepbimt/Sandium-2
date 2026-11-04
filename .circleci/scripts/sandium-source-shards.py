@@ -23,7 +23,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-SCHEMA = 1
+SCHEMA = 2
 WORKERS_MAX = 8
 WORK_NAME = "brave-work"
 SHARDS_NAME = "brave-source-checkpoint.shards"
@@ -225,8 +225,8 @@ def source_metadata(root: Path, work: Path, stage: int, ready: bool) -> dict[str
         ["git", "-C", str(core), "describe", "--tags", "--exact-match"],
         text=True
     ).strip()
-    if actual_chromium != pins.get("CHROMIUM_SHA"):
-        fail("Chromium SHA does not match source-pins.env")
+    if ready and actual_chromium != pins.get("CHROMIUM_SHA"):
+        fail("ready Chromium SHA does not match source-pins.env")
     if actual_brave != pins.get("BRAVE_CORE_TAG"):
         fail("Brave tag does not match source-pins.env")
 
@@ -236,7 +236,9 @@ def source_metadata(root: Path, work: Path, stage: int, ready: bool) -> dict[str
         "ready": ready,
         "brave_core_tag": actual_brave,
         "chromium_tag": pins.get("CHROMIUM_TAG", ""),
-        "chromium_sha": actual_chromium,
+        "chromium_sha": pins.get("CHROMIUM_SHA", ""),
+        "actual_chromium_sha": actual_chromium,
+        "refresh_request_id": progress.get("REFRESH_REQUEST_ID", ""),
         "gclient_sha256": sha256_file(work / ".gclient"),
         "gclient_entries_sha256": sha256_file(work / ".gclient_entries"),
         "source_pins_sha256": sha256_file(work / PINS_NAME),
