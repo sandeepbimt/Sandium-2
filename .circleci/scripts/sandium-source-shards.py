@@ -310,9 +310,9 @@ def source_metadata(root: Path, work: Path, stage: int, ready: bool) -> dict[str
         fail("source-pins Chromium tag differs from Brave package.json")
     if ready:
         import re
-        if not re.fullmatch(r"v[0-9]+\\.[0-9]+\\.[0-9]+", actual_brave):
+        if not re.fullmatch(r"v[0-9]+[.][0-9]+[.][0-9]+", actual_brave):
             fail("ready Brave pin is not a stable semantic-version tag: %s" % actual_brave)
-        if not re.fullmatch(r"[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+", package_chromium_tag):
+        if not re.fullmatch(r"[0-9]+[.][0-9]+[.][0-9]+[.][0-9]+", package_chromium_tag):
             fail("ready Chromium pin is not a four-part version: %s" % package_chromium_tag)
         if len(pins.get("CHROMIUM_SHA", "")) != 40:
             fail("ready Chromium pin SHA is invalid")
@@ -664,9 +664,9 @@ def verify(root: Path, workers: int, zstd_test: bool, require_ready: bool) -> di
         brave_tag = source.get("brave_core_tag", "")
         chromium_tag = source.get("chromium_tag", "")
         chromium_sha = source.get("chromium_sha", "")
-        if not re.fullmatch(r"v[0-9]+\\.[0-9]+\\.[0-9]+", brave_tag):
+        if not re.fullmatch(r"v[0-9]+[.][0-9]+[.][0-9]+", brave_tag):
             fail("source-ready Brave pin is not a stable version tag: %s" % brave_tag)
-        if not re.fullmatch(r"[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+", chromium_tag):
+        if not re.fullmatch(r"[0-9]+[.][0-9]+[.][0-9]+[.][0-9]+", chromium_tag):
             fail("source-ready Chromium pin is not a four-part version: %s" % chromium_tag)
         if source.get("chromium_tag_from_brave_package") != chromium_tag:
             fail("source-ready Chromium tag does not match pinned Brave package.json")
