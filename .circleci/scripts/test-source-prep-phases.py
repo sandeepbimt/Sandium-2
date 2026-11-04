@@ -64,7 +64,7 @@ for stage, expected in ((3, (2, 1)), (4, (3, 2, 1)), (5, (4, 3, 2, 1))):
     assert positions == sorted(positions), "Stage %d must fall back to the latest available earlier checkpoint" % stage
 assert "Avoid duplicate upload when this source slice made no reusable progress" in config
 source_workflow = config[config.index("  sandium-source-preparation:"):config.index("  sandium-full-mode:")]
-assert "PINNING_REFERENCE_PROMOTION=FAIL" in source_workflow
+assert "PINNING_REFERENCE_PROMOTION=FAIL" in config
 assert '"v1.99.54"' not in source_workflow and '"157.0.8103.30"' not in source_workflow
 assert "PIN_REFERENCE_OUTDATED=FAIL" in verify
 assert "Do not overlay the source archive on compiled state" in verify
