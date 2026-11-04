@@ -1,38 +1,29 @@
 #!/usr/bin/env python3
-"""Regression checks for the five-phase source-only workflow."""
+"""Regression checks for resumable 30-minute source-only preparation."""
 from pathlib import Path
-
 ROOT = Path(__file__).resolve().parents[2]
-prepare = (ROOT / ".circleci/scripts/prepare-brave-source.sh").read_text(encoding="utf-8")
 stage = (ROOT / ".circleci/scripts/source-prep-stage.sh").read_text(encoding="utf-8")
+prepare = (ROOT / ".circleci/scripts/prepare-brave-source.sh").read_text(encoding="utf-8")
 config = (ROOT / ".circleci/config.yml").read_text(encoding="utf-8")
-archive = (ROOT / ".circleci/scripts/archive-brave-workspace.sh").read_text(encoding="utf-8")
-
-assert 'SOURCE_PREP_PHASE="${SANDIUM_SOURCE_PREP_PHASE:-all}"' in prepare
-assert "run_brave_sync --target_os=android --target_arch=arm64 --no-history --nohooks" in prepare
-assert "run_brave_sync --init --target_os=android --target_arch=arm64 --no-history --nohooks" in prepare
-assert 'if [ "$SOURCE_PREP_PHASE" = "hooks" ]; then' in prepare
-assert '"$CORE_DIR/vendor/depot_tools/gclient" runhooks' in prepare
-assert 'if [ "$SOURCE_PREP_PHASE" = "configure" ] || [ "$BRAVE_STAGE_INDEX" = "1" ]; then' in prepare
-assert 'if [ "$SOURCE_PREP_PHASE" = "gn" ] || [ "$BRAVE_STAGE_INDEX" = "1" ]; then' in prepare
-assert "--ninja=n" in prepare
-assert 'SOURCE_PREP_PHASE" = "final"' in prepare
-assert "SANDIUM_SOURCE_PREP_STAGE=1 action=sync-chromium-nohooks" in stage
-assert "SANDIUM_SOURCE_PREP_STAGE=2 action=runhooks" in stage
-assert "SANDIUM_SOURCE_PREP_STAGE=3 action=host-deps-and-siso-environment" in stage
-assert "SANDIUM_SOURCE_PREP_STAGE=4 action=generate-gn-graph-no-compilation" in stage
-assert "SANDIUM_SOURCE_READY=PASS" in stage
-assert "sandium-source-shards.py" in stage
-assert "BRAVE_SOURCE_READY_REUSE=PASS" in prepare
-assert "brave-source-checkpoint.manifest.json" in archive
-assert "source-ready-restored" in archive
-assert "enum: [full, fast, source-prep]" in config
-assert "sandium-source-preparation:" in config
-for i in range(1, 6):
-    assert "name: SANDIUM-SOURCE-PREP-stage-%d" % i in config
-assert "sandium-brave-pinned-source-v1-v1.99.54-157.0.8103.30-" in config
-assert "equal: [source-prep, << pipeline.parameters.sandium_build_mode >>]" in config
-assert "equal: [architecture/separate-brave-source-preparation, << pipeline.git.branch >>]" in config
-assert config.count("- architecture/separate-brave-source-preparation") == 5
-
-print("SANDIUM_SOURCE_PREP_PHASES_TEST=PASS sync,nohooks -> runhooks -> Siso/host config -> GN graph -> verified source-only promotion")
+restore = (ROOT / ".circleci/scripts/restore-brave-source-checkpoint.sh").read_text(encoding="utf-8")
+verify = (ROOT / ".circleci/scripts/verify-pinned-source-reference.sh").read_text(encoding="utf-8")
+for marker in ("source-sync-complete", "source-runhooks-complete", "source-configure-complete", "source-gn-complete"):
+    assert marker in stage
+assert "SANDIUM_PIN_SLICE_SECONDS" in stage and "1800" in stage
+assert "--signal=INT --kill-after=30s" in stage
+assert "SANDIUM_PINNING_ARCHIVE=PASS" in stage and "--ready --zstd-test" in stage
+assert "BRAVE_SOURCE_PINS=RECORDED before sync" in prepare
+assert "BRAVE_SOURCE_SYNC=REUSE" in prepare and "source-runhooks-complete" in prepare
+assert "install-build-deps.sh --android" not in prepare
+assert "SOURCE_PREP_BASE=PINNING_PROGRESS" in restore
+assert "PINNING_READY=true" in config and "persist_to_workspace:" in config and "attach_workspace:" in config
+assert "sandium-brave-pinning-progress-v2-" in config
+assert "promote-brave-pinned-source-reference:" in config
+assert "verify-pinned-source-reference.sh" in config
+assert "sandium-brave-pinned-source-v2-" in config
+assert "architecture/separate-brave-source-preparation" in config
+assert "Restore independent pinned Brave/Chromium reference at every build stage" in config
+assert "PIN_REFERENCE_OUTDATED=FAIL" in verify
+assert "Do not overlay the source archive on compiled state" in verify
+assert "circleci-agent step halt" in config
+print("SANDIUM_RESUMABLE_PINNING_TEST=PASS 30-minute slices; stage checkpoint resume; early exits; separate Fast/Full source validation")
