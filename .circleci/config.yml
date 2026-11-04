@@ -1583,6 +1583,16 @@ jobs:
             {
               if [ "$READY" = "true" ]; then echo "PINNING_READY=true"; else echo "PINNING_READY=false"; fi
               if [ -s "$ROOT/brave-work/.sandium/source-prep-progress.txt" ] && grep -qx 'READY_ALREADY=true' "$ROOT/brave-work/.sandium/source-prep-progress.txt"; then echo "READY_ALREADY=true"; fi
+              PROGRESS="$ROOT/brave-work/.sandium/source-prep-progress.txt"
+              PINS="$ROOT/brave-work/.sandium/source-pins.env"
+              REFRESH_REQUEST_ID="$(sed -n 's/^REFRESH_REQUEST_ID=//p' "$PROGRESS" | head -n 1)"
+              BRAVE_CORE_TAG="$(sed -n 's/^BRAVE_CORE_TAG=//p' "$PINS" | head -n 1)"
+              CHROMIUM_TAG="$(sed -n 's/^CHROMIUM_TAG=//p' "$PINS" | head -n 1)"
+              CHROMIUM_SHA="$(sed -n 's/^CHROMIUM_SHA=//p' "$PINS" | head -n 1)"
+              echo "REFRESH_REQUEST_ID=$REFRESH_REQUEST_ID"
+              echo "BRAVE_CORE_TAG=$BRAVE_CORE_TAG"
+              echo "CHROMIUM_TAG=$CHROMIUM_TAG"
+              echo "CHROMIUM_SHA=$CHROMIUM_SHA"
               echo "STAGE=$STAGE"
               echo "WORKFLOW_ID=${CIRCLE_WORKFLOW_ID:-unknown}"
             } > "$ROOT/pinning-status/stage-$STAGE-result.env"

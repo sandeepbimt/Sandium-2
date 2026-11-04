@@ -18,17 +18,28 @@ assert 'if [ "$STAGE" = "1" ]; then' in stage and "PINNING_GATE=FAIL source-pins
 assert "--signal=INT --kill-after=30s" in stage
 assert "SANDIUM_PINNING_ARCHIVE=PASS" in stage and "--ready --zstd-test" in stage
 assert "--skip-if-unchanged" in stage and "source-archive-unchanged" in stage
+assert 'PINNING_HANDOFF_REQUEST=RESTORED' in stage
+assert 'Only Stage 1 may begin a new pin request' in stage
+assert 'PINNING_HANDOFF=FAIL' in stage
 assert 'rm -f "$PINS" "$STATE/source-sync-complete"' in stage
+assert 'if [ "$STAGE" = "1" ]; then' in stage
+assert "REFRESH_REQUEST_ID=$REQUEST_ID" in prepare
+assert 'BRAVE_SOURCE_PIN_GATE=PASS Brave=$ACTUAL_BRAVE_TAG Chromium=$CHROMIUM_TAG sha=$ACTUAL_CHROMIUM_SHA request_id=$REQUEST_ID' in prepare
 assert 'SANDIUM_PINNING_STAGE_INDEX="$STAGE"' in stage
 assert "BRAVE_RELEASE_PIN=LATEST_STABLE_RESOLVED" in prepare
 assert "https://api.github.com/repos/brave/brave-browser/releases/latest" in prepare
 assert "BRAVE_CORE_SHA=" in prepare and "REFRESH_REQUEST_ID=$REQUEST_ID" in prepare
 assert "PINNING_REFRESH_REQUEST=NEW" in stage
 assert "BRAVE_SOURCE_PINS=RECORDED before sync" in prepare
+assert 'echo "BRAVE_CORE_SHA=$BRAVE_CORE_SHA"' in prepare
+assert 'echo "REFRESH_REQUEST_ID=$REQUEST_ID"' in prepare
+assert "SANDIUM_SOURCE_HANDOFF=PASS" in (ROOT / ".circleci/scripts/sandium-source-shards.py").read_text(encoding="utf-8")
 assert "BRAVE_SOURCE_SYNC=REUSE" in prepare and "source-runhooks-complete" in prepare
 assert "install-build-deps.sh --android" not in prepare
 assert "SOURCE_PREP_BASE=PINNING_PROGRESS" in restore
 assert "PINNING_READY=true" in config and "persist_to_workspace:" in config and "attach_workspace:" in config
+assert 'echo "REFRESH_REQUEST_ID=$REFRESH_REQUEST_ID"' in config
+assert 'echo "CHROMIUM_SHA=$CHROMIUM_SHA"' in config
 assert "sandium-brave-pinning-progress-v2-" in config
 assert "promote-brave-pinned-source-reference:" in config
 assert "verify-pinned-source-reference.sh" in config

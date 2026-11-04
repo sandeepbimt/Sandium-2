@@ -6,7 +6,7 @@ ROOT="${CIRCLE_WORKING_DIRECTORY:?CIRCLE_WORKING_DIRECTORY is required}"
 WORK="$ROOT/brave-work"; SRC="$WORK/src"; CORE="$SRC/brave"; STATE="$WORK/.sandium"
 PINS="$STATE/source-pins.env"
 REQUEST_FILE="$ROOT/.circleci/source-pin-refresh-id"
-REQUEST_ID="$(tr -d '\r\n' < "$REQUEST_FILE")"
+CURRENT_REQUEST_ID="$(tr -d '\r\n' < "$REQUEST_FILE")"
 SLICE_SECONDS="${SANDIUM_PIN_SLICE_SECONDS:-1800}"
 case "$SLICE_SECONDS" in ''|*[!0-9]*) echo "PINNING_SLICE=FAIL invalid seconds=$SLICE_SECONDS" >&2; exit 2 ;; esac
 [ "$SLICE_SECONDS" -le 1800 ] || SLICE_SECONDS=1800
@@ -16,12 +16,44 @@ mkdir -p "$STATE"
 rm -f "$STATE/source-archive-unchanged"
 OLD_REQUEST_ID="$(sed -n 's/^REFRESH_REQUEST_ID=//p' "$STATE/source-prep-progress.txt" 2>/dev/null | head -n 1 || true)"
 PIN_REQUEST_ID="$(sed -n 's/^REFRESH_REQUEST_ID=//p' "$PINS" 2>/dev/null | head -n 1 || true)"
-if { [ -n "$OLD_REQUEST_ID" ] && [ "$OLD_REQUEST_ID" != "$REQUEST_ID" ]; } || \
-   { [ -n "$PIN_REQUEST_ID" ] && [ "$PIN_REQUEST_ID" != "$REQUEST_ID" ]; }; then
-  echo "PINNING_REFRESH_REQUEST=NEW previous_progress=${OLD_REQUEST_ID:-unknown} previous_pins=${PIN_REQUEST_ID:-legacy-or-missing} current=$REQUEST_ID"
-  rm -f "$PINS" "$STATE/source-sync-complete" "$STATE/source-runhooks-complete" \
-    "$STATE/source-configure-complete" "$STATE/source-gn-complete" \
-    "$STATE/source-ready-restored" "$STATE/source-ready" "$STATE/source-archive-unchanged"
+
+if [ "$STAGE" = "1" ]; then
+  REQUEST_ID="$CURRENT_REQUEST_ID"
+  if [ -z "$REQUEST_ID" ]; then
+    echo "PINNING_REFRESH_REQUEST=FAIL current refresh request ID is empty" >&2
+    exit 2
+  fi
+  if { [ -n "$OLD_REQUEST_ID" ] && [ "$OLD_REQUEST_ID" != "$REQUEST_ID" ]; } || \
+     { [ -n "$PIN_REQUEST_ID" ] && [ "$PIN_REQUEST_ID" != "$REQUEST_ID" ]; }; then
+    echo "PINNING_REFRESH_REQUEST=NEW previous_progress=${OLD_REQUEST_ID:-unknown} previous_pins=${PIN_REQUEST_ID:-legacy-or-missing} current=$REQUEST_ID"
+    # Only Stage 1 may begin a new pin request. Later stages must never erase
+    # a parent checkpoint because a branch file changed after Stage 1 began.
+    rm -f "$PINS" "$STATE/source-sync-complete" "$STATE/source-runhooks-complete" \
+      "$STATE/source-configure-complete" "$STATE/source-gn-complete" \
+      "$STATE/source-ready-restored" "$STATE/source-ready" "$STATE/source-archive-unchanged"
+  fi
+else
+  # Stage 1 freezes the source refresh ID into both the pin file and progress
+  # receipt. Child stages use that restored cumulative checkpoint ID and never
+  # invalidate parent data based on the checked-out branch's request file.
+  if [ ! -s "$PINS" ] || [ -z "$OLD_REQUEST_ID" ] || [ -z "$PIN_REQUEST_ID" ]; then
+    echo "PINNING_HANDOFF=FAIL restored checkpoint lacks complete pin/progress metadata" >&2
+    exit 1
+  fi
+  if [ "$OLD_REQUEST_ID" != "$PIN_REQUEST_ID" ]; then
+    echo "PINNING_HANDOFF=FAIL parent progress ID=$OLD_REQUEST_ID differs from parent pin ID=$PIN_REQUEST_ID; checkpoint preserved" >&2
+    exit 1
+  fi
+  REQUEST_ID="$OLD_REQUEST_ID"
+  RECEIPT="$ROOT/pinning-status/stage-$((STAGE - 1))-result.env"
+  if [ -s "$RECEIPT" ]; then
+    RECEIPT_REQUEST_ID="$(sed -n 's/^REFRESH_REQUEST_ID=//p' "$RECEIPT" | head -n 1)"
+    if [ -n "$RECEIPT_REQUEST_ID" ] && [ "$RECEIPT_REQUEST_ID" != "$REQUEST_ID" ]; then
+      echo "PINNING_HANDOFF=FAIL previous stage receipt request ID differs; checkpoint preserved" >&2
+      exit 1
+    fi
+  fi
+  echo "PINNING_HANDOFF_REQUEST=RESTORED stage=$STAGE request=$REQUEST_ID parent_stage=$((STAGE - 1))"
 fi
 if [ ! -s "$PINS" ]; then
   if [ "$STAGE" = "1" ]; then

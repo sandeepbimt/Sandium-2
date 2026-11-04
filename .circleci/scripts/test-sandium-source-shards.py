@@ -157,4 +157,16 @@ with tempfile.TemporaryDirectory(prefix="sandium-source-checkpoint-test-") as te
     assert not (restored / "src" / "out" / "android_Release_arm64" / ".siso_fs_state").exists()
     assert run(["git", "-C", str(restored / "src" / "brave"), "describe", "--tags", "--exact-match"]) == "v1.99.54"
 
-print("SANDIUM_SOURCE_CHECKPOINT_TEST=PASS source+dependencies+GN graph restored; compiled objects/Siso state excluded")
+    # The manifest is sufficient to recover the exact pin receipt if a restore
+    # omits that metadata file; recovery must preserve the same immutable pins.
+    restored_pins = restored / ".sandium" / "source-pins.env"
+    restored_pins.unlink()
+    module.validate_restored_workspace(root, payload)
+    repaired = dict(line.split("=", 1) for line in restored_pins.read_text(encoding="utf-8").splitlines())
+    assert repaired["BRAVE_CORE_TAG"] == "v1.99.54"
+    assert repaired["BRAVE_CORE_SHA"] == brave_sha
+    assert repaired["CHROMIUM_TAG"] == "157.0.8103.30"
+    assert repaired["CHROMIUM_SHA"] == chromium_sha
+    assert repaired["REFRESH_REQUEST_ID"] == "unit-test"
+
+print("SANDIUM_SOURCE_CHECKPOINT_TEST=PASS source+dependencies+pins+GN graph restored; metadata recovery verified; compiled objects/Siso state excluded")

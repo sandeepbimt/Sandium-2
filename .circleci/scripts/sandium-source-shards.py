@@ -733,11 +733,147 @@ def restore(root: Path, workers: int, require_ready: bool) -> dict[str, Any]:
                 errors.append(str(exc))
     if errors:
         fail("source restore failed: " + "; ".join(errors))
+    validate_restored_workspace(root, payload)
     print("SANDIUM_SOURCE_RESTORE=PASS ready=%s" % payload.get("ready"), flush=True)
     return payload
 
 
-def main() -> None:
+def validate_restored_workspace(root: Path, payload: dict[str, Any]) -> None:
+    """Validate extracted source and repair only manifest-proven pin metadata."""
+    work = root / WORK_NAME
+    state = work / ".sandium"
+    src = work / "src"
+    core = src / "brave"
+    source = payload.get("source", {})
+    request_id = str(source.get("refresh_request_id", "")).strip()
+    pin_request_id = str(source.get("pin_refresh_request_id", "")).strip()
+    if not request_id:
+        fail("restored source manifest has no refresh_request_id")
+    if pin_request_id and pin_request_id != request_id:
+        fail("restored source manifest pin and progress request IDs disagree")
+
+    required = [
+        work / ".gclient", work / ".gclient_entries",
+        src / ".git", core / ".git",
+        src / "build" / "install-build-deps.sh", src / "third_party",
+        core / "package.json", core / "pnpm-lock.yaml",
+        core / "node_modules" / ".modules.yaml", core / "node_modules" / ".pnpm",
+    ]
+    for path in required:
+        if not path.exists():
+            fail("restored source workspace is missing required component: %s" % path)
+
+    for path, key in [
+        (work / ".gclient", "gclient_sha256"),
+        (work / ".gclient_entries", "gclient_entries_sha256"),
+    ]:
+        expected = source.get(key, "")
+        if expected and sha256_file(path) != expected:
+            fail("restored source metadata checksum mismatch: %s" % path)
+
+    actual_chromium = subprocess.check_output(
+        ["git", "-C", str(src), "rev-parse", "HEAD"], text=True
+    ).strip()
+    actual_brave_tag = subprocess.check_output(
+        ["git", "-C", str(core), "describe", "--tags", "--exact-match"], text=True
+    ).strip()
+    actual_brave_sha = subprocess.check_output(
+        ["git", "-C", str(core), "rev-parse", "HEAD"], text=True
+    ).strip()
+    if source.get("actual_chromium_sha") and actual_chromium != source["actual_chromium_sha"]:
+        fail("restored Chromium HEAD differs from the checkpoint manifest")
+    if actual_brave_tag != source.get("brave_core_tag"):
+        fail("restored Brave tag differs from the checkpoint manifest")
+    if source.get("brave_core_sha") and actual_brave_sha != source["brave_core_sha"]:
+        fail("restored Brave SHA differs from the checkpoint manifest")
+
+    package_data = json.loads((core / "package.json").read_text(encoding="utf-8"))
+    package_chromium_tag = package_data["config"]["projects"]["chrome"]["tag"]
+    if package_chromium_tag != source.get("chromium_tag"):
+        fail("restored Brave package Chromium tag differs from the checkpoint manifest")
+
+    pins_path = state / "source-pins.env"
+    canonical_pins = (
+        "BRAVE_CORE_TAG=%s\n"
+        "BRAVE_CORE_SHA=%s\n"
+        "CHROMIUM_TAG=%s\n"
+        "CHROMIUM_SHA=%s\n"
+        "REFRESH_REQUEST_ID=%s\n"
+    ) % (
+        source.get("brave_core_tag", ""),
+        source.get("brave_core_sha", ""),
+        source.get("chromium_tag", ""),
+        source.get("chromium_sha", ""),
+        request_id,
+    )
+    legacy_pins = (
+        "BRAVE_CORE_TAG=%s\nCHROMIUM_TAG=%s\nCHROMIUM_SHA=%s\n"
+    ) % (
+        source.get("brave_core_tag", ""),
+        source.get("chromium_tag", ""),
+        source.get("chromium_sha", ""),
+    )
+    expected_pins_sha = source.get("source_pins_sha256", "")
+    canonical_sha = hashlib.sha256(canonical_pins.encode("utf-8")).hexdigest()
+    legacy_sha = hashlib.sha256(legacy_pins.encode("utf-8")).hexdigest()
+
+    rewrite_pins = False
+    if pins_path.is_file():
+        current_sha = sha256_file(pins_path)
+        pins = parse_kv(pins_path)
+        for key, expected in [
+            ("BRAVE_CORE_TAG", source.get("brave_core_tag", "")),
+            ("CHROMIUM_TAG", source.get("chromium_tag", "")),
+            ("CHROMIUM_SHA", source.get("chromium_sha", "")),
+        ]:
+            if pins.get(key) != expected:
+                fail("restored source-pins.env disagrees with manifest field %s" % key)
+        if pins.get("BRAVE_CORE_SHA") and pins["BRAVE_CORE_SHA"] != source.get("brave_core_sha"):
+            fail("restored source-pins.env Brave SHA disagrees with manifest")
+        if pins.get("REFRESH_REQUEST_ID") and pins["REFRESH_REQUEST_ID"] != request_id:
+            fail("restored source-pins.env request ID disagrees with manifest")
+        if current_sha == expected_pins_sha:
+            rewrite_pins = not pins.get("BRAVE_CORE_SHA") or not pins.get("REFRESH_REQUEST_ID")
+        elif expected_pins_sha == legacy_sha:
+            rewrite_pins = True
+        else:
+            fail("restored source-pins.env checksum is not represented by the manifest")
+    else:
+        if expected_pins_sha == canonical_sha or expected_pins_sha == legacy_sha:
+            rewrite_pins = True
+        else:
+            fail("source-pins.env is missing and cannot be reconstructed from the manifest checksum")
+
+    if rewrite_pins:
+        state.mkdir(parents=True, exist_ok=True)
+        temporary = pins_path.with_suffix(".env.tmp")
+        temporary.write_text(canonical_pins, encoding="utf-8")
+        os.replace(temporary, pins_path)
+        print("SANDIUM_SOURCE_HANDOFF_METADATA=RECOVERED source-pins.env from verified manifest", flush=True)
+
+    progress_path = work / PROGRESS_NAME
+    if progress_path.is_file():
+        lines = progress_path.read_text(encoding="utf-8").splitlines()
+        lines = [line for line in lines if not line.startswith("REFRESH_REQUEST_ID=")]
+    else:
+        lines = [
+            "STAGE=%s" % payload.get("stage", source.get("source_prep_stage", "unknown")),
+            "PHASE=%s" % source.get("source_prep_phase", "pinning-incomplete"),
+        ]
+    lines.append("REFRESH_REQUEST_ID=%s" % request_id)
+    progress_path.parent.mkdir(parents=True, exist_ok=True)
+    temporary_progress = progress_path.with_suffix(".txt.tmp")
+    temporary_progress.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    os.replace(temporary_progress, progress_path)
+
+    print(
+        "SANDIUM_SOURCE_HANDOFF=PASS request=%s Brave=%s Chromium=%s actual_chromium_head=%s"
+        % (request_id, actual_brave_tag, package_chromium_tag, actual_chromium),
+        flush=True,
+    )
+
+
+def main() -> None
     parser = argparse.ArgumentParser()
     parser.add_argument("command", choices=("archive", "verify", "restore"))
     parser.add_argument("--root", required=True)

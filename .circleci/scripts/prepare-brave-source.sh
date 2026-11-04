@@ -282,12 +282,20 @@ if [ "$BRAVE_STAGE_INDEX" = "1" ]; then
     exit 1
   }
   mkdir -p "$ROOT/brave-work/.sandium"
+  # Keep the complete immutable pin receipt. Rewriting only the three
+  # version fields here used to drop BRAVE_CORE_SHA and REFRESH_REQUEST_ID,
+  # making later stage handoffs ambiguous and non-reproducible.
+  BRAVE_CORE_SHA="$(git -C "$CORE_DIR" rev-parse HEAD)"
+  PINS_TMP="$PINS_FILE.tmp"
   {
     echo "BRAVE_CORE_TAG=$BRAVE_CORE_TAG"
+    echo "BRAVE_CORE_SHA=$BRAVE_CORE_SHA"
     echo "CHROMIUM_TAG=$CHROMIUM_TAG"
     echo "CHROMIUM_SHA=$ACTUAL_CHROMIUM_SHA"
-  } > "$ROOT/brave-work/.sandium/source-pins.env"
-  echo "BRAVE_SOURCE_PIN_GATE=PASS Brave=$ACTUAL_BRAVE_TAG Chromium=$CHROMIUM_TAG sha=$ACTUAL_CHROMIUM_SHA"
+    echo "REFRESH_REQUEST_ID=$REQUEST_ID"
+  } > "$PINS_TMP"
+  mv "$PINS_TMP" "$PINS_FILE"
+  echo "BRAVE_SOURCE_PIN_GATE=PASS Brave=$ACTUAL_BRAVE_TAG Chromium=$CHROMIUM_TAG sha=$ACTUAL_CHROMIUM_SHA request_id=$REQUEST_ID"
 
 fi
 
