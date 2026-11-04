@@ -14,8 +14,8 @@ GOOD = (
     "APK_ARCHIVE_VALID=true\n"
     "APK_SIGNATURE_VALID=true\n"
     "APK_PACKAGE_ID_VALID=true\n"
-    "APK_BRANDING_VALID=true\n"
-    "APK_PACKAGE_ID=com.brave.browser_default\n"
+    "APK_APP_IDENTITY_VALID=true\n"
+    "APK_PACKAGE_ID=com.brave.browser\n"
 )
 
 
@@ -39,9 +39,9 @@ def main() -> None:
     result = run("\ufeff" + GOOD.replace("\n", "\r\n"))
     assert result.returncode == 0, result.stdout + result.stderr
 
-    result = run(GOOD.replace("APK_BRANDING_VALID=true", "APK_BRANDING_VALID=false"))
+    result = run(GOOD.replace("APK_APP_IDENTITY_VALID=true", "APK_APP_IDENTITY_VALID=false"))
     assert result.returncode == 1
-    assert "failed_keys=APK_BRANDING_VALID" in result.stdout
+    assert "failed_keys=APK_APP_IDENTITY_VALID" in result.stdout
 
     result = run(GOOD.replace("APK_PACKAGE_ID_VALID=true\n", ""))
     assert result.returncode == 1
