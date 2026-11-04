@@ -12,7 +12,9 @@ for marker in ("source-sync-complete", "source-runhooks-complete", "source-confi
 assert "SANDIUM_PIN_SLICE_SECONDS" in stage and "1800" in stage
 assert "PINNING_BOOTSTRAP=REQUIRED stage=1" in stage
 assert 'if [ "$STAGE" = "1" ]; then' in stage
-assert "resolves its exact upstream SHA" in stage
+assert "exact Chromium tag to an immutable SHA before source synchronization" in stage
+assert 'SANDIUM_PINNING_REQUEST_ID="$REQUEST_ID"' in stage
+assert 'REQUEST_ID="${SANDIUM_PINNING_REQUEST_ID:-' in prepare
 assert "refusing to guess pins" in stage
 assert 'if [ "$STAGE" = "1" ]; then' in stage and "PINNING_GATE=FAIL source-pins.env missing after stage checkpoint restore" in stage
 assert "--signal=INT --kill-after=30s" in stage

@@ -28,7 +28,7 @@ BRAVE_STAGE_INDEX="${BRAVE_STAGE_INDEX:?BRAVE_STAGE_INDEX is required}"
 CHROMIUM_URL="https://chromium.googlesource.com/chromium/src.git"
 PINS_FILE="$ROOT/brave-work/.sandium/source-pins.env"
 REQUEST_ID_FILE="$ROOT/.circleci/source-pin-refresh-id"
-REQUEST_ID="$(tr -d '\\r\\n' < "$REQUEST_ID_FILE")"
+REQUEST_ID="${SANDIUM_PINNING_REQUEST_ID:-$(tr -d '\\r\\n' < "$REQUEST_ID_FILE")}"
 STORED_PIN_REQUEST_ID="$(sed -n 's/^REFRESH_REQUEST_ID=//p' "$PINS_FILE" 2>/dev/null | head -n 1 || true)"
 if [ "$BRAVE_STAGE_INDEX" != "1" ]; then
   test -s "$PINS_FILE" || { echo "BRAVE_PIN_METADATA_GATE=FAIL later phase has no source-pins.env" >&2; exit 1; }

@@ -79,7 +79,7 @@ run_phase() {
   if [ "$remaining" -le 0 ]; then TIME_SLICE_EXPIRED=true; return 2; fi
   echo "PINNING_PHASE=START phase=$phase stage=$STAGE remaining_seconds=$remaining budget_seconds=$SLICE_SECONDS"
   set +e
-  BRAVE_STAGE_INDEX="$phase_stage" SANDIUM_PINNING_STAGE_INDEX="$STAGE" SANDIUM_SOURCE_PREP_PHASE="$phase" timeout --signal=INT --kill-after=30s "${remaining}s" bash "$ROOT/.circleci/scripts/prepare-brave-source.sh"
+  SANDIUM_PINNING_REQUEST_ID="$REQUEST_ID" BRAVE_STAGE_INDEX="$phase_stage" SANDIUM_PINNING_STAGE_INDEX="$STAGE" SANDIUM_SOURCE_PREP_PHASE="$phase" timeout --signal=INT --kill-after=30s "${remaining}s" bash "$ROOT/.circleci/scripts/prepare-brave-source.sh"
   local rc=$?
   set -e
   if [ "$rc" -eq 0 ]; then touch "$marker"; echo "PINNING_PHASE=PASS phase=$phase elapsed_seconds=$((SECONDS-START_SECONDS))"; return 0; fi
