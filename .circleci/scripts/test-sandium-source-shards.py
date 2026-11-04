@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """Integration test for source-only Sandium checkpoint archive/restore."""
 from __future__ import annotations
-
 import importlib.util
 import os
 import subprocess
@@ -14,15 +13,11 @@ assert SPEC and SPEC.loader
 module = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(module)
 
-
 def run(command: list[str], cwd: Path | None = None) -> str:
-    result = subprocess.run(command, cwd=cwd, text=True, stdout=subprocess.PIPE,
-                            stderr=subprocess.PIPE)
+    result = subprocess.run(command, cwd=cwd, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     if result.returncode:
-        raise AssertionError("%s failed:\n%s\n%s" %
-                             (command, result.stdout, result.stderr))
+        raise AssertionError("%s failed:\n%s\n%s" % (command, result.stdout, result.stderr))
     return result.stdout.strip()
-
 
 with tempfile.TemporaryDirectory(prefix="sandium-source-checkpoint-test-") as temp:
     root = Path(temp)
@@ -55,22 +50,20 @@ with tempfile.TemporaryDirectory(prefix="sandium-source-checkpoint-test-") as te
     wrapper = src / "buildtools" / "reclient_cfgs" / "python" / "python_remote_wrapper"
     wrapper.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
     wrapper.chmod(0o755)
-
     (out / "build.ninja").write_text("build all: phony\n", encoding="utf-8")
-    (out / "args.gn").write_text("target_cpu = \"arm64\"\n", encoding="utf-8")
+    (out / "args.gn").write_text('target_cpu = "arm64"\n', encoding="utf-8")
     (out / "args_generated.gni").write_text(
         "use_remoteexec = true\nuse_siso = true\nuse_reclient = false\n"
-        "is_official_build = true\nandroid_aab_to_apk = true\n",
-        encoding="utf-8",
-    )
-    # Compiled state must not leak into the reusable source/environment archive.
+        "is_official_build = true\nandroid_aab_to_apk = true\n", encoding="utf-8")
     (out / "obj" / "example.o").write_bytes(b"compiled-object")
     (out / ".siso_fs_state").write_bytes(b"build-state")
-    (work / ".sandium" / "source-prep-progress.txt").write_text(
-        "STAGE=5\nPHASE=source-ready\n", encoding="utf-8"
-    )
 
-    # Initialize the two independent Git checkouts and pin the exact commit/tag.
+    for marker in ("source-sync-complete", "source-runhooks-complete",
+                   "source-configure-complete", "source-gn-complete"):
+        (work / ".sandium" / marker).write_text("complete\n", encoding="utf-8")
+    (work / ".sandium" / "source-prep-progress.txt").write_text(
+        "STAGE=5\nPHASE=source-ready\nREFRESH_REQUEST_ID=unit-test\n", encoding="utf-8")
+
     run(["git", "init", str(src)])
     run(["git", "-C", str(src), "config", "user.email", "test@example.com"])
     run(["git", "-C", str(src), "config", "user.name", "Sandium Test"])
@@ -86,23 +79,19 @@ with tempfile.TemporaryDirectory(prefix="sandium-source-checkpoint-test-") as te
     run(["git", "-C", str(core), "add", "README.md", "package.json", "pnpm-lock.yaml"])
     run(["git", "-C", str(core), "commit", "-m", "test Brave Core"])
     run(["git", "-C", str(core), "tag", "v1.99.54"])
-
     (work / ".sandium" / "source-pins.env").write_text(
         "BRAVE_CORE_TAG=v1.99.54\nCHROMIUM_TAG=157.0.8103.30\nCHROMIUM_SHA=%s\n" % chromium_sha,
-        encoding="utf-8",
-    )
+        encoding="utf-8")
 
     module.archive(root, workers=2, stage=5, ready=True)
     payload = module.verify(root, workers=2, zstd_test=True, require_ready=True)
     assert payload["ready"] is True
     assert payload["source"]["chromium_sha"] == chromium_sha
+    assert payload["source"]["refresh_request_id"] == "unit-test"
 
-    # Simulate a fresh CircleCI runner: discard the workspace and restore only
-    # the immutable source shards + manifest.
     backup = root / "saved-original-workspace"
     os.replace(work, backup)
     module.restore(root, workers=2, require_ready=True)
-
     restored = root / "brave-work"
     assert (restored / ".gclient").is_file()
     assert (restored / ".gclient_entries").is_file()
