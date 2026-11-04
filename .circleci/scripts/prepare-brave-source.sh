@@ -8,9 +8,18 @@ if [ ! -x "$NODE_DIR/bin/node" ]; then
   tar -xJf "$ROOT/node-v24.16.0.tar.xz" --strip-components=1 -C "$NODE_DIR"
   rm -f "$ROOT/node-v24.16.0.tar.xz"
 fi
+export npm_config_prefix="$NODE_DIR"
 export PATH="$NODE_DIR/bin:$PATH"
-npm install --global pnpm@11.11.0
-echo "export PATH=\"$NODE_DIR/bin:\$PATH\"" >> "$BASH_ENV"
+if [ ! -x "$NODE_DIR/bin/pnpm" ] || [ "$("$NODE_DIR/bin/pnpm" --version 2>/dev/null || true)" != "11.11.0" ]; then
+  npm install --global pnpm@11.11.0
+fi
+test "$("$NODE_DIR/bin/pnpm" --version)" = "11.11.0" || {
+  echo "BRAVE_NODE_PNPM_GATE=FAIL expected pnpm 11.11.0" >&2
+  exit 1
+}
+printf 'export PATH=%q:$PATH\n' "$NODE_DIR/bin" >> "$BASH_ENV"
+printf 'export npm_config_prefix=%q\n' "$NODE_DIR" >> "$BASH_ENV"
+echo "BRAVE_NODE_PNPM_CACHE=PASS node=24.16.0 pnpm=11.11.0"
 mkdir -p "$ROOT/brave-work"
 SRC_DIR="$ROOT/brave-work/src"
 CORE_DIR="$SRC_DIR/brave"
@@ -34,7 +43,23 @@ else
 fi
 cd "$CORE_DIR"
 CHROMIUM_TAG="$(node -e 'console.log(JSON.parse(require("fs").readFileSync("package.json")).config.projects.chrome.tag)')"
-CHROMIUM_PIN="$(git ls-remote "$CHROMIUM_URL" "refs/tags/$CHROMIUM_TAG" "refs/tags/$CHROMIUM_TAG^{}" | awk -v ref="refs/tags/$CHROMIUM_TAG" '$2 == ref { plain=$1 } $2 == ref"^{}" { peeled=$1 } END { if (peeled != "") print peeled; else if (plain != "") print plain; else exit 1 }')"
+if [ "$BRAVE_STAGE_INDEX" = "1" ]; then
+  CHROMIUM_PIN="$(git ls-remote "$CHROMIUM_URL" "refs/tags/$CHROMIUM_TAG" "refs/tags/$CHROMIUM_TAG^{}" | awk -v ref="refs/tags/$CHROMIUM_TAG" '$2 == ref { plain=$1 } $2 == ref"^{}" { peeled=$1 } END { if (peeled != "") print peeled; else if (plain != "") print plain; else exit 1 }')"
+  echo "BRAVE_CHROMIUM_REMOTE_LOOKUP=PERFORMED stage=1"
+else
+  PINS_FILE="$ROOT/brave-work/.sandium/source-pins.env"
+  test -s "$PINS_FILE" || {
+    echo "BRAVE_SOURCE_REUSE=FAIL restored source-pins.env is missing" >&2
+    exit 1
+  }
+  PINNED_CHROMIUM_TAG="$(sed -n 's/^CHROMIUM_TAG=//p' "$PINS_FILE" | head -n 1)"
+  CHROMIUM_PIN="$(sed -n 's/^CHROMIUM_SHA=//p' "$PINS_FILE" | head -n 1)"
+  test "$PINNED_CHROMIUM_TAG" = "$CHROMIUM_TAG" || {
+    echo "BRAVE_SOURCE_REUSE=FAIL restored Chromium tag differs from Brave package.json" >&2
+    exit 1
+  }
+  echo "BRAVE_CHROMIUM_REMOTE_LOOKUP=SKIPPED stage=$BRAVE_STAGE_INDEX sha=$CHROMIUM_PIN"
+fi
 echo "BRAVE_CORE_TAG=$BRAVE_CORE_TAG"
 echo "CHROMIUM_TAG=$CHROMIUM_TAG"
 echo "CHROMIUM_PIN=$CHROMIUM_PIN"
@@ -437,7 +462,9 @@ PY
   fi
   export SISO_LIMITS=local=8,remote=80
   echo "BRAVE_STAGE1_VALIDATION_MODE=DRY_RUN_NO_COMPILATION"
-  pnpm run build Release --channel=release --target_os=android --target_arch=arm64 --target_android_output_format=aab --use_remoteexec=true --gn use_siso:true --gn use_reclient:false --gn is_java_debug:false --gn enable_android_secondary_abi:false --gn is_official_build:true --gn android_aab_to_apk:true --gn android_channel:stable --gn chrome_public_manifest_package:com.brave.browser --target create_dist --ninja=n
+  python3 "$ROOT/.circleci/scripts/apply-sandium-adblock.py" --core "$CORE_DIR"
+  bash "$ROOT/.circleci/scripts/apply-sandium-branding.sh"
+  pnpm run build Release --channel=release --target_os=android --target_arch=arm64 --target_android_output_format=aab --android_aab_to_apk --use_remoteexec=true --gn use_siso:true --gn use_reclient:false --gn is_java_debug:false --gn enable_android_secondary_abi:false --gn is_official_build:false --gn enable_updater:false --gn enable_update_notifications:false --gn android_channel:default --gn chrome_public_manifest_package:com.brave.browser_default --gn brave_channel:development --target create_dist --ninja=n
   bash "$ROOT/.circleci/scripts/verify-clang-diagnostics-gn.sh"
 fi
 
@@ -453,11 +480,30 @@ if [ "$BRAVE_STAGE_INDEX" != "1" ]; then
   echo "BRAVE_SOURCE_PIN_GATE=PASS restored Brave=$ACTUAL_BRAVE_TAG Chromium=$CHROMIUM_TAG sha=$ACTUAL_CHROMIUM_SHA"
 fi
 
-# FAST MODE restores the immutable reference independently for every active stage.
-# No Sandium browser branding or ad-blocking source overlays are applied.
-if [ "${BRAVE_STAGE_INDEX:?BRAVE_STAGE_INDEX is required}" != "1" ]; then
-  echo "VANILLA_BRAVE_STAGE_RESTORE=PASS stage=$BRAVE_STAGE_INDEX; no custom browser overlays."
+if [ "$BRAVE_STAGE_INDEX" != "1" ]; then
+  ACTUAL_CHROMIUM_SHA="$(git -C "$SRC_DIR" rev-parse HEAD)"
+  ACTUAL_BRAVE_TAG="$(git -C "$CORE_DIR" describe --tags --exact-match 2>/dev/null || true)"
+  test "$ACTUAL_BRAVE_TAG" = "$BRAVE_CORE_TAG" || {
+    echo "BRAVE_SOURCE_PIN_GATE=FAIL restored Brave tag mismatch" >&2
+    exit 1
+  }
+  test "$ACTUAL_CHROMIUM_SHA" = "$CHROMIUM_PIN" || {
+    echo "BRAVE_SOURCE_PIN_GATE=FAIL restored Chromium SHA mismatch" >&2
+    exit 1
+  }
+  grep -Fx "BRAVE_CORE_TAG=$BRAVE_CORE_TAG" "$ROOT/brave-work/.sandium/source-pins.env" >/dev/null
+  grep -Fx "CHROMIUM_TAG=$CHROMIUM_TAG" "$ROOT/brave-work/.sandium/source-pins.env" >/dev/null
+  grep -Fx "CHROMIUM_SHA=$ACTUAL_CHROMIUM_SHA" "$ROOT/brave-work/.sandium/source-pins.env" >/dev/null
+  python3 "$ROOT/.circleci/scripts/apply-sandium-adblock.py" --core "$CORE_DIR" --verify-only
+  grep -Fq "Sandium Browser" "$SRC_DIR/chrome/android/java/AndroidManifest.xml" || {
+    echo "SANDIUM_BRANDING_RESTORE=FAIL manifest label missing" >&2
+    exit 1
+  }
+  test -s "$SRC_DIR/chrome/android/java/res_chromium_base/mipmap-xxxhdpi/app_icon.png" || {
+    echo "SANDIUM_BRANDING_RESTORE=FAIL Sandium icon resource missing" >&2
+    exit 1
+  }
+  echo "SANDIUM_STAGE_RESTORE=PASS stage=$BRAVE_STAGE_INDEX source_pins=verified overlays=verified"
 fi
 
-# Vanilla Brave: retain upstream Brave ad blocking and component updater unchanged.
-echo "VANILLA_BRAVE_SOURCE_OVERLAYS=NONE"
+echo "SANDIUM_SOURCE_OVERLAYS=ADBLOCK+BRANDING"

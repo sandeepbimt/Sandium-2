@@ -1,21 +1,17 @@
 #!/usr/bin/env python3
-"""Offline transformation tests for Sandium's Brave/uBO filter integration."""
+"""Offline source-anchor and idempotence tests for the Brave v1.99.54 patch."""
 from __future__ import annotations
 
+import runpy
 import tempfile
 from pathlib import Path
-import runpy
 
-# The production patch filename intentionally uses hyphens, so it cannot be
-# imported with a normal "from module import ..." statement.
-_PATCH = runpy.run_path(
-    str(Path(__file__).with_name("apply-sandium-adblock.py"))
-)
-FRESH_INSTALL_FILTER_UUIDS = _PATCH["FRESH_INSTALL_FILTER_UUIDS"]
-apply_patches = _PATCH["apply_patches"]
-verify_patches = _PATCH["verify_patches"]
+PATCH = runpy.run_path(str(Path(__file__).with_name("apply-sandium-adblock.py")))
+apply_patches = PATCH["apply_patches"]
+verify_patches = PATCH["verify_patches"]
+PIN = PATCH["PIN"]
 
-MANAGER_FIXTURE = """#include "base/location.h"
+MANAGER = """#include "base/location.h"
 
 void AdBlockComponentServiceManager::UpdateFilterLists(
     base::OnceCallback<void(bool)> callback) {
@@ -29,8 +25,10 @@ void AdBlockComponentServiceManager::UpdateFilterLists(
   }
 
   std::vector<std::string> component_ids = {
-      kAdBlockResourceComponentId,
-      kAdBlockFilterListCatalogComponentId,
+      crx_file::id_util::GenerateIdFromHash(
+          kAdBlockResourceComponentPublicKeySHA256),
+      crx_file::id_util::GenerateIdFromHash(
+          kAdBlockFilterListCatalogComponentPublicKeySHA256),
   };
 
   for (const auto& [key, provider] : component_filters_providers_) {
@@ -46,32 +44,31 @@ void AdBlockComponentServiceManager::UpdateFilterLists(
       component_ids, component_updater::OnDemandUpdater::Priority::FOREGROUND,
       base::BindOnce(on_updated, std::move(callback)));
 }
-
-void AdBlockComponentServiceManager::OnFilterListCatalogLoaded(
-    const std::string& catalog_json) {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  SetFilterListCatalog(FilterListCatalogFromJSON(catalog_json));
-
-  update_check_timer_.Start(
 """
 
-UPDATER_HEADER_FIXTURE = """  bool is_component_update_disabled() { return is_component_update_disabled_; }
-};
+MAIN_DELEGATE = """#include "base/lazy_instance.h"
+#include "brave/components/brave_component_updater/browser/switches.h"
+#include "build/build_config.h"
 
+void BraveMainDelegate::AppendCommandLineOptions() {
+  auto* command_line = base::CommandLine::ForCurrentProcess();
+  command_line->AppendSwitch(switches::kDisableDomainReliability);
+}
 """
 
-FRAGMENT_FIXTURE = """import android.content.Context;
+FRAGMENT = """import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
-
-import java.util.ArrayList;
-import java.util.Arrays;
 
 public class ContentFilteringFragment extends BravePreferenceFragment
         implements FragmentSettingsNavigation,
                 BraveContentFilteringListener,
                 BottomInsetViewProvider {
     private RecyclerView mRecyclerView;
+
+    private ContentFilteringAdapter mAdapter;
+    private FilterListAndroidHandler mFilterListAndroidHandler;
+    private Value mFilterLists[];
 
     private void getFilterLists() {
         if (mFilterListAndroidHandler != null) {
@@ -82,6 +79,9 @@ public class ContentFilteringFragment extends BravePreferenceFragment
         }
     }
 
+    public boolean onOptionsItemSelected(MenuItem item) {
+        if (id == R.id.menu_id_edit) {
+            return true;
         } else if (item.getItemId() == R.id.update_filter_list_id) {
             if (mFilterListAndroidHandler != null) {
                 mFilterListAndroidHandler.updateFilterLists(
@@ -98,13 +98,21 @@ public class ContentFilteringFragment extends BravePreferenceFragment
             }
             return true;
         }
+        return super.onOptionsItemSelected(item);
+    }
 
     @Override
     public void onDestroy() {
         if (mFilterListAndroidHandler != null) {
+            mFilterListAndroidHandler.close();
+            mFilterListAndroidHandler = null;
+        }
+        super.onDestroy();
+    }
+}
 """
 
-ADAPTER_FIXTURE = """    public void setFilterLists(Value filterLists[]) {
+ADAPTER = """    public void setFilterLists(Value filterLists[]) {
         mFilterLists = filterLists;
         // mSubscriptionFilterLists could be null if setSubscriptionFilterLists
         // hasn't been called yet. notifyItemRangeInserted is called inside
@@ -117,215 +125,32 @@ ADAPTER_FIXTURE = """    public void setFilterLists(Value filterLists[]) {
     }
 """
 
-MAIN_PARTS_FIXTURE = """#include "base/command_line.h"
-#include "base/check.h"
-#include "build/build_config.h"
-#include "chrome/common/chrome_switches.h"
-
-int ChromeBrowserMainParts::PreMainMessageLoopRun() {
-  brave_component_updater::BraveOnDemandUpdater::GetInstance()
-      ->RegisterOnDemandUpdater(
-          base::CommandLine::ForCurrentProcess()->HasSwitch(
-              switches::kDisableComponentUpdate),
-          &g_browser_process->component_updater()->GetOnDemandUpdater());
-
-  return ChromeBrowserMainParts_ChromiumImpl::PreMainMessageLoopRun();
-}
-"""
-
-MAIN_DELEGATE_FIXTURE = """#include "base/lazy_instance.h"
-#include "chrome/common/chrome_switches.h"
-
-void BraveMainDelegate::AppendCommandLineOptions() {
-  auto* command_line = base::CommandLine::ForCurrentProcess();
-  command_line->AppendSwitch(switches::kDisableDomainReliability);
-}
-
-std::optional<int> BraveMainDelegate::PostEarlyInitialization(
-    ChromeMainDelegate::InvokedIn invoked_in) {
-  auto result = ChromeMainDelegate::PostEarlyInitialization(invoked_in);
-  if (result.has_value()) {
-    return result;
-  }
-  auto* command_line = base::CommandLine::ForCurrentProcess();
-  std::string update_url = GetUpdateURLHost();
-  if (!update_url.empty()) {
-    command_line->AppendSwitchASCII(
-        switches::kComponentUpdater,
-        base::StrCat({"url-source=", update_url}));
-  }
-  return result;
-}
-"""
-
-COMPONENT_DELEGATE_FIXTURE = """#include "base/task/sequenced_task_runner.h"
-
-void BraveComponentUpdaterDelegate::Register(
-    const std::string& component_name,
-    const std::string& component_base64_public_key,
-    base::OnceClosure registered_callback,
-    BraveComponent::ReadyCallback ready_callback) {
-  if (!BraveOnDemandUpdater::GetInstance()->is_component_update_disabled()) {
-    RegisterComponent(base::to_address(component_updater_), component_name,
-                      component_base64_public_key,
-                      std::move(registered_callback),
-                      std::move(ready_callback));
-  }
-}
-"""
-
-INSTALLER_FIXTURE = """#include "base/functional/callback.h"
-
-void OnRegistered(const std::string& component_id) {
-  // Unlike other components, which are only installed but not updated in
-  // `OnRegistered`, we do always want to update the ad block component upon
-  // registration.
-  BraveOnDemandUpdater::GetInstance()->OnDemandUpdate(
-      component_id, component_updater::OnDemandUpdater::Priority::FOREGROUND);
-}
-"""
-
-CATALOG_PROVIDER_FIXTURE = """#include "base/files/file_path.h"
-
-void AdBlockFilterListCatalogProvider::OnComponentReady(
-    const base::FilePath& path) {
-  TRACE_EVENT("brave.adblock",
-              "AdBlockFilterListCatalogProvider::OnComponentReady",
-              perfetto::Flow::FromPointer(this), "path", path.value());
-  component_path_ = path;
-
-  // Load the filter list catalog (as a string)
-}
-"""
-
-FILTER_SERVICE_FIXTURE = """#include "base/feature_list.h"
-
-void FilterListService::GetFilterLists(GetFilterListsCallback callback) {
-  std::move(callback).Run(
-      ad_block_service_->component_service_manager()->GetRegionalLists());
-}
-"""
-
-
 
 def main() -> None:
-    assert len(FRESH_INSTALL_FILTER_UUIDS) == 6
-    assert len(FRESH_INSTALL_FILTER_UUIDS) == len(set(FRESH_INSTALL_FILTER_UUIDS))
-
-    with tempfile.TemporaryDirectory(prefix="sandium-adblock-test-") as tmp:
-        core = Path(tmp)
-        manager = core / (
-            "components/brave_shields/core/browser/"
-            "ad_block_component_service_manager.cc"
-        )
-        fragment = core / (
-            "android/java/org/chromium/chrome/browser/shields/"
-            "ContentFilteringFragment.java"
-        )
-        adapter = core / (
-            "android/java/org/chromium/chrome/browser/shields/"
-            "ContentFilteringAdapter.java"
-        )
-        main_parts = core / "browser/brave_browser_main_parts.cc"
-        main_delegate = core / "app/brave_main_delegate.cc"
-        component_delegate = core / (
-            "components/brave_component_updater/browser/"
-            "brave_component_updater_delegate.cc"
-        )
-        installer = core / (
-            "components/brave_shields/core/browser/"
-            "ad_block_component_installer.cc"
-        )
-        catalog_provider = core / (
-            "components/brave_shields/core/browser/"
-            "ad_block_filter_list_catalog_provider.cc"
-        )
-        filter_service = core / (
-            "components/brave_shields/content/browser/"
-            "filter_list_service.cc"
-        )
-        updater_header = core / (
-            "components/brave_component_updater/browser/"
-            "brave_on_demand_updater.h"
-        )
-        for path in (
-            manager, fragment, adapter, main_parts, main_delegate,
-            component_delegate, installer, catalog_provider, filter_service,
-            updater_header
-        ):
+    assert PIN == "v1.99.54"
+    with tempfile.TemporaryDirectory() as temporary:
+        core = Path(temporary)
+        files = {
+            "components/brave_shields/core/browser/ad_block_component_service_manager.cc": MANAGER,
+            "app/brave_main_delegate.cc": MAIN_DELEGATE,
+            "android/java/org/chromium/chrome/browser/shields/ContentFilteringFragment.java": FRAGMENT,
+            "android/java/org/chromium/chrome/browser/shields/ContentFilteringAdapter.java": ADAPTER,
+        }
+        for relative, content in files.items():
+            path = core / relative
             path.parent.mkdir(parents=True, exist_ok=True)
-        manager.write_text(MANAGER_FIXTURE, encoding="utf-8")
-        fragment.write_text(FRAGMENT_FIXTURE, encoding="utf-8")
-        adapter.write_text(ADAPTER_FIXTURE, encoding="utf-8")
-        main_parts.write_text(MAIN_PARTS_FIXTURE, encoding="utf-8")
-        main_delegate.write_text(MAIN_DELEGATE_FIXTURE, encoding="utf-8")
-        component_delegate.write_text(COMPONENT_DELEGATE_FIXTURE, encoding="utf-8")
-        installer.write_text(INSTALLER_FIXTURE, encoding="utf-8")
-        catalog_provider.write_text(CATALOG_PROVIDER_FIXTURE, encoding="utf-8")
-        filter_service.write_text(FILTER_SERVICE_FIXTURE, encoding="utf-8")
-        updater_header.write_text(UPDATER_HEADER_FIXTURE, encoding="utf-8")
-
+            path.write_text(content, encoding="utf-8")
         apply_patches(core)
         verify_patches(core)
-
-        # All transforms must be idempotent on a second application.
+        before = {
+            relative: (core / relative).read_text(encoding="utf-8")
+            for relative in files
+        }
         apply_patches(core)
         verify_patches(core)
-
-        fragment_text = fragment.read_text(encoding="utf-8")
-        adapter_text = adapter.read_text(encoding="utf-8")
-        main_parts_text = main_parts.read_text(encoding="utf-8")
-        manager_text = manager.read_text(encoding="utf-8")
-        main_delegate_text = main_delegate.read_text(encoding="utf-8")
-        component_delegate_text = component_delegate.read_text(encoding="utf-8")
-        installer_text = installer.read_text(encoding="utf-8")
-        catalog_provider_text = catalog_provider.read_text(encoding="utf-8")
-        filter_service_text = filter_service.read_text(encoding="utf-8")
-        updater_header_text = updater_header.read_text(encoding="utf-8")
-        assert "allow-brave-component-update" in main_delegate_text
-        assert "SANDIUM_COMPONENT_UPDATER_EARLY_ENABLE" in main_delegate_text
-        assert "SANDIUM_BRAVE_COMPONENT_UPDATE_OVERRIDE" in main_delegate_text
-        assert "SANDIUM_COMPONENT_UPDATER_ENDPOINT=development" in main_delegate_text
-        assert "AppendSwitch(brave_component_updater::kUseGoUpdateDev)" in main_delegate_text
-        assert "SANDIUM_COMPONENT_UPDATER_EFFECTIVE_URL" in main_delegate_text
-        assert '" dev_switch="' in main_delegate_text
-        assert '" dev_feature="' in main_delegate_text
-        # Sandium's non-official Android QA build must use Brave's dev updater.
-        assert """command_line->HasSwitch(
-                      brave_component_updater::kUseGoUpdateDev)""" in main_delegate_text
-        assert "AppendSwitch(brave_component_updater::kUseGoUpdateDev)" in main_delegate_text
-        assert "#if BUILDFLAG(IS_ANDROID)" in main_delegate_text
-        assert "BUILDFLAG(OFFICIAL_BUILD)" not in main_delegate_text
-        assert '#include "build/branding_buildflags.h"' not in main_delegate_text
-        assert "SANDIUM_COMPONENT_UPDATER_DEV_ENDPOINT" not in main_delegate_text
-        assert "RemoveSwitch(switches::kDisableComponentUpdate)" not in main_delegate_text
-        assert "SANDIUM_COMPONENT_REGISTRATION" in component_delegate_text
-        assert "SANDIUM_ADBLOCK_COMPONENT_REGISTERED" in installer_text
-        assert "SANDIUM_FILTER_CATALOG_COMPONENT_READY" in catalog_provider_text
-        assert "SANDIUM_FILTER_CATALOG_PARSED" in manager_text
-        assert "SANDIUM_EMPTY_FILTER_CATALOGUE_UPDATE=REQUEST" in manager_text
-        assert "kAdBlockFilterListCatalogComponentId" in manager_text
-        assert "kAdBlockResourceComponentId" in manager_text
-        assert "std::move(callback).Run(true);" not in manager_text
-        assert "is_on_demand_updater_registered()" in updater_header_text
-        assert "SANDIUM_ON_DEMAND_UPDATER_READINESS" in updater_header_text
-        assert "SANDIUM_FILTER_LIST_UI_COUNT" in filter_service_text
-        assert "SANDIUM_BRAVE_COMPONENT_UPDATES" in main_parts_text
-        assert "SANDIUM_COMPONENT_UPDATER_SERVICE_CREATED" in main_parts_text
-        assert "global_disable_preserved=" in main_parts_text
-        assert "RemoveSwitch(switches::kDisableComponentUpdate)" not in main_parts_text
-        assert "switches::kDisableComponentUpdate" in main_parts_text
-        assert main_parts_text.count("->RegisterOnDemandUpdater(") == 1
-        assert "&g_browser_process->component_updater()->GetOnDemandUpdater()" not in main_parts_text
-        assert "&updater_service->GetOnDemandUpdater()" in main_parts_text
-        assert "if (component_filters_providers_.empty())" in manager_text
-        assert "requestFilterListCatalogueRefresh" in fragment_text
-        assert "MAX_FILTER_LIST_UPDATE_ATTEMPTS = 3" in fragment_text
-        assert "notifyDataSetChanged();" in adapter_text
-        for uuid in FRESH_INSTALL_FILTER_UUIDS:
-            assert uuid in fragment_text, f"missing selected catalogue UUID: {uuid}"
-
-    print("SANDIUM_ADBLOCK_UNIT_TEST=PASS transformation=idempotent catalogue=curated")
+        for relative, expected in before.items():
+            assert (core / relative).read_text(encoding="utf-8") == expected, relative
+    print("SANDIUM_ADBLOCK_UNIT_TEST=PASS source=v1.99.54 idempotent=true")
 
 
 if __name__ == "__main__":
