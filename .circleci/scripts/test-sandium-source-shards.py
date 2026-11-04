@@ -93,6 +93,38 @@ with tempfile.TemporaryDirectory(prefix="sandium-source-checkpoint-test-") as te
     assert progress["source"]["chromium_sha"] == "0" * 40
     assert progress["source"]["actual_chromium_sha"] == chromium_sha
     assert progress["source"]["refresh_request_id"] == "unit-test"
+    assert progress["source"]["pin_refresh_request_id"] == "unit-test"
+    assert progress["source"]["brave_core_sha"] == brave_sha
+    assert progress["source"]["chromium_tag_from_brave_package"] == "157.0.8103.30"
+    assert progress["source"]["source_state_fingerprint"]
+    assert progress["source"]["git_state"]["chromium"]["head"] == chromium_sha
+    assert "pack_file_count" in progress["source"]["git_state"]["chromium"]
+
+    # A later 30-minute slice that did not receive any new Git objects, complete
+    # a phase, or change critical source/config files must reuse the parent shard
+    # set instead of rebuilding and uploading the same archive.
+    previous_manifest = module.sha256_file(root / module.MANIFEST_NAME)
+    (work / ".sandium" / "source-prep-progress.txt").write_text(
+        "STAGE=2\\nPHASE=pinning-incomplete\\nREFRESH_REQUEST_ID=unit-test\\n", encoding="utf-8")
+    module.archive(root, workers=2, stage=2, ready=False, skip_if_unchanged=True)
+    assert (work / ".sandium" / "source-archive-unchanged").is_file()
+    assert module.sha256_file(root / module.MANIFEST_NAME) == previous_manifest
+    unchanged = module.load_manifest(root)[0]
+    assert unchanged["stage"] == 1
+
+    # A real source change advances the fingerprint and creates a new cumulative
+    # archive that the next stage can restore.
+    (src / "README.md").write_text("chromium source advanced\\n", encoding="utf-8")
+    run(["git", "-C", str(src), "add", "README.md"])
+    run(["git", "-C", str(src), "commit", "-m", "test chromium source update"])
+    chromium_sha = run(["git", "-C", str(src), "rev-parse", "HEAD"])
+    (work / ".sandium" / "source-prep-progress.txt").write_text(
+        "STAGE=3\\nPHASE=pinning-incomplete\\nREFRESH_REQUEST_ID=unit-test\\n", encoding="utf-8")
+    module.archive(root, workers=2, stage=3, ready=False, skip_if_unchanged=True)
+    assert not (work / ".sandium" / "source-archive-unchanged").exists()
+    advanced = module.verify(root, workers=2, zstd_test=False, require_ready=False)
+    assert advanced["stage"] == 3
+    assert advanced["source"]["actual_chromium_sha"] == chromium_sha
 
     # Complete the source pin and prove that the same archive format promotes
     # the exact source-ready state, while still excluding compiled objects.
