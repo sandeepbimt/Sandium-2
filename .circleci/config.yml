@@ -1472,7 +1472,7 @@ jobs:
             - restore_cache:
                 name: Restore latest pinned source, compiled reference, or protected canonical base
                 keys:
-                  - sandium-brave-pinned-source-v1-
+                  - sandium-brave-pinned-source-v1-v1.99.54-157.0.8103.30-
                   - sandium-brave-reference-v3-{{ .Branch }}-
                   - sandium-brave-handoff-v2-sandium/fix-archive-completion-gate-d0bc6af6-e2a7-451e-8561-3c90eb48c2e1-stage-1
       - when:
