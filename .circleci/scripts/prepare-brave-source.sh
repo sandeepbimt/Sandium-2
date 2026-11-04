@@ -35,7 +35,7 @@ if [ "$BRAVE_STAGE_INDEX" != "1" ]; then
   BRAVE_CORE_TAG="$(sed -n 's/^BRAVE_CORE_TAG=//p' "$PINS_FILE" | head -n 1)"
   test -n "$BRAVE_CORE_TAG" || { echo "BRAVE_PIN_METADATA_GATE=FAIL stored Brave tag is empty" >&2; exit 1; }
   echo "BRAVE_RELEASE_PIN=RESTORED tag=$BRAVE_CORE_TAG request_id=$REQUEST_ID"
-elif [ -s "$PINS_FILE" ] && { [ -z "$STORED_PIN_REQUEST_ID" ] || [ "$STORED_PIN_REQUEST_ID" = "$REQUEST_ID" ]; }; then
+elif [ -s "$PINS_FILE" ] && [ "$STORED_PIN_REQUEST_ID" = "$REQUEST_ID" ]; then
   # Keep an in-progress request pinned to its original Brave/Chromium pair.
   # Legacy checkpoints without the request field are migrated after the
   # package's Chromium tag and both actual Git checkouts are verified.
