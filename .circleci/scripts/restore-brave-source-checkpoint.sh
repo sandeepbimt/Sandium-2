@@ -61,14 +61,28 @@ restore_legacy_reference() {
 
 case "$MODE" in
   base)
-    if restore_source_archive true; then
-      :
-    elif restore_source_archive false; then
-      :
-    elif restore_legacy_reference; then
-      :
+    if [ -s "$ROOT/brave-source-checkpoint.manifest.json" ]; then
+      if MANIFEST_READY="$(python3 -c 'import json,sys; print("true" if json.load(open(sys.argv[1],encoding="utf-8")).get("ready") is True else "false")' "$ROOT/brave-source-checkpoint.manifest.json" 2>/dev/null)"; then
+        :
+      else
+        MANIFEST_READY=invalid
+      fi
     else
-      fresh_bootstrap
+      MANIFEST_READY=missing
+    fi
+
+    if [ "$MANIFEST_READY" = "true" ]; then
+      # A ready-marked archive that fails ready validation is corrupt or stale;
+      # never downgrade it to an ordinary progress checkpoint.
+      if ! restore_source_archive true; then
+        if ! restore_legacy_reference; then fresh_bootstrap; fi
+      fi
+    elif [ "$MANIFEST_READY" = "false" ]; then
+      if ! restore_source_archive false; then
+        if ! restore_legacy_reference; then fresh_bootstrap; fi
+      fi
+    else
+      if ! restore_legacy_reference; then fresh_bootstrap; fi
     fi
     ;;
   progress)
