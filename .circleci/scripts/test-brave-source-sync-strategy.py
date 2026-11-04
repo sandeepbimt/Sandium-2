@@ -33,8 +33,13 @@ assert "BRAVE_PNPM_DEPENDENCIES=REUSE" in source
 assert "pnpm install --frozen-lockfile --yes" in source
 assert "BRAVE_UPSTREAM_SYNC_SECONDS=" in source
 assert "BRAVE_SOURCE_PINS=RECORDED before sync" in source
-assert 'if [ "$BRAVE_STAGE_INDEX" = "1" ] && [ ! -s "$ROOT/brave-work/.sandium/source-pins.env" ]; then' in source
-assert "BRAVE_CHROMIUM_PIN_REUSE=PASS restored request pin=" in source
+assert 'if [ "$BRAVE_STAGE_INDEX" = "1" ]; then' in source
+assert "BRAVE_RELEASE_PIN=LATEST_STABLE_RESOLVED" in source
+assert "BRAVE_CHROMIUM_PIN_METADATA=RESTORED" in source
+assert "BRAVE_CHROMIUM_CHECKOUT=NEEDS_UPDATE" in source
+assert "BRAVE_CORE_SHA=" in source
+assert "REFRESH_REQUEST_ID=$REQUEST_ID" in source
+assert "BRAVE_CHROMIUM_PIN_REUSE=PASS" not in source
 assert "BRAVE_CHROMIUM_REMOTE_LOOKUP=PERFORMED stage=1" in source
 assert "source-runhooks-complete" in source
 
