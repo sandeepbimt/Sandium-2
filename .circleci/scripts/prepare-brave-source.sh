@@ -88,7 +88,10 @@ else
 fi
 cd "$CORE_DIR"
 CHROMIUM_TAG="$(node -e 'console.log(JSON.parse(require("fs").readFileSync("package.json")).config.projects.chrome.tag)')"
-if [ "$BRAVE_STAGE_INDEX" = "1" ]; then
+if [ "$BRAVE_STAGE_INDEX" = "1" ] && [ ! -s "$ROOT/brave-work/.sandium/source-pins.env" ]; then
+  # First-ever bootstrap only. A restored Stage 1 progress checkpoint already
+  # contains the exact resolved pin; reuse it across workflow retries instead
+  # of repeating the remote tag lookup.
   CHROMIUM_PIN="$(git ls-remote "$CHROMIUM_URL" "refs/tags/$CHROMIUM_TAG" "refs/tags/$CHROMIUM_TAG^{}" | awk -v ref="refs/tags/$CHROMIUM_TAG" '$2 == ref { plain=$1 } $2 == ref"^{}" { peeled=$1 } END { if (peeled != "") print peeled; else if (plain != "") print plain; else exit 1 }')"
   echo "BRAVE_CHROMIUM_REMOTE_LOOKUP=PERFORMED stage=1"
 else
@@ -99,6 +102,11 @@ else
   }
   PINNED_CHROMIUM_TAG="$(sed -n 's/^CHROMIUM_TAG=//p' "$PINS_FILE" | head -n 1)"
   CHROMIUM_PIN="$(sed -n 's/^CHROMIUM_SHA=//p' "$PINS_FILE" | head -n 1)"
+  if [ "$BRAVE_STAGE_INDEX" = "1" ]; then
+    echo "BRAVE_CHROMIUM_PIN_REUSE=PASS restored request pin=$CHROMIUM_PIN"
+  else
+    echo "BRAVE_CHROMIUM_REMOTE_LOOKUP=SKIPPED stage=$BRAVE_STAGE_INDEX sha=$CHROMIUM_PIN"
+  fi
   test "$PINNED_CHROMIUM_TAG" = "$CHROMIUM_TAG" || {
     echo "BRAVE_SOURCE_REUSE=FAIL restored Chromium tag differs from Brave package.json" >&2
     exit 1
