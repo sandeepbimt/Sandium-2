@@ -238,24 +238,6 @@ if [ "$BRAVE_STAGE_INDEX" = "1" ]; then
 
 fi
 
-if [ -s "$ROOT/brave-work/.sandium/source-ready-restored" ] && [ "$SOURCE_ARCHIVE_PIN_MATCH" = "true" ] && [ "$SOURCE_PREP_PHASE" = "all" ]; then
-  test -s "$ROOT/brave-work/.sandium/source-pins.env"
-  test -s "$OUT/build.ninja" && test -s "$OUT/args.gn" && test -s "$OUT/args_generated.gni" || {
-    echo "BRAVE_SOURCE_READY_GATE=FAIL restored source-ready reference lacks the pinned GN graph" >&2
-    exit 1
-  }
-  test -s "$SRC_DIR/build/config/siso/.sisoenv"
-  test -s "$SRC_DIR/build/config/siso/.sisorc"
-  test -s "$SRC_DIR/build/config/siso/backend_config/backend.star"
-  test -x "$SRC_DIR/buildtools/reclient_cfgs/python/python_remote_wrapper"
-  echo "BRAVE_SOURCE_READY_REUSE=PASS; source sync, runhooks and GN generation skipped."
-  echo "BRAVE_HOST_DEPENDENCY_INSTALL=START"
-  cd "$ROOT/brave-work"
-  ./src/build/install-build-deps.sh --android
-  echo "BRAVE_HOST_DEPENDENCY_INSTALL=PASS"
-  exit 0
-fi
-
 if [ "$BRAVE_STAGE_INDEX" != "1" ]; then
   ACTUAL_CHROMIUM_SHA="$(git -C "$SRC_DIR" rev-parse HEAD)"
   ACTUAL_BRAVE_TAG="$(git -C "$CORE_DIR" describe --tags --exact-match 2>/dev/null || true)"
