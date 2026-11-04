@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-STAGE="\${1:?usage: source-prep-stage.sh <1..5>}"
+STAGE="${1:?usage: source-prep-stage.sh <1..5>}"
 case "$STAGE" in 1|2|3|4|5) ;; *) echo "SOURCE_PREP_STAGE=FAIL invalid stage=$STAGE" >&2; exit 2 ;; esac
 
-ROOT="\${CIRCLE_WORKING_DIRECTORY:?CIRCLE_WORKING_DIRECTORY is required}"
+ROOT="${CIRCLE_WORKING_DIRECTORY:?CIRCLE_WORKING_DIRECTORY is required}"
 WORK="$ROOT/brave-work"
 SRC="$WORK/src"
 CORE="$SRC/brave"
@@ -49,7 +49,7 @@ mkdir -p "$WORK/.sandium"
 {
   echo "STAGE=$STAGE"
   echo "PHASE=$PHASE"
-  echo "WORKFLOW_ID=\${CIRCLE_WORKFLOW_ID:-local}"
+  echo "WORKFLOW_ID=${CIRCLE_WORKFLOW_ID:-local}"
   cat "$PINS"
   echo "SAVED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 } > "$WORK/.sandium/source-prep-progress.txt"
