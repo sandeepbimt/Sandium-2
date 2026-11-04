@@ -80,10 +80,28 @@ with tempfile.TemporaryDirectory(prefix="sandium-source-checkpoint-test-") as te
     run(["git", "-C", str(core), "commit", "-m", "test Brave Core"])
     run(["git", "-C", str(core), "tag", "v1.99.54"])
     (work / ".sandium" / "source-pins.env").write_text(
-        "BRAVE_CORE_TAG=v1.99.54\nCHROMIUM_TAG=157.0.8103.30\nCHROMIUM_SHA=%s\n" % chromium_sha,
+        "BRAVE_CORE_TAG=v1.99.54\nCHROMIUM_TAG=157.0.8103.30\nCHROMIUM_SHA=%s\n" % ("0" * 40),
         encoding="utf-8")
 
-    module.archive(root, workers=2, stage=5, ready=True)
+    # A timed-out gclient sync can leave a valid previous Chromium HEAD but a
+    # different target SHA. Progress archives must remain resumable in that state.
+    (work / ".sandium" / "source-prep-progress.txt").write_text(
+        "STAGE=1\nPHASE=pinning-incomplete\nREFRESH_REQUEST_ID=unit-test\n", encoding="utf-8")
+    module.archive(root, workers=2, stage=1, ready=False)
+    progress = module.verify(root, workers=2, zstd_test=True, require_ready=False)
+    assert progress["ready"] is False
+    assert progress["source"]["chromium_sha"] == "0" * 40
+    assert progress["source"]["actual_chromium_sha"] == chromium_sha
+    assert progress["source"]["refresh_request_id"] == "unit-test"
+
+    # Complete the source pin and prove that the same archive format promotes
+    # the exact source-ready state, while still excluding compiled objects.
+    (work / ".sandium" / "source-pins.env").write_text(
+        "BRAVE_CORE_TAG=v1.99.54\nCHROMIUM_TAG=157.0.8103.30\nCHROMIUM_SHA=%s\n" % chromium_sha,
+        encoding="utf-8")
+    (work / ".sandium" / "source-prep-progress.txt").write_text(
+        "STAGE=2\nPHASE=source-ready\nREFRESH_REQUEST_ID=unit-test\n", encoding="utf-8")
+    module.archive(root, workers=2, stage=2, ready=True)
     payload = module.verify(root, workers=2, zstd_test=True, require_ready=True)
     assert payload["ready"] is True
     assert payload["source"]["chromium_sha"] == chromium_sha
