@@ -14,24 +14,32 @@ echo "export PATH=\"$NODE_DIR/bin:\$PATH\"" >> "$BASH_ENV"
 mkdir -p "$ROOT/brave-work"
 SRC_DIR="$ROOT/brave-work/src"
 CORE_DIR="$SRC_DIR/brave"
-if [ ! -d "$ROOT/brave-work/src/brave/.git" ]; then
-  git clone --depth 1 --branch v1.98.62 https://github.com/brave/brave-core.git "$ROOT/brave-work/src/brave"
+BRAVE_CORE_TAG="v1.99.54"
+CHROMIUM_URL="https://chromium.googlesource.com/chromium/src.git"
+if [ ! -d "$CORE_DIR/.git" ]; then
+  git clone --depth 1 --branch "$BRAVE_CORE_TAG" https://github.com/brave/brave-core.git "$CORE_DIR"
+else
+  git -C "$CORE_DIR" fetch --depth=1 origin "refs/tags/$BRAVE_CORE_TAG:refs/tags/$BRAVE_CORE_TAG"
+  git -C "$CORE_DIR" checkout --force --detach "$BRAVE_CORE_TAG"
+  git -C "$CORE_DIR" clean -ffd
 fi
-cd "$ROOT/brave-work/src/brave"
+cd "$CORE_DIR"
 CHROMIUM_TAG="$(node -e 'console.log(JSON.parse(require("fs").readFileSync("package.json")).config.projects.chrome.tag)')"
-echo "BRAVE_CORE_TAG=v1.98.62"
+CHROMIUM_PIN="$(git ls-remote "$CHROMIUM_URL" "refs/tags/$CHROMIUM_TAG" "refs/tags/$CHROMIUM_TAG^{}" | awk -v ref="refs/tags/$CHROMIUM_TAG" '$2 == ref { plain=$1 } $2 == ref"^{}" { peeled=$1 } END { if (peeled != "") print peeled; else if (plain != "") print plain; else exit 1 }')"
+echo "BRAVE_CORE_TAG=$BRAVE_CORE_TAG"
 echo "CHROMIUM_TAG=$CHROMIUM_TAG"
+echo "CHROMIUM_PIN=$CHROMIUM_PIN"
 echo "BRAVE_STAGE=${BRAVE_STAGE_INDEX:?BRAVE_STAGE_INDEX is required}"
 test -n "$CHROMIUM_TAG"
+test "${#CHROMIUM_PIN}" -eq 40
 if [ "${BRAVE_STAGE_INDEX:?BRAVE_STAGE_INDEX is required}" = "1" ]; then
   pnpm config set store-dir "$HOME/.cache/pnpm-store"
   SRC_DIR="$ROOT/brave-work/src"
   CORE_DIR="$SRC_DIR/brave"
   OUT="$SRC_DIR/out/android_Release_arm64"
   SOURCE_REUSE=false
-  CHROMIUM_PIN="d331de35ca8ab1358c7a17e4bd41627d55eaef51"
 
-  # Use Brave's native RBE configuration path. At v1.98.62,
+  # Use Brave's native RBE configuration path. At v1.99.54,
   # pnpm sync reads rbe_service from brave/.env and writes the
   # reapi_* custom_vars into .gclient before running Chromium hooks.
   REAPI_ADDRESS="$(printenv SANDIUM_REAPI_ADDRESS 2>/dev/null || true)"
@@ -58,7 +66,7 @@ if [ "${BRAVE_STAGE_INDEX:?BRAVE_STAGE_INDEX is required}" = "1" ]; then
   # Reuse the pinned source tree, but refresh Brave's generated Siso config.
   if [ -s "$ROOT/brave-work/.gclient" ] && [ -e "$SRC_DIR/.git" ] && \
      [ -x "$SRC_DIR/build/install-build-deps.sh" ] && \
-     [ "$(git -C "$CORE_DIR" describe --tags --exact-match 2>/dev/null || true)" = "v1.98.62" ] && \
+     [ "$(git -C "$CORE_DIR" describe --tags --exact-match 2>/dev/null || true)" = "$BRAVE_CORE_TAG" ] && \
      [ "$(git -C "$SRC_DIR" rev-parse HEAD 2>/dev/null || true)" = "$CHROMIUM_PIN" ] && \
      [ -d "$SRC_DIR/third_party" ] && [ -d "$SRC_DIR/build" ]; then
     SOURCE_REUSE=true
@@ -74,24 +82,37 @@ if [ "${BRAVE_STAGE_INDEX:?BRAVE_STAGE_INDEX is required}" = "1" ]; then
       pnpm run sync --target_os=android --target_arch=arm64 --no-history --sync_chromium=false
     fi
   else
-    echo "BRAVE_SOURCE_REUSE=MISS; source checkout incomplete or pin mismatch; full init required."
+    echo "BRAVE_SOURCE_REUSE=MISS; source checkout incomplete or release pin mismatch; initializing vanilla Brave v1.99.54."
+    # The restored 26GB reference is v1.98.62/Chromium 156. Its generated
+    # Ninja graph and Siso filesystem state are not valid for the v1.99.54 /
+    # Chromium 157 release. Keep the canonical archive untouched, but discard
+    # only this runner's incompatible output directory before GN regeneration.
+    if [ -d "$OUT" ]; then
+      echo "BRAVE_VERSION_UPGRADE_CLEAN_OUT=START path=$OUT"
+      rm -rf "$OUT"
+      echo "BRAVE_VERSION_UPGRADE_CLEAN_OUT=PASS"
+    fi
     cd "$CORE_DIR"
     pnpm run init --target_os=android --target_arch=arm64 --no-history
   fi
 
-  # Pillow is required by the extended branding generator. Install the
-  # distro package for Ubuntu's system Python and invoke that same interpreter;
-  # pip --user can target a different Python environment on CircleCI images.
-  sudo apt-get update -qq
-  sudo apt-get install -y python3-pil
-  /usr/bin/python3 -c 'from PIL import Image, ImageDraw, ImageFont; print("SANDIUM_PIL_PREFLIGHT=PASS")'
-
-  # Apply Sandium launcher artwork and app display name to the pinned sources.
-  bash "$ROOT/.circleci/scripts/apply-sandium-branding.sh"
-  /usr/bin/python3 "$ROOT/.circleci/scripts/apply-sandium-extended-branding.py" \
-    --src "$SRC_DIR" --core "$CORE_DIR" \
-    --source "$ROOT/.circleci/branding/source" \
-    --generated "$ROOT/.sandium-branding-extended-generated"
+  ACTUAL_CHROMIUM_SHA="$(git -C "$SRC_DIR" rev-parse HEAD)"
+  ACTUAL_BRAVE_TAG="$(git -C "$CORE_DIR" describe --tags --exact-match 2>/dev/null || true)"
+  test "$ACTUAL_BRAVE_TAG" = "$BRAVE_CORE_TAG" || {
+    echo "BRAVE_SOURCE_PIN_GATE=FAIL Brave tag expected=$BRAVE_CORE_TAG actual=${ACTUAL_BRAVE_TAG:-missing}" >&2
+    exit 1
+  }
+  test "$ACTUAL_CHROMIUM_SHA" = "$CHROMIUM_PIN" || {
+    echo "BRAVE_SOURCE_PIN_GATE=FAIL Chromium tag=$CHROMIUM_TAG expected_sha=$CHROMIUM_PIN actual=$ACTUAL_CHROMIUM_SHA" >&2
+    exit 1
+  }
+  mkdir -p "$ROOT/brave-work/.sandium"
+  {
+    echo "BRAVE_CORE_TAG=$BRAVE_CORE_TAG"
+    echo "CHROMIUM_TAG=$CHROMIUM_TAG"
+    echo "CHROMIUM_SHA=$ACTUAL_CHROMIUM_SHA"
+  } > "$ROOT/brave-work/.sandium/source-pins.env"
+  echo "BRAVE_SOURCE_PIN_GATE=PASS Brave=$ACTUAL_BRAVE_TAG Chromium=$CHROMIUM_TAG sha=$ACTUAL_CHROMIUM_SHA"
 
   # Match the proven SSfull REAPI fix: compiler crash diagnostics must stay
   # inside this GN output directory. The upstream rebase_path("//out/...", ...)
@@ -145,36 +166,33 @@ import sys
 
 source_file = Path(sys.argv[1])
 source = source_file.read_text(encoding="utf-8")
-marker = (
-    "    FileUtils.write_text_file(\n"
-    "        (f'{Paths.src_dir}/buildtools/reclient_cfgs/python/'\n"
-    "         'python_remote_wrapper'),\n"
-    "        ShellTemplate(python_remote_wrapper_template).substitute(\n"
-    "            template_vars))\n"
-)
-needle = "    os.chmod(wrapper_path, 0o755)"
-if needle in source:
+old = """    FileUtils.write_text_file(
+        (
+            f'{Paths.src_dir}/buildtools/reclient_cfgs/python/'
+            'python_remote_wrapper'
+        ),
+        ShellTemplate(python_remote_wrapper_template).substitute(template_vars),
+    )"""
+new = """    wrapper_path = (
+        f'{Paths.src_dir}/buildtools/reclient_cfgs/python/'
+        'python_remote_wrapper'
+    )
+    FileUtils.write_text_file(
+        wrapper_path,
+        ShellTemplate(python_remote_wrapper_template).substitute(template_vars),
+    )
+    os.chmod(wrapper_path, 0o755)"""
+if old in source and source.count(old) == 1:
+    source_file.write_text(source.replace(old, new, 1), encoding="utf-8")
+    print("BRAVE_PYTHON_REMOTE_WRAPPER_GENERATOR_GATE=PASS patched v1.99.54 generator")
+elif new in source:
     print("BRAVE_PYTHON_REMOTE_WRAPPER_GENERATOR_GATE=PASS already patched")
 else:
-    replacement = (
-        "    wrapper_path = (\n"
-        "        f'{Paths.src_dir}/buildtools/reclient_cfgs/python/'\n"
-        "        'python_remote_wrapper'\n"
-        "    )\n"
-        "    FileUtils.write_text_file(\n"
-        "        wrapper_path,\n"
-        "        ShellTemplate(python_remote_wrapper_template).substitute(\n"
-        "            template_vars))\n"
-        "    os.chmod(wrapper_path, 0o755)\n"
+    raise SystemExit(
+        "BRAVE_PYTHON_REMOTE_WRAPPER_GENERATOR_GATE=FAIL expected the v1.99.54 "
+        "generate_python_remote_wrapper write block exactly once"
     )
-    if source.count(marker) != 1:
-        raise SystemExit(
-            "BRAVE_PYTHON_REMOTE_WRAPPER_GENERATOR_GATE=FAIL expected one known Brave generator block"
-        )
-    source_file.write_text(source.replace(marker, replacement, 1), encoding="utf-8")
-    print("BRAVE_PYTHON_REMOTE_WRAPPER_GENERATOR_GATE=PASS patched")
 PY
-
   # Brave writes its remote Python wrapper as plain text. Siso executes this
   # path directly on BuildBuddy workers, so persist the executable bit before
   # the Stage 1 workspace checkpoint is created.
@@ -262,7 +280,7 @@ PY
   # Re-run the pinned Chromium Siso configurator after Brave hooks with
   # Brave's native google.star backend, and persist BuildBuddy credentials.
   HELPER=/tmp/sandium-buildbuddy-credential-helper.py
-  # Brave v1.98.62 sets reapi_backend_config_path=google.star in its pinned
+  # Brave v1.99.54 sets reapi_backend_config_path=google.star in its pinned
   # build/commands/lib/config.ts. This is Chromium's pinned Siso backend file:
   # it selects the same siso-chromium worker image Chromium itself validates.
   # Do not replace it with a generic distro image or an OSFamily-only backend.
@@ -308,7 +326,7 @@ PY
   echo "BRAVE_RBE_CONTAINER_IMAGE=$EXPECTED_CONTAINER_IMAGE"
   # Brave's runhooks generated the native .sisorc immediately before this step.
   # Preserve native flags, enable the pinned Chromium remote-link rules, and
-  # retain Sandium's BuildBuddy action-cache write flag.
+  # retain the proven BuildBuddy action-cache write flag.
 python3 - "$SRC_DIR/build/config/siso/.sisorc" <<'PY'
 from pathlib import Path
 import os
@@ -410,35 +428,15 @@ PY
   fi
   export SISO_LIMITS=local=8,remote=80
   echo "BRAVE_STAGE1_VALIDATION_MODE=DRY_RUN_NO_COMPILATION"
-  pnpm run build Release --target_os=android --target_arch=arm64 --target_android_output_format=apk --use_remoteexec=true --gn use_siso:true --gn use_reclient:false --gn is_java_debug:false --gn enable_android_secondary_abi:false --gn is_official_build:false --gn enable_updater:false --gn enable_update_notifications:false --gn android_channel:default --gn chrome_public_manifest_package:com.brave.browser_default --gn brave_channel:development --target brave --ninja=n
+  pnpm run build Release --channel=release --target_os=android --target_arch=arm64 --target_android_output_format=aab --use_remoteexec=true --gn use_siso:true --gn use_reclient:false --gn is_java_debug:false --gn enable_android_secondary_abi:false --gn is_official_build:true --gn android_aab_to_apk:true --gn android_channel:stable --gn chrome_public_manifest_package:com.brave.browser --target create_dist --ninja=n
   bash "$ROOT/.circleci/scripts/verify-clang-diagnostics-gn.sh"
 fi
 
 # FAST MODE restores the immutable reference independently for every active stage.
-# Reapply only the lightweight brand overlays after each restore; do not run pnpm
-# init/sync or regenerate GN/Siso/Ninja state here.
+# No Sandium browser branding or ad-blocking source overlays are applied.
 if [ "${BRAVE_STAGE_INDEX:?BRAVE_STAGE_INDEX is required}" != "1" ]; then
-  echo "SANDIUM_BRANDING_REAPPLY=START stage=$BRAVE_STAGE_INDEX"
-  bash "$ROOT/.circleci/scripts/apply-sandium-branding.sh"
-
-  # Every CircleCI machine is fresh. Stage 1's system Pillow package does not
-  # survive into Stage 2+, so install it in the same system Python used below.
-  # Do not use pip --user here: on Ubuntu 24.04 it can target a different
-  # interpreter/user-site and still leave /usr/bin/python3 unable to import PIL.
-  sudo apt-get update -qq
-  sudo apt-get install -y python3-pil
-  /usr/bin/python3 -c 'from PIL import Image, ImageDraw, ImageFont; print("SANDIUM_PIL_PREFLIGHT=PASS stage=$BRAVE_STAGE_INDEX")'
-  /usr/bin/python3 "$ROOT/.circleci/scripts/apply-sandium-extended-branding.py" \
-    --src "$SRC_DIR" --core "$CORE_DIR" \
-    --source "$ROOT/.circleci/branding/source" \
-    --generated "$ROOT/.sandium-branding-extended-generated"
-  echo "SANDIUM_BRANDING_REAPPLY=PASS stage=$BRAVE_STAGE_INDEX"
+  echo "VANILLA_BRAVE_STAGE_RESTORE=PASS stage=$BRAVE_STAGE_INDEX; no custom browser overlays."
 fi
 
-
-# Apply the pinned Brave content-filter fix on every stage. FAST MODE stages
-# restore the immutable reference independently, so this source overlay must be
-# re-applied after each restore rather than only on Stage 1.
-echo "SANDIUM_ADBLOCK_PATCH=START stage=$BRAVE_STAGE_INDEX"
-python3 "$ROOT/.circleci/scripts/apply-sandium-adblock.py" --core "$CORE_DIR"
-echo "SANDIUM_ADBLOCK_PATCH=PASS stage=$BRAVE_STAGE_INDEX"
+# Vanilla Brave: retain upstream Brave ad blocking and component updater unchanged.
+echo "VANILLA_BRAVE_SOURCE_OVERLAYS=NONE"
