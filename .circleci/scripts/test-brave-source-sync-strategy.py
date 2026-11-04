@@ -17,18 +17,20 @@ incremental = source[incremental_start:fallback_start]
 fallback = source[fallback_start:pin_gate]
 
 assert "BRAVE_CHECKPOINT_PRESERVATION=PASS" in reuse
-assert "pnpm run sync --target_os=android --target_arch=arm64 --no-history --sync_chromium=false" in reuse
+assert "run_brave_sync --target_os=android --target_arch=arm64 --no-history --sync_chromium=false" in reuse
 assert "BRAVE_SOURCE_INCREMENTAL_SYNC=START" in incremental
-assert "pnpm run sync --target_os=android --target_arch=arm64 --no-history" in incremental
+assert "run_brave_sync --target_os=android --target_arch=arm64 --no-history" in incremental
 assert "BRAVE_SOURCE_INCREMENTAL_SYNC=PASS" in incremental
 assert "pnpm run init" not in incremental
-assert "pnpm run sync" in incremental and "pnpm run sync" not in incremental.replace(
-    "pnpm run sync --target_os=android --target_arch=arm64 --no-history", ""
-)
+assert "run_brave_sync" in incremental
 assert "no complete Chromium checkout" in fallback
 assert "pnpm run init --target_os=android --target_arch=arm64 --no-history" in fallback
 assert "SOURCE_INIT_SECONDS" in fallback
 assert '[ -d "$SRC_DIR/third_party" ]' in incremental
 assert '[ -d "$SRC_DIR/build" ]' in incremental
+assert "BRAVE_CORE_PIN_REUSE=PASS" in source
+assert "BRAVE_PNPM_DEPENDENCIES=REUSE" in source
+assert "pnpm install --frozen-lockfile --yes" in source
+assert "BRAVE_UPSTREAM_SYNC_SECONDS=" in source
 
 print("BRAVE_SOURCE_SYNC_STRATEGY_TEST=PASS pinned_checkpoint=noop existing_old_checkout=incremental_sync_without_force missing_checkout=init_fallback")
