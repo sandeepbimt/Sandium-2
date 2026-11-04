@@ -607,6 +607,7 @@ if [ "$SOURCE_PREP_PHASE" = "gn" ] || [ "$BRAVE_STAGE_INDEX" = "1" ]; then
   echo "BRAVE_STAGE1_VALIDATION_MODE=DRY_RUN_NO_COMPILATION"
   # Build unmodified upstream Brave; no app overlays, package overrides or updater changes.
   pnpm run build Release --channel=release --target_os=android --target_arch=arm64 --target_android_output_format=aab --android_aab_to_apk --use_remoteexec=true --gn use_siso:true --gn use_reclient:false --gn is_java_debug:false --gn enable_android_secondary_abi:false --gn is_official_build:true --gn android_channel:stable --gn chrome_public_manifest_package:com.brave.browser --target create_dist --ninja=n
+  bash "$ROOT/.circleci/scripts/verify-clang-diagnostics-gn.sh"
 fi
 
 if [ "$SOURCE_PREP_PHASE" = "final" ]; then
