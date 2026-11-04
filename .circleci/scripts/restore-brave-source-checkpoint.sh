@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-MODE="\${1:?usage: restore-brave-source-checkpoint.sh <base|progress>}"
-ROOT="\${CIRCLE_WORKING_DIRECTORY:?CIRCLE_WORKING_DIRECTORY is required}"
+MODE="${1:?usage: restore-brave-source-checkpoint.sh <base|progress>}"
+ROOT="${CIRCLE_WORKING_DIRECTORY:?CIRCLE_WORKING_DIRECTORY is required}"
 WORK="$ROOT/brave-work"
 case "$MODE" in
   base)
