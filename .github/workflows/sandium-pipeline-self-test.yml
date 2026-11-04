@@ -5,6 +5,7 @@ on:
     paths:
       - ".circleci/config.yml"
       - ".circleci/scripts/test-brave-source-sync-strategy.py"
+      - ".circleci/scripts/prepare-brave-source.sh"
       - ".circleci/scripts/sandium-source-shards.py"
       - ".circleci/scripts/test-sandium-source-shards.py"
       - ".circleci/scripts/test-source-prep-phases.py"
@@ -23,6 +24,7 @@ on:
     paths:
       - ".circleci/config.yml"
       - ".circleci/scripts/test-brave-source-sync-strategy.py"
+      - ".circleci/scripts/prepare-brave-source.sh"
       - ".circleci/scripts/sandium-source-shards.py"
       - ".circleci/scripts/test-sandium-source-shards.py"
       - ".circleci/scripts/test-source-prep-phases.py"
