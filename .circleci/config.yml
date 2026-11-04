@@ -1549,6 +1549,50 @@ jobs:
                     echo "SANDIUM_PINNING_REFERENCE=ALREADY_CURRENT"
                     circleci-agent step halt
                   fi
+      - restore_cache:
+          name: Restore pinned Node and pnpm runtime
+          keys:
+            - sandium-brave-node-v2-24.16.0-pnpm-11.11.0
+      - run:
+          name: Restore and verify the previous source checkpoint
+          command: |
+            set -euo pipefail
+            if [ "<< parameters.stage_index >>" = "1" ]; then
+              bash .circleci/scripts/restore-brave-source-checkpoint.sh base
+            else
+              bash .circleci/scripts/restore-brave-source-checkpoint.sh progress
+            fi
+      - run:
+          name: Execute real Brave and Chromium source preparation for this stage
+          command: |
+            set -euo pipefail
+            bash .circleci/scripts/source-prep-stage.sh "<< parameters.stage_index >>"
+      - run:
+          name: Publish verified source-preparation stage status
+          command: |
+            set -euo pipefail
+            ROOT="$CIRCLE_WORKING_DIRECTORY"
+            STAGE="<< parameters.stage_index >>"
+            mkdir -p "$ROOT/pinning-status"
+            READY=false
+            if [ -s "$ROOT/brave-work/.sandium/source-ready" ] && [ -s "$ROOT/brave-source-checkpoint.manifest.json" ]; then
+              READY="$(python3 - "$ROOT/brave-source-checkpoint.manifest.json" <<'PY'
+            import json,sys
+            data=json.load(open(sys.argv[1],encoding="utf-8"))
+            print("true" if data.get("ready") is True else "false")
+            PY
+            )"
+            fi
+            {
+              if [ "$READY" = "true" ]; then echo "PINNING_READY=true"; else echo "PINNING_READY=false"; fi
+              echo "STAGE=$STAGE"
+              echo "WORKFLOW_ID=${CIRCLE_WORKFLOW_ID:-unknown}"
+            } > "$ROOT/pinning-status/stage-$STAGE-result.env"
+            echo "SANDIUM_PINNING_STAGE_STATUS=PASS stage=$STAGE ready=$READY"
+      - persist_to_workspace:
+          root: .
+          paths:
+            - pinning-status/stage-<< parameters.stage_index >>-result.env
       - run:
           name: Avoid duplicate upload when this source slice made no reusable progress
           command: |
