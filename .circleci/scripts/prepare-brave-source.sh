@@ -16,12 +16,21 @@ SRC_DIR="$ROOT/brave-work/src"
 CORE_DIR="$SRC_DIR/brave"
 BRAVE_CORE_TAG="v1.99.54"
 CHROMIUM_URL="https://chromium.googlesource.com/chromium/src.git"
-if [ ! -d "$CORE_DIR/.git" ]; then
-  git clone --depth 1 --branch "$BRAVE_CORE_TAG" https://github.com/brave/brave-core.git "$CORE_DIR"
+BRAVE_STAGE_INDEX="${BRAVE_STAGE_INDEX:?BRAVE_STAGE_INDEX is required}"
+if [ "$BRAVE_STAGE_INDEX" = "1" ]; then
+  if [ ! -d "$CORE_DIR/.git" ]; then
+    git clone --depth 1 --branch "$BRAVE_CORE_TAG" https://github.com/brave/brave-core.git "$CORE_DIR"
+  else
+    git -C "$CORE_DIR" fetch --depth=1 origin "refs/tags/$BRAVE_CORE_TAG:refs/tags/$BRAVE_CORE_TAG"
+    git -C "$CORE_DIR" checkout --force --detach "$BRAVE_CORE_TAG"
+    git -C "$CORE_DIR" clean -ffd
+  fi
 else
-  git -C "$CORE_DIR" fetch --depth=1 origin "refs/tags/$BRAVE_CORE_TAG:refs/tags/$BRAVE_CORE_TAG"
-  git -C "$CORE_DIR" checkout --force --detach "$BRAVE_CORE_TAG"
-  git -C "$CORE_DIR" clean -ffd
+  [ -d "$CORE_DIR/.git" ] || { echo "BRAVE_SOURCE_REUSE=FAIL restored Brave Core Git checkout is missing" >&2; exit 1; }
+  [ "$(git -C "$CORE_DIR" describe --tags --exact-match 2>/dev/null || true)" = "$BRAVE_CORE_TAG" ] || {
+    echo "BRAVE_SOURCE_REUSE=FAIL restored Brave Core tag does not match $BRAVE_CORE_TAG" >&2
+    exit 1
+  }
 fi
 cd "$CORE_DIR"
 CHROMIUM_TAG="$(node -e 'console.log(JSON.parse(require("fs").readFileSync("package.json")).config.projects.chrome.tag)')"
@@ -430,6 +439,18 @@ PY
   echo "BRAVE_STAGE1_VALIDATION_MODE=DRY_RUN_NO_COMPILATION"
   pnpm run build Release --channel=release --target_os=android --target_arch=arm64 --target_android_output_format=aab --use_remoteexec=true --gn use_siso:true --gn use_reclient:false --gn is_java_debug:false --gn enable_android_secondary_abi:false --gn is_official_build:true --gn android_aab_to_apk:true --gn android_channel:stable --gn chrome_public_manifest_package:com.brave.browser --target create_dist --ninja=n
   bash "$ROOT/.circleci/scripts/verify-clang-diagnostics-gn.sh"
+fi
+
+if [ "$BRAVE_STAGE_INDEX" != "1" ]; then
+  ACTUAL_CHROMIUM_SHA="$(git -C "$SRC_DIR" rev-parse HEAD)"
+  ACTUAL_BRAVE_TAG="$(git -C "$CORE_DIR" describe --tags --exact-match 2>/dev/null || true)"
+  test "$ACTUAL_BRAVE_TAG" = "$BRAVE_CORE_TAG" || { echo "BRAVE_SOURCE_PIN_GATE=FAIL restored Brave tag mismatch" >&2; exit 1; }
+  test "$ACTUAL_CHROMIUM_SHA" = "$CHROMIUM_PIN" || { echo "BRAVE_SOURCE_PIN_GATE=FAIL restored Chromium SHA mismatch expected=$CHROMIUM_PIN actual=$ACTUAL_CHROMIUM_SHA" >&2; exit 1; }
+  test -s "$ROOT/brave-work/.sandium/source-pins.env" || { echo "BRAVE_SOURCE_PIN_GATE=FAIL restored source-pins.env is missing" >&2; exit 1; }
+  grep -Fx "BRAVE_CORE_TAG=$BRAVE_CORE_TAG" "$ROOT/brave-work/.sandium/source-pins.env" >/dev/null
+  grep -Fx "CHROMIUM_TAG=$CHROMIUM_TAG" "$ROOT/brave-work/.sandium/source-pins.env" >/dev/null
+  grep -Fx "CHROMIUM_SHA=$ACTUAL_CHROMIUM_SHA" "$ROOT/brave-work/.sandium/source-pins.env" >/dev/null
+  echo "BRAVE_SOURCE_PIN_GATE=PASS restored Brave=$ACTUAL_BRAVE_TAG Chromium=$CHROMIUM_TAG sha=$ACTUAL_CHROMIUM_SHA"
 fi
 
 # FAST MODE restores the immutable reference independently for every active stage.
