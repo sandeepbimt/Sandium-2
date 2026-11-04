@@ -462,22 +462,9 @@ PY
   fi
   export SISO_LIMITS=local=8,remote=80
   echo "BRAVE_STAGE1_VALIDATION_MODE=DRY_RUN_NO_COMPILATION"
-  python3 "$ROOT/.circleci/scripts/apply-sandium-adblock.py" --core "$CORE_DIR"
-  bash "$ROOT/.circleci/scripts/apply-sandium-branding.sh"
-  pnpm run build Release --channel=release --target_os=android --target_arch=arm64 --target_android_output_format=aab --android_aab_to_apk --use_remoteexec=true --gn use_siso:true --gn use_reclient:false --gn is_java_debug:false --gn enable_android_secondary_abi:false --gn is_official_build:false --gn enable_updater:false --gn enable_update_notifications:false --gn android_channel:default --gn chrome_public_manifest_package:com.brave.browser_default --gn brave_channel:development --target create_dist --ninja=n
+  # Build unmodified upstream Brave; no app overlays, package overrides or updater changes.
+  pnpm run build Release --channel=release --target_os=android --target_arch=arm64 --target_android_output_format=aab --android_aab_to_apk --use_remoteexec=true --gn use_siso:true --gn use_reclient:false --gn is_java_debug:false --gn enable_android_secondary_abi:false --gn is_official_build:true --gn android_channel:stable --gn chrome_public_manifest_package:com.brave.browser --target create_dist --ninja=n
   bash "$ROOT/.circleci/scripts/verify-clang-diagnostics-gn.sh"
-fi
-
-if [ "$BRAVE_STAGE_INDEX" != "1" ]; then
-  ACTUAL_CHROMIUM_SHA="$(git -C "$SRC_DIR" rev-parse HEAD)"
-  ACTUAL_BRAVE_TAG="$(git -C "$CORE_DIR" describe --tags --exact-match 2>/dev/null || true)"
-  test "$ACTUAL_BRAVE_TAG" = "$BRAVE_CORE_TAG" || { echo "BRAVE_SOURCE_PIN_GATE=FAIL restored Brave tag mismatch" >&2; exit 1; }
-  test "$ACTUAL_CHROMIUM_SHA" = "$CHROMIUM_PIN" || { echo "BRAVE_SOURCE_PIN_GATE=FAIL restored Chromium SHA mismatch expected=$CHROMIUM_PIN actual=$ACTUAL_CHROMIUM_SHA" >&2; exit 1; }
-  test -s "$ROOT/brave-work/.sandium/source-pins.env" || { echo "BRAVE_SOURCE_PIN_GATE=FAIL restored source-pins.env is missing" >&2; exit 1; }
-  grep -Fx "BRAVE_CORE_TAG=$BRAVE_CORE_TAG" "$ROOT/brave-work/.sandium/source-pins.env" >/dev/null
-  grep -Fx "CHROMIUM_TAG=$CHROMIUM_TAG" "$ROOT/brave-work/.sandium/source-pins.env" >/dev/null
-  grep -Fx "CHROMIUM_SHA=$ACTUAL_CHROMIUM_SHA" "$ROOT/brave-work/.sandium/source-pins.env" >/dev/null
-  echo "BRAVE_SOURCE_PIN_GATE=PASS restored Brave=$ACTUAL_BRAVE_TAG Chromium=$CHROMIUM_TAG sha=$ACTUAL_CHROMIUM_SHA"
 fi
 
 if [ "$BRAVE_STAGE_INDEX" != "1" ]; then
@@ -488,22 +475,18 @@ if [ "$BRAVE_STAGE_INDEX" != "1" ]; then
     exit 1
   }
   test "$ACTUAL_CHROMIUM_SHA" = "$CHROMIUM_PIN" || {
-    echo "BRAVE_SOURCE_PIN_GATE=FAIL restored Chromium SHA mismatch" >&2
+    echo "BRAVE_SOURCE_PIN_GATE=FAIL restored Chromium SHA mismatch expected=$CHROMIUM_PIN actual=$ACTUAL_CHROMIUM_SHA" >&2
+    exit 1
+  }
+  test -s "$ROOT/brave-work/.sandium/source-pins.env" || {
+    echo "BRAVE_SOURCE_PIN_GATE=FAIL restored source-pins.env is missing" >&2
     exit 1
   }
   grep -Fx "BRAVE_CORE_TAG=$BRAVE_CORE_TAG" "$ROOT/brave-work/.sandium/source-pins.env" >/dev/null
   grep -Fx "CHROMIUM_TAG=$CHROMIUM_TAG" "$ROOT/brave-work/.sandium/source-pins.env" >/dev/null
   grep -Fx "CHROMIUM_SHA=$ACTUAL_CHROMIUM_SHA" "$ROOT/brave-work/.sandium/source-pins.env" >/dev/null
-  python3 "$ROOT/.circleci/scripts/apply-sandium-adblock.py" --core "$CORE_DIR" --verify-only
-  grep -Fq "Sandium Browser" "$SRC_DIR/chrome/android/java/AndroidManifest.xml" || {
-    echo "SANDIUM_BRANDING_RESTORE=FAIL manifest label missing" >&2
-    exit 1
-  }
-  test -s "$SRC_DIR/chrome/android/java/res_chromium_base/mipmap-xxxhdpi/app_icon.png" || {
-    echo "SANDIUM_BRANDING_RESTORE=FAIL Sandium icon resource missing" >&2
-    exit 1
-  }
-  echo "SANDIUM_STAGE_RESTORE=PASS stage=$BRAVE_STAGE_INDEX source_pins=verified overlays=verified"
+  echo "BRAVE_SOURCE_PIN_GATE=PASS restored Brave=$ACTUAL_BRAVE_TAG Chromium=$CHROMIUM_TAG sha=$ACTUAL_CHROMIUM_SHA"
+  echo "VANILLA_BRAVE_STAGE_RESTORE=PASS stage=$BRAVE_STAGE_INDEX; no app overlays."
 fi
 
-echo "SANDIUM_SOURCE_OVERLAYS=ADBLOCK+BRANDING"
+echo "VANILLA_BRAVE_SOURCE_OVERLAYS=NONE"

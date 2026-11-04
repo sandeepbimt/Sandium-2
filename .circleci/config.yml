@@ -1559,10 +1559,6 @@ jobs:
             bash -n .circleci/scripts/verify-brave-remote-smoke.sh
             bash -n .circleci/scripts/capture-brave-siso-checkpoint.sh
             bash -n .circleci/scripts/prepare-brave-source.sh
-            bash -n .circleci/scripts/apply-sandium-branding.sh
-            python3 -m py_compile .circleci/scripts/generate-sandium-density-assets.py
-            python3 -m py_compile .circleci/scripts/apply-sandium-adblock.py .circleci/scripts/test-sandium-adblock.py
-            python3 .circleci/scripts/test-sandium-adblock.py
             python3 -m py_compile .circleci/scripts/analyze-brave-apk-size.py .circleci/scripts/test-analyze-brave-apk-size.py
             python3 .circleci/scripts/test-analyze-brave-apk-size.py
             bash -n .circleci/scripts/recover-siso-missing-cas-inputs.sh
@@ -1780,12 +1776,12 @@ jobs:
             echo "SANDIUM_BUILD_MODE=$MODE"
             if [ "$MODE" = "fast" ]; then
               echo "SANDIUM_CI_NAME=SANDIUM-FAST-MODE"
-              EXPECTED_BRAVE_CORE_TAG=v1.99.54 EXPECTED_CHROMIUM_TAG=157.0.8103.30 EXPECTED_SANDIUM_RELEASE=true bash "$ROOT/.circleci/scripts/verify-brave-reference.sh"
+              EXPECTED_BRAVE_CORE_TAG=v1.99.54 EXPECTED_CHROMIUM_TAG=157.0.8103.30 EXPECTED_VANILLA_RELEASE=true bash "$ROOT/.circleci/scripts/verify-brave-reference.sh"
             elif [ "$MODE" = "full" ]; then
               echo "SANDIUM_CI_NAME=SANDIUM-FULL-MODE"
               if [ "${CIRCLE_BRANCH:-}" = "brave/vanilla-v1.99.54" ] && [ "<< parameters.stage_index >>" = "1" ]; then
                 echo "CANONICAL_REFERENCE_VALIDATION=START commit=3c8004b; expected Brave v1.98.62 / Chromium SHA d331de35..."
-                EXPECTED_BRAVE_CORE_TAG=v1.98.62 EXPECTED_CHROMIUM_TAG="" EXPECTED_CHROMIUM_SHA=d331de35ca8ab1358c7a17e4bd41627d55eaef51 EXPECTED_SANDIUM_RELEASE=false bash "$ROOT/.circleci/scripts/verify-brave-reference.sh"
+                EXPECTED_BRAVE_CORE_TAG=v1.98.62 EXPECTED_CHROMIUM_TAG="" EXPECTED_CHROMIUM_SHA=d331de35ca8ab1358c7a17e4bd41627d55eaef51 EXPECTED_VANILLA_RELEASE=false bash "$ROOT/.circleci/scripts/verify-brave-reference.sh"
                 echo "CANONICAL_REFERENCE_VALIDATION=PASS; the immutable 26GB source/dependency reference is verified before version upgrade."
               fi
               echo "SANDIUM_FULL_MODE=FORCED; stage budget=30 minutes; checkpoint promotion required."
@@ -1894,14 +1890,11 @@ jobs:
               require_arg use_remoteexec true
               require_arg use_siso true
               require_arg use_reclient false
-              require_arg is_official_build false
-              require_arg enable_updater false
-              require_arg enable_update_notifications false
+              require_arg is_official_build true
               require_arg android_aab_to_apk true
               require_arg target_android_output_format '"aab"'
-              require_arg android_channel '"default"'
-              require_arg brave_channel '"development"'
-              require_arg chrome_public_manifest_package '"com.brave.browser_default"'
+              require_arg android_channel '"stable"'
+              require_arg chrome_public_manifest_package '"com.brave.browser"'
               echo "BRAVE_BUILD_GRAPH_GATE=PASS"
               echo "BRAVE_REMOTE_EXECUTION_CONFIG_GATE=PASS"
             fi
@@ -1939,8 +1932,8 @@ jobs:
               if [ "$VALID" = true ]; then
                 PACKAGE="$(sed -n "s/^package: name='\\([^']*\\)'.*/\\1/p" "$ROOT/brave-work/.sandium/restored-apk-badging.txt" 2>/dev/null | head -n 1)"
                 APP_LABEL="$(sed -n "s/^application-label:'\\(.*\\)'$/\\1/p" "$ROOT/brave-work/.sandium/restored-apk-badging.txt" 2>/dev/null | head -n 1)"
-                [ "$PACKAGE" = "com.brave.browser_default" ] || VALID=false
-                [ "$APP_LABEL" = "Sandium Browser" ] || VALID=false
+                [ "$PACKAGE" = "com.brave.browser" ] || VALID=false
+                [ "$APP_LABEL" = "Brave" ] || VALID=false
               fi
             else
               VALID=false
@@ -1954,7 +1947,7 @@ jobs:
             fi
             if [ "$VALID" = true ]; then
               touch "$ROOT/brave-work/.sandium/restored-apk-valid"
-              echo "BRAVE_RESTORED_APK=VALID package=com.brave.browser_default label=Sandium Browser bytes=$(stat -c '%s' "$APK")"
+              echo "BRAVE_RESTORED_APK=VALID package=com.brave.browser label=Brave bytes=$(stat -c '%s' "$APK")"
             else
               echo "BRAVE_RESTORED_APK=INVALID; reopening only the APK output action."
               rm -f "$APK"
@@ -2170,16 +2163,16 @@ jobs:
                   if "$TOOLS/aapt" dump badging "$APK" > "$ROOT/brave-apk/apk-badging.txt" 2>&1; then
                     PACKAGE="$(sed -n "s/^package: name='\\([^']*\\)'.*/\\1/p" "$ROOT/brave-apk/apk-badging.txt" | head -n 1)"
                     APP_LABEL="$(sed -n "s/^application-label:'\\(.*\\)'$/\\1/p" "$ROOT/brave-apk/apk-badging.txt" | head -n 1)"
-                    if [ "$PACKAGE" = "com.brave.browser_default" ]; then
+                    if [ "$PACKAGE" = "com.brave.browser" ]; then
                       PACKAGE_VALID=true
                     else
-                      APK_ERROR="expected package com.brave.browser_default; got ${PACKAGE:-<missing>}"
+                      APK_ERROR="expected package com.brave.browser; got ${PACKAGE:-<missing>}"
                     fi
-                    if [ "$APP_LABEL" = "Sandium Browser" ]; then
+                    if [ "$APP_LABEL" = "Brave" ]; then
                       APP_IDENTITY_VALID=true
                       echo "BRAVE_APP_LABEL_GATE=PASS label=$APP_LABEL"
                     else
-                      APK_ERROR="expected app label Sandium Browser; got ${APP_LABEL:-<missing>}"
+                      APK_ERROR="expected app label Brave; got ${APP_LABEL:-<missing>}"
                       echo "BRAVE_APP_LABEL_GATE=FAIL $APK_ERROR"
                     fi
                   else
@@ -2201,8 +2194,8 @@ jobs:
                 echo "APK_SIGNATURE_VALID=true"
                 echo "APK_PACKAGE_ID_VALID=true"
                 echo "APK_APP_IDENTITY_VALID=true"
-                echo "APK_PACKAGE_ID=com.brave.browser_default"
-                echo "APK_APP_LABEL=Sandium Browser"
+                echo "APK_PACKAGE_ID=com.brave.browser"
+                echo "APK_APP_LABEL=Brave"
                 echo "APK_FILENAME=Bravearm64Universal.apk"
                 echo "APK_SIZE_BYTES=$(stat -c '%s' "$APK")"
               } > "$ROOT/brave-apk/status.txt"
@@ -2318,12 +2311,11 @@ jobs:
                     echo "CHROMIUM_SHA=$CHROMIUM_SHA"
                     echo "TARGET=android-arm64"
                     echo "BUILD_TYPE=Release"
-                    echo "OFFICIAL_BUILD=false"
-                    echo "BRAVE_CHANNEL=development"
+                    echo "OFFICIAL_BUILD=true"
                     echo "TARGET_ANDROID_OUTPUT_FORMAT=aab"
                     echo "ANDROID_AAB_TO_APK=true"
-                    echo "PACKAGE_ID=com.brave.browser_default"
-                    echo "APP_LABEL=Sandium Browser"
+                    echo "PACKAGE_ID=com.brave.browser"
+                    echo "APP_LABEL=Brave"
                     echo "APK_FILENAME=Bravearm64Universal.apk"
                     echo "STAGE=<< parameters.stage_index >>"
                     echo "ARGS_GENERATED_SHA256=$(sha256sum "$ARGS_GENERATED" | awk '{print $1}')"
@@ -2445,7 +2437,7 @@ jobs:
             done
             export SANDIUM_ARCHIVE_WORKERS=8
             bash .circleci/scripts/archive-brave-workspace.sh verify
-            python3 -c 'import json,sys; from pathlib import Path; d=json.loads(Path(sys.argv[1]).read_text(encoding="utf-8")); c=d.get("checkpoint_manifest",{}); req={"CHECKPOINT_VALID":"true","REFERENCE_MODE":"reference","APK_VALIDATED":"true","REFERENCE_READY":"true","CHROMIUM_TAG":"157.0.8103.30","BRAVE_CORE_TAG":"v1.99.54","TARGET":"android-arm64","BUILD_TYPE":"Release","OFFICIAL_BUILD":"false","TARGET_ANDROID_OUTPUT_FORMAT":"aab","ANDROID_AAB_TO_APK":"true","BRAVE_CHANNEL":"development","PACKAGE_ID":"com.brave.browser_default","APP_LABEL":"Sandium Browser","APK_FILENAME":"Bravearm64Universal.apk"}; bad=[k for k,v in req.items() if c.get(k)!=v]; sha=c.get("CHROMIUM_SHA",""); import re; assert re.fullmatch(r"[0-9a-f]{40}",sha), "REFERENCE_PROMOTION=FAIL invalid Chromium SHA"; assert not bad, "REFERENCE_PROMOTION=FAIL missing or incorrect keys: "+",".join(bad); Path(sys.argv[2]).write_text("\\n".join("%s=%s" % (k,v) for k,v in sorted(c.items()))+"\\n",encoding="utf-8"); print("REFERENCE_PROMOTION=PASS workers=%s shards=%s source_bytes=%s archive_bytes=%s" % (d.get("workers"),len(d.get("shards",[])),d.get("source_bytes"),d.get("archive_bytes")))' "$SHARD_MANIFEST" "$ROOT/reference-candidate-manifest.txt"
+            python3 -c 'import json,sys; from pathlib import Path; d=json.loads(Path(sys.argv[1]).read_text(encoding="utf-8")); c=d.get("checkpoint_manifest",{}); req={"CHECKPOINT_VALID":"true","REFERENCE_MODE":"reference","APK_VALIDATED":"true","REFERENCE_READY":"true","CHROMIUM_TAG":"157.0.8103.30","BRAVE_CORE_TAG":"v1.99.54","TARGET":"android-arm64","BUILD_TYPE":"Release","OFFICIAL_BUILD":"true","TARGET_ANDROID_OUTPUT_FORMAT":"aab","ANDROID_AAB_TO_APK":"true","PACKAGE_ID":"com.brave.browser","APP_LABEL":"Brave","APK_FILENAME":"Bravearm64Universal.apk"}; bad=[k for k,v in req.items() if c.get(k)!=v]; sha=c.get("CHROMIUM_SHA",""); import re; assert re.fullmatch(r"[0-9a-f]{40}",sha), "REFERENCE_PROMOTION=FAIL invalid Chromium SHA"; assert not bad, "REFERENCE_PROMOTION=FAIL missing or incorrect keys: "+",".join(bad); Path(sys.argv[2]).write_text("\\n".join("%s=%s" % (k,v) for k,v in sorted(c.items()))+"\\n",encoding="utf-8"); print("REFERENCE_PROMOTION=PASS workers=%s shards=%s source_bytes=%s archive_bytes=%s" % (d.get("workers"),len(d.get("shards",[])),d.get("source_bytes"),d.get("archive_bytes")))' "$SHARD_MANIFEST" "$ROOT/reference-candidate-manifest.txt"
             echo "REFERENCE_PROMOTION=CANDIDATE_VERIFIED"
       - save_cache:
           name: Promote immutable latest Sandium parallel-shard reference

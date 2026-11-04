@@ -11,7 +11,7 @@ OUT="$SRC/out/android_Release_arm64"
 EXPECTED_BRAVE_CORE_TAG="${EXPECTED_BRAVE_CORE_TAG-v1.99.54}"
 EXPECTED_CHROMIUM_TAG="${EXPECTED_CHROMIUM_TAG-157.0.8103.30}"
 EXPECTED_CHROMIUM_SHA="${EXPECTED_CHROMIUM_SHA-}"
-EXPECTED_SANDIUM_RELEASE="${EXPECTED_SANDIUM_RELEASE-true}"
+EXPECTED_VANILLA_RELEASE="${EXPECTED_VANILLA_RELEASE-true}"
 fail() { echo "BRAVE_REFERENCE_GATE=FAIL $*" >&2; exit 1; }
 
 [ -d "$SHARDS" ] || fail "restored parallel reference shard directory is missing"
@@ -79,7 +79,7 @@ if [ -n "$EXPECTED_CHROMIUM_SHA" ]; then
   [ "$ACTUAL_CHROMIUM_SHA" = "$EXPECTED_CHROMIUM_SHA" ] || fail "Chromium SHA=$ACTUAL_CHROMIUM_SHA expected=$EXPECTED_CHROMIUM_SHA"
 fi
 
-if [ "$EXPECTED_SANDIUM_RELEASE" = "true" ]; then
+if [ "$EXPECTED_VANILLA_RELEASE" = "true" ]; then
   [ -s "$WORK/.sandium/source-pins.env" ] || fail "vanilla release source-pins.env missing"
   grep -Fx "BRAVE_CORE_TAG=$EXPECTED_BRAVE_CORE_TAG" "$WORK/.sandium/source-pins.env" >/dev/null || fail "source-pins.env Brave tag mismatch"
   grep -Fx "CHROMIUM_TAG=$EXPECTED_CHROMIUM_TAG" "$WORK/.sandium/source-pins.env" >/dev/null || fail "source-pins.env Chromium tag mismatch"
@@ -96,14 +96,13 @@ if [ ! -s "$OUT/.siso_fs_state" ] && [ ! -s "$OUT/.siso_fs_state.journal" ]; the
   fail "neither Siso filesystem state nor its journal is present"
 fi
 
-if [ "$EXPECTED_SANDIUM_RELEASE" = "true" ]; then
+if [ "$EXPECTED_VANILLA_RELEASE" = "true" ]; then
   ARGS="$OUT/args_generated.gni"
-  grep -Eq '^[[:space:]]*is_official_build[[:space:]]*=[[:space:]]*false[[:space:]]*$' "$ARGS" || fail "Sandium Release must remain non-official"
+  grep -Eq '^[[:space:]]*is_official_build[[:space:]]*=[[:space:]]*true[[:space:]]*$' "$ARGS" || fail "official Brave Release build flag is not true"
   grep -Eq '^[[:space:]]*android_aab_to_apk[[:space:]]*=[[:space:]]*true[[:space:]]*$' "$ARGS" || fail "AAB-to-Universal-APK conversion is not enabled"
   grep -Eq '^[[:space:]]*target_android_output_format[[:space:]]*=[[:space:]]*"aab"[[:space:]]*$' "$ARGS" || fail "AAB output format is not selected"
-  grep -Eq '^[[:space:]]*android_channel[[:space:]]*=[[:space:]]*"default"[[:space:]]*$' "$ARGS" || fail "default Android channel is not selected"
-  grep -Eq '^[[:space:]]*brave_channel[[:space:]]*=[[:space:]]*"development"[[:space:]]*$' "$ARGS" || fail "Brave development component channel is not selected"
-  grep -Eq '^[[:space:]]*chrome_public_manifest_package[[:space:]]*=[[:space:]]*"com.brave.browser_default"[[:space:]]*$' "$ARGS" || fail "Sandium Android package id is not selected"
+  grep -Eq '^[[:space:]]*android_channel[[:space:]]*=[[:space:]]*"stable"[[:space:]]*$' "$ARGS" || fail "stable Android channel is not selected"
+  grep -Eq '^[[:space:]]*chrome_public_manifest_package[[:space:]]*=[[:space:]]*"com.brave.browser"[[:space:]]*$' "$ARGS" || fail "official Brave Android package id is not selected"
   grep -Eq '^[[:space:]]*use_remoteexec[[:space:]]*=[[:space:]]*true[[:space:]]*$' "$ARGS" || fail "remote execution is not enabled"
   grep -Eq '^[[:space:]]*use_siso[[:space:]]*=[[:space:]]*true[[:space:]]*$' "$ARGS" || fail "Siso is not enabled"
   grep -Eq '^[[:space:]]*use_reclient[[:space:]]*=[[:space:]]*false[[:space:]]*$' "$ARGS" || fail "reclient must remain disabled"
@@ -126,9 +125,9 @@ PY
   "$TOOLS/aapt" dump badging "$APK" > "$BADGING" 2>/dev/null || fail "aapt could not read the APK manifest"
   PACKAGE="$(sed -n "s/^package: name='\\([^']*\\)'.*/\\1/p" "$BADGING" | head -n 1)"
   APP_LABEL="$(sed -n "s/^application-label:'\\(.*\\)'$/\\1/p" "$BADGING" | head -n 1)"
-  [ "$PACKAGE" = "com.brave.browser_default" ] || fail "APK package id=$PACKAGE expected=com.brave.browser_default"
-  [ "$APP_LABEL" = "Sandium Browser" ] || fail "APK app label=$APP_LABEL expected=Sandium Browser"
-  echo "SANDIUM_BRAVE_APK_GATE=PASS package=$PACKAGE label=$APP_LABEL bytes=$(stat -c '%s' "$APK")"
+  [ "$PACKAGE" = "com.brave.browser" ] || fail "APK package id=$PACKAGE expected=com.brave.browser"
+  [ "$APP_LABEL" = "Brave" ] || fail "APK app label=$APP_LABEL expected=Brave"
+  echo "VANILLA_BRAVE_APK_GATE=PASS package=$PACKAGE label=$APP_LABEL bytes=$(stat -c '%s' "$APK")"
 fi
 
 echo "BRAVE_REFERENCE_GATE=PASS"
