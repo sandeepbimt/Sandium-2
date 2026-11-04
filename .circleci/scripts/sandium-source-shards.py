@@ -513,6 +513,7 @@ def archive_worker(index: int, roots: list[Path], root: Path, work: Path,
 def archive(root: Path, workers: int, stage: int, ready: bool, skip_if_unchanged: bool = False) -> None:
     work = root / WORK_NAME
     progress_path = work / PROGRESS_NAME
+    manifest_path = root / MANIFEST_NAME
     if not progress_path.is_file():
         fail("source preparation progress marker missing")
     roots, structural = discover_roots(root, work)
@@ -532,7 +533,7 @@ def archive(root: Path, workers: int, stage: int, ready: bool, skip_if_unchanged
             same_state = False
         if same_state:
             unchanged_marker.write_text(
-                "UNCHANGED_SOURCE_STATE=true\\nPARENT_MANIFEST_STAGE=%s\\nSOURCE_STATE_FINGERPRINT=%s\\n"
+                "UNCHANGED_SOURCE_STATE=true\nPARENT_MANIFEST_STAGE=%s\nSOURCE_STATE_FINGERPRINT=%s\n"
                 % (previous.get("stage", "unknown"), metadata["source_state_fingerprint"]),
                 encoding="utf-8",
             )
@@ -561,7 +562,6 @@ def archive(root: Path, workers: int, stage: int, ready: bool, skip_if_unchanged
 
     stage_dir = root / (SHARDS_NAME + ".tmp")
     final_dir = root / SHARDS_NAME
-    manifest_path = root / MANIFEST_NAME
     shutil.rmtree(stage_dir, ignore_errors=True)
     stage_dir.mkdir(parents=True)
     results: list[dict[str, Any]] = []
