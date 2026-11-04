@@ -193,13 +193,12 @@ def apply_early_component_updater_patch(core: Path) -> None:
     new = """void BraveMainDelegate::AppendCommandLineOptions() {
   auto* command_line = base::CommandLine::ForCurrentProcess();
 #if BUILDFLAG(IS_ANDROID)
-  // SANDIUM_COMPONENT_UPDATER_PRODUCTION_ENDPOINT: match Brave's released
-  // Android browser. Brave's dev and production updater manifests are
-  // independent; the dev endpoint is reserved for component QA and must not
-  // replace the release component catalogue in distributable builds.
-  // With kUseDevUpdaterUrl disabled by default and no dev switch appended,
-  // BraveMainDelegate::GetUpdateURLHost() selects UPDATER_PROD_ENDPOINT.
-  LOG(WARNING) << "SANDIUM_COMPONENT_UPDATER_ENDPOINT=production";
+  // Sandium is a non-official Android QA build. Brave maintains separate
+  // production and development component manifests and documents the dev
+  // updater for QA/testing builds. Use the matching dev manifest rather than
+  // querying production with this fork's development channel/version.
+  command_line->AppendSwitch(brave_component_updater::kUseGoUpdateDev);
+  LOG(WARNING) << "SANDIUM_COMPONENT_UPDATER_ENDPOINT=development";
 
   // SANDIUM_COMPONENT_UPDATER_EARLY_ENABLE: keep Chromium's global
   // component-update policy intact, but explicitly permit Brave's components.
@@ -864,7 +863,7 @@ def verify_patches(core: Path) -> None:
         ("main_parts", "SANDIUM_COMPONENT_UPDATER_SERVICE_CREATED", main_parts),
         ("main_delegate", "SANDIUM_BRAVE_COMPONENT_UPDATE_OVERRIDE", main_delegate),
         ("main_delegate", "SANDIUM_COMPONENT_UPDATER_EARLY_ENABLE", main_delegate),
-        ("main_delegate", "SANDIUM_COMPONENT_UPDATER_ENDPOINT=production", main_delegate),
+        ("main_delegate", "SANDIUM_COMPONENT_UPDATER_ENDPOINT=development", main_delegate),
         ("main_delegate", "SANDIUM_COMPONENT_UPDATER_EFFECTIVE_URL", main_delegate),
         ("component_delegate", "SANDIUM_COMPONENT_REGISTRATION", component_delegate),
         ("component_installer", "SANDIUM_ADBLOCK_COMPONENT_REGISTERED", component_installer),
@@ -904,6 +903,8 @@ def verify_patches(core: Path) -> None:
         raise SystemExit("SANDIUM_ADBLOCK_GATE=FAIL obsolete late-only updater override remains")
     if 'AppendSwitch("allow-brave-component-update")' not in main_delegate:
         raise SystemExit("SANDIUM_ADBLOCK_GATE=FAIL early Android component-updater override missing")
+    if "AppendSwitch(brave_component_updater::kUseGoUpdateDev)" not in main_delegate:
+        raise SystemExit("SANDIUM_ADBLOCK_GATE=FAIL non-official Android build is not routed to Brave's QA updater")
     if "LOG(INFO) << \"SANDIUM_FILTER_CATALOG_PARSED bytes=\"" not in manager:
         raise SystemExit("SANDIUM_ADBLOCK_GATE=FAIL catalogue parse diagnostic missing")
     if len(FRESH_INSTALL_FILTER_UUIDS) != len(set(FRESH_INSTALL_FILTER_UUIDS)):

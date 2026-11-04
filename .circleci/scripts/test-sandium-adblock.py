@@ -285,14 +285,15 @@ def main() -> None:
         assert "allow-brave-component-update" in main_delegate_text
         assert "SANDIUM_COMPONENT_UPDATER_EARLY_ENABLE" in main_delegate_text
         assert "SANDIUM_BRAVE_COMPONENT_UPDATE_OVERRIDE" in main_delegate_text
-        assert "SANDIUM_COMPONENT_UPDATER_ENDPOINT=production" in main_delegate_text
+        assert "SANDIUM_COMPONENT_UPDATER_ENDPOINT=development" in main_delegate_text
+        assert "AppendSwitch(brave_component_updater::kUseGoUpdateDev)" in main_delegate_text
         assert "SANDIUM_COMPONENT_UPDATER_EFFECTIVE_URL" in main_delegate_text
         assert '" dev_switch="' in main_delegate_text
         assert '" dev_feature="' in main_delegate_text
-        # The diagnostic may read the dev switch, but Sandium must never force it.
+        # Sandium's non-official Android QA build must use Brave's dev updater.
         assert """command_line->HasSwitch(
                       brave_component_updater::kUseGoUpdateDev)""" in main_delegate_text
-        assert "AppendSwitch(brave_component_updater::kUseGoUpdateDev)" not in main_delegate_text
+        assert "AppendSwitch(brave_component_updater::kUseGoUpdateDev)" in main_delegate_text
         assert "#if BUILDFLAG(IS_ANDROID)" in main_delegate_text
         assert "BUILDFLAG(OFFICIAL_BUILD)" not in main_delegate_text
         assert '#include "build/branding_buildflags.h"' not in main_delegate_text
