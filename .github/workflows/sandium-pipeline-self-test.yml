@@ -11,6 +11,9 @@ on:
       - ".circleci/scripts/test-source-prep-phases.py"
       - ".circleci/scripts/source-prep-stage.sh"
       - ".circleci/scripts/restore-brave-source-checkpoint.sh"
+      - ".circleci/scripts/pinning-reference-status.py"
+      - ".circleci/scripts/verify-pinned-source-reference.sh"
+      - ".circleci/source-pin-refresh-id"
       - ".circleci/scripts/archive-brave-workspace.sh"
       - ".circleci/scripts/sandium-checkpoint-shards.py"
       - ".circleci/scripts/test-sandium-checkpoint-shards.py"
@@ -30,6 +33,9 @@ on:
       - ".circleci/scripts/test-source-prep-phases.py"
       - ".circleci/scripts/source-prep-stage.sh"
       - ".circleci/scripts/restore-brave-source-checkpoint.sh"
+      - ".circleci/scripts/pinning-reference-status.py"
+      - ".circleci/scripts/verify-pinned-source-reference.sh"
+      - ".circleci/source-pin-refresh-id"
       - ".circleci/scripts/archive-brave-workspace.sh"
       - ".circleci/scripts/sandium-checkpoint-shards.py"
       - ".circleci/scripts/test-sandium-checkpoint-shards.py"
@@ -80,15 +86,16 @@ jobs:
           bash -n .circleci/scripts/capture-brave-siso-checkpoint.sh
           bash -n .circleci/scripts/prepare-brave-source.sh
           python3 -m py_compile .circleci/scripts/sandium-source-shards.py .circleci/scripts/test-sandium-source-shards.py
-          python3 -m py_compile .circleci/scripts/test-source-prep-phases.py
+          python3 -m py_compile .circleci/scripts/test-source-prep-phases.py .circleci/scripts/pinning-reference-status.py
           bash -n .circleci/scripts/source-prep-stage.sh
           bash -n .circleci/scripts/restore-brave-source-checkpoint.sh
+          bash -n .circleci/scripts/verify-pinned-source-reference.sh
           python3 -m py_compile .circleci/scripts/test-brave-source-sync-strategy.py
       - name: Test incremental Brave source sync selection
         run: python3 .circleci/scripts/test-brave-source-sync-strategy.py
       - name: Test source-only pinned checkpoint archive and restore
         run: python3 .circleci/scripts/test-sandium-source-shards.py
-      - name: Test five-stage source-preparation phases
+      - name: Test resumable 30-minute source-pinning workflow
         run: python3 .circleci/scripts/test-source-prep-phases.py
       - name: Test checkpoint archive and restore without action ledger
         run: python3 .circleci/scripts/test-sandium-checkpoint-shards.py
