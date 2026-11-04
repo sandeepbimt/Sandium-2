@@ -43,7 +43,7 @@ assert canonical_order == sorted(canonical_order), "canonical reference must res
 for stage, expected in ((3, (2, 1)), (4, (3, 2, 1)), (5, (4, 3, 2, 1))):
     name = "name: Restore source-preparation Stage %d checkpoint" % (stage - 1)
     start = config.index(name)
-    end = config.index("\\n      - when:", start)
+    end = config.index("\n      - when:", start)
     block = config[start:end]
     positions = [block.index("-stage-%d" % prior) for prior in expected]
     assert positions == sorted(positions), "Stage %d must fall back to the latest available earlier checkpoint" % stage
