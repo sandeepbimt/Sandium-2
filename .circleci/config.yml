@@ -1580,17 +1580,12 @@ jobs:
                     echo "SANDIUM_PINNING_REFERENCE=ALREADY_CURRENT"
                     circleci-agent step halt
                   fi
-      - when:
-          condition:
-            not:
-              equal: [5, << parameters.stage_index >>]
-          steps:
-            - save_cache:
-                name: Save source-preparation stage << parameters.stage_index >> checkpoint
-                key: sandium-brave-pinning-progress-v2-{{ checksum ".circleci/source-pin-refresh-id" }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-<< parameters.stage_index >>
-                paths:
-                  - brave-source-checkpoint.shards
-                  - brave-source-checkpoint.manifest.json
+      - save_cache:
+          name: Save source-preparation stage << parameters.stage_index >> checkpoint
+          key: sandium-brave-pinning-progress-v2-{{ checksum ".circleci/source-pin-refresh-id" }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-<< parameters.stage_index >>
+          paths:
+            - brave-source-checkpoint.shards
+            - brave-source-checkpoint.manifest.json
       - save_cache:
           name: Save pinned Node and pnpm runtime
           key: sandium-brave-node-v2-24.16.0-pnpm-11.11.0
