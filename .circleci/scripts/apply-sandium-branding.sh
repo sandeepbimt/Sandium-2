@@ -9,6 +9,11 @@ BRAND_DIR="$ROOT/.circleci/branding"
 SOURCE_DIR="$BRAND_DIR/source"
 GENERATED_DIR="$ROOT/.sandium-branding-generated"
 GENERATOR="$SCRIPT_DIR/generate-sandium-density-assets.py"
+fail() {
+  echo "SANDIUM_BRANDING_GATE=FAIL $*" >&2
+  exit 1
+}
+
 PINS_FILE="$ROOT/brave-work/.sandium/source-pins.env"
 [ -s "$PINS_FILE" ] || fail "source-pins.env missing: $PINS_FILE"
 BRAVE_PIN="$(sed -n 's/^BRAVE_CORE_TAG=//p' "$PINS_FILE" | head -n 1)"
@@ -21,11 +26,6 @@ EXPECTED_CHROMIUM_TAG="$(printenv EXPECTED_CHROMIUM_TAG 2>/dev/null || printf '1
 [ "$(printf %s "$CHROMIUM_PIN" | wc -c | tr -d ' ')" = "40" ] || fail "invalid recorded Chromium SHA"
 DENSITIES=(mdpi hdpi xhdpi xxhdpi xxxhdpi)
 ASSETS=(app_icon.png layered_app_icon.png layered_app_icon_background.png)
-
-fail() {
-  echo "SANDIUM_BRANDING_GATE=FAIL $*" >&2
-  exit 1
-}
 
 [ -d "$SRC_DIR/.git" ] || fail "Chromium source checkout is missing"
 [ -d "$CORE_DIR/.git" ] || fail "Brave source checkout is missing"

@@ -1595,11 +1595,10 @@ jobs:
                   - equal: [brave/vanilla-v1.99.54, << pipeline.git.branch >>]
           steps:
             - restore_cache:
-                name: Restore latest reference or bootstrap legacy checkpoint
+                name: Restore v1.99.54 reference or protected canonical 26GB checkpoint
                 keys:
-                  - sandium-brave-reference-v2-{{ .Branch }}-
-                  - sandium-brave-handoff-v2-{{ .Branch }}-
-                  # Restore the accepted canonical 26GB v1.98.62 checkpoint as
+                  - sandium-brave-reference-v3-{{ .Branch }}-
+                        # Restore the accepted canonical 26GB v1.98.62 checkpoint as
                   # the protected source/dependency base for this separate upgrade.
                   - sandium-brave-handoff-v2-sandium/fix-archive-completion-gate-d0bc6af6-e2a7-451e-8561-3c90eb48c2e1-stage-1
                   # Migration fallbacks for the previous single-file reference/handoff format.
@@ -1625,7 +1624,7 @@ jobs:
                   # workflow d0bc6af6-e2a7-451e-8561-3c90eb48c2e1.
                   # Restore this exact immutable checkpoint first; do not substitute
                   # an unverified branch-local cache.
-                  - sandium-brave-reference-v2-brave/vanilla-v1.99.54-
+                  - sandium-brave-reference-v3-brave/vanilla-v1.99.54-
                   - sandium-brave-handoff-v2-sandium/fix-archive-completion-gate-d0bc6af6-e2a7-451e-8561-3c90eb48c2e1-stage-1
       - when:
           condition:
@@ -1695,7 +1694,7 @@ jobs:
                   # workflow d0bc6af6-e2a7-451e-8561-3c90eb48c2e1.
                   # Restore this exact immutable checkpoint first; do not substitute
                   # an unverified branch-local cache.
-                  - sandium-brave-reference-v2-brave/vanilla-v1.99.54-
+                  - sandium-brave-reference-v3-brave/vanilla-v1.99.54-
                   - sandium-brave-handoff-v2-sandium/fix-archive-completion-gate-d0bc6af6-e2a7-451e-8561-3c90eb48c2e1-stage-1
       - when:
           condition:
@@ -1713,7 +1712,7 @@ jobs:
                   # workflow d0bc6af6-e2a7-451e-8561-3c90eb48c2e1.
                   # Restore this exact immutable checkpoint first; do not substitute
                   # an unverified branch-local cache.
-                  - sandium-brave-reference-v2-brave/vanilla-v1.99.54-
+                  - sandium-brave-reference-v3-brave/vanilla-v1.99.54-
                   - sandium-brave-handoff-v2-sandium/fix-archive-completion-gate-d0bc6af6-e2a7-451e-8561-3c90eb48c2e1-stage-1
       - when:
           condition:
@@ -1731,7 +1730,7 @@ jobs:
                   # workflow d0bc6af6-e2a7-451e-8561-3c90eb48c2e1.
                   # Restore this exact immutable checkpoint first; do not substitute
                   # an unverified branch-local cache.
-                  - sandium-brave-reference-v2-brave/vanilla-v1.99.54-
+                  - sandium-brave-reference-v3-brave/vanilla-v1.99.54-
                   - sandium-brave-handoff-v2-sandium/fix-archive-completion-gate-d0bc6af6-e2a7-451e-8561-3c90eb48c2e1-stage-1
       - when:
           condition:
@@ -1749,7 +1748,7 @@ jobs:
                   # workflow d0bc6af6-e2a7-451e-8561-3c90eb48c2e1.
                   # Restore this exact immutable checkpoint first; do not substitute
                   # an unverified branch-local cache.
-                  - sandium-brave-reference-v2-brave/vanilla-v1.99.54-
+                  - sandium-brave-reference-v3-brave/vanilla-v1.99.54-
                   - sandium-brave-handoff-v2-sandium/fix-archive-completion-gate-d0bc6af6-e2a7-451e-8561-3c90eb48c2e1-stage-1
       - restore_cache:
           keys:
@@ -2450,7 +2449,7 @@ jobs:
             echo "REFERENCE_PROMOTION=CANDIDATE_VERIFIED"
       - save_cache:
           name: Promote immutable latest Sandium parallel-shard reference
-          key: sandium-brave-reference-v2-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}
+          key: sandium-brave-reference-v3-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}
           paths:
             - brave-workspace-checkpoint.shards
             - brave-workspace-checkpoint.manifest.json
