@@ -164,6 +164,7 @@ if [ "$BRAVE_STAGE_INDEX" = "1" ]; then
      [ -d "$SRC_DIR/third_party" ] && [ -d "$SRC_DIR/build" ]; then
     SOURCE_REUSE=true
     echo "BRAVE_SOURCE_REUSE=PASS; pinned source restored."
+    echo "BRAVE_CHECKPOINT_PRESERVATION=PASS restored pinned source checkout retained."
     if [ -s "$ROOT/brave-work/.sandium/source-sync-complete" ]; then
       if [ -s "$ROOT/brave-work/.sandium/source-ready-restored" ]; then SOURCE_ARCHIVE_PIN_MATCH=true; fi
       echo "BRAVE_SOURCE_SYNC=REUSE; previous source sync is complete."
