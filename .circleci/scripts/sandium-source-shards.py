@@ -515,7 +515,7 @@ def restore(root: Path, workers: int, require_ready: bool) -> dict[str, Any]:
 
     def extract(item: dict[str, Any]) -> str:
         archive = shard_dir / item["name"]
-        cmd = ["tar", "-x", "-f", str(archive), "-I", "zstd -T1 -d", "-C", str(root)]
+        cmd = ["tar", "-x", "-I", "zstd -T1 -d", "-f", str(archive), "-C", str(root)]
         proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         if proc.returncode:
             raise RuntimeError("source shard extraction failed %s: %s" %
