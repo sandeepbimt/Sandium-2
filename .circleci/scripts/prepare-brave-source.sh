@@ -159,7 +159,11 @@ if [ "$BRAVE_STAGE_INDEX" = "1" ]; then
     else
       echo "BRAVE_SOURCE_REUSE=PASS; no portable checkpoint marker; refreshing Brave config."
       cd "$CORE_DIR"
-      run_brave_sync --target_os=android --target_arch=arm64 --no-history --sync_chromium=false
+      if [ "$SOURCE_PREP_PHASE" = "sync" ]; then
+        run_brave_sync --target_os=android --target_arch=arm64 --no-history --sync_chromium=false --nohooks
+      else
+        run_brave_sync --target_os=android --target_arch=arm64 --no-history --sync_chromium=false
+      fi
     fi
   elif [ -s "$ROOT/brave-work/.gclient" ] && \
        [ -e "$SRC_DIR/.git" ] && \
@@ -221,6 +225,24 @@ if [ "$BRAVE_STAGE_INDEX" = "1" ]; then
   } > "$ROOT/brave-work/.sandium/source-pins.env"
   echo "BRAVE_SOURCE_PIN_GATE=PASS Brave=$ACTUAL_BRAVE_TAG Chromium=$CHROMIUM_TAG sha=$ACTUAL_CHROMIUM_SHA"
 
+fi
+
+if [ -s "$ROOT/brave-work/.sandium/source-ready-restored" ] && [ "$SOURCE_PREP_PHASE" = "all" ]; then
+  test -s "$ROOT/brave-work/.sandium/source-pins.env"
+  test -s "$OUT/build.ninja" && test -s "$OUT/args.gn" && test -s "$OUT/args_generated.gni" || {
+    echo "BRAVE_SOURCE_READY_GATE=FAIL restored source-ready reference lacks the pinned GN graph" >&2
+    exit 1
+  }
+  test -s "$SRC_DIR/build/config/siso/.sisoenv"
+  test -s "$SRC_DIR/build/config/siso/.sisorc"
+  test -s "$SRC_DIR/build/config/siso/backend_config/backend.star"
+  test -x "$SRC_DIR/buildtools/reclient_cfgs/python/python_remote_wrapper"
+  echo "BRAVE_SOURCE_READY_REUSE=PASS; source sync, runhooks and GN generation skipped."
+  echo "BRAVE_HOST_DEPENDENCY_INSTALL=START"
+  cd "$ROOT/brave-work"
+  ./src/build/install-build-deps.sh --android
+  echo "BRAVE_HOST_DEPENDENCY_INSTALL=PASS"
+  exit 0
 fi
 
 if [ "$BRAVE_STAGE_INDEX" != "1" ]; then
