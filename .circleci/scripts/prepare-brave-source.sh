@@ -26,13 +26,57 @@ CORE_DIR="$SRC_DIR/brave"
 BRAVE_CORE_TAG="v1.99.54"
 CHROMIUM_URL="https://chromium.googlesource.com/chromium/src.git"
 BRAVE_STAGE_INDEX="${BRAVE_STAGE_INDEX:?BRAVE_STAGE_INDEX is required}"
+
+# Separate dependency installation from Brave sync. A successful install is
+# reusable only for the exact package, lockfile and npm-config fingerprint.
+run_brave_sync() {
+  local fingerprint marker install_started sync_started
+  fingerprint="$(
+    {
+      sha256sum package.json pnpm-lock.yaml
+      if [ -f .npmrc ]; then sha256sum .npmrc; fi
+    } | sha256sum | awk '{print $1}'
+  )"
+  marker="$ROOT/brave-work/.sandium/pnpm-install-$fingerprint.ok"
+  mkdir -p "$ROOT/brave-work/.sandium"
+
+  if [ -s "$marker" ] && [ -s node_modules/.modules.yaml ] && [ -d node_modules/.pnpm ]; then
+    echo "BRAVE_PNPM_DEPENDENCIES=REUSE fingerprint=$fingerprint"
+  else
+    install_started=$SECONDS
+    echo "BRAVE_PNPM_INSTALL=START fingerprint=$fingerprint"
+    pnpm install --frozen-lockfile --yes
+    test -s node_modules/.modules.yaml && test -d node_modules/.pnpm || {
+      echo "BRAVE_PNPM_INSTALL_GATE=FAIL node_modules layout is incomplete" >&2
+      exit 1
+    }
+    printf '%s\n' "$fingerprint" > "$marker"
+    echo "BRAVE_PNPM_INSTALL=PASS duration_seconds=$((SECONDS - install_started)) fingerprint=$fingerprint"
+  fi
+
+  sync_started=$SECONDS
+  npm_package_version="$(node -p "require('./package.json').version")" node ./build/commands/scripts/sync.ts "$@"
+  echo "BRAVE_UPSTREAM_SYNC_SECONDS=$((SECONDS - sync_started))"
+}
 if [ "$BRAVE_STAGE_INDEX" = "1" ]; then
   if [ ! -d "$CORE_DIR/.git" ]; then
+    CORE_PIN_STARTED=$SECONDS
     git clone --depth 1 --branch "$BRAVE_CORE_TAG" https://github.com/brave/brave-core.git "$CORE_DIR"
+    echo "BRAVE_CORE_PIN_PREP_SECONDS=$((SECONDS - CORE_PIN_STARTED)) action=clone"
   else
-    git -C "$CORE_DIR" fetch --depth=1 origin "refs/tags/$BRAVE_CORE_TAG:refs/tags/$BRAVE_CORE_TAG"
-    git -C "$CORE_DIR" checkout --force --detach "$BRAVE_CORE_TAG"
-    git -C "$CORE_DIR" clean -ffd
+    LOCAL_CORE_TAG="$(git -C "$CORE_DIR" describe --tags --exact-match 2>/dev/null || true)"
+    LOCAL_CORE_HEAD="$(git -C "$CORE_DIR" rev-parse HEAD 2>/dev/null || true)"
+    LOCAL_CORE_TAG_SHA="$(git -C "$CORE_DIR" rev-parse "$BRAVE_CORE_TAG^{commit}" 2>/dev/null || true)"
+    if [ "$LOCAL_CORE_TAG" = "$BRAVE_CORE_TAG" ] && [ -n "$LOCAL_CORE_TAG_SHA" ] && [ "$LOCAL_CORE_HEAD" = "$LOCAL_CORE_TAG_SHA" ]; then
+      echo "BRAVE_CORE_PIN_REUSE=PASS tag=$BRAVE_CORE_TAG sha=$LOCAL_CORE_HEAD; fetch/checkout/clean skipped"
+      echo "BRAVE_CORE_PIN_PREP_SECONDS=0 action=verified-local-reuse"
+    else
+      CORE_PIN_STARTED=$SECONDS
+      git -C "$CORE_DIR" fetch --depth=1 origin "refs/tags/$BRAVE_CORE_TAG:refs/tags/$BRAVE_CORE_TAG"
+      git -C "$CORE_DIR" checkout --force --detach "$BRAVE_CORE_TAG"
+      git -C "$CORE_DIR" clean -ffd
+      echo "BRAVE_CORE_PIN_PREP_SECONDS=$((SECONDS - CORE_PIN_STARTED)) action=fetch-checkout-clean"
+    fi
   fi
 else
   [ -d "$CORE_DIR/.git" ] || { echo "BRAVE_SOURCE_REUSE=FAIL restored Brave Core Git checkout is missing" >&2; exit 1; }
@@ -113,21 +157,40 @@ if [ "${BRAVE_STAGE_INDEX:?BRAVE_STAGE_INDEX is required}" = "1" ]; then
     else
       echo "BRAVE_SOURCE_REUSE=PASS; no portable checkpoint marker; refreshing Brave config."
       cd "$CORE_DIR"
-      pnpm run sync --target_os=android --target_arch=arm64 --no-history --sync_chromium=false
+      run_brave_sync --target_os=android --target_arch=arm64 --no-history --sync_chromium=false
     fi
-  else
-    echo "BRAVE_SOURCE_REUSE=MISS; source checkout incomplete or release pin mismatch; initializing vanilla Brave v1.99.54."
-    # The restored 26GB reference is v1.98.62/Chromium 156. Its generated
-    # Ninja graph and Siso filesystem state are not valid for the v1.99.54 /
-    # Chromium 157 release. Keep the canonical archive untouched, but discard
-    # only this runner's incompatible output directory before GN regeneration.
+  elif [ -s "$ROOT/brave-work/.gclient" ] && \
+       [ -e "$SRC_DIR/.git" ] && \
+       [ -e "$CORE_DIR/.git" ] && \
+       [ -x "$SRC_DIR/build/install-build-deps.sh" ] && \
+       [ -d "$SRC_DIR/third_party" ] && [ -d "$SRC_DIR/build" ] && \
+       [ "$(git -C "$CORE_DIR" describe --tags --exact-match 2>/dev/null || true)" = "$BRAVE_CORE_TAG" ]; then
+    # SANDIUM_INCREMENTAL_SOURCE_UPGRADE: use regular sync without init/force
+    # when the old Chromium checkout and its dependencies are already present.
+    CURRENT_CHROMIUM_SHA="$(git -C "$SRC_DIR" rev-parse HEAD)"
+    echo "BRAVE_SOURCE_INCREMENTAL_SYNC=START current=$CURRENT_CHROMIUM_SHA target_tag=$CHROMIUM_TAG target_sha=$CHROMIUM_PIN"
     if [ -d "$OUT" ]; then
       echo "BRAVE_VERSION_UPGRADE_CLEAN_OUT=START path=$OUT"
       rm -rf "$OUT"
       echo "BRAVE_VERSION_UPGRADE_CLEAN_OUT=PASS"
     fi
     cd "$CORE_DIR"
+    SOURCE_SYNC_STARTED=$SECONDS
+    run_brave_sync --target_os=android --target_arch=arm64 --no-history
+    SOURCE_SYNC_SECONDS=$((SECONDS - SOURCE_SYNC_STARTED))
+    echo "BRAVE_SOURCE_INCREMENTAL_SYNC=PASS duration_seconds=$SOURCE_SYNC_SECONDS current_before=$CURRENT_CHROMIUM_SHA target=$CHROMIUM_PIN"
+  else
+    echo "BRAVE_SOURCE_REUSE=MISS; no complete Chromium checkout; using one-time Brave initialization."
+    if [ -d "$OUT" ]; then
+      echo "BRAVE_VERSION_UPGRADE_CLEAN_OUT=START path=$OUT"
+      rm -rf "$OUT"
+      echo "BRAVE_VERSION_UPGRADE_CLEAN_OUT=PASS"
+    fi
+    cd "$CORE_DIR"
+    SOURCE_INIT_STARTED=$SECONDS
     pnpm run init --target_os=android --target_arch=arm64 --no-history
+    SOURCE_INIT_SECONDS=$((SECONDS - SOURCE_INIT_STARTED))
+    echo "BRAVE_SOURCE_INITIALIZATION=COMPLETE duration_seconds=$SOURCE_INIT_SECONDS"
   fi
 
   ACTUAL_CHROMIUM_SHA="$(git -C "$SRC_DIR" rev-parse HEAD)"

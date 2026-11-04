@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - ".circleci/config.yml"
+      - ".circleci/scripts/test-brave-source-sync-strategy.py"
       - ".circleci/scripts/archive-brave-workspace.sh"
       - ".circleci/scripts/sandium-checkpoint-shards.py"
       - ".circleci/scripts/test-sandium-checkpoint-shards.py"
@@ -16,6 +17,7 @@ on:
   pull_request:
     paths:
       - ".circleci/config.yml"
+      - ".circleci/scripts/test-brave-source-sync-strategy.py"
       - ".circleci/scripts/archive-brave-workspace.sh"
       - ".circleci/scripts/sandium-checkpoint-shards.py"
       - ".circleci/scripts/test-sandium-checkpoint-shards.py"
@@ -65,6 +67,9 @@ jobs:
           bash -n .circleci/scripts/verify-brave-remote-smoke.sh
           bash -n .circleci/scripts/capture-brave-siso-checkpoint.sh
           bash -n .circleci/scripts/prepare-brave-source.sh
+          python3 -m py_compile .circleci/scripts/test-brave-source-sync-strategy.py
+      - name: Test incremental Brave source sync selection
+        run: python3 .circleci/scripts/test-brave-source-sync-strategy.py
       - name: Test checkpoint archive and restore without action ledger
         run: python3 .circleci/scripts/test-sandium-checkpoint-shards.py
       - name: Test stage archive receipt
