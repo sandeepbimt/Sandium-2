@@ -32,5 +32,7 @@ for i in range(1, 6):
     assert "name: SANDIUM-SOURCE-PREP-stage-%d" % i in config
 assert "sandium-brave-pinned-source-v1-v1.99.54-157.0.8103.30-" in config
 assert "equal: [source-prep, << pipeline.parameters.sandium_build_mode >>]" in config
+assert "equal: [architecture/separate-brave-source-preparation, << pipeline.git.branch >>]" in config
+assert config.count("- architecture/separate-brave-source-preparation") == 5
 
 print("SANDIUM_SOURCE_PREP_PHASES_TEST=PASS sync,nohooks -> runhooks -> Siso/host config -> GN graph -> verified source-only promotion")
