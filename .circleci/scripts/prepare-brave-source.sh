@@ -46,11 +46,7 @@ elif [ -n "${SANDIUM_BRAVE_CORE_TAG:-}" ]; then
   BRAVE_CORE_TAG="$SANDIUM_BRAVE_CORE_TAG"
   echo "BRAVE_RELEASE_PIN=OVERRIDE tag=$BRAVE_CORE_TAG"
 else
-  RELEASE_JSON="$(curl -fsSL --retry 3 --retry-all-errors --connect-timeout 15 --max-time 45 \\
-    -H 'Accept: application/vnd.github+json' \\
-    -H 'X-GitHub-Api-Version: 2022-11-28' \\
-    -H 'User-Agent: Sandium-Pinned-Data-Save' \\
-    https://api.github.com/repos/brave/brave-browser/releases/latest)"
+  RELEASE_JSON="$(curl -fsSL --retry 3 --retry-all-errors --connect-timeout 15 --max-time 45 -H 'Accept: application/vnd.github+json' -H 'X-GitHub-Api-Version: 2022-11-28' -H 'User-Agent: Sandium-Pinned-Data-Save' https://api.github.com/repos/brave/brave-browser/releases/latest)"
   BRAVE_CORE_TAG="$(python3 -c 'import json,re,sys; d=json.load(sys.stdin); tag=d.get("tag_name",""); assert not d.get("draft") and not d.get("prerelease"); assert re.fullmatch(r"v[0-9]+\\.[0-9]+\\.[0-9]+",tag), "latest Brave release is not a stable version tag: "+repr(tag); print(tag)' <<< "$RELEASE_JSON")"
   echo "BRAVE_RELEASE_PIN=LATEST_STABLE_RESOLVED tag=$BRAVE_CORE_TAG source=brave-browser/releases/latest"
 fi
