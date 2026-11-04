@@ -2801,6 +2801,7 @@ workflows:
         - equal: [source-prep, << pipeline.parameters.sandium_build_mode >>]
         - equal: [architecture/separate-brave-source-preparation, << pipeline.git.branch >>]
         - equal: [architecture/sandium-pinning-v2-build, << pipeline.git.branch >>]
+        - equal: [work/pinned-data-save-hardening, << pipeline.git.branch >>]
     jobs:
       - brave-source-preparation-stage:
           name: SANDIUM-SOURCE-PREP-stage-1
@@ -2811,6 +2812,7 @@ workflows:
                 - brave/vanilla-v1.99.54
                 - architecture/separate-brave-source-preparation
                 - architecture/sandium-pinning-v2-build
+                - work/pinned-data-save-hardening
       - brave-source-preparation-stage:
           name: SANDIUM-SOURCE-PREP-stage-2
           stage_index: 2
@@ -2821,6 +2823,7 @@ workflows:
                 - brave/vanilla-v1.99.54
                 - architecture/separate-brave-source-preparation
                 - architecture/sandium-pinning-v2-build
+                - work/pinned-data-save-hardening
       - brave-source-preparation-stage:
           name: SANDIUM-SOURCE-PREP-stage-3
           stage_index: 3
@@ -2831,6 +2834,7 @@ workflows:
                 - brave/vanilla-v1.99.54
                 - architecture/separate-brave-source-preparation
                 - architecture/sandium-pinning-v2-build
+                - work/pinned-data-save-hardening
       - brave-source-preparation-stage:
           name: SANDIUM-SOURCE-PREP-stage-4
           stage_index: 4
@@ -2841,6 +2845,7 @@ workflows:
                 - brave/vanilla-v1.99.54
                 - architecture/separate-brave-source-preparation
                 - architecture/sandium-pinning-v2-build
+                - work/pinned-data-save-hardening
       - brave-source-preparation-stage:
           name: SANDIUM-SOURCE-PREP-stage-5
           stage_index: 5
@@ -2851,6 +2856,7 @@ workflows:
                 - brave/vanilla-v1.99.54
                 - architecture/separate-brave-source-preparation
                 - architecture/sandium-pinning-v2-build
+                - work/pinned-data-save-hardening
       - promote-brave-pinned-source-reference:
           name: SANDIUM-SOURCE-PREP-reference-promotion
           requires: [SANDIUM-SOURCE-PREP-stage-5]
@@ -2860,6 +2866,7 @@ workflows:
                 - brave/vanilla-v1.99.54
                 - architecture/separate-brave-source-preparation
                 - architecture/sandium-pinning-v2-build
+                - work/pinned-data-save-hardening
   sandium-full-mode:
     when:
       and:
