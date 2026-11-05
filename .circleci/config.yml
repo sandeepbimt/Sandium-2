@@ -19,12 +19,14 @@ jobs:
           name: Validate pinned Brave source preparation logic
           command: |
             set -euo pipefail
-            python3 -m py_compile .circleci/scripts/sandium-source-shards.py .circleci/scripts/test-brave-source-sync-strategy.py .circleci/scripts/test-source-checkpoint-restore-gate.py .circleci/scripts/test-chromium-partial-clone-probe.py .circleci/scripts/test-source-delta-assembly.py
+            python3 -m py_compile .circleci/scripts/sandium-source-shards.py .circleci/scripts/test-brave-source-sync-strategy.py .circleci/scripts/test-source-checkpoint-restore-gate.py .circleci/scripts/test-chromium-partial-clone-probe.py .circleci/scripts/test-source-delta-assembly.py .circleci/scripts/test-chromium-filtered-sync.py
             bash -n .circleci/scripts/prepare-brave-source.sh
             bash -n .circleci/scripts/source-prep-stage.sh
             bash -n .circleci/scripts/probe-chromium-partial-clone.sh
+            bash -n .circleci/scripts/fetch-pinned-chromium.sh
             bash -n .circleci/scripts/prepare-source-delta-base.sh
             python3 .circleci/scripts/test-chromium-partial-clone-probe.py
+            python3 .circleci/scripts/test-chromium-filtered-sync.py
             python3 .circleci/scripts/test-source-delta-assembly.py
             python3 .circleci/scripts/test-brave-source-sync-strategy.py
             echo "SANDIUM_SOURCE_SYNC_REGRESSION=PASS"
@@ -2842,6 +2844,7 @@ workflows:
                 - optimization/incremental-brave-source-sync
                 - fix/source-prep-nonresumable-git-fetch
                 - fix/chromium-partial-fetch-and-source-shards
+                - fix/brave-157-filtered-source-sync
   c4-afterbird-staged-checkpoint-build:
     jobs:
       - c4-afterbird-staged-build:
@@ -2903,6 +2906,7 @@ workflows:
         - equal: [work/pinned-data-save-hardening, << pipeline.git.branch >>]
         - equal: [fix/source-prep-nonresumable-git-fetch, << pipeline.git.branch >>]
         - equal: [fix/chromium-partial-fetch-and-source-shards, << pipeline.git.branch >>]
+        - equal: [fix/brave-157-filtered-source-sync, << pipeline.git.branch >>]
     jobs:
       - brave-source-preparation-stage:
           name: SANDIUM-SOURCE-PREP-stage-1
@@ -2916,6 +2920,7 @@ workflows:
                 - work/pinned-data-save-hardening
                 - fix/source-prep-nonresumable-git-fetch
                 - fix/chromium-partial-fetch-and-source-shards
+                - fix/brave-157-filtered-source-sync
       - brave-source-preparation-stage:
           name: SANDIUM-SOURCE-PREP-stage-2
           stage_index: 2
@@ -2929,6 +2934,7 @@ workflows:
                 - work/pinned-data-save-hardening
                 - fix/source-prep-nonresumable-git-fetch
                 - fix/chromium-partial-fetch-and-source-shards
+                - fix/brave-157-filtered-source-sync
       - brave-source-preparation-stage:
           name: SANDIUM-SOURCE-PREP-stage-3
           stage_index: 3
@@ -2942,6 +2948,7 @@ workflows:
                 - work/pinned-data-save-hardening
                 - fix/source-prep-nonresumable-git-fetch
                 - fix/chromium-partial-fetch-and-source-shards
+                - fix/brave-157-filtered-source-sync
       - brave-source-preparation-stage:
           name: SANDIUM-SOURCE-PREP-stage-4
           stage_index: 4
@@ -2955,6 +2962,7 @@ workflows:
                 - work/pinned-data-save-hardening
                 - fix/source-prep-nonresumable-git-fetch
                 - fix/chromium-partial-fetch-and-source-shards
+                - fix/brave-157-filtered-source-sync
       - brave-source-preparation-stage:
           name: SANDIUM-SOURCE-PREP-stage-5
           stage_index: 5
@@ -2968,6 +2976,7 @@ workflows:
                 - work/pinned-data-save-hardening
                 - fix/source-prep-nonresumable-git-fetch
                 - fix/chromium-partial-fetch-and-source-shards
+                - fix/brave-157-filtered-source-sync
       - promote-brave-pinned-source-reference:
           name: SANDIUM-SOURCE-PREP-reference-promotion
           requires: [SANDIUM-SOURCE-PREP-stage-5]
@@ -2979,6 +2988,7 @@ workflows:
                 - architecture/sandium-pinning-v2-build
                 - work/pinned-data-save-hardening
                 - fix/chromium-partial-fetch-and-source-shards
+                - fix/brave-157-filtered-source-sync
   sandium-full-mode:
     when:
       and:

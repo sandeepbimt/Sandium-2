@@ -73,11 +73,10 @@ if not request_id:
 if archive_bytes < 0 or shard_bytes != archive_bytes:
     raise SystemExit("SOURCE_RESTORE_GATE=FAIL manifest archive_bytes does not equal shard size sum")
 if mode == "base-required":
-    # CircleCI prefix cache lookup returns the newest matching cache, not the
-    # highest numbered stage. A verified Stage 1-4 cumulative checkpoint is
-    # still valid input: continue from its restored state rather than rejecting
-    # it or discarding it. Stage 5 remains the completion target, not a restore
-    # prerequisite.
+    import re
+    # CircleCI prefix cache lookup can return a valid prior-release checkpoint
+    # when no archive exists for the new refresh request. Treat that archive as
+    # an upgrade parent, never as the requested target-version checkpoint.
     if stage not in (1, 2, 3, 4, 5):
         raise SystemExit("SOURCE_RESTORE_GATE=FAIL progress checkpoint stage must be 1..5; got stage=%s" % stage)
     if ready is not True and ready is not False:
@@ -86,11 +85,31 @@ if mode == "base-required":
         raise SystemExit("SOURCE_RESTORE_GATE=FAIL expected 8 verified shards; got %d" % len(shards))
     if source_bytes < 50_000_000_000 or archive_bytes < 30_000_000_000:
         raise SystemExit("SOURCE_RESTORE_GATE=FAIL checkpoint is smaller than the known 50GB source / 30GB archive baseline")
-    if request_id != expected_request:
-        raise SystemExit("SOURCE_RESTORE_GATE=FAIL restored refresh request %s differs from requested %s" %
-                         (request_id, expected_request))
-    print("SOURCE_RESTORE_GATE=PASS prior_stage=%d ready=%s shards=8 source_bytes=%d archive_bytes=%d restored_request=%s requested_request=%s" %
-          (stage, str(ready).lower(), source_bytes, archive_bytes, request_id, expected_request))
+    brave_tag = str(payload.get("source", {}).get("brave_core_tag", ""))
+    brave_sha = str(payload.get("source", {}).get("brave_core_sha", ""))
+    chromium_tag = str(payload.get("source", {}).get("chromium_tag", ""))
+    chromium_sha = str(payload.get("source", {}).get("chromium_sha", ""))
+    actual_chromium_sha = str(payload.get("source", {}).get("actual_chromium_sha", ""))
+    pin_request_id = str(payload.get("source", {}).get("pin_refresh_request_id", ""))
+    if not re.fullmatch(r"v[0-9]+[.][0-9]+[.][0-9]+", brave_tag):
+        raise SystemExit("SOURCE_RESTORE_GATE=FAIL parent Brave tag is not a stable release")
+    if not re.fullmatch(r"[0-9a-f]{40}", brave_sha):
+        raise SystemExit("SOURCE_RESTORE_GATE=FAIL parent Brave Core SHA is invalid")
+    if not re.fullmatch(r"[0-9]+[.][0-9]+[.][0-9]+[.][0-9]+", chromium_tag):
+        raise SystemExit("SOURCE_RESTORE_GATE=FAIL parent Chromium tag is invalid")
+    if not re.fullmatch(r"[0-9a-f]{40}", chromium_sha) or not re.fullmatch(r"[0-9a-f]{40}", actual_chromium_sha):
+        raise SystemExit("SOURCE_RESTORE_GATE=FAIL parent Chromium SHA metadata is invalid")
+    if pin_request_id and pin_request_id != request_id:
+        raise SystemExit("SOURCE_RESTORE_GATE=FAIL parent pin and progress request IDs disagree")
+    if ready is True and actual_chromium_sha != chromium_sha:
+        raise SystemExit("SOURCE_RESTORE_GATE=FAIL ready parent Chromium HEAD differs from its pinned SHA")
+    request_matches = request_id == expected_request
+    if request_matches:
+        print("SOURCE_RESTORE_GATE=PASS prior_stage=%d ready=%s shards=8 source_bytes=%d archive_bytes=%d request_match=true request=%s" %
+              (stage, str(ready).lower(), source_bytes, archive_bytes, request_id))
+    else:
+        print("SOURCE_PREP_BASE=UPGRADE_PARENT prior_stage=%d ready=%s parent_brave=%s parent_chromium=%s parent_request=%s target_request=%s; verified old source will be incrementally upgraded, not treated as target-ready" %
+              (stage, str(ready).lower(), brave_tag, chromium_tag, request_id, expected_request))
 else:
     print("SOURCE_RESTORE_GATE=PASS mode=%s parent_stage=%s shards=%d source_bytes=%d archive_bytes=%d request=%s" %
           (mode, stage, len(shards), source_bytes, archive_bytes, request_id))
@@ -171,11 +190,30 @@ case "$MODE" in
       exit 1
     fi
     MANIFEST_READY="$(python3 -c 'import json,sys; print("true" if json.load(open(sys.argv[1],encoding="utf-8")).get("ready") is True else "false")' "$ROOT/brave-source-checkpoint.manifest.json")"
-    if ! restore_source_archive "$MANIFEST_READY"; then
-      echo "SOURCE_RESTORE_GATE=FAIL prior checkpoint failed SHA/workspace/decompression verification; no fresh bootstrap allowed" >&2
-      exit 1
+    EXPECTED_REQUEST="$(tr -d '\\r\\n' < "$ROOT/.circleci/source-pin-refresh-id")"
+    RESTORED_REQUEST="$(python3 -c 'import json,sys; print(str(json.load(open(sys.argv[1],encoding="utf-8")).get("source",{}).get("refresh_request_id","")).strip())' "$ROOT/brave-source-checkpoint.manifest.json")"
+    if [ "$RESTORED_REQUEST" = "$EXPECTED_REQUEST" ]; then
+      # Same request: preserve ready-vs-progress semantics exactly.
+      if ! restore_source_archive "$MANIFEST_READY"; then
+        echo "SOURCE_RESTORE_GATE=FAIL matching-request checkpoint failed SHA/workspace/decompression verification" >&2
+        exit 1
+      fi
+    else
+      # Different request: restore the prior archive only as an upgrade parent.
+      # Deliberately do NOT mark source-ready-restored or any completed phase;
+      # Stage 1 must re-pin Brave/Chromium and run the incremental upgrade.
+      echo "SOURCE_PREP_BASE=UPGRADE_PARENT_REQUEST_MISMATCH restored=$RESTORED_REQUEST requested=$EXPECTED_REQUEST"
+      if ! restore_source_archive false; then
+        echo "SOURCE_RESTORE_GATE=FAIL prior upgrade-parent checkpoint failed SHA/workspace/decompression verification" >&2
+        exit 1
+      fi
     fi
     write_restore_receipt base-required
+    if [ "$RESTORED_REQUEST" != "$EXPECTED_REQUEST" ]; then
+      echo "SOURCE_RESTORE_GATE=PASS checkpoint_role=verified-upgrade-parent restored_request=$RESTORED_REQUEST target_request=$EXPECTED_REQUEST"
+    else
+      echo "SOURCE_RESTORE_GATE=PASS checkpoint_role=matching-request restored_request=$RESTORED_REQUEST"
+    fi
     ;;
   progress)
     if ! restore_source_archive false; then

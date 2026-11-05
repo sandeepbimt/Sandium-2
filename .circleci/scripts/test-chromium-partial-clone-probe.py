@@ -22,7 +22,7 @@ assert 'probe-chromium-partial-clone.sh' in prepare
 assert 'PROBE_MARKER' in prepare
 assert 'BRAVE_CHROMIUM_PARTIAL_CLONE=ENABLED' in prepare
 assert 'BRAVE_CHROMIUM_PARTIAL_CLONE=DISABLED' in prepare
-assert 'SANDIUM_ENABLE_CHROMIUM_PARTIAL_CLONE:-false' in prepare
+assert 'SANDIUM_ENABLE_CHROMIUM_PARTIAL_CLONE:-true' in prepare
 assert 'SUPPORTED_NOT_ENABLED' in prepare
 assert 'source-sync-no-progress' in stage
 

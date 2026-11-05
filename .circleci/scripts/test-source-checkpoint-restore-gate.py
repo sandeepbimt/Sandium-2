@@ -10,8 +10,19 @@ assert 'base-required)' in restore
 assert 'restore_source_archive "$MANIFEST_READY"' in restore
 assert 'extraction itself validates zstd' in restore
 assert 'stage not in (1, 2, 3, 4, 5)' in restore
-assert 'request_id != expected_request' in restore
-assert 'highest numbered stage' in restore
+assert 'request_matches = request_id == expected_request' in restore
+assert 'SOURCE_PREP_BASE=UPGRADE_PARENT' in restore
+assert 'SOURCE_PREP_BASE=UPGRADE_PARENT_REQUEST_MISMATCH' in restore
+assert 'restore_source_archive false' in restore
+assert 'parent pin and progress request IDs disagree' in restore
+assert 'ready parent Chromium HEAD differs from its pinned SHA' in restore
+assert 'request_match=true' in restore
+assert 'stage not in (1, 2, 3, 4, 5)' in restore
+assert 'SOURCE_PREP_BASE=UPGRADE_PARENT_REQUEST_MISMATCH' in restore
+assert 'checkpoint_role=verified-upgrade-parent' in restore
+assert 'checkpoint_role=matching-request' in restore
+assert 'upgrade parent, never as the requested target-version checkpoint' in restore
+assert 'Deliberately do NOT mark source-ready-restored or any completed phase' in restore
 assert 'ready is not True and ready is not False' in restore
 assert 'len(shards) != 8' in restore
 assert 'source_bytes < 50_000_000_000 or archive_bytes < 30_000_000_000' in restore
