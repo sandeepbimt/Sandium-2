@@ -288,7 +288,7 @@ def apply_android_sources(core: Path) -> None:
         "        mUpdateFilterListItem = menu.findItem(R.id.update_filter_list_id);\n"
         "        // The upstream action refreshes Brave component lists, not URL subscriptions.\n"
         "        if (mUpdateFilterListItem != null) mUpdateFilterListItem.setVisible(false);\n",
-        "SANDIUM_COMPONENT_CATALOG_UPDATE_DISABLED",
+        "The upstream action refreshes Brave component lists",
         "fragment-hide-brave-catalogue-update-action",
     )
 
@@ -385,7 +385,7 @@ def apply_android_sources(core: Path) -> None:
         return count;
     }
 """,
-        "SANDIUM_SUBSCRIPTION_ONLY_ITEM_COUNT",
+        "int count = subscriptionCount + THREE_ITEMS_SPACE;",
         "adapter-hide-empty-brave-catalogue-section",
     )
 
