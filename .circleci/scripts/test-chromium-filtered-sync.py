@@ -23,6 +23,13 @@ assert 'remote.origin.promisor true' in fetch
 assert 'remote.origin.partialclonefilter blob:none' in fetch
 assert 'CHROMIUM_FILTERED_FETCH=PASS' in fetch
 assert 'unexpected origin=' in fetch
+assert 'CHECKOUT_MAX_ATTEMPTS=4' in fetch
+assert 'CHROMIUM_LAZY_HYDRATION=RETRY' in fetch
+assert 'CHROMIUM_LAZY_HYDRATION=PASS' in fetch
+assert 'http.maxRequests 2' in fetch
+assert 'no unfiltered fallback attempted' in fetch
+assert 'sleep "$((CHECKOUT_ATTEMPT * 10))"' in fetch
+assert "HTTP 5[0-9][0-9]" in fetch
 assert 'CHROMIUM_PARTIAL_CLONE_PROBE=PASS' in probe
 # set -u must not encounter the stale, undefined SRC variable after probe success.
 assert 'git -C "$SRC_DIR" config extensions.partialClone origin' in prepare
