@@ -1487,6 +1487,7 @@ jobs:
                 name: Restore the same immutable source base used by Stage 1
                 keys:
                   - sandium-brave-pinning-progress-v3-{{ checksum ".circleci/source-pin-refresh-id" }}-
+                  - sandium-brave-pinning-progress-v3-
                   - sandium-brave-pinning-progress-v2-{{ checksum ".circleci/source-pin-refresh-id" }}-
                   - sandium-brave-pinning-progress-v2-
                   - sandium-brave-pinned-source-v3-
@@ -1513,6 +1514,7 @@ jobs:
                 name: Restore latest pinned source, compiled reference, or protected canonical base
                 keys:
                   - sandium-brave-pinning-progress-v3-{{ checksum ".circleci/source-pin-refresh-id" }}-
+                  - sandium-brave-pinning-progress-v3-
                   - sandium-brave-pinning-progress-v2-{{ checksum ".circleci/source-pin-refresh-id" }}-
 # Any prior run's newest cumulative progress checkpoint (each stage archive is cumulative).
                   - sandium-brave-pinning-progress-v2-
