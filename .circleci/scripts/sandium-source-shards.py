@@ -1187,7 +1187,7 @@ def validate_restored_workspace(root: Path, payload: dict[str, Any]) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("command", choices=("archive", "verify", "restore", "assemble-deltas"))
+    parser.add_argument("command", choices=("archive", "verify", "restore", "assemble-deltas", "capture-fingerprints"))
     parser.add_argument("--root", required=True)
     parser.add_argument("--workers", type=int, default=WORKERS_MAX)
     parser.add_argument("--stage", type=int, default=0)
@@ -1214,6 +1214,8 @@ def main() -> None:
         if args.through_stage < 1 or args.through_stage > 5:
             fail("assemble-deltas requires --through-stage 1..5")
         assemble_deltas(root, args.through_stage, workers, zstd_test=args.zstd_test)
+    elif args.command == "capture-fingerprints":
+        capture_fingerprints(root)
 
 
 if __name__ == "__main__":
