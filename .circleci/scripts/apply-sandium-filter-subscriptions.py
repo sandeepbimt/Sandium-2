@@ -135,8 +135,8 @@ def apply_android_sources(core: Path) -> None:
     )
     replace_once(
         fragment,
-        "import android.os.Bundle;\\n",
-        "import android.os.Bundle;\\nimport android.util.Log;\\n",
+        "import android.os.Bundle;\n",
+        "import android.os.Bundle;\nimport android.util.Log;\n",
         "import android.util.Log;",
         "fragment-logging-import",
     )
