@@ -1560,10 +1560,13 @@ jobs:
           command: |
             set -euo pipefail
             if [ "<< parameters.stage_index >>" = "1" ]; then
-              bash .circleci/scripts/restore-brave-source-checkpoint.sh base
+              bash .circleci/scripts/restore-brave-source-checkpoint.sh base-required
             else
               bash .circleci/scripts/restore-brave-source-checkpoint.sh progress
             fi
+            test -s "$CIRCLE_WORKING_DIRECTORY/pinning-status/source-restore-receipt.env"
+            grep -qx 'RESTORE_RESULT=PASS' "$CIRCLE_WORKING_DIRECTORY/pinning-status/source-restore-receipt.env"
+            echo "SANDIUM_SOURCE_RESTORE_RECEIPT=PASS stage=<< parameters.stage_index >>"
       - run:
           name: Execute real Brave and Chromium source preparation for this stage
           command: |
@@ -1601,6 +1604,7 @@ jobs:
           root: .
           paths:
             - pinning-status/stage-<< parameters.stage_index >>-result.env
+            - pinning-status/source-restore-receipt.env
       - run:
           name: Avoid duplicate upload when this source slice made no reusable progress
           command: |
