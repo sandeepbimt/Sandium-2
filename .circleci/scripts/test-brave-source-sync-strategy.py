@@ -60,5 +60,11 @@ assert '"git_progress_state": metadata["git_progress_state"]' in shards_script
 assert '"completed_packfiles": stable_packfiles' in shards_script
 assert '"--exclude=tmp_pack_*"' in shards_script
 assert '"git_state": metadata["git_state"]' not in shards_script
+file_state_start = shards_script.index("def file_state(")
+file_state_end = shards_script.index("\\ndef ", file_state_start + 1)
+file_state_function = shards_script[file_state_start:file_state_end]
+assert "mtime_ns" not in file_state_function
+assert 'result["sha256"] = sha256_file(path)' in file_state_function
+assert 'result["link_target"] = os.readlink(path)' in file_state_function
 
 print("BRAVE_SOURCE_SYNC_STRATEGY_TEST=PASS resumable_metadata=verified interrupted_tmp_pack=discarded durable_progress_fingerprint=only archive_reuse=no_duplicate_tmp_pack_archives")
