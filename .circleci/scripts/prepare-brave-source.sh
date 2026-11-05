@@ -296,12 +296,16 @@ if [ "$BRAVE_STAGE_INDEX" = "1" ]; then
       bash "$ROOT/.circleci/scripts/fetch-pinned-chromium.sh" "$SRC_DIR" "$CHROMIUM_TAG" "$CHROMIUM_PIN" "$CHROMIUM_URL"
       # Chromium is now checked out at the exact immutable pin. Let Brave's
       # sync update the remaining DEPS projects without fetching Chromium again.
+      # First let Chromium's normal gclient transaction update DEPS at the
+      # already-fetched pin (the origin is promisor/blob:none, so any fetch is
+      # filtered); then sync Brave Core's own DEPS separately.
+      run_brave_sync --target_os=android --target_arch=arm64 --no-history --nohooks --sync_chromium=true
       if [ "$SOURCE_PREP_PHASE" = "sync" ]; then
         run_brave_sync --target_os=android --target_arch=arm64 --no-history --nohooks --sync_chromium=false
       else
         run_brave_sync --target_os=android --target_arch=arm64 --no-history --sync_chromium=false
       fi
-      echo "BRAVE_CHROMIUM_SYNC=SKIPPED_AFTER_VERIFIED_FILTERED_FETCH sha=$CHROMIUM_PIN"
+      echo "BRAVE_CHROMIUM_SYNC=FILTERED_PIN_ALREADY_CHECKED_OUT sha=$CHROMIUM_PIN; chromium_DEPS_and_brave_DEPS_synced"
     else
       echo "BRAVE_CHROMIUM_FILTERED_FETCH=FALLBACK probe_not_supported_or_disabled; using existing incremental Brave sync"
       if [ "$SOURCE_PREP_PHASE" = "sync" ]; then
