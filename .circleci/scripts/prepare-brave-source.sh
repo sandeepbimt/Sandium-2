@@ -42,18 +42,20 @@ elif [ -s "$PINS_FILE" ] && [ "$STORED_PIN_REQUEST_ID" = "$REQUEST_ID" ]; then
   BRAVE_CORE_TAG="$(sed -n 's/^BRAVE_CORE_TAG=//p' "$PINS_FILE" | head -n 1)"
   test -n "$BRAVE_CORE_TAG" || { echo "BRAVE_PIN_METADATA_GATE=FAIL stored Brave tag is empty" >&2; exit 1; }
   echo "BRAVE_RELEASE_PIN=RESUME tag=$BRAVE_CORE_TAG request_id=$REQUEST_ID"
-elif [ -n "${SANDIUM_BRAVE_CORE_TAG:-}" ]; then
-  BRAVE_CORE_TAG="$SANDIUM_BRAVE_CORE_TAG"
-  echo "BRAVE_RELEASE_PIN=OVERRIDE tag=$BRAVE_CORE_TAG"
 else
-  # Resolve the newest published Android release, including prereleases.
-  # The release tag is pinned immutably for this run; it is not a permanent version lock.
-  RELEASE_JSON="$(curl -fsSL --retry 3 --retry-all-errors --connect-timeout 15 --max-time 45 -H 'Accept: application/vnd.github+json' -H 'X-GitHub-Api-Version: 2022-11-28' -H 'User-Agent: Sandium-Pinned-Data-Save' 'https://api.github.com/repos/brave/brave-browser/releases?per_page=20')"
-  RELEASE_META="$(python3 -c 'import json,re,sys; rs=json.load(sys.stdin); rs=[r for r in rs if not r.get("draft") and re.fullmatch(r"v[0-9]+[.][0-9]+[.][0-9]+",r.get("tag_name","")) and any(a.get("name")=="Bravearm64Universal.apk" for a in r.get("assets",[]))]; assert rs, "no published Brave Android release with ARM64 universal APK found"; r=max(rs,key=lambda x:x.get("published_at") or x.get("created_at") or ""); print(r["tag_name"]); print("PRERELEASE" if r.get("prerelease") else "STABLE")' <<< "$RELEASE_JSON")"
-  BRAVE_CORE_TAG="$(sed -n '1p' <<< "$RELEASE_META")"
-  BRAVE_RELEASE_CHANNEL="$(sed -n '2p' <<< "$RELEASE_META")"
-  echo "BRAVE_RELEASE_PIN=LATEST_PUBLISHED_ANDROID_RESOLVED tag=$BRAVE_CORE_TAG channel=$BRAVE_RELEASE_CHANNEL source=brave-browser/releases?per_page=20"
+  # This workflow is deliberately pinned to the latest verified upstream
+  # Brave Release tag. The exact Chromium revision is taken from this tag's
+  # own package.json; no Sandium browser overlays are applied.
+  BRAVE_CORE_TAG="v1.99.55"
+  BRAVE_RELEASE_CHANNEL="RELEASE"
+  echo "BRAVE_RELEASE_PIN=VANILLA_RELEASE_PINNED tag=$BRAVE_CORE_TAG channel=$BRAVE_RELEASE_CHANNEL github_prerelease_flag=true"
+
 fi
+
+test "$BRAVE_CORE_TAG" = "v1.99.55" || {
+  echo "BRAVE_RELEASE_PIN_GATE=FAIL expected v1.99.55, got $BRAVE_CORE_TAG" >&2
+  exit 1
+}
 
 # Separate dependency installation from Brave sync. A successful install is
 # reusable only for the exact package, lockfile and npm-config fingerprint.
@@ -114,6 +116,11 @@ else
   }
 fi
 cd "$CORE_DIR"
+ACTUAL_BRAVE_CORE_SHA="$(git -C "$CORE_DIR" rev-parse HEAD)"
+test "$ACTUAL_BRAVE_CORE_SHA" = "d5f73ccfbb8887db2367b182fa86df82c6b705cf" || {
+  echo "BRAVE_CORE_SHA_GATE=FAIL expected d5f73ccfbb8887db2367b182fa86df82c6b705cf, got $ACTUAL_BRAVE_CORE_SHA" >&2
+  exit 1
+}
 CHROMIUM_TAG="$(node -e 'console.log(JSON.parse(require("fs").readFileSync("package.json")).config.projects.chrome.tag)')"
 if [ "$BRAVE_STAGE_INDEX" = "1" ]; then
   PINNED_BRAVE_TAG="$(sed -n 's/^BRAVE_CORE_TAG=//p' "$PINS_FILE" 2>/dev/null | head -n 1 || true)"
@@ -162,7 +169,14 @@ echo "BRAVE_CORE_TAG=$BRAVE_CORE_TAG"
 echo "CHROMIUM_TAG=$CHROMIUM_TAG"
 echo "CHROMIUM_PIN=$CHROMIUM_PIN"
 echo "BRAVE_STAGE=${BRAVE_STAGE_INDEX:?BRAVE_STAGE_INDEX is required}"
-test -n "$CHROMIUM_TAG"
+test "$CHROMIUM_TAG" = "157.0.8103.39" || {
+  echo "BRAVE_CHROMIUM_TAG_GATE=FAIL expected 157.0.8103.39, got $CHROMIUM_TAG" >&2
+  exit 1
+}
+test "$CHROMIUM_PIN" = "9a31f0acec1854d44e49a73fbf8017598151a583" || {
+  echo "BRAVE_CHROMIUM_SHA_GATE=FAIL expected 9a31f0acec1854d44e49a73fbf8017598151a583, got $CHROMIUM_PIN" >&2
+  exit 1
+}
 test "${#CHROMIUM_PIN}" -eq 40
 if [ "$BRAVE_STAGE_INDEX" = "1" ]; then
   mkdir -p "$ROOT/brave-work/.sandium"
@@ -202,7 +216,7 @@ else
 fi
 SOURCE_PREP_PHASE="${SANDIUM_SOURCE_PREP_PHASE:-all}"
 pnpm config set store-dir "$HOME/.cache/pnpm-store"
-  # Use Brave's native RBE configuration path. At v1.99.54,
+  # Use Brave's native RBE configuration path. At v1.99.55,
   # pnpm sync reads rbe_service from brave/.env and writes the
   # reapi_* custom_vars into .gclient before running Chromium hooks.
   REAPI_ADDRESS="$(printenv SANDIUM_REAPI_ADDRESS 2>/dev/null || true)"

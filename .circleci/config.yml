@@ -1924,10 +1924,10 @@ jobs:
               - equal: [1, << parameters.stage_index >>]
               - or:
                   - equal: [full, << pipeline.parameters.sandium_build_mode >>]
-                  - equal: [brave/vanilla-v1.99.54, << pipeline.git.branch >>]
+                  - equal: [brave/vanilla-v1.99.55, << pipeline.git.branch >>]
           steps:
             - restore_cache:
-                name: Restore v1.99.54 reference or protected canonical 26GB checkpoint
+                name: Restore previous vanilla reference or protected canonical 26GB checkpoint
                 keys:
                   # Prefer the versioned source-ready Brave/Chromium reference, then a compiled checkpoint, then the protected canonical base.
                   - sandium-brave-reference-v3-{{ .Branch }}-
@@ -1950,7 +1950,7 @@ jobs:
               - equal: [1, << parameters.stage_index >>]
               - equal: [fast, << pipeline.parameters.sandium_build_mode >>]
               - not:
-                  equal: [brave/vanilla-v1.99.54, << pipeline.git.branch >>]
+                  equal: [brave/vanilla-v1.99.55, << pipeline.git.branch >>]
           steps:
             - restore_cache:
                 name: Restore latest promoted Sandium reference
@@ -1971,7 +1971,7 @@ jobs:
               - equal: [2, << parameters.stage_index >>]
               - or:
                   - equal: [full, << pipeline.parameters.sandium_build_mode >>]
-                  - equal: [brave/vanilla-v1.99.54, << pipeline.git.branch >>]
+                  - equal: [brave/vanilla-v1.99.55, << pipeline.git.branch >>]
           steps:
             - restore_cache:
                 name: Restore reference Stage 1 handoff
@@ -1984,7 +1984,7 @@ jobs:
               - equal: [3, << parameters.stage_index >>]
               - or:
                   - equal: [full, << pipeline.parameters.sandium_build_mode >>]
-                  - equal: [brave/vanilla-v1.99.54, << pipeline.git.branch >>]
+                  - equal: [brave/vanilla-v1.99.55, << pipeline.git.branch >>]
           steps:
             - restore_cache:
                 name: Restore reference Stage 2 handoff
@@ -1997,7 +1997,7 @@ jobs:
               - equal: [4, << parameters.stage_index >>]
               - or:
                   - equal: [full, << pipeline.parameters.sandium_build_mode >>]
-                  - equal: [brave/vanilla-v1.99.54, << pipeline.git.branch >>]
+                  - equal: [brave/vanilla-v1.99.55, << pipeline.git.branch >>]
           steps:
             - restore_cache:
                 name: Restore reference Stage 3 handoff
@@ -2010,7 +2010,7 @@ jobs:
               - equal: [5, << parameters.stage_index >>]
               - or:
                   - equal: [full, << pipeline.parameters.sandium_build_mode >>]
-                  - equal: [brave/vanilla-v1.99.54, << pipeline.git.branch >>]
+                  - equal: [brave/vanilla-v1.99.55, << pipeline.git.branch >>]
           steps:
             - restore_cache:
                 name: Restore reference Stage 4 handoff
@@ -2023,7 +2023,7 @@ jobs:
               - equal: [2, << parameters.stage_index >>]
               - equal: [fast, << pipeline.parameters.sandium_build_mode >>]
               - not:
-                  equal: [brave/vanilla-v1.99.54, << pipeline.git.branch >>]
+                  equal: [brave/vanilla-v1.99.55, << pipeline.git.branch >>]
           steps:
             - restore_cache:
                 name: Restore immutable reference for FAST MODE Stage 2
@@ -2046,7 +2046,7 @@ jobs:
               - equal: [3, << parameters.stage_index >>]
               - equal: [fast, << pipeline.parameters.sandium_build_mode >>]
               - not:
-                  equal: [brave/vanilla-v1.99.54, << pipeline.git.branch >>]
+                  equal: [brave/vanilla-v1.99.55, << pipeline.git.branch >>]
           steps:
             - restore_cache:
                 name: Restore immutable reference for FAST MODE Stage 3
@@ -2069,7 +2069,7 @@ jobs:
               - equal: [4, << parameters.stage_index >>]
               - equal: [fast, << pipeline.parameters.sandium_build_mode >>]
               - not:
-                  equal: [brave/vanilla-v1.99.54, << pipeline.git.branch >>]
+                  equal: [brave/vanilla-v1.99.55, << pipeline.git.branch >>]
           steps:
             - restore_cache:
                 name: Restore immutable reference for FAST MODE Stage 4
@@ -2092,7 +2092,7 @@ jobs:
               - equal: [5, << parameters.stage_index >>]
               - equal: [fast, << pipeline.parameters.sandium_build_mode >>]
               - not:
-                  equal: [brave/vanilla-v1.99.54, << pipeline.git.branch >>]
+                  equal: [brave/vanilla-v1.99.55, << pipeline.git.branch >>]
           steps:
             - restore_cache:
                 name: Restore immutable reference for FAST MODE Stage 5
@@ -2138,7 +2138,7 @@ jobs:
           command: |
             set -euo pipefail
             MODE="<< pipeline.parameters.sandium_build_mode >>"
-            if [ "${CIRCLE_BRANCH:-}" = "brave/vanilla-v1.99.54" ]; then MODE=full; fi
+            if [ "${CIRCLE_BRANCH:-}" = "brave/vanilla-v1.99.55" ]; then MODE=full; fi
             ROOT="$CIRCLE_WORKING_DIRECTORY"
             mkdir -p "$ROOT/brave-work/.sandium"
             # This marker distinguishes an archive created by this run from the
@@ -2148,10 +2148,10 @@ jobs:
             echo "SANDIUM_BUILD_MODE=$MODE"
             if [ "$MODE" = "fast" ]; then
               echo "SANDIUM_CI_NAME=SANDIUM-FAST-MODE"
-              EXPECTED_BRAVE_CORE_TAG=v1.99.54 EXPECTED_CHROMIUM_TAG=157.0.8103.30 EXPECTED_VANILLA_RELEASE=true bash "$ROOT/.circleci/scripts/verify-brave-reference.sh"
+              EXPECTED_BRAVE_CORE_TAG=v1.99.55 EXPECTED_CHROMIUM_TAG=157.0.8103.39 EXPECTED_VANILLA_RELEASE=true bash "$ROOT/.circleci/scripts/verify-brave-reference.sh"
             elif [ "$MODE" = "full" ]; then
               echo "SANDIUM_CI_NAME=SANDIUM-FULL-MODE"
-              if [ "${CIRCLE_BRANCH:-}" = "brave/vanilla-v1.99.54" ] && [ "<< parameters.stage_index >>" = "1" ]; then
+              if [ "${CIRCLE_BRANCH:-}" = "brave/vanilla-v1.99.55" ] && [ "<< parameters.stage_index >>" = "1" ]; then
                 echo "CANONICAL_REFERENCE_VALIDATION=START commit=3c8004b; expected Brave v1.98.62 / Chromium SHA d331de35..."
                 EXPECTED_BRAVE_CORE_TAG=v1.98.62 EXPECTED_CHROMIUM_TAG="" EXPECTED_CHROMIUM_SHA=d331de35ca8ab1358c7a17e4bd41627d55eaef51 EXPECTED_VANILLA_RELEASE=false bash "$ROOT/.circleci/scripts/verify-brave-reference.sh"
                 echo "CANONICAL_REFERENCE_VALIDATION=PASS; the immutable 26GB source/dependency reference is verified before version upgrade."
@@ -2398,8 +2398,8 @@ jobs:
             METRICS_PREFIX="sandium-brave-siso-stage-<< parameters.stage_index >>-build-${CIRCLE_BUILD_NUM:-local}-attempt-"
             METRICS_FILE="${METRICS_PREFIX}0.jsonl"
             BUILD_MODE="<< pipeline.parameters.sandium_build_mode >>"
-            if [ "${CIRCLE_BRANCH:-}" = "brave/vanilla-v1.99.54" ]; then BUILD_MODE=full; fi
-            if [ "${CIRCLE_BRANCH:-}" = "brave/vanilla-v1.99.54" ]; then MODE=full; fi
+            if [ "${CIRCLE_BRANCH:-}" = "brave/vanilla-v1.99.55" ]; then BUILD_MODE=full; fi
+            if [ "${CIRCLE_BRANCH:-}" = "brave/vanilla-v1.99.55" ]; then MODE=full; fi
             case "$BUILD_MODE" in
               full) STAGE_BUILD_BUDGET_SECONDS=1800 ;;
               fast) STAGE_BUILD_BUDGET_SECONDS=2700 ;;
@@ -2611,7 +2611,7 @@ jobs:
           condition:
             or:
               - equal: [full, << pipeline.parameters.sandium_build_mode >>]
-              - equal: [brave/vanilla-v1.99.54, << pipeline.git.branch >>]
+              - equal: [brave/vanilla-v1.99.55, << pipeline.git.branch >>]
           steps:
             - run:
                 name: Validate Brave checkpoint before saving
@@ -2661,8 +2661,8 @@ jobs:
                   source "$ROOT/brave-work/.sandium/source-pins.env"
                   ACTUAL_CHROMIUM_SHA="$(git -C "$SRC" rev-parse HEAD)"
                   BRAVE_TAG="$(git -C "$CORE" describe --tags --exact-match 2>/dev/null || true)"
-                  test "$BRAVE_CORE_TAG" = "v1.99.54" || { echo "CHECKPOINT_SAVE=REFUSED Brave pin mismatch: $BRAVE_CORE_TAG" >&2; exit 1; }
-                  test "$CHROMIUM_TAG" = "157.0.8103.30" || { echo "CHECKPOINT_SAVE=REFUSED Chromium tag mismatch: $CHROMIUM_TAG" >&2; exit 1; }
+                  test "$BRAVE_CORE_TAG" = "v1.99.55" || { echo "CHECKPOINT_SAVE=REFUSED Brave pin mismatch: $BRAVE_CORE_TAG" >&2; exit 1; }
+                  test "$CHROMIUM_TAG" = "157.0.8103.39" || { echo "CHECKPOINT_SAVE=REFUSED Chromium tag mismatch: $CHROMIUM_TAG" >&2; exit 1; }
                   test "$ACTUAL_CHROMIUM_SHA" = "$CHROMIUM_SHA" || { echo "CHECKPOINT_SAVE=REFUSED Chromium SHA mismatch: $ACTUAL_CHROMIUM_SHA expected $CHROMIUM_SHA" >&2; exit 1; }
                   test "$BRAVE_TAG" = "$BRAVE_CORE_TAG" || { echo "CHECKPOINT_SAVE=REFUSED Brave tag mismatch: $BRAVE_TAG" >&2; exit 1; }
                   CHROMIUM_SHA="$ACTUAL_CHROMIUM_SHA"
@@ -2733,7 +2733,7 @@ jobs:
             STAGE="<< parameters.stage_index >>"
             APK_STATUS="$ROOT/brave-work/.sandium/apk-completion-status.txt"
             MODE="<< pipeline.parameters.sandium_build_mode >>"
-            if [ "${CIRCLE_BRANCH:-}" = "brave/vanilla-v1.99.54" ]; then MODE=full; fi
+            if [ "${CIRCLE_BRANCH:-}" = "brave/vanilla-v1.99.55" ]; then MODE=full; fi
             if [ "$MODE" = "full" ]; then
               python3 "$ROOT/.circleci/scripts/checkpoint-stage-receipt.py" verify \
                 --root "$ROOT" \
@@ -2775,7 +2775,7 @@ jobs:
           command: |
             set -euo pipefail
             MODE="<< pipeline.parameters.sandium_build_mode >>"
-            if [ "${CIRCLE_BRANCH:-}" = "brave/vanilla-v1.99.54" ]; then MODE=full; fi
+            if [ "${CIRCLE_BRANCH:-}" = "brave/vanilla-v1.99.55" ]; then MODE=full; fi
             if [ "$MODE" != "full" ]; then
               echo "SANDIUM_REFERENCE_PROMOTION=SKIPPED mode=$MODE"
               circleci-agent step halt
@@ -2809,7 +2809,7 @@ jobs:
             done
             export SANDIUM_ARCHIVE_WORKERS=8
             bash .circleci/scripts/archive-brave-workspace.sh verify
-            python3 -c 'import json,sys; from pathlib import Path; d=json.loads(Path(sys.argv[1]).read_text(encoding="utf-8")); c=d.get("checkpoint_manifest",{}); req={"CHECKPOINT_VALID":"true","REFERENCE_MODE":"reference","APK_VALIDATED":"true","REFERENCE_READY":"true","CHROMIUM_TAG":"157.0.8103.30","BRAVE_CORE_TAG":"v1.99.54","TARGET":"android-arm64","BUILD_TYPE":"Release","OFFICIAL_BUILD":"true","TARGET_ANDROID_OUTPUT_FORMAT":"aab","ANDROID_AAB_TO_APK":"true","PACKAGE_ID":"com.brave.browser","APP_LABEL":"Brave","APK_FILENAME":"Bravearm64Universal.apk"}; bad=[k for k,v in req.items() if c.get(k)!=v]; sha=c.get("CHROMIUM_SHA",""); import re; assert re.fullmatch(r"[0-9a-f]{40}",sha), "REFERENCE_PROMOTION=FAIL invalid Chromium SHA"; assert not bad, "REFERENCE_PROMOTION=FAIL missing or incorrect keys: "+",".join(bad); Path(sys.argv[2]).write_text("\\n".join("%s=%s" % (k,v) for k,v in sorted(c.items()))+"\\n",encoding="utf-8"); print("REFERENCE_PROMOTION=PASS workers=%s shards=%s source_bytes=%s archive_bytes=%s" % (d.get("workers"),len(d.get("shards",[])),d.get("source_bytes"),d.get("archive_bytes")))' "$SHARD_MANIFEST" "$ROOT/reference-candidate-manifest.txt"
+            python3 -c 'import json,sys; from pathlib import Path; d=json.loads(Path(sys.argv[1]).read_text(encoding="utf-8")); c=d.get("checkpoint_manifest",{}); req={"CHECKPOINT_VALID":"true","REFERENCE_MODE":"reference","APK_VALIDATED":"true","REFERENCE_READY":"true","CHROMIUM_TAG":"157.0.8103.39","BRAVE_CORE_TAG":"v1.99.55","TARGET":"android-arm64","BUILD_TYPE":"Release","OFFICIAL_BUILD":"true","TARGET_ANDROID_OUTPUT_FORMAT":"aab","ANDROID_AAB_TO_APK":"true","PACKAGE_ID":"com.brave.browser","APP_LABEL":"Brave","APK_FILENAME":"Bravearm64Universal.apk"}; bad=[k for k,v in req.items() if c.get(k)!=v]; sha=c.get("CHROMIUM_SHA",""); import re; assert re.fullmatch(r"[0-9a-f]{40}",sha), "REFERENCE_PROMOTION=FAIL invalid Chromium SHA"; assert not bad, "REFERENCE_PROMOTION=FAIL missing or incorrect keys: "+",".join(bad); Path(sys.argv[2]).write_text("\\n".join("%s=%s" % (k,v) for k,v in sorted(c.items()))+"\\n",encoding="utf-8"); print("REFERENCE_PROMOTION=PASS workers=%s shards=%s source_bytes=%s archive_bytes=%s" % (d.get("workers"),len(d.get("shards",[])),d.get("source_bytes"),d.get("archive_bytes")))' "$SHARD_MANIFEST" "$ROOT/reference-candidate-manifest.txt"
             echo "REFERENCE_PROMOTION=CANDIDATE_VERIFIED"
       - save_cache:
           name: Promote immutable latest Sandium parallel-shard reference
@@ -2906,7 +2906,7 @@ workflows:
           filters:
             branches:
               only:
-                - brave/vanilla-v1.99.54
+                - brave/vanilla-v1.99.55
                 - architecture/separate-brave-source-preparation
                 - architecture/sandium-pinning-v2-build
                 - work/pinned-data-save-hardening
@@ -2919,7 +2919,7 @@ workflows:
           filters:
             branches:
               only:
-                - brave/vanilla-v1.99.54
+                - brave/vanilla-v1.99.55
                 - architecture/separate-brave-source-preparation
                 - architecture/sandium-pinning-v2-build
                 - work/pinned-data-save-hardening
@@ -2932,7 +2932,7 @@ workflows:
           filters:
             branches:
               only:
-                - brave/vanilla-v1.99.54
+                - brave/vanilla-v1.99.55
                 - architecture/separate-brave-source-preparation
                 - architecture/sandium-pinning-v2-build
                 - work/pinned-data-save-hardening
@@ -2945,7 +2945,7 @@ workflows:
           filters:
             branches:
               only:
-                - brave/vanilla-v1.99.54
+                - brave/vanilla-v1.99.55
                 - architecture/separate-brave-source-preparation
                 - architecture/sandium-pinning-v2-build
                 - work/pinned-data-save-hardening
@@ -2958,7 +2958,7 @@ workflows:
           filters:
             branches:
               only:
-                - brave/vanilla-v1.99.54
+                - brave/vanilla-v1.99.55
                 - architecture/separate-brave-source-preparation
                 - architecture/sandium-pinning-v2-build
                 - work/pinned-data-save-hardening
@@ -2970,7 +2970,7 @@ workflows:
           filters:
             branches:
               only:
-                - brave/vanilla-v1.99.54
+                - brave/vanilla-v1.99.55
                 - architecture/separate-brave-source-preparation
                 - architecture/sandium-pinning-v2-build
                 - work/pinned-data-save-hardening
@@ -2982,18 +2982,21 @@ workflows:
             equal: [source-prep, << pipeline.parameters.sandium_build_mode >>]
         - or:
             - equal: [full, << pipeline.parameters.sandium_build_mode >>]
-            - equal: [brave/vanilla-v1.99.54, << pipeline.git.branch >>]
+            - equal: [brave/vanilla-v1.99.55, << pipeline.git.branch >>]
     jobs:
+      - sandium-source-prep-validation:
+          name: SANDIUM-FULL-MODE-source-validation
       - brave-android-staged-build:
           name: SANDIUM-FULL-MODE-stage-1
           stage_index: 1
+          requires: [SANDIUM-FULL-MODE-source-validation]
           filters:
             branches:
               only:
                 - sandium/brave-android-poc
                 - sandium/archive-zstd-fast5
                 - sandium/fix-archive-completion-gate
-                - brave/vanilla-v1.99.54
+                - brave/vanilla-v1.99.55
       - brave-android-staged-build:
           name: SANDIUM-FULL-MODE-stage-2
           stage_index: 2
@@ -3004,7 +3007,7 @@ workflows:
                 - sandium/brave-android-poc
                 - sandium/archive-zstd-fast5
                 - sandium/fix-archive-completion-gate
-                - brave/vanilla-v1.99.54
+                - brave/vanilla-v1.99.55
       - brave-android-staged-build:
           name: SANDIUM-FULL-MODE-stage-3
           stage_index: 3
@@ -3015,7 +3018,7 @@ workflows:
                 - sandium/brave-android-poc
                 - sandium/archive-zstd-fast5
                 - sandium/fix-archive-completion-gate
-                - brave/vanilla-v1.99.54
+                - brave/vanilla-v1.99.55
       - brave-android-staged-build:
           name: SANDIUM-FULL-MODE-stage-4
           stage_index: 4
@@ -3026,7 +3029,7 @@ workflows:
                 - sandium/brave-android-poc
                 - sandium/archive-zstd-fast5
                 - sandium/fix-archive-completion-gate
-                - brave/vanilla-v1.99.54
+                - brave/vanilla-v1.99.55
       - brave-android-staged-build:
           name: SANDIUM-FULL-MODE-stage-5
           stage_index: 5
@@ -3037,7 +3040,7 @@ workflows:
                 - sandium/brave-android-poc
                 - sandium/archive-zstd-fast5
                 - sandium/fix-archive-completion-gate
-                - brave/vanilla-v1.99.54
+                - brave/vanilla-v1.99.55
       - promote-brave-reference:
           name: SANDIUM-FULL-MODE-reference-promotion
           requires: [SANDIUM-FULL-MODE-stage-5]
@@ -3045,7 +3048,7 @@ workflows:
             branches:
               only:
                 - sandium/brave-android-poc
-                - brave/vanilla-v1.99.54
+                - brave/vanilla-v1.99.55
   sandium-fast-mode:
     when:
       equal: [fast, << pipeline.parameters.sandium_build_mode >>]

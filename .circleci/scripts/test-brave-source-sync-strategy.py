@@ -40,7 +40,17 @@ assert "pnpm install --frozen-lockfile --yes" in source
 assert "BRAVE_UPSTREAM_SYNC_SECONDS=" in source
 assert "BRAVE_SOURCE_PINS=RECORDED before sync" in source
 assert 'if [ "$BRAVE_STAGE_INDEX" = "1" ]; then' in source
-assert "BRAVE_RELEASE_PIN=LATEST_STABLE_RESOLVED" in source
+assert "BRAVE_RELEASE_PIN=VANILLA_RELEASE_PINNED" in source
+assert 'BRAVE_CORE_TAG="v1.99.55"' in source
+assert "d5f73ccfbb8887db2367b182fa86df82c6b705cf" in source
+assert "157.0.8103.39" in source
+assert "9a31f0acec1854d44e49a73fbf8017598151a583" in source
+assert "VANILLA_BRAVE_SOURCE_OVERLAYS=NONE" in source
+assert "apply-sandium-branding.sh" not in source
+assert "apply-sandium-adblock.py" not in source
+assert "--channel=release" in source
+assert "--gn is_official_build:true" in source
+assert "--gn android_channel:stable" in source
 assert "BRAVE_CHROMIUM_PIN_METADATA=RESTORED" in source
 assert "BRAVE_CHROMIUM_CHECKOUT=NEEDS_UPDATE" in source
 assert "BRAVE_CORE_SHA=" in source
