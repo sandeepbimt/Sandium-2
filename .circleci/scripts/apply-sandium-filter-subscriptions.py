@@ -241,7 +241,7 @@ def apply_android_sources(core: Path) -> None:
                 preferences.edit().putStringSet(
                         SEEDED_URLS_PREF, new HashSet<>(seededUrls)).apply();
             }
-            Log.i(TAG, "SANDIUM_FILTER_SUBSCRIPTIONS_SEED total="
+            Log.i("SandiumFilterLists", "SANDIUM_FILTER_SUBSCRIPTIONS_SEED total="
                     + SANDIUM_DEFAULT_FILTERS.length + " created=" + createdCount);
             // Mojo preserves message order: this read follows all queued
             // CreateSubscription calls and fills the Android list with the
