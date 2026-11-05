@@ -27,7 +27,9 @@ assert "run_brave_sync --target_os=android --target_arch=arm64 --no-history --no
 assert "BRAVE_SOURCE_INCREMENTAL_SYNC=START" in incremental
 assert 'CHROMIUM_PARTIAL_CLONE_ACTIVE' in incremental
 assert 'fetch-pinned-chromium.sh' in incremental
+assert 'run_brave_sync --target_os=android --target_arch=arm64 --no-history --nohooks --sync_chromium=true' in incremental
 assert 'run_brave_sync --target_os=android --target_arch=arm64 --no-history --nohooks --sync_chromium=false' in incremental
+assert 'run_brave_sync --target_os=android --target_arch=arm64 --no-history --sync_chromium=false' in incremental
 assert 'run_brave_sync --target_os=android --target_arch=arm64 --no-history --sync_chromium=false' in incremental
 assert 'BRAVE_CHROMIUM_SYNC=SKIPPED_AFTER_VERIFIED_FILTERED_FETCH' in incremental
 assert 'BRAVE_CHROMIUM_FILTERED_FETCH=FALLBACK' in incremental
