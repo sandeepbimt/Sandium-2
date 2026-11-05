@@ -22,7 +22,6 @@ fresh_bootstrap() {
 
 restore_source_archive() {
   local ready="$1"
-  local zstd_test="${2:-false}"
   if [ ! -d "$ROOT/brave-source-checkpoint.shards" ] || [ ! -s "$ROOT/brave-source-checkpoint.manifest.json" ]; then
     return 1
   fi
@@ -37,11 +36,9 @@ restore_source_archive() {
       "$WORK/.sandium/source-gn-complete"
     echo "SOURCE_PREP_BASE=PINNED_SOURCE_READY all-cumulative-stage-data-restored"
   else
-    if [ "$zstd_test" = "true" ]; then
-      python3 "$ROOT/.circleci/scripts/sandium-source-shards.py" verify --root "$ROOT" --workers 8 --zstd-test || return 1
-    else
-      python3 "$ROOT/.circleci/scripts/sandium-source-shards.py" verify --root "$ROOT" --workers 8 || return 1
-    fi
+    # SHA-256 is checked before extraction; tar/zstd extraction itself validates
+    # the compressed stream, avoiding a second full decompression pass.
+    python3 "$ROOT/.circleci/scripts/sandium-source-shards.py" verify --root "$ROOT" --workers 8 || return 1
     python3 "$ROOT/.circleci/scripts/sandium-source-shards.py" restore --root "$ROOT" --workers 8 || return 1
     mkdir -p "$WORK/.sandium"
     echo "SOURCE_PREP_BASE=VALID_PROGRESS_CHECKPOINT all-cumulative-stage-data-restored"
@@ -162,8 +159,8 @@ case "$MODE" in
       echo "SOURCE_RESTORE_GATE=FAIL expected prior Stage 5 checkpoint was not restored from CircleCI cache" >&2
       exit 1
     fi
-    if ! restore_source_archive false true; then
-      echo "SOURCE_RESTORE_GATE=FAIL prior Stage 5 checkpoint failed SHA/zstd/workspace verification; no fresh bootstrap allowed" >&2
+    if ! restore_source_archive false; then
+      echo "SOURCE_RESTORE_GATE=FAIL prior Stage 5 checkpoint failed SHA/workspace/decompression verification; no fresh bootstrap allowed" >&2
       exit 1
     fi
     write_restore_receipt base-required
