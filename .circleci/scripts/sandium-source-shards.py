@@ -550,7 +550,8 @@ def archive_worker(index: int, roots: list[Path], root: Path, work: Path,
     }
 
 
-def archive(root: Path, workers: int, stage: int, ready: bool, skip_if_unchanged: bool = False) -> None:
+def archive(root: Path, workers: int, stage: int, ready: bool,
+            skip_if_unchanged: bool = False, delta: bool = False) -> None:
     work = root / WORK_NAME
     progress_path = work / PROGRESS_NAME
     manifest_path = root / MANIFEST_NAME
@@ -560,64 +561,95 @@ def archive(root: Path, workers: int, stage: int, ready: bool, skip_if_unchanged
     metadata = source_metadata(root, work, stage, ready)
     unchanged_marker = work / ".sandium" / "source-archive-unchanged"
     unchanged_marker.unlink(missing_ok=True)
-    if skip_if_unchanged and stage > 1 and not ready and manifest_path.is_file():
+    previous_bytes: bytes | None = None
+    previous: dict[str, Any] | None = None
+    previous_dir = root / SHARDS_NAME
+    if manifest_path.is_file():
+        previous_bytes = manifest_path.read_bytes()
         try:
-            previous, _previous_dir = load_manifest(root)
-            previous_source = previous.get("source", {})
-            same_state = (
-                previous.get("ready") is False
-                and previous_source.get("refresh_request_id") == metadata.get("refresh_request_id")
-                and previous_source.get("source_state_fingerprint") == metadata.get("source_state_fingerprint")
-            )
+            previous, _ = load_manifest(root)
         except SystemExit:
-            same_state = False
+            previous = None
+    if skip_if_unchanged and previous is not None:
+        previous_source = previous.get("source", {})
+        same_state = (
+            previous.get("ready") is ready
+            and previous_source.get("refresh_request_id") == metadata.get("refresh_request_id")
+            and previous_source.get("source_state_fingerprint") == metadata.get("source_state_fingerprint")
+        )
         if same_state:
             unchanged_marker.write_text(
                 "UNCHANGED_SOURCE_STATE=true\nPARENT_MANIFEST_STAGE=%s\nSOURCE_STATE_FINGERPRINT=%s\n"
                 % (previous.get("stage", "unknown"), metadata["source_state_fingerprint"]),
                 encoding="utf-8",
             )
+            if delta:
+                write_delta_record(root, stage, previous_bytes, previous, previous_bytes,
+                                   previous, [], [], previous_dir)
             print(
                 "SANDIUM_SOURCE_ARCHIVE=REUSE unchanged=true parent_stage=%s fingerprint=%s; no new shards created"
                 % (previous.get("stage", "unknown"), metadata["source_state_fingerprint"]),
                 flush=True,
             )
             return
-    # Split large source trees into disjoint directory roots and distribute them
-    # across up to eight tar+zstd workers.
+
+    # Keep shard ownership deterministic across runs. A fixed split threshold
+    # prevents total-workspace growth from reshuffling every shard. Each leaf
+    # path always maps to the same bucket; a newly fetched Git pack changes only
+    # the bucket that owns that pack path.
     total_bytes = sum(logical_size(p, work) for p in roots)
-    target = max(1, int((total_bytes / workers) * 1.15))
+    split_limit = 5 * 1024 * 1024 * 1024
     expanded: list[Path] = []
     for path in roots:
-        expanded.extend(split_heavy(path, work, target, 0))
-    sizes = {str(p): logical_size(p, work) for p in expanded}
-    expanded.sort(key=lambda p: sizes[str(p)], reverse=True)
-    count = min(workers, len(expanded))
-    buckets: list[list[Path]] = [[] for _ in range(count)]
-    loads = [0] * count
+        expanded.extend(split_heavy(path, work, split_limit, 0, max_depth=8))
+    buckets: list[list[Path]] = [[] for _ in range(workers)]
     for path in expanded:
-        index = min(range(count), key=lambda i: loads[i])
+        rel = path.relative_to(root).as_posix()
+        index = int(hashlib.sha256(rel.encode("utf-8")).hexdigest()[:8], 16) % workers
         buckets[index].append(path)
-        loads[index] += sizes[str(path)]
+    buckets = [sorted(bucket, key=lambda p: os.fsencode(p.relative_to(root).as_posix()))
+               for bucket in buckets]
+    bucket_map = [(i + 1, bucket) for i, bucket in enumerate(buckets) if bucket]
 
     stage_dir = root / (SHARDS_NAME + ".tmp")
     final_dir = root / SHARDS_NAME
     shutil.rmtree(stage_dir, ignore_errors=True)
     stage_dir.mkdir(parents=True)
+    previous_items = {
+        item["name"]: item for item in (previous.get("shards", []) if previous else [])
+    }
     results: list[dict[str, Any]] = []
     errors: list[str] = []
+    reused = 0
     print("SANDIUM_SOURCE_ARCHIVE=START stage=%d ready=%s workers=%d source_bytes=%d" %
-          (stage, ready, len(buckets), total_bytes), flush=True)
-    with concurrent.futures.ThreadPoolExecutor(max_workers=len(buckets)) as pool:
-        futures = [pool.submit(archive_worker, i, bucket, root, work, stage_dir)
-                   for i, bucket in enumerate(buckets, 1)]
+          (stage, ready, len(bucket_map), total_bytes), flush=True)
+
+    def process_bucket(index: int, bucket: list[Path]) -> dict[str, Any]:
+        name = "source-shard-%02d.tar.zst" % index
+        root_paths = [p.relative_to(root).as_posix() for p in bucket]
+        old = previous_items.get(name)
+        if old and old.get("root_paths") == root_paths and (previous_dir / name).is_file():
+            old_path = previous_dir / name
+            if old_path.stat().st_size == int(old.get("size_bytes", -1)) and sha256_file(old_path) == old.get("sha256"):
+                target = stage_dir / name
+                try:
+                    os.link(old_path, target)
+                except OSError:
+                    shutil.copy2(old_path, target)
+                print("SANDIUM_SOURCE_SHARD=REUSE %s sha256=%s" % (name, old["sha256"]), flush=True)
+                return dict(old)
+        return archive_worker(index, bucket, root, work, stage_dir)
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=len(bucket_map)) as pool:
+        futures = [pool.submit(process_bucket, index, bucket) for index, bucket in bucket_map]
         for future in concurrent.futures.as_completed(futures):
             try:
                 item = future.result()
+                if item.get("archive_seconds") is None:
+                    reused += 1
                 results.append(item)
-                print("SANDIUM_SOURCE_SHARD=PASS %s bytes=%d seconds=%.1f sha256=%s" %
-                      (item["name"], item["size_bytes"], item["archive_seconds"], item["sha256"]),
-                      flush=True)
+                print("SANDIUM_SOURCE_SHARD=PASS %s bytes=%d sha256=%s" %
+                      (item["name"], item["size_bytes"], item["sha256"]), flush=True)
             except Exception as exc:
                 errors.append(str(exc))
     if errors:
@@ -626,11 +658,6 @@ def archive(root: Path, workers: int, stage: int, ready: bool, skip_if_unchanged
 
     results.sort(key=lambda item: item["name"])
     total_archive_bytes = sum(item["size_bytes"] for item in results)
-    old_dir = root / (SHARDS_NAME + ".previous")
-    shutil.rmtree(old_dir, ignore_errors=True)
-    if final_dir.exists():
-        os.replace(final_dir, old_dir)
-    os.replace(stage_dir, final_dir)
     payload = {
         "schema_version": SCHEMA,
         "format": "sandium-brave-source-only-shards",
@@ -650,13 +677,30 @@ def archive(root: Path, workers: int, stage: int, ready: bool, skip_if_unchanged
         "source": metadata,
         "shards": results,
     }
-    temp_manifest = manifest_path.with_suffix(".json.tmp")
-    temp_manifest.write_text(json.dumps(payload, sort_keys=True, indent=2) + "\n",
-                             encoding="utf-8")
-    os.replace(temp_manifest, manifest_path)
+    result_bytes = (json.dumps(payload, sort_keys=True, indent=2) + "\n").encode("utf-8")
+    changed_items = [
+        item for item in results
+        if item["name"] not in previous_items
+        or previous_items[item["name"]].get("sha256") != item.get("sha256")
+        or previous_items[item["name"]].get("root_paths") != item.get("root_paths")
+    ]
+    new_names = {item["name"] for item in results}
+    removed_names = sorted(set(previous_items) - new_names)
+
+    old_dir = root / (SHARDS_NAME + ".previous")
     shutil.rmtree(old_dir, ignore_errors=True)
-    print("SANDIUM_SOURCE_ARCHIVE=PASS stage=%d ready=%s shards=%d source_bytes=%d archive_bytes=%d" %
-          (stage, ready, len(results), total_bytes, total_archive_bytes), flush=True)
+    if final_dir.exists():
+        os.replace(final_dir, old_dir)
+    os.replace(stage_dir, final_dir)
+    temp_manifest = manifest_path.with_suffix(".json.tmp")
+    temp_manifest.write_bytes(result_bytes)
+    os.replace(temp_manifest, manifest_path)
+    if delta:
+        write_delta_record(root, stage, previous_bytes, previous, result_bytes,
+                           payload, changed_items, removed_names, final_dir)
+    shutil.rmtree(old_dir, ignore_errors=True)
+    print("SANDIUM_SOURCE_ARCHIVE=PASS stage=%d ready=%s shards=%d reused=%d changed=%d source_bytes=%d archive_bytes=%d" %
+          (stage, ready, len(results), reused, len(changed_items), total_bytes, total_archive_bytes), flush=True)
 
 
 
@@ -1034,25 +1078,33 @@ def validate_restored_workspace(root: Path, payload: dict[str, Any]) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("command", choices=("archive", "verify", "restore"))
+    parser.add_argument("command", choices=("archive", "verify", "restore", "assemble-deltas"))
     parser.add_argument("--root", required=True)
     parser.add_argument("--workers", type=int, default=WORKERS_MAX)
     parser.add_argument("--stage", type=int, default=0)
     parser.add_argument("--ready", action="store_true")
     parser.add_argument("--zstd-test", action="store_true")
     parser.add_argument("--skip-if-unchanged", action="store_true",
-                        help="reuse the verified previous progress archive when source state did not change")
+                        help="reuse the verified previous archive when source state did not change")
+    parser.add_argument("--delta", action="store_true",
+                        help="publish a manifest-linked delta for this stage")
+    parser.add_argument("--through-stage", type=int, default=0,
+                        help="assemble ordered stage deltas through this stage")
     args = parser.parse_args()
     root = Path(args.root).resolve()
     workers = max(1, min(WORKERS_MAX, int(args.workers)))
     if not shutil.which("zstd") or not shutil.which("tar"):
         fail("tar and zstd are required")
     if args.command == "archive":
-        archive(root, workers, args.stage, args.ready, args.skip_if_unchanged)
+        archive(root, workers, args.stage, args.ready, args.skip_if_unchanged, args.delta)
     elif args.command == "verify":
         verify(root, workers, args.zstd_test, args.ready)
     elif args.command == "restore":
         restore(root, workers, args.ready)
+    elif args.command == "assemble-deltas":
+        if args.through_stage < 1 or args.through_stage > 5:
+            fail("assemble-deltas requires --through-stage 1..5")
+        assemble_deltas(root, args.through_stage, workers, zstd_test=True)
 
 
 if __name__ == "__main__":
