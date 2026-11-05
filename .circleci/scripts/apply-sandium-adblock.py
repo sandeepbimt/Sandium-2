@@ -1030,12 +1030,13 @@ def apply_runtime_diagnostics_patch(core: Path) -> None:
   TRACE_EVENT("brave.adblock",
               "OnReadDATFileData_AdBlockComponentFiltersProvider", flow,
               "component_id", component_id);
+  LOG(INFO) << "SANDIUM_FILTER_ENGINE_BINDING=PASS component_id=" << component_id;
   std::move(cb).Run(base::BindOnce(
       &AddDATBufferToFilterSet, std::move(component_id), permission_mask,
       buffer, flow));
 }
 """,
-        "SANDIUM_FILTER_ENGINE_ATTACH=PASS",
+        "SANDIUM_FILTER_ENGINE_BINDING=PASS",
         "native-filter-read-to-engine-binding",
     )
     replace_once(
