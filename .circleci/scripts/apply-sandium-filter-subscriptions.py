@@ -447,8 +447,21 @@ def apply_android_sources(core: Path) -> None:
 def verify_android_sources(core: Path) -> None:
     fragment = (core / "android/java/org/chromium/chrome/browser/shields/ContentFilteringFragment.java").read_text(encoding="utf-8")
     adapter = (core / "android/java/org/chromium/chrome/browser/shields/ContentFilteringAdapter.java").read_text(encoding="utf-8")
-    if fragment.count("SANDIUM_DEFAULT_FILTERS") != 3:
-        raise SystemExit("SANDIUM_FILTER_SUBSCRIPTIONS_VERIFY=FAIL default list table/method references incomplete")
+    required_fragment_markers = (
+        'private static final String[][] SANDIUM_DEFAULT_FILTERS',
+        'static String getSandiumFilterDisplayName(String subscriptionUrl)',
+        'private void ensureSandiumDefaultSubscriptions()',
+        'for (String[] filter : SANDIUM_DEFAULT_FILTERS)',
+        'createSubscription(subscriptionUrl)',
+    )
+    missing_fragment_markers = [
+        marker for marker in required_fragment_markers if marker not in fragment
+    ]
+    if missing_fragment_markers:
+        raise SystemExit(
+            "SANDIUM_FILTER_SUBSCRIPTIONS_VERIFY=FAIL missing Android filter integration markers: "
+            + ", ".join(missing_fragment_markers)
+        )
     if fragment.count("createSubscription(subscriptionUrl)") != 1:
         raise SystemExit("SANDIUM_FILTER_SUBSCRIPTIONS_VERIFY=FAIL subscription seeding call missing")
     if "getFilterLists(filterLists" in fragment or "mFilterListAndroidHandler.updateFilterLists(" in fragment:
