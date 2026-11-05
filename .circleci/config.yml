@@ -2898,6 +2898,7 @@ workflows:
         - equal: [architecture/sandium-pinning-v2-build, << pipeline.git.branch >>]
         - equal: [work/pinned-data-save-hardening, << pipeline.git.branch >>]
         - equal: [fix/source-prep-nonresumable-git-fetch, << pipeline.git.branch >>]
+        - equal: [fix/chromium-partial-fetch-and-source-shards, << pipeline.git.branch >>]
     jobs:
       - brave-source-preparation-stage:
           name: SANDIUM-SOURCE-PREP-stage-1
@@ -2974,6 +2975,7 @@ workflows:
                 - architecture/separate-brave-source-preparation
                 - architecture/sandium-pinning-v2-build
                 - work/pinned-data-save-hardening
+                - fix/chromium-partial-fetch-and-source-shards
   sandium-full-mode:
     when:
       and:
