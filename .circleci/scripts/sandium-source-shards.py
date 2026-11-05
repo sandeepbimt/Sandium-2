@@ -659,6 +659,125 @@ def archive(root: Path, workers: int, stage: int, ready: bool, skip_if_unchanged
           (stage, ready, len(results), total_bytes, total_archive_bytes), flush=True)
 
 
+
+def write_delta_record(root: Path, stage: int, previous_manifest_bytes: bytes | None,
+                       previous: dict[str, Any] | None, result_manifest_bytes: bytes,
+                       result_manifest: dict[str, Any], changed_items: list[dict[str, Any]],
+                       removed_names: list[str], changed_from_dir: Path) -> None:
+    """Publish one immutable, lineage-bound stage delta without duplicating unchanged shards."""
+    delta_root = root / "brave-source-checkpoint.deltas" / ("stage-%d" % stage)
+    shutil.rmtree(delta_root, ignore_errors=True)
+    shard_dir = delta_root / "shards"
+    shard_dir.mkdir(parents=True, exist_ok=True)
+    for item in changed_items:
+        source = changed_from_dir / item["name"]
+        destination = shard_dir / item["name"]
+        shutil.copy2(source, destination)
+        if destination.stat().st_size != int(item["size_bytes"]) or sha256_file(destination) != item["sha256"]:
+            fail("delta shard copy failed integrity check: %s" % item["name"])
+    (delta_root / "result-manifest.json").write_bytes(result_manifest_bytes)
+    delta = {
+        "schema_version": 1,
+        "format": "sandium-brave-source-delta",
+        "stage": stage,
+        "parent_manifest_sha256": hashlib.sha256(previous_manifest_bytes).hexdigest() if previous_manifest_bytes is not None else "",
+        "result_manifest_sha256": hashlib.sha256(result_manifest_bytes).hexdigest(),
+        "changed_shards": changed_items,
+        "removed_shards": sorted(removed_names),
+    }
+    delta_bytes = (json.dumps(delta, sort_keys=True, indent=2) + "\\n").encode("utf-8")
+    (delta_root / "delta-manifest.json").write_bytes(delta_bytes)
+    print("SANDIUM_SOURCE_DELTA=PASS stage=%d changed=%d removed=%d parent=%s result=%s" % (
+        stage, len(changed_items), len(removed_names), delta["parent_manifest_sha256"][:12],
+        delta["result_manifest_sha256"][:12]), flush=True)
+
+
+def assemble_deltas(root: Path, through_stage: int, workers: int = 8,
+                    zstd_test: bool = True) -> dict[str, Any]:
+    """Rebuild a cumulative source checkpoint from its immutable base and ordered stage deltas."""
+    base_manifest_path = root / "brave-source-checkpoint.base.manifest.json"
+    base_shards = root / "brave-source-checkpoint.base.shards"
+    if not base_manifest_path.is_file() or not base_shards.is_dir():
+        fail("delta assembly requires the immutable base manifest and shard directory")
+    current_bytes = base_manifest_path.read_bytes()
+    try:
+        current = json.loads(current_bytes)
+    except json.JSONDecodeError as exc:
+        fail("base manifest is invalid JSON: %s" % exc)
+    if current.get("schema_version") != SCHEMA or current.get("format") != "sandium-brave-source-only-shards":
+        fail("base manifest schema/format mismatch")
+    temp_dir = root / (SHARDS_NAME + ".assemble.tmp")
+    shutil.rmtree(temp_dir, ignore_errors=True)
+    temp_dir.mkdir(parents=True)
+    try:
+        for item in current.get("shards", []):
+            src = base_shards / item["name"]
+            if not src.is_file() or src.stat().st_size != int(item["size_bytes"]) or sha256_file(src) != item["sha256"]:
+                fail("base shard integrity failure: %s" % item.get("name", "unknown"))
+            shutil.copy2(src, temp_dir / item["name"])
+        for stage in range(1, through_stage + 1):
+            delta_dir = root / "brave-source-checkpoint.deltas" / ("stage-%d" % stage)
+            delta_path = delta_dir / "delta-manifest.json"
+            result_path = delta_dir / "result-manifest.json"
+            if not delta_path.is_file() or not result_path.is_file():
+                fail("missing delta manifest/result for stage %d" % stage)
+            delta = json.loads(delta_path.read_text(encoding="utf-8"))
+            result_bytes = result_path.read_bytes()
+            parent_sha = hashlib.sha256(current_bytes).hexdigest()
+            if delta.get("schema_version") != 1 or delta.get("format") != "sandium-brave-source-delta":
+                fail("unsupported delta schema/format at stage %d" % stage)
+            if int(delta.get("stage", -1)) != stage:
+                fail("delta stage sequence mismatch at stage %d" % stage)
+            if delta.get("parent_manifest_sha256") != parent_sha:
+                fail("delta parent lineage mismatch at stage %d" % stage)
+            if delta.get("result_manifest_sha256") != hashlib.sha256(result_bytes).hexdigest():
+                fail("delta result manifest checksum mismatch at stage %d" % stage)
+            result_manifest = json.loads(result_bytes)
+            if result_manifest.get("schema_version") != SCHEMA or result_manifest.get("format") != "sandium-brave-source-only-shards":
+                fail("delta result manifest schema/format mismatch at stage %d" % stage)
+            for name in delta.get("removed_shards", []):
+                (temp_dir / name).unlink(missing_ok=True)
+            for item in delta.get("changed_shards", []):
+                name = item.get("name", "")
+                if Path(name).name != name:
+                    fail("unsafe delta shard name at stage %d" % stage)
+                src = delta_dir / "shards" / name
+                if not src.is_file() or src.stat().st_size != int(item["size_bytes"]) or sha256_file(src) != item["sha256"]:
+                    fail("delta shard integrity failure at stage %d: %s" % (stage, name))
+                shutil.copy2(src, temp_dir / name)
+            current = result_manifest
+            current_bytes = result_bytes
+        expected = {item["name"]: item for item in current.get("shards", [])}
+        actual = {p.name for p in temp_dir.iterdir() if p.is_file()}
+        if actual != set(expected):
+            fail("assembled shard set differs from final manifest")
+        for item in expected.values():
+            path = temp_dir / item["name"]
+            if path.stat().st_size != int(item["size_bytes"]) or sha256_file(path) != item["sha256"]:
+                fail("assembled shard checksum mismatch: %s" % item["name"])
+            if zstd_test:
+                check = subprocess.run(["zstd", "-t", str(path)], stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+                if check.returncode:
+                    fail("assembled shard zstd validation failed: %s" % item["name"])
+        final_dir = root / SHARDS_NAME
+        previous_dir = root / (SHARDS_NAME + ".assemble.previous")
+        shutil.rmtree(previous_dir, ignore_errors=True)
+        if final_dir.exists():
+            os.replace(final_dir, previous_dir)
+        os.replace(temp_dir, final_dir)
+        manifest_path = root / MANIFEST_NAME
+        temp_manifest = manifest_path.with_suffix(".json.assemble.tmp")
+        temp_manifest.write_bytes(current_bytes)
+        os.replace(temp_manifest, manifest_path)
+        shutil.rmtree(previous_dir, ignore_errors=True)
+        print("SANDIUM_SOURCE_DELTA_ASSEMBLY=PASS through_stage=%d shards=%d ready=%s" % (
+            through_stage, len(expected), current.get("ready")), flush=True)
+        return current
+    except Exception:
+        shutil.rmtree(temp_dir, ignore_errors=True)
+        raise
+
+
 def load_manifest(root: Path) -> tuple[dict[str, Any], Path]:
     path = root / MANIFEST_NAME
     if not path.is_file():
