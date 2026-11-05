@@ -637,7 +637,9 @@ def archive(root: Path, workers: int, stage: int, ready: bool,
                 except OSError:
                     shutil.copy2(old_path, target)
                 print("SANDIUM_SOURCE_SHARD=REUSE %s sha256=%s" % (name, old["sha256"]), flush=True)
-                return dict(old)
+                reused_item = dict(old)
+                reused_item["_sandium_reused"] = True
+                return reused_item
         return archive_worker(index, bucket, root, work, stage_dir)
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=len(bucket_map)) as pool:
@@ -645,7 +647,7 @@ def archive(root: Path, workers: int, stage: int, ready: bool,
         for future in concurrent.futures.as_completed(futures):
             try:
                 item = future.result()
-                if item.get("archive_seconds") is None:
+                if item.pop("_sandium_reused", False):
                     reused += 1
                 results.append(item)
                 print("SANDIUM_SOURCE_SHARD=PASS %s bytes=%d sha256=%s" %
