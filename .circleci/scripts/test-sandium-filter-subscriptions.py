@@ -107,8 +107,8 @@ public class ContentFilteringAdapter extends RecyclerView.Adapter<RecyclerView.V
     }
 
     public void bindSubscription(SubscriptionInfo customFilter) {
-        String url = customFilter.subscriptionUrl.url;
-        if (customFilter.title != null && customFilter.title.length() > 0) {
+                String url = customFilter.subscriptionUrl.url;
+                if (customFilter.title != null && customFilter.title.length() > 0) {
             customFilterListViewHolder.mTitleText.setText(customFilter.title);
             customFilterListViewHolder.mTitleText.setVisibility(View.VISIBLE);
 
