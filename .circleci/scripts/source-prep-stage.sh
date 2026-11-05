@@ -30,7 +30,8 @@ if [ "$STAGE" = "1" ]; then
     # a parent checkpoint because a branch file changed after Stage 1 began.
     rm -f "$PINS" "$STATE/source-sync-complete" "$STATE/source-runhooks-complete" \
       "$STATE/source-configure-complete" "$STATE/source-gn-complete" \
-      "$STATE/source-ready-restored" "$STATE/source-ready" "$STATE/source-archive-unchanged"
+      "$STATE/source-ready-restored" "$STATE/source-ready" "$STATE/source-archive-unchanged" \
+      "$STATE/source-sync-no-progress"
   fi
 else
   # Stage 1 freezes the source refresh ID into both the pin file and progress
@@ -55,6 +56,10 @@ else
   fi
   echo "PINNING_HANDOFF_REQUEST=RESTORED stage=$STAGE request=$REQUEST_ID parent_stage=$((STAGE - 1))"
 fi
+if [ -s "$STATE/source-sync-no-progress" ]; then
+  echo "PINNING_NO_PROGRESS=STOP request=$REQUEST_ID; previous fetch produced no validated Git progress. Change the fetch strategy or explicitly start a new refresh request before retrying." >&2
+  exit 75
+fi
 if [ ! -s "$PINS" ]; then
   if [ "$STAGE" = "1" ]; then
     # Stage 1 alone may bootstrap a new source pin. Resolve the latest stable
@@ -63,7 +68,7 @@ if [ ! -s "$PINS" ]; then
     echo "PINNING_BOOTSTRAP=REQUIRED stage=1 reason=source-pins-missing-or-refresh-request-changed"
     rm -f "$STATE/source-sync-complete" "$STATE/source-runhooks-complete" \
       "$STATE/source-configure-complete" "$STATE/source-gn-complete" \
-      "$STATE/source-ready-restored" "$STATE/source-ready"
+      "$STATE/source-ready-restored" "$STATE/source-ready" "$STATE/source-sync-no-progress"
   else
     echo "PINNING_GATE=FAIL source-pins.env missing after stage checkpoint restore; refusing to guess pins" >&2
     exit 1
@@ -85,6 +90,61 @@ discard_interrupted_git_packs() {
     rm -f -- "$pack"
   done < <(find "$SRC" -type f -path '*/objects/pack/tmp_pack_*' -print0 2>/dev/null)
   echo "BRAVE_GIT_INTERRUPTED_TEMP_PACKS=DISCARDED count=$count bytes=$bytes; only uncommitted temporary packs removed"
+}
+
+source_sync_progress_matches_parent() {
+  python3 - "$ROOT" "$SRC" <<'PY'
+import importlib.util
+import json
+import sys
+from pathlib import Path
+
+root, src = Path(sys.argv[1]), Path(sys.argv[2])
+manifest_path = root / "brave-source-checkpoint.manifest.json"
+if not manifest_path.is_file():
+    print("PINNING_GIT_PROGRESS_COMPARE=FAIL parent manifest missing", file=sys.stderr)
+    raise SystemExit(2)
+manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+source = manifest.get("source", {})
+previous_all = source.get("git_progress_state")
+previous = previous_all.get("chromium") if isinstance(previous_all, dict) else None
+if previous is None:
+    old = source.get("git_state", {}).get("chromium")
+    if not isinstance(old, dict):
+        print("PINNING_GIT_PROGRESS_COMPARE=FAIL parent Chromium Git state missing", file=sys.stderr)
+        raise SystemExit(2)
+    counts = old.get("counts", {})
+    stable = [
+        {"name": item["name"], "size_bytes": item["size_bytes"]}
+        for item in old.get("packfiles", [])
+        if item.get("name", "").endswith((".pack", ".idx"))
+    ]
+    previous = {
+        "head": old.get("head"),
+        "shallow": old.get("shallow"),
+        "loose_object_count": counts.get("count", "0"),
+        "loose_size_kib": counts.get("size", "0"),
+        "packed_object_count": counts.get("in-pack", "0"),
+        "pack_count": counts.get("packs", "0"),
+        "packed_size_kib": counts.get("size-pack", "0"),
+        "completed_packfiles": stable,
+    }
+
+spec = importlib.util.spec_from_file_location(
+    "sandium_source_shards", root / ".circleci/scripts/sandium-source-shards.py"
+)
+if spec is None or spec.loader is None:
+    print("PINNING_GIT_PROGRESS_COMPARE=FAIL cannot load source-state inspector", file=sys.stderr)
+    raise SystemExit(2)
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+current = module.git_repository_state(src)["progress_state"]
+if current == previous:
+    print("PINNING_GIT_PROGRESS_COMPARE=UNCHANGED; no completed pack, loose-object or HEAD advancement")
+    raise SystemExit(0)
+print("PINNING_GIT_PROGRESS_COMPARE=ADVANCED; validated Git object state changed")
+raise SystemExit(1)
+PY
 }
 
 run_phase() {
@@ -111,6 +171,20 @@ run_phase() {
   return "$rc"
 }
 run_phase sync 1 "$STATE/source-sync-complete" || { rc=$?; [ "$rc" -eq 2 ] || exit "$rc"; }
+if [ "$TIME_SLICE_EXPIRED" = true ] && [ ! -s "$STATE/source-sync-complete" ]; then
+  if source_sync_progress_matches_parent; then
+    touch "$STATE/source-sync-no-progress"
+    echo "PINNING_GIT_PROGRESS=NONE; next stage will stop before repeating this fetch"
+  else
+    rc=$?
+    if [ "$rc" -eq 1 ]; then
+      rm -f "$STATE/source-sync-no-progress"
+      echo "PINNING_GIT_PROGRESS=ADVANCED; next stage may continue from validated Git objects"
+    else
+      exit "$rc"
+    fi
+  fi
+fi
 if [ "$TIME_SLICE_EXPIRED" = false ]; then run_phase hooks 2 "$STATE/source-runhooks-complete" || { rc=$?; [ "$rc" -eq 2 ] || exit "$rc"; }; fi
 if [ "$TIME_SLICE_EXPIRED" = false ]; then run_phase configure 3 "$STATE/source-configure-complete" || { rc=$?; [ "$rc" -eq 2 ] || exit "$rc"; }; fi
 if [ "$TIME_SLICE_EXPIRED" = false ]; then run_phase gn 4 "$STATE/source-gn-complete" || { rc=$?; [ "$rc" -eq 2 ] || exit "$rc"; }; fi
