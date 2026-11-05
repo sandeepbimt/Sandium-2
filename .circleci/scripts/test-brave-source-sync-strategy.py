@@ -25,7 +25,13 @@ assert "BRAVE_SOURCE_SYNC=REUSE" in reuse
 assert "source-sync-complete" in reuse
 assert "run_brave_sync --target_os=android --target_arch=arm64 --no-history --nohooks" in reuse
 assert "BRAVE_SOURCE_INCREMENTAL_SYNC=START" in incremental
-assert "run_brave_sync --target_os=android --target_arch=arm64 --no-history --nohooks" in incremental
+assert 'CHROMIUM_PARTIAL_CLONE_ACTIVE' in incremental
+assert 'fetch-pinned-chromium.sh' in incremental
+assert 'run_brave_sync --target_os=android --target_arch=arm64 --no-history --nohooks --sync_chromium=false' in incremental
+assert 'run_brave_sync --target_os=android --target_arch=arm64 --no-history --sync_chromium=false' in incremental
+assert 'BRAVE_CHROMIUM_SYNC=SKIPPED_AFTER_VERIFIED_FILTERED_FETCH' in incremental
+assert 'BRAVE_CHROMIUM_FILTERED_FETCH=FALLBACK' in incremental
+assert 'SANDIUM_ENABLE_CHROMIUM_PARTIAL_CLONE:-true' in source
 assert "BRAVE_SOURCE_INCREMENTAL_SYNC=PASS" in incremental
 assert "pnpm run init" not in incremental
 assert "run_brave_sync" in incremental
