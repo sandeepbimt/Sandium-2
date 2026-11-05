@@ -7,9 +7,9 @@ WORK="$ROOT/brave-work"; SRC="$WORK/src"; CORE="$SRC/brave"; STATE="$WORK/.sandi
 PINS="$STATE/source-pins.env"
 REQUEST_FILE="$ROOT/.circleci/source-pin-refresh-id"
 CURRENT_REQUEST_ID="$(tr -d '\r\n' < "$REQUEST_FILE")"
-SLICE_SECONDS="${SANDIUM_PIN_SLICE_SECONDS:-2400}"
+SLICE_SECONDS="${SANDIUM_PIN_SLICE_SECONDS:-3000}"
 case "$SLICE_SECONDS" in ''|*[!0-9]*) echo "PINNING_SLICE=FAIL invalid seconds=$SLICE_SECONDS" >&2; exit 2 ;; esac
-[ "$SLICE_SECONDS" -le 2400 ] || SLICE_SECONDS=2400
+[ "$SLICE_SECONDS" -le 3000 ] || SLICE_SECONDS=3000
 [ "$SLICE_SECONDS" -ge 60 ] || { echo "PINNING_SLICE=FAIL minimum 60 seconds" >&2; exit 2; }
 mkdir -p "$STATE"
 # A no-op source slice must not create another multi-gigabyte archive.
