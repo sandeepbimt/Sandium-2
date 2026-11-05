@@ -1149,6 +1149,10 @@ def verify_patches(core: Path) -> None:
         core / "components/brave_shields/core/browser/"
         "ad_block_filter_list_catalog_provider.cc"
     ).read_text(encoding="utf-8")
+    filter_provider = (
+        core / "components/brave_shields/core/browser/"
+        "ad_block_component_filters_provider.cc"
+    ).read_text(encoding="utf-8")
     updater_header = (
         core / "components/brave_component_updater/browser/"
         "brave_on_demand_updater.h"
@@ -1184,6 +1188,9 @@ def verify_patches(core: Path) -> None:
         ("component_installer", "SANDIUM_ADBLOCK_COMPONENT_REGISTERED", component_installer),
         ("manager", "SANDIUM_FILTER_CATALOG_UPDATE_RESULT", manager),
         ("catalog_provider", "SANDIUM_FILTER_CATALOG_COMPONENT_READY", catalog_provider),
+        ("filter_provider", "SANDIUM_FILTER_COMPONENT_READY", filter_provider),
+        ("filter_provider", "SANDIUM_FILTER_DAT_FILE", filter_provider),
+        ("filter_provider", "SANDIUM_FILTER_ENGINE_ATTACH=PASS", filter_provider),
         ("manager", "SANDIUM_FILTER_CATALOG_PARSED", manager),
         ("filter_service", "SANDIUM_FILTER_LIST_UI_COUNT", filter_service),
         ("fragment", "SANDIUM_FILTER_LIST_CATALOGUE_STATE_MACHINE", fragment),
@@ -1220,6 +1227,11 @@ def verify_patches(core: Path) -> None:
         raise SystemExit("SANDIUM_ADBLOCK_GATE=FAIL early Android component-updater override missing")
     if "AppendSwitch(brave_component_updater::kUseGoUpdateDev)" not in main_delegate:
         raise SystemExit("SANDIUM_ADBLOCK_GATE=FAIL non-official Android build is not routed to Brave's QA updater")
+    if "kAdBlockResourceComponentPublicKeySHA256" in manager:
+        if "crx_file::id_util::GenerateIdFromHash(" not in manager:
+            raise SystemExit("SANDIUM_ADBLOCK_GATE=FAIL SHA-256 component IDs are not derived from their public-key fingerprints")
+    elif "kAdBlockResourceComponentId" not in manager:
+        raise SystemExit("SANDIUM_ADBLOCK_GATE=FAIL neither supported Brave component identity scheme is present")
     if "LOG(INFO) << \"SANDIUM_FILTER_CATALOG_PARSED bytes=\"" not in manager:
         raise SystemExit("SANDIUM_ADBLOCK_GATE=FAIL catalogue parse diagnostic missing")
     if len(FRESH_INSTALL_FILTER_UUIDS) != len(set(FRESH_INSTALL_FILTER_UUIDS)):
