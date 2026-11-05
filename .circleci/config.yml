@@ -52,6 +52,12 @@ jobs:
             set -eu
             echo "export STAGE_START_TS=$(date +%s)" >> "$BASH_ENV"
             echo "STAGE_INDEX=<< parameters.stage_index >>"
+            if [ -z "$(printenv BRAVE_SERVICES_KEY 2>/dev/null || true)" ]; then
+              echo "MISSING_REQUIRED_CONFIG=BRAVE_SERVICES_KEY" >&2
+              echo "Add your own Brave Services key as a CircleCI project environment variable; do not reuse the official APK key." >&2
+              exit 1
+            fi
+            echo "BRAVE_SERVICES_KEY=CONFIGURED (value redacted)"
             if [ -z "$(printenv BUILDBUDDY_API_KEY 2>/dev/null || true)" ]; then
               echo "MISSING_REQUIRED_SECRET=BUILDBUDDY_API_KEY" >&2
               echo "Add this as a CircleCI project environment variable before running the staged build." >&2
@@ -1547,6 +1553,8 @@ jobs:
           name: Run lightweight Brave continuation self-test
           command: |
             set -euo pipefail
+            python3 -m py_compile .circleci/scripts/configure-brave-services-key.py .circleci/scripts/test-brave-services-key.py
+            python3 .circleci/scripts/test-brave-services-key.py
             python3 -m py_compile .circleci/scripts/sandium-checkpoint-shards.py .circleci/scripts/test-sandium-checkpoint-shards.py .circleci/scripts/checkpoint-stage-receipt.py .circleci/scripts/test-checkpoint-stage-receipt.py .circleci/scripts/check-apk-completion-marker.py .circleci/scripts/test-apk-completion-marker.py
             python3 .circleci/scripts/test-sandium-checkpoint-shards.py
             python3 .circleci/scripts/test-checkpoint-stage-receipt.py

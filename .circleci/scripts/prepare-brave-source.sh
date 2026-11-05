@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 ROOT="$CIRCLE_WORKING_DIRECTORY"
+# Validate before toolchain downloads and source synchronization.
+python3 "$ROOT/.circleci/scripts/configure-brave-services-key.py" --validate
 NODE_DIR="$ROOT/node-runtime"
 if [ ! -x "$NODE_DIR/bin/node" ]; then
   mkdir -p "$NODE_DIR"
@@ -49,6 +51,8 @@ if [ "${BRAVE_STAGE_INDEX:?BRAVE_STAGE_INDEX is required}" = "1" ]; then
     'use_remoteexec=true' \
     >> "$ENV_TMP"
   mv "$ENV_TMP" "$ENV_FILE"
+  # Inject the authorized per-fork key before Brave sync/build argument generation.
+  python3 "$ROOT/.circleci/scripts/configure-brave-services-key.py" "$ENV_FILE"
   echo "BRAVE_RBE_ENDPOINT=$REAPI_ADDRESS"
   echo "BRAVE_RBE_INSTANCE=$REAPI_INSTANCE"
   export DEPOT_TOOLS_UPDATE=0
