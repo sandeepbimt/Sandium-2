@@ -351,7 +351,7 @@ def main() -> None:
         for path in (
             manager, fragment, adapter, main_parts, main_delegate,
             component_delegate, installer, catalog_provider, filter_service,
-            updater_header
+            provider, updater_header
         ):
             path.parent.mkdir(parents=True, exist_ok=True)
         manager.write_text(MANAGER_FIXTURE, encoding="utf-8")
@@ -407,6 +407,7 @@ def main() -> None:
         assert "SANDIUM_FILTER_COMPONENT_READY" in provider_text
         assert "SANDIUM_FILTER_DAT_FILE" in provider_text
         assert "SANDIUM_FILTER_ENGINE_ATTACH=PASS" in provider_text
+        assert "SANDIUM_FILTER_ENGINE_BINDING=PASS" in provider_text
         assert "base::BindOnce(&AddDATBufferToFilterSet, std::move(component_id)" in provider_text
         assert "SANDIUM_FILTER_CATALOG_PARSED" in manager_text
         assert "SANDIUM_EMPTY_FILTER_CATALOGUE_UPDATE=REQUEST" in manager_text
@@ -433,24 +434,26 @@ def main() -> None:
 
     # Exercise the Brave v1.99.x SHA-256 component-ID variant independently
     # from the pinned v1.98.x fixture used by the successful FAST Mode build.
-    sha_core = Path(tmp) / "sha256-core"
-    sha_manager = sha_core / (
-        "components/brave_shields/core/browser/"
-        "ad_block_component_service_manager.cc"
-    )
-    sha_manager.parent.mkdir(parents=True, exist_ok=True)
-    sha_manager.write_text(MANAGER_SHA256_FIXTURE, encoding="utf-8")
-    apply_manager_patch(sha_core)
-    apply_manager_patch(sha_core)  # latest-source transform must be idempotent
-    sha_text = sha_manager.read_text(encoding="utf-8")
-    assert "SANDIUM_EMPTY_FILTER_CATALOGUE_UPDATE=REQUEST" in sha_text
-    assert "kAdBlockResourceComponentPublicKeySHA256" in sha_text
-    assert "kAdBlockFilterListCatalogComponentPublicKeySHA256" in sha_text
-    assert "crx_file::id_util::GenerateIdFromHash(" in sha_text
-    assert "std::move(callback).Run(true);" not in sha_text
-    assert "v1.99.55" in SUPPORTED_PINS
-    print("SANDIUM_ADBLOCK_LATEST_SHA256_FIXTURE=PASS")
-        print("SANDIUM_ADBLOCK_UNIT_TEST=PASS transformation=idempotent catalogue=curated")
+    with tempfile.TemporaryDirectory(prefix="sandium-adblock-sha256-test-") as latest_tmp:
+        sha_core = Path(latest_tmp)
+        sha_manager = sha_core / (
+            "components/brave_shields/core/browser/"
+            "ad_block_component_service_manager.cc"
+        )
+        sha_manager.parent.mkdir(parents=True, exist_ok=True)
+        sha_manager.write_text(MANAGER_SHA256_FIXTURE, encoding="utf-8")
+        apply_manager_patch(sha_core)
+        apply_manager_patch(sha_core)  # latest-source transform must be idempotent
+        sha_text = sha_manager.read_text(encoding="utf-8")
+        assert "SANDIUM_EMPTY_FILTER_CATALOGUE_UPDATE=REQUEST" in sha_text
+        assert "kAdBlockResourceComponentPublicKeySHA256" in sha_text
+        assert "kAdBlockFilterListCatalogComponentPublicKeySHA256" in sha_text
+        assert "crx_file::id_util::GenerateIdFromHash(" in sha_text
+        assert "std::move(callback).Run(true);" not in sha_text
+        assert "v1.99.55" in SUPPORTED_PINS
+        print("SANDIUM_ADBLOCK_LATEST_SHA256_FIXTURE=PASS")
+
+    print("SANDIUM_ADBLOCK_UNIT_TEST=PASS transformation=idempotent catalogue=curated")
 
 
 if __name__ == "__main__":
