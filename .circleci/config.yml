@@ -9,6 +9,20 @@ parameters:
     default: fast
 
 jobs:
+  sandium-adblock-native-validation:
+    docker:
+      - image: cimg/python:3.12
+    resource_class: small
+    working_directory: ~/project
+    steps:
+      - checkout
+      - run:
+          name: Validate Brave native filter integration and engine handoff
+          command: |
+            set -euo pipefail
+            python3 -m py_compile .circleci/scripts/apply-sandium-adblock.py .circleci/scripts/test-sandium-adblock.py
+            python3 .circleci/scripts/test-sandium-adblock.py
+            echo "SANDIUM_ADBLOCK_NATIVE_VALIDATION=PASS"
   c4-afterbird-staged-build:
     parameters:
       stage_index:
@@ -2384,6 +2398,13 @@ jobs:
             cat "$CIRCLE_WORKING_DIRECTORY/reference-candidate-manifest.txt"
 
 workflows:
+  sandium-adblock-native-validation:
+    jobs:
+      - sandium-adblock-native-validation:
+          filters:
+            branches:
+              only:
+                - feature/brave-filter-engine-functional
   c4-afterbird-staged-checkpoint-build:
     jobs:
       - c4-afterbird-staged-build:
