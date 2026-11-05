@@ -40,6 +40,11 @@ PROMISOR="$(git -C "$REPO" config --get remote.origin.promisor || true)"
 FILTER="$(git -C "$REPO" config --get remote.origin.partialclonefilter || true)"
 EXTENSION="$(git -C "$REPO" config --get extensions.partialClone || true)"
 COMMIT="$(git -C "$REPO" rev-parse "$TAG^{commit}")"
+if [ "$COMMIT" != "$SHA" ]; then
+  printf 'PARTIAL_CLONE_SUPPORTED=false\\nPROBE_RESULT=TAG_SHA_MISMATCH\\nTAG=%s\\nRESOLVED_COMMIT=%s\\nEXPECTED_SHA=%s\\n' "$TAG" "$COMMIT" "$SHA" > "$EVIDENCE"
+  echo "CHROMIUM_PARTIAL_CLONE_PROBE=UNSUPPORTED pinned tag does not resolve to expected SHA"
+  exit 0
+fi
 # Enumerate trees without hydrating blobs, then explicitly hydrate one real
 # blob to prove that the server supports lazy object backfill as well.
 BLOB="$(git -C "$REPO" ls-tree -r "$COMMIT" | awk '$2 == "blob" {print $3; exit}')"
