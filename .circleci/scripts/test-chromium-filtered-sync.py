@@ -12,7 +12,7 @@ assert 'fetch-pinned-chromium.sh' in prepare
 assert 'run_brave_sync --target_os=android --target_arch=arm64 --no-history --nohooks --sync_chromium=true' in prepare
 assert 'run_brave_sync --target_os=android --target_arch=arm64 --no-history --nohooks --sync_chromium=false' in prepare
 assert 'run_brave_sync --target_os=android --target_arch=arm64 --no-history --sync_chromium=false' in prepare
-assert 'BRAVE_CHROMIUM_SYNC=SKIPPED_AFTER_VERIFIED_FILTERED_FETCH' in prepare
+assert 'BRAVE_CHROMIUM_SYNC=FILTERED_PIN_ALREADY_CHECKED_OUT' in prepare
 assert 'BRAVE_CHROMIUM_FILTERED_FETCH=FALLBACK' in prepare
 
 assert 'fetch --filter=blob:none --no-tags --depth=1 origin' in fetch
