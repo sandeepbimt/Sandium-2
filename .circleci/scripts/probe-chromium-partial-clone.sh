@@ -20,6 +20,11 @@ trap 'rm -rf "$TMP"' EXIT
 REPO="$TMP/probe.git"
 git init --bare -q "$REPO"
 git -C "$REPO" remote add origin "$URL"
+# Mark this disposable repository as a promisor clone before fetching so
+# Git can perform and verify a genuine lazy-object backfill afterward.
+git -C "$REPO" config extensions.partialClone origin
+git -C "$REPO" config remote.origin.promisor true
+git -C "$REPO" config remote.origin.partialclonefilter blob:none
 echo "CHROMIUM_PARTIAL_CLONE_PROBE=START tag=$TAG sha=$SHA"
 set +e
 GIT_TERMINAL_PROMPT=0 git -C "$REPO" -c protocol.version=2 fetch --filter=blob:none --depth=1 --no-tags origin "refs/tags/$TAG:refs/tags/$TAG" >"$TMP/fetch.out" 2>"$TMP/fetch.err"
@@ -40,7 +45,14 @@ COMMIT="$(git -C "$REPO" rev-parse "$TAG^{commit}")"
 BLOB="$(git -C "$REPO" ls-tree -r "$COMMIT" | awk '$2 == "blob" {print $3; exit}')"
 test -n "$BLOB" || { echo "CHROMIUM_PARTIAL_CLONE_PROBE=FAIL no blob found" >&2; exit 1; }
 BEFORE="$(git -C "$REPO" count-objects -v | awk '$1 == "size-pack:" {print $2}')"
+# The selected blob must genuinely be absent after the filtered fetch.
+if GIT_NO_LAZY_FETCH=1 git -C "$REPO" cat-file -e "$BLOB" 2>/dev/null; then
+  echo "CHROMIUM_PARTIAL_CLONE_PROBE=FAIL blob:none fetch unexpectedly included the sample blob" >&2
+  exit 1
+fi
+# A normal object read must then hydrate the missing blob from the promisor remote.
 git -C "$REPO" cat-file -e "$BLOB"
+GIT_NO_LAZY_FETCH=1 git -C "$REPO" cat-file -e "$BLOB"
 AFTER="$(git -C "$REPO" count-objects -v | awk '$1 == "size-pack:" {print $2}')"
 if [ "$PROMISOR" != true ] || [ "$FILTER" != blob:none ] || [ "$EXTENSION" != origin ]; then
   printf 'PARTIAL_CLONE_SUPPORTED=false\nPROBE_RESULT=FILTER_NOT_RETAINED\nPROMISOR=%s\nFILTER=%s\nEXTENSION=%s\n' "$PROMISOR" "$FILTER" "$EXTENSION" > "$EVIDENCE"
