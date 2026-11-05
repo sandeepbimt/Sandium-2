@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 """Guard resumable Brave source sync against forced or repeated initialization."""
 from __future__ import annotations
+import importlib.util
+import os
+import subprocess
+import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -67,5 +71,43 @@ file_state_function = shards_script[file_state_start:file_state_end]
 assert "mtime_ns" not in file_state_function
 assert 'result["sha256"] = sha256_file(path)' in file_state_function
 assert 'result["link_target"] = os.readlink(path)' in file_state_function
+
+# Exercise the actual fingerprint primitives: timestamps and interrupted
+# temporary packs must not change durable progress, while same-size content
+# changes must be detected.
+spec = importlib.util.spec_from_file_location("sandium_source_shards", ROOT / ".circleci/scripts/sandium-source-shards.py")
+assert spec and spec.loader
+shards_module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(shards_module)
+
+with tempfile.TemporaryDirectory(prefix="sandium-source-progress-test-") as temp:
+    temp_root = Path(temp)
+    work = temp_root / "brave-work"
+    repo = work / "src"
+    repo.mkdir(parents=True)
+    subprocess.run(["git", "init", "-q", str(repo)], check=True)
+    subprocess.run(["git", "-C", str(repo), "config", "user.name", "Sandium Test"], check=True)
+    subprocess.run(["git", "-C", str(repo), "config", "user.email", "sandium-test@example.invalid"], check=True)
+    sample = repo / "sample.txt"
+    sample.write_text("alpha", encoding="utf-8")
+    subprocess.run(["git", "-C", str(repo), "add", "sample.txt"], check=True)
+    subprocess.run(["git", "-C", str(repo), "commit", "-qm", "test"], check=True)
+    subprocess.run(["git", "-C", str(repo), "gc", "--prune=now"], check=True)
+    progress_before = shards_module.git_repository_state(repo)["progress_state"]
+    pack_dir = repo / ".git" / "objects" / "pack"
+    pack_dir.mkdir(parents=True, exist_ok=True)
+    (pack_dir / "tmp_pack_interrupted").write_bytes(b"partial pack")
+    progress_after = shards_module.git_repository_state(repo)["progress_state"]
+    assert progress_before == progress_after, "tmp_pack changed durable Git progress"
+
+    critical = work / "critical.env"
+    critical.write_text("alpha", encoding="utf-8")
+    state_before = shards_module.file_state(critical, work)
+    os.utime(critical, (critical.stat().st_atime + 60, critical.stat().st_mtime + 60))
+    state_after_touch = shards_module.file_state(critical, work)
+    assert state_before == state_after_touch, "mtime-only change altered source fingerprint"
+    critical.write_text("bravo", encoding="utf-8")
+    state_after_content = shards_module.file_state(critical, work)
+    assert state_after_content != state_after_touch, "same-size content change was not detected"
 
 print("BRAVE_SOURCE_SYNC_STRATEGY_TEST=PASS resumable_metadata=verified interrupted_tmp_pack=discarded durable_progress_fingerprint=only archive_reuse=no_duplicate_tmp_pack_archives")
