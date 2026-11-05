@@ -174,6 +174,23 @@ if [ "$BRAVE_STAGE_INDEX" = "1" ]; then
   mv "$PINS_TMP" "$ROOT/brave-work/.sandium/source-pins.env"
   echo "BRAVE_SOURCE_PINS=RECORDED before sync for resumable checkpointing"
 fi
+# Probe the actual Chromium endpoint once per refresh request. Only enable
+# blob filtering after a temporary fetch proves promisor metadata and lazy
+# blob hydration; unsupported endpoints retain the established full-fetch path.
+PROBE_MARKER="$ROOT/brave-work/.sandium/partial-clone-probe.env"
+if [ ! -s "$PROBE_MARKER" ] || ! grep -qx "TAG=$CHROMIUM_TAG" "$PROBE_MARKER"; then
+  bash "$ROOT/.circleci/scripts/probe-chromium-partial-clone.sh" "$ROOT/brave-work"
+  if [ -s "$PROBE_MARKER" ]; then
+    PROBE_TMP="$PROBE_MARKER.tmp"
+    { grep -v '^TAG=' "$PROBE_MARKER" || true; echo "TAG=$CHROMIUM_TAG"; } > "$PROBE_TMP"
+    mv "$PROBE_TMP" "$PROBE_MARKER"
+  fi
+fi
+if grep -qx 'PARTIAL_CLONE_SUPPORTED=true' "$PROBE_MARKER" 2>/dev/null; then
+  echo "BRAVE_CHROMIUM_PARTIAL_CLONE=ENABLED tag=$CHROMIUM_TAG; server probe confirmed blob:none and lazy blob hydration"
+else
+  echo "BRAVE_CHROMIUM_PARTIAL_CLONE=DISABLED tag=$CHROMIUM_TAG; preserving normal gclient fetch behavior"
+fi
 SOURCE_PREP_PHASE="${SANDIUM_SOURCE_PREP_PHASE:-all}"
 pnpm config set store-dir "$HOME/.cache/pnpm-store"
   # Use Brave's native RBE configuration path. At v1.99.54,
