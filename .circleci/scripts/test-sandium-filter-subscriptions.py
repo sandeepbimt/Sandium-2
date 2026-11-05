@@ -61,9 +61,26 @@ public class ContentFilteringFragment extends BravePreferenceFragment
     }
 
     public boolean onOptionsItemSelected(MenuItem item) {
-        if (item.getItemId() == R.id.update_filter_list_id) {
+        int id = item.getItemId();
+        if (id == R.id.menu_id_edit) {
+            isEditSelected(true);
+            return true;
+        } else if (id == R.id.menu_id_done) {
+            isEditSelected(false);
+            return true;
+        } else if (item.getItemId() == R.id.update_filter_list_id) {
             if (mFilterListAndroidHandler != null) {
-                mFilterListAndroidHandler.updateFilterLists(isSuccess -> { setData(); });
+                mFilterListAndroidHandler.updateFilterLists(
+                        isSuccess -> {
+                            if (isSuccess) {
+                                setData();
+                            }
+                            String message =
+                                    isSuccess
+                                            ? getString(R.string.update_filter_list_success_text)
+                                            : getString(R.string.update_filter_list_fail_text);
+                            Toast.makeText(getActivity(), message, Toast.LENGTH_SHORT).show();
+                        });
             }
             return true;
         }
@@ -121,6 +138,9 @@ public class ContentFilteringAdapter extends RecyclerView.Adapter<RecyclerView.V
 
     public void setFilterLists(Value filterLists[]) {
         mFilterLists = filterLists;
+        // mSubscriptionFilterLists could be null if setSubscriptionFilterLists
+        // hasn't been called yet. notifyItemRangeInserted is called inside
+        // setSubscriptionFilterLists, so we are good to skip it in that place
         if (mSubscriptionFilterLists != null) {
             notifyItemRangeInserted(
                     mSubscriptionFilterLists.size() + THREE_ITEMS_SPACE,
