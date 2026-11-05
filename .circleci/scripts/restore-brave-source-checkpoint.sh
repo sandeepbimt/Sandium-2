@@ -73,14 +73,22 @@ if not request_id:
 if archive_bytes < 0 or shard_bytes != archive_bytes:
     raise SystemExit("SOURCE_RESTORE_GATE=FAIL manifest archive_bytes does not equal shard size sum")
 if mode == "base-required":
-    if ready is False and stage != 5:
-        raise SystemExit("SOURCE_RESTORE_GATE=FAIL progress checkpoint must be cumulative Stage 5; got stage=%s" % stage)
+    # CircleCI prefix cache lookup returns the newest matching cache, not the
+    # highest numbered stage. A verified Stage 1-4 cumulative checkpoint is
+    # still valid input: continue from its restored state rather than rejecting
+    # it or discarding it. Stage 5 remains the completion target, not a restore
+    # prerequisite.
+    if stage not in (1, 2, 3, 4, 5):
+        raise SystemExit("SOURCE_RESTORE_GATE=FAIL progress checkpoint stage must be 1..5; got stage=%s" % stage)
     if ready is not True and ready is not False:
         raise SystemExit("SOURCE_RESTORE_GATE=FAIL manifest ready flag is invalid")
     if len(shards) != 8:
         raise SystemExit("SOURCE_RESTORE_GATE=FAIL expected 8 verified shards; got %d" % len(shards))
     if source_bytes < 50_000_000_000 or archive_bytes < 30_000_000_000:
         raise SystemExit("SOURCE_RESTORE_GATE=FAIL checkpoint is smaller than the known 50GB source / 30GB archive baseline")
+    if request_id != expected_request:
+        raise SystemExit("SOURCE_RESTORE_GATE=FAIL restored refresh request %s differs from requested %s" %
+                         (request_id, expected_request))
     print("SOURCE_RESTORE_GATE=PASS prior_stage=%d ready=%s shards=8 source_bytes=%d archive_bytes=%d restored_request=%s requested_request=%s" %
           (stage, str(ready).lower(), source_bytes, archive_bytes, request_id, expected_request))
 else:

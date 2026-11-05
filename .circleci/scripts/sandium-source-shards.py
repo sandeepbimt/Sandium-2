@@ -248,8 +248,27 @@ def git_repository_state(repo: Path) -> dict[str, Any]:
                 "mtime_ns": stat_result.st_mtime_ns,
             })
     shallow = (git_dir / "shallow").is_file()
+    # Only completed .pack/.idx pairs and loose objects are durable Git
+    # progress. tmp_pack_* is an interrupted index-pack temporary and must
+    # never advance the checkpoint fingerprint.
+    stable_packfiles = [
+        {"name": item["name"], "size_bytes": item["size_bytes"]}
+        for item in packfiles
+        if item["name"].endswith((".pack", ".idx"))
+    ]
+    progress_state = {
+        "head": head,
+        "shallow": shallow,
+        "loose_object_count": counts.get("count", "0"),
+        "loose_size_kib": counts.get("size", "0"),
+        "packed_object_count": counts.get("in-pack", "0"),
+        "pack_count": counts.get("packs", "0"),
+        "packed_size_kib": counts.get("size-pack", "0"),
+        "completed_packfiles": stable_packfiles,
+    }
     return {
         "head": head,
+        "progress_state": progress_state,
         "git_dir": str(git_dir.relative_to(repo)) if git_dir.is_relative_to(repo) else ".git",
         "shallow": shallow,
         "counts": counts,
@@ -265,14 +284,23 @@ def file_state(path: Path, work: Path) -> dict[str, Any]:
         info = path.stat(follow_symlinks=False)
     except FileNotFoundError:
         return {"path": path.relative_to(work).as_posix(), "exists": False}
-    return {
+    is_symlink = path.is_symlink()
+    is_file = path.is_file() and not is_symlink
+    result: dict[str, Any] = {
         "path": path.relative_to(work).as_posix(),
         "exists": True,
-        "type": "symlink" if path.is_symlink() else ("directory" if path.is_dir() else "file"),
-        "size_bytes": info.st_size,
-        "mtime_ns": info.st_mtime_ns,
+        "type": "symlink" if is_symlink else ("directory" if path.is_dir() else "file"),
         "mode": stat.S_IMODE(info.st_mode),
     }
+    if is_symlink:
+        result["link_target"] = os.readlink(path)
+    elif is_file:
+        # Content, not mtime, defines whether a critical configuration input
+        # changed. Rewriting an identical .env/args file must not trigger a
+        # 30GB source re-archive.
+        result["size_bytes"] = info.st_size
+        result["sha256"] = sha256_file(path)
+    return result
 
 
 def source_metadata(root: Path, work: Path, stage: int, ready: bool) -> dict[str, Any]:
@@ -350,6 +378,10 @@ def source_metadata(root: Path, work: Path, stage: int, ready: bool) -> dict[str
         "chromium": chromium_git_state,
         "brave_core": brave_git_state,
     }
+    metadata["git_progress_state"] = {
+        "chromium": chromium_git_state["progress_state"],
+        "brave_core": brave_git_state["progress_state"],
+    }
     print(
         "SANDIUM_GIT_STATE repo=chromium head=%s shallow=%s packs=%d pack_bytes=%d loose_objects=%s temp_pack_bytes=%d"
         % (
@@ -379,6 +411,7 @@ def source_metadata(root: Path, work: Path, stage: int, ready: bool) -> dict[str
         marker: (work / ".sandium" / marker).is_file()
         for marker in (
             "source-sync-complete",
+            "source-sync-no-progress",
             "source-runhooks-complete",
             "source-configure-complete",
             "source-gn-complete",
@@ -412,7 +445,10 @@ def source_metadata(root: Path, work: Path, stage: int, ready: bool) -> dict[str
         "gclient_entries_sha256": metadata["gclient_entries_sha256"],
         "source_pins_sha256": metadata["source_pins_sha256"],
         "brave_dependency_fingerprint": dep_fingerprint,
-        "git_state": metadata["git_state"],
+        # Exclude incomplete tmp_pack files and their changing mtimes. They
+        # are not a valid continuation boundary and must not trigger a fresh
+        # multi-GB archive on every repeated fetch attempt.
+        "git_progress_state": metadata["git_progress_state"],
         "phase_markers": phase_markers,
         "critical_files": [file_state(path, work) for path in critical_paths],
     }
@@ -468,6 +504,10 @@ def archive_worker(index: int, roots: list[Path], root: Path, work: Path,
         "tar", "-c", "--format=posix",
         "--pax-option=delete=atime,delete=ctime",
         "--exclude=*.staging",
+        # A killed Git fetch leaves tmp_pack_* files that Git itself reports
+        # as garbage. They are not resumable objects; never inflate or persist
+        # them in a source checkpoint.
+        "--exclude=tmp_pack_*",
         "--exclude=brave-work/src/out/android_Release_arm64/obj",
         "--exclude=brave-work/src/out/android_Release_arm64/lib.unstripped",
         "--exclude=brave-work/src/out/android_Release_arm64/apks",
