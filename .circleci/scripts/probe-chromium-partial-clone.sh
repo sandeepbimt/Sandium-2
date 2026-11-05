@@ -1,10 +1,9 @@
 #!/usr/bin/env bash
-# Probe the real Chromium Git endpoint before opting the existing checkout into
-# blob filtering. Unsupported servers leave the normal gclient path untouched.
+# Probe the real Chromium Git endpoint in a disposable repository only.
+# Never mutate the restored Chromium checkout from this capability test.
 set -euo pipefail
 ROOT="${CIRCLE_WORKING_DIRECTORY:?CIRCLE_WORKING_DIRECTORY is required}"
 WORK="${1:-$ROOT/brave-work}"
-SRC="$WORK/src"
 PINS="$WORK/.sandium/source-pins.env"
 EVIDENCE="$WORK/.sandium/partial-clone-probe.env"
 URL="https://chromium.googlesource.com/chromium/src.git"
@@ -66,13 +65,5 @@ if [ "$PROMISOR" != true ] || [ "$FILTER" != blob:none ] || [ "$EXTENSION" != or
   echo "CHROMIUM_PARTIAL_CLONE_PROBE=UNSUPPORTED filter_metadata_not_retained"
   exit 0
 fi
-if [ ! -d "$SRC/.git" ] || [ "$(git -C "$SRC" remote get-url origin 2>/dev/null || true)" != "$URL" ]; then
-  printf 'PARTIAL_CLONE_SUPPORTED=true\nPROBE_RESULT=SERVER_CAPABILITY_CONFIRMED\nTAG=%s\nCOMMIT=%s\nSAMPLE_BLOB=%s\nPACK_KIB_BEFORE=%s\nPACK_KIB_AFTER=%s\n' "$TAG" "$COMMIT" "$BLOB" "$BEFORE" "$AFTER" > "$EVIDENCE"
-  echo "CHROMIUM_PARTIAL_CLONE_PROBE=PASS server_supports_blob_none; existing checkout not modified"
-  exit 0
-fi
-git -C "$SRC" config extensions.partialClone origin
-git -C "$SRC" config remote.origin.promisor true
-git -C "$SRC" config remote.origin.partialclonefilter blob:none
-printf 'PARTIAL_CLONE_SUPPORTED=true\nPROBE_RESULT=SERVER_CAPABILITY_CONFIRMED_AND_CONFIGURED\nTAG=%s\nCOMMIT=%s\nSAMPLE_BLOB=%s\nPACK_KIB_BEFORE=%s\nPACK_KIB_AFTER=%s\n' "$TAG" "$COMMIT" "$BLOB" "$BEFORE" "$AFTER" > "$EVIDENCE"
-echo "CHROMIUM_PARTIAL_CLONE_PROBE=PASS; existing origin configured for blob:none; gclient fetches may use lazy blob backfill"
+printf 'PARTIAL_CLONE_SUPPORTED=true\\nPROBE_RESULT=SERVER_CAPABILITY_CONFIRMED\\nTAG=%s\\nCOMMIT=%s\\nSAMPLE_BLOB=%s\\nPACK_KIB_BEFORE=%s\\nPACK_KIB_AFTER=%s\\n' "$TAG" "$COMMIT" "$BLOB" "$BEFORE" "$AFTER" > "$EVIDENCE"
+echo "CHROMIUM_PARTIAL_CLONE_PROBE=PASS server_supports_blob_none; disposable probe only; restored checkout unchanged"

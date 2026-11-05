@@ -204,15 +204,33 @@ if [ ! -s "$PROBE_MARKER" ] || ! grep -qx "TAG=$CHROMIUM_TAG" "$PROBE_MARKER"; t
     mv "$PROBE_TMP" "$PROBE_MARKER"
   fi
 fi
-if grep -qx 'PARTIAL_CLONE_SUPPORTED=true' "$PROBE_MARKER" 2>/dev/null && [ "${SANDIUM_ENABLE_CHROMIUM_PARTIAL_CLONE:-false}" = "true" ]; then
-  git -C "$SRC" config extensions.partialClone origin
-  git -C "$SRC" config remote.origin.promisor true
-  git -C "$SRC" config remote.origin.partialclonefilter blob:none
-  echo "BRAVE_CHROMIUM_PARTIAL_CLONE=ENABLED tag=$CHROMIUM_TAG; endpoint probe passed and explicit experiment opt-in is set"
-elif grep -qx 'PARTIAL_CLONE_SUPPORTED=true' "$PROBE_MARKER" 2>/dev/null; then
-  echo "BRAVE_CHROMIUM_PARTIAL_CLONE=SUPPORTED_NOT_ENABLED tag=$CHROMIUM_TAG; waiting for measured full gclient-sync benefit"
+PARTIAL_CLONE_OPT_IN="${SANDIUM_ENABLE_CHROMIUM_PARTIAL_CLONE:-false}"
+CHROMIUM_ORIGIN_URL="$(git -C "$SRC" remote get-url origin 2>/dev/null || true)"
+if [ -d "$SRC/.git" ] && [ "$CHROMIUM_ORIGIN_URL" = "$CHROMIUM_URL" ]; then
+  if [ "$PARTIAL_CLONE_OPT_IN" = "true" ] && grep -qx 'PARTIAL_CLONE_SUPPORTED=true' "$PROBE_MARKER" 2>/dev/null; then
+    git -C "$SRC" config extensions.partialClone origin
+    git -C "$SRC" config remote.origin.promisor true
+    git -C "$SRC" config remote.origin.partialclonefilter blob:none
+    test "$(git -C "$SRC" config --get extensions.partialClone)" = origin
+    test "$(git -C "$SRC" config --get remote.origin.promisor)" = true
+    test "$(git -C "$SRC" config --get remote.origin.partialclonefilter)" = blob:none
+    echo "BRAVE_CHROMIUM_PARTIAL_CLONE=ENABLED tag=$CHROMIUM_TAG filter=blob:none; explicit experiment opt-in verified"
+  else
+    # Disable filtering for a full working-tree checkout. Retain promisor
+    # metadata so already-omitted objects remain eligible for lazy hydration.
+    git -C "$SRC" config --unset-all remote.origin.partialclonefilter || true
+    if [ "$PARTIAL_CLONE_OPT_IN" = "true" ]; then
+      echo "BRAVE_CHROMIUM_PARTIAL_CLONE=DISABLED tag=$CHROMIUM_TAG reason=probe-not-supported"
+    else
+      echo "BRAVE_CHROMIUM_PARTIAL_CLONE=DISABLED tag=$CHROMIUM_TAG reason=full-checkout-default-no-filter"
+    fi
+  fi
 else
-  echo "BRAVE_CHROMIUM_PARTIAL_CLONE=DISABLED tag=$CHROMIUM_TAG; preserving normal gclient fetch behavior"
+  if [ "$PARTIAL_CLONE_OPT_IN" = "true" ]; then
+    echo "BRAVE_CHROMIUM_PARTIAL_CLONE=DEFERRED tag=$CHROMIUM_TAG reason=source-checkout-not-created-yet"
+  else
+    echo "BRAVE_CHROMIUM_PARTIAL_CLONE=DISABLED tag=$CHROMIUM_TAG reason=full-checkout-default-no-filter"
+  fi
 fi
 SOURCE_PREP_PHASE="${SANDIUM_SOURCE_PREP_PHASE:-all}"
 pnpm config set store-dir "$HOME/.cache/pnpm-store"
