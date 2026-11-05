@@ -593,24 +593,24 @@ def archive(root: Path, workers: int, stage: int, ready: bool,
             )
             return
 
-    # Keep shard ownership deterministic across runs. A fixed split threshold
-    # prevents total-workspace growth from reshuffling every shard. Each leaf
-    # path always maps to the same bucket; a newly fetched Git pack changes only
-    # the bucket that owns that pack path.
+    # Preserve the existing balanced directory partitioning. Reuse a shard
+    # only when its exact owned root paths and verified archive digest match;
+    # this avoids a one-time repartition of the existing known-good cache.
     total_bytes = sum(logical_size(p, work) for p in roots)
-    split_limit = 5 * 1024 * 1024 * 1024
+    target = max(1, int((total_bytes / workers) * 1.15))
     expanded: list[Path] = []
     for path in roots:
-        expanded.extend(split_heavy(path, work, split_limit, 0, max_depth=8))
-    buckets: list[list[Path]] = [[] for _ in range(workers)]
+        expanded.extend(split_heavy(path, work, target, 0))
+    sizes = {str(p): logical_size(p, work) for p in expanded}
+    expanded.sort(key=lambda p: sizes[str(p)], reverse=True)
+    count = min(workers, len(expanded))
+    buckets: list[list[Path]] = [[] for _ in range(count)]
+    loads = [0] * count
     for path in expanded:
-        rel = path.relative_to(root).as_posix()
-        index = int(hashlib.sha256(rel.encode("utf-8")).hexdigest()[:8], 16) % workers
+        index = min(range(count), key=lambda i: loads[i])
         buckets[index].append(path)
-    buckets = [sorted(bucket, key=lambda p: os.fsencode(p.relative_to(root).as_posix()))
-               for bucket in buckets]
-    bucket_map = [(i + 1, bucket) for i, bucket in enumerate(buckets) if bucket]
-
+        loads[index] += sizes[str(path)]
+    bucket_map = [(i + 1, bucket) for i, bucket in enumerate(buckets)]
     stage_dir = root / (SHARDS_NAME + ".tmp")
     final_dir = root / SHARDS_NAME
     shutil.rmtree(stage_dir, ignore_errors=True)
