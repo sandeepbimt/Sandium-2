@@ -205,9 +205,9 @@ if [ ! -s "$PROBE_MARKER" ] || ! grep -qx "TAG=$CHROMIUM_TAG" "$PROBE_MARKER"; t
   fi
 fi
 if grep -qx 'PARTIAL_CLONE_SUPPORTED=true' "$PROBE_MARKER" 2>/dev/null && [ "${SANDIUM_ENABLE_CHROMIUM_PARTIAL_CLONE:-true}" = "true" ]; then
-  git -C "$SRC" config extensions.partialClone origin
-  git -C "$SRC" config remote.origin.promisor true
-  git -C "$SRC" config remote.origin.partialclonefilter blob:none
+  git -C "$SRC_DIR" config extensions.partialClone origin
+  git -C "$SRC_DIR" config remote.origin.promisor true
+  git -C "$SRC_DIR" config remote.origin.partialclonefilter blob:none
   echo "BRAVE_CHROMIUM_PARTIAL_CLONE=ENABLED tag=$CHROMIUM_TAG; endpoint probe passed; filtered fetch enabled by default (override SANDIUM_ENABLE_CHROMIUM_PARTIAL_CLONE=false)"
 elif grep -qx 'PARTIAL_CLONE_SUPPORTED=true' "$PROBE_MARKER" 2>/dev/null; then
   echo "BRAVE_CHROMIUM_PARTIAL_CLONE=SUPPORTED_NOT_ENABLED tag=$CHROMIUM_TAG; filtered fetch explicitly disabled by SANDIUM_ENABLE_CHROMIUM_PARTIAL_CLONE=false"
