@@ -17,7 +17,8 @@ cp -p "$MANIFEST" "$BASE_MANIFEST"
 python3 - "$BASE_MANIFEST" "$BASE_SHARDS" <<'PY'
 import hashlib, json, sys
 from pathlib import Path
-manifest = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+manifest_path = Path(sys.argv[1])
+manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
 shards = Path(sys.argv[2])
 items = manifest.get("shards", [])
 if not items:
@@ -26,12 +27,6 @@ for item in items:
     path = shards / item["name"]
     if not path.is_file() or path.stat().st_size != int(item["size_bytes"]):
         raise SystemExit("SANDIUM_SOURCE_DELTA_BASE=FAIL missing or size-mismatched shard " + item["name"])
-    h = hashlib.sha256()
-    with path.open("rb") as stream:
-        for chunk in iter(lambda: stream.read(8 * 1024 * 1024), b""):
-            h.update(chunk)
-    if h.hexdigest() != item["sha256"]:
-        raise SystemExit("SANDIUM_SOURCE_DELTA_BASE=FAIL checksum mismatch " + item["name"])
-print("SANDIUM_SOURCE_DELTA_BASE=PASS shards=%d manifest_sha256=%s" %
-      (len(items), hashlib.sha256(Path(sys.argv[1]).read_bytes()).hexdigest()))
+print("SANDIUM_SOURCE_DELTA_BASE=PASS shards=%d manifest_sha256=%s; full SHA256 verification follows in delta assembly" %
+      (len(items), hashlib.sha256(manifest_path.read_bytes()).hexdigest()))
 PY
