@@ -284,14 +284,23 @@ def file_state(path: Path, work: Path) -> dict[str, Any]:
         info = path.stat(follow_symlinks=False)
     except FileNotFoundError:
         return {"path": path.relative_to(work).as_posix(), "exists": False}
-    return {
+    is_symlink = path.is_symlink()
+    is_file = path.is_file() and not is_symlink
+    result: dict[str, Any] = {
         "path": path.relative_to(work).as_posix(),
         "exists": True,
-        "type": "symlink" if path.is_symlink() else ("directory" if path.is_dir() else "file"),
-        "size_bytes": info.st_size,
-        "mtime_ns": info.st_mtime_ns,
+        "type": "symlink" if is_symlink else ("directory" if path.is_dir() else "file"),
         "mode": stat.S_IMODE(info.st_mode),
     }
+    if is_symlink:
+        result["link_target"] = os.readlink(path)
+    elif is_file:
+        # Content, not mtime, defines whether a critical configuration input
+        # changed. Rewriting an identical .env/args file must not trigger a
+        # 30GB source re-archive.
+        result["size_bytes"] = info.st_size
+        result["sha256"] = sha256_file(path)
+    return result
 
 
 def source_metadata(root: Path, work: Path, stage: int, ready: bool) -> dict[str, Any]:
