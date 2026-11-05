@@ -135,6 +135,13 @@ def apply_android_sources(core: Path) -> None:
     )
     replace_once(
         fragment,
+        "import android.os.Bundle;\\n",
+        "import android.os.Bundle;\\nimport android.util.Log;\\n",
+        "import android.util.Log;",
+        "fragment-logging-import",
+    )
+    replace_once(
+        fragment,
         "import org.chromium.mojo_base.mojom.Value;\n",
         "import org.chromium.mojo_base.mojom.Value;\n"
         "import org.chromium.url.mojom.Url;\n",
@@ -318,7 +325,7 @@ def apply_android_sources(core: Path) -> None:
         "        mUpdateFilterListItem.setVisible(!isEditable);\n",
         "        // Component-catalogue refresh is intentionally hidden; active URL subscriptions auto-update.\n"
         "        if (mUpdateFilterListItem != null) mUpdateFilterListItem.setVisible(false);\n",
-        "mUpdateFilterListItem.setVisible(false);",
+        "Component-catalogue refresh is intentionally hidden",
         "fragment-keep-component-update-hidden",
     )
 
