@@ -303,6 +303,77 @@ def file_state(path: Path, work: Path) -> dict[str, Any]:
     return result
 
 
+
+def fingerprint_roots(root: Path, work: Path, roots: list[Path]) -> str:
+    """Content fingerprint exactly the files that the tar worker would archive."""
+    digest = hashlib.sha256()
+
+    def include(path: Path) -> bool:
+        return not is_output_excluded(path, work) and not path.name.startswith("tmp_pack_") and not path.name.endswith(".staging")
+
+    def add_file(path: Path) -> None:
+        rel = path.relative_to(root).as_posix()
+        info = path.lstat()
+        digest.update(rel.encode("utf-8") + b"\\0")
+        digest.update(str(stat.S_IMODE(info.st_mode)).encode("ascii") + b"\\0")
+        if path.is_symlink():
+            digest.update(b"symlink\\0" + os.readlink(path).encode("utf-8", "surrogateescape"))
+        elif path.is_file():
+            digest.update(b"file\\0" + str(info.st_size).encode("ascii") + b"\\0")
+            digest.update(bytes.fromhex(sha256_file(path)))
+        elif path.is_dir():
+            digest.update(b"directory\\0")
+
+    for top in sorted(roots, key=lambda p: os.fsencode(p.relative_to(root).as_posix())):
+        if not top.exists() and not top.is_symlink():
+            fail("source shard root disappeared while fingerprinting: %s" % top)
+        if top.is_symlink() or top.is_file():
+            if include(top):
+                add_file(top)
+            continue
+        add_file(top)
+        for directory, dirs, files in os.walk(top, followlinks=False):
+            base = Path(directory)
+            dirs[:] = sorted(
+                [name for name in dirs if include(base / name) and not (base / name).is_symlink()],
+                key=os.fsencode,
+            )
+            for name in sorted(files, key=os.fsencode):
+                path = base / name
+                if include(path):
+                    add_file(path)
+            for name in sorted(os.listdir(base), key=os.fsencode):
+                path = base / name
+                if path.is_symlink() and include(path):
+                    add_file(path)
+    return digest.hexdigest()
+
+
+def capture_fingerprints(root: Path) -> None:
+    manifest_path = root / MANIFEST_NAME
+    payload, _ = load_manifest(root)
+    work = root / WORK_NAME
+    fingerprints: dict[str, Any] = {}
+    for item in payload["shards"]:
+        roots = [root / rel for rel in item["root_paths"]]
+        fingerprints[item["name"]] = {
+            "root_paths": item["root_paths"],
+            "root_fingerprint": fingerprint_roots(root, work, roots),
+        }
+        print("SANDIUM_SOURCE_ROOT_FINGERPRINT=PASS %s" % item["name"], flush=True)
+    record = {
+        "schema_version": 1,
+        "manifest_sha256": sha256_file(manifest_path),
+        "shards": fingerprints,
+    }
+    destination = root / "brave-source-checkpoint.before-fingerprints.json"
+    temporary = destination.with_suffix(".json.tmp")
+    temporary.write_text(json.dumps(record, sort_keys=True, indent=2) + "\\n", encoding="utf-8")
+    os.replace(temporary, destination)
+    print("SANDIUM_SOURCE_FINGERPRINT_CAPTURE=PASS shards=%d manifest_sha256=%s" %
+          (len(fingerprints), record["manifest_sha256"]), flush=True)
+
+
 def source_metadata(root: Path, work: Path, stage: int, ready: bool) -> dict[str, Any]:
     progress = parse_kv(work / PROGRESS_NAME)
     pins = parse_kv(work / PINS_NAME)
