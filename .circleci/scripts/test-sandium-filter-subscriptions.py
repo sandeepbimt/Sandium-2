@@ -149,7 +149,7 @@ def main() -> None:
         fragment_text = fragment.read_text(encoding="utf-8")
         adapter_text = adapter.read_text(encoding="utf-8")
         assert "getSubscriptions(subscriptions ->" in fragment_text
-        assert "Log.i(\\\"SandiumFilterLists\\\"" in fragment_text
+        assert 'Log.i("SandiumFilterLists"' in fragment_text
         assert "Log.i(TAG" not in fragment_text
         assert "createSubscription(subscriptionUrl)" in fragment_text
         assert "putStringSet(SEEDED_URLS_PREF" in fragment_text
