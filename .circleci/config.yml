@@ -2906,6 +2906,7 @@ workflows:
         - equal: [work/pinned-data-save-hardening, << pipeline.git.branch >>]
         - equal: [fix/source-prep-nonresumable-git-fetch, << pipeline.git.branch >>]
         - equal: [fix/chromium-partial-fetch-and-source-shards, << pipeline.git.branch >>]
+        - equal: [fix/brave-157-filtered-source-sync, << pipeline.git.branch >>]
     jobs:
       - brave-source-preparation-stage:
           name: SANDIUM-SOURCE-PREP-stage-1
