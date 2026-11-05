@@ -2,6 +2,7 @@
 """Offline, idempotent tests for Sandium's native filter subscriptions."""
 from __future__ import annotations
 
+import re
 import runpy
 import tempfile
 from pathlib import Path
@@ -172,7 +173,8 @@ def main() -> None:
         assert 'Log.i("SandiumFilterLists"' in fragment_text
         assert "Log.i(TAG" not in fragment_text
         assert "createSubscription(subscriptionUrl)" in fragment_text
-        assert "putStringSet(SEEDED_URLS_PREF" in fragment_text
+        assert re.search(r"putStringSet\s*\(\s*SEEDED_URLS_PREF", fragment_text), \
+            "seeded URL preferences are not persisted"
         assert "existingUrls.contains(url)" in fragment_text
         assert "seededUrls.add(url)" in fragment_text
         assert "getFilterLists(filterLists" not in fragment_text
