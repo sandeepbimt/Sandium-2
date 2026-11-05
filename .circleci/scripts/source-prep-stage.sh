@@ -143,7 +143,7 @@ if current == previous:
     print("PINNING_GIT_PROGRESS_COMPARE=UNCHANGED; no completed pack, loose-object or HEAD advancement")
     raise SystemExit(0)
 print("PINNING_GIT_PROGRESS_COMPARE=ADVANCED; validated Git object state changed")
-raise SystemExit(1)
+raise SystemExit(10)
 PY
 }
 
@@ -177,10 +177,11 @@ if [ "$TIME_SLICE_EXPIRED" = true ] && [ ! -s "$STATE/source-sync-complete" ]; t
     echo "PINNING_GIT_PROGRESS=NONE; next stage will stop before repeating this fetch"
   else
     rc=$?
-    if [ "$rc" -eq 1 ]; then
+    if [ "$rc" -eq 10 ]; then
       rm -f "$STATE/source-sync-no-progress"
       echo "PINNING_GIT_PROGRESS=ADVANCED; next stage may continue from validated Git objects"
     else
+      echo "PINNING_GIT_PROGRESS=COMPARE_FAILED exit=$rc; refusing to assume progress" >&2
       exit "$rc"
     fi
   fi
