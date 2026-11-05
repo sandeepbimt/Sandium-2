@@ -294,16 +294,15 @@ if [ "$BRAVE_STAGE_INDEX" = "1" ]; then
     SOURCE_SYNC_STARTED=$SECONDS
     if [ "$CHROMIUM_PARTIAL_CLONE_ACTIVE" = true ]; then
       bash "$ROOT/.circleci/scripts/fetch-pinned-chromium.sh" "$SRC_DIR" "$CHROMIUM_TAG" "$CHROMIUM_PIN" "$CHROMIUM_URL"
-      # First let Chromium's normal gclient transaction update DEPS at the
-      # already-fetched pin (the origin is promisor/blob:none, so any fetch is
-      # filtered); then sync Brave Core's own DEPS separately.
-      run_brave_sync --target_os=android --target_arch=arm64 --no-history --nohooks --sync_chromium=true
+      # Run one Brave sync transaction. Chromium's origin is promisor/blob:none,
+      # so its gclient fetch remains filtered. On CI, sync.ts also runs Brave
+      # Core DEPS because delete_unused_deps is enabled.
       if [ "$SOURCE_PREP_PHASE" = "sync" ]; then
-        run_brave_sync --target_os=android --target_arch=arm64 --no-history --nohooks --sync_chromium=false
+        run_brave_sync --target_os=android --target_arch=arm64 --no-history --nohooks --sync_chromium=true
       else
-        run_brave_sync --target_os=android --target_arch=arm64 --no-history --sync_chromium=false
+        run_brave_sync --target_os=android --target_arch=arm64 --no-history --sync_chromium=true
       fi
-      echo "BRAVE_CHROMIUM_SYNC=FILTERED_PIN_ALREADY_CHECKED_OUT sha=$CHROMIUM_PIN; chromium_DEPS_and_brave_DEPS_synced"
+      echo "BRAVE_CHROMIUM_SYNC=FILTERED_PIN_ALREADY_CHECKED_OUT sha=$CHROMIUM_PIN; one gclient transaction reconciled Chromium and Brave DEPS"
     else
       echo "BRAVE_CHROMIUM_FILTERED_FETCH=FALLBACK probe_not_supported_or_disabled; using existing incremental Brave sync"
       if [ "$SOURCE_PREP_PHASE" = "sync" ]; then
