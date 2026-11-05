@@ -41,16 +41,16 @@ with tempfile.TemporaryDirectory(prefix="sandium-delta-test-") as tmp:
     (root / "brave-source-checkpoint.base.manifest.json").write_bytes(base_bytes)
 
     # Stage 1 changes shard 01 and adds shard 02.
-    stage1_dir = root / "brave-source-checkpoint.deltas/stage-1"
-    (stage1_dir / "shards").mkdir(parents=True)
+    stage1_source = root / "stage1-source-shards"
+    stage1_source.mkdir()
     a1, b1 = b"stage1-a", b"stage1-b"
-    (stage1_dir / "shards/source-shard-01.tar.zst").write_bytes(a1)
-    (stage1_dir / "shards/source-shard-02.tar.zst").write_bytes(b1)
+    (stage1_source / "source-shard-01.tar.zst").write_bytes(a1)
+    (stage1_source / "source-shard-02.tar.zst").write_bytes(b1)
     items1 = [shard_item("source-shard-01.tar.zst", a1, "brave-work/src/.git"),
               shard_item("source-shard-02.tar.zst", b1, "brave-work/src/third_party")]
     result1 = manifest(1, items1)
     MODULE.write_delta_record(root, 1, base_bytes, json.loads(base_bytes),
-                              result1, json.loads(result1), items1, [], stage1_dir / "shards")
+                              result1, json.loads(result1), items1, [], stage1_source)
 
     # Stage 2 is a no-op delta but advances the ordered manifest lineage.
     stage2_dir = root / "brave-source-checkpoint.deltas/stage-2"
