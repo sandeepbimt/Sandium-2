@@ -1495,9 +1495,11 @@ jobs:
             - restore_cache:
                 name: Restore latest pinned source, compiled reference, or protected canonical base
                 keys:
-                  - sandium-brave-pinning-progress-v3-{{ checksum ".circleci/source-pin-refresh-id" }}-\n                  - sandium-brave-pinning-progress-v2-{{ checksum ".circleci/source-pin-refresh-id" }}-
+                  - sandium-brave-pinning-progress-v3-{{ checksum ".circleci/source-pin-refresh-id" }}-
+                  - sandium-brave-pinning-progress-v2-{{ checksum ".circleci/source-pin-refresh-id" }}-
 # Any prior run's newest cumulative progress checkpoint (each stage archive is cumulative).
                   - sandium-brave-pinning-progress-v2-
+                  - sandium-brave-pinned-source-v3-
                   - sandium-brave-pinned-source-v2-
                   - sandium-brave-reference-v3-{{ .Branch }}-
 # Restore the furthest cumulative reference available; it includes all completed earlier stages.
@@ -1619,6 +1621,11 @@ jobs:
           condition:
             equal: [5, << parameters.stage_index >>]
           steps:
+            - persist_to_workspace:
+                root: .
+                paths:
+                  - pinning-status/stage-5-result.env
+                  - pinning-status/source-restore-receipt.env
             - save_cache:
                 name: Save one assembled cumulative source checkpoint after Stage 5
                 key: sandium-brave-pinning-progress-v3-{{ checksum ".circleci/source-pin-refresh-id" }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-5
@@ -1686,7 +1693,7 @@ jobs:
       - restore_cache:
           name: Restore source archive from the stage that completed pinning
           keys:
-            - sandium-brave-pinning-progress-v2-{{ checksum ".circleci/source-pin-refresh-id" }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-
+            - sandium-brave-pinning-progress-v3-{{ checksum ".circleci/source-pin-refresh-id" }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-
       - run:
           name: Verify ready shards and current refresh request before promotion
           command: |
