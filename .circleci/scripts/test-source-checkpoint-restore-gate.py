@@ -23,6 +23,8 @@ assert 'grep -qx \'RESTORE_RESULT=PASS\'' in config
 assert '- pinning-status/source-restore-receipt.env' in config
 assert 'SANDIUM_PINNING_WORKFLOW=STOP' in config
 assert 'exit 75' in config
+assert 'source-sync-no-progress' in config
+assert 'Stop after non-resumable Chromium fetch made no durable progress' in config
 
 # The mandatory mode must not route through the legacy/fresh-bootstrap fallback.
 mandatory = restore.split('  base-required)', 1)[1].split('  progress)', 1)[0]
