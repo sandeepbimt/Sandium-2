@@ -45,4 +45,4 @@ FILTER="$(git -C "$SRC_DIR" config --get remote.origin.partialclonefilter)"
 }
 AFTER="$(git -C "$SRC_DIR" count-objects -v | awk '$1 == "size-pack:" {print $2}')"
 echo "CHROMIUM_FILTERED_FETCH=PASS tag=$TAG sha=$ACTUAL filter=blob:none promisor=true pack_kib_before=${BEFORE:-0} pack_kib_after=${AFTER:-0} duration_seconds=$((SECONDS-START))"
-echo "CHROMIUM_FILTERED_FETCH=GCLIENT_HANDOFF; Chromium already at exact pin; remaining DEPS sync must use --sync_chromium=false"
+echo "CHROMIUM_FILTERED_FETCH=GCLIENT_HANDOFF; run filtered Chromium gclient sync at the exact pin, then Brave DEPS sync"
