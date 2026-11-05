@@ -19,7 +19,9 @@ jobs:
           name: Validate pinned Brave source preparation logic
           command: |
             set -euo pipefail
+            python3 -m py_compile .circleci/scripts/sandium-source-shards.py .circleci/scripts/test-brave-source-sync-strategy.py .circleci/scripts/test-source-checkpoint-restore-gate.py
             bash -n .circleci/scripts/prepare-brave-source.sh
+            bash -n .circleci/scripts/source-prep-stage.sh
             python3 .circleci/scripts/test-brave-source-sync-strategy.py
             python3 .circleci/scripts/test-source-checkpoint-restore-gate.py
             bash -n .circleci/scripts/restore-brave-source-checkpoint.sh
@@ -1615,12 +1617,8 @@ jobs:
             STAGE="<< parameters.stage_index >>"
             MARKER="$ROOT/brave-work/.sandium/source-archive-unchanged"
             if [ -s "$MARKER" ]; then
-              if [ "$STAGE" = "5" ]; then
-                echo "SANDIUM_PINNING_WORKFLOW=INCOMPLETE Stage 5 made no additional reusable source progress; previous checkpoint retained."
-                exit 1
-              fi
-              echo "SANDIUM_PINNING_CACHE=SKIP unchanged source state; Stage $STAGE reuses its verified parent checkpoint."
-              circleci-agent step halt
+              echo "SANDIUM_PINNING_WORKFLOW=STOP stage=$STAGE reason=no_validated_source_progress; no next stage will repeat the same fetch; previous checkpoint retained."
+              exit 75
             fi
       - save_cache:
           name: Save source-preparation stage << parameters.stage_index >> checkpoint
@@ -2801,6 +2799,7 @@ workflows:
             branches:
               only:
                 - optimization/incremental-brave-source-sync
+                - fix/source-prep-nonresumable-git-fetch
   c4-afterbird-staged-checkpoint-build:
     jobs:
       - c4-afterbird-staged-build:
