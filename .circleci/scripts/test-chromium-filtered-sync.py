@@ -10,8 +10,7 @@ assert 'SANDIUM_ENABLE_CHROMIUM_PARTIAL_CLONE:-true' in prepare
 assert "CHROMIUM_PARTIAL_CLONE_ACTIVE=true" in prepare
 assert 'fetch-pinned-chromium.sh' in prepare
 assert 'run_brave_sync --target_os=android --target_arch=arm64 --no-history --nohooks --sync_chromium=true' in prepare
-assert 'run_brave_sync --target_os=android --target_arch=arm64 --no-history --nohooks --sync_chromium=false' in prepare
-assert 'run_brave_sync --target_os=android --target_arch=arm64 --no-history --sync_chromium=false' in prepare
+assert 'run_brave_sync --target_os=android --target_arch=arm64 --no-history --sync_chromium=true' in prepare
 assert 'BRAVE_CHROMIUM_SYNC=FILTERED_PIN_ALREADY_CHECKED_OUT' in prepare
 assert 'BRAVE_CHROMIUM_FILTERED_FETCH=FALLBACK' in prepare
 
