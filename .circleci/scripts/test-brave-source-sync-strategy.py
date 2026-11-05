@@ -56,6 +56,9 @@ assert '[ "$SLICE_SECONDS" -le 2400 ] || SLICE_SECONDS=2400' in stage_script
 assert "discard_interrupted_git_packs" in stage_script
 assert '*/objects/pack/tmp_pack_*' in stage_script
 assert "PINNING_GIT_FETCH=INTERRUPTED" in stage_script
+assert "source_sync_progress_matches_parent" in stage_script
+assert "source-sync-no-progress" in stage_script
+assert "PINNING_NO_PROGRESS=STOP" in stage_script
 assert 'archive --root "$ROOT" --workers 8 --stage "$STAGE" --skip-if-unchanged' in stage_script
 
 # Checkpoint fingerprints must reflect only durable Git progress. Temporary
@@ -63,6 +66,7 @@ assert 'archive --root "$ROOT" --workers 8 --stage "$STAGE" --skip-if-unchanged'
 assert '"progress_state": progress_state' in shards_script
 assert '"git_progress_state": metadata["git_progress_state"]' in shards_script
 assert '"completed_packfiles": stable_packfiles' in shards_script
+assert '"source-sync-no-progress"' in shards_script
 assert '"--exclude=tmp_pack_*"' in shards_script
 assert '"git_state": metadata["git_state"]' not in shards_script
 file_state_start = shards_script.index("def file_state(")
