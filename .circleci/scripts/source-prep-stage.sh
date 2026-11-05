@@ -7,9 +7,9 @@ WORK="$ROOT/brave-work"; SRC="$WORK/src"; CORE="$SRC/brave"; STATE="$WORK/.sandi
 PINS="$STATE/source-pins.env"
 REQUEST_FILE="$ROOT/.circleci/source-pin-refresh-id"
 CURRENT_REQUEST_ID="$(tr -d '\r\n' < "$REQUEST_FILE")"
-SLICE_SECONDS="${SANDIUM_PIN_SLICE_SECONDS:-1800}"
+SLICE_SECONDS="${SANDIUM_PIN_SLICE_SECONDS:-2700}"
 case "$SLICE_SECONDS" in ''|*[!0-9]*) echo "PINNING_SLICE=FAIL invalid seconds=$SLICE_SECONDS" >&2; exit 2 ;; esac
-[ "$SLICE_SECONDS" -le 1800 ] || SLICE_SECONDS=1800
+[ "$SLICE_SECONDS" -le 2700 ] || SLICE_SECONDS=2700
 [ "$SLICE_SECONDS" -ge 60 ] || { echo "PINNING_SLICE=FAIL minimum 60 seconds" >&2; exit 2; }
 mkdir -p "$STATE"
 # A no-op source slice must not create another multi-gigabyte archive.
@@ -72,6 +72,21 @@ fi
 START_SECONDS=$SECONDS
 DEADLINE=$((START_SECONDS + SLICE_SECONDS))
 TIME_SLICE_EXPIRED=false
+
+discard_interrupted_git_packs() {
+  # Git's tmp_pack_* files are uncommitted index-pack temporaries, not a
+  # resumable fetch checkpoint. timeout has returned (and reaped its process
+  # group) before this function runs, so no active fetch owns these files.
+  local count=0 bytes=0 size
+  while IFS= read -r -d '' pack; do
+    size="$(stat -c '%s' "$pack" 2>/dev/null || echo 0)"
+    bytes=$((bytes + size))
+    count=$((count + 1))
+    rm -f -- "$pack"
+  done < <(find "$SRC" -type f -path '*/objects/pack/tmp_pack_*' -print0 2>/dev/null)
+  echo "BRAVE_GIT_INTERRUPTED_TEMP_PACKS=DISCARDED count=$count bytes=$bytes; only uncommitted temporary packs removed"
+}
+
 run_phase() {
   local phase="$1" phase_stage="$2" marker="$3"
   if [ -s "$marker" ]; then echo "PINNING_PHASE=REUSE phase=$phase marker=$marker"; return 0; fi
@@ -85,7 +100,11 @@ run_phase() {
   if [ "$rc" -eq 0 ]; then touch "$marker"; echo "PINNING_PHASE=PASS phase=$phase elapsed_seconds=$((SECONDS-START_SECONDS))"; return 0; fi
   if [ "$rc" -eq 124 ] || { { [ "$rc" -eq 130 ] || [ "$rc" -eq 137 ]; } && [ "$((SECONDS-START_SECONDS))" -ge "$((SLICE_SECONDS-30))" ]; }; then
     TIME_SLICE_EXPIRED=true
-    echo "PINNING_PHASE=SLICE_END phase=$phase elapsed_seconds=$((SECONDS-START_SECONDS)); preserving resumable state"
+    if [ "$phase" = "sync" ]; then
+      discard_interrupted_git_packs
+      echo "PINNING_GIT_FETCH=INTERRUPTED; partial tmp_pack files are not treated as reusable Git progress"
+    fi
+    echo "PINNING_PHASE=SLICE_END phase=$phase elapsed_seconds=$((SECONDS-START_SECONDS)); preserving only validated reusable state"
     return 2
   fi
   echo "PINNING_PHASE=FAIL phase=$phase exit=$rc" >&2
