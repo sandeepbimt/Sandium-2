@@ -2919,6 +2919,7 @@ workflows:
                 - work/pinned-data-save-hardening
                 - fix/source-prep-nonresumable-git-fetch
                 - fix/chromium-partial-fetch-and-source-shards
+                - fix/brave-157-filtered-source-sync
       - brave-source-preparation-stage:
           name: SANDIUM-SOURCE-PREP-stage-2
           stage_index: 2
@@ -2932,6 +2933,7 @@ workflows:
                 - work/pinned-data-save-hardening
                 - fix/source-prep-nonresumable-git-fetch
                 - fix/chromium-partial-fetch-and-source-shards
+                - fix/brave-157-filtered-source-sync
       - brave-source-preparation-stage:
           name: SANDIUM-SOURCE-PREP-stage-3
           stage_index: 3
@@ -2945,6 +2947,7 @@ workflows:
                 - work/pinned-data-save-hardening
                 - fix/source-prep-nonresumable-git-fetch
                 - fix/chromium-partial-fetch-and-source-shards
+                - fix/brave-157-filtered-source-sync
       - brave-source-preparation-stage:
           name: SANDIUM-SOURCE-PREP-stage-4
           stage_index: 4
@@ -2958,6 +2961,7 @@ workflows:
                 - work/pinned-data-save-hardening
                 - fix/source-prep-nonresumable-git-fetch
                 - fix/chromium-partial-fetch-and-source-shards
+                - fix/brave-157-filtered-source-sync
       - brave-source-preparation-stage:
           name: SANDIUM-SOURCE-PREP-stage-5
           stage_index: 5
@@ -2971,6 +2975,7 @@ workflows:
                 - work/pinned-data-save-hardening
                 - fix/source-prep-nonresumable-git-fetch
                 - fix/chromium-partial-fetch-and-source-shards
+                - fix/brave-157-filtered-source-sync
       - promote-brave-pinned-source-reference:
           name: SANDIUM-SOURCE-PREP-reference-promotion
           requires: [SANDIUM-SOURCE-PREP-stage-5]
@@ -2982,6 +2987,7 @@ workflows:
                 - architecture/sandium-pinning-v2-build
                 - work/pinned-data-save-hardening
                 - fix/chromium-partial-fetch-and-source-shards
+                - fix/brave-157-filtered-source-sync
   sandium-full-mode:
     when:
       and:
