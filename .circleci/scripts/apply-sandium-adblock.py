@@ -1192,11 +1192,13 @@ def verify_patches(core: Path) -> None:
         ("filter_provider", "SANDIUM_FILTER_COMPONENT_READY", filter_provider),
         ("filter_provider", "SANDIUM_FILTER_DAT_FILE", filter_provider),
         ("filter_provider", "SANDIUM_FILTER_ENGINE_ATTACH=PASS", filter_provider),
+        ("filter_provider", "SANDIUM_FILTER_ENGINE_BINDING=PASS", filter_provider),
         ("manager", "SANDIUM_FILTER_CATALOG_PARSED", manager),
         ("filter_service", "SANDIUM_FILTER_LIST_UI_COUNT", filter_service),
         ("fragment", "SANDIUM_FILTER_LIST_CATALOGUE_STATE_MACHINE", fragment),
         ("fragment", "SANDIUM_MANUAL_FILTER_LIST_UPDATE", fragment),
         ("fragment", "SANDIUM_FILTER_LIST_HANDLER_CLEANUP", fragment),
+        ("fragment", "SANDIUM_SELECTED_FILTERS_VERIFIED", fragment),
         ("adapter", "SANDIUM_FILTER_LIST_ADAPTER_REFRESH", adapter),
     )
     missing = [f"{name}:{marker}" for name, marker, content in required
