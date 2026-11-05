@@ -47,8 +47,8 @@ assert "source-runhooks-complete" in source
 
 # A timed-out Git fetch is not a resumable checkpoint: discard its uncommitted
 # temporary pack, and give the one fetch attempt the maximum safe stage window.
-assert 'SLICE_SECONDS="${SANDIUM_PIN_SLICE_SECONDS:-2700}"' in stage_script
-assert '[ "$SLICE_SECONDS" -le 2700 ] || SLICE_SECONDS=2700' in stage_script
+assert 'SLICE_SECONDS="${SANDIUM_PIN_SLICE_SECONDS:-2400}"' in stage_script
+assert '[ "$SLICE_SECONDS" -le 2400 ] || SLICE_SECONDS=2400' in stage_script
 assert "discard_interrupted_git_packs" in stage_script
 assert '*/objects/pack/tmp_pack_*' in stage_script
 assert "PINNING_GIT_FETCH=INTERRUPTED" in stage_script
