@@ -46,9 +46,13 @@ elif [ -n "${SANDIUM_BRAVE_CORE_TAG:-}" ]; then
   BRAVE_CORE_TAG="$SANDIUM_BRAVE_CORE_TAG"
   echo "BRAVE_RELEASE_PIN=OVERRIDE tag=$BRAVE_CORE_TAG"
 else
-  RELEASE_JSON="$(curl -fsSL --retry 3 --retry-all-errors --connect-timeout 15 --max-time 45 -H 'Accept: application/vnd.github+json' -H 'X-GitHub-Api-Version: 2022-11-28' -H 'User-Agent: Sandium-Pinned-Data-Save' https://api.github.com/repos/brave/brave-browser/releases/latest)"
-  BRAVE_CORE_TAG="$(python3 -c 'import json,re,sys; d=json.load(sys.stdin); tag=d.get("tag_name",""); assert not d.get("draft") and not d.get("prerelease"); assert re.fullmatch(r"v[0-9]+[.][0-9]+[.][0-9]+",tag), "latest Brave release is not a stable version tag: "+repr(tag); print(tag)' <<< "$RELEASE_JSON")"
-  echo "BRAVE_RELEASE_PIN=LATEST_STABLE_RESOLVED tag=$BRAVE_CORE_TAG source=brave-browser/releases/latest"
+  # Resolve the newest published Android release, including prereleases.
+  # The release tag is pinned immutably for this run; it is not a permanent version lock.
+  RELEASE_JSON="$(curl -fsSL --retry 3 --retry-all-errors --connect-timeout 15 --max-time 45 -H 'Accept: application/vnd.github+json' -H 'X-GitHub-Api-Version: 2022-11-28' -H 'User-Agent: Sandium-Pinned-Data-Save' 'https://api.github.com/repos/brave/brave-browser/releases?per_page=20')"
+  RELEASE_META="$(python3 -c 'import json,re,sys; rs=json.load(sys.stdin); rs=[r for r in rs if not r.get("draft") and re.fullmatch(r"v[0-9]+[.][0-9]+[.][0-9]+",r.get("tag_name","")) and any(a.get("name")=="Bravearm64Universal.apk" for a in r.get("assets",[]))]; assert rs, "no published Brave Android release with ARM64 universal APK found"; r=max(rs,key=lambda x:x.get("published_at") or x.get("created_at") or ""); print(r["tag_name"]); print("PRERELEASE" if r.get("prerelease") else "STABLE")' <<< "$RELEASE_JSON")"
+  BRAVE_CORE_TAG="$(sed -n '1p' <<< "$RELEASE_META")"
+  BRAVE_RELEASE_CHANNEL="$(sed -n '2p' <<< "$RELEASE_META")"
+  echo "BRAVE_RELEASE_PIN=LATEST_PUBLISHED_ANDROID_RESOLVED tag=$BRAVE_CORE_TAG channel=$BRAVE_RELEASE_CHANNEL source=brave-browser/releases?per_page=20"
 fi
 
 # Separate dependency installation from Brave sync. A successful install is
@@ -173,6 +177,28 @@ if [ "$BRAVE_STAGE_INDEX" = "1" ]; then
   } > "$PINS_TMP"
   mv "$PINS_TMP" "$ROOT/brave-work/.sandium/source-pins.env"
   echo "BRAVE_SOURCE_PINS=RECORDED before sync for resumable checkpointing"
+fi
+# Probe the actual Chromium endpoint once per refresh request. Only enable
+# blob filtering after a temporary fetch proves promisor metadata and lazy
+# blob hydration; unsupported endpoints retain the established full-fetch path.
+PROBE_MARKER="$ROOT/brave-work/.sandium/partial-clone-probe.env"
+if [ ! -s "$PROBE_MARKER" ] || ! grep -qx "TAG=$CHROMIUM_TAG" "$PROBE_MARKER"; then
+  bash "$ROOT/.circleci/scripts/probe-chromium-partial-clone.sh" "$ROOT/brave-work"
+  if [ -s "$PROBE_MARKER" ]; then
+    PROBE_TMP="$PROBE_MARKER.tmp"
+    { grep -v '^TAG=' "$PROBE_MARKER" || true; echo "TAG=$CHROMIUM_TAG"; } > "$PROBE_TMP"
+    mv "$PROBE_TMP" "$PROBE_MARKER"
+  fi
+fi
+if grep -qx 'PARTIAL_CLONE_SUPPORTED=true' "$PROBE_MARKER" 2>/dev/null && [ "${SANDIUM_ENABLE_CHROMIUM_PARTIAL_CLONE:-false}" = "true" ]; then
+  git -C "$SRC" config extensions.partialClone origin
+  git -C "$SRC" config remote.origin.promisor true
+  git -C "$SRC" config remote.origin.partialclonefilter blob:none
+  echo "BRAVE_CHROMIUM_PARTIAL_CLONE=ENABLED tag=$CHROMIUM_TAG; endpoint probe passed and explicit experiment opt-in is set"
+elif grep -qx 'PARTIAL_CLONE_SUPPORTED=true' "$PROBE_MARKER" 2>/dev/null; then
+  echo "BRAVE_CHROMIUM_PARTIAL_CLONE=SUPPORTED_NOT_ENABLED tag=$CHROMIUM_TAG; waiting for measured full gclient-sync benefit"
+else
+  echo "BRAVE_CHROMIUM_PARTIAL_CLONE=DISABLED tag=$CHROMIUM_TAG; preserving normal gclient fetch behavior"
 fi
 SOURCE_PREP_PHASE="${SANDIUM_SOURCE_PREP_PHASE:-all}"
 pnpm config set store-dir "$HOME/.cache/pnpm-store"

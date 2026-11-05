@@ -303,6 +303,81 @@ def file_state(path: Path, work: Path) -> dict[str, Any]:
     return result
 
 
+
+def fingerprint_roots(root: Path, work: Path, roots: list[Path]) -> str:
+    """Content fingerprint exactly the files that the tar worker would archive."""
+    digest = hashlib.sha256()
+
+    def include(path: Path) -> bool:
+        return not is_output_excluded(path, work) and not path.name.startswith("tmp_pack_") and not path.name.endswith(".staging")
+
+    def add_file(path: Path) -> None:
+        rel = path.relative_to(root).as_posix()
+        info = path.lstat()
+        digest.update(rel.encode("utf-8") + b"\\0")
+        digest.update(str(stat.S_IMODE(info.st_mode)).encode("ascii") + b"\\0")
+        if path.is_symlink():
+            digest.update(b"symlink\\0" + os.readlink(path).encode("utf-8", "surrogateescape"))
+        elif path.is_file():
+            # ctime cannot be set by ordinary file writes, so size+mtime+ctime
+            # detects same-size content replacement without reading file bytes.
+            digest.update(b"file\\0")
+            digest.update(("%d:%d:%d:%d" % (info.st_size, info.st_mtime_ns, info.st_ctime_ns, info.st_ino)).encode("ascii") + b"\\0")
+        elif path.is_dir():
+            # Directory mtimes change when excluded tmp_pack files appear; paths
+            # of included children already capture real archive membership.
+            digest.update(b"directory\\0")
+
+    for top in sorted(roots, key=lambda p: os.fsencode(p.relative_to(root).as_posix())):
+        if not top.exists() and not top.is_symlink():
+            fail("source shard root disappeared while fingerprinting: %s" % top)
+        if top.is_symlink() or top.is_file():
+            if include(top):
+                add_file(top)
+            continue
+        add_file(top)
+        for directory, dirs, files in os.walk(top, followlinks=False):
+            base = Path(directory)
+            dirs[:] = sorted(
+                [name for name in dirs if include(base / name) and not (base / name).is_symlink()],
+                key=os.fsencode,
+            )
+            for name in sorted(files, key=os.fsencode):
+                path = base / name
+                if include(path):
+                    add_file(path)
+            for name in sorted(os.listdir(base), key=os.fsencode):
+                path = base / name
+                if path.is_symlink() and include(path):
+                    add_file(path)
+    return digest.hexdigest()
+
+
+def capture_fingerprints(root: Path) -> None:
+    manifest_path = root / MANIFEST_NAME
+    payload, _ = load_manifest(root)
+    work = root / WORK_NAME
+    fingerprints: dict[str, Any] = {}
+    for item in payload["shards"]:
+        roots = [root / rel for rel in item["root_paths"]]
+        fingerprints[item["name"]] = {
+            "root_paths": item["root_paths"],
+            "root_fingerprint": fingerprint_roots(root, work, roots),
+        }
+        print("SANDIUM_SOURCE_ROOT_FINGERPRINT=PASS %s" % item["name"], flush=True)
+    record = {
+        "schema_version": 1,
+        "manifest_sha256": sha256_file(manifest_path),
+        "shards": fingerprints,
+    }
+    destination = root / "brave-source-checkpoint.before-fingerprints.json"
+    temporary = destination.with_suffix(".json.tmp")
+    temporary.write_text(json.dumps(record, sort_keys=True, indent=2) + "\\n", encoding="utf-8")
+    os.replace(temporary, destination)
+    print("SANDIUM_SOURCE_FINGERPRINT_CAPTURE=PASS shards=%d manifest_sha256=%s" %
+          (len(fingerprints), record["manifest_sha256"]), flush=True)
+
+
 def source_metadata(root: Path, work: Path, stage: int, ready: bool) -> dict[str, Any]:
     progress = parse_kv(work / PROGRESS_NAME)
     pins = parse_kv(work / PINS_NAME)
@@ -550,7 +625,8 @@ def archive_worker(index: int, roots: list[Path], root: Path, work: Path,
     }
 
 
-def archive(root: Path, workers: int, stage: int, ready: bool, skip_if_unchanged: bool = False) -> None:
+def archive(root: Path, workers: int, stage: int, ready: bool,
+            skip_if_unchanged: bool = False, delta: bool = False) -> None:
     work = root / WORK_NAME
     progress_path = work / PROGRESS_NAME
     manifest_path = root / MANIFEST_NAME
@@ -560,31 +636,41 @@ def archive(root: Path, workers: int, stage: int, ready: bool, skip_if_unchanged
     metadata = source_metadata(root, work, stage, ready)
     unchanged_marker = work / ".sandium" / "source-archive-unchanged"
     unchanged_marker.unlink(missing_ok=True)
-    if skip_if_unchanged and stage > 1 and not ready and manifest_path.is_file():
+    previous_bytes: bytes | None = None
+    previous: dict[str, Any] | None = None
+    previous_dir = root / SHARDS_NAME
+    if manifest_path.is_file():
+        previous_bytes = manifest_path.read_bytes()
         try:
-            previous, _previous_dir = load_manifest(root)
-            previous_source = previous.get("source", {})
-            same_state = (
-                previous.get("ready") is False
-                and previous_source.get("refresh_request_id") == metadata.get("refresh_request_id")
-                and previous_source.get("source_state_fingerprint") == metadata.get("source_state_fingerprint")
-            )
+            previous, _ = load_manifest(root)
         except SystemExit:
-            same_state = False
+            previous = None
+    if skip_if_unchanged and previous is not None:
+        previous_source = previous.get("source", {})
+        same_state = (
+            previous.get("ready") is ready
+            and previous_source.get("refresh_request_id") == metadata.get("refresh_request_id")
+            and previous_source.get("source_state_fingerprint") == metadata.get("source_state_fingerprint")
+        )
         if same_state:
             unchanged_marker.write_text(
                 "UNCHANGED_SOURCE_STATE=true\nPARENT_MANIFEST_STAGE=%s\nSOURCE_STATE_FINGERPRINT=%s\n"
                 % (previous.get("stage", "unknown"), metadata["source_state_fingerprint"]),
                 encoding="utf-8",
             )
+            if delta:
+                write_delta_record(root, stage, previous_bytes, previous, previous_bytes,
+                                   previous, [], [], previous_dir)
             print(
                 "SANDIUM_SOURCE_ARCHIVE=REUSE unchanged=true parent_stage=%s fingerprint=%s; no new shards created"
                 % (previous.get("stage", "unknown"), metadata["source_state_fingerprint"]),
                 flush=True,
             )
             return
-    # Split large source trees into disjoint directory roots and distribute them
-    # across up to eight tar+zstd workers.
+
+    # Preserve the existing balanced directory partitioning. Reuse a shard
+    # only when its exact owned root paths and verified archive digest match;
+    # this avoids a one-time repartition of the existing known-good cache.
     total_bytes = sum(logical_size(p, work) for p in roots)
     target = max(1, int((total_bytes / workers) * 1.15))
     expanded: list[Path] = []
@@ -599,25 +685,68 @@ def archive(root: Path, workers: int, stage: int, ready: bool, skip_if_unchanged
         index = min(range(count), key=lambda i: loads[i])
         buckets[index].append(path)
         loads[index] += sizes[str(path)]
-
+    bucket_map = [(i + 1, bucket) for i, bucket in enumerate(buckets)]
     stage_dir = root / (SHARDS_NAME + ".tmp")
     final_dir = root / SHARDS_NAME
     shutil.rmtree(stage_dir, ignore_errors=True)
     stage_dir.mkdir(parents=True)
+    previous_items = {
+        item["name"]: item for item in (previous.get("shards", []) if previous else [])
+    }
+    baseline: dict[str, Any] = {}
+    baseline_path = root / "brave-source-checkpoint.before-fingerprints.json"
+    if previous_bytes is not None and baseline_path.is_file():
+        try:
+            baseline_record = json.loads(baseline_path.read_text(encoding="utf-8"))
+            if baseline_record.get("manifest_sha256") == hashlib.sha256(previous_bytes).hexdigest():
+                baseline = baseline_record.get("shards", {})
+        except (OSError, json.JSONDecodeError):
+            baseline = {}
+    receipt_path = root / "pinning-status" / "source-restore-receipt.env"
+    restore_verified = receipt_path.is_file() and "RESTORE_RESULT=PASS" in receipt_path.read_text(encoding="utf-8")
     results: list[dict[str, Any]] = []
     errors: list[str] = []
+    reused = 0
     print("SANDIUM_SOURCE_ARCHIVE=START stage=%d ready=%s workers=%d source_bytes=%d" %
-          (stage, ready, len(buckets), total_bytes), flush=True)
-    with concurrent.futures.ThreadPoolExecutor(max_workers=len(buckets)) as pool:
-        futures = [pool.submit(archive_worker, i, bucket, root, work, stage_dir)
-                   for i, bucket in enumerate(buckets, 1)]
+          (stage, ready, len(bucket_map), total_bytes), flush=True)
+
+    def process_bucket(index: int, bucket: list[Path]) -> dict[str, Any]:
+        name = "source-shard-%02d.tar.zst" % index
+        root_paths = [p.relative_to(root).as_posix() for p in bucket]
+        old = previous_items.get(name)
+        current_fingerprint = fingerprint_roots(root, work, bucket)
+        baseline_item = baseline.get(name, {})
+        baseline_matches = (
+            baseline_item.get("root_paths") == root_paths
+            and baseline_item.get("root_fingerprint") == current_fingerprint
+        )
+        if old and old.get("root_paths") == root_paths and baseline_matches and (previous_dir / name).is_file():
+            old_path = previous_dir / name
+            if old_path.stat().st_size == int(old.get("size_bytes", -1)) and (restore_verified or sha256_file(old_path) == old.get("sha256")):
+                target = stage_dir / name
+                try:
+                    os.link(old_path, target)
+                except OSError:
+                    shutil.copy2(old_path, target)
+                print("SANDIUM_SOURCE_SHARD=REUSE %s sha256=%s" % (name, old["sha256"]), flush=True)
+                reused_item = dict(old)
+                reused_item["root_fingerprint"] = current_fingerprint
+                reused_item["_sandium_reused"] = True
+                return reused_item
+        item = archive_worker(index, bucket, root, work, stage_dir)
+        item["root_fingerprint"] = current_fingerprint
+        return item
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=len(bucket_map)) as pool:
+        futures = [pool.submit(process_bucket, index, bucket) for index, bucket in bucket_map]
         for future in concurrent.futures.as_completed(futures):
             try:
                 item = future.result()
+                if item.pop("_sandium_reused", False):
+                    reused += 1
                 results.append(item)
-                print("SANDIUM_SOURCE_SHARD=PASS %s bytes=%d seconds=%.1f sha256=%s" %
-                      (item["name"], item["size_bytes"], item["archive_seconds"], item["sha256"]),
-                      flush=True)
+                print("SANDIUM_SOURCE_SHARD=PASS %s bytes=%d sha256=%s" %
+                      (item["name"], item["size_bytes"], item["sha256"]), flush=True)
             except Exception as exc:
                 errors.append(str(exc))
     if errors:
@@ -626,11 +755,6 @@ def archive(root: Path, workers: int, stage: int, ready: bool, skip_if_unchanged
 
     results.sort(key=lambda item: item["name"])
     total_archive_bytes = sum(item["size_bytes"] for item in results)
-    old_dir = root / (SHARDS_NAME + ".previous")
-    shutil.rmtree(old_dir, ignore_errors=True)
-    if final_dir.exists():
-        os.replace(final_dir, old_dir)
-    os.replace(stage_dir, final_dir)
     payload = {
         "schema_version": SCHEMA,
         "format": "sandium-brave-source-only-shards",
@@ -650,13 +774,167 @@ def archive(root: Path, workers: int, stage: int, ready: bool, skip_if_unchanged
         "source": metadata,
         "shards": results,
     }
-    temp_manifest = manifest_path.with_suffix(".json.tmp")
-    temp_manifest.write_text(json.dumps(payload, sort_keys=True, indent=2) + "\n",
-                             encoding="utf-8")
-    os.replace(temp_manifest, manifest_path)
+    result_bytes = (json.dumps(payload, sort_keys=True, indent=2) + "\n").encode("utf-8")
+    changed_items = [
+        item for item in results
+        if item["name"] not in previous_items
+        or previous_items[item["name"]].get("sha256") != item.get("sha256")
+        or previous_items[item["name"]].get("root_paths") != item.get("root_paths")
+    ]
+    new_names = {item["name"] for item in results}
+    removed_names = sorted(set(previous_items) - new_names)
+
+    old_dir = root / (SHARDS_NAME + ".previous")
     shutil.rmtree(old_dir, ignore_errors=True)
-    print("SANDIUM_SOURCE_ARCHIVE=PASS stage=%d ready=%s shards=%d source_bytes=%d archive_bytes=%d" %
-          (stage, ready, len(results), total_bytes, total_archive_bytes), flush=True)
+    if final_dir.exists():
+        os.replace(final_dir, old_dir)
+    os.replace(stage_dir, final_dir)
+    temp_manifest = manifest_path.with_suffix(".json.tmp")
+    temp_manifest.write_bytes(result_bytes)
+    os.replace(temp_manifest, manifest_path)
+    if delta:
+        write_delta_record(root, stage, previous_bytes, previous, result_bytes,
+                           payload, changed_items, removed_names, final_dir)
+    shutil.rmtree(old_dir, ignore_errors=True)
+    print("SANDIUM_SOURCE_ARCHIVE=PASS stage=%d ready=%s shards=%d reused=%d changed=%d source_bytes=%d archive_bytes=%d" %
+          (stage, ready, len(results), reused, len(changed_items), total_bytes, total_archive_bytes), flush=True)
+
+
+
+def write_delta_record(root: Path, stage: int, previous_manifest_bytes: bytes | None,
+                       previous: dict[str, Any] | None, result_manifest_bytes: bytes,
+                       result_manifest: dict[str, Any], changed_items: list[dict[str, Any]],
+                       removed_names: list[str], changed_from_dir: Path) -> None:
+    """Publish one immutable, lineage-bound stage delta without duplicating unchanged shards."""
+    delta_root = root / "brave-source-checkpoint.deltas" / ("stage-%d" % stage)
+    shutil.rmtree(delta_root, ignore_errors=True)
+    shard_dir = delta_root / "shards"
+    shard_dir.mkdir(parents=True, exist_ok=True)
+    for item in changed_items:
+        source = changed_from_dir / item["name"]
+        destination = shard_dir / item["name"]
+        shutil.copy2(source, destination)
+        if destination.stat().st_size != int(item["size_bytes"]) or sha256_file(destination) != item["sha256"]:
+            fail("delta shard copy failed integrity check: %s" % item["name"])
+    (delta_root / "result-manifest.json").write_bytes(result_manifest_bytes)
+    delta = {
+        "schema_version": 1,
+        "format": "sandium-brave-source-delta",
+        "stage": stage,
+        "parent_manifest_sha256": hashlib.sha256(previous_manifest_bytes).hexdigest() if previous_manifest_bytes is not None else "",
+        "result_manifest_sha256": hashlib.sha256(result_manifest_bytes).hexdigest(),
+        "changed_shards": changed_items,
+        "removed_shards": sorted(removed_names),
+    }
+    delta_bytes = (json.dumps(delta, sort_keys=True, indent=2) + "\n").encode("utf-8")
+    (delta_root / "delta-manifest.json").write_bytes(delta_bytes)
+    print("SANDIUM_SOURCE_DELTA=PASS stage=%d changed=%d removed=%d parent=%s result=%s" % (
+        stage, len(changed_items), len(removed_names), delta["parent_manifest_sha256"][:12],
+        delta["result_manifest_sha256"][:12]), flush=True)
+
+
+def assemble_deltas(root: Path, through_stage: int, workers: int = 8,
+                    zstd_test: bool = False) -> dict[str, Any]:
+    """Rebuild a cumulative source checkpoint from its immutable base and ordered stage deltas."""
+    base_manifest_path = root / "brave-source-checkpoint.base.manifest.json"
+    base_shards = root / "brave-source-checkpoint.base.shards"
+    if not base_manifest_path.is_file() or not base_shards.is_dir():
+        fail("delta assembly requires the immutable base manifest and shard directory")
+    current_bytes = base_manifest_path.read_bytes()
+    try:
+        current = json.loads(current_bytes)
+    except json.JSONDecodeError as exc:
+        fail("base manifest is invalid JSON: %s" % exc)
+    if current.get("schema_version") != SCHEMA or current.get("format") != "sandium-brave-source-only-shards":
+        fail("base manifest schema/format mismatch")
+    temp_dir = root / (SHARDS_NAME + ".assemble.tmp")
+    shutil.rmtree(temp_dir, ignore_errors=True)
+    temp_dir.mkdir(parents=True)
+    verified_shards: dict[str, str] = {}
+    try:
+        for item in current.get("shards", []):
+            src = base_shards / item["name"]
+            if not src.is_file() or src.stat().st_size != int(item["size_bytes"]) or sha256_file(src) != item["sha256"]:
+                fail("base shard integrity failure: %s" % item.get("name", "unknown"))
+            destination = temp_dir / item["name"]
+            try:
+                os.link(src, destination)
+            except OSError:
+                shutil.copy2(src, destination)
+            verified_shards[item["name"]] = item["sha256"]
+        for stage in range(1, through_stage + 1):
+            delta_dir = root / "brave-source-checkpoint.deltas" / ("stage-%d" % stage)
+            delta_path = delta_dir / "delta-manifest.json"
+            result_path = delta_dir / "result-manifest.json"
+            if not delta_path.is_file() or not result_path.is_file():
+                fail("missing delta manifest/result for stage %d" % stage)
+            delta = json.loads(delta_path.read_text(encoding="utf-8"))
+            result_bytes = result_path.read_bytes()
+            parent_sha = hashlib.sha256(current_bytes).hexdigest()
+            if delta.get("schema_version") != 1 or delta.get("format") != "sandium-brave-source-delta":
+                fail("unsupported delta schema/format at stage %d" % stage)
+            if int(delta.get("stage", -1)) != stage:
+                fail("delta stage sequence mismatch at stage %d" % stage)
+            if delta.get("parent_manifest_sha256") != parent_sha:
+                fail("delta parent lineage mismatch at stage %d" % stage)
+            if delta.get("result_manifest_sha256") != hashlib.sha256(result_bytes).hexdigest():
+                fail("delta result manifest checksum mismatch at stage %d" % stage)
+            result_manifest = json.loads(result_bytes)
+            if result_manifest.get("schema_version") != SCHEMA or result_manifest.get("format") != "sandium-brave-source-only-shards":
+                fail("delta result manifest schema/format mismatch at stage %d" % stage)
+            result_items = result_manifest.get("shards")
+            if not isinstance(result_items, list) or not result_items or len(result_items) > WORKERS_MAX:
+                fail("delta result shard list is invalid at stage %d" % stage)
+            result_names = [item.get("name", "") for item in result_items if isinstance(item, dict)]
+            if len(result_names) != len(result_items) or len(set(result_names)) != len(result_names):
+                fail("delta result contains invalid or duplicate shard names at stage %d" % stage)
+            if any(not name or Path(name).name != name for name in result_names):
+                fail("delta result contains unsafe shard names at stage %d" % stage)
+            for name in delta.get("removed_shards", []):
+                if not isinstance(name, str) or Path(name).name != name:
+                    fail("unsafe removed shard name at stage %d" % stage)
+                (temp_dir / name).unlink(missing_ok=True)
+                verified_shards.pop(name, None)
+            for item in delta.get("changed_shards", []):
+                name = item.get("name", "")
+                if Path(name).name != name:
+                    fail("unsafe delta shard name at stage %d" % stage)
+                src = delta_dir / "shards" / name
+                if not src.is_file() or src.stat().st_size != int(item["size_bytes"]) or sha256_file(src) != item["sha256"]:
+                    fail("delta shard integrity failure at stage %d: %s" % (stage, name))
+                shutil.copy2(src, temp_dir / name)
+                verified_shards[name] = item["sha256"]
+            current = result_manifest
+            current_bytes = result_bytes
+        expected = {item["name"]: item for item in current.get("shards", [])}
+        actual = {p.name for p in temp_dir.iterdir() if p.is_file()}
+        if actual != set(expected):
+            fail("assembled shard set differs from final manifest")
+        for item in expected.values():
+            path = temp_dir / item["name"]
+            if path.stat().st_size != int(item["size_bytes"]) or verified_shards.get(item["name"]) != item["sha256"]:
+                fail("assembled shard checksum/lineage mismatch: %s" % item["name"])
+            if zstd_test:
+                check = subprocess.run(["zstd", "-t", str(path)], stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+                if check.returncode:
+                    fail("assembled shard zstd validation failed: %s" % item["name"])
+        final_dir = root / SHARDS_NAME
+        previous_dir = root / (SHARDS_NAME + ".assemble.previous")
+        shutil.rmtree(previous_dir, ignore_errors=True)
+        if final_dir.exists():
+            os.replace(final_dir, previous_dir)
+        os.replace(temp_dir, final_dir)
+        manifest_path = root / MANIFEST_NAME
+        temp_manifest = manifest_path.with_suffix(".json.assemble.tmp")
+        temp_manifest.write_bytes(current_bytes)
+        os.replace(temp_manifest, manifest_path)
+        shutil.rmtree(previous_dir, ignore_errors=True)
+        print("SANDIUM_SOURCE_DELTA_ASSEMBLY=PASS through_stage=%d shards=%d ready=%s" % (
+            through_stage, len(expected), current.get("ready")), flush=True)
+        return current
+    except Exception:
+        shutil.rmtree(temp_dir, ignore_errors=True)
+        raise
 
 
 def load_manifest(root: Path) -> tuple[dict[str, Any], Path]:
@@ -915,25 +1193,35 @@ def validate_restored_workspace(root: Path, payload: dict[str, Any]) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("command", choices=("archive", "verify", "restore"))
+    parser.add_argument("command", choices=("archive", "verify", "restore", "assemble-deltas", "capture-fingerprints"))
     parser.add_argument("--root", required=True)
     parser.add_argument("--workers", type=int, default=WORKERS_MAX)
     parser.add_argument("--stage", type=int, default=0)
     parser.add_argument("--ready", action="store_true")
     parser.add_argument("--zstd-test", action="store_true")
     parser.add_argument("--skip-if-unchanged", action="store_true",
-                        help="reuse the verified previous progress archive when source state did not change")
+                        help="reuse the verified previous archive when source state did not change")
+    parser.add_argument("--delta", action="store_true",
+                        help="publish a manifest-linked delta for this stage")
+    parser.add_argument("--through-stage", type=int, default=0,
+                        help="assemble ordered stage deltas through this stage")
     args = parser.parse_args()
     root = Path(args.root).resolve()
     workers = max(1, min(WORKERS_MAX, int(args.workers)))
     if not shutil.which("zstd") or not shutil.which("tar"):
         fail("tar and zstd are required")
     if args.command == "archive":
-        archive(root, workers, args.stage, args.ready, args.skip_if_unchanged)
+        archive(root, workers, args.stage, args.ready, args.skip_if_unchanged, args.delta)
     elif args.command == "verify":
         verify(root, workers, args.zstd_test, args.ready)
     elif args.command == "restore":
         restore(root, workers, args.ready)
+    elif args.command == "assemble-deltas":
+        if args.through_stage < 1 or args.through_stage > 5:
+            fail("assemble-deltas requires --through-stage 1..5")
+        assemble_deltas(root, args.through_stage, workers, zstd_test=args.zstd_test)
+    elif args.command == "capture-fingerprints":
+        capture_fingerprints(root)
 
 
 if __name__ == "__main__":

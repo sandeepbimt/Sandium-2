@@ -19,9 +19,13 @@ jobs:
           name: Validate pinned Brave source preparation logic
           command: |
             set -euo pipefail
-            python3 -m py_compile .circleci/scripts/sandium-source-shards.py .circleci/scripts/test-brave-source-sync-strategy.py .circleci/scripts/test-source-checkpoint-restore-gate.py
+            python3 -m py_compile .circleci/scripts/sandium-source-shards.py .circleci/scripts/test-brave-source-sync-strategy.py .circleci/scripts/test-source-checkpoint-restore-gate.py .circleci/scripts/test-chromium-partial-clone-probe.py .circleci/scripts/test-source-delta-assembly.py
             bash -n .circleci/scripts/prepare-brave-source.sh
             bash -n .circleci/scripts/source-prep-stage.sh
+            bash -n .circleci/scripts/probe-chromium-partial-clone.sh
+            bash -n .circleci/scripts/prepare-source-delta-base.sh
+            python3 .circleci/scripts/test-chromium-partial-clone-probe.py
+            python3 .circleci/scripts/test-source-delta-assembly.py
             python3 .circleci/scripts/test-brave-source-sync-strategy.py
             echo "SANDIUM_SOURCE_SYNC_REGRESSION=PASS"
             echo "SANDIUM_SOURCE_FETCH_NO_PROGRESS_GATE=ENABLED"
@@ -1479,16 +1483,28 @@ jobs:
           steps:
             - attach_workspace:
                 at: .
+            - restore_cache:
+                name: Restore the same immutable source base used by Stage 1
+                keys:
+                  - sandium-brave-pinning-progress-v3-{{ checksum ".circleci/source-pin-refresh-id" }}-
+                  - sandium-brave-pinning-progress-v3-
+                  - sandium-brave-pinning-progress-v2-{{ checksum ".circleci/source-pin-refresh-id" }}-
+                  - sandium-brave-pinning-progress-v2-
+                  - sandium-brave-pinned-source-v3-
+                  - sandium-brave-pinned-source-v2-
+                  - sandium-brave-reference-v3-{{ .Branch }}-
+                  - sandium-brave-handoff-v2-sandium/fix-archive-completion-gate-d0bc6af6-e2a7-451e-8561-3c90eb48c2e1-stage-5
+                  - sandium-brave-handoff-v2-sandium/fix-archive-completion-gate-d0bc6af6-e2a7-451e-8561-3c90eb48c2e1-stage-4
+                  - sandium-brave-handoff-v2-sandium/fix-archive-completion-gate-d0bc6af6-e2a7-451e-8561-3c90eb48c2e1-stage-3
+                  - sandium-brave-handoff-v2-sandium/fix-archive-completion-gate-d0bc6af6-e2a7-451e-8561-3c90eb48c2e1-stage-2
+                  - sandium-brave-handoff-v2-sandium/fix-archive-completion-gate-d0bc6af6-e2a7-451e-8561-3c90eb48c2e1-stage-1
             - run:
-                name: Fast exit when an earlier stage published the ready pinning reference
+                name: Re-establish immutable base and reconstruct cumulative source checkpoint
                 command: |
                   set -euo pipefail
-                  STATUS_DIR="$CIRCLE_WORKING_DIRECTORY/pinning-status"
-                  if [ -d "$STATUS_DIR" ] && grep -Rqx 'PINNING_READY=true' "$STATUS_DIR"; then
-                    echo "SANDIUM_PINNING_STAGE=FAST_EXIT earlier stage already completed pinning"
-                    circleci-agent step halt
-                  fi
-                  echo "SANDIUM_PINNING_STAGE=CONTINUE pinning incomplete"
+                  bash .circleci/scripts/prepare-source-delta-base.sh
+                  python3 .circleci/scripts/sandium-source-shards.py assemble-deltas --root "$CIRCLE_WORKING_DIRECTORY" --workers 8 --through-stage "$((<< parameters.stage_index >> - 1))"
+                  echo "SANDIUM_SOURCE_DELTA_PARENT=PASS stage=<< parameters.stage_index >>; base and changed shard digests verified during assembly"
       - when:
           condition:
             equal: [1, << parameters.stage_index >>]
@@ -1496,9 +1512,12 @@ jobs:
             - restore_cache:
                 name: Restore latest pinned source, compiled reference, or protected canonical base
                 keys:
+                  - sandium-brave-pinning-progress-v3-{{ checksum ".circleci/source-pin-refresh-id" }}-
+                  - sandium-brave-pinning-progress-v3-
                   - sandium-brave-pinning-progress-v2-{{ checksum ".circleci/source-pin-refresh-id" }}-
 # Any prior run's newest cumulative progress checkpoint (each stage archive is cumulative).
                   - sandium-brave-pinning-progress-v2-
+                  - sandium-brave-pinned-source-v3-
                   - sandium-brave-pinned-source-v2-
                   - sandium-brave-reference-v3-{{ .Branch }}-
 # Restore the furthest cumulative reference available; it includes all completed earlier stages.
@@ -1507,57 +1526,7 @@ jobs:
                   - sandium-brave-handoff-v2-sandium/fix-archive-completion-gate-d0bc6af6-e2a7-451e-8561-3c90eb48c2e1-stage-3
                   - sandium-brave-handoff-v2-sandium/fix-archive-completion-gate-d0bc6af6-e2a7-451e-8561-3c90eb48c2e1-stage-2
                   - sandium-brave-handoff-v2-sandium/fix-archive-completion-gate-d0bc6af6-e2a7-451e-8561-3c90eb48c2e1-stage-1
-      - when:
-          condition:
-            equal: [2, << parameters.stage_index >>]
-          steps:
-            - restore_cache:
-                name: Restore source-preparation Stage 1 checkpoint
-                keys:
-                  - sandium-brave-pinning-progress-v2-{{ checksum ".circleci/source-pin-refresh-id" }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-1
-      - when:
-          condition:
-            equal: [3, << parameters.stage_index >>]
-          steps:
-            - restore_cache:
-                name: Restore source-preparation Stage 2 checkpoint
-                keys:
-                  - sandium-brave-pinning-progress-v2-{{ checksum ".circleci/source-pin-refresh-id" }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-2
-                  - sandium-brave-pinning-progress-v2-{{ checksum ".circleci/source-pin-refresh-id" }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-1
-      - when:
-          condition:
-            equal: [4, << parameters.stage_index >>]
-          steps:
-            - restore_cache:
-                name: Restore source-preparation Stage 3 checkpoint
-                keys:
-                  - sandium-brave-pinning-progress-v2-{{ checksum ".circleci/source-pin-refresh-id" }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-3
-                  - sandium-brave-pinning-progress-v2-{{ checksum ".circleci/source-pin-refresh-id" }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-2
-                  - sandium-brave-pinning-progress-v2-{{ checksum ".circleci/source-pin-refresh-id" }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-1
-      - when:
-          condition:
-            equal: [5, << parameters.stage_index >>]
-          steps:
-            - restore_cache:
-                name: Restore source-preparation Stage 4 checkpoint
-                keys:
-                  - sandium-brave-pinning-progress-v2-{{ checksum ".circleci/source-pin-refresh-id" }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-4
-                  - sandium-brave-pinning-progress-v2-{{ checksum ".circleci/source-pin-refresh-id" }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-3
-                  - sandium-brave-pinning-progress-v2-{{ checksum ".circleci/source-pin-refresh-id" }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-2
-                  - sandium-brave-pinning-progress-v2-{{ checksum ".circleci/source-pin-refresh-id" }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-1
-      - when:
-          condition:
-            equal: [1, << parameters.stage_index >>]
-          steps:
-            - run:
-                name: Exit before a redundant save when the requested reference is already current
-                command: |
-                  set -euo pipefail
-                  STATUS="$CIRCLE_WORKING_DIRECTORY/pinning-status/stage-1-result.env"
-                  if grep -qx 'READY_ALREADY=true' "$STATUS"; then
-                    echo "SANDIUM_PINNING_REFERENCE=ALREADY_CURRENT"
-                    circleci-agent step halt
-                  fi
+
       - restore_cache:
           name: Restore pinned Node and pnpm runtime
           keys:
@@ -1574,11 +1543,35 @@ jobs:
             test -s "$CIRCLE_WORKING_DIRECTORY/pinning-status/source-restore-receipt.env"
             grep -qx 'RESTORE_RESULT=PASS' "$CIRCLE_WORKING_DIRECTORY/pinning-status/source-restore-receipt.env"
             echo "SANDIUM_SOURCE_RESTORE_RECEIPT=PASS stage=<< parameters.stage_index >>"
+      - when:
+          condition:
+            equal: [1, << parameters.stage_index >>]
+          steps:
+            - run:
+                name: Preserve immutable base checkpoint for incremental stage deltas
+                command: |
+                  set -euo pipefail
+                  bash .circleci/scripts/prepare-source-delta-base.sh
+      - run:
+          name: Fingerprint restored source shard contents before this stage mutates them
+          command: |
+            set -euo pipefail
+            python3 .circleci/scripts/sandium-source-shards.py capture-fingerprints --root "$CIRCLE_WORKING_DIRECTORY" --workers 8
       - run:
           name: Execute real Brave and Chromium source preparation for this stage
           command: |
             set -euo pipefail
             bash .circleci/scripts/source-prep-stage.sh "<< parameters.stage_index >>"
+      - when:
+          condition:
+            equal: [5, << parameters.stage_index >>]
+          steps:
+            - run:
+                name: Assemble and verify the complete Stage 5 cumulative source checkpoint
+                command: |
+                  set -euo pipefail
+                  python3 .circleci/scripts/sandium-source-shards.py assemble-deltas --root "$CIRCLE_WORKING_DIRECTORY" --workers 8 --through-stage 5
+                  echo "SANDIUM_SOURCE_STAGE5_ASSEMBLY=PASS full checkpoint reconstructed from base plus ordered deltas"
       - run:
           name: Publish verified source-preparation stage status
           command: |
@@ -1607,11 +1600,7 @@ jobs:
               echo "WORKFLOW_ID=${CIRCLE_WORKFLOW_ID:-unknown}"
             } > "$ROOT/pinning-status/stage-$STAGE-result.env"
             echo "SANDIUM_PINNING_STAGE_STATUS=PASS stage=$STAGE ready=$READY"
-      - persist_to_workspace:
-          root: .
-          paths:
-            - pinning-status/stage-<< parameters.stage_index >>-result.env
-            - pinning-status/source-restore-receipt.env
+
       - run:
           name: Record unchanged source checkpoint without skipping stage cache publication
           command: |
@@ -1624,12 +1613,47 @@ jobs:
             else
               echo "SANDIUM_PINNING_ARCHIVE=CHANGED stage=$STAGE; publish the newly verified cumulative checkpoint."
             fi
-      - save_cache:
-          name: Save source-preparation stage << parameters.stage_index >> checkpoint
-          key: sandium-brave-pinning-progress-v2-{{ checksum ".circleci/source-pin-refresh-id" }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-<< parameters.stage_index >>
-          paths:
-            - brave-source-checkpoint.shards
-            - brave-source-checkpoint.manifest.json
+      - when:
+          condition:
+            equal: [1, << parameters.stage_index >>]
+          steps:
+            - persist_to_workspace:
+                root: .
+                paths:
+                  - brave-source-checkpoint.deltas/stage-1
+                  - pinning-status/stage-1-result.env
+                  - pinning-status/source-restore-receipt.env
+      - when:
+          condition:
+            and:
+              - not:
+                  equal: [1, << parameters.stage_index >>]
+              - not:
+                  equal: [5, << parameters.stage_index >>]
+          steps:
+            - persist_to_workspace:
+                root: .
+                paths:
+                  - brave-source-checkpoint.deltas/stage-<< parameters.stage_index >>
+                  - pinning-status/stage-<< parameters.stage_index >>-result.env
+                  - pinning-status/source-restore-receipt.env
+      - when:
+          condition:
+            equal: [5, << parameters.stage_index >>]
+          steps:
+            - persist_to_workspace:
+                root: .
+                paths:
+                  - pinning-status/stage-5-result.env
+                  - pinning-status/source-restore-receipt.env
+            - save_cache:
+                name: Save one assembled cumulative source checkpoint after Stage 5
+                key: sandium-brave-pinning-progress-v3-{{ checksum ".circleci/source-pin-refresh-id" }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-5
+                paths:
+                  - brave-source-checkpoint.shards
+                  - brave-source-checkpoint.manifest.json
+                  - pinning-status/stage-5-result.env
+                  - pinning-status/source-restore-receipt.env
       - save_cache:
           name: Save pinned Node and pnpm runtime
           key: sandium-brave-node-v2-24.16.0-pnpm-11.11.0
@@ -1656,7 +1680,7 @@ jobs:
                   if grep -qx 'PINNING_READY=true' "$STATUS"; then
                     echo "SANDIUM_PINNING_WORKFLOW=PASS ready source reference was produced."
                   else
-                    echo "SANDIUM_PINNING_WORKFLOW=INCOMPLETE all five 30-minute slices exhausted; progress cache retained and previous stable reference untouched." >&2
+                    echo "SANDIUM_PINNING_WORKFLOW=INCOMPLETE all five stages exhausted; Stage 5 cumulative progress cache retained and previous stable reference untouched." >&2
                     exit 1
                   fi
 
@@ -1689,7 +1713,7 @@ jobs:
       - restore_cache:
           name: Restore source archive from the stage that completed pinning
           keys:
-            - sandium-brave-pinning-progress-v2-{{ checksum ".circleci/source-pin-refresh-id" }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-
+            - sandium-brave-pinning-progress-v3-{{ checksum ".circleci/source-pin-refresh-id" }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-
       - run:
           name: Verify ready shards and current refresh request before promotion
           command: |
@@ -1726,7 +1750,7 @@ jobs:
             PY
       - save_cache:
           name: Promote immutable source-only Brave/Chromium pinning reference
-          key: sandium-brave-pinned-source-v2-{{ checksum ".circleci/source-pin-refresh-id" }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-ready
+          key: sandium-brave-pinned-source-v3-{{ checksum ".circleci/source-pin-refresh-id" }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-ready
           paths:
             - brave-source-checkpoint.shards
             - brave-source-checkpoint.manifest.json
@@ -2813,6 +2837,7 @@ workflows:
               only:
                 - optimization/incremental-brave-source-sync
                 - fix/source-prep-nonresumable-git-fetch
+                - fix/chromium-partial-fetch-and-source-shards
   c4-afterbird-staged-checkpoint-build:
     jobs:
       - c4-afterbird-staged-build:
@@ -2873,6 +2898,7 @@ workflows:
         - equal: [architecture/sandium-pinning-v2-build, << pipeline.git.branch >>]
         - equal: [work/pinned-data-save-hardening, << pipeline.git.branch >>]
         - equal: [fix/source-prep-nonresumable-git-fetch, << pipeline.git.branch >>]
+        - equal: [fix/chromium-partial-fetch-and-source-shards, << pipeline.git.branch >>]
     jobs:
       - brave-source-preparation-stage:
           name: SANDIUM-SOURCE-PREP-stage-1
@@ -2885,6 +2911,7 @@ workflows:
                 - architecture/sandium-pinning-v2-build
                 - work/pinned-data-save-hardening
                 - fix/source-prep-nonresumable-git-fetch
+                - fix/chromium-partial-fetch-and-source-shards
       - brave-source-preparation-stage:
           name: SANDIUM-SOURCE-PREP-stage-2
           stage_index: 2
@@ -2897,6 +2924,7 @@ workflows:
                 - architecture/sandium-pinning-v2-build
                 - work/pinned-data-save-hardening
                 - fix/source-prep-nonresumable-git-fetch
+                - fix/chromium-partial-fetch-and-source-shards
       - brave-source-preparation-stage:
           name: SANDIUM-SOURCE-PREP-stage-3
           stage_index: 3
@@ -2909,6 +2937,7 @@ workflows:
                 - architecture/sandium-pinning-v2-build
                 - work/pinned-data-save-hardening
                 - fix/source-prep-nonresumable-git-fetch
+                - fix/chromium-partial-fetch-and-source-shards
       - brave-source-preparation-stage:
           name: SANDIUM-SOURCE-PREP-stage-4
           stage_index: 4
@@ -2921,6 +2950,7 @@ workflows:
                 - architecture/sandium-pinning-v2-build
                 - work/pinned-data-save-hardening
                 - fix/source-prep-nonresumable-git-fetch
+                - fix/chromium-partial-fetch-and-source-shards
       - brave-source-preparation-stage:
           name: SANDIUM-SOURCE-PREP-stage-5
           stage_index: 5
@@ -2933,6 +2963,7 @@ workflows:
                 - architecture/sandium-pinning-v2-build
                 - work/pinned-data-save-hardening
                 - fix/source-prep-nonresumable-git-fetch
+                - fix/chromium-partial-fetch-and-source-shards
       - promote-brave-pinned-source-reference:
           name: SANDIUM-SOURCE-PREP-reference-promotion
           requires: [SANDIUM-SOURCE-PREP-stage-5]
@@ -2943,6 +2974,7 @@ workflows:
                 - architecture/separate-brave-source-preparation
                 - architecture/sandium-pinning-v2-build
                 - work/pinned-data-save-hardening
+                - fix/chromium-partial-fetch-and-source-shards
   sandium-full-mode:
     when:
       and:
