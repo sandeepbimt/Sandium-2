@@ -1,12 +1,11 @@
 version: 2.1
 
 parameters:
-  # First rollout is deliberately FULL MODE to establish the first verified reference.
-  # Switch the default to FAST MODE after FULL MODE promotion succeeds.
+  # FAST MODE is the default for ordinary changes; select FULL MODE explicitly.
   sandium_build_mode:
     type: enum
     enum: [full, fast]
-    default: full
+    default: fast
 
 jobs:
   c4-afterbird-staged-build:
@@ -1561,6 +1560,8 @@ jobs:
             bash -n .circleci/scripts/prepare-brave-source.sh
             bash -n .circleci/scripts/apply-sandium-branding.sh
             python3 -m py_compile .circleci/scripts/generate-sandium-density-assets.py
+            python3 -m py_compile .circleci/scripts/apply-sandium-adblock.py .circleci/scripts/test-sandium-adblock.py
+            python3 .circleci/scripts/test-sandium-adblock.py
             bash -n .circleci/scripts/recover-siso-missing-cas-inputs.sh
             echo "BRAVE_PIPELINE_SELF_TEST=PASS"
       - when:
@@ -1607,10 +1608,14 @@ jobs:
               - equal: [fast, << pipeline.parameters.sandium_build_mode >>]
           steps:
             - restore_cache:
-                name: Restore latest promoted Sandium reference
+                name: Restore canonical 26 GiB reference (3c8004b / cache job 949)
                 keys:
-                  - sandium-brave-reference-v2-{{ .Branch }}-
-                  - sandium-brave-reference-v1-{{ .Branch }}-
+                  # Canonical 26 GiB accepted FULL MODE Stage-1 handoff:
+                  # branch sandium/fix-archive-completion-gate, commit 3c8004b,
+                  # workflow d0bc6af6-e2a7-451e-8561-3c90eb48c2e1.
+                  # Restore this exact immutable checkpoint first; do not substitute
+                  # an unverified branch-local cache.
+                  - sandium-brave-handoff-v2-sandium/fix-archive-completion-gate-d0bc6af6-e2a7-451e-8561-3c90eb48c2e1-stage-1
       - when:
           condition:
             and:
@@ -1662,10 +1667,14 @@ jobs:
               - equal: [fast, << pipeline.parameters.sandium_build_mode >>]
           steps:
             - restore_cache:
-                name: Restore immutable reference for FAST MODE Stage 2
+                name: Restore canonical 26 GiB reference for FAST MODE Stage 2
                 keys:
-                  - sandium-brave-reference-v2-{{ .Branch }}-
-                  - sandium-brave-reference-v1-{{ .Branch }}-
+                  # Canonical 26 GiB accepted FULL MODE Stage-1 handoff:
+                  # branch sandium/fix-archive-completion-gate, commit 3c8004b,
+                  # workflow d0bc6af6-e2a7-451e-8561-3c90eb48c2e1.
+                  # Restore this exact immutable checkpoint first; do not substitute
+                  # an unverified branch-local cache.
+                  - sandium-brave-handoff-v2-sandium/fix-archive-completion-gate-d0bc6af6-e2a7-451e-8561-3c90eb48c2e1-stage-1
       - when:
           condition:
             and:
@@ -1673,10 +1682,14 @@ jobs:
               - equal: [fast, << pipeline.parameters.sandium_build_mode >>]
           steps:
             - restore_cache:
-                name: Restore immutable reference for FAST MODE Stage 3
+                name: Restore canonical 26 GiB reference for FAST MODE Stage 3
                 keys:
-                  - sandium-brave-reference-v2-{{ .Branch }}-
-                  - sandium-brave-reference-v1-{{ .Branch }}-
+                  # Canonical 26 GiB accepted FULL MODE Stage-1 handoff:
+                  # branch sandium/fix-archive-completion-gate, commit 3c8004b,
+                  # workflow d0bc6af6-e2a7-451e-8561-3c90eb48c2e1.
+                  # Restore this exact immutable checkpoint first; do not substitute
+                  # an unverified branch-local cache.
+                  - sandium-brave-handoff-v2-sandium/fix-archive-completion-gate-d0bc6af6-e2a7-451e-8561-3c90eb48c2e1-stage-1
       - when:
           condition:
             and:
@@ -1684,10 +1697,14 @@ jobs:
               - equal: [fast, << pipeline.parameters.sandium_build_mode >>]
           steps:
             - restore_cache:
-                name: Restore immutable reference for FAST MODE Stage 4
+                name: Restore canonical 26 GiB reference for FAST MODE Stage 4
                 keys:
-                  - sandium-brave-reference-v2-{{ .Branch }}-
-                  - sandium-brave-reference-v1-{{ .Branch }}-
+                  # Canonical 26 GiB accepted FULL MODE Stage-1 handoff:
+                  # branch sandium/fix-archive-completion-gate, commit 3c8004b,
+                  # workflow d0bc6af6-e2a7-451e-8561-3c90eb48c2e1.
+                  # Restore this exact immutable checkpoint first; do not substitute
+                  # an unverified branch-local cache.
+                  - sandium-brave-handoff-v2-sandium/fix-archive-completion-gate-d0bc6af6-e2a7-451e-8561-3c90eb48c2e1-stage-1
       - when:
           condition:
             and:
@@ -1695,10 +1712,14 @@ jobs:
               - equal: [fast, << pipeline.parameters.sandium_build_mode >>]
           steps:
             - restore_cache:
-                name: Restore immutable reference for FAST MODE Stage 5
+                name: Restore canonical 26 GiB reference for FAST MODE Stage 5
                 keys:
-                  - sandium-brave-reference-v2-{{ .Branch }}-
-                  - sandium-brave-reference-v1-{{ .Branch }}-
+                  # Canonical 26 GiB accepted FULL MODE Stage-1 handoff:
+                  # branch sandium/fix-archive-completion-gate, commit 3c8004b,
+                  # workflow d0bc6af6-e2a7-451e-8561-3c90eb48c2e1.
+                  # Restore this exact immutable checkpoint first; do not substitute
+                  # an unverified branch-local cache.
+                  - sandium-brave-handoff-v2-sandium/fix-archive-completion-gate-d0bc6af6-e2a7-451e-8561-3c90eb48c2e1-stage-1
       - restore_cache:
           keys:
             - sandium-brave-node-v1-24.16.0
@@ -2483,6 +2504,7 @@ workflows:
               only:
                 - sandium/brave-android-poc
                 - sandium/archive-zstd-fast5
+                - feature/sandium-ubo-filters-v19862
       - brave-android-staged-build:
           name: SANDIUM-FAST-MODE-stage-2
           stage_index: 2
@@ -2492,6 +2514,7 @@ workflows:
               only:
                 - sandium/brave-android-poc
                 - sandium/archive-zstd-fast5
+                - feature/sandium-ubo-filters-v19862
       - brave-android-staged-build:
           name: SANDIUM-FAST-MODE-stage-3
           stage_index: 3
@@ -2501,6 +2524,7 @@ workflows:
               only:
                 - sandium/brave-android-poc
                 - sandium/archive-zstd-fast5
+                - feature/sandium-ubo-filters-v19862
       - brave-android-staged-build:
           name: SANDIUM-FAST-MODE-stage-4
           stage_index: 4
@@ -2510,6 +2534,7 @@ workflows:
               only:
                 - sandium/brave-android-poc
                 - sandium/archive-zstd-fast5
+                - feature/sandium-ubo-filters-v19862
       - brave-android-staged-build:
           name: SANDIUM-FAST-MODE-stage-5
           stage_index: 5
@@ -2519,3 +2544,4 @@ workflows:
               only:
                 - sandium/brave-android-poc
                 - sandium/archive-zstd-fast5
+                - feature/sandium-ubo-filters-v19862

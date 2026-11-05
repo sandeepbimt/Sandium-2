@@ -400,3 +400,36 @@ PY
   pnpm run build Release --target_os=android --target_arch=arm64 --target_android_output_format=apk --use_remoteexec=true --gn use_siso:true --gn use_reclient:false --gn is_java_debug:false --gn enable_android_secondary_abi:false --gn is_official_build:false --gn enable_updater:false --gn enable_update_notifications:false --gn android_channel:default --gn chrome_public_manifest_package:com.brave.browser_default --gn brave_channel:development --target brave --ninja=n
   bash "$ROOT/.circleci/scripts/verify-clang-diagnostics-gn.sh"
 fi
+
+# Sandium native Shields/uBlock-compatible filter backport.
+# This runs after source restore/preparation in every stage. It never changes pins.
+SRC_DIR="$ROOT/brave-work/src"
+CORE_DIR="$SRC_DIR/brave"
+EXPECTED_BRAVE_CORE_SHA="44a84b1f89d9a35287289d6a3d493e362f5a5123"
+EXPECTED_CHROMIUM_TAG="156.0.8078.74"
+EXPECTED_CHROMIUM_SHA="d331de35ca8ab1358c7a17e4bd41627d55eaef51"
+
+ACTUAL_BRAVE_TAG="$(git -C "$CORE_DIR" describe --tags --exact-match 2>/dev/null || true)"
+ACTUAL_BRAVE_SHA="$(git -C "$CORE_DIR" rev-parse HEAD 2>/dev/null || true)"
+ACTUAL_CHROMIUM_SHA="$(git -C "$SRC_DIR" rev-parse HEAD 2>/dev/null || true)"
+ACTUAL_CHROMIUM_TAG="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["config"]["projects"]["chrome"]["tag"])' "$CORE_DIR/package.json")"
+
+[ "$ACTUAL_BRAVE_TAG" = "v1.98.62" ] || {
+  echo "SANDIUM_ADBLOCK_PIN_GATE=FAIL expected Brave v1.98.62, found $ACTUAL_BRAVE_TAG" >&2
+  exit 1
+}
+[ "$ACTUAL_BRAVE_SHA" = "$EXPECTED_BRAVE_CORE_SHA" ] || {
+  echo "SANDIUM_ADBLOCK_PIN_GATE=FAIL Brave Core SHA mismatch expected=$EXPECTED_BRAVE_CORE_SHA actual=$ACTUAL_BRAVE_SHA" >&2
+  exit 1
+}
+[ "$ACTUAL_CHROMIUM_TAG" = "$EXPECTED_CHROMIUM_TAG" ] || {
+  echo "SANDIUM_ADBLOCK_PIN_GATE=FAIL Chromium tag mismatch expected=$EXPECTED_CHROMIUM_TAG actual=$ACTUAL_CHROMIUM_TAG" >&2
+  exit 1
+}
+[ "$ACTUAL_CHROMIUM_SHA" = "$EXPECTED_CHROMIUM_SHA" ] || {
+  echo "SANDIUM_ADBLOCK_PIN_GATE=FAIL Chromium SHA mismatch expected=$EXPECTED_CHROMIUM_SHA actual=$ACTUAL_CHROMIUM_SHA" >&2
+  exit 1
+}
+
+echo "SANDIUM_ADBLOCK_PIN_GATE=PASS brave=$ACTUAL_BRAVE_TAG brave_sha=$ACTUAL_BRAVE_SHA chromium=$ACTUAL_CHROMIUM_TAG chromium_sha=$ACTUAL_CHROMIUM_SHA"
+python3 "$ROOT/.circleci/scripts/apply-sandium-adblock.py" --core "$CORE_DIR"
