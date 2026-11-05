@@ -220,17 +220,18 @@ export SANDIUM_ARCHIVE_WORKERS=8
 if [ "$READY" = true ]; then
   if [ "$RESTORED_READY" = true ]; then
     touch "$STATE/source-archive-unchanged"
-    echo "SANDIUM_PINNING_ARCHIVE=REUSE already-verified-ready-reference=true stage=$STAGE; no duplicate archive"
+    python3 "$ROOT/.circleci/scripts/sandium-source-shards.py" archive --root "$ROOT" --workers 8 --stage "$STAGE" --ready --skip-if-unchanged --delta
+    echo "SANDIUM_PINNING_ARCHIVE=REUSE already-verified-ready-reference=true stage=$STAGE; lineage delta recorded"
   else
-    python3 "$ROOT/.circleci/scripts/sandium-source-shards.py" archive --root "$ROOT" --workers 8 --stage "$STAGE" --ready
+    python3 "$ROOT/.circleci/scripts/sandium-source-shards.py" archive --root "$ROOT" --workers 8 --stage "$STAGE" --ready --delta
     python3 "$ROOT/.circleci/scripts/sandium-source-shards.py" verify --root "$ROOT" --workers 8 --ready --zstd-test
-    echo "SANDIUM_PINNING_ARCHIVE=PASS ready=true stage=$STAGE"
+    echo "SANDIUM_PINNING_ARCHIVE=PASS ready=true stage=$STAGE; changed shards only"
   fi
 else
   # Every stage, including Stage 1 retries, may reuse an identical verified
   # progress checkpoint. A new refresh request or changed durable state still
   # creates a new cumulative archive.
-  python3 "$ROOT/.circleci/scripts/sandium-source-shards.py" archive --root "$ROOT" --workers 8 --stage "$STAGE" --skip-if-unchanged
+  python3 "$ROOT/.circleci/scripts/sandium-source-shards.py" archive --root "$ROOT" --workers 8 --stage "$STAGE" --skip-if-unchanged --delta
   if [ -s "$STATE/source-archive-unchanged" ]; then
     echo "SANDIUM_PINNING_ARCHIVE=REUSE unchanged_source_state=true stage=$STAGE; do not upload duplicate shards"
   else
