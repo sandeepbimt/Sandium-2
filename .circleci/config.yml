@@ -1613,15 +1613,16 @@ jobs:
             - pinning-status/stage-<< parameters.stage_index >>-result.env
             - pinning-status/source-restore-receipt.env
       - run:
-          name: Avoid duplicate upload when this source slice made no reusable progress
+          name: Record unchanged source checkpoint without skipping stage cache publication
           command: |
             set -euo pipefail
             ROOT="$CIRCLE_WORKING_DIRECTORY"
             STAGE="<< parameters.stage_index >>"
             MARKER="$ROOT/brave-work/.sandium/source-archive-unchanged"
             if [ -s "$MARKER" ]; then
-              echo "SANDIUM_PINNING_WORKFLOW=STOP stage=$STAGE reason=no_validated_source_progress; no next stage will repeat the same fetch; previous checkpoint retained."
-              exit 75
+              echo "SANDIUM_PINNING_ARCHIVE=UNCHANGED stage=$STAGE; publish the restored cumulative checkpoint under this workflow's stage key before stopping continuation."
+            else
+              echo "SANDIUM_PINNING_ARCHIVE=CHANGED stage=$STAGE; publish the newly verified cumulative checkpoint."
             fi
       - save_cache:
           name: Save source-preparation stage << parameters.stage_index >> checkpoint
