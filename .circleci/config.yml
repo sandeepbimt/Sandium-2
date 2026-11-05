@@ -1633,6 +1633,15 @@ jobs:
           key: sandium-brave-node-v2-24.16.0-pnpm-11.11.0
           paths:
             - node-runtime
+      - run:
+          name: Stop after non-resumable Chromium fetch made no durable progress
+          command: |
+            set -euo pipefail
+            MARKER="$CIRCLE_WORKING_DIRECTORY/brave-work/.sandium/source-sync-no-progress"
+            if [ -s "$MARKER" ]; then
+              echo "SANDIUM_PINNING_WORKFLOW=STOP; Stage << parameters.stage_index >> checkpoint saved, but Chromium Git state did not advance. No next stage will repeat the fetch."
+              exit 75
+            fi
       - when:
           condition:
             equal: [5, << parameters.stage_index >>]
