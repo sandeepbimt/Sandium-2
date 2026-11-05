@@ -729,7 +729,7 @@ def write_delta_record(root: Path, stage: int, previous_manifest_bytes: bytes | 
         "changed_shards": changed_items,
         "removed_shards": sorted(removed_names),
     }
-    delta_bytes = (json.dumps(delta, sort_keys=True, indent=2) + "\\n").encode("utf-8")
+    delta_bytes = (json.dumps(delta, sort_keys=True, indent=2) + "\n").encode("utf-8")
     (delta_root / "delta-manifest.json").write_bytes(delta_bytes)
     print("SANDIUM_SOURCE_DELTA=PASS stage=%d changed=%d removed=%d parent=%s result=%s" % (
         stage, len(changed_items), len(removed_names), delta["parent_manifest_sha256"][:12],
