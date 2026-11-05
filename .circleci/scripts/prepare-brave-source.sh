@@ -208,9 +208,9 @@ if grep -qx 'PARTIAL_CLONE_SUPPORTED=true' "$PROBE_MARKER" 2>/dev/null && [ "${S
   git -C "$SRC" config extensions.partialClone origin
   git -C "$SRC" config remote.origin.promisor true
   git -C "$SRC" config remote.origin.partialclonefilter blob:none
-  echo "BRAVE_CHROMIUM_PARTIAL_CLONE=ENABLED tag=$CHROMIUM_TAG; endpoint probe passed and explicit experiment opt-in is set"
+  echo "BRAVE_CHROMIUM_PARTIAL_CLONE=ENABLED tag=$CHROMIUM_TAG; endpoint probe passed; filtered fetch enabled by default (override SANDIUM_ENABLE_CHROMIUM_PARTIAL_CLONE=false)"
 elif grep -qx 'PARTIAL_CLONE_SUPPORTED=true' "$PROBE_MARKER" 2>/dev/null; then
-  echo "BRAVE_CHROMIUM_PARTIAL_CLONE=SUPPORTED_NOT_ENABLED tag=$CHROMIUM_TAG; waiting for measured full gclient-sync benefit"
+  echo "BRAVE_CHROMIUM_PARTIAL_CLONE=SUPPORTED_NOT_ENABLED tag=$CHROMIUM_TAG; filtered fetch explicitly disabled by SANDIUM_ENABLE_CHROMIUM_PARTIAL_CLONE=false"
 else
   echo "BRAVE_CHROMIUM_PARTIAL_CLONE=DISABLED tag=$CHROMIUM_TAG; preserving normal gclient fetch behavior"
 fi
@@ -294,8 +294,6 @@ if [ "$BRAVE_STAGE_INDEX" = "1" ]; then
     SOURCE_SYNC_STARTED=$SECONDS
     if [ "$CHROMIUM_PARTIAL_CLONE_ACTIVE" = true ]; then
       bash "$ROOT/.circleci/scripts/fetch-pinned-chromium.sh" "$SRC_DIR" "$CHROMIUM_TAG" "$CHROMIUM_PIN" "$CHROMIUM_URL"
-      # Chromium is now checked out at the exact immutable pin. Let Brave's
-      # sync update the remaining DEPS projects without fetching Chromium again.
       # First let Chromium's normal gclient transaction update DEPS at the
       # already-fetched pin (the origin is promisor/blob:none, so any fetch is
       # filtered); then sync Brave Core's own DEPS separately.
