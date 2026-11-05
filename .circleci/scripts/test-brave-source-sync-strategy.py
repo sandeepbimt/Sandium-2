@@ -5,6 +5,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 source = (ROOT / ".circleci/scripts/prepare-brave-source.sh").read_text(encoding="utf-8")
+stage_script = (ROOT / ".circleci/scripts/source-prep-stage.sh").read_text(encoding="utf-8")
+shards_script = (ROOT / ".circleci/scripts/sandium-source-shards.py").read_text(encoding="utf-8")
 
 reuse_start = source.index('if [ -s "$ROOT/brave-work/.gclient" ]')
 incremental_start = source.index('elif [ -s "$ROOT/brave-work/.gclient" ]', reuse_start)
@@ -43,4 +45,20 @@ assert "BRAVE_CHROMIUM_PIN_REUSE=PASS" not in source
 assert "BRAVE_CHROMIUM_REMOTE_LOOKUP=PERFORMED stage=1" in source
 assert "source-runhooks-complete" in source
 
-print("BRAVE_SOURCE_SYNC_STRATEGY_TEST=PASS resumable_checkpoint=resume incremental_sync=no_force missing_checkout=init_fallback")
+# A timed-out Git fetch is not a resumable checkpoint: discard its uncommitted
+# temporary pack, and give the one fetch attempt the maximum safe stage window.
+assert 'SLICE_SECONDS="${SANDIUM_PIN_SLICE_SECONDS:-2700}"' in stage_script
+assert '[ "$SLICE_SECONDS" -le 2700 ] || SLICE_SECONDS=2700' in stage_script
+assert "discard_interrupted_git_packs" in stage_script
+assert '*/objects/pack/tmp_pack_*' in stage_script
+assert "PINNING_GIT_FETCH=INTERRUPTED" in stage_script
+
+# Checkpoint fingerprints must reflect only durable Git progress. Temporary
+# pack size/mtime changes must not force another full source archive.
+assert '"progress_state": progress_state' in shards_script
+assert '"git_progress_state": metadata["git_progress_state"]' in shards_script
+assert '"completed_packfiles": stable_packfiles' in shards_script
+assert '"--exclude=tmp_pack_*"' in shards_script
+assert '"git_state": metadata["git_state"]' not in shards_script
+
+print("BRAVE_SOURCE_SYNC_STRATEGY_TEST=PASS resumable_metadata=verified interrupted_tmp_pack=discarded durable_progress_fingerprint=only archive_reuse=no_duplicate_tmp_pack_archives")
