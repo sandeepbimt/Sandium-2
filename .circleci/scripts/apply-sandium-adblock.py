@@ -447,6 +447,8 @@ import java.util.Set;
     private static final int MAX_FILTER_LIST_POLL_ATTEMPTS = 12;
     private static final long FILTER_LIST_RETRY_DELAY_MS = 2000L;
     private static final long FILTER_LIST_POLL_DELAY_MS = 1000L;
+    private static final int MAX_SELECTED_FILTER_VERIFY_ATTEMPTS = 6;
+    private static final long SELECTED_FILTER_VERIFY_DELAY_MS = 750L;
 
     private static final String[] FRESH_INSTALL_FILTER_UUIDS = {
         "4C07DB6B-6377-4347-836D-68702CF1494A", // IndianList.
@@ -467,6 +469,8 @@ import java.util.Set;
     private boolean mFilterListUpdateInFlight;
     private boolean mManualFilterListUpdatePending;
     private boolean mSelectedBraveListsMigrationStarted;
+    private int mSelectedFilterVerifyAttempts;
+    private String[] mPendingSelectedBraveListUuids;
 
     private RecyclerView mRecyclerView;
 """,
@@ -608,6 +612,7 @@ import java.util.Set;
                 ? POST_V1_ADDITIONAL_FILTER_UUIDS : FRESH_INSTALL_FILTER_UUIDS;
 
         Set<String> availableUuids = new HashSet<>();
+        Set<String> enabledUuids = new HashSet<>();
         for (Value item : mFilterLists) {
             if (item == null || item.getDictionaryValue() == null
                     || item.getDictionaryValue().storage == null) {
@@ -615,31 +620,113 @@ import java.util.Set;
             }
             Map<String, Value> fields = item.getDictionaryValue().storage;
             Value uuidValue = fields.get("uuid");
-            if (uuidValue != null) availableUuids.add(uuidValue.getStringValue());
-        }
-
-        int enabledCount = 0;
-        boolean missingList = false;
-        for (String uuid : targetUuids) {
-            if (availableUuids.contains(uuid)) {
-                mFilterListAndroidHandler.enableFilter(uuid, true);
-                enabledCount++;
-            } else {
-                missingList = true;
-                Log.w(TAG, "Selected filter UUID not in downloaded catalogue: " + uuid);
+            if (uuidValue == null) continue;
+            String uuid = uuidValue.getStringValue();
+            availableUuids.add(uuid);
+            Value enabledValue = fields.get("enabled");
+            if (enabledValue != null && enabledValue.getBoolValue()) {
+                enabledUuids.add(uuid);
             }
         }
-        if (enabledCount == 0) {
-            Log.w(TAG, "No selected Sandium filter UUIDs were present; migration remains pending");
+
+        int presentCount = 0;
+        int newlyEnabledCount = 0;
+        for (String uuid : targetUuids) {
+            if (!availableUuids.contains(uuid)) {
+                Log.w(TAG, "Selected filter UUID not in downloaded catalogue: " + uuid);
+                continue;
+            }
+            presentCount++;
+            if (!enabledUuids.contains(uuid)) {
+                // This calls Brave's native FilterListService.EnableFilter;
+                // the UI preference is not treated as proof of engine activation.
+                mFilterListAndroidHandler.enableFilter(uuid, true);
+                newlyEnabledCount++;
+            }
+        }
+        if (presentCount == 0) {
+            Log.w(TAG, "None of the selected Brave filter UUIDs are in the catalogue; "
+                    + "migration remains pending");
             return;
         }
 
         mSelectedBraveListsMigrationStarted = true;
-        if (!missingList) {
-            preferences.edit().putBoolean(FILTER_LIST_MIGRATION_KEY, true).apply();
+        mPendingSelectedBraveListUuids = targetUuids;
+        mSelectedFilterVerifyAttempts = 0;
+        Log.i(TAG, "Requested native enable for " + newlyEnabledCount
+                + " additional Brave filter lists; verifying persisted enabled state");
+        mFilterListRetryHandler.removeCallbacksAndMessages(null);
+        mFilterListRetryHandler.postDelayed(
+                this::verifySelectedBraveListsEnabled, SELECTED_FILTER_VERIFY_DELAY_MS);
+    }
+
+    // Read the native catalogue back after EnableFilter calls. Only persist the
+    // migration marker when every requested UUID is present and enabled in the
+    // native component-service preferences.
+    private void verifySelectedBraveListsEnabled() {
+        if (!isAdded() || mFilterListAndroidHandler == null
+                || mPendingSelectedBraveListUuids == null) {
+            return;
         }
-        Log.i(TAG, "Enabled " + enabledCount + " verified Brave/uBO filter-list entries");
-        mFilterListRetryHandler.postDelayed(this::getFilterLists, 750L);
+        mFilterListAndroidHandler.getFilterLists(filterLists -> {
+            if (!isAdded() || mAdapter == null) return;
+            mFilterLists = filterLists == null || filterLists.storage == null
+                    ? new Value[0] : filterLists.storage;
+            mAdapter.setFilterLists(mFilterLists);
+
+            Set<String> availableUuids = new HashSet<>();
+            Set<String> enabledUuids = new HashSet<>();
+            for (Value item : mFilterLists) {
+                if (item == null || item.getDictionaryValue() == null
+                        || item.getDictionaryValue().storage == null) {
+                    continue;
+                }
+                Map<String, Value> fields = item.getDictionaryValue().storage;
+                Value uuidValue = fields.get("uuid");
+                if (uuidValue == null) continue;
+                String uuid = uuidValue.getStringValue();
+                availableUuids.add(uuid);
+                Value enabledValue = fields.get("enabled");
+                if (enabledValue != null && enabledValue.getBoolValue()) {
+                    enabledUuids.add(uuid);
+                }
+            }
+
+            boolean allEnabled = true;
+            for (String uuid : mPendingSelectedBraveListUuids) {
+                if (!availableUuids.contains(uuid) || !enabledUuids.contains(uuid)) {
+                    allEnabled = false;
+                    // Re-issue an idempotent native enable request if the
+                    // persisted state has not reflected the previous request.
+                    if (availableUuids.contains(uuid)) {
+                        mFilterListAndroidHandler.enableFilter(uuid, true);
+                    }
+                }
+            }
+
+            if (allEnabled) {
+                SharedPreferences preferences = requireContext().getSharedPreferences(
+                        FILTER_LIST_MIGRATION_PREFS, Context.MODE_PRIVATE);
+                preferences.edit().putBoolean(FILTER_LIST_MIGRATION_KEY, true).apply();
+                Log.i(TAG, "SANDIUM_SELECTED_FILTERS_VERIFIED enabled="
+                        + mPendingSelectedBraveListUuids.length
+                        + " source=native_filter_list_service");
+                mPendingSelectedBraveListUuids = null;
+                return;
+            }
+
+            mSelectedFilterVerifyAttempts++;
+            if (mSelectedFilterVerifyAttempts < MAX_SELECTED_FILTER_VERIFY_ATTEMPTS) {
+                Log.w(TAG, "Native filter-list state not yet confirmed; verification attempt "
+                        + mSelectedFilterVerifyAttempts);
+                mFilterListRetryHandler.postDelayed(
+                        this::verifySelectedBraveListsEnabled,
+                        SELECTED_FILTER_VERIFY_DELAY_MS);
+            } else {
+                Log.e(TAG, "SANDIUM_SELECTED_FILTERS_VERIFIED=FAIL; migration marker left unset");
+                mPendingSelectedBraveListUuids = null;
+            }
+        });
     }
 
 """,
