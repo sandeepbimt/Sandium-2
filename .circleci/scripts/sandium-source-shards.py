@@ -760,7 +760,11 @@ def assemble_deltas(root: Path, through_stage: int, workers: int = 8,
             src = base_shards / item["name"]
             if not src.is_file() or src.stat().st_size != int(item["size_bytes"]) or sha256_file(src) != item["sha256"]:
                 fail("base shard integrity failure: %s" % item.get("name", "unknown"))
-            shutil.copy2(src, temp_dir / item["name"])
+            destination = temp_dir / item["name"]
+            try:
+                os.link(src, destination)
+            except OSError:
+                shutil.copy2(src, destination)
         for stage in range(1, through_stage + 1):
             delta_dir = root / "brave-source-checkpoint.deltas" / ("stage-%d" % stage)
             delta_path = delta_dir / "delta-manifest.json"
