@@ -19,7 +19,7 @@ jobs:
           name: Validate pinned Brave source preparation logic
           command: |
             set -euo pipefail
-            python3 -m py_compile .circleci/scripts/sandium-source-shards.py .circleci/scripts/test-brave-source-sync-strategy.py .circleci/scripts/test-source-checkpoint-restore-gate.py .circleci/scripts/test-chromium-partial-clone-probe.py .circleci/scripts/test-source-delta-assembly.py
+            python3 -m py_compile .circleci/scripts/sandium-source-shards.py .circleci/scripts/test-brave-source-sync-strategy.py .circleci/scripts/test-source-checkpoint-restore-gate.py .circleci/scripts/test-chromium-partial-clone-probe.py .circleci/scripts/test-source-delta-assembly.py .circleci/scripts/fix-brave-chromium157-file-size-api.py .circleci/scripts/test-brave-chromium157-file-size-api.py
             bash -n .circleci/scripts/prepare-brave-source.sh
             bash -n .circleci/scripts/source-prep-stage.sh
             bash -n .circleci/scripts/probe-chromium-partial-clone.sh
@@ -30,6 +30,7 @@ jobs:
             echo "SANDIUM_SOURCE_SYNC_REGRESSION=PASS"
             echo "SANDIUM_SOURCE_FETCH_NO_PROGRESS_GATE=ENABLED"
             echo "SANDIUM_GIT_PROGRESS_COMPARE_EXIT_CODES=STRICT"
+            python3 .circleci/scripts/test-brave-chromium157-file-size-api.py
             python3 .circleci/scripts/test-source-checkpoint-restore-gate.py
             bash -n .circleci/scripts/restore-brave-source-checkpoint.sh
             echo "SANDIUM_SOURCE_PREP_VALIDATION=PASS"
@@ -2392,6 +2393,7 @@ jobs:
             export PYTHONPATH="$ROOT_SRC/brave/script:$ROOT_SRC/tools/grit/grit/extern:$ROOT_SRC/brave/vendor/requests:$ROOT_SRC/build:$BRAVE_DEPOT_TOOLS${PYTHONPATH:+:$PYTHONPATH}"
             "$ROOT_SRC/third_party/cpython3/host/bin/python3" -c 'from brave_version_utils import generate_base_version_code; assert generate_base_version_code(1, 2) > 0; print("BRAVE_PYTHONPATH_GATE=PASS")'
             python3 -c 'import os,sys,gclient_paths; expected=os.path.realpath(sys.argv[1]); actual=gclient_paths.GetPrimarySolutionPath(); assert actual is not None and os.path.realpath(actual)==expected, "BRAVE_GCLIENT_ROOT_GATE=FAIL expected=%s actual=%s" % (expected,actual); print("BRAVE_GCLIENT_ROOT_GATE=PASS src=%s" % actual)' "$ROOT_SRC"
+            python3 "$ROOT/.circleci/scripts/fix-brave-chromium157-file-size-api.py" "$ROOT_SRC"
             export BRAVE_STAGE_INDEX="<< parameters.stage_index >>"
             bash "$ROOT/.circleci/scripts/capture-brave-siso-checkpoint.sh" before-build
             BUILD_RC=0
@@ -2842,6 +2844,7 @@ workflows:
                 - optimization/incremental-brave-source-sync
                 - fix/source-prep-nonresumable-git-fetch
                 - fix/chromium-partial-fetch-and-source-shards
+                - fix/chromium157-file-size-api-compat
   c4-afterbird-staged-checkpoint-build:
     jobs:
       - c4-afterbird-staged-build:
