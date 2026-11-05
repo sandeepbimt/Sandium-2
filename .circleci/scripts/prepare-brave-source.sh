@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 ROOT="$CIRCLE_WORKING_DIRECTORY"
-# Validate before toolchain downloads and source synchronization.
-python3 "$ROOT/.circleci/scripts/configure-brave-services-key.py" --validate
+# Sandium filter subscriptions use public list URLs; no Brave Services key is required.
 NODE_DIR="$ROOT/node-runtime"
 if [ ! -x "$NODE_DIR/bin/node" ]; then
   mkdir -p "$NODE_DIR"
@@ -44,15 +43,13 @@ if [ "${BRAVE_STAGE_INDEX:?BRAVE_STAGE_INDEX is required}" = "1" ]; then
   ENV_FILE="$CORE_DIR/.env"
   ENV_TMP="$(mktemp "$CORE_DIR/.env.tmp.XXXXXX")"
   if [ -f "$ENV_FILE" ]; then
-    grep -Ev '^(rbe_service|use_remoteexec)=' "$ENV_FILE" > "$ENV_TMP" || true
+    grep -Ev '^(rbe_service|use_remoteexec|brave_services_key)=' "$ENV_FILE" > "$ENV_TMP" || true
   fi
   printf '%s\n' \
     "rbe_service=$REAPI_ADDRESS" \
     'use_remoteexec=true' \
     >> "$ENV_TMP"
   mv "$ENV_TMP" "$ENV_FILE"
-  # Inject the authorized per-fork key before Brave sync/build argument generation.
-  python3 "$ROOT/.circleci/scripts/configure-brave-services-key.py" "$ENV_FILE"
   echo "BRAVE_RBE_ENDPOINT=$REAPI_ADDRESS"
   echo "BRAVE_RBE_INSTANCE=$REAPI_INSTANCE"
   export DEPOT_TOOLS_UPDATE=0
@@ -436,4 +433,4 @@ ACTUAL_CHROMIUM_TAG="$(python3 -c 'import json,sys; print(json.load(open(sys.arg
 }
 
 echo "SANDIUM_ADBLOCK_PIN_GATE=PASS brave=$ACTUAL_BRAVE_TAG brave_sha=$ACTUAL_BRAVE_SHA chromium=$ACTUAL_CHROMIUM_TAG chromium_sha=$ACTUAL_CHROMIUM_SHA"
-python3 "$ROOT/.circleci/scripts/apply-sandium-adblock.py" --core "$CORE_DIR"
+python3 "$ROOT/.circleci/scripts/apply-sandium-filter-subscriptions.py" --core "$CORE_DIR"
