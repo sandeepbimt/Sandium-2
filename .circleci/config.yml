@@ -1483,10 +1483,18 @@ jobs:
           steps:
             - attach_workspace:
                 at: .
+            - restore_cache:
+                name: Restore the same immutable source base used by Stage 1
+                keys:
+                  - sandium-brave-pinning-progress-v3-{{ checksum ".circleci/source-pin-refresh-id" }}-
+                  - sandium-brave-pinning-progress-v2-{{ checksum ".circleci/source-pin-refresh-id" }}-
+                  - sandium-brave-pinned-source-v3-
+                  - sandium-brave-pinned-source-v2-
             - run:
-                name: Reconstruct cumulative source checkpoint from prior stage deltas
+                name: Re-establish immutable base and reconstruct cumulative source checkpoint
                 command: |
                   set -euo pipefail
+                  bash .circleci/scripts/prepare-source-delta-base.sh
                   python3 .circleci/scripts/sandium-source-shards.py assemble-deltas --root "$CIRCLE_WORKING_DIRECTORY" --workers 8 --through-stage "$((<< parameters.stage_index >> - 1))"
                   python3 .circleci/scripts/sandium-source-shards.py verify --root "$CIRCLE_WORKING_DIRECTORY" --workers 8 --zstd-test
                   echo "SANDIUM_SOURCE_DELTA_PARENT=PASS stage=<< parameters.stage_index >>"
@@ -1600,8 +1608,6 @@ jobs:
             - persist_to_workspace:
                 root: .
                 paths:
-                  - brave-source-checkpoint.base.shards
-                  - brave-source-checkpoint.base.manifest.json
                   - brave-source-checkpoint.deltas/stage-1
                   - pinning-status/stage-1-result.env
                   - pinning-status/source-restore-receipt.env
