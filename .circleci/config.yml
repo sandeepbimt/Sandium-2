@@ -1553,6 +1553,11 @@ jobs:
                   set -euo pipefail
                   bash .circleci/scripts/prepare-source-delta-base.sh
       - run:
+          name: Fingerprint restored source shard contents before this stage mutates them
+          command: |
+            set -euo pipefail
+            python3 .circleci/scripts/sandium-source-shards.py capture-fingerprints --root "$CIRCLE_WORKING_DIRECTORY" --workers 8
+      - run:
           name: Execute real Brave and Chromium source preparation for this stage
           command: |
             set -euo pipefail
