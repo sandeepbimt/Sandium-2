@@ -782,6 +782,8 @@ def assemble_deltas(root: Path, through_stage: int, workers: int = 8,
             if result_manifest.get("schema_version") != SCHEMA or result_manifest.get("format") != "sandium-brave-source-only-shards":
                 fail("delta result manifest schema/format mismatch at stage %d" % stage)
             for name in delta.get("removed_shards", []):
+                if not isinstance(name, str) or Path(name).name != name:
+                    fail("unsafe removed shard name at stage %d" % stage)
                 (temp_dir / name).unlink(missing_ok=True)
             for item in delta.get("changed_shards", []):
                 name = item.get("name", "")
