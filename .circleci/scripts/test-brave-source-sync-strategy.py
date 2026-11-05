@@ -57,6 +57,8 @@ assert "discard_interrupted_git_packs" in stage_script
 assert '*/objects/pack/tmp_pack_*' in stage_script
 assert "PINNING_GIT_FETCH=INTERRUPTED" in stage_script
 assert "source_sync_progress_matches_parent" in stage_script
+assert "raise SystemExit(10)" in stage_script
+assert 'if [ "$rc" -eq 10 ]' in stage_script
 assert "source-sync-no-progress" in stage_script
 assert "PINNING_NO_PROGRESS=STOP" in stage_script
 assert 'archive --root "$ROOT" --workers 8 --stage "$STAGE" --skip-if-unchanged' in stage_script
