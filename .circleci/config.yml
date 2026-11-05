@@ -2533,6 +2533,7 @@ workflows:
                 - sandium/archive-zstd-fast5
                 - sandium/branding-stage
                 - sandium/ublock-filter-lists
+                - feature/brave-filter-engine-functional
       - brave-android-staged-build:
           name: SANDIUM-FAST-MODE-stage-2
           stage_index: 2
@@ -2544,6 +2545,7 @@ workflows:
                 - sandium/archive-zstd-fast5
                 - sandium/branding-stage
                 - sandium/ublock-filter-lists
+                - feature/brave-filter-engine-functional
       - brave-android-staged-build:
           name: SANDIUM-FAST-MODE-stage-3
           stage_index: 3
@@ -2555,6 +2557,7 @@ workflows:
                 - sandium/archive-zstd-fast5
                 - sandium/branding-stage
                 - sandium/ublock-filter-lists
+                - feature/brave-filter-engine-functional
       - brave-android-staged-build:
           name: SANDIUM-FAST-MODE-stage-4
           stage_index: 4
@@ -2566,6 +2569,7 @@ workflows:
                 - sandium/archive-zstd-fast5
                 - sandium/branding-stage
                 - sandium/ublock-filter-lists
+                - feature/brave-filter-engine-functional
       - brave-android-staged-build:
           name: SANDIUM-FAST-MODE-stage-5
           stage_index: 5
@@ -2577,3 +2581,4 @@ workflows:
                 - sandium/archive-zstd-fast5
                 - sandium/branding-stage
                 - sandium/ublock-filter-lists
+                - feature/brave-filter-engine-functional
