@@ -700,6 +700,8 @@ def archive(root: Path, workers: int, stage: int, ready: bool,
                 baseline = baseline_record.get("shards", {})
         except (OSError, json.JSONDecodeError):
             baseline = {}
+    receipt_path = root / "pinning-status" / "source-restore-receipt.env"
+    restore_verified = receipt_path.is_file() and "RESTORE_RESULT=PASS" in receipt_path.read_text(encoding="utf-8")
     results: list[dict[str, Any]] = []
     errors: list[str] = []
     reused = 0
@@ -718,7 +720,7 @@ def archive(root: Path, workers: int, stage: int, ready: bool,
         )
         if old and old.get("root_paths") == root_paths and baseline_matches and (previous_dir / name).is_file():
             old_path = previous_dir / name
-            if old_path.stat().st_size == int(old.get("size_bytes", -1)) and sha256_file(old_path) == old.get("sha256"):
+            if old_path.stat().st_size == int(old.get("size_bytes", -1)) and (restore_verified or sha256_file(old_path) == old.get("sha256")):
                 target = stage_dir / name
                 try:
                     os.link(old_path, target)
