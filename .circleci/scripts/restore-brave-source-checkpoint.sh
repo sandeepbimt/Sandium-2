@@ -26,9 +26,8 @@ restore_source_archive() {
     return 1
   fi
   if [ "$ready" = "true" ]; then
-    # SHA is checked before extraction; tar/zstd extraction validates the stream
-    # without a separate full decompression pass.
-    python3 "$ROOT/.circleci/scripts/sandium-source-shards.py" verify --root "$ROOT" --workers 8 --ready || return 1
+    # restore performs manifest, SHA-256, pin, and workspace checks before
+    # extracting; extraction itself validates zstd without a second full pass.
     python3 "$ROOT/.circleci/scripts/sandium-source-shards.py" restore --root "$ROOT" --workers 8 --ready || return 1
     mkdir -p "$WORK/.sandium"
     touch "$WORK/.sandium/source-ready-restored" \
@@ -38,9 +37,8 @@ restore_source_archive() {
       "$WORK/.sandium/source-gn-complete"
     echo "SOURCE_PREP_BASE=PINNED_SOURCE_READY all-cumulative-stage-data-restored"
   else
-    # SHA-256 is checked before extraction; tar/zstd extraction itself validates
-    # the compressed stream, avoiding a second full decompression pass.
-    python3 "$ROOT/.circleci/scripts/sandium-source-shards.py" verify --root "$ROOT" --workers 8 || return 1
+    # restore performs the SHA-256 and workspace checks once before extraction;
+    # tar/zstd extraction validates the compressed stream in the same pass.
     python3 "$ROOT/.circleci/scripts/sandium-source-shards.py" restore --root "$ROOT" --workers 8 || return 1
     mkdir -p "$WORK/.sandium"
     echo "SOURCE_PREP_BASE=VALID_PROGRESS_CHECKPOINT all-cumulative-stage-data-restored"
