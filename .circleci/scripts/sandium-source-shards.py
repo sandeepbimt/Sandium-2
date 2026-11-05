@@ -689,6 +689,15 @@ def archive(root: Path, workers: int, stage: int, ready: bool,
     previous_items = {
         item["name"]: item for item in (previous.get("shards", []) if previous else [])
     }
+    baseline: dict[str, Any] = {}
+    baseline_path = root / "brave-source-checkpoint.before-fingerprints.json"
+    if previous_bytes is not None and baseline_path.is_file():
+        try:
+            baseline_record = json.loads(baseline_path.read_text(encoding="utf-8"))
+            if baseline_record.get("manifest_sha256") == hashlib.sha256(previous_bytes).hexdigest():
+                baseline = baseline_record.get("shards", {})
+        except (OSError, json.JSONDecodeError):
+            baseline = {}
     results: list[dict[str, Any]] = []
     errors: list[str] = []
     reused = 0
@@ -699,7 +708,13 @@ def archive(root: Path, workers: int, stage: int, ready: bool,
         name = "source-shard-%02d.tar.zst" % index
         root_paths = [p.relative_to(root).as_posix() for p in bucket]
         old = previous_items.get(name)
-        if old and old.get("root_paths") == root_paths and (previous_dir / name).is_file():
+        current_fingerprint = fingerprint_roots(root, work, bucket)
+        baseline_item = baseline.get(name, {})
+        baseline_matches = (
+            baseline_item.get("root_paths") == root_paths
+            and baseline_item.get("root_fingerprint") == current_fingerprint
+        )
+        if old and old.get("root_paths") == root_paths and baseline_matches and (previous_dir / name).is_file():
             old_path = previous_dir / name
             if old_path.stat().st_size == int(old.get("size_bytes", -1)) and sha256_file(old_path) == old.get("sha256"):
                 target = stage_dir / name
@@ -709,9 +724,12 @@ def archive(root: Path, workers: int, stage: int, ready: bool,
                     shutil.copy2(old_path, target)
                 print("SANDIUM_SOURCE_SHARD=REUSE %s sha256=%s" % (name, old["sha256"]), flush=True)
                 reused_item = dict(old)
+                reused_item["root_fingerprint"] = current_fingerprint
                 reused_item["_sandium_reused"] = True
                 return reused_item
-        return archive_worker(index, bucket, root, work, stage_dir)
+        item = archive_worker(index, bucket, root, work, stage_dir)
+        item["root_fingerprint"] = current_fingerprint
+        return item
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=len(bucket_map)) as pool:
         futures = [pool.submit(process_bucket, index, bucket) for index, bucket in bucket_map]
