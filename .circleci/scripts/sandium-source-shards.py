@@ -1110,8 +1110,6 @@ def main() -> None:
                         help="publish a manifest-linked delta for this stage")
     parser.add_argument("--through-stage", type=int, default=0,
                         help="assemble ordered stage deltas through this stage")
-    parser.add_argument("--zstd-test", action="store_true",
-                        help="decompress-test every assembled shard")
     args = parser.parse_args()
     root = Path(args.root).resolve()
     workers = max(1, min(WORKERS_MAX, int(args.workers)))
