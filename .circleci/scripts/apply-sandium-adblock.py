@@ -6,7 +6,7 @@ import argparse
 import subprocess
 from pathlib import Path
 
-PIN = "v1.98.62"
+SUPPORTED_PINS = ("v1.98.62", "v1.99.55")
 
 # Brave's hidden default components already ship the uBlock Origin core
 # lists (General, Badware risks, Resource abuse, Unbreak, Quick Fixes and
@@ -75,15 +75,108 @@ def apply_on_demand_updater_header_patch(core: Path) -> None:
 
 
 def apply_manager_patch(core: Path) -> None:
-    """Make an empty catalogue actively refresh Brave's two bootstrap components."""
+    """Bootstrap Brave catalogue/default resources for old and SHA-256 component IDs."""
     manager = core / (
         "components/brave_shields/core/browser/"
         "ad_block_component_service_manager.cc"
     )
-    # Match the pinned upstream source exactly. Keep Sandium diagnostics in
-    # the replacement, never in the source-side anchor: otherwise a clean
-    # Brave checkout cannot match this patch.
-    old = """void AdBlockComponentServiceManager::UpdateFilterLists(
+    source = manager.read_text(encoding="utf-8")
+
+    # Brave v1.98.x stores component IDs as constants. Brave v1.99.x stores
+    # SHA-256 public-key fingerprints and derives IDs with GenerateIdFromHash.
+    # Both versions need the same empty-catalogue bootstrap behavior.
+    if "kAdBlockResourceComponentPublicKeySHA256" in source:
+        old = """void AdBlockComponentServiceManager::UpdateFilterLists(
+    base::OnceCallback<void(bool)> callback) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+
+  // If there are currently no components to update, then run the callback with
+  // a success value in a future turn.
+  if (component_filters_providers_.empty()) {
+    std::move(callback).Run(true);
+    return;
+  }
+
+  std::vector<std::string> component_ids = {
+      crx_file::id_util::GenerateIdFromHash(
+          kAdBlockResourceComponentPublicKeySHA256),
+      crx_file::id_util::GenerateIdFromHash(
+          kAdBlockFilterListCatalogComponentPublicKeySHA256),
+  };
+
+  for (const auto& [key, provider] : component_filters_providers_) {
+    component_ids.push_back(provider->component_id());
+  }
+
+  auto on_updated = [](decltype(callback) cb, update_client::Error error) {
+    std::move(cb).Run(error == update_client::Error::NONE ||
+                      error == update_client::Error::UPDATE_IN_PROGRESS);
+  };
+
+  brave_component_updater::BraveOnDemandUpdater::GetInstance()->OnDemandUpdate(
+      component_ids, component_updater::OnDemandUpdater::Priority::FOREGROUND,
+      base::BindOnce(on_updated, std::move(callback)));
+}
+"""
+        new = """void AdBlockComponentServiceManager::UpdateFilterLists(
+    base::OnceCallback<void(bool)> callback) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+
+  auto on_updated = [](base::OnceCallback<void(bool)> cb,
+                       update_client::Error error) {
+    LOG(WARNING) << "SANDIUM_FILTER_CATALOG_UPDATE_RESULT error="
+                 << static_cast<int>(error);
+    std::move(cb).Run(error == update_client::Error::NONE ||
+                      error == update_client::Error::UPDATE_IN_PROGRESS);
+  };
+
+  auto* on_demand_updater =
+      brave_component_updater::BraveOnDemandUpdater::GetInstance();
+  if (component_filters_providers_.empty()) {
+    // Bootstrap the catalogue and default resources before regional providers
+    // exist. Do not report success without actually requesting an update.
+    if (!on_demand_updater->is_on_demand_updater_registered() ||
+        on_demand_updater->is_component_update_disabled()) {
+      LOG(WARNING)
+          << "SANDIUM_EMPTY_FILTER_CATALOGUE_UPDATE=SKIPPED updater_ready="
+          << on_demand_updater->is_on_demand_updater_registered()
+          << " updates_disabled="
+          << on_demand_updater->is_component_update_disabled();
+      std::move(callback).Run(false);
+      return;
+    }
+    std::vector<std::string> bootstrap_component_ids = {
+        crx_file::id_util::GenerateIdFromHash(
+            kAdBlockResourceComponentPublicKeySHA256),
+        crx_file::id_util::GenerateIdFromHash(
+            kAdBlockFilterListCatalogComponentPublicKeySHA256),
+    };
+    LOG(WARNING) << "SANDIUM_EMPTY_FILTER_CATALOGUE_UPDATE=REQUEST";
+    on_demand_updater->OnDemandUpdate(
+        bootstrap_component_ids,
+        component_updater::OnDemandUpdater::Priority::FOREGROUND,
+        base::BindOnce(on_updated, std::move(callback)));
+    return;
+  }
+
+  std::vector<std::string> component_ids = {
+      crx_file::id_util::GenerateIdFromHash(
+          kAdBlockResourceComponentPublicKeySHA256),
+      crx_file::id_util::GenerateIdFromHash(
+          kAdBlockFilterListCatalogComponentPublicKeySHA256),
+  };
+  for (const auto& [key, provider] : component_filters_providers_) {
+    component_ids.push_back(provider->component_id());
+  }
+
+  on_demand_updater->OnDemandUpdate(
+      component_ids, component_updater::OnDemandUpdater::Priority::FOREGROUND,
+      base::BindOnce(on_updated, std::move(callback)));
+}
+"""
+        label = "empty-catalogue-bootstrap-component-update-sha256"
+    else:
+        old = """void AdBlockComponentServiceManager::UpdateFilterLists(
     base::OnceCallback<void(bool)> callback) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
@@ -113,7 +206,7 @@ def apply_manager_patch(core: Path) -> None:
       base::BindOnce(on_updated, std::move(callback)));
 }
 """
-    new = """void AdBlockComponentServiceManager::UpdateFilterLists(
+        new = """void AdBlockComponentServiceManager::UpdateFilterLists(
     base::OnceCallback<void(bool)> callback) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
@@ -128,9 +221,8 @@ def apply_manager_patch(core: Path) -> None:
   auto* on_demand_updater =
       brave_component_updater::BraveOnDemandUpdater::GetInstance();
   if (component_filters_providers_.empty()) {
-    // SANDIUM_EMPTY_FILTER_CATALOGUE_UPDATE: the old upstream branch returned
-    // success here without requesting anything. Refresh the two components
-    // which make the catalogue and default filter resources available.
+    // Bootstrap the catalogue and default resources before regional providers
+    // exist. Do not report success without actually requesting an update.
     if (!on_demand_updater->is_on_demand_updater_registered() ||
         on_demand_updater->is_component_update_disabled()) {
       LOG(WARNING)
@@ -157,7 +249,6 @@ def apply_manager_patch(core: Path) -> None:
       kAdBlockResourceComponentId,
       kAdBlockFilterListCatalogComponentId,
   };
-
   for (const auto& [key, provider] : component_filters_providers_) {
     component_ids.push_back(provider->component_id());
   }
@@ -167,16 +258,15 @@ def apply_manager_patch(core: Path) -> None:
       base::BindOnce(on_updated, std::move(callback)));
 }
 """
+        label = "empty-catalogue-bootstrap-component-update"
+
     replace_once(
         manager,
         old,
         new,
         "SANDIUM_EMPTY_FILTER_CATALOGUE_UPDATE",
-        "empty-catalogue-bootstrap-component-update",
+        label,
     )
-
-
-
 
 def apply_early_component_updater_patch(core: Path) -> None:
     main_delegate = core / "app/brave_main_delegate.cc"
@@ -939,9 +1029,9 @@ def main() -> None:
         raise SystemExit(
             f"SANDIUM_ADBLOCK_GATE=FAIL cannot verify Brave Core pin: {exc}"
         )
-    if tag != PIN:
+    if tag not in SUPPORTED_PINS:
         raise SystemExit(
-            f"SANDIUM_ADBLOCK_GATE=FAIL expected {PIN}, found {tag or 'untagged'}"
+            f"SANDIUM_ADBLOCK_GATE=FAIL supported pins are {SUPPORTED_PINS}, found {tag or 'untagged'}"
         )
     print(f"SANDIUM_ADBLOCK_SOURCE_PIN=PASS tag={tag}")
 
