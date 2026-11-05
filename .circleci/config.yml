@@ -2910,7 +2910,6 @@ workflows:
                 - architecture/separate-brave-source-preparation
                 - architecture/sandium-pinning-v2-build
                 - work/pinned-data-save-hardening
-                - fix/chromium-partial-fetch-and-source-shards
                 - fix/source-prep-nonresumable-git-fetch
                 - fix/chromium-partial-fetch-and-source-shards
       - brave-source-preparation-stage:
