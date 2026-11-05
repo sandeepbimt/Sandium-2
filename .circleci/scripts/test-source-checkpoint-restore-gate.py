@@ -17,7 +17,10 @@ assert 'restore_source_archive false' in restore
 assert 'parent pin and progress request IDs disagree' in restore
 assert 'ready parent Chromium HEAD differs from its pinned SHA' in restore
 assert 'request_match=true' in restore
-assert 'highest numbered stage' in restore
+assert 'stage not in (1, 2, 3, 4, 5)' in restore
+assert 'SOURCE_PREP_BASE=UPGRADE_PARENT_REQUEST_MISMATCH' in restore
+assert 'checkpoint_role=verified-upgrade-parent' in restore
+assert 'checkpoint_role=matching-request' in restore
 assert 'upgrade parent, never as the requested target-version checkpoint' in restore
 assert 'Deliberately do NOT mark source-ready-restored or any completed phase' in restore
 assert 'ready is not True and ready is not False' in restore
