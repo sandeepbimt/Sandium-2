@@ -8,7 +8,7 @@ config = (ROOT / ".circleci/config.yml").read_text(encoding="utf-8")
 
 assert 'base-required)' in restore
 assert 'restore_source_archive "$MANIFEST_READY"' in restore
-assert 'tar/zstd extraction itself validates' in restore
+assert 'extraction itself validates zstd' in restore
 assert 'ready is False and stage != 5' in restore
 assert 'ready is not True and ready is not False' in restore
 assert 'len(shards) != 8' in restore
