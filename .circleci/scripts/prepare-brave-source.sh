@@ -204,7 +204,7 @@ if [ ! -s "$PROBE_MARKER" ] || ! grep -qx "TAG=$CHROMIUM_TAG" "$PROBE_MARKER"; t
     mv "$PROBE_TMP" "$PROBE_MARKER"
   fi
 fi
-if grep -qx 'PARTIAL_CLONE_SUPPORTED=true' "$PROBE_MARKER" 2>/dev/null && [ "${SANDIUM_ENABLE_CHROMIUM_PARTIAL_CLONE:-false}" = "true" ]; then
+if grep -qx 'PARTIAL_CLONE_SUPPORTED=true' "$PROBE_MARKER" 2>/dev/null && [ "${SANDIUM_ENABLE_CHROMIUM_PARTIAL_CLONE:-true}" = "true" ]; then
   git -C "$SRC" config extensions.partialClone origin
   git -C "$SRC" config remote.origin.promisor true
   git -C "$SRC" config remote.origin.partialclonefilter blob:none
@@ -213,6 +213,12 @@ elif grep -qx 'PARTIAL_CLONE_SUPPORTED=true' "$PROBE_MARKER" 2>/dev/null; then
   echo "BRAVE_CHROMIUM_PARTIAL_CLONE=SUPPORTED_NOT_ENABLED tag=$CHROMIUM_TAG; waiting for measured full gclient-sync benefit"
 else
   echo "BRAVE_CHROMIUM_PARTIAL_CLONE=DISABLED tag=$CHROMIUM_TAG; preserving normal gclient fetch behavior"
+fi
+# The filtered-fetch helper is used only after the isolated endpoint probe has
+# proved blob:none plus lazy hydration for this exact pinned tag.
+CHROMIUM_PARTIAL_CLONE_ACTIVE=false
+if grep -qx 'PARTIAL_CLONE_SUPPORTED=true' "$PROBE_MARKER" 2>/dev/null && [ "${SANDIUM_ENABLE_CHROMIUM_PARTIAL_CLONE:-true}" = "true" ]; then
+  CHROMIUM_PARTIAL_CLONE_ACTIVE=true
 fi
 SOURCE_PREP_PHASE="${SANDIUM_SOURCE_PREP_PHASE:-all}"
 pnpm config set store-dir "$HOME/.cache/pnpm-store"
@@ -286,10 +292,23 @@ if [ "$BRAVE_STAGE_INDEX" = "1" ]; then
     fi
     cd "$CORE_DIR"
     SOURCE_SYNC_STARTED=$SECONDS
-    if [ "$SOURCE_PREP_PHASE" = "sync" ]; then
-      run_brave_sync --target_os=android --target_arch=arm64 --no-history --nohooks
+    if [ "$CHROMIUM_PARTIAL_CLONE_ACTIVE" = true ]; then
+      bash "$ROOT/.circleci/scripts/fetch-pinned-chromium.sh" "$SRC_DIR" "$CHROMIUM_TAG" "$CHROMIUM_PIN" "$CHROMIUM_URL"
+      # Chromium is now checked out at the exact immutable pin. Let Brave's
+      # sync update the remaining DEPS projects without fetching Chromium again.
+      if [ "$SOURCE_PREP_PHASE" = "sync" ]; then
+        run_brave_sync --target_os=android --target_arch=arm64 --no-history --nohooks --sync_chromium=false
+      else
+        run_brave_sync --target_os=android --target_arch=arm64 --no-history --sync_chromium=false
+      fi
+      echo "BRAVE_CHROMIUM_SYNC=SKIPPED_AFTER_VERIFIED_FILTERED_FETCH sha=$CHROMIUM_PIN"
     else
-      run_brave_sync --target_os=android --target_arch=arm64 --no-history
+      echo "BRAVE_CHROMIUM_FILTERED_FETCH=FALLBACK probe_not_supported_or_disabled; using existing incremental Brave sync"
+      if [ "$SOURCE_PREP_PHASE" = "sync" ]; then
+        run_brave_sync --target_os=android --target_arch=arm64 --no-history --nohooks
+      else
+        run_brave_sync --target_os=android --target_arch=arm64 --no-history
+      fi
     fi
     SOURCE_SYNC_SECONDS=$((SECONDS - SOURCE_SYNC_STARTED))
     echo "BRAVE_SOURCE_INCREMENTAL_SYNC=PASS duration_seconds=$SOURCE_SYNC_SECONDS current_before=$CURRENT_CHROMIUM_SHA target=$CHROMIUM_PIN"
