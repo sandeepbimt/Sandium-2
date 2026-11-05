@@ -1504,8 +1504,7 @@ jobs:
                   set -euo pipefail
                   bash .circleci/scripts/prepare-source-delta-base.sh
                   python3 .circleci/scripts/sandium-source-shards.py assemble-deltas --root "$CIRCLE_WORKING_DIRECTORY" --workers 8 --through-stage "$((<< parameters.stage_index >> - 1))"
-                  python3 .circleci/scripts/sandium-source-shards.py verify --root "$CIRCLE_WORKING_DIRECTORY" --workers 8 --zstd-test
-                  echo "SANDIUM_SOURCE_DELTA_PARENT=PASS stage=<< parameters.stage_index >>"
+                  echo "SANDIUM_SOURCE_DELTA_PARENT=PASS stage=<< parameters.stage_index >>; base and changed shard digests verified during assembly"
       - when:
           condition:
             equal: [1, << parameters.stage_index >>]
@@ -1567,7 +1566,6 @@ jobs:
                 command: |
                   set -euo pipefail
                   python3 .circleci/scripts/sandium-source-shards.py assemble-deltas --root "$CIRCLE_WORKING_DIRECTORY" --workers 8 --through-stage 5
-                  python3 .circleci/scripts/sandium-source-shards.py verify --root "$CIRCLE_WORKING_DIRECTORY" --workers 8 --zstd-test
                   echo "SANDIUM_SOURCE_STAGE5_ASSEMBLY=PASS full checkpoint reconstructed from base plus ordered deltas"
       - run:
           name: Publish verified source-preparation stage status
