@@ -209,6 +209,11 @@ case "$MODE" in
       fi
     fi
     write_restore_receipt base-required
+    if [ "$RESTORED_REQUEST" != "$EXPECTED_REQUEST" ]; then
+      echo "SOURCE_RESTORE_GATE=PASS checkpoint_role=verified-upgrade-parent restored_request=$RESTORED_REQUEST target_request=$EXPECTED_REQUEST"
+    else
+      echo "SOURCE_RESTORE_GATE=PASS checkpoint_role=matching-request restored_request=$RESTORED_REQUEST"
+    fi
     ;;
   progress)
     if ! restore_source_archive false; then
