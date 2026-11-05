@@ -301,12 +301,10 @@ def apply_early_component_updater_patch(core: Path) -> None:
     new = """void BraveMainDelegate::AppendCommandLineOptions() {
   auto* command_line = base::CommandLine::ForCurrentProcess();
 #if BUILDFLAG(IS_ANDROID)
-  // Sandium is a non-official Android QA build. Brave maintains separate
-  // production and development component manifests and documents the dev
-  // updater for QA/testing builds. Use the matching dev manifest rather than
-  // querying production with this fork's development channel/version.
-  command_line->AppendSwitch(brave_component_updater::kUseGoUpdateDev);
-  LOG(WARNING) << "SANDIUM_COMPONENT_UPDATER_ENDPOINT=development";
+  // Preserve Brave v1.98.62's stock endpoint selection. The production
+  // endpoint remains the default; Brave's existing dev switch/feature can
+  // still opt into QA explicitly. Sandium must not force the dev endpoint.
+  LOG(WARNING) << "SANDIUM_COMPONENT_UPDATER_DEV_OVERRIDE=NOT_FORCED";
 
   // SANDIUM_COMPONENT_UPDATER_EARLY_ENABLE: keep Chromium's global
   // component-update policy intact, but explicitly permit Brave's components.
@@ -1215,7 +1213,7 @@ def verify_patches(core: Path) -> None:
         ("main_parts", "SANDIUM_COMPONENT_UPDATER_SERVICE_CREATED", main_parts),
         ("main_delegate", "SANDIUM_BRAVE_COMPONENT_UPDATE_OVERRIDE", main_delegate),
         ("main_delegate", "SANDIUM_COMPONENT_UPDATER_EARLY_ENABLE", main_delegate),
-        ("main_delegate", "SANDIUM_COMPONENT_UPDATER_ENDPOINT=development", main_delegate),
+        ("main_delegate", "SANDIUM_COMPONENT_UPDATER_DEV_OVERRIDE=NOT_FORCED", main_delegate),
         ("main_delegate", "SANDIUM_COMPONENT_UPDATER_EFFECTIVE_URL", main_delegate),
         ("component_delegate", "SANDIUM_COMPONENT_REGISTRATION", component_delegate),
         ("component_installer", "SANDIUM_ADBLOCK_COMPONENT_REGISTERED", component_installer),
@@ -1260,8 +1258,13 @@ def verify_patches(core: Path) -> None:
         raise SystemExit("SANDIUM_ADBLOCK_GATE=FAIL obsolete late-only updater override remains")
     if 'AppendSwitch("allow-brave-component-update")' not in main_delegate:
         raise SystemExit("SANDIUM_ADBLOCK_GATE=FAIL early Android component-updater override missing")
-    if "AppendSwitch(brave_component_updater::kUseGoUpdateDev)" not in main_delegate:
-        raise SystemExit("SANDIUM_ADBLOCK_GATE=FAIL non-official Android build is not routed to Brave's QA updater")
+    if "AppendSwitch(brave_component_updater::kUseGoUpdateDev)" in main_delegate:
+        raise SystemExit("SANDIUM_ADBLOCK_GATE=FAIL Sandium must not force Brave's development component-updater endpoint")
+    if "SANDIUM_COMPONENT_UPDATER_ENDPOINT=development" in main_delegate:
+        raise SystemExit("SANDIUM_ADBLOCK_GATE=FAIL obsolete forced development endpoint marker remains")
+    if """command_line->HasSwitch(
+                      brave_component_updater::kUseGoUpdateDev)""" not in main_delegate:
+        raise SystemExit("SANDIUM_ADBLOCK_GATE=FAIL stock Brave endpoint override diagnostic missing")
     if "kAdBlockResourceComponentPublicKeySHA256" in manager:
         raise SystemExit("SANDIUM_ADBLOCK_GATE=FAIL newer SHA-256 component-ID source is not accepted for the v1.98.62 pin")
     if "kAdBlockResourceComponentId" not in manager:
