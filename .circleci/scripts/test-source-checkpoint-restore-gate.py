@@ -7,7 +7,8 @@ restore = (ROOT / ".circleci/scripts/restore-brave-source-checkpoint.sh").read_t
 config = (ROOT / ".circleci/config.yml").read_text(encoding="utf-8")
 
 assert 'base-required)' in restore
-assert 'restore_source_archive false true' in restore
+assert 'restore_source_archive false' in restore
+assert 'tar/zstd extraction itself validates' in restore
 assert 'stage != 5 or ready is not False' in restore
 assert 'len(shards) != 8' in restore
 assert 'source_bytes < 50_000_000_000 or archive_bytes < 30_000_000_000' in restore
@@ -25,4 +26,4 @@ assert 'restore_legacy_reference' not in mandatory
 assert 'fresh_bootstrap' not in mandatory
 assert 'exit 1' in mandatory
 
-print("SOURCE_CHECKPOINT_RESTORE_GATE_TEST=PASS stage5=required shards=8 sha256=zstd=verified request_id=bound receipt=persisted")
+print("SOURCE_CHECKPOINT_RESTORE_GATE_TEST=PASS stage5=required shards=8 sha256=verified extraction=verified request_id=bound receipt=persisted")
