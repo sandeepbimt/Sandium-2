@@ -839,31 +839,52 @@ def apply_adapter_patch(core: Path) -> None:
     )
 
 
-def apply_runtime_diagnostics_patch(core: Path) -> None:
-    delegate = core / (
-        "components/brave_component_updater/browser/"
-        "brave_component_updater_delegate.cc"
-    )
-    replace_once(
+
+def apply_component_updater_delegate_patch(delegate: Path) -> None:
+    """Instrument both Brave's legacy Base64 and current SHA-256 delegate APIs."""
+    ensure_include(
         delegate,
         '#include "base/task/sequenced_task_runner.h"\n',
-        '#include "base/logging.h"\n#include "base/task/sequenced_task_runner.h"\n',
-        '#include "base/logging.h"',
+        '#include "base/logging.h"\n',
         "component-registration-log-include",
     )
-    replace_once(
-        delegate,
-        """  if (!BraveOnDemandUpdater::GetInstance()->is_component_update_disabled()) {
+    source = delegate.read_text(encoding="utf-8")
+    if "component_public_key_sha256" in source:
+        old = """  if (!BraveOnDemandUpdater::GetInstance()->is_component_update_disabled()) {
+    RegisterComponent(base::to_address(component_updater_), component_name,
+                      component_public_key_sha256,
+                      std::move(registered_callback),
+                      std::move(ready_callback));
+  }
+"""
+        new = """  const bool updates_disabled =
+      BraveOnDemandUpdater::GetInstance()->is_component_update_disabled();
+  LOG(INFO) << "SANDIUM_COMPONENT_REGISTRATION name=" << component_name
+            << " disabled=" << updates_disabled
+            << " key_mode=sha256";
+  if (!updates_disabled) {
+    RegisterComponent(base::to_address(component_updater_), component_name,
+                      component_public_key_sha256,
+                      std::move(registered_callback),
+                      std::move(ready_callback));
+  } else {
+    LOG(ERROR) << "SANDIUM_COMPONENT_REGISTRATION_BLOCKED name="
+               << component_name;
+  }
+"""
+    else:
+        old = """  if (!BraveOnDemandUpdater::GetInstance()->is_component_update_disabled()) {
     RegisterComponent(base::to_address(component_updater_), component_name,
                       component_base64_public_key,
                       std::move(registered_callback),
                       std::move(ready_callback));
   }
-""",
-        """  const bool updates_disabled =
+"""
+        new = """  const bool updates_disabled =
       BraveOnDemandUpdater::GetInstance()->is_component_update_disabled();
   LOG(INFO) << "SANDIUM_COMPONENT_REGISTRATION name=" << component_name
-            << " disabled=" << updates_disabled;
+            << " disabled=" << updates_disabled
+            << " key_mode=base64";
   if (!updates_disabled) {
     RegisterComponent(base::to_address(component_updater_), component_name,
                       component_base64_public_key,
@@ -873,10 +894,22 @@ def apply_runtime_diagnostics_patch(core: Path) -> None:
     LOG(ERROR) << "SANDIUM_COMPONENT_REGISTRATION_BLOCKED name="
                << component_name;
   }
-""",
+"""
+    replace_once(
+        delegate,
+        old,
+        new,
         "SANDIUM_COMPONENT_REGISTRATION",
         "component-registration-runtime-log",
     )
+
+
+def apply_runtime_diagnostics_patch(core: Path) -> None:
+    delegate = core / (
+        "components/brave_component_updater/browser/"
+        "brave_component_updater_delegate.cc"
+    )
+    apply_component_updater_delegate_patch(delegate)
 
     installer = core / (
         "components/brave_shields/core/browser/"
