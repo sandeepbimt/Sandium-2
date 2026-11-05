@@ -8,8 +8,8 @@ SRC="$WORK/src"
 PINS="$WORK/.sandium/source-pins.env"
 EVIDENCE="$WORK/.sandium/partial-clone-probe.env"
 URL="https://chromium.googlesource.com/chromium/src.git"
-TAG="$(sed -n 's/^CHROMIUM_TAG=//p' "$PINS" | head -n 1)"
-SHA="$(sed -n 's/^CHROMIUM_SHA=//p' "$PINS" | head -n 1)"
+TAG="$(sed -n 's/^CHROMIUM_TAG=//p' "$PINS" | sed -n '1p')"
+SHA="$(sed -n 's/^CHROMIUM_SHA=//p' "$PINS" | sed -n '1p')"
 mkdir -p "$(dirname "$EVIDENCE")"
 test -n "$TAG" && [[ "$SHA" =~ ^[0-9a-f]{40}$ ]] || {
   echo "CHROMIUM_PARTIAL_CLONE_PROBE=SKIP reason=missing-or-invalid-pin"
@@ -47,7 +47,9 @@ if [ "$COMMIT" != "$SHA" ]; then
 fi
 # Enumerate trees without hydrating blobs, then explicitly hydrate one real
 # blob to prove that the server supports lazy object backfill as well.
-BLOB="$(git -C "$REPO" ls-tree -r "$COMMIT" | awk '$2 == "blob" {print $3; exit}')"
+# Do not exit awk early: with pipefail, an early consumer exit can SIGPIPE
+# git ls-tree and make this otherwise successful probe fail with status 141.
+BLOB="$(git -C "$REPO" ls-tree -r "$COMMIT" | awk '$2 == "blob" && !found {blob=$3; found=1} END {print blob}')"
 test -n "$BLOB" || { echo "CHROMIUM_PARTIAL_CLONE_PROBE=FAIL no blob found" >&2; exit 1; }
 BEFORE="$(git -C "$REPO" count-objects -v | awk '$1 == "size-pack:" {print $2}')"
 # The selected blob must genuinely be absent after the filtered fetch.
