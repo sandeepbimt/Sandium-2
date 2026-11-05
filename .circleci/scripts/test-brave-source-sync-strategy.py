@@ -61,7 +61,7 @@ assert '"completed_packfiles": stable_packfiles' in shards_script
 assert '"--exclude=tmp_pack_*"' in shards_script
 assert '"git_state": metadata["git_state"]' not in shards_script
 file_state_start = shards_script.index("def file_state(")
-file_state_end = shards_script.index("\\ndef ", file_state_start + 1)
+file_state_end = shards_script.index("\ndef ", file_state_start + 1)
 file_state_function = shards_script[file_state_start:file_state_end]
 assert "mtime_ns" not in file_state_function
 assert 'result["sha256"] = sha256_file(path)' in file_state_function
