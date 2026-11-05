@@ -15,6 +15,7 @@ FRESH_INSTALL_FILTER_UUIDS = _PATCH["FRESH_INSTALL_FILTER_UUIDS"]
 apply_patches = _PATCH["apply_patches"]
 verify_patches = _PATCH["verify_patches"]
 apply_manager_patch = _PATCH["apply_manager_patch"]
+apply_component_updater_delegate_patch = _PATCH["apply_component_updater_delegate_patch"]
 SUPPORTED_PINS = _PATCH["SUPPORTED_PINS"]
 
 MANAGER_FIXTURE = """#include "base/location.h"
@@ -206,6 +207,24 @@ void BraveComponentUpdaterDelegate::Register(
   if (!BraveOnDemandUpdater::GetInstance()->is_component_update_disabled()) {
     RegisterComponent(base::to_address(component_updater_), component_name,
                       component_base64_public_key,
+                      std::move(registered_callback),
+                      std::move(ready_callback));
+  }
+}
+"""
+
+
+COMPONENT_DELEGATE_SHA256_FIXTURE = """#include "base/task/sequenced_task_runner.h"
+
+void BraveComponentUpdaterDelegate::Register(
+    const std::string& component_name,
+    base::span<const uint8_t, crypto::kSHA256Length>
+        component_public_key_sha256,
+    base::OnceClosure registered_callback,
+    BraveComponent::ReadyCallback ready_callback) {
+  if (!BraveOnDemandUpdater::GetInstance()->is_component_update_disabled()) {
+    RegisterComponent(base::to_address(component_updater_), component_name,
+                      component_public_key_sha256,
                       std::move(registered_callback),
                       std::move(ready_callback));
   }
@@ -435,6 +454,30 @@ def main() -> None:
         assert "notifyDataSetChanged();" in adapter_text
         for uuid in FRESH_INSTALL_FILTER_UUIDS:
             assert uuid in fragment_text, f"missing selected catalogue UUID: {uuid}"
+
+    # Validate both component-updater delegate APIs used by Brave v1.98.x
+    # (Base64 key) and v1.99.x (SHA-256 key fingerprint).
+    with tempfile.TemporaryDirectory(prefix="sandium-component-delegate-test-") as delegate_tmp:
+        delegate_root = Path(delegate_tmp)
+        legacy_delegate = delegate_root / "legacy" / "brave_component_updater_delegate.cc"
+        sha_delegate = delegate_root / "sha256" / "brave_component_updater_delegate.cc"
+        legacy_delegate.parent.mkdir(parents=True, exist_ok=True)
+        sha_delegate.parent.mkdir(parents=True, exist_ok=True)
+        legacy_delegate.write_text(COMPONENT_DELEGATE_FIXTURE, encoding="utf-8")
+        sha_delegate.write_text(COMPONENT_DELEGATE_SHA256_FIXTURE, encoding="utf-8")
+        apply_component_updater_delegate_patch(legacy_delegate)
+        apply_component_updater_delegate_patch(sha_delegate)
+        apply_component_updater_delegate_patch(legacy_delegate)
+        apply_component_updater_delegate_patch(sha_delegate)
+        legacy_text = legacy_delegate.read_text(encoding="utf-8")
+        sha_text = sha_delegate.read_text(encoding="utf-8")
+        assert "SANDIUM_COMPONENT_REGISTRATION" in legacy_text
+        assert "key_mode=base64" in legacy_text
+        assert "component_base64_public_key" in legacy_text
+        assert "SANDIUM_COMPONENT_REGISTRATION" in sha_text
+        assert "key_mode=sha256" in sha_text
+        assert "component_public_key_sha256" in sha_text
+        print("SANDIUM_ADBLOCK_COMPONENT_DELEGATE_COMPAT=PASS")
 
     # Exercise the Brave v1.99.x SHA-256 component-ID variant independently
     # from the pinned v1.98.x fixture used by the successful FAST Mode build.
