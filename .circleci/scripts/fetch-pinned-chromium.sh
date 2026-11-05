@@ -30,7 +30,33 @@ RESOLVED="$(git -C "$SRC_DIR" rev-parse "$TAG^{commit}")"
 }
 git -C "$SRC_DIR" cat-file -e "$EXPECTED_SHA^{commit}"
 if [ "$CURRENT" != "$EXPECTED_SHA" ]; then
-  git -C "$SRC_DIR" checkout --force --detach "$EXPECTED_SHA"
+  # Checkout of a blob:none commit lazily hydrates working-tree blobs. Gitiles
+  # can intermittently return HTTP 502 for a promisor pack even after the
+  # filtered commit fetch succeeded. Retry only these transient transport
+  # failures; each retry reuses blobs already hydrated by earlier attempts.
+  # Never fall back to an unfiltered Chromium fetch.
+  git -C "$SRC_DIR" config http.maxRequests 2
+  CHECKOUT_LOG="$SRC_DIR/.git/sandium-filtered-checkout.log"
+  CHECKOUT_ATTEMPT=1
+  CHECKOUT_MAX_ATTEMPTS=4
+  while :; do
+    if GIT_TERMINAL_PROMPT=0 git -C "$SRC_DIR" checkout --force --detach "$EXPECTED_SHA" >"$CHECKOUT_LOG" 2>&1; then
+      cat "$CHECKOUT_LOG"
+      echo "CHROMIUM_LAZY_HYDRATION=PASS attempt=$CHECKOUT_ATTEMPT"
+      break
+    else
+      CHECKOUT_STATUS=$?
+      cat "$CHECKOUT_LOG" >&2
+      if [ "$CHECKOUT_ATTEMPT" -ge "$CHECKOUT_MAX_ATTEMPTS" ] ||
+         ! grep -Eiq 'HTTP 5[0-9][0-9]|RPC failed|expected .packfile.|could not fetch .*promisor remote' "$CHECKOUT_LOG"; then
+        echo "CHROMIUM_LAZY_HYDRATION=FAIL attempt=$CHECKOUT_ATTEMPT status=$CHECKOUT_STATUS; no unfiltered fallback attempted" >&2
+        exit "$CHECKOUT_STATUS"
+      fi
+      echo "CHROMIUM_LAZY_HYDRATION=RETRY attempt=$CHECKOUT_ATTEMPT next=$((CHECKOUT_ATTEMPT + 1)) reason=transient-promisor-http-error"
+      sleep "$((CHECKOUT_ATTEMPT * 10))"
+      CHECKOUT_ATTEMPT=$((CHECKOUT_ATTEMPT + 1))
+    fi
+  done
 fi
 ACTUAL="$(git -C "$SRC_DIR" rev-parse HEAD)"
 [ "$ACTUAL" = "$EXPECTED_SHA" ] || {
