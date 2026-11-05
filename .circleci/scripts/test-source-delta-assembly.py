@@ -78,4 +78,14 @@ with tempfile.TemporaryDirectory(prefix="sandium-delta-test-") as tmp:
     else:
         raise AssertionError("delta lineage mismatch was not rejected")
 
+config = (ROOT / ".circleci/config.yml").read_text(encoding="utf-8")
+stage_job = config.split("  brave-source-preparation-stage:", 1)[1].split("  promote-brave-pinned-source-reference:", 1)[0]
+assert "assemble-deltas --root" in stage_job
+assert "through-stage 5" in stage_job
+assert "brave-source-checkpoint.deltas/stage-<< parameters.stage_index >>" in stage_job
+assert "sandium-brave-pinning-progress-v3-" in stage_job
+assert "save_cache:" in stage_job
+assert "restore_cache:" in stage_job
+assert "brave-source-checkpoint.base.shards" not in stage_job.split("persist_to_workspace:", 1)[-1]
+assert "prepare-source-delta-base.sh" in stage_job
 print("SOURCE_DELTA_ASSEMBLY_TEST=PASS ordered_deltas=2 no_op_delta=verified parent_mismatch=rejected")
