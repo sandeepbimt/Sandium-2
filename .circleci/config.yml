@@ -2132,7 +2132,11 @@ jobs:
           name: Verify pinned source reference against restored compiled workspace
           command: |
             set -euo pipefail
-            bash .circleci/scripts/verify-pinned-source-reference.sh
+            EXPECTED_BRAVE_CORE_TAG=v1.99.55 \
+            EXPECTED_BRAVE_CORE_SHA=d5f73ccfbb8887db2367b182fa86df82c6b705cf \
+            EXPECTED_CHROMIUM_TAG=157.0.8103.39 \
+            EXPECTED_CHROMIUM_SHA=9a31f0acec1854d44e49a73fbf8017598151a583 \
+            bash .circleci/scripts/verify-pinned-source-reference.sh "<< parameters.stage_index >>"
       - run:
           name: Select Sandium build mode and validate reference
           command: |

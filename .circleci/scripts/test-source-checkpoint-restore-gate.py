@@ -34,4 +34,19 @@ assert 'restore_legacy_reference' not in mandatory
 assert 'fresh_bootstrap' not in mandatory
 assert 'exit 1' in mandatory
 
+# The compiled checkpoint is independently useful when a source-only archive
+# has not yet been promoted for a new Brave/Chromium pin. Stage 1 may bootstrap;
+# later stages must verify the exact pin receipt in their restored handoff.
+verifier = (ROOT / ".circleci/scripts/verify-pinned-source-reference.sh").read_text(encoding="utf-8")
+assert 'PINNED_SOURCE_REFERENCE=BOOTSTRAP_REQUIRED stage=1' in verifier
+assert 'PINNED_SOURCE_REFERENCE=RESTORED_AND_VERIFIED_FROM_COMPILED_HANDOFF' in verifier
+assert 'PIN_REFERENCE_OUTDATED=FAIL partial independent source-ready archive restored' in verifier
+assert 'actual_chromium_sha' in verifier
+assert 'REFRESH_REQUEST_ID' in verifier
+assert 'EXPECTED_BRAVE_CORE_SHA' in verifier
+assert 'EXPECTED_CHROMIUM_SHA' in verifier
+assert 'EXPECTED_BRAVE_CORE_TAG=v1.99.55' in config
+assert 'EXPECTED_CHROMIUM_TAG=157.0.8103.39' in config
+assert 'verify-pinned-source-reference.sh "<< parameters.stage_index >>"' in config
+
 print("SOURCE_CHECKPOINT_RESTORE_GATE_TEST=PASS cumulative_stage1_to_5_or_promoted_ready shards=8 sha256=verified extraction=verified request_ids=recorded receipt=persisted")
