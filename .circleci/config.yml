@@ -24,6 +24,7 @@ jobs:
             bash -n .circleci/scripts/source-prep-stage.sh
             python3 .circleci/scripts/test-brave-source-sync-strategy.py
             echo "SANDIUM_SOURCE_SYNC_REGRESSION=PASS"
+            echo "SANDIUM_SOURCE_FETCH_NO_PROGRESS_GATE=ENABLED"
             python3 .circleci/scripts/test-source-checkpoint-restore-gate.py
             bash -n .circleci/scripts/restore-brave-source-checkpoint.sh
             echo "SANDIUM_SOURCE_PREP_VALIDATION=PASS"
