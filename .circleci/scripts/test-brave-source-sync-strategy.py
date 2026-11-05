@@ -52,6 +52,7 @@ assert '[ "$SLICE_SECONDS" -le 2400 ] || SLICE_SECONDS=2400' in stage_script
 assert "discard_interrupted_git_packs" in stage_script
 assert '*/objects/pack/tmp_pack_*' in stage_script
 assert "PINNING_GIT_FETCH=INTERRUPTED" in stage_script
+assert 'archive --root "$ROOT" --workers 8 --stage "$STAGE" --skip-if-unchanged' in stage_script
 
 # Checkpoint fingerprints must reflect only durable Git progress. Temporary
 # pack size/mtime changes must not force another full source archive.
