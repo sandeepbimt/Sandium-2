@@ -186,8 +186,13 @@ if [ ! -s "$PROBE_MARKER" ] || ! grep -qx "TAG=$CHROMIUM_TAG" "$PROBE_MARKER"; t
     mv "$PROBE_TMP" "$PROBE_MARKER"
   fi
 fi
-if grep -qx 'PARTIAL_CLONE_SUPPORTED=true' "$PROBE_MARKER" 2>/dev/null; then
-  echo "BRAVE_CHROMIUM_PARTIAL_CLONE=ENABLED tag=$CHROMIUM_TAG; server probe confirmed blob:none and lazy blob hydration"
+if grep -qx 'PARTIAL_CLONE_SUPPORTED=true' "$PROBE_MARKER" 2>/dev/null && [ "${SANDIUM_ENABLE_CHROMIUM_PARTIAL_CLONE:-false}" = "true" ]; then
+  git -C "$SRC" config extensions.partialClone origin
+  git -C "$SRC" config remote.origin.promisor true
+  git -C "$SRC" config remote.origin.partialclonefilter blob:none
+  echo "BRAVE_CHROMIUM_PARTIAL_CLONE=ENABLED tag=$CHROMIUM_TAG; endpoint probe passed and explicit experiment opt-in is set"
+elif grep -qx 'PARTIAL_CLONE_SUPPORTED=true' "$PROBE_MARKER" 2>/dev/null; then
+  echo "BRAVE_CHROMIUM_PARTIAL_CLONE=SUPPORTED_NOT_ENABLED tag=$CHROMIUM_TAG; waiting for measured full gclient-sync benefit"
 else
   echo "BRAVE_CHROMIUM_PARTIAL_CLONE=DISABLED tag=$CHROMIUM_TAG; preserving normal gclient fetch behavior"
 fi
