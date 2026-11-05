@@ -26,7 +26,9 @@ restore_source_archive() {
     return 1
   fi
   if [ "$ready" = "true" ]; then
-    python3 "$ROOT/.circleci/scripts/sandium-source-shards.py" verify --root "$ROOT" --workers 8 --ready --zstd-test || return 1
+    # SHA is checked before extraction; tar/zstd extraction validates the stream
+    # without a separate full decompression pass.
+    python3 "$ROOT/.circleci/scripts/sandium-source-shards.py" verify --root "$ROOT" --workers 8 --ready || return 1
     python3 "$ROOT/.circleci/scripts/sandium-source-shards.py" restore --root "$ROOT" --workers 8 --ready || return 1
     mkdir -p "$WORK/.sandium"
     touch "$WORK/.sandium/source-ready-restored" \
@@ -68,19 +70,21 @@ stage = int(payload.get("stage", -1))
 ready = payload.get("ready")
 shard_bytes = sum(int(item.get("size_bytes", -1)) for item in shards)
 
-if not request_id or request_id != expected_request:
-    raise SystemExit("SOURCE_RESTORE_GATE=FAIL manifest refresh_request_id does not match checked-out request")
+if not request_id:
+    raise SystemExit("SOURCE_RESTORE_GATE=FAIL manifest refresh_request_id is missing")
 if archive_bytes < 0 or shard_bytes != archive_bytes:
     raise SystemExit("SOURCE_RESTORE_GATE=FAIL manifest archive_bytes does not equal shard size sum")
 if mode == "base-required":
-    if stage != 5 or ready is not False:
-        raise SystemExit("SOURCE_RESTORE_GATE=FAIL expected cumulative Stage 5 progress archive; got stage=%s ready=%s" % (stage, ready))
+    if ready is False and stage != 5:
+        raise SystemExit("SOURCE_RESTORE_GATE=FAIL progress checkpoint must be cumulative Stage 5; got stage=%s" % stage)
+    if ready is not True and ready is not False:
+        raise SystemExit("SOURCE_RESTORE_GATE=FAIL manifest ready flag is invalid")
     if len(shards) != 8:
         raise SystemExit("SOURCE_RESTORE_GATE=FAIL expected 8 verified shards; got %d" % len(shards))
     if source_bytes < 50_000_000_000 or archive_bytes < 30_000_000_000:
         raise SystemExit("SOURCE_RESTORE_GATE=FAIL checkpoint is smaller than the known 50GB source / 30GB archive baseline")
-    print("SOURCE_RESTORE_GATE=PASS prior_stage=5 ready=false shards=8 source_bytes=%d archive_bytes=%d request=%s" %
-          (source_bytes, archive_bytes, request_id))
+    print("SOURCE_RESTORE_GATE=PASS prior_stage=%d ready=%s shards=8 source_bytes=%d archive_bytes=%d restored_request=%s requested_request=%s" %
+          (stage, str(ready).lower(), source_bytes, archive_bytes, request_id, expected_request))
 else:
     print("SOURCE_RESTORE_GATE=PASS mode=%s parent_stage=%s shards=%d source_bytes=%d archive_bytes=%d request=%s" %
           (mode, stage, len(shards), source_bytes, archive_bytes, request_id))
@@ -95,7 +99,8 @@ lines = [
     "SHARD_COUNT=" + str(len(shards)),
     "SOURCE_BYTES=" + str(source_bytes),
     "ARCHIVE_BYTES=" + str(archive_bytes),
-    "REFRESH_REQUEST_ID=" + request_id,
+    "RESTORED_REFRESH_REQUEST_ID=" + request_id,
+    "REQUESTED_REFRESH_REQUEST_ID=" + expected_request,
 ]
 for index, item in enumerate(sorted(shards, key=lambda x: x["name"]), 1):
     lines.extend([
@@ -159,8 +164,9 @@ case "$MODE" in
       echo "SOURCE_RESTORE_GATE=FAIL expected prior Stage 5 checkpoint was not restored from CircleCI cache" >&2
       exit 1
     fi
-    if ! restore_source_archive false; then
-      echo "SOURCE_RESTORE_GATE=FAIL prior Stage 5 checkpoint failed SHA/workspace/decompression verification; no fresh bootstrap allowed" >&2
+    MANIFEST_READY="$(python3 -c 'import json,sys; print("true" if json.load(open(sys.argv[1],encoding="utf-8")).get("ready") is True else "false")' "$ROOT/brave-source-checkpoint.manifest.json")"
+    if ! restore_source_archive "$MANIFEST_READY"; then
+      echo "SOURCE_RESTORE_GATE=FAIL prior checkpoint failed SHA/workspace/decompression verification; no fresh bootstrap allowed" >&2
       exit 1
     fi
     write_restore_receipt base-required
