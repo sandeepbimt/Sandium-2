@@ -14,6 +14,8 @@ _PATCH = runpy.run_path(
 FRESH_INSTALL_FILTER_UUIDS = _PATCH["FRESH_INSTALL_FILTER_UUIDS"]
 apply_patches = _PATCH["apply_patches"]
 verify_patches = _PATCH["verify_patches"]
+apply_manager_patch = _PATCH["apply_manager_patch"]
+SUPPORTED_PINS = _PATCH["SUPPORTED_PINS"]
 
 MANAGER_FIXTURE = """#include "base/location.h"
 
@@ -53,6 +55,42 @@ void AdBlockComponentServiceManager::OnFilterListCatalogLoaded(
   SetFilterListCatalog(FilterListCatalogFromJSON(catalog_json));
 
   update_check_timer_.Start(
+"""
+
+
+MANAGER_SHA256_FIXTURE = """#include "components/crx_file/id_util.h"
+
+void AdBlockComponentServiceManager::UpdateFilterLists(
+    base::OnceCallback<void(bool)> callback) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+
+  // If there are currently no components to update, then run the callback with
+  // a success value in a future turn.
+  if (component_filters_providers_.empty()) {
+    std::move(callback).Run(true);
+    return;
+  }
+
+  std::vector<std::string> component_ids = {
+      crx_file::id_util::GenerateIdFromHash(
+          kAdBlockResourceComponentPublicKeySHA256),
+      crx_file::id_util::GenerateIdFromHash(
+          kAdBlockFilterListCatalogComponentPublicKeySHA256),
+  };
+
+  for (const auto& [key, provider] : component_filters_providers_) {
+    component_ids.push_back(provider->component_id());
+  }
+
+  auto on_updated = [](decltype(callback) cb, update_client::Error error) {
+    std::move(cb).Run(error == update_client::Error::NONE ||
+                      error == update_client::Error::UPDATE_IN_PROGRESS);
+  };
+
+  brave_component_updater::BraveOnDemandUpdater::GetInstance()->OnDemandUpdate(
+      component_ids, component_updater::OnDemandUpdater::Priority::FOREGROUND,
+      base::BindOnce(on_updated, std::move(callback)));
+}
 """
 
 UPDATER_HEADER_FIXTURE = """  bool is_component_update_disabled() { return is_component_update_disabled_; }
@@ -198,6 +236,64 @@ void AdBlockFilterListCatalogProvider::OnComponentReady(
 }
 """
 
+
+PROVIDER_FIXTURE = """#include "base/files/file_path.h"
+#include "base/files/file_util.h"
+#include "base/rand_util.h"
+#include "base/task/thread_pool.h"
+#include "base/trace_event/trace_event.h"
+
+void AddDATBufferToFilterSet(uint8_t permission_mask,
+                             DATFileDataBuffer buffer,
+                             const perfetto::Flow& flow,
+                             rust::Box<adblock::FilterSet>* filter_set) {
+  TRACE_EVENT("brave.adblock",
+              "AddDATBufferToFilterSet_AdBlockComponentFiltersProvider", flow);
+  (*filter_set)->add_filter_list_with_permissions(buffer, permission_mask);
+}
+
+void OnReadDATFileData(
+    base::OnceCallback<
+        void(base::OnceCallback<void(rust::Box<adblock::FilterSet>*)>)> cb,
+    uint8_t permission_mask,
+    const perfetto::Flow& flow,
+    DATFileDataBuffer buffer) {
+  TRACE_EVENT("brave.adblock",
+              "OnReadDATFileData_AdBlockComponentFiltersProvider", flow);
+  std::move(cb).Run(
+      base::BindOnce(&AddDATBufferToFilterSet, permission_mask, buffer, flow));
+}
+
+void AdBlockComponentFiltersProvider::OnComponentReady(
+    const base::FilePath& path) {
+  base::FilePath old_path = component_path_;
+  component_path_ = path;
+
+  NotifyObservers(engine_is_default_);
+}
+
+void AdBlockComponentFiltersProvider::LoadFilterSet(
+    base::OnceCallback<
+        void(base::OnceCallback<void(rust::Box<adblock::FilterSet>*)>)> cb) {
+  base::FilePath list_file_path = GetFilterSetPath();
+
+  const auto flow = perfetto::Flow::ProcessScoped(base::RandUint64());
+  TRACE_EVENT("brave.adblock", "AdBlockComponentFiltersProvider::LoadFilterSet",
+              flow);
+
+  if (list_file_path.empty()) {
+    std::move(cb).Run(base::BindOnce(AddNothingToFilterSet));
+    return;
+  }
+
+  base::ThreadPool::PostTaskAndReplyWithResult(
+      FROM_HERE, {base::MayBlock()},
+      base::BindOnce(&brave_component_updater::ReadDATFileData, list_file_path),
+      base::BindOnce(&OnReadDATFileData, std::move(cb), permission_mask_,
+                     flow));
+}
+"""
+
 FILTER_SERVICE_FIXTURE = """#include "base/feature_list.h"
 
 void FilterListService::GetFilterLists(GetFilterListsCallback callback) {
@@ -244,6 +340,10 @@ def main() -> None:
             "components/brave_shields/content/browser/"
             "filter_list_service.cc"
         )
+        provider = core / (
+            "components/brave_shields/core/browser/"
+            "ad_block_component_filters_provider.cc"
+        )
         updater_header = core / (
             "components/brave_component_updater/browser/"
             "brave_on_demand_updater.h"
@@ -262,6 +362,7 @@ def main() -> None:
         component_delegate.write_text(COMPONENT_DELEGATE_FIXTURE, encoding="utf-8")
         installer.write_text(INSTALLER_FIXTURE, encoding="utf-8")
         catalog_provider.write_text(CATALOG_PROVIDER_FIXTURE, encoding="utf-8")
+        provider.write_text(PROVIDER_FIXTURE, encoding="utf-8")
         filter_service.write_text(FILTER_SERVICE_FIXTURE, encoding="utf-8")
         updater_header.write_text(UPDATER_HEADER_FIXTURE, encoding="utf-8")
 
@@ -282,6 +383,7 @@ def main() -> None:
         catalog_provider_text = catalog_provider.read_text(encoding="utf-8")
         filter_service_text = filter_service.read_text(encoding="utf-8")
         updater_header_text = updater_header.read_text(encoding="utf-8")
+        provider_text = provider.read_text(encoding="utf-8")
         assert "allow-brave-component-update" in main_delegate_text
         assert "SANDIUM_COMPONENT_UPDATER_EARLY_ENABLE" in main_delegate_text
         assert "SANDIUM_BRAVE_COMPONENT_UPDATE_OVERRIDE" in main_delegate_text
@@ -302,6 +404,10 @@ def main() -> None:
         assert "SANDIUM_COMPONENT_REGISTRATION" in component_delegate_text
         assert "SANDIUM_ADBLOCK_COMPONENT_REGISTERED" in installer_text
         assert "SANDIUM_FILTER_CATALOG_COMPONENT_READY" in catalog_provider_text
+        assert "SANDIUM_FILTER_COMPONENT_READY" in provider_text
+        assert "SANDIUM_FILTER_DAT_FILE" in provider_text
+        assert "SANDIUM_FILTER_ENGINE_ATTACH=PASS" in provider_text
+        assert "base::BindOnce(&AddDATBufferToFilterSet, std::move(component_id)" in provider_text
         assert "SANDIUM_FILTER_CATALOG_PARSED" in manager_text
         assert "SANDIUM_EMPTY_FILTER_CATALOGUE_UPDATE=REQUEST" in manager_text
         assert "kAdBlockFilterListCatalogComponentId" in manager_text
@@ -325,7 +431,26 @@ def main() -> None:
         for uuid in FRESH_INSTALL_FILTER_UUIDS:
             assert uuid in fragment_text, f"missing selected catalogue UUID: {uuid}"
 
-    print("SANDIUM_ADBLOCK_UNIT_TEST=PASS transformation=idempotent catalogue=curated")
+    # Exercise the Brave v1.99.x SHA-256 component-ID variant independently
+    # from the pinned v1.98.x fixture used by the successful FAST Mode build.
+    sha_core = Path(tmp) / "sha256-core"
+    sha_manager = sha_core / (
+        "components/brave_shields/core/browser/"
+        "ad_block_component_service_manager.cc"
+    )
+    sha_manager.parent.mkdir(parents=True, exist_ok=True)
+    sha_manager.write_text(MANAGER_SHA256_FIXTURE, encoding="utf-8")
+    apply_manager_patch(sha_core)
+    apply_manager_patch(sha_core)  # latest-source transform must be idempotent
+    sha_text = sha_manager.read_text(encoding="utf-8")
+    assert "SANDIUM_EMPTY_FILTER_CATALOGUE_UPDATE=REQUEST" in sha_text
+    assert "kAdBlockResourceComponentPublicKeySHA256" in sha_text
+    assert "kAdBlockFilterListCatalogComponentPublicKeySHA256" in sha_text
+    assert "crx_file::id_util::GenerateIdFromHash(" in sha_text
+    assert "std::move(callback).Run(true);" not in sha_text
+    assert "v1.99.55" in SUPPORTED_PINS
+    print("SANDIUM_ADBLOCK_LATEST_SHA256_FIXTURE=PASS")
+        print("SANDIUM_ADBLOCK_UNIT_TEST=PASS transformation=idempotent catalogue=curated")
 
 
 if __name__ == "__main__":
