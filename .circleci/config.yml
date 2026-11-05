@@ -19,11 +19,13 @@ jobs:
           name: Validate pinned Brave source preparation logic
           command: |
             set -euo pipefail
-            python3 -m py_compile .circleci/scripts/sandium-source-shards.py .circleci/scripts/test-brave-source-sync-strategy.py .circleci/scripts/test-source-checkpoint-restore-gate.py .circleci/scripts/test-chromium-partial-clone-probe.py
+            python3 -m py_compile .circleci/scripts/sandium-source-shards.py .circleci/scripts/test-brave-source-sync-strategy.py .circleci/scripts/test-source-checkpoint-restore-gate.py .circleci/scripts/test-chromium-partial-clone-probe.py .circleci/scripts/test-source-delta-assembly.py
             bash -n .circleci/scripts/prepare-brave-source.sh
             bash -n .circleci/scripts/source-prep-stage.sh
             bash -n .circleci/scripts/probe-chromium-partial-clone.sh
+            bash -n .circleci/scripts/prepare-source-delta-base.sh
             python3 .circleci/scripts/test-chromium-partial-clone-probe.py
+            python3 .circleci/scripts/test-source-delta-assembly.py
             python3 .circleci/scripts/test-brave-source-sync-strategy.py
             echo "SANDIUM_SOURCE_SYNC_REGRESSION=PASS"
             echo "SANDIUM_SOURCE_FETCH_NO_PROGRESS_GATE=ENABLED"
