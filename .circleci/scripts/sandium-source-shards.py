@@ -316,14 +316,16 @@ def fingerprint_roots(root: Path, work: Path, roots: list[Path]) -> str:
         info = path.lstat()
         digest.update(rel.encode("utf-8") + b"\\0")
         digest.update(str(stat.S_IMODE(info.st_mode)).encode("ascii") + b"\\0")
-        # ctime cannot be set by ordinary file writes, so size+mtime+ctime
-        # detects content replacement without reading every source byte twice.
-        digest.update(("%d:%d:%d:%d" % (info.st_size, info.st_mtime_ns, info.st_ctime_ns, info.st_ino)).encode("ascii") + b"\\0")
         if path.is_symlink():
             digest.update(b"symlink\\0" + os.readlink(path).encode("utf-8", "surrogateescape"))
         elif path.is_file():
+            # ctime cannot be set by ordinary file writes, so size+mtime+ctime
+            # detects same-size content replacement without reading file bytes.
             digest.update(b"file\\0")
+            digest.update(("%d:%d:%d:%d" % (info.st_size, info.st_mtime_ns, info.st_ctime_ns, info.st_ino)).encode("ascii") + b"\\0")
         elif path.is_dir():
+            # Directory mtimes change when excluded tmp_pack files appear; paths
+            # of included children already capture real archive membership.
             digest.update(b"directory\\0")
 
     for top in sorted(roots, key=lambda p: os.fsencode(p.relative_to(root).as_posix())):
