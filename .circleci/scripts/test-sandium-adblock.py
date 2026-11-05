@@ -427,7 +427,7 @@ def main() -> None:
         assert "SANDIUM_FILTER_DAT_FILE" in provider_text
         assert "SANDIUM_FILTER_ENGINE_ATTACH=PASS" in provider_text
         assert "SANDIUM_FILTER_ENGINE_BINDING=PASS" in provider_text
-        assert "base::BindOnce(&AddDATBufferToFilterSet, std::move(component_id)" in provider_text
+        assert "base::BindOnce(\n      &AddDATBufferToFilterSet, std::move(component_id)," in provider_text
         assert "SANDIUM_FILTER_CATALOG_PARSED" in manager_text
         assert "SANDIUM_EMPTY_FILTER_CATALOGUE_UPDATE=REQUEST" in manager_text
         assert "kAdBlockFilterListCatalogComponentId" in manager_text
