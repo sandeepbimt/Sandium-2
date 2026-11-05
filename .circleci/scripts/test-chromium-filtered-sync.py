@@ -24,5 +24,10 @@ assert 'remote.origin.partialclonefilter blob:none' in fetch
 assert 'CHROMIUM_FILTERED_FETCH=PASS' in fetch
 assert 'unexpected origin=' in fetch
 assert 'CHROMIUM_PARTIAL_CLONE_PROBE=PASS' in probe
+# set -u must not encounter the stale, undefined SRC variable after probe success.
+assert 'git -C "$SRC_DIR" config extensions.partialClone origin' in prepare
+assert 'git -C "$SRC_DIR" config remote.origin.promisor true' in prepare
+assert 'git -C "$SRC_DIR" config remote.origin.partialclonefilter blob:none' in prepare
+assert 'git -C "$SRC" config' not in prepare
 
 print("CHROMIUM_FILTERED_SYNC_TEST=PASS exact_pin=verified blob_filter=enabled lazy_hydration=probe_gated duplicate_chromium_sync=avoided fallback=preserved")
