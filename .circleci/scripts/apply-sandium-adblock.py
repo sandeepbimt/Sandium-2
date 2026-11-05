@@ -55,6 +55,23 @@ def replace_once(path: Path, old: str, new: str, marker: str, label: str) -> Non
     print(f"SANDIUM_ADBLOCK_PATCH={label}:APPLIED")
 
 
+
+def ensure_include(path: Path, anchor: str, include_line: str, label: str) -> None:
+    if not path.is_file():
+        raise SystemExit(f"SANDIUM_ADBLOCK_GATE=FAIL missing {path}")
+    source = path.read_text(encoding="utf-8")
+    if include_line in source:
+        print(f"SANDIUM_ADBLOCK_PATCH={label}:ALREADY_APPLIED")
+        return
+    count = source.count(anchor)
+    if count != 1:
+        raise SystemExit(
+            f"SANDIUM_ADBLOCK_GATE=FAIL {label}: expected one include anchor, found {count}"
+        )
+    path.write_text(source.replace(anchor, anchor + include_line, 1), encoding="utf-8")
+    print(f"SANDIUM_ADBLOCK_PATCH={label}:APPLIED")
+
+
 def apply_on_demand_updater_header_patch(core: Path) -> None:
     header = core / (
         "components/brave_component_updater/browser/"
@@ -947,6 +964,127 @@ def apply_runtime_diagnostics_patch(core: Path) -> None:
 """,
         "SANDIUM_FILTER_CATALOG_PARSED",
         "catalog-parse-runtime-log",
+    )
+
+    # Verify that installed component DAT files are really handed to the
+    # Brave Rust FilterSet. Component versions alone only prove installation.
+    filter_provider = core / (
+        "components/brave_shields/core/browser/"
+        "ad_block_component_filters_provider.cc"
+    )
+    ensure_include(
+        filter_provider,
+        '#include "base/files/file_util.h"\n',
+        '#include "base/logging.h"\n',
+        "filter-provider-engine-log-include",
+    )
+    replace_once(
+        filter_provider,
+        """void AddDATBufferToFilterSet(uint8_t permission_mask,
+                             DATFileDataBuffer buffer,
+                             const perfetto::Flow& flow,
+                             rust::Box<adblock::FilterSet>* filter_set) {
+  TRACE_EVENT("brave.adblock",
+              "AddDATBufferToFilterSet_AdBlockComponentFiltersProvider", flow);
+  (*filter_set)->add_filter_list_with_permissions(buffer, permission_mask);
+}
+""",
+        """void AddDATBufferToFilterSet(
+    const std::string& component_id,
+    uint8_t permission_mask,
+    DATFileDataBuffer buffer,
+    const perfetto::Flow& flow,
+    rust::Box<adblock::FilterSet>* filter_set) {
+  TRACE_EVENT("brave.adblock",
+              "AddDATBufferToFilterSet_AdBlockComponentFiltersProvider", flow,
+              "component_id", component_id);
+  LOG(INFO) << "SANDIUM_FILTER_ENGINE_ATTACH=START component_id=" << component_id;
+  (*filter_set)->add_filter_list_with_permissions(buffer, permission_mask);
+  LOG(INFO) << "SANDIUM_FILTER_ENGINE_ATTACH=PASS component_id=" << component_id;
+}
+""",
+        "SANDIUM_FILTER_ENGINE_ATTACH=PASS",
+        "native-filter-set-engine-attach",
+    )
+    replace_once(
+        filter_provider,
+        """void OnReadDATFileData(
+    base::OnceCallback<
+        void(base::OnceCallback<void(rust::Box<adblock::FilterSet>*)>)> cb,
+    uint8_t permission_mask,
+    const perfetto::Flow& flow,
+    DATFileDataBuffer buffer) {
+  TRACE_EVENT("brave.adblock",
+              "OnReadDATFileData_AdBlockComponentFiltersProvider", flow);
+  std::move(cb).Run(
+      base::BindOnce(&AddDATBufferToFilterSet, permission_mask, buffer, flow));
+}
+""",
+        """void OnReadDATFileData(
+    base::OnceCallback<
+        void(base::OnceCallback<void(rust::Box<adblock::FilterSet>*)>)> cb,
+    std::string component_id,
+    uint8_t permission_mask,
+    const perfetto::Flow& flow,
+    DATFileDataBuffer buffer) {
+  TRACE_EVENT("brave.adblock",
+              "OnReadDATFileData_AdBlockComponentFiltersProvider", flow,
+              "component_id", component_id);
+  std::move(cb).Run(base::BindOnce(
+      &AddDATBufferToFilterSet, std::move(component_id), permission_mask,
+      buffer, flow));
+}
+""",
+        "SANDIUM_FILTER_ENGINE_ATTACH=PASS",
+        "native-filter-read-to-engine-binding",
+    )
+    replace_once(
+        filter_provider,
+        """  base::FilePath old_path = component_path_;
+  component_path_ = path;
+
+  NotifyObservers(engine_is_default_);
+""",
+        """  base::FilePath old_path = component_path_;
+  component_path_ = path;
+  LOG(INFO) << "SANDIUM_FILTER_COMPONENT_READY id=" << component_id_
+            << " path=" << path.value();
+
+  NotifyObservers(engine_is_default_);
+""",
+        "SANDIUM_FILTER_COMPONENT_READY",
+        "native-filter-component-ready",
+    )
+    replace_once(
+        filter_provider,
+        """  base::FilePath list_file_path = GetFilterSetPath();
+
+  const auto flow = perfetto::Flow::ProcessScoped(base::RandUint64());
+""",
+        """  base::FilePath list_file_path = GetFilterSetPath();
+  int64_t list_file_size = 0;
+  const bool list_file_size_available =
+      base::GetFileSize(list_file_path, &list_file_size);
+  LOG(INFO) << "SANDIUM_FILTER_DAT_FILE id=" << component_id_
+            << " path=" << list_file_path.value()
+            << " size_available=" << list_file_size_available
+            << " bytes=" << list_file_size;
+
+  const auto flow = perfetto::Flow::ProcessScoped(base::RandUint64());
+""",
+        "SANDIUM_FILTER_DAT_FILE",
+        "native-filter-dat-file-check",
+    )
+    replace_once(
+        filter_provider,
+        """      base::BindOnce(&OnReadDATFileData, std::move(cb), permission_mask_,
+                     flow));
+""",
+        """      base::BindOnce(&OnReadDATFileData, std::move(cb), component_id_,
+                     permission_mask_, flow));
+""",
+        "component_id_,\n                     permission_mask_",
+        "native-filter-component-id-to-engine",
     )
 
     filter_service = core / (
