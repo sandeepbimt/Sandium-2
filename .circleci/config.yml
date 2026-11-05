@@ -21,6 +21,8 @@ jobs:
             set -euo pipefail
             bash -n .circleci/scripts/prepare-brave-source.sh
             python3 .circleci/scripts/test-brave-source-sync-strategy.py
+            python3 .circleci/scripts/test-source-checkpoint-restore-gate.py
+            bash -n .circleci/scripts/restore-brave-source-checkpoint.sh
             echo "SANDIUM_SOURCE_PREP_VALIDATION=PASS"
   c4-afterbird-staged-build:
     parameters:
