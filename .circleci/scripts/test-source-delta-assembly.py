@@ -66,6 +66,20 @@ with tempfile.TemporaryDirectory(prefix="sandium-delta-test-") as tmp:
     assert (root / MODULE.MANIFEST_NAME).read_bytes() == result2
     assert assembled["stage"] == 2
 
+    # The pre-stage fingerprint must detect same-size writes through ctime,
+    # while ignoring interrupted Git pack temporaries excluded from archives.
+    work = root / "brave-work"
+    work.mkdir()
+    tracked = work / "tracked.txt"
+    tracked.write_bytes(b"before")
+    fp_before = MODULE.fingerprint_roots(root, work, [work])
+    tracked.write_bytes(b"after!")
+    fp_after = MODULE.fingerprint_roots(root, work, [work])
+    assert fp_before != fp_after
+    temp_pack = work / "tmp_pack_interrupted"
+    temp_pack.write_bytes(b"not durable")
+    assert MODULE.fingerprint_roots(root, work, [work]) == fp_after
+
     # A broken parent pointer must fail closed, never produce a partial checkpoint.
     delta2 = stage2_dir / "delta-manifest.json"
     broken = json.loads(delta2.read_text())
@@ -88,4 +102,5 @@ assert "save_cache:" in stage_job
 assert "restore_cache:" in stage_job
 assert "brave-source-checkpoint.base.shards" not in stage_job.split("persist_to_workspace:", 1)[-1]
 assert "prepare-source-delta-base.sh" in stage_job
+assert "capture-fingerprints" in stage_job
 print("SOURCE_DELTA_ASSEMBLY_TEST=PASS ordered_deltas=2 no_op_delta=verified parent_mismatch=rejected")
