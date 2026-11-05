@@ -411,6 +411,7 @@ def source_metadata(root: Path, work: Path, stage: int, ready: bool) -> dict[str
         marker: (work / ".sandium" / marker).is_file()
         for marker in (
             "source-sync-complete",
+            "source-sync-no-progress",
             "source-runhooks-complete",
             "source-configure-complete",
             "source-gn-complete",
