@@ -152,11 +152,10 @@ if [ "$READY" = true ]; then
     echo "SANDIUM_PINNING_ARCHIVE=PASS ready=true stage=$STAGE"
   fi
 else
-  if [ "$STAGE" = "1" ]; then
-    python3 "$ROOT/.circleci/scripts/sandium-source-shards.py" archive --root "$ROOT" --workers 8 --stage "$STAGE"
-  else
-    python3 "$ROOT/.circleci/scripts/sandium-source-shards.py" archive --root "$ROOT" --workers 8 --stage "$STAGE" --skip-if-unchanged
-  fi
+  # Every stage, including Stage 1 retries, may reuse an identical verified
+  # progress checkpoint. A new refresh request or changed durable state still
+  # creates a new cumulative archive.
+  python3 "$ROOT/.circleci/scripts/sandium-source-shards.py" archive --root "$ROOT" --workers 8 --stage "$STAGE" --skip-if-unchanged
   if [ -s "$STATE/source-archive-unchanged" ]; then
     echo "SANDIUM_PINNING_ARCHIVE=REUSE unchanged_source_state=true stage=$STAGE; do not upload duplicate shards"
   else
