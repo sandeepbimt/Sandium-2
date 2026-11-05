@@ -428,6 +428,10 @@ def main() -> None:
         assert "if (component_filters_providers_.empty())" in manager_text
         assert "requestFilterListCatalogueRefresh" in fragment_text
         assert "MAX_FILTER_LIST_UPDATE_ATTEMPTS = 3" in fragment_text
+        assert "MAX_SELECTED_FILTER_VERIFY_ATTEMPTS = 6" in fragment_text
+        assert "SANDIUM_SELECTED_FILTERS_VERIFIED" in fragment_text
+        assert "getBoolValue()" in fragment_text
+        assert "preferences.edit().putBoolean(FILTER_LIST_MIGRATION_KEY, true).apply();" in fragment_text
         assert "notifyDataSetChanged();" in adapter_text
         for uuid in FRESH_INSTALL_FILTER_UUIDS:
             assert uuid in fragment_text, f"missing selected catalogue UUID: {uuid}"
