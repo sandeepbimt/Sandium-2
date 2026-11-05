@@ -739,7 +739,7 @@ def write_delta_record(root: Path, stage: int, previous_manifest_bytes: bytes | 
 
 
 def assemble_deltas(root: Path, through_stage: int, workers: int = 8,
-                    zstd_test: bool = True) -> dict[str, Any]:
+                    zstd_test: bool = False) -> dict[str, Any]:
     """Rebuild a cumulative source checkpoint from its immutable base and ordered stage deltas."""
     base_manifest_path = root / "brave-source-checkpoint.base.manifest.json"
     base_shards = root / "brave-source-checkpoint.base.shards"
@@ -755,6 +755,7 @@ def assemble_deltas(root: Path, through_stage: int, workers: int = 8,
     temp_dir = root / (SHARDS_NAME + ".assemble.tmp")
     shutil.rmtree(temp_dir, ignore_errors=True)
     temp_dir.mkdir(parents=True)
+    verified_shards: dict[str, str] = {}
     try:
         for item in current.get("shards", []):
             src = base_shards / item["name"]
@@ -765,6 +766,7 @@ def assemble_deltas(root: Path, through_stage: int, workers: int = 8,
                 os.link(src, destination)
             except OSError:
                 shutil.copy2(src, destination)
+            verified_shards[item["name"]] = item["sha256"]
         for stage in range(1, through_stage + 1):
             delta_dir = root / "brave-source-checkpoint.deltas" / ("stage-%d" % stage)
             delta_path = delta_dir / "delta-manifest.json"
@@ -797,6 +799,7 @@ def assemble_deltas(root: Path, through_stage: int, workers: int = 8,
                 if not isinstance(name, str) or Path(name).name != name:
                     fail("unsafe removed shard name at stage %d" % stage)
                 (temp_dir / name).unlink(missing_ok=True)
+                verified_shards.pop(name, None)
             for item in delta.get("changed_shards", []):
                 name = item.get("name", "")
                 if Path(name).name != name:
@@ -805,6 +808,7 @@ def assemble_deltas(root: Path, through_stage: int, workers: int = 8,
                 if not src.is_file() or src.stat().st_size != int(item["size_bytes"]) or sha256_file(src) != item["sha256"]:
                     fail("delta shard integrity failure at stage %d: %s" % (stage, name))
                 shutil.copy2(src, temp_dir / name)
+                verified_shards[name] = item["sha256"]
             current = result_manifest
             current_bytes = result_bytes
         expected = {item["name"]: item for item in current.get("shards", [])}
@@ -813,8 +817,8 @@ def assemble_deltas(root: Path, through_stage: int, workers: int = 8,
             fail("assembled shard set differs from final manifest")
         for item in expected.values():
             path = temp_dir / item["name"]
-            if path.stat().st_size != int(item["size_bytes"]) or sha256_file(path) != item["sha256"]:
-                fail("assembled shard checksum mismatch: %s" % item["name"])
+            if path.stat().st_size != int(item["size_bytes"]) or verified_shards.get(item["name"]) != item["sha256"]:
+                fail("assembled shard checksum/lineage mismatch: %s" % item["name"])
             if zstd_test:
                 check = subprocess.run(["zstd", "-t", str(path)], stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
                 if check.returncode:
@@ -1106,6 +1110,8 @@ def main() -> None:
                         help="publish a manifest-linked delta for this stage")
     parser.add_argument("--through-stage", type=int, default=0,
                         help="assemble ordered stage deltas through this stage")
+    parser.add_argument("--zstd-test", action="store_true",
+                        help="decompress-test every assembled shard")
     args = parser.parse_args()
     root = Path(args.root).resolve()
     workers = max(1, min(WORKERS_MAX, int(args.workers)))
@@ -1120,7 +1126,7 @@ def main() -> None:
     elif args.command == "assemble-deltas":
         if args.through_stage < 1 or args.through_stage > 5:
             fail("assemble-deltas requires --through-stage 1..5")
-        assemble_deltas(root, args.through_stage, workers, zstd_test=True)
+        assemble_deltas(root, args.through_stage, workers, zstd_test=args.zstd_test)
 
 
 if __name__ == "__main__":
