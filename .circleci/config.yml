@@ -17,10 +17,15 @@ jobs:
     steps:
       - checkout
       - run:
-          name: Validate Brave native filter integration and engine handoff
+          name: Compile adblock patch and regression test scripts
           command: |
             set -euo pipefail
             python3 -m py_compile .circleci/scripts/apply-sandium-adblock.py .circleci/scripts/test-sandium-adblock.py
+            echo "SANDIUM_ADBLOCK_PYTHON_COMPILE=PASS"
+      - run:
+          name: Run native adblock and filter-engine regression tests
+          command: |
+            set -euo pipefail
             python3 .circleci/scripts/test-sandium-adblock.py
             echo "SANDIUM_ADBLOCK_NATIVE_VALIDATION=PASS"
   c4-afterbird-staged-build:
