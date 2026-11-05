@@ -21,6 +21,8 @@ assert 'SHARD_%d_SHA256' in restore
 assert 'bash .circleci/scripts/restore-brave-source-checkpoint.sh base-required' in config
 assert 'grep -qx \'RESTORE_RESULT=PASS\'' in config
 assert '- pinning-status/source-restore-receipt.env' in config
+assert 'SANDIUM_PINNING_WORKFLOW=STOP' in config
+assert 'exit 75' in config
 
 # The mandatory mode must not route through the legacy/fresh-bootstrap fallback.
 mandatory = restore.split('  base-required)', 1)[1].split('  progress)', 1)[0]
