@@ -2844,6 +2844,7 @@ workflows:
                 - optimization/incremental-brave-source-sync
                 - fix/source-prep-nonresumable-git-fetch
                 - fix/chromium-partial-fetch-and-source-shards
+                - fix/brave-157-filtered-source-sync
   c4-afterbird-staged-checkpoint-build:
     jobs:
       - c4-afterbird-staged-build:
