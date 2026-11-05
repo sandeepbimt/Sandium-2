@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-MODE="${1:?usage: restore-brave-source-checkpoint.sh <base|progress>}"
+MODE="${1:?usage: restore-brave-source-checkpoint.sh <base|base-required|progress>}"
 ROOT="${CIRCLE_WORKING_DIRECTORY:?CIRCLE_WORKING_DIRECTORY is required}"
 WORK="$ROOT/brave-work"
 
@@ -169,8 +169,8 @@ case "$MODE" in
       exit 1
     fi
     echo "SOURCE_PREP_PROGRESS=RESTORED"
-    ;;
     write_restore_receipt progress
+    ;;
   *)
     echo "SOURCE_PREP_RESTORE=FAIL invalid mode=$MODE" >&2
     exit 2
