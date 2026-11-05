@@ -17,7 +17,7 @@ from pathlib import Path
 
 HELPER_NAME = "SandiumGetFileSizeCompat"
 LEGACY_CALL = re.compile(
-    r"base::GetFileSize\\s*\\(\\s*list_file_path\\s*,\\s*&list_file_size\\s*\\)"
+    r"base::GetFileSize\s*\(\s*list_file_path\s*,\s*&list_file_size\s*\)"
 )
 HELPER = """bool SandiumGetFileSizeCompat(const base::FilePath& file_path,
                               int64_t* file_size) {
@@ -56,31 +56,28 @@ def main() -> None:
     original_sha = hashlib.sha256(original.encode()).hexdigest()
     matches = list(LEGACY_CALL.finditer(original))
     helper_present = HELPER_NAME in original
+    patched_call = f"{HELPER_NAME}(list_file_path, &list_file_size)"
 
     if len(matches) > 1:
         fail(f"expected at most one legacy call, found {len(matches)}")
 
     if len(matches) == 1:
         if helper_present:
-            updated = LEGACY_CALL.sub(
-                f"{HELPER_NAME}(list_file_path, &list_file_size)", original
-            )
+            updated = LEGACY_CALL.sub(patched_call, original)
         else:
             if original.count("namespace {") != 1:
                 fail("expected exactly one anonymous namespace insertion point")
             updated = original.replace(
-                "namespace {", "namespace {\\n\\n" + HELPER, 1
+                "namespace {", "namespace {\n\n" + HELPER, 1
             )
-            updated, count = LEGACY_CALL.subn(
-                f"{HELPER_NAME}(list_file_path, &list_file_size)", updated
-            )
+            updated, count = LEGACY_CALL.subn(patched_call, updated)
             if count != 1:
                 fail(f"replacement count was {count}, expected 1")
             if "#include <cstdint>" not in updated:
                 anchor = "#include <memory>"
                 if original.count(anchor) != 1:
                     fail("could not safely insert <cstdint> include")
-                updated = updated.replace(anchor, "#include <cstdint>\\n" + anchor, 1)
+                updated = updated.replace(anchor, "#include <cstdint>\n" + anchor, 1)
 
         if updated != original:
             fd, temporary = tempfile.mkstemp(prefix=".sandium-file-size-", dir=str(path.parent))
@@ -93,7 +90,7 @@ def main() -> None:
                     os.unlink(temporary)
 
         verified = path.read_text(encoding="utf-8")
-        if LEGACY_CALL.search(verified) or HELPER_NAME not in verified:
+        if LEGACY_CALL.search(verified) or patched_call not in verified or HELPER_NAME not in verified:
             fail("post-patch verification failed")
         print(
             "BRAVE_CHROMIUM157_FILE_SIZE_API=PATCHED "
@@ -103,9 +100,15 @@ def main() -> None:
         return
 
     if helper_present:
-        fail("compatibility helper exists but expected legacy call is absent; inspect source manually")
+        if patched_call not in original:
+            fail("compatibility helper exists but expected call site is absent; inspect source manually")
+        print(
+            "BRAVE_CHROMIUM157_FILE_SIZE_API=ALREADY_PATCHED "
+            f"core_sha={core_sha} source_sha256={original_sha}"
+        )
+        return
 
-    if re.search(r"base::GetFileSize\\s*\\([^;]*,", original):
+    if re.search(r"base::GetFileSize\s*\([^;]*,", original):
         fail("unexpected multi-argument GetFileSize call; refusing broad rewrite")
 
     print(
