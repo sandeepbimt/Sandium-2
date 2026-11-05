@@ -781,6 +781,14 @@ def assemble_deltas(root: Path, through_stage: int, workers: int = 8,
             result_manifest = json.loads(result_bytes)
             if result_manifest.get("schema_version") != SCHEMA or result_manifest.get("format") != "sandium-brave-source-only-shards":
                 fail("delta result manifest schema/format mismatch at stage %d" % stage)
+            result_items = result_manifest.get("shards")
+            if not isinstance(result_items, list) or not result_items or len(result_items) > WORKERS_MAX:
+                fail("delta result shard list is invalid at stage %d" % stage)
+            result_names = [item.get("name", "") for item in result_items if isinstance(item, dict)]
+            if len(result_names) != len(result_items) or len(set(result_names)) != len(result_names):
+                fail("delta result contains invalid or duplicate shard names at stage %d" % stage)
+            if any(not name or Path(name).name != name for name in result_names):
+                fail("delta result contains unsafe shard names at stage %d" % stage)
             for name in delta.get("removed_shards", []):
                 if not isinstance(name, str) or Path(name).name != name:
                     fail("unsafe removed shard name at stage %d" % stage)
