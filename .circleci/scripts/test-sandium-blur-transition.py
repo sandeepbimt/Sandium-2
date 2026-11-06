@@ -136,6 +136,23 @@ def main():
 
     java = MODULE.transform_appearance_java(JAVA_FIXTURE)
     assert java == MODULE.transform_appearance_java(java), "Appearance Java overlay must be idempotent"
+    assert java.index(MODULE.JAVA_CHANGE_BEGIN) < java.index(MODULE.JAVA_CHANGE_ANCHOR), \
+        "blur preference handler must precede the existing preference chain"
+    assert java.count("if (PREF_SANDIUM_PAGE_TRANSITION_BLUR_LEVEL.equals(key))") == 1
+    assert "} else if (BravePreferenceKeys.BRAVE_BOTTOM_TOOLBAR_ENABLED_KEY.equals(key))" not in java
+    assert java.count("{") == java.count("}"), "generated AppearancePreferences Java braces must balance"
+
+    # Migrate the malformed legacy placement produced by the previous transformer.
+    legacy_java = JAVA_FIXTURE.replace(
+        MODULE.JAVA_CHANGE_ANCHOR,
+        MODULE.JAVA_CHANGE_ANCHOR + MODULE.JAVA_CHANGE_BLOCK,
+        1,
+    )
+    migrated_java = MODULE.transform_appearance_java(legacy_java)
+    assert migrated_java == MODULE.transform_appearance_java(migrated_java)
+    assert migrated_java.index(MODULE.JAVA_CHANGE_BEGIN) < migrated_java.index(MODULE.JAVA_CHANGE_ANCHOR)
+    assert migrated_java.count("{") == migrated_java.count("}"), "legacy migration must restore balanced Java"
+
     for snippet in (
         "setEntries(",
         'new CharSequence[] {"default", "low", "medium", "high"}',
