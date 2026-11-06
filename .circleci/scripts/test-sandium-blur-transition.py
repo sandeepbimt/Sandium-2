@@ -113,8 +113,9 @@ def main():
         "enableSandiumNavigationBlurTransition();"
     ) < startup.index("PathUtils.setPrivateDataDirectorySuffix")
     helper_pos = startup.index(MODULE.HELPER_BEGIN)
-    assert startup.rfind("@Override", 0, helper_pos) < startup.rfind("}", 0, helper_pos)
-    assert startup.index("@Override\\n    public void onCreate() {\\n        super.onCreate();") > helper_pos
+    helper_prefix = startup[:helper_pos].rstrip()
+    assert not helper_prefix.endswith("@Override"), "static helper must not inherit @Override"
+    assert startup.index("@Override\n    public void onCreate() {\n        super.onCreate();") > helper_pos
 
     for snippet in (
         '"default"',

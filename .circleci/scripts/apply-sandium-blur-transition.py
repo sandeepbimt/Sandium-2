@@ -312,7 +312,13 @@ def transform_chromium_startup(source: str) -> str:
                             INIT_ANCHOR, "blur activation")
     source = replace_marked(source, HELPER_BEGIN, HELPER_END, HELPER_BLOCK,
                             OUTER_ON_CREATE_ANCHOR, "blur startup helper", before=True)
-    # The insertion anchor includes @Override so the annotation remains attached to onCreate,\n    # never to the static helper inserted immediately before it.\n    if source.count(HELPER_BEGIN) != 1 or source.index(HELPER_BEGIN) > source.index(OUTER_ON_CREATE_ANCHOR):\n        raise RuntimeError("startup helper placement is invalid")\n    helper_prefix = source[max(0, source.index(HELPER_BEGIN) - 32):source.index(HELPER_BEGIN)]\n    if helper_prefix.rstrip().endswith("@Override"):\n        raise RuntimeError("startup helper must not inherit @Override")\n    checks = [
+    # Keep @Override attached to onCreate, not to the inserted static helper.
+    if source.count(HELPER_BEGIN) != 1 or source.index(HELPER_BEGIN) > source.index(OUTER_ON_CREATE_ANCHOR):
+        raise RuntimeError("startup helper placement is invalid")
+    helper_prefix = source[:source.index(HELPER_BEGIN)].rstrip()
+    if helper_prefix.endswith("@Override"):
+        raise RuntimeError("startup helper must not inherit @Override")
+    checks = [
         (source.count(IMPORT) == 1, "CommandLine import count"),
         (source.count(FEATURE) == 1, "feature identifier count"),
         (source.index(INIT_ANCHOR) < source.index("enableSandiumNavigationBlurTransition();"),
