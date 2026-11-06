@@ -115,29 +115,255 @@ def main():
         "SANDIUM_WEB_DISCOVERY",
     )
 
-    # Brave News test targets are optional on Android. GN's list -= operator
-    # throws when any requested removal is absent. Do not manufacture membership
-    # by adding the target to an exception list: filter the existing list instead.
+    # Brave News is disabled in Sandium's Full Mode GN args. Its browser_tests
+    # target is consequently absent from the Android deps list, so it must not
+    # remain in android_test_exception_deps (GN's list subtraction is strict).
     android_tests = core / "android/android_browser_tests.gni"
     if not android_tests.is_file():
         raise RuntimeError("SANDIUM_ANDROID_TEST_DEPS: pinned Android browser test GN file missing")
     android_source = android_tests.read_text(encoding="utf-8")
+    news_target = '"//brave/browser/brave_news:browser_tests"'
+    import re
 
-    # Remove the earlier workaround if it exists in a restored checkpoint.
-    news_guard = (
+    # Remove only the Brave News target from the declared exception list.
+    # Keep every unrelated Android test exclusion byte-for-byte unchanged.
+    declaration = re.search(
+        r'(?m)^android_test_exception_deps\s*=\s*\[\s*
+    pattern = re.compile(r'^(\s*)deps\s*-=\s*android_test_exception_deps\s*$', re.MULTILINE)
+    matches = list(pattern.finditer(android_source))
+    begin_marker = "SANDIUM_ANDROID_TEST_DEPS_BEGIN"
+    end_marker = "SANDIUM_ANDROID_TEST_DEPS_END"
+    loop_marker = "foreach(exception_dep, android_test_exception_deps)"
+    has_begin = begin_marker in android_source
+    has_end = end_marker in android_source
+    has_loop = loop_marker in android_source
+
+    if len(matches) > 1:
+        raise RuntimeError(
+            "SANDIUM_ANDROID_TEST_DEPS: expected at most one bulk subtraction; "
+            f"found {len(matches)}"
+        )
+    if len(matches) == 1:
+        if has_begin or has_end or has_loop:
+            raise RuntimeError("SANDIUM_ANDROID_TEST_DEPS: mixed guarded and unguarded dependency logic")
+        match = matches[0]
+        indent = match.group(1)
+        guarded = (
+            indent + "# SANDIUM_ANDROID_TEST_DEPS_BEGIN\n"
+            + indent + "foreach(exception_dep, android_test_exception_deps) {\n"
+            + indent + "  if (exception_dep in deps) {\n"
+            + indent + "    deps -= [ exception_dep ]\n"
+            + indent + "  }\n"
+            + indent + "}\n"
+            + indent + "# SANDIUM_ANDROID_TEST_DEPS_END\n"
+        )
+        android_source = android_source[:match.start()] + guarded + android_source[match.end():]
+        print("SANDIUM_ANDROID_NEWS_TEST_DEP_GUARD=PATCHED guarded optional-dependency removal")
+    elif has_begin and has_end and has_loop:
+        if android_source.count(begin_marker) != 1 or android_source.count(end_marker) != 1 or android_source.count(loop_marker) != 1:
+            raise RuntimeError("SANDIUM_ANDROID_TEST_DEPS: duplicate guarded dependency markers")
+        if android_source.index(begin_marker) >= android_source.index(end_marker):
+            raise RuntimeError("SANDIUM_ANDROID_TEST_DEPS: malformed guarded marker order")
+        print("SANDIUM_ANDROID_NEWS_TEST_DEP_GUARD=ALREADY_PATCHED")
+    elif has_begin or has_end or has_loop:
+        raise RuntimeError("SANDIUM_ANDROID_TEST_DEPS: incomplete guarded dependency patch")
+    else:
+        # Brave v1.98.62's pinned Android GN file declares the exception list
+        # but does not subtract it from deps. There is nothing to guard here.
+        if "android_test_exception_deps = [" not in android_source:
+            raise RuntimeError("SANDIUM_ANDROID_TEST_DEPS: exception dependency list declaration missing")
+        print("SANDIUM_ANDROID_NEWS_TEST_DEP_GUARD=NOT_REQUIRED pinned source has no bulk subtraction")
+
+    if android_source != android_tests.read_text(encoding="utf-8"):
+        android_tests.write_text(android_source, encoding="utf-8")
+
+    verified_android = android_tests.read_text(encoding="utf-8")
+    if re.search(r"^\s*deps\s*-\s*=\s*android_test_exception_deps\s*$", verified_android, re.MULTILINE):
+        raise RuntimeError("SANDIUM_ANDROID_TEST_DEPS: unsafe bulk subtraction remains")
+    verified_begin = begin_marker in verified_android
+    verified_end = end_marker in verified_android
+    verified_loop_count = verified_android.count(loop_marker)
+    if verified_begin and verified_end and verified_loop_count == 1:
+        if verified_android.index(begin_marker) >= verified_android.index(end_marker):
+            raise RuntimeError("SANDIUM_ANDROID_TEST_DEPS: guarded marker order invalid")
+        print("SANDIUM_ANDROID_TEST_DEPS_GATE=PASS mode=guarded_optional_removal")
+    elif not verified_begin and not verified_end and verified_loop_count == 0 and "android_test_exception_deps = [" in verified_android:
+        print("SANDIUM_ANDROID_TEST_DEPS_GATE=PASS mode=upstream_noop")
+    else:
+        raise RuntimeError("SANDIUM_ANDROID_TEST_DEPS: post-write state is inconsistent")
+    
+    email_flags = core / "components/email_aliases/buildflags/buildflags.gni"
+    email_source = email_flags.read_text(encoding="utf-8")
+    if "enable_email_aliases = !is_ios && !is_android && !is_brave_origin_branded" not in email_source:
+        raise RuntimeError("SANDIUM_EMAIL_ALIASES: pinned Android default changed; inspect before proceeding")
+    print("SANDIUM_EMAIL_ALIASES=DISABLED_BY_ANDROID_BUILD_DEFAULT")
+
+    # Remove the Origin purchase entry; do not alter any entitlement checks.
+    main_prefs = core / "android/java/brave-res/xml/brave_main_preferences.xml"
+    old_origin_row = (
+        '    <org.chromium.components.browser_ui.settings.ChromeBasePreference\n'
+        '        android:key="brave_origin"\n'
+        '        android:order="14"\n'
+        '        android:icon="@drawable/ic_product_origin"\n'
+        '        android:title="@string/menu_origin"/>\n'
+    )
+    replace_exact(main_prefs, old_origin_row, "    <!-- SANDIUM_ORIGIN_ENTRY_REMOVED -->\n", "SANDIUM_REMOVE_ORIGIN_ENTRY")
+
+    # Add the supplied Universal Reader Typography v4 as an Android raw resource.
+    build_gn = core / "android/BUILD.gn"
+    resource_line = '    "java/brave-res/raw/sandium_reader_typography.js",\n'
+    source = build_gn.read_text(encoding="utf-8")
+    if resource_line.strip() in source:
+        print("SANDIUM_READER_RESOURCE=ALREADY_REGISTERED")
+    else:
+        anchor = '    "java/brave-res/xml/brave_origin_preferences.xml",\n'
+        if source.count(anchor) != 1:
+            raise RuntimeError("SANDIUM_READER_RESOURCE: expected one java_resources XML anchor")
+        build_gn.write_text(source.replace(anchor, anchor + resource_line, 1), encoding="utf-8")
+        print("SANDIUM_READER_RESOURCE=REGISTERED")
+
+    toolbar = core / "android/java/org/chromium/chrome/browser/toolbar/top/BraveToolbarLayoutImpl.java"
+    if not toolbar.is_file():
+        raise RuntimeError(f"SANDIUM_READER_INJECTION: missing {toolbar}")
+    source = toolbar.read_text(encoding="utf-8")
+    import_anchor = "import java.net.URL;\n"
+    imports = (
+        "import java.io.ByteArrayOutputStream;\n"
+        "import java.io.IOException;\n"
+        "import java.io.InputStream;\n"
+        "import java.nio.charset.StandardCharsets;\n"
+    )
+    if "import java.io.InputStream;" not in source:
+        if source.count(import_anchor) != 1:
+            raise RuntimeError("SANDIUM_READER_INJECTION: import anchor not unique")
+        source = source.replace(import_anchor, imports + import_anchor, 1)
+
+    field_anchor = "    private PlaylistService mPlaylistService;\n"
+    field = (
+        field_anchor
+        + "\n"
+        + "    // SANDIUM_READER_TYPOGRAPHY_BEGIN\n"
+        + "    private static volatile String sSandiumReaderTypographyScript;\n"
+        + "    // SANDIUM_READER_TYPOGRAPHY_END\n"
+    )
+    if "sSandiumReaderTypographyScript" not in source:
+        if source.count(field_anchor) != 1:
+            raise RuntimeError("SANDIUM_READER_INJECTION: field anchor not unique")
+        source = source.replace(field_anchor, field, 1)
+
+    method_anchor = "    public void setTabModelSelector(TabModelSelector selector) {\n"
+    method = (
+        "    private void applySandiumReaderTypography(Tab tab) {\n"
+        "        if (tab == null || tab.getWebContents() == null || tab.getUrl() == null) return;\n"
+        "        String scheme = tab.getUrl().getScheme();\n"
+        '        if (!"http".equals(scheme) && !"https".equals(scheme)) return;\n'
+        "        try {\n"
+        "            String script = sSandiumReaderTypographyScript;\n"
+        "            if (script == null) {\n"
+        "                synchronized (BraveToolbarLayoutImpl.class) {\n"
+        "                    script = sSandiumReaderTypographyScript;\n"
+        "                    if (script == null) {\n"
+        "                        try (InputStream input = getContext().getResources().openRawResource(\n"
+        "                                R.raw.sandium_reader_typography)) {\n"
+        "                            ByteArrayOutputStream output = new ByteArrayOutputStream();\n"
+        "                            byte[] buffer = new byte[8192];\n"
+        "                            int count;\n"
+        "                            while ((count = input.read(buffer)) != -1) {\n"
+        "                                output.write(buffer, 0, count);\n"
+        "                            }\n"
+        "                            script = new String(output.toByteArray(), StandardCharsets.UTF_8);\n"
+        "                        }\n"
+        "                        sSandiumReaderTypographyScript = script;\n"
+        "                    }\n"
+        "                }\n"
+        "            }\n"
+        "            tab.getWebContents().evaluateJavaScript(script, null);\n"
+        "        } catch (IOException | RuntimeException error) {\n"
+        '            Log.w(TAG, "Unable to apply Sandium reader typography", error);\n'
+        "        }\n"
+        "    }\n\n"
+        + method_anchor
+    )
+    if "private void applySandiumReaderTypography(Tab tab)" not in source:
+        if source.count(method_anchor) != 1:
+            raise RuntimeError("SANDIUM_READER_INJECTION: method anchor not unique")
+        source = source.replace(method_anchor, method, 1)
+
+    # Apply on finished loads and when a previously loaded tab becomes visible.
+    load_anchor = "                    public void onPageLoadFinished(final Tab tab, GURL url) {\n"
+    load_new = load_anchor + "                        applySandiumReaderTypography(tab);\n"
+    if "applySandiumReaderTypography(tab);" not in source:
+        if source.count(load_anchor) != 1:
+            raise RuntimeError("SANDIUM_READER_INJECTION: page-load anchor not unique")
+        source = source.replace(load_anchor, load_new, 1)
+    shown_anchor = "                    public void onShown(Tab tab, @TabSelectionType int type) {\n"
+    shown_new = shown_anchor + "                        applySandiumReaderTypography(tab);\n"
+    if source.count(shown_anchor) == 1 and "applySandiumReaderTypography(tab);" not in source[source.index(shown_anchor):source.index(shown_anchor)+180]:
+        source = source.replace(shown_anchor, shown_new, 1)
+    toolbar.write_text(source, encoding="utf-8")
+    print("SANDIUM_READER_INJECTION=PATCHED")
+
+    # Keep the resource path and all user-provided v4 algorithm/CSS unchanged.
+    repo_root = Path(__file__).resolve().parents[2]
+    supplied_raw = repo_root / "android/java/brave-res/raw/sandium_reader_typography.js"
+    raw = core / "android/java/brave-res/raw/sandium_reader_typography.js"
+    if not supplied_raw.is_file() or supplied_raw.stat().st_size < 2500:
+        raise RuntimeError(f"SANDIUM_READER_RESOURCE: supplied v4 script is missing or truncated: {supplied_raw}")
+    raw.parent.mkdir(parents=True, exist_ok=True)
+    supplied_bytes = supplied_raw.read_bytes()
+    if raw.exists() and raw.read_bytes() != supplied_bytes:
+        print("SANDIUM_READER_RESOURCE=REFRESHING_FROM_REPOSITORY_SOURCE")
+    raw.write_bytes(supplied_bytes)
+    if raw.read_bytes() != supplied_bytes:
+        raise RuntimeError("SANDIUM_READER_RESOURCE: copy verification failed")
+    print(f"SANDIUM_READER_RESOURCE=PASS bytes={raw.stat().st_size} exact_repository_copy=true")
+    print("SANDIUM_FULL_OVERLAYS=PASS")
+    
+if __name__ == "__main__":
+    try:
+        main()
+    except Exception as exc:
+        print(f"SANDIUM_FULL_OVERLAYS=FAIL {exc}", file=sys.stderr)
+        raise SystemExit(1)
+,
+        android_source,
+    )
+    if not declaration:
+        raise RuntimeError("SANDIUM_ANDROID_TEST_DEPS: exception dependency list declaration missing")
+    list_end = android_source.find("]", declaration.end())
+    if list_end < 0:
+        raise RuntimeError("SANDIUM_ANDROID_TEST_DEPS: exception dependency list is unterminated")
+    exception_block = android_source[declaration.start():list_end + 1]
+    filtered_block, removed_count = re.subn(
+        r'(?m)^\s*' + re.escape(news_target) + r'\s*,?\s*\n',
+        "",
+        exception_block,
+    )
+    if removed_count:
+        android_source = (
+            android_source[:declaration.start()]
+            + filtered_block
+            + android_source[list_end + 1:]
+        )
+        print(f"SANDIUM_ANDROID_NEWS_TEST_DEP_GUARD=REMOVED_FROM_EXCEPTION_LIST count={removed_count}")
+    else:
+        print("SANDIUM_ANDROID_NEWS_TEST_DEP_GUARD=ALREADY_ABSENT")
+
+    # Remove any legacy conditional append introduced by earlier experiments.
+    legacy_append = (
         'if (enable_brave_news) {\n'
         '  android_test_exception_deps += [ "//brave/browser/brave_news:browser_tests" ]\n'
         '}\n'
     )
-    if news_guard in android_source:
-        android_source = android_source.replace(news_guard, "", 1)
-        print("SANDIUM_ANDROID_NEWS_TEST_DEP_GUARD=REMOVED_UNSAFE_EXCEPTION_INJECTION")
-    elif android_source.count('android_test_exception_deps += [ "//brave/browser/brave_news:browser_tests" ]') > 0:
-        raise RuntimeError("SANDIUM_ANDROID_TEST_DEPS: unexpected Brave News exception-list patch; inspect source")
+    if legacy_append in android_source:
+        android_source = android_source.replace(legacy_append, "", 1)
+        print("SANDIUM_ANDROID_NEWS_TEST_DEP_GUARD=REMOVED_LEGACY_APPEND")
+    if news_target in android_source:
+        raise RuntimeError("SANDIUM_ANDROID_TEST_DEPS: Brave News browser_tests still appears in Android exception GN file")
 
-    # Filter each exception dependency against the actual deps list before removal.
-    # This preserves all present removals while safely ignoring absent optional targets.
-    import re
+    # The remaining dependency list subtraction is now safe for the disabled News target.
+    # Keep the guarded-removal compatibility path for pinned-source variants.
+
     pattern = re.compile(r'^(\s*)deps\s*-=\s*android_test_exception_deps\s*$', re.MULTILINE)
     matches = list(pattern.finditer(android_source))
     begin_marker = "SANDIUM_ANDROID_TEST_DEPS_BEGIN"
