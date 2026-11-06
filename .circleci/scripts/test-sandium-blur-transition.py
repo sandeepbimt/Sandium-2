@@ -22,6 +22,10 @@ class SplitCompatApplication {
     }
     @Override
     public void onCreate() {}
+    @Override
+    public void onCreate() {
+        super.onCreate();
+    }
 }
 """
 XML_FIXTURE = """<PreferenceScreen>

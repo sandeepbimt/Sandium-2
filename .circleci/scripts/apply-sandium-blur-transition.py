@@ -22,7 +22,7 @@ INIT_ANCHOR = (
     "            CommandLineInitUtil.initCommandLine(\n"
     "                    COMMAND_LINE_FILE, SplitCompatApplication::shouldUseDebugFlags);\n"
 )
-OUTER_ON_CREATE_ANCHOR = "    @Override\n    public void onCreate() {\n"
+OUTER_ON_CREATE_ANCHOR = "    public void onCreate() {\n        super.onCreate();\n"
 
 RUNTIME_BEGIN = "            // SANDIUM_FAST_BLUR_TRANSITION_BEGIN"
 RUNTIME_END = "            // SANDIUM_FAST_BLUR_TRANSITION_END"
