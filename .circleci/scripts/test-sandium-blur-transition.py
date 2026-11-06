@@ -133,6 +133,12 @@ def main():
     ):
         assert snippet in startup, f"missing startup mapping: {snippet}"
 
+    helper_start = startup.index(MODULE.HELPER_BEGIN)
+    helper_end = startup.index(MODULE.HELPER_END, helper_start)
+    helper = startup[helper_start:helper_end]
+    assert helper.count('final String disabled =') == 1, "disable-features local must be declared only once"
+    assert 'new StringBuilder(disabled)' in helper, "default mode must reuse the existing disable-features value"
+
     xml = MODULE.transform_appearance_xml(XML_FIXTURE)
     assert xml == MODULE.transform_appearance_xml(xml), "XML overlay must be idempotent"
     assert 'androidx.preference.ListPreference' in xml and MODULE.PREF_KEY in xml
