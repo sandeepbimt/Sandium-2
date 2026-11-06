@@ -115,22 +115,62 @@ def main():
         "SANDIUM_WEB_DISCOVERY",
     )
 
-    # Brave News is conditionally included in test/BUILD.gn when
-    # enable_brave_news is true. Its Android exception dependency must use
-    # the same condition: otherwise Android's deps -= android_test_exception_deps
-    # fails when News is disabled because the target is absent from deps.
+    # Brave News test targets are optional on Android. GN's list -= operator
+    # throws when any requested removal is absent. Do not manufacture membership
+    # by adding the target to an exception list: filter the existing list instead.
     android_tests = core / "android/android_browser_tests.gni"
-    replace_exact(
-        android_tests,
-        '  "//ui/views",\n]\n\nif (enable_brave_ads) {',
-        '  "//ui/views",\n]\n\n'
-        'if (enable_brave_news) {\n'
-        '  android_test_exception_deps += [ "//brave/browser/brave_news:browser_tests" ]\n'
-        '}\n\n'
-        'if (enable_brave_ads) {',
-        "SANDIUM_ANDROID_NEWS_TEST_DEP_GUARD",
-    )
+    if not android_tests.is_file():
+        raise RuntimeError("SANDIUM_ANDROID_TEST_DEPS: pinned Android browser test GN file missing")
+    android_source = android_tests.read_text(encoding="utf-8")
 
+    # Remove the earlier workaround if it exists in a restored checkpoint.
+    news_guard = (
+        'if (enable_brave_news) {\\n'
+        '  android_test_exception_deps += [ "//brave/browser/brave_news:browser_tests" ]\\n'
+        '}\\n'
+    )
+    if news_guard in android_source:
+        android_source = android_source.replace(news_guard, "", 1)
+        print("SANDIUM_ANDROID_NEWS_TEST_DEP_GUARD=REMOVED_UNSAFE_EXCEPTION_INJECTION")
+    elif android_source.count('android_test_exception_deps += [ "//brave/browser/brave_news:browser_tests" ]') > 0:
+        raise RuntimeError("SANDIUM_ANDROID_TEST_DEPS: unexpected Brave News exception-list patch; inspect source")
+
+    # Filter each exception dependency against the actual deps list before removal.
+    # This preserves all present removals while safely ignoring absent optional targets.
+    import re
+    pattern = re.compile(r'^(\\s*)deps\\s*-=\\s*android_test_exception_deps\\s*$', re.MULTILINE)
+    matches = list(pattern.finditer(android_source))
+    if len(matches) != 1:
+        if "SANDIUM_ANDROID_TEST_DEPS_BEGIN" in android_source and "SANDIUM_ANDROID_TEST_DEPS_END" in android_source:
+            print("SANDIUM_ANDROID_NEWS_TEST_DEP_GUARD=ALREADY_PATCHED")
+        else:
+            raise RuntimeError(
+                "SANDIUM_ANDROID_TEST_DEPS: expected exactly one 'deps -= android_test_exception_deps' "
+                f"operation; found {len(matches)}"
+            )
+    else:
+        match = matches[0]
+        indent = match.group(1)
+        guarded = (
+            indent + "foreach(exception_dep, android_test_exception_deps) {\\n"
+            + indent + "  if (exception_dep in deps) {\\n"
+            + indent + "    deps -= [ exception_dep ]\\n"
+            + indent + "  }\\n"
+            + indent + "}\\n"
+        )
+        android_source = (
+            android_source[:match.start()] + guarded + android_source[match.end():]
+        )
+        android_tests.write_text(android_source, encoding="utf-8")
+        print("SANDIUM_ANDROID_NEWS_TEST_DEP_GUARD=PATCHED guarded optional-dependency removal")
+
+    verified_android = android_tests.read_text(encoding="utf-8")
+    if "deps -= android_test_exception_deps" in verified_android:
+        raise RuntimeError("SANDIUM_ANDROID_TEST_DEPS: unsafe bulk subtraction remains")
+    if "foreach(exception_dep, android_test_exception_deps)" not in verified_android:
+        raise RuntimeError("SANDIUM_ANDROID_TEST_DEPS: guarded removal not present")
+    print("SANDIUM_ANDROID_TEST_DEPS_GATE=PASS")
+    
     email_flags = core / "components/email_aliases/buildflags/buildflags.gni"
     email_source = email_flags.read_text(encoding="utf-8")
     if "enable_email_aliases = !is_ios && !is_android && !is_brave_origin_branded" not in email_source:
