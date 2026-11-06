@@ -140,15 +140,21 @@ def main():
     import re
     pattern = re.compile(r'^(\s*)deps\s*-=\s*android_test_exception_deps\s*$', re.MULTILINE)
     matches = list(pattern.finditer(android_source))
-    if len(matches) != 1:
-        if "SANDIUM_ANDROID_TEST_DEPS_BEGIN" in android_source and "SANDIUM_ANDROID_TEST_DEPS_END" in android_source and "foreach(exception_dep, android_test_exception_deps)" in android_source:
-            print("SANDIUM_ANDROID_NEWS_TEST_DEP_GUARD=ALREADY_PATCHED")
-        else:
-            raise RuntimeError(
-                "SANDIUM_ANDROID_TEST_DEPS: expected exactly one 'deps -= android_test_exception_deps' "
-                f"operation; found {len(matches)}"
-            )
-    else:
+    begin_marker = "SANDIUM_ANDROID_TEST_DEPS_BEGIN"
+    end_marker = "SANDIUM_ANDROID_TEST_DEPS_END"
+    loop_marker = "foreach(exception_dep, android_test_exception_deps)"
+    has_begin = begin_marker in android_source
+    has_end = end_marker in android_source
+    has_loop = loop_marker in android_source
+
+    if len(matches) > 1:
+        raise RuntimeError(
+            "SANDIUM_ANDROID_TEST_DEPS: expected at most one bulk subtraction; "
+            f"found {len(matches)}"
+        )
+    if len(matches) == 1:
+        if has_begin or has_end or has_loop:
+            raise RuntimeError("SANDIUM_ANDROID_TEST_DEPS: mixed guarded and unguarded dependency logic")
         match = matches[0]
         indent = match.group(1)
         guarded = (
@@ -160,18 +166,40 @@ def main():
             + indent + "}\n"
             + indent + "# SANDIUM_ANDROID_TEST_DEPS_END\n"
         )
-        android_source = (
-            android_source[:match.start()] + guarded + android_source[match.end():]
-        )
-        android_tests.write_text(android_source, encoding="utf-8")
+        android_source = android_source[:match.start()] + guarded + android_source[match.end():]
         print("SANDIUM_ANDROID_NEWS_TEST_DEP_GUARD=PATCHED guarded optional-dependency removal")
+    elif has_begin and has_end and has_loop:
+        if android_source.count(begin_marker) != 1 or android_source.count(end_marker) != 1 or android_source.count(loop_marker) != 1:
+            raise RuntimeError("SANDIUM_ANDROID_TEST_DEPS: duplicate guarded dependency markers")
+        if android_source.index(begin_marker) >= android_source.index(end_marker):
+            raise RuntimeError("SANDIUM_ANDROID_TEST_DEPS: malformed guarded marker order")
+        print("SANDIUM_ANDROID_NEWS_TEST_DEP_GUARD=ALREADY_PATCHED")
+    elif has_begin or has_end or has_loop:
+        raise RuntimeError("SANDIUM_ANDROID_TEST_DEPS: incomplete guarded dependency patch")
+    else:
+        # Brave v1.98.62's pinned Android GN file declares the exception list
+        # but does not subtract it from deps. There is nothing to guard here.
+        if "android_test_exception_deps = [" not in android_source:
+            raise RuntimeError("SANDIUM_ANDROID_TEST_DEPS: exception dependency list declaration missing")
+        print("SANDIUM_ANDROID_NEWS_TEST_DEP_GUARD=NOT_REQUIRED pinned source has no bulk subtraction")
+
+    if android_source != android_tests.read_text(encoding="utf-8"):
+        android_tests.write_text(android_source, encoding="utf-8")
 
     verified_android = android_tests.read_text(encoding="utf-8")
-    if "deps -= android_test_exception_deps" in verified_android:
+    if re.search(r"^\s*deps\s*-\s*=\s*android_test_exception_deps\s*$", verified_android, re.MULTILINE):
         raise RuntimeError("SANDIUM_ANDROID_TEST_DEPS: unsafe bulk subtraction remains")
-    if "foreach(exception_dep, android_test_exception_deps)" not in verified_android:
-        raise RuntimeError("SANDIUM_ANDROID_TEST_DEPS: guarded removal not present")
-    print("SANDIUM_ANDROID_TEST_DEPS_GATE=PASS")
+    verified_begin = begin_marker in verified_android
+    verified_end = end_marker in verified_android
+    verified_loop_count = verified_android.count(loop_marker)
+    if verified_begin and verified_end and verified_loop_count == 1:
+        if verified_android.index(begin_marker) >= verified_android.index(end_marker):
+            raise RuntimeError("SANDIUM_ANDROID_TEST_DEPS: guarded marker order invalid")
+        print("SANDIUM_ANDROID_TEST_DEPS_GATE=PASS mode=guarded_optional_removal")
+    elif not verified_begin and not verified_end and verified_loop_count == 0 and "android_test_exception_deps = [" in verified_android:
+        print("SANDIUM_ANDROID_TEST_DEPS_GATE=PASS mode=upstream_noop")
+    else:
+        raise RuntimeError("SANDIUM_ANDROID_TEST_DEPS: post-write state is inconsistent")
     
     email_flags = core / "components/email_aliases/buildflags/buildflags.gni"
     email_source = email_flags.read_text(encoding="utf-8")
