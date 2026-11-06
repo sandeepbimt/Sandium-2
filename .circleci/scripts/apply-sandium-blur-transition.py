@@ -73,7 +73,7 @@ HELPER_BLOCK = (
     '                }\n'
     '            }\n'
     '            commandLine.appendSwitchWithValue("enable-features", enabledWithoutBlur.toString());\n'
-    '            final String disabled = commandLine.getSwitchValue("disable-features", "");\n'
+    '            // Reuse the method-level disabled feature list declared above.\n'
     '            final StringBuilder disabledWithBlur = new StringBuilder(disabled);\n'
     '            if (!containsSandiumFeature(disabled, feature)) {\n'
     '                if (disabledWithBlur.length() > 0) disabledWithBlur.append(",");\n'

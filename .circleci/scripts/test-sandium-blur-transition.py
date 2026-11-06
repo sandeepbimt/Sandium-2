@@ -124,6 +124,8 @@ def main():
         '"high"',
         'if (params.isEmpty())',
         'Default means Brave original behaviour: no navigation blur animation.',
+        '// Reuse the method-level disabled feature list declared above.',
+        'final String disabled = commandLine.getSwitchValue("disable-features", "");',
         'appendSwitchWithValue("disable-features"',
         "nav-animation-blur-sigma/1.0",
         "nav-animation-blur-sigma/2.0",
