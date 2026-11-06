@@ -1754,7 +1754,8 @@ jobs:
               bash "$ROOT/.circleci/scripts/verify-brave-reference.sh"
             elif [ "$MODE" = "full" ]; then
               echo "SANDIUM_CI_NAME=SANDIUM-FULL-MODE"
-              echo "SANDIUM_FULL_MODE=FORCED; stage budget=20 minutes; checkpoint promotion required."
+              echo "SANDIUM_FULL_MODE=FORCED; stage budget=20 minutes; canonical checkpoint validation required."
+              bash "$ROOT/.circleci/scripts/verify-brave-reference.sh"
             else
               echo "SANDIUM_BUILD_MODE_GATE=FAIL unsupported mode=$MODE" >&2
               exit 2
