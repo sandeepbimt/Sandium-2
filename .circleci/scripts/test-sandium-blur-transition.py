@@ -42,7 +42,7 @@ import androidx.preference.PreferenceGroupAdapter;
 import org.chromium.base.BravePreferenceKeys;
 import org.chromium.base.ContextUtils;
 class AppearancePreferences {
-    static final String PREF_BRAVE_NIGHT_MODE_ENABLED =
+    /* package */ static final String PREF_BRAVE_NIGHT_MODE_ENABLED =
             "brave_night_mode_enabled_key";
     void onActivityCreated() {
         Preference nightModeEnabled = findPreference(PREF_BRAVE_NIGHT_MODE_ENABLED);
