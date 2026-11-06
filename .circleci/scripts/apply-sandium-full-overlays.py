@@ -141,7 +141,7 @@ def main():
     pattern = re.compile(r'^(\s*)deps\s*-=\s*android_test_exception_deps\s*$', re.MULTILINE)
     matches = list(pattern.finditer(android_source))
     if len(matches) != 1:
-        if "SANDIUM_ANDROID_TEST_DEPS_BEGIN" in android_source and "SANDIUM_ANDROID_TEST_DEPS_END" in android_source:
+        if "SANDIUM_ANDROID_TEST_DEPS_BEGIN" in android_source and "SANDIUM_ANDROID_TEST_DEPS_END" in android_source and "foreach(exception_dep, android_test_exception_deps)" in android_source:
             print("SANDIUM_ANDROID_NEWS_TEST_DEP_GUARD=ALREADY_PATCHED")
         else:
             raise RuntimeError(
@@ -152,11 +152,13 @@ def main():
         match = matches[0]
         indent = match.group(1)
         guarded = (
-            indent + "foreach(exception_dep, android_test_exception_deps) {\n"
+            indent + "# SANDIUM_ANDROID_TEST_DEPS_BEGIN\n"
+            + indent + "foreach(exception_dep, android_test_exception_deps) {\n"
             + indent + "  if (exception_dep in deps) {\n"
             + indent + "    deps -= [ exception_dep ]\n"
             + indent + "  }\n"
             + indent + "}\n"
+            + indent + "# SANDIUM_ANDROID_TEST_DEPS_END\n"
         )
         android_source = (
             android_source[:match.start()] + guarded + android_source[match.end():]
