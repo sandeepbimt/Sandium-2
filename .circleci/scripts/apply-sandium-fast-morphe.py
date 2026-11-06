@@ -21,8 +21,8 @@ def replace_once(path, old, new, label):
         a, b = data.index(START), data.index(END) + len(END)
         if b <= a or data.count(START) != 1 or data.count(END) != 1:
             raise RuntimeError(f"{label}: malformed or duplicate markers")
-        line_a = data.rfind("\\n", 0, a) + 1
-        line_b = data.find("\\n", b)
+        line_a = data.rfind("\n", 0, a) + 1
+        line_b = data.find("\n", b)
         line_b = len(data) if line_b < 0 else line_b + 1
         block = new
         updated = data[:line_a] + block + data[line_b:]
@@ -35,8 +35,8 @@ def replace_once(path, old, new, label):
             if block_at < anchor_at:
                 a2 = updated.index(START)
                 b2 = updated.index(END) + len(END)
-                line_a2 = updated.rfind("\\n", 0, a2) + 1
-                line_b2 = updated.find("\\n", b2)
+                line_a2 = updated.rfind("\n", 0, a2) + 1
+                line_b2 = updated.find("\n", b2)
                 line_b2 = len(updated) if line_b2 < 0 else line_b2 + 1
                 misplaced = updated[line_a2:line_b2]
                 updated = updated[:line_a2] + updated[line_b2:]
