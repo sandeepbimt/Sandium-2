@@ -71,6 +71,14 @@ def main():
         "  registry->RegisterBooleanPref(kP3AEnabled, false);\n" + END,
         "SANDIUM_P3A_DEFAULT",
     )
+    replace_exact(
+        p3a,
+        "    component_updater::ComponentUpdateService* cus) {",
+        "    component_updater::ComponentUpdateService* cus) {\\n"
+        "  // Do not allow a previously persisted profile preference to re-enable P3A.\\n"
+        "  local_state_->SetBoolean(kP3AEnabled, false);",
+        "SANDIUM_P3A_RUNTIME",
+    )
     stats = core / "browser/brave_local_state_prefs.cc"
     replace_exact(
         stats,
@@ -85,8 +93,8 @@ def main():
     replace_exact(
         stats_updater,
         "      testing_url_loader_factory_(nullptr) {",
-        "      testing_url_loader_factory_(nullptr) {\\n"
-        "  // Keep anonymous statistics reporting disabled for existing profiles too.\\n"
+        "      testing_url_loader_factory_(nullptr) {\n"
+        "  // Keep anonymous statistics reporting disabled for existing profiles too.\n"
         "  pref_service_->SetBoolean(kStatsReportingEnabled, false);",
         "SANDIUM_STATS_REPORTING_RUNTIME",
     )
@@ -94,14 +102,14 @@ def main():
     web_discovery = core / "components/web_discovery/buildflags/buildflags.gni"
     replace_exact(
         web_discovery,
-        "  enable_web_discovery_native =\\n"
+        "  enable_web_discovery_native =\n"
         "      (is_win || is_mac || is_linux || is_android) && !is_brave_origin_branded",
         "  enable_web_discovery_native = false",
         "SANDIUM_WEB_DISCOVERY_NATIVE",
     )
     replace_exact(
         web_discovery,
-        "  enable_web_discovery = (enable_web_discovery_native || enable_extensions) &&\\n"
+        "  enable_web_discovery = (enable_web_discovery_native || enable_extensions) &&\n"
         "                         !is_brave_origin_branded",
         "  enable_web_discovery = false",
         "SANDIUM_WEB_DISCOVERY",
@@ -122,7 +130,7 @@ def main():
         '        android:icon="@drawable/ic_product_origin"\n'
         '        android:title="@string/menu_origin"/>\n'
     )
-    replace_exact(main_prefs, old_origin_row, "", "SANDIUM_REMOVE_ORIGIN_ENTRY")
+    replace_exact(main_prefs, old_origin_row, "    <!-- SANDIUM_ORIGIN_ENTRY_REMOVED -->\n", "SANDIUM_REMOVE_ORIGIN_ENTRY")
 
     # Add the supplied Universal Reader Typography v4 as an Android raw resource.
     build_gn = core / "android/BUILD.gn"
