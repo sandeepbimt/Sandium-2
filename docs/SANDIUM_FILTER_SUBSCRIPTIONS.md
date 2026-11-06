@@ -50,13 +50,15 @@ not included.
 - New lists added by a later Sandium release are seeded once. A user's deleted
   list is not silently re-added on the next visit. Users can still add it again
   through Brave's normal “Add custom filter list” action.
-- All 30 selected subscriptions are seeded enabled by default except
-  **uBlock filters – Annoyances**, which is seeded disabled.
-- On upgrade from an earlier Sandium build, a one-time preference migration
-  disables that specific subscription if it already exists. The migration
-  marker is persisted, so a later user choice to enable it is preserved.
-- The other 29 subscriptions retain their existing enabled/disabled state;
-  their normal Android toggle and delete controls remain available.
+- The original 25 filter lists remain enabled by default.
+- The five additions are seeded disabled by default: **AdGuard – Mobile App
+  Banners**, **AdGuard – Other Annoyances**, **AdGuard – Popup Overlays**,
+  **AdGuard – Widgets**, and **uBlock filters – Annoyances**.
+- On upgrade, a one-time preference migration disables those five subscriptions
+  if they already exist. Its marker is persisted, so subsequent manual toggle
+  choices are preserved.
+- The original 25 lists retain their existing enabled/disabled state; all
+  normal Android toggle and delete controls remain available.
 - Brave's native subscription manager downloads the public URL directly and
   automatically refreshes active subscriptions using each list's Expires
   metadata, or its seven-day default when the list has no expiry metadata.
