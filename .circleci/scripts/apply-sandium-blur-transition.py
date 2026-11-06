@@ -200,6 +200,7 @@ JAVA_ORDER_BEGIN = "        // SANDIUM_PAGE_TRANSITION_BLUR_ORDER_BEGIN"
 JAVA_ORDER_END = "        // SANDIUM_PAGE_TRANSITION_BLUR_ORDER_END"
 JAVA_ORDER_BLOCK = (
     JAVA_ORDER_BEGIN + "\n"
+    "        setPreferenceOrder(PREF_SANDIUM_PAGE_TRANSITION_BLUR_LEVEL, 10);\n"
     "        setPreferenceOrder(PREF_BRAVE_DISABLE_SHARING_HUB, 11);\n"
     "        setPreferenceOrder(PREF_SHOW_BRAVE_REWARDS_ICON, 12);\n"
     "        setPreferenceOrder(PREF_ADS_SWITCH, 13);\n"
