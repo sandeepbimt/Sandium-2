@@ -62,7 +62,9 @@ class AppearancePreferences {
         if (shouldRelaunch) BraveRelaunchUtils.askForRelaunch(getActivity());
         return true;
     }
-    private static boolean isSharingHubEnabled() {}
+    private static boolean isSharingHubEnabled() {
+        return true;
+    }
     private void applyOrdering() {
         setPreferenceOrder(PREF_BRAVE_NIGHT_MODE_ENABLED, 9);
         setPreferenceOrder(PREF_BRAVE_DISABLE_SHARING_HUB, 10);
