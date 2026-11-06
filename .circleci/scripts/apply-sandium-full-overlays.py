@@ -125,9 +125,9 @@ def main():
 
     # Remove the earlier workaround if it exists in a restored checkpoint.
     news_guard = (
-        'if (enable_brave_news) {\\n'
-        '  android_test_exception_deps += [ "//brave/browser/brave_news:browser_tests" ]\\n'
-        '}\\n'
+        'if (enable_brave_news) {\n'
+        '  android_test_exception_deps += [ "//brave/browser/brave_news:browser_tests" ]\n'
+        '}\n'
     )
     if news_guard in android_source:
         android_source = android_source.replace(news_guard, "", 1)
@@ -138,7 +138,7 @@ def main():
     # Filter each exception dependency against the actual deps list before removal.
     # This preserves all present removals while safely ignoring absent optional targets.
     import re
-    pattern = re.compile(r'^(\\s*)deps\\s*-=\\s*android_test_exception_deps\\s*$', re.MULTILINE)
+    pattern = re.compile(r'^(\s*)deps\s*-=\s*android_test_exception_deps\s*$', re.MULTILINE)
     matches = list(pattern.finditer(android_source))
     if len(matches) != 1:
         if "SANDIUM_ANDROID_TEST_DEPS_BEGIN" in android_source and "SANDIUM_ANDROID_TEST_DEPS_END" in android_source:
@@ -152,11 +152,11 @@ def main():
         match = matches[0]
         indent = match.group(1)
         guarded = (
-            indent + "foreach(exception_dep, android_test_exception_deps) {\\n"
-            + indent + "  if (exception_dep in deps) {\\n"
-            + indent + "    deps -= [ exception_dep ]\\n"
-            + indent + "  }\\n"
-            + indent + "}\\n"
+            indent + "foreach(exception_dep, android_test_exception_deps) {\n"
+            + indent + "  if (exception_dep in deps) {\n"
+            + indent + "    deps -= [ exception_dep ]\n"
+            + indent + "  }\n"
+            + indent + "}\n"
         )
         android_source = (
             android_source[:match.start()] + guarded + android_source[match.end():]
