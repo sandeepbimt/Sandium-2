@@ -19,20 +19,38 @@ def replace_once(path, old, new, label):
     data = path.read_text(encoding="utf-8")
     if START in data and END in data:
         a, b = data.index(START), data.index(END) + len(END)
-        if b <= a:
-            raise RuntimeError(f"{label}: malformed markers")
-        line_a = data.rfind("\n", 0, a) + 1
-        line_b = data.find("\n", b)
+        if b <= a or data.count(START) != 1 or data.count(END) != 1:
+            raise RuntimeError(f"{label}: malformed or duplicate markers")
+        line_a = data.rfind("\\n", 0, a) + 1
+        line_b = data.find("\\n", b)
         line_b = len(data) if line_b < 0 else line_b + 1
-        replacement = new
-        updated = data[:line_a] + replacement + data[line_b:]
-        status = "ALREADY_CURRENT" if updated == data else "UPDATED"
+        block = new
+        updated = data[:line_a] + block + data[line_b:]
+        # The original bug inserted the guard before the method declaration,
+        # at class scope. Move it into initializeAsync(), immediately after
+        # the opening brace, so the Java if statement is executable method code.
+        if old in updated:
+            anchor_at = updated.index(old)
+            block_at = updated.index(START)
+            if block_at < anchor_at:
+                a2 = updated.index(START)
+                b2 = updated.index(END) + len(END)
+                line_a2 = updated.rfind("\\n", 0, a2) + 1
+                line_b2 = updated.find("\\n", b2)
+                line_b2 = len(updated) if line_b2 < 0 else line_b2 + 1
+                misplaced = updated[line_a2:line_b2]
+                updated = updated[:line_a2] + updated[line_b2:]
+                if updated.count(old) != 1:
+                    raise RuntimeError(f"{label}: method anchor missing after relocation")
+                updated = updated.replace(old, old + misplaced, 1)
+        status = "ALREADY_CURRENT" if updated == data else "RELOCATED_OR_UPDATED"
     elif START in data or END in data:
         raise RuntimeError(f"{label}: partial marker set")
     else:
         if data.count(old) != 1:
             raise RuntimeError(f"{label}: expected one exact insertion anchor, found {data.count(old)}")
-        updated = data.replace(old, new + old, 1)
+        # Insert the guard inside initializeAsync(), not before its declaration.
+        updated = data.replace(old, old + new, 1)
         status = "APPLIED"
     if updated != data:
         path.write_text(updated, encoding="utf-8")
