@@ -1764,6 +1764,15 @@ jobs:
             set -euo pipefail
             export BRAVE_STAGE_INDEX="<< parameters.stage_index >>"
             bash .circleci/scripts/prepare-brave-source.sh
+      - when:
+          condition:
+            equal: [fast, << pipeline.parameters.sandium_build_mode >>]
+          steps:
+            - run:
+                name: Apply pin-guarded Morphe Android startup overlays (FAST MODE only)
+                command: |
+                  set -euo pipefail
+                  python3 .circleci/scripts/apply-sandium-fast-morphe.py "$CIRCLE_WORKING_DIRECTORY/brave-work/src"
       - run:
           name: Diagnose restored Siso checkpoint and compare prior stage
           command: |
@@ -2505,6 +2514,7 @@ workflows:
                 - sandium/brave-android-poc
                 - sandium/archive-zstd-fast5
                 - feature/sandium-ubo-filters-v19862
+                - feature/sandium-morphe-reader-fast
       - brave-android-staged-build:
           name: SANDIUM-FAST-MODE-stage-2
           stage_index: 2
@@ -2515,6 +2525,7 @@ workflows:
                 - sandium/brave-android-poc
                 - sandium/archive-zstd-fast5
                 - feature/sandium-ubo-filters-v19862
+                - feature/sandium-morphe-reader-fast
       - brave-android-staged-build:
           name: SANDIUM-FAST-MODE-stage-3
           stage_index: 3
@@ -2525,6 +2536,7 @@ workflows:
                 - sandium/brave-android-poc
                 - sandium/archive-zstd-fast5
                 - feature/sandium-ubo-filters-v19862
+                - feature/sandium-morphe-reader-fast
       - brave-android-staged-build:
           name: SANDIUM-FAST-MODE-stage-4
           stage_index: 4
@@ -2535,6 +2547,7 @@ workflows:
                 - sandium/brave-android-poc
                 - sandium/archive-zstd-fast5
                 - feature/sandium-ubo-filters-v19862
+                - feature/sandium-morphe-reader-fast
       - brave-android-staged-build:
           name: SANDIUM-FAST-MODE-stage-5
           stage_index: 5
@@ -2545,3 +2558,4 @@ workflows:
                 - sandium/brave-android-poc
                 - sandium/archive-zstd-fast5
                 - feature/sandium-ubo-filters-v19862
+                - feature/sandium-morphe-reader-fast
