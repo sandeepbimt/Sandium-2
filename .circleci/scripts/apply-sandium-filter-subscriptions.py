@@ -174,25 +174,25 @@ def apply_android_sources(core: Path) -> None:
         f'        {{ "{url}", "{title}" }},' for url, title in FILTERS
     )
     java_disabled_urls = "".join(
-        f'        "{url}",\\n' for url in DEFAULT_DISABLED_FILTER_URLS
+        f'        "{url}",\n' for url in DEFAULT_DISABLED_FILTER_URLS
     )
     constants = (
         '    private static final String FILTER_SUBSCRIPTION_PREFS = '
-        '"sandium_filter_subscriptions";\\n'
-        '    private static final String SEEDED_URLS_PREF = "seeded_urls_v1";\\n'
-        '    private static final String[] DEFAULT_DISABLED_FILTER_URLS = {\\n'
+        '"sandium_filter_subscriptions";\n'
+        '    private static final String SEEDED_URLS_PREF = "seeded_urls_v1";\n'
+        '    private static final String[] DEFAULT_DISABLED_FILTER_URLS = {\n'
         + java_disabled_urls
-        + '    };\\n'
-        '    private static final String DEFAULT_DISABLED_FILTERS_PREF = "default_disabled_additional_filters_v1";\\n'
-        '    private static final String[][] SANDIUM_DEFAULT_FILTERS = {\\n'
+        + '    };\n'
+        '    private static final String DEFAULT_DISABLED_FILTERS_PREF = "default_disabled_additional_filters_v1";\n'
+        '    private static final String[][] SANDIUM_DEFAULT_FILTERS = {\n'
         + java_entries
-        + '\\n    };\\n\\n'
-        + '    static String getSandiumFilterDisplayName(String subscriptionUrl) {\\n'
-        + '        for (String[] filter : SANDIUM_DEFAULT_FILTERS) {\\n'
-        + '            if (filter[0].equals(subscriptionUrl)) return filter[1];\\n'
-        + '        }\\n'
-        + '        return null;\\n'
-        + '    }\\n\\n'
+        + '\n    };\n\n'
+        + '    static String getSandiumFilterDisplayName(String subscriptionUrl) {\n'
+        + '        for (String[] filter : SANDIUM_DEFAULT_FILTERS) {\n'
+        + '            if (filter[0].equals(subscriptionUrl)) return filter[1];\n'
+        + '        }\n'
+        + '        return null;\n'
+        + '    }\n\n'
     )
     replace_once(
         fragment,
@@ -523,6 +523,8 @@ def verify_android_sources(core: Path) -> None:
         raise SystemExit("SANDIUM_FILTER_SUBSCRIPTIONS_VERIFY=FAIL expected create and one-time migration disable paths")
     if "DEFAULT_DISABLED_FILTERS_PREF" not in fragment or "defaultDisabledFiltersMigrated" not in fragment:
         raise SystemExit("SANDIUM_FILTER_SUBSCRIPTIONS_VERIFY=FAIL five-list one-time migration is missing")
+    if "DEFAULT_DISABLED_FILTER_URLS" not in fragment or "disabledByDefault" not in fragment:
+        raise SystemExit("SANDIUM_FILTER_SUBSCRIPTIONS_VERIFY=FAIL five-list default state logic is missing")
     print(
         "SANDIUM_FILTER_SUBSCRIPTIONS_VERIFY=PASS "
         f"lists={len(FILTERS)} auto_update=native_subscription_manager "
