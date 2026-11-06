@@ -152,8 +152,8 @@ public class ContentFilteringAdapter extends RecyclerView.Adapter<RecyclerView.V
 """
 
 def main() -> None:
-    assert len(FILTERS) == 25
-    assert len({url for url, _ in FILTERS}) == 25
+    assert len(FILTERS) == 30
+    assert len({url for url, _ in FILTERS}) == 30
     with tempfile.TemporaryDirectory(prefix="sandium-filter-subscriptions-test-") as directory:
         core = Path(directory)
         fragment = core / "android/java/org/chromium/chrome/browser/shields/ContentFilteringFragment.java"
@@ -200,10 +200,15 @@ def main() -> None:
             "EasyList – Newsletter Notices",
             "EasyList – Notifications",
             "EasyList – Other Annoyances",
+            "AdGuard – Mobile App Banners",
+            "AdGuard – Other Annoyances",
+            "AdGuard – Popup Overlays",
+            "AdGuard – Widgets",
+            "uBlock filters – Annoyances",
             "🇮🇳in 🇱🇰lk 🇳🇵np: IndianList",
         }
         for title in expected_titles:
             assert title in fragment_text, f"missing visible filter title: {title}"
-        print("SANDIUM_FILTER_SUBSCRIPTIONS_UNIT_TEST=PASS lists=25 unique=true idempotent=true")
+        print("SANDIUM_FILTER_SUBSCRIPTIONS_UNIT_TEST=PASS lists=30 unique=true idempotent=true")
 if __name__ == "__main__":
     main()

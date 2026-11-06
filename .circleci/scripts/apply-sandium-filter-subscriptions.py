@@ -39,6 +39,11 @@ FILTERS = (
     ("https://ublockorigin.github.io/uAssets/thirdparties/easylist-newsletters.txt", "EasyList – Newsletter Notices"),
     ("https://ublockorigin.github.io/uAssets/thirdparties/easylist-notifications.txt", "EasyList – Notifications"),
     ("https://ublockorigin.github.io/uAssets/thirdparties/easylist-annoyances.txt", "EasyList – Other Annoyances"),
+    ("https://filters.adtidy.org/extension/ublock/filters/20.txt", "AdGuard – Mobile App Banners"),
+    ("https://filters.adtidy.org/extension/ublock/filters/21.txt", "AdGuard – Other Annoyances"),
+    ("https://filters.adtidy.org/extension/ublock/filters/19.txt", "AdGuard – Popup Overlays"),
+    ("https://filters.adtidy.org/extension/ublock/filters/22.txt", "AdGuard – Widgets"),
+    ("https://ublockorigin.github.io/uAssets/filters/annoyances.txt", "uBlock filters – Annoyances"),
     ("https://easylist-downloads.adblockplus.org/indianlist.txt", "🇮🇳in 🇱🇰lk 🇳🇵np: IndianList"),
 )
 
@@ -468,8 +473,8 @@ def verify_android_sources(core: Path) -> None:
         raise SystemExit("SANDIUM_FILTER_SUBSCRIPTIONS_VERIFY=FAIL Brave component filter catalogue still used")
     if "getSandiumFilterDisplayName(url)" not in adapter:
         raise SystemExit("SANDIUM_FILTER_SUBSCRIPTIONS_VERIFY=FAIL friendly names are not rendered")
-    if len(FILTERS) != 25 or len({url for url, _ in FILTERS}) != 25:
-        raise SystemExit("SANDIUM_FILTER_SUBSCRIPTIONS_VERIFY=FAIL expected 25 unique selected list URLs")
+    if len(FILTERS) != 30 or len({url for url, _ in FILTERS}) != 30:
+        raise SystemExit("SANDIUM_FILTER_SUBSCRIPTIONS_VERIFY=FAIL expected 30 unique selected list URLs")
     print(
         "SANDIUM_FILTER_SUBSCRIPTIONS_VERIFY=PASS "
         f"lists={len(FILTERS)} auto_update=native_subscription_manager "
