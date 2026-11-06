@@ -420,6 +420,46 @@ PY
     echo "SANDIUM_BUILD_MODE_GATE=FAIL missing or invalid build-mode marker" >&2
     exit 2
   fi
+  # GN files have isolated scopes. Brave v1.98.62 declares enable_brave_news
+  # in this buildflags file, but the Android browser-test dependency file may
+  # reference it without importing that declaration. Import only when needed;
+  # never mask the error by inventing a local value or changing the feature flag.
+  python3 - "$CORE_DIR/android/android_browser_tests.gni" "$CORE_DIR/components/brave_news/common/buildflags/buildflags.gni" <<'PY'
+from pathlib import Path
+import sys
+
+target = Path(sys.argv[1])
+declaration = Path(sys.argv[2])
+if not target.is_file() or not declaration.is_file():
+    raise SystemExit("BRAVE_NEWS_GN_SCOPE_GATE=FAIL pinned GN source/declaration file missing")
+source = target.read_text(encoding="utf-8")
+flags = declaration.read_text(encoding="utf-8")
+if "enable_brave_news" not in flags or "declare_args()" not in flags:
+    raise SystemExit("BRAVE_NEWS_GN_SCOPE_GATE=FAIL pinned Brave News GN declaration not found")
+import_line = 'import("//brave/components/brave_news/common/buildflags/buildflags.gni")'
+if "enable_brave_news" not in source:
+    print("BRAVE_NEWS_GN_SCOPE_GATE=PASS no Brave News reference in Android test GN file")
+elif import_line in source:
+    print("BRAVE_NEWS_GN_SCOPE_GATE=PASS Brave News buildflags already imported")
+else:
+    lines = source.splitlines(keepends=True)
+    # Insert after the license header and before the first executable GN statement.
+    insert_at = 0
+    while insert_at < len(lines) and (not lines[insert_at].strip() or lines[insert_at].lstrip().startswith("#")):
+        insert_at += 1
+    lines.insert(insert_at, import_line + "\\n")
+    updated = "".join(lines)
+    if updated.count(import_line) != 1:
+        raise SystemExit("BRAVE_NEWS_GN_SCOPE_GATE=FAIL import insertion verification failed")
+    target.write_text(updated, encoding="utf-8")
+    print("BRAVE_NEWS_GN_SCOPE_GATE=PATCHED scoped buildflags import")
+
+verified = target.read_text(encoding="utf-8")
+if "enable_brave_news" in verified and import_line not in verified:
+    raise SystemExit("BRAVE_NEWS_GN_SCOPE_GATE=FAIL referenced variable remains out of scope")
+print("BRAVE_NEWS_GN_SCOPE_GATE=PASS")
+PY
+
   pnpm run build Release --target_os=android --target_arch=arm64 --target_android_output_format=apk --use_remoteexec=true --gn use_siso:true --gn use_reclient:false "${ORIGIN_GN_ARGS[@]}" --gn is_java_debug:false --gn enable_android_secondary_abi:false --gn is_official_build:false --gn enable_updater:false --gn enable_update_notifications:false --gn android_channel:default --gn chrome_public_manifest_package:com.brave.browser_default --gn brave_channel:development --target brave --ninja=n
   bash "$ROOT/.circleci/scripts/verify-clang-diagnostics-gn.sh"
 fi
