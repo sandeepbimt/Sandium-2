@@ -227,10 +227,19 @@ def main():
     print("SANDIUM_READER_INJECTION=PATCHED")
 
     # Keep the resource path and all user-provided v4 algorithm/CSS unchanged.
+    repo_root = Path(__file__).resolve().parents[2]
+    supplied_raw = repo_root / "android/java/brave-res/raw/sandium_reader_typography.js"
     raw = core / "android/java/brave-res/raw/sandium_reader_typography.js"
-    if not raw.is_file() or raw.stat().st_size < 2500:
-        raise RuntimeError(f"SANDIUM_READER_RESOURCE: expected supplied v4 script at {raw}")
-    print(f"SANDIUM_READER_RESOURCE=PASS bytes={raw.stat().st_size}")
+    if not supplied_raw.is_file() or supplied_raw.stat().st_size < 2500:
+        raise RuntimeError(f"SANDIUM_READER_RESOURCE: supplied v4 script is missing or truncated: {supplied_raw}")
+    raw.parent.mkdir(parents=True, exist_ok=True)
+    supplied_bytes = supplied_raw.read_bytes()
+    if raw.exists() and raw.read_bytes() != supplied_bytes:
+        print("SANDIUM_READER_RESOURCE=REFRESHING_FROM_REPOSITORY_SOURCE")
+    raw.write_bytes(supplied_bytes)
+    if raw.read_bytes() != supplied_bytes:
+        raise RuntimeError("SANDIUM_READER_RESOURCE: copy verification failed")
+    print(f"SANDIUM_READER_RESOURCE=PASS bytes={raw.stat().st_size} exact_repository_copy=true")
     print("SANDIUM_FULL_OVERLAYS=PASS")
     
 if __name__ == "__main__":
