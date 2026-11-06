@@ -116,19 +116,52 @@ def main():
     )
 
     # Brave News is disabled in Sandium's Full Mode GN args. Its browser_tests
-    # target is consequently absent from the Android deps list, so it must not
-    # remain in android_test_exception_deps (GN's list subtraction is strict).
+    # target is therefore absent from the Android deps list and must not remain
+    # in android_test_exception_deps (GN list subtraction rejects missing items).
     android_tests = core / "android/android_browser_tests.gni"
     if not android_tests.is_file():
         raise RuntimeError("SANDIUM_ANDROID_TEST_DEPS: pinned Android browser test GN file missing")
     android_source = android_tests.read_text(encoding="utf-8")
     news_target = '"//brave/browser/brave_news:browser_tests"'
-    import re
+    lines = android_source.splitlines(keepends=True)
+    declaration_index = next(
+        (i for i, line in enumerate(lines) if line.strip() == "android_test_exception_deps = ["),
+        None,
+    )
+    if declaration_index is None:
+        raise RuntimeError("SANDIUM_ANDROID_TEST_DEPS: exception dependency list declaration missing")
+    closing_index = next(
+        (i for i in range(declaration_index + 1, len(lines)) if lines[i].strip() == "]"),
+        None,
+    )
+    if closing_index is None:
+        raise RuntimeError("SANDIUM_ANDROID_TEST_DEPS: exception dependency list is unterminated")
+    kept = []
+    removed_count = 0
+    for line in lines[declaration_index + 1:closing_index]:
+        if news_target in line:
+            removed_count += 1
+        else:
+            kept.append(line)
+    lines[declaration_index + 1:closing_index] = kept
+    android_source = "".join(lines)
+    if removed_count:
+        print(f"SANDIUM_ANDROID_NEWS_TEST_DEP_GUARD=REMOVED_FROM_EXCEPTION_LIST count={removed_count}")
+    else:
+        print("SANDIUM_ANDROID_NEWS_TEST_DEP_GUARD=ALREADY_ABSENT")
 
-    # Remove only the Brave News target from the declared exception list.
-    # Keep every unrelated Android test exclusion byte-for-byte unchanged.
-    declaration = re.search(
-        r'(?m)^android_test_exception_deps\s*=\s*\[\s*
+    legacy_append = (
+        'if (enable_brave_news) {\\n'
+        '  android_test_exception_deps += [ "//brave/browser/brave_news:browser_tests" ]\\n'
+        '}\\n'
+    )
+    if legacy_append in android_source:
+        android_source = android_source.replace(legacy_append, "", 1)
+        print("SANDIUM_ANDROID_NEWS_TEST_DEP_GUARD=REMOVED_LEGACY_APPEND")
+    if news_target in android_source:
+        raise RuntimeError("SANDIUM_ANDROID_TEST_DEPS: Brave News browser_tests still appears in Android exception GN file")
+
+    import re
     pattern = re.compile(r'^(\s*)deps\s*-=\s*android_test_exception_deps\s*$', re.MULTILINE)
     matches = list(pattern.finditer(android_source))
     begin_marker = "SANDIUM_ANDROID_TEST_DEPS_BEGIN"
