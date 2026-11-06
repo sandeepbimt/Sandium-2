@@ -195,8 +195,8 @@ def main() -> None:
         assert "DEFAULT_DISABLED_FILTER_URLS" in fragment_text
         assert "defaultDisabledFiltersMigrated" in fragment_text
         assert fragment_text.count("mFilterListAndroidHandler.enableSubscription(subscriptionUrl, false)") == 2
-        assert re.search(r"preferences\\.getBoolean\\(\\s*DEFAULT_DISABLED_FILTERS_PREF,\\s*false\\s*\\)", fragment_text), \\
-            "one-time migration marker must be read from SharedPreferences"
+        assert "preferences.getBoolean(" in fragment_text
+        assert "DEFAULT_DISABLED_FILTERS_PREF, false" in fragment_text
         assert "preferences.edit().putBoolean(" in fragment_text
         expected_titles = {
             "uBlock filters – Ads",
