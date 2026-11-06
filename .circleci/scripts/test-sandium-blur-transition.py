@@ -112,7 +112,7 @@ def main():
     assert startup.index("CommandLineInitUtil.initCommandLine") < startup.index(
         "enableSandiumNavigationBlurTransition();"
     ) < startup.index("PathUtils.setPrivateDataDirectorySuffix")
-    for snippet in (
+    helper_pos = startup.index(MODULE.HELPER_BEGIN)\n    assert startup.rfind("@Override", 0, helper_pos) < startup.rfind("}", 0, helper_pos)\n    assert startup.index("@Override\\n    public void onCreate() {\\n        super.onCreate();") > helper_pos\n    for snippet in (
         '"default"',
         '"low"',
         '"medium"',

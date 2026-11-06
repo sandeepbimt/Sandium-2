@@ -22,7 +22,7 @@ INIT_ANCHOR = (
     "            CommandLineInitUtil.initCommandLine(\n"
     "                    COMMAND_LINE_FILE, SplitCompatApplication::shouldUseDebugFlags);\n"
 )
-OUTER_ON_CREATE_ANCHOR = "    public void onCreate() {\n        super.onCreate();\n"
+OUTER_ON_CREATE_ANCHOR = "    @Override\n    public void onCreate() {\n        super.onCreate();\n"
 
 RUNTIME_BEGIN = "            // SANDIUM_FAST_BLUR_TRANSITION_BEGIN"
 RUNTIME_END = "            // SANDIUM_FAST_BLUR_TRANSITION_END"
@@ -312,7 +312,7 @@ def transform_chromium_startup(source: str) -> str:
                             INIT_ANCHOR, "blur activation")
     source = replace_marked(source, HELPER_BEGIN, HELPER_END, HELPER_BLOCK,
                             OUTER_ON_CREATE_ANCHOR, "blur startup helper", before=True)
-    checks = [
+    # The insertion anchor includes @Override so the annotation remains attached to onCreate,\n    # never to the static helper inserted immediately before it.\n    if source.count(HELPER_BEGIN) != 1 or source.index(HELPER_BEGIN) > source.index(OUTER_ON_CREATE_ANCHOR):\n        raise RuntimeError("startup helper placement is invalid")\n    helper_prefix = source[max(0, source.index(HELPER_BEGIN) - 32):source.index(HELPER_BEGIN)]\n    if helper_prefix.rstrip().endswith("@Override"):\n        raise RuntimeError("startup helper must not inherit @Override")\n    checks = [
         (source.count(IMPORT) == 1, "CommandLine import count"),
         (source.count(FEATURE) == 1, "feature identifier count"),
         (source.index(INIT_ANCHOR) < source.index("enableSandiumNavigationBlurTransition();"),
