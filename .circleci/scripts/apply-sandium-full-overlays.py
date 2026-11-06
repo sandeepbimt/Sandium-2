@@ -115,6 +115,22 @@ def main():
         "SANDIUM_WEB_DISCOVERY",
     )
 
+    # Brave News is conditionally included in test/BUILD.gn when
+    # enable_brave_news is true. Its Android exception dependency must use
+    # the same condition: otherwise Android's deps -= android_test_exception_deps
+    # fails when News is disabled because the target is absent from deps.
+    android_tests = core / "android/android_browser_tests.gni"
+    replace_exact(
+        android_tests,
+        '  "//ui/views",\n]\n\nif (enable_brave_ads) {',
+        '  "//ui/views",\n]\n\n'
+        'if (enable_brave_news) {\n'
+        '  android_test_exception_deps += [ "//brave/browser/brave_news:browser_tests" ]\n'
+        '}\n\n'
+        'if (enable_brave_ads) {',
+        "SANDIUM_ANDROID_NEWS_TEST_DEP_GUARD",
+    )
+
     email_flags = core / "components/email_aliases/buildflags/buildflags.gni"
     email_source = email_flags.read_text(encoding="utf-8")
     if "enable_email_aliases = !is_ios && !is_android && !is_brave_origin_branded" not in email_source:
