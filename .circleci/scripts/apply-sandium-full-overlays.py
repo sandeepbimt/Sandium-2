@@ -151,9 +151,9 @@ def main():
         print("SANDIUM_ANDROID_NEWS_TEST_DEP_GUARD=ALREADY_ABSENT")
 
     legacy_append = (
-        'if (enable_brave_news) {\\n'
-        '  android_test_exception_deps += [ "//brave/browser/brave_news:browser_tests" ]\\n'
-        '}\\n'
+        'if (enable_brave_news) {\n'
+        '  android_test_exception_deps += [ "//brave/browser/brave_news:browser_tests" ]\n'
+        '}\n'
     )
     if legacy_append in android_source:
         android_source = android_source.replace(legacy_append, "", 1)
