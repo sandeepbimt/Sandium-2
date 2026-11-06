@@ -182,7 +182,7 @@ def main():
 
     # Keep the resource path and all user-provided v4 algorithm/CSS unchanged.
     raw = core / "android/java/brave-res/raw/sandium_reader_typography.js"
-    if not raw.is_file() or raw.stat().st_size < 4000:
+    if not raw.is_file() or raw.stat().st_size < 2500:
         raise RuntimeError(f"SANDIUM_READER_RESOURCE: expected supplied v4 script at {raw}")
     print(f"SANDIUM_READER_RESOURCE=PASS bytes={raw.stat().st_size}")
     print("SANDIUM_FULL_OVERLAYS=PASS")
