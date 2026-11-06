@@ -1553,6 +1553,8 @@ jobs:
             python3 .circleci/scripts/test-apk-completion-marker.py
             python3 -m py_compile .circleci/scripts/apply-sandium-blur-transition.py .circleci/scripts/test-sandium-blur-transition.py
             python3 .circleci/scripts/test-sandium-blur-transition.py
+            python3 -m py_compile .circleci/scripts/apply-sandium-blur-transition.py .circleci/scripts/test-sandium-blur-transition.py
+            python3 .circleci/scripts/test-sandium-blur-transition.py
             python3 -m py_compile .circleci/scripts/verify-brave-remote-metrics.py
             python3 .circleci/scripts/test-brave-remote-metrics.py
             bash -n .circleci/scripts/archive-brave-workspace.sh
