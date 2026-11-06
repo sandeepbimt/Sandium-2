@@ -174,7 +174,7 @@ JAVA_CHANGE_BLOCK = (
     "                            .commit();\n"
     "            if (!saved) return false;\n"
     "            shouldRelaunch = true;\n"
-    "        } else if (BravePreferenceKeys.BRAVE_BOTTOM_TOOLBAR_ENABLED_KEY.equals(key)) {\n"
+    "        }\n"
     + JAVA_CHANGE_END + "\n"
 )
 JAVA_CHANGE_ANCHOR = "        if (BravePreferenceKeys.BRAVE_BOTTOM_TOOLBAR_ENABLED_KEY.equals(key)) {\n"
@@ -347,8 +347,22 @@ def transform_appearance_java(source: str) -> str:
                             JAVA_PREF_ANCHOR, "Appearance preference key")
     source = replace_marked(source, JAVA_INIT_BEGIN, JAVA_INIT_END, JAVA_INIT_BLOCK,
                             JAVA_INIT_ANCHOR, "Appearance preference initialization")
+    # Older revisions inserted the marked block inside the original if branch,
+    # leaving an extra open conditional and making the generated Java uncompilable.
+    # Remove that legacy insertion before placing the new independent preference guard.
+    change_begin_count = source.count(JAVA_CHANGE_BEGIN)
+    change_end_count = source.count(JAVA_CHANGE_END)
+    if change_begin_count or change_end_count:
+        if change_begin_count != 1 or change_end_count != 1:
+            raise RuntimeError("Appearance preference handler: partial or duplicate marker set")
+        marker_start = source.index(JAVA_CHANGE_BEGIN)
+        marker_end = source.index(JAVA_CHANGE_END) + len(JAVA_CHANGE_END)
+        line_start = source.rfind("\\n", 0, marker_start) + 1
+        line_end = source.find("\\n", marker_end)
+        line_end = len(source) if line_end < 0 else line_end + 1
+        source = source[:line_start] + source[line_end:]
     source = replace_marked(source, JAVA_CHANGE_BEGIN, JAVA_CHANGE_END, JAVA_CHANGE_BLOCK,
-                            JAVA_CHANGE_ANCHOR, "Appearance preference handler")
+                            JAVA_CHANGE_ANCHOR, "Appearance preference handler", before=True)
     source = replace_marked(source, JAVA_HELPER_BEGIN, JAVA_HELPER_END, JAVA_HELPER_BLOCK,
                             JAVA_HELPER_ANCHOR, "Appearance preference helpers", before=True)
     source = replace_marked(source, JAVA_ORDER_BEGIN, JAVA_ORDER_END, JAVA_ORDER_BLOCK,
