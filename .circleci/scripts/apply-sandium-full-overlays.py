@@ -151,7 +151,7 @@ def main():
     source = toolbar.read_text(encoding="utf-8")
     import_anchor = "import java.net.URL;\n"
     imports = (
-        "import android.util.Log;\n"
+        "import java.io.ByteArrayOutputStream;\n"
         "import java.io.IOException;\n"
         "import java.io.InputStream;\n"
         "import java.nio.charset.StandardCharsets;\n"
@@ -188,7 +188,13 @@ def main():
         "                    if (script == null) {\n"
         "                        try (InputStream input = getContext().getResources().openRawResource(\n"
         "                                R.raw.sandium_reader_typography)) {\n"
-        "                            script = new String(input.readAllBytes(), StandardCharsets.UTF_8);\n"
+        "                            ByteArrayOutputStream output = new ByteArrayOutputStream();\n"
+        "                            byte[] buffer = new byte[8192];\n"
+        "                            int count;\n"
+        "                            while ((count = input.read(buffer)) != -1) {\n"
+        "                                output.write(buffer, 0, count);\n"
+        "                            }\n"
+        "                            script = new String(output.toByteArray(), StandardCharsets.UTF_8);\n"
         "                        }\n"
         "                        sSandiumReaderTypographyScript = script;\n"
         "                    }\n"
