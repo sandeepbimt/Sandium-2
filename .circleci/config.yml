@@ -1560,6 +1560,7 @@ jobs:
             bash -n .circleci/scripts/prepare-brave-source.sh
             bash -n .circleci/scripts/apply-sandium-branding.sh
             python3 -m py_compile .circleci/scripts/generate-sandium-density-assets.py
+            python3 -m py_compile .circleci/scripts/apply-sandium-full-overlays.py
             python3 -m py_compile .circleci/scripts/apply-sandium-filter-subscriptions.py .circleci/scripts/test-sandium-filter-subscriptions.py
             python3 .circleci/scripts/test-sandium-filter-subscriptions.py
             bash -n .circleci/scripts/recover-siso-missing-cas-inputs.sh
@@ -1590,8 +1591,9 @@ jobs:
               - equal: [full, << pipeline.parameters.sandium_build_mode >>]
           steps:
             - restore_cache:
-                name: Restore latest reference or bootstrap legacy checkpoint
+                name: Restore canonical 26 GiB checkpoint before branch-local fallbacks
                 keys:
+                  - sandium-brave-handoff-v2-sandium/fix-archive-completion-gate-d0bc6af6-e2a7-451e-8561-3c90eb48c2e1-stage-1
                   - sandium-brave-reference-v2-{{ .Branch }}-
                   - sandium-brave-handoff-v2-{{ .Branch }}-
                   # Migration fallbacks for the previous single-file reference/handoff format.
@@ -2455,6 +2457,7 @@ workflows:
                 - sandium/brave-android-poc
                 - sandium/archive-zstd-fast5
                 - sandium/fix-archive-completion-gate
+                - feature/sandium-morphe-reader-fast
       - brave-android-staged-build:
           name: SANDIUM-FULL-MODE-stage-2
           stage_index: 2
@@ -2465,6 +2468,7 @@ workflows:
                 - sandium/brave-android-poc
                 - sandium/archive-zstd-fast5
                 - sandium/fix-archive-completion-gate
+                - feature/sandium-morphe-reader-fast
       - brave-android-staged-build:
           name: SANDIUM-FULL-MODE-stage-3
           stage_index: 3
@@ -2475,6 +2479,7 @@ workflows:
                 - sandium/brave-android-poc
                 - sandium/archive-zstd-fast5
                 - sandium/fix-archive-completion-gate
+                - feature/sandium-morphe-reader-fast
       - brave-android-staged-build:
           name: SANDIUM-FULL-MODE-stage-4
           stage_index: 4
@@ -2485,6 +2490,7 @@ workflows:
                 - sandium/brave-android-poc
                 - sandium/archive-zstd-fast5
                 - sandium/fix-archive-completion-gate
+                - feature/sandium-morphe-reader-fast
       - brave-android-staged-build:
           name: SANDIUM-FULL-MODE-stage-5
           stage_index: 5
@@ -2495,6 +2501,7 @@ workflows:
                 - sandium/brave-android-poc
                 - sandium/archive-zstd-fast5
                 - sandium/fix-archive-completion-gate
+                - feature/sandium-morphe-reader-fast
       - promote-brave-reference:
           name: SANDIUM-FULL-MODE-reference-promotion
           requires: [SANDIUM-FULL-MODE-stage-5]
