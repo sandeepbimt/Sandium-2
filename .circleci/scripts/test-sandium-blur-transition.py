@@ -92,7 +92,17 @@ class BraveAppearancePreferencesTest {
     }
     @Test
     @SmallTest
-    public void testDynamicColorsPreferenceAvailability() {}
+    public void testDynamicColorsPreferenceAvailability() {
+        startSettings();
+        Preference dynamicColorsPreference = mAppearancePreferences.findPreference(
+                BravePreferenceKeys.BRAVE_ANDROID_DYNAMIC_COLORS_ENABLED);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            Assert.assertNotNull(dynamicColorsPreference);
+            assertTrue(dynamicColorsPreference.isVisible());
+        } else {
+            Assert.assertNull(dynamicColorsPreference);
+        }
+    }
 }
 """
 
