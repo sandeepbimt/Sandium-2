@@ -81,6 +81,38 @@ def main():
         "SANDIUM_STATS_REPORTING_DEFAULT",
     )
 
+    stats_updater = core / "browser/brave_stats/brave_stats_updater.cc"
+    replace_exact(
+        stats_updater,
+        "      testing_url_loader_factory_(nullptr) {",
+        "      testing_url_loader_factory_(nullptr) {\\n"
+        "  // Keep anonymous statistics reporting disabled for existing profiles too.\\n"
+        "  pref_service_->SetBoolean(kStatsReportingEnabled, false);",
+        "SANDIUM_STATS_REPORTING_RUNTIME",
+    )
+
+    web_discovery = core / "components/web_discovery/buildflags/buildflags.gni"
+    replace_exact(
+        web_discovery,
+        "  enable_web_discovery_native =\\n"
+        "      (is_win || is_mac || is_linux || is_android) && !is_brave_origin_branded",
+        "  enable_web_discovery_native = false",
+        "SANDIUM_WEB_DISCOVERY_NATIVE",
+    )
+    replace_exact(
+        web_discovery,
+        "  enable_web_discovery = (enable_web_discovery_native || enable_extensions) &&\\n"
+        "                         !is_brave_origin_branded",
+        "  enable_web_discovery = false",
+        "SANDIUM_WEB_DISCOVERY",
+    )
+
+    email_flags = core / "components/email_aliases/buildflags/buildflags.gni"
+    email_source = email_flags.read_text(encoding="utf-8")
+    if "enable_email_aliases = !is_ios && !is_android && !is_brave_origin_branded" not in email_source:
+        raise RuntimeError("SANDIUM_EMAIL_ALIASES: pinned Android default changed; inspect before proceeding")
+    print("SANDIUM_EMAIL_ALIASES=DISABLED_BY_ANDROID_BUILD_DEFAULT")
+
     # Remove the Origin purchase entry; do not alter any entitlement checks.
     main_prefs = core / "android/java/brave-res/xml/brave_main_preferences.xml"
     old_origin_row = (
