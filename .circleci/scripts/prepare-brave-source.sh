@@ -447,7 +447,7 @@ else:
     insert_at = 0
     while insert_at < len(lines) and (not lines[insert_at].strip() or lines[insert_at].lstrip().startswith("#")):
         insert_at += 1
-    lines.insert(insert_at, import_line + "\\n")
+    lines.insert(insert_at, import_line + "\n")
     updated = "".join(lines)
     if updated.count(import_line) != 1:
         raise SystemExit("BRAVE_NEWS_GN_SCOPE_GATE=FAIL import insertion verification failed")
