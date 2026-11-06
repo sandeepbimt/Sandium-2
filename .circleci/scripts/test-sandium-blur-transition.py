@@ -14,9 +14,11 @@ import org.chromium.base.ContextUtils;
 import org.chromium.base.PathUtils;
 class SplitCompatApplication {
     void attachBaseContext() {
-        CommandLineInitUtil.initCommandLine(
-                COMMAND_LINE_FILE, SplitCompatApplication::shouldUseDebugFlags);
-        PathUtils.setPrivateDataDirectorySuffix(PRIVATE_DATA_DIRECTORY_SUFFIX);
+        if (isBrowserProcess) {
+            CommandLineInitUtil.initCommandLine(
+                    COMMAND_LINE_FILE, SplitCompatApplication::shouldUseDebugFlags);
+            PathUtils.setPrivateDataDirectorySuffix(PRIVATE_DATA_DIRECTORY_SUFFIX);
+        }
     }
     @Override
     public void onCreate() {}
