@@ -74,8 +74,8 @@ def main():
     replace_exact(
         p3a,
         "    component_updater::ComponentUpdateService* cus) {",
-        "    component_updater::ComponentUpdateService* cus) {\\n"
-        "  // Do not allow a previously persisted profile preference to re-enable P3A.\\n"
+        "    component_updater::ComponentUpdateService* cus) {\n"
+        "  // Do not allow a previously persisted profile preference to re-enable P3A.\n"
         "  local_state_->SetBoolean(kP3AEnabled, false);",
         "SANDIUM_P3A_RUNTIME",
     )
