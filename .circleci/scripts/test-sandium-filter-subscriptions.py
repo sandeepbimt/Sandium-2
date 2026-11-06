@@ -183,6 +183,14 @@ def main() -> None:
         assert "getSandiumFilterDisplayName(url)" in adapter_text
         assert "mFilterLists.length > 0" in adapter_text
         assert "mSubscriptionFilterLists = new ArrayList<>()" in adapter_text
+        assert 'DEFAULT_DISABLED_FILTER_URL = "https://ublockorigin.github.io/uAssets/filters/annoyances.txt"' in fragment_text
+        assert 'DEFAULT_DISABLED_FILTER_PREF = "default_disabled_u_block_annoyances_v1"' in fragment_text
+        assert "DEFAULT_DISABLED_FILTER_URL.equals(url)" in fragment_text
+        assert "defaultDisabledFilterMigrated" in fragment_text
+        assert fragment_text.count("mFilterListAndroidHandler.enableSubscription(subscriptionUrl, false)") == 2, \
+            "only uBlock filters – Annoyances should be forced off by the one-time default migration"
+        assert "preferences.getBoolean(DEFAULT_DISABLED_FILTER_PREF, false)" in fragment_text
+        assert "preferences.edit().putBoolean(" in fragment_text
         expected_titles = {
             "uBlock filters – Ads",
             "AdGuard – Ads",

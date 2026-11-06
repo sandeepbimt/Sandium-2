@@ -14,6 +14,8 @@ from pathlib import Path
 EXPECTED_CORE_TAG = "v1.98.62"
 EXPECTED_CORE_SHA = "44a84b1f89d9a35287289d6a3d493e362f5a5123"
 
+DEFAULT_DISABLED_FILTER_URL = "https://ublockorigin.github.io/uAssets/filters/annoyances.txt"
+
 FILTERS = (
     ("https://ublockorigin.github.io/uAssets/filters/filters.txt", "uBlock filters – Ads"),
     ("https://ublockorigin.github.io/uAssets/filters/privacy.txt", "uBlock filters – Privacy"),
@@ -169,6 +171,8 @@ def apply_android_sources(core: Path) -> None:
         '    private static final String FILTER_SUBSCRIPTION_PREFS = '
         '"sandium_filter_subscriptions";\n'
         '    private static final String SEEDED_URLS_PREF = "seeded_urls_v1";\n'
+        '    private static final String DEFAULT_DISABLED_FILTER_URL = "' + DEFAULT_DISABLED_FILTER_URL + '";\n'
+        '    private static final String DEFAULT_DISABLED_FILTER_PREF = "default_disabled_u_block_annoyances_v1";\n'
         '    private static final String[][] SANDIUM_DEFAULT_FILTERS = {\n'
         + java_entries
         + '\n    };\n\n'
@@ -222,20 +226,41 @@ def apply_android_sources(core: Path) -> None:
             Set<String> seededUrls = new HashSet<>(
                     preferences.getStringSet(SEEDED_URLS_PREF, new HashSet<>()));
             boolean preferencesChanged = false;
+            boolean defaultDisabledFilterMigrated = preferences.getBoolean(
+                    DEFAULT_DISABLED_FILTER_PREF, false);
             int createdCount = 0;
 
             for (String[] filter : SANDIUM_DEFAULT_FILTERS) {
                 String url = filter[0];
                 if (existingUrls.contains(url)) {
-                    // Adopt an existing matching subscription without changing
-                    // its enabled/disabled state.
+                    // Adopt existing subscriptions without changing user choices,
+                    // except for the one-time default-off migration requested for
+                    // uBlock filters – Annoyances.
                     preferencesChanged |= seededUrls.add(url);
+                    if (DEFAULT_DISABLED_FILTER_URL.equals(url)
+                            && !defaultDisabledFilterMigrated) {
+                        Url subscriptionUrl = new Url();
+                        subscriptionUrl.url = url;
+                        mFilterListAndroidHandler.enableSubscription(subscriptionUrl, false);
+                        preferences.edit().putBoolean(
+                                DEFAULT_DISABLED_FILTER_PREF, true).apply();
+                        defaultDisabledFilterMigrated = true;
+                    }
                     continue;
                 }
                 if (seededUrls.add(url)) {
                     Url subscriptionUrl = new Url();
                     subscriptionUrl.url = url;
                     mFilterListAndroidHandler.createSubscription(subscriptionUrl);
+                    if (DEFAULT_DISABLED_FILTER_URL.equals(url)
+                            && !defaultDisabledFilterMigrated) {
+                        // Mojo preserves call order on this handler: create first,
+                        // then immediately set this one new subscription disabled.
+                        mFilterListAndroidHandler.enableSubscription(subscriptionUrl, false);
+                        preferences.edit().putBoolean(
+                                DEFAULT_DISABLED_FILTER_PREF, true).apply();
+                        defaultDisabledFilterMigrated = true;
+                    }
                     existingUrls.add(url);
                     createdCount++;
                     preferencesChanged = true;
@@ -475,6 +500,12 @@ def verify_android_sources(core: Path) -> None:
         raise SystemExit("SANDIUM_FILTER_SUBSCRIPTIONS_VERIFY=FAIL friendly names are not rendered")
     if len(FILTERS) != 30 or len({url for url, _ in FILTERS}) != 30:
         raise SystemExit("SANDIUM_FILTER_SUBSCRIPTIONS_VERIFY=FAIL expected 30 unique selected list URLs")
+    if DEFAULT_DISABLED_FILTER_URL not in {url for url, _ in FILTERS}:
+        raise SystemExit("SANDIUM_FILTER_SUBSCRIPTIONS_VERIFY=FAIL default-disabled list is not in catalogue")
+    if fragment.count("mFilterListAndroidHandler.enableSubscription(subscriptionUrl, false)") != 2:
+        raise SystemExit("SANDIUM_FILTER_SUBSCRIPTIONS_VERIFY=FAIL expected only the one-time default-off migration paths")
+    if "DEFAULT_DISABLED_FILTER_PREF" not in fragment or "defaultDisabledFilterMigrated" not in fragment:
+        raise SystemExit("SANDIUM_FILTER_SUBSCRIPTIONS_VERIFY=FAIL one-time default-off migration is missing")
     print(
         "SANDIUM_FILTER_SUBSCRIPTIONS_VERIFY=PASS "
         f"lists={len(FILTERS)} auto_update=native_subscription_manager "
