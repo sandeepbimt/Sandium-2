@@ -80,6 +80,7 @@ if [ "${BRAVE_STAGE_INDEX:?BRAVE_STAGE_INDEX is required}" = "1" ]; then
 
   # Apply Sandium launcher artwork and app display name to the pinned sources.
   bash "$ROOT/.circleci/scripts/apply-sandium-branding.sh"
+  python3 "$ROOT/.circleci/scripts/apply-sandium-full-overlays.py" --core "$CORE_DIR" --src "$SRC_DIR"
 
   # Match the proven SSfull REAPI fix: compiler crash diagnostics must stay
   # inside this GN output directory. The upstream rebase_path("//out/...", ...)
@@ -398,7 +399,7 @@ PY
   fi
   export SISO_LIMITS=local=8,remote=80
   echo "BRAVE_STAGE1_VALIDATION_MODE=DRY_RUN_NO_COMPILATION"
-  pnpm run build Release --target_os=android --target_arch=arm64 --target_android_output_format=apk --use_remoteexec=true --gn use_siso:true --gn use_reclient:false --gn is_java_debug:false --gn enable_android_secondary_abi:false --gn is_official_build:false --gn enable_updater:false --gn enable_update_notifications:false --gn android_channel:default --gn chrome_public_manifest_package:com.brave.browser_default --gn brave_channel:development --target brave --ninja=n
+  pnpm run build Release --target_os=android --target_arch=arm64 --target_android_output_format=apk --use_remoteexec=true --gn use_siso:true --gn use_reclient:false --gn enable_brave_rewards:false --gn enable_brave_news:false --gn enable_brave_vpn_v1:false --gn enable_brave_vpn_v2:false --gn enable_brave_wallet:false --gn enable_ai_chat:false --gn enable_web_discovery_native:false --gn is_java_debug:false --gn enable_android_secondary_abi:false --gn is_official_build:false --gn enable_updater:false --gn enable_update_notifications:false --gn android_channel:default --gn chrome_public_manifest_package:com.brave.browser_default --gn brave_channel:development --target brave --ninja=n
   bash "$ROOT/.circleci/scripts/verify-clang-diagnostics-gn.sh"
 fi
 
