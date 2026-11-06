@@ -402,6 +402,7 @@ PY
   ORIGIN_GN_ARGS=()
   if [ "$MODE" = "full" ]; then
     python3 "$ROOT/.circleci/scripts/apply-sandium-full-overlays.py" --core "$CORE_DIR" --src "$SRC_DIR"
+    python3 "$ROOT/.circleci/scripts/apply-sandium-fast-morphe.py" "$SRC_DIR"
     ORIGIN_GN_ARGS+=(
       --gn enable_brave_rewards:false
       --gn enable_brave_news:false
