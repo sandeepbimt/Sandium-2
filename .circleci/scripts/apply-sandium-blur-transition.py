@@ -357,8 +357,8 @@ def transform_appearance_java(source: str) -> str:
             raise RuntimeError("Appearance preference handler: partial or duplicate marker set")
         marker_start = source.index(JAVA_CHANGE_BEGIN)
         marker_end = source.index(JAVA_CHANGE_END) + len(JAVA_CHANGE_END)
-        line_start = source.rfind("\\n", 0, marker_start) + 1
-        line_end = source.find("\\n", marker_end)
+        line_start = source.rfind("\n", 0, marker_start) + 1
+        line_end = source.find("\n", marker_end)
         line_end = len(source) if line_end < 0 else line_end + 1
         source = source[:line_start] + source[line_end:]
     source = replace_marked(source, JAVA_CHANGE_BEGIN, JAVA_CHANGE_END, JAVA_CHANGE_BLOCK,
