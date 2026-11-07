@@ -630,26 +630,30 @@ def patch_deps(source, target, label):
     common = '    "//brave/components/ai_chat/core/common",\n'
     mojom = '    "//brave/components/ai_chat/core/common/mojom",\n'
     flags = '    "//brave/components/ai_chat/core/common/buildflags",\n'
-    block = block.replace(common, "")
-    block = block.replace(mojom, "")
+    condition_start = block.find('  if (enable_ai_chat) {')
+    if condition_start >= 0:
+        unconditional = block[:condition_start]
+        conditional_block = block[condition_start:]
+        if common not in conditional_block or mojom not in conditional_block:
+            raise SystemExit("SANDIUM_AI_CHAT_SUBSCRIPTION_GATE=FAIL " + label + " existing AI Chat condition is incomplete")
+        unconditional = unconditional.replace(common, "").replace(mojom, "")
+        block = unconditional + conditional_block
+    else:
+        block = block.replace(common, "").replace(mojom, "")
+        conditional = (
+            '\n\n  if (enable_ai_chat) {\n'
+            '    deps += [\n'
+            '      "//brave/components/ai_chat/core/common",\n'
+            '      "//brave/components/ai_chat/core/common/mojom",\n'
+            '    ]\n'
+            '  }'
+        )
+        block = block[:-2] + conditional + '\n}'
     if flags not in block:
         base = '    "//base",\n'
         if block.count(base) != 1:
             raise SystemExit("SANDIUM_AI_CHAT_SUBSCRIPTION_GATE=FAIL " + label + " base dependency anchor mismatch")
         block = block.replace(base, base + flags, 1)
-    conditional = (
-        '\n\n  if (enable_ai_chat) {\n'
-        '    deps += [\n'
-        '      "//brave/components/ai_chat/core/common",\n'
-        '      "//brave/components/ai_chat/core/common/mojom",\n'
-        '    ]\n'
-        '  }'
-    )
-    if 'if (enable_ai_chat)' not in block:
-        block = block[:-2] + conditional + '\n}'
-    elif common not in block or mojom not in block:
-        if 'deps += [' not in block or '"//brave/components/ai_chat/core/common/mojom"' not in block:
-            raise SystemExit("SANDIUM_AI_CHAT_SUBSCRIPTION_GATE=FAIL " + label + " existing AI Chat condition is incomplete")
     return source[:start] + block + source[end + 2:]
 
 build = patch_deps(build, 'source_set("android") {', "Android renderer")
