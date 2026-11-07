@@ -598,12 +598,22 @@ print("SANDIUM_AI_CHAT_CPP_GATE=PASS; Android AI Chat C++ references follow ENAB
 PY
 
   GN_BIN="$SRC_DIR/buildtools/linux64/gn"
+  GN_BUILD_FILE="$CORE_DIR/browser/android/BUILD.gn"
   test -x "$GN_BIN" || { echo "SANDIUM_AI_CHAT_GN_FORMAT_GATE=FAIL GN formatter missing: $GN_BIN" >&2; exit 1; }
-  "$GN_BIN" format --dry-run "$CORE_DIR/browser/android/BUILD.gn" || {
-    echo "SANDIUM_AI_CHAT_GN_FORMAT_GATE=FAIL Brave Android BUILD.gn formatting/syntax check failed" >&2
+  test -f "$GN_BUILD_FILE" || { echo "SANDIUM_AI_CHAT_GN_FORMAT_GATE=FAIL Brave Android BUILD.gn missing: $GN_BUILD_FILE" >&2; exit 1; }
+
+  # The Sandium patch inserts a conditional dependency into Brave's upstream
+  # BUILD.gn. Formatting must be applied before --dry-run: --dry-run alone
+  # rejects valid but not-yet-formatted GN and was stopping source preparation.
+  "$GN_BIN" format --in-place "$GN_BUILD_FILE" || {
+    echo "SANDIUM_AI_CHAT_GN_FORMAT_GATE=FAIL GN formatter could not parse/format Brave Android BUILD.gn" >&2
     exit 1
   }
-  echo "SANDIUM_AI_CHAT_GN_FORMAT_GATE=PASS"
+  "$GN_BIN" format --dry-run "$GN_BUILD_FILE" || {
+    echo "SANDIUM_AI_CHAT_GN_FORMAT_GATE=FAIL Brave Android BUILD.gn still fails post-format verification" >&2
+    exit 1
+  }
+  echo "SANDIUM_AI_CHAT_GN_FORMAT_GATE=PASS formatted=true dry_run=true"
 
   pnpm run build Release --target_os=android --target_arch=arm64 --target_android_output_format=apk --use_remoteexec=true --gn use_siso:true --gn use_reclient:false "${ORIGIN_GN_ARGS[@]}" --gn is_java_debug:false --gn enable_android_secondary_abi:false --gn is_official_build:false --gn enable_updater:false --gn enable_update_notifications:false --gn android_channel:default --gn chrome_public_manifest_package:com.brave.browser_default --gn brave_channel:development --target brave --ninja=n
   bash "$ROOT/.circleci/scripts/verify-clang-diagnostics-gn.sh"
