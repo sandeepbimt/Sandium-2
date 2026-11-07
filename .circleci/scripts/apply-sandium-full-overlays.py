@@ -66,8 +66,18 @@ PLAYLIST_FACTORY_OLD = "  if (!profile->IsRegularProfile()) {\n    return nullpt
 PLAYLIST_FACTORY_NEW = "  if (!profile->IsRegularProfile()) {\n    return nullptr;\n  }\n\n  // Prevent service creation for profiles that predate Sandium's Playlist\n  // removal. The profile preference is also normalized to the disabled state.\n  profile->GetPrefs()->SetBoolean(kPlaylistEnabledPref, false);\n  if (!IsPlaylistAllowed(profile->GetPrefs())) {\n    return nullptr;\n  }\n\n  GetInstance()->PrepareMediaDetectorComponentManager();"
 
 def transform_playlist_factory(source):
-    # Change the profile default, then force old profiles to the same disabled
-    # state before the service can be constructed.
+    # Add the pinned Playlist policy helper and disable old profiles before
+    # constructing any Playlist service.
+    include_old = '#include "brave/components/playlist/content/browser/type_converter.h"'
+    include_new = (
+        include_old + '\\n'
+        + '#include "brave/components/playlist/core/browser/utils.h"'
+    )
+    if include_new not in source:
+        if source.count(include_old) != 1:
+            raise RuntimeError("SANDIUM_PLAYLIST_FACTORY: utils.h include anchor changed")
+        source = source.replace(include_old, include_new, 1)
+
     default_old = "    registry->RegisterBooleanPref(kPlaylistEnabledPref, true);"
     default_new = "    registry->RegisterBooleanPref(kPlaylistEnabledPref, false);"
     if default_old in source:
