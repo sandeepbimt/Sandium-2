@@ -776,7 +776,7 @@ if ai_includes in verified_header.replace(guarded_ai_includes, "") or member in 
 if features_include in verified_cc.replace(guarded_features, ""):
     raise SystemExit("SANDIUM_AI_CHAT_SUBSCRIPTION_GATE=FAIL unguarded AI Chat features include remains")
 if verified_cc.count('#if BUILDFLAG(ENABLE_AI_CHAT)') != 4:
-    raise SystemExit("SANDIUM_AI_CHAT_SUBSCRIPTION_GATE=FAIL expected three guarded C++ blocks")
+    raise SystemExit("SANDIUM_AI_CHAT_SUBSCRIPTION_GATE=FAIL expected four guarded C++ blocks")
 print("SANDIUM_AI_CHAT_SUBSCRIPTION_GATE=PASS; Leo bridge and common target dependencies follow ENABLE_AI_CHAT")
 PY
 
