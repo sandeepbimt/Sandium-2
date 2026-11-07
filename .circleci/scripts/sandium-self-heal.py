@@ -50,7 +50,15 @@ def metric_errors(path):
 
 def classify(a):
     log = read(a.log)
-    clean = "\n".join(line for line in log.splitlines() if not any(p.search(line) for p in INFRA))
+    timed_out = a.exit_code == 124 and a.elapsed >= max(0, a.budget - 5)
+    clean_lines = []
+    for line in log.splitlines():
+        if any(p.search(line) for p in INFRA):
+            continue
+        if timed_out and re.search(r"ninja: build stopped: interrupted by user", line, re.I):
+            continue
+        clean_lines.append(line)
+    clean = "\n".join(clean_lines)
     targets = [x.strip() for x in read(a.failed_targets).splitlines() if x.strip() and not x.lstrip().startswith("#")]
     commands = bool(read(a.failed_commands).strip())
     metric = metric_errors(a.metrics)

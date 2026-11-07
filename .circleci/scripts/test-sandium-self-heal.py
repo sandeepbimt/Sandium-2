@@ -31,6 +31,11 @@ def run_case(name, expected, log="", rc=1, elapsed=10, budget=1200,
 
 assert run_case("clean success", "SUCCESS", rc=0)["build_handoff_allowed"]
 assert run_case("real bounded timeout", "TIME_SLICE_COMPLETE", rc=124, elapsed=1200)["build_handoff_allowed"]
+assert run_case("timeout interruption banner is not a compiler failure", "TIME_SLICE_COMPLETE",
+                "ninja: build stopped: interrupted by user\n", rc=124, elapsed=1200)["build_handoff_allowed"]
+assert run_case("compiler error wins over timeout", "FAILURE",
+                "foo.cc:4:1: error: unknown type\nninja: build stopped: interrupted by user\n",
+                rc=124, elapsed=1200)["build_handoff_allowed"] is False
 assert run_case("early timeout is failure", "FAILURE", rc=124, elapsed=300)["build_handoff_allowed"] is False
 assert run_case("masked compiler failure despite exit zero", "FAILURE",
                 "FAILED: obj/foo.o\nfoo.cc:7:2: error: unknown type name\n", rc=0)["build_handoff_allowed"] is False

@@ -1993,7 +1993,7 @@ jobs:
             SHE_RESULT="$STATUS_DIR/self-heal-stage-<< parameters.stage_index >>.json"
             if [ -s "$STATUS_DIR/restored-apk-valid" ]; then
               echo "BRAVE_APK=ALREADY_PRESENT_AND_VERIFIED"
-              printf 'BUILD_EXIT_CODE=0\nBUILD_REASON=RESTORED_VALID_APK\\nSHE_CLASSIFICATION=SUCCESS\\nSHE_CATEGORY=RESTORED_VALID_APK\\nSHE_REPAIR_ATTEMPTS=0\\nBUILD_HANDOFF_ALLOWED=true\n' > "$BUILD_STATUS"
+              printf 'BUILD_EXIT_CODE=0\nBUILD_REASON=RESTORED_VALID_APK\nSHE_CLASSIFICATION=SUCCESS\nSHE_CATEGORY=RESTORED_VALID_APK\nSHE_REPAIR_ATTEMPTS=0\nBUILD_HANDOFF_ALLOWED=true\n' > "$BUILD_STATUS"
               exit 0
             fi
             if [ ! -s "$OUT/build.ninja" ]; then
