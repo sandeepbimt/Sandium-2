@@ -76,4 +76,104 @@ with tempfile.TemporaryDirectory() as tmp:
     assert "SANDIUM_AI_CHAT_CPP_GATE=ALREADY_PATCHED includes" in second
     assert "SANDIUM_AI_CHAT_CPP_GATE=ALREADY_PATCHED calls" in second
 
+
+# The Android mobile-subscription renderer is another unconditional consumer
+# of AI Chat common: it injects Leo purchase callbacks. Verify that the second
+# source patch removes that dependency when the buildflag is false and guards
+# every AI Chat type/symbol at the C++ boundary.
+subscription_marker = (
+    'python3 - "$CORE_DIR/components/brave_mobile_subscription/renderer/android/BUILD.gn" '
+    '"$CORE_DIR/components/brave_mobile_subscription/renderer/android/subscription_render_frame_observer.h" '
+    '"$CORE_DIR/components/brave_mobile_subscription/renderer/android/subscription_render_frame_observer.cc" <<\\'PY\\'\\n'
+)
+if script.count(subscription_marker) != 1:
+    raise SystemExit("AI_CHAT_PREFLIGHT=FAIL expected exactly one mobile-subscription patch heredoc")
+subscription_tail = script.split(subscription_marker, 1)[1]
+subscription_body, subscription_sep, _ = subscription_tail.partition("\nPY\n")
+if not subscription_sep:
+    raise SystemExit("AI_CHAT_PREFLIGHT=FAIL unterminated mobile-subscription patch heredoc")
+
+subscription_build = fetch("components/brave_mobile_subscription/renderer/android/BUILD.gn")
+subscription_header = fetch("components/brave_mobile_subscription/renderer/android/subscription_render_frame_observer.h")
+subscription_cc = fetch("components/brave_mobile_subscription/renderer/android/subscription_render_frame_observer.cc")
+for anchor in (
+    'source_set("android") {',
+    'source_set("browser_tests") {',
+    '"//brave/components/ai_chat/core/common",',
+    '"//brave/components/ai_chat/core/common/mojom",',
+):
+    if anchor not in subscription_build:
+        raise SystemExit("AI_CHAT_PREFLIGHT=FAIL pinned subscription GN anchor missing: " + anchor)
+for anchor in (
+    '#include "brave/components/ai_chat/core/common/mojom/ai_chat.mojom.h"',
+    '#include "brave/components/ai_chat/core/common/mojom/common.mojom.h"',
+    'mojo::Remote<ai_chat::mojom::IAPSubscription> ai_chat_subscription_;',
+):
+    if anchor not in subscription_header:
+        raise SystemExit("AI_CHAT_PREFLIGHT=FAIL pinned subscription header anchor missing: " + anchor)
+for anchor in (
+    '#include "brave/components/ai_chat/core/common/features.h"',
+    'ai_chat::features::IsAIChatEnabled()',
+    'ai_chat_subscription_->GetPurchaseTokenOrderId',
+    'ai_chat_subscription_->SetLinkStatus',
+):
+    if anchor not in subscription_cc:
+        raise SystemExit("AI_CHAT_PREFLIGHT=FAIL pinned subscription C++ anchor missing: " + anchor)
+
+with tempfile.TemporaryDirectory() as tmp:
+    root = Path(tmp) / "components/brave_mobile_subscription/renderer/android"
+    root.mkdir(parents=True)
+    build_file = root / "BUILD.gn"
+    header_file = root / "subscription_render_frame_observer.h"
+    cc_file = root / "subscription_render_frame_observer.cc"
+    build_file.write_text(subscription_build, encoding="utf-8")
+    header_file.write_text(subscription_header, encoding="utf-8")
+    cc_file.write_text(subscription_cc, encoding="utf-8")
+
+    def run_subscription_patch():
+        result = subprocess.run(
+            [sys.executable, "-c", subscription_body,
+             str(build_file), str(header_file), str(cc_file)],
+            text=True, capture_output=True
+        )
+        if result.returncode:
+            raise SystemExit(
+                "AI_CHAT_PREFLIGHT=FAIL mobile-subscription patch failed\n"
+                + result.stdout + result.stderr
+            )
+        return result.stdout
+
+    first_subscription = run_subscription_patch()
+    patched_build = build_file.read_text(encoding="utf-8")
+    patched_header = header_file.read_text(encoding="utf-8")
+    patched_cc = cc_file.read_text(encoding="utf-8")
+    assert 'import("//brave/components/ai_chat/core/common/buildflags/buildflags.gni")' in patched_build
+    for target in ('source_set("android") {', 'source_set("browser_tests") {'):
+        start = patched_build.find(target)
+        end = patched_build.find("\n}", start)
+        block = patched_build[start:end + 2]
+        assert block.count('"//brave/components/ai_chat/core/common/buildflags"') == 1
+        assert block.count('if (enable_ai_chat)') == 1
+        assert block.count('"//brave/components/ai_chat/core/common"') == 1
+        assert block.count('"//brave/components/ai_chat/core/common/mojom"') == 1
+        condition = block[block.find('if (enable_ai_chat)'):]
+        assert '"//brave/components/ai_chat/core/common"' in condition
+        assert '"//brave/components/ai_chat/core/common/mojom"' in condition
+    assert '#if BUILDFLAG(ENABLE_AI_CHAT)' in patched_header
+    assert '#if BUILDFLAG(ENABLE_AI_CHAT)\n  mojo::Remote<ai_chat::mojom::IAPSubscription>' in patched_header
+    assert patched_cc.count('#if BUILDFLAG(ENABLE_AI_CHAT)') == 3
+    assert patched_cc.count('#endif  // BUILDFLAG(ENABLE_AI_CHAT)') == 3
+    assert 'ai_chat::features::IsAIChatEnabled()' in patched_cc
+    assert '#if BUILDFLAG(ENABLE_AI_CHAT)\n#include "brave/components/ai_chat/core/common/features.h"' in patched_cc
+
+    first_snapshot = (patched_build, patched_header, patched_cc)
+    second_subscription = run_subscription_patch()
+    assert (
+        build_file.read_text(encoding="utf-8"),
+        header_file.read_text(encoding="utf-8"),
+        cc_file.read_text(encoding="utf-8"),
+    ) == first_snapshot, "mobile-subscription patch is not idempotent"
+
+print("AI_CHAT_SUBSCRIPTION_PREFLIGHT=PASS pinned source, conditional GN deps, guarded C++/header and idempotent rerun")
+
 print("AI_CHAT_PREFLIGHT=PASS pinned Brave source, GN target/dependency, C++ guards, and idempotent rerun")
