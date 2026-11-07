@@ -410,9 +410,15 @@ PY
       --gn enable_brave_vpn_v2:false
       --gn enable_brave_wallet:false
       --gn enable_ai_chat:false
+      --gn enable_brave_talk:false
+      --gn enable_brave_wayback_machine:false
+      --gn enable_speedreader:false
+      --gn enable_tor:false
       --gn enable_web_discovery_native:false
+      --gn enable_web_discovery:false
     )
     echo "SANDIUM_ORIGIN_FEATURES=DISABLED_FOR_FULL_MODE"
+    echo "SANDIUM_FEATURE_POLICY=13_FEATURES_DISABLED"
     echo "SANDIUM_READER_TYPOGRAPHY=INTEGRATED_FOR_FULL_MODE"
   elif [ "$MODE" = "fast" ]; then
     echo "SANDIUM_FULL_OVERLAYS=SKIPPED mode=fast"
