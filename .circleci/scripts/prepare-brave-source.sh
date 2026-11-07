@@ -705,23 +705,114 @@ if guarded_methods not in verified_cc or guarded_news_include not in verified_cc
 print("SANDIUM_BRAVE_NEWS_ANDROID_GATE=PASS conditional GN dependency; JNI stubs retained when disabled")
 PY
 
-  GN_BIN="$SRC_DIR/buildtools/linux64/gn"
-  GN_BUILD_FILE="$CORE_DIR/browser/android/BUILD.gn"
-  test -x "$GN_BIN" || { echo "SANDIUM_AI_CHAT_GN_FORMAT_GATE=FAIL GN formatter missing: $GN_BIN" >&2; exit 1; }
-  test -f "$GN_BUILD_FILE" || { echo "SANDIUM_AI_CHAT_GN_FORMAT_GATE=FAIL Brave Android BUILD.gn missing: $GN_BUILD_FILE" >&2; exit 1; }
+  # When Brave Wallet is disabled, the only source for this generated enum
+  # srcjar disappears. Chromium's java_cpp_enum action requires >=1 input path,
+  # so keep the target and its consumers consistently conditional on Wallet.
+  python3 - "$CORE_DIR/android/BUILD.gn" "$CORE_DIR/browser/notifications/BUILD.gn" "$CORE_DIR/build/android/config.gni" <<'PY'
+from pathlib import Path
+import sys
 
-  # The Sandium patch inserts a conditional dependency into Brave's upstream
-  # BUILD.gn. Formatting must be applied before --dry-run: --dry-run alone
-  # rejects valid but not-yet-formatted GN and was stopping source preparation.
-  "$GN_BIN" format --in-place "$GN_BUILD_FILE" || {
-    echo "SANDIUM_AI_CHAT_GN_FORMAT_GATE=FAIL GN formatter could not parse/format Brave Android BUILD.gn" >&2
-    exit 1
+android_path, notifications_path, config_path = map(Path, sys.argv[1:])
+for path in (android_path, notifications_path, config_path):
+    if not path.is_file():
+        raise SystemExit("SANDIUM_BRAVE_WALLET_ENUM_GATE=FAIL pinned GN source missing: " + str(path))
+
+def replace_once_or_already(path, old, new, label):
+    source = path.read_text(encoding="utf-8")
+    if new in source:
+        print("SANDIUM_BRAVE_WALLET_ENUM_GATE=ALREADY_PATCHED " + label)
+        return source
+    if source.count(old) != 1:
+        raise SystemExit("SANDIUM_BRAVE_WALLET_ENUM_GATE=FAIL " + label + " anchor missing or non-unique")
+    updated = source.replace(old, new, 1)
+    path.write_text(updated, encoding="utf-8")
+    return updated
+
+old_enum = '''java_cpp_enum("brave_android_java_enums_srcjar") {
+  sources = []
+
+  if (enable_brave_wallet) {
+    sources += [ "//brave/components/decentralized_dns/core/constants.h" ]
   }
-  "$GN_BIN" format --dry-run "$GN_BUILD_FILE" || {
-    echo "SANDIUM_AI_CHAT_GN_FORMAT_GATE=FAIL Brave Android BUILD.gn still fails post-format verification" >&2
-    exit 1
+}'''
+new_enum = '''if (enable_brave_wallet) {
+  java_cpp_enum("brave_android_java_enums_srcjar") {
+    sources = [ "//brave/components/decentralized_dns/core/constants.h" ]
   }
-  echo "SANDIUM_AI_CHAT_GN_FORMAT_GATE=PASS formatted=true dry_run=true"
+}'''
+android = replace_once_or_already(android_path, old_enum, new_enum, "Android enum target")
+if 'java_cpp_enum("brave_android_java_enums_srcjar")' in android and new_enum not in android:
+    raise SystemExit("SANDIUM_BRAVE_WALLET_ENUM_GATE=FAIL enum target is not wallet-conditional")
+
+old_notifications = '''    deps += [
+      "//brave/android:brave_android_java_enums_srcjar",
+      "//chrome/browser:browser_process",
+      "//chrome/browser:browser_public_dependencies",
+    ]'''
+new_notifications = '''    deps += [
+      "//chrome/browser:browser_process",
+      "//chrome/browser:browser_public_dependencies",
+    ]
+
+    if (enable_brave_wallet) {
+      deps += [ "//brave/android:brave_android_java_enums_srcjar" ]
+    }'''
+notifications = replace_once_or_already(
+    notifications_path, old_notifications, new_notifications, "Android notifications dependency"
+)
+if old_notifications in notifications or new_notifications not in notifications:
+    raise SystemExit("SANDIUM_BRAVE_WALLET_ENUM_GATE=FAIL notifications dependency is not wallet-conditional")
+
+old_config = '''brave_chrome_java_srcjar_deps = [
+  "//brave/android:brave_android_java_enums_srcjar",
+  "//brave/android:brave_config_java",
+  "//brave/android:brave_policy_constants_java_srcjar",
+  "//brave/components/brave_account/android:brave_account_constants_srcjar",
+  "//brave/components/web_discovery/browser/android:java_pref_names_srcjar",
+]'''
+new_config = '''brave_chrome_java_srcjar_deps = [
+  "//brave/android:brave_config_java",
+  "//brave/android:brave_policy_constants_java_srcjar",
+  "//brave/components/brave_account/android:brave_account_constants_srcjar",
+  "//brave/components/web_discovery/browser/android:java_pref_names_srcjar",
+]
+
+if (enable_brave_wallet) {
+  brave_chrome_java_srcjar_deps += [ "//brave/android:brave_android_java_enums_srcjar" ]
+}'''
+config = replace_once_or_already(config_path, old_config, new_config, "Chrome Java srcjar dependency")
+if old_config in config or new_config not in config:
+    raise SystemExit("SANDIUM_BRAVE_WALLET_ENUM_GATE=FAIL Chrome Java srcjar dependency is not wallet-conditional")
+
+# All known consumers of this target must be conditional; no unconditional
+# reference may remain in these pinned Brave GN files.
+if notifications.count('"//brave/android:brave_android_java_enums_srcjar"') != 1:
+    raise SystemExit("SANDIUM_BRAVE_WALLET_ENUM_GATE=FAIL notifications target reference count")
+if config.count('"//brave/android:brave_android_java_enums_srcjar"') != 1:
+    raise SystemExit("SANDIUM_BRAVE_WALLET_ENUM_GATE=FAIL Chrome Java srcjar reference count")
+print("SANDIUM_BRAVE_WALLET_ENUM_GATE=PASS; empty enum action omitted when Wallet is disabled")
+PY
+
+  GN_BIN="$SRC_DIR/buildtools/linux64/gn"
+  GN_FILES=(
+    "$CORE_DIR/browser/android/BUILD.gn"
+    "$CORE_DIR/android/BUILD.gn"
+    "$CORE_DIR/browser/notifications/BUILD.gn"
+    "$CORE_DIR/build/android/config.gni"
+  )
+  test -x "$GN_BIN" || { echo "SANDIUM_AI_CHAT_GN_FORMAT_GATE=FAIL GN formatter missing: $GN_BIN" >&2; exit 1; }
+  for GN_FILE in "${GN_FILES[@]}"; do
+    test -f "$GN_FILE" || { echo "SANDIUM_AI_CHAT_GN_FORMAT_GATE=FAIL GN file missing: $GN_FILE" >&2; exit 1; }
+    "$GN_BIN" format --in-place "$GN_FILE" || {
+      echo "SANDIUM_AI_CHAT_GN_FORMAT_GATE=FAIL GN formatter could not parse: $GN_FILE" >&2
+      exit 1
+    }
+    "$GN_BIN" format --dry-run "$GN_FILE" || {
+      echo "SANDIUM_AI_CHAT_GN_FORMAT_GATE=FAIL GN post-format verification failed: $GN_FILE" >&2
+      exit 1
+    }
+  done
+  echo "SANDIUM_AI_CHAT_GN_FORMAT_GATE=PASS files=4 formatted=true dry_run=true"
 
   pnpm run build Release --target_os=android --target_arch=arm64 --target_android_output_format=apk --use_remoteexec=true --gn use_siso:true --gn use_reclient:false "${ORIGIN_GN_ARGS[@]}" --gn is_java_debug:false --gn enable_android_secondary_abi:false --gn is_official_build:false --gn enable_updater:false --gn enable_update_notifications:false --gn android_channel:default --gn chrome_public_manifest_package:com.brave.browser_default --gn brave_channel:development --target brave --ninja=n
   bash "$ROOT/.circleci/scripts/verify-clang-diagnostics-gn.sh"
