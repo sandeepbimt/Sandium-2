@@ -992,9 +992,13 @@ old_enum = '''java_cpp_enum("brave_android_java_enums_srcjar") {
     sources += [ "//brave/components/decentralized_dns/core/constants.h" ]
   }
 }'''
-new_enum = '''java_cpp_enum("brave_android_java_enums_srcjar") {
+new_enum = '''# SANDIUM_WALLET_DNS_ENUM_COMPILE_CONTRACT_BEGIN
+java_cpp_enum("brave_android_java_enums_srcjar") {
+  # Compile-time enum bindings used by shared BraveActivity Java sources.
+  # This does not enable Wallet or decentralized DNS runtime features.
   sources = [ "//brave/components/decentralized_dns/core/constants.h" ]
-}'''
+}
+# SANDIUM_WALLET_DNS_ENUM_COMPILE_CONTRACT_END'''
 android = replace_once_or_already(android_path, old_enum, new_enum, "Android enum target")
 if 'java_cpp_enum("brave_android_java_enums_srcjar")' in android and new_enum not in android:
     raise SystemExit("SANDIUM_BRAVE_WALLET_ENUM_GATE=FAIL enum target is not wallet-conditional")

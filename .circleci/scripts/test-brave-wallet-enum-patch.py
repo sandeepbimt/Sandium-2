@@ -54,14 +54,19 @@ with tempfile.TemporaryDirectory() as tmp:
     notifications = patched["browser/notifications/BUILD.gn"]
     config = patched["build/android/config.gni"]
 
-    assert 'if (enable_brave_wallet) {\n  java_cpp_enum("brave_android_java_enums_srcjar")' in android
+    assert '# SANDIUM_WALLET_DNS_ENUM_COMPILE_CONTRACT_BEGIN' in android
+    assert 'java_cpp_enum("brave_android_java_enums_srcjar")' in android
+    assert 'if (enable_brave_wallet)' not in android
     assert 'sources = [ "//brave/components/decentralized_dns/core/constants.h" ]' in android
-    assert 'if (enable_brave_wallet) {\n      deps += [ "//brave/android:brave_android_java_enums_srcjar" ]\n    }' in notifications
-    assert 'if (enable_brave_wallet) {\n  brave_chrome_java_srcjar_deps += [ "//brave/android:brave_android_java_enums_srcjar" ]\n}' in config
+    assert 'deps += [\n      "//brave/android:brave_android_java_enums_srcjar",' in notifications
+    assert 'if (enable_brave_wallet)' not in notifications
+    assert '"//brave/android:brave_android_java_enums_srcjar",' in config
+    assert '"//brave/components/brave_wallet/common:mojom",' in config
+    assert 'if (enable_brave_wallet)' not in config
 
     second = apply()
     assert {name: files[name].read_text(encoding="utf-8") for name in paths} == patched
     assert "SANDIUM_BRAVE_WALLET_ENUM_GATE=ALREADY_PATCHED" in second
     assert first.count("SANDIUM_BRAVE_WALLET_ENUM_GATE=PASS") == 1
 
-print("BRAVE_WALLET_ENUM_PREFLIGHT=PASS pinned Brave source, wallet-gated target and both consumers, idempotent rerun")
+print("BRAVE_WALLET_ENUM_PREFLIGHT=PASS pinned Brave source, compile-only target and unconditional Java consumers, idempotent rerun")
