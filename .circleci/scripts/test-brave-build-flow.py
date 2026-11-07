@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Assert that FAST and FULL share SHE and failed builds cannot hand off."""
+"""Assert FAST and FULL use SHE and the Wallet Java compile repair is wired."""
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -15,7 +15,10 @@ def main():
         '2>&1 | tee "$log_file"',
         "PIPESTATUS[@]",
         "sandium-self-heal.py",
-        "SHE_CLASSIFICATION",\n        "FEATURE_SUPPRESSION_MISSING_GENERATED_JAVA",\n        "REPAIR_WALLET_JAVA_COMPILE_CONTRACT",\n        "apply-sandium-wallet-java-compile-contract.py",\n        "REPAIR_WALLET_JAVA_COMPILE_CONTRACT",
+        "SHE_CLASSIFICATION",
+        "FEATURE_SUPPRESSION_MISSING_GENERATED_JAVA",
+        "REPAIR_WALLET_JAVA_COMPILE_CONTRACT",
+        "apply-sandium-wallet-java-compile-contract.py",
         "BUILD_HANDOFF_ALLOWED=false",
         "SANDIUM_SHE=FAIL",
         "SHE - enforce build outcome before stage continuation",
@@ -30,14 +33,14 @@ def main():
             raise SystemExit("BRAVE_BUILD_FLOW_TEST=FAIL missing: " + token)
     forbidden = [
         "BUILD_REASON=ACTION_FAILED_HANDOFF",
-        "BUILD_HANDOFF_ALLOWED=true\n              echo",
+        "BUILD_HANDOFF_ALLOWED=true\\n              echo",
         "BRAVE_BUILD=SKIPPED remote worker smoke did not pass",
         "action-ledger.json",
     ]
     for token in forbidden:
         if token in text:
             raise SystemExit("BRAVE_BUILD_FLOW_TEST=FAIL unsafe/obsolete flow remains: " + token)
-    print("BRAVE_BUILD_FLOW_TEST=PASS both modes use SHE; hard failures fail the build task; FULL checkpoint preservation remains unconditional")
+    print("BRAVE_BUILD_FLOW_TEST=PASS both modes use SHE; Wallet repair is wired; hard failures fail the task.")
 
 if __name__ == "__main__":
     main()
