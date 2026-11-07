@@ -2500,6 +2500,7 @@ workflows:
       or:
         - equal: [full, << pipeline.parameters.sandium_build_mode >>]
         - equal: [feature/sandium-disable-13-brave-features, << pipeline.git.branch >>]
+        - equal: [fix/brave-news-android-preferences-gn, << pipeline.git.branch >>]
     jobs:
       - brave-android-staged-build:
           name: SANDIUM-FULL-MODE-stage-1
@@ -2512,6 +2513,7 @@ workflows:
                 - sandium/fix-archive-completion-gate
                 - feature/sandium-morphe-reader-fast
                 - feature/sandium-disable-13-brave-features
+                - fix/brave-news-android-preferences-gn
       - brave-android-staged-build:
           name: SANDIUM-FULL-MODE-stage-2
           stage_index: 2
@@ -2524,6 +2526,7 @@ workflows:
                 - sandium/fix-archive-completion-gate
                 - feature/sandium-morphe-reader-fast
                 - feature/sandium-disable-13-brave-features
+                - fix/brave-news-android-preferences-gn
       - brave-android-staged-build:
           name: SANDIUM-FULL-MODE-stage-3
           stage_index: 3
@@ -2536,6 +2539,7 @@ workflows:
                 - sandium/fix-archive-completion-gate
                 - feature/sandium-morphe-reader-fast
                 - feature/sandium-disable-13-brave-features
+                - fix/brave-news-android-preferences-gn
       - brave-android-staged-build:
           name: SANDIUM-FULL-MODE-stage-4
           stage_index: 4
@@ -2548,6 +2552,7 @@ workflows:
                 - sandium/fix-archive-completion-gate
                 - feature/sandium-morphe-reader-fast
                 - feature/sandium-disable-13-brave-features
+                - fix/brave-news-android-preferences-gn
       - brave-android-staged-build:
           name: SANDIUM-FULL-MODE-stage-5
           stage_index: 5
@@ -2560,6 +2565,7 @@ workflows:
                 - sandium/fix-archive-completion-gate
                 - feature/sandium-morphe-reader-fast
                 - feature/sandium-disable-13-brave-features
+                - fix/brave-news-android-preferences-gn
       - promote-brave-reference:
           name: SANDIUM-FULL-MODE-reference-promotion
           requires: [SANDIUM-FULL-MODE-stage-5]
@@ -2573,6 +2579,8 @@ workflows:
         - equal: [fast, << pipeline.parameters.sandium_build_mode >>]
         - not:
             equal: [feature/sandium-disable-13-brave-features, << pipeline.git.branch >>]
+        - not:
+            equal: [fix/brave-news-android-preferences-gn, << pipeline.git.branch >>]
     jobs:
       - brave-android-staged-build:
           name: SANDIUM-FAST-MODE-stage-1
