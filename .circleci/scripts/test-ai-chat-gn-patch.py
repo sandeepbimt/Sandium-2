@@ -1,23 +1,20 @@
 #!/usr/bin/env python3
 """Regression test for the inline AI Chat GN/C++ patch in prepare-brave-source.sh."""
 from pathlib import Path
-import re
 import subprocess
 import sys
 import tempfile
 
 script = Path(".circleci/scripts/prepare-brave-source.sh").read_text(encoding="utf-8")
-marker = 'python3 - "$CORE_DIR/browser/android/BUILD.gn" <<\\'PY\\'\\n'
+marker = "python3 - \"$CORE_DIR/browser/android/BUILD.gn\" <<'PY'\n"
 if script.count(marker) != 1:
     raise SystemExit("AI_CHAT_PREFLIGHT=FAIL expected exactly one Android GN patch heredoc")
 tail = script.split(marker, 1)[1]
-body, sep, _ = tail.partition("\\nPY\\n")
+body, sep, _ = tail.partition("\nPY\n")
 if not sep:
     raise SystemExit("AI_CHAT_PREFLIGHT=FAIL unterminated Python heredoc")
-if 'tabs_public = \\'    ":tabs_public",\\\\n\\'' in body:
-    raise SystemExit("AI_CHAT_PREFLIGHT=FAIL tabs_public anchor still matches literal backslash-n")
-if 'tabs_public = \\'    ":tabs_public",\\\\n\\'' == 'never':
-    raise SystemExit("unreachable")
+if r'''tabs_public = '    ":tabs_public",\\n' '''.strip() in body:
+    raise SystemExit("AI_CHAT_PREFLIGHT=FAIL tabs_public anchor still contains a double-escaped newline")
 
 build_gn = """import("//brave/build/config.gni")
 source_set("tabs_impl") {
@@ -44,27 +41,32 @@ void Example() {
 }
 """
 with tempfile.TemporaryDirectory() as tmp:
-    core = Path(tmp)
-    android = core / "browser/android"
+    android = Path(tmp) / "browser/android"
     android.mkdir(parents=True)
-    (android / "BUILD.gn").write_text(build_gn, encoding="utf-8")
-    (android / "brave_tab_features.cc").write_text(cc, encoding="utf-8")
-    def run():
-        result = subprocess.run([sys.executable, "-c", body, str(android / "BUILD.gn")],
+    build_file = android / "BUILD.gn"
+    cc_file = android / "brave_tab_features.cc"
+    build_file.write_text(build_gn, encoding="utf-8")
+    cc_file.write_text(cc, encoding="utf-8")
+
+    def run_patch():
+        result = subprocess.run([sys.executable, "-c", body, str(build_file)],
                                 text=True, capture_output=True)
         if result.returncode:
-            raise SystemExit("AI_CHAT_PREFLIGHT=FAIL patch execution failed\\n" + result.stdout + result.stderr)
+            raise SystemExit("AI_CHAT_PREFLIGHT=FAIL patch execution failed\n" + result.stdout + result.stderr)
         return result.stdout
-    first = run()
-    patched = (android / "BUILD.gn").read_text(encoding="utf-8")
-    patched_cc = (android / "brave_tab_features.cc").read_text(encoding="utf-8")
+
+    run_patch()
+    patched = build_file.read_text(encoding="utf-8")
+    patched_cc = cc_file.read_text(encoding="utf-8")
     assert 'import("//brave/components/ai_chat/core/common/buildflags/buildflags.gni")' in patched
-    assert 'if (enable_ai_chat) {\\n    deps += [ "//brave/browser/ai_chat" ]\\n  }' in patched
+    assert 'if (enable_ai_chat) {\n    deps += [ "//brave/browser/ai_chat" ]\n  }' in patched
     assert '"//brave/components/ai_chat/core/common/buildflags",' in patched
     assert '#if BUILDFLAG(ENABLE_AI_CHAT)' in patched_cc
     assert '#endif  // BUILDFLAG(ENABLE_AI_CHAT)' in patched_cc
-    second = run()
-    assert (android / "BUILD.gn").read_text(encoding="utf-8") == patched
-    assert (android / "brave_tab_features.cc").read_text(encoding="utf-8") == patched_cc
+
+    second = run_patch()
+    assert build_file.read_text(encoding="utf-8") == patched
+    assert cc_file.read_text(encoding="utf-8") == patched_cc
     assert "SANDIUM_AI_CHAT_GN_GATE=ALREADY_PATCHED" in second
-    print("AI_CHAT_PREFLIGHT=PASS anchor, GN dependency, C++ guards, and idempotent rerun")
+
+print("AI_CHAT_PREFLIGHT=PASS anchor, GN dependency, C++ guards, and idempotent rerun")
