@@ -68,7 +68,7 @@ jobs:
             .circleci/scripts/test-ai-chat-gn-patch.py \
             .circleci/scripts/test-brave-wallet-enum-patch.py \
             .circleci/scripts/test-chromium-feature-list-patch.py \
-            .circleci/scripts/test-brave-reference-stage-gate.py
+            .circleci/scripts/test-brave-reference-stage-gate.py \
             .circleci/scripts/test-ai-chat-android-gate.py
           bash -n .circleci/scripts/archive-brave-workspace.sh
           bash -n .circleci/scripts/verify-brave-reference.sh
