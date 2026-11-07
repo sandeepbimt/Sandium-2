@@ -242,6 +242,66 @@ def main():
     )
     replace_exact(main_prefs, old_origin_row, "    <!-- SANDIUM_ORIGIN_ENTRY_REMOVED -->\n", "SANDIUM_REMOVE_ORIGIN_ENTRY")
 
+    # Suppress Brave Origin as a product surface, not merely its settings row.
+    origin_features = core / "components/brave_origin/features.cc"
+    replace_exact(
+        origin_features,
+        "BASE_FEATURE(kBraveOrigin, base::FEATURE_ENABLED_BY_DEFAULT);",
+        "// Sandium does not ship Brave Origin, its subscription or purchase flow.\\n"
+        "BASE_FEATURE(kBraveOrigin, base::FEATURE_DISABLED_BY_DEFAULT);",
+        "SANDIUM_BRAVE_ORIGIN_FEATURE",
+    )
+
+    # Consume Origin promo links without navigating to settings or a purchase screen.
+    origin_handler = core / "android/java/org/chromium/chrome/browser/brave_origin/BraveOriginDeepLinkHandler.java"
+    replace_exact(
+        origin_handler,
+        "    public static boolean consumeDeferred() {\\n"
+        "        if (!ChromeSharedPreferences.getInstance()\\n"
+        "                .readBoolean(BravePreferenceKeys.BRAVE_DEFERRED_DEEPLINK_ORIGIN_PROMO, false)) {\\n"
+        "            return false;\\n"
+        "        }\\n"
+        "        ChromeSharedPreferences.getInstance()\\n"
+        "                .writeBoolean(BravePreferenceKeys.BRAVE_DEFERRED_DEEPLINK_ORIGIN_PROMO, false);\\n"
+        "        return true;\\n"
+        "    }",
+        "    public static boolean consumeDeferred() {\\n"
+        "        // Clear legacy promo state, but never open an Origin destination.\\n"
+        "        ChromeSharedPreferences.getInstance()\\n"
+        "                .writeBoolean(BravePreferenceKeys.BRAVE_DEFERRED_DEEPLINK_ORIGIN_PROMO, false);\\n"
+        "        return false;\\n"
+        "    }",
+        "SANDIUM_ORIGIN_DEFERRED_DEEPLINK",
+    )
+    replace_exact(
+        origin_handler,
+        "    public static void open(Activity activity) {\\n"
+        "        if (BraveOriginSubscriptionPrefs.getIsCredentialSummaryActiveCached()) {\\n"
+        "            SettingsNavigationFactory.createSettingsNavigation()\\n"
+        "                    .startSettings(activity, BraveOriginPreferences.class);\\n"
+        "        } else {\\n"
+        "            activity.startActivity(new Intent(activity, BraveOriginPlansActivity.class));\\n"
+        "        }\\n"
+        "    }",
+        "    public static void open(Activity activity) {\\n"
+        "        // Intentionally inert: Sandium has no Origin settings or purchase destination.\\n"
+        "    }",
+        "SANDIUM_ORIGIN_OPEN_SUPPRESSED",
+    )
+
+    # Remove the purchase activity from the Android application manifest.
+    manifest = core / "android/java/AndroidManifest.xml"
+    replace_exact(
+        manifest,
+        '<activity\\n'
+        '    android:name="org.chromium.chrome.browser.brave_origin.BraveOriginPlansActivity"\\n'
+        '    android:theme="@style/Theme.Chromium.Activity"\\n'
+        '    android:noHistory="true"\\n'
+        '    android:launchMode="singleTask"/>\\n',
+        "<!-- SANDIUM_ORIGIN_PURCHASE_ACTIVITY_REMOVED -->\\n",
+        "SANDIUM_ORIGIN_PURCHASE_ACTIVITY",
+    )
+
     # Add the supplied Universal Reader Typography v4 as an Android raw resource.
     build_gn = core / "android/BUILD.gn"
     resource_line = '    "java/brave-res/raw/sandium_reader_typography.js",\n'
