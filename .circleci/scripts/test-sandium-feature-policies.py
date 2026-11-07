@@ -114,6 +114,7 @@ def main() -> None:
         "Pinned Android buildflags explicitly reject enable_playlist=false"
     )
 
+    module = runpy.run_path(str(OVERLAY))
     ai_build_transform = module["transform_ai_chat_android_build"]
     ai_build = ai_build_transform(AI_ANDROID_BUILD_FIXTURE)
     assert 'import("//brave/components/ai_chat/core/common/buildflags/buildflags.gni")' in ai_build
@@ -144,7 +145,6 @@ def main() -> None:
     assert "SANDIUM_WEB_DISCOVERY" in overlay_source
     assert "SANDIUM_ANDROID_NEWS_TEST_DEP_GUARD" in overlay_source
 
-    module = runpy.run_path(str(OVERLAY))
     transform = module["transform_playlist_utils"]
     transformed = transform(PLAYLIST_UTILS_FIXTURE)
     assert transformed.rstrip("\n") == module["PLAYLIST_UTILS_NEW"], (
