@@ -640,7 +640,7 @@ if flags_dep not in block:
 if conditional_dep not in block:
     if 'if (enable_brave_news)' in block:
         raise SystemExit("SANDIUM_BRAVE_NEWS_ANDROID_GATE=FAIL unexpected existing News dependency condition")
-    block += "\n\n" + conditional_dep + "\n"
+    if not block.endswith("\n}"):\n        raise SystemExit("SANDIUM_BRAVE_NEWS_ANDROID_GATE=FAIL preferences target closing brace anchor mismatch")\n    block = block[:-2] + "\n\n" + conditional_dep + "\n}"
 build = build[:start] + block + build[end + 2:]
 build_path.write_text(build, encoding="utf-8")
 
