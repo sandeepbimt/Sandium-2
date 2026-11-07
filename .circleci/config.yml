@@ -1593,7 +1593,9 @@ jobs:
           condition:
             and:
               - equal: [1, << parameters.stage_index >>]
-              - equal: [full, << pipeline.parameters.sandium_build_mode >>]
+              - or:
+                  - equal: [full, << pipeline.parameters.sandium_build_mode >>]
+                  - equal: [feature/sandium-disable-13-brave-features, << pipeline.git.branch >>]
           steps:
             - restore_cache:
                 name: Restore canonical 26 GiB checkpoint before branch-local fallbacks
@@ -1613,6 +1615,8 @@ jobs:
             and:
               - equal: [1, << parameters.stage_index >>]
               - equal: [fast, << pipeline.parameters.sandium_build_mode >>]
+              - not:
+                  equal: [feature/sandium-disable-13-brave-features, << pipeline.git.branch >>]
           steps:
             - restore_cache:
                 name: Restore canonical 26 GiB reference (3c8004b / cache job 949)
@@ -1627,7 +1631,9 @@ jobs:
           condition:
             and:
               - equal: [2, << parameters.stage_index >>]
-              - equal: [full, << pipeline.parameters.sandium_build_mode >>]
+              - or:
+                  - equal: [full, << pipeline.parameters.sandium_build_mode >>]
+                  - equal: [feature/sandium-disable-13-brave-features, << pipeline.git.branch >>]
           steps:
             - restore_cache:
                 name: Restore reference Stage 1 handoff
@@ -1638,7 +1644,9 @@ jobs:
           condition:
             and:
               - equal: [3, << parameters.stage_index >>]
-              - equal: [full, << pipeline.parameters.sandium_build_mode >>]
+              - or:
+                  - equal: [full, << pipeline.parameters.sandium_build_mode >>]
+                  - equal: [feature/sandium-disable-13-brave-features, << pipeline.git.branch >>]
           steps:
             - restore_cache:
                 name: Restore reference Stage 2 handoff
@@ -1649,7 +1657,9 @@ jobs:
           condition:
             and:
               - equal: [4, << parameters.stage_index >>]
-              - equal: [full, << pipeline.parameters.sandium_build_mode >>]
+              - or:
+                  - equal: [full, << pipeline.parameters.sandium_build_mode >>]
+                  - equal: [feature/sandium-disable-13-brave-features, << pipeline.git.branch >>]
           steps:
             - restore_cache:
                 name: Restore reference Stage 3 handoff
@@ -1660,7 +1670,9 @@ jobs:
           condition:
             and:
               - equal: [5, << parameters.stage_index >>]
-              - equal: [full, << pipeline.parameters.sandium_build_mode >>]
+              - or:
+                  - equal: [full, << pipeline.parameters.sandium_build_mode >>]
+                  - equal: [feature/sandium-disable-13-brave-features, << pipeline.git.branch >>]
           steps:
             - restore_cache:
                 name: Restore reference Stage 4 handoff
@@ -1672,6 +1684,8 @@ jobs:
             and:
               - equal: [2, << parameters.stage_index >>]
               - equal: [fast, << pipeline.parameters.sandium_build_mode >>]
+              - not:
+                  equal: [feature/sandium-disable-13-brave-features, << pipeline.git.branch >>]
           steps:
             - restore_cache:
                 name: Restore canonical 26 GiB reference for FAST MODE Stage 2
@@ -1687,6 +1701,8 @@ jobs:
             and:
               - equal: [3, << parameters.stage_index >>]
               - equal: [fast, << pipeline.parameters.sandium_build_mode >>]
+              - not:
+                  equal: [feature/sandium-disable-13-brave-features, << pipeline.git.branch >>]
           steps:
             - restore_cache:
                 name: Restore canonical 26 GiB reference for FAST MODE Stage 3
@@ -1702,6 +1718,8 @@ jobs:
             and:
               - equal: [4, << parameters.stage_index >>]
               - equal: [fast, << pipeline.parameters.sandium_build_mode >>]
+              - not:
+                  equal: [feature/sandium-disable-13-brave-features, << pipeline.git.branch >>]
           steps:
             - restore_cache:
                 name: Restore canonical 26 GiB reference for FAST MODE Stage 4
@@ -1717,6 +1735,8 @@ jobs:
             and:
               - equal: [5, << parameters.stage_index >>]
               - equal: [fast, << pipeline.parameters.sandium_build_mode >>]
+              - not:
+                  equal: [feature/sandium-disable-13-brave-features, << pipeline.git.branch >>]
           steps:
             - restore_cache:
                 name: Restore canonical 26 GiB reference for FAST MODE Stage 5
@@ -1746,7 +1766,11 @@ jobs:
           name: Select Sandium build mode and validate reference
           command: |
             set -euo pipefail
-            MODE="<< pipeline.parameters.sandium_build_mode >>"
+            if [ "${CIRCLE_BRANCH:-}" = "feature/sandium-disable-13-brave-features" ]; then
+              MODE="full"
+            else
+              MODE="<< pipeline.parameters.sandium_build_mode >>"
+            fi
             ROOT="$CIRCLE_WORKING_DIRECTORY"
             mkdir -p "$ROOT/brave-work/.sandium"
             # This marker distinguishes an archive created by this run from the
@@ -1774,7 +1798,10 @@ jobs:
             bash .circleci/scripts/prepare-brave-source.sh
       - when:
           condition:
-            equal: [fast, << pipeline.parameters.sandium_build_mode >>]
+            and:
+              - equal: [fast, << pipeline.parameters.sandium_build_mode >>]
+              - not:
+                  equal: [feature/sandium-disable-13-brave-features, << pipeline.git.branch >>]
           steps:
             - run:
                 name: Apply pin-guarded Morphe Android startup overlays (FAST MODE only)
@@ -1996,7 +2023,11 @@ jobs:
             export SISO_LIMITS="local=8,remote=80"
             METRICS_PREFIX="sandium-brave-siso-stage-<< parameters.stage_index >>-build-${CIRCLE_BUILD_NUM:-local}-attempt-"
             METRICS_FILE="${METRICS_PREFIX}0.jsonl"
-            BUILD_MODE="<< pipeline.parameters.sandium_build_mode >>"
+            if [ "${CIRCLE_BRANCH:-}" = "feature/sandium-disable-13-brave-features" ]; then
+              BUILD_MODE="full"
+            else
+              BUILD_MODE="<< pipeline.parameters.sandium_build_mode >>"
+            fi
             case "$BUILD_MODE" in
               full) STAGE_BUILD_BUDGET_SECONDS=1200 ;;
               fast) STAGE_BUILD_BUDGET_SECONDS=2700 ;;
@@ -2201,7 +2232,9 @@ jobs:
           when: always
       - when:
           condition:
-            equal: [full, << pipeline.parameters.sandium_build_mode >>]
+            or:
+              - equal: [full, << pipeline.parameters.sandium_build_mode >>]
+              - equal: [feature/sandium-disable-13-brave-features, << pipeline.git.branch >>]
           steps:
             - run:
                 name: Validate Brave checkpoint before saving
@@ -2310,7 +2343,11 @@ jobs:
             ROOT="$CIRCLE_WORKING_DIRECTORY"
             STAGE="<< parameters.stage_index >>"
             APK_STATUS="$ROOT/brave-work/.sandium/apk-completion-status.txt"
-            MODE="<< pipeline.parameters.sandium_build_mode >>"
+            if [ "${CIRCLE_BRANCH:-}" = "feature/sandium-disable-13-brave-features" ]; then
+              MODE="full"
+            else
+              MODE="<< pipeline.parameters.sandium_build_mode >>"
+            fi
             if [ "$MODE" = "full" ]; then
               python3 "$ROOT/.circleci/scripts/checkpoint-stage-receipt.py" verify \
                 --root "$ROOT" \
