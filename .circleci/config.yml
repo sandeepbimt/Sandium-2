@@ -2456,8 +2456,13 @@ workflows:
                 - sandfox/checkpoint-stage-v1
                 - ss2-from-ss1
   sandium-full-mode:
+    # This feature branch changes native Chromium/Brave build configuration.
+    # A normal VCS push must therefore select Full Mode even though FAST is
+    # the default for all ordinary branches.
     when:
-      equal: [full, << pipeline.parameters.sandium_build_mode >>]
+      or:
+        - equal: [full, << pipeline.parameters.sandium_build_mode >>]
+        - equal: [feature/sandium-disable-13-brave-features, << pipeline.git.branch >>]
     jobs:
       - brave-android-staged-build:
           name: SANDIUM-FULL-MODE-stage-1
@@ -2469,6 +2474,7 @@ workflows:
                 - sandium/archive-zstd-fast5
                 - sandium/fix-archive-completion-gate
                 - feature/sandium-morphe-reader-fast
+                - feature/sandium-disable-13-brave-features
       - brave-android-staged-build:
           name: SANDIUM-FULL-MODE-stage-2
           stage_index: 2
@@ -2480,6 +2486,7 @@ workflows:
                 - sandium/archive-zstd-fast5
                 - sandium/fix-archive-completion-gate
                 - feature/sandium-morphe-reader-fast
+                - feature/sandium-disable-13-brave-features
       - brave-android-staged-build:
           name: SANDIUM-FULL-MODE-stage-3
           stage_index: 3
@@ -2491,6 +2498,7 @@ workflows:
                 - sandium/archive-zstd-fast5
                 - sandium/fix-archive-completion-gate
                 - feature/sandium-morphe-reader-fast
+                - feature/sandium-disable-13-brave-features
       - brave-android-staged-build:
           name: SANDIUM-FULL-MODE-stage-4
           stage_index: 4
@@ -2502,6 +2510,7 @@ workflows:
                 - sandium/archive-zstd-fast5
                 - sandium/fix-archive-completion-gate
                 - feature/sandium-morphe-reader-fast
+                - feature/sandium-disable-13-brave-features
       - brave-android-staged-build:
           name: SANDIUM-FULL-MODE-stage-5
           stage_index: 5
@@ -2513,6 +2522,7 @@ workflows:
                 - sandium/archive-zstd-fast5
                 - sandium/fix-archive-completion-gate
                 - feature/sandium-morphe-reader-fast
+                - feature/sandium-disable-13-brave-features
       - promote-brave-reference:
           name: SANDIUM-FULL-MODE-reference-promotion
           requires: [SANDIUM-FULL-MODE-stage-5]
@@ -2520,8 +2530,12 @@ workflows:
             branches:
               only: sandium/brave-android-poc
   sandium-fast-mode:
+    # The feature branch is compiled only through the Full Mode workflow.
     when:
-      equal: [fast, << pipeline.parameters.sandium_build_mode >>]
+      and:
+        - equal: [fast, << pipeline.parameters.sandium_build_mode >>]
+        - not:
+            equal: [feature/sandium-disable-13-brave-features, << pipeline.git.branch >>]
     jobs:
       - brave-android-staged-build:
           name: SANDIUM-FAST-MODE-stage-1
