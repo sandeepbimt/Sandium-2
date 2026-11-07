@@ -73,6 +73,19 @@ def main() -> None:
     else:
         raise AssertionError("Playlist overlay must fail closed on source drift")
 
+    factory_transform = module["transform_playlist_factory"]
+    factory_fixture = (
+        '    registry->RegisterBooleanPref(kPlaylistEnabledPref, true);\\n'
+        + module["PLAYLIST_FACTORY_OLD"]
+    )
+    factory_updated = factory_transform(factory_fixture)
+    assert 'registry->RegisterBooleanPref(kPlaylistEnabledPref, false);' in factory_updated
+    assert 'profile->GetPrefs()->SetBoolean(kPlaylistEnabledPref, false);' in factory_updated
+    assert 'if (!IsPlaylistAllowed(profile->GetPrefs()))' in factory_updated
+    assert factory_transform(factory_updated) == factory_updated, (
+        "Playlist service factory overlay must be idempotent"
+    )
+
     # The only runtime C++ policy override in this change is Playlist's
     # allow-check; Shields and the native ad-blocker source are not touched.
     assert "brave_shields" not in module["PLAYLIST_UTILS_NEW"]
