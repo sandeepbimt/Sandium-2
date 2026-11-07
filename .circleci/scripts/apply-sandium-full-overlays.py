@@ -49,6 +49,19 @@ def replace_marked(path, begin, end, old, new, label):
         raise RuntimeError(f"{label}: partial marker set")
     replace_exact(path, old, new, label)
 
+PLAYLIST_UTILS_OLD = "bool IsDisabledByPolicy(PrefService* prefs) {\n  return prefs->IsManagedPreference(kPlaylistEnabledPref) &&\n         !prefs->GetBoolean(kPlaylistEnabledPref);\n}\n\n}  // namespace\n\nbool IsPlaylistAllowed(PrefService* prefs) {\n  DCHECK(prefs);\n  return base::FeatureList::IsEnabled(features::kPlaylist) &&\n         !IsDisabledByPolicy(prefs);\n}"
+PLAYLIST_UTILS_NEW = "}  // namespace\n\nbool IsPlaylistAllowed(PrefService* prefs) {\n  // Sandium Android intentionally ships without Playlist. This hard gate also\n  // blocks profiles created before the feature was disabled; changing only the\n  // default preference would leave existing enabled profiles unaffected.\n  DCHECK(prefs);\n  return false;\n}"
+
+def transform_playlist_utils(source):
+    if source.count(PLAYLIST_UTILS_NEW) == 1 and PLAYLIST_UTILS_OLD not in source:
+        return source
+    if source.count(PLAYLIST_UTILS_OLD) != 1:
+        raise RuntimeError(
+            "SANDIUM_PLAYLIST: expected exact pinned IsPlaylistAllowed implementation"
+        )
+    return source.replace(PLAYLIST_UTILS_OLD, PLAYLIST_UTILS_NEW, 1)
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--core", required=True, type=Path)
@@ -114,6 +127,20 @@ def main():
         "  enable_web_discovery = false",
         "SANDIUM_WEB_DISCOVERY",
     )
+
+    # Playlist cannot be disabled through its GN argument on Android: the
+    # pinned buildflags file asserts that ENABLE_PLAYLIST must remain true.
+    # Disable its runtime allow-check instead, which also blocks old profiles.
+    playlist_utils = core / "components/playlist/core/browser/utils.cc"
+    playlist_old = "bool IsDisabledByPolicy(PrefService* prefs) {\n  return prefs->IsManagedPreference(kPlaylistEnabledPref) &&\n         !prefs->GetBoolean(kPlaylistEnabledPref);\n}\n\n}  // namespace\n\nbool IsPlaylistAllowed(PrefService* prefs) {\n  DCHECK(prefs);\n  return base::FeatureList::IsEnabled(features::kPlaylist) &&\n         !IsDisabledByPolicy(prefs);\n}"
+    playlist_new = "}  // namespace\n\nbool IsPlaylistAllowed(PrefService* prefs) {\n  // Sandium Android intentionally ships without Playlist. This hard gate also\n  // blocks profiles created before the feature was disabled; changing only the\n  // default preference would leave existing enabled profiles unaffected.\n  DCHECK(prefs);\n  return false;\n}"
+    playlist_source = playlist_utils.read_text(encoding="utf-8")
+    playlist_updated = transform_playlist_utils(playlist_source)
+    if playlist_updated != playlist_source:
+        playlist_utils.write_text(playlist_updated, encoding="utf-8")
+        print("SANDIUM_PLAYLIST=DISABLED_FOR_ANDROID")
+    else:
+        print("SANDIUM_PLAYLIST=ALREADY_DISABLED")
 
     # Brave News is disabled in Sandium's Full Mode GN args. Its browser_tests
     # target is therefore absent from the Android deps list and must not remain
