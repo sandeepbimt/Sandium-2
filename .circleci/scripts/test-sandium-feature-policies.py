@@ -37,6 +37,69 @@ bool IsPlaylistAllowed(PrefService* prefs) {
 """
 
 
+AI_ANDROID_BUILD_FIXTURE = """import("//brave/build/config.gni")
+import("//brave/components/brave_ads/buildflags/buildflags.gni")
+
+assert(is_android)
+
+source_set("tabs_impl") {
+  visibility = [ "//brave/browser:core" ]
+  sources = [ "brave_tab_features.cc" ]
+
+  deps = [
+    ":tabs_public",
+    "//base",
+    "//brave/browser/ai_chat",
+    "//brave/browser/misc_metrics:misc_metrics_impl",
+    "//brave/components/misc_metrics",
+    "//chrome/browser/profiles:profile",
+    "//content/public/browser",
+  ]
+}
+"""
+
+AI_ANDROID_SOURCE_FIXTURE = """#include "base/feature_list.h"
+#include "brave/browser/ai_chat/ai_chat_utils.h"
+#include "brave/browser/ai_chat/tab_data_web_contents_observer.h"
+#include "brave/browser/ai_chat/web_mcp_injection/web_mcp_injector.h"
+#include "brave/browser/misc_metrics/captcha_metrics.h"
+
+namespace tabs {
+void Init(Profile* profile, content::WebContents* web_contents) {
+  if (ai_chat::IsAllowedForContext(profile)) {
+    tab_data_observer_ = std::make_unique<ai_chat::TabDataWebContentsObserver>(
+        TabAndroid::FromWebContents(web_contents)->GetAndroidId(),
+        web_contents);
+    // Injects Brave-provided WebMCP tools into matching pages; see
+    // WebMcpInjector. Null when WebMCP is disabled or has no rules.
+    web_mcp_injector_ = ai_chat::WebMcpInjector::MaybeCreate(web_contents);
+  }
+}
+}
+"""
+
+AI_ANDROID_HEADER_FIXTURE = """#include <memory>
+
+#include "chrome/browser/android/tab_features.h"
+
+class Profile;
+
+namespace ai_chat {
+class TabDataWebContentsObserver;
+class WebMcpInjector;
+}  // namespace ai_chat
+
+namespace tabs {
+class BraveTabFeatures {
+ private:
+  std::unique_ptr<ContentsObservingTabFeature>
+      cloudflare_js_detection_tab_helper_;
+  std::unique_ptr<ai_chat::TabDataWebContentsObserver> tab_data_observer_;
+  std::unique_ptr<ai_chat::WebMcpInjector> web_mcp_injector_;
+};
+}
+
+
 def main() -> None:
     prepare = PREPARE.read_text(encoding="utf-8")
     overlay_source = OVERLAY.read_text(encoding="utf-8")
@@ -50,6 +113,26 @@ def main() -> None:
     assert "enable_playlist:false" not in prepare, (
         "Pinned Android buildflags explicitly reject enable_playlist=false"
     )
+
+    ai_build_transform = module["transform_ai_chat_android_build"]
+    ai_build = ai_build_transform(AI_ANDROID_BUILD_FIXTURE)
+    assert 'import("//brave/components/ai_chat/core/common/buildflags/buildflags.gni")' in ai_build
+    deps_block = ai_build.split("  deps = [", 1)[1].split("  ]", 1)[0]
+    assert '"//brave/browser/ai_chat"' not in deps_block
+    assert 'if (enable_ai_chat) {\n    deps += [ "//brave/browser/ai_chat" ]\n  }' in ai_build
+    assert ai_build_transform(ai_build) == ai_build
+
+    ai_source_transform = module["transform_ai_chat_android_source"]
+    ai_source = ai_source_transform(AI_ANDROID_SOURCE_FIXTURE)
+    assert ai_source.count("#if BUILDFLAG(ENABLE_AI_CHAT)") == 1
+    assert ai_source.count("#endif") == 1
+    assert ai_source_transform(ai_source) == ai_source
+
+    ai_header_transform = module["transform_ai_chat_android_header"]
+    ai_header = ai_header_transform(AI_ANDROID_HEADER_FIXTURE)
+    assert ai_header.count("#if BUILDFLAG(ENABLE_AI_CHAT)") == 2
+    assert ai_header.count("#endif") == 2
+    assert ai_header_transform(ai_header) == ai_header
 
     assert "SANDIUM_P3A_DEFAULT" in overlay_source
     assert "SANDIUM_P3A_RUNTIME" in overlay_source

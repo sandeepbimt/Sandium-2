@@ -94,6 +94,137 @@ def transform_playlist_factory(source):
     return source.replace(PLAYLIST_FACTORY_OLD, PLAYLIST_FACTORY_NEW, 1)
 
 
+
+AI_ANDROID_BUILD_OLD = """import("//brave/build/config.gni")
+import("//brave/components/brave_ads/buildflags/buildflags.gni")"""
+AI_ANDROID_BUILD_NEW = """import("//brave/build/config.gni")
+import("//brave/components/ai_chat/core/common/buildflags/buildflags.gni")
+import("//brave/components/brave_ads/buildflags/buildflags.gni")"""
+
+AI_ANDROID_DEPS_OLD = """  deps = [
+    ":tabs_public",
+    "//base",
+    "//brave/browser/ai_chat",
+    "//brave/browser/misc_metrics:misc_metrics_impl",
+    "//brave/components/misc_metrics",
+    "//chrome/browser/profiles:profile",
+    "//content/public/browser",
+  ]"""
+AI_ANDROID_DEPS_NEW = """  deps = [
+    ":tabs_public",
+    "//base",
+    "//brave/browser/misc_metrics:misc_metrics_impl",
+    "//brave/components/misc_metrics",
+    "//chrome/browser/profiles:profile",
+    "//content/public/browser",
+  ]
+
+  if (enable_ai_chat) {
+    deps += [ "//brave/browser/ai_chat" ]
+  }"""
+
+def transform_ai_chat_android_build(source):
+    if AI_ANDROID_BUILD_NEW not in source:
+        if source.count(AI_ANDROID_BUILD_OLD) != 1:
+            raise RuntimeError("SANDIUM_AI_CHAT_ANDROID_BUILD: buildflags import anchor changed")
+        source = source.replace(AI_ANDROID_BUILD_OLD, AI_ANDROID_BUILD_NEW, 1)
+    if AI_ANDROID_DEPS_NEW in source and AI_ANDROID_DEPS_OLD not in source:
+        return source
+    if source.count(AI_ANDROID_DEPS_OLD) != 1:
+        raise RuntimeError("SANDIUM_AI_CHAT_ANDROID_BUILD: unconditional Android dependency anchor changed")
+    return source.replace(AI_ANDROID_DEPS_OLD, AI_ANDROID_DEPS_NEW, 1)
+
+
+AI_ANDROID_SOURCE_OLD_INCLUDES = """#include "base/feature_list.h"
+#include "brave/browser/ai_chat/ai_chat_utils.h"
+#include "brave/browser/ai_chat/tab_data_web_contents_observer.h"
+#include "brave/browser/ai_chat/web_mcp_injection/web_mcp_injector.h"
+#include "brave/browser/misc_metrics/captcha_metrics.h"""
+AI_ANDROID_SOURCE_NEW_INCLUDES = """#include "base/feature_list.h"
+#include "brave/components/ai_chat/core/common/buildflags/buildflags.h"
+#if BUILDFLAG(ENABLE_AI_CHAT)
+#include "brave/browser/ai_chat/ai_chat_utils.h"
+#include "brave/browser/ai_chat/tab_data_web_contents_observer.h"
+#include "brave/browser/ai_chat/web_mcp_injection/web_mcp_injector.h"
+#endif
+#include "brave/browser/misc_metrics/captcha_metrics.h"""
+
+AI_ANDROID_SOURCE_OLD_BLOCK = """  if (ai_chat::IsAllowedForContext(profile)) {
+    tab_data_observer_ = std::make_unique<ai_chat::TabDataWebContentsObserver>(
+        TabAndroid::FromWebContents(web_contents)->GetAndroidId(),
+        web_contents);
+    // Injects Brave-provided WebMCP tools into matching pages; see
+    // WebMcpInjector. Null when WebMCP is disabled or has no rules.
+    web_mcp_injector_ = ai_chat::WebMcpInjector::MaybeCreate(web_contents);
+  }"""
+AI_ANDROID_SOURCE_NEW_BLOCK = """#if BUILDFLAG(ENABLE_AI_CHAT)
+  if (ai_chat::IsAllowedForContext(profile)) {
+    tab_data_observer_ = std::make_unique<ai_chat::TabDataWebContentsObserver>(
+        TabAndroid::FromWebContents(web_contents)->GetAndroidId(),
+        web_contents);
+    // Injects Brave-provided WebMCP tools into matching pages; see
+    // WebMcpInjector. Null when WebMCP is disabled or has no rules.
+    web_mcp_injector_ = ai_chat::WebMcpInjector::MaybeCreate(web_contents);
+  }
+#endif"""
+
+def transform_ai_chat_android_source(source):
+    if AI_ANDROID_SOURCE_NEW_INCLUDES not in source:
+        if source.count(AI_ANDROID_SOURCE_OLD_INCLUDES) != 1:
+            raise RuntimeError("SANDIUM_AI_CHAT_ANDROID_SOURCE: include anchor changed")
+        source = source.replace(AI_ANDROID_SOURCE_OLD_INCLUDES, AI_ANDROID_SOURCE_NEW_INCLUDES, 1)
+    if AI_ANDROID_SOURCE_NEW_BLOCK in source and AI_ANDROID_SOURCE_OLD_BLOCK not in source:
+        return source
+    if source.count(AI_ANDROID_SOURCE_OLD_BLOCK) != 1:
+        raise RuntimeError("SANDIUM_AI_CHAT_ANDROID_SOURCE: runtime observer anchor changed")
+    return source.replace(AI_ANDROID_SOURCE_OLD_BLOCK, AI_ANDROID_SOURCE_NEW_BLOCK, 1)
+
+
+AI_ANDROID_HEADER_OLD = """#include <memory>
+
+#include "chrome/browser/android/tab_features.h"
+
+class Profile;
+
+namespace ai_chat {
+class TabDataWebContentsObserver;
+class WebMcpInjector;
+}  // namespace ai_chat"""
+AI_ANDROID_HEADER_NEW = """#include <memory>
+
+#include "brave/components/ai_chat/core/common/buildflags/buildflags.h"
+#include "chrome/browser/android/tab_features.h"
+
+class Profile;
+
+#if BUILDFLAG(ENABLE_AI_CHAT)
+namespace ai_chat {
+class TabDataWebContentsObserver;
+class WebMcpInjector;
+}  // namespace ai_chat
+#endif"""
+AI_ANDROID_HEADER_OLD_FIELDS = """  std::unique_ptr<ContentsObservingTabFeature>
+      cloudflare_js_detection_tab_helper_;
+  std::unique_ptr<ai_chat::TabDataWebContentsObserver> tab_data_observer_;
+  std::unique_ptr<ai_chat::WebMcpInjector> web_mcp_injector_;"""
+AI_ANDROID_HEADER_NEW_FIELDS = """  std::unique_ptr<ContentsObservingTabFeature>
+      cloudflare_js_detection_tab_helper_;
+#if BUILDFLAG(ENABLE_AI_CHAT)
+  std::unique_ptr<ai_chat::TabDataWebContentsObserver> tab_data_observer_;
+  std::unique_ptr<ai_chat::WebMcpInjector> web_mcp_injector_;
+#endif"""
+
+def transform_ai_chat_android_header(source):
+    if AI_ANDROID_HEADER_NEW not in source:
+        if source.count(AI_ANDROID_HEADER_OLD) != 1:
+            raise RuntimeError("SANDIUM_AI_CHAT_ANDROID_HEADER: forward-declaration anchor changed")
+        source = source.replace(AI_ANDROID_HEADER_OLD, AI_ANDROID_HEADER_NEW, 1)
+    if AI_ANDROID_HEADER_NEW_FIELDS in source and AI_ANDROID_HEADER_OLD_FIELDS not in source:
+        return source
+    if source.count(AI_ANDROID_HEADER_OLD_FIELDS) != 1:
+        raise RuntimeError("SANDIUM_AI_CHAT_ANDROID_HEADER: member anchor changed")
+    return source.replace(AI_ANDROID_HEADER_OLD_FIELDS, AI_ANDROID_HEADER_NEW_FIELDS, 1)
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--core", required=True, type=Path)
@@ -159,6 +290,36 @@ def main():
         "  enable_web_discovery = false",
         "SANDIUM_WEB_DISCOVERY",
     )
+
+    # AI Chat is a valid Brave Origin GN exclusion, but Android's tabs_impl
+    # target has an unconditional dependency and source references. Guard them
+    # against the pinned Android source before asking GN to disable AI Chat.
+    ai_android_build = core / "browser/android/BUILD.gn"
+    ai_android_build_source = ai_android_build.read_text(encoding="utf-8")
+    ai_android_build_updated = transform_ai_chat_android_build(ai_android_build_source)
+    if ai_android_build_updated != ai_android_build_source:
+        ai_android_build.write_text(ai_android_build_updated, encoding="utf-8")
+        print("SANDIUM_AI_CHAT_ANDROID_BUILD=CONDITIONALLY_LINKED")
+    else:
+        print("SANDIUM_AI_CHAT_ANDROID_BUILD=ALREADY_CONDITIONAL")
+
+    ai_android_source = core / "browser/android/brave_tab_features.cc"
+    ai_android_source_text = ai_android_source.read_text(encoding="utf-8")
+    ai_android_source_updated = transform_ai_chat_android_source(ai_android_source_text)
+    if ai_android_source_updated != ai_android_source_text:
+        ai_android_source.write_text(ai_android_source_updated, encoding="utf-8")
+        print("SANDIUM_AI_CHAT_ANDROID_SOURCE=COMPILE_GUARDED")
+    else:
+        print("SANDIUM_AI_CHAT_ANDROID_SOURCE=ALREADY_GUARDED")
+
+    ai_android_header = core / "browser/android/brave_tab_features.h"
+    ai_android_header_text = ai_android_header.read_text(encoding="utf-8")
+    ai_android_header_updated = transform_ai_chat_android_header(ai_android_header_text)
+    if ai_android_header_updated != ai_android_header_text:
+        ai_android_header.write_text(ai_android_header_updated, encoding="utf-8")
+        print("SANDIUM_AI_CHAT_ANDROID_HEADER=COMPILE_GUARDED")
+    else:
+        print("SANDIUM_AI_CHAT_ANDROID_HEADER=ALREADY_GUARDED")
 
     # Playlist cannot be disabled through its GN argument on Android: the
     # pinned buildflags file asserts that ENABLE_PLAYLIST must remain true.
