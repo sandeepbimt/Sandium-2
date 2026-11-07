@@ -597,6 +597,181 @@ if guarded_includes not in verified or new_calls not in verified:
 print("SANDIUM_AI_CHAT_CPP_GATE=PASS; Android AI Chat C++ references follow ENABLE_AI_CHAT")
 PY
 
+  # Brave's Android mobile-subscription renderer unconditionally links the AI
+  # Chat common component for Leo purchase callbacks. With enable_ai_chat=false,
+  # that pulls features.cc/pref_names.cc into the APK build and trips Brave's
+  # intentional static_assert. Keep the renderer target, but compile the Leo
+  # bridge and its common/mojom dependencies only when AI Chat is enabled.
+  python3 - "$CORE_DIR/components/brave_mobile_subscription/renderer/android/BUILD.gn" "$CORE_DIR/components/brave_mobile_subscription/renderer/android/subscription_render_frame_observer.h" "$CORE_DIR/components/brave_mobile_subscription/renderer/android/subscription_render_frame_observer.cc" <<'PY'
+from pathlib import Path
+import sys
+
+build_path, header_path, cc_path = map(Path, sys.argv[1:])
+for path in (build_path, header_path, cc_path):
+    if not path.is_file():
+        raise SystemExit("SANDIUM_AI_CHAT_SUBSCRIPTION_GATE=FAIL pinned source missing: " + str(path))
+
+build = build_path.read_text(encoding="utf-8")
+buildflags_import = 'import("//brave/components/ai_chat/core/common/buildflags/buildflags.gni")'
+if buildflags_import not in build:
+    vpn_import = 'import("//brave/components/brave_vpn/common/buildflags/buildflags.gni")\n'
+    if build.count(vpn_import) != 1:
+        raise SystemExit("SANDIUM_AI_CHAT_SUBSCRIPTION_GATE=FAIL buildflags import anchor mismatch")
+    build = build.replace(vpn_import, buildflags_import + "\n" + vpn_import, 1)
+
+def patch_deps(source, target, label):
+    start = source.find(target)
+    if start < 0 or source.find(target, start + 1) >= 0:
+        raise SystemExit("SANDIUM_AI_CHAT_SUBSCRIPTION_GATE=FAIL " + label + " target anchor missing or duplicated")
+    end = source.find("\n}", start)
+    if end < 0:
+        raise SystemExit("SANDIUM_AI_CHAT_SUBSCRIPTION_GATE=FAIL " + label + " target terminator missing")
+    block = source[start:end + 2]
+    common = '    "//brave/components/ai_chat/core/common",\n'
+    mojom = '    "//brave/components/ai_chat/core/common/mojom",\n'
+    flags = '    "//brave/components/ai_chat/core/common/buildflags",\n'
+    block = block.replace(common, "")
+    block = block.replace(mojom, "")
+    if flags not in block:
+        base = '    "//base",\n'
+        if block.count(base) != 1:
+            raise SystemExit("SANDIUM_AI_CHAT_SUBSCRIPTION_GATE=FAIL " + label + " base dependency anchor mismatch")
+        block = block.replace(base, base + flags, 1)
+    conditional = (
+        '\n\n  if (enable_ai_chat) {\n'
+        '    deps += [\n'
+        '      "//brave/components/ai_chat/core/common",\n'
+        '      "//brave/components/ai_chat/core/common/mojom",\n'
+        '    ]\n'
+        '  }'
+    )
+    if 'if (enable_ai_chat)' not in block:
+        block = block[:-2] + conditional + '\n}'
+    elif common not in block or mojom not in block:
+        if 'deps += [' not in block or '"//brave/components/ai_chat/core/common/mojom"' not in block:
+            raise SystemExit("SANDIUM_AI_CHAT_SUBSCRIPTION_GATE=FAIL " + label + " existing AI Chat condition is incomplete")
+    return source[:start] + block + source[end + 2:]
+
+build = patch_deps(build, 'source_set("android") {', "Android renderer")
+build = patch_deps(build, 'source_set("browser_tests") {', "browser tests")
+build_path.write_text(build, encoding="utf-8")
+
+header = header_path.read_text(encoding="utf-8")
+buildflags_header = '#include "brave/components/ai_chat/core/common/buildflags/buildflags.h"\n'
+ai_includes = (
+    '#include "brave/components/ai_chat/core/common/mojom/ai_chat.mojom.h"\n'
+    '#include "brave/components/ai_chat/core/common/mojom/common.mojom.h"\n'
+)
+guarded_ai_includes = (
+    buildflags_header
+    + '\n#if BUILDFLAG(ENABLE_AI_CHAT)\n'
+    + ai_includes
+    + '#endif  // BUILDFLAG(ENABLE_AI_CHAT)\n'
+)
+if guarded_ai_includes not in header:
+    if header.count(ai_includes) != 1:
+        raise SystemExit("SANDIUM_AI_CHAT_SUBSCRIPTION_GATE=FAIL header include anchor mismatch")
+    header = header.replace(ai_includes, guarded_ai_includes, 1)
+member = '  mojo::Remote<ai_chat::mojom::IAPSubscription> ai_chat_subscription_;\n'
+guarded_member = '#if BUILDFLAG(ENABLE_AI_CHAT)\n' + member + '#endif  // BUILDFLAG(ENABLE_AI_CHAT)\n'
+if guarded_member not in header:
+    if header.count(member) != 1:
+        raise SystemExit("SANDIUM_AI_CHAT_SUBSCRIPTION_GATE=FAIL header member anchor mismatch")
+    header = header.replace(member, guarded_member, 1)
+header_path.write_text(header, encoding="utf-8")
+
+cc = cc_path.read_text(encoding="utf-8")
+features_include = '#include "brave/components/ai_chat/core/common/features.h"\n'
+guarded_features = (
+    buildflags_header
+    + '\n#if BUILDFLAG(ENABLE_AI_CHAT)\n'
+    + features_include
+    + '#endif  // BUILDFLAG(ENABLE_AI_CHAT)\n'
+)
+if guarded_features not in cc:
+    if cc.count(features_include) != 1:
+        raise SystemExit("SANDIUM_AI_CHAT_SUBSCRIPTION_GATE=FAIL C++ features include anchor mismatch")
+    cc = cc.replace(features_include, guarded_features, 1)
+
+old_ensure = (
+    '  if (ai_chat::features::IsAIChatEnabled() && product_ == Product::kLeo) {\n'
+    '    if (!ai_chat_subscription_.is_bound()) {\n'
+    '      render_frame()->GetBrowserInterfaceBroker().GetInterface(\n'
+    '          ai_chat_subscription_.BindNewPipeAndPassReceiver());\n'
+    '    }\n'
+    '    bound |= ai_chat_subscription_.is_bound();\n'
+    '  }\n'
+)
+guarded_ensure = '#if BUILDFLAG(ENABLE_AI_CHAT)\n' + old_ensure + '#endif  // BUILDFLAG(ENABLE_AI_CHAT)\n'
+if guarded_ensure not in cc:
+    if cc.count(old_ensure) != 1:
+        raise SystemExit("SANDIUM_AI_CHAT_SUBSCRIPTION_GATE=FAIL EnsureConnected AI Chat block anchor mismatch")
+    cc = cc.replace(old_ensure, guarded_ensure, 1)
+
+old_leo_branch = (
+    '  } else if (product_ == Product::kLeo) {\n'
+    '    if (ai_chat_subscription_.is_bound()) {\n'
+    '      // Inject only linkResult object on the\n'
+    '      // https://account.brave.com/order-link/?product=leo page\n'
+    '      // and get purchase token id only on\n'
+    '      // https://account.brave.com?intent=link-order&product=leo page\n'
+    '      if (page_ == Page::kResultLandingPage) {\n'
+    '        AddJavaScriptObjectToFrame(context);\n'
+    '      } else if (page_ == Page::kInitialLandingPage) {\n'
+    '        ai_chat_subscription_->GetPurchaseTokenOrderId(base::BindOnce(\n'
+    '            &SubscriptionRenderFrameObserver::OnGetPurchaseTokenOrderId,\n'
+    '            weak_factory_.GetWeakPtr()));\n'
+    '      }\n'
+    '    }\n'
+)
+guarded_leo_branch = '#if BUILDFLAG(ENABLE_AI_CHAT)\n' + old_leo_branch + '#endif  // BUILDFLAG(ENABLE_AI_CHAT)\n'
+if guarded_leo_branch not in cc:
+    if cc.count(old_leo_branch) != 1:
+        raise SystemExit("SANDIUM_AI_CHAT_SUBSCRIPTION_GATE=FAIL Leo branch anchor mismatch")
+    cc = cc.replace(old_leo_branch, guarded_leo_branch, 1)
+
+old_status = (
+    '  if (product_ == Product::kLeo && ai_chat_subscription_.is_bound()) {\n'
+    '    ai_chat_subscription_->SetLinkStatus(\n'
+    '        status_dict.FindInt("status").value_or(0));\n'
+    '  } else if (product_ == Product::kOrigin && origin_subscription_.is_bound()) {\n'
+)
+new_status = (
+    '#if BUILDFLAG(ENABLE_AI_CHAT)\n'
+    '  if (product_ == Product::kLeo && ai_chat_subscription_.is_bound()) {\n'
+    '    ai_chat_subscription_->SetLinkStatus(\n'
+    '        status_dict.FindInt("status").value_or(0));\n'
+    '  } else\n'
+    '#endif  // BUILDFLAG(ENABLE_AI_CHAT)\n'
+    '  if (product_ == Product::kOrigin && origin_subscription_.is_bound()) {\n'
+)
+if new_status not in cc:
+    if cc.count(old_status) != 1:
+        raise SystemExit("SANDIUM_AI_CHAT_SUBSCRIPTION_GATE=FAIL SetLinkStatus branch anchor mismatch")
+    cc = cc.replace(old_status, new_status, 1)
+
+cc_path.write_text(cc, encoding="utf-8")
+
+verified_build = build_path.read_text(encoding="utf-8")
+verified_header = header_path.read_text(encoding="utf-8")
+verified_cc = cc_path.read_text(encoding="utf-8")
+for target in ('source_set("android") {', 'source_set("browser_tests") {'):
+    start = verified_build.find(target)
+    end = verified_build.find("\n}", start)
+    block = verified_build[start:end + 2]
+    if block.count('"//brave/components/ai_chat/core/common/buildflags"') != 1:
+        raise SystemExit("SANDIUM_AI_CHAT_SUBSCRIPTION_GATE=FAIL missing buildflags dependency: " + target)
+    if block.count('if (enable_ai_chat)') != 1 or block.count('"//brave/components/ai_chat/core/common/mojom"') != 1:
+        raise SystemExit("SANDIUM_AI_CHAT_SUBSCRIPTION_GATE=FAIL common/mojom dependency is not conditional: " + target)
+if ai_includes in verified_header or member in verified_header.replace(guarded_member, ""):
+    raise SystemExit("SANDIUM_AI_CHAT_SUBSCRIPTION_GATE=FAIL unguarded AI Chat header/member remains")
+if features_include in verified_cc.replace(guarded_features, ""):
+    raise SystemExit("SANDIUM_AI_CHAT_SUBSCRIPTION_GATE=FAIL unguarded AI Chat features include remains")
+if verified_cc.count('#if BUILDFLAG(ENABLE_AI_CHAT)') != 3:
+    raise SystemExit("SANDIUM_AI_CHAT_SUBSCRIPTION_GATE=FAIL expected three guarded C++ blocks")
+print("SANDIUM_AI_CHAT_SUBSCRIPTION_GATE=PASS; Leo bridge and common target dependencies follow ENABLE_AI_CHAT")
+PY
+
   # Brave v1.98.62's Android preferences target unconditionally depends on
   # Brave News, even when enable_brave_news=false. The common target is omitted
   # in that configuration, so GN reports an unresolved dependency. Gate the
@@ -799,6 +974,7 @@ PY
     "$CORE_DIR/android/BUILD.gn"
     "$CORE_DIR/browser/notifications/BUILD.gn"
     "$CORE_DIR/build/android/config.gni"
+    "$CORE_DIR/components/brave_mobile_subscription/renderer/android/BUILD.gn"
   )
   test -x "$GN_BIN" || { echo "SANDIUM_AI_CHAT_GN_FORMAT_GATE=FAIL GN formatter missing: $GN_BIN" >&2; exit 1; }
   for GN_FILE in "${GN_FILES[@]}"; do
@@ -812,7 +988,7 @@ PY
       exit 1
     }
   done
-  echo "SANDIUM_AI_CHAT_GN_FORMAT_GATE=PASS files=4 formatted=true dry_run=true"
+  echo "SANDIUM_AI_CHAT_GN_FORMAT_GATE=PASS files=5 formatted=true dry_run=true"
 
   pnpm run build Release --target_os=android --target_arch=arm64 --target_android_output_format=apk --use_remoteexec=true --gn use_siso:true --gn use_reclient:false "${ORIGIN_GN_ARGS[@]}" --gn is_java_debug:false --gn enable_android_secondary_abi:false --gn is_official_build:false --gn enable_updater:false --gn enable_update_notifications:false --gn android_channel:default --gn chrome_public_manifest_package:com.brave.browser_default --gn brave_channel:development --target brave --ninja=n
   bash "$ROOT/.circleci/scripts/verify-clang-diagnostics-gn.sh"
