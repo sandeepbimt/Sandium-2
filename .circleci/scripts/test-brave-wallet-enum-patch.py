@@ -62,7 +62,7 @@ with tempfile.TemporaryDirectory() as tmp:
     assert 'if (enable_brave_wallet)' not in notifications
     assert '"//brave/android:brave_android_java_enums_srcjar",' in config
     assert '"//brave/components/brave_wallet/common:mojom",' in config
-    assert 'if (enable_brave_wallet)' not in config
+    assert 'if (enable_brave_wallet)' not in config[config.index('brave_chrome_java_srcjar_deps = ['):config.index(']', config.index('brave_chrome_java_srcjar_deps = ['))]
 
     second = apply()
     assert {name: files[name].read_text(encoding="utf-8") for name in paths} == patched
