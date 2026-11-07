@@ -156,7 +156,12 @@ with tempfile.TemporaryDirectory() as tmp:
         assert block.count('if (enable_ai_chat)') == 1
         assert block.count('"//brave/components/ai_chat/core/common"') == 1
         assert block.count('"//brave/components/ai_chat/core/common/mojom"') == 1
-        condition = block[block.find('if (enable_ai_chat)'):]
+        condition_index = block.find('if (enable_ai_chat)')
+        assert condition_index >= 0
+        unconditional = block[:condition_index]
+        condition = block[condition_index:]
+        assert '"//brave/components/ai_chat/core/common"' not in unconditional
+        assert '"//brave/components/ai_chat/core/common/mojom"' not in unconditional
         assert '"//brave/components/ai_chat/core/common"' in condition
         assert '"//brave/components/ai_chat/core/common/mojom"' in condition
     assert '#if BUILDFLAG(ENABLE_AI_CHAT)' in patched_header
