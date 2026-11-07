@@ -36,19 +36,30 @@ source_set("unit_tests") {
   sources = [ "unit_test.cc" ]
 }
 '''
-ANDROID = '''import("//brave/components/brave_wallet/common/buildflags/buildflags.gni")
-java_cpp_enum("brave_android_java_enums_srcjar") {
-  sources = []
-  if (enable_brave_wallet) {
-    sources += [ "//brave/components/decentralized_dns/core/constants.h" ]
+ANDROID = '''if (enable_brave_wallet) {
+  java_cpp_enum("brave_android_java_enums_srcjar") {
+    sources = [ "//brave/components/decentralized_dns/core/constants.h" ]
   }
 }
 '''
-CHROME = '''android_library("chrome_java") {
-  srcjar_deps = [
-    ":chrome_android_java_enums_srcjar",
-    ":chrome_strict_mode_switch",
-  ]
+NOTIFICATIONS = '''    deps += [
+      "//chrome/browser:browser_process",
+      "//chrome/browser:browser_public_dependencies",
+    ]
+
+    if (enable_brave_wallet) {
+      deps += [ "//brave/android:brave_android_java_enums_srcjar" ]
+    }
+'''
+CONFIG = '''brave_chrome_java_srcjar_deps = [
+  "//brave/android:brave_config_java",
+  "//brave/android:brave_policy_constants_java_srcjar",
+  "//brave/components/brave_account/android:brave_account_constants_srcjar",
+  "//brave/components/web_discovery/browser/android:java_pref_names_srcjar",
+]
+
+if (enable_brave_wallet) {
+  brave_chrome_java_srcjar_deps += [ "//brave/android:brave_android_java_enums_srcjar" ]
 }
 '''
 
@@ -57,28 +68,34 @@ with tempfile.TemporaryDirectory() as tmp:
     core, src = root / "brave", root / "src"
     (core / "components/brave_wallet/common").mkdir(parents=True)
     (core / "android").mkdir()
+    (core / "browser/notifications").mkdir(parents=True)
+    (core / "build/android").mkdir(parents=True)
     (src / "chrome/android").mkdir(parents=True)
     (core / "components/brave_wallet/common/BUILD.gn").write_text(COMMON)
     (core / "android/BUILD.gn").write_text(ANDROID)
-    (src / "chrome/android/BUILD.gn").write_text(CHROME)
+    (core / "browser/notifications/BUILD.gn").write_text(NOTIFICATIONS)
+    (core / "build/android/config.gni").write_text(CONFIG)
     module.apply(core, src)
     first = [p.read_text() for p in (
         core / "components/brave_wallet/common/BUILD.gn",
         core / "android/BUILD.gn",
-        src / "chrome/android/BUILD.gn")]
+        core / "browser/notifications/BUILD.gn",
+        core / "build/android/config.gni")]
     module.apply(core, src)
     second = [p.read_text() for p in (
         core / "components/brave_wallet/common/BUILD.gn",
         core / "android/BUILD.gn",
-        src / "chrome/android/BUILD.gn")]
+        core / "browser/notifications/BUILD.gn",
+        core / "build/android/config.gni")]
     assert first == second, "Wallet compile contract must be idempotent"
-    common, android, chrome = second
+    common, android, notifications, config = second
     assert 'if (enable_brave_wallet) {' in common
     assert 'assert(enable_brave_wallet)' not in common
     assert common.count('mojom("mojom")') == 1
     assert module.MOJOM_BEGIN in common and module.MOJOM_END in common
-    assert 'sources = [ "//brave/components/decentralized_dns/core/constants.h" ]' in android
-    assert 'if (enable_brave_wallet)' not in android
-    assert '"//brave/components/brave_wallet/common:mojom"' in chrome
-    assert '"//brave/android:brave_android_java_enums_srcjar"' in chrome
+    assert module.ENUM_BEGIN in android and 'if (enable_brave_wallet)' not in android
+    assert 'brave_android_java_enums_srcjar' in notifications
+    assert 'if (enable_brave_wallet)' not in notifications
+    assert '"//brave/components/brave_wallet/common:mojom"' in config
+    assert 'if (enable_brave_wallet)' not in config
 print("SANDIUM_WALLET_JAVA_COMPILE_CONTRACT_TEST=PASS idempotent=true feature_flag_preserved=true")

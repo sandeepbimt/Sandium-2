@@ -992,10 +992,8 @@ old_enum = '''java_cpp_enum("brave_android_java_enums_srcjar") {
     sources += [ "//brave/components/decentralized_dns/core/constants.h" ]
   }
 }'''
-new_enum = '''if (enable_brave_wallet) {
-  java_cpp_enum("brave_android_java_enums_srcjar") {
-    sources = [ "//brave/components/decentralized_dns/core/constants.h" ]
-  }
+new_enum = '''java_cpp_enum("brave_android_java_enums_srcjar") {
+  sources = [ "//brave/components/decentralized_dns/core/constants.h" ]
 }'''
 android = replace_once_or_already(android_path, old_enum, new_enum, "Android enum target")
 if 'java_cpp_enum("brave_android_java_enums_srcjar")' in android and new_enum not in android:
@@ -1006,19 +1004,12 @@ old_notifications = '''    deps += [
       "//chrome/browser:browser_process",
       "//chrome/browser:browser_public_dependencies",
     ]'''
-new_notifications = '''    deps += [
-      "//chrome/browser:browser_process",
-      "//chrome/browser:browser_public_dependencies",
-    ]
-
-    if (enable_brave_wallet) {
-      deps += [ "//brave/android:brave_android_java_enums_srcjar" ]
-    }'''
+new_notifications = old_notifications
 notifications = replace_once_or_already(
     notifications_path, old_notifications, new_notifications, "Android notifications dependency"
 )
-if old_notifications in notifications or new_notifications not in notifications:
-    raise SystemExit("SANDIUM_BRAVE_WALLET_ENUM_GATE=FAIL notifications dependency is not wallet-conditional")
+if notifications.count('"//brave/android:brave_android_java_enums_srcjar"') != 1:
+    raise SystemExit("SANDIUM_BRAVE_WALLET_ENUM_GATE=FAIL notifications enum dependency missing or duplicated")
 
 old_config = '''brave_chrome_java_srcjar_deps = [
   "//brave/android:brave_android_java_enums_srcjar",
@@ -1028,18 +1019,16 @@ old_config = '''brave_chrome_java_srcjar_deps = [
   "//brave/components/web_discovery/browser/android:java_pref_names_srcjar",
 ]'''
 new_config = '''brave_chrome_java_srcjar_deps = [
+  "//brave/android:brave_android_java_enums_srcjar",
+  "//brave/components/brave_wallet/common:mojom",
   "//brave/android:brave_config_java",
   "//brave/android:brave_policy_constants_java_srcjar",
   "//brave/components/brave_account/android:brave_account_constants_srcjar",
   "//brave/components/web_discovery/browser/android:java_pref_names_srcjar",
-]
-
-if (enable_brave_wallet) {
-  brave_chrome_java_srcjar_deps += [ "//brave/android:brave_android_java_enums_srcjar" ]
-}'''
+]'''
 config = replace_once_or_already(config_path, old_config, new_config, "Chrome Java srcjar dependency")
 if old_config in config or new_config not in config:
-    raise SystemExit("SANDIUM_BRAVE_WALLET_ENUM_GATE=FAIL Chrome Java srcjar dependency is not wallet-conditional")
+    raise SystemExit("SANDIUM_BRAVE_WALLET_ENUM_GATE=FAIL Chrome Java srcjar compile dependencies are incomplete")
 
 # All known consumers of this target must be conditional; no unconditional
 # reference may remain in these pinned Brave GN files.
@@ -1047,7 +1036,7 @@ if notifications.count('"//brave/android:brave_android_java_enums_srcjar"') != 1
     raise SystemExit("SANDIUM_BRAVE_WALLET_ENUM_GATE=FAIL notifications target reference count")
 if config.count('"//brave/android:brave_android_java_enums_srcjar"') != 1:
     raise SystemExit("SANDIUM_BRAVE_WALLET_ENUM_GATE=FAIL Chrome Java srcjar reference count")
-print("SANDIUM_BRAVE_WALLET_ENUM_GATE=PASS; empty enum action omitted when Wallet is disabled")
+print("SANDIUM_BRAVE_WALLET_ENUM_GATE=PASS; compile-only enum and Mojo bindings retained while Wallet runtime remains disabled")
 PY
 
   # AI Chat is intentionally disabled in Sandium. Guard the complete Android

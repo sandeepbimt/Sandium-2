@@ -1,9 +1,5 @@
 #!/usr/bin/env python3
-"""Keep Brave Wallet's generated Mojo Java API available while Wallet is disabled.
-
-The API bindings are compile-time contracts used by shared BraveActivity.java.
-This does NOT enable the Wallet feature or its native/browser implementation.
-"""
+"""Preserve compile-only Wallet Java bindings while the Wallet feature stays disabled."""
 from pathlib import Path
 import argparse
 import re
@@ -16,26 +12,12 @@ MOJOM_BEGIN = "# SANDIUM_WALLET_MOJOM_COMPILE_CONTRACT_BEGIN"
 MOJOM_END = "# SANDIUM_WALLET_MOJOM_COMPILE_CONTRACT_END"
 ENUM_BEGIN = "# SANDIUM_WALLET_DNS_ENUM_COMPILE_CONTRACT_BEGIN"
 ENUM_END = "# SANDIUM_WALLET_DNS_ENUM_COMPILE_CONTRACT_END"
-JAVA_DEPS_BEGIN = "# SANDIUM_WALLET_JAVA_SRCJAR_DEPS_BEGIN"
-JAVA_DEPS_END = "# SANDIUM_WALLET_JAVA_SRCJAR_DEPS_END"
-
-def write_once(path, old, new, label):
-    text = path.read_text(encoding="utf-8")
-    if new in text and old not in text:
-        print(label + "=ALREADY_APPLIED")
-        return
-    if text.count(old) != 1:
-        raise RuntimeError("%s: expected one exact anchor; found %d" % (label, text.count(old)))
-    path.write_text(text.replace(old, new, 1), encoding="utf-8")
-    print(label + "=APPLIED")
 
 def patch_wallet_common(path):
     text = path.read_text(encoding="utf-8")
     if MOJOM_BEGIN in text and MOJOM_END in text:
-        if text.count(MOJOM_BEGIN) != 1 or text.count(MOJOM_END) != 1:
-            raise RuntimeError("duplicate Wallet Mojo compile-contract markers")
-        if "assert(enable_brave_wallet)" in text:
-            raise RuntimeError("Wallet common BUILD.gn still asserts feature enabled")
+        if text.count(MOJOM_BEGIN) != 1 or text.count(MOJOM_END) != 1 or "assert(enable_brave_wallet)" in text:
+            raise RuntimeError("Wallet Mojo compile-contract markers or guard are inconsistent")
         print("SANDIUM_WALLET_MOJOM_COMPILE_CONTRACT=ALREADY_APPLIED")
         return
     assertion = "assert(enable_brave_wallet)\n"
@@ -45,14 +27,10 @@ def patch_wallet_common(path):
     if not match:
         raise RuntimeError("Wallet common BUILD.gn mojom target anchor changed")
     mojom = match.group(0).rstrip()
-    prefix = text[:match.start()]
-    suffix = text[match.end():]
+    prefix, suffix = text[:match.start()], text[match.end():]
     prefix = prefix.replace(assertion, "if (enable_brave_wallet) {\n", 1)
-    updated = (
-        prefix.rstrip() + "\n}\n\n"
-        + MOJOM_BEGIN + "\n" + mojom + "\n" + MOJOM_END + "\n\n"
-        + "if (enable_brave_wallet) {\n" + suffix.lstrip() + "\n}\n"
-    )
+    updated = (prefix.rstrip() + "\n}\n\n" + MOJOM_BEGIN + "\n" + mojom + "\n" +
+               MOJOM_END + "\n\nif (enable_brave_wallet) {\n" + suffix.lstrip() + "\n}\n")
     path.write_text(updated, encoding="utf-8")
     check = path.read_text(encoding="utf-8")
     if "assert(enable_brave_wallet)" in check or check.count('mojom("mojom")') != 1:
@@ -60,55 +38,103 @@ def patch_wallet_common(path):
     print("SANDIUM_WALLET_MOJOM_COMPILE_CONTRACT=APPLIED")
 
 def patch_android_enums(path):
-    old = (
-        'java_cpp_enum("brave_android_java_enums_srcjar") {\n'
-        '  sources = []\n\n'
-        '  if (enable_brave_wallet) {\n'
-        '    sources += [ "//brave/components/decentralized_dns/core/constants.h" ]\n'
-        '  }\n'
-        '}'
-    )
-    new = (
-        ENUM_BEGIN + '\n'
-        'java_cpp_enum("brave_android_java_enums_srcjar") {\n'
-        '  # Keep the enum API available to shared BraveActivity Java sources.\n'
-        '  # This generates constants only; Wallet and DNS features remain disabled.\n'
-        '  sources = [ "//brave/components/decentralized_dns/core/constants.h" ]\n'
-        '}\n' + ENUM_END
-    )
-    write_once(path, old, new, "SANDIUM_WALLET_DNS_ENUM_COMPILE_CONTRACT")
-
-def patch_chrome_java(path):
     text = path.read_text(encoding="utf-8")
-    if JAVA_DEPS_BEGIN in text and JAVA_DEPS_END in text:
-        if text.count(JAVA_DEPS_BEGIN) != 1 or text.count(JAVA_DEPS_END) != 1:
-            raise RuntimeError("duplicate Wallet Java srcjar dependency markers")
-        required = [
-            '"//brave/components/brave_wallet/common:mojom"',
-            '"//brave/android:brave_android_java_enums_srcjar"',
-        ]
-        if not all(x in text for x in required):
-            raise RuntimeError("Wallet Java srcjar dependency marker is incomplete")
+    new = (ENUM_BEGIN + '\n'
+           'java_cpp_enum("brave_android_java_enums_srcjar") {\n'
+           '  # Compile-time enum bindings used by shared BraveActivity Java sources.\n'
+           '  # This does not enable Wallet or decentralized DNS runtime features.\n'
+           '  sources = [ "//brave/components/decentralized_dns/core/constants.h" ]\n'
+           '}\n' + ENUM_END)
+    if ENUM_BEGIN in text and ENUM_END in text:
+        if text.count(ENUM_BEGIN) != 1 or text.count(ENUM_END) != 1 or new not in text:
+            raise RuntimeError("Wallet DNS enum compile-contract markers are inconsistent")
+        print("SANDIUM_WALLET_DNS_ENUM_COMPILE_CONTRACT=ALREADY_APPLIED")
+        return
+    upstream = ('java_cpp_enum("brave_android_java_enums_srcjar") {\n'
+                '  sources = []\n\n'
+                '  if (enable_brave_wallet) {\n'
+                '    sources += [ "//brave/components/decentralized_dns/core/constants.h" ]\n'
+                '  }\n'
+                '}')
+    conditional = ('if (enable_brave_wallet) {\n'
+                   '  java_cpp_enum("brave_android_java_enums_srcjar") {\n'
+                   '    sources = [ "//brave/components/decentralized_dns/core/constants.h" ]\n'
+                   '  }\n'
+                   '}')
+    if text.count(upstream) == 1:
+        text = text.replace(upstream, new, 1)
+    elif text.count(conditional) == 1:
+        text = text.replace(conditional, new, 1)
+    else:
+        raise RuntimeError("Brave Android enum target anchor changed")
+    path.write_text(text, encoding="utf-8")
+    print("SANDIUM_WALLET_DNS_ENUM_COMPILE_CONTRACT=APPLIED")
+
+def patch_notifications(path):
+    text = path.read_text(encoding="utf-8")
+    conditional = ('    deps += [\n'
+                   '      "//chrome/browser:browser_process",\n'
+                   '      "//chrome/browser:browser_public_dependencies",\n'
+                   '    ]\n\n'
+                   '    if (enable_brave_wallet) {\n'
+                   '      deps += [ "//brave/android:brave_android_java_enums_srcjar" ]\n'
+                   '    }')
+    unconditional = ('    deps += [\n'
+                     '      "//brave/android:brave_android_java_enums_srcjar",\n'
+                     '      "//chrome/browser:browser_process",\n'
+                     '      "//chrome/browser:browser_public_dependencies",\n'
+                     '    ]')
+    if unconditional in text and conditional not in text:
+        print("SANDIUM_WALLET_NOTIFICATIONS_ENUM_DEP=ALREADY_APPLIED")
+        return
+    if text.count(conditional) != 1:
+        raise RuntimeError("Brave notifications enum dependency anchor changed")
+    path.write_text(text.replace(conditional, unconditional, 1), encoding="utf-8")
+    print("SANDIUM_WALLET_NOTIFICATIONS_ENUM_DEP=APPLIED")
+
+def patch_srcjar_config(path):
+    text = path.read_text(encoding="utf-8")
+    new = ('brave_chrome_java_srcjar_deps = [\n'
+           '  "//brave/android:brave_android_java_enums_srcjar",\n'
+           '  "//brave/components/brave_wallet/common:mojom",\n'
+           '  "//brave/android:brave_config_java",\n'
+           '  "//brave/android:brave_policy_constants_java_srcjar",\n'
+           '  "//brave/components/brave_account/android:brave_account_constants_srcjar",\n'
+           '  "//brave/components/web_discovery/browser/android:java_pref_names_srcjar",\n'
+           ']')
+    if new in text:
         print("SANDIUM_WALLET_JAVA_SRCJAR_DEPS=ALREADY_APPLIED")
         return
-    anchor = (
-        '    srcjar_deps = [\n'
-        '      ":chrome_android_java_enums_srcjar",\n'
-    )
-    replacement = (
-        '    srcjar_deps = [\n'
-        '      ":chrome_android_java_enums_srcjar",\n'
-        '      ' + JAVA_DEPS_BEGIN + '\n'
-        '      "//brave/components/brave_wallet/common:mojom",\n'
-        '      "//brave/android:brave_android_java_enums_srcjar",\n'
-        '      ' + JAVA_DEPS_END + '\n'
-    )
-    write_once(path, anchor, replacement, "SANDIUM_WALLET_JAVA_SRCJAR_DEPS")
+    conditional = ('brave_chrome_java_srcjar_deps = [\n'
+                   '  "//brave/android:brave_config_java",\n'
+                   '  "//brave/android:brave_policy_constants_java_srcjar",\n'
+                   '  "//brave/components/brave_account/android:brave_account_constants_srcjar",\n'
+                   '  "//brave/components/web_discovery/browser/android:java_pref_names_srcjar",\n'
+                   ']\n\n'
+                   'if (enable_brave_wallet) {\n'
+                   '  brave_chrome_java_srcjar_deps += [ "//brave/android:brave_android_java_enums_srcjar" ]\n'
+                   '}')
+    upstream = ('brave_chrome_java_srcjar_deps = [\n'
+                '  "//brave/android:brave_android_java_enums_srcjar",\n'
+                '  "//brave/android:brave_config_java",\n'
+                '  "//brave/android:brave_policy_constants_java_srcjar",\n'
+                '  "//brave/components/brave_account/android:brave_account_constants_srcjar",\n'
+                '  "//brave/components/web_discovery/browser/android:java_pref_names_srcjar",\n'
+                ']')
+    if text.count(conditional) == 1:
+        updated = text.replace(conditional, new, 1)
+    elif text.count(upstream) == 1:
+        updated = text.replace(upstream, new, 1)
+    else:
+        raise RuntimeError("Brave Chrome Java srcjar dependency anchor changed")
+    path.write_text(updated, encoding="utf-8")
+    print("SANDIUM_WALLET_JAVA_SRCJAR_DEPS=APPLIED")
 
 def apply(core, src):
     patch_wallet_common(core / "components/brave_wallet/common/BUILD.gn")
     patch_android_enums(core / "android/BUILD.gn")
-    patch_chrome_java(src / "chrome/android/BUILD.gn")
+    patch_notifications(core / "browser/notifications/BUILD.gn")
+    patch_srcjar_config(core / "build/android/config.gni")
 
 def main():
     p = argparse.ArgumentParser()
@@ -124,7 +150,6 @@ def main():
             raise RuntimeError("pin mismatch: brave=%s chromium=%s" % (brave, chromium))
     apply(core, src)
     print("SANDIUM_WALLET_JAVA_COMPILE_CONTRACT=PASS wallet_feature_flag_unchanged=true")
-
 if __name__ == "__main__":
     try:
         main()
