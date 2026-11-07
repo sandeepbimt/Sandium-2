@@ -228,6 +228,100 @@ def transform_ai_chat_android_header(source):
         raise RuntimeError("SANDIUM_AI_CHAT_ANDROID_HEADER: member anchor changed")
     return source.replace(AI_ANDROID_HEADER_OLD_FIELDS, AI_ANDROID_HEADER_NEW_FIELDS, 1)
 
+
+
+def transform_brave_news_android_preferences(build_gn_source, bridge_source):
+    """Keep Brave News disabled without leaving dangling Android GN/JNI edges."""
+    build_import_old = (
+        'import("//brave/components/brave_ads/buildflags/buildflags.gni")\n'
+        'import("//brave/components/brave_wallet/common/buildflags/buildflags.gni")'
+    )
+    build_import_new = (
+        'import("//brave/components/brave_ads/buildflags/buildflags.gni")\n'
+        'import("//brave/components/brave_news/common/buildflags/buildflags.gni")\n'
+        'import("//brave/components/brave_wallet/common/buildflags/buildflags.gni")'
+    )
+    if build_import_new not in build_gn_source:
+        if build_gn_source.count(build_import_old) != 1:
+            raise RuntimeError("SANDIUM_BRAVE_NEWS_ANDROID_GN: import anchor changed")
+        build_gn_source = build_gn_source.replace(build_import_old, build_import_new, 1)
+
+    old_dep = '    "//brave/components/brave_news/common",\n'
+    new_dep = '    "//brave/components/brave_news/common/buildflags",\n'
+    if new_dep not in build_gn_source:
+        if build_gn_source.count(old_dep) != 1:
+            raise RuntimeError("SANDIUM_BRAVE_NEWS_ANDROID_GN: common dependency anchor changed")
+        build_gn_source = build_gn_source.replace(old_dep, new_dep, 1)
+
+    conditional_dep = (
+        '  if (enable_brave_news) {\n'
+        '    deps += [ "//brave/components/brave_news/common" ]\n'
+        '  }\n'
+    )
+    if conditional_dep not in build_gn_source:
+        target_end = '    "//url",\n  ]\n}\n\njava_cpp_strings("java_pref_names_srcjar")'
+        if build_gn_source.count(target_end) != 1:
+            raise RuntimeError("SANDIUM_BRAVE_NEWS_ANDROID_GN: preferences target end anchor changed")
+        build_gn_source = build_gn_source.replace(
+            target_end,
+            '    "//url",\n  ]\n\n' + conditional_dep + '}\n\njava_cpp_strings("java_pref_names_srcjar")',
+            1,
+        )
+
+    old_include = '#include "brave/components/brave_news/common/pref_names.h"'
+    new_include = (
+        '#include "brave/components/brave_news/common/buildflags/buildflags.h"\n'
+        '#if BUILDFLAG(ENABLE_BRAVE_NEWS)\n'
+        + old_include + '\n'
+        '#endif'
+    )
+    if new_include not in bridge_source:
+        if bridge_source.count(old_include) != 1:
+            raise RuntimeError("SANDIUM_BRAVE_NEWS_ANDROID_JNI: pref_names include anchor changed")
+        bridge_source = bridge_source.replace(old_include, new_include, 1)
+
+    old_methods = (
+        'void JNI_BravePrefServiceBridge_SetNewsOptIn(JNIEnv* env, jboolean value) {\n'
+        '  GetOriginalProfile()->GetPrefs()->SetBoolean(\n'
+        '      brave_news::prefs::kBraveNewsOptedIn, value);\n'
+        '}\n\n'
+        'jboolean JNI_BravePrefServiceBridge_GetNewsOptIn(JNIEnv* env) {\n'
+        '  return GetOriginalProfile()->GetPrefs()->GetBoolean(\n'
+        '      brave_news::prefs::kBraveNewsOptedIn);\n'
+        '}\n\n'
+        'void JNI_BravePrefServiceBridge_SetShowNews(JNIEnv* env, jboolean value) {\n'
+        '  GetOriginalProfile()->GetPrefs()->SetBoolean(\n'
+        '      brave_news::prefs::kNewTabPageShowToday, value);\n'
+        '}\n\n'
+        'jboolean JNI_BravePrefServiceBridge_GetShowNews(JNIEnv* env) {\n'
+        '  return GetOriginalProfile()->GetPrefs()->GetBoolean(\n'
+        '      brave_news::prefs::kNewTabPageShowToday);\n'
+        '}'
+    )
+    new_methods = (
+        '#if BUILDFLAG(ENABLE_BRAVE_NEWS)\n'
+        + old_methods + '\n'
+        '#else\n'
+        '// Preserve the Java/JNI contract when Brave News is excluded from this build.\n'
+        'void JNI_BravePrefServiceBridge_SetNewsOptIn(JNIEnv*, jboolean) {}\n'
+        'jboolean JNI_BravePrefServiceBridge_GetNewsOptIn(JNIEnv*) { return JNI_FALSE; }\n'
+        'void JNI_BravePrefServiceBridge_SetShowNews(JNIEnv*, jboolean) {}\n'
+        'jboolean JNI_BravePrefServiceBridge_GetShowNews(JNIEnv*) { return JNI_FALSE; }\n'
+        '#endif'
+    )
+    if new_methods not in bridge_source:
+        if bridge_source.count(old_methods) != 1:
+            raise RuntimeError("SANDIUM_BRAVE_NEWS_ANDROID_JNI: JNI method block anchor changed")
+        bridge_source = bridge_source.replace(old_methods, new_methods, 1)
+
+    if build_gn_source.count(conditional_dep) != 1:
+        raise RuntimeError("SANDIUM_BRAVE_NEWS_ANDROID_GN: conditional common dependency missing or duplicated")
+    if build_gn_source.count(new_dep) != 1:
+        raise RuntimeError("SANDIUM_BRAVE_NEWS_ANDROID_GN: unconditional buildflags dependency missing or duplicated")
+    if bridge_source.count(new_include) != 1 or bridge_source.count(new_methods) != 1:
+        raise RuntimeError("SANDIUM_BRAVE_NEWS_ANDROID_JNI: post-transform verification failed")
+    return build_gn_source, bridge_source
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--core", required=True, type=Path)
@@ -323,6 +417,26 @@ def main():
         print("SANDIUM_AI_CHAT_ANDROID_HEADER=COMPILE_GUARDED")
     else:
         print("SANDIUM_AI_CHAT_ANDROID_HEADER=ALREADY_GUARDED")
+
+    # Brave News' common target is omitted when enable_brave_news=false, but
+    # Android preferences still had an unconditional dependency and JNI calls.
+    # Keep the generated Java/JNI surface stable with no-op stubs while removing
+    # the native common-library edge only for the disabled build.
+    news_build_gn = core / "browser/android/preferences/BUILD.gn"
+    news_bridge = core / "browser/android/preferences/brave_pref_service_bridge.cc"
+    if not news_build_gn.is_file() or not news_bridge.is_file():
+        raise RuntimeError("SANDIUM_BRAVE_NEWS_ANDROID: pinned Android preferences source missing")
+    news_gn_before = news_build_gn.read_text(encoding="utf-8")
+    news_bridge_before = news_bridge.read_text(encoding="utf-8")
+    news_gn_after, news_bridge_after = transform_brave_news_android_preferences(
+        news_gn_before, news_bridge_before
+    )
+    if news_gn_after != news_gn_before:
+        news_build_gn.write_text(news_gn_after, encoding="utf-8")
+    if news_bridge_after != news_bridge_before:
+        news_bridge.write_text(news_bridge_after, encoding="utf-8")
+    print("SANDIUM_BRAVE_NEWS_ANDROID_GN=CONDITIONALLY_LINKED")
+    print("SANDIUM_BRAVE_NEWS_ANDROID_JNI=GUARDED_WITH_COMPATIBLE_STUBS")
 
     # Playlist cannot be disabled through its GN argument on Android: the
     # pinned buildflags file asserts that ENABLE_PLAYLIST must remain true.
