@@ -75,6 +75,7 @@ def main() -> None:
 
     factory_transform = module["transform_playlist_factory"]
     factory_fixture = (
+        '#include "brave/components/playlist/content/browser/type_converter.h"\\n'
         '    registry->RegisterBooleanPref(kPlaylistEnabledPref, true);\\n'
         + module["PLAYLIST_FACTORY_OLD"]
     )
@@ -82,6 +83,7 @@ def main() -> None:
     assert 'registry->RegisterBooleanPref(kPlaylistEnabledPref, false);' in factory_updated
     assert 'profile->GetPrefs()->SetBoolean(kPlaylistEnabledPref, false);' in factory_updated
     assert 'if (!IsPlaylistAllowed(profile->GetPrefs()))' in factory_updated
+    assert '#include "brave/components/playlist/core/browser/utils.h"' in factory_updated
     assert factory_transform(factory_updated) == factory_updated, (
         "Playlist service factory overlay must be idempotent"
     )
