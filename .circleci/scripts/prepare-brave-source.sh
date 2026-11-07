@@ -597,6 +597,112 @@ if guarded_includes not in verified or new_calls not in verified:
 print("SANDIUM_AI_CHAT_CPP_GATE=PASS; Android AI Chat C++ references follow ENABLE_AI_CHAT")
 PY
 
+  # Brave v1.98.62's Android preferences target unconditionally depends on
+  # Brave News, even when enable_brave_news=false. The common target is omitted
+  # in that configuration, so GN reports an unresolved dependency. Gate the
+  # dependency and the JNI bridge's News implementation together; retain the
+  # JNI surface as harmless no-op stubs while News is disabled.
+  python3 - "$CORE_DIR/browser/android/preferences/BUILD.gn" "$CORE_DIR/browser/android/preferences/brave_pref_service_bridge.cc" <<'PY'
+from pathlib import Path
+import sys
+
+build_path = Path(sys.argv[1])
+cc_path = Path(sys.argv[2])
+if not build_path.is_file() or not cc_path.is_file():
+    raise SystemExit("SANDIUM_BRAVE_NEWS_ANDROID_GATE=FAIL pinned preferences source missing")
+
+build = build_path.read_text(encoding="utf-8")
+news_import = 'import("//brave/components/brave_news/common/buildflags/buildflags.gni")'
+wallet_import = 'import("//brave/components/brave_wallet/common/buildflags/buildflags.gni")'
+if news_import not in build:
+    if build.count(wallet_import) != 1:
+        raise SystemExit("SANDIUM_BRAVE_NEWS_ANDROID_GATE=FAIL preferences GN import anchor mismatch")
+    build = build.replace(wallet_import, wallet_import + "\\n" + news_import, 1)
+
+target = 'source_set("preferences") {'
+start = build.find(target)
+if start < 0 or build.find(target, start + 1) >= 0:
+    raise SystemExit("SANDIUM_BRAVE_NEWS_ANDROID_GATE=FAIL preferences target anchor not unique")
+end = build.find("\\n}", start)
+if end < 0:
+    raise SystemExit("SANDIUM_BRAVE_NEWS_ANDROID_GATE=FAIL preferences target block unterminated")
+block = build[start:end + 2]
+common_dep = '    "//brave/components/brave_news/common",\\n'
+flags_dep = '    "//brave/components/brave_news/common/buildflags",\\n'
+conditional_dep = '  if (enable_brave_news) {\\n    deps += [ "//brave/components/brave_news/common" ]\\n  }'
+if common_dep in block:
+    block = block.replace(common_dep, "", 1)
+if flags_dep not in block:
+    deps_end = '    "//brave/components/brave_rewards/core",\\n'
+    if block.count(deps_end) != 1:
+        raise SystemExit("SANDIUM_BRAVE_NEWS_ANDROID_GATE=FAIL preferences deps insertion anchor mismatch")
+    block = block.replace(deps_end, deps_end + flags_dep, 1)
+if conditional_dep not in block:
+    if 'if (enable_brave_news)' in block:
+        raise SystemExit("SANDIUM_BRAVE_NEWS_ANDROID_GATE=FAIL unexpected existing News dependency condition")
+    block += "\\n\\n" + conditional_dep + "\\n"
+build = build[:start] + block + build[end + 2:]
+build_path.write_text(build, encoding="utf-8")
+
+cc = cc_path.read_text(encoding="utf-8")
+buildflags_include = '#include "brave/components/brave_news/common/buildflags/buildflags.h"\\n'
+news_include = '#include "brave/components/brave_news/common/pref_names.h"\\n'
+guarded_news_include = buildflags_include + '#if BUILDFLAG(ENABLE_BRAVE_NEWS)\\n' + news_include + '#endif  // BUILDFLAG(ENABLE_BRAVE_NEWS)\\n'
+if guarded_news_include not in cc:
+    if cc.count(news_include) != 1:
+        raise SystemExit("SANDIUM_BRAVE_NEWS_ANDROID_GATE=FAIL C++ News include anchor mismatch")
+    cc = cc.replace(news_include, guarded_news_include, 1)
+
+real_methods = (
+    'void JNI_BravePrefServiceBridge_SetNewsOptIn(JNIEnv* env, jboolean value) {\\n'
+    '  GetOriginalProfile()->GetPrefs()->SetBoolean(\\n'
+    '      brave_news::prefs::kBraveNewsOptedIn, value);\\n'
+    '}\\n\\n'
+    'jboolean JNI_BravePrefServiceBridge_GetNewsOptIn(JNIEnv* env) {\\n'
+    '  return GetOriginalProfile()->GetPrefs()->GetBoolean(\\n'
+    '      brave_news::prefs::kBraveNewsOptedIn);\\n'
+    '}\\n\\n'
+    'void JNI_BravePrefServiceBridge_SetShowNews(JNIEnv* env, jboolean value) {\\n'
+    '  GetOriginalProfile()->GetPrefs()->SetBoolean(\\n'
+    '      brave_news::prefs::kNewTabPageShowToday, value);\\n'
+    '}\\n\\n'
+    'jboolean JNI_BravePrefServiceBridge_GetShowNews(JNIEnv* env) {\\n'
+    '  return GetOriginalProfile()->GetPrefs()->GetBoolean(\\n'
+    '      brave_news::prefs::kNewTabPageShowToday);\\n'
+    '}'
+)
+stub_methods = (
+    'void JNI_BravePrefServiceBridge_SetNewsOptIn(JNIEnv* env, jboolean value) {\\n'
+    '  (void)env;\\n  (void)value;\\n'
+    '}\\n\\n'
+    'jboolean JNI_BravePrefServiceBridge_GetNewsOptIn(JNIEnv* env) {\\n'
+    '  (void)env;\\n  return false;\\n'
+    '}\\n\\n'
+    'void JNI_BravePrefServiceBridge_SetShowNews(JNIEnv* env, jboolean value) {\\n'
+    '  (void)env;\\n  (void)value;\\n'
+    '}\\n\\n'
+    'jboolean JNI_BravePrefServiceBridge_GetShowNews(JNIEnv* env) {\\n'
+    '  (void)env;\\n  return false;\\n'
+    '}'
+)
+guarded_methods = '#if BUILDFLAG(ENABLE_BRAVE_NEWS)\\n' + real_methods + '\\n#else  // BUILDFLAG(ENABLE_BRAVE_NEWS)\\n' + stub_methods + '\\n#endif  // BUILDFLAG(ENABLE_BRAVE_NEWS)'
+if guarded_methods not in cc:
+    if cc.count(real_methods) != 1:
+        raise SystemExit("SANDIUM_BRAVE_NEWS_ANDROID_GATE=FAIL C++ News JNI method block anchor mismatch")
+    cc = cc.replace(real_methods, guarded_methods, 1)
+
+cc_path.write_text(cc, encoding="utf-8")
+verified_build = build_path.read_text(encoding="utf-8")
+verified_cc = cc_path.read_text(encoding="utf-8")
+if common_dep in verified_build or conditional_dep not in verified_build or flags_dep not in verified_build:
+    raise SystemExit("SANDIUM_BRAVE_NEWS_ANDROID_GATE=FAIL post-write GN dependency verification")
+if news_include in verified_cc.replace(guarded_news_include, ""):
+    raise SystemExit("SANDIUM_BRAVE_NEWS_ANDROID_GATE=FAIL unguarded News include remains")
+if guarded_methods not in verified_cc or guarded_news_include not in verified_cc:
+    raise SystemExit("SANDIUM_BRAVE_NEWS_ANDROID_GATE=FAIL post-write JNI verification")
+print("SANDIUM_BRAVE_NEWS_ANDROID_GATE=PASS conditional GN dependency; JNI stubs retained when disabled")
+PY
+
   GN_BIN="$SRC_DIR/buildtools/linux64/gn"
   GN_BUILD_FILE="$CORE_DIR/browser/android/BUILD.gn"
   test -x "$GN_BIN" || { echo "SANDIUM_AI_CHAT_GN_FORMAT_GATE=FAIL GN formatter missing: $GN_BIN" >&2; exit 1; }
