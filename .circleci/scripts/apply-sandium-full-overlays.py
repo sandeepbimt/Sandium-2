@@ -78,7 +78,7 @@ def transform_playlist_factory(source):
             raise RuntimeError("SANDIUM_PLAYLIST_FACTORY: utils.h include anchor changed")
         source = source.replace(include_old, include_new, 1)
 
-    default_old = "    registry->RegisterBooleanPref(kPlaylistEnabledPref, true);"
+    default_old = "  registry->RegisterBooleanPref(kPlaylistEnabledPref, true);"
     default_new = "    registry->RegisterBooleanPref(kPlaylistEnabledPref, false);"
     if default_old in source:
         if source.count(default_old) != 1:
