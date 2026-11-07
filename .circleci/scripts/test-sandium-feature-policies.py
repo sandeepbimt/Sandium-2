@@ -127,8 +127,9 @@ def main() -> None:
 
     ai_source_transform = module["transform_ai_chat_android_source"]
     ai_source = ai_source_transform(AI_ANDROID_SOURCE_FIXTURE)
-    assert ai_source.count("#if BUILDFLAG(ENABLE_AI_CHAT)") == 1
-    assert ai_source.count("#endif") == 1
+    # One guard protects AI Chat-only includes; the second protects runtime use.
+    assert ai_source.count("#if BUILDFLAG(ENABLE_AI_CHAT)") == 2
+    assert ai_source.count("#endif") == 2
     assert ai_source_transform(ai_source) == ai_source
 
     ai_header_transform = module["transform_ai_chat_android_header"]
