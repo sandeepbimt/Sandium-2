@@ -247,7 +247,7 @@ def main():
     replace_exact(
         origin_features,
         "BASE_FEATURE(kBraveOrigin, base::FEATURE_ENABLED_BY_DEFAULT);",
-        "// Sandium does not ship Brave Origin, its subscription or purchase flow.\\n"
+        "// Sandium does not ship Brave Origin, its subscription or purchase flow.\n"
         "BASE_FEATURE(kBraveOrigin, base::FEATURE_DISABLED_BY_DEFAULT);",
         "SANDIUM_BRAVE_ORIGIN_FEATURE",
     )
@@ -256,35 +256,35 @@ def main():
     origin_handler = core / "android/java/org/chromium/chrome/browser/brave_origin/BraveOriginDeepLinkHandler.java"
     replace_exact(
         origin_handler,
-        "    public static boolean consumeDeferred() {\\n"
-        "        if (!ChromeSharedPreferences.getInstance()\\n"
-        "                .readBoolean(BravePreferenceKeys.BRAVE_DEFERRED_DEEPLINK_ORIGIN_PROMO, false)) {\\n"
-        "            return false;\\n"
-        "        }\\n"
-        "        ChromeSharedPreferences.getInstance()\\n"
-        "                .writeBoolean(BravePreferenceKeys.BRAVE_DEFERRED_DEEPLINK_ORIGIN_PROMO, false);\\n"
-        "        return true;\\n"
+        "    public static boolean consumeDeferred() {\n"
+        "        if (!ChromeSharedPreferences.getInstance()\n"
+        "                .readBoolean(BravePreferenceKeys.BRAVE_DEFERRED_DEEPLINK_ORIGIN_PROMO, false)) {\n"
+        "            return false;\n"
+        "        }\n"
+        "        ChromeSharedPreferences.getInstance()\n"
+        "                .writeBoolean(BravePreferenceKeys.BRAVE_DEFERRED_DEEPLINK_ORIGIN_PROMO, false);\n"
+        "        return true;\n"
         "    }",
-        "    public static boolean consumeDeferred() {\\n"
-        "        // Clear legacy promo state, but never open an Origin destination.\\n"
-        "        ChromeSharedPreferences.getInstance()\\n"
-        "                .writeBoolean(BravePreferenceKeys.BRAVE_DEFERRED_DEEPLINK_ORIGIN_PROMO, false);\\n"
-        "        return false;\\n"
+        "    public static boolean consumeDeferred() {\n"
+        "        // Clear legacy promo state, but never open an Origin destination.\n"
+        "        ChromeSharedPreferences.getInstance()\n"
+        "                .writeBoolean(BravePreferenceKeys.BRAVE_DEFERRED_DEEPLINK_ORIGIN_PROMO, false);\n"
+        "        return false;\n"
         "    }",
         "SANDIUM_ORIGIN_DEFERRED_DEEPLINK",
     )
     replace_exact(
         origin_handler,
-        "    public static void open(Activity activity) {\\n"
-        "        if (BraveOriginSubscriptionPrefs.getIsCredentialSummaryActiveCached()) {\\n"
-        "            SettingsNavigationFactory.createSettingsNavigation()\\n"
-        "                    .startSettings(activity, BraveOriginPreferences.class);\\n"
-        "        } else {\\n"
-        "            activity.startActivity(new Intent(activity, BraveOriginPlansActivity.class));\\n"
-        "        }\\n"
+        "    public static void open(Activity activity) {\n"
+        "        if (BraveOriginSubscriptionPrefs.getIsCredentialSummaryActiveCached()) {\n"
+        "            SettingsNavigationFactory.createSettingsNavigation()\n"
+        "                    .startSettings(activity, BraveOriginPreferences.class);\n"
+        "        } else {\n"
+        "            activity.startActivity(new Intent(activity, BraveOriginPlansActivity.class));\n"
+        "        }\n"
         "    }",
-        "    public static void open(Activity activity) {\\n"
-        "        // Intentionally inert: Sandium has no Origin settings or purchase destination.\\n"
+        "    public static void open(Activity activity) {\n"
+        "        // Intentionally inert: Sandium has no Origin settings or purchase destination.\n"
         "    }",
         "SANDIUM_ORIGIN_OPEN_SUPPRESSED",
     )
@@ -293,12 +293,12 @@ def main():
     manifest = core / "android/java/AndroidManifest.xml"
     replace_exact(
         manifest,
-        '<activity\\n'
-        '    android:name="org.chromium.chrome.browser.brave_origin.BraveOriginPlansActivity"\\n'
-        '    android:theme="@style/Theme.Chromium.Activity"\\n'
-        '    android:noHistory="true"\\n'
-        '    android:launchMode="singleTask"/>\\n',
-        "<!-- SANDIUM_ORIGIN_PURCHASE_ACTIVITY_REMOVED -->\\n",
+        '<activity\n'
+        '    android:name="org.chromium.chrome.browser.brave_origin.BraveOriginPlansActivity"\n'
+        '    android:theme="@style/Theme.Chromium.Activity"\n'
+        '    android:noHistory="true"\n'
+        '    android:launchMode="singleTask"/>\n',
+        "<!-- SANDIUM_ORIGIN_PURCHASE_ACTIVITY_REMOVED -->\n",
         "SANDIUM_ORIGIN_PURCHASE_ACTIVITY",
     )
 
