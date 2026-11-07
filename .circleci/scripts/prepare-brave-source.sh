@@ -477,7 +477,9 @@ import sys
 path = Path(sys.argv[1])
 source = path.read_text(encoding="utf-8")
 import_line = 'import("//brave/components/ai_chat/core/common/buildflags/buildflags.gni")'
-old_dep = '    "//brave/browser/ai_chat",\n'
+old_dep = '    "//brave/browser/ai_chat",' + chr(10)
+valid_dep = '    "//brave/components/ai_chat/core/common/buildflags",' + chr(10)
+malformed_dep = '    "//brave/components/ai_chat/core/common/buildflags",' + chr(92) + 'n'
 new_deps = (
     '  ]\n\n'
     '  if (enable_ai_chat) {\n'
@@ -513,21 +515,37 @@ elif 'if (enable_ai_chat)' in block and '"//brave/browser/ai_chat"' in block:
     print("SANDIUM_AI_CHAT_GN_GATE=ALREADY_PATCHED")
 else:
     raise SystemExit("SANDIUM_AI_CHAT_GN_GATE=FAIL expected unconditional AI Chat dependency")
-if '"//brave/components/ai_chat/core/common/buildflags"' not in block:
-    tabs_public = '    ":tabs_public",\n'
+# Keep this dependency line as a real newline. chr() avoids nested escaping
+# through the shell heredoc and makes the generated GN source unambiguous.
+valid_dep = '    "//brave/components/ai_chat/core/common/buildflags",' + chr(10)
+malformed_dep = '    "//brave/components/ai_chat/core/common/buildflags",' + chr(92) + 'n'
+if malformed_dep in block:
+    block = block.replace(malformed_dep, valid_dep, 1)
+elif valid_dep not in block:
+    tabs_public = '    ":tabs_public",' + chr(10)
     if block.count(tabs_public) != 1:
         raise SystemExit("SANDIUM_AI_CHAT_GN_GATE=FAIL tabs_public dependency anchor not unique")
-    block = block.replace(
-        tabs_public,
-        tabs_public + '    "//brave/components/ai_chat/core/common/buildflags",\\n',
-        1,
-    )
+    block = block.replace(tabs_public, tabs_public + valid_dep, 1)
+elif block.count(valid_dep) == 1:
+    print("SANDIUM_AI_CHAT_GN_GATE=ALREADY_PATCHED dependency line")
+else:
+    raise SystemExit("SANDIUM_AI_CHAT_GN_GATE=FAIL malformed or duplicate AI Chat buildflags dependency")
+
+# The tabs_impl block must contain exactly one valid dependency line and no
+# literal backslash-n token; this catches the previous GN parser failure.
+if malformed_dep in block or block.count(valid_dep) != 1:
+    raise SystemExit("SANDIUM_AI_CHAT_GN_GATE=FAIL dependency line is malformed or duplicated")
 updated = source[:start] + block + source[end + 2:]
 path.write_text(updated, encoding="utf-8")
 verified = path.read_text(encoding="utf-8")
-if 'if (enable_ai_chat) {\n    deps += [ "//brave/browser/ai_chat" ]\n  }' not in verified:
-    raise SystemExit("SANDIUM_AI_CHAT_GN_GATE=FAIL post-write verification failed")
-print("SANDIUM_AI_CHAT_GN_GATE=PASS; Android tabs_impl dependency follows enable_ai_chat")
+verified_start = verified.find(target)
+verified_end = verified.find(chr(10) + "}", verified_start)
+verified_block = verified[verified_start:verified_end + 2]
+if malformed_dep in verified_block or verified_block.count(valid_dep) != 1:
+    raise SystemExit("SANDIUM_AI_CHAT_GN_GATE=FAIL post-write dependency-line verification failed")
+if 'if (enable_ai_chat) {\n    deps += [ "//brave/browser/ai_chat" ]\n  }' not in verified_block:
+    raise SystemExit("SANDIUM_AI_CHAT_GN_GATE=FAIL conditional dependency verification failed")
+print("SANDIUM_AI_CHAT_GN_GATE=PASS; valid GN newline and conditional Android dependency")
 
 # The matching tabs_impl source includes and calls AI Chat helpers directly.
 # Compile those pieces only when the generated ENABLE_AI_CHAT buildflag is on.
@@ -578,6 +596,14 @@ if guarded_includes not in verified or new_calls not in verified:
     raise SystemExit("SANDIUM_AI_CHAT_CPP_GATE=FAIL post-write verification failed")
 print("SANDIUM_AI_CHAT_CPP_GATE=PASS; Android AI Chat C++ references follow ENABLE_AI_CHAT")
 PY
+
+  GN_BIN="$SRC_DIR/buildtools/linux64/gn"
+  test -x "$GN_BIN" || { echo "SANDIUM_AI_CHAT_GN_FORMAT_GATE=FAIL GN formatter missing: $GN_BIN" >&2; exit 1; }
+  "$GN_BIN" format --dry-run "$CORE_DIR/browser/android/BUILD.gn" || {
+    echo "SANDIUM_AI_CHAT_GN_FORMAT_GATE=FAIL Brave Android BUILD.gn formatting/syntax check failed" >&2
+    exit 1
+  }
+  echo "SANDIUM_AI_CHAT_GN_FORMAT_GATE=PASS"
 
   pnpm run build Release --target_os=android --target_arch=arm64 --target_android_output_format=apk --use_remoteexec=true --gn use_siso:true --gn use_reclient:false "${ORIGIN_GN_ARGS[@]}" --gn is_java_debug:false --gn enable_android_secondary_abi:false --gn is_official_build:false --gn enable_updater:false --gn enable_update_notifications:false --gn android_channel:default --gn chrome_public_manifest_package:com.brave.browser_default --gn brave_channel:development --target brave --ninja=n
   bash "$ROOT/.circleci/scripts/verify-clang-diagnostics-gn.sh"
