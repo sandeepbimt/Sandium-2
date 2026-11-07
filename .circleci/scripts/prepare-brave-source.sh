@@ -519,6 +519,51 @@ verified = path.read_text(encoding="utf-8")
 if 'if (enable_ai_chat) {\n    deps += [ "//brave/browser/ai_chat" ]\n  }' not in verified:
     raise SystemExit("SANDIUM_AI_CHAT_GN_GATE=FAIL post-write verification failed")
 print("SANDIUM_AI_CHAT_GN_GATE=PASS; Android tabs_impl dependency follows enable_ai_chat")
+
+# The matching tabs_impl source includes and calls AI Chat helpers directly.
+# Compile those pieces only when the generated ENABLE_AI_CHAT buildflag is on.
+cc = path.parent / "brave_tab_features.cc"
+cc_source = cc.read_text(encoding="utf-8")
+include_anchor = '#include "brave/browser/ai_chat/ai_chat_utils.h"\n'
+guarded_includes = (
+    '#include "brave/components/ai_chat/core/common/buildflags/buildflags.h"\n'
+    '\n'
+    '#if BUILDFLAG(ENABLE_AI_CHAT)\n'
+    '#include "brave/browser/ai_chat/ai_chat_utils.h"\n'
+    '#include "brave/browser/ai_chat/tab_data_web_contents_observer.h"\n'
+    '#include "brave/browser/ai_chat/web_mcp_injection/web_mcp_injector.h"\n'
+    '#endif  // BUILDFLAG(ENABLE_AI_CHAT)\n'
+)
+old_includes = (
+    '#include "brave/browser/ai_chat/ai_chat_utils.h"\n'
+    '#include "brave/browser/ai_chat/tab_data_web_contents_observer.h"\n'
+    '#include "brave/browser/ai_chat/web_mcp_injection/web_mcp_injector.h"\n'
+)
+if old_includes in cc_source:
+    cc_source = cc_source.replace(old_includes, guarded_includes, 1)
+elif guarded_includes not in cc_source:
+    raise SystemExit("SANDIUM_AI_CHAT_CPP_GATE=FAIL AI Chat include block anchor mismatch")
+
+old_calls = (
+    '  if (ai_chat::IsAllowedForContext(profile)) {\n'
+    '    tab_data_observer_ = std::make_unique<ai_chat::TabDataWebContentsObserver>(\n'
+    '        TabAndroid::FromWebContents(web_contents)->GetAndroidId(),\n'
+    '        web_contents);\n'
+    '    // Injects Brave-provided WebMCP tools into matching pages; see\n'
+    '    // WebMcpInjector. Null when WebMCP is disabled or has no rules.\n'
+    '    web_mcp_injector_ = ai_chat::WebMcpInjector::MaybeCreate(web_contents);\n'
+    '  }\n'
+)
+new_calls = '#if BUILDFLAG(ENABLE_AI_CHAT)\n' + old_calls + '#endif  // BUILDFLAG(ENABLE_AI_CHAT)\n'
+if old_calls in cc_source:
+    cc_source = cc_source.replace(old_calls, new_calls, 1)
+elif new_calls not in cc_source:
+    raise SystemExit("SANDIUM_AI_CHAT_CPP_GATE=FAIL AI Chat call block anchor mismatch")
+cc.write_text(cc_source, encoding="utf-8")
+verified = cc.read_text(encoding="utf-8")
+if guarded_includes not in verified or new_calls not in verified:
+    raise SystemExit("SANDIUM_AI_CHAT_CPP_GATE=FAIL post-write verification failed")
+print("SANDIUM_AI_CHAT_CPP_GATE=PASS; Android AI Chat C++ references follow ENABLE_AI_CHAT")
 PY
 
   pnpm run build Release --target_os=android --target_arch=arm64 --target_android_output_format=apk --use_remoteexec=true --gn use_siso:true --gn use_reclient:false "${ORIGIN_GN_ARGS[@]}" --gn is_java_debug:false --gn enable_android_secondary_abi:false --gn is_official_build:false --gn enable_updater:false --gn enable_update_notifications:false --gn android_channel:default --gn chrome_public_manifest_package:com.brave.browser_default --gn brave_channel:development --target brave --ninja=n
