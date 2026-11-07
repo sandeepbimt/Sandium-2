@@ -514,7 +514,7 @@ elif 'if (enable_ai_chat)' in block and '"//brave/browser/ai_chat"' in block:
 else:
     raise SystemExit("SANDIUM_AI_CHAT_GN_GATE=FAIL expected unconditional AI Chat dependency")
 if '"//brave/components/ai_chat/core/common/buildflags"' not in block:
-    tabs_public = '    ":tabs_public",\\n'
+    tabs_public = '    ":tabs_public",\n'
     if block.count(tabs_public) != 1:
         raise SystemExit("SANDIUM_AI_CHAT_GN_GATE=FAIL tabs_public dependency anchor not unique")
     block = block.replace(
