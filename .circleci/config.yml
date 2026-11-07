@@ -1618,7 +1618,7 @@ jobs:
               - equal: [fast, << pipeline.parameters.sandium_build_mode >>]
               - not:
                   equal: [feature/sandium-disable-13-brave-features, << pipeline.git.branch >>]
-                - not:
+              - not:
                   equal: [fix/brave-news-android-preferences-gn, << pipeline.git.branch >>]
           steps:
             - restore_cache:
@@ -1693,7 +1693,7 @@ jobs:
               - equal: [fast, << pipeline.parameters.sandium_build_mode >>]
               - not:
                   equal: [feature/sandium-disable-13-brave-features, << pipeline.git.branch >>]
-                - not:
+              - not:
                   equal: [fix/brave-news-android-preferences-gn, << pipeline.git.branch >>]
           steps:
             - restore_cache:
@@ -1712,7 +1712,7 @@ jobs:
               - equal: [fast, << pipeline.parameters.sandium_build_mode >>]
               - not:
                   equal: [feature/sandium-disable-13-brave-features, << pipeline.git.branch >>]
-                - not:
+              - not:
                   equal: [fix/brave-news-android-preferences-gn, << pipeline.git.branch >>]
           steps:
             - restore_cache:
@@ -1731,7 +1731,7 @@ jobs:
               - equal: [fast, << pipeline.parameters.sandium_build_mode >>]
               - not:
                   equal: [feature/sandium-disable-13-brave-features, << pipeline.git.branch >>]
-                - not:
+              - not:
                   equal: [fix/brave-news-android-preferences-gn, << pipeline.git.branch >>]
           steps:
             - restore_cache:
@@ -1750,7 +1750,7 @@ jobs:
               - equal: [fast, << pipeline.parameters.sandium_build_mode >>]
               - not:
                   equal: [feature/sandium-disable-13-brave-features, << pipeline.git.branch >>]
-                - not:
+              - not:
                   equal: [fix/brave-news-android-preferences-gn, << pipeline.git.branch >>]
           steps:
             - restore_cache:
@@ -1817,7 +1817,7 @@ jobs:
               - equal: [fast, << pipeline.parameters.sandium_build_mode >>]
               - not:
                   equal: [feature/sandium-disable-13-brave-features, << pipeline.git.branch >>]
-                - not:
+              - not:
                   equal: [fix/brave-news-android-preferences-gn, << pipeline.git.branch >>]
           steps:
             - run:
@@ -2519,7 +2519,6 @@ workflows:
         - equal: [full, << pipeline.parameters.sandium_build_mode >>]
         - equal: [feature/sandium-disable-13-brave-features, << pipeline.git.branch >>]
         - equal: [fix/brave-news-android-preferences-gn, << pipeline.git.branch >>]
-        - equal: [fix/brave-news-android-preferences-gn, << pipeline.git.branch >>]
     jobs:
       - brave-android-staged-build:
           name: SANDIUM-FULL-MODE-stage-1
@@ -2598,8 +2597,6 @@ workflows:
         - equal: [fast, << pipeline.parameters.sandium_build_mode >>]
         - not:
             equal: [feature/sandium-disable-13-brave-features, << pipeline.git.branch >>]
-          - not:
-            equal: [fix/brave-news-android-preferences-gn, << pipeline.git.branch >>]
         - not:
             equal: [fix/brave-news-android-preferences-gn, << pipeline.git.branch >>]
     jobs:
