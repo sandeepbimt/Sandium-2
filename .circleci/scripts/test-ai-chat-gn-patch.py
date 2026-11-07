@@ -84,7 +84,7 @@ with tempfile.TemporaryDirectory() as tmp:
 subscription_marker = (
     'python3 - "$CORE_DIR/components/brave_mobile_subscription/renderer/android/BUILD.gn" '
     '"$CORE_DIR/components/brave_mobile_subscription/renderer/android/subscription_render_frame_observer.h" '
-    '"$CORE_DIR/components/brave_mobile_subscription/renderer/android/subscription_render_frame_observer.cc" <<\\'PY\\'\\n'
+    '"$CORE_DIR/components/brave_mobile_subscription/renderer/android/subscription_render_frame_observer.cc" <<\'PY\'\n'
 )
 if script.count(subscription_marker) != 1:
     raise SystemExit("AI_CHAT_PREFLIGHT=FAIL expected exactly one mobile-subscription patch heredoc")
@@ -161,8 +161,8 @@ with tempfile.TemporaryDirectory() as tmp:
         assert '"//brave/components/ai_chat/core/common/mojom"' in condition
     assert '#if BUILDFLAG(ENABLE_AI_CHAT)' in patched_header
     assert '#if BUILDFLAG(ENABLE_AI_CHAT)\n  mojo::Remote<ai_chat::mojom::IAPSubscription>' in patched_header
-    assert patched_cc.count('#if BUILDFLAG(ENABLE_AI_CHAT)') == 3
-    assert patched_cc.count('#endif  // BUILDFLAG(ENABLE_AI_CHAT)') == 3
+    assert patched_cc.count('#if BUILDFLAG(ENABLE_AI_CHAT)') == 4
+    assert patched_cc.count('#endif  // BUILDFLAG(ENABLE_AI_CHAT)') == 4
     assert 'ai_chat::features::IsAIChatEnabled()' in patched_cc
     assert '#if BUILDFLAG(ENABLE_AI_CHAT)\n#include "brave/components/ai_chat/core/common/features.h"' in patched_cc
 
