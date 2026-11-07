@@ -888,6 +888,80 @@ if guarded_methods not in verified_cc or guarded_news_include not in verified_cc
 print("SANDIUM_BRAVE_NEWS_ANDROID_GATE=PASS conditional GN dependency; JNI stubs retained when disabled")
 PY
 
+  # The Brave Chromium overlay is compiled into Chromium's Android feature-list
+  # target. Its AI Chat and News headers contain static_asserts requiring their
+  # respective buildflags, so guard both headers and the AI Chat feature-list
+  # macro when Sandium intentionally disables those products.
+  python3 - "$CORE_DIR/chromium_src/chrome/browser/flags/android/chrome_feature_list.cc" <<'PY'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+if not path.is_file():
+    raise SystemExit("SANDIUM_CHROMIUM_FEATURE_LIST_GATE=FAIL overlay missing: " + str(path))
+source = path.read_text(encoding="utf-8")
+
+def replace_once(text, old, new, label):
+    if new in text:
+        return text
+    count = text.count(old)
+    if count != 1:
+        raise SystemExit(
+            "SANDIUM_CHROMIUM_FEATURE_LIST_GATE=FAIL %s anchor count=%d" % (label, count)
+        )
+    return text.replace(old, new, 1)
+
+source = replace_once(
+    source,
+    '#include "brave/components/ai_chat/core/common/features.h"\n',
+    '#include "brave/components/ai_chat/core/common/buildflags/buildflags.h"\n'
+    '#if BUILDFLAG(ENABLE_AI_CHAT)\n'
+    '#include "brave/components/ai_chat/core/common/features.h"\n'
+    '#endif  // BUILDFLAG(ENABLE_AI_CHAT)\n',
+    "AI Chat include",
+)
+source = replace_once(
+    source,
+    '#include "brave/components/brave_news/common/features.h"\n',
+    '#include "brave/components/brave_news/common/buildflags/buildflags.h"\n'
+    '#if BUILDFLAG(ENABLE_BRAVE_NEWS)\n'
+    '#include "brave/components/brave_news/common/features.h"\n'
+    '#endif  // BUILDFLAG(ENABLE_BRAVE_NEWS)\n',
+    "Brave News include",
+)
+
+old_macro = (
+    '// CHROMIUM_SRC_INTERNAL_USE\n'
+    '#define BRAVE_AI_CHAT_FLAGS                                        \\\n'
+    '  &ai_chat::features::kAIChat, &ai_chat::features::kAIChatHistory, \\\n'
+    '      &ai_chat::features::kBraveSyncAIChat,\n'
+)
+new_macro = (
+    '// CHROMIUM_SRC_INTERNAL_USE\n'
+    '#if BUILDFLAG(ENABLE_AI_CHAT)\n'
+    '#define BRAVE_AI_CHAT_FLAGS                                        \\\n'
+    '  &ai_chat::features::kAIChat, &ai_chat::features::kAIChatHistory, \\\n'
+    '      &ai_chat::features::kBraveSyncAIChat,\n'
+    '#else  // BUILDFLAG(ENABLE_AI_CHAT)\n'
+    '#define BRAVE_AI_CHAT_FLAGS\n'
+    '#endif  // BUILDFLAG(ENABLE_AI_CHAT)\n'
+)
+source = replace_once(source, old_macro, new_macro, "AI Chat feature macro")
+
+checks = {
+    "AI Chat buildflags include": source.count('#include "brave/components/ai_chat/core/common/buildflags/buildflags.h"') == 1,
+    "AI Chat guarded feature header": '#if BUILDFLAG(ENABLE_AI_CHAT)\n#include "brave/components/ai_chat/core/common/features.h"\n#endif  // BUILDFLAG(ENABLE_AI_CHAT)' in source,
+    "News buildflags include": source.count('#include "brave/components/brave_news/common/buildflags/buildflags.h"') == 1,
+    "News guarded feature header": '#if BUILDFLAG(ENABLE_BRAVE_NEWS)\n#include "brave/components/brave_news/common/features.h"\n#endif  // BUILDFLAG(ENABLE_BRAVE_NEWS)' in source,
+    "AI Chat macro guarded": new_macro in source,
+}
+failed = [name for name, ok in checks.items() if not ok]
+if failed:
+    raise SystemExit("SANDIUM_CHROMIUM_FEATURE_LIST_GATE=FAIL verification: " + ", ".join(failed))
+path.write_text(source, encoding="utf-8")
+print("SANDIUM_CHROMIUM_FEATURE_LIST_GATE=PASS; AI Chat and Brave News feature headers respect disabled buildflags")
+PY
+
   # When Brave Wallet is disabled, the only source for this generated enum
   # srcjar disappears. Chromium's java_cpp_enum action requires >=1 input path,
   # so keep the target and its consumers consistently conditional on Wallet.
