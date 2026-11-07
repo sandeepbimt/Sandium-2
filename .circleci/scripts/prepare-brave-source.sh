@@ -651,9 +651,13 @@ def patch_deps(source, target, label):
         block = block[:-2] + conditional + '\n}'
     if flags not in block:
         base = '    "//base",\n'
-        if block.count(base) != 1:
-            raise SystemExit("SANDIUM_AI_CHAT_SUBSCRIPTION_GATE=FAIL " + label + " base dependency anchor mismatch")
-        block = block.replace(base, base + flags, 1)
+        origin = '    "//brave/components/brave_origin:features",\n'
+        if block.count(base) == 1:
+            block = block.replace(base, base + flags, 1)
+        elif block.count(origin) == 1:
+            block = block.replace(origin, flags + origin, 1)
+        else:
+            raise SystemExit("SANDIUM_AI_CHAT_SUBSCRIPTION_GATE=FAIL " + label + " buildflags dependency anchor mismatch")
     return source[:start] + block + source[end + 2:]
 
 build = patch_deps(build, 'source_set("android") {', "Android renderer")
