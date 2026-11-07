@@ -734,15 +734,17 @@ wallet_branch = NL.join([
     '    sources += [ "//brave/components/decentralized_dns/core/constants.h" ]',
     "  }",
 ])
-fallback_branch = NL.join([
+replacement_branch = NL.join([
+    "  if (enable_brave_wallet) {",
+    '    sources += [ "//brave/components/decentralized_dns/core/constants.h" ]',
     "  } else {",
     '    sources += [ "//brave/android/sandium_empty_java_enum_input.h" ]',
     "  }",
 ])
-if fallback_branch in block:
+if replacement_branch in block:
     print("SANDIUM_BRAVE_ENUM_INPUT_GATE=ALREADY_PATCHED")
 elif block.count(wallet_branch) == 1:
-    block = block.replace(wallet_branch, wallet_branch + NL + fallback_branch, 1)
+    block = block.replace(wallet_branch, replacement_branch, 1)
 else:
     raise SystemExit("SANDIUM_BRAVE_ENUM_INPUT_GATE=FAIL wallet source branch anchor mismatch")
 
