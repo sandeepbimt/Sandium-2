@@ -61,7 +61,7 @@ with tempfile.TemporaryDirectory() as tmp:
     target = patched[target_start:target_end + 2]
     fallback = 'sources += [ "//brave/android/sandium_empty_java_enum_input.h" ]'
     wallet = 'sources += [ "//brave/components/decentralized_dns/core/constants.h" ]'
-    if target.count(fallback) != 1 or target.count(wallet) != 1 or target.count("} else {") != 1 or "}\\n  } else {" in target:
+    if target.count(fallback) != 1 or target.count(wallet) != 1 or target.count("} else {") != 1 or ("}" + chr(10) + "  } else {" in target):
         raise SystemExit("JAVA_ENUM_PREFLIGHT=FAIL expected exactly one disabled-Wallet fallback and original Wallet source")
     if "GENERATED_JAVA_ENUM_PACKAGE" in header or not header.endswith("\n"):
         raise SystemExit("JAVA_ENUM_PREFLIGHT=FAIL fallback header is not a newline-terminated no-enum header")
