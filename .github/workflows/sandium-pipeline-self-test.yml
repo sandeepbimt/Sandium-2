@@ -12,6 +12,8 @@ on:
       - ".circleci/scripts/verify-brave-remote-metrics.py"
       - ".circleci/scripts/test-brave-remote-metrics.py"
       - ".circleci/scripts/test-brave-build-flow.py"
+      - ".circleci/scripts/prepare-brave-source.sh"
+      - ".circleci/scripts/test-ai-chat-gn-patch.py"
       - ".github/workflows/sandium-pipeline-self-test.yml"
   pull_request:
     paths:
@@ -60,6 +62,7 @@ jobs:
             .circleci/scripts/verify-brave-remote-metrics.py \
             .circleci/scripts/test-brave-remote-metrics.py \
             .circleci/scripts/test-brave-build-flow.py
+            .circleci/scripts/test-ai-chat-gn-patch.py
           bash -n .circleci/scripts/archive-brave-workspace.sh
           bash -n .circleci/scripts/verify-brave-reference.sh
           bash -n .circleci/scripts/verify-brave-remote-smoke.sh
@@ -73,3 +76,5 @@ jobs:
         run: python3 .circleci/scripts/test-brave-remote-metrics.py
       - name: Test build flow continuation
         run: python3 .circleci/scripts/test-brave-build-flow.py
+      - name: Test pinned Brave AI Chat GN/C++ patch against isolated fixtures
+        run: python3 .circleci/scripts/test-ai-chat-gn-patch.py
