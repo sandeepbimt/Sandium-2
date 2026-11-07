@@ -715,6 +715,7 @@ PY
 from pathlib import Path
 import sys
 
+NL = chr(10)
 build_path = Path(sys.argv[1])
 empty_header = Path(sys.argv[2])
 if not build_path.is_file():
@@ -723,37 +724,37 @@ if not build_path.is_file():
 source = build_path.read_text(encoding="utf-8")
 target = 'java_cpp_enum("brave_android_java_enums_srcjar") {'
 start = source.find(target)
-end_marker = '\\n}\\n\\njava_cpp_template("brave_config_java") {'
+end_marker = NL + "}" + NL + NL + 'java_cpp_template("brave_config_java") {'
 end = source.find(end_marker, start)
 if start < 0 or end < 0 or source.find(target, start + 1) >= 0:
     raise SystemExit("SANDIUM_BRAVE_ENUM_INPUT_GATE=FAIL pinned enum target block anchor mismatch")
 block = source[start:end + 2]
-wallet_branch = (
-    '  if (enable_brave_wallet) {\\n'
-    '    sources += [ "//brave/components/decentralized_dns/core/constants.h" ]\\n'
-    '  }'
-)
-fallback_branch = (
-    '  } else {\\n'
-    '    sources += [ "//brave/android/sandium_empty_java_enum_input.h" ]\\n'
-    '  }'
-)
+wallet_branch = NL.join([
+    "  if (enable_brave_wallet) {",
+    '    sources += [ "//brave/components/decentralized_dns/core/constants.h" ]',
+    "  }",
+])
+fallback_branch = NL.join([
+    "  } else {",
+    '    sources += [ "//brave/android/sandium_empty_java_enum_input.h" ]',
+    "  }",
+])
 if fallback_branch in block:
     print("SANDIUM_BRAVE_ENUM_INPUT_GATE=ALREADY_PATCHED")
 elif block.count(wallet_branch) == 1:
-    block = block.replace(wallet_branch, wallet_branch + fallback_branch, 1)
+    block = block.replace(wallet_branch, wallet_branch + NL + fallback_branch, 1)
 else:
     raise SystemExit("SANDIUM_BRAVE_ENUM_INPUT_GATE=FAIL wallet source branch anchor mismatch")
 
 empty_header.parent.mkdir(parents=True, exist_ok=True)
-empty_header.write_text(
-    "// Sandium: intentionally empty input for java_cpp_enum when Brave Wallet is disabled.\\n"
-    "// This keeps the always-consumed srcjar target valid without generating Wallet enums.\\n"
-    "#ifndef BRAVE_ANDROID_SANDIUM_EMPTY_JAVA_ENUM_INPUT_H_\\n"
-    "#define BRAVE_ANDROID_SANDIUM_EMPTY_JAVA_ENUM_INPUT_H_\\n"
-    "#endif  // BRAVE_ANDROID_SANDIUM_EMPTY_JAVA_ENUM_INPUT_H_\\n",
-    encoding="utf-8",
-)
+empty_header.write_text(NL.join([
+    "// Sandium: empty java_cpp_enum input when Brave Wallet is disabled.",
+    "// This preserves the always-consumed srcjar target without generating Wallet enums.",
+    "#ifndef BRAVE_ANDROID_SANDIUM_EMPTY_JAVA_ENUM_INPUT_H_",
+    "#define BRAVE_ANDROID_SANDIUM_EMPTY_JAVA_ENUM_INPUT_H_",
+    "#endif  // BRAVE_ANDROID_SANDIUM_EMPTY_JAVA_ENUM_INPUT_H_",
+    "",
+]), encoding="utf-8")
 source = source[:start] + block + source[end + 2:]
 build_path.write_text(source, encoding="utf-8")
 
@@ -769,7 +770,6 @@ header_text = empty_header.read_text(encoding="utf-8")
 if "GENERATED_JAVA_ENUM_PACKAGE" in header_text:
     raise SystemExit("SANDIUM_BRAVE_ENUM_INPUT_GATE=FAIL fallback header must not generate Java enums")
 print("SANDIUM_BRAVE_ENUM_INPUT_GATE=PASS non-empty input for disabled Wallet; no Wallet enums re-enabled")
-PY
 
   GN_BIN="$SRC_DIR/buildtools/linux64/gn"
   GN_BUILD_FILE="$CORE_DIR/browser/android/BUILD.gn"
