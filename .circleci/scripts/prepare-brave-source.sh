@@ -772,6 +772,7 @@ header_text = empty_header.read_text(encoding="utf-8")
 if "GENERATED_JAVA_ENUM_PACKAGE" in header_text:
     raise SystemExit("SANDIUM_BRAVE_ENUM_INPUT_GATE=FAIL fallback header must not generate Java enums")
 print("SANDIUM_BRAVE_ENUM_INPUT_GATE=PASS non-empty input for disabled Wallet; no Wallet enums re-enabled")
+PY
 
   GN_BIN="$SRC_DIR/buildtools/linux64/gn"
   GN_BUILD_FILE="$CORE_DIR/browser/android/BUILD.gn"
