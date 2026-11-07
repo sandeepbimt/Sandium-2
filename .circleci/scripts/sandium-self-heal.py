@@ -77,7 +77,7 @@ def classify(a):
     if ai and (hard or a.exit_code != 0):
         state, category, action = "FAILURE", "AI_CHAT_INCOMPLETE_TYPE", "REAPPLY_AI_CHAT_ANDROID_GUARDS"
     elif feature_suppression_missing_generated and (hard or a.exit_code != 0):
-        state, category, action = "FAILURE", "FEATURE_SUPPRESSION_MISSING_GENERATED_JAVA", "DIAGNOSE_FEATURE_SUPPRESSION_GN_DEPS"
+        state, category, action = "FAILURE", "FEATURE_SUPPRESSION_MISSING_GENERATED_JAVA", "REPAIR_WALLET_JAVA_COMPILE_CONTRACT"
     elif cas and a.exit_code != 0:
         state, category, action = "RETRYABLE_INFRA", "MISSING_CAS_INPUTS", "RECOVER_CAS_INPUTS"
     elif evidence:

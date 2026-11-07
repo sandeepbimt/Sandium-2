@@ -2137,6 +2137,29 @@ jobs:
               else
                 echo "SANDIUM_SHE_REPAIR=SKIPPED insufficient_remaining_budget=$REMAINING_STAGE_SECONDS"
               fi
+            elif [ "$SHE_ACTION" = "REPAIR_WALLET_JAVA_COMPILE_CONTRACT" ] && [ "$SHE_REPAIR_ATTEMPTS" -lt 1 ]; then
+              REMAINING_STAGE_SECONDS=$((STAGE_BUILD_DEADLINE - SECONDS))
+              if [ "$REMAINING_STAGE_SECONDS" -ge 240 ]; then
+                SHE_REPAIR_ATTEMPTS=$((SHE_REPAIR_ATTEMPTS + 1))
+                echo "SANDIUM_SHE_REPAIR=START rule=WALLET_JAVA_COMPILE_CONTRACT attempt=$SHE_REPAIR_ATTEMPTS"
+                python3 "$ROOT/.circleci/scripts/apply-sandium-wallet-java-compile-contract.py" --core "$ROOT_SRC/brave" --src "$ROOT_SRC"
+                GN_BIN="$ROOT_SRC/buildtools/linux64/gn"
+                test -x "$GN_BIN" || { echo "SANDIUM_SHE_REPAIR=FAIL GN binary missing: $GN_BIN" >&2; exit 1; }
+                for GN_FILE in "$ROOT_SRC/brave/components/brave_wallet/common/BUILD.gn" "$ROOT_SRC/brave/android/BUILD.gn" "$ROOT_SRC/chrome/android/BUILD.gn"; do
+                  "$GN_BIN" format --in-place "$GN_FILE"
+                  "$GN_BIN" format --dry-run "$GN_FILE"
+                done
+                "$GN_BIN" gen "$OUT"
+                REMAINING_STAGE_SECONDS=$((STAGE_BUILD_DEADLINE - SECONDS))
+                if [ "$REMAINING_STAGE_SECONDS" -gt 0 ]; then
+                  CURRENT_METRICS_FILE="${METRICS_PREFIX}she-wallet-java-retry.jsonl"
+                  CURRENT_BUILD_LOG="$STATUS_DIR/build-attempt-she-wallet-java-retry.log"
+                  if run_brave_build "$CURRENT_METRICS_FILE" "$REMAINING_STAGE_SECONDS" 80 "$CURRENT_BUILD_LOG"; then BUILD_RC=0; else BUILD_RC=$?; fi
+                  classify_with_she
+                fi
+              else
+                echo "SANDIUM_SHE_REPAIR=SKIPPED insufficient_remaining_budget=$REMAINING_STAGE_SECONDS"
+              fi
             elif [ "$SHE_ACTION" = "RETRY_REMOTE_REDUCED" ] && [ "$SHE_REPAIR_ATTEMPTS" -lt 1 ]; then
               REMAINING_STAGE_SECONDS=$((STAGE_BUILD_DEADLINE - SECONDS))
               if [ "$REMAINING_STAGE_SECONDS" -ge 180 ]; then

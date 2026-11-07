@@ -91,7 +91,14 @@ feature_failure = run_case("Wallet and DNS generated Java dependency failure", "
                 "Foo.java:10: error: symbol not found org.chromium.brave_wallet.mojom.BlockchainRegistry\\n"
                 "Bar.java:20: error: symbol not found org.chromium.chrome.browser.decentralized_dns.ResolveMethodTypes\\n", rc=1)
 assert feature_failure["category"] == "FEATURE_SUPPRESSION_MISSING_GENERATED_JAVA"
-assert feature_failure["repair_action"] == "DIAGNOSE_FEATURE_SUPPRESSION_GN_DEPS"
+assert feature_failure["repair_action"] == "REPAIR_WALLET_JAVA_COMPILE_CONTRACT"
 assert not feature_failure["build_handoff_allowed"]
 
 print("SANDIUM_SHE_TEST=PASS failure detection, timeout discrimination, repair routing and idempotent AI Chat repair")
+
+wallet_activity_failure = run_case("BraveActivity missing Wallet Mojo Java types", "FAILURE",
+                "BraveActivity.java:91: error: symbol not found org.chromium.brave_wallet.mojom.CoinType\\n"
+                "BraveActivity.java:325: error: could not resolve BraveWalletService\\n", rc=1)
+assert wallet_activity_failure["category"] == "FEATURE_SUPPRESSION_MISSING_GENERATED_JAVA"
+assert wallet_activity_failure["repair_action"] == "REPAIR_WALLET_JAVA_COMPILE_CONTRACT"
+assert not wallet_activity_failure["build_handoff_allowed"]
