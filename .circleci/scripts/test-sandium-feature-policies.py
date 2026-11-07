@@ -75,8 +75,8 @@ def main() -> None:
 
     factory_transform = module["transform_playlist_factory"]
     factory_fixture = (
-        '#include "brave/components/playlist/content/browser/type_converter.h"\\n'
-        '    registry->RegisterBooleanPref(kPlaylistEnabledPref, true);\\n'
+        '#include "brave/components/playlist/content/browser/type_converter.h"\n'
+        '    registry->RegisterBooleanPref(kPlaylistEnabledPref, true);\n'
         + module["PLAYLIST_FACTORY_OLD"]
     )
     factory_updated = factory_transform(factory_fixture)
