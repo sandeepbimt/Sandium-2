@@ -1747,6 +1747,7 @@ jobs:
             set -euo pipefail
             MODE="<< pipeline.parameters.sandium_build_mode >>"
             ROOT="$CIRCLE_WORKING_DIRECTORY"
+            export BRAVE_STAGE_INDEX="<< parameters.stage_index >>"
             mkdir -p "$ROOT/brave-work/.sandium"
             # This marker distinguishes an archive created by this run from the
             # immutable reference archive restored at the start of FAST MODE.
