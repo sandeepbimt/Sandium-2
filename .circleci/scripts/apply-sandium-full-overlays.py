@@ -70,7 +70,7 @@ def transform_playlist_factory(source):
     # constructing any Playlist service.
     include_old = '#include "brave/components/playlist/content/browser/type_converter.h"'
     include_new = (
-        include_old + '\\n'
+        include_old + '\n'
         + '#include "brave/components/playlist/core/browser/utils.h"'
     )
     if include_new not in source:
