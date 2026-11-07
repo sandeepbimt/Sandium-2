@@ -174,7 +174,9 @@ def transform_ai_chat_android_source(source):
         if source.count(AI_ANDROID_SOURCE_OLD_INCLUDES) != 1:
             raise RuntimeError("SANDIUM_AI_CHAT_ANDROID_SOURCE: include anchor changed")
         source = source.replace(AI_ANDROID_SOURCE_OLD_INCLUDES, AI_ANDROID_SOURCE_NEW_INCLUDES, 1)
-    if AI_ANDROID_SOURCE_NEW_BLOCK in source and AI_ANDROID_SOURCE_OLD_BLOCK not in source:
+    # OLD_BLOCK is intentionally contained inside NEW_BLOCK; checking that
+    # OLD_BLOCK is absent makes the transform non-idempotent and nests guards.
+    if AI_ANDROID_SOURCE_NEW_BLOCK in source:
         return source
     if source.count(AI_ANDROID_SOURCE_OLD_BLOCK) != 1:
         raise RuntimeError("SANDIUM_AI_CHAT_ANDROID_SOURCE: runtime observer anchor changed")
