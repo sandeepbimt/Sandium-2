@@ -1050,6 +1050,156 @@ if config.count('"//brave/android:brave_android_java_enums_srcjar"') != 1:
 print("SANDIUM_BRAVE_WALLET_ENUM_GATE=PASS; empty enum action omitted when Wallet is disabled")
 PY
 
+  # AI Chat is intentionally disabled in Sandium. Guard the complete Android
+  # tab-feature ownership path as well as Chromium feature registration:
+  # forward declarations, unique_ptr members, implementation includes/code,
+  # and the GN dependency must all follow ENABLE_AI_CHAT.
+  python3 - "$CORE_DIR/browser/android/brave_tab_features.h" "$CORE_DIR/browser/android/brave_tab_features.cc" "$CORE_DIR/browser/android/BUILD.gn" <<'PY'
+from pathlib import Path
+import sys
+
+header_path, cc_path, build_path = map(Path, sys.argv[1:])
+for path in (header_path, cc_path, build_path):
+    if not path.is_file():
+        raise SystemExit("SANDIUM_AI_CHAT_ANDROID_GATE=FAIL missing pinned Brave source: " + str(path))
+
+header = header_path.read_text(encoding="utf-8")
+cc = cc_path.read_text(encoding="utf-8")
+build = build_path.read_text(encoding="utf-8")
+
+def replace_once(text, old, new, label):
+    if new in text:
+        return text
+    count = text.count(old)
+    if count != 1:
+        raise SystemExit("SANDIUM_AI_CHAT_ANDROID_GATE=FAIL %s anchor count=%d" % (label, count))
+    return text.replace(old, new, 1)
+
+header = replace_once(
+    header,
+    '#include <memory>\n',
+    '#include <memory>\n\n'
+    '#include "brave/components/ai_chat/core/common/buildflags/buildflags.h"\n',
+    "header buildflags include",
+)
+old_decl = (
+    'namespace ai_chat {\n'
+    'class TabDataWebContentsObserver;\n'
+    'class WebMcpInjector;\n'
+    '}  // namespace ai_chat'
+)
+new_decl = (
+    '#if BUILDFLAG(ENABLE_AI_CHAT)\n'
+    + old_decl + '\n'
+    '#endif  // BUILDFLAG(ENABLE_AI_CHAT)'
+)
+header = replace_once(header, old_decl, new_decl, "AI Chat forward declarations")
+
+old_members = (
+    '  std::unique_ptr<ai_chat::TabDataWebContentsObserver> tab_data_observer_;\n'
+    '  std::unique_ptr<ai_chat::WebMcpInjector> web_mcp_injector_;\n'
+)
+new_members = (
+    '#if BUILDFLAG(ENABLE_AI_CHAT)\n'
+    + old_members
+    + '#endif  // BUILDFLAG(ENABLE_AI_CHAT)\n'
+)
+header = replace_once(header, old_members, new_members, "AI Chat unique_ptr members")
+
+cc = replace_once(
+    cc,
+    '#include "base/feature_list.h"\n',
+    '#include "base/feature_list.h"\n'
+    '#include "brave/components/ai_chat/core/common/buildflags/buildflags.h"\n',
+    "implementation buildflags include",
+)
+ai_includes = (
+    '#include "brave/browser/ai_chat/ai_chat_utils.h"\n'
+    '#include "brave/browser/ai_chat/tab_data_web_contents_observer.h"\n'
+    '#include "brave/browser/ai_chat/web_mcp_injection/web_mcp_injector.h"\n'
+)
+guarded_ai_includes = (
+    '#if BUILDFLAG(ENABLE_AI_CHAT)\n'
+    + ai_includes
+    + '#endif  // BUILDFLAG(ENABLE_AI_CHAT)\n'
+)
+cc = replace_once(cc, ai_includes, guarded_ai_includes, "AI Chat implementation includes")
+
+old_ai_block = (
+    '  if (ai_chat::IsAllowedForContext(profile)) {\n'
+    '    tab_data_observer_ = std::make_unique<ai_chat::TabDataWebContentsObserver>(\n'
+    '        TabAndroid::FromWebContents(web_contents)->GetAndroidId(),\n'
+    '        web_contents);\n'
+    '    // Injects Brave-provided WebMCP tools into matching pages; see\n'
+    '    // WebMcpInjector. Null when WebMCP is disabled or has no rules.\n'
+    '    web_mcp_injector_ = ai_chat::WebMcpInjector::MaybeCreate(web_contents);\n'
+    '  }\n'
+)
+guarded_ai_block = (
+    '#if BUILDFLAG(ENABLE_AI_CHAT)\n'
+    + old_ai_block
+    + '#endif  // BUILDFLAG(ENABLE_AI_CHAT)\n'
+)
+cc = replace_once(cc, old_ai_block, guarded_ai_block, "AI Chat tab initialization")
+
+build = replace_once(
+    build,
+    'import("//brave/components/brave_ads/buildflags/buildflags.gni")\n',
+    'import("//brave/components/brave_ads/buildflags/buildflags.gni")\n'
+    'import("//brave/components/ai_chat/core/common/buildflags/buildflags.gni")\n',
+    "Android GN buildflags import",
+)
+old_public = '  public_deps = [ "//chrome/browser/android:tabs_public" ]'
+new_public = (
+    '  public_deps = [\n'
+    '    "//brave/components/ai_chat/core/common/buildflags",\n'
+    '    "//chrome/browser/android:tabs_public",\n'
+    '  ]'
+)
+build = replace_once(build, old_public, new_public, "tabs_public buildflags dependency")
+old_dep = '    "//brave/browser/ai_chat",\n'
+if build.count(old_dep) == 1:
+    build = build.replace(old_dep, '', 1)
+elif build.count(old_dep) != 0:
+    raise SystemExit("SANDIUM_AI_CHAT_ANDROID_GATE=FAIL unexpected AI Chat GN dependency count")
+conditional_dep = (
+    '  if (enable_ai_chat) {\n'
+    '    deps += [ "//brave/browser/ai_chat" ]\n'
+    '  }\n'
+)
+if conditional_dep not in build:
+    marker = 'source_set("tabs_impl") {\n'
+    if build.count(marker) != 1:
+        raise SystemExit("SANDIUM_AI_CHAT_ANDROID_GATE=FAIL tabs_impl target anchor mismatch")
+    # Add the conditional after the deps list, immediately before target close.
+    old_tail = (
+        '    "//content/public/browser",\n'
+        '  ]\n'
+        '}\n'
+    )
+    new_tail = (
+        '    "//content/public/browser",\n'
+        '  ]\n'
+        + conditional_dep
+        + '}\n'
+    )
+    build = replace_once(build, old_tail, new_tail, "tabs_impl conditional dependency")
+    
+header_path.write_text(header, encoding="utf-8")
+cc_path.write_text(cc, encoding="utf-8")
+build_path.write_text(build, encoding="utf-8")
+
+# Post-write assertions make partial/incorrect guards fail before GN generation.
+assert '#if BUILDFLAG(ENABLE_AI_CHAT)\nnamespace ai_chat {' in header
+assert '#if BUILDFLAG(ENABLE_AI_CHAT)\n  std::unique_ptr<ai_chat::TabDataWebContentsObserver>' in header
+assert guarded_ai_includes in cc and guarded_ai_block in cc
+assert 'import("//brave/components/ai_chat/core/common/buildflags/buildflags.gni")' in build
+assert '"//brave/components/ai_chat/core/common/buildflags"' in build
+assert conditional_dep in build
+assert build.count('"//brave/browser/ai_chat"') == 1
+print("SANDIUM_AI_CHAT_ANDROID_GATE=PASS; disabled AI Chat no longer leaks incomplete types or unconditional GN deps")
+PY
+
   GN_BIN="$SRC_DIR/buildtools/linux64/gn"
   GN_FILES=(
     "$CORE_DIR/browser/android/BUILD.gn"

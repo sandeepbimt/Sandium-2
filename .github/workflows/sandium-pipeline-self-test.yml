@@ -69,6 +69,7 @@ jobs:
             .circleci/scripts/test-brave-wallet-enum-patch.py \
             .circleci/scripts/test-chromium-feature-list-patch.py \
             .circleci/scripts/test-brave-reference-stage-gate.py
+            .circleci/scripts/test-ai-chat-android-gate.py
           bash -n .circleci/scripts/archive-brave-workspace.sh
           bash -n .circleci/scripts/verify-brave-reference.sh
           bash -n .circleci/scripts/verify-brave-remote-smoke.sh
@@ -90,3 +91,5 @@ jobs:
         run: python3 .circleci/scripts/test-chromium-feature-list-patch.py
       - name: Test stage-aware canonical reference and incomplete handoff gate
         run: python3 .circleci/scripts/test-brave-reference-stage-gate.py
+      - name: Test disabled AI Chat Android implementation and GN dependency guards
+        run: python3 .circleci/scripts/test-ai-chat-android-gate.py
