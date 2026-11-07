@@ -2455,8 +2455,13 @@ workflows:
                 - sandfox/checkpoint-stage-v1
                 - ss2-from-ss1
   sandium-full-mode:
+    # This dedicated feature-suppression branch changes native C++ and GN
+    # dependencies. Keep FAST as the global default, but automatically select
+    # the required staged FULL build when this branch receives a push.
     when:
-      equal: [full, << pipeline.parameters.sandium_build_mode >>]
+      or:
+        - equal: [full, << pipeline.parameters.sandium_build_mode >>]
+        - equal: [feature/sandium-origin-feature-suppression-full, << pipeline.git.branch >>]
     jobs:
       - brave-android-staged-build:
           name: SANDIUM-FULL-MODE-stage-1
