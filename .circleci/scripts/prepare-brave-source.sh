@@ -617,75 +617,75 @@ wallet_import = 'import("//brave/components/brave_wallet/common/buildflags/build
 if news_import not in build:
     if build.count(wallet_import) != 1:
         raise SystemExit("SANDIUM_BRAVE_NEWS_ANDROID_GATE=FAIL preferences GN import anchor mismatch")
-    build = build.replace(wallet_import, wallet_import + "\\n" + news_import, 1)
+    build = build.replace(wallet_import, wallet_import + "\n" + news_import, 1)
 
 target = 'source_set("preferences") {'
 start = build.find(target)
 if start < 0 or build.find(target, start + 1) >= 0:
     raise SystemExit("SANDIUM_BRAVE_NEWS_ANDROID_GATE=FAIL preferences target anchor not unique")
-end = build.find("\\n}", start)
+end = build.find("\n}", start)
 if end < 0:
     raise SystemExit("SANDIUM_BRAVE_NEWS_ANDROID_GATE=FAIL preferences target block unterminated")
 block = build[start:end + 2]
-common_dep = '    "//brave/components/brave_news/common",\\n'
-flags_dep = '    "//brave/components/brave_news/common/buildflags",\\n'
-conditional_dep = '  if (enable_brave_news) {\\n    deps += [ "//brave/components/brave_news/common" ]\\n  }'
+common_dep = '    "//brave/components/brave_news/common",\n'
+flags_dep = '    "//brave/components/brave_news/common/buildflags",\n'
+conditional_dep = '  if (enable_brave_news) {\n    deps += [ "//brave/components/brave_news/common" ]\n  }'
 if common_dep in block:
     block = block.replace(common_dep, "", 1)
 if flags_dep not in block:
-    deps_end = '    "//brave/components/brave_rewards/core",\\n'
+    deps_end = '    "//brave/components/brave_rewards/core",\n'
     if block.count(deps_end) != 1:
         raise SystemExit("SANDIUM_BRAVE_NEWS_ANDROID_GATE=FAIL preferences deps insertion anchor mismatch")
     block = block.replace(deps_end, deps_end + flags_dep, 1)
 if conditional_dep not in block:
     if 'if (enable_brave_news)' in block:
         raise SystemExit("SANDIUM_BRAVE_NEWS_ANDROID_GATE=FAIL unexpected existing News dependency condition")
-    block += "\\n\\n" + conditional_dep + "\\n"
+    block += "\n\n" + conditional_dep + "\n"
 build = build[:start] + block + build[end + 2:]
 build_path.write_text(build, encoding="utf-8")
 
 cc = cc_path.read_text(encoding="utf-8")
-buildflags_include = '#include "brave/components/brave_news/common/buildflags/buildflags.h"\\n'
-news_include = '#include "brave/components/brave_news/common/pref_names.h"\\n'
-guarded_news_include = buildflags_include + '#if BUILDFLAG(ENABLE_BRAVE_NEWS)\\n' + news_include + '#endif  // BUILDFLAG(ENABLE_BRAVE_NEWS)\\n'
+buildflags_include = '#include "brave/components/brave_news/common/buildflags/buildflags.h"\n'
+news_include = '#include "brave/components/brave_news/common/pref_names.h"\n'
+guarded_news_include = buildflags_include + '#if BUILDFLAG(ENABLE_BRAVE_NEWS)\n' + news_include + '#endif  // BUILDFLAG(ENABLE_BRAVE_NEWS)\n'
 if guarded_news_include not in cc:
     if cc.count(news_include) != 1:
         raise SystemExit("SANDIUM_BRAVE_NEWS_ANDROID_GATE=FAIL C++ News include anchor mismatch")
     cc = cc.replace(news_include, guarded_news_include, 1)
 
 real_methods = (
-    'void JNI_BravePrefServiceBridge_SetNewsOptIn(JNIEnv* env, jboolean value) {\\n'
-    '  GetOriginalProfile()->GetPrefs()->SetBoolean(\\n'
-    '      brave_news::prefs::kBraveNewsOptedIn, value);\\n'
-    '}\\n\\n'
-    'jboolean JNI_BravePrefServiceBridge_GetNewsOptIn(JNIEnv* env) {\\n'
-    '  return GetOriginalProfile()->GetPrefs()->GetBoolean(\\n'
-    '      brave_news::prefs::kBraveNewsOptedIn);\\n'
-    '}\\n\\n'
-    'void JNI_BravePrefServiceBridge_SetShowNews(JNIEnv* env, jboolean value) {\\n'
-    '  GetOriginalProfile()->GetPrefs()->SetBoolean(\\n'
-    '      brave_news::prefs::kNewTabPageShowToday, value);\\n'
-    '}\\n\\n'
-    'jboolean JNI_BravePrefServiceBridge_GetShowNews(JNIEnv* env) {\\n'
-    '  return GetOriginalProfile()->GetPrefs()->GetBoolean(\\n'
-    '      brave_news::prefs::kNewTabPageShowToday);\\n'
+    'void JNI_BravePrefServiceBridge_SetNewsOptIn(JNIEnv* env, jboolean value) {\n'
+    '  GetOriginalProfile()->GetPrefs()->SetBoolean(\n'
+    '      brave_news::prefs::kBraveNewsOptedIn, value);\n'
+    '}\n\n'
+    'jboolean JNI_BravePrefServiceBridge_GetNewsOptIn(JNIEnv* env) {\n'
+    '  return GetOriginalProfile()->GetPrefs()->GetBoolean(\n'
+    '      brave_news::prefs::kBraveNewsOptedIn);\n'
+    '}\n\n'
+    'void JNI_BravePrefServiceBridge_SetShowNews(JNIEnv* env, jboolean value) {\n'
+    '  GetOriginalProfile()->GetPrefs()->SetBoolean(\n'
+    '      brave_news::prefs::kNewTabPageShowToday, value);\n'
+    '}\n\n'
+    'jboolean JNI_BravePrefServiceBridge_GetShowNews(JNIEnv* env) {\n'
+    '  return GetOriginalProfile()->GetPrefs()->GetBoolean(\n'
+    '      brave_news::prefs::kNewTabPageShowToday);\n'
     '}'
 )
 stub_methods = (
-    'void JNI_BravePrefServiceBridge_SetNewsOptIn(JNIEnv* env, jboolean value) {\\n'
-    '  (void)env;\\n  (void)value;\\n'
-    '}\\n\\n'
-    'jboolean JNI_BravePrefServiceBridge_GetNewsOptIn(JNIEnv* env) {\\n'
-    '  (void)env;\\n  return false;\\n'
-    '}\\n\\n'
-    'void JNI_BravePrefServiceBridge_SetShowNews(JNIEnv* env, jboolean value) {\\n'
-    '  (void)env;\\n  (void)value;\\n'
-    '}\\n\\n'
-    'jboolean JNI_BravePrefServiceBridge_GetShowNews(JNIEnv* env) {\\n'
-    '  (void)env;\\n  return false;\\n'
+    'void JNI_BravePrefServiceBridge_SetNewsOptIn(JNIEnv* env, jboolean value) {\n'
+    '  (void)env;\n  (void)value;\n'
+    '}\n\n'
+    'jboolean JNI_BravePrefServiceBridge_GetNewsOptIn(JNIEnv* env) {\n'
+    '  (void)env;\n  return false;\n'
+    '}\n\n'
+    'void JNI_BravePrefServiceBridge_SetShowNews(JNIEnv* env, jboolean value) {\n'
+    '  (void)env;\n  (void)value;\n'
+    '}\n\n'
+    'jboolean JNI_BravePrefServiceBridge_GetShowNews(JNIEnv* env) {\n'
+    '  (void)env;\n  return false;\n'
     '}'
 )
-guarded_methods = '#if BUILDFLAG(ENABLE_BRAVE_NEWS)\\n' + real_methods + '\\n#else  // BUILDFLAG(ENABLE_BRAVE_NEWS)\\n' + stub_methods + '\\n#endif  // BUILDFLAG(ENABLE_BRAVE_NEWS)'
+guarded_methods = '#if BUILDFLAG(ENABLE_BRAVE_NEWS)\n' + real_methods + '\n#else  // BUILDFLAG(ENABLE_BRAVE_NEWS)\n' + stub_methods + '\n#endif  // BUILDFLAG(ENABLE_BRAVE_NEWS)'
 if guarded_methods not in cc:
     if cc.count(real_methods) != 1:
         raise SystemExit("SANDIUM_BRAVE_NEWS_ANDROID_GATE=FAIL C++ News JNI method block anchor mismatch")
