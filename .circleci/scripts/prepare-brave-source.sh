@@ -466,6 +466,61 @@ if "enable_brave_news" in verified and import_line not in verified:
 print("BRAVE_NEWS_GN_SCOPE_GATE=PASS")
 PY
 
+  # Brave v1.98.62's Android tabs_impl target has an unconditional dependency
+  # on //brave/browser/ai_chat even when enable_ai_chat=false. That target
+  # asserts enable_ai_chat, so GN generation fails before compilation. Make
+  # the dependency conditional, matching Brave's own feature-gating elsewhere.
+  python3 - "$CORE_DIR/browser/android/BUILD.gn" <<'PY'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+source = path.read_text(encoding="utf-8")
+import_line = 'import("//brave/components/ai_chat/core/common/buildflags/buildflags.gni")'
+old_dep = '    "//brave/browser/ai_chat",\n'
+new_deps = (
+    '  ]\n\n'
+    '  if (enable_ai_chat) {\n'
+    '    deps += [ "//brave/browser/ai_chat" ]\n'
+    '  }\n'
+)
+if import_line not in source:
+    header = 'import("//brave/build/config.gni")\n'
+    if source.count(header) != 1:
+        raise SystemExit("SANDIUM_AI_CHAT_GN_GATE=FAIL build config import anchor not unique")
+    source = source.replace(header, header + import_line + "\n", 1)
+
+target = 'source_set("tabs_impl") {'
+start = source.find(target)
+if start < 0 or source.find(target, start + 1) >= 0:
+    raise SystemExit("SANDIUM_AI_CHAT_GN_GATE=FAIL tabs_impl target anchor not unique")
+end = source.find('\n}', start)
+block = source[start:end + 2]
+if old_dep in block:
+    block = block.replace(old_dep, "", 1)
+    deps_close = '    "//content/public/browser",\n  ]'
+    if block.count(deps_close) != 1:
+        raise SystemExit("SANDIUM_AI_CHAT_GN_GATE=FAIL tabs_impl deps close anchor not unique")
+    block = block.replace(
+        deps_close,
+        '    "//content/public/browser",\n  ]\n\n'
+        '  if (enable_ai_chat) {\n'
+        '    deps += [ "//brave/browser/ai_chat" ]\n'
+        '  }',
+        1,
+    )
+elif 'if (enable_ai_chat)' in block and '"//brave/browser/ai_chat"' in block:
+    print("SANDIUM_AI_CHAT_GN_GATE=ALREADY_PATCHED")
+else:
+    raise SystemExit("SANDIUM_AI_CHAT_GN_GATE=FAIL expected unconditional AI Chat dependency")
+updated = source[:start] + block + source[end + 2:]
+path.write_text(updated, encoding="utf-8")
+verified = path.read_text(encoding="utf-8")
+if 'if (enable_ai_chat) {\n    deps += [ "//brave/browser/ai_chat" ]\n  }' not in verified:
+    raise SystemExit("SANDIUM_AI_CHAT_GN_GATE=FAIL post-write verification failed")
+print("SANDIUM_AI_CHAT_GN_GATE=PASS; Android tabs_impl dependency follows enable_ai_chat")
+PY
+
   pnpm run build Release --target_os=android --target_arch=arm64 --target_android_output_format=apk --use_remoteexec=true --gn use_siso:true --gn use_reclient:false "${ORIGIN_GN_ARGS[@]}" --gn is_java_debug:false --gn enable_android_secondary_abi:false --gn is_official_build:false --gn enable_updater:false --gn enable_update_notifications:false --gn android_channel:default --gn chrome_public_manifest_package:com.brave.browser_default --gn brave_channel:development --target brave --ninja=n
   bash "$ROOT/.circleci/scripts/verify-clang-diagnostics-gn.sh"
 fi
