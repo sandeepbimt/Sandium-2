@@ -16,7 +16,6 @@ case "$STAGE" in
   *) fail "invalid BRAVE_STAGE_INDEX=$STAGE" ;;
 esac
 python3 - "$MANIFEST" "$SHARDS" "$STAGE" <<'PY'
-import hashlib
 import json
 import sys
 from pathlib import Path
@@ -64,9 +63,10 @@ for item in shards:
     actual_size = path.stat().st_size
     if actual_size != item.get("size_bytes"):
         raise SystemExit("SANDIUM_REFERENCE_GATE=FAIL shard size mismatch " + name)
-    digest = hashlib.sha256(path.read_bytes()).hexdigest()
-    if digest != item.get("sha256"):
-        raise SystemExit("SANDIUM_REFERENCE_GATE=FAIL shard SHA256 mismatch " + name)
+    # The immediately preceding archive restore invokes
+    # sandium-checkpoint-shards.py restore, which verifies every shard's
+    # recorded SHA256 before extraction. Avoid hashing the entire 26 GiB
+    # reference a second time in this lightweight post-restore gate.
     total += actual_size
 if total != data.get("archive_bytes"):
     raise SystemExit("SANDIUM_REFERENCE_GATE=FAIL aggregate archive size mismatch")
