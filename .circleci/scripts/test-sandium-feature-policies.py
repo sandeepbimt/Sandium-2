@@ -98,6 +98,7 @@ class BraveTabFeatures {
   std::unique_ptr<ai_chat::WebMcpInjector> web_mcp_injector_;
 };
 }
+"""
 
 
 def main() -> None:
