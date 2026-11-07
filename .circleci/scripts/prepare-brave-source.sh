@@ -400,6 +400,8 @@ PY
   echo "BRAVE_STAGE1_VALIDATION_MODE=DRY_RUN_NO_COMPILATION"
   MODE="$(sed -n 's/^SANDIUM_BUILD_MODE=//p' "$ROOT/brave-work/.sandium/build-mode.txt" | head -n 1)"
   ORIGIN_GN_ARGS=()
+  # Keep Brave Speedreader and Playlist enabled: they are explicit Sandium exclusions.
+  # Do not add enable_speedreader:false or disable Playlist here.
   if [ "$MODE" = "full" ]; then
     python3 "$ROOT/.circleci/scripts/apply-sandium-full-overlays.py" --core "$CORE_DIR" --src "$SRC_DIR"
     python3 "$ROOT/.circleci/scripts/apply-sandium-fast-morphe.py" "$SRC_DIR"
@@ -410,7 +412,11 @@ PY
       --gn enable_brave_vpn_v2:false
       --gn enable_brave_wallet:false
       --gn enable_ai_chat:false
+      --gn enable_brave_talk:false
+      --gn enable_brave_wayback_machine:false
+      --gn enable_tor:false
       --gn enable_web_discovery_native:false
+      --gn enable_web_discovery:false
     )
     echo "SANDIUM_ORIGIN_FEATURES=DISABLED_FOR_FULL_MODE"
     echo "SANDIUM_READER_TYPOGRAPHY=INTEGRATED_FOR_FULL_MODE"
