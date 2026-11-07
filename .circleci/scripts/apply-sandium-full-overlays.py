@@ -62,6 +62,28 @@ def transform_playlist_utils(source):
     return source.replace(PLAYLIST_UTILS_OLD, PLAYLIST_UTILS_NEW, 1)
 
 
+PLAYLIST_FACTORY_OLD = "  if (!profile->IsRegularProfile()) {\n    return nullptr;\n  }\n\n  GetInstance()->PrepareMediaDetectorComponentManager();"
+PLAYLIST_FACTORY_NEW = "  if (!profile->IsRegularProfile()) {\n    return nullptr;\n  }\n\n  // Prevent service creation for profiles that predate Sandium's Playlist\n  // removal. The profile preference is also normalized to the disabled state.\n  profile->GetPrefs()->SetBoolean(kPlaylistEnabledPref, false);\n  if (!IsPlaylistAllowed(profile->GetPrefs())) {\n    return nullptr;\n  }\n\n  GetInstance()->PrepareMediaDetectorComponentManager();"
+
+def transform_playlist_factory(source):
+    # Change the profile default, then force old profiles to the same disabled
+    # state before the service can be constructed.
+    default_old = "    registry->RegisterBooleanPref(kPlaylistEnabledPref, true);"
+    default_new = "    registry->RegisterBooleanPref(kPlaylistEnabledPref, false);"
+    if default_old in source:
+        if source.count(default_old) != 1:
+            raise RuntimeError("SANDIUM_PLAYLIST_FACTORY: duplicate default preference")
+        source = source.replace(default_old, default_new, 1)
+    elif source.count(default_new) != 1:
+        raise RuntimeError("SANDIUM_PLAYLIST_FACTORY: default preference anchor changed")
+
+    if source.count(PLAYLIST_FACTORY_NEW) == 1 and PLAYLIST_FACTORY_OLD not in source:
+        return source
+    if source.count(PLAYLIST_FACTORY_OLD) != 1:
+        raise RuntimeError("SANDIUM_PLAYLIST_FACTORY: service creation anchor changed")
+    return source.replace(PLAYLIST_FACTORY_OLD, PLAYLIST_FACTORY_NEW, 1)
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--core", required=True, type=Path)
@@ -141,6 +163,15 @@ def main():
         print("SANDIUM_PLAYLIST=DISABLED_FOR_ANDROID")
     else:
         print("SANDIUM_PLAYLIST=ALREADY_DISABLED")
+
+    playlist_factory = core / "browser/playlist/playlist_service_factory.cc"
+    factory_source = playlist_factory.read_text(encoding="utf-8")
+    factory_updated = transform_playlist_factory(factory_source)
+    if factory_updated != factory_source:
+        playlist_factory.write_text(factory_updated, encoding="utf-8")
+        print("SANDIUM_PLAYLIST_FACTORY=DISABLED_AND_PROFILE_PREF_NORMALIZED")
+    else:
+        print("SANDIUM_PLAYLIST_FACTORY=ALREADY_DISABLED")
 
     # Brave News is disabled in Sandium's Full Mode GN args. Its browser_tests
     # target is therefore absent from the Android deps list and must not remain
