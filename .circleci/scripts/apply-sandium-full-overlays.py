@@ -289,6 +289,35 @@ def main():
         "SANDIUM_ORIGIN_OPEN_SUPPRESSED",
     )
 
+    # Prevent purchase callbacks from reopening an Origin subscription/settings page.
+    origin_launcher = core / "android/java/org/chromium/chrome/browser/brave_origin/BraveOriginSettingsLauncherHelper.java"
+    replace_exact(
+        origin_launcher,
+        "    public static void showOriginSettingsForRestart() {\n"
+        "        Activity activity = ApplicationStatus.getLastTrackedFocusedActivity();\n"
+        "        if (activity == null) {\n"
+        "            return;\n"
+        "        }\n"
+        "        Bundle args = new Bundle();\n"
+        "        args.putBoolean(BraveOriginPreferences.EXTRA_SHOW_RESTART_PROMPT, true);\n"
+        "        SettingsNavigationFactory.createSettingsNavigation()\n"
+        "                .startSettings(activity, BraveOriginPreferences.class, args);\n"
+        "    }",
+        "    public static void showOriginSettingsForRestart() {\n"
+        "        // No Origin purchase or settings destination exists in Sandium.\n"
+        "    }",
+        "SANDIUM_ORIGIN_PURCHASE_CALLBACK",
+    )
+
+    # Remove Origin from Android Settings search as well as the visible preference tree.
+    search_index = core / "rewrite/chrome/android/java/src/org/chromium/chrome/browser/settings/search/SearchIndexProviderRegistry.java.yaml"
+    replace_exact(
+        search_index,
+        "                            org.chromium.chrome.browser.settings.BraveOriginPreferences.SEARCH_INDEX_DATA_PROVIDER,\n",
+        "",
+        "SANDIUM_ORIGIN_SEARCH_INDEX",
+    )
+
     # Remove the purchase activity from the Android application manifest.
     manifest = core / "android/java/AndroidManifest.xml"
     replace_exact(
