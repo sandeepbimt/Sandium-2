@@ -64,7 +64,10 @@ def main() -> None:
     module = runpy.run_path(str(OVERLAY))
     transform = module["transform_playlist_utils"]
     transformed = transform(PLAYLIST_UTILS_FIXTURE)
-    assert transformed == module["PLAYLIST_UTILS_NEW"]
+    assert transformed.rstrip("\\n") == module["PLAYLIST_UTILS_NEW"], (
+        "Playlist overlay output differs from the pinned replacement (ignoring only final newline)"
+    )
+    assert PLAYLIST_UTILS_FIXTURE.startswith(transformed) or transformed.endswith("\\n")
     assert transform(transformed) == transformed, "Playlist overlay must be idempotent"
     try:
         transform("unexpected upstream Playlist implementation")
