@@ -33,6 +33,11 @@ on:
       - ".circleci/scripts/test-brave-remote-metrics.py"
       - ".circleci/scripts/test-brave-build-flow.py"
       - ".circleci/scripts/prepare-brave-source.sh"
+      - ".circleci/scripts/sandium-self-heal.py"
+      - ".circleci/scripts/repair-ai-chat-android.py"
+      - ".circleci/scripts/test-sandium-self-heal.py"
+      - ".circleci/scripts/apply-sandium-wallet-java-compile-contract.py"
+      - ".circleci/scripts/test-sandium-wallet-java-compile-contract.py"
       - ".circleci/scripts/test-ai-chat-gn-patch.py"
       - ".github/workflows/sandium-pipeline-self-test.yml"
   workflow_dispatch:
@@ -77,7 +82,7 @@ jobs:
             .circleci/scripts/test-ai-chat-android-gate.py \
             .circleci/scripts/sandium-self-heal.py \
             .circleci/scripts/repair-ai-chat-android.py \
-            .circleci/scripts/test-sandium-self-heal.py
+            .circleci/scripts/test-sandium-self-heal.py \
             .circleci/scripts/apply-sandium-wallet-java-compile-contract.py \
             .circleci/scripts/test-sandium-wallet-java-compile-contract.py
           bash -n .circleci/scripts/archive-brave-workspace.sh
