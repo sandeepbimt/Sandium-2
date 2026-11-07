@@ -767,11 +767,11 @@ for target in ('source_set("android") {', 'source_set("browser_tests") {'):
         raise SystemExit("SANDIUM_AI_CHAT_SUBSCRIPTION_GATE=FAIL missing buildflags dependency: " + target)
     if block.count('if (enable_ai_chat)') != 1 or block.count('"//brave/components/ai_chat/core/common/mojom"') != 1:
         raise SystemExit("SANDIUM_AI_CHAT_SUBSCRIPTION_GATE=FAIL common/mojom dependency is not conditional: " + target)
-if ai_includes in verified_header or member in verified_header.replace(guarded_member, ""):
+if ai_includes in verified_header.replace(guarded_ai_includes, "") or member in verified_header.replace(guarded_member, ""):
     raise SystemExit("SANDIUM_AI_CHAT_SUBSCRIPTION_GATE=FAIL unguarded AI Chat header/member remains")
 if features_include in verified_cc.replace(guarded_features, ""):
     raise SystemExit("SANDIUM_AI_CHAT_SUBSCRIPTION_GATE=FAIL unguarded AI Chat features include remains")
-if verified_cc.count('#if BUILDFLAG(ENABLE_AI_CHAT)') != 3:
+if verified_cc.count('#if BUILDFLAG(ENABLE_AI_CHAT)') != 4:
     raise SystemExit("SANDIUM_AI_CHAT_SUBSCRIPTION_GATE=FAIL expected three guarded C++ blocks")
 print("SANDIUM_AI_CHAT_SUBSCRIPTION_GATE=PASS; Leo bridge and common target dependencies follow ENABLE_AI_CHAT")
 PY
