@@ -113,6 +113,7 @@ AI_ANDROID_DEPS_OLD = """  deps = [
 AI_ANDROID_DEPS_NEW = """  deps = [
     ":tabs_public",
     "//base",
+    "//brave/components/ai_chat/core/common/buildflags",
     "//brave/browser/misc_metrics:misc_metrics_impl",
     "//brave/components/misc_metrics",
     "//chrome/browser/profiles:profile",

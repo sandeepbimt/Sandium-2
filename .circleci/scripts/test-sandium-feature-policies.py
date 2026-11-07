@@ -120,6 +120,7 @@ def main() -> None:
     assert 'import("//brave/components/ai_chat/core/common/buildflags/buildflags.gni")' in ai_build
     deps_block = ai_build.split("  deps = [", 1)[1].split("  ]", 1)[0]
     assert '"//brave/browser/ai_chat"' not in deps_block
+    assert '"//brave/components/ai_chat/core/common/buildflags"' in deps_block
     assert 'if (enable_ai_chat) {\n    deps += [ "//brave/browser/ai_chat" ]\n  }' in ai_build
     assert ai_build_transform(ai_build) == ai_build
 
