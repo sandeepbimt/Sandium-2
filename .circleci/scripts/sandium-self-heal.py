@@ -23,6 +23,7 @@ HARD = [
     re.compile(r"Traceback \(most recent call last\):", re.I),
     re.compile(r"\bSISO_ACTION_FAILED\b|\bFAILED_TARGET\b", re.I),
 ]
+FEATURE_SUPPRESSION_MISSING_GENERATED = re.compile(r"(?:symbol not found|could not resolve|cannot find symbol)[^\\n]{0,260}(?:org\\.chromium\\.brave_wallet\\.mojom\\.|decentralized_dns\\.(?:ResolveMethodTypes|EnsOffchainResolveMethod))|(?:org\\.chromium\\.brave_wallet\\.mojom\\.|decentralized_dns\\.(?:ResolveMethodTypes|EnsOffchainResolveMethod))[^\\n]{0,260}(?:symbol not found|could not resolve|cannot find symbol)", re.I)
 OOM = re.compile(r"out of memory|oom-kill|killed process|signal 9|exit code 137", re.I)
 
 def read(path, limit=8 * 1024 * 1024):
@@ -63,7 +64,7 @@ def classify(a):
     commands = bool(read(a.failed_commands).strip())
     metric = metric_errors(a.metrics)
     hard = [p.pattern for p in HARD if p.search(clean)]
-    ai = bool(AI_CHAT.search(clean))
+    ai = bool(AI_CHAT.search(clean))\n    feature_suppression_missing_generated = bool(FEATURE_SUPPRESSION_MISSING_GENERATED.search(clean))
     cas = bool(CAS.search(log))
     infra = any(p.search(log) for p in INFRA)
     oom = bool(OOM.search(log))
@@ -74,6 +75,8 @@ def classify(a):
 
     if ai and (hard or a.exit_code != 0):
         state, category, action = "FAILURE", "AI_CHAT_INCOMPLETE_TYPE", "REAPPLY_AI_CHAT_ANDROID_GUARDS"
+    elif feature_suppression_missing_generated and (hard or a.exit_code != 0):
+        state, category, action = "FAILURE", "FEATURE_SUPPRESSION_MISSING_GENERATED_JAVA", "DIAGNOSE_FEATURE_SUPPRESSION_GN_DEPS"
     elif cas and a.exit_code != 0:
         state, category, action = "RETRYABLE_INFRA", "MISSING_CAS_INPUTS", "RECOVER_CAS_INPUTS"
     elif evidence:

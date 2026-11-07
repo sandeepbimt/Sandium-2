@@ -15,7 +15,7 @@ def main():
         '2>&1 | tee "$log_file"',
         "PIPESTATUS[@]",
         "sandium-self-heal.py",
-        "SHE_CLASSIFICATION",
+        "SHE_CLASSIFICATION",\n        "FEATURE_SUPPRESSION_MISSING_GENERATED_JAVA",\n        "DIAGNOSE_FEATURE_SUPPRESSION_GN_DEPS",
         "BUILD_HANDOFF_ALLOWED=false",
         "SANDIUM_SHE=FAIL",
         "SHE - enforce build outcome before stage continuation",

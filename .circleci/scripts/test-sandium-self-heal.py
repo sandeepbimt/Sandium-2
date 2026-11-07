@@ -87,4 +87,11 @@ with tempfile.TemporaryDirectory() as tmp:
     assert '#if BUILDFLAG(ENABLE_AI_CHAT)' in after[0]
     assert 'if (enable_ai_chat)' in after[2]
 
+feature_failure = run_case("Wallet and DNS generated Java dependency failure", "FAILURE",
+                "Foo.java:10: error: symbol not found org.chromium.brave_wallet.mojom.BlockchainRegistry\\n"
+                "Bar.java:20: error: symbol not found org.chromium.chrome.browser.decentralized_dns.ResolveMethodTypes\\n", rc=1)
+assert feature_failure["category"] == "FEATURE_SUPPRESSION_MISSING_GENERATED_JAVA"
+assert feature_failure["repair_action"] == "DIAGNOSE_FEATURE_SUPPRESSION_GN_DEPS"
+assert not feature_failure["build_handoff_allowed"]
+
 print("SANDIUM_SHE_TEST=PASS failure detection, timeout discrimination, repair routing and idempotent AI Chat repair")
