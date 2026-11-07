@@ -404,6 +404,7 @@ PY
   # Do not add enable_speedreader:false or disable Playlist here.
   if [ "$MODE" = "full" ]; then
     python3 "$ROOT/.circleci/scripts/apply-sandium-full-overlays.py" --core "$CORE_DIR" --src "$SRC_DIR"
+    python3 "$ROOT/.circleci/scripts/apply-sandium-product-suppression.py" --core "$CORE_DIR"
     python3 "$ROOT/.circleci/scripts/apply-sandium-fast-morphe.py" "$SRC_DIR"
     ORIGIN_GN_ARGS+=(
       --gn enable_brave_rewards:false

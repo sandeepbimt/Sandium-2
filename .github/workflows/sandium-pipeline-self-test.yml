@@ -15,6 +15,9 @@ on:
       - ".circleci/scripts/prepare-brave-source.sh"
       - ".circleci/scripts/test-ai-chat-gn-patch.py"
       - ".circleci/scripts/test-brave-wallet-enum-patch.py"
+      - ".circleci/scripts/apply-sandium-product-suppression.py"
+      - ".circleci/scripts/test-sandium-product-suppression.py"
+      - ".circleci/scripts/test-full-mode-branch-routing.py"
       - ".circleci/scripts/sandium-self-heal.py"
       - ".circleci/scripts/repair-ai-chat-android.py"
       - ".circleci/scripts/test-sandium-self-heal.py"
@@ -39,6 +42,9 @@ on:
       - ".circleci/scripts/apply-sandium-wallet-java-compile-contract.py"
       - ".circleci/scripts/test-sandium-wallet-java-compile-contract.py"
       - ".circleci/scripts/test-ai-chat-gn-patch.py"
+      - ".circleci/scripts/apply-sandium-product-suppression.py"
+      - ".circleci/scripts/test-sandium-product-suppression.py"
+      - ".circleci/scripts/test-full-mode-branch-routing.py"
       - ".github/workflows/sandium-pipeline-self-test.yml"
   workflow_dispatch:
 
@@ -77,6 +83,9 @@ jobs:
             .circleci/scripts/test-brave-build-flow.py \
             .circleci/scripts/test-ai-chat-gn-patch.py \
             .circleci/scripts/test-brave-wallet-enum-patch.py \
+            .circleci/scripts/apply-sandium-product-suppression.py \
+            .circleci/scripts/test-sandium-product-suppression.py \
+            .circleci/scripts/test-full-mode-branch-routing.py \
             .circleci/scripts/test-chromium-feature-list-patch.py \
             .circleci/scripts/test-brave-reference-stage-gate.py \
             .circleci/scripts/test-ai-chat-android-gate.py \
@@ -103,6 +112,10 @@ jobs:
         run: python3 .circleci/scripts/test-ai-chat-gn-patch.py
       - name: Test pinned Brave Wallet enum empty-input GN patch
         run: python3 .circleci/scripts/test-brave-wallet-enum-patch.py
+      - name: Test Sandium VPN, News and Rewards suppression policies
+        run: python3 .circleci/scripts/test-sandium-product-suppression.py
+      - name: Test forced Full Mode branch routing
+        run: python3 .circleci/scripts/test-full-mode-branch-routing.py
       - name: Test disabled Chromium AI Chat and Brave News feature-list overlay
         run: python3 .circleci/scripts/test-chromium-feature-list-patch.py
       - name: Test stage-aware canonical reference and incomplete handoff gate
