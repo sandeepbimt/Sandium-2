@@ -548,9 +548,11 @@ old_includes = (
     '#include "brave/browser/ai_chat/tab_data_web_contents_observer.h"\n'
     '#include "brave/browser/ai_chat/web_mcp_injection/web_mcp_injector.h"\n'
 )
-if old_includes in cc_source:
+if guarded_includes in cc_source:
+    print("SANDIUM_AI_CHAT_CPP_GATE=ALREADY_PATCHED includes")
+elif old_includes in cc_source:
     cc_source = cc_source.replace(old_includes, guarded_includes, 1)
-elif guarded_includes not in cc_source:
+else:
     raise SystemExit("SANDIUM_AI_CHAT_CPP_GATE=FAIL AI Chat include block anchor mismatch")
 
 old_calls = (
@@ -564,9 +566,11 @@ old_calls = (
     '  }\n'
 )
 new_calls = '#if BUILDFLAG(ENABLE_AI_CHAT)\n' + old_calls + '#endif  // BUILDFLAG(ENABLE_AI_CHAT)\n'
-if old_calls in cc_source:
+if new_calls in cc_source:
+    print("SANDIUM_AI_CHAT_CPP_GATE=ALREADY_PATCHED calls")
+elif old_calls in cc_source:
     cc_source = cc_source.replace(old_calls, new_calls, 1)
-elif new_calls not in cc_source:
+else:
     raise SystemExit("SANDIUM_AI_CHAT_CPP_GATE=FAIL AI Chat call block anchor mismatch")
 cc.write_text(cc_source, encoding="utf-8")
 verified = cc.read_text(encoding="utf-8")
