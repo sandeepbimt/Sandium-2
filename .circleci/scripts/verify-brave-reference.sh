@@ -10,7 +10,7 @@ OUT="$SRC/out/android_Release_arm64"
 fail() { echo "SANDIUM_REFERENCE_GATE=FAIL $*" >&2; exit 1; }
 [ -d "$SHARDS" ] || fail "restored parallel reference shard directory is missing"
 [ -s "$MANIFEST" ] || fail "restored parallel reference manifest is missing"
-STAGE="\${BRAVE_STAGE_INDEX:-1}"
+STAGE="${BRAVE_STAGE_INDEX:-1}"
 case "$STAGE" in
   1|2|3|4|5) ;;
   *) fail "invalid BRAVE_STAGE_INDEX=$STAGE" ;;
