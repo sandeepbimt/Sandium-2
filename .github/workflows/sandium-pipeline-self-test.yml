@@ -18,6 +18,8 @@ on:
       - ".circleci/scripts/sandium-self-heal.py"
       - ".circleci/scripts/repair-ai-chat-android.py"
       - ".circleci/scripts/test-sandium-self-heal.py"
+      - ".circleci/scripts/apply-sandium-wallet-java-compile-contract.py"
+      - ".circleci/scripts/test-sandium-wallet-java-compile-contract.py"
       - ".github/workflows/sandium-pipeline-self-test.yml"
   pull_request:
     paths:
@@ -76,6 +78,8 @@ jobs:
             .circleci/scripts/sandium-self-heal.py \
             .circleci/scripts/repair-ai-chat-android.py \
             .circleci/scripts/test-sandium-self-heal.py
+            .circleci/scripts/apply-sandium-wallet-java-compile-contract.py \
+            .circleci/scripts/test-sandium-wallet-java-compile-contract.py
           bash -n .circleci/scripts/archive-brave-workspace.sh
           bash -n .circleci/scripts/verify-brave-reference.sh
           bash -n .circleci/scripts/verify-brave-remote-smoke.sh
@@ -102,3 +106,5 @@ jobs:
         run: python3 .circleci/scripts/test-ai-chat-android-gate.py
       - name: Test Sandium Self-Heal Engine failure detection and bounded repairs
         run: python3 .circleci/scripts/test-sandium-self-heal.py
+      - name: Test Wallet-disabled Java compile contract
+        run: python3 .circleci/scripts/test-sandium-wallet-java-compile-contract.py

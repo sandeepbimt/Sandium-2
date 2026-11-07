@@ -1200,6 +1200,8 @@ assert build.count('"//brave/browser/ai_chat"') == 1
 print("SANDIUM_AI_CHAT_ANDROID_GATE=PASS; disabled AI Chat no longer leaks incomplete types or unconditional GN deps")
 PY
 
+  # Retain generated API bindings only; the Wallet feature and native implementation remain disabled.
+  python3 "$ROOT/.circleci/scripts/apply-sandium-wallet-java-compile-contract.py" --core "$CORE_DIR" --src "$SRC_DIR"
   GN_BIN="$SRC_DIR/buildtools/linux64/gn"
   GN_FILES=(
     "$CORE_DIR/browser/android/BUILD.gn"
@@ -1207,6 +1209,8 @@ PY
     "$CORE_DIR/browser/notifications/BUILD.gn"
     "$CORE_DIR/build/android/config.gni"
     "$CORE_DIR/components/brave_mobile_subscription/renderer/android/BUILD.gn"
+    "$CORE_DIR/components/brave_wallet/common/BUILD.gn"
+    "$SRC_DIR/chrome/android/BUILD.gn"
   )
   test -x "$GN_BIN" || { echo "SANDIUM_AI_CHAT_GN_FORMAT_GATE=FAIL GN formatter missing: $GN_BIN" >&2; exit 1; }
   for GN_FILE in "${GN_FILES[@]}"; do
@@ -1221,7 +1225,7 @@ PY
     }
   done
   echo "SANDIUM_AI_CHAT_GN_FORMAT_GATE=PASS files=5 formatted=true dry_run=true"
-  # Keep only generated Wallet/DNS Java API bindings available to shared BraveActivity; Wallet remains disabled.\n  python3 "$ROOT/.circleci/scripts/apply-sandium-wallet-java-compile-contract.py" --core "$CORE_DIR" --src "$SRC_DIR"\n
+
   pnpm run build Release --target_os=android --target_arch=arm64 --target_android_output_format=apk --use_remoteexec=true --gn use_siso:true --gn use_reclient:false "${ORIGIN_GN_ARGS[@]}" --gn is_java_debug:false --gn enable_android_secondary_abi:false --gn is_official_build:false --gn enable_updater:false --gn enable_update_notifications:false --gn android_channel:default --gn chrome_public_manifest_package:com.brave.browser_default --gn brave_channel:development --target brave --ninja=n
   bash "$ROOT/.circleci/scripts/verify-clang-diagnostics-gn.sh"
 fi
