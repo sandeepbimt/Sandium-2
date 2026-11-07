@@ -72,7 +72,7 @@ jobs:
             .circleci/scripts/test-brave-wallet-enum-patch.py \
             .circleci/scripts/test-chromium-feature-list-patch.py \
             .circleci/scripts/test-brave-reference-stage-gate.py \
-            .circleci/scripts/test-ai-chat-android-gate.py
+            .circleci/scripts/test-ai-chat-android-gate.py \
             .circleci/scripts/sandium-self-heal.py \
             .circleci/scripts/repair-ai-chat-android.py \
             .circleci/scripts/test-sandium-self-heal.py
