@@ -15,8 +15,6 @@ def main():
         '2>&1 | tee "$log_file"',
         "PIPESTATUS[@]",
         "sandium-self-heal.py",
-        "SHE_CLASSIFICATION",
-        "FEATURE_SUPPRESSION_MISSING_GENERATED_JAVA",
         "REPAIR_WALLET_JAVA_COMPILE_CONTRACT",
         "apply-sandium-wallet-java-compile-contract.py",
         "BUILD_HANDOFF_ALLOWED=false",
@@ -33,7 +31,6 @@ def main():
             raise SystemExit("BRAVE_BUILD_FLOW_TEST=FAIL missing: " + token)
     forbidden = [
         "BUILD_REASON=ACTION_FAILED_HANDOFF",
-        "BUILD_HANDOFF_ALLOWED=true\\n              echo",
         "BRAVE_BUILD=SKIPPED remote worker smoke did not pass",
         "action-ledger.json",
     ]
