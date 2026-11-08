@@ -36,7 +36,7 @@ def replace_once_or_done(source: str, old: str, new: str, label: str) -> str:
     raise RuntimeError(f"{label}: expected one old anchor or an already-applied replacement; old_count={count}")
 
 def normalized_lines(value: str) -> str:
-    return "\\n".join(line.strip() for line in value.splitlines())
+    return "\n".join(line.strip() for line in value.splitlines())
 
 def insert_marked_before(source: str, anchor: str, begin: str, end: str, block: str, label: str) -> str:
     begin_count, end_count = source.count(begin), source.count(end)
@@ -418,22 +418,22 @@ def transform_transition_cc(source: str) -> str:
     )
     source = replace_once_or_done(source, fade_old, fade_new, "Fade Darken layer with blur")
     fallback_complete_old = (
-        "      SetAnimationState(AnimationState::kFallbackShown);\\n"
-        "      window_observation_.Reset();\\n"
-        "      // Drop the old page's surface now that it's completely covered.\\n"
+        "      SetAnimationState(AnimationState::kFallbackShown);\n"
+        "      window_observation_.Reset();\n"
+        "      // Drop the old page's surface now that it's completely covered.\n"
     )
     fallback_complete_new = (
-        "      SetAnimationState(AnimationState::kFallbackShown);\\n"
-        "      window_observation_.Reset();\\n"
-        "      // The fallback is fully opaque; remove the tint before revealing the new page.\\n"
-        "      if (darken_layer_) {\\n"
-        "        darken_layer_->SetOpacity(0.0f);\\n"
-        "        if (darken_layer_->parent()) {\\n"
-        "          darken_layer_->RemoveFromParent();\\n"
-        "        }\\n"
-        "        darken_layer_.reset();\\n"
-        "      }\\n"
-        "      // Drop the old page's surface now that it's completely covered.\\n"
+        "      SetAnimationState(AnimationState::kFallbackShown);\n"
+        "      window_observation_.Reset();\n"
+        "      // The fallback is fully opaque; remove the tint before revealing the new page.\n"
+        "      if (darken_layer_) {\n"
+        "        darken_layer_->SetOpacity(0.0f);\n"
+        "        if (darken_layer_->parent()) {\n"
+        "          darken_layer_->RemoveFromParent();\n"
+        "        }\n"
+        "        darken_layer_.reset();\n"
+        "      }\n"
+        "      // Drop the old page's surface now that it's completely covered.\n"
     )
     source = replace_once_or_done(source, fallback_complete_old, fallback_complete_new, "Remove Darken before revealing destination page")
     show_old = (
