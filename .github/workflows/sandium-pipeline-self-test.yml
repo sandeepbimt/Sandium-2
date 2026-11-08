@@ -12,6 +12,11 @@ on:
       - ".circleci/scripts/verify-brave-remote-metrics.py"
       - ".circleci/scripts/test-brave-remote-metrics.py"
       - ".circleci/scripts/test-brave-build-flow.py"
+      - ".circleci/scripts/apply-sandium-blur-transition.py"
+      - ".circleci/scripts/test-sandium-blur-transition.py"
+      - ".circleci/scripts/apply-sandium-page-transition-full.py"
+      - ".circleci/scripts/test-sandium-page-transition-full.py"
+      - ".circleci/scripts/prepare-brave-source.sh"
       - ".github/workflows/sandium-pipeline-self-test.yml"
   pull_request:
     paths:
@@ -60,6 +65,10 @@ jobs:
             .circleci/scripts/verify-brave-remote-metrics.py \
             .circleci/scripts/test-brave-remote-metrics.py \
             .circleci/scripts/test-brave-build-flow.py \
+            .circleci/scripts/apply-sandium-blur-transition.py \
+            .circleci/scripts/test-sandium-blur-transition.py \
+            .circleci/scripts/apply-sandium-page-transition-full.py \
+            .circleci/scripts/test-sandium-page-transition-full.py \
             .circleci/scripts/apply-sandium-full-overlays.py \
             .circleci/scripts/test-sandium-feature-policies.py
           bash -n .circleci/scripts/archive-brave-workspace.sh
@@ -77,3 +86,5 @@ jobs:
         run: python3 .circleci/scripts/test-brave-build-flow.py
       - name: Test Sandium disabled Brave feature policies
         run: python3 .circleci/scripts/test-sandium-feature-policies.py
+      - name: Test Sandium transition-only Full Mode overlay
+        run: python3 .circleci/scripts/test-sandium-page-transition-full.py
