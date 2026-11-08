@@ -26,11 +26,13 @@ FEATURES_CC = Path("content/public/common/content_features.cc")
 FEATURES_H = Path("content/public/common/content_features.h")
 
 def replace_once_or_done(source: str, old: str, new: str, label: str) -> str:
+    # Check the complete replacement first because many insertions deliberately
+    # retain the original anchor text as part of the new block.
+    if new in source:
+        return source
     count = source.count(old)
     if count == 1:
         return source.replace(old, new, 1)
-    if count == 0 and new in source:
-        return source
     raise RuntimeError(f"{label}: expected one old anchor or an already-applied replacement; old_count={count}")
 
 def insert_marked_before(source: str, anchor: str, begin: str, end: str, block: str, label: str) -> str:
