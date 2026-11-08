@@ -60,16 +60,30 @@ void setup() {
   fallback_color_layer_->SetOpacity(0.0f);
 
   SetAnimationState(AnimationState::kNone);
-  if (fallback_color_layer_) {
-    fallback_color_layer_->SetOpacity(initial_fallback_opacity_ *
-                                      adjusted_opacity_multiplier);
-  }
-  if (blur_layer_) {
-    blur_layer_->SetOpacity(initial_blur_opacity_);
-  }
-  if (fallback_color_layer_) {
-    fallback_color_layer_->SetOpacity(initial_fallback_opacity_ +
-                                      (1.0f - initial_fallback_opacity_) * alpha);
+  switch (animation_state_) {
+    case AnimationState::kFadeOut: {
+      if (blur_layer_) {
+        blur_layer_->SetOpacity(initial_blur_opacity_ *
+                                adjusted_opacity_multiplier);
+      }
+      if (fallback_color_layer_) {
+        fallback_color_layer_->SetOpacity(initial_fallback_opacity_ *
+                                          adjusted_opacity_multiplier);
+      }
+      break;
+    }
+    case AnimationState::kFadeToFallbackColor: {
+      if (blur_layer_) {
+        blur_layer_->SetOpacity(initial_blur_opacity_);
+      }
+      if (fallback_color_layer_) {
+        fallback_color_layer_->SetOpacity(initial_fallback_opacity_ +
+                                          (1.0f - initial_fallback_opacity_) * alpha);
+      }
+      break;
+    }
+    default:
+      break;
   }
   if (progress >= 1.0f) {
     if (animation_state_ == AnimationState::kFadeOut) {
