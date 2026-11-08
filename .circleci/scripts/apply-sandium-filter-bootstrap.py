@@ -320,7 +320,8 @@ uint32_t CountFilterSourceRules(const std::string& contents) {
     replace_once(
         service_cc,
         """void FilterListService::DeleteSubscription(const GURL& sub_url) {
-  ad_block_service_->subscription_service_manager()->DeleteSubscription(sub_url);
+  ad_block_service_->subscription_service_manager()->DeleteSubscription(
+      sub_url);
 }
 
 void FilterListService::GetCustomFilters""",

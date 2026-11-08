@@ -16,6 +16,7 @@ for marker in (
     "CountFilterSourceRules",
     "info->size_bytes",
     "info->rule_count",
+    "ad_block_service_->subscription_service_manager()->DeleteSubscription(\n      sub_url);",
     "mFilterListAndroidHandler.refreshAllSubscriptions(",
     "customFilter.ruleCount",
     "customFilter.sizeBytes",
