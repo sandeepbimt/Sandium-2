@@ -2528,7 +2528,7 @@ jobs:
             while IFS= read -r -d '' candidate; do
               BUILD_ID="$(readelf -n "$candidate" 2>/dev/null | awk '/Build ID:/ {print $3; exit}')"
               if [ "$BUILD_ID" = "$EXPECTED" ]; then
-                if readelf -S "$candidate" 2>/dev/null | grep -q '\\.symtab'; then
+                if readelf -S "$candidate" 2>/dev/null | grep -Fq '.symtab'; then
                   MATCH="$candidate"
                   case "$candidate" in
                     */lib.unstripped/*) break ;;
