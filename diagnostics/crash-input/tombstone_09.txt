@@ -1,0 +1,34 @@
+# Representative frames copied from tombstone_09 in the supplied bug-report analysis.
+# Add tombstone_03.txt through tombstone_10.txt here when the full raw tombstone text is available.
+#00 pc 00000000000aaf40 libc.so (abort+160)
+#01 pc 000000000d61d2f8 libchrome.so
+#02 pc 000000000d61ce38 libchrome.so
+#03 pc 000000000d61c5bc libchrome.so
+#04 pc 000000000d5fbd94 libchrome.so
+#05 pc 000000000d5fbe0c libchrome.so
+#06 pc 000000000d5fb580 libchrome.so
+#07 pc 000000000d754eb4 libchrome.so
+#08 pc 000000000d747024 libchrome.so
+#09 pc 000000000d7df754 libchrome.so
+#10 pc 000000000d7c7c60 libchrome.so
+#11 pc 000000001250f8d8 libchrome.so
+#12 pc 0000000010300d3c libchrome.so
+#13 pc 000000000dc9bcc0 libchrome.so
+#14 pc 000000000dca4a94 libchrome.so
+#15 pc 000000000dc9e044 libchrome.so
+#16 pc 000000000dca9b6c libchrome.so
+#17 pc 000000000dca9080 libchrome.so
+#18 pc 000000000dca4af4 libchrome.so
+#19 pc 000000000dc952dc libchrome.so
+#20 pc 000000000dc95af0 libchrome.so
+#21 pc 000000000dc958ac libchrome.so
+#22 pc 000000000707a25c libchrome.so
+#23 pc 000000000d005d50 libchrome.so
+#24 pc 000000000dcd7874 libchrome.so
+#25 pc 00000000055e10cc libchrome.so
+#26 pc 000000000d6c70c8 libchrome.so
+#27 pc 000000000d6fd728 libchrome.so
+#28 pc 000000000d6fcef0 libchrome.so
+#29 pc 000000000d7a5454 libchrome.so
+#30 pc 000000000d7a52e8 libchrome.so
+#31 pc 000000000d7a49bc libchrome.so
