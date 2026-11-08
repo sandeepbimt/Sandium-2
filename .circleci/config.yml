@@ -1556,6 +1556,8 @@ jobs:
             python3 -m py_compile .circleci/scripts/apply-sandium-blur-transition.py .circleci/scripts/test-sandium-blur-transition.py
             python3 .circleci/scripts/test-sandium-blur-transition.py
             python3 -m py_compile .circleci/scripts/verify-brave-remote-metrics.py
+            python3 -m py_compile .circleci/scripts/apply-sandium-page-transition-full.py .circleci/scripts/test-sandium-page-transition-full.py
+            python3 .circleci/scripts/test-sandium-page-transition-full.py
             python3 .circleci/scripts/test-brave-remote-metrics.py
             bash -n .circleci/scripts/archive-brave-workspace.sh
             bash -n .circleci/scripts/verify-brave-reference.sh
@@ -1596,6 +1598,7 @@ jobs:
               - or:
                   - equal: [full, << pipeline.parameters.sandium_build_mode >>]
                   - equal: [feature/sandium-disable-13-brave-features, << pipeline.git.branch >>]
+                  - equal: [feature/sandium-page-transition-full, << pipeline.git.branch >>]
           steps:
             - restore_cache:
                 name: Restore canonical 26 GiB checkpoint before branch-local fallbacks
@@ -1617,6 +1620,8 @@ jobs:
               - equal: [fast, << pipeline.parameters.sandium_build_mode >>]
               - not:
                   equal: [feature/sandium-disable-13-brave-features, << pipeline.git.branch >>]
+              - not:
+                  equal: [feature/sandium-page-transition-full, << pipeline.git.branch >>]
           steps:
             - restore_cache:
                 name: Restore canonical 26 GiB reference (3c8004b / cache job 949)
@@ -1634,6 +1639,7 @@ jobs:
               - or:
                   - equal: [full, << pipeline.parameters.sandium_build_mode >>]
                   - equal: [feature/sandium-disable-13-brave-features, << pipeline.git.branch >>]
+                  - equal: [feature/sandium-page-transition-full, << pipeline.git.branch >>]
           steps:
             - restore_cache:
                 name: Restore reference Stage 1 handoff
@@ -1647,6 +1653,7 @@ jobs:
               - or:
                   - equal: [full, << pipeline.parameters.sandium_build_mode >>]
                   - equal: [feature/sandium-disable-13-brave-features, << pipeline.git.branch >>]
+                  - equal: [feature/sandium-page-transition-full, << pipeline.git.branch >>]
           steps:
             - restore_cache:
                 name: Restore reference Stage 2 handoff
@@ -1660,6 +1667,7 @@ jobs:
               - or:
                   - equal: [full, << pipeline.parameters.sandium_build_mode >>]
                   - equal: [feature/sandium-disable-13-brave-features, << pipeline.git.branch >>]
+                  - equal: [feature/sandium-page-transition-full, << pipeline.git.branch >>]
           steps:
             - restore_cache:
                 name: Restore reference Stage 3 handoff
@@ -1673,6 +1681,7 @@ jobs:
               - or:
                   - equal: [full, << pipeline.parameters.sandium_build_mode >>]
                   - equal: [feature/sandium-disable-13-brave-features, << pipeline.git.branch >>]
+                  - equal: [feature/sandium-page-transition-full, << pipeline.git.branch >>]
           steps:
             - restore_cache:
                 name: Restore reference Stage 4 handoff
@@ -1686,6 +1695,8 @@ jobs:
               - equal: [fast, << pipeline.parameters.sandium_build_mode >>]
               - not:
                   equal: [feature/sandium-disable-13-brave-features, << pipeline.git.branch >>]
+              - not:
+                  equal: [feature/sandium-page-transition-full, << pipeline.git.branch >>]
           steps:
             - restore_cache:
                 name: Restore canonical 26 GiB reference for FAST MODE Stage 2
@@ -1703,6 +1714,8 @@ jobs:
               - equal: [fast, << pipeline.parameters.sandium_build_mode >>]
               - not:
                   equal: [feature/sandium-disable-13-brave-features, << pipeline.git.branch >>]
+              - not:
+                  equal: [feature/sandium-page-transition-full, << pipeline.git.branch >>]
           steps:
             - restore_cache:
                 name: Restore canonical 26 GiB reference for FAST MODE Stage 3
@@ -1720,6 +1733,8 @@ jobs:
               - equal: [fast, << pipeline.parameters.sandium_build_mode >>]
               - not:
                   equal: [feature/sandium-disable-13-brave-features, << pipeline.git.branch >>]
+              - not:
+                  equal: [feature/sandium-page-transition-full, << pipeline.git.branch >>]
           steps:
             - restore_cache:
                 name: Restore canonical 26 GiB reference for FAST MODE Stage 4
@@ -1737,6 +1752,8 @@ jobs:
               - equal: [fast, << pipeline.parameters.sandium_build_mode >>]
               - not:
                   equal: [feature/sandium-disable-13-brave-features, << pipeline.git.branch >>]
+              - not:
+                  equal: [feature/sandium-page-transition-full, << pipeline.git.branch >>]
           steps:
             - restore_cache:
                 name: Restore canonical 26 GiB reference for FAST MODE Stage 5
@@ -1766,7 +1783,7 @@ jobs:
           name: Select Sandium build mode and validate reference
           command: |
             set -euo pipefail
-            if [ "${CIRCLE_BRANCH:-}" = "feature/sandium-disable-13-brave-features" ]; then
+            if [ "${CIRCLE_BRANCH:-}" = "feature/sandium-disable-13-brave-features" ] || [ "${CIRCLE_BRANCH:-}" = "feature/sandium-page-transition-full" ]; then
               MODE="full"
             else
               MODE="<< pipeline.parameters.sandium_build_mode >>"
@@ -1802,6 +1819,8 @@ jobs:
               - equal: [fast, << pipeline.parameters.sandium_build_mode >>]
               - not:
                   equal: [feature/sandium-disable-13-brave-features, << pipeline.git.branch >>]
+              - not:
+                  equal: [feature/sandium-page-transition-full, << pipeline.git.branch >>]
           steps:
             - run:
                 name: Apply pin-guarded Morphe Android startup overlays (FAST MODE only)
@@ -2023,7 +2042,7 @@ jobs:
             export SISO_LIMITS="local=8,remote=80"
             METRICS_PREFIX="sandium-brave-siso-stage-<< parameters.stage_index >>-build-${CIRCLE_BUILD_NUM:-local}-attempt-"
             METRICS_FILE="${METRICS_PREFIX}0.jsonl"
-            if [ "${CIRCLE_BRANCH:-}" = "feature/sandium-disable-13-brave-features" ]; then
+            if [ "${CIRCLE_BRANCH:-}" = "feature/sandium-disable-13-brave-features" ] || [ "${CIRCLE_BRANCH:-}" = "feature/sandium-page-transition-full" ]; then
               BUILD_MODE="full"
             else
               BUILD_MODE="<< pipeline.parameters.sandium_build_mode >>"
@@ -2235,6 +2254,7 @@ jobs:
             or:
               - equal: [full, << pipeline.parameters.sandium_build_mode >>]
               - equal: [feature/sandium-disable-13-brave-features, << pipeline.git.branch >>]
+              - equal: [feature/sandium-page-transition-full, << pipeline.git.branch >>]
           steps:
             - run:
                 name: Validate Brave checkpoint before saving
@@ -2343,7 +2363,7 @@ jobs:
             ROOT="$CIRCLE_WORKING_DIRECTORY"
             STAGE="<< parameters.stage_index >>"
             APK_STATUS="$ROOT/brave-work/.sandium/apk-completion-status.txt"
-            if [ "${CIRCLE_BRANCH:-}" = "feature/sandium-disable-13-brave-features" ]; then
+            if [ "${CIRCLE_BRANCH:-}" = "feature/sandium-disable-13-brave-features" ] || [ "${CIRCLE_BRANCH:-}" = "feature/sandium-page-transition-full" ]; then
               MODE="full"
             else
               MODE="<< pipeline.parameters.sandium_build_mode >>"
@@ -2500,6 +2520,7 @@ workflows:
       or:
         - equal: [full, << pipeline.parameters.sandium_build_mode >>]
         - equal: [feature/sandium-disable-13-brave-features, << pipeline.git.branch >>]
+        - equal: [feature/sandium-page-transition-full, << pipeline.git.branch >>]
     jobs:
       - brave-android-staged-build:
           name: SANDIUM-FULL-MODE-stage-1
@@ -2512,6 +2533,7 @@ workflows:
                 - sandium/fix-archive-completion-gate
                 - feature/sandium-morphe-reader-fast
                 - feature/sandium-disable-13-brave-features
+                - feature/sandium-page-transition-full
       - brave-android-staged-build:
           name: SANDIUM-FULL-MODE-stage-2
           stage_index: 2
@@ -2524,6 +2546,7 @@ workflows:
                 - sandium/fix-archive-completion-gate
                 - feature/sandium-morphe-reader-fast
                 - feature/sandium-disable-13-brave-features
+                - feature/sandium-page-transition-full
       - brave-android-staged-build:
           name: SANDIUM-FULL-MODE-stage-3
           stage_index: 3
@@ -2536,6 +2559,7 @@ workflows:
                 - sandium/fix-archive-completion-gate
                 - feature/sandium-morphe-reader-fast
                 - feature/sandium-disable-13-brave-features
+                - feature/sandium-page-transition-full
       - brave-android-staged-build:
           name: SANDIUM-FULL-MODE-stage-4
           stage_index: 4
@@ -2548,6 +2572,7 @@ workflows:
                 - sandium/fix-archive-completion-gate
                 - feature/sandium-morphe-reader-fast
                 - feature/sandium-disable-13-brave-features
+                - feature/sandium-page-transition-full
       - brave-android-staged-build:
           name: SANDIUM-FULL-MODE-stage-5
           stage_index: 5
@@ -2560,6 +2585,7 @@ workflows:
                 - sandium/fix-archive-completion-gate
                 - feature/sandium-morphe-reader-fast
                 - feature/sandium-disable-13-brave-features
+                - feature/sandium-page-transition-full
       - promote-brave-reference:
           name: SANDIUM-FULL-MODE-reference-promotion
           requires: [SANDIUM-FULL-MODE-stage-5]
@@ -2573,6 +2599,8 @@ workflows:
         - equal: [fast, << pipeline.parameters.sandium_build_mode >>]
         - not:
             equal: [feature/sandium-disable-13-brave-features, << pipeline.git.branch >>]
+        - not:
+            equal: [feature/sandium-page-transition-full, << pipeline.git.branch >>]
     jobs:
       - brave-android-staged-build:
           name: SANDIUM-FAST-MODE-stage-1
