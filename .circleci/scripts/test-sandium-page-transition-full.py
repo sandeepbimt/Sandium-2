@@ -58,6 +58,8 @@ void setup() {
     background_color = SkColor4f::FromColor(*theme_color);
   }
   fallback_color_layer_->SetOpacity(0.0f);
+
+  SetAnimationState(AnimationState::kNone);
   if (fallback_color_layer_) {
     fallback_color_layer_->SetOpacity(initial_fallback_opacity_ *
                                       adjusted_opacity_multiplier);
