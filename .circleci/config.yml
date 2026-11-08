@@ -2554,6 +2554,9 @@ jobs:
             } > "$ROOT/crash-symbols/symbol-info.txt"
             echo "CRASH_SYMBOL_EXPORT=PASS"
             cat "$ROOT/crash-symbols/symbol-info.txt"
+            mkdir -p "$ROOT/crash-input"
+            cp -a "$ROOT/diagnostics/crash-input/." "$ROOT/crash-input/"
+            python3 "$ROOT/diagnostics/crash-symbolicate.py" --root "$ROOT" --input-dir "$ROOT/crash-input"
       - store_artifacts:
           path: crash-symbols
           destination: crash-symbols
