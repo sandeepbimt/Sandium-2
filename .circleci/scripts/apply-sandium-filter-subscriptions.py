@@ -190,6 +190,7 @@ def apply_android_sources(core: Path) -> None:
 
     replace_once(
         fragment,
+        "        // SANDIUM_NATIVE_STARTUP_SEEDING_ONLY: native profile startup creates defaults.\n"
         "        getSubscriptionFilters();\n        getFilterLists();\n",
         "SANDIUM_NATIVE_STARTUP_SEEDING_ONLY",
         "native startup owns default subscription creation",
