@@ -2557,9 +2557,39 @@ jobs:
             mkdir -p "$ROOT/crash-input"
             cp -a "$ROOT/diagnostics/crash-input/." "$ROOT/crash-input/"
             python3 "$ROOT/diagnostics/crash-symbolicate.py" --root "$ROOT" --input-dir "$ROOT/crash-input"
+            SRC="$ROOT/brave-work/src/brave"
+            if [ ! -d "$SRC/.git" ]; then
+              echo "CRASH_SOURCE_EXPORT=FAIL Brave Core checkout not found at $SRC"
+              find "$ROOT/brave-work/src" -maxdepth 3 -type d -name brave -print
+              exit 1
+            fi
+            mkdir -p "$ROOT/crash-source"
+            {
+              echo "EXPECTED_BRAVE_CORE_REVISION=44a84b1f89d9a35287289d6a3d493e362f5a5123"
+              echo "ACTUAL_BRAVE_CORE_REVISION=$(git -C "$SRC" rev-parse HEAD)"
+              echo "WORKTREE_STATUS_BEGIN"
+              git -C "$SRC" status --short
+              echo "WORKTREE_STATUS_END"
+              echo "DIFF_STAT_BEGIN"
+              git -C "$SRC" diff --stat HEAD -- components/brave_shields
+              echo "DIFF_STAT_END"
+              echo "READ_FILE_CALLS_BEGIN"
+              grep -RInE 'ReadFileToString|ReadFile|OpenFile|GetFileSize' "$SRC/components/brave_shields/content/browser" "$SRC/components/brave_shields/core/browser" 2>/dev/null || true
+              echo "READ_FILE_CALLS_END"
+            } > "$ROOT/crash-source/source-audit.txt"
+            mkdir -p "$ROOT/crash-source/content-browser" "$ROOT/crash-source/core-browser"
+            cp -a "$SRC/components/brave_shields/content/browser/." "$ROOT/crash-source/content-browser/"
+            cp -a "$SRC/components/brave_shields/core/browser/." "$ROOT/crash-source/core-browser/"
+            git -C "$SRC" diff HEAD -- components/brave_shields > "$ROOT/crash-source/brave-shields-working-tree.diff"
+            find "$ROOT/crash-source" -type f -print0 | sort -z | xargs -0 sha256sum > "$ROOT/crash-source/SHA256SUMS"
+            echo "CRASH_SOURCE_EXPORT=PASS"
+            cat "$ROOT/crash-source/source-audit.txt"
       - store_artifacts:
           path: crash-symbols
           destination: crash-symbols
+      - store_artifacts:
+          path: crash-source
+          destination: crash-source
 
 workflows:
   c4-afterbird-staged-checkpoint-build:
