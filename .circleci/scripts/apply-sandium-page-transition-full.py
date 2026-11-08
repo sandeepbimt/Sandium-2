@@ -246,14 +246,20 @@ MAIN_ICON_BLOCK = (
 )
 
 def transform_main_preferences(source: str) -> str:
-    source = insert_marked_before(
-        source,
-        "    private void updatePreferenceIcons() {\n",
-        MAIN_ICON_BEGIN,
-        MAIN_ICON_END,
-        MAIN_ICON_BLOCK,
-        "Main Appearance entry icon",
-    )
+    begin_count, end_count = source.count(MAIN_ICON_BEGIN), source.count(MAIN_ICON_END)
+    if begin_count or end_count:
+        if begin_count != 1 or end_count != 1 or source.index(MAIN_ICON_BEGIN) > source.index(MAIN_ICON_END):
+            raise RuntimeError("Main Appearance entry icon: malformed markers")
+        marker_start = source.index(MAIN_ICON_BEGIN)
+        marker_end = source.index(MAIN_ICON_END) + len(MAIN_ICON_END)
+        if MAIN_ICON_BLOCK.strip() not in source[marker_start:marker_end]:
+            raise RuntimeError("Main Appearance entry icon: marked block differs from expected")
+    else:
+        anchor = "    private void updatePreferenceIcons() {\n"
+        if source.count(anchor) != 1:
+            raise RuntimeError("Main Appearance entry icon: updater method anchor missing or ambiguous")
+        # Insert inside the method body, immediately after its opening brace.
+        source = source.replace(anchor, anchor + MAIN_ICON_BLOCK, 1)
     if "updatePreferenceIcon(PREF_APPEARANCE, R.drawable.ic_appearance);" not in source:
         raise RuntimeError("Main Appearance entry icon was not installed")
     return source
