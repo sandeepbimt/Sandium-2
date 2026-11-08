@@ -418,12 +418,11 @@ def transform_transition_cc(source: str) -> str:
     )
     source = replace_once_or_done(source, fade_old, fade_new, "Fade Darken layer with blur")
     fallback_complete_old = (
-        "    } else if (animation_state_ == AnimationState::kFadeToFallbackColor) {\\n"
         "      SetAnimationState(AnimationState::kFallbackShown);\\n"
         "      window_observation_.Reset();\\n"
+        "      // Drop the old page's surface now that it's completely covered.\\n"
     )
     fallback_complete_new = (
-        "    } else if (animation_state_ == AnimationState::kFadeToFallbackColor) {\\n"
         "      SetAnimationState(AnimationState::kFallbackShown);\\n"
         "      window_observation_.Reset();\\n"
         "      // The fallback is fully opaque; remove the tint before revealing the new page.\\n"
@@ -434,6 +433,7 @@ def transform_transition_cc(source: str) -> str:
         "        }\\n"
         "        darken_layer_.reset();\\n"
         "      }\\n"
+        "      // Drop the old page's surface now that it's completely covered.\\n"
     )
     source = replace_once_or_done(source, fallback_complete_old, fallback_complete_new, "Remove Darken before revealing destination page")
     show_old = (
