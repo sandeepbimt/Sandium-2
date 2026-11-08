@@ -94,7 +94,7 @@ def apply(core: Path) -> None:
     const GURL& sub_url) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (local_state_) {
-    base::Value::List seeded_urls =
+    base::ListValue seeded_urls =
         local_state_->GetList(prefs::kSandiumDefaultFilterListsSeeded).Clone();
     bool already_seeded = false;
     for (const base::Value& seeded_url : seeded_urls) {
@@ -138,7 +138,7 @@ def apply(core: Path) -> None:
 
   const bool migrate_previous_defaults =
       !local_state_->GetBoolean(prefs::kSandiumDefaultFilterListsMigrated);
-  base::Value::List seeded_urls =
+  base::ListValue seeded_urls =
       local_state_->GetList(prefs::kSandiumDefaultFilterListsSeeded).Clone();
   bool seeded_urls_changed = false;
 
@@ -181,9 +181,8 @@ def apply(core: Path) -> None:
 
     const base::FilePath cached_list =
         GetSubscriptionPath(subscription_url).Append(kCustomSubscriptionListText);
-    int64_t cached_size = 0;
-    if (info->enabled &&
-        (!base::GetFileSize(cached_list, &cached_size) || cached_size <= 0)) {
+    const std::optional<int64_t> cached_size = base::GetFileSize(cached_list);
+    if (info->enabled && (!cached_size || *cached_size <= 0)) {
       StartDownload(subscription_url, true);
     }
   }

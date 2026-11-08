@@ -16,6 +16,9 @@ for marker in (
     "CountFilterSourceRules",
     "info->size_bytes",
     "info->rule_count",
+    "base::ListValue seeded_urls",
+    "base::GetFileSize(cached_list)",
+    "const std::optional<int64_t> cached_size",
     "ad_block_service_->subscription_service_manager()->DeleteSubscription(\n      sub_url);",
     "mFilterListAndroidHandler.refreshAllSubscriptions(",
     "customFilter.ruleCount",
@@ -25,3 +28,6 @@ for marker in (
 assert "DEFAULT_DISABLED_FILTER_URLS" not in PATCH
 assert "mFilterListAndroidHandler.updateFilterLists(" not in PATCH
 print("SANDIUM_FILTER_BOOTSTRAP_UNIT_TEST=PASS lists=30 enabled=true startup=true refresh=true metadata=true")
+
+assert "base::Value::List" not in PATCH
+assert "base::GetFileSize(cached_list, &cached_size)" not in PATCH
