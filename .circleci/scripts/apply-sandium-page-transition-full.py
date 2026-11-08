@@ -35,6 +35,9 @@ def replace_once_or_done(source: str, old: str, new: str, label: str) -> str:
         return source.replace(old, new, 1)
     raise RuntimeError(f"{label}: expected one old anchor or an already-applied replacement; old_count={count}")
 
+def normalized_lines(value: str) -> str:
+    return "\\n".join(line.strip() for line in value.splitlines())
+
 def insert_marked_before(source: str, anchor: str, begin: str, end: str, block: str, label: str) -> str:
     begin_count, end_count = source.count(begin), source.count(end)
     if begin_count or end_count:
@@ -42,7 +45,7 @@ def insert_marked_before(source: str, anchor: str, begin: str, end: str, block: 
             raise RuntimeError(f"{label}: partial, duplicate, or reversed markers")
         marker_start = source.index(begin)
         marker_end = source.index(end) + len(end)
-        if block.strip() not in source[marker_start:marker_end]:
+        if normalized_lines(block) not in normalized_lines(source[marker_start:marker_end]):
             raise RuntimeError(f"{label}: marked block contents differ from expected content")
         return source
     if source.count(anchor) != 1:
@@ -252,7 +255,7 @@ def transform_main_preferences(source: str) -> str:
             raise RuntimeError("Main Appearance entry icon: malformed markers")
         marker_start = source.index(MAIN_ICON_BEGIN)
         marker_end = source.index(MAIN_ICON_END) + len(MAIN_ICON_END)
-        if MAIN_ICON_BLOCK.strip() not in source[marker_start:marker_end]:
+        if normalized_lines(MAIN_ICON_BLOCK) not in normalized_lines(source[marker_start:marker_end]):
             raise RuntimeError("Main Appearance entry icon: marked block differs from expected")
     else:
         anchor = "    private void updatePreferenceIcons() {\n"
