@@ -247,7 +247,7 @@ def apply_android_sources(core: Path) -> None:
         });
     }
 
-""
+"""
     replace_once(
         fragment,
         "    private void getSubscriptionFilters() {\n",
