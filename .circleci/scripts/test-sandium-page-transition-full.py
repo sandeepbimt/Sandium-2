@@ -137,7 +137,12 @@ def main():
 
     xml = assert_idempotent(
         MODULE.transform_appearance_xml,
-        '<PreferenceScreen>\n    <!-- SANDIUM_PAGE_TRANSITION_BLUR_END -->\n</PreferenceScreen>\n',
+        '<PreferenceScreen>\n'
+        '    <ListPreference\n'
+        '        android:key="sandium_page_transition_blur_level"\n'
+        '        android:title="Page transition blur" />\n'
+        '    <!-- SANDIUM_PAGE_TRANSITION_BLUR_END -->\n'
+        '</PreferenceScreen>\n',
         "Appearance XML",
     )
     assert xml.count('android:key="sandium_page_transition_darken"') == 1
