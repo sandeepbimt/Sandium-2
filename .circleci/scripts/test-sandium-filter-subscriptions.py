@@ -2,6 +2,7 @@
 """Offline, idempotent tests for Sandium's native filter subscriptions."""
 from __future__ import annotations
 
+import ast
 import re
 import runpy
 import tempfile
@@ -152,6 +153,21 @@ public class ContentFilteringAdapter extends RecyclerView.Adapter<RecyclerView.V
 """
 
 def main() -> None:
+    # Catch patcher call/signature drift before applying any source changes.
+    for patcher_name in (
+        "apply-sandium-filter-subscriptions.py",
+        "apply-sandium-filter-bootstrap.py",
+    ):
+        patcher_path = Path(__file__).with_name(patcher_name)
+        patcher_ast = ast.parse(patcher_path.read_text(encoding="utf-8"))
+        for node in ast.walk(patcher_ast):
+            if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) \
+                    and node.func.id == "replace_once":
+                assert len(node.args) == 5 and not node.keywords, (
+                    f"{patcher_name}:{node.lineno}: replace_once expects exactly "
+                    f"5 positional arguments, got {len(node.args)}"
+                )
+
     assert len(FILTERS) == 30
     assert len({url for url, _ in FILTERS}) == 30
     with tempfile.TemporaryDirectory(prefix="sandium-filter-subscriptions-test-") as directory:

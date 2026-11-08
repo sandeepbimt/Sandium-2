@@ -317,6 +317,7 @@ def apply_android_sources(core: Path) -> None:
         "        if (mUpdateFilterListItem != null) mUpdateFilterListItem.setVisible(!isEditable);\n",
         "if (mUpdateFilterListItem != null) mUpdateFilterListItem.setVisible(!isEditable);",
         "fragment-keep-component-update-hidden",
+        "fragment-keep-component-update-hidden",
     )
 
     # Initialize both adapter collections before the first RecyclerView layout.
