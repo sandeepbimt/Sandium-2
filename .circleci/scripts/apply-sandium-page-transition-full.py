@@ -417,18 +417,22 @@ def transform_transition_cc(source: str) -> str:
     )
     source = replace_once_or_done(source, fade_old, fade_new, "Fade Darken layer with blur")
     fallback_complete_old = (
-        "    } else if (animation_state_ == AnimationState::kFadeToFallbackColor) {\n"
-        "      SetAnimationState(AnimationState::kFallbackShown);\n"
+        "    } else if (animation_state_ == AnimationState::kFadeToFallbackColor) {\\n"
+        "      SetAnimationState(AnimationState::kFallbackShown);\\n"
+        "      window_observation_.Reset();\\n"
     )
     fallback_complete_new = (
-        "    } else if (animation_state_ == AnimationState::kFadeToFallbackColor) {\n"
-        "      // The fallback is now fully opaque; remove the tint before the new page is revealed.\n"
-        "      if (darken_layer_) {\n"
-        "        darken_layer_->SetOpacity(0.0f);\n"
-        "        darken_layer_->RemoveFromParent();\n"
-        "        darken_layer_.reset();\n"
-        "      }\n"
-        "      SetAnimationState(AnimationState::kFallbackShown);\n"
+        "    } else if (animation_state_ == AnimationState::kFadeToFallbackColor) {\\n"
+        "      SetAnimationState(AnimationState::kFallbackShown);\\n"
+        "      window_observation_.Reset();\\n"
+        "      // The fallback is fully opaque; remove the tint before revealing the new page.\\n"
+        "      if (darken_layer_) {\\n"
+        "        darken_layer_->SetOpacity(0.0f);\\n"
+        "        if (darken_layer_->parent()) {\\n"
+        "          darken_layer_->RemoveFromParent();\\n"
+        "        }\\n"
+        "        darken_layer_.reset();\\n"
+        "      }\\n"
     )
     source = replace_once_or_done(source, fallback_complete_old, fallback_complete_new, "Remove Darken before revealing destination page")
     show_old = (
