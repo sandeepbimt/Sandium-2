@@ -2,8 +2,7 @@
 
 Sandium uses Brave's existing native custom-filter subscription engine for the
 selected lists below. Each source remains hosted by its maintainer and Sandium
-subscribes directly to its HTTPS URL. Filter-list bytes are not mirrored in the
-APK and are not downloaded from Brave's component catalogue.
+subscribes directly to its HTTPS URL. Filter-list bytes are downloaded from their maintainers through Brave's native subscription manager. The APK does not currently bundle a static offline snapshot.
 
 ## Selected list set
 
@@ -57,6 +56,8 @@ not included.
   automatically refreshes active subscriptions using each list's Expires
   metadata, or its seven-day default when the list has no expiry metadata. The
   manual refresh action schedules high-priority downloads without invoking the
+  unrelated Brave component-catalogue updater. The
+  manual refresh action schedules high-priority downloads without invoking the
   unrelated Brave component-catalogue updater.
 - The filter screen's Brave component-catalogue rows are not used for this list set. This means these subscriptions do not
   depend on Brave's private component updater, component catalogue, or
@@ -93,3 +94,10 @@ The filter sources remain owned and updated by their respective maintainers.
 ## First-launch timing boundary
 
 The ad-block service creates missing subscriptions during profile startup and requests high-priority downloads before normal browsing starts. The engine can enforce each list only after its source download succeeds and its cached file is loaded; slow, blocked or offline networks can delay that first successful load. The APK does not yet contain a bundled offline snapshot. A guaranteed offline/instant first-page baseline would require a separately maintained APK snapshot followed by background source updates.
+
+
+## Cache metadata and first-launch boundary
+
+Each row displays the last update status/time already recorded by Brave, the cached list file size in MiB, and the number of non-empty, non-comment source entries in the downloaded text file. This is a source-entry count, not a count of the engine's optimized internal matcher records.
+
+The ad-block service creates missing subscriptions during profile startup and requests high-priority downloads. The engine can enforce a list only after its source download succeeds and the cache file is loaded; slow, blocked or offline networks can delay the first successful load. A guaranteed offline/instant first-page baseline would require a bundled rules snapshot in the APK followed by background source updates.
