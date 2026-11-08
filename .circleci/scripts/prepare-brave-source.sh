@@ -399,35 +399,27 @@ PY
   export SISO_LIMITS=local=8,remote=80
   echo "BRAVE_STAGE1_VALIDATION_MODE=DRY_RUN_NO_COMPILATION"
   MODE="$(sed -n 's/^SANDIUM_BUILD_MODE=//p' "$ROOT/brave-work/.sandium/build-mode.txt" | head -n 1)"
-  TRANSITION_ONLY=false
-  if [ "${CIRCLE_BRANCH:-}" = "feature/sandium-page-transition-full" ]; then
-    TRANSITION_ONLY=true
-  fi
   ORIGIN_GN_ARGS=()
   if [ "$MODE" = "full" ]; then
-    if [ "$TRANSITION_ONLY" = true ]; then
-      echo "SANDIUM_TRANSITION_ONLY=PASS; skipping feature-disable, Morphe, and unrelated Full Mode overlays."
-    else
-      python3 "$ROOT/.circleci/scripts/apply-sandium-full-overlays.py" --core "$CORE_DIR" --src "$SRC_DIR"
-      python3 "$ROOT/.circleci/scripts/apply-sandium-fast-morphe.py" "$SRC_DIR"
-      ORIGIN_GN_ARGS+=(
-        --gn enable_brave_rewards:false
-        --gn enable_brave_news:false
-        --gn enable_brave_vpn_v1:false
-        --gn enable_brave_vpn_v2:false
-        --gn enable_brave_wallet:false
-        --gn enable_ai_chat:false
-        --gn enable_brave_talk:false
-        --gn enable_brave_wayback_machine:false
-        --gn enable_speedreader:false
-        --gn enable_tor:false
-        --gn enable_web_discovery_native:false
-        --gn enable_web_discovery:false
-      )
-      echo "SANDIUM_ORIGIN_FEATURES=DISABLED_FOR_FULL_MODE"
-      echo "SANDIUM_FEATURE_POLICY=13_FEATURES_DISABLED"
-      echo "SANDIUM_READER_TYPOGRAPHY=INTEGRATED_FOR_FULL_MODE"
-    fi
+    python3 "$ROOT/.circleci/scripts/apply-sandium-full-overlays.py" --core "$CORE_DIR" --src "$SRC_DIR"
+    python3 "$ROOT/.circleci/scripts/apply-sandium-fast-morphe.py" "$SRC_DIR"
+    ORIGIN_GN_ARGS+=(
+      --gn enable_brave_rewards:false
+      --gn enable_brave_news:false
+      --gn enable_brave_vpn_v1:false
+      --gn enable_brave_vpn_v2:false
+      --gn enable_brave_wallet:false
+      --gn enable_ai_chat:false
+      --gn enable_brave_talk:false
+      --gn enable_brave_wayback_machine:false
+      --gn enable_speedreader:false
+      --gn enable_tor:false
+      --gn enable_web_discovery_native:false
+      --gn enable_web_discovery:false
+    )
+    echo "SANDIUM_ORIGIN_FEATURES=DISABLED_FOR_FULL_MODE"
+    echo "SANDIUM_FEATURE_POLICY=13_FEATURES_DISABLED"
+    echo "SANDIUM_READER_TYPOGRAPHY=INTEGRATED_FOR_FULL_MODE"
   elif [ "$MODE" = "fast" ]; then
     echo "SANDIUM_FULL_OVERLAYS=SKIPPED mode=fast"
   else
@@ -508,12 +500,11 @@ ACTUAL_CHROMIUM_TAG="$(python3 -c 'import json,sys; print(json.load(open(sys.arg
   exit 1
 }
 
-echo "SANDIUM_SOURCE_PIN_GATE=PASS brave=$ACTUAL_BRAVE_TAG brave_sha=$ACTUAL_BRAVE_SHA chromium=$ACTUAL_CHROMIUM_TAG chromium_sha=$ACTUAL_CHROMIUM_SHA"
+echo "SANDIUM_ADBLOCK_PIN_GATE=PASS brave=$ACTUAL_BRAVE_TAG brave_sha=$ACTUAL_BRAVE_SHA chromium=$ACTUAL_CHROMIUM_TAG chromium_sha=$ACTUAL_CHROMIUM_SHA"
+python3 "$ROOT/.circleci/scripts/apply-sandium-filter-subscriptions.py" --core "$CORE_DIR"
 if [ "${CIRCLE_BRANCH:-}" = "feature/sandium-page-transition-full" ]; then
-  # Reapply deterministically after each stage restore so stage handoffs always
-  # contain both the Java settings and Chromium compositor implementation.
+  # Apply the requested transition-only patch on top of the existing pinned baseline.
+  # The existing feature-policy, Morphe, and ad-block overlays above remain unchanged.
   python3 "$ROOT/.circleci/scripts/apply-sandium-page-transition-full.py" "$SRC_DIR"
-  echo "SANDIUM_ADBLOCK_OVERLAY=SKIPPED; transition-only build leaves all filter sources untouched."
-else
-  python3 "$ROOT/.circleci/scripts/apply-sandium-filter-subscriptions.py" --core "$CORE_DIR"
+  echo "SANDIUM_PAGE_TRANSITION_OVERLAY=APPLIED; existing ad-block and filter data path preserved."
 fi
