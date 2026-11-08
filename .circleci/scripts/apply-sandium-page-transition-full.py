@@ -396,7 +396,8 @@ def transform_transition_cc(source: str) -> str:
     )
     source = insert_marked_before(
         source,
-        "  fallback_color_layer_->SetOpacity(0.0f);\n",
+        "  fallback_color_layer_->SetOpacity(0.0f);\n\n"
+        "  SetAnimationState(AnimationState::kNone);\n",
         "  // SANDIUM_DARKEN_LAYER_CREATE_BEGIN",
         "  // SANDIUM_DARKEN_LAYER_CREATE_END",
         "  // SANDIUM_DARKEN_LAYER_CREATE_BEGIN\n" + dark_layer_block + "  // SANDIUM_DARKEN_LAYER_CREATE_END\n",
