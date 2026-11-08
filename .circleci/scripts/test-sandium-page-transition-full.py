@@ -91,6 +91,11 @@ void setup() {
     } else if (animation_state_ == AnimationState::kFadeToFallbackColor) {
       SetAnimationState(AnimationState::kFallbackShown);
       window_observation_.Reset();
+      // Drop the old page's surface now that it's completely covered.
+      if (blur_layer_) {
+        blur_layer_->RemoveFromParent();
+        blur_layer_.reset();
+      }
     }
   }
   if (auto* layer_tree = native_view->GetLayer()) {
