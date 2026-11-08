@@ -66,8 +66,9 @@ def apply(core: Path) -> None:
         manager_h,
         "  void StartDownload(const GURL& sub_url, bool from_ui);\n",
         "  void StartDownload(const GURL& sub_url, bool from_ui);\n"
-        "  void EnsureSandiumDefaultSubscriptions();\n",
-        "void EnsureSandiumDefaultSubscriptions();",
+        "  void EnsureSandiumDefaultSubscriptions();\n"
+        "  void OnCheckedSandiumDefaultSubscriptionCaches(std::vector<GURL> missing_urls);\n",
+        "void OnCheckedSandiumDefaultSubscriptionCaches(",
         "manager-startup-seed-declaration",
     )
 
@@ -141,6 +142,7 @@ def apply(core: Path) -> None:
   base::ListValue seeded_urls =
       local_state_->GetList(prefs::kSandiumDefaultFilterListsSeeded).Clone();
   bool seeded_urls_changed = false;
+  std::vector<std::pair<GURL, base::FilePath>> cache_checks;
 
   for (const char* url : kSandiumDefaultFilterUrls) {
     const GURL subscription_url(url);
@@ -174,16 +176,16 @@ def apply(core: Path) -> None:
            kSandiumPreviouslyDisabledFilterUrls) {
         if (subscription_url.spec() == previously_disabled && !info->enabled) {
           EnableSubscription(subscription_url, true);
+          info->enabled = true;
           break;
         }
       }
     }
 
-    const base::FilePath cached_list =
-        GetSubscriptionPath(subscription_url).Append(kCustomSubscriptionListText);
-    const std::optional<int64_t> cached_size = base::GetFileSize(cached_list);
-    if (info->enabled && (!cached_size || *cached_size <= 0)) {
-      StartDownload(subscription_url, true);
+    if (info->enabled) {
+      cache_checks.emplace_back(
+          subscription_url,
+          GetSubscriptionPath(subscription_url).Append(kCustomSubscriptionListText));
     }
   }
 
@@ -193,6 +195,38 @@ def apply(core: Path) -> None:
   }
   if (migrate_previous_defaults) {
     local_state_->SetBoolean(prefs::kSandiumDefaultFilterListsMigrated, true);
+  }
+
+  // File metadata checks can block on filesystem access. Run them away from
+  // the browser sequence, then re-check subscription state before downloading.
+  if (!cache_checks.empty()) {
+    base::ThreadPool::PostTaskAndReplyWithResult(
+        FROM_HERE, {base::MayBlock(), base::TaskPriority::USER_VISIBLE},
+        base::BindOnce([](std::vector<std::pair<GURL, base::FilePath>> checks) {
+          std::vector<GURL> missing_urls;
+          for (const auto& [url, path] : checks) {
+            const std::optional<int64_t> size = base::GetFileSize(path);
+            if (!size || *size <= 0) {
+              missing_urls.push_back(url);
+            }
+          }
+          return missing_urls;
+        }, std::move(cache_checks)),
+        base::BindOnce(
+            &AdBlockSubscriptionServiceManager::OnCheckedSandiumDefaultSubscriptionCaches,
+            weak_ptr_factory_.GetWeakPtr()));
+  }
+}
+
+void AdBlockSubscriptionServiceManager::OnCheckedSandiumDefaultSubscriptionCaches(
+    std::vector<GURL> missing_urls) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  for (const auto& url : missing_urls) {
+    const auto info = GetInfo(url);
+    // The user may have deleted or disabled a list while the disk check ran.
+    if (info && info->enabled) {
+      StartDownload(url, true);
+    }
   }
 }
 
@@ -262,6 +296,10 @@ def apply(core: Path) -> None:
         "#include <string>\n"
         "#include <utility>\n"
         "\n#include \"base/files/file_util.h\"\n"
+        "#include \"base/functional/bind.h\"\n"
+        "#include \"base/location.h\"\n"
+        "#include \"base/task/task_traits.h\"\n"
+        "#include \"base/task/thread_pool.h\"\n"
         "#include \"net/base/filename_util.h\"\n",
         "#include <sstream>",
         "filter-service-metadata-includes",
@@ -300,21 +338,60 @@ uint32_t CountFilterSourceRules(const std::string& contents) {
     )
     replace_once(
         service_cc,
+        "  std::vector<mojom::SubscriptionInfoPtr> items;\n",
+        "  std::vector<mojom::SubscriptionInfoPtr> items;\n"
+        "  std::vector<base::FilePath> cache_paths;\n",
+        "std::vector<base::FilePath> cache_paths;",
+        "filter-service-cache-path-vector",
+    )
+    replace_once(
+        service_cc,
         "    info->expires = subscription.expires;\n    items.push_back(std::move(info));",
         """    info->expires = subscription.expires;
     base::FilePath cached_list_path;
-    std::string cached_list_contents;
-    if (net::FileURLToFilePath(
+    if (!net::FileURLToFilePath(
             ad_block_service_->subscription_service_manager()->GetListTextFileUrl(
                 subscription.subscription_url),
-            &cached_list_path) &&
-        base::ReadFileToString(cached_list_path, &cached_list_contents)) {
-      info->size_bytes = static_cast<uint64_t>(cached_list_contents.size());
-      info->rule_count = CountFilterSourceRules(cached_list_contents);
+            &cached_list_path)) {
+      cached_list_path.clear();
     }
+    cache_paths.push_back(std::move(cached_list_path));
     items.push_back(std::move(info));""",
         "info->rule_count = CountFilterSourceRules",
         "filter-service-expose-cache-metadata",
+    )
+    replace_once(
+        service_cc,
+        "  std::move(callback).Run(std::move(items));\n",
+        """  base::ThreadPool::PostTaskAndReplyWithResult(
+      FROM_HERE, {base::MayBlock(), base::TaskPriority::USER_VISIBLE},
+      base::BindOnce([](std::vector<base::FilePath> paths) {
+        std::vector<std::pair<uint64_t, uint32_t>> metadata;
+        metadata.reserve(paths.size());
+        for (const auto& path : paths) {
+          std::string contents;
+          if (path.empty() || !base::ReadFileToString(path, &contents)) {
+            metadata.emplace_back(0, 0);
+            continue;
+          }
+          metadata.emplace_back(static_cast<uint64_t>(contents.size()),
+                               CountFilterSourceRules(contents));
+        }
+        return metadata;
+      }, std::move(cache_paths)),
+      base::BindOnce(
+          [](GetSubscriptionsCallback callback,
+             std::vector<mojom::SubscriptionInfoPtr> items,
+             std::vector<std::pair<uint64_t, uint32_t>> metadata) {
+            for (size_t i = 0; i < items.size() && i < metadata.size(); ++i) {
+              items[i]->size_bytes = metadata[i].first;
+              items[i]->rule_count = metadata[i].second;
+            }
+            std::move(callback).Run(std::move(items));
+          }, std::move(callback), std::move(items)));
+""",
+        "base::ThreadPool::PostTaskAndReplyWithResult",
+        "filter-service-async-cache-metadata-reply",
     )
     replace_once(
         service_cc,
@@ -425,8 +502,19 @@ def verify(core: Path) -> None:
         raise SystemExit("SANDIUM_FILTER_BOOTSTRAP_VERIFY=FAIL expected 30 unique subscriptions")
     if "updateFilterLists(" in fragment or "SANDIUM_FILTER_REFRESH_PLACEHOLDER" in fragment:
         raise SystemExit("SANDIUM_FILTER_BOOTSTRAP_VERIFY=FAIL wrong or incomplete refresh action")
+    if "base::ReadFileToString(cached_list_path" in service:
+        raise SystemExit("SANDIUM_FILTER_BOOTSTRAP_VERIFY=FAIL synchronous subscription file read remains")
+    if "base::GetFileSize(cached_list)" in manager:
+        raise SystemExit("SANDIUM_FILTER_BOOTSTRAP_VERIFY=FAIL synchronous startup cache-size check remains")
+    if "base::ThreadPool::PostTaskAndReplyWithResult" not in service or "base::MayBlock()" not in service:
+        raise SystemExit("SANDIUM_FILTER_BOOTSTRAP_VERIFY=FAIL filter metadata read is not backgrounded")
+    if "base::ThreadPool::PostTaskAndReplyWithResult" not in manager or "base::MayBlock()" not in manager:
+        raise SystemExit("SANDIUM_FILTER_BOOTSTRAP_VERIFY=FAIL startup cache probe is not backgrounded")
+    if "OnCheckedSandiumDefaultSubscriptionCaches" not in manager:
+        raise SystemExit("SANDIUM_FILTER_BOOTSTRAP_VERIFY=FAIL async startup completion handler missing")
     print("SANDIUM_FILTER_BOOTSTRAP_VERIFY=PASS startup_seed=true refresh=native_subscriptions "
-          "lists=30 default_enabled=true cache_metadata=source_entries+bytes")
+          "lists=30 default_enabled=true cache_metadata=source_entries+bytes "
+          "async_filter_io=true async_startup_cache_probe=true")
 
 
 def main() -> None:
