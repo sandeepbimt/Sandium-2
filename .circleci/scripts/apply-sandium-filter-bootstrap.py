@@ -486,7 +486,7 @@ def verify(core: Path) -> None:
     required = (
         "EnsureSandiumDefaultSubscriptions();",
         "CreateSubscription(subscription_url);",
-        "StartDownload(subscription_url, true);",
+        "StartDownload(url, true);",
         "RefreshAllSubscriptions",
         "CountFilterSourceRules",
         "items[i]->size_bytes",

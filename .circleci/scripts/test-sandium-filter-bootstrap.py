@@ -11,7 +11,7 @@ assert len(FILTERS) == 30 and len({url for url, _ in FILTERS}) == 30
 for marker in (
     "EnsureSandiumDefaultSubscriptions();",
     "CreateSubscription(subscription_url);",
-    "StartDownload(subscription_url, true);",
+    "StartDownload(url, true);",
     "RefreshAllSubscriptions",
     "CountFilterSourceRules",
     "items[i]->size_bytes",
