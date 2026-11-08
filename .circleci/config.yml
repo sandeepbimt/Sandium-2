@@ -1624,9 +1624,9 @@ jobs:
               - not:
                   equal: [feature/sandium-disable-13-brave-features, << pipeline.git.branch >>]
               - not:
-                  and:
-                    - equal: [feature/sandium-page-transition-full, << pipeline.git.branch >>]
-                    - equal: [feature/sandium-filter-bootstrap-full, << pipeline.git.branch >>]
+                  equal: [feature/sandium-page-transition-full, << pipeline.git.branch >>]
+              - not:
+                  equal: [feature/sandium-filter-bootstrap-full, << pipeline.git.branch >>]
           steps:
             - restore_cache:
                 name: Restore canonical 26 GiB reference (3c8004b / cache job 949)
@@ -1705,9 +1705,9 @@ jobs:
               - not:
                   equal: [feature/sandium-disable-13-brave-features, << pipeline.git.branch >>]
               - not:
-                  and:
-                    - equal: [feature/sandium-page-transition-full, << pipeline.git.branch >>]
-                    - equal: [feature/sandium-filter-bootstrap-full, << pipeline.git.branch >>]
+                  equal: [feature/sandium-page-transition-full, << pipeline.git.branch >>]
+              - not:
+                  equal: [feature/sandium-filter-bootstrap-full, << pipeline.git.branch >>]
           steps:
             - restore_cache:
                 name: Restore canonical 26 GiB reference for FAST MODE Stage 2
@@ -1726,9 +1726,9 @@ jobs:
               - not:
                   equal: [feature/sandium-disable-13-brave-features, << pipeline.git.branch >>]
               - not:
-                  and:
-                    - equal: [feature/sandium-page-transition-full, << pipeline.git.branch >>]
-                    - equal: [feature/sandium-filter-bootstrap-full, << pipeline.git.branch >>]
+                  equal: [feature/sandium-page-transition-full, << pipeline.git.branch >>]
+              - not:
+                  equal: [feature/sandium-filter-bootstrap-full, << pipeline.git.branch >>]
           steps:
             - restore_cache:
                 name: Restore canonical 26 GiB reference for FAST MODE Stage 3
@@ -1747,9 +1747,9 @@ jobs:
               - not:
                   equal: [feature/sandium-disable-13-brave-features, << pipeline.git.branch >>]
               - not:
-                  and:
-                    - equal: [feature/sandium-page-transition-full, << pipeline.git.branch >>]
-                    - equal: [feature/sandium-filter-bootstrap-full, << pipeline.git.branch >>]
+                  equal: [feature/sandium-page-transition-full, << pipeline.git.branch >>]
+              - not:
+                  equal: [feature/sandium-filter-bootstrap-full, << pipeline.git.branch >>]
           steps:
             - restore_cache:
                 name: Restore canonical 26 GiB reference for FAST MODE Stage 4
@@ -1768,9 +1768,9 @@ jobs:
               - not:
                   equal: [feature/sandium-disable-13-brave-features, << pipeline.git.branch >>]
               - not:
-                  and:
-                    - equal: [feature/sandium-page-transition-full, << pipeline.git.branch >>]
-                    - equal: [feature/sandium-filter-bootstrap-full, << pipeline.git.branch >>]
+                  equal: [feature/sandium-page-transition-full, << pipeline.git.branch >>]
+              - not:
+                  equal: [feature/sandium-filter-bootstrap-full, << pipeline.git.branch >>]
           steps:
             - restore_cache:
                 name: Restore canonical 26 GiB reference for FAST MODE Stage 5
@@ -1848,9 +1848,9 @@ jobs:
               - not:
                   equal: [feature/sandium-disable-13-brave-features, << pipeline.git.branch >>]
               - not:
-                  and:
-                    - equal: [feature/sandium-page-transition-full, << pipeline.git.branch >>]
-                    - equal: [feature/sandium-filter-bootstrap-full, << pipeline.git.branch >>]
+                  equal: [feature/sandium-page-transition-full, << pipeline.git.branch >>]
+              - not:
+                  equal: [feature/sandium-filter-bootstrap-full, << pipeline.git.branch >>]
           steps:
             - run:
                 name: Apply pin-guarded Morphe Android startup overlays (FAST MODE only)
@@ -2637,9 +2637,9 @@ workflows:
         - not:
             equal: [feature/sandium-disable-13-brave-features, << pipeline.git.branch >>]
         - not:
-            and:
-              - equal: [feature/sandium-page-transition-full, << pipeline.git.branch >>]
-              - equal: [feature/sandium-filter-bootstrap-full, << pipeline.git.branch >>]
+            equal: [feature/sandium-page-transition-full, << pipeline.git.branch >>]
+        - not:
+            equal: [feature/sandium-filter-bootstrap-full, << pipeline.git.branch >>]
     jobs:
       - brave-android-staged-build:
           name: SANDIUM-FAST-MODE-stage-1
