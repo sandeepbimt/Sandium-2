@@ -7,7 +7,7 @@ APK and are not downloaded from Brave's component catalogue.
 
 ## Selected list set
 
-The 25 distinct enabled URLs correspond to the checked entries in the supplied
+The 30 distinct URLs correspond to the selected checked entries in the supplied
 uBlock Origin screenshot. The duplicate uBlock Cookie Notices row in uBO's
 grouped view resolves to one unique URL and is subscribed once.
 
@@ -50,20 +50,15 @@ not included.
 - New lists added by a later Sandium release are seeded once. A user's deleted
   list is not silently re-added on the next visit. Users can still add it again
   through Brave's normal “Add custom filter list” action.
-- The original 25 filter lists remain enabled by default.
-- The five additions are seeded disabled by default: **AdGuard – Mobile App
-  Banners**, **AdGuard – Other Annoyances**, **AdGuard – Popup Overlays**,
-  **AdGuard – Widgets**, and **uBlock filters – Annoyances**.
-- On upgrade, a one-time preference migration disables those five subscriptions
-  if they already exist. Its marker is persisted, so subsequent manual toggle
-  choices are preserved.
-- The original 25 lists retain their existing enabled/disabled state; all
-  normal Android toggle and delete controls remain available.
+- All 30 selected lists are enabled by default. A one-time migration re-enables the five additions that an earlier Sandium build incorrectly seeded as disabled; later user toggle choices are preserved.
+- The native subscription manager seeds missing URLs during ad-block service startup, before normal browsing. New subscriptions immediately request high-priority downloads from their original HTTPS sources.
+- The Content Filters screen retains per-list toggles and deletion, and exposes a **Refresh filters** action for enabled URL subscriptions.
 - Brave's native subscription manager downloads the public URL directly and
   automatically refreshes active subscriptions using each list's Expires
-  metadata, or its seven-day default when the list has no expiry metadata.
-- The filter screen's Brave component-catalogue rows and component-update
-  action are not used for this list set. This means these subscriptions do not
+  metadata, or its seven-day default when the list has no expiry metadata. The
+  manual refresh action schedules high-priority downloads without invoking the
+  unrelated Brave component-catalogue updater.
+- The filter screen's Brave component-catalogue rows are not used for this list set. This means these subscriptions do not
   depend on Brave's private component updater, component catalogue, or
   Brave Services key.
 
@@ -87,9 +82,14 @@ changes. Users can disable or remove individual lists in the filter screen.
   Fast Mode; no Full Mode Chromium rebuild is required by design.
 - CircleCI no longer requires `BRAVE_SERVICES_KEY`; BuildBuddy credentials
   remain a separate remote-execution requirement.
-- The lightweight CI test validates the 25 unique URLs, user-delete behavior,
-  enabled-by-default seeding, friendly display names, and idempotent source
+- The lightweight CI test validates the 30 unique URLs, user-delete behavior,
+  all-enabled defaults, friendly display names, and idempotent source
   transformation. Runtime enforcement still requires a built APK and device
   verification.
 
 The filter sources remain owned and updated by their respective maintainers.
+
+
+## First-launch timing boundary
+
+The ad-block service creates missing subscriptions during profile startup and requests high-priority downloads before normal browsing starts. The engine can enforce each list only after its source download succeeds and its cached file is loaded; slow, blocked or offline networks can delay that first successful load. The APK does not yet contain a bundled offline snapshot. A guaranteed offline/instant first-page baseline would require a separately maintained APK snapshot followed by background source updates.

@@ -183,21 +183,9 @@ def main() -> None:
         assert "getSandiumFilterDisplayName(url)" in adapter_text
         assert "mFilterLists.length > 0" in adapter_text
         assert "mSubscriptionFilterLists = new ArrayList<>()" in adapter_text
-        for disabled_url in (
-            "https://filters.adtidy.org/extension/ublock/filters/20.txt",
-            "https://filters.adtidy.org/extension/ublock/filters/21.txt",
-            "https://filters.adtidy.org/extension/ublock/filters/19.txt",
-            "https://filters.adtidy.org/extension/ublock/filters/22.txt",
-            "https://ublockorigin.github.io/uAssets/filters/annoyances.txt",
-        ):
-            assert disabled_url in fragment_text, f"missing default-disabled list: {disabled_url}"
-        assert 'DEFAULT_DISABLED_FILTERS_PREF = "default_disabled_additional_filters_v1"' in fragment_text
-        assert "DEFAULT_DISABLED_FILTER_URLS" in fragment_text
-        assert "defaultDisabledFiltersMigrated" in fragment_text
-        assert fragment_text.count("mFilterListAndroidHandler.enableSubscription(subscriptionUrl, false)") == 2
-        assert "preferences.getBoolean(" in fragment_text
-        assert "DEFAULT_DISABLED_FILTERS_PREF, false" in fragment_text
-        assert "preferences.edit().putBoolean(" in fragment_text
+        assert "defaultEnabled=true" in fragment_text
+        assert "DEFAULT_DISABLED_FILTER_URLS" not in fragment_text
+        assert "SANDIUM_FILTER_REFRESH_PLACEHOLDER" in fragment_text
         expected_titles = {
             "uBlock filters – Ads",
             "AdGuard – Ads",
@@ -224,6 +212,6 @@ def main() -> None:
         }
         for title in expected_titles:
             assert title in fragment_text, f"missing visible filter title: {title}"
-        print("SANDIUM_FILTER_SUBSCRIPTIONS_UNIT_TEST=PASS lists=30 unique=true idempotent=true")
+        print("SANDIUM_FILTER_SUBSCRIPTIONS_UNIT_TEST=PASS lists=30 unique=true default_enabled=true idempotent=true")
 if __name__ == "__main__":
     main()

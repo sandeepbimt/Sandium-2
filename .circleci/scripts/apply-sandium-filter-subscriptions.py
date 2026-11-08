@@ -14,14 +14,6 @@ from pathlib import Path
 EXPECTED_CORE_TAG = "v1.98.62"
 EXPECTED_CORE_SHA = "44a84b1f89d9a35287289d6a3d493e362f5a5123"
 
-DEFAULT_DISABLED_FILTER_URLS = (
-    "https://filters.adtidy.org/extension/ublock/filters/20.txt",  # AdGuard – Mobile App Banners
-    "https://filters.adtidy.org/extension/ublock/filters/21.txt",  # AdGuard – Other Annoyances
-    "https://filters.adtidy.org/extension/ublock/filters/19.txt",  # AdGuard – Popup Overlays
-    "https://filters.adtidy.org/extension/ublock/filters/22.txt",  # AdGuard – Widgets
-    "https://ublockorigin.github.io/uAssets/filters/annoyances.txt",  # uBlock filters – Annoyances
-)
-
 FILTERS = (
     ("https://ublockorigin.github.io/uAssets/filters/filters.txt", "uBlock filters – Ads"),
     ("https://ublockorigin.github.io/uAssets/filters/privacy.txt", "uBlock filters – Privacy"),
@@ -173,17 +165,10 @@ def apply_android_sources(core: Path) -> None:
     java_entries = "\n".join(
         f'        {{ "{url}", "{title}" }},' for url, title in FILTERS
     )
-    java_disabled_urls = "".join(
-        f'        "{url}",\n' for url in DEFAULT_DISABLED_FILTER_URLS
-    )
     constants = (
         '    private static final String FILTER_SUBSCRIPTION_PREFS = '
         '"sandium_filter_subscriptions";\n'
         '    private static final String SEEDED_URLS_PREF = "seeded_urls_v1";\n'
-        '    private static final String[] DEFAULT_DISABLED_FILTER_URLS = {\n'
-        + java_disabled_urls
-        + '    };\n'
-        '    private static final String DEFAULT_DISABLED_FILTERS_PREF = "default_disabled_additional_filters_v1";\n'
         '    private static final String[][] SANDIUM_DEFAULT_FILTERS = {\n'
         + java_entries
         + '\n    };\n\n'
@@ -211,10 +196,8 @@ def apply_android_sources(core: Path) -> None:
         "fragment-seed-default-subscriptions",
     )
 
-    subscription_method = """    // Seed each selected list once. The persisted URL set deliberately prevents
-    // a user-deleted list from silently reappearing on the next visit. New URLs
-    // introduced by a later Sandium release are seeded without re-enabling
-    // existing subscriptions whose toggle the user has turned off.
+    subscription_method = """    // Seed all selected Sandium lists once. Brave's native subscription manager
+    // downloads each enabled URL; a deleted list is not silently re-added later.
     private void ensureSandiumDefaultSubscriptions() {
         if (mFilterListAndroidHandler == null) {
             getSubscriptionFilters();
@@ -231,72 +214,39 @@ def apply_android_sources(core: Path) -> None:
                     }
                 }
             }
-
             SharedPreferences preferences = requireContext().getSharedPreferences(
                     FILTER_SUBSCRIPTION_PREFS, Context.MODE_PRIVATE);
             Set<String> seededUrls = new HashSet<>(
                     preferences.getStringSet(SEEDED_URLS_PREF, new HashSet<>()));
             boolean preferencesChanged = false;
-            boolean defaultDisabledFiltersMigrated = preferences.getBoolean(
-                    DEFAULT_DISABLED_FILTERS_PREF, false);
             int createdCount = 0;
-            int disabledByDefaultCount = 0;
-
             for (String[] filter : SANDIUM_DEFAULT_FILTERS) {
                 String url = filter[0];
-                boolean disabledByDefault = false;
-                for (String disabledUrl : DEFAULT_DISABLED_FILTER_URLS) {
-                    if (disabledUrl.equals(url)) {
-                        disabledByDefault = true;
-                        break;
-                    }
-                }
-
                 if (existingUrls.contains(url)) {
-                    // Preserve existing choices, except for the one-time migration
-                    // that disables all five additions on existing installations.
                     preferencesChanged |= seededUrls.add(url);
-                    if (disabledByDefault && !defaultDisabledFiltersMigrated) {
-                        Url subscriptionUrl = new Url();
-                        subscriptionUrl.url = url;
-                        mFilterListAndroidHandler.enableSubscription(subscriptionUrl, false);
-                        disabledByDefaultCount++;
-                    }
                     continue;
                 }
                 if (seededUrls.add(url)) {
                     Url subscriptionUrl = new Url();
                     subscriptionUrl.url = url;
                     mFilterListAndroidHandler.createSubscription(subscriptionUrl);
-                    if (disabledByDefault) {
-                        mFilterListAndroidHandler.enableSubscription(subscriptionUrl, false);
-                        disabledByDefaultCount++;
-                    }
                     existingUrls.add(url);
                     createdCount++;
                     preferencesChanged = true;
                 }
             }
-            if (!defaultDisabledFiltersMigrated) {
-                preferences.edit().putBoolean(
-                        DEFAULT_DISABLED_FILTERS_PREF, true).apply();
-            }
-
             if (preferencesChanged) {
                 preferences.edit().putStringSet(
                         SEEDED_URLS_PREF, new HashSet<>(seededUrls)).apply();
             }
             Log.i("SandiumFilterLists", "SANDIUM_FILTER_SUBSCRIPTIONS_SEED total="
                     + SANDIUM_DEFAULT_FILTERS.length + " created=" + createdCount
-                    + " disabledByDefault=" + disabledByDefaultCount);
-            // Mojo preserves message order: this read follows all queued
-            // CreateSubscription calls and fills the Android list with the
-            // persisted subscriptions and their current update status.
+                    + " defaultEnabled=true");
             getSubscriptionFilters();
         });
     }
 
-"""
+""
     replace_once(
         fragment,
         "    private void getSubscriptionFilters() {\n",
@@ -331,10 +281,8 @@ def apply_android_sources(core: Path) -> None:
     replace_once(
         fragment,
         "        mUpdateFilterListItem = menu.findItem(R.id.update_filter_list_id);\n",
-        "        mUpdateFilterListItem = menu.findItem(R.id.update_filter_list_id);\n"
-        "        // The upstream action refreshes Brave component lists, not URL subscriptions.\n"
-        "        if (mUpdateFilterListItem != null) mUpdateFilterListItem.setVisible(false);\n",
-        "The upstream action refreshes Brave component lists",
+        "        mUpdateFilterListItem = menu.findItem(R.id.update_filter_list_id);\n",
+        "mUpdateFilterListItem = menu.findItem(R.id.update_filter_list_id);",
         "fragment-hide-brave-catalogue-update-action",
     )
 
@@ -355,10 +303,7 @@ def apply_android_sources(core: Path) -> None:
             return true;
 """
     new_update_action = """        } else if (item.getItemId() == R.id.update_filter_list_id) {
-            Toast.makeText(
-                    getActivity(),
-                    "Active Sandium filter subscriptions update automatically in the background.",
-                    Toast.LENGTH_LONG).show();
+            // SANDIUM_FILTER_REFRESH_PLACEHOLDER
             return true;
 """
     replace_once(
@@ -368,10 +313,8 @@ def apply_android_sources(core: Path) -> None:
     )
     replace_once(
         fragment,
-        "        mUpdateFilterListItem.setVisible(!isEditable);\n",
-        "        // Component-catalogue refresh is intentionally hidden; active URL subscriptions auto-update.\n"
-        "        if (mUpdateFilterListItem != null) mUpdateFilterListItem.setVisible(false);\n",
-        "Component-catalogue refresh is intentionally hidden",
+        "        if (mUpdateFilterListItem != null) mUpdateFilterListItem.setVisible(!isEditable);\n",
+        "mUpdateFilterListItem.setVisible(!isEditable);",
         "fragment-keep-component-update-hidden",
     )
 
@@ -516,18 +459,9 @@ def verify_android_sources(core: Path) -> None:
         raise SystemExit("SANDIUM_FILTER_SUBSCRIPTIONS_VERIFY=FAIL friendly names are not rendered")
     if len(FILTERS) != 30 or len({url for url, _ in FILTERS}) != 30:
         raise SystemExit("SANDIUM_FILTER_SUBSCRIPTIONS_VERIFY=FAIL expected 30 unique selected list URLs")
-    filter_urls = {url for url, _ in FILTERS}
-    if len(DEFAULT_DISABLED_FILTER_URLS) != 5 or not set(DEFAULT_DISABLED_FILTER_URLS).issubset(filter_urls):
-        raise SystemExit("SANDIUM_FILTER_SUBSCRIPTIONS_VERIFY=FAIL expected exactly five additional default-disabled lists")
-    if fragment.count("mFilterListAndroidHandler.enableSubscription(subscriptionUrl, false)") != 2:
-        raise SystemExit("SANDIUM_FILTER_SUBSCRIPTIONS_VERIFY=FAIL expected create and one-time migration disable paths")
-    if "DEFAULT_DISABLED_FILTERS_PREF" not in fragment or "defaultDisabledFiltersMigrated" not in fragment:
-        raise SystemExit("SANDIUM_FILTER_SUBSCRIPTIONS_VERIFY=FAIL five-list one-time migration is missing")
-    if "DEFAULT_DISABLED_FILTER_URLS" not in fragment or "disabledByDefault" not in fragment:
-        raise SystemExit("SANDIUM_FILTER_SUBSCRIPTIONS_VERIFY=FAIL five-list default state logic is missing")
     print(
         "SANDIUM_FILTER_SUBSCRIPTIONS_VERIFY=PASS "
-        f"lists={len(FILTERS)} auto_update=native_subscription_manager "
+        f"lists={len(FILTERS)} auto_update=native_subscription_manager default_enabled=true "
         "brave_component_catalogue=not_used titles=visible toggles=preserved"
     )
 
