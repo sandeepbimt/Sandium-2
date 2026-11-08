@@ -180,6 +180,8 @@ def main() -> None:
         assert "getFilterLists(filterLists" not in fragment_text
         assert "updateFilterLists(" not in fragment_text
         assert "SANDIUM_FILTER_REFRESH_PLACEHOLDER" in fragment_text
+        assert "        ensureSandiumDefaultSubscriptions();\n" not in fragment_text
+        assert "SANDIUM_NATIVE_STARTUP_SEEDING_ONLY" in fragment_text
         assert "getSandiumFilterDisplayName(url)" in adapter_text
         assert "mFilterLists.length > 0" in adapter_text
         assert "mSubscriptionFilterLists = new ArrayList<>()" in adapter_text

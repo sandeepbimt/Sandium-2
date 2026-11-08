@@ -191,8 +191,8 @@ def apply_android_sources(core: Path) -> None:
     replace_once(
         fragment,
         "        getSubscriptionFilters();\n        getFilterLists();\n",
-        "        ensureSandiumDefaultSubscriptions();\n        getFilterLists();\n",
-        "ensureSandiumDefaultSubscriptions();",
+        "SANDIUM_NATIVE_STARTUP_SEEDING_ONLY",
+        "native startup owns default subscription creation",
         "fragment-seed-default-subscriptions",
     )
 
