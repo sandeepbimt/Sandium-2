@@ -179,7 +179,7 @@ def main() -> None:
         assert "seededUrls.add(url)" in fragment_text
         assert "getFilterLists(filterLists" not in fragment_text
         assert "updateFilterLists(" not in fragment_text
-        assert "Active Sandium filter subscriptions update automatically" in fragment_text
+        assert "SANDIUM_FILTER_REFRESH_PLACEHOLDER" in fragment_text
         assert "getSandiumFilterDisplayName(url)" in adapter_text
         assert "mFilterLists.length > 0" in adapter_text
         assert "mSubscriptionFilterLists = new ArrayList<>()" in adapter_text
