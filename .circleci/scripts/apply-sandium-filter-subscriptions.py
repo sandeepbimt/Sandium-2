@@ -312,13 +312,8 @@ def apply_android_sources(core: Path) -> None:
         "SANDIUM_FILTER_REFRESH_PLACEHOLDER",
         "fragment-stop-component-catalogue-refresh",
     )
-    replace_once(
-        fragment,
-        "        if (mUpdateFilterListItem != null) mUpdateFilterListItem.setVisible(!isEditable);\n",
-        "if (mUpdateFilterListItem != null) mUpdateFilterListItem.setVisible(!isEditable);",
-        "fragment-keep-component-update-hidden",
-        "fragment-keep-component-update-hidden",
-    )
+    # Keep Brave's native setVisible(!isEditable) behavior; the same menu item
+    # now invokes Sandium's URL-subscription refresh action.
 
     # Initialize both adapter collections before the first RecyclerView layout.
     replace_once(

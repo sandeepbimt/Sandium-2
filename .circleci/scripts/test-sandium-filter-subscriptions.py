@@ -154,6 +154,11 @@ public class ContentFilteringAdapter extends RecyclerView.Adapter<RecyclerView.V
 
 def main() -> None:
     # Catch patcher call/signature drift before applying any source changes.
+    # Keep the pinned Brave menu visibility behavior; don't patch its statement.
+    assert "fragment-keep-component-update-hidden" not in Path(
+        __file__
+    ).with_name("apply-sandium-filter-subscriptions.py").read_text(encoding="utf-8")
+
     for patcher_name in (
         "apply-sandium-filter-subscriptions.py",
         "apply-sandium-filter-bootstrap.py",
