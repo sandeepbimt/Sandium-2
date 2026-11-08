@@ -74,6 +74,7 @@ void setup() {
       DestroyLayer();
     } else if (animation_state_ == AnimationState::kFadeToFallbackColor) {
       SetAnimationState(AnimationState::kFallbackShown);
+      window_observation_.Reset();
     }
   }
   if (auto* layer_tree = native_view->GetLayer()) {
