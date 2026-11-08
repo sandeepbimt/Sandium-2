@@ -308,13 +308,13 @@ def apply_android_sources(core: Path) -> None:
 """
     replace_once(
         fragment, old_update_action, new_update_action,
-        "Active Sandium filter subscriptions update automatically",
+        "SANDIUM_FILTER_REFRESH_PLACEHOLDER",
         "fragment-stop-component-catalogue-refresh",
     )
     replace_once(
         fragment,
         "        if (mUpdateFilterListItem != null) mUpdateFilterListItem.setVisible(!isEditable);\n",
-        "mUpdateFilterListItem.setVisible(!isEditable);",
+        "if (mUpdateFilterListItem != null) mUpdateFilterListItem.setVisible(!isEditable);",
         "fragment-keep-component-update-hidden",
     )
 

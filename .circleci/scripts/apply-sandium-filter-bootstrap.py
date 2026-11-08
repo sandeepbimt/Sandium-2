@@ -86,6 +86,35 @@ def apply(core: Path) -> None:
     )
     replace_once(
         manager_cc,
+        """void AdBlockSubscriptionServiceManager::DeleteSubscription(
+    const GURL& sub_url) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  auto it = subscription_filters_providers_.find(sub_url);""",
+        """void AdBlockSubscriptionServiceManager::DeleteSubscription(
+    const GURL& sub_url) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  if (local_state_) {
+    base::Value::List seeded_urls =
+        local_state_->GetList(prefs::kSandiumDefaultFilterListsSeeded).Clone();
+    bool already_seeded = false;
+    for (const base::Value& seeded_url : seeded_urls) {
+      if (seeded_url.is_string() && seeded_url.GetString() == sub_url.spec()) {
+        already_seeded = true;
+        break;
+      }
+    }
+    if (!already_seeded) {
+      seeded_urls.Append(sub_url.spec());
+      local_state_->SetList(
+          prefs::kSandiumDefaultFilterListsSeeded, std::move(seeded_urls));
+    }
+  }
+  auto it = subscription_filters_providers_.find(sub_url);""",
+        "local_state_->GetList(prefs::kSandiumDefaultFilterListsSeeded).Clone()",
+        "manager-record-user-deleted-subscriptions",
+    )
+    replace_once(
+        manager_cc,
         "namespace {\n\nconstexpr uint16_t kSubscriptionMaxExpiresHours = 14 * 24;\n",
         "namespace {\n\n" + url_catalogue
         + "constexpr uint16_t kSubscriptionMaxExpiresHours = 14 * 24;\n",
@@ -109,14 +138,35 @@ def apply(core: Path) -> None:
 
   const bool migrate_previous_defaults =
       !local_state_->GetBoolean(prefs::kSandiumDefaultFilterListsMigrated);
+  base::Value::List seeded_urls =
+      local_state_->GetList(prefs::kSandiumDefaultFilterListsSeeded).Clone();
+  bool seeded_urls_changed = false;
+
   for (const char* url : kSandiumDefaultFilterUrls) {
     const GURL subscription_url(url);
+    bool was_seeded = false;
+    for (const base::Value& seeded_url : seeded_urls) {
+      if (seeded_url.is_string() && seeded_url.GetString() == url) {
+        was_seeded = true;
+        break;
+      }
+    }
+
     auto info = GetInfo(subscription_url);
     if (!info) {
-      // New subscriptions are persisted enabled=true and immediately request
-      // a high-priority download from the original list source.
+      // A prior user deletion is recorded in seeded_urls and must remain deleted.
+      if (was_seeded) {
+        continue;
+      }
       CreateSubscription(subscription_url);
+      seeded_urls.Append(url);
+      seeded_urls_changed = true;
       continue;
+    }
+
+    if (!was_seeded) {
+      seeded_urls.Append(url);
+      seeded_urls_changed = true;
     }
 
     if (migrate_previous_defaults) {
@@ -132,11 +182,16 @@ def apply(core: Path) -> None:
     const base::FilePath cached_list =
         GetSubscriptionPath(subscription_url).Append(kCustomSubscriptionListText);
     int64_t cached_size = 0;
-    if (!base::GetFileSize(cached_list, &cached_size) || cached_size <= 0) {
+    if (info->enabled &&
+        (!base::GetFileSize(cached_list, &cached_size) || cached_size <= 0)) {
       StartDownload(subscription_url, true);
     }
   }
 
+  if (seeded_urls_changed) {
+    local_state_->SetList(
+        prefs::kSandiumDefaultFilterListsSeeded, std::move(seeded_urls));
+  }
   if (migrate_previous_defaults) {
     local_state_->SetBoolean(prefs::kSandiumDefaultFilterListsMigrated, true);
   }
@@ -158,16 +213,19 @@ def apply(core: Path) -> None:
         "inline constexpr char kAdBlockListSubscriptions[] =\n"
         "    \"brave.ad_block.list_subscriptions\";\n"
         "inline constexpr char kSandiumDefaultFilterListsMigrated[] =\n"
-        "    \"sandium.ad_block.default_filter_lists_migrated\";\n",
-        "kSandiumDefaultFilterListsMigrated",
+        "    \"sandium.ad_block.default_filter_lists_migrated\";\n"
+        "inline constexpr char kSandiumDefaultFilterListsSeeded[] =\n"
+        "    \"sandium.ad_block.default_filter_lists_seeded\";\n",
+        "kSandiumDefaultFilterListsSeeded",
         "register-default-state-pref-name",
     )
     replace_once(
         adblock_service,
         "  registry->RegisterDictionaryPref(prefs::kAdBlockListSubscriptions);\n",
         "  registry->RegisterDictionaryPref(prefs::kAdBlockListSubscriptions);\n"
-        "  registry->RegisterBooleanPref(prefs::kSandiumDefaultFilterListsMigrated, false);\n",
-        "kSandiumDefaultFilterListsMigrated, false",
+        "  registry->RegisterBooleanPref(prefs::kSandiumDefaultFilterListsMigrated, false);\n"
+        "  registry->RegisterListPref(prefs::kSandiumDefaultFilterListsSeeded);\n",
+        "kSandiumDefaultFilterListsSeeded",
         "register-default-state-pref",
     )
 
