@@ -2558,7 +2558,7 @@ jobs:
             cp -a "$ROOT/diagnostics/crash-input/." "$ROOT/crash-input/"
             python3 "$ROOT/diagnostics/crash-symbolicate.py" --root "$ROOT" --input-dir "$ROOT/crash-input"
             SRC="$ROOT/brave-work/src/brave"
-            if [ ! -d "$SRC/.git" ]; then
+            if ! git -C "$SRC" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
               echo "CRASH_SOURCE_EXPORT=FAIL Brave Core checkout not found at $SRC"
               find "$ROOT/brave-work/src" -maxdepth 3 -type d -name brave -print
               exit 1
