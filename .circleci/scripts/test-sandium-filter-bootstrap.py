@@ -8,6 +8,8 @@ HERE = Path(__file__).resolve().parent
 FILTERS = runpy.run_path(str(HERE / "apply-sandium-filter-subscriptions.py"))["FILTERS"]
 PATCH = (HERE / "apply-sandium-filter-bootstrap.py").read_text(encoding="utf-8")
 assert len(FILTERS) == 30 and len({url for url, _ in FILTERS}) == 30
+annoyances_urls = [url for url, title in FILTERS if title == "uBlock filters – Annoyances"]
+assert annoyances_urls == ["https://ublockorigin.github.io/uAssetsCDN/filters/annoyances.min.txt"], "Annoyances must use the expanded CDN list, not the include-only source wrapper"
 for marker in (
     "EnsureSandiumDefaultSubscriptions();",
     "CreateSubscription(subscription_url);",

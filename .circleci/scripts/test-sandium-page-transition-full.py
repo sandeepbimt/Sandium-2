@@ -141,6 +141,22 @@ def main():
         "Appearance XML",
     )
     assert xml.count('android:key="sandium_page_transition_darken"') == 1
+    assert 'android:icon="@drawable/ic_sandium_page_transition_blur"' in xml
+    assert 'android:icon="@drawable/ic_sandium_page_transition_darken"' in xml
+    blur_icon = MODULE.BLUR_ICON_SOURCE.read_text(encoding="utf-8")
+    darken_icon = MODULE.DARKEN_ICON_SOURCE.read_text(encoding="utf-8")
+    assert 'android:strokeColor="@color/menu_icon_color"' in blur_icon
+    assert 'android:fillAlpha="0.24"' in darken_icon
+    assert 'android:viewportWidth="24"' in blur_icon
+    assert 'android:viewportWidth="24"' in darken_icon
+
+    build_gn = assert_idempotent(
+        MODULE.transform_android_build_gn,
+        MODULE.BUILD_GN_ICON_ANCHOR,
+        "Android resource target",
+    )
+    assert build_gn.count(MODULE.BLUR_ICON_ENTRY) == 1
+    assert build_gn.count(MODULE.DARKEN_ICON_ENTRY) == 1
 
     grd = assert_idempotent(
         MODULE.transform_grd,
@@ -217,7 +233,7 @@ def main():
     print("SANDIUM_PAGE_TRANSITION_DURATIONS=PASS medium=450/225 high=675/300")
     print("SANDIUM_PAGE_TRANSITION_DARKEN=PASS preference+native-layer+cleanup")
     print("SANDIUM_PAGE_TRANSITION_NIGHT_MODE=PASS dark fallback")
-    print("SANDIUM_PAGE_TRANSITION_APPEARANCE_ICON=PASS")
+    print("SANDIUM_PAGE_TRANSITION_APPEARANCE_ICONS=PASS blur+darken vector resources")
     print("SANDIUM_PAGE_TRANSITION_ADBLOCK=UNTOUCHED")
 
 if __name__ == "__main__":

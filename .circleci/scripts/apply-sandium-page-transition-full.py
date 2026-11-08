@@ -12,6 +12,15 @@ BRAVE_SHA = "44a84b1f89d9a35287289d6a3d493e362f5a5123"
 CHROMIUM_SHA = "d331de35ca8ab1358c7a17e4bd41627d55eaef51"
 BLUR_PREF_KEY = "sandium_page_transition_blur_level"
 DARKEN_PREF_KEY = "sandium_page_transition_darken"
+ANDROID_BUILD_GN = Path("android/BUILD.gn")
+BLUR_ICON_PATH = Path("android/java/brave-res/drawable/ic_sandium_page_transition_blur.xml")
+DARKEN_ICON_PATH = Path("android/java/brave-res/drawable/ic_sandium_page_transition_darken.xml")
+REPO_ROOT = Path(__file__).resolve().parents[2]
+BLUR_ICON_SOURCE = REPO_ROOT / "brave" / BLUR_ICON_PATH
+DARKEN_ICON_SOURCE = REPO_ROOT / "brave" / DARKEN_ICON_PATH
+BLUR_ICON_ENTRY = '    "java/brave-res/drawable/ic_sandium_page_transition_blur.xml",\n'
+DARKEN_ICON_ENTRY = '    "java/brave-res/drawable/ic_sandium_page_transition_darken.xml",\n'
+BUILD_GN_ICON_ANCHOR = '    "java/brave-res/drawable/ic_theme_system.xml",\n'
 FEATURE = "AndroidNavigationBlurTransitionAnimation"
 
 STARTUP = Path("chrome/android/java/src/org/chromium/chrome/browser/base/SplitCompatApplication.java")
@@ -100,6 +109,7 @@ XML_DARKEN_BLOCK = (
     XML_DARKEN_BEGIN + "\n"
     "    <org.chromium.components.browser_ui.settings.ChromeSwitchPreference\n"
     '        android:key="sandium_page_transition_darken"\n'
+    '        android:icon="@drawable/ic_sandium_page_transition_darken"\n'
     '        android:persistent="false"\n'
     '        android:title="@string/sandium_page_transition_darken_title"\n'
     '        android:summary="@string/sandium_page_transition_darken_summary" />\n'
@@ -107,6 +117,8 @@ XML_DARKEN_BLOCK = (
 )
 
 def transform_appearance_xml(source: str) -> str:
+    blur_key = '        android:key="sandium_page_transition_blur_level"\n'
+    source = replace_once_or_done(source, blur_key, blur_key + '        android:icon="@drawable/ic_sandium_page_transition_blur"\n', "Page transition blur preference icon")
     source = insert_marked_before(
         source,
         "    <!-- SANDIUM_PAGE_TRANSITION_BLUR_END -->\n",
@@ -517,6 +529,35 @@ def transform_transition_h(source: str) -> str:
     source = replace_once_or_done(source, old_opacity, new_opacity, "Declare Darken opacity state")
     return source
 
+
+def transform_android_build_gn(source: str) -> str:
+    for entry, label in (
+        (BLUR_ICON_ENTRY, "blur icon resource"),
+        (DARKEN_ICON_ENTRY, "darken icon resource"),
+    ):
+        if entry not in source:
+            source = replace_once_or_done(
+                source, BUILD_GN_ICON_ANCHOR, entry + BUILD_GN_ICON_ANCHOR,
+                f"android/BUILD.gn {label}",
+            )
+        if source.count(entry) != 1:
+            raise RuntimeError(f"android/BUILD.gn {label}: entry count mismatch")
+    return source
+
+
+def write_icon(path: Path, content: str, label: str) -> None:
+    if path.exists():
+        if path.read_text(encoding="utf-8") != content:
+            raise RuntimeError(f"{label}: existing resource differs; refusing overwrite")
+        print(f"{label}=ALREADY_PRESENT")
+        return
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(content, encoding="utf-8")
+    if path.read_text(encoding="utf-8") != content:
+        raise RuntimeError(f"{label}: post-write verification failed")
+    print(f"{label}=CREATED")
+
+
 def git_sha(path: Path) -> str:
     return subprocess.check_output(["git", "-C", str(path), "rev-parse", "HEAD"], text=True).strip()
 
@@ -551,6 +592,9 @@ def main() -> None:
     subprocess.run([sys.executable, str(base_overlay), str(root)], check=True)
 
     write_transform(root / STARTUP, transform_startup, "SANDIUM_TRANSITION_STARTUP")
+    write_icon(core / BLUR_ICON_PATH, BLUR_ICON_SOURCE.read_text(encoding="utf-8"), "SANDIUM_BLUR_ICON")
+    write_icon(core / DARKEN_ICON_PATH, DARKEN_ICON_SOURCE.read_text(encoding="utf-8"), "SANDIUM_DARKEN_ICON")
+    write_transform(core / ANDROID_BUILD_GN, transform_android_build_gn, "SANDIUM_TRANSITION_ICON_RESOURCES")
     write_transform(core / APPEARANCE_XML, transform_appearance_xml, "SANDIUM_TRANSITION_DARKEN_XML")
     write_transform(core / APPEARANCE_JAVA, transform_appearance_java, "SANDIUM_TRANSITION_DARKEN_JAVA")
     write_transform(core / MAIN_PREFERENCES_JAVA, transform_main_preferences, "SANDIUM_APPEARANCE_ICON")

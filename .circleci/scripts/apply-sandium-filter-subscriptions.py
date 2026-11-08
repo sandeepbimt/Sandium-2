@@ -43,7 +43,7 @@ FILTERS = (
     ("https://filters.adtidy.org/extension/ublock/filters/21.txt", "AdGuard – Other Annoyances"),
     ("https://filters.adtidy.org/extension/ublock/filters/19.txt", "AdGuard – Popup Overlays"),
     ("https://filters.adtidy.org/extension/ublock/filters/22.txt", "AdGuard – Widgets"),
-    ("https://ublockorigin.github.io/uAssets/filters/annoyances.txt", "uBlock filters – Annoyances"),
+    ("https://ublockorigin.github.io/uAssetsCDN/filters/annoyances.min.txt", "uBlock filters – Annoyances"),
     ("https://easylist-downloads.adblockplus.org/indianlist.txt", "🇮🇳in 🇱🇰lk 🇳🇵np: IndianList"),
 )
 

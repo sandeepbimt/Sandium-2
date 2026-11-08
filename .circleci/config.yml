@@ -1843,6 +1843,17 @@ jobs:
                   python3 .circleci/scripts/apply-sandium-filter-bootstrap.py --core "$CORE"
       - when:
           condition:
+            or:
+              - equal: [feature/sandium-page-transition-full, << pipeline.git.branch >>]
+              - equal: [feature/sandium-filter-bootstrap-full, << pipeline.git.branch >>]
+          steps:
+            - run:
+                name: Apply Sandium native page-transition controls and Appearance icons
+                command: |
+                  set -euo pipefail
+                  python3 .circleci/scripts/apply-sandium-page-transition-full.py "$CIRCLE_WORKING_DIRECTORY/brave-work/src"
+      - when:
+          condition:
             and:
               - equal: [fast, << pipeline.parameters.sandium_build_mode >>]
               - not:

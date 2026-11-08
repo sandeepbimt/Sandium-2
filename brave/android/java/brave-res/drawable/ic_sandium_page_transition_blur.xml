@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Copyright 2026 The Sandium Authors. SPDX-License-Identifier: MPL-2.0 -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="@android:color/transparent"
+        android:strokeColor="@color/menu_icon_color"
+        android:strokeWidth="1.7"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M7.5,3.75h9.75A2.75,2.75 0,0 1,20 6.5v8.25M6.75,7.5h8.5A2.75,2.75 0,0 1,18 10.25v7A2.75,2.75 0,0 1,15.25 20h-8.5A2.75,2.75 0,0 1,4 17.25v-7A2.75,2.75 0,0 1,6.75 7.5zM7.5,11.5h3.75M7.5,14.5h2.5M17.2,5.4c1.1,0.35 1.8,1.1 2.15,2.2M18,2.9c2.1,0.55 3.3,1.9 3.8,3.8" />
+</vector>
