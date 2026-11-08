@@ -357,7 +357,7 @@ uint32_t CountFilterSourceRules(const std::string& contents) {
     }
     cache_paths.push_back(std::move(cached_list_path));
     items.push_back(std::move(info));""",
-        "info->rule_count = CountFilterSourceRules",
+        "cache_paths.push_back(std::move(cached_list_path));",
         "filter-service-expose-cache-metadata",
     )
     replace_once(
