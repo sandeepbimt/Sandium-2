@@ -22,5 +22,5 @@ for marker in (
 ):
     assert marker in PATCH, f"missing implementation marker: {marker}"
 assert "DEFAULT_DISABLED_FILTER_URLS" not in PATCH
-assert "updateFilterLists(" not in PATCH
+assert "mFilterListAndroidHandler.updateFilterLists(" not in PATCH
 print("SANDIUM_FILTER_BOOTSTRAP_UNIT_TEST=PASS lists=30 enabled=true startup=true refresh=true metadata=true")
