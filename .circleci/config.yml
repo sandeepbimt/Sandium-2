@@ -2492,6 +2492,72 @@ jobs:
             echo "SANDIUM_LATEST_REFERENCE=PROMOTED format=parallel-shards workers=8"
             cat "$CIRCLE_WORKING_DIRECTORY/reference-candidate-manifest.txt"
 
+
+  export-crash-symbols:
+    machine:
+      image: ubuntu-2404:current
+    resource_class: medium
+    steps:
+      - checkout
+      - restore_cache:
+          name: Restore exact crash-producing stage-1 checkpoint
+          keys:
+            - sandium-brave-handoff-v2-feature/sandium-filter-bootstrap-full-697cc881-d6e5-496c-81d2-11d9821a173d-stage-1
+      - run:
+          name: Verify checkpoint and export matching unstripped libchrome symbols
+          no_output_timeout: 20m
+          command: |
+            set -euo pipefail
+            ROOT="$CIRCLE_WORKING_DIRECTORY"
+            SHARDS="$ROOT/brave-workspace-checkpoint.shards"
+            MANIFEST="$ROOT/brave-workspace-checkpoint.manifest.json"
+            if [ ! -d "$SHARDS" ] || [ ! -s "$MANIFEST" ]; then
+              echo "CRASH_SYMBOL_EXPORT=FAIL exact stage-1 checkpoint cache was not restored"
+              exit 1
+            fi
+            if ! command -v zstd >/dev/null 2>&1; then
+              sudo apt-get update -qq
+              sudo apt-get install -y zstd
+            fi
+            python3 .circleci/scripts/sandium-checkpoint-shards.py verify --root "$ROOT" --workers 8 --zstd-test
+            python3 .circleci/scripts/sandium-checkpoint-shards.py restore --root "$ROOT" --workers 8
+            OUT="$ROOT/brave-work/src/out/android_Release_arm64"
+            EXPECTED="bbbb704b5b2490fd1931a765ef810b2abfff2127"
+            mkdir -p "$ROOT/crash-symbols"
+            MATCH=""
+            while IFS= read -r -d '' candidate; do
+              BUILD_ID="$(readelf -n "$candidate" 2>/dev/null | awk '/Build ID:/ {print $3; exit}')"
+              if [ "$BUILD_ID" = "$EXPECTED" ]; then
+                if readelf -S "$candidate" 2>/dev/null | grep -q '\\.symtab'; then
+                  MATCH="$candidate"
+                  case "$candidate" in
+                    */lib.unstripped/*) break ;;
+                  esac
+                fi
+              fi
+            done < <(find "$OUT" -type f -name libchrome.so -print0)
+            if [ -z "$MATCH" ]; then
+              echo "CRASH_SYMBOL_EXPORT=FAIL no libchrome.so with expected Build ID and .symtab"
+              find "$OUT" -type f -name libchrome.so -print
+              exit 1
+            fi
+            cp "$MATCH" "$ROOT/crash-symbols/libchrome.so"
+            {
+              echo "EXPECTED_BUILD_ID=$EXPECTED"
+              echo "ACTUAL_BUILD_ID=$(readelf -n "$ROOT/crash-symbols/libchrome.so" | awk '/Build ID:/ {print $3; exit}')"
+              echo "SOURCE_REVISION=$(git -C "$ROOT/brave-work/src" rev-parse HEAD)"
+              echo "BRAVE_CORE_REVISION=$(git -C "$ROOT/brave-work/src/brave" rev-parse HEAD)"
+              echo "SYMBOL_SOURCE_PATH=$MATCH"
+              echo "SYMBOL_FILE_BYTES=$(stat -c '%s' "$ROOT/crash-symbols/libchrome.so")"
+              echo "SYMBOL_TABLE_PRESENT=true"
+              sha256sum "$ROOT/crash-symbols/libchrome.so"
+            } > "$ROOT/crash-symbols/symbol-info.txt"
+            echo "CRASH_SYMBOL_EXPORT=PASS"
+            cat "$ROOT/crash-symbols/symbol-info.txt"
+      - store_artifacts:
+          path: crash-symbols
+          destination: crash-symbols
+
 workflows:
   c4-afterbird-staged-checkpoint-build:
     jobs:
@@ -2695,3 +2761,10 @@ workflows:
                 - sandium/archive-zstd-fast5
                 - feature/sandium-ubo-filters-v19862
                 - feature/sandium-morphe-reader-fast
+
+  sandium-crash-symbol-export:
+    jobs:
+      - export-crash-symbols:
+          filters:
+            branches:
+              only: diagnostics/export-crash-symbols
