@@ -278,10 +278,6 @@ void AdBlockSubscriptionServiceManager::OnCheckedSandiumDefaultSubscriptionCache
         "    \"sandium.ad_block.default_filter_lists_migrated\";\n"
         "inline constexpr char kSandiumDefaultFilterListsSeeded[] =\n"
         "    \"sandium.ad_block.default_filter_lists_seeded\";\n"
-        "inline constexpr char kSandiumAdBlockEngineWarmupRequested[] =\n"
-        "    \"sandium.ad_block.engine_warmup_requested\";\n"
-        "inline constexpr char kSandiumAdBlockEngineWarmupDone[] =\n"
-        "    \"sandium.ad_block.engine_warmup_done\";\n",
         "kSandiumDefaultFilterListsSeeded",
         "register-default-state-pref-name",
     )
@@ -291,27 +287,9 @@ void AdBlockSubscriptionServiceManager::OnCheckedSandiumDefaultSubscriptionCache
         "  registry->RegisterDictionaryPref(prefs::kAdBlockListSubscriptions);\n"
         "  registry->RegisterBooleanPref(prefs::kSandiumDefaultFilterListsMigrated, false);\n"
         "  registry->RegisterListPref(prefs::kSandiumDefaultFilterListsSeeded);\n"
-        "  registry->RegisterBooleanPref(prefs::kSandiumAdBlockEngineWarmupRequested, false);\n"
-        "  registry->RegisterBooleanPref(prefs::kSandiumAdBlockEngineWarmupDone, false);\n",
+        "  registry->RegisterListPref(prefs::kSandiumDefaultFilterListsSeeded);\n",
         "kSandiumDefaultFilterListsSeeded",
         "register-default-state-pref",
-    )
-
-    replace_once(
-        adblock_service,
-        "  auto [load_result, serialized_dat] = std::move(result);\n\n"
-        "  if (load_result != FilterListLoadResult::kResourcesOnly) {",
-        "  auto [load_result, serialized_dat] = std::move(result);\n\n"
-        "  // Mark the one-time Sandium warm-up complete only after the additional\n"
-        "  // engine has successfully loaded the current provider set.\n"
-        "  if (local_state_ && !is_default_engine &&\n"
-        "      local_state_->GetBoolean(prefs::kSandiumAdBlockEngineWarmupRequested) &&\n"
-        "      load_result == FilterListLoadResult::kLoaded) {\n"
-        "    local_state_->SetBoolean(prefs::kSandiumAdBlockEngineWarmupDone, true);\n"
-        "  }\n\n"
-        "  if (load_result != FilterListLoadResult::kResourcesOnly) {",
-        "local_state_->SetBoolean(prefs::kSandiumAdBlockEngineWarmupDone, true);",
-        "mark-first-successful-additional-engine-load",
     )
 
     # Native Mojo refresh API; do not call Brave's component-catalogue updater.
@@ -538,10 +516,6 @@ def verify(core: Path) -> None:
     corpus = manager + service + fragment + adapter + mojom + adblock_service
     required = (
         "EnsureSandiumDefaultSubscriptions();",
-        "kSandiumAdBlockEngineWarmupRequested",
-        "kSandiumAdBlockEngineWarmupDone",
-        "kSandiumAdBlockEngineWarmupRequested",
-        "load_result == FilterListLoadResult::kLoaded",
         "CreateSubscription(subscription_url);",
         "StartDownload(url, true);",
         "RefreshAllSubscriptions",
@@ -559,7 +533,7 @@ def verify(core: Path) -> None:
     ensure_end = manager.find("void AdBlockSubscriptionServiceManager::OnCheckedSandiumDefaultSubscriptionCaches", ensure_start)
     ensure_body = manager[ensure_start:ensure_end]
     if "ForceNotifyObservers(false)" in ensure_body:
-        raise SystemExit("SANDIUM_FILTER_BOOTSTRAP_VERIFY=FAIL engine warm-up must be homepage-triggered")
+        raise SystemExit("SANDIUM_FILTER_BOOTSTRAP_VERIFY=FAIL unexpected startup engine rebuild remains")
     if len(FILTERS) != 29 or len({url for url, _ in FILTERS}) != 29:
         raise SystemExit("SANDIUM_FILTER_BOOTSTRAP_VERIFY=FAIL expected 29 unique subscriptions")
     if "updateFilterLists(" in fragment or "SANDIUM_FILTER_REFRESH_PLACEHOLDER" in fragment:
@@ -576,7 +550,7 @@ def verify(core: Path) -> None:
         raise SystemExit("SANDIUM_FILTER_BOOTSTRAP_VERIFY=FAIL async startup completion handler missing")
     print("SANDIUM_FILTER_BOOTSTRAP_VERIFY=PASS startup_seed=true refresh=native_subscriptions "
           "lists=29 default_enabled=true cache_metadata=source_entries+bytes "
-          "async_filter_io=true async_startup_cache_probe=true engine_warmup=homepage_deferred_success_gated")
+          "async_filter_io=true async_startup_cache_probe=true engine_warmup=disabled")
 
 
 def main() -> None:
