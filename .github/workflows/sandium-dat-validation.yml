@@ -83,15 +83,24 @@ jobs:
           git -C "$SRC" sparse-checkout init --no-cone
           git -C "$SRC" sparse-checkout set --no-cone \
             /third_party/rust/chromium_crates_io/ \
-            /third_party/rust-toolchain/
+            /tools/rust/ \
+            /tools/clang/scripts/update.py
           git -C "$SRC" fetch --depth=1 --filter=blob:none origin "$CHROMIUM_SHA"
           git -C "$SRC" checkout --detach FETCH_HEAD
           test "$(git -C "$SRC" rev-parse HEAD)" = "$CHROMIUM_SHA"
           test -d "$SRC/third_party/rust/chromium_crates_io/vendor"
+          echo "SANDIUM_CHROMIUM_VENDOR_FETCH=PASS sha=$(git -C "$SRC" rev-parse HEAD)"
+          du -sh "$SRC/third_party/rust/chromium_crates_io"
+
+      - name: Install Chromium-pinned Rust toolchain
+        run: |
+          set -euo pipefail
+          python3 "$SRC/tools/rust/update_rust.py" --output-dir "$SRC/third_party/rust-toolchain"
           test -x "$SRC/third_party/rust-toolchain/bin/cargo"
           test -x "$SRC/third_party/rust-toolchain/bin/rustc"
-          echo "SANDIUM_CHROMIUM_VENDOR_FETCH=PASS sha=$(git -C "$SRC" rev-parse HEAD)"
-          du -sh "$SRC/third_party/rust/chromium_crates_io" "$SRC/third_party/rust-toolchain"
+          "$SRC/third_party/rust-toolchain/bin/rustc" --version
+          "$SRC/third_party/rust-toolchain/bin/cargo" --version
+          du -sh "$SRC/third_party/rust-toolchain"
           df -h
 
       - name: Run offline patcher and generator self-tests
