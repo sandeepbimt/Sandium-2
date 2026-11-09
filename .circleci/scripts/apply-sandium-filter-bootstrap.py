@@ -33,7 +33,16 @@ def replace_once(path: Path, old: str, new: str, marker: str, label: str) -> Non
 
 
 def remove_legacy_startup_warmup(manager_cc: Path) -> None:
-    legacy = """"""
+    legacy = """  // DAT-cache startup suppression is optimized for a warm, already-built
+  // engine. Sandium registers its default URL subscriptions after the native
+  // service starts, so explicitly request one complete additional-engine
+  // rebuild until that first successful load is confirmed.
+  if (!local_state_->GetBoolean(prefs::kSandiumAdBlockEngineWarmupDone)) {
+    local_state_->SetBoolean(prefs::kSandiumAdBlockEngineWarmupRequested, true);
+    filters_provider_manager_->ForceNotifyObservers(false);
+  }
+
+"""
     source = manager_cc.read_text(encoding="utf-8")
     if legacy in source:
         manager_cc.write_text(source.replace(legacy, "", 1), encoding="utf-8")
