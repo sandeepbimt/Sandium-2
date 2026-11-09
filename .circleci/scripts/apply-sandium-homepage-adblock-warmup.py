@@ -314,7 +314,7 @@ def apply(core: Path, src: Path) -> None:
         "        @Nullable FilterListAndroidHandler handler =\n"
         "                getInstance().getFilterListAndroidHandler(\n"
         "                        profile,\n"
-        "                        () -> {\n"
+        "                        ignoredException -> {\n"
         "                            synchronized (sLock) {\n"
         "                                sHomepageWarmupRequestPending = false;\n"
         "                                sHomepageWarmupHandler = null;\n"
