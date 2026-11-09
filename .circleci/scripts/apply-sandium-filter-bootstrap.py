@@ -286,7 +286,6 @@ void AdBlockSubscriptionServiceManager::OnCheckedSandiumDefaultSubscriptionCache
         "  registry->RegisterDictionaryPref(prefs::kAdBlockListSubscriptions);\n",
         "  registry->RegisterDictionaryPref(prefs::kAdBlockListSubscriptions);\n"
         "  registry->RegisterBooleanPref(prefs::kSandiumDefaultFilterListsMigrated, false);\n"
-        "  registry->RegisterListPref(prefs::kSandiumDefaultFilterListsSeeded);\n"
         "  registry->RegisterListPref(prefs::kSandiumDefaultFilterListsSeeded);\n",
         "kSandiumDefaultFilterListsSeeded",
         "register-default-state-pref",
