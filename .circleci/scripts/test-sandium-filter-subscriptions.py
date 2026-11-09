@@ -173,8 +173,8 @@ def main() -> None:
                     f"5 positional arguments, got {len(node.args)}"
                 )
 
-    assert len(FILTERS) == 30
-    assert len({url for url, _ in FILTERS}) == 30
+    assert len(FILTERS) == 29
+    assert len({url for url, _ in FILTERS}) == 29
     with tempfile.TemporaryDirectory(prefix="sandium-filter-subscriptions-test-") as directory:
         core = Path(directory)
         fragment = core / "android/java/org/chromium/chrome/browser/shields/ContentFilteringFragment.java"
@@ -230,11 +230,10 @@ def main() -> None:
             "AdGuard – Other Annoyances",
             "AdGuard – Popup Overlays",
             "AdGuard – Widgets",
-            "uBlock filters – Annoyances",
             "🇮🇳in 🇱🇰lk 🇳🇵np: IndianList",
         }
         for title in expected_titles:
             assert title in fragment_text, f"missing visible filter title: {title}"
-        print("SANDIUM_FILTER_SUBSCRIPTIONS_UNIT_TEST=PASS lists=30 unique=true default_enabled=true idempotent=true")
+        print("SANDIUM_FILTER_SUBSCRIPTIONS_UNIT_TEST=PASS lists=29 unique=true default_enabled=true idempotent=true")
 if __name__ == "__main__":
     main()

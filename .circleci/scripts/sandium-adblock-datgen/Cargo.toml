@@ -1,0 +1,7 @@
+[package]
+name = "sandium-adblock-datgen"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+adblock = { version = "=0.13.3", default-features = false, features = ["css-validation", "debug-info", "full-regex-handling", "single-thread"] }

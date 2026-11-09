@@ -32,6 +32,28 @@ def replace_once(path: Path, old: str, new: str, marker: str, label: str) -> Non
     print(f"SANDIUM_FILTER_BOOTSTRAP_PATCH={label}:APPLIED")
 
 
+def remove_legacy_startup_warmup(manager_cc: Path) -> None:
+    legacy = """  // DAT-cache startup suppression is optimized for a warm, already-built
+  // engine. Sandium registers its default URL subscriptions after the native
+  // service starts, so explicitly request one complete additional-engine
+  // rebuild until that first successful load is confirmed.
+  if (!local_state_->GetBoolean(prefs::kSandiumAdBlockEngineWarmupDone)) {
+    local_state_->SetBoolean(prefs::kSandiumAdBlockEngineWarmupRequested, true);
+    filters_provider_manager_->ForceNotifyObservers(false);
+  }
+
+"""
+    source = manager_cc.read_text(encoding="utf-8")
+    if legacy in source:
+        manager_cc.write_text(source.replace(legacy, "", 1), encoding="utf-8")
+        print("SANDIUM_FILTER_BOOTSTRAP_PATCH=remove-profile-startup-warmup:APPLIED")
+    elif ("AdBlockSubscriptionServiceManager::MaybeTriggerSandiumHomepageWarmup()" in source
+          or "ForceNotifyObservers(false)" not in source):
+        print("SANDIUM_FILTER_BOOTSTRAP_PATCH=remove-profile-startup-warmup:ALREADY_ABSENT")
+    else:
+        raise SystemExit("SANDIUM_FILTER_BOOTSTRAP=FAIL unexpected startup engine trigger remains")
+
+
 def verify_pin(core: Path) -> None:
     tag = subprocess.run(
         ["git", "-C", str(core), "describe", "--tags", "--exact-match"],
@@ -82,7 +104,7 @@ def apply(core: Path) -> None:
         "    \"https://filters.adtidy.org/extension/ublock/filters/21.txt\",\n"
         "    \"https://filters.adtidy.org/extension/ublock/filters/19.txt\",\n"
         "    \"https://filters.adtidy.org/extension/ublock/filters/22.txt\",\n"
-        "    \"https://ublockorigin.github.io/uAssets/filters/annoyances.txt\",\n"
+        
         "};\n\n"
     )
     replace_once(
@@ -136,6 +158,12 @@ def apply(core: Path) -> None:
   if (!local_state_) {
     return;
   }
+
+  // Sandium no longer ships the generic uBlock Annoyances list. Remove both
+  // historical URLs from existing profiles and mark them as user-deleted so
+  // the first-launch seeder cannot reintroduce them.
+  DeleteSubscription(GURL("https://ublockorigin.github.io/uAssets/filters/annoyances.txt"));
+  DeleteSubscription(GURL("https://ublockorigin.github.io/uAssetsCDN/filters/annoyances.min.txt"));
 
   const bool migrate_previous_defaults =
       !local_state_->GetBoolean(prefs::kSandiumDefaultFilterListsMigrated);
@@ -231,6 +259,7 @@ void AdBlockSubscriptionServiceManager::OnCheckedSandiumDefaultSubscriptionCache
 }
 
 """
+    remove_legacy_startup_warmup(manager_cc)
     replace_once(
         manager_cc,
         "// Updates preferences to reflect a new state for the specified filter list\n",
@@ -248,7 +277,7 @@ void AdBlockSubscriptionServiceManager::OnCheckedSandiumDefaultSubscriptionCache
         "inline constexpr char kSandiumDefaultFilterListsMigrated[] =\n"
         "    \"sandium.ad_block.default_filter_lists_migrated\";\n"
         "inline constexpr char kSandiumDefaultFilterListsSeeded[] =\n"
-        "    \"sandium.ad_block.default_filter_lists_seeded\";\n",
+        "    \"sandium.ad_block.default_filter_lists_seeded\";\n"
         "kSandiumDefaultFilterListsSeeded",
         "register-default-state-pref-name",
     )
@@ -482,7 +511,8 @@ def verify(core: Path) -> None:
     fragment = (core / "android/java/org/chromium/chrome/browser/shields/ContentFilteringFragment.java").read_text(encoding="utf-8")
     adapter = (core / "android/java/org/chromium/chrome/browser/shields/ContentFilteringAdapter.java").read_text(encoding="utf-8")
     mojom = (core / "components/brave_shields/core/common/filter_list.mojom").read_text(encoding="utf-8")
-    corpus = manager + service + fragment + adapter + mojom
+    adblock_service = (core / "components/brave_shields/content/browser/ad_block_service.cc").read_text(encoding="utf-8")
+    corpus = manager + service + fragment + adapter + mojom + adblock_service
     required = (
         "EnsureSandiumDefaultSubscriptions();",
         "CreateSubscription(subscription_url);",
@@ -498,8 +528,13 @@ def verify(core: Path) -> None:
     missing = [marker for marker in required if marker not in corpus]
     if missing:
         raise SystemExit("SANDIUM_FILTER_BOOTSTRAP_VERIFY=FAIL missing markers: " + ", ".join(missing))
-    if len(FILTERS) != 30 or len({url for url, _ in FILTERS}) != 30:
-        raise SystemExit("SANDIUM_FILTER_BOOTSTRAP_VERIFY=FAIL expected 30 unique subscriptions")
+    ensure_start = manager.find("void AdBlockSubscriptionServiceManager::EnsureSandiumDefaultSubscriptions()")
+    ensure_end = manager.find("void AdBlockSubscriptionServiceManager::OnCheckedSandiumDefaultSubscriptionCaches", ensure_start)
+    ensure_body = manager[ensure_start:ensure_end]
+    if "ForceNotifyObservers(false)" in ensure_body:
+        raise SystemExit("SANDIUM_FILTER_BOOTSTRAP_VERIFY=FAIL unexpected startup engine rebuild remains")
+    if len(FILTERS) != 29 or len({url for url, _ in FILTERS}) != 29:
+        raise SystemExit("SANDIUM_FILTER_BOOTSTRAP_VERIFY=FAIL expected 29 unique subscriptions")
     if "updateFilterLists(" in fragment or "SANDIUM_FILTER_REFRESH_PLACEHOLDER" in fragment:
         raise SystemExit("SANDIUM_FILTER_BOOTSTRAP_VERIFY=FAIL wrong or incomplete refresh action")
     if "base::ReadFileToString(cached_list_path" in service:
@@ -513,8 +548,8 @@ def verify(core: Path) -> None:
     if "OnCheckedSandiumDefaultSubscriptionCaches" not in manager:
         raise SystemExit("SANDIUM_FILTER_BOOTSTRAP_VERIFY=FAIL async startup completion handler missing")
     print("SANDIUM_FILTER_BOOTSTRAP_VERIFY=PASS startup_seed=true refresh=native_subscriptions "
-          "lists=30 default_enabled=true cache_metadata=source_entries+bytes "
-          "async_filter_io=true async_startup_cache_probe=true")
+          "lists=29 default_enabled=true cache_metadata=source_entries+bytes "
+          "async_filter_io=true async_startup_cache_probe=true engine_warmup=disabled")
 
 
 def main() -> None:

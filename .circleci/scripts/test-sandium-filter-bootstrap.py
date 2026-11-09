@@ -7,11 +7,14 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 FILTERS = runpy.run_path(str(HERE / "apply-sandium-filter-subscriptions.py"))["FILTERS"]
 PATCH = (HERE / "apply-sandium-filter-bootstrap.py").read_text(encoding="utf-8")
-assert len(FILTERS) == 30 and len({url for url, _ in FILTERS}) == 30
-annoyances_urls = [url for url, title in FILTERS if title == "uBlock filters – Annoyances"]
-assert annoyances_urls == ["https://ublockorigin.github.io/uAssetsCDN/filters/annoyances.min.txt"], "Annoyances must use the expanded CDN list, not the include-only source wrapper"
+assert len(FILTERS) == 29 and len({url for url, _ in FILTERS}) == 29
+assert all(title != "uBlock filters – Annoyances" for _, title in FILTERS)
+assert all("annoyances.min.txt" not in url for url, _ in FILTERS)
+assert 'DeleteSubscription(GURL("https://ublockorigin.github.io/uAssets/filters/annoyances.txt"))' in PATCH
+assert 'DeleteSubscription(GURL("https://ublockorigin.github.io/uAssetsCDN/filters/annoyances.min.txt"))' in PATCH
 for marker in (
     "EnsureSandiumDefaultSubscriptions();",
+    "load_result == FilterListLoadResult::kLoaded",
     "CreateSubscription(subscription_url);",
     "StartDownload(url, true);",
     "RefreshAllSubscriptions",
@@ -32,7 +35,13 @@ for marker in (
     assert marker in PATCH, f"missing implementation marker: {marker}"
 assert "DEFAULT_DISABLED_FILTER_URLS" not in PATCH
 assert "mFilterListAndroidHandler.updateFilterLists(" not in PATCH
-print("SANDIUM_FILTER_BOOTSTRAP_UNIT_TEST=PASS lists=30 enabled=true startup=true refresh=true metadata=true")
+# The bootstrap patcher retains one legacy block only as an exact removal
+# template; it must not reintroduce the profile-startup engine trigger.
+assert PATCH.count("filters_provider_manager_->ForceNotifyObservers(false);") == 1
+
+assert "requestSandiumHomepageWarmup" not in PATCH
+assert "registry->RegisterBooleanPref(prefs::kSandiumAdBlockEngineWarmup" not in PATCH
+print("SANDIUM_FILTER_BOOTSTRAP_UNIT_TEST=PASS lists=29 enabled=true startup_seed=true refresh=true metadata=true download_gated=true")
 
 assert "base::Value::List" not in PATCH
 assert "base::GetFileSize(cached_list, &cached_size)" not in PATCH
