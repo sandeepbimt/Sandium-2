@@ -1,0 +1,146 @@
+name: Sandium pinned DAT validation
+
+on:
+  push:
+    branches:
+      - validation/sandium-dat-github
+    paths:
+      - ".github/workflows/sandium-dat-validation.yml"
+      - ".circleci/scripts/generate-sandium-adblock-dat.py"
+      - ".circleci/scripts/test-sandium-adblock-dat.py"
+      - ".circleci/scripts/apply-sandium-adblock-dat-cache.py"
+      - ".circleci/scripts/test-sandium-adblock-dat-cache.py"
+      - ".circleci/scripts/apply-sandium-filter-subscriptions.py"
+      - ".circleci/scripts/sandium-adblock-datgen/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sandium-dat-validation-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build-dat:
+    name: Prepare pinned sources and generate engine1.dat (no Chromium build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      BRAVE_TAG: v1.98.62
+      BRAVE_SHA: 44a84b1f89d9a35287289d6a3d493e362f5a5123
+      CHROMIUM_SHA: d331de35ca8ab1358c7a17e4bd41627d55eaef51
+      SRC: ${{ github.workspace }}/brave-work/src
+      OUT: ${{ github.workspace }}/brave-work/src/out/android_Release_arm64/gen/sandium_adblock
+
+    steps:
+      - name: Check out Sandium scripts
+        uses: actions/checkout@v4
+
+      - name: Show runner capacity
+        run: |
+          set -euo pipefail
+          df -h
+          free -h
+          git rev-parse HEAD
+          mkdir -p "$OUT/cargo-target" "$OUT/lists"
+
+      - name: Restore Rust generator build cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            brave-work/src/out/android_Release_arm64/gen/sandium_adblock/cargo-target
+            brave-work/src/out/android_Release_arm64/gen/sandium_adblock/lists
+          key: sandium-dat-${{ runner.os }}-brave-${{ env.BRAVE_SHA }}-chromium-${{ env.CHROMIUM_SHA }}-${{ hashFiles('.circleci/scripts/sandium-adblock-datgen/Cargo.toml') }}
+          restore-keys: |
+            sandium-dat-${{ runner.os }}-brave-${{ env.BRAVE_SHA }}-chromium-${{ env.CHROMIUM_SHA }}-
+
+      - name: Fetch only pinned Brave Rust vendor inputs
+        run: |
+          set -euo pipefail
+          mkdir -p "$SRC"
+          git clone --filter=blob:none --no-checkout --depth 1 --branch "$BRAVE_TAG" \
+            https://github.com/brave/brave-core.git "$SRC/brave"
+          cd "$SRC/brave"
+          git sparse-checkout init --no-cone
+          git sparse-checkout set --no-cone \
+            /package.json \
+            /third_party/rust/chromium_crates_io/
+          git checkout --detach "refs/tags/$BRAVE_TAG"
+          test "$(git rev-parse HEAD)" = "$BRAVE_SHA"
+          test -s package.json
+          test -s third_party/rust/chromium_crates_io/Cargo.lock
+          test -d third_party/rust/chromium_crates_io/vendor
+          echo "SANDIUM_BRAVE_VENDOR_FETCH=PASS sha=$(git rev-parse HEAD)"
+          du -sh third_party/rust/chromium_crates_io
+
+      - name: Fetch only pinned Chromium Rust vendor and toolchain inputs
+        run: |
+          set -euo pipefail
+          mkdir -p "$SRC"
+          git init "$SRC"
+          git -C "$SRC" remote add origin https://github.com/chromium/chromium.git
+          git -C "$SRC" sparse-checkout init --no-cone
+          git -C "$SRC" sparse-checkout set --no-cone \
+            /third_party/rust/chromium_crates_io/ \
+            /third_party/rust-toolchain/
+          git -C "$SRC" fetch --depth=1 --filter=blob:none origin "$CHROMIUM_SHA"
+          git -C "$SRC" checkout --detach FETCH_HEAD
+          test "$(git -C "$SRC" rev-parse HEAD)" = "$CHROMIUM_SHA"
+          test -d "$SRC/third_party/rust/chromium_crates_io/vendor"
+          test -x "$SRC/third_party/rust-toolchain/bin/cargo"
+          test -x "$SRC/third_party/rust-toolchain/bin/rustc"
+          echo "SANDIUM_CHROMIUM_VENDOR_FETCH=PASS sha=$(git -C "$SRC" rev-parse HEAD)"
+          du -sh "$SRC/third_party/rust/chromium_crates_io" "$SRC/third_party/rust-toolchain"
+          df -h
+
+      - name: Run offline patcher and generator self-tests
+        run: |
+          set -euo pipefail
+          python3 -m py_compile \
+            .circleci/scripts/generate-sandium-adblock-dat.py \
+            .circleci/scripts/test-sandium-adblock-dat.py \
+            .circleci/scripts/apply-sandium-adblock-dat-cache.py \
+            .circleci/scripts/test-sandium-adblock-dat-cache.py
+          python3 .circleci/scripts/test-sandium-adblock-dat-cache.py
+          python3 .circleci/scripts/test-sandium-adblock-dat.py
+
+      - name: Generate and validate pinned engine1.dat
+        env:
+          CIRCLE_WORKFLOW_ID: github-${{ github.run_id }}-${{ github.run_attempt }}
+        run: |
+          set -euo pipefail
+          python3 .circleci/scripts/generate-sandium-adblock-dat.py \
+            --root "$GITHUB_WORKSPACE" \
+            --src "$SRC" \
+            --out "$OUT" 2>&1 | tee "$GITHUB_WORKSPACE/sandium-dat-generation.log"
+          test -s "$OUT/engine1.dat"
+          test -s "$OUT/sources.json"
+          test -s "$OUT/snapshot.json"
+          python3 - "$OUT" <<'PY'
+          import hashlib, json, sys
+          from pathlib import Path
+          out = Path(sys.argv[1])
+          dat = out / "engine1.dat"
+          sources = json.loads((out / "sources.json").read_text())
+          manifest = json.loads((out / "snapshot.json").read_text())
+          digest = hashlib.sha256(dat.read_bytes()).hexdigest()
+          assert digest == manifest["engine1_dat_sha256"]
+          assert len(sources["sources"]) == 27
+          assert sources["engine"]["source_count"] == 27
+          assert sources["engine"]["roundtrip_deserialization"] == "passed using adblock 0.13.3"
+          print(f"SANDIUM_DAT_FINAL_GATE=PASS bytes={dat.stat().st_size} sha256={digest} sources=27")
+          PY
+
+      - name: Upload verified DAT and diagnostic logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sandium-pinned-dat-${{ github.sha }}
+          if-no-files-found: warn
+          retention-days: 14
+          path: |
+            brave-work/src/out/android_Release_arm64/gen/sandium_adblock/engine1.dat
+            brave-work/src/out/android_Release_arm64/gen/sandium_adblock/sources.json
+            brave-work/src/out/android_Release_arm64/gen/sandium_adblock/snapshot.json
+            sandium-dat-generation.log
