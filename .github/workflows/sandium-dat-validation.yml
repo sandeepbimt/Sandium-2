@@ -114,6 +114,54 @@ jobs:
           python3 .circleci/scripts/test-sandium-adblock-dat-cache.py
           python3 .circleci/scripts/test-sandium-adblock-dat.py
 
+      - name: Diagnose duplicate pinned Rust vendor packages
+        run: |
+          set -euo pipefail
+          python3 - "$SRC" <<'PY'
+          import hashlib, json, sys, tomllib
+          from pathlib import Path
+          src = Path(sys.argv[1])
+          roots = [src / "third_party/rust/chromium_crates_io/vendor",
+                   src / "brave/third_party/rust/chromium_crates_io/vendor"]
+          packages = {}
+          def tree_digest(root):
+              h = hashlib.sha256()
+              for p in sorted(root.rglob("*"), key=lambda x: x.as_posix()):
+                  rel = p.relative_to(root).as_posix()
+                  h.update(rel.encode()); h.update(b"\\0")
+                  if p.is_symlink():
+                      h.update(b"L"); h.update(p.readlink().as_posix().encode())
+                  elif p.is_file():
+                      h.update(b"F"); h.update(hashlib.sha256(p.read_bytes()).digest())
+                  elif p.is_dir():
+                      h.update(b"D")
+              return h.hexdigest()
+          for root in roots:
+              for d in sorted(root.iterdir()):
+                  manifest, checksum = d / "Cargo.toml", d / ".cargo-checksum.json"
+                  if not d.is_dir() or not manifest.is_file() or not checksum.is_file():
+                      continue
+                  package = tomllib.loads(manifest.read_text()).get("package", {})
+                  name, version = package.get("name"), package.get("version")
+                  if name and version:
+                      meta = json.loads(checksum.read_text())
+                      packages.setdefault(f"{name}-{version}", []).append(
+                          (str(d), meta.get("package"), tree_digest(d)))
+          duplicates = {k:v for k,v in packages.items() if len(v)>1}
+          print(f"SANDIUM_VENDOR_DIAGNOSTIC packages={len(packages)} duplicate_names={len(duplicates)}")
+          different = []
+          for name, entries in sorted(duplicates.items()):
+              digests = {e[2] for e in entries}
+              checksums = {e[1] for e in entries}
+              status = "IDENTICAL_TREE" if len(digests)==1 else "DIFFERENT_TREE"
+              print(f"SANDIUM_VENDOR_DUPLICATE {name} status={status} package_checksums={sorted(str(x) for x in checksums)}")
+              for path, checksum, digest in entries:
+                  print(f"  path={path} package_checksum={checksum} tree_sha256={digest}")
+              if len(digests)>1:
+                  different.append(name)
+          print(f"SANDIUM_VENDOR_DIFFERENT_DUPLICATES={len(different)}")
+          PY
+
       - name: Generate and validate pinned engine1.dat
         env:
           CIRCLE_WORKFLOW_ID: github-${{ github.run_id }}-${{ github.run_attempt }}
