@@ -16,6 +16,7 @@ import shutil
 import subprocess
 import sys
 import time
+import tomllib
 import urllib.error
 import urllib.request
 from datetime import datetime, timezone
@@ -255,12 +256,40 @@ def run_rust_generator(root: Path, src: Path, out_dir: Path, input_paths: list[P
         shutil.rmtree(work)
     shutil.copytree(generator_source, work)
     shutil.copy2(vendor_lock, work / "Cargo.lock")
+    # Chromium's GN-managed vendor tree uses names such as "adblock-v0_13".
+    # Cargo directory sources require canonical "<crate>-<version>" names.
+    # Build a temporary symlink-only view; never rename or mutate pinned vendor data.
+    cargo_vendor = work / "cargo-vendor"
+    cargo_vendor.mkdir(parents=True, exist_ok=True)
+    aliases = 0
+    for crate_dir in sorted(vendor.iterdir()):
+        if not crate_dir.is_dir():
+            continue
+        manifest_path = crate_dir / "Cargo.toml"
+        checksum_path = crate_dir / ".cargo-checksum.json"
+        if not manifest_path.is_file():
+            continue
+        if not checksum_path.is_file():
+            raise RuntimeError(f"Chromium vendored crate lacks checksum metadata: {crate_dir.name}")
+        package = tomllib.loads(manifest_path.read_text(encoding="utf-8")).get("package", {})
+        name, version = package.get("name"), package.get("version")
+        if not name or not version:
+            continue
+        alias = cargo_vendor / f"{name}-{version}"
+        if alias.exists() or alias.is_symlink():
+            raise RuntimeError(f"duplicate Cargo vendor package alias: {alias.name}")
+        alias.symlink_to(crate_dir, target_is_directory=True)
+        aliases += 1
+    if aliases == 0 or not (cargo_vendor / "adblock-0.13.3").is_symlink():
+        raise RuntimeError("failed to expose pinned adblock 0.13.3 in Cargo-compatible vendor layout")
+    print(f"SANDIUM_DAT_CARGO_VENDOR=PASS aliases={aliases} adblock=adblock-0.13.3")
+
     cargo_config = work / ".cargo/config.toml"
     cargo_config.parent.mkdir(parents=True, exist_ok=True)
     cargo_config.write_text(
         "[source.crates-io]\nreplace-with = 'brave-vendored-sources'\n\n"
         "[source.brave-vendored-sources]\n"
-        f"directory = {json.dumps(str(vendor))}\n",
+        f"directory = {json.dumps(str(cargo_vendor))}\n",
         encoding="utf-8",
     )
 
