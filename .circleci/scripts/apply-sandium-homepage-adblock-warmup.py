@@ -275,9 +275,6 @@ def apply(core: Path, src: Path) -> None:
         "bool RequestSandiumHomepageWarmup();",
         "adblock-service-homepage-api",
     )
-    patch_file(
-        adblock_h,
-        "  bool default_dat_loaded_for_testing_ = false;\n",
     adblock_cc = core / "components/brave_shields/content/browser/ad_block_service.cc"
     patch_file(
         adblock_cc,
