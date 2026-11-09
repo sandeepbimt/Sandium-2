@@ -270,9 +270,19 @@ def run_rust_generator(root: Path, src: Path, out_dir: Path, input_paths: list[P
     command = [cargo, "run", "--offline", "--release", "--manifest-path",
                str(work / "Cargo.toml"), "--", str(dat_path)] + [str(p) for p in input_paths]
     print("SANDIUM_DAT_GENERATOR=START adblock=0.13.3 sources=27 cargo_offline=true")
-    completed = subprocess.run(command, cwd=work, env=env, check=True,
+    completed = subprocess.run(command, cwd=work, env=env, check=False,
                                text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-    print(completed.stdout, end="")
+    # Always preserve Cargo's compiler/runtime diagnostics in the CircleCI
+    # step log. check=True raises CalledProcessError with captured output but
+    # the traceback alone omits that output, hiding the actual failure.
+    if completed.stdout:
+        print(completed.stdout, end="", flush=True)
+    if completed.returncode != 0:
+        tail = "\\n".join(completed.stdout.splitlines()[-160:])
+        raise RuntimeError(
+            f"pinned Brave DAT generator failed (exit={completed.returncode}); "
+            f"Cargo output follows:\\n{tail}"
+        )
     stats: dict[str, int] = {}
     for line in completed.stdout.splitlines():
         if line.startswith("SANDIUM_DAT_") and "=" in line:
