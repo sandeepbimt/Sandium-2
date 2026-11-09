@@ -185,8 +185,8 @@ def transform_service_cc(source: str) -> str:
 
     source = replace_once(
         source,
-        "   LoadResources(nullptr);\n",
-        "   LoadResources(nullptr, filter_set_generation_);\n",
+        "  LoadResources(nullptr);\n",
+        "  LoadResources(nullptr, filter_set_generation_);\n",
         "LoadResources(nullptr, filter_set_generation_);",
         "tag startup DAT resource loading",
     )
