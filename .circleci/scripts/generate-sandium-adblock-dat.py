@@ -246,63 +246,107 @@ def run_rust_generator(root: Path, src: Path, out_dir: Path, input_paths: list[P
                                                 capture_output=True, text=True).stdout.strip())
 
     generator_source = root / ".circleci/scripts/sandium-adblock-datgen"
+    # Brave keeps its Brave-specific crate sources (including adblock) under
+    # src/brave, while Chromium's shared crates (for example base64) live under
+    # src/third_party. The pinned Brave Cargo.lock spans both vendor trees.
     vendor = src / "brave/third_party/rust/chromium_crates_io/vendor"
+    chromium_vendor = src / "third_party/rust/chromium_crates_io/vendor"
     vendor_lock = src / "brave/third_party/rust/chromium_crates_io/Cargo.lock"
-    if not vendor.is_dir() or not vendor_lock.is_file():
-        raise RuntimeError("pinned Brave Rust vendor tree or lockfile is missing")
+    vendor_roots = [chromium_vendor, vendor]
+    missing_roots = [str(path) for path in vendor_roots if not path.is_dir()]
+    if missing_roots or not vendor_lock.is_file():
+        raise RuntimeError(
+            "pinned Brave/Chromium Rust vendor inputs are missing; "
+            f"missing_vendor_roots={missing_roots} lockfile={vendor_lock} "
+            f"lockfile_exists={vendor_lock.is_file()}"
+        )
 
     work = out_dir / "generator-workspace"
     if work.exists():
         shutil.rmtree(work)
     shutil.copytree(generator_source, work)
     shutil.copy2(vendor_lock, work / "Cargo.lock")
-    # Brave's GN-managed Rust vendor tree uses names such as "adblock-v0_13".
-    # Cargo directory sources require canonical "<crate>-<version>" names.
-    # Build a temporary symlink-only view; never rename or mutate pinned vendor data.
+    # Cargo directory sources need canonical "<crate>-<version>" package names.
+    # Build one temporary view over both pinned vendor roots; do not mutate them.
+    # Chromium is scanned first because Brave's Cargo.toml patches shared crates
+    # to Chromium's copies. Brave-only packages such as adblock are added next.
     cargo_vendor = work / "cargo-vendor"
     cargo_vendor.mkdir(parents=True, exist_ok=True)
     aliases = 0
-    discovered_adblock: list[Path] = []
-    # GN's vendor tree is a flat package directory. Use direct children:
-    # pathlib.rglob does not reliably descend through directory symlinks,
-    # which are used by some source-preparation/checkpoint layouts.
-    vendor_children = sorted(vendor.iterdir())
-    for crate_dir in vendor_children:
-        if not crate_dir.is_dir():
-            continue
-        manifest_path = crate_dir / "Cargo.toml"
-        checksum_path = crate_dir / ".cargo-checksum.json"
-        if not manifest_path.is_file() or not checksum_path.is_file():
-            continue
-        package = tomllib.loads(manifest_path.read_text(encoding="utf-8")).get("package", {})
-        name, version = package.get("name"), package.get("version")
-        if not name or not version:
-            continue
-        if name == "adblock" and version == "0.13.3":
-            discovered_adblock.append(crate_dir)
-        alias = cargo_vendor / f"{name}-{version}"
-        if alias.exists() or alias.is_symlink():
-            raise RuntimeError(f"duplicate Cargo vendor package alias: {alias.name}")
-        alias.symlink_to(crate_dir.resolve(), target_is_directory=True)
-        aliases += 1
+    discovered_adblock: dict[str, Path] = {}
+    alias_targets: dict[str, tuple[Path, str | None]] = {}
+    vendor_diagnostics: list[str] = []
+
+    for vendor_root in vendor_roots:
+        vendor_children = sorted(vendor_root.iterdir())
+        vendor_diagnostics.append(
+            f"{vendor_root}: children={len(vendor_children)} "
+            f"sample={[p.name for p in vendor_children[:20]]}"
+        )
+        # Direct-child traversal is intentional: Chromium's GN vendor tree is
+        # flat, and rglob does not reliably descend through directory symlinks.
+        for crate_dir in vendor_children:
+            if not crate_dir.is_dir():
+                continue
+            manifest_path = crate_dir / "Cargo.toml"
+            checksum_path = crate_dir / ".cargo-checksum.json"
+            if not manifest_path.is_file() or not checksum_path.is_file():
+                continue
+            package = tomllib.loads(manifest_path.read_text(encoding="utf-8")).get("package", {})
+            name, version = package.get("name"), package.get("version")
+            if not name or not version:
+                continue
+            alias_name = f"{name}-{version}"
+            alias = cargo_vendor / alias_name
+            resolved_crate = crate_dir.resolve()
+            checksum = json.loads(checksum_path.read_text(encoding="utf-8"))
+            package_checksum = checksum.get("package")
+
+            if alias_name in alias_targets:
+                previous_path, previous_checksum = alias_targets[alias_name]
+                if previous_path == resolved_crate:
+                    continue
+                # Same registry package/version may be present in both trees.
+                # Reuse the Chromium-first copy only when the crate archive
+                # checksum proves both entries represent the same package.
+                if package_checksum and package_checksum == previous_checksum:
+                    continue
+                raise RuntimeError(
+                    "conflicting vendored copies for Cargo package "
+                    f"{alias_name}: first={previous_path} second={resolved_crate} "
+                    f"first_checksum={previous_checksum} second_checksum={package_checksum}"
+                )
+
+            alias.symlink_to(resolved_crate, target_is_directory=True)
+            alias_targets[alias_name] = (resolved_crate, package_checksum)
+            aliases += 1
+            if name == "adblock" and version == "0.13.3":
+                discovered_adblock[str(resolved_crate)] = resolved_crate
+
     expected_alias = cargo_vendor / "adblock-0.13.3"
     if len(discovered_adblock) != 1:
-        child_sample = [p.name for p in vendor_children[:30]]
         raise RuntimeError(
-            "expected exactly one pinned adblock 0.13.3 manifest in Chromium vendor tree; "
-            f"found={len(discovered_adblock)} vendor={vendor} resolved={vendor.resolve()} "
-            f"vendor_is_symlink={vendor.is_symlink()} child_count={len(vendor_children)} "
-            f"children_sample={child_sample}"
+            "expected exactly one pinned adblock 0.13.3 manifest across Brave and Chromium vendor trees; "
+            f"found={len(discovered_adblock)} roots={' | '.join(vendor_diagnostics)}"
         )
     if not expected_alias.is_symlink() or not expected_alias.exists():
-        expected_alias.symlink_to(discovered_adblock[0].resolve(), target_is_directory=True)
+        expected_alias.symlink_to(next(iter(discovered_adblock.values())), target_is_directory=True)
     if not expected_alias.is_symlink() or not expected_alias.exists():
         raise RuntimeError(
             "failed to expose pinned adblock 0.13.3; "
-            f"vendor={vendor.resolve()} discovered={discovered_adblock[0].resolve()} "
-            f"alias={expected_alias} aliases={aliases}"
+            f"alias={expected_alias} roots={' | '.join(vendor_diagnostics)}"
         )
-    print(f"SANDIUM_DAT_CARGO_VENDOR=PASS aliases={aliases} adblock=adblock-0.13.3")
+    required_aliases = ("adblock-0.13.3", "base64-0.22.1")
+    missing_aliases = [name for name in required_aliases if not (cargo_vendor / name).is_symlink()]
+    if missing_aliases:
+        raise RuntimeError(
+            "combined Cargo vendor view is incomplete; "
+            f"missing_aliases={missing_aliases} roots={' | '.join(vendor_diagnostics)}"
+        )
+    print(
+        f"SANDIUM_DAT_CARGO_VENDOR=PASS aliases={aliases} "
+        "adblock=adblock-0.13.3 base64=base64-0.22.1 roots=2"
+    )
 
     cargo_config = work / ".cargo/config.toml"
     cargo_config.parent.mkdir(parents=True, exist_ok=True)
