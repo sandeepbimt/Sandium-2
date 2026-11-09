@@ -243,27 +243,26 @@ def transform_service_cc(source: str) -> str:
 
 def transform_startup_refresh(source: str) -> str:
     """Use the manager's complete/deferred reload on a cold DAT-cache miss."""
-    old_dat_loaded = """void AdBlockService::OnDATLoaded(bool is_default_engine, bool success) {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  if (is_default_engine) {
-    default_dat_loaded_for_testing_ = true;
-  } else {
-    additional_dat_loaded_for_testing_ = true;
-  }
-  // If the cached DAT failed to load, fall back to loading from filter lists.
-  if (!success) {
-    if (is_default_engine) {
-      filters_provider_manager_->ForceNotifyObserver(*default_service_observer_,
-                                                     true);
-    } else {
-      filters_provider_manager_->ForceNotifyObserver(
-          *additional_filters_service_observer_, false);
-    }
-  }
-  observers_.Notify(&Observer::OnDATLoaded, is_default_engine, success);
-}
-"""
-    new_dat_loaded = """void AdBlockService::OnDATLoaded(bool is_default_engine, bool success) {
+    function_start = (
+        "void AdBlockService::OnDATLoaded(bool is_default_engine, bool success) {"
+    )
+    function_end = "\nvoid AdBlockService::OnEngineLoaded("
+    start = source.find(function_start)
+    end = source.find(function_end, start)
+    if start < 0 or end < 0:
+        raise RuntimeError(
+            "DAT-miss startup reload: cannot locate OnDATLoaded function boundaries"
+        )
+    current = source[start:end]
+    if "filters_provider_manager_->ForceNotifyObservers(is_default_engine);" in current:
+        pass
+    else:
+        if "if (!success)" not in current or "ForceNotifyObserver" not in current:
+            raise RuntimeError(
+                "DAT-miss startup reload: unexpected OnDATLoaded body; refusing "
+                "to overwrite it. Actual body:\n" + current[:1600]
+            )
+        new_dat_loaded = """void AdBlockService::OnDATLoaded(bool is_default_engine, bool success) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (is_default_engine) {
     default_dat_loaded_for_testing_ = true;
@@ -284,11 +283,7 @@ def transform_startup_refresh(source: str) -> str:
   observers_.Notify(&Observer::OnDATLoaded, is_default_engine, success);
 }
 """
-    source = replace_once(
-        source, old_dat_loaded, new_dat_loaded,
-        "filters_provider_manager_->ForceNotifyObservers(is_default_engine);",
-        "replace swallowed DAT-miss notification with complete startup reload",
-    )
+        source = source[:start] + new_dat_loaded + source[end:]
 
     old_engine_result = """  auto [load_result, serialized_dat] = std::move(result);
 

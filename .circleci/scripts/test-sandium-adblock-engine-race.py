@@ -195,7 +195,7 @@ service_startup_fixture = """void AdBlockService::OnDATLoaded(bool is_default_en
   } else {
     additional_dat_loaded_for_testing_ = true;
   }
-  // If the cached DAT failed to load, fall back to loading from filter lists.
+  // Cached DAT unavailable: recover by loading the filter-list providers.
   if (!success) {
     if (is_default_engine) {
       filters_provider_manager_->ForceNotifyObserver(*default_service_observer_,
@@ -222,6 +222,8 @@ assert "filters_provider_manager_->ForceNotifyObservers(is_default_engine);" in 
 assert "ForceNotifyObserver(*default_service_observer_" not in service_startup
 assert "ForceNotifyObserver(" not in service_startup
 assert "SANDIUM_ADBLOCK_STARTUP_DAT_CACHE=MISS" in service_startup
+assert "ForceNotifyObservers(is_default_engine);" in service_startup
+assert "Cached DAT unavailable" not in service_startup
 assert "SANDIUM_ADBLOCK_ENGINE_BUILD_RESULT" in service_startup
 
 
