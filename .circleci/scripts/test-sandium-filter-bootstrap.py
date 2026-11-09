@@ -14,7 +14,8 @@ assert 'DeleteSubscription(GURL("https://ublockorigin.github.io/uAssets/filters/
 assert 'DeleteSubscription(GURL("https://ublockorigin.github.io/uAssetsCDN/filters/annoyances.min.txt"))' in PATCH
 for marker in (
     "EnsureSandiumDefaultSubscriptions();",
-    "load_result == FilterListLoadResult::kLoaded",
+    # The old callback-driven homepage warm-up was deliberately removed.
+    # Native DAT bootstrap now supplies first-navigation coverage without a reload.
     "CreateSubscription(subscription_url);",
     "StartDownload(url, true);",
     "RefreshAllSubscriptions",
