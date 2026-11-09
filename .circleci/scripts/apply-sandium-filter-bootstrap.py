@@ -277,7 +277,7 @@ void AdBlockSubscriptionServiceManager::OnCheckedSandiumDefaultSubscriptionCache
         "inline constexpr char kSandiumDefaultFilterListsMigrated[] =\n"
         "    \"sandium.ad_block.default_filter_lists_migrated\";\n"
         "inline constexpr char kSandiumDefaultFilterListsSeeded[] =\n"
-        "    \"sandium.ad_block.default_filter_lists_seeded\";\n"
+        "    \"sandium.ad_block.default_filter_lists_seeded\";\n",
         "kSandiumDefaultFilterListsSeeded",
         "register-default-state-pref-name",
     )
