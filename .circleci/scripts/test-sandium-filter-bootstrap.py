@@ -37,8 +37,13 @@ for marker in (
     assert marker in PATCH, f"missing implementation marker: {marker}"
 assert "DEFAULT_DISABLED_FILTER_URLS" not in PATCH
 assert "mFilterListAndroidHandler.updateFilterLists(" not in PATCH
-assert PATCH.count("filters_provider_manager_->ForceNotifyObservers(false);") == 1
-print("SANDIUM_FILTER_BOOTSTRAP_UNIT_TEST=PASS lists=29 enabled=true startup_seed=true refresh=true metadata=true homepage_deferred_warmup=true")
+assert "filters_provider_manager_->ForceNotifyObservers(false);" not in PATCH
+HOMEPAGE_WARMUP_PATCH = (HERE / "apply-sandium-homepage-adblock-warmup.py").read_text(encoding="utf-8")
+assert HOMEPAGE_WARMUP_PATCH.count("filters_provider_manager_->ForceNotifyObservers(false);") == 1
+assert "requestSandiumHomepageWarmup(mTab.getProfile())" in HOMEPAGE_WARMUP_PATCH
+assert "last_successful_update_attempt.is_min()" in HOMEPAGE_WARMUP_PATCH
+assert "homepage_warmup_requested_ = true;" in HOMEPAGE_WARMUP_PATCH
+print("SANDIUM_FILTER_BOOTSTRAP_UNIT_TEST=PASS lists=29 enabled=true startup_seed=true refresh=true metadata=true homepage_deferred_warmup=true download_gated=true")
 
 assert "base::Value::List" not in PATCH
 assert "base::GetFileSize(cached_list, &cached_size)" not in PATCH
