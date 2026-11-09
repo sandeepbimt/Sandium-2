@@ -225,15 +225,6 @@ def apply(core: Path) -> None:
     local_state_->SetBoolean(prefs::kSandiumDefaultFilterListsMigrated, true);
   }
 
-  // DAT-cache startup suppression is optimized for a warm, already-built
-  // engine. Sandium registers its default URL subscriptions after the native
-  // service starts, so explicitly request one complete additional-engine
-  // rebuild until that first successful load is confirmed.
-  if (!local_state_->GetBoolean(prefs::kSandiumAdBlockEngineWarmupDone)) {
-    local_state_->SetBoolean(prefs::kSandiumAdBlockEngineWarmupRequested, true);
-    filters_provider_manager_->ForceNotifyObservers(false);
-  }
-
   // File metadata checks can block on filesystem access. Run them away from
   // the browser sequence, then re-check subscription state before downloading.
   if (!cache_checks.empty()) {

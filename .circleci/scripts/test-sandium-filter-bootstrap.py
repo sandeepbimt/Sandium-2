@@ -37,7 +37,9 @@ for marker in (
     assert marker in PATCH, f"missing implementation marker: {marker}"
 assert "DEFAULT_DISABLED_FILTER_URLS" not in PATCH
 assert "mFilterListAndroidHandler.updateFilterLists(" not in PATCH
-assert "filters_provider_manager_->ForceNotifyObservers(false);" not in PATCH
+# The only remaining occurrence in this patcher is the legacy block
+# signature used to remove the obsolete profile-startup trigger.
+assert PATCH.count("filters_provider_manager_->ForceNotifyObservers(false);") == 1
 HOMEPAGE_WARMUP_PATCH = (HERE / "apply-sandium-homepage-adblock-warmup.py").read_text(encoding="utf-8")
 assert HOMEPAGE_WARMUP_PATCH.count("filters_provider_manager_->ForceNotifyObservers(false);") == 1
 assert "requestSandiumHomepageWarmup(mTab.getProfile())" in HOMEPAGE_WARMUP_PATCH
