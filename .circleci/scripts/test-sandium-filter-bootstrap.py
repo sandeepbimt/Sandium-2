@@ -34,6 +34,7 @@ for marker in (
     "customFilter.sizeBytes",
 ):
     assert marker in PATCH, f"missing implementation marker: {marker}"
+assert "load_result == FilterListLoadResult::kLoaded" not in PATCH
 assert "DEFAULT_DISABLED_FILTER_URLS" not in PATCH
 assert "mFilterListAndroidHandler.updateFilterLists(" not in PATCH
 # The bootstrap patcher retains one legacy block only as an exact removal
