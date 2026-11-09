@@ -425,6 +425,10 @@ def main() -> None:
         assert "SANDIUM_FILTER_CATALOG_COMPONENT_READY" in catalog_provider_text
         assert "SANDIUM_FILTER_COMPONENT_READY" in provider_text
         assert "SANDIUM_FILTER_DAT_FILE" in provider_text
+        assert "const auto list_file_size = base::GetFileSize(list_file_path);" in provider_text
+        assert "list_file_size.has_value()" in provider_text
+        assert "list_file_size.value_or(0)" in provider_text
+        assert "base::GetFileSize(list_file_path, &list_file_size)" not in provider_text
         assert "SANDIUM_FILTER_ENGINE_ATTACH=PASS" in provider_text
         assert "SANDIUM_FILTER_ENGINE_BINDING=PASS" in provider_text
         assert "base::BindOnce(\n      &AddDATBufferToFilterSet, std::move(component_id)," in provider_text
