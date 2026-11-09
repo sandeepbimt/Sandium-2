@@ -1,0 +1,402 @@
+#!/usr/bin/env python3
+"""Apply latest-build-wins protection to Brave's asynchronous adblock engine reloads."""
+from __future__ import annotations
+
+import subprocess
+import sys
+from pathlib import Path
+
+EXPECTED_CORE_TAG = "v1.98.62"
+EXPECTED_CORE_SHA = "44a84b1f89d9a35287289d6a3d493e362f5a5123"
+
+
+def replace_once(source: str, old: str, new: str, marker: str, label: str) -> str:
+    if marker in source:
+        if new not in source:
+            raise RuntimeError(f"{label}: marker exists but replacement differs")
+        return source
+    count = source.count(old)
+    if count != 1:
+        raise RuntimeError(f"{label}: expected one source anchor, found {count}")
+    return source.replace(old, new, 1)
+
+
+def read(path: Path) -> str:
+    if not path.is_file():
+        raise RuntimeError(f"missing pinned source file: {path}")
+    return path.read_text(encoding="utf-8")
+
+
+def write(path: Path, transform, label: str) -> None:
+    before = read(path)
+    after = transform(before)
+    if after != before:
+        path.write_text(after, encoding="utf-8")
+    if read(path) != after:
+        raise RuntimeError(f"{label}: write verification failed")
+    print(f"SANDIUM_ADBLOCK_RELOAD_{label}=PASS")
+
+
+def transform_header(source: str) -> str:
+    old_methods = (
+        "    void LoadResources(\n"
+        "        std::unique_ptr<rust::Box<adblock::FilterSet>> filter_set);\n"
+        "    void OnFilterSetLoaded(\n"
+        "        base::OnceCallback<void(rust::Box<adblock::FilterSet>*)> cb);\n"
+        "    void OnFilterSetCreated(\n"
+        "        std::unique_ptr<rust::Box<adblock::FilterSet>> filter_set);\n"
+    )
+    new_methods = (
+        "    void LoadResources(\n"
+        "        std::unique_ptr<rust::Box<adblock::FilterSet>> filter_set,\n"
+        "        uint64_t generation);\n"
+        "    void OnFilterSetLoaded(\n"
+        "        uint64_t generation,\n"
+        "        base::OnceCallback<void(rust::Box<adblock::FilterSet>*)> cb);\n"
+        "    void OnFilterSetCreated(\n"
+        "        uint64_t generation,\n"
+        "        std::unique_ptr<rust::Box<adblock::FilterSet>> filter_set);\n"
+    )
+    source = replace_once(source, old_methods, new_methods,
+                          "void LoadResources(\n        std::unique_ptr<rust::Box<adblock::FilterSet>> filter_set,\n        uint64_t generation);",
+                          "generation-aware callbacks")
+
+    old_all_loaded = (
+        "    void OnAllLoaded(std::unique_ptr<rust::Box<adblock::FilterSet>> filter_set,\n"
+        "                     AdblockResourceStorageBox storage);\n"
+    )
+    new_all_loaded = (
+        "    void OnAllLoaded(uint64_t generation,\n"
+        "                     std::unique_ptr<rust::Box<adblock::FilterSet>> filter_set,\n"
+        "                     AdblockResourceStorageBox storage);\n"
+    )
+    source = replace_once(source, old_all_loaded, new_all_loaded,
+                          "void OnAllLoaded(uint64_t generation",
+                          "generation-aware resource completion")
+
+    old_member = (
+        "    const bool engine_is_default_;\n"
+        "    const bool debug_mode_;\n\n"
+        "    scoped_refptr<base::SequencedTaskRunner> task_runner_;\n"
+    )
+    new_member = (
+        "    const bool engine_is_default_;\n"
+        "    const bool debug_mode_;\n"
+        "    // Async filter-set builds may finish out of order. Only the newest\n"
+        "    // generation is allowed to publish rules to the active engine.\n"
+        "    uint64_t filter_set_generation_ = 0;\n\n"
+        "    scoped_refptr<base::SequencedTaskRunner> task_runner_;\n"
+    )
+    return replace_once(source, old_member, new_member,
+                        "filter_set_generation_ = 0;",
+                        "filter-set generation state")
+
+
+def transform_service_cc(source: str) -> str:
+    old_on_changed = (
+        "void AdBlockService::SourceProviderObserver::OnChanged(bool is_default_engine) {\n"
+        "  if (engine_is_default_ != is_default_engine) {\n"
+        "    return;\n"
+        "  }\n\n"
+        "  auto on_loaded_cb =\n"
+        "      base::BindOnce(&AdBlockService::SourceProviderObserver::OnFilterSetLoaded,\n"
+        "                     weak_factory_.GetWeakPtr());\n"
+        "  filters_provider_manager_->LoadFilterSetForEngine(is_default_engine,\n"
+        "                                                    std::move(on_loaded_cb));\n"
+        "}\n"
+    )
+    new_on_changed = (
+        "void AdBlockService::SourceProviderObserver::OnChanged(bool is_default_engine) {\n"
+        "  if (engine_is_default_ != is_default_engine) {\n"
+        "    return;\n"
+        "  }\n\n"
+        "  // Filter providers notify independently as subscriptions are added or\n"
+        "  // downloaded. Their asynchronous builds can complete out of order, so\n"
+        "  // each notification supersedes every older in-flight build.\n"
+        "  const uint64_t generation = ++filter_set_generation_;\n"
+        "  auto on_loaded_cb =\n"
+        "      base::BindOnce(&AdBlockService::SourceProviderObserver::OnFilterSetLoaded,\n"
+        "                     weak_factory_.GetWeakPtr(), generation);\n"
+        "  filters_provider_manager_->LoadFilterSetForEngine(is_default_engine,\n"
+        "                                                    std::move(on_loaded_cb));\n"
+        "}\n"
+    )
+    source = replace_once(source, old_on_changed, new_on_changed,
+                          "const uint64_t generation = ++filter_set_generation_;",
+                          "stamp each filter-set build")
+
+    old_filter_set_loaded = (
+        "void AdBlockService::SourceProviderObserver::OnFilterSetLoaded(\n"
+        "    base::OnceCallback<void(rust::Box<adblock::FilterSet>*)> cb) {\n"
+        "  task_runner_->PostTaskAndReplyWithResult(\n"
+    )
+    new_filter_set_loaded = (
+        "void AdBlockService::SourceProviderObserver::OnFilterSetLoaded(\n"
+        "    uint64_t generation,\n"
+        "    base::OnceCallback<void(rust::Box<adblock::FilterSet>*)> cb) {\n"
+        "  if (generation != filter_set_generation_) {\n"
+        "    return;\n"
+        "  }\n"
+        "  task_runner_->PostTaskAndReplyWithResult(\n"
+    )
+    source = replace_once(source, old_filter_set_loaded, new_filter_set_loaded,
+                          "uint64_t generation,\n    base::OnceCallback<void(rust::Box<adblock::FilterSet>*)> cb) {\n  if (generation != filter_set_generation_)",
+                          "discard stale provider aggregation")
+
+    old_created_bind = (
+        "      base::BindOnce(\n"
+        "          &AdBlockService::SourceProviderObserver::OnFilterSetCreated,\n"
+        "          weak_factory_.GetWeakPtr()));\n"
+    )
+    new_created_bind = (
+        "      base::BindOnce(\n"
+        "          &AdBlockService::SourceProviderObserver::OnFilterSetCreated,\n"
+        "          weak_factory_.GetWeakPtr(), generation));\n"
+    )
+    source = replace_once(source, old_created_bind, new_created_bind,
+                          "weak_factory_.GetWeakPtr(), generation));",
+                          "carry generation through filter-set creation")
+
+    old_load_resources = (
+        "void AdBlockService::SourceProviderObserver::LoadResources(\n"
+        "    std::unique_ptr<rust::Box<adblock::FilterSet>> filter_set) {\n"
+        "  // multiple AddObserver calls are ignored\n"
+        "  resource_provider_->AddObserver(this);\n"
+        "  resource_provider_->LoadResources(\n"
+        "      base::BindOnce(&SourceProviderObserver::OnAllLoaded,\n"
+        "                     weak_factory_.GetWeakPtr(), std::move(filter_set)));\n"
+        "}\n"
+    )
+    new_load_resources = (
+        "void AdBlockService::SourceProviderObserver::LoadResources(\n"
+        "    std::unique_ptr<rust::Box<adblock::FilterSet>> filter_set,\n"
+        "    uint64_t generation) {\n"
+        "  // multiple AddObserver calls are ignored\n"
+        "  resource_provider_->AddObserver(this);\n"
+        "  resource_provider_->LoadResources(\n"
+        "      base::BindOnce(&SourceProviderObserver::OnAllLoaded,\n"
+        "                     weak_factory_.GetWeakPtr(), generation,\n"
+        "                     std::move(filter_set)));\n"
+        "}\n"
+    )
+    source = replace_once(source, old_load_resources, new_load_resources,
+                          "uint64_t generation) {\n  // multiple AddObserver calls are ignored",
+                          "carry generation through resource loading")
+
+    source = replace_once(
+        source,
+        "   LoadResources(nullptr);\n",
+        "   LoadResources(nullptr, filter_set_generation_);\n",
+        "LoadResources(nullptr, filter_set_generation_);",
+        "tag startup DAT resource loading",
+    )
+
+    old_created = (
+        "void AdBlockService::SourceProviderObserver::OnFilterSetCreated(\n"
+        "    std::unique_ptr<rust::Box<adblock::FilterSet>> filter_set) {\n"
+        "  TRACE_EVENT(\"brave.adblock\", \"OnFilterSetCreated\");\n"
+        "  LoadResources(std::move(filter_set));\n"
+        "}\n"
+    )
+    new_created = (
+        "void AdBlockService::SourceProviderObserver::OnFilterSetCreated(\n"
+        "    uint64_t generation,\n"
+        "    std::unique_ptr<rust::Box<adblock::FilterSet>> filter_set) {\n"
+        "  if (generation != filter_set_generation_) {\n"
+        "    return;\n"
+        "  }\n"
+        "  TRACE_EVENT(\"brave.adblock\", \"OnFilterSetCreated\");\n"
+        "  LoadResources(std::move(filter_set), generation);\n"
+        "}\n"
+    )
+    source = replace_once(source, old_created, new_created,
+                          "LoadResources(std::move(filter_set), generation);",
+                          "discard stale filter-set creation")
+
+    old_all_loaded = (
+        "void AdBlockService::SourceProviderObserver::OnAllLoaded(\n"
+        "    std::unique_ptr<rust::Box<adblock::FilterSet>> filter_set,\n"
+        "    AdblockResourceStorageBox storage) {\n"
+        "  on_resources_loaded_.Run(engine_is_default_, std::nullopt,\n"
+        "                           std::move(filter_set), std::move(storage));\n"
+        "}\n"
+    )
+    new_all_loaded = (
+        "void AdBlockService::SourceProviderObserver::OnAllLoaded(\n"
+        "    uint64_t generation,\n"
+        "    std::unique_ptr<rust::Box<adblock::FilterSet>> filter_set,\n"
+        "    AdblockResourceStorageBox storage) {\n"
+        "  if (generation != filter_set_generation_) {\n"
+        "    return;\n"
+        "  }\n"
+        "  on_resources_loaded_.Run(engine_is_default_, std::nullopt,\n"
+        "                           std::move(filter_set), std::move(storage));\n"
+        "}\n"
+    )
+    return replace_once(source, old_all_loaded, new_all_loaded,
+                        "void AdBlockService::SourceProviderObserver::OnAllLoaded(\n    uint64_t generation,",
+                        "discard stale completed engine builds")
+
+
+def transform_unit_test(source: str) -> str:
+    source = replace_once(
+        source,
+        '#include "base/files/file_path.h"\n',
+        '#include "base/check.h"\n#include "base/files/file_path.h"\n',
+        '#include "base/check.h"',
+        "explicit CHECK include for delayed provider fixture",
+    )
+    source = replace_once(
+        source,
+        '#include <string_view>\n',
+        '#include <string_view>\n#include <utility>\n',
+        '#include <utility>',
+        "explicit utility include for delayed provider fixture",
+    )
+    provider_class = """// Holds the first filter-set build so a newer build can finish first. This
+// reproduces the subscription startup race: list providers become available
+// independently, and old aggregation work must not replace the latest rules.
+class DeferredFirstLoadFiltersProvider : public AdBlockFiltersProvider {
+ public:
+  using AddToFilterSetCallback =
+      base::OnceCallback<void(rust::Box<adblock::FilterSet>*)>;
+  using LoadFilterSetCallback =
+      base::OnceCallback<void(AddToFilterSetCallback)>;
+
+  DeferredFirstLoadFiltersProvider()
+      : AdBlockFiltersProvider(/*engine_is_default=*/true,
+                               /*filters_provider_manager=*/nullptr) {}
+  ~DeferredFirstLoadFiltersProvider() override = default;
+
+  void RegisterAsSourceProvider(AdBlockService* service) {
+    filters_provider_manager_ =
+        service->GetFiltersProviderManagerForTesting();
+    filters_provider_manager_->AddProvider(this, /*is_for_default_engine=*/true);
+  }
+
+  void LoadFilterSet(LoadFilterSetCallback callback) override {
+    ++load_count_;
+    if (load_count_ == 1) {
+      pending_first_load_ = std::move(callback);
+      return;
+    }
+    std::move(callback).Run(base::BindOnce([](rust::Box<adblock::FilterSet>*) {}));
+  }
+
+  void ReleaseFirstLoad() {
+    CHECK(!pending_first_load_.is_null());
+    std::move(pending_first_load_)
+        .Run(base::BindOnce([](rust::Box<adblock::FilterSet>*) {}));
+  }
+
+  bool HasPendingFirstLoad() const { return !pending_first_load_.is_null(); }
+
+  std::string GetNameForDebugging() override {
+    return "DeferredFirstLoadFiltersProvider";
+  }
+
+ private:
+  int load_count_ = 0;
+  LoadFilterSetCallback pending_first_load_;
+};
+
+"""
+    anchor = "class AdBlockServiceTestBase : public testing::Test {\n"
+    source = replace_once(source, anchor, provider_class + anchor,
+                          "class DeferredFirstLoadFiltersProvider",
+                          "deterministic delayed provider fixture")
+
+    test = """TEST_F(AdBlockServiceTest, NewestFilterSetBuildWinsWhenOlderBuildFinishesLast) {
+  auto service = CreateService();
+
+  // Register before the deferred test catalog notification runs. The first
+  // aggregate build is held at this provider so that an older, incomplete
+  // snapshot cannot win merely because it finishes after the newer build.
+  DeferredFirstLoadFiltersProvider delayed_provider;
+  delayed_provider.RegisterAsSourceProvider(service.get());
+
+  ASSERT_TRUE(base::test::RunUntil(
+      [&]() { return delayed_provider.HasPendingFirstLoad(); }))
+      << "Timed out waiting for the initial asynchronous filter-set build";
+
+  auto rules_provider = std::make_unique<TestFiltersProvider>(
+      "||newest-subscription-rule.com^", /*engine_is_default=*/true);
+  rules_provider->RegisterAsSourceProvider(service.get());
+
+  ASSERT_TRUE(base::test::RunUntil([&]() {
+    return ShouldStartRequest(service.get(), EngineType::kDefault,
+                              "https://newest-subscription-rule.com/script.js")
+        .matched;
+  })) << "The newer filter-set build did not activate its subscription rule";
+
+  // Complete the older build after the newer rules are already active. It
+  // must be ignored rather than replacing the active engine with stale rules.
+  delayed_provider.ReleaseFirstLoad();
+  task_environment_.RunUntilIdle();
+
+  EXPECT_TRUE(
+      ShouldStartRequest(service.get(), EngineType::kDefault,
+                         "https://newest-subscription-rule.com/script.js")
+          .matched);
+}
+
+"""
+    anchor = "TEST_F(AdBlockServiceTest, EmptyFilterSetDoesNotCrash) {\n"
+    return replace_once(source, anchor, test + anchor,
+                        "NewestFilterSetBuildWinsWhenOlderBuildFinishesLast",
+                        "out-of-order subscription reload regression test")
+
+
+def verify(core: Path) -> None:
+    header = read(core / "components/brave_shields/content/browser/ad_block_service.h")
+    service = read(core / "components/brave_shields/content/browser/ad_block_service.cc")
+    test = read(core / "components/brave_shields/content/test/ad_block_service_unittest.cc")
+    checks = {
+        "generation stamped on every provider change":
+            "const uint64_t generation = ++filter_set_generation_;" in service,
+        "stale aggregation discarded":
+            "if (generation != filter_set_generation_) {" in service,
+        "generation carried into resource completion":
+            "OnAllLoaded,\n                     weak_factory_.GetWeakPtr(), generation," in service,
+        "DAT resource load retains current generation":
+            "LoadResources(nullptr, filter_set_generation_);" in service,
+        "generation field present":
+            "uint64_t filter_set_generation_ = 0;" in header,
+        "out-of-order regression test present":
+            "NewestFilterSetBuildWinsWhenOlderBuildFinishesLast" in test,
+        "test explicitly completes older build last":
+            "delayed_provider.ReleaseFirstLoad();" in test,
+    }
+    failures = [name for name, ok in checks.items() if not ok]
+    if failures:
+        raise RuntimeError("Adblock reload verification failed: " + ", ".join(failures))
+    print("SANDIUM_ADBLOCK_RELOAD_VERIFY=PASS latest_build_wins=true stale_callbacks_dropped=true "
+          "out_of_order_regression=true")
+
+
+def main() -> None:
+    if len(sys.argv) != 2:
+        raise SystemExit("usage: apply-sandium-adblock-engine-race.py <brave-core-dir>")
+    core = Path(sys.argv[1]).resolve()
+    if not core.is_dir():
+        raise SystemExit(f"Brave Core directory does not exist: {core}")
+    tag = subprocess.run(["git", "-C", str(core), "describe", "--tags", "--exact-match"],
+                         check=True, capture_output=True, text=True).stdout.strip()
+    sha = subprocess.run(["git", "-C", str(core), "rev-parse", "HEAD"],
+                         check=True, capture_output=True, text=True).stdout.strip()
+    if tag != EXPECTED_CORE_TAG or sha != EXPECTED_CORE_SHA:
+        raise SystemExit(f"SANDIUM_ADBLOCK_RELOAD_PIN=FAIL expected={EXPECTED_CORE_TAG}@{EXPECTED_CORE_SHA} "
+                         f"actual={tag}@{sha}")
+    print(f"SANDIUM_ADBLOCK_RELOAD_PIN=PASS {tag}@{sha}")
+
+    write(core / "components/brave_shields/content/browser/ad_block_service.h",
+          transform_header, "HEADER")
+    write(core / "components/brave_shields/content/browser/ad_block_service.cc",
+          transform_service_cc, "SERVICE")
+    write(core / "components/brave_shields/content/test/ad_block_service_unittest.cc",
+          transform_unit_test, "UNIT_TEST")
+    verify(core)
+
+
+if __name__ == "__main__":
+    main()
