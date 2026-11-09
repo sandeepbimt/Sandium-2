@@ -134,7 +134,9 @@ assert "void ForceNotifyObservers(bool is_default_engine);" in manager_header
 assert "force_additional_engine_reload_pending_ = false;" in manager_header
 
 
-manager_cc_fixture = """void AdBlockFiltersProviderManager::OnChanged(bool is_for_default_engine) {
+manager_cc_fixture = """#include "base/functional/bind.h"
+
+void AdBlockFiltersProviderManager::OnChanged(bool is_for_default_engine) {
   if (!AreAllProvidersInitialized(is_for_default_engine)) {
     return;
   }
@@ -218,7 +220,7 @@ service_startup = apply_twice(
     MODULE["transform_startup_refresh"], service_startup_fixture, "service startup")
 assert "filters_provider_manager_->ForceNotifyObservers(is_default_engine);" in service_startup
 assert "ForceNotifyObserver(*default_service_observer_" not in service_startup
-assert "ForceNotifyObserver(\\n          *additional_filters_service_observer_" not in service_startup
+assert "ForceNotifyObserver(" not in service_startup
 assert "SANDIUM_ADBLOCK_STARTUP_DAT_CACHE=MISS" in service_startup
 assert "SANDIUM_ADBLOCK_ENGINE_BUILD_RESULT" in service_startup
 
