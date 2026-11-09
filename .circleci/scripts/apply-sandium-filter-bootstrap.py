@@ -32,6 +32,19 @@ def replace_once(path: Path, old: str, new: str, marker: str, label: str) -> Non
     print(f"SANDIUM_FILTER_BOOTSTRAP_PATCH={label}:APPLIED")
 
 
+def remove_legacy_startup_warmup(manager_cc: Path) -> None:
+    legacy = """"""
+    source = manager_cc.read_text(encoding="utf-8")
+    if legacy in source:
+        manager_cc.write_text(source.replace(legacy, "", 1), encoding="utf-8")
+        print("SANDIUM_FILTER_BOOTSTRAP_PATCH=remove-profile-startup-warmup:APPLIED")
+    elif ("AdBlockSubscriptionServiceManager::MaybeTriggerSandiumHomepageWarmup()" in source
+          or "ForceNotifyObservers(false)" not in source):
+        print("SANDIUM_FILTER_BOOTSTRAP_PATCH=remove-profile-startup-warmup:ALREADY_ABSENT")
+    else:
+        raise SystemExit("SANDIUM_FILTER_BOOTSTRAP=FAIL unexpected startup engine trigger remains")
+
+
 def verify_pin(core: Path) -> None:
     tag = subprocess.run(
         ["git", "-C", str(core), "describe", "--tags", "--exact-match"],
@@ -246,6 +259,7 @@ void AdBlockSubscriptionServiceManager::OnCheckedSandiumDefaultSubscriptionCache
 }
 
 """
+    remove_legacy_startup_warmup(manager_cc)
     replace_once(
         manager_cc,
         "// Updates preferences to reflect a new state for the specified filter list\n",
@@ -524,10 +538,8 @@ def verify(core: Path) -> None:
     corpus = manager + service + fragment + adapter + mojom + adblock_service
     required = (
         "EnsureSandiumDefaultSubscriptions();",
-        "ForceNotifyObservers(false)",
         "kSandiumAdBlockEngineWarmupRequested",
         "kSandiumAdBlockEngineWarmupDone",
-        "SetBoolean(prefs::kSandiumAdBlockEngineWarmupRequested, true)",
         "kSandiumAdBlockEngineWarmupRequested",
         "load_result == FilterListLoadResult::kLoaded",
         "CreateSubscription(subscription_url);",
@@ -543,6 +555,11 @@ def verify(core: Path) -> None:
     missing = [marker for marker in required if marker not in corpus]
     if missing:
         raise SystemExit("SANDIUM_FILTER_BOOTSTRAP_VERIFY=FAIL missing markers: " + ", ".join(missing))
+    ensure_start = manager.find("void AdBlockSubscriptionServiceManager::EnsureSandiumDefaultSubscriptions()")
+    ensure_end = manager.find("void AdBlockSubscriptionServiceManager::OnCheckedSandiumDefaultSubscriptionCaches", ensure_start)
+    ensure_body = manager[ensure_start:ensure_end]
+    if "ForceNotifyObservers(false)" in ensure_body:
+        raise SystemExit("SANDIUM_FILTER_BOOTSTRAP_VERIFY=FAIL engine warm-up must be homepage-triggered")
     if len(FILTERS) != 29 or len({url for url, _ in FILTERS}) != 29:
         raise SystemExit("SANDIUM_FILTER_BOOTSTRAP_VERIFY=FAIL expected 29 unique subscriptions")
     if "updateFilterLists(" in fragment or "SANDIUM_FILTER_REFRESH_PLACEHOLDER" in fragment:
@@ -559,7 +576,7 @@ def verify(core: Path) -> None:
         raise SystemExit("SANDIUM_FILTER_BOOTSTRAP_VERIFY=FAIL async startup completion handler missing")
     print("SANDIUM_FILTER_BOOTSTRAP_VERIFY=PASS startup_seed=true refresh=native_subscriptions "
           "lists=29 default_enabled=true cache_metadata=source_entries+bytes "
-          "async_filter_io=true async_startup_cache_probe=true engine_warmup=success_gated")
+          "async_filter_io=true async_startup_cache_probe=true engine_warmup=homepage_deferred_success_gated")
 
 
 def main() -> None:

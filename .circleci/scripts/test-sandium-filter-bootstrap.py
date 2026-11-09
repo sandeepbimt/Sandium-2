@@ -14,10 +14,8 @@ assert 'DeleteSubscription(GURL("https://ublockorigin.github.io/uAssets/filters/
 assert 'DeleteSubscription(GURL("https://ublockorigin.github.io/uAssetsCDN/filters/annoyances.min.txt"))' in PATCH
 for marker in (
     "EnsureSandiumDefaultSubscriptions();",
-    "ForceNotifyObservers(false)",
     "kSandiumAdBlockEngineWarmupRequested",
     "kSandiumAdBlockEngineWarmupDone",
-    "SetBoolean(prefs::kSandiumAdBlockEngineWarmupRequested, true)",
     "load_result == FilterListLoadResult::kLoaded",
     "CreateSubscription(subscription_url);",
     "StartDownload(url, true);",
@@ -39,7 +37,8 @@ for marker in (
     assert marker in PATCH, f"missing implementation marker: {marker}"
 assert "DEFAULT_DISABLED_FILTER_URLS" not in PATCH
 assert "mFilterListAndroidHandler.updateFilterLists(" not in PATCH
-print("SANDIUM_FILTER_BOOTSTRAP_UNIT_TEST=PASS lists=29 enabled=true startup=true refresh=true metadata=true success_gated_engine_warmup=true")
+assert PATCH.count("filters_provider_manager_->ForceNotifyObservers(false);") == 1
+print("SANDIUM_FILTER_BOOTSTRAP_UNIT_TEST=PASS lists=29 enabled=true startup_seed=true refresh=true metadata=true homepage_deferred_warmup=true")
 
 assert "base::Value::List" not in PATCH
 assert "base::GetFileSize(cached_list, &cached_size)" not in PATCH

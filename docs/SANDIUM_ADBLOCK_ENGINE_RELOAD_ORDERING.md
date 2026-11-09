@@ -24,23 +24,33 @@ This does not change filter URLs, filter contents, subscription enablement, refr
 
 ## First-install engine warm-up
 
-A follow-up startup guard handles the DAT-cache cold-start path. After Sandium's
-29 default subscriptions have been registered, the subscription bootstrap asks
-the provider manager to force one additional-engine rebuild. This explicit
-notification bypasses the one-time DAT-cache startup suppression; it does not
-toggle a filter off/on, change user preferences, or inject a synthetic filter
-rule.
+The warm-up is triggered when Chromium's NewTabPage reports that the
+homepage is actually visible (`recordNtpShown()`), not during profile
+construction or while a background NTP is loading. The Java homepage hook calls
+a narrow Mojo method on FilterListService, which delegates to AdBlockService.
 
-If any providers are still initializing, the provider manager retains the
-request and dispatches it when the final provider becomes ready. A profile-local
-warm-up-requested preference prevents an unrelated earlier engine load from
-marking the warm-up complete. A separate warm-up-done preference is written
-only after the additional engine reports a successful filter-list load. If the
-process exits before that success, the next startup retries the warm-up.
+AdBlockService records the request with the subscription manager. The manager
+keeps the homepage request pending in memory until every enabled subscription
+has a successful-download timestamp; provider objects alone are not considered
+ready because Brave's base provider reports initialized even when a cached list
+file is empty. The pending request is rechecked after each successful download
+and after subscription enable/disable or deletion changes.
 
-After success, normal DAT-cache startup remains unchanged and the one-time
-rebuild is not repeated on every browser launch. Subsequent list downloads
-continue to trigger regular engine reloads.
+Once every enabled list is downloaded, the manager asks the provider manager
+for one explicit additional-engine rebuild. This is the native equivalent of
+the engine refresh caused by toggling a filter, but it does not toggle any real
+subscription, change its enabled preference, or initiate another download.
+The provider manager bypasses the one-time DAT-cache startup notification
+suppression. A session guard prevents duplicate rebuild requests.
+
+The persistent warm-up-requested preference is set only when the final
+subscription set is ready and the explicit rebuild is dispatched. This prevents
+an earlier partial engine load from falsely marking the warm-up complete. The
+warm-up-done preference is written only after the additional engine reports a
+successful filter-list load. If the process exits before success, the next
+homepage opening in a later session can request the rebuild again. After
+success, normal DAT-cache startup remains unchanged and the forced rebuild is
+not repeated on subsequent launches.
 
 ## Regression coverage
 

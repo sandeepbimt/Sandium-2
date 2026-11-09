@@ -1576,6 +1576,8 @@ jobs:
             python3 .circleci/scripts/test-sandium-shields-two-state.py
             python3 -m py_compile .circleci/scripts/apply-sandium-adblock-engine-race.py .circleci/scripts/test-sandium-adblock-engine-race.py
             python3 .circleci/scripts/test-sandium-adblock-engine-race.py
+            python3 -m py_compile .circleci/scripts/apply-sandium-homepage-adblock-warmup.py .circleci/scripts/test-sandium-homepage-adblock-warmup.py
+            python3 .circleci/scripts/test-sandium-homepage-adblock-warmup.py
             bash -n .circleci/scripts/recover-siso-missing-cas-inputs.sh
             echo "BRAVE_PIPELINE_SELF_TEST=PASS"
       - when:
@@ -1870,6 +1872,7 @@ jobs:
                   CORE="$CIRCLE_WORKING_DIRECTORY/brave-work/src/brave"
                   python3 .circleci/scripts/apply-sandium-shields-two-state.py "$CORE"
                   python3 .circleci/scripts/apply-sandium-adblock-engine-race.py "$CORE"
+                  python3 .circleci/scripts/apply-sandium-homepage-adblock-warmup.py --core "$CORE" --src "$CIRCLE_WORKING_DIRECTORY/brave-work/src"
                   python3 .circleci/scripts/test-sandium-shields-two-state.py
                   python3 .circleci/scripts/test-sandium-adblock-engine-race.py
                   python3 .circleci/scripts/test-sandium-filter-subscriptions.py
