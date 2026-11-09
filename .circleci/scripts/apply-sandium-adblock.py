@@ -1096,13 +1096,12 @@ def apply_runtime_diagnostics_patch(core: Path) -> None:
   const auto flow = perfetto::Flow::ProcessScoped(base::RandUint64());
 """,
         """  base::FilePath list_file_path = GetFilterSetPath();
-  int64_t list_file_size = 0;
-  const bool list_file_size_available =
-      base::GetFileSize(list_file_path, &list_file_size);
+  const auto list_file_size = base::GetFileSize(list_file_path);
+  const bool list_file_size_available = list_file_size.has_value();
   LOG(INFO) << "SANDIUM_FILTER_DAT_FILE id=" << component_id_
             << " path=" << list_file_path.value()
             << " size_available=" << list_file_size_available
-            << " bytes=" << list_file_size;
+            << " bytes=" << list_file_size.value_or(0);
 
   const auto flow = perfetto::Flow::ProcessScoped(base::RandUint64());
 """,
