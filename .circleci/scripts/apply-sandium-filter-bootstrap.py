@@ -82,7 +82,7 @@ def apply(core: Path) -> None:
         "    \"https://filters.adtidy.org/extension/ublock/filters/21.txt\",\n"
         "    \"https://filters.adtidy.org/extension/ublock/filters/19.txt\",\n"
         "    \"https://filters.adtidy.org/extension/ublock/filters/22.txt\",\n"
-        "    \"https://ublockorigin.github.io/uAssets/filters/annoyances.txt\",\n"
+        
         "};\n\n"
     )
     replace_once(
@@ -136,6 +136,12 @@ def apply(core: Path) -> None:
   if (!local_state_) {
     return;
   }
+
+  // Sandium no longer ships the generic uBlock Annoyances list. Remove both
+  // historical URLs from existing profiles and mark them as user-deleted so
+  // the first-launch seeder cannot reintroduce them.
+  DeleteSubscription(GURL("https://ublockorigin.github.io/uAssets/filters/annoyances.txt"));
+  DeleteSubscription(GURL("https://ublockorigin.github.io/uAssetsCDN/filters/annoyances.min.txt"));
 
   const bool migrate_previous_defaults =
       !local_state_->GetBoolean(prefs::kSandiumDefaultFilterListsMigrated);
@@ -498,8 +504,8 @@ def verify(core: Path) -> None:
     missing = [marker for marker in required if marker not in corpus]
     if missing:
         raise SystemExit("SANDIUM_FILTER_BOOTSTRAP_VERIFY=FAIL missing markers: " + ", ".join(missing))
-    if len(FILTERS) != 30 or len({url for url, _ in FILTERS}) != 30:
-        raise SystemExit("SANDIUM_FILTER_BOOTSTRAP_VERIFY=FAIL expected 30 unique subscriptions")
+    if len(FILTERS) != 29 or len({url for url, _ in FILTERS}) != 29:
+        raise SystemExit("SANDIUM_FILTER_BOOTSTRAP_VERIFY=FAIL expected 29 unique subscriptions")
     if "updateFilterLists(" in fragment or "SANDIUM_FILTER_REFRESH_PLACEHOLDER" in fragment:
         raise SystemExit("SANDIUM_FILTER_BOOTSTRAP_VERIFY=FAIL wrong or incomplete refresh action")
     if "base::ReadFileToString(cached_list_path" in service:
@@ -513,7 +519,7 @@ def verify(core: Path) -> None:
     if "OnCheckedSandiumDefaultSubscriptionCaches" not in manager:
         raise SystemExit("SANDIUM_FILTER_BOOTSTRAP_VERIFY=FAIL async startup completion handler missing")
     print("SANDIUM_FILTER_BOOTSTRAP_VERIFY=PASS startup_seed=true refresh=native_subscriptions "
-          "lists=30 default_enabled=true cache_metadata=source_entries+bytes "
+          "lists=29 default_enabled=true cache_metadata=source_entries+bytes "
           "async_filter_io=true async_startup_cache_probe=true")
 
 

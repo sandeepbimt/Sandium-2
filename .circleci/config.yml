@@ -1572,6 +1572,8 @@ jobs:
             python3 .circleci/scripts/test-sandium-filter-subscriptions.py
             python3 -m py_compile .circleci/scripts/apply-sandium-filter-bootstrap.py .circleci/scripts/test-sandium-filter-bootstrap.py
             python3 .circleci/scripts/test-sandium-filter-bootstrap.py
+            python3 -m py_compile .circleci/scripts/apply-sandium-shields-two-state.py .circleci/scripts/test-sandium-shields-two-state.py
+            python3 .circleci/scripts/test-sandium-shields-two-state.py
             bash -n .circleci/scripts/recover-siso-missing-cas-inputs.sh
             echo "BRAVE_PIPELINE_SELF_TEST=PASS"
       - when:
@@ -1832,7 +1834,9 @@ jobs:
             bash .circleci/scripts/prepare-brave-source.sh
       - when:
           condition:
-            equal: [feature/sandium-filter-bootstrap-full, << pipeline.git.branch >>]
+            or:
+              - equal: [feature/sandium-filter-bootstrap-full, << pipeline.git.branch >>]
+              - equal: [feature/sandium-shields-two-state-fast, << pipeline.git.branch >>]
           steps:
             - run:
                 name: Apply Sandium first-launch native filter bootstrap
@@ -1846,12 +1850,26 @@ jobs:
             or:
               - equal: [feature/sandium-page-transition-full, << pipeline.git.branch >>]
               - equal: [feature/sandium-filter-bootstrap-full, << pipeline.git.branch >>]
+              - equal: [feature/sandium-shields-two-state-fast, << pipeline.git.branch >>]
           steps:
             - run:
                 name: Apply Sandium native page-transition controls and Appearance icons
                 command: |
                   set -euo pipefail
                   python3 .circleci/scripts/apply-sandium-page-transition-full.py "$CIRCLE_WORKING_DIRECTORY/brave-work/src"
+      - when:
+          condition:
+            equal: [feature/sandium-shields-two-state-fast, << pipeline.git.branch >>]
+          steps:
+            - run:
+                name: Apply Sandium two-state Shields controls and verify filter retirement
+                command: |
+                  set -euo pipefail
+                  CORE="$CIRCLE_WORKING_DIRECTORY/brave-work/src/brave"
+                  python3 .circleci/scripts/apply-sandium-shields-two-state.py "$CORE"
+                  python3 .circleci/scripts/test-sandium-shields-two-state.py
+                  python3 .circleci/scripts/test-sandium-filter-subscriptions.py
+                  python3 .circleci/scripts/test-sandium-filter-bootstrap.py
       - when:
           condition:
             and:
@@ -1862,6 +1880,8 @@ jobs:
                   equal: [feature/sandium-page-transition-full, << pipeline.git.branch >>]
               - not:
                   equal: [feature/sandium-filter-bootstrap-full, << pipeline.git.branch >>]
+              - not:
+                  equal: [feature/sandium-shields-two-state-fast, << pipeline.git.branch >>]
           steps:
             - run:
                 name: Apply pin-guarded Morphe Android startup overlays (FAST MODE only)
@@ -2662,6 +2682,7 @@ workflows:
                 - sandium/archive-zstd-fast5
                 - feature/sandium-ubo-filters-v19862
                 - feature/sandium-morphe-reader-fast
+                - feature/sandium-shields-two-state-fast
       - brave-android-staged-build:
           name: SANDIUM-FAST-MODE-stage-2
           stage_index: 2
@@ -2673,6 +2694,7 @@ workflows:
                 - sandium/archive-zstd-fast5
                 - feature/sandium-ubo-filters-v19862
                 - feature/sandium-morphe-reader-fast
+                - feature/sandium-shields-two-state-fast
       - brave-android-staged-build:
           name: SANDIUM-FAST-MODE-stage-3
           stage_index: 3
@@ -2684,6 +2706,7 @@ workflows:
                 - sandium/archive-zstd-fast5
                 - feature/sandium-ubo-filters-v19862
                 - feature/sandium-morphe-reader-fast
+                - feature/sandium-shields-two-state-fast
       - brave-android-staged-build:
           name: SANDIUM-FAST-MODE-stage-4
           stage_index: 4
@@ -2695,6 +2718,7 @@ workflows:
                 - sandium/archive-zstd-fast5
                 - feature/sandium-ubo-filters-v19862
                 - feature/sandium-morphe-reader-fast
+                - feature/sandium-shields-two-state-fast
       - brave-android-staged-build:
           name: SANDIUM-FAST-MODE-stage-5
           stage_index: 5
@@ -2706,3 +2730,4 @@ workflows:
                 - sandium/archive-zstd-fast5
                 - feature/sandium-ubo-filters-v19862
                 - feature/sandium-morphe-reader-fast
+                - feature/sandium-shields-two-state-fast

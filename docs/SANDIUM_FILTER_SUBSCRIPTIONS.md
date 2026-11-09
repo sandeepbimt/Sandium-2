@@ -6,9 +6,10 @@ subscribes directly to its HTTPS URL. Filter-list bytes are downloaded from thei
 
 ## Selected list set
 
-The 30 distinct URLs correspond to the selected checked entries in the supplied
-uBlock Origin screenshot. The duplicate uBlock Cookie Notices row in uBO's
-grouped view resolves to one unique URL and is subscribed once.
+The 29 distinct URLs correspond to Sandium's selected filter set. The duplicate
+uBlock Cookie Notices row in uBO's grouped view resolves to one unique URL and
+is subscribed once. The generic uBlock Annoyances list is deliberately excluded;
+the overlapping EasyList and AdGuard annoyance lists remain selected.
 
 | Group | Filter list |
 |---|---|
@@ -46,10 +47,11 @@ not included.
 - On first opening Content Filtering, Sandium creates each missing subscription
   in Brave's native subscription manager. Existing matching subscriptions are
   adopted without changing their enabled/disabled state.
+- The generic uBlock Annoyances subscription is removed at native startup from existing profiles, including both its legacy `uAssets/filters/annoyances.txt` URL and the expanded `uAssetsCDN/filters/annoyances.min.txt` URL. It is no longer in Sandium's selectable/default catalogue.
 - New lists added by a later Sandium release are seeded once. A user's deleted
   list is not silently re-added on the next visit. Users can still add it again
   through Brave's normal “Add custom filter list” action.
-- All 30 selected lists are enabled by default. A one-time migration re-enables the five additions that an earlier Sandium build incorrectly seeded as disabled; later user toggle choices are preserved.
+- All 29 selected lists are enabled by default. A one-time migration re-enables the four retained AdGuard additions that an earlier Sandium build incorrectly seeded as disabled; later user toggle choices are preserved.
 - The native subscription manager seeds missing URLs during ad-block service startup, before normal browsing. New subscriptions immediately request high-priority downloads from their original HTTPS sources.
 - The Content Filters screen retains per-list toggles and deletion, and exposes a **Refresh filters** action for enabled URL subscriptions.
 - Brave's native subscription manager downloads the public URL directly and
@@ -83,7 +85,7 @@ changes. Users can disable or remove individual lists in the filter screen.
   Fast Mode; no Full Mode Chromium rebuild is required by design.
 - CircleCI no longer requires `BRAVE_SERVICES_KEY`; BuildBuddy credentials
   remain a separate remote-execution requirement.
-- The lightweight CI test validates the 30 unique URLs, user-delete behavior,
+- The lightweight CI test validates the 29 unique URLs, user-delete behavior,
   all-enabled defaults, friendly display names, and idempotent source
   transformation. Runtime enforcement still requires a built APK and device
   verification.
