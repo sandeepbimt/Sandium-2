@@ -246,17 +246,17 @@ def run_rust_generator(root: Path, src: Path, out_dir: Path, input_paths: list[P
                                                 capture_output=True, text=True).stdout.strip())
 
     generator_source = root / ".circleci/scripts/sandium-adblock-datgen"
-    vendor = src / "third_party/rust/chromium_crates_io/vendor"
-    vendor_lock = src / "third_party/rust/chromium_crates_io/Cargo.lock"
+    vendor = src / "brave/third_party/rust/chromium_crates_io/vendor"
+    vendor_lock = src / "brave/third_party/rust/chromium_crates_io/Cargo.lock"
     if not vendor.is_dir() or not vendor_lock.is_file():
-        raise RuntimeError("pinned Chromium Rust vendor tree or lockfile is missing")
+        raise RuntimeError("pinned Brave Rust vendor tree or lockfile is missing")
 
     work = out_dir / "generator-workspace"
     if work.exists():
         shutil.rmtree(work)
     shutil.copytree(generator_source, work)
     shutil.copy2(vendor_lock, work / "Cargo.lock")
-    # Chromium's GN-managed vendor tree uses names such as "adblock-v0_13".
+    # Brave's GN-managed Rust vendor tree uses names such as "adblock-v0_13".
     # Cargo directory sources require canonical "<crate>-<version>" names.
     # Build a temporary symlink-only view; never rename or mutate pinned vendor data.
     cargo_vendor = work / "cargo-vendor"
