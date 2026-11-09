@@ -22,6 +22,26 @@ The native patch adds a monotonically increasing generation to each SourceProvid
 
 This does not change filter URLs, filter contents, subscription enablement, refresh behavior, or the selected list catalogue.
 
+## First-install engine warm-up
+
+A follow-up startup guard handles the DAT-cache cold-start path. After Sandium's
+29 default subscriptions have been registered, the subscription bootstrap asks
+the provider manager to force one additional-engine rebuild. This explicit
+notification bypasses the one-time DAT-cache startup suppression; it does not
+toggle a filter off/on, change user preferences, or inject a synthetic filter
+rule.
+
+If any providers are still initializing, the provider manager retains the
+request and dispatches it when the final provider becomes ready. A profile-local
+warm-up-requested preference prevents an unrelated earlier engine load from
+marking the warm-up complete. A separate warm-up-done preference is written
+only after the additional engine reports a successful filter-list load. If the
+process exits before that success, the next startup retries the warm-up.
+
+After success, normal DAT-cache startup remains unchanged and the one-time
+rebuild is not repeated on every browser launch. Subsequent list downloads
+continue to trigger regular engine reloads.
+
 ## Regression coverage
 
 NewestFilterSetBuildWinsWhenOlderBuildFinishesLast uses a delayed test provider. It deliberately holds an older build, lets a newer build containing a test blocking rule finish and activate, then releases the old build. The test verifies that the rule remains active after the stale build completes.

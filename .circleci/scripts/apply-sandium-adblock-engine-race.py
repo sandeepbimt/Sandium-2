@@ -347,10 +347,174 @@ class DeferredFirstLoadFiltersProvider : public AdBlockFiltersProvider {
                         "out-of-order subscription reload regression test")
 
 
+
+
+def transform_manager_header(source: str) -> str:
+    old_public = (
+        "  void ForceNotifyObserver(AdBlockFiltersProvider::Observer& observer,\n"
+        "                           bool is_default_engine);\n"
+    )
+    new_public = (
+        "  void ForceNotifyObserver(AdBlockFiltersProvider::Observer& observer,\n"
+        "                           bool is_default_engine);\n"
+        "  // Explicitly reload an engine after Sandium's initial subscription set\n"
+        "  // has been registered, bypassing the DAT-cache startup notification skip.\n"
+        "  void ForceNotifyObservers(bool is_default_engine);\n"
+    )
+    source = replace_once(source, old_public, new_public,
+                          "void ForceNotifyObservers(bool is_default_engine);",
+                          "explicit startup engine reload API")
+
+    old_state = (
+        "  bool suppress_default_engine_startup_change_notification_ = false;\n"
+        "  bool suppress_additional_engine_startup_change_notification_ = false;\n\n"
+        "  base::CancelableTaskTracker task_tracker_;\n"
+    )
+    new_state = (
+        "  bool suppress_default_engine_startup_change_notification_ = false;\n"
+        "  bool suppress_additional_engine_startup_change_notification_ = false;\n"
+        "  bool force_default_engine_reload_pending_ = false;\n"
+        "  bool force_additional_engine_reload_pending_ = false;\n\n"
+        "  base::CancelableTaskTracker task_tracker_;\n"
+    )
+    return replace_once(source, old_state, new_state,
+                        "force_additional_engine_reload_pending_ = false;",
+                        "deferred startup reload state")
+
+
+def transform_manager_cc(source: str) -> str:
+    old_changed = (
+        "void AdBlockFiltersProviderManager::OnChanged(bool is_for_default_engine) {\n"
+        "  if (!AreAllProvidersInitialized(is_for_default_engine)) {\n"
+        "    return;\n"
+        "  }\n\n"
+        "  // All startup providers are initialized so we can safely consume the startup\n"
+        "  // notification. The next call to OnChanged will trigger NotifyObservers\n"
+        "  if (MaybeConsumeEngineStartupChangeNotification(is_for_default_engine)) {\n"
+        "    return;\n"
+        "  }\n\n"
+        "  NotifyObservers(is_for_default_engine);\n"
+        "}\n"
+    )
+    new_changed = (
+        "void AdBlockFiltersProviderManager::OnChanged(bool is_for_default_engine) {\n"
+        "  if (!AreAllProvidersInitialized(is_for_default_engine)) {\n"
+        "    return;\n"
+        "  }\n\n"
+        "  bool& force_reload_pending =\n"
+        "      is_for_default_engine ? force_default_engine_reload_pending_\n"
+        "                         : force_additional_engine_reload_pending_;\n"
+        "  if (force_reload_pending) {\n"
+        "    force_reload_pending = false;\n"
+        "    NotifyObservers(is_for_default_engine);\n"
+        "    return;\n"
+        "  }\n\n"
+        "  // All startup providers are initialized so we can safely consume the startup\n"
+        "  // notification. The next call to OnChanged will trigger NotifyObservers\n"
+        "  if (MaybeConsumeEngineStartupChangeNotification(is_for_default_engine)) {\n"
+        "    return;\n"
+        "  }\n\n"
+        "  NotifyObservers(is_for_default_engine);\n"
+        "}\n"
+    )
+    source = replace_once(source, old_changed, new_changed,
+                          "force_reload_pending =",
+                          "honor deferred explicit startup reload")
+
+    old_force = (
+        "void AdBlockFiltersProviderManager::ForceNotifyObserver(\n"
+        "    AdBlockFiltersProvider::Observer& observer,\n"
+        "    bool is_for_default_engine) {\n"
+        "  // Consume the startup change notification if it hasn't been consumed already.\n"
+        "  // If it has been consumed this will return false and continue to OnChanged.\n"
+        "  // If it has not been consumed then we're still waiting for a startup provider\n"
+        "  // to initialize and it will notify when it does instead of suppressing it.\n"
+        "  if (MaybeConsumeEngineStartupChangeNotification(is_for_default_engine)) {\n"
+        "    return;\n"
+        "  }\n\n"
+        "  if (AreAllProvidersInitialized(is_for_default_engine)) {\n"
+        "    observer.OnChanged(is_for_default_engine);\n"
+        "  }\n"
+        "}\n\n"
+    )
+    new_force = old_force + (
+        "void AdBlockFiltersProviderManager::ForceNotifyObservers(\n"
+        "    bool is_default_engine) {\n"
+        "  // This is an explicit recovery path for a cold subscription bootstrap.\n"
+        "  // Clear the cache optimization and remember the request if providers are\n"
+        "  // still initializing; the final provider notification will publish the\n"
+        "  // complete filter set instead of being swallowed as a startup event.\n"
+        "  bool& suppress_startup_notification =\n"
+        "      is_default_engine\n"
+        "          ? suppress_default_engine_startup_change_notification_\n"
+        "          : suppress_additional_engine_startup_change_notification_;\n"
+        "  bool& force_reload_pending =\n"
+        "      is_default_engine ? force_default_engine_reload_pending_\n"
+        "                         : force_additional_engine_reload_pending_;\n"
+        "  suppress_startup_notification = false;\n"
+        "  force_reload_pending = true;\n"
+        "  if (!AreAllProvidersInitialized(is_default_engine)) {\n"
+        "    return;\n"
+        "  }\n"
+        "  force_reload_pending = false;\n"
+        "  NotifyObservers(is_default_engine);\n"
+        "}\n\n"
+    )
+    return replace_once(source, old_force, new_force,
+                        "void AdBlockFiltersProviderManager::ForceNotifyObservers(",
+                        "force complete subscription bootstrap")
+
+
+def transform_manager_test(source: str) -> str:
+    tests = """// Sandium explicitly asks for one complete additional-engine build after
+// registering its first-launch subscriptions. This must bypass the normal DAT
+// cache startup suppression, for both cache-enabled and cache-disabled builds.
+TEST_P(AdBlockFiltersProviderManagerDATCacheTest,
+       ForceNotifyObserversBypassesStartupSuppression) {
+  brave_shields::AdBlockFiltersProviderManager m;
+  FiltersProviderManagerTestObserver observer;
+  m.AddObserver(&observer);
+
+  brave_shields::TestFiltersProvider provider("rules", true, 0);
+  provider.RegisterAsSourceProvider(&m);
+  const int notifications_before_force = observer.changed_count;
+
+  m.ForceNotifyObservers(/*is_default_engine=*/true);
+
+  EXPECT_EQ(observer.changed_count, notifications_before_force + 1);
+}
+
+// If a provider is not ready when the explicit warm-up is requested, preserve
+// the request and publish once the last provider initializes.
+TEST_P(AdBlockFiltersProviderManagerDATCacheTest,
+       ForceNotifyObserversWaitsForProviderInitialization) {
+  brave_shields::AdBlockFiltersProviderManager m;
+  FiltersProviderManagerTestObserver observer;
+  m.AddObserver(&observer);
+
+  brave_shields::TestFiltersProvider provider("rules", true, 0);
+  m.AddProvider(&provider, /*is_for_default_engine=*/true);
+  m.ForceNotifyObservers(/*is_default_engine=*/true);
+  EXPECT_EQ(observer.changed_count, 0);
+
+  provider.Initialize();
+  EXPECT_EQ(observer.changed_count, 1);
+}
+
+"""
+    anchor = "// Disabled: startup OnChanged notifies observer for each provider init.\n"
+    return replace_once(source, anchor, tests + anchor,
+                        "ForceNotifyObserversBypassesStartupSuppression",
+                        "one-time subscription warm-up regression tests")
+
+
 def verify(core: Path) -> None:
     header = read(core / "components/brave_shields/content/browser/ad_block_service.h")
     service = read(core / "components/brave_shields/content/browser/ad_block_service.cc")
     test = read(core / "components/brave_shields/content/test/ad_block_service_unittest.cc")
+    manager_header = read(core / "components/brave_shields/core/browser/ad_block_filters_provider_manager.h")
+    manager_cc = read(core / "components/brave_shields/core/browser/ad_block_filters_provider_manager.cc")
+    manager_test = read(core / "components/brave_shields/core/test/ad_block_filters_provider_manager_unittest.cc")
     checks = {
         "generation stamped on every provider change":
             "const uint64_t generation = ++filter_set_generation_;" in service,
@@ -366,12 +530,20 @@ def verify(core: Path) -> None:
             "NewestFilterSetBuildWinsWhenOlderBuildFinishesLast" in test,
         "test explicitly completes older build last":
             "delayed_provider.ReleaseFirstLoad();" in test,
+        "explicit provider-manager warm-up API":
+            "void ForceNotifyObservers(bool is_default_engine);" in manager_header,
+        "startup suppression is bypassed for explicit warm-up":
+            "suppress_startup_notification = false;" in manager_cc,
+        "deferred warm-up waits for providers":
+            "force_reload_pending" in manager_cc and "ForceNotifyObserversWaitsForProviderInitialization" in manager_test,
+        "DAT-cache cold-start regression tests":
+            "ForceNotifyObserversBypassesStartupSuppression" in manager_test,
     }
     failures = [name for name, ok in checks.items() if not ok]
     if failures:
         raise RuntimeError("Adblock reload verification failed: " + ", ".join(failures))
-    print("SANDIUM_ADBLOCK_RELOAD_VERIFY=PASS latest_build_wins=true stale_callbacks_dropped=true "
-          "out_of_order_regression=true")
+    print("SANDIUM_ADBLOCK_RELOAD_VERIFY=PASS latest_build_wins=true startup_warmup=true "
+          "stale_callbacks_dropped=true provider_manager_regression=true")
 
 
 def main() -> None:
@@ -389,6 +561,12 @@ def main() -> None:
                          f"actual={tag}@{sha}")
     print(f"SANDIUM_ADBLOCK_RELOAD_PIN=PASS {tag}@{sha}")
 
+    write(core / "components/brave_shields/core/browser/ad_block_filters_provider_manager.h",
+          transform_manager_header, "MANAGER_HEADER")
+    write(core / "components/brave_shields/core/browser/ad_block_filters_provider_manager.cc",
+          transform_manager_cc, "MANAGER")
+    write(core / "components/brave_shields/core/test/ad_block_filters_provider_manager_unittest.cc",
+          transform_manager_test, "MANAGER_UNIT_TEST")
     write(core / "components/brave_shields/content/browser/ad_block_service.h",
           transform_header, "HEADER")
     write(core / "components/brave_shields/content/browser/ad_block_service.cc",

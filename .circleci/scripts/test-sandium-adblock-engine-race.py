@@ -119,5 +119,69 @@ assert "class DeferredFirstLoadFiltersProvider" in unit_test
 assert "NewestFilterSetBuildWinsWhenOlderBuildFinishesLast" in unit_test
 assert "delayed_provider.ReleaseFirstLoad();" in unit_test
 
+
+manager_header_fixture = """  void ForceNotifyObserver(AdBlockFiltersProvider::Observer& observer,
+                           bool is_default_engine);
+
+  bool suppress_default_engine_startup_change_notification_ = false;
+  bool suppress_additional_engine_startup_change_notification_ = false;
+
+  base::CancelableTaskTracker task_tracker_;
+"""
+manager_header = apply_twice(
+    MODULE["transform_manager_header"], manager_header_fixture, "manager header")
+assert "void ForceNotifyObservers(bool is_default_engine);" in manager_header
+assert "force_additional_engine_reload_pending_ = false;" in manager_header
+
+
+manager_cc_fixture = """void AdBlockFiltersProviderManager::OnChanged(bool is_for_default_engine) {
+  if (!AreAllProvidersInitialized(is_for_default_engine)) {
+    return;
+  }
+
+  // All startup providers are initialized so we can safely consume the startup
+  // notification. The next call to OnChanged will trigger NotifyObservers
+  if (MaybeConsumeEngineStartupChangeNotification(is_for_default_engine)) {
+    return;
+  }
+
+  NotifyObservers(is_for_default_engine);
+}
+
+void AdBlockFiltersProviderManager::ForceNotifyObserver(
+    AdBlockFiltersProvider::Observer& observer,
+    bool is_for_default_engine) {
+  // Consume the startup change notification if it hasn't been consumed already.
+  // If it has been consumed this will return false and continue to OnChanged.
+  // If it has not been consumed then we're still waiting for a startup provider
+  // to initialize and it will notify when it does instead of suppressing it.
+  if (MaybeConsumeEngineStartupChangeNotification(is_for_default_engine)) {
+    return;
+  }
+
+  if (AreAllProvidersInitialized(is_for_default_engine)) {
+    observer.OnChanged(is_for_default_engine);
+  }
+}
+
+std::string AdBlockFiltersProviderManager::GetNameForDebugging() {
+  return "AdBlockFiltersProviderManager";
+}
+"""
+manager_cc = apply_twice(
+    MODULE["transform_manager_cc"], manager_cc_fixture, "manager cc")
+assert "force_reload_pending = false;" in manager_cc
+assert "ForceNotifyObservers(" in manager_cc
+assert "NotifyObservers(is_default_engine);" in manager_cc
+
+
+manager_test_fixture = """// Disabled: startup OnChanged notifies observer for each provider init.
+"""
+manager_test = apply_twice(
+    MODULE["transform_manager_test"], manager_test_fixture, "manager test")
+assert "ForceNotifyObserversBypassesStartupSuppression" in manager_test
+assert "ForceNotifyObserversWaitsForProviderInitialization" in manager_test
+
+
 print("SANDIUM_ADBLOCK_RELOAD_PATCHER_TEST=PASS header=true callbacks=true idempotent=true "
-      "out_of_order_regression=true")
+      "out_of_order_regression=true startup_warmup=true deferred_warmup=true")
