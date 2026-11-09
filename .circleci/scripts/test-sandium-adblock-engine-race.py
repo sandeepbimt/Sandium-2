@@ -82,7 +82,7 @@ void AdBlockService::SourceProviderObserver::OnDATFileRead(
     DATFileDataBuffer dat) {
   on_resources_loaded_.Run(engine_is_default_, std::move(dat), nullptr,
                            adblock::new_empty_resource_storage());
-  LoadResources(nullptr);
+   LoadResources(nullptr);
 }
 
 void AdBlockService::SourceProviderObserver::OnFilterSetCreated(
