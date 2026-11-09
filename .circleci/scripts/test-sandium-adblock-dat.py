@@ -29,7 +29,12 @@ def main() -> None:
     generator_source = (HERE / "generate-sandium-adblock-dat.py").read_text(encoding="utf-8")
     assert "import tomllib" in generator_source
     assert "cargo-vendor" in generator_source
-    assert "alias.symlink_to(crate_dir.resolve(), target_is_directory=True)" in generator_source
+    # Assert the combined Brave + Chromium vendor implementation, not a
+    # particular local variable name used for the symlink target.
+    assert "vendor_roots = [chromium_vendor, vendor]" in generator_source
+    assert "alias.symlink_to(resolved_crate, target_is_directory=True)" in generator_source
+    assert '"adblock-0.13.3", "base64-0.22.1"' in generator_source
+    assert "conflicting vendored copies for Cargo package" in generator_source
     assert "vendor = src / \"brave/third_party/rust/chromium_crates_io/vendor\"" in generator_source
     assert "vendor_lock = src / \"brave/third_party/rust/chromium_crates_io/Cargo.lock\"" in generator_source
     assert "adblock-0.13.3" in generator_source
