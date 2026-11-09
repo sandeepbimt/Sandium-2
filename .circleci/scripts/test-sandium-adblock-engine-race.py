@@ -97,6 +97,34 @@ void AdBlockService::SourceProviderObserver::OnAllLoaded(
   on_resources_loaded_.Run(engine_is_default_, std::nullopt,
                            std::move(filter_set), std::move(storage));
 }
+
+void AdBlockService::OnDATLoaded(bool is_default_engine, bool success) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  if (is_default_engine) {
+    default_dat_loaded_for_testing_ = true;
+  } else {
+    additional_dat_loaded_for_testing_ = true;
+  }
+  // Fixture models the real cold-profile DAT-miss callback.
+  if (!success) {
+    if (is_default_engine) {
+      filters_provider_manager_->ForceNotifyObserver(*default_service_observer_,
+                                                     true);
+    } else {
+      filters_provider_manager_->ForceNotifyObserver(
+          *additional_filters_service_observer_, false);
+    }
+  }
+  observers_.Notify(&Observer::OnDATLoaded, is_default_engine, success);
+}
+
+void AdBlockService::OnEngineLoaded(
+    bool is_default_engine,
+    std::pair<FilterListLoadResult, std::optional<DATFileDataBuffer>> result) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  auto [load_result, serialized_dat] = std::move(result);
+
+  if (load_result != FilterListLoadResult::kResourcesOnly) {
 """
 service = apply_twice(MODULE["transform_service_cc"], service_fixture, "service")
 assert "const uint64_t generation = ++filter_set_generation_;" in service
