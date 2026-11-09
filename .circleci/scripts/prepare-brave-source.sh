@@ -442,3 +442,8 @@ fi
 echo "SANDIUM_ADBLOCK_PATCH=START stage=$BRAVE_STAGE_INDEX"
 python3 "$ROOT/.circleci/scripts/apply-sandium-adblock.py" --core "$CORE_DIR"
 echo "SANDIUM_ADBLOCK_PATCH=PASS stage=$BRAVE_STAGE_INDEX"
+echo "SANDIUM_ADBLOCK_ENGINE_RELOAD_TEST=START stage=$BRAVE_STAGE_INDEX"
+python3 "$ROOT/.circleci/scripts/test-sandium-adblock-engine-race.py"
+echo "SANDIUM_ADBLOCK_ENGINE_RELOAD_TEST=PASS stage=$BRAVE_STAGE_INDEX"
+python3 "$ROOT/.circleci/scripts/apply-sandium-adblock-engine-race.py" "$CORE_DIR"
+echo "SANDIUM_ADBLOCK_ENGINE_RELOAD_PATCH=PASS stage=$BRAVE_STAGE_INDEX"
