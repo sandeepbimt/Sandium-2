@@ -263,13 +263,16 @@ def run_rust_generator(root: Path, src: Path, out_dir: Path, input_paths: list[P
     cargo_vendor.mkdir(parents=True, exist_ok=True)
     aliases = 0
     discovered_adblock: list[Path] = []
-    # Search Cargo manifests recursively instead of assuming every vendored
-    # crate is a direct child of vendor/. Chromium's vendor tree can contain
-    # layout indirections and the API tree view does not reveal runtime paths.
-    for manifest_path in sorted(vendor.rglob("Cargo.toml")):
-        crate_dir = manifest_path.parent
+    # GN's vendor tree is a flat package directory. Use direct children:
+    # pathlib.rglob does not reliably descend through directory symlinks,
+    # which are used by some source-preparation/checkpoint layouts.
+    vendor_children = sorted(vendor.iterdir())
+    for crate_dir in vendor_children:
+        if not crate_dir.is_dir():
+            continue
+        manifest_path = crate_dir / "Cargo.toml"
         checksum_path = crate_dir / ".cargo-checksum.json"
-        if not checksum_path.is_file():
+        if not manifest_path.is_file() or not checksum_path.is_file():
             continue
         package = tomllib.loads(manifest_path.read_text(encoding="utf-8")).get("package", {})
         name, version = package.get("name"), package.get("version")
@@ -280,24 +283,23 @@ def run_rust_generator(root: Path, src: Path, out_dir: Path, input_paths: list[P
         alias = cargo_vendor / f"{name}-{version}"
         if alias.exists() or alias.is_symlink():
             raise RuntimeError(f"duplicate Cargo vendor package alias: {alias.name}")
-        alias.symlink_to(crate_dir, target_is_directory=True)
+        alias.symlink_to(crate_dir.resolve(), target_is_directory=True)
         aliases += 1
     expected_alias = cargo_vendor / "adblock-0.13.3"
     if len(discovered_adblock) != 1:
+        child_sample = [p.name for p in vendor_children[:30]]
         raise RuntimeError(
             "expected exactly one pinned adblock 0.13.3 manifest in Chromium vendor tree; "
-            f"found={len(discovered_adblock)} candidates="
-            f"{[str(p.relative_to(vendor)) for p in discovered_adblock[:10]]}"
+            f"found={len(discovered_adblock)} vendor={vendor} resolved={vendor.resolve()} "
+            f"vendor_is_symlink={vendor.is_symlink()} child_count={len(vendor_children)} "
+            f"children_sample={child_sample}"
         )
-    if not expected_alias.is_symlink():
-        # Make the expected crate alias explicit and include the actual
-        # discovered manifest path in the log. This catches package-name or
-        # traversal mismatches without silently accepting a different version.
-        expected_alias.symlink_to(discovered_adblock[0], target_is_directory=True)
+    if not expected_alias.is_symlink() or not expected_alias.exists():
+        expected_alias.symlink_to(discovered_adblock[0].resolve(), target_is_directory=True)
     if not expected_alias.is_symlink() or not expected_alias.exists():
         raise RuntimeError(
             "failed to expose pinned adblock 0.13.3; "
-            f"vendor={vendor} discovered={discovered_adblock[0]} "
+            f"vendor={vendor.resolve()} discovered={discovered_adblock[0].resolve()} "
             f"alias={expected_alias} aliases={aliases}"
         )
     print(f"SANDIUM_DAT_CARGO_VENDOR=PASS aliases={aliases} adblock=adblock-0.13.3")
