@@ -26,6 +26,12 @@ def main() -> None:
     assert GEN["EXPECTED_INCLUDED_SOURCES"] == 27
     assert len(GEN["NOT_BUNDLED_LICENSE_RESTRICTIONS"]) == 2
 
+    generator_source = (HERE / "generate-sandium-adblock-dat.py").read_text(encoding="utf-8")
+    assert "import tomllib" in generator_source
+    assert "cargo-vendor" in generator_source
+    assert "alias.symlink_to(crate_dir, target_is_directory=True)" in generator_source
+    assert "adblock-0.13.3" in generator_source
+
     rust_source = (HERE / "sandium-adblock-datgen/src/main.rs").read_text(encoding="utf-8")
     assert "Engine::new_with_filter_set" in rust_source
     assert "engine.serialize()" in rust_source
