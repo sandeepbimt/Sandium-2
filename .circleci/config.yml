@@ -1575,6 +1575,8 @@ jobs:
             python3 -m py_compile .circleci/scripts/apply-sandium-shields-two-state.py .circleci/scripts/test-sandium-shields-two-state.py
             python3 .circleci/scripts/test-sandium-shields-two-state.py
             python3 -m py_compile .circleci/scripts/apply-sandium-adblock-engine-race.py .circleci/scripts/test-sandium-adblock-engine-race.py
+            python3 -m py_compile .circleci/scripts/apply-sandium-adblock-first-launch.py .circleci/scripts/test-sandium-adblock-first-launch.py
+            python3 .circleci/scripts/test-sandium-adblock-first-launch.py
             python3 .circleci/scripts/test-sandium-adblock-engine-race.py
             bash -n .circleci/scripts/recover-siso-missing-cas-inputs.sh
             echo "BRAVE_PIPELINE_SELF_TEST=PASS"
@@ -1606,6 +1608,7 @@ jobs:
                   - equal: [feature/sandium-disable-13-brave-features, << pipeline.git.branch >>]
                   - equal: [feature/sandium-page-transition-full, << pipeline.git.branch >>]
                   - equal: [feature/sandium-filter-bootstrap-full, << pipeline.git.branch >>]
+                  - equal: [feature/sandium-adblock-first-launch-full, << pipeline.git.branch >>]
           steps:
             - restore_cache:
                 name: Restore canonical 26 GiB checkpoint before branch-local fallbacks
@@ -1630,6 +1633,8 @@ jobs:
               - not:
                   equal: [feature/sandium-page-transition-full, << pipeline.git.branch >>]
               - not:
+              - not:
+                  equal: [feature/sandium-adblock-first-launch-full, << pipeline.git.branch >>]
                   equal: [feature/sandium-filter-bootstrap-full, << pipeline.git.branch >>]
           steps:
             - restore_cache:
@@ -1650,6 +1655,7 @@ jobs:
                   - equal: [feature/sandium-disable-13-brave-features, << pipeline.git.branch >>]
                   - equal: [feature/sandium-page-transition-full, << pipeline.git.branch >>]
                   - equal: [feature/sandium-filter-bootstrap-full, << pipeline.git.branch >>]
+                  - equal: [feature/sandium-adblock-first-launch-full, << pipeline.git.branch >>]
           steps:
             - restore_cache:
                 name: Restore reference Stage 1 handoff
@@ -1665,6 +1671,7 @@ jobs:
                   - equal: [feature/sandium-disable-13-brave-features, << pipeline.git.branch >>]
                   - equal: [feature/sandium-page-transition-full, << pipeline.git.branch >>]
                   - equal: [feature/sandium-filter-bootstrap-full, << pipeline.git.branch >>]
+                  - equal: [feature/sandium-adblock-first-launch-full, << pipeline.git.branch >>]
           steps:
             - restore_cache:
                 name: Restore reference Stage 2 handoff
@@ -1680,6 +1687,7 @@ jobs:
                   - equal: [feature/sandium-disable-13-brave-features, << pipeline.git.branch >>]
                   - equal: [feature/sandium-page-transition-full, << pipeline.git.branch >>]
                   - equal: [feature/sandium-filter-bootstrap-full, << pipeline.git.branch >>]
+                  - equal: [feature/sandium-adblock-first-launch-full, << pipeline.git.branch >>]
           steps:
             - restore_cache:
                 name: Restore reference Stage 3 handoff
@@ -1695,6 +1703,7 @@ jobs:
                   - equal: [feature/sandium-disable-13-brave-features, << pipeline.git.branch >>]
                   - equal: [feature/sandium-page-transition-full, << pipeline.git.branch >>]
                   - equal: [feature/sandium-filter-bootstrap-full, << pipeline.git.branch >>]
+                  - equal: [feature/sandium-adblock-first-launch-full, << pipeline.git.branch >>]
           steps:
             - restore_cache:
                 name: Restore reference Stage 4 handoff
@@ -1711,6 +1720,8 @@ jobs:
               - not:
                   equal: [feature/sandium-page-transition-full, << pipeline.git.branch >>]
               - not:
+              - not:
+                  equal: [feature/sandium-adblock-first-launch-full, << pipeline.git.branch >>]
                   equal: [feature/sandium-filter-bootstrap-full, << pipeline.git.branch >>]
           steps:
             - restore_cache:
@@ -1732,6 +1743,8 @@ jobs:
               - not:
                   equal: [feature/sandium-page-transition-full, << pipeline.git.branch >>]
               - not:
+              - not:
+                  equal: [feature/sandium-adblock-first-launch-full, << pipeline.git.branch >>]
                   equal: [feature/sandium-filter-bootstrap-full, << pipeline.git.branch >>]
           steps:
             - restore_cache:
@@ -1753,6 +1766,8 @@ jobs:
               - not:
                   equal: [feature/sandium-page-transition-full, << pipeline.git.branch >>]
               - not:
+              - not:
+                  equal: [feature/sandium-adblock-first-launch-full, << pipeline.git.branch >>]
                   equal: [feature/sandium-filter-bootstrap-full, << pipeline.git.branch >>]
           steps:
             - restore_cache:
@@ -1774,6 +1789,8 @@ jobs:
               - not:
                   equal: [feature/sandium-page-transition-full, << pipeline.git.branch >>]
               - not:
+              - not:
+                  equal: [feature/sandium-adblock-first-launch-full, << pipeline.git.branch >>]
                   equal: [feature/sandium-filter-bootstrap-full, << pipeline.git.branch >>]
           steps:
             - restore_cache:
@@ -1804,7 +1821,7 @@ jobs:
           name: Select Sandium build mode and validate reference
           command: |
             set -euo pipefail
-            if [ "${CIRCLE_BRANCH:-}" = "feature/sandium-disable-13-brave-features" ] || [ "${CIRCLE_BRANCH:-}" = "feature/sandium-page-transition-full" ] || [ "${CIRCLE_BRANCH:-}" = "feature/sandium-filter-bootstrap-full" ]; then
+            if [ "${CIRCLE_BRANCH:-}" = "feature/sandium-disable-13-brave-features" ] || [ "${CIRCLE_BRANCH:-}" = "feature/sandium-page-transition-full" ] || [ "${CIRCLE_BRANCH:-}" = "feature/sandium-filter-bootstrap-full" ] || [ "${CIRCLE_BRANCH:-}" = "feature/sandium-adblock-first-launch-full" ]; then
               MODE="full"
             else
               MODE="<< pipeline.parameters.sandium_build_mode >>"
@@ -1838,6 +1855,7 @@ jobs:
           condition:
             or:
               - equal: [feature/sandium-filter-bootstrap-full, << pipeline.git.branch >>]
+              - equal: [feature/sandium-adblock-first-launch-full, << pipeline.git.branch >>]
               - equal: [feature/sandium-shields-two-state-fast, << pipeline.git.branch >>]
           steps:
             - run:
@@ -1852,6 +1870,7 @@ jobs:
             or:
               - equal: [feature/sandium-page-transition-full, << pipeline.git.branch >>]
               - equal: [feature/sandium-filter-bootstrap-full, << pipeline.git.branch >>]
+              - equal: [feature/sandium-adblock-first-launch-full, << pipeline.git.branch >>]
               - equal: [feature/sandium-shields-two-state-fast, << pipeline.git.branch >>]
           steps:
             - run:
@@ -1861,7 +1880,9 @@ jobs:
                   python3 .circleci/scripts/apply-sandium-page-transition-full.py "$CIRCLE_WORKING_DIRECTORY/brave-work/src"
       - when:
           condition:
-            equal: [feature/sandium-shields-two-state-fast, << pipeline.git.branch >>]
+            or:
+              - equal: [feature/sandium-shields-two-state-fast, << pipeline.git.branch >>]
+              - equal: [feature/sandium-adblock-first-launch-full, << pipeline.git.branch >>]
           steps:
             - run:
                 name: Apply Sandium two-state Shields controls and verify filter retirement
@@ -1870,6 +1891,8 @@ jobs:
                   CORE="$CIRCLE_WORKING_DIRECTORY/brave-work/src/brave"
                   python3 .circleci/scripts/apply-sandium-shields-two-state.py "$CORE"
                   python3 .circleci/scripts/apply-sandium-adblock-engine-race.py "$CORE"
+                  python3 .circleci/scripts/apply-sandium-adblock-first-launch.py "$CORE" "$CIRCLE_WORKING_DIRECTORY/brave-work/src"
+                  python3 .circleci/scripts/test-sandium-adblock-first-launch.py
                   python3 .circleci/scripts/test-sandium-shields-two-state.py
                   python3 .circleci/scripts/test-sandium-adblock-engine-race.py
                   python3 .circleci/scripts/test-sandium-filter-subscriptions.py
@@ -1883,6 +1906,8 @@ jobs:
               - not:
                   equal: [feature/sandium-page-transition-full, << pipeline.git.branch >>]
               - not:
+              - not:
+                  equal: [feature/sandium-adblock-first-launch-full, << pipeline.git.branch >>]
                   equal: [feature/sandium-filter-bootstrap-full, << pipeline.git.branch >>]
               - not:
                   equal: [feature/sandium-shields-two-state-fast, << pipeline.git.branch >>]
@@ -2107,7 +2132,7 @@ jobs:
             export SISO_LIMITS="local=8,remote=80"
             METRICS_PREFIX="sandium-brave-siso-stage-<< parameters.stage_index >>-build-${CIRCLE_BUILD_NUM:-local}-attempt-"
             METRICS_FILE="${METRICS_PREFIX}0.jsonl"
-            if [ "${CIRCLE_BRANCH:-}" = "feature/sandium-disable-13-brave-features" ] || [ "${CIRCLE_BRANCH:-}" = "feature/sandium-page-transition-full" ] || [ "${CIRCLE_BRANCH:-}" = "feature/sandium-filter-bootstrap-full" ]; then
+            if [ "${CIRCLE_BRANCH:-}" = "feature/sandium-disable-13-brave-features" ] || [ "${CIRCLE_BRANCH:-}" = "feature/sandium-page-transition-full" ] || [ "${CIRCLE_BRANCH:-}" = "feature/sandium-filter-bootstrap-full" ] || [ "${CIRCLE_BRANCH:-}" = "feature/sandium-adblock-first-launch-full" ]; then
               BUILD_MODE="full"
             else
               BUILD_MODE="<< pipeline.parameters.sandium_build_mode >>"
@@ -2321,6 +2346,7 @@ jobs:
               - equal: [feature/sandium-disable-13-brave-features, << pipeline.git.branch >>]
               - equal: [feature/sandium-page-transition-full, << pipeline.git.branch >>]
               - equal: [feature/sandium-filter-bootstrap-full, << pipeline.git.branch >>]
+              - equal: [feature/sandium-adblock-first-launch-full, << pipeline.git.branch >>]
           steps:
             - run:
                 name: Validate Brave checkpoint before saving
@@ -2429,7 +2455,7 @@ jobs:
             ROOT="$CIRCLE_WORKING_DIRECTORY"
             STAGE="<< parameters.stage_index >>"
             APK_STATUS="$ROOT/brave-work/.sandium/apk-completion-status.txt"
-            if [ "${CIRCLE_BRANCH:-}" = "feature/sandium-disable-13-brave-features" ] || [ "${CIRCLE_BRANCH:-}" = "feature/sandium-page-transition-full" ] || [ "${CIRCLE_BRANCH:-}" = "feature/sandium-filter-bootstrap-full" ]; then
+            if [ "${CIRCLE_BRANCH:-}" = "feature/sandium-disable-13-brave-features" ] || [ "${CIRCLE_BRANCH:-}" = "feature/sandium-page-transition-full" ] || [ "${CIRCLE_BRANCH:-}" = "feature/sandium-filter-bootstrap-full" ] || [ "${CIRCLE_BRANCH:-}" = "feature/sandium-adblock-first-launch-full" ]; then
               MODE="full"
             else
               MODE="<< pipeline.parameters.sandium_build_mode >>"
@@ -2588,6 +2614,7 @@ workflows:
         - equal: [feature/sandium-disable-13-brave-features, << pipeline.git.branch >>]
         - equal: [feature/sandium-page-transition-full, << pipeline.git.branch >>]
         - equal: [feature/sandium-filter-bootstrap-full, << pipeline.git.branch >>]
+        - equal: [feature/sandium-adblock-first-launch-full, << pipeline.git.branch >>]
     jobs:
       - brave-android-staged-build:
           name: SANDIUM-FULL-MODE-stage-1
@@ -2602,6 +2629,7 @@ workflows:
                 - feature/sandium-disable-13-brave-features
                 - feature/sandium-page-transition-full
                 - feature/sandium-filter-bootstrap-full
+                - feature/sandium-adblock-first-launch-full
       - brave-android-staged-build:
           name: SANDIUM-FULL-MODE-stage-2
           stage_index: 2
@@ -2616,6 +2644,7 @@ workflows:
                 - feature/sandium-disable-13-brave-features
                 - feature/sandium-page-transition-full
                 - feature/sandium-filter-bootstrap-full
+                - feature/sandium-adblock-first-launch-full
       - brave-android-staged-build:
           name: SANDIUM-FULL-MODE-stage-3
           stage_index: 3
@@ -2630,6 +2659,7 @@ workflows:
                 - feature/sandium-disable-13-brave-features
                 - feature/sandium-page-transition-full
                 - feature/sandium-filter-bootstrap-full
+                - feature/sandium-adblock-first-launch-full
       - brave-android-staged-build:
           name: SANDIUM-FULL-MODE-stage-4
           stage_index: 4
@@ -2644,6 +2674,7 @@ workflows:
                 - feature/sandium-disable-13-brave-features
                 - feature/sandium-page-transition-full
                 - feature/sandium-filter-bootstrap-full
+                - feature/sandium-adblock-first-launch-full
       - brave-android-staged-build:
           name: SANDIUM-FULL-MODE-stage-5
           stage_index: 5
@@ -2658,6 +2689,7 @@ workflows:
                 - feature/sandium-disable-13-brave-features
                 - feature/sandium-page-transition-full
                 - feature/sandium-filter-bootstrap-full
+                - feature/sandium-adblock-first-launch-full
       - promote-brave-reference:
           name: SANDIUM-FULL-MODE-reference-promotion
           requires: [SANDIUM-FULL-MODE-stage-5]
@@ -2674,6 +2706,8 @@ workflows:
         - not:
             equal: [feature/sandium-page-transition-full, << pipeline.git.branch >>]
         - not:
+        - not:
+            equal: [feature/sandium-adblock-first-launch-full, << pipeline.git.branch >>]
             equal: [feature/sandium-filter-bootstrap-full, << pipeline.git.branch >>]
     jobs:
       - brave-android-staged-build:
