@@ -83,7 +83,7 @@ def transform_startup(source: str) -> str:
     source = replace_once_or_done(
         source,
         level_read,
-        level_read + darken_read + '        darken = darken && !"default".equals(level);\\n',
+        level_read + darken_read + '        darken = darken && !"default".equals(level);\n',
         "Read persisted Darken setting before native feature initialization",
     )
     source = replace_once_or_done(

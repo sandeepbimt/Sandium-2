@@ -145,7 +145,7 @@ def main():
         "nav-animation-fade-hold-duration-ms/450/nav-animation-fade-out-duration-ms/225",
         "nav-animation-fade-hold-duration-ms/675/nav-animation-fade-out-duration-ms/300",
         'getBoolean("sandium_page_transition_darken", false)',
-        '!\\"default\\".equals(level)',
+        'darken = darken && !"default".equals(level);',
         '"/nav-animation-darken/" + (darken ? "true" : "false")',
     ):
         assert value in startup, f"missing startup behaviour: {value}"
