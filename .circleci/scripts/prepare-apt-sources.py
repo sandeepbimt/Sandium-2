@@ -25,9 +25,9 @@ def normalize(line: str) -> tuple[str, str, str, str] | None:
     match = SOURCE_LINE.match(line)
     if not match:
         return None
-    source_type, uri, suite, components = match.groups()
-    # Exact target identity: do not collapse different suites/components.
-    return source_type, uri.rstrip("/"), suite, " ".join(components.split())
+    source_type, options, uri, suite, components = match.groups()
+    # Deduplicate only identical source declarations; preserve different arch/signed-by options.
+    return source_type, (options or "").strip(), uri.rstrip("/"), suite, " ".join(components.split())
 
 def prepare(directory: Path, retry_file: Path) -> dict[str, int]:
     directory.mkdir(parents=True, exist_ok=True)
