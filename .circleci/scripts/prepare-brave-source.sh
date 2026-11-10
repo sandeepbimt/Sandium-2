@@ -509,6 +509,7 @@ ACTUAL_CHROMIUM_TAG="$(python3 -c 'import json,sys; print(json.load(open(sys.arg
 }
 
 echo "SANDIUM_SOURCE_PIN_GATE=PASS brave=$ACTUAL_BRAVE_TAG brave_sha=$ACTUAL_BRAVE_SHA chromium=$ACTUAL_CHROMIUM_TAG chromium_sha=$ACTUAL_CHROMIUM_SHA"
+python3 "$ROOT/.circleci/scripts/apply-sandium-first-run-bypass.py" --core "$CORE_DIR"
 if [ "${CIRCLE_BRANCH:-}" = "feature/sandium-page-transition-full" ] || [ "${CIRCLE_BRANCH:-}" = "feature/sandium-filter-bootstrap-full" ]; then
   python3 "$ROOT/.circleci/scripts/apply-sandium-page-transition-full.py" "$SRC_DIR"
   echo "SANDIUM_ADBLOCK_OVERLAY=SKIPPED; all filter files and settings left untouched."
