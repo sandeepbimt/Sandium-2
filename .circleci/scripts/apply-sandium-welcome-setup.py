@@ -20,9 +20,12 @@ def read(path: Path) -> str:
     return path.read_text(encoding="utf-8")
 
 def write(path: Path, content: str, label: str) -> None:
-    if read(path) != content:
+    # The setup view is a new Sandium-owned file in the pinned Brave checkout.
+    # Create its destination tree before checking or writing it.
+    path.parent.mkdir(parents=True, exist_ok=True)
+    if not path.is_file() or path.read_text(encoding="utf-8") != content:
         path.write_text(content, encoding="utf-8")
-    if read(path) != content:
+    if not path.is_file() or path.read_text(encoding="utf-8") != content:
         raise RuntimeError(f"{label}: post-write verification failed")
     print(f"SANDIUM_WELCOME_PATCH={label}:PASS")
 
