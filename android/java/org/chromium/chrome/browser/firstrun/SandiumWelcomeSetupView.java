@@ -21,7 +21,6 @@ import android.widget.Button;
 import android.widget.CompoundButton;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
-import android.widget.ScrollView;
 import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Switch;
@@ -98,49 +97,45 @@ final class SandiumWelcomeSetupView {
         mRoot.setBackgroundColor(BACKGROUND);
         mRoot.setSystemUiVisibility(0);
 
-        ScrollView scroll = new ScrollView(mActivity);
-        scroll.setFillViewport(false);
-        scroll.setClipToPadding(false);
-        scroll.setPadding(dp(20), dp(28), dp(20), dp(18));
-        mRoot.addView(scroll, new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
-
+        // The welcome screen is intentionally a single, non-scrollable page.
+        // Its compact vertical rhythm keeps progress, every primary setting, and
+        // the Start action visible together on common Android phone heights.
         mContent = new LinearLayout(mActivity);
         mContent.setOrientation(LinearLayout.VERTICAL);
-        scroll.addView(mContent, new ScrollView.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        mContent.setPadding(dp(14), dp(5), dp(14), 0);
+        mRoot.addView(mContent, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
 
-        TextView title = text("Set up your browser", 30, TEXT, false);
+        TextView title = text("Set up your browser", 24, TEXT, false);
         title.setGravity(Gravity.CENTER);
         mContent.addView(title, matchWrap());
         TextView subtitle = text(
-                "Choose your preferred browsing experience. You can change these any time in Settings.",
-                16, SECONDARY, false);
+                "Choose your preferred browsing experience. Change these anytime in Settings.",
+                11, SECONDARY, false);
         subtitle.setGravity(Gravity.CENTER);
-        subtitle.setLineSpacing(dp(2), 1f);
+        subtitle.setMaxLines(2);
+        subtitle.setLineSpacing(0, 1f);
         LinearLayout.LayoutParams subtitleParams = matchWrap();
-        subtitleParams.setMargins(dp(8), dp(8), dp(8), dp(26));
+        subtitleParams.setMargins(dp(4), dp(2), dp(4), dp(8));
         mContent.addView(subtitle, subtitleParams);
 
-        // Keep filter readiness visible immediately; the settings card follows it
-        // in the same scroll area rather than pushing progress below the first screen.
         buildFilterProgressCard();
         buildMainSettingsCard();
 
         LinearLayout buttonContainer = new LinearLayout(mActivity);
         buttonContainer.setGravity(Gravity.CENTER);
-        buttonContainer.setPadding(dp(16), dp(8), dp(16), dp(18));
+        buttonContainer.setPadding(dp(16), dp(3), dp(16), dp(5));
         mRoot.addView(buttonContainer, matchWrap());
 
         mStartButton = new Button(mActivity);
         mStartButton.setText("Start browsing");
-        mStartButton.setTextSize(TypedValue.COMPLEX_UNIT_SP, 18);
+        mStartButton.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15);
         mStartButton.setTextColor(DISABLED_BUTTON_TEXT);
         mStartButton.setAllCaps(false);
         mStartButton.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
-        mStartButton.setMinHeight(dp(54));
-        mStartButton.setMinimumHeight(dp(54));
-        mStartButton.setPadding(dp(30), 0, dp(30), 0);
+        mStartButton.setMinHeight(dp(44));
+        mStartButton.setMinimumHeight(dp(44));
+        mStartButton.setPadding(dp(24), 0, dp(24), 0);
         mStartButton.setBackground(roundRect(DISABLED_BUTTON, 28));
         mStartButton.setEnabled(false);
         mStartButton.setAlpha(1f);
@@ -150,7 +145,7 @@ final class SandiumWelcomeSetupView {
                 mListener.onStartBrowsing();
             }
         });
-        LinearLayout.LayoutParams buttonParams = new LinearLayout.LayoutParams(dp(230), dp(54));
+        LinearLayout.LayoutParams buttonParams = new LinearLayout.LayoutParams(dp(210), dp(44));
         buttonContainer.addView(mStartButton, buttonParams);
 
         return mRoot;
@@ -218,14 +213,14 @@ final class SandiumWelcomeSetupView {
 
         LinearLayout more = new LinearLayout(mActivity);
         more.setGravity(Gravity.CENTER_VERTICAL);
-        more.setPadding(dp(22), dp(15), dp(22), dp(15));
-        TextView plus = text("⊕", 29, PRIMARY, false);
-        more.addView(plus, new LinearLayout.LayoutParams(dp(48), dp(42)));
+        more.setPadding(dp(12), dp(3), dp(10), dp(3));
+        TextView plus = text("⊕", 21, PRIMARY, false);
+        more.addView(plus, new LinearLayout.LayoutParams(dp(34), dp(30)));
         mMoreOptionsLabel = itemText("More options", 17, TEXT, false);
-        more.addView(mMoreOptionsLabel, new LinearLayout.LayoutParams(0, dp(42), 1f));
-        TextView arrow = text("›", 32, SECONDARY, false);
+        more.addView(mMoreOptionsLabel, new LinearLayout.LayoutParams(0, dp(30), 1f));
+        TextView arrow = text("›", 22, SECONDARY, false);
         arrow.setGravity(Gravity.CENTER);
-        more.addView(arrow, new LinearLayout.LayoutParams(dp(28), dp(42)));
+        more.addView(arrow, new LinearLayout.LayoutParams(dp(24), dp(30)));
         more.setOnClickListener(v -> {
             mExpanded = !mExpanded;
             mAdvancedOptions.setVisibility(mExpanded ? View.VISIBLE : View.GONE);
@@ -264,34 +259,34 @@ final class SandiumWelcomeSetupView {
     private void buildFilterProgressCard() {
         LinearLayout card = card();
         LinearLayout.LayoutParams params = matchWrap();
-        params.setMargins(0, dp(20), 0, dp(14));
+        params.setMargins(0, dp(2), 0, dp(7));
         mContent.addView(card, params);
 
         LinearLayout heading = new LinearLayout(mActivity);
         heading.setGravity(Gravity.CENTER_VERTICAL);
-        heading.setPadding(dp(20), dp(18), dp(20), dp(10));
+        heading.setPadding(dp(10), dp(6), dp(10), dp(4));
         card.addView(heading, matchWrap());
 
-        TextView spinner = text("⟳", 34, PRIMARY, false);
+        TextView spinner = text("⟳", 22, PRIMARY, false);
         spinner.setGravity(Gravity.CENTER);
-        heading.addView(spinner, new LinearLayout.LayoutParams(dp(54), dp(52)));
+        heading.addView(spinner, new LinearLayout.LayoutParams(dp(34), dp(32)));
 
         LinearLayout labels = new LinearLayout(mActivity);
         labels.setOrientation(LinearLayout.VERTICAL);
-        labels.setPadding(dp(8), 0, 0, 0);
+        labels.setPadding(dp(5), 0, 0, 0);
         heading.addView(labels, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
 
-        TextView title = text("Preparing ad-blocking protection...", 16, TEXT, false);
+        TextView title = text("Preparing ad-blocking protection...", 12, TEXT, false);
         labels.addView(title, matchWrap());
         TextView subtitle = text(
-                "The first successful filter download activates the native engine",
-                13, SECONDARY, false);
+                "Engine starts after the first successful filter download",
+                9.5f, SECONDARY, false);
         subtitle.setPadding(0, dp(4), 0, 0);
         labels.addView(subtitle, matchWrap());
 
         LinearLayout progressRow = new LinearLayout(mActivity);
         progressRow.setGravity(Gravity.CENTER_VERTICAL);
-        progressRow.setPadding(dp(72), dp(2), dp(20), dp(14));
+        progressRow.setPadding(dp(46), 0, dp(12), dp(6));
         card.addView(progressRow, matchWrap());
 
         mProgress = new ProgressBar(mActivity, null, android.R.attr.progressBarStyleHorizontal);
@@ -299,45 +294,45 @@ final class SandiumWelcomeSetupView {
         mProgress.setProgress(0);
         mProgress.setProgressTintList(ColorStateList.valueOf(PRIMARY));
         mProgress.setProgressBackgroundTintList(ColorStateList.valueOf(Color.rgb(64, 68, 78)));
-        progressRow.addView(mProgress, new LinearLayout.LayoutParams(0, dp(7), 1f));
+        progressRow.addView(mProgress, new LinearLayout.LayoutParams(0, dp(5), 1f));
 
-        mPercent = text("0%", 14, TEXT, false);
+        mPercent = text("0%", 10, TEXT, false);
         mPercent.setGravity(Gravity.RIGHT | Gravity.CENTER_VERTICAL);
-        LinearLayout.LayoutParams percentParams = new LinearLayout.LayoutParams(dp(54), dp(30));
-        percentParams.setMargins(dp(12), 0, 0, 0);
+        LinearLayout.LayoutParams percentParams = new LinearLayout.LayoutParams(dp(38), dp(22));
+        percentParams.setMargins(dp(8), 0, 0, 0);
         progressRow.addView(mPercent, percentParams);
 
         View divider = new View(mActivity);
         divider.setBackgroundColor(Color.rgb(69, 73, 83));
         LinearLayout.LayoutParams dividerParams = matchWrap();
         dividerParams.height = dp(1);
-        dividerParams.setMargins(dp(20), 0, dp(20), dp(12));
+        dividerParams.setMargins(dp(12), 0, dp(12), dp(4));
         card.addView(divider, dividerParams);
 
         mEngineState = statusLine("●", "Ad blocker engine: Waiting for first rule", SECONDARY);
         mFilterCount = statusLine("●", "Filters: 0 of 0 updated", SECONDARY);
         mFinalizing = statusLine("○", "Finalizing: Waiting for filter download...", SECONDARY);
-        mEngineState.setPadding(dp(22), dp(4), dp(18), dp(4));
-        mFilterCount.setPadding(dp(22), dp(4), dp(18), dp(4));
-        mFinalizing.setPadding(dp(22), dp(4), dp(18), dp(16));
+        mEngineState.setPadding(dp(12), dp(1), dp(10), dp(1));
+        mFilterCount.setPadding(dp(12), dp(1), dp(10), dp(1));
+        mFinalizing.setPadding(dp(12), dp(1), dp(10), dp(7));
         card.addView(mEngineState, matchWrap());
         card.addView(mFilterCount, matchWrap());
         card.addView(mFinalizing, matchWrap());
     }
 
     private TextView statusLine(String marker, String value, int color) {
-        TextView line = text(marker + "   " + value, 14, color, false);
+        TextView line = text(marker + "   " + value, 9.5f, color, false);
         return line;
     }
 
     private void addBlurRow(LinearLayout parent) {
         LinearLayout row = new LinearLayout(mActivity);
         row.setGravity(Gravity.CENTER_VERTICAL);
-        row.setPadding(dp(22), dp(14), dp(20), dp(14));
+        row.setPadding(dp(12), dp(4), dp(10), dp(4));
         parent.addView(row, matchWrap());
 
-        TextView icon = text("▱", 30, PRIMARY, false);
-        row.addView(icon, new LinearLayout.LayoutParams(dp(48), dp(46)));
+        TextView icon = text("▱", 22, PRIMARY, false);
+        row.addView(icon, new LinearLayout.LayoutParams(dp(34), dp(30)));
 
         LinearLayout labels = new LinearLayout(mActivity);
         labels.setOrientation(LinearLayout.VERTICAL);
@@ -392,7 +387,9 @@ final class SandiumWelcomeSetupView {
             public void onNothingSelected(android.widget.AdapterView<?> parentView) {}
         });
         LinearLayout.LayoutParams spinnerParams = new LinearLayout.LayoutParams(dp(116), dp(48));
-        spinnerParams.setMargins(dp(8), 0, 0, 0);
+        spinnerParams.width = dp(76);
+        spinnerParams.height = dp(34);
+        spinnerParams.setMargins(dp(4), 0, 0, 0);
         row.addView(spinner, spinnerParams);
     }
 
@@ -400,20 +397,20 @@ final class SandiumWelcomeSetupView {
             boolean checked, java.util.function.Consumer<Boolean> onChanged) {
         LinearLayout row = new LinearLayout(mActivity);
         row.setGravity(Gravity.CENTER_VERTICAL);
-        row.setPadding(dp(22), dp(13), dp(20), dp(13));
+        row.setPadding(dp(12), dp(4), dp(10), dp(4));
         parent.addView(row, matchWrap());
 
-        TextView icon = text(glyph, 29, PRIMARY, false);
+        TextView icon = text(glyph, 20, PRIMARY, false);
         icon.setGravity(Gravity.CENTER);
-        row.addView(icon, new LinearLayout.LayoutParams(dp(48), dp(48)));
+        row.addView(icon, new LinearLayout.LayoutParams(dp(34), dp(32)));
 
         LinearLayout labels = new LinearLayout(mActivity);
         labels.setOrientation(LinearLayout.VERTICAL);
-        labels.setPadding(dp(8), 0, dp(8), 0);
+        labels.setPadding(dp(4), 0, dp(4), 0);
         row.addView(labels, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         labels.addView(itemText(title, 17, TEXT, false), matchWrap());
         TextView detail = itemText(summary, 13, SECONDARY, false);
-        detail.setPadding(0, dp(3), 0, 0);
+        detail.setPadding(0, dp(1), 0, 0);
         labels.addView(detail, matchWrap());
 
         Switch toggle = new Switch(mActivity);
