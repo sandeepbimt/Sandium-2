@@ -357,15 +357,78 @@ else:
     print(marker)
 PY
 
+  # Instrument the exact Python entry point as well as main(). The prior
+  # log proved main() completed, but did not prove what sys.exit(main()) received.
+  python3 - "$INSTALL_DEPS_PY" <<'PY'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+source = path.read_text(encoding="utf-8")
+marker = "PPBAS_ENTRYPOINT_DIAGNOSTICS=INSTALLED"
+anchor = 'if __name__ == "__main__":\n    sys.exit(main())'
+replacement = '''if __name__ == "__main__":
+    logger.info("PPBAS_ENTRYPOINT_BEGIN")
+    try:
+        _sandium_main_result = main()
+        logger.info(
+            "PPBAS_MAIN_RETURN value=%r type=%s",
+            _sandium_main_result,
+            type(_sandium_main_result).__name__,
+        )
+    except BaseException as exc:
+        logger.exception(
+            "PPBAS_MAIN_EXCEPTION type=%s value=%r",
+            type(exc).__name__,
+            exc,
+        )
+        raise
+    logger.info("PPBAS_SYS_EXIT_REQUEST code=%r", _sandium_main_result)
+    try:
+        sys.exit(_sandium_main_result)
+    except SystemExit as exc:
+        logger.info("PPBAS_SYSTEM_EXIT code=%r", exc.code)
+        raise
+'''
+if marker not in source:
+    if source.count(anchor) != 1:
+        raise SystemExit(
+            "PPBAS_ENTRYPOINT_DIAGNOSTICS=FAIL expected exactly one sys.exit(main()) entry point"
+        )
+    source = source.replace(anchor, replacement.rstrip(), 1)
+    source += "\n# " + marker + "\n"
+    path.write_text(source, encoding="utf-8")
+    print(marker)
+else:
+    required = [
+        "PPBAS_ENTRYPOINT_BEGIN",
+        "PPBAS_MAIN_RETURN",
+        "PPBAS_SYS_EXIT_REQUEST",
+        "PPBAS_SYSTEM_EXIT",
+    ]
+    missing = [item for item in required if item not in source]
+    if missing:
+        raise SystemExit(
+            "PPBAS_ENTRYPOINT_DIAGNOSTICS=FAIL marker exists but instrumentation is incomplete: "
+            + ",".join(missing)
+        )
+    print(marker + " already present")
+PY
+
   APT_LOG="$ROOT/ppbas-install-build-deps.log"
   APT_START_TS="$(date +%s)"
   set +e
   ./src/build/install-build-deps.sh --android 2>&1 | tee "$APT_LOG"
-  APT_EXIT_CODE="${PIPESTATUS[0]}"
+  APT_PIPE_STATUS=( "${PIPESTATUS[@]}" )
   set -e
   APT_END_TS="$(date +%s)"
-  if [ "$APT_EXIT_CODE" -ne 0 ]; then
-    echo "PPBAS_APT_INSTALL=FAIL exit_code=$APT_EXIT_CODE elapsed_seconds=$((APT_END_TS - APT_START_TS))" >&2
+  APT_EXIT_CODE="${APT_PIPE_STATUS[0]:-125}"
+  TEE_EXIT_CODE="${APT_PIPE_STATUS[1]:-125}"
+  echo "PPBAS_INSTALLER_RETURNED python_exit=$APT_EXIT_CODE tee_exit=$TEE_EXIT_CODE elapsed_seconds=$((APT_END_TS - APT_START_TS))"
+  if [ "$APT_EXIT_CODE" -ne 0 ] || [ "$TEE_EXIT_CODE" -ne 0 ]; then
+    APT_FAILURE_CODE="$APT_EXIT_CODE"
+    [ "$APT_FAILURE_CODE" -ne 0 ] || APT_FAILURE_CODE="$TEE_EXIT_CODE"
+    echo "PPBAS_APT_INSTALL=FAIL python_exit=$APT_EXIT_CODE tee_exit=$TEE_EXIT_CODE elapsed_seconds=$((APT_END_TS - APT_START_TS))" >&2
     echo "PPBAS_DPKG_AUDIT_BEGIN" >&2
     sudo dpkg --audit 2>&1 || true
     echo "PPBAS_DPKG_AUDIT_END" >&2
@@ -375,7 +438,7 @@ PY
     echo "PPBAS_APT_LOG_TAIL_BEGIN" >&2
     tail -n 120 "$APT_LOG" >&2 || true
     echo "PPBAS_APT_LOG_TAIL_END" >&2
-    exit "$APT_EXIT_CODE"
+    exit "$APT_FAILURE_CODE"
   fi
   rm -f "$APT_LOG"
   APT_DEB_COUNT_AFTER="$(find "$APT_CACHE_DIR/archives" -maxdepth 1 -type f -name '*.deb' | wc -l | tr -d ' ')"
