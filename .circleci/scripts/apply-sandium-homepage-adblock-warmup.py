@@ -89,6 +89,41 @@ def verify_pin(core: Path, src: Path) -> None:
 def apply(core: Path, src: Path) -> None:
     manager_cc = core / "components/brave_shields/content/browser/ad_block_subscription_service_manager.cc"
     remove_legacy_startup_warmup(manager_cc)
+
+    # The pinned Brave manager exposes only a per-observer force-notify API.
+    # Sandium's homepage warm-up needs to notify the registered additional-engine
+    # observer set, while retaining the same startup-suppression/readiness gates.
+    filters_manager_h = core / "components/brave_shields/core/browser/ad_block_filters_provider_manager.h"
+    filters_manager_cc = core / "components/brave_shields/core/browser/ad_block_filters_provider_manager.cc"
+    patch_file(
+        filters_manager_h,
+        "  void ForceNotifyObserver(AdBlockFiltersProvider::Observer& observer,\n"
+        "                           bool is_for_default_engine);\n",
+        "  void ForceNotifyObserver(AdBlockFiltersProvider::Observer& observer,\n"
+        "                           bool is_for_default_engine);\n"
+        "  // Broadcasts a guarded forced update to all observers of one engine.\n"
+        "  void ForceNotifyObservers(bool is_for_default_engine);\n",
+        "ForceNotifyObservers(bool is_for_default_engine)",
+        "filters-provider-manager-broadcast-notify-api",
+    )
+    patch_file(
+        filters_manager_cc,
+        "std::string AdBlockFiltersProviderManager::GetNameForDebugging() {\n",
+        "void AdBlockFiltersProviderManager::ForceNotifyObservers(\n"
+        "    bool is_for_default_engine) {\n"
+        "  // Match ForceNotifyObserver's startup suppression and provider readiness.\n"
+        "  if (MaybeConsumeEngineStartupChangeNotification(is_for_default_engine)) {\n"
+        "    return;\n"
+        "  }\n"
+        "  if (AreAllProvidersInitialized(is_for_default_engine)) {\n"
+        "    NotifyObservers(is_for_default_engine);\n"
+        "  }\n"
+        "}\n\n"
+        "std::string AdBlockFiltersProviderManager::GetNameForDebugging() {\n",
+        "void AdBlockFiltersProviderManager::ForceNotifyObservers(",
+        "filters-provider-manager-broadcast-notify-implementation",
+    )
+
     manager_h = core / "components/brave_shields/content/browser/ad_block_subscription_service_manager.h"
     patch_file(
         manager_h,
@@ -365,6 +400,8 @@ def apply(core: Path, src: Path) -> None:
 
 def verify(core: Path, src: Path) -> None:
     manager = (core / "components/brave_shields/content/browser/ad_block_subscription_service_manager.cc").read_text(encoding="utf-8")
+    filters_manager_header = (core / "components/brave_shields/core/browser/ad_block_filters_provider_manager.h").read_text(encoding="utf-8")
+    filters_manager_source = (core / "components/brave_shields/core/browser/ad_block_filters_provider_manager.cc").read_text(encoding="utf-8")
     mojom = (core / "components/brave_shields/core/common/filter_list.mojom").read_text(encoding="utf-8")
     service = (core / "components/brave_shields/content/browser/filter_list_service.cc").read_text(encoding="utf-8")
     adblock = (core / "components/brave_shields/content/browser/ad_block_service.cc").read_text(encoding="utf-8")
@@ -393,6 +430,13 @@ def verify(core: Path, src: Path) -> None:
         "requestSandiumHomepageWarmup(mTab.getProfile())",
     )
     corpus = manager + mojom + service + adblock + factory + ntp
+    if "void ForceNotifyObservers(bool is_for_default_engine);" not in filters_manager_header:
+        raise RuntimeError("homepage warm-up verification missing broadcast manager API declaration")
+    if ("void AdBlockFiltersProviderManager::ForceNotifyObservers(" not in filters_manager_source
+            or "MaybeConsumeEngineStartupChangeNotification(is_for_default_engine)" not in filters_manager_source
+            or "AreAllProvidersInitialized(is_for_default_engine)" not in filters_manager_source
+            or "NotifyObservers(is_for_default_engine);" not in filters_manager_source):
+        raise RuntimeError("homepage warm-up verification failed guarded broadcast manager implementation")
     missing = [item for item in required if item not in corpus]
     if missing:
         raise RuntimeError("homepage warm-up verification missing: " + ", ".join(missing))
