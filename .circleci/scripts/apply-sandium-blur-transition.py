@@ -147,6 +147,11 @@ JAVA_IMPORT = "import androidx.preference.ListPreference;\n"
 JAVA_IMPORT_ANCHOR = "import androidx.preference.PreferenceGroupAdapter;\n"
 JAVA_PREF_BEGIN = "    // SANDIUM_PAGE_TRANSITION_BLUR_PREF_BEGIN"
 JAVA_PREF_END = "    // SANDIUM_PAGE_TRANSITION_BLUR_PREF_END"
+# Preserve the extended transition's Darken declaration if this base overlay
+# is ever applied after it by another workflow path.
+JAVA_DARKEN_PREF_BEGIN = "    // SANDIUM_PAGE_TRANSITION_DARKEN_PREF_BEGIN"
+JAVA_DARKEN_PREF_END = "    // SANDIUM_PAGE_TRANSITION_DARKEN_PREF_END"
+JAVA_DARKEN_PREF_KEY = '    /* package */ static final String PREF_SANDIUM_PAGE_TRANSITION_DARKEN = "sandium_page_transition_darken";'
 JAVA_PREF_BLOCK = (
     JAVA_PREF_BEGIN + "\n"
     f'    /* package */ static final String PREF_SANDIUM_PAGE_TRANSITION_BLUR_LEVEL = "{PREF_KEY}";\n'
@@ -367,8 +372,35 @@ def transform_appearance_xml(source: str) -> str:
 
 def transform_appearance_java(source: str) -> str:
     source = add_import(source, JAVA_IMPORT, JAVA_IMPORT_ANCHOR, "Appearance ListPreference import")
+
+    # Preserve the Darken declaration when this base blur overlay is applied
+    # after the extended transition overlay (e.g. by a FAST-mode workflow step).
+    darken_begin_count = source.count(JAVA_DARKEN_PREF_BEGIN)
+    darken_end_count = source.count(JAVA_DARKEN_PREF_END)
+    darken_block = None
+    if darken_begin_count or darken_end_count:
+        if darken_begin_count != 1 or darken_end_count != 1:
+            raise RuntimeError("Appearance Darken preference: partial or duplicate marker set")
+        marker_start = source.index(JAVA_DARKEN_PREF_BEGIN)
+        marker_end = source.index(JAVA_DARKEN_PREF_END) + len(JAVA_DARKEN_PREF_END)
+        if marker_end <= marker_start:
+            raise RuntimeError("Appearance Darken preference: malformed marker order")
+        line_start = source.rfind("\n", 0, marker_start) + 1
+        line_end = source.find("\n", marker_end)
+        line_end = len(source) if line_end < 0 else line_end + 1
+        darken_block = source[line_start:line_end]
+        if JAVA_DARKEN_PREF_KEY not in darken_block:
+            raise RuntimeError("Appearance Darken preference: marked declaration missing")
+        source = source[:line_start] + source[line_end:]
+
     source = replace_marked(source, JAVA_PREF_BEGIN, JAVA_PREF_END, JAVA_PREF_BLOCK,
                             JAVA_PREF_ANCHOR, "Appearance preference key")
+    if darken_block is not None:
+        if source.count(JAVA_PREF_END) != 1:
+            raise RuntimeError("Appearance preference key: blur end marker missing after replacement")
+        source = source.replace(JAVA_PREF_END + "\n", darken_block + JAVA_PREF_END + "\n", 1)
+    if source.count(JAVA_DARKEN_PREF_KEY) != (1 if darken_block is not None else 0):
+        raise RuntimeError("Appearance Darken preference: preserved declaration count mismatch")
     source = replace_marked(source, JAVA_INIT_BEGIN, JAVA_INIT_END, JAVA_INIT_BLOCK,
                             JAVA_INIT_ANCHOR, "Appearance preference initialization")
     # Older revisions inserted the marked block inside the original if branch,

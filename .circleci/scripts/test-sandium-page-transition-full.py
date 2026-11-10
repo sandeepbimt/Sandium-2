@@ -9,6 +9,12 @@ assert SPEC is not None and SPEC.loader is not None
 MODULE = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(MODULE)
 
+BLUR_SCRIPT = Path(__file__).with_name("apply-sandium-blur-transition.py")
+BLUR_SPEC = importlib.util.spec_from_file_location("sandium_blur_transition", BLUR_SCRIPT)
+assert BLUR_SPEC is not None and BLUR_SPEC.loader is not None
+BLUR_MODULE = importlib.util.module_from_spec(BLUR_SPEC)
+BLUR_SPEC.loader.exec_module(BLUR_MODULE)
+
 STARTUP_FIXTURE = '''        String level = ContextUtils.getAppSharedPreferences().getString("sandium_page_transition_blur_level", "default");
         if ("low".equals(level)) {
             params = "nav-animation-blur-sigma/1.0/nav-animation-fade-hold-duration-ms/200/nav-animation-fade-out-duration-ms/100";
@@ -175,6 +181,20 @@ def main():
     assert "setPreferenceOrder(PREF_SANDIUM_PAGE_TRANSITION_DARKEN, 11);" in appearance
     assert "setPreferenceOrder(PREF_BRAVE_DISABLE_SHARING_HUB, 12);" in appearance
     assert appearance.count("{") == appearance.count("}")
+
+    # Regression: the base FAST blur patcher must not erase the extended
+    # Darken constant when it is accidentally run after the Full transition
+    # patch. Reapplying Full must remain idempotent and restore all controls.
+    appearance_after_blur = BLUR_MODULE.transform_appearance_java(appearance)
+    assert appearance_after_blur.count(MODULE.JAVA_DARKEN_PREF) == 1
+    assert MODULE.JAVA_DARKEN_PREF_BEGIN in appearance_after_blur
+    repaired = assert_idempotent(
+        MODULE.transform_appearance_java, appearance_after_blur, "Appearance Java after base blur"
+    )
+    assert repaired.count(MODULE.JAVA_DARKEN_PREF) == 1
+    assert "findPreference(PREF_SANDIUM_PAGE_TRANSITION_DARKEN)" in repaired
+    assert ".putBoolean(PREF_SANDIUM_PAGE_TRANSITION_DARKEN, (Boolean) newValue)" in repaired
+    assert "setPreferenceOrder(PREF_SANDIUM_PAGE_TRANSITION_DARKEN, 11);" in repaired
 
     main_preferences = assert_idempotent(
         MODULE.transform_main_preferences,
