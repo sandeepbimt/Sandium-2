@@ -87,6 +87,9 @@ final class SandiumWelcomeSetupView {
     }
 
     View createView() {
+        mActivity.getWindow().setStatusBarColor(BACKGROUND);
+        mActivity.getWindow().setNavigationBarColor(BACKGROUND);
+        mActivity.getWindow().getDecorView().setSystemUiVisibility(0);
         mRoot = new LinearLayout(mActivity);
         mRoot.setOrientation(LinearLayout.VERTICAL);
         mRoot.setBackgroundColor(BACKGROUND);
