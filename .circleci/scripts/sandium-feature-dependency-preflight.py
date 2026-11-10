@@ -143,6 +143,15 @@ def verify(core, repo):
         raise RuntimeError("NEWS_ANDROID_TEST_DEPS stale/unsafe")
     if "assert(enable_brave_wallet)" not in read(core,"browser/brave_wallet/BUILD.gn").read_text():
         raise RuntimeError("WALLET_BROWSER implementation assertion missing")
+    android_build = read(core,"android/BUILD.gn").read_text()
+    resource_paths = re.findall(r'"(java/brave-res/[^"]+)"', android_build)
+    resource_counts = {
+        "wallet": sum("wallet" in p.lower() for p in resource_paths),
+        "news": sum("news" in p.lower() for p in resource_paths),
+        "leo": sum("brave_leo" in p.lower() or "leo_" in p.lower() for p in resource_paths),
+    }
+    print("ANDROID_RESOURCE_INVENTORY=" + " ".join(f"{k}={v}" for k,v in resource_counts.items()))
+    print("APK_RESOURCE_EXCLUSION=NOT_PROVEN static feature assets remain in the shared Android resource target")
     print("FEATURE_DEPENDENCY_AUDIT=PASS ai_chat=excluded wallet=excluded news=excluded")
     print("TYPE_ONLY_REMAINDERS=PASS AI_Chat_and_News_Mojo_interfaces_retained_for_WebUI")
     print("SHIELDS_PRESERVATION=PASS")
