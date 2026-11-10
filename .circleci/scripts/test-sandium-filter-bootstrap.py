@@ -55,7 +55,16 @@ assert "homepage_warmup_engine_reload_requested_ = true;" in HOMEPAGE_WARMUP_PAT
 assert "filters-provider-manager-broadcast-notify-api" in HOMEPAGE_WARMUP_PATCH
 assert "filters-provider-manager-broadcast-notify-implementation" in HOMEPAGE_WARMUP_PATCH
 assert "NotifyObservers(is_for_default_engine);" in HOMEPAGE_WARMUP_PATCH
-print("SANDIUM_FILTER_BOOTSTRAP_UNIT_TEST=PASS lists=29 enabled=true startup_seed=true refresh=true metadata=true homepage_deferred_warmup=true download_gated=true guarded_broadcast_notify=true")
+force_start = HOMEPAGE_WARMUP_PATCH.index(
+    "void AdBlockFiltersProviderManager::ForceNotifyObservers("
+)
+force_end = HOMEPAGE_WARMUP_PATCH.index(
+    "std::string AdBlockFiltersProviderManager::GetNameForDebugging()", force_start
+)
+force_body = HOMEPAGE_WARMUP_PATCH[force_start:force_end]
+assert "AreAllProvidersInitialized" not in force_body
+assert "explicit Sandium activation request" in force_body
+print("SANDIUM_FILTER_BOOTSTRAP_UNIT_TEST=PASS lists=29 enabled=true startup_seed=true refresh=true metadata=true homepage_deferred_warmup=true download_gated=true first_filter_bypass=true")
 
 assert "base::Value::List" not in PATCH
 assert "base::GetFileSize(cached_list, &cached_size)" not in PATCH
