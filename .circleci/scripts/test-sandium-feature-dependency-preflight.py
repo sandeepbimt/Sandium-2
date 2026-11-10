@@ -39,6 +39,35 @@ deps -= android_test_exception_deps
     found = module.guards(nested, "//brave/browser/ui/webui/brave_news")
     assert len(found) == 1 and module.guarded(found[0][1], "enable_brave_news")
     assert any("!is_android" in g for g in found[0][1])
+    with tempfile.TemporaryDirectory() as d:
+        root = Path(d)
+        (root / "android").mkdir()
+        gni = root / "android/brave_java_sources.gni"
+        gni.write_text('''brave_java_sources = [
+  "../../brave/android/java/org/chromium/chrome/browser/brave_leo/BraveLeoUtils.java",
+  "../../brave/android/java/org/chromium/chrome/browser/brave_news/BraveNewsUtils.java",
+  "../../brave/android/java/org/chromium/chrome/browser/crypto_wallet/BraveWalletActivity.java",
+]
+''', encoding="utf-8")
+        try:
+            module.audit_android_java_sources(root)
+        except RuntimeError as error:
+            assert "ANDROID_JAVA_SOURCE_CLOSURE" in str(error)
+        else:
+            raise AssertionError("unconditional feature Java source entries must fail")
+        gni.write_text('''brave_java_sources = [
+]
+if (enable_ai_chat) {
+  brave_java_sources += [ "../../brave/android/java/org/chromium/chrome/browser/brave_leo/BraveLeoUtils.java" ]
+}
+if (enable_brave_news) {
+  brave_java_sources += [ "../../brave/android/java/org/chromium/chrome/browser/brave_news/BraveNewsUtils.java" ]
+}
+if (enable_brave_wallet) {
+  brave_java_sources += [ "../../brave/android/java/org/chromium/chrome/browser/crypto_wallet/BraveWalletActivity.java" ]
+}
+''', encoding="utf-8")
+        module.audit_android_java_sources(root)
     print("SANDIUM_FEATURE_DEPENDENCY_PREFLIGHT_TEST=PASS")
 
 if __name__ == "__main__":
