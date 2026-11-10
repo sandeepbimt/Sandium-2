@@ -139,7 +139,7 @@ def audit_android_java_sources(core):
         counts[name] = len(unique)
         for n, ctx in unique.items():
             if not guarded(ctx, flag):
-                failures.append(f"{name}:android/brave_java_sources.gni:{n}")
+                failures.append(f"{name}:android/brave_java_sources.gni:{n}: {source.splitlines()[n-1].strip()}")
     print("ANDROID_JAVA_SOURCE_INVENTORY=" + " ".join(f"{k.lower()}={v}" for k,v in counts.items()))
     if failures:
         raise RuntimeError("ANDROID_JAVA_SOURCE_CLOSURE: feature Java sources are still unconditional; " + ", ".join(failures[:80]))
@@ -151,7 +151,6 @@ def verify(core, repo):
     for flag in ("enable_ai_chat:false","enable_brave_wallet:false","enable_brave_news:false"):
         if prep.count("--gn "+flag) != 1: raise RuntimeError(f"GN_FLAG_GATE expected one --gn {flag}")
     scan_all_gn(core)
-    audit_android_java_sources(core)
     sources = read(core,"browser/sources.gni").read_text()
     for target in ("//brave/browser/ai_chat","//brave/components/ai_chat/core/common"):
         for n,ctx in guards(sources,target):
@@ -199,6 +198,7 @@ def verify(core, repo):
     }
     print("ANDROID_RESOURCE_INVENTORY=" + " ".join(f"{k}={v}" for k,v in resource_counts.items()))
     print("APK_RESOURCE_EXCLUSION=NOT_PROVEN static feature assets remain in the shared Android resource target")
+    audit_android_java_sources(core)
     print("FEATURE_DEPENDENCY_AUDIT=PASS ai_chat=excluded wallet=excluded news=excluded")
     print("TYPE_ONLY_REMAINDERS=PASS AI_Chat_and_News_Mojo_interfaces_retained_for_WebUI")
     print("SHIELDS_PRESERVATION=PASS")
