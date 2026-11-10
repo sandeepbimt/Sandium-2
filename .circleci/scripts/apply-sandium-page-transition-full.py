@@ -187,7 +187,6 @@ JAVA_DARKEN_INIT_BLOCK = (
     "        }\n"
     + JAVA_DARKEN_INIT_END + "\n"
 )
-)
 
 JAVA_CHANGE_ANCHOR = "        if (BravePreferenceKeys.BRAVE_BOTTOM_TOOLBAR_ENABLED_KEY.equals(key)) {\n"
 JAVA_DARKEN_CHANGE_BEGIN = "        // SANDIUM_PAGE_TRANSITION_DARKEN_CHANGE_BEGIN"
@@ -220,7 +219,6 @@ JAVA_DARKEN_CHANGE_BLOCK = (
     "            shouldRelaunch = true;\n"
     "        }\n"
     + JAVA_DARKEN_CHANGE_END + "\n"
-)
 )
 
 JAVA_HELPER_ANCHOR = "    // SANDIUM_PAGE_TRANSITION_BLUR_PREF_END\n"
