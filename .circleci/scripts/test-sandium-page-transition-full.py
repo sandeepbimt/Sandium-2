@@ -26,7 +26,7 @@ STARTUP_FIXTURE = '''        String level = ContextUtils.getAppSharedPreferences
         final String selectedFeature = feature + ":" + params;
 '''
 
-JAVA_FIXTURE = '''class AppearancePreferences {
+JAVA_FIXTURE = '''import androidx.preference.PreferenceGroupAdapter;\nclass AppearancePreferences {
     // SANDIUM_PAGE_TRANSITION_BLUR_PREF_BEGIN
     /* package */ static final String PREF_SANDIUM_PAGE_TRANSITION_BLUR_LEVEL = "sandium_page_transition_blur_level";
     // SANDIUM_PAGE_TRANSITION_BLUR_PREF_END
