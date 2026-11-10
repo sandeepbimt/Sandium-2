@@ -12,7 +12,7 @@ import re
 from pathlib import Path
 
 SOURCE_LINE = re.compile(
-    r"^\s*(deb(?:-src)?)\s+(?:\[[^\]]+\]\s+)?(\S+)\s+(\S+)\s+(.+?)\s*$"
+    r"^\s*(deb(?:-src)?)\s+(\[[^\]]+\]\s+)?(\S+)\s+(\S+)\s+(.+?)\s*$"
 )
 RETRY_CONFIG = """// Sandium: retry transient mirror/network failures during Android dependency setup.
 Acquire::Retries "5";
@@ -21,7 +21,7 @@ Acquire::https::Timeout "30";
 Acquire::ftp::Timeout "30";
 """
 
-def normalize(line: str) -> tuple[str, str, str, str] | None:
+def normalize(line: str) -> tuple[str, str, str, str, str] | None:
     match = SOURCE_LINE.match(line)
     if not match:
         return None
@@ -31,7 +31,7 @@ def normalize(line: str) -> tuple[str, str, str, str] | None:
 
 def prepare(directory: Path, retry_file: Path) -> dict[str, int]:
     directory.mkdir(parents=True, exist_ok=True)
-    seen: dict[tuple[str, str, str, str], tuple[Path, int]] = {}
+    seen: dict[tuple[str, str, str, str, str], tuple[Path, int]] = {}
     changed_files = 0
     duplicate_lines = 0
     scanned_lines = 0
