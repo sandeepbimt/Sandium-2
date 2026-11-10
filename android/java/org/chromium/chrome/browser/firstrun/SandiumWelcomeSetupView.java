@@ -51,6 +51,8 @@ final class SandiumWelcomeSetupView {
     private static final int SEPARATOR = Color.rgb(20, 22, 28);
     private static final int PRIMARY = Color.rgb(205, 214, 255);
     private static final int PRIMARY_TEXT = Color.rgb(39, 54, 130);
+    private static final int DISABLED_BUTTON = Color.rgb(66, 70, 82);
+    private static final int DISABLED_BUTTON_TEXT = Color.rgb(176, 181, 194);
     private static final int TEXT = Color.rgb(245, 246, 250);
     private static final int SECONDARY = Color.rgb(174, 180, 194);
     private static final int SUCCESS = Color.rgb(82, 211, 133);
@@ -80,6 +82,7 @@ final class SandiumWelcomeSetupView {
     private boolean mExpanded;
     private boolean mDestroyed;
     private boolean mPollInFlight;
+    private boolean mCanStartBrowsing;
 
     SandiumWelcomeSetupView(Activity activity, Listener listener) {
         mActivity = activity;
@@ -119,8 +122,10 @@ final class SandiumWelcomeSetupView {
         subtitleParams.setMargins(dp(8), dp(8), dp(8), dp(26));
         mContent.addView(subtitle, subtitleParams);
 
-        buildMainSettingsCard();
+        // Keep filter readiness visible immediately; the settings card follows it
+        // in the same scroll area rather than pushing progress below the first screen.
         buildFilterProgressCard();
+        buildMainSettingsCard();
 
         LinearLayout buttonContainer = new LinearLayout(mActivity);
         buttonContainer.setGravity(Gravity.CENTER);
@@ -130,17 +135,17 @@ final class SandiumWelcomeSetupView {
         mStartButton = new Button(mActivity);
         mStartButton.setText("Start browsing");
         mStartButton.setTextSize(TypedValue.COMPLEX_UNIT_SP, 18);
-        mStartButton.setTextColor(PRIMARY_TEXT);
+        mStartButton.setTextColor(DISABLED_BUTTON_TEXT);
         mStartButton.setAllCaps(false);
         mStartButton.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
         mStartButton.setMinHeight(dp(54));
         mStartButton.setMinimumHeight(dp(54));
         mStartButton.setPadding(dp(30), 0, dp(30), 0);
-        mStartButton.setBackground(roundRect(PRIMARY, 28));
+        mStartButton.setBackground(roundRect(DISABLED_BUTTON, 28));
         mStartButton.setEnabled(false);
-        mStartButton.setAlpha(0.72f);
+        mStartButton.setAlpha(1f);
         mStartButton.setOnClickListener(v -> {
-            if (isEngineReady()) {
+            if (mCanStartBrowsing) {
                 mHandler.removeCallbacks(mPollRunnable);
                 mListener.onStartBrowsing();
             }
@@ -173,9 +178,13 @@ final class SandiumWelcomeSetupView {
         BraveShieldsContentSettings.setShields(
                 mProfile, "", BraveShieldsContentSettings.RESOURCE_IDENTIFIER_BRAVE_SHIELDS,
                 true, false);
+        // The onboarding label promises to block both trackers and ads. Use the
+        // supported full BLOCK mode. BLOCK_THIRDPARTY_RESOURCE is converted by
+        // BraveShieldsContentSettings into DEFAULT for the ads JNI setter, but
+        // native SetAdControlType() explicitly DCHECKs against DEFAULT.
         BraveShieldsContentSettings.setShieldsValue(
                 mProfile, "", BraveShieldsContentSettings.RESOURCE_IDENTIFIER_TRACKERS,
-                BraveShieldsContentSettings.BLOCK_THIRDPARTY_RESOURCE, false);
+                BraveShieldsContentSettings.BLOCK_RESOURCE, false);
         BraveFeatureUtil.enableFeature(BraveFeatureList.ENABLE_FORCE_DARK, true, true);
         ContextUtils.getAppSharedPreferences().edit()
                 .putString(PREF_BLUR_LEVEL, "medium")
@@ -272,10 +281,10 @@ final class SandiumWelcomeSetupView {
         labels.setPadding(dp(8), 0, 0, 0);
         heading.addView(labels, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
 
-        TextView title = text("Updating ad blocking rules...", 16, TEXT, false);
+        TextView title = text("Preparing ad-blocking protection...", 16, TEXT, false);
         labels.addView(title, matchWrap());
         TextView subtitle = text(
-                "Downloading and applying filter updates in the background",
+                "The first successful filter download activates the native engine",
                 13, SECONDARY, false);
         subtitle.setPadding(0, dp(4), 0, 0);
         labels.addView(subtitle, matchWrap());
@@ -409,7 +418,7 @@ final class SandiumWelcomeSetupView {
         if (enabled) {
             BraveShieldsContentSettings.setShieldsValue(
                     mProfile, "", BraveShieldsContentSettings.RESOURCE_IDENTIFIER_TRACKERS,
-                    BraveShieldsContentSettings.BLOCK_THIRDPARTY_RESOURCE, false);
+                    BraveShieldsContentSettings.BLOCK_RESOURCE, false);
         }
     }
 
@@ -477,8 +486,14 @@ final class SandiumWelcomeSetupView {
                     ? "○   Finalizing: Activating the native engine..."
                     : "○   Finalizing: Waiting for filter download..."));
         mFinalizing.setTextColor(ready ? SUCCESS : SECONDARY);
-        mStartButton.setEnabled(ready);
-        mStartButton.setAlpha(ready ? 1f : 0.72f);
+        // Enable only after at least one enabled filter has a successful download
+        // timestamp AND native reports that the additional ad-block engine loaded.
+        mCanStartBrowsing = ready && downloaded > 0;
+        mStartButton.setEnabled(mCanStartBrowsing);
+        mStartButton.setTextColor(mCanStartBrowsing ? PRIMARY_TEXT : DISABLED_BUTTON_TEXT);
+        mStartButton.setBackground(roundRect(
+                mCanStartBrowsing ? PRIMARY : DISABLED_BUTTON, 28));
+        mStartButton.setAlpha(1f);
     }
 
     private boolean isEngineReady() {
