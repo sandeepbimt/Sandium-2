@@ -13,7 +13,8 @@ FLAGS_FILE = Path("components/brave_news/common/buildflags/buildflags.gni")
 WALLET_FLAGS_FILE = Path("components/brave_wallet/common/buildflags/buildflags.gni")
 JAVA_CONFIG_FILE = Path("build/android/config.gni")
 NOTIFICATIONS_FILE = Path("browser/notifications/BUILD.gn")
-ENUM_DEP = '"//brave/android:brave_android_java_enums_srcjar",'
+ENUM_TARGET = '"//brave/android:brave_android_java_enums_srcjar"'
+ENUM_DEP = ENUM_TARGET + ','
 WALLET_CONDITIONAL_CONFIG = """if (enable_brave_wallet) {\n  brave_chrome_java_srcjar_deps += [ "//brave/android:brave_android_java_enums_srcjar" ]\n}"""
 WALLET_CONDITIONAL_NOTIFICATIONS = """    if (enable_brave_wallet) {\n      deps += [ "//brave/android:brave_android_java_enums_srcjar" ]\n    }"""
 IMPORT = 'import("//brave/components/brave_news/common/buildflags/buildflags.gni")'
@@ -54,7 +55,7 @@ def transform(source: str) -> str:
 
 def transform_wallet_config(source: str) -> str:
     """Do not schedule the empty wallet enum srcjar when Brave Wallet is disabled."""
-    if WALLET_CONDITIONAL_CONFIG in source and source.count(ENUM_DEP) == 1:
+    if WALLET_CONDITIONAL_CONFIG in source and source.count(ENUM_TARGET) == 1:
         return source
     if source.count(ENUM_DEP) != 1:
         raise RuntimeError("SANDIUM_WALLET_GN: expected one unconditional enum srcjar dependency in config.gni")
@@ -67,14 +68,14 @@ def transform_wallet_config(source: str) -> str:
         "\n]\n\n" + WALLET_CONDITIONAL_CONFIG + "\n\nbrave_chrome_app_java_resources_deps = [",
         1,
     )
-    if source.count(ENUM_DEP) != 1 or source.count(WALLET_CONDITIONAL_CONFIG) != 1:
+    if source.count(ENUM_TARGET) != 1 or source.count(WALLET_CONDITIONAL_CONFIG) != 1:
         raise RuntimeError("SANDIUM_WALLET_GN: config.gni conditional dependency verification failed")
     return source
 
 
 def transform_wallet_notifications(source: str) -> str:
     """Keep the enum srcjar out of Android notifications when Wallet is disabled."""
-    if WALLET_CONDITIONAL_NOTIFICATIONS in source and source.count(ENUM_DEP) == 1:
+    if WALLET_CONDITIONAL_NOTIFICATIONS in source and source.count(ENUM_TARGET) == 1:
         return source
     if source.count(ENUM_DEP) != 1:
         raise RuntimeError("SANDIUM_WALLET_GN: expected one unconditional enum srcjar dependency in notifications")
@@ -87,7 +88,7 @@ def transform_wallet_notifications(source: str) -> str:
         marker + "\n" + WALLET_CONDITIONAL_NOTIFICATIONS,
         1,
     )
-    if source.count(ENUM_DEP) != 1 or source.count(WALLET_CONDITIONAL_NOTIFICATIONS) != 1:
+    if source.count(ENUM_TARGET) != 1 or source.count(WALLET_CONDITIONAL_NOTIFICATIONS) != 1:
         raise RuntimeError("SANDIUM_WALLET_GN: notifications conditional dependency verification failed")
     return source
 
