@@ -44,6 +44,9 @@ JAVA_FIXTURE = '''import androidx.preference.PreferenceGroupAdapter;\nclass Appe
         if (BravePreferenceKeys.BRAVE_BOTTOM_TOOLBAR_ENABLED_KEY.equals(key)) {
             doSomething();
         }
+        if (shouldRelaunch) {
+            BraveRelaunchUtils.askForRelaunch(getActivity());
+        }
         return true;
     }
     void applyOrdering() {
