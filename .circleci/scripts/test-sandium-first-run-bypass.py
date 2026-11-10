@@ -1,13 +1,24 @@
 #!/usr/bin/env python3
 """Self-tests for the pinned Sandium first-run bypass patch."""
 
+import importlib.util
+from pathlib import Path
+import sys
 import unittest
 
-from apply_sandium_first_run_bypass import (
-    MARKER,
-    patch_activity_source,
-    patch_adapter_source,
+PATCH_PATH = Path(__file__).with_name("apply-sandium-first-run-bypass.py")
+PATCH_SPEC = importlib.util.spec_from_file_location(
+    "apply_sandium_first_run_bypass", PATCH_PATH
 )
+if PATCH_SPEC is None or PATCH_SPEC.loader is None:
+    raise RuntimeError(f"Could not load patch module: {PATCH_PATH}")
+PATCH_MODULE = importlib.util.module_from_spec(PATCH_SPEC)
+sys.modules[PATCH_SPEC.name] = PATCH_MODULE
+PATCH_SPEC.loader.exec_module(PATCH_MODULE)
+
+MARKER = PATCH_MODULE.MARKER
+patch_activity_source = PATCH_MODULE.patch_activity_source
+patch_adapter_source = PATCH_MODULE.patch_adapter_source
 
 ACTIVITY_FIXTURE = """class WelcomeOnboardingActivity {
     @Override
