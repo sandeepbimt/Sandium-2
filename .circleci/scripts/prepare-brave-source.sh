@@ -1,6 +1,22 @@
 #!/usr/bin/env bash
 set -euo pipefail
 ROOT="$CIRCLE_WORKING_DIRECTORY"
+
+# Configure the persistent APT workspace cache before any dependency installation.
+# Reuse restored .deb files and reduce repeated index/network overhead during PPBAS.
+APT_CACHE_DIR="$ROOT/.apt-cache"
+mkdir -p "$APT_CACHE_DIR/archives/partial" "$APT_CACHE_DIR/lists/partial"
+sudo tee /etc/apt/apt.conf.d/99sandium-workspace-cache >/dev/null <<APTCONF
+Dir::Cache::archives "$APT_CACHE_DIR/archives";
+Dir::State::lists "$APT_CACHE_DIR/lists";
+Acquire::Retries "5";
+Acquire::Languages "none";
+Acquire::Queue-Mode "host";
+Acquire::http::Pipeline-Depth "10";
+Acquire::https::Pipeline-Depth "10";
+Acquire::http::Timeout "60";
+Acquire::https::Timeout "60";
+APTCONF
 # Sandium filter subscriptions use public list URLs; no Brave Services key is required.
 NODE_DIR="$ROOT/node-runtime"
 if [ ! -x "$NODE_DIR/bin/node" ]; then
@@ -10,7 +26,11 @@ if [ ! -x "$NODE_DIR/bin/node" ]; then
   rm -f "$ROOT/node-v24.16.0.tar.xz"
 fi
 export PATH="$NODE_DIR/bin:$PATH"
-npm install --global pnpm@11.11.0
+if ! command -v pnpm >/dev/null 2>&1 || [ "$(pnpm --version 2>/dev/null || true)" != "11.11.0" ]; then
+  npm install --global pnpm@11.11.0
+else
+  echo "PPBAS_PNPM_REUSE=PASS version=$(pnpm --version)"
+fi
 echo "export PATH=\"$NODE_DIR/bin:\$PATH\"" >> "$BASH_ENV"
 mkdir -p "$ROOT/brave-work"
 if [ ! -d "$ROOT/brave-work/src/brave/.git" ]; then
@@ -237,15 +257,18 @@ PY
   grep -n -A8 -B2 'canonicalize_dir' "$BRAVE_SISO_CONFIG"
   grep -n -F '"./args.gn"' "$BRAVE_SISO_CONFIG"
 
-  # Delay host-package installation until sync/configuration succeeds.
+  # Host packages are installed only after source sync/configuration succeeds.
+  # Keep both apt indexes and downloaded .deb archives in the CircleCI cache.
   cd "$ROOT/brave-work"
-  # Keep apt indexes and downloaded .deb files in CircleCI's workspace cache.
-  # The VM is fresh for every workflow, so /var/cache/apt cannot persist by itself.
-  mkdir -p "$ROOT/.apt-cache/archives/partial" "$ROOT/.apt-cache/lists/partial"
-  printf 'Dir::Cache::archives "%s";\nDir::State::lists "%s";\n' \
-    "$ROOT/.apt-cache/archives" "$ROOT/.apt-cache/lists" \
-    | sudo tee /etc/apt/apt.conf.d/99sandium-workspace-cache >/dev/null
+  APT_DEB_COUNT_BEFORE="$(find "$APT_CACHE_DIR/archives" -maxdepth 1 -type f -name '*.deb' | wc -l | tr -d ' ')"
+  APT_CACHE_SIZE_BEFORE="$(du -sh "$APT_CACHE_DIR/archives" 2>/dev/null | awk '{print $1}')"
+  echo "PPBAS_APT_CACHE_BEFORE deb_count=$APT_DEB_COUNT_BEFORE archive_size=${APT_CACHE_SIZE_BEFORE:-0}"
+  APT_START_TS="$(date +%s)"
   ./src/build/install-build-deps.sh --android
+  APT_END_TS="$(date +%s)"
+  APT_DEB_COUNT_AFTER="$(find "$APT_CACHE_DIR/archives" -maxdepth 1 -type f -name '*.deb' | wc -l | tr -d ' ')"
+  APT_CACHE_SIZE_AFTER="$(du -sh "$APT_CACHE_DIR/archives" 2>/dev/null | awk '{print $1}')"
+  echo "PPBAS_APT_INSTALL=PASS elapsed_seconds=$((APT_END_TS - APT_START_TS)) deb_count_before=$APT_DEB_COUNT_BEFORE deb_count_after=$APT_DEB_COUNT_AFTER archive_size_after=${APT_CACHE_SIZE_AFTER:-0}"
 
   # Re-run the pinned Chromium Siso configurator after Brave hooks with
   # Brave's native google.star backend, and persist BuildBuddy credentials.
@@ -490,7 +513,27 @@ PY
     python3 "$ROOT/.circleci/scripts/verify-sandium-vanilla-brave.py" --core "$CORE_DIR" --src "$SRC_DIR" --out "$OUT" --phase prepare
   fi
 
-  pnpm run build Release --target_os=android --target_arch=arm64 --target_android_output_format=apk --use_remoteexec=true --gn use_siso:true --gn use_reclient:false "${ORIGIN_GN_ARGS[@]}" --gn is_java_debug:false --gn enable_android_secondary_abi:false --gn is_official_build:false --gn enable_updater:false --gn enable_update_notifications:false --gn android_channel:default --gn chrome_public_manifest_package:com.brave.browser_default --gn brave_channel:development --target brave --ninja=n
+  # Reuse the pinned Vanilla Welcome GN/Ninja graph when all critical args match.
+  # Any missing/stale graph or changed build-critical arg falls back to normal GN generation.
+  REUSE_GN_GRAPH=false
+  if [ "$SOURCE_REUSE" = true ] && [ "$MINIMAL_VANILLA_BUILD" = true ] && \
+     [ -s "$OUT/build.ninja" ] && [ -s "$OUT/args.gn" ] && \
+     grep -Fqx 'target_cpu = "arm64"' "$OUT/args.gn" && \
+     grep -Fqx 'is_debug = false' "$OUT/args.gn" && \
+     grep -Fqx 'is_java_debug = false' "$OUT/args.gn" && \
+     grep -Fqx 'use_remoteexec = true' "$OUT/args.gn" && \
+     grep -Fqx 'use_siso = true' "$OUT/args.gn" && \
+     grep -Fqx 'use_reclient = false' "$OUT/args.gn" && \
+     grep -Fqx 'enable_android_secondary_abi = false' "$OUT/args.gn" && \
+     grep -Fqx 'chrome_public_manifest_package = "com.brave.browser_default"' "$OUT/args.gn"; then
+    REUSE_GN_GRAPH=true
+  fi
+  if [ "$REUSE_GN_GRAPH" = true ]; then
+    echo "PPBAS_GN_GRAPH_REUSE=PASS; pinned ARM64 Release graph and Siso/REAPI args already match."
+  else
+    echo "PPBAS_GN_GRAPH_REUSE=MISS; running pinned Brave GN generation."
+    pnpm run build Release --target_os=android --target_arch=arm64 --target_android_output_format=apk --use_remoteexec=true --gn use_siso:true --gn use_reclient:false "${ORIGIN_GN_ARGS[@]}" --gn is_java_debug:false --gn enable_android_secondary_abi:false --gn is_official_build:false --gn enable_updater:false --gn enable_update_notifications:false --gn android_channel:default --gn chrome_public_manifest_package:com.brave.browser_default --gn brave_channel:development --target brave --ninja=n
+  fi
   bash "$ROOT/.circleci/scripts/verify-clang-diagnostics-gn.sh"
   if [ "$MINIMAL_VANILLA_BUILD" = true ]; then
     python3 "$ROOT/.circleci/scripts/verify-sandium-vanilla-brave.py" --core "$CORE_DIR" --src "$SRC_DIR" --out "$OUT" --phase verify
