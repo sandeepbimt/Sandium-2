@@ -56,4 +56,17 @@ assert "FirstRunStatus.setFirstRunFlowComplete(true)" in patched
 assert "FirstRunUtils.setEulaAccepted()" in patched
 assert "mOnboardingPager.getCurrentItem()" not in patched
 assert PATCHER["transform_activity"](patched) == patched
+
+# The pinned Brave checkout does not contain this Sandium-owned Java file yet.
+# Verify write() creates both a missing file and its parent directories.
+import tempfile
+
+with tempfile.TemporaryDirectory() as temp_dir:
+    destination = Path(temp_dir) / "brave" / "android" / "SandiumWelcomeSetupView.java"
+    expected = "class SandiumWelcomeSetupView {}\n"
+    PATCHER["write"](destination, expected, "welcome-setup-view-test")
+    assert destination.is_file()
+    assert destination.read_text(encoding="utf-8") == expected
+    PATCHER["write"](destination, expected, "welcome-setup-view-idempotence-test")
+    assert destination.read_text(encoding="utf-8") == expected
 print("SANDIUM_WELCOME_SETUP_PATCHER_TEST=PASS")
