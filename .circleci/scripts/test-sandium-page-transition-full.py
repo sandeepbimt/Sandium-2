@@ -31,7 +31,12 @@ JAVA_FIXTURE = '''import androidx.preference.PreferenceGroupAdapter;\nclass Appe
     /* package */ static final String PREF_SANDIUM_PAGE_TRANSITION_BLUR_LEVEL = "sandium_page_transition_blur_level";
     // SANDIUM_PAGE_TRANSITION_BLUR_PREF_END
     void initialize() {
+        // SANDIUM_PAGE_TRANSITION_BLUR_INIT_BEGIN
+        // Existing base blur preference initialization fixture.
         // SANDIUM_PAGE_TRANSITION_BLUR_INIT_END
+    }
+    private static boolean isSharingHubEnabled() {
+        return true;
     }
     boolean onPreferenceChange(Preference preference, Object newValue) {
         String key = preference.getKey();
