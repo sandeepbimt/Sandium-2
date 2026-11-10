@@ -227,7 +227,7 @@ final class SandiumWelcomeSetupView {
         addDivider(mAdvancedOptions);
         addSwitchRow(mAdvancedOptions, "◈", "Block third-party cookies",
                 "Prevent third-party sites from storing cookies",
-                isThirdPartyCookiesBlocked(), checked -> {
+                false, checked -> {
                     BraveShieldsContentSettings.setShieldsValue(
                             mProfile, "", BraveShieldsContentSettings.RESOURCE_IDENTIFIER_COOKIES,
                             checked ? BraveShieldsContentSettings.BLOCK_THIRDPARTY_RESOURCE
@@ -237,7 +237,7 @@ final class SandiumWelcomeSetupView {
         addDivider(mAdvancedOptions);
         addSwitchRow(mAdvancedOptions, "◇", "Strict fingerprinting protection",
                 "Use stronger protection against device fingerprinting",
-                isAggressiveFingerprintingEnabled(), checked -> {
+                false, checked -> {
                     BraveShieldsContentSettings.setShieldsValue(
                             mProfile, "",
                             BraveShieldsContentSettings.RESOURCE_IDENTIFIER_FINGERPRINTING,
