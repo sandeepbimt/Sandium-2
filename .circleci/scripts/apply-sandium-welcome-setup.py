@@ -71,9 +71,9 @@ def verify_pins(core: Path, src: Path) -> None:
 def transform_activity(source: str) -> str:
     source = replace_once(
         source,
-        "    private boolean mSplashAnimationFinished;\\n",
-        "    private boolean mSplashAnimationFinished;\\n"
-        "    private @Nullable SandiumWelcomeSetupView mSandiumSetupView;\\n",
+        "    private boolean mSplashAnimationFinished;\n",
+        "    private boolean mSplashAnimationFinished;\n"
+        "    private @Nullable SandiumWelcomeSetupView mSandiumSetupView;\n",
         "setup-view-field",
     )
 
@@ -95,8 +95,8 @@ def transform_activity(source: str) -> str:
 """
     source = replace_method(
         source,
-        "    @Override\\n    public void triggerLayoutInflation() {",
-        "    @Override\\n    public void finishNativeInitialization() {",
+        "    @Override\n    public void triggerLayoutInflation() {",
+        "    @Override\n    public void finishNativeInitialization() {",
         trigger,
         "replace-brave-onboarding-layout",
     )
@@ -126,8 +126,8 @@ def transform_activity(source: str) -> str:
 """
     source = replace_method(
         source,
-        "    @Override\\n    public void finishNativeInitialization() {",
-        "    @Override\\n    protected void onSaveInstanceState(Bundle outState) {",
+        "    @Override\n    public void finishNativeInitialization() {",
+        "    @Override\n    protected void onSaveInstanceState(Bundle outState) {",
         finish,
         "preserve-first-run-native-initialization",
     )
@@ -140,8 +140,8 @@ def transform_activity(source: str) -> str:
 """
     source = replace_method(
         source,
-        "    @Override\\n    protected void onSaveInstanceState(Bundle outState) {",
-        "    @Override\\n    protected void onRestoreInstanceState(Bundle state) {",
+        "    @Override\n    protected void onSaveInstanceState(Bundle outState) {",
+        "    @Override\n    protected void onRestoreInstanceState(Bundle state) {",
         save,
         "remove-obsolete-pager-state",
     )
@@ -162,7 +162,7 @@ def transform_activity(source: str) -> str:
 
 """
     if "protected void onDestroy()" not in source:
-        anchor = "    @Override\\n    public @BackPressResult int handleBackPress() {"
+        anchor = "    @Override\n    public @BackPressResult int handleBackPress() {"
         source = replace_once(source, anchor, destroy + anchor, "setup-view-lifecycle")
     elif "mSandiumSetupView.destroy();" not in source:
         raise RuntimeError("existing onDestroy must be reviewed before adding setup cleanup")
@@ -184,8 +184,8 @@ def transform_activity(source: str) -> str:
     return source
 
 def transform_java_sources(source: str) -> str:
-    entry = '  "../../brave/android/java/org/chromium/chrome/browser/firstrun/SandiumWelcomeSetupView.java",\\n'
-    anchor = '  "../../brave/android/java/org/chromium/chrome/browser/firstrun/WelcomeOnboardingActivity.java",\\n'
+    entry = '  "../../brave/android/java/org/chromium/chrome/browser/firstrun/SandiumWelcomeSetupView.java",\n'
+    anchor = '  "../../brave/android/java/org/chromium/chrome/browser/firstrun/WelcomeOnboardingActivity.java",\n'
     if entry in source:
         return source
     if source.count(anchor) != 1:
