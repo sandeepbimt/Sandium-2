@@ -41,6 +41,11 @@ assert "RequestSandiumHomepageWarmup" not in manager
 assert "homepage_warmup_requested_ = true;" in PATCHER_SOURCE
 assert "homepage_warmup_engine_reload_requested_ = true;" in PATCHER_SOURCE
 assert "filters_provider_manager_->ForceNotifyObservers(false);" in PATCHER_SOURCE
+assert "void ForceNotifyObservers(bool is_for_default_engine);" in PATCHER_SOURCE
+assert "void AdBlockFiltersProviderManager::ForceNotifyObservers(" in PATCHER_SOURCE
+assert "MaybeConsumeEngineStartupChangeNotification(is_for_default_engine)" in PATCHER_SOURCE
+assert "AreAllProvidersInitialized(is_for_default_engine)" in PATCHER_SOURCE
+assert "NotifyObservers(is_for_default_engine);" in PATCHER_SOURCE
 
 homepage = """    private void recordNtpShown() {
         mLastShownTimeNs = System.nanoTime();
