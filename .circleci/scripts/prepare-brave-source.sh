@@ -104,9 +104,31 @@ if [ "${BRAVE_STAGE_INDEX:?BRAVE_STAGE_INDEX is required}" = "1" ]; then
       # pnpm sync here can rewrite that state and invalidate the checkpoint.
       echo "BRAVE_CHECKPOINT_PRESERVATION=PASS; skipping pnpm sync on restored workspace."
     else
-      echo "BRAVE_SOURCE_REUSE=PASS; no portable checkpoint marker; refreshing Brave config."
-      cd "$CORE_DIR"
-      pnpm run sync --target_os=android --target_arch=arm64 --no-history --sync_chromium=false
+      # A restored 26 GiB source tree can be complete even when the stage-handoff
+      # marker is absent. If its gclient dependency manifest, pinned GN graph and
+      # generated Siso files are present and already point at this BuildBuddy
+      # endpoint, do not run pnpm sync: that re-applies patches, performs gclient
+      # sync and reruns all 143 hooks on every fresh workflow.
+      GCLIENT_FILE="$ROOT/brave-work/.gclient"
+      GCLIENT_ENTRIES="$ROOT/brave-work/.gclient_entries"
+      SISO_DIR="$SRC_DIR/build/config/siso"
+      if [ -s "$GCLIENT_FILE" ] && [ -s "$GCLIENT_ENTRIES" ] && \
+         [ -s "$OUT/build.ninja" ] && [ -s "$OUT/args.gn" ] && \
+         [ -s "$SISO_DIR/.sisoenv" ] && [ -s "$SISO_DIR/.sisorc" ] && \
+         grep -Fq "$REAPI_ADDRESS" "$GCLIENT_FILE" && \
+         grep -Fq 'reapi_backend_config_path' "$GCLIENT_FILE" && \
+         grep -Fq 'reapi_instance' "$GCLIENT_FILE" && \
+         grep -Fq "SISO_REAPI_ADDRESS=$REAPI_ADDRESS" "$SISO_DIR/.sisoenv"; then
+        echo "BRAVE_GCLIENT_DEPENDENCY_REUSE=PASS; pinned deps and generated Siso hooks restored."
+        echo "BRAVE_GCLIENT_HOOKS=SKIPPED; reconciling source patches only."
+        cd "$CORE_DIR"
+        pnpm run apply_patches
+      else
+        echo "BRAVE_GCLIENT_DEPENDENCY_REUSE=MISS; required dependency or RBE config state is absent."
+        echo "BRAVE_SOURCE_REUSE=PASS; refreshing Brave config with normal pinned sync."
+        cd "$CORE_DIR"
+        pnpm run sync --target_os=android --target_arch=arm64 --no-history --sync_chromium=false
+      fi
     fi
   else
     echo "BRAVE_SOURCE_REUSE=MISS; source checkout incomplete or pin mismatch; full init required."
