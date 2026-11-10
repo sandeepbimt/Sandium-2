@@ -31,6 +31,7 @@ import org.chromium.brave_shields.mojom.FilterListAndroidHandler;
 import org.chromium.brave_shields.mojom.SubscriptionInfo;
 import org.chromium.chrome.browser.BraveFeatureUtil;
 import org.chromium.chrome.browser.BraveLocalState;
+import org.chromium.chrome.browser.BraveRelaunchUtils;
 import org.chromium.chrome.browser.preferences.website.BraveShieldsContentSettings;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.shields.FilterListServiceFactory;
@@ -58,7 +59,8 @@ final class SandiumWelcomeSetupView {
 
     private static final String PREF_BLUR_LEVEL = "sandium_page_transition_blur_level";
     private static final String PREF_DARKEN = "sandium_page_transition_darken";
-    private static final String PREF_ENGINE_READY = "sandium.ad_block.engine_warmup_done";
+    private static final String PREF_ENGINE_READY = "sandium.ad_block.engine_warmup_done_v2";
+    private static final int REQUIRED_FILTER_COUNT = 29;
 
     private final Activity mActivity;
     private final Listener mListener;
@@ -82,6 +84,8 @@ final class SandiumWelcomeSetupView {
     private boolean mDestroyed;
     private boolean mPollInFlight;
     private boolean mCanStartBrowsing;
+    private boolean mRequiresRestart;
+    private Switch mDarkenSwitch;
 
     SandiumWelcomeSetupView(Activity activity, Listener listener) {
         mActivity = activity;
@@ -102,21 +106,22 @@ final class SandiumWelcomeSetupView {
         // the Start action visible together on common Android phone heights.
         mContent = new LinearLayout(mActivity);
         mContent.setOrientation(LinearLayout.VERTICAL);
-        mContent.setPadding(dp(14), dp(5), dp(14), 0);
+        mContent.setPadding(dp(18), dp(18), dp(18), dp(12));
+        mContent.setGravity(Gravity.CENTER_VERTICAL);
         mRoot.addView(mContent, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
 
-        TextView title = text("Set up your browser", 24, TEXT, false);
+        TextView title = text("Set up your browser", 27, TEXT, false);
         title.setGravity(Gravity.CENTER);
         mContent.addView(title, matchWrap());
         TextView subtitle = text(
                 "Choose your preferred browsing experience. Change these anytime in Settings.",
-                11, SECONDARY, false);
+                13, SECONDARY, false);
         subtitle.setGravity(Gravity.CENTER);
         subtitle.setMaxLines(2);
         subtitle.setLineSpacing(0, 1f);
         LinearLayout.LayoutParams subtitleParams = matchWrap();
-        subtitleParams.setMargins(dp(4), dp(2), dp(4), dp(8));
+        subtitleParams.setMargins(dp(6), dp(5), dp(6), dp(14));
         mContent.addView(subtitle, subtitleParams);
 
         buildFilterProgressCard();
@@ -124,18 +129,18 @@ final class SandiumWelcomeSetupView {
 
         LinearLayout buttonContainer = new LinearLayout(mActivity);
         buttonContainer.setGravity(Gravity.CENTER);
-        buttonContainer.setPadding(dp(16), dp(3), dp(16), dp(5));
+        buttonContainer.setPadding(dp(18), dp(8), dp(18), dp(12));
         mRoot.addView(buttonContainer, matchWrap());
 
         mStartButton = new Button(mActivity);
         mStartButton.setText("Start browsing");
-        mStartButton.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15);
+        mStartButton.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16);
         mStartButton.setTextColor(DISABLED_BUTTON_TEXT);
         mStartButton.setAllCaps(false);
         mStartButton.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
-        mStartButton.setMinHeight(dp(44));
-        mStartButton.setMinimumHeight(dp(44));
-        mStartButton.setPadding(dp(24), 0, dp(24), 0);
+        mStartButton.setMinHeight(dp(52));
+        mStartButton.setMinimumHeight(dp(52));
+        mStartButton.setPadding(dp(28), 0, dp(28), 0);
         mStartButton.setBackground(roundRect(DISABLED_BUTTON, 28));
         mStartButton.setEnabled(false);
         mStartButton.setAlpha(1f);
@@ -143,9 +148,10 @@ final class SandiumWelcomeSetupView {
             if (mCanStartBrowsing) {
                 mHandler.removeCallbacks(mPollRunnable);
                 mListener.onStartBrowsing();
+                if (mRequiresRestart) BraveRelaunchUtils.restart();
             }
         });
-        LinearLayout.LayoutParams buttonParams = new LinearLayout.LayoutParams(dp(210), dp(44));
+        LinearLayout.LayoutParams buttonParams = new LinearLayout.LayoutParams(dp(230), dp(52));
         buttonContainer.addView(mStartButton, buttonParams);
 
         return mRoot;
@@ -155,10 +161,11 @@ final class SandiumWelcomeSetupView {
         mProfile = profile;
         applyInitialPreferences();
         for (Switch toggle : mSwitches) toggle.setEnabled(true);
+        if (mDarkenSwitch != null) mDarkenSwitch.setEnabled(isBlurTransitionEnabled());
         mFilterHandler = FilterListServiceFactory.getInstance()
                 .getFilterListAndroidHandler(profile, null);
-        // Queue the native warm-up immediately. Native code starts the additional
-        // engine as soon as the first enabled subscription has downloaded successfully.
+        // Queue the native warm-up immediately. Native code waits for all 29
+        // enabled subscriptions, then marks ready only after the additional engine loads.
         FilterListServiceFactory.requestSandiumHomepageWarmup(profile);
         pollFilterStatus();
     }
@@ -180,11 +187,15 @@ final class SandiumWelcomeSetupView {
         BraveShieldsContentSettings.setShieldsValue(
                 mProfile, "", BraveShieldsContentSettings.RESOURCE_IDENTIFIER_TRACKERS,
                 BraveShieldsContentSettings.BLOCK_RESOURCE, false);
+        android.content.SharedPreferences preferences = ContextUtils.getAppSharedPreferences();
+        android.content.SharedPreferences.Editor editor = preferences.edit();
+        if (!preferences.contains(PREF_BLUR_LEVEL)) editor.putString(PREF_BLUR_LEVEL, "medium");
+        if (!preferences.contains(PREF_DARKEN)) editor.putBoolean(PREF_DARKEN, true);
+        editor.commit();
+        // Brave feature overrides are read during native startup; relaunch after
+        // completing first run so the selected Night Mode is actually active.
         BraveFeatureUtil.enableFeature(BraveFeatureList.ENABLE_FORCE_DARK, true, true);
-        ContextUtils.getAppSharedPreferences().edit()
-                .putString(PREF_BLUR_LEVEL, "medium")
-                .putBoolean(PREF_DARKEN, true)
-                .apply();
+        mRequiresRestart = true;
     }
 
     private void buildMainSettingsCard() {
@@ -198,17 +209,27 @@ final class SandiumWelcomeSetupView {
 
         addSwitchRow(card, "☾", "Night Mode",
                 "Force dark mode for web content",
-                true, checked -> BraveFeatureUtil.enableFeature(
-                        BraveFeatureList.ENABLE_FORCE_DARK, checked, true));
+                true, checked -> {
+                    BraveFeatureUtil.enableFeature(BraveFeatureList.ENABLE_FORCE_DARK, checked, true);
+                    mRequiresRestart = true;
+                });
         addDivider(card);
 
         addBlurRow(card);
         addDivider(card);
 
-        addSwitchRow(card, "◐", "Darken transition",
+        boolean blurEnabled = isBlurTransitionEnabled();
+        boolean darkenChecked = blurEnabled && ContextUtils.getAppSharedPreferences()
+                .getBoolean(PREF_DARKEN, true);
+        mDarkenSwitch = addSwitchRow(card, "◐", "Darken transition",
                 "Dim the outgoing page during the transition",
-                true, checked -> ContextUtils.getAppSharedPreferences().edit()
-                        .putBoolean(PREF_DARKEN, checked).apply());
+                darkenChecked, checked -> {
+                    if (!isBlurTransitionEnabled()) return;
+                    ContextUtils.getAppSharedPreferences().edit()
+                            .putBoolean(PREF_DARKEN, checked).commit();
+                    mRequiresRestart = true;
+                });
+        mDarkenSwitch.setEnabled(blurEnabled);
         addDivider(card);
 
         LinearLayout more = new LinearLayout(mActivity);
@@ -259,12 +280,12 @@ final class SandiumWelcomeSetupView {
     private void buildFilterProgressCard() {
         LinearLayout card = card();
         LinearLayout.LayoutParams params = matchWrap();
-        params.setMargins(0, dp(2), 0, dp(7));
+        params.setMargins(0, dp(4), 0, dp(14));
         mContent.addView(card, params);
 
         LinearLayout heading = new LinearLayout(mActivity);
         heading.setGravity(Gravity.CENTER_VERTICAL);
-        heading.setPadding(dp(10), dp(6), dp(10), dp(4));
+        heading.setPadding(dp(16), dp(12), dp(16), dp(8));
         card.addView(heading, matchWrap());
 
         TextView spinner = text("⟳", 22, PRIMARY, false);
@@ -276,17 +297,17 @@ final class SandiumWelcomeSetupView {
         labels.setPadding(dp(5), 0, 0, 0);
         heading.addView(labels, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
 
-        TextView title = text("Preparing ad-blocking protection...", 12, TEXT, false);
+        TextView title = text("Preparing ad-blocking protection...", 14, TEXT, false);
         labels.addView(title, matchWrap());
         TextView subtitle = text(
                 "Engine starts after the first successful filter download",
-                9.5f, SECONDARY, false);
+                11.5f, SECONDARY, false);
         subtitle.setPadding(0, dp(4), 0, 0);
         labels.addView(subtitle, matchWrap());
 
         LinearLayout progressRow = new LinearLayout(mActivity);
         progressRow.setGravity(Gravity.CENTER_VERTICAL);
-        progressRow.setPadding(dp(46), 0, dp(12), dp(6));
+        progressRow.setPadding(dp(56), dp(2), dp(16), dp(10));
         card.addView(progressRow, matchWrap());
 
         mProgress = new ProgressBar(mActivity, null, android.R.attr.progressBarStyleHorizontal);
@@ -296,7 +317,7 @@ final class SandiumWelcomeSetupView {
         mProgress.setProgressBackgroundTintList(ColorStateList.valueOf(Color.rgb(64, 68, 78)));
         progressRow.addView(mProgress, new LinearLayout.LayoutParams(0, dp(5), 1f));
 
-        mPercent = text("0%", 10, TEXT, false);
+        mPercent = text("0%", 11, TEXT, false);
         mPercent.setGravity(Gravity.RIGHT | Gravity.CENTER_VERTICAL);
         LinearLayout.LayoutParams percentParams = new LinearLayout.LayoutParams(dp(38), dp(22));
         percentParams.setMargins(dp(8), 0, 0, 0);
@@ -312,50 +333,52 @@ final class SandiumWelcomeSetupView {
         mEngineState = statusLine("●", "Ad blocker engine: Waiting for first rule", SECONDARY);
         mFilterCount = statusLine("●", "Filters: 0 of 0 updated", SECONDARY);
         mFinalizing = statusLine("○", "Finalizing: Waiting for filter download...", SECONDARY);
-        mEngineState.setPadding(dp(12), dp(1), dp(10), dp(1));
-        mFilterCount.setPadding(dp(12), dp(1), dp(10), dp(1));
-        mFinalizing.setPadding(dp(12), dp(1), dp(10), dp(7));
+        mEngineState.setPadding(dp(16), dp(4), dp(14), dp(3));
+        mFilterCount.setPadding(dp(16), dp(4), dp(14), dp(3));
+        mFinalizing.setPadding(dp(16), dp(4), dp(14), dp(10));
         card.addView(mEngineState, matchWrap());
         card.addView(mFilterCount, matchWrap());
         card.addView(mFinalizing, matchWrap());
     }
 
     private TextView statusLine(String marker, String value, int color) {
-        TextView line = text(marker + "   " + value, 9.5f, color, false);
+        TextView line = text(marker + "   " + value, 11.5f, color, false);
         return line;
     }
 
     private void addBlurRow(LinearLayout parent) {
         LinearLayout row = new LinearLayout(mActivity);
         row.setGravity(Gravity.CENTER_VERTICAL);
-        row.setPadding(dp(12), dp(4), dp(10), dp(4));
+        row.setPadding(dp(16), dp(9), dp(14), dp(9));
         parent.addView(row, matchWrap());
 
-        TextView icon = text("▱", 22, PRIMARY, false);
-        row.addView(icon, new LinearLayout.LayoutParams(dp(34), dp(30)));
+        TextView icon = text("▱", 23, PRIMARY, false);
+        icon.setGravity(Gravity.CENTER);
+        row.addView(icon, new LinearLayout.LayoutParams(dp(38), dp(38)));
 
         LinearLayout labels = new LinearLayout(mActivity);
         labels.setOrientation(LinearLayout.VERTICAL);
+        labels.setPadding(dp(6), 0, dp(8), 0);
         row.addView(labels, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         labels.addView(itemText("Page transition blur", 17, TEXT, false), matchWrap());
         TextView summary = itemText(
-                "Set how strongly the previous page blurs when opening another website",
+                "Choose how strongly the previous page blurs during navigation",
                 13, SECONDARY, false);
-        summary.setPadding(0, dp(3), dp(8), 0);
+        summary.setPadding(0, dp(3), dp(4), 0);
         labels.addView(summary, matchWrap());
 
         Spinner spinner = new Spinner(mActivity);
-        List<String> values = Arrays.asList("Low", "Medium", "High");
+        List<String> values = Arrays.asList("Off", "Low", "Medium", "High");
         ArrayAdapter<String> adapter = new ArrayAdapter<String>(
                 mActivity, android.R.layout.simple_spinner_item, values) {
             private TextView styledTextView(View convertView, String value) {
                 TextView view = convertView instanceof TextView
                         ? (TextView) convertView : new TextView(mActivity);
                 view.setText(value);
-                view.setTextSize(TypedValue.COMPLEX_UNIT_SP, 8.5f);
+                view.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
                 view.setTextColor(TEXT);
                 view.setGravity(Gravity.CENTER_VERTICAL);
-                view.setPadding(dp(4), 0, dp(4), 0);
+                view.setPadding(dp(7), 0, dp(7), 0);
                 return view;
             }
 
@@ -373,40 +396,50 @@ final class SandiumWelcomeSetupView {
         spinner.setAdapter(adapter);
         String current = ContextUtils.getAppSharedPreferences()
                 .getString(PREF_BLUR_LEVEL, "medium");
-        int selected = values.indexOf(capitalize(current));
-        spinner.setSelection(selected < 0 ? 1 : selected, false);
+        int selected = "default".equals(current) ? 0 : values.indexOf(capitalize(current));
+        spinner.setSelection(selected < 0 ? 2 : selected, false);
         spinner.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
             @Override
             public void onItemSelected(android.widget.AdapterView<?> parentView, View view,
                     int position, long id) {
-                String value = values.get(position).toLowerCase(java.util.Locale.ROOT);
-                ContextUtils.getAppSharedPreferences().edit().putString(PREF_BLUR_LEVEL, value).apply();
+                boolean off = position == 0;
+                String value = off ? "default"
+                        : values.get(position).toLowerCase(java.util.Locale.ROOT);
+                ContextUtils.getAppSharedPreferences().edit()
+                        .putString(PREF_BLUR_LEVEL, value)
+                        .apply();
+                if (off) {
+                    ContextUtils.getAppSharedPreferences().edit()
+                            .putBoolean(PREF_DARKEN, false).apply();
+                    if (mDarkenSwitch != null) mDarkenSwitch.setChecked(false);
+                }
+                if (mDarkenSwitch != null) mDarkenSwitch.setEnabled(!off);
+                mRequiresRestart = true;
             }
 
             @Override
             public void onNothingSelected(android.widget.AdapterView<?> parentView) {}
         });
-        LinearLayout.LayoutParams spinnerParams = new LinearLayout.LayoutParams(dp(116), dp(48));
-        spinnerParams.width = dp(76);
-        spinnerParams.height = dp(34);
-        spinnerParams.setMargins(dp(4), 0, 0, 0);
+        LinearLayout.LayoutParams spinnerParams =
+                new LinearLayout.LayoutParams(dp(104), dp(42));
+        spinnerParams.setMargins(dp(6), 0, 0, 0);
         row.addView(spinner, spinnerParams);
     }
 
-    private void addSwitchRow(LinearLayout parent, String glyph, String title, String summary,
+    private Switch addSwitchRow(LinearLayout parent, String glyph, String title, String summary,
             boolean checked, java.util.function.Consumer<Boolean> onChanged) {
         LinearLayout row = new LinearLayout(mActivity);
         row.setGravity(Gravity.CENTER_VERTICAL);
-        row.setPadding(dp(12), dp(4), dp(10), dp(4));
+        row.setPadding(dp(16), dp(9), dp(14), dp(9));
         parent.addView(row, matchWrap());
 
-        TextView icon = text(glyph, 20, PRIMARY, false);
+        TextView icon = text(glyph, 23, PRIMARY, false);
         icon.setGravity(Gravity.CENTER);
         row.addView(icon, new LinearLayout.LayoutParams(dp(34), dp(32)));
 
         LinearLayout labels = new LinearLayout(mActivity);
         labels.setOrientation(LinearLayout.VERTICAL);
-        labels.setPadding(dp(4), 0, dp(4), 0);
+        labels.setPadding(dp(6), 0, dp(6), 0);
         row.addView(labels, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         labels.addView(itemText(title, 17, TEXT, false), matchWrap());
         TextView detail = itemText(summary, 13, SECONDARY, false);
@@ -427,6 +460,7 @@ final class SandiumWelcomeSetupView {
         toggle.setOnCheckedChangeListener((button, value) -> onChanged.accept(value));
         row.addView(toggle, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        return toggle;
     }
 
     private void setProtectionEnabled(boolean enabled) {
@@ -438,6 +472,11 @@ final class SandiumWelcomeSetupView {
                     mProfile, "", BraveShieldsContentSettings.RESOURCE_IDENTIFIER_TRACKERS,
                     BraveShieldsContentSettings.BLOCK_RESOURCE, false);
         }
+    }
+
+    private boolean isBlurTransitionEnabled() {
+        return !"default".equals(ContextUtils.getAppSharedPreferences()
+                .getString(PREF_BLUR_LEVEL, "medium"));
     }
 
     private boolean isThirdPartyCookiesBlocked() {
@@ -490,23 +529,23 @@ final class SandiumWelcomeSetupView {
         int percent = total == 0 ? 0 : Math.min(100, (downloaded * 100) / total);
         mProgress.setProgress(percent);
         mPercent.setText(percent + "%");
-        mEngineState.setText(ready
-                ? "✓   Ad blocker engine: Ready"
-                : "○   Ad blocker engine: Waiting for first downloaded rule");
-        mEngineState.setTextColor(ready ? SUCCESS : SECONDARY);
-        mFilterCount.setText("✓   Filters: " + downloaded + " of " + total + " updated");
-        mFilterCount.setTextColor(downloaded > 0 ? SUCCESS : SECONDARY);
-        mFinalizing.setText(ready
-                ? (downloaded < total
-                    ? "○   Remaining filters: Updating in the background"
-                    : "✓   Finalizing: Filter rules applied")
-                : (downloaded > 0
+        boolean allFiltersReady = total == REQUIRED_FILTER_COUNT
+                && downloaded == REQUIRED_FILTER_COUNT;
+        mCanStartBrowsing = ready && allFiltersReady;
+        mEngineState.setText(mCanStartBrowsing
+                ? "✓   Ad blocker engine: Ready with all 29 filters"
+                : (allFiltersReady
+                    ? "○   Ad blocker engine: Activating with 29 filters"
+                    : "○   Ad blocker engine: Waiting for all 29 filters"));
+        mEngineState.setTextColor(mCanStartBrowsing ? SUCCESS : SECONDARY);
+        mFilterCount.setText("Filters: " + downloaded + " of " + REQUIRED_FILTER_COUNT + " loaded");
+        mFilterCount.setTextColor(allFiltersReady ? SUCCESS : SECONDARY);
+        mFinalizing.setText(mCanStartBrowsing
+                ? "✓   Finalizing: All filter rules applied"
+                : (allFiltersReady
                     ? "○   Finalizing: Activating the native engine..."
-                    : "○   Finalizing: Waiting for filter download..."));
-        mFinalizing.setTextColor(ready ? SUCCESS : SECONDARY);
-        // Enable only after at least one enabled filter has a successful download
-        // timestamp AND native reports that the additional ad-block engine loaded.
-        mCanStartBrowsing = ready && downloaded > 0;
+                    : "○   Finalizing: Downloading remaining filters..."));
+        mFinalizing.setTextColor(mCanStartBrowsing ? SUCCESS : SECONDARY);
         mStartButton.setEnabled(mCanStartBrowsing);
         mStartButton.setTextColor(mCanStartBrowsing ? PRIMARY_TEXT : DISABLED_BUTTON_TEXT);
         mStartButton.setBackground(roundRect(
@@ -545,7 +584,7 @@ final class SandiumWelcomeSetupView {
     // Settings-item labels and descriptions use exactly half their previous
     // text size; the page heading, progress card, and primary action stay legible.
     private TextView itemText(String value, float originalSizeSp, int color, boolean bold) {
-        return text(value, originalSizeSp * 0.5f, color, bold);
+        return text(value, originalSizeSp * 0.88f, color, bold);
     }
 
     private TextView text(String value, float sizeSp, int color, boolean bold) {

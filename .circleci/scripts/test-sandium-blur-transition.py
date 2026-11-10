@@ -175,6 +175,7 @@ def main():
     grd = MODULE.transform_grd(GRD_FIXTURE)
     assert grd == MODULE.transform_grd(grd), "GRD overlay must be idempotent"
     assert grd.count('name="IDS_SANDIUM_PAGE_TRANSITION_BLUR_') == 6
+    assert "        Off" in grd and "        Default" not in grd
 
     appearance_test = MODULE.transform_appearance_test(TEST_FIXTURE)
     assert appearance_test == MODULE.transform_appearance_test(appearance_test)

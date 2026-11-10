@@ -259,7 +259,7 @@ GRD_BLOCK = (
     "        Set how strongly the previous page blurs when opening another website\n"
     "      </message>\n"
     '      <message name="IDS_SANDIUM_PAGE_TRANSITION_BLUR_DEFAULT" desc="Default page transition blur level.">\n'
-    "        Default\n"
+    "        Off\n"
     "      </message>\n"
     '      <message name="IDS_SANDIUM_PAGE_TRANSITION_BLUR_LOW" desc="Low page transition blur level.">\n'
     "        Low\n"
@@ -495,7 +495,7 @@ def main() -> None:
     write_transform(core / APPEARANCE_JAVA, transform_appearance_java, "SANDIUM_BLUR_APPEARANCE_JAVA")
     write_transform(core / STRINGS_GRD, transform_grd, "SANDIUM_BLUR_STRINGS")
     write_transform(core / APPEARANCE_TEST, transform_appearance_test, "SANDIUM_BLUR_APPEARANCE_TEST")
-    print("SANDIUM_BLUR_LEVELS=default,low,medium,high")
+    print("SANDIUM_BLUR_LEVELS=off,low,medium,high (stored=default)")
     print("SANDIUM_BLUR_COMPILE_SCOPE=Java+Android resources; no native C++ or GN changes")
     print("SANDIUM_BLUR_TRANSITION_GATE=PASS")
 

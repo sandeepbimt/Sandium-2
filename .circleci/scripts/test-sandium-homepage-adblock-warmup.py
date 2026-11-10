@@ -30,11 +30,13 @@ assert "RequestSandiumHomepageWarmup() => (bool accepted);" in mojom
 
 manager = PATCHER["LEGACY_STARTUP_WARMUP"]
 assert "ForceNotifyObservers(false)" in manager
-assert "SetBoolean(prefs::kSandiumAdBlockEngineWarmupRequested, false)" in PATCHER_SOURCE
+assert "SetBoolean(prefs::kSandiumAdBlockEngineWarmupRequestedV2, false)" in PATCHER_SOURCE
 assert "last_successful_update_attempt.is_min()" in PATCHER_SOURCE
-assert "has_successfully_downloaded_enabled_subscription" in PATCHER_SOURCE
-assert "has_successfully_downloaded_enabled_subscription = true;" in PATCHER_SOURCE
-assert "activate_after_first_successful_enabled_list=true" in PATCHER_SOURCE
+assert "kSandiumAdBlockEngineWarmupDoneV2" in PATCHER_SOURCE
+assert "successfully_downloaded_count != enabled_subscription_count" in PATCHER_SOURCE
+assert "enabled_subscription_count" in PATCHER_SOURCE
+assert "enabled_subscription_count" in PATCHER_SOURCE
+assert "activate_after_all_enabled_lists=true" in PATCHER_SOURCE
 assert "MaybeTriggerSandiumHomepageWarmup();" in PATCHER_SOURCE
 assert "RequestSandiumHomepageWarmup" not in manager
 

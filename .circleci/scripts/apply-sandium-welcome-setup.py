@@ -200,8 +200,24 @@ def apply(core: Path, src: Path, repo_root: Path) -> None:
     activity_path = core / ACTIVITY
     source_list_path = core / JAVA_SOURCES
     view_source = read(repo_root / VIEW)
+    required_view_behaviour = (
+        "sandium.ad_block.engine_warmup_done_v2",
+        "REQUIRED_FILTER_COUNT = 29",
+        "downloaded == REQUIRED_FILTER_COUNT",
+        'Arrays.asList("Off", "Low", "Medium", "High")',
+        "mDarkenSwitch.setEnabled(!off)",
+        "BraveRelaunchUtils.restart()",
+    )
     if "class SandiumWelcomeSetupView" not in view_source:
         raise RuntimeError("Sandium setup view class missing from repository workspace")
+    missing_view_behaviour = [
+        marker for marker in required_view_behaviour if marker not in view_source
+    ]
+    if missing_view_behaviour:
+        raise RuntimeError(
+            "welcome view verification missing required behavior: "
+            + ", ".join(missing_view_behaviour)
+        )
     write(core / VIEW, view_source, "welcome-setup-view")
     write(activity_path, transform_activity(read(activity_path)), "welcome-activity")
     write(source_list_path, transform_java_sources(read(source_list_path)), "java-source-registration")

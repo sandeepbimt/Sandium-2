@@ -281,7 +281,11 @@ void AdBlockSubscriptionServiceManager::OnCheckedSandiumDefaultSubscriptionCache
         "inline constexpr char kSandiumAdBlockEngineWarmupRequested[] =\n"
         "    \"sandium.ad_block.engine_warmup_requested\";\n"
         "inline constexpr char kSandiumAdBlockEngineWarmupDone[] =\n"
-        "    \"sandium.ad_block.engine_warmup_done\";\n",
+        "    \"sandium.ad_block.engine_warmup_done\";\n"
+        "inline constexpr char kSandiumAdBlockEngineWarmupRequestedV2[] =\n"
+        "    \"sandium.ad_block.engine_warmup_requested_v2\";\n"
+        "inline constexpr char kSandiumAdBlockEngineWarmupDoneV2[] =\n"
+        "    \"sandium.ad_block.engine_warmup_done_v2\";\n",
         "kSandiumDefaultFilterListsSeeded",
         "register-default-state-pref-name",
     )
@@ -292,7 +296,9 @@ void AdBlockSubscriptionServiceManager::OnCheckedSandiumDefaultSubscriptionCache
         "  registry->RegisterBooleanPref(prefs::kSandiumDefaultFilterListsMigrated, false);\n"
         "  registry->RegisterListPref(prefs::kSandiumDefaultFilterListsSeeded);\n"
         "  registry->RegisterBooleanPref(prefs::kSandiumAdBlockEngineWarmupRequested, false);\n"
-        "  registry->RegisterBooleanPref(prefs::kSandiumAdBlockEngineWarmupDone, false);\n",
+        "  registry->RegisterBooleanPref(prefs::kSandiumAdBlockEngineWarmupDone, false);\n"
+        "  registry->RegisterBooleanPref(prefs::kSandiumAdBlockEngineWarmupRequestedV2, false);\n"
+        "  registry->RegisterBooleanPref(prefs::kSandiumAdBlockEngineWarmupDoneV2, false);\n",
         "kSandiumDefaultFilterListsSeeded",
         "register-default-state-pref",
     )
@@ -305,9 +311,9 @@ void AdBlockSubscriptionServiceManager::OnCheckedSandiumDefaultSubscriptionCache
         "  // Mark the one-time Sandium warm-up complete only after the additional\n"
         "  // engine has successfully loaded the current provider set.\n"
         "  if (local_state_ && !is_default_engine &&\n"
-        "      local_state_->GetBoolean(prefs::kSandiumAdBlockEngineWarmupRequested) &&\n"
+        "      local_state_->GetBoolean(prefs::kSandiumAdBlockEngineWarmupRequestedV2) &&\n"
         "      load_result == FilterListLoadResult::kLoaded) {\n"
-        "    local_state_->SetBoolean(prefs::kSandiumAdBlockEngineWarmupDone, true);\n"
+        "    local_state_->SetBoolean(prefs::kSandiumAdBlockEngineWarmupDoneV2, true);\n"
         "  }\n\n"
         "  if (load_result != FilterListLoadResult::kResourcesOnly) {",
         "local_state_->SetBoolean(prefs::kSandiumAdBlockEngineWarmupDone, true);",
@@ -540,6 +546,8 @@ def verify(core: Path) -> None:
         "EnsureSandiumDefaultSubscriptions();",
         "kSandiumAdBlockEngineWarmupRequested",
         "kSandiumAdBlockEngineWarmupDone",
+        "kSandiumAdBlockEngineWarmupRequestedV2",
+        "kSandiumAdBlockEngineWarmupDoneV2",
         "kSandiumAdBlockEngineWarmupRequested",
         "load_result == FilterListLoadResult::kLoaded",
         "CreateSubscription(subscription_url);",

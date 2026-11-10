@@ -145,6 +145,7 @@ def main():
         "nav-animation-fade-hold-duration-ms/450/nav-animation-fade-out-duration-ms/225",
         "nav-animation-fade-hold-duration-ms/675/nav-animation-fade-out-duration-ms/300",
         'getBoolean("sandium_page_transition_darken", false)',
+        '!\\"default\\".equals(level)',
         '"/nav-animation-darken/" + (darken ? "true" : "false")',
     ):
         assert value in startup, f"missing startup behaviour: {value}"
@@ -201,6 +202,8 @@ def main():
     )
     assert repaired.count(MODULE.JAVA_DARKEN_PREF) == 1
     assert "findPreference(PREF_SANDIUM_PAGE_TRANSITION_DARKEN)" in repaired
+    assert "pageTransitionDarken.setEnabled(blurEnabled)" in repaired
+    assert "if (\\\"default\\\".equals(blurLevel) && (Boolean) newValue) return false;" in repaired
     assert ".putBoolean(PREF_SANDIUM_PAGE_TRANSITION_DARKEN, (Boolean) newValue)" in repaired
     assert "setPreferenceOrder(PREF_SANDIUM_PAGE_TRANSITION_DARKEN, 11);" in repaired
 
@@ -264,7 +267,7 @@ def main():
 
     print("SANDIUM_PAGE_TRANSITION_FULL_TESTS=PASS")
     print("SANDIUM_PAGE_TRANSITION_DURATIONS=PASS medium=450/225 high=675/300")
-    print("SANDIUM_PAGE_TRANSITION_DARKEN=PASS preference+native-layer+cleanup")
+    print("SANDIUM_PAGE_TRANSITION_DARKEN=PASS preference+native-layer+cleanup+off-dependency")
     print("SANDIUM_PAGE_TRANSITION_NIGHT_MODE=PASS dark fallback")
     print("SANDIUM_PAGE_TRANSITION_APPEARANCE_ICONS=PASS blur+darken vector resources")
     print("SANDIUM_PAGE_TRANSITION_ADBLOCK=UNTOUCHED")

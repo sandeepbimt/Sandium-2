@@ -16,6 +16,8 @@ for marker in (
     "EnsureSandiumDefaultSubscriptions();",
     "kSandiumAdBlockEngineWarmupRequested",
     "kSandiumAdBlockEngineWarmupDone",
+    "kSandiumAdBlockEngineWarmupRequestedV2",
+    "kSandiumAdBlockEngineWarmupDoneV2",
     "load_result == FilterListLoadResult::kLoaded",
     "CreateSubscription(subscription_url);",
     "StartDownload(url, true);",

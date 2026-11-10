@@ -83,7 +83,7 @@ def transform_startup(source: str) -> str:
     source = replace_once_or_done(
         source,
         level_read,
-        level_read + darken_read,
+        level_read + darken_read + '        darken = darken && !"default".equals(level);\\n',
         "Read persisted Darken setting before native feature initialization",
     )
     source = replace_once_or_done(
@@ -172,12 +172,21 @@ JAVA_DARKEN_INIT_BLOCK = (
     "        ChromeSwitchPreference pageTransitionDarken =\n"
     "                (ChromeSwitchPreference) findPreference(PREF_SANDIUM_PAGE_TRANSITION_DARKEN);\n"
     "        if (pageTransitionDarken != null) {\n"
-    "            pageTransitionDarken.setChecked(\n"
-    "                    ContextUtils.getAppSharedPreferences()\n"
-    "                            .getBoolean(PREF_SANDIUM_PAGE_TRANSITION_DARKEN, false));\n"
+    "            String blurLevel = ContextUtils.getAppSharedPreferences()\n"
+    "                    .getString(PREF_SANDIUM_PAGE_TRANSITION_BLUR_LEVEL, \"default\");\n"
+    "            boolean blurEnabled = !\"default\".equals(blurLevel);\n"
+    "            pageTransitionDarken.setEnabled(blurEnabled);\n"
+    "            boolean darkenEnabled = blurEnabled && ContextUtils.getAppSharedPreferences()\n"
+    "                    .getBoolean(PREF_SANDIUM_PAGE_TRANSITION_DARKEN, false);\n"
+    "            pageTransitionDarken.setChecked(darkenEnabled);\n"
+    "            if (!blurEnabled) {\n"
+    "                ContextUtils.getAppSharedPreferences().edit()\n"
+    "                        .putBoolean(PREF_SANDIUM_PAGE_TRANSITION_DARKEN, false).apply();\n"
+    "            }\n"
     "            pageTransitionDarken.setOnPreferenceChangeListener(this);\n"
     "        }\n"
     + JAVA_DARKEN_INIT_END + "\n"
+)
 )
 
 JAVA_CHANGE_ANCHOR = "        if (BravePreferenceKeys.BRAVE_BOTTOM_TOOLBAR_ENABLED_KEY.equals(key)) {\n"
@@ -185,8 +194,25 @@ JAVA_DARKEN_CHANGE_BEGIN = "        // SANDIUM_PAGE_TRANSITION_DARKEN_CHANGE_BEG
 JAVA_DARKEN_CHANGE_END = "        // SANDIUM_PAGE_TRANSITION_DARKEN_CHANGE_END"
 JAVA_DARKEN_CHANGE_BLOCK = (
     JAVA_DARKEN_CHANGE_BEGIN + "\n"
+    "        if (PREF_SANDIUM_PAGE_TRANSITION_BLUR_LEVEL.equals(key)) {\n"
+    "            if (!(newValue instanceof String)) return false;\n"
+    "            boolean blurEnabled = !\"default\".equals(newValue);\n"
+    "            Preference darkenPreference = findPreference(PREF_SANDIUM_PAGE_TRANSITION_DARKEN);\n"
+    "            if (darkenPreference != null) darkenPreference.setEnabled(blurEnabled);\n"
+    "            if (!blurEnabled) {\n"
+    "                boolean saved = ContextUtils.getAppSharedPreferences().edit()\n"
+    "                        .putBoolean(PREF_SANDIUM_PAGE_TRANSITION_DARKEN, false).commit();\n"
+    "                if (!saved) return false;\n"
+    "                if (darkenPreference instanceof ChromeSwitchPreference) {\n"
+    "                    ((ChromeSwitchPreference) darkenPreference).setChecked(false);\n"
+    "                }\n"
+    "            }\n"
+    "        }\n"
     "        if (PREF_SANDIUM_PAGE_TRANSITION_DARKEN.equals(key)) {\n"
     "            if (!(newValue instanceof Boolean)) return false;\n"
+    "            String blurLevel = ContextUtils.getAppSharedPreferences()\n"
+    "                    .getString(PREF_SANDIUM_PAGE_TRANSITION_BLUR_LEVEL, \"default\");\n"
+    "            if (\"default\".equals(blurLevel) && (Boolean) newValue) return false;\n"
     "            boolean saved = ContextUtils.getAppSharedPreferences().edit()\n"
     "                    .putBoolean(PREF_SANDIUM_PAGE_TRANSITION_DARKEN, (Boolean) newValue)\n"
     "                    .commit();\n"
@@ -194,6 +220,7 @@ JAVA_DARKEN_CHANGE_BLOCK = (
     "            shouldRelaunch = true;\n"
     "        }\n"
     + JAVA_DARKEN_CHANGE_END + "\n"
+)
 )
 
 JAVA_HELPER_ANCHOR = "    // SANDIUM_PAGE_TRANSITION_BLUR_PREF_END\n"
@@ -244,6 +271,8 @@ def transform_appearance_java(source: str) -> str:
     for snippet in (
         JAVA_DARKEN_PREF,
         "findPreference(PREF_SANDIUM_PAGE_TRANSITION_DARKEN)",
+        "pageTransitionDarken.setEnabled(blurEnabled)",
+        "if (\\\"default\\\".equals(blurLevel) && (Boolean) newValue) return false;",
         ".getBoolean(PREF_SANDIUM_PAGE_TRANSITION_DARKEN, false)",
         ".putBoolean(PREF_SANDIUM_PAGE_TRANSITION_DARKEN, (Boolean) newValue)",
         "setPreferenceOrder(PREF_SANDIUM_PAGE_TRANSITION_DARKEN, 11);",

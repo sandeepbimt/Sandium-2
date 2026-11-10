@@ -111,7 +111,7 @@ def apply(core: Path, src: Path) -> None:
         "std::string AdBlockFiltersProviderManager::GetNameForDebugging() {\n",
         "void AdBlockFiltersProviderManager::ForceNotifyObservers(\n"
         "    bool is_for_default_engine) {\n"
-        "  // This is an explicit first-successful-filter activation request. Do not\n"
+        "  // This is an explicit all-enabled-lists activation request. Do not\n"
         "  // wait for Brave's component-provider catalog gate: unready component\n"
         "  // providers contribute no rules now and notify again when they arrive.\n"
         "  // Consume DAT-cache startup suppression, but never let it swallow this\n"
@@ -151,8 +151,8 @@ def apply(core: Path, src: Path) -> None:
         "  // Clear a stale request left by an older build. The first visible\n"
         "  // homepage in this process will set it again after the UI is ready.\n"
         "  if (local_state_ &&\n"
-        "      !local_state_->GetBoolean(prefs::kSandiumAdBlockEngineWarmupDone)) {\n"
-        "    local_state_->SetBoolean(prefs::kSandiumAdBlockEngineWarmupRequested, false);\n"
+        "      !local_state_->GetBoolean(prefs::kSandiumAdBlockEngineWarmupDoneV2)) {\n"
+        "    local_state_->SetBoolean(prefs::kSandiumAdBlockEngineWarmupRequestedV2, false);\n"
         "  }\n"
         "  std::move(download_manager_getter)\n",
         "SetBoolean(prefs::kSandiumAdBlockEngineWarmupRequested, false)",
@@ -167,7 +167,7 @@ def apply(core: Path, src: Path) -> None:
         "  if (!local_state_) {\n"
         "    return false;\n"
         "  }\n"
-        "  if (local_state_->GetBoolean(prefs::kSandiumAdBlockEngineWarmupDone)) {\n"
+        "  if (local_state_->GetBoolean(prefs::kSandiumAdBlockEngineWarmupDoneV2)) {\n"
         "    return true;\n"
         "  }\n"
         "  homepage_warmup_requested_ = true;\n"
@@ -178,31 +178,34 @@ def apply(core: Path, src: Path) -> None:
         "  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);\n"
         "  if (!local_state_ ||\n"
         "      !homepage_warmup_requested_ ||\n"
-        "      local_state_->GetBoolean(prefs::kSandiumAdBlockEngineWarmupDone) ||\n"
+        "      local_state_->GetBoolean(prefs::kSandiumAdBlockEngineWarmupDoneV2) ||\n"
         "      homepage_warmup_engine_reload_requested_ ||\n"
         "      subscription_filters_providers_.empty()) {\n"
         "    return;\n"
         "  }\n"
-        "  // Start the native engine as soon as at least one enabled subscription has\n"
-        "  // a confirmed successful download. Do not wait for the other lists;\n"
-        "  // they continue downloading and become available as each completes.\n"
-        "  bool has_successfully_downloaded_enabled_subscription = false;\n"
+        "  // Do not activate against a partial subscription set. Every enabled\n"
+        "  // default list must have a successful download timestamp before the\n"
+        "  // additional native engine is built and marked ready.\n"
+        "  int enabled_subscription_count = 0;\n"
+        "  int successfully_downloaded_count = 0;\n"
         "  for (const auto& entry : subscription_filters_providers_) {\n"
         "    const auto info = GetInfo(entry.first);\n"
-        "    if (info && info->enabled &&\n"
-        "        !info->last_successful_update_attempt.is_null() &&\n"
+        "    if (!info || !info->enabled) {\n"
+        "      continue;\n"
+        "    }\n"
+        "    ++enabled_subscription_count;\n"
+        "    if (!info->last_successful_update_attempt.is_null() &&\n"
         "        !info->last_successful_update_attempt.is_min()) {\n"
-        "      has_successfully_downloaded_enabled_subscription = true;\n"
-        "      break;\n"
+        "      ++successfully_downloaded_count;\n"
         "    }\n"
         "  }\n"
-        "  if (!has_successfully_downloaded_enabled_subscription) {\n"
+        "  if (enabled_subscription_count == 0 ||\n"
+        "      successfully_downloaded_count != enabled_subscription_count) {\n"
         "    return;\n"
         "  }\n"
         "  homepage_warmup_engine_reload_requested_ = true;\n"
-        "  // Dispatch the first engine build immediately after the first valid list.\n"
-        "  // Later successful downloads continue to update the running provider set.\n"
-        "  local_state_->SetBoolean(prefs::kSandiumAdBlockEngineWarmupRequested, true);\n"
+        "  // Build only after all enabled lists have completed successfully.\n"
+        "  local_state_->SetBoolean(prefs::kSandiumAdBlockEngineWarmupRequestedV2, true);\n"
         "  filters_provider_manager_->ForceNotifyObservers(false);\n"
         "}\n\n"
         "void AdBlockSubscriptionServiceManager::CreateSubscription(\n"
@@ -418,13 +421,15 @@ def verify(core: Path, src: Path) -> None:
         "ad_block_service_->RequestSandiumHomepageWarmup()",
         "subscription_service_manager_->RequestSandiumHomepageWarmup()",
         "MaybeTriggerSandiumHomepageWarmup()",
-        "kSandiumAdBlockEngineWarmupRequested",
-        "SetBoolean(prefs::kSandiumAdBlockEngineWarmupRequested, false)",
+        "kSandiumAdBlockEngineWarmupRequestedV2",
+        "kSandiumAdBlockEngineWarmupDoneV2",
+        "SetBoolean(prefs::kSandiumAdBlockEngineWarmupRequestedV2, false)",
         "last_successful_update_attempt.is_min()",
-        "has_successfully_downloaded_enabled_subscription",
+        "enabled_subscription_count",
+        "successfully_downloaded_count != enabled_subscription_count",
         "homepage_warmup_requested_",
         "homepage_warmup_engine_reload_requested_",
-        "kSandiumAdBlockEngineWarmupDone",
+        "kSandiumAdBlockEngineWarmupDoneV2",
         "load_result == FilterListLoadResult::kLoaded",
         "sHomepageWarmupAccepted",
         "requestSandiumHomepageWarmup(mTab.getProfile())",
@@ -451,7 +456,7 @@ def verify(core: Path, src: Path) -> None:
     if missing:
         raise RuntimeError("homepage warm-up verification missing: " + ", ".join(missing))
     print("SANDIUM_HOMEPAGE_WARMUP_VERIFY=PASS trigger=visible_ntp one_shot=true "
-          "native_engine_rebuild=true activate_after_first_successful_enabled_list=true "
+          "native_engine_rebuild=true activate_after_all_enabled_lists=true "
           "remaining_lists_continue_in_background=true success_gated=true "
           "subscription_preferences_unchanged=true")
 
