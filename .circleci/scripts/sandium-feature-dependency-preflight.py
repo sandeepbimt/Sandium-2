@@ -106,7 +106,7 @@ def audit_android_java_sources(core):
     close = source.find("\n]", start)
     if close < 0:
         raise RuntimeError("ANDROID_JAVA_SOURCES: main source list is unterminated")
-    block = source[start:close]
+    block = source
     policies = [
         ("AI_CHAT", ("../../brave/android/java/org/chromium/chrome/browser/brave_leo/",
                      "../../brave/android/java/org/chromium/chrome/browser/settings/BraveLeo",
