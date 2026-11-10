@@ -120,7 +120,7 @@ def transform_activity(source: str) -> str:
 
         org.chromium.chrome.browser.profiles.Profile profile =
                 assumeNonNull(getProfileProviderSupplier().get()).getOriginalProfile();
-        mSandiumSetupView.initialize(profile);
+        assumeNonNull(mSandiumSetupView).initialize(profile);
     }
 
 """
@@ -169,7 +169,7 @@ def transform_activity(source: str) -> str:
 
     required = (
         "new SandiumWelcomeSetupView(this, this::finalStep)",
-        "mSandiumSetupView.initialize(profile)",
+        "assumeNonNull(mSandiumSetupView).initialize(profile)",
         "setP3aConsent(false)",
         "setMetricsReportingConsent(false, false)",
         "FirstRunStatus.setFirstRunFlowComplete(true)",
