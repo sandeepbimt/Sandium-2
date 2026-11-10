@@ -111,13 +111,13 @@ def apply(core: Path, src: Path) -> None:
         "std::string AdBlockFiltersProviderManager::GetNameForDebugging() {\n",
         "void AdBlockFiltersProviderManager::ForceNotifyObservers(\n"
         "    bool is_for_default_engine) {\n"
-        "  // Match ForceNotifyObserver's startup suppression and provider readiness.\n"
-        "  if (MaybeConsumeEngineStartupChangeNotification(is_for_default_engine)) {\n"
-        "    return;\n"
-        "  }\n"
-        "  if (AreAllProvidersInitialized(is_for_default_engine)) {\n"
-        "    NotifyObservers(is_for_default_engine);\n"
-        "  }\n"
+        "  // This is an explicit first-successful-filter activation request. Do not\n"
+        "  // wait for Brave's component-provider catalog gate: unready component\n"
+        "  // providers contribute no rules now and notify again when they arrive.\n"
+        "  // Consume DAT-cache startup suppression, but never let it swallow this\n"
+        "  // explicit Sandium activation request.\n"
+        "  (void)MaybeConsumeEngineStartupChangeNotification(is_for_default_engine);\n"
+        "  NotifyObservers(is_for_default_engine);\n"
         "}\n\n"
         "std::string AdBlockFiltersProviderManager::GetNameForDebugging() {\n",
         "void AdBlockFiltersProviderManager::ForceNotifyObservers(",
@@ -432,11 +432,21 @@ def verify(core: Path, src: Path) -> None:
     corpus = manager + mojom + service + adblock + factory + ntp
     if "void ForceNotifyObservers(bool is_for_default_engine);" not in filters_manager_header:
         raise RuntimeError("homepage warm-up verification missing broadcast manager API declaration")
-    if ("void AdBlockFiltersProviderManager::ForceNotifyObservers(" not in filters_manager_source
-            or "MaybeConsumeEngineStartupChangeNotification(is_for_default_engine)" not in filters_manager_source
-            or "AreAllProvidersInitialized(is_for_default_engine)" not in filters_manager_source
-            or "NotifyObservers(is_for_default_engine);" not in filters_manager_source):
-        raise RuntimeError("homepage warm-up verification failed guarded broadcast manager implementation")
+    force_start = filters_manager_source.find(
+        "void AdBlockFiltersProviderManager::ForceNotifyObservers("
+    )
+    force_end = filters_manager_source.find(
+        "std::string AdBlockFiltersProviderManager::GetNameForDebugging()", force_start
+    )
+    force_body = filters_manager_source[force_start:force_end]
+    if (force_start < 0 or force_end < 0
+            or "MaybeConsumeEngineStartupChangeNotification(is_for_default_engine)" not in force_body
+            or "NotifyObservers(is_for_default_engine);" not in force_body
+            or "AreAllProvidersInitialized" in force_body):
+        raise RuntimeError(
+            "homepage warm-up verification failed: explicit first-filter broadcast "
+            "must bypass the all-component-provider initialization gate"
+        )
     missing = [item for item in required if item not in corpus]
     if missing:
         raise RuntimeError("homepage warm-up verification missing: " + ", ".join(missing))
