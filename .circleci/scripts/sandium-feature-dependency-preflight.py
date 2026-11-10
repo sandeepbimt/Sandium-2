@@ -144,6 +144,51 @@ def audit_android_java_sources(core):
     if failures:
         raise RuntimeError("ANDROID_JAVA_SOURCE_CLOSURE: feature Java sources are still unconditional; " + ", ".join(failures[:80]))
 
+def audit_android_java_source_references(core):
+    gni = read(core, "android/brave_java_sources.gni").read_text()
+    groups = {
+      "AI_CHAT": ("/brave_leo/", "/settings/BraveLeo", "/toolbar/adaptive/BraveLeoButtonController.java"),
+      "NEWS": ("/brave_news/", "/settings/BraveNews"),
+      "WALLET": ("/crypto_wallet/", "/settings/BraveWallet", "/site_settings/BraveWallet",
+                 "/toolbar/adaptive/BraveWalletButtonController.java", "/app/domain/Crypto",
+                 "/app/domain/DappsModel.java", "/app/domain/KeyringModel.java",
+                 "/app/domain/NetworkModel.java", "/app/domain/WalletModel.java",
+                 "/BraveWalletProvider.java"),
+    }
+    candidates = {k:set() for k in groups}
+    for raw in re.findall(r'"([^"]+\.java)"', gni):
+        rel = raw.replace("../../brave/", "", 1) if raw.startswith("../../brave/") else raw.replace("//brave/", "", 1)
+        for group, needles in groups.items():
+            if any(n in raw for n in needles):
+                candidates[group].add(rel)
+    files = [p for ext in ("*.java", "*.kt", "*.xml") for p in core.rglob(ext) if p.is_file()]
+    if not files:
+        raise RuntimeError("JAVA_REFERENCE_SCAN: sparse checkout did not include Java/XML source files")
+    contents = []
+    for p in files:
+        try:
+            contents.append((p, p.read_text(encoding="utf-8", errors="ignore")))
+        except OSError:
+            continue
+    edges = []
+    for group, paths in candidates.items():
+        for rel in sorted(paths):
+            cls = Path(rel).stem
+            candidate = core / rel
+            if not candidate.is_file():
+                edges.append(f"{group}:missing-source:{rel}")
+                continue
+            rx = re.compile(rf"\b{re.escape(cls)}\b")
+            for p, text in contents:
+                if p == candidate or p.relative_to(core).as_posix() in paths:
+                    continue
+                if rx.search(text):
+                    edges.append(f"{group}:{cls}->{p.relative_to(core).as_posix()}")
+    print("JAVA_SOURCE_CANDIDATES=" + " ".join(f"{k.lower()}={len(v)}" for k,v in candidates.items()))
+    print(f"JAVA_EXTERNAL_REFERENCE_EDGES={len(edges)}")
+    if edges:
+        print("JAVA_EXTERNAL_REFERENCE_SAMPLE=" + " | ".join(edges[:100]))
+
 def verify(core, repo):
     actual = subprocess.check_output(["git","-C",str(core),"rev-parse","HEAD"],text=True).strip()
     if actual != BRAVE_SHA: raise RuntimeError(f"BRAVE_PIN_GATE expected={BRAVE_SHA} actual={actual}")
@@ -198,6 +243,7 @@ def verify(core, repo):
     }
     print("ANDROID_RESOURCE_INVENTORY=" + " ".join(f"{k}={v}" for k,v in resource_counts.items()))
     print("APK_RESOURCE_EXCLUSION=NOT_PROVEN static feature assets remain in the shared Android resource target")
+    audit_android_java_source_references(core)
     audit_android_java_sources(core)
     print("FEATURE_DEPENDENCY_AUDIT=PASS ai_chat=excluded wallet=excluded news=excluded")
     print("TYPE_ONLY_REMAINDERS=PASS AI_Chat_and_News_Mojo_interfaces_retained_for_WebUI")
