@@ -38,11 +38,8 @@ for marker in (
 assert "DEFAULT_DISABLED_FILTER_URLS" not in PATCH
 assert "mFilterListAndroidHandler.updateFilterLists(" not in PATCH
 # The bootstrap patcher retains one legacy block only as an exact removal
-# template; it must not reintroduce the profile-startup engine trigger.
-assert PATCH.count("filters_provider_manager_->ForceNotifyObservers(false);") == 1
-
-# The subscription seeder must not own engine activation. The dedicated
-# native startup overlay runs after this seed operation has completed.
+# template. The dedicated native startup overlay runs after subscription
+# seeding and owns the one-time engine activation.
 assert PATCH.count("filters_provider_manager_->ForceNotifyObservers(false);") == 1
 assert "homepage_deferred_success_gated" not in PATCH
 assert "requestSandiumHomepageWarmup" not in PATCH
