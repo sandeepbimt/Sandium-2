@@ -400,7 +400,7 @@ PY
   echo "BRAVE_STAGE1_VALIDATION_MODE=DRY_RUN_NO_COMPILATION"
   MODE="$(sed -n 's/^SANDIUM_BUILD_MODE=//p' "$ROOT/brave-work/.sandium/build-mode.txt" | head -n 1)"
   TRANSITION_ONLY=false
-  if [ "${CIRCLE_BRANCH:-}" = "feature/sandium-page-transition-full" ] || [ "${CIRCLE_BRANCH:-}" = "feature/sandium-filter-bootstrap-full" ]; then
+  if [ "${CIRCLE_BRANCH:-}" = "feature/sandium-page-transition-full" ] || [ "${CIRCLE_BRANCH:-}" = "feature/sandium-filter-bootstrap-full" ] || [ "${CIRCLE_BRANCH:-}" = "feature/sandium-adblock-first-launch-full" ]; then
     TRANSITION_ONLY=true
   fi
   ORIGIN_GN_ARGS=()
@@ -509,7 +509,7 @@ ACTUAL_CHROMIUM_TAG="$(python3 -c 'import json,sys; print(json.load(open(sys.arg
 }
 
 echo "SANDIUM_SOURCE_PIN_GATE=PASS brave=$ACTUAL_BRAVE_TAG brave_sha=$ACTUAL_BRAVE_SHA chromium=$ACTUAL_CHROMIUM_TAG chromium_sha=$ACTUAL_CHROMIUM_SHA"
-if [ "${CIRCLE_BRANCH:-}" = "feature/sandium-page-transition-full" ] || [ "${CIRCLE_BRANCH:-}" = "feature/sandium-filter-bootstrap-full" ]; then
+if [ "${CIRCLE_BRANCH:-}" = "feature/sandium-page-transition-full" ] || [ "${CIRCLE_BRANCH:-}" = "feature/sandium-filter-bootstrap-full" ] || [ "${CIRCLE_BRANCH:-}" = "feature/sandium-adblock-first-launch-full" ]; then
   python3 "$ROOT/.circleci/scripts/apply-sandium-page-transition-full.py" "$SRC_DIR"
   echo "SANDIUM_ADBLOCK_OVERLAY=SKIPPED; all filter files and settings left untouched."
 else
