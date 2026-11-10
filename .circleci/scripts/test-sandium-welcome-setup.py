@@ -49,7 +49,7 @@ source = """    private boolean mSplashAnimationFinished;
 """
 patched = PATCHER["transform_activity"](source)
 assert "new SandiumWelcomeSetupView(this, this::finalStep)" in patched
-assert "mSandiumSetupView.initialize(profile)" in patched
+assert "assumeNonNull(mSandiumSetupView).initialize(profile)" in patched
 assert "mSandiumSetupView.destroy()" in patched
 assert "SHOULD_SHOW_SEARCH_WIDGET_PROMO, true" not in patched
 assert "FirstRunStatus.setFirstRunFlowComplete(true)" in patched
