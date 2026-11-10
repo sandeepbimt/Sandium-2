@@ -45,8 +45,14 @@ assert "void ForceNotifyObservers(bool is_for_default_engine);" in PATCHER_SOURC
 assert '"                           bool is_default_engine);\\n"' in PATCHER_SOURCE
 assert "void AdBlockFiltersProviderManager::ForceNotifyObservers(" in PATCHER_SOURCE
 assert "MaybeConsumeEngineStartupChangeNotification(is_for_default_engine)" in PATCHER_SOURCE
-assert "AreAllProvidersInitialized(is_for_default_engine)" in PATCHER_SOURCE
 assert "NotifyObservers(is_for_default_engine);" in PATCHER_SOURCE
+force_start = PATCHER_SOURCE.index("void AdBlockFiltersProviderManager::ForceNotifyObservers(")
+force_end = PATCHER_SOURCE.index(
+    "std::string AdBlockFiltersProviderManager::GetNameForDebugging()", force_start
+)
+force_body = PATCHER_SOURCE[force_start:force_end]
+assert "AreAllProvidersInitialized" not in force_body
+assert "explicit Sandium activation request" in force_body
 
 homepage = """    private void recordNtpShown() {
         mLastShownTimeNs = System.nanoTime();
