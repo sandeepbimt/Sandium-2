@@ -50,6 +50,9 @@ jobs:
           /**/BUILD.gn
           /**/*.gn
           /**/*.gni
+          /**/*.java
+          /**/*.kt
+          /**/*.xml
           /browser/android/brave_tab_features.cc
           /browser/android/brave_tab_features.h
           EOF
