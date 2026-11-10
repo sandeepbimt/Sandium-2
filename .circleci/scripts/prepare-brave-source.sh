@@ -441,12 +441,44 @@ PY
     exit "$APT_FAILURE_CODE"
   fi
   rm -f "$APT_LOG"
-  APT_DEB_COUNT_AFTER="$(find "$APT_CACHE_DIR/archives" -maxdepth 1 -type f -name '*.deb' | wc -l | tr -d ' ')"
-  APT_CACHE_SIZE_AFTER="$(du -sh "$APT_CACHE_DIR/archives" 2>/dev/null | awk '{print $1}')"
-  echo "PPBAS_APT_INSTALL=PASS elapsed_seconds=$((APT_END_TS - APT_START_TS)) deb_count_before=$APT_DEB_COUNT_BEFORE deb_count_after=$APT_DEB_COUNT_AFTER archive_size_after=${APT_CACHE_SIZE_AFTER:-0}"
-  APT_DEB_COUNT_AFTER="$(find "$APT_CACHE_DIR/archives" -maxdepth 1 -type f -name '*.deb' | wc -l | tr -d ' ')"
-  APT_CACHE_SIZE_AFTER="$(du -sh "$APT_CACHE_DIR/archives" 2>/dev/null | awk '{print $1}')"
-  echo "PPBAS_APT_INSTALL=PASS elapsed_seconds=$((APT_END_TS - APT_START_TS)) deb_count_before=$APT_DEB_COUNT_BEFORE deb_count_after=$APT_DEB_COUNT_AFTER archive_size_after=${APT_CACHE_SIZE_AFTER:-0}"
+  # Measure the APT archive cache without find|wc|tr or du|awk pipelines.
+  # Under set -euo pipefail, a non-zero find/du status can abort PPBAS after
+  # the dependency installer has succeeded, hiding the real post-install cause.
+  if ! APT_CACHE_METRICS="$(python3 - "$APT_CACHE_DIR/archives" <<'PY'
+import os
+import sys
+
+directory = sys.argv[1]
+try:
+    count = 0
+    total_bytes = 0
+    with os.scandir(directory) as entries:
+        for entry in entries:
+            if entry.name.endswith(".deb") and entry.is_file(follow_symlinks=False):
+                count += 1
+                total_bytes += entry.stat(follow_symlinks=False).st_size
+except OSError as exc:
+    print(
+        "PPBAS_APT_CACHE_METRICS=FAIL path=%s error=%s"
+        % (directory, exc),
+        file=sys.stderr,
+    )
+    raise SystemExit(1)
+
+print("%d %d" % (count, total_bytes))
+PY
+  )"; then
+    echo "PPBAS_APT_CACHE_METRICS=FAIL; archive cache measurement failed after installer success." >&2
+    exit 1
+  fi
+  read -r APT_DEB_COUNT_AFTER APT_CACHE_BYTES_AFTER <<< "$APT_CACHE_METRICS"
+  APT_CACHE_SIZE_AFTER="$(python3 - "$APT_CACHE_BYTES_AFTER" <<'PY'
+import sys
+print("%.1fMiB" % (int(sys.argv[1]) / (1024 * 1024)))
+PY
+  )"
+  echo "PPBAS_APT_CACHE_METRICS=PASS deb_count_before=$APT_DEB_COUNT_BEFORE deb_count_after=$APT_DEB_COUNT_AFTER archive_size_after=$APT_CACHE_SIZE_AFTER"
+  echo "PPBAS_APT_INSTALL=PASS elapsed_seconds=$((APT_END_TS - APT_START_TS))"
 
   # Re-run the pinned Chromium Siso configurator after Brave hooks with
   # Brave's native google.star backend, and persist BuildBuddy credentials.
