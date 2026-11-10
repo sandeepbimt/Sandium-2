@@ -1893,7 +1893,7 @@ jobs:
                   python3 .circleci/scripts/test-sandium-download-concurrency.py
                   python3 .circleci/scripts/test-sandium-welcome-setup.py
                   python3 .circleci/scripts/test-sandium-page-transition-full.py
-                  python3 - "$CORE/android/java/org/chromium/chrome/browser/settings/AppearancePreferences.java" <<'PY'
+                  python3 - "$CORE/android/java/org/chromium/chrome/browser/settings/AppearancePreferences.java" \<<'PY'
                   from pathlib import Path
                   import sys
                   source = Path(sys.argv[1]).read_text(encoding="utf-8")
