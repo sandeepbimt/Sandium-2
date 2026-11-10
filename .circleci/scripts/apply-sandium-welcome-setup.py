@@ -192,14 +192,14 @@ def transform_java_sources(source: str) -> str:
         raise RuntimeError("brave_java_sources.gni: expected exactly one WelcomeOnboardingActivity entry")
     return source.replace(anchor, anchor + entry, 1)
 
-def apply(core: Path, src: Path) -> None:
+def apply(core: Path, src: Path, repo_root: Path) -> None:
     verify_pins(core, src)
     activity_path = core / ACTIVITY
     source_list_path = core / JAVA_SOURCES
-    view_path = core / VIEW
-    view_source = read(view_path)
+    view_source = read(repo_root / VIEW)
     if "class SandiumWelcomeSetupView" not in view_source:
-        raise RuntimeError("Sandium setup view class missing")
+        raise RuntimeError("Sandium setup view class missing from repository workspace")
+    write(core / VIEW, view_source, "welcome-setup-view")
     write(activity_path, transform_activity(read(activity_path)), "welcome-activity")
     write(source_list_path, transform_java_sources(read(source_list_path)), "java-source-registration")
     print("SANDIUM_WELCOME_SETUP_VERIFY=PASS brand_neutral=true expanded_more_options=true "
@@ -210,8 +210,9 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--core", type=Path, required=True)
     parser.add_argument("--src", type=Path, required=True)
+    parser.add_argument("--repo-root", type=Path, required=True)
     args = parser.parse_args()
-    apply(args.core, args.src)
+    apply(args.core, args.src, args.repo_root)
 
 if __name__ == "__main__":
     main()
