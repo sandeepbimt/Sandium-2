@@ -58,13 +58,13 @@ def transform_wallet_config(source: str) -> str:
         return source
     if source.count(ENUM_DEP) != 1:
         raise RuntimeError("SANDIUM_WALLET_GN: expected one unconditional enum srcjar dependency in config.gni")
-    source = source.replace(ENUM_DEP + "\\n", "", 1)
-    marker = "\\n]\\n\\nbrave_chrome_app_java_resources_deps = ["
+    source = source.replace(ENUM_DEP + "\n", "", 1)
+    marker = "\n]\n\nbrave_chrome_app_java_resources_deps = ["
     if source.count(marker) != 1:
         raise RuntimeError("SANDIUM_WALLET_GN: config.gni srcjar dependency list anchor changed")
     source = source.replace(
         marker,
-        "\\n]\\n\\n" + WALLET_CONDITIONAL_CONFIG + "\\n\\nbrave_chrome_app_java_resources_deps = [",
+        "\n]\n\n" + WALLET_CONDITIONAL_CONFIG + "\n\nbrave_chrome_app_java_resources_deps = [",
         1,
     )
     if ENUM_DEP in source or source.count(WALLET_CONDITIONAL_CONFIG) != 1:
@@ -78,13 +78,13 @@ def transform_wallet_notifications(source: str) -> str:
         return source
     if source.count(ENUM_DEP) != 1:
         raise RuntimeError("SANDIUM_WALLET_GN: expected one unconditional enum srcjar dependency in notifications")
-    source = source.replace(ENUM_DEP + "\\n", "", 1)
-    marker = '      "//chrome/browser:browser_public_dependencies",\\n    ]'
+    source = source.replace(ENUM_DEP + "\n", "", 1)
+    marker = '      "//chrome/browser:browser_public_dependencies",\n    ]'
     if source.count(marker) != 1:
         raise RuntimeError("SANDIUM_WALLET_GN: notifications Android deps anchor changed")
     source = source.replace(
         marker,
-        marker + "\\n" + WALLET_CONDITIONAL_NOTIFICATIONS,
+        marker + "\n" + WALLET_CONDITIONAL_NOTIFICATIONS,
         1,
     )
     if ENUM_DEP in source or source.count(WALLET_CONDITIONAL_NOTIFICATIONS) != 1:
