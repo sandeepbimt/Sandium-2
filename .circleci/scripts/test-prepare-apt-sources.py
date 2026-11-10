@@ -33,9 +33,14 @@ with tempfile.TemporaryDirectory() as tmp:
     ubuntu = (sources / "ubuntu.list").read_text(encoding="utf-8")
 
     assert result["duplicates"] == 1
-    assert google in first
-    assert "# sandium-apt-deduplicated:" in second
-    assert "packages.cloud.google.com" in second
+    active_google_entries = sum(
+        1 for source_file in sources.glob("*.list")
+        for line in source_file.read_text(encoding="utf-8").splitlines()
+        if line.strip().startswith("deb ") and "dl.google.com/linux/chrome/deb/" in line
+    )
+    assert active_google_entries == 1
+    assert "# sandium-apt-deduplicated:" in (first + second)
+    assert "packages.cloud.google.com" in (first + second)
     assert "archive.ubuntu.com" in ubuntu
     assert 'Acquire::Retries "5";' in retry.read_text(encoding="utf-8")
 
