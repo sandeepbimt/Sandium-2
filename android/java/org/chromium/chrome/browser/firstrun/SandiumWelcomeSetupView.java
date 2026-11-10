@@ -132,7 +132,7 @@ final class SandiumWelcomeSetupView {
         mStartButton.setTextSize(TypedValue.COMPLEX_UNIT_SP, 18);
         mStartButton.setTextColor(PRIMARY_TEXT);
         mStartButton.setAllCaps(false);
-        mStartButton.setTypeface(Typeface.DEFAULT, Typeface.MEDIUM);
+        mStartButton.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
         mStartButton.setMinHeight(dp(54));
         mStartButton.setMinimumHeight(dp(54));
         mStartButton.setPadding(dp(30), 0, dp(30), 0);
