@@ -18,6 +18,7 @@ for marker in (
     "kSandiumAdBlockEngineWarmupDone",
     "kSandiumAdBlockEngineWarmupRequestedV2",
     "kSandiumAdBlockEngineWarmupDoneV2",
+    '"local_state_->SetBoolean(prefs::kSandiumAdBlockEngineWarmupDoneV2, true);"' in PATCH,
     "load_result == FilterListLoadResult::kLoaded",
     "CreateSubscription(subscription_url);",
     "StartDownload(url, true);",

@@ -316,7 +316,7 @@ void AdBlockSubscriptionServiceManager::OnCheckedSandiumDefaultSubscriptionCache
         "    local_state_->SetBoolean(prefs::kSandiumAdBlockEngineWarmupDoneV2, true);\n"
         "  }\n\n"
         "  if (load_result != FilterListLoadResult::kResourcesOnly) {",
-        "local_state_->SetBoolean(prefs::kSandiumAdBlockEngineWarmupDone, true);",
+        "local_state_->SetBoolean(prefs::kSandiumAdBlockEngineWarmupDoneV2, true);",
         "mark-first-successful-additional-engine-load",
     )
 
