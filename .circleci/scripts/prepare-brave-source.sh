@@ -301,9 +301,86 @@ PY
   APT_DEB_COUNT_BEFORE="$(find "$APT_CACHE_DIR/archives" -maxdepth 1 -type f -name '*.deb' | wc -l | tr -d ' ')"
   APT_CACHE_SIZE_BEFORE="$(du -sh "$APT_CACHE_DIR/archives" 2>/dev/null | awk '{print $1}')"
   echo "PPBAS_APT_CACHE_BEFORE deb_count=$APT_DEB_COUNT_BEFORE archive_size=${APT_CACHE_SIZE_BEFORE:-0}"
+  # Instrument Chromium's locale-generation boundary. The previous CircleCI
+  # logs terminate immediately after "Generation complete" with exit 1, but
+  # upstream emits no explicit marker proving whether locale-gen returned 0.
+  INSTALL_DEPS_PY="$SRC_DIR/build/install-build-deps.py"
+  test -s "$INSTALL_DEPS_PY" || {
+    echo "PPBAS_LOCALE_DIAGNOSTICS=FAIL missing $INSTALL_DEPS_PY" >&2
+    exit 1
+  }
+  python3 - "$INSTALL_DEPS_PY" <<'PY'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+source = path.read_text(encoding="utf-8")
+marker = "PPBAS_LOCALE_DIAGNOSTICS=INSTALLED"
+if marker in source:
+    print(marker)
+else:
+    helper_anchor = "def install_locales():\n"
+    helper = (
+        "def _sandium_locale_gen(command):\n"
+        "    logger.info(\"PPBAS_LOCALE_GEN_START command=%r\", command)\n"
+        "    try:\n"
+        "        subprocess.check_call(command)\n"
+        "    except subprocess.CalledProcessError as exc:\n"
+        "        logger.error(\"PPBAS_LOCALE_GEN_FAIL returncode=%s command=%r\", exc.returncode, command)\n"
+        "        raise\n"
+        "    logger.info(\"PPBAS_LOCALE_GEN_PASS command=%r\", command)\n"
+        "\n"
+    )
+    if source.count(helper_anchor) != 1:
+        raise SystemExit("PPBAS_LOCALE_DIAGNOSTICS=FAIL unexpected install_locales() definition")
+    if source.count('subprocess.check_call(["sudo", "locale-gen"])') != 1:
+        raise SystemExit("PPBAS_LOCALE_DIAGNOSTICS=FAIL unexpected locale-gen invocation count")
+    if source.count('subprocess.check_call(["sudo", "locale-gen", locale])') != 1:
+        raise SystemExit("PPBAS_LOCALE_DIAGNOSTICS=FAIL unexpected per-locale invocation count")
+    if source.count("    install_locales()\n    return 0") != 1:
+        raise SystemExit("PPBAS_LOCALE_DIAGNOSTICS=FAIL unexpected main() completion block")
+    source = source.replace(helper_anchor, helper + helper_anchor, 1)
+    source = source.replace(
+        'subprocess.check_call(["sudo", "locale-gen"])',
+        '_sandium_locale_gen(["sudo", "locale-gen"])', 1
+    )
+    source = source.replace(
+        'subprocess.check_call(["sudo", "locale-gen", locale])',
+        '_sandium_locale_gen(["sudo", "locale-gen", locale])', 1
+    )
+    source = source.replace(
+        "    install_locales()\n    return 0",
+        "    install_locales()\n    logger.info(\"PPBAS_INSTALL_BUILD_DEPS_MAIN_COMPLETE\")\n    return 0", 1
+    )
+    source += "\n# " + marker + "\n"
+    path.write_text(source, encoding="utf-8")
+    print(marker)
+PY
+
+  APT_LOG="$ROOT/ppbas-install-build-deps.log"
   APT_START_TS="$(date +%s)"
-  ./src/build/install-build-deps.sh --android
+  set +e
+  ./src/build/install-build-deps.sh --android 2>&1 | tee "$APT_LOG"
+  APT_EXIT_CODE="${PIPESTATUS[0]}"
+  set -e
   APT_END_TS="$(date +%s)"
+  if [ "$APT_EXIT_CODE" -ne 0 ]; then
+    echo "PPBAS_APT_INSTALL=FAIL exit_code=$APT_EXIT_CODE elapsed_seconds=$((APT_END_TS - APT_START_TS))" >&2
+    echo "PPBAS_DPKG_AUDIT_BEGIN" >&2
+    sudo dpkg --audit 2>&1 || true
+    echo "PPBAS_DPKG_AUDIT_END" >&2
+    echo "PPBAS_APT_CHECK_BEGIN" >&2
+    sudo apt-get check 2>&1 || true
+    echo "PPBAS_APT_CHECK_END" >&2
+    echo "PPBAS_APT_LOG_TAIL_BEGIN" >&2
+    tail -n 120 "$APT_LOG" >&2 || true
+    echo "PPBAS_APT_LOG_TAIL_END" >&2
+    exit "$APT_EXIT_CODE"
+  fi
+  rm -f "$APT_LOG"
+  APT_DEB_COUNT_AFTER="$(find "$APT_CACHE_DIR/archives" -maxdepth 1 -type f -name '*.deb' | wc -l | tr -d ' ')"
+  APT_CACHE_SIZE_AFTER="$(du -sh "$APT_CACHE_DIR/archives" 2>/dev/null | awk '{print $1}')"
+  echo "PPBAS_APT_INSTALL=PASS elapsed_seconds=$((APT_END_TS - APT_START_TS)) deb_count_before=$APT_DEB_COUNT_BEFORE deb_count_after=$APT_DEB_COUNT_AFTER archive_size_after=${APT_CACHE_SIZE_AFTER:-0}"
   APT_DEB_COUNT_AFTER="$(find "$APT_CACHE_DIR/archives" -maxdepth 1 -type f -name '*.deb' | wc -l | tr -d ' ')"
   APT_CACHE_SIZE_AFTER="$(du -sh "$APT_CACHE_DIR/archives" 2>/dev/null | awk '{print $1}')"
   echo "PPBAS_APT_INSTALL=PASS elapsed_seconds=$((APT_END_TS - APT_START_TS)) deb_count_before=$APT_DEB_COUNT_BEFORE deb_count_after=$APT_DEB_COUNT_AFTER archive_size_after=${APT_CACHE_SIZE_AFTER:-0}"
