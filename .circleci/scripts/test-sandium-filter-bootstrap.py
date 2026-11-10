@@ -41,18 +41,12 @@ assert "mFilterListAndroidHandler.updateFilterLists(" not in PATCH
 # template; it must not reintroduce the profile-startup engine trigger.
 assert PATCH.count("filters_provider_manager_->ForceNotifyObservers(false);") == 1
 
-HOMEPAGE_WARMUP_PATCH = (HERE / "apply-sandium-homepage-adblock-warmup.py").read_text(encoding="utf-8")
-# Two textual occurrences are intentional: one in LEGACY_STARTUP_WARMUP,
-# which removes the old profile-startup trigger, and one in the new deferred
-# homepage-triggered implementation. The patched native C++ ends with only
-# the latter active call.
-assert HOMEPAGE_WARMUP_PATCH.count("filters_provider_manager_->ForceNotifyObservers(false);") == 2
-assert "LEGACY_STARTUP_WARMUP in source" in HOMEPAGE_WARMUP_PATCH
-assert "requestSandiumHomepageWarmup(mTab.getProfile())" in HOMEPAGE_WARMUP_PATCH
-assert "last_successful_update_attempt.is_min()" in HOMEPAGE_WARMUP_PATCH
-assert "homepage_warmup_requested_ = true;" in HOMEPAGE_WARMUP_PATCH
-assert "homepage_warmup_engine_reload_requested_ = true;" in HOMEPAGE_WARMUP_PATCH
-print("SANDIUM_FILTER_BOOTSTRAP_UNIT_TEST=PASS lists=29 enabled=true startup_seed=true refresh=true metadata=true homepage_deferred_warmup=true download_gated=true")
+# The subscription seeder must not own engine activation. The dedicated
+# native startup overlay runs after this seed operation has completed.
+assert PATCH.count("filters_provider_manager_->ForceNotifyObservers(false);") == 1
+assert "MaybeTriggerSandiumHomepageWarmup" not in PATCH
+assert "recordNtpShown" not in PATCH
+print("SANDIUM_FILTER_BOOTSTRAP_UNIT_TEST=PASS lists=29 enabled=true startup_seed=true refresh=true metadata=true native_activation=separate_overlay download_gated=true")
 
 assert "base::Value::List" not in PATCH
 assert "base::GetFileSize(cached_list, &cached_size)" not in PATCH
