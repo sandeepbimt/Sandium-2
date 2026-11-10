@@ -46,7 +46,7 @@ brave_chrome_app_java_resources_deps = [
 """
 wallet_config = MODULE.transform_wallet_config(WALLET_CONFIG_FIXTURE)
 assert wallet_config == MODULE.transform_wallet_config(wallet_config), "wallet config patch must be idempotent"
-assert wallet_config.count(MODULE.ENUM_DEP) == 1
+assert wallet_config.count(MODULE.ENUM_TARGET) == 1
 assert MODULE.WALLET_CONDITIONAL_CONFIG in wallet_config
 
 WALLET_NOTIFICATIONS_FIXTURE = """import("//brave/components/brave_wallet/common/buildflags/buildflags.gni")
@@ -63,7 +63,7 @@ static_library("notifications") {
 """
 wallet_notifications = MODULE.transform_wallet_notifications(WALLET_NOTIFICATIONS_FIXTURE)
 assert wallet_notifications == MODULE.transform_wallet_notifications(wallet_notifications), "wallet notifications patch must be idempotent"
-assert wallet_notifications.count(MODULE.ENUM_DEP) == 1
+assert wallet_notifications.count(MODULE.ENUM_TARGET) == 1
 assert MODULE.WALLET_CONDITIONAL_NOTIFICATIONS in wallet_notifications
 
 print("SANDIUM_NEWS_GN_DEPENDENCY_TEST=PASS conditional=true wallet_enum_conditional=true idempotent=true")
