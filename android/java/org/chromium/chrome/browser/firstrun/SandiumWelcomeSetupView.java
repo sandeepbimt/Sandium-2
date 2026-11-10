@@ -62,6 +62,7 @@ final class SandiumWelcomeSetupView {
     private final Activity mActivity;
     private final Listener mListener;
     private final Handler mHandler = new Handler(Looper.getMainLooper());
+    private final List<Switch> mSwitches = new ArrayList<>();
     private final Runnable mPollRunnable = this::pollFilterStatus;
 
     private LinearLayout mRoot;
@@ -150,6 +151,7 @@ final class SandiumWelcomeSetupView {
     void initialize(Profile profile) {
         mProfile = profile;
         applyInitialPreferences();
+        for (Switch toggle : mSwitches) toggle.setEnabled(true);
         mFilterHandler = FilterListServiceFactory.getInstance()
                 .getFilterListAndroidHandler(profile, null);
         // Queue the native warm-up immediately. Native code starts the additional
@@ -382,6 +384,8 @@ final class SandiumWelcomeSetupView {
         labels.addView(detail, matchWrap());
 
         Switch toggle = new Switch(mActivity);
+        toggle.setEnabled(false);
+        mSwitches.add(toggle);
         toggle.setChecked(checked);
         toggle.setShowText(false);
         toggle.setThumbTintList(new ColorStateList(
