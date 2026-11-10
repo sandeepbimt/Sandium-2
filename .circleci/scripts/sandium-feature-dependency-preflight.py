@@ -98,6 +98,52 @@ def scan_all_gn(core):
         raise RuntimeError("UNGUARDED_FEATURE_EDGES:\n  " + "\n  ".join(failures[:80]))
     print("GN_EDGE_INVENTORY=PASS " + " ".join(f"{k.lower()}_refs={v}" for k,v in counts.items()))
 
+def audit_android_java_sources(core):
+    source = read(core, "android/brave_java_sources.gni").read_text()
+    start = source.find("brave_java_sources = [")
+    if start < 0:
+        raise RuntimeError("ANDROID_JAVA_SOURCES: main source list anchor missing")
+    close = source.find("\n]", start)
+    if close < 0:
+        raise RuntimeError("ANDROID_JAVA_SOURCES: main source list is unterminated")
+    block = source[start:close]
+    policies = [
+        ("AI_CHAT", ("../../brave/android/java/org/chromium/chrome/browser/brave_leo/",
+                     "../../brave/android/java/org/chromium/chrome/browser/settings/BraveLeo",
+                     "../../brave/android/java/org/chromium/chrome/browser/toolbar/adaptive/BraveLeoButtonController.java"),
+         "enable_ai_chat"),
+        ("NEWS", ("../../brave/android/java/org/chromium/chrome/browser/brave_news/",
+                  "../../brave/android/java/org/chromium/chrome/browser/settings/BraveNews",
+                  "../../brave/android/java/org/chromium/chrome/browser/ntp/BraveNtpAdapter.java"),
+         "enable_brave_news"),
+        ("WALLET", ("../../brave/android/java/org/chromium/chrome/browser/crypto_wallet/",
+                    "../../brave/android/java/org/chromium/chrome/browser/settings/BraveWallet",
+                    "../../brave/android/java/org/chromium/chrome/browser/site_settings/BraveWallet",
+                    "../../brave/android/java/org/chromium/chrome/browser/toolbar/adaptive/BraveWalletButtonController.java",
+                    "../../brave/android/java/org/chromium/chrome/browser/app/domain/Crypto",
+                    "../../brave/android/java/org/chromium/chrome/browser/app/domain/DappsModel.java",
+                    "../../brave/android/java/org/chromium/chrome/browser/app/domain/KeyringModel.java",
+                    "../../brave/android/java/org/chromium/chrome/browser/app/domain/NetworkModel.java",
+                    "../../brave/android/java/org/chromium/chrome/browser/app/domain/WalletModel.java",
+                    "../../brave/android/java/org/chromium/chrome/browser/BraveWalletProvider.java"),
+         "enable_brave_wallet"),
+    ]
+    failures = []
+    counts = {}
+    for name, needles, flag in policies:
+        hits = []
+        for needle in needles:
+            hits.extend(guards(block, needle))
+        # Deduplicate lines when a path matches more than one token.
+        unique = {n: ctx for n, ctx in hits}
+        counts[name] = len(unique)
+        for n, ctx in unique.items():
+            if not guarded(ctx, flag):
+                failures.append(f"{name}:android/brave_java_sources.gni:{n}")
+    print("ANDROID_JAVA_SOURCE_INVENTORY=" + " ".join(f"{k.lower()}={v}" for k,v in counts.items()))
+    if failures:
+        raise RuntimeError("ANDROID_JAVA_SOURCE_CLOSURE: feature Java sources are still unconditional; " + ", ".join(failures[:80]))
+
 def verify(core, repo):
     actual = subprocess.check_output(["git","-C",str(core),"rev-parse","HEAD"],text=True).strip()
     if actual != BRAVE_SHA: raise RuntimeError(f"BRAVE_PIN_GATE expected={BRAVE_SHA} actual={actual}")
@@ -105,6 +151,7 @@ def verify(core, repo):
     for flag in ("enable_ai_chat:false","enable_brave_wallet:false","enable_brave_news:false"):
         if prep.count("--gn "+flag) != 1: raise RuntimeError(f"GN_FLAG_GATE expected one --gn {flag}")
     scan_all_gn(core)
+    audit_android_java_sources(core)
     sources = read(core,"browser/sources.gni").read_text()
     for target in ("//brave/browser/ai_chat","//brave/components/ai_chat/core/common"):
         for n,ctx in guards(sources,target):
