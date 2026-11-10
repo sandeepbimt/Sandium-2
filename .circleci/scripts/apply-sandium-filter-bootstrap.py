@@ -559,7 +559,7 @@ def verify(core: Path) -> None:
     ensure_end = manager.find("void AdBlockSubscriptionServiceManager::OnCheckedSandiumDefaultSubscriptionCaches", ensure_start)
     ensure_body = manager[ensure_start:ensure_end]
     if "ForceNotifyObservers(false)" in ensure_body:
-        raise SystemExit("SANDIUM_FILTER_BOOTSTRAP_VERIFY=FAIL engine warm-up must be homepage-triggered")
+        raise SystemExit("SANDIUM_FILTER_BOOTSTRAP_VERIFY=FAIL engine activation must remain outside subscription seeding")
     if len(FILTERS) != 29 or len({url for url, _ in FILTERS}) != 29:
         raise SystemExit("SANDIUM_FILTER_BOOTSTRAP_VERIFY=FAIL expected 29 unique subscriptions")
     if "updateFilterLists(" in fragment or "SANDIUM_FILTER_REFRESH_PLACEHOLDER" in fragment:
@@ -576,7 +576,7 @@ def verify(core: Path) -> None:
         raise SystemExit("SANDIUM_FILTER_BOOTSTRAP_VERIFY=FAIL async startup completion handler missing")
     print("SANDIUM_FILTER_BOOTSTRAP_VERIFY=PASS startup_seed=true refresh=native_subscriptions "
           "lists=29 default_enabled=true cache_metadata=source_entries+bytes "
-          "async_filter_io=true async_startup_cache_probe=true engine_warmup=homepage_deferred_success_gated")
+          "async_filter_io=true async_startup_cache_probe=true engine_activation=separate_native_startup_overlay")
 
 
 def main() -> None:
