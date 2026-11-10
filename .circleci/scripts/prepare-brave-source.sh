@@ -6,6 +6,22 @@ ROOT="$CIRCLE_WORKING_DIRECTORY"
 # Reuse restored .deb files and reduce repeated index/network overhead during PPBAS.
 APT_CACHE_DIR="$ROOT/.apt-cache"
 mkdir -p "$APT_CACHE_DIR/archives/partial" "$APT_CACHE_DIR/lists/partial"
+
+# APT drops download privileges to _apt even when install-build-deps.sh is
+# launched through sudo. CircleCI cache restores can leave these directories
+# owned by circleci/root with restrictive permissions, which makes APT fall
+# back to unsandboxed root downloads and can fail the dependency step.
+sudo chmod 0755 "$ROOT" "$APT_CACHE_DIR"
+sudo install -d -o _apt -g root -m 0755 \
+  "$APT_CACHE_DIR/archives" \
+  "$APT_CACHE_DIR/archives/partial" \
+  "$APT_CACHE_DIR/lists" \
+  "$APT_CACHE_DIR/lists/partial"
+sudo chown -R _apt:root "$APT_CACHE_DIR/archives" "$APT_CACHE_DIR/lists"
+sudo find "$APT_CACHE_DIR/archives" "$APT_CACHE_DIR/lists" -type d -exec chmod 0755 {} +
+sudo find "$APT_CACHE_DIR/archives" "$APT_CACHE_DIR/lists" -type f -exec chmod 0644 {} +
+echo "PPBAS_APT_PERMISSIONS=PASS owner=_apt mode=0755"
+
 sudo tee /etc/apt/apt.conf.d/99sandium-workspace-cache >/dev/null <<APTCONF
 Dir::Cache::archives "$APT_CACHE_DIR/archives";
 Dir::State::lists "$APT_CACHE_DIR/lists";
