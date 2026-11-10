@@ -245,6 +245,10 @@ PY
   printf 'Dir::Cache::archives "%s";\nDir::State::lists "%s";\n' \
     "$ROOT/.apt-cache/archives" "$ROOT/.apt-cache/lists" \
     | sudo tee /etc/apt/apt.conf.d/99sandium-workspace-cache >/dev/null
+  # Remove only identical duplicate legacy APT source entries and retry transient mirror failures.
+  sudo python3 "$ROOT/.circleci/scripts/prepare-apt-sources.py" \
+    --sources /etc/apt/sources.list.d \
+    --retry-config /etc/apt/apt.conf.d/80sandium-retries
   ./src/build/install-build-deps.sh --android
 
   # Re-run the pinned Chromium Siso configurator after Brave hooks with
