@@ -221,7 +221,7 @@ final class SandiumWelcomeSetupView {
         more.setPadding(dp(22), dp(15), dp(22), dp(15));
         TextView plus = text("⊕", 29, PRIMARY, false);
         more.addView(plus, new LinearLayout.LayoutParams(dp(48), dp(42)));
-        mMoreOptionsLabel = text("More options", 17, TEXT, false);
+        mMoreOptionsLabel = itemText("More options", 17, TEXT, false);
         more.addView(mMoreOptionsLabel, new LinearLayout.LayoutParams(0, dp(42), 1f));
         TextView arrow = text("›", 32, SECONDARY, false);
         arrow.setGravity(Gravity.CENTER);
@@ -342,8 +342,8 @@ final class SandiumWelcomeSetupView {
         LinearLayout labels = new LinearLayout(mActivity);
         labels.setOrientation(LinearLayout.VERTICAL);
         row.addView(labels, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-        labels.addView(text("Page transition blur", 17, TEXT, false), matchWrap());
-        TextView summary = text(
+        labels.addView(itemText("Page transition blur", 17, TEXT, false), matchWrap());
+        TextView summary = itemText(
                 "Set how strongly the previous page blurs when opening another website",
                 13, SECONDARY, false);
         summary.setPadding(0, dp(3), dp(8), 0);
@@ -351,9 +351,30 @@ final class SandiumWelcomeSetupView {
 
         Spinner spinner = new Spinner(mActivity);
         List<String> values = Arrays.asList("Low", "Medium", "High");
-        ArrayAdapter<String> adapter = new ArrayAdapter<>(
-                mActivity, android.R.layout.simple_spinner_item, values);
-        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        ArrayAdapter<String> adapter = new ArrayAdapter<String>(
+                mActivity, android.R.layout.simple_spinner_item, values) {
+            private TextView styledTextView(View convertView, String value) {
+                TextView view = convertView instanceof TextView
+                        ? (TextView) convertView : new TextView(mActivity);
+                view.setText(value);
+                view.setTextSize(TypedValue.COMPLEX_UNIT_SP, 8.5f);
+                view.setTextColor(TEXT);
+                view.setGravity(Gravity.CENTER_VERTICAL);
+                view.setPadding(dp(4), 0, dp(4), 0);
+                return view;
+            }
+
+            @Override
+            public View getView(int position, View convertView, ViewGroup parent) {
+                return styledTextView(convertView, getItem(position));
+            }
+
+            @Override
+            public View getDropDownView(
+                    int position, View convertView, ViewGroup parent) {
+                return styledTextView(convertView, getItem(position));
+            }
+        };
         spinner.setAdapter(adapter);
         String current = ContextUtils.getAppSharedPreferences()
                 .getString(PREF_BLUR_LEVEL, "medium");
@@ -390,8 +411,8 @@ final class SandiumWelcomeSetupView {
         labels.setOrientation(LinearLayout.VERTICAL);
         labels.setPadding(dp(8), 0, dp(8), 0);
         row.addView(labels, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-        labels.addView(text(title, 17, TEXT, false), matchWrap());
-        TextView detail = text(summary, 13, SECONDARY, false);
+        labels.addView(itemText(title, 17, TEXT, false), matchWrap());
+        TextView detail = itemText(summary, 13, SECONDARY, false);
         detail.setPadding(0, dp(3), 0, 0);
         labels.addView(detail, matchWrap());
 
@@ -524,7 +545,13 @@ final class SandiumWelcomeSetupView {
         parent.addView(divider, params);
     }
 
-    private TextView text(String value, int sizeSp, int color, boolean bold) {
+    // Settings-item labels and descriptions use exactly half their previous
+    // text size; the page heading, progress card, and primary action stay legible.
+    private TextView itemText(String value, float originalSizeSp, int color, boolean bold) {
+        return text(value, originalSizeSp * 0.5f, color, bold);
+    }
+
+    private TextView text(String value, float sizeSp, int color, boolean bold) {
         TextView view = new TextView(mActivity);
         view.setText(value);
         view.setTextSize(TypedValue.COMPLEX_UNIT_SP, sizeSp);
