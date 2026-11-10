@@ -2,7 +2,9 @@
 
 Sandium uses Brave's existing native custom-filter subscription engine for the
 selected lists below. Each source remains hosted by its maintainer and Sandium
-subscribes directly to its HTTPS URL. Filter-list bytes are downloaded from their maintainers through Brave's native subscription manager. The APK does not currently bundle a static offline snapshot.
+subscribes directly to its HTTPS URL. Filter-list bytes are downloaded from
+their maintainers through Brave's native subscription manager. The APK does not
+currently bundle a static offline snapshot.
 
 ## Selected list set
 
@@ -44,26 +46,40 @@ not included.
 
 ## Runtime behavior
 
-- On first opening Content Filtering, Sandium creates each missing subscription
-  in Brave's native subscription manager. Existing matching subscriptions are
-  adopted without changing their enabled/disabled state.
-- The generic uBlock Annoyances subscription is removed at native startup from existing profiles, including both its legacy `uAssets/filters/annoyances.txt` URL and the expanded `uAssetsCDN/filters/annoyances.min.txt` URL. It is no longer in Sandium's selectable/default catalogue.
+- Sandium seeds missing URLs during native ad-block service startup, before
+  normal browsing. Existing matching subscriptions are adopted without
+  changing their enabled/disabled state.
+- All 29 selected lists are enabled by default. A one-time migration re-enables
+  the four retained AdGuard additions that an earlier Sandium build incorrectly
+  seeded as disabled; later user toggle choices are preserved.
+- The generic uBlock Annoyances subscription is removed at native startup from
+  existing profiles, including both its legacy
+  `uAssets/filters/annoyances.txt` URL and the expanded
+  `uAssetsCDN/filters/annoyances.min.txt` URL. It is no longer in
+  Sandium's selectable/default catalogue.
 - New lists added by a later Sandium release are seeded once. A user's deleted
   list is not silently re-added on the next visit. Users can still add it again
   through Brave's normal “Add custom filter list” action.
-- All 29 selected lists are enabled by default. A one-time migration re-enables the four retained AdGuard additions that an earlier Sandium build incorrectly seeded as disabled; later user toggle choices are preserved.
-- The native subscription manager seeds missing URLs during ad-block service startup, before normal browsing. New subscriptions immediately request high-priority downloads from their original HTTPS sources.
-- The Content Filters screen retains per-list toggles and deletion, and exposes a **Refresh filters** action for enabled URL subscriptions.
-- Brave's native subscription manager downloads the public URL directly and
-  automatically refreshes active subscriptions using each list's Expires
-  metadata, or its seven-day default when the list has no expiry metadata. The
-  manual refresh action schedules high-priority downloads without invoking the
-  unrelated Brave component-catalogue updater. The
-  manual refresh action schedules high-priority downloads without invoking the
-  unrelated Brave component-catalogue updater.
-- The filter screen's Brave component-catalogue rows are not used for this list set. This means these subscriptions do not
-  depend on Brave's private component updater, component catalogue, or
-  Brave Services key.
+- New subscriptions immediately request high-priority downloads from their
+  original HTTPS sources. Brave subsequently refreshes active subscriptions
+  using each list's Expires metadata, or its seven-day default when a list has
+  no expiry metadata.
+- After the default subscriptions are registered, Sandium issues one native
+  additional-engine provider notification. This follows the same provider
+  observer → filter-set build → resource load path reached when a user
+  re-enables a subscription, and bypasses Brave's one-time DAT-cache startup
+  notification suppression. It does not toggle a filter or modify any
+  subscription's enabled preference.
+- Successful download completion continues to notify the native provider so
+  newly downloaded source content is loaded. The reload-generation guard keeps
+  an older, slower aggregation from overwriting a newer filter set.
+- The Content Filters screen retains per-list toggles and deletion, and exposes
+  a **Refresh filters** action for enabled URL subscriptions. Manual refresh
+  schedules high-priority downloads without invoking Brave's unrelated
+  component-catalogue updater.
+- The filter screen's Brave component-catalogue rows are not used for this list
+  set. These subscriptions do not depend on Brave's private component updater,
+  component catalogue, or Brave Services key.
 
 ## Compatibility boundaries
 
@@ -80,26 +96,43 @@ changes. Users can disable or remove individual lists in the filter screen.
 
 ## Build and verification
 
-- Brave Core pin: `v1.98.62` (`44a84b1f89d9a35287289d6a3d493e362f5a5123`).
-- The implementation is a pinned Android Java/UI change and is intended for
-  Fast Mode; no Full Mode Chromium rebuild is required by design.
+- Brave Core pin: `v1.98.62`
+  (`44a84b1f89d9a35287289d6a3d493e362f5a5123`).
+- The native engine activation is a C++ change and is routed through the
+  Sandium Full Mode staged build on the feature branch. The build must produce
+  an optimized ARM64 Release APK.
+- Full Mode retains the existing Siso/BuildBuddy remote-execution settings and
+  canonical reference restore; it must not replace the protected
+  `3c8004b` / CircleCI cache-job-`949` checkpoint.
 - CircleCI no longer requires `BRAVE_SERVICES_KEY`; BuildBuddy credentials
   remain a separate remote-execution requirement.
-- The lightweight CI test validates the 29 unique URLs, user-delete behavior,
-  all-enabled defaults, friendly display names, and idempotent source
-  transformation. Runtime enforcement still requires a built APK and device
-  verification.
+- Offline patcher tests verify subscription catalogue integrity, user-delete
+  behavior, idempotent source transformations, and native startup activation
+  ordering. Runtime enforcement still requires a built APK and clean-profile
+  device verification.
 
 The filter sources remain owned and updated by their respective maintainers.
 
-
 ## First-launch timing boundary
 
-The ad-block service creates missing subscriptions during profile startup and requests high-priority downloads before normal browsing starts. The engine can enforce each list only after its source download succeeds and its cached file is loaded; slow, blocked or offline networks can delay that first successful load. The APK does not yet contain a bundled offline snapshot. A guaranteed offline/instant first-page baseline would require a separately maintained APK snapshot followed by background source updates.
+The native engine activation runs during service startup, after Sandium's
+subscription providers are registered. This ensures the current provider set is
+announced to Brave's additional ad-block engine instead of relying on the
+first-change notification that DAT-cache startup optimization may consume.
 
+Activation does not make remote downloads synchronous and does not create
+filter data that is absent from the profile cache. On a genuinely fresh
+installation, the subscription manager starts high-priority downloads, and
+each successful download triggers another native provider reload. Until a
+source's first successful download completes, its rules may not yet be
+available to block the first page. Network delay or offline installation can
+therefore delay full filter coverage. A guaranteed offline first-page baseline
+would require a separately maintained filter snapshot bundled in the APK and
+updated in the background; that is not part of this change.
 
-## Cache metadata and first-launch boundary
+## Cache metadata
 
-Each row displays the last update status/time already recorded by Brave, the cached list file size in MiB, and the number of non-empty, non-comment source entries in the downloaded text file. This is a source-entry count, not a count of the engine's optimized internal matcher records.
-
-The ad-block service creates missing subscriptions during profile startup and requests high-priority downloads. The engine can enforce a list only after its source download succeeds and the cache file is loaded; slow, blocked or offline networks can delay the first successful load. A guaranteed offline/instant first-page baseline would require a bundled rules snapshot in the APK followed by background source updates.
+Each row displays the last update status/time already recorded by Brave, the
+cached list file size in MiB, and the number of non-empty, non-comment source
+entries in the downloaded text file. This is a source-entry count, not a count
+of the engine's optimized internal matcher records.
