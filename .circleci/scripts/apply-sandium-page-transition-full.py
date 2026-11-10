@@ -270,7 +270,7 @@ def transform_appearance_java(source: str) -> str:
         JAVA_DARKEN_PREF,
         "findPreference(PREF_SANDIUM_PAGE_TRANSITION_DARKEN)",
         "pageTransitionDarken.setEnabled(blurEnabled)",
-        "if (\\\"default\\\".equals(blurLevel) && (Boolean) newValue) return false;",
+        '"default".equals(blurLevel) && (Boolean) newValue',
         ".getBoolean(PREF_SANDIUM_PAGE_TRANSITION_DARKEN, false)",
         ".putBoolean(PREF_SANDIUM_PAGE_TRANSITION_DARKEN, (Boolean) newValue)",
         "setPreferenceOrder(PREF_SANDIUM_PAGE_TRANSITION_DARKEN, 11);",

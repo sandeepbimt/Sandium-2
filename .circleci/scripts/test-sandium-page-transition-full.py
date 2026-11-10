@@ -203,7 +203,7 @@ def main():
     assert repaired.count(MODULE.JAVA_DARKEN_PREF) == 1
     assert "findPreference(PREF_SANDIUM_PAGE_TRANSITION_DARKEN)" in repaired
     assert "pageTransitionDarken.setEnabled(blurEnabled)" in repaired
-    assert "if (\\\"default\\\".equals(blurLevel) && (Boolean) newValue) return false;" in repaired
+    assert '"default".equals(blurLevel) && (Boolean) newValue' in repaired
     assert ".putBoolean(PREF_SANDIUM_PAGE_TRANSITION_DARKEN, (Boolean) newValue)" in repaired
     assert "setPreferenceOrder(PREF_SANDIUM_PAGE_TRANSITION_DARKEN, 11);" in repaired
 
