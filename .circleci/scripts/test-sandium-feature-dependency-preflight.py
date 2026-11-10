@@ -3,6 +3,8 @@
 from pathlib import Path
 import importlib.util
 import tempfile
+from contextlib import redirect_stdout
+from io import StringIO
 
 SCRIPT = Path(__file__).with_name("sandium-feature-dependency-preflight.py")
 spec = importlib.util.spec_from_file_location("sandium_preflight", SCRIPT)
@@ -68,6 +70,25 @@ if (enable_brave_wallet) {
 }
 ''', encoding="utf-8")
         module.audit_android_java_sources(root)
+    with tempfile.TemporaryDirectory() as d:
+        root = Path(d)
+        gni = root / "android/brave_java_sources.gni"
+        gni.parent.mkdir(parents=True)
+        gni.write_text('''brave_java_sources = [
+  "../../brave/android/java/org/chromium/chrome/browser/brave_leo/BraveLeoMojomHelper.java",
+]
+''', encoding="utf-8")
+        candidate = root / "android/java/org/chromium/chrome/browser/brave_leo/BraveLeoMojomHelper.java"
+        caller = root / "android/java/org/chromium/chrome/browser/browsing_data/BraveClearBrowsingDataFragment.java"
+        candidate.parent.mkdir(parents=True)
+        caller.parent.mkdir(parents=True)
+        candidate.write_text("class BraveLeoMojomHelper {}\\n", encoding="utf-8")
+        caller.write_text("class BraveClearBrowsingDataFragment { BraveLeoMojomHelper helper; }\\n", encoding="utf-8")
+        output = StringIO()
+        with redirect_stdout(output):
+            module.audit_android_java_source_references(root)
+        assert "JAVA_EXTERNAL_REFERENCE_EDGES=1" in output.getvalue()
+        assert "BraveClearBrowsingDataFragment.java" in output.getvalue()
     print("SANDIUM_FEATURE_DEPENDENCY_PREFLIGHT_TEST=PASS")
 
 if __name__ == "__main__":
