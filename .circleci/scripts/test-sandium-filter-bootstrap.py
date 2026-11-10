@@ -52,7 +52,10 @@ assert "requestSandiumHomepageWarmup(mTab.getProfile())" in HOMEPAGE_WARMUP_PATC
 assert "last_successful_update_attempt.is_min()" in HOMEPAGE_WARMUP_PATCH
 assert "homepage_warmup_requested_ = true;" in HOMEPAGE_WARMUP_PATCH
 assert "homepage_warmup_engine_reload_requested_ = true;" in HOMEPAGE_WARMUP_PATCH
-print("SANDIUM_FILTER_BOOTSTRAP_UNIT_TEST=PASS lists=29 enabled=true startup_seed=true refresh=true metadata=true homepage_deferred_warmup=true download_gated=true")
+assert "filters-provider-manager-broadcast-notify-api" in HOMEPAGE_WARMUP_PATCH
+assert "filters-provider-manager-broadcast-notify-implementation" in HOMEPAGE_WARMUP_PATCH
+assert "NotifyObservers(is_for_default_engine);" in HOMEPAGE_WARMUP_PATCH
+print("SANDIUM_FILTER_BOOTSTRAP_UNIT_TEST=PASS lists=29 enabled=true startup_seed=true refresh=true metadata=true homepage_deferred_warmup=true download_gated=true guarded_broadcast_notify=true")
 
 assert "base::Value::List" not in PATCH
 assert "base::GetFileSize(cached_list, &cached_size)" not in PATCH
