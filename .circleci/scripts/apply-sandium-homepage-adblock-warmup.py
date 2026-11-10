@@ -98,9 +98,9 @@ def apply(core: Path, src: Path) -> None:
     patch_file(
         filters_manager_h,
         "  void ForceNotifyObserver(AdBlockFiltersProvider::Observer& observer,\n"
-        "                           bool is_for_default_engine);\n",
+        "                           bool is_default_engine);\n",
         "  void ForceNotifyObserver(AdBlockFiltersProvider::Observer& observer,\n"
-        "                           bool is_for_default_engine);\n"
+        "                           bool is_default_engine);\n"
         "  // Broadcasts a guarded forced update to all observers of one engine.\n"
         "  void ForceNotifyObservers(bool is_for_default_engine);\n",
         "ForceNotifyObservers(bool is_for_default_engine)",
