@@ -195,7 +195,7 @@ def main():
     # patch. Reapplying Full must remain idempotent and restore all controls.
     appearance_after_blur = BLUR_MODULE.transform_appearance_java(appearance)
     assert appearance_after_blur.count(MODULE.JAVA_DARKEN_PREF) == 1
-    assert MODULE.JAVA_DARKEN_PREF_BEGIN in appearance_after_blur
+    assert BLUR_MODULE.JAVA_DARKEN_PREF_BEGIN in appearance_after_blur
     repaired = assert_idempotent(
         MODULE.transform_appearance_java, appearance_after_blur, "Appearance Java after base blur"
     )
