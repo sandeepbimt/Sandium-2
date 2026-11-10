@@ -34,5 +34,5 @@ assert once.count(MODULE.IMPORT) == 1
 assert once.count(MODULE.CONDITIONAL_DEP) == 1
 assert once.count(MODULE.UNCONDITIONAL_DEP) == 0
 assert '"//brave/components/brave_news/common/pref_names.h"' in once
-assert "source_set(\\"preferences\\")" in once
+assert 'source_set("preferences")' in once
 print("SANDIUM_NEWS_GN_DEPENDENCY_TEST=PASS conditional=true idempotent=true")
