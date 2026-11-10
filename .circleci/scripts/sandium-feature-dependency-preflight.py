@@ -70,13 +70,13 @@ def fix_news(path):
 
 def scan_all_gn(core):
     policies = [
-      ("AI_CHAT", ("browser/ai_chat/","components/ai_chat/"),
+      ("AI_CHAT", ("browser/ai_chat/","browser/ui/ai_chat/","browser/ui/webui/ai_chat/","browser/ui/views/side_panel/ai_chat/","components/ai_chat/"),
        ("//brave/browser/ai_chat","//brave/components/ai_chat/core/common"),
        ("/buildflags","/mojom",":mojom",":constants"), "enable_ai_chat"),
-      ("WALLET", ("browser/brave_wallet/","components/brave_wallet/"),
+      ("WALLET", ("browser/brave_wallet/","browser/ui/webui/brave_wallet/","components/brave_wallet/"),
        ("//brave/browser/brave_wallet","//brave/components/brave_wallet"),
        ("/buildflags",), "enable_brave_wallet"),
-      ("NEWS", ("browser/brave_news/","components/brave_news/"),
+      ("NEWS", ("browser/brave_news/","browser/ui/webui/brave_news/","browser/ui/webui/brave_news_internals/","components/brave_news/"),
        ("//brave/browser/brave_news","//brave/browser/ui/webui/brave_news","//brave/components/brave_news"),
        ("/buildflags",":mojom",":rss_link_reader_mojom"), "enable_brave_news"),
     ]
