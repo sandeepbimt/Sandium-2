@@ -44,7 +44,8 @@ assert PATCH.count("filters_provider_manager_->ForceNotifyObservers(false);") ==
 # The subscription seeder must not own engine activation. The dedicated
 # native startup overlay runs after this seed operation has completed.
 assert PATCH.count("filters_provider_manager_->ForceNotifyObservers(false);") == 1
-assert "MaybeTriggerSandiumHomepageWarmup" not in PATCH
+assert "homepage_deferred_success_gated" not in PATCH
+assert "requestSandiumHomepageWarmup" not in PATCH
 assert "recordNtpShown" not in PATCH
 print("SANDIUM_FILTER_BOOTSTRAP_UNIT_TEST=PASS lists=29 enabled=true startup_seed=true refresh=true metadata=true native_activation=separate_overlay download_gated=true")
 
