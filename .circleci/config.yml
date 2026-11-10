@@ -1567,6 +1567,8 @@ jobs:
             bash -n .circleci/scripts/apply-sandium-branding.sh
             python3 -m py_compile .circleci/scripts/generate-sandium-density-assets.py
             python3 -m py_compile .circleci/scripts/apply-sandium-full-overlays.py .circleci/scripts/test-sandium-feature-policies.py
+            python3 -m py_compile .circleci/scripts/apply-sandium-news-gn-dependency.py .circleci/scripts/test-sandium-news-gn-dependency.py
+            python3 .circleci/scripts/test-sandium-news-gn-dependency.py
             python3 .circleci/scripts/test-sandium-feature-policies.py
             python3 -m py_compile .circleci/scripts/apply-sandium-filter-subscriptions.py .circleci/scripts/test-sandium-filter-subscriptions.py
             python3 .circleci/scripts/test-sandium-filter-subscriptions.py
