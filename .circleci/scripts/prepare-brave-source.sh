@@ -525,6 +525,11 @@ PY
      grep -Fqx 'use_siso = true' "$OUT/args.gn" && \
      grep -Fqx 'use_reclient = false' "$OUT/args.gn" && \
      grep -Fqx 'enable_android_secondary_abi = false' "$OUT/args.gn" && \
+     grep -Fqx 'is_official_build = false' "$OUT/args.gn" && \
+     grep -Fqx 'enable_updater = false' "$OUT/args.gn" && \
+     grep -Fqx 'enable_update_notifications = false' "$OUT/args.gn" && \
+     grep -Fqx 'android_channel = "default"' "$OUT/args.gn" && \
+     grep -Fqx 'brave_channel = "development"' "$OUT/args.gn" && \
      grep -Fqx 'chrome_public_manifest_package = "com.brave.browser_default"' "$OUT/args.gn"; then
     REUSE_GN_GRAPH=true
   fi
