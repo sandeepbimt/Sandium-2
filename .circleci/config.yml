@@ -1876,23 +1876,23 @@ jobs:
                 command: |
                   set -euo pipefail
                   python3 .circleci/scripts/apply-sandium-page-transition-full.py "$CIRCLE_WORKING_DIRECTORY/brave-work/src"
-       - when:
-           condition:
-             equal: [feature/sandium-welcome-setup-clean, << pipeline.git.branch >>]
-           steps:
-             - run:
-                 name: Apply Sandium welcome setup, first-list adblock activation and fast filter downloads
-                 command: |
-                   set -euo pipefail
-                   ROOT="$CIRCLE_WORKING_DIRECTORY"
-                   SRC="$ROOT/brave-work/src"
-                   CORE="$SRC/brave"
-                   python3 .circleci/scripts/apply-sandium-homepage-adblock-warmup.py --core "$CORE" --src "$SRC"
-                   python3 .circleci/scripts/apply-sandium-download-concurrency.py --src "$SRC"
-                   python3 .circleci/scripts/apply-sandium-welcome-setup.py --core "$CORE" --src "$SRC"
-                   python3 .circleci/scripts/test-sandium-homepage-adblock-warmup.py
-                   python3 .circleci/scripts/test-sandium-download-concurrency.py
-                   python3 .circleci/scripts/test-sandium-welcome-setup.py
+      - when:
+          condition:
+            equal: [feature/sandium-welcome-setup-clean, << pipeline.git.branch >>]
+          steps:
+            - run:
+                name: Apply Sandium welcome setup, first-list adblock activation and fast filter downloads
+                command: |
+                  set -euo pipefail
+                  ROOT="$CIRCLE_WORKING_DIRECTORY"
+                  SRC="$ROOT/brave-work/src"
+                  CORE="$SRC/brave"
+                  python3 .circleci/scripts/apply-sandium-homepage-adblock-warmup.py --core "$CORE" --src "$SRC"
+                  python3 .circleci/scripts/apply-sandium-download-concurrency.py --src "$SRC"
+                  python3 .circleci/scripts/apply-sandium-welcome-setup.py --core "$CORE" --src "$SRC"
+                  python3 .circleci/scripts/test-sandium-homepage-adblock-warmup.py
+                  python3 .circleci/scripts/test-sandium-download-concurrency.py
+                  python3 .circleci/scripts/test-sandium-welcome-setup.py
       - when:
           condition:
             equal: [feature/sandium-shields-two-state-fast, << pipeline.git.branch >>]
