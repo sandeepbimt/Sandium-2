@@ -1,0 +1,75 @@
+name: Sandium feature dependency preflight
+
+on:
+  push:
+    branches:
+      - work/remove-chat-wallet-news-preflight
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sandium-feature-dependency-preflight
+  cancel-in-progress: true
+
+jobs:
+  pinned-source-preflight:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      SANDIUM_PREFLIGHT_BASE: c1b6a4a32caf47e1605de60e1fdffd65067ac323
+      BRAVE_CORE_SHA: 44a84b1f89d9a35287289d6a3d493e362f5a5123
+    steps:
+      - name: Checkout isolated Sandium preflight branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify base, change scope and CircleCI isolation
+        run: |
+          set -euo pipefail
+          git fetch origin "$SANDIUM_PREFLIGHT_BASE" --depth=1
+          python3 .circleci/scripts/test-sandium-preflight-scope.py
+          python3 -m py_compile \
+            .circleci/scripts/sandium-feature-dependency-preflight.py \
+            .circleci/scripts/test-sandium-feature-dependency-preflight.py \
+            .circleci/scripts/test-sandium-preflight-scope.py
+          python3 .circleci/scripts/test-sandium-feature-dependency-preflight.py
+          python3 .circleci/scripts/test-sandium-feature-policies.py
+
+      - name: Fetch only pinned Brave GN metadata and Android source files
+        run: |
+          set -euo pipefail
+          CORE="$RUNNER_TEMP/brave-core"
+          git clone --filter=blob:none --no-checkout --depth=1 https://github.com/brave/brave-core.git "$CORE"
+          git -C "$CORE" fetch --depth=1 origin "$BRAVE_CORE_SHA"
+          git -C "$CORE" checkout --detach FETCH_HEAD
+          git -C "$CORE" sparse-checkout init --no-cone
+          cat > "$CORE/.git/info/sparse-checkout" <<'EOF'
+          /**/BUILD.gn
+          /**/*.gn
+          /**/*.gni
+          /browser/android/brave_tab_features.cc
+          /browser/android/brave_tab_features.h
+          EOF
+          git -C "$CORE" read-tree -mu HEAD
+          test "$(git -C "$CORE" rev-parse HEAD)" = "$BRAVE_CORE_SHA"
+          echo "BRAVE_CORE_PIN_GATE=PASS sha=$BRAVE_CORE_SHA"
+
+      - name: Iteratively repair known dependency edges and audit all pinned GN references
+        run: |
+          set -euo pipefail
+          CORE="$RUNNER_TEMP/brave-core"
+          python3 .circleci/scripts/sandium-feature-dependency-preflight.py --core "$CORE" --fix
+          python3 .circleci/scripts/sandium-feature-dependency-preflight.py --core "$CORE" --verify-only
+          echo "GITHUB_FEATURE_DEPENDENCY_PREFLIGHT=PASS"
+
+      - name: Final no-build and no-CircleCI gate
+        run: |
+          set -euo pipefail
+          git diff --check "$SANDIUM_PREFLIGHT_BASE...HEAD"
+          test "$(git diff --name-only "$SANDIUM_PREFLIGHT_BASE...HEAD" -- .circleci/config.yml | wc -l | tr -d ' ')" = "0"
+          echo "CIRCLECI_TRIGGER=NOT_REQUESTED"
+          echo "CHROMIUM_GN_GENERATION=NOT_RUN"
+          echo "APK_BUILD=NOT_RUN"
