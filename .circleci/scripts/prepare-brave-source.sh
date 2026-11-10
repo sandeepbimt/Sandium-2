@@ -409,6 +409,7 @@ PY
       echo "SANDIUM_TRANSITION_ONLY=PASS; skipping unrelated feature-disable, Morphe, and filter overlays."
     else
       python3 "$ROOT/.circleci/scripts/apply-sandium-full-overlays.py" --core "$CORE_DIR" --src "$SRC_DIR"
+      python3 "$ROOT/.circleci/scripts/apply-sandium-news-gn-dependency.py" --core "$CORE_DIR" --src "$SRC_DIR"
       python3 "$ROOT/.circleci/scripts/apply-sandium-fast-morphe.py" "$SRC_DIR"
       ORIGIN_GN_ARGS+=(
         --gn enable_brave_rewards:false
