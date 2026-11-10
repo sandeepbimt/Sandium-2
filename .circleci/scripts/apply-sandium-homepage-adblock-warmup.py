@@ -148,20 +148,25 @@ def apply(core: Path, src: Path) -> None:
         "      subscription_filters_providers_.empty()) {\n"
         "    return;\n"
         "  }\n"
-        "  // Wait until every enabled subscription has completed at least one\n"
-        "  // successful download. A provider object alone is not readiness: Brave's\n"
-        "  // base provider reports initialized even when its cached file is empty.\n"
+        "  // Start the native engine as soon as at least one enabled subscription has\n"
+        "  // a confirmed successful download. Do not wait for the other lists;\n"
+        "  // they continue downloading and become available as each completes.\n"
+        "  bool has_successfully_downloaded_enabled_subscription = false;\n"
         "  for (const auto& entry : subscription_filters_providers_) {\n"
         "    const auto info = GetInfo(entry.first);\n"
-        "    if (!info || !info->enabled ||\n"
-        "        info->last_successful_update_attempt.is_null() ||\n"
-        "        info->last_successful_update_attempt.is_min()) {\n"
-        "      return;\n"
+        "    if (info && info->enabled &&\n"
+        "        !info->last_successful_update_attempt.is_null() &&\n"
+        "        !info->last_successful_update_attempt.is_min()) {\n"
+        "      has_successfully_downloaded_enabled_subscription = true;\n"
+        "      break;\n"
         "    }\n"
         "  }\n"
+        "  if (!has_successfully_downloaded_enabled_subscription) {\n"
+        "    return;\n"
+        "  }\n"
         "  homepage_warmup_engine_reload_requested_ = true;\n"
-        "  // Set the success gate only when the final downloaded subscription set\n"
-        "  // is ready and the explicit rebuild is actually being dispatched.\n"
+        "  // Dispatch the first engine build immediately after the first valid list.\n"
+        "  // Later successful downloads continue to update the running provider set.\n"
         "  local_state_->SetBoolean(prefs::kSandiumAdBlockEngineWarmupRequested, true);\n"
         "  filters_provider_manager_->ForceNotifyObservers(false);\n"
         "}\n\n"
@@ -379,6 +384,7 @@ def verify(core: Path, src: Path) -> None:
         "kSandiumAdBlockEngineWarmupRequested",
         "SetBoolean(prefs::kSandiumAdBlockEngineWarmupRequested, false)",
         "last_successful_update_attempt.is_min()",
+        "has_successfully_downloaded_enabled_subscription",
         "homepage_warmup_requested_",
         "homepage_warmup_engine_reload_requested_",
         "kSandiumAdBlockEngineWarmupDone",
@@ -391,7 +397,8 @@ def verify(core: Path, src: Path) -> None:
     if missing:
         raise RuntimeError("homepage warm-up verification missing: " + ", ".join(missing))
     print("SANDIUM_HOMEPAGE_WARMUP_VERIFY=PASS trigger=visible_ntp one_shot=true "
-          "native_engine_rebuild=true wait_for_all_enabled_downloads=true success_gated=true "
+          "native_engine_rebuild=true activate_after_first_successful_enabled_list=true "
+          "remaining_lists_continue_in_background=true success_gated=true "
           "subscription_preferences_unchanged=true")
 
 

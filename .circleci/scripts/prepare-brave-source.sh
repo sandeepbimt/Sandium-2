@@ -400,13 +400,21 @@ PY
   echo "BRAVE_STAGE1_VALIDATION_MODE=DRY_RUN_NO_COMPILATION"
   MODE="$(sed -n 's/^SANDIUM_BUILD_MODE=//p' "$ROOT/brave-work/.sandium/build-mode.txt" | head -n 1)"
   TRANSITION_ONLY=false
-  if [ "${CIRCLE_BRANCH:-}" = "feature/sandium-page-transition-full" ] || [ "${CIRCLE_BRANCH:-}" = "feature/sandium-filter-bootstrap-full" ]; then
+  MINIMAL_VANILLA_BUILD=false
+  if [ "${CIRCLE_BRANCH:-}" = "feature/sandium-vanilla-welcome" ]; then
+    MINIMAL_VANILLA_BUILD=true
+  fi
+  if [ "${CIRCLE_BRANCH:-}" = "feature/sandium-page-transition-full" ] || [ "${CIRCLE_BRANCH:-}" = "feature/sandium-filter-bootstrap-full" ] || [ "$MINIMAL_VANILLA_BUILD" = true ]; then
     TRANSITION_ONLY=true
   fi
   ORIGIN_GN_ARGS=()
   if [ "$MODE" = "full" ]; then
     if [ "$TRANSITION_ONLY" = true ]; then
-      echo "SANDIUM_TRANSITION_ONLY=PASS; skipping unrelated feature-disable, Morphe, and filter overlays."
+      if [ "$MINIMAL_VANILLA_BUILD" = true ]; then
+        echo "SANDIUM_VANILLA_BRAVE=PASS; skip feature-disable and Morphe overlays."
+      else
+        echo "SANDIUM_TRANSITION_ONLY=PASS; skipping unrelated feature-disable, Morphe, and filter overlays."
+      fi
     else
       python3 "$ROOT/.circleci/scripts/apply-sandium-full-overlays.py" --core "$CORE_DIR" --src "$SRC_DIR"
       python3 "$ROOT/.circleci/scripts/apply-sandium-fast-morphe.py" "$SRC_DIR"
@@ -434,6 +442,9 @@ PY
     echo "SANDIUM_BUILD_MODE_GATE=FAIL missing or invalid build-mode marker" >&2
     exit 2
   fi
+  if [ "$MINIMAL_VANILLA_BUILD" = true ]; then
+    echo "BRAVE_NEWS_GN_SCOPE_GATE=SKIPPED; use unmodified upstream Brave News GN."
+  else
   # GN files have isolated scopes. Brave v1.98.62 declares enable_brave_news
   # in this buildflags file, but the Android browser-test dependency file may
   # reference it without importing that declaration. Import only when needed;
@@ -473,9 +484,17 @@ if "enable_brave_news" in verified and import_line not in verified:
     raise SystemExit("BRAVE_NEWS_GN_SCOPE_GATE=FAIL referenced variable remains out of scope")
 print("BRAVE_NEWS_GN_SCOPE_GATE=PASS")
 PY
+  fi
+
+  if [ "$MINIMAL_VANILLA_BUILD" = true ]; then
+    python3 "$ROOT/.circleci/scripts/verify-sandium-vanilla-brave.py" --core "$CORE_DIR" --src "$SRC_DIR" --out "$OUT" --phase prepare
+  fi
 
   pnpm run build Release --target_os=android --target_arch=arm64 --target_android_output_format=apk --use_remoteexec=true --gn use_siso:true --gn use_reclient:false "${ORIGIN_GN_ARGS[@]}" --gn is_java_debug:false --gn enable_android_secondary_abi:false --gn is_official_build:false --gn enable_updater:false --gn enable_update_notifications:false --gn android_channel:default --gn chrome_public_manifest_package:com.brave.browser_default --gn brave_channel:development --target brave --ninja=n
   bash "$ROOT/.circleci/scripts/verify-clang-diagnostics-gn.sh"
+  if [ "$MINIMAL_VANILLA_BUILD" = true ]; then
+    python3 "$ROOT/.circleci/scripts/verify-sandium-vanilla-brave.py" --core "$CORE_DIR" --src "$SRC_DIR" --out "$OUT" --phase verify
+  fi
 fi
 
 # Sandium native Shields/uBlock-compatible filter backport.
@@ -509,7 +528,7 @@ ACTUAL_CHROMIUM_TAG="$(python3 -c 'import json,sys; print(json.load(open(sys.arg
 }
 
 echo "SANDIUM_SOURCE_PIN_GATE=PASS brave=$ACTUAL_BRAVE_TAG brave_sha=$ACTUAL_BRAVE_SHA chromium=$ACTUAL_CHROMIUM_TAG chromium_sha=$ACTUAL_CHROMIUM_SHA"
-if [ "${CIRCLE_BRANCH:-}" = "feature/sandium-page-transition-full" ] || [ "${CIRCLE_BRANCH:-}" = "feature/sandium-filter-bootstrap-full" ]; then
+if [ "${CIRCLE_BRANCH:-}" = "feature/sandium-page-transition-full" ] || [ "${CIRCLE_BRANCH:-}" = "feature/sandium-filter-bootstrap-full" ] || [ "${CIRCLE_BRANCH:-}" = "feature/sandium-vanilla-welcome" ]; then
   python3 "$ROOT/.circleci/scripts/apply-sandium-page-transition-full.py" "$SRC_DIR"
   echo "SANDIUM_ADBLOCK_OVERLAY=SKIPPED; all filter files and settings left untouched."
 else
