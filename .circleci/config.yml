@@ -8,6 +8,105 @@ parameters:
     default: fast
 
 jobs:
+  sandium-pinned-data-save:
+    machine:
+      image: ubuntu-2404:current
+    resource_class: large
+    steps:
+      - checkout
+      - restore_cache:
+          name: Restore pinned Node runtime
+          keys:
+            - sandium-brave-node-v1-24.16.0
+      - restore_cache:
+          name: Restore pnpm package store
+          keys:
+            - sandium-pnpm-store-v1-{{ .Branch }}-
+      - run:
+          name: Configure BuildBuddy credential helper
+          command: |
+            set -euo pipefail
+            if [ -z "$(printenv BUILDBUDDY_API_KEY 2>/dev/null || true)" ]; then
+              echo "MISSING_REQUIRED_SECRET=BUILDBUDDY_API_KEY" >&2
+              exit 1
+            fi
+            HELPER=/tmp/sandium-buildbuddy-credential-helper.py
+            printf '%s\n' \
+              '#!/usr/bin/env python3' \
+              'import json, os, sys' \
+              'if len(sys.argv) < 2 or sys.argv[1] != "get": raise SystemExit(1)' \
+              'sys.stdin.read()' \
+              'print(json.dumps({"headers": {"x-buildbuddy-api-key": [os.environ["BUILDBUDDY_API_KEY"]]}}))' \
+              > "$HELPER"
+            chmod 700 "$HELPER"
+            echo 'export SISO_CREDENTIAL_HELPER=/tmp/sandium-buildbuddy-credential-helper.py' >> "$BASH_ENV"
+      - run:
+          name: Prepare upstream-only pinned Brave and Chromium source
+          no_output_timeout: 45m
+          command: |
+            set -euo pipefail
+            ROOT="$CIRCLE_WORKING_DIRECTORY"
+            mkdir -p "$ROOT/brave-work/.sandium"
+            printf 'SANDIUM_BUILD_MODE=pinned_source\n' > "$ROOT/brave-work/.sandium/build-mode.txt"
+            export BRAVE_STAGE_INDEX=1
+            bash .circleci/scripts/prepare-brave-source.sh
+      - run:
+          name: Validate source-only state before archiving
+          command: |
+            set -euo pipefail
+            python3 .circleci/scripts/sandium-pinned-source-checkpoint.py prepare --root "$CIRCLE_WORKING_DIRECTORY"
+      - run:
+          name: Create independently verifiable pinned-source shards
+          no_output_timeout: 45m
+          command: |
+            set -euo pipefail
+            export SANDIUM_ARCHIVE_WORKERS=8
+            python3 .circleci/scripts/sandium-checkpoint-shards.py archive --root "$CIRCLE_WORKING_DIRECTORY" --workers 8
+      - run:
+          name: Seal READY source checkpoint manifest
+          command: |
+            set -euo pipefail
+            python3 .circleci/scripts/sandium-pinned-source-checkpoint.py seal \
+              --root "$CIRCLE_WORKING_DIRECTORY" \
+              --branch "$CIRCLE_BRANCH" \
+              --revision "$CIRCLE_SHA1" \
+              --workers 8
+      - save_cache:
+          name: Save immutable pinned-source checkpoint
+          key: sandium-pinned-source-v1-{{ .Branch }}-{{ .Revision }}
+          paths:
+            - brave-workspace-checkpoint.shards
+            - brave-workspace-checkpoint.manifest.json
+            - sandium-pinned-source-manifest.json
+      - save_cache:
+          name: Save reusable pnpm package store
+          key: sandium-pnpm-store-v1-{{ .Branch }}-{{ epoch }}
+          paths:
+            - /home/circleci/.cache/pnpm-store
+          when: always
+      - store_artifacts:
+          path: sandium-pinned-source-manifest.json
+          destination: pinned-source-checkpoint
+
+  sandium-pinned-data-save-verify:
+    machine:
+      image: ubuntu-2404:current
+    resource_class: large
+    steps:
+      - checkout
+      - restore_cache:
+          name: Restore exact pinned-source checkpoint from preparation job
+          keys:
+            - sandium-pinned-source-v1-{{ .Branch }}-{{ .Revision }}
+      - run:
+          name: Verify shards, checksums and clean restoration
+          no_output_timeout: 45m
+          command: |
+            set -euo pipefail
+            python3 .circleci/scripts/sandium-pinned-source-checkpoint.py verify \
+              --root "$CIRCLE_WORKING_DIRECTORY" \
+              --workers 8
+
   sandium-checkpoint-contract-tests:
     docker:
       - image: cimg/python:3.12
@@ -2597,7 +2696,21 @@ jobs:
             echo "SANDIUM_LATEST_REFERENCE=PROMOTED format=parallel-shards workers=8"
             cat "$CIRCLE_WORKING_DIRECTORY/reference-candidate-manifest.txt"
 
-workflows:
+workflows:  sandium-pinned-data-save:
+    jobs:
+      - sandium-pinned-data-save:
+          filters:
+            branches:
+              only:
+                - feature/sandium-branding-persistent
+      - sandium-pinned-data-save-verify:
+          requires:
+            - sandium-pinned-data-save
+          filters:
+            branches:
+              only:
+                - feature/sandium-branding-persistent
+
   sandium-checkpoint-contract-tests:
     jobs:
       - sandium-checkpoint-contract-tests:
