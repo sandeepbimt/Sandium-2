@@ -8,6 +8,19 @@ parameters:
     default: fast
 
 jobs:
+  sandium-checkpoint-contract-tests:
+    docker:
+      - image: cimg/python:3.12
+    resource_class: small
+    steps:
+      - checkout
+      - run:
+          name: Validate checkpoint contract syntax
+          command: python3 -m py_compile .circleci/scripts/sandium_checkpoint_contract.py
+      - run:
+          name: Run checkpoint compatibility and selection tests
+          command: python3 .circleci/scripts/test-sandium-checkpoint-contract.py
+
   c4-afterbird-staged-build:
     parameters:
       stage_index:
@@ -2585,6 +2598,13 @@ jobs:
             cat "$CIRCLE_WORKING_DIRECTORY/reference-candidate-manifest.txt"
 
 workflows:
+  sandium-checkpoint-contract-tests:
+    jobs:
+      - sandium-checkpoint-contract-tests:
+          filters:
+            branches:
+              only:
+                - feature/sandium-branding-persistent
   c4-afterbird-staged-checkpoint-build:
     jobs:
       - c4-afterbird-staged-build:
