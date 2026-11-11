@@ -1549,6 +1549,8 @@ jobs:
             set -euo pipefail
             python3 -m py_compile .circleci/scripts/sandium-checkpoint-shards.py .circleci/scripts/test-sandium-checkpoint-shards.py .circleci/scripts/checkpoint-stage-receipt.py .circleci/scripts/test-checkpoint-stage-receipt.py .circleci/scripts/check-apk-completion-marker.py .circleci/scripts/test-apk-completion-marker.py
             python3 .circleci/scripts/test-sandium-checkpoint-shards.py
+            python3 -m py_compile .circleci/scripts/sandium_checkpoint_contract.py .circleci/scripts/test-sandium-checkpoint-contract.py
+            python3 .circleci/scripts/test-sandium-checkpoint-contract.py
             python3 .circleci/scripts/test-checkpoint-stage-receipt.py
             python3 .circleci/scripts/test-apk-completion-marker.py
             python3 -m py_compile .circleci/scripts/apply-sandium-blur-transition.py .circleci/scripts/test-sandium-blur-transition.py
