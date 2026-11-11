@@ -90,6 +90,7 @@ required_view_markers = (
     "mScrollView.setFillViewport(true)",
     '"↻  Needs a quick restart to apply"',
     "mBlurRestartHint.setVisibility(View.VISIBLE)",
+    "mBlurRestartHint.setPadding(dp(56), 0, dp(14), dp(8))",
     "addRestartSwitchRow(card, \"☾\", \"Night Mode\"",
     "addRestartSwitchRow(card, \"◐\", \"Darken transition\"",
     "mRoot.animate()",
