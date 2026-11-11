@@ -80,15 +80,19 @@ required_view_markers = (
     "ValueAnimator.ofInt(0, 10000)",
     '"Ad-blocking protection completed"',
     "mTemplateUrlService.setSearchEngine(google.getKeyword())",
+    'mGoogleSearchSwitch = addSwitchRow(parent',
+    "setGoogleAsDefaultSearchEngine(checked)",
+    'mTemplateUrlService.setSearchEngine(target.getKeyword())',
     "addSearchEngineRow(mAdvancedOptions)",
-    "showSearchEnginePickerDialog()",
     "showBlurLevelPicker()",
     'setBackground(roundRect(CARD, 12))',
 )
 missing_view_markers = [marker for marker in required_view_markers if marker not in view_source]
 assert not missing_view_markers, "welcome view missing: " + ", ".join(missing_view_markers)
 assert "TemplateUrlServiceFactory.getForProfile(mProfile)" in view_source
-assert '"Brave", "Google", "DuckDuckGo", "Qwant", "Bing", "Startpage"' in view_source
-print("SANDIUM_WELCOME_SETUP_VIEW_TEST=PASS")
+assert "showSearchEnginePickerDialog" not in view_source
+assert "RadioButton" not in view_source
+assert 'findSearchEngine("Google")' in view_source
+assert 'findSearchEngine("Brave")' in view_source
 
 print("SANDIUM_WELCOME_SETUP_PATCHER_TEST=PASS")
