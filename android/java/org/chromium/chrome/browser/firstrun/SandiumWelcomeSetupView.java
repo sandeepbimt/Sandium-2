@@ -89,12 +89,10 @@ final class SandiumWelcomeSetupView {
     private TextView mProtectionSubtitle;
     private TextView mProtectionSpinner;
     private TextView mBlurValue;
-    private Switch mGoogleSearchSwitch;
     private ProgressBar mProgress;
     private Button mStartButton;
     private FilterListAndroidHandler mFilterHandler;
     private TemplateUrlService mTemplateUrlService;
-    private boolean mUpdatingGoogleSearchSwitch;
     private Profile mProfile;
     private boolean mExpanded;
     private boolean mDestroyed;
@@ -294,8 +292,6 @@ final class SandiumWelcomeSetupView {
                                     : BraveShieldsContentSettings.DEFAULT,
                             false);
                 });
-        addDivider(mAdvancedOptions);
-        addSearchEngineRow(mAdvancedOptions);
     }
 
     private void buildFilterProgressCard() {
@@ -469,91 +465,44 @@ final class SandiumWelcomeSetupView {
     }
 
     private void initializeSearchEngine() {
-        mTemplateUrlService = TemplateUrlServiceFactory.getForProfile(mProfile);
+        // Set the regular and private search providers directly during first run.
+        // No search-engine choice is exposed in the welcome UI.
+        Profile regularProfile = mProfile.getOriginalProfile();
+        mTemplateUrlService = TemplateUrlServiceFactory.getForProfile(regularProfile);
         mTemplateUrlService.runWhenLoaded(() -> {
             if (mDestroyed || mTemplateUrlService == null) return;
-            boolean managed = mTemplateUrlService.isDefaultSearchManaged();
-            if (!managed) {
-                TemplateUrl google = findSearchEngine("Google");
-                if (google != null) {
-                    TemplateUrl current =
-                            mTemplateUrlService.getDefaultSearchEngineTemplateUrl();
-                    if (current == null
-                            || !google.getKeyword().equals(current.getKeyword())) {
-                        mTemplateUrlService.setSearchEngine(google.getKeyword());
-                    }
+            if (mTemplateUrlService.isDefaultSearchManaged()) return;
+
+            TemplateUrl google = findGoogleSearchEngine(mTemplateUrlService);
+            if (google == null) return;
+            mTemplateUrlService.setSearchEngine(google.getKeyword());
+
+            // Brave maintains a separate default provider for private windows.
+            // Set the primary OTR profile explicitly so the private-window provider
+            // stores Google's GUID as its private default as well.
+            Profile privateProfile = regularProfile.getOrCreatePrimaryOtrProfile();
+            TemplateUrlService privateService =
+                    TemplateUrlServiceFactory.getForProfile(privateProfile);
+            privateService.runWhenLoaded(() -> {
+                if (mDestroyed || privateService.isDefaultSearchManaged()) return;
+                TemplateUrl privateGoogle = findGoogleSearchEngine(privateService);
+                if (privateGoogle != null) {
+                    privateService.setSearchEngine(privateGoogle.getKeyword());
                 }
-            }
-            updateGoogleSearchSwitch();
+            });
         });
     }
 
-    private TemplateUrl findSearchEngine(String preferredName) {
-        if (mTemplateUrlService == null || !mTemplateUrlService.isLoaded()) return null;
-        for (TemplateUrl engine : mTemplateUrlService.getTemplateUrls()) {
+    private TemplateUrl findGoogleSearchEngine(TemplateUrlService service) {
+        for (TemplateUrl engine : service.getTemplateUrls()) {
             String name = engine.getShortName().trim().toLowerCase(java.util.Locale.ROOT);
             String keyword = engine.getKeyword().trim().toLowerCase(java.util.Locale.ROOT);
-            switch (preferredName) {
-                case "Google":
-                    if (name.equals("google") || name.startsWith("google ")
-                            || keyword.equals("google") || keyword.startsWith("google.")) {
-                        return engine;
-                    }
-                    break;
-                case "Brave":
-                    if (name.equals("brave") || name.startsWith("brave ")
-                            || keyword.equals("brave") || keyword.startsWith("brave.")) {
-                        return engine;
-                    }
-                    break;
-                default:
-                    break;
+            if (name.equals("google") || name.startsWith("google ")
+                    || keyword.equals("google") || keyword.startsWith("google.")) {
+                return engine;
             }
         }
         return null;
-    }
-
-    private void updateGoogleSearchSwitch() {
-        if (mGoogleSearchSwitch == null || mTemplateUrlService == null
-                || !mTemplateUrlService.isLoaded()) {
-            return;
-        }
-        TemplateUrl current = mTemplateUrlService.getDefaultSearchEngineTemplateUrl();
-        TemplateUrl google = findSearchEngine("Google");
-        boolean googleSelected = current != null && google != null
-                && current.getKeyword().equals(google.getKeyword());
-
-        mUpdatingGoogleSearchSwitch = true;
-        mGoogleSearchSwitch.setChecked(googleSelected);
-        mUpdatingGoogleSearchSwitch = false;
-        mGoogleSearchSwitch.setEnabled(!mTemplateUrlService.isDefaultSearchManaged()
-                && google != null && findSearchEngine("Brave") != null);
-    }
-
-    private void setGoogleAsDefaultSearchEngine(boolean useGoogle) {
-        if (mUpdatingGoogleSearchSwitch || mTemplateUrlService == null) return;
-        mTemplateUrlService.runWhenLoaded(() -> {
-            if (mDestroyed || mTemplateUrlService == null
-                    || mTemplateUrlService.isDefaultSearchManaged()) {
-                updateGoogleSearchSwitch();
-                return;
-            }
-            TemplateUrl target = findSearchEngine(useGoogle ? "Google" : "Brave");
-            if (target == null) {
-                updateGoogleSearchSwitch();
-                return;
-            }
-            mTemplateUrlService.setSearchEngine(target.getKeyword());
-            updateGoogleSearchSwitch();
-        });
-    }
-
-    private void addSearchEngineRow(LinearLayout parent) {
-        mGoogleSearchSwitch = addSwitchRow(parent, "◎",
-                "Use Google as default search engine",
-                "Use Google for searches from the address bar",
-                true, checked -> setGoogleAsDefaultSearchEngine(checked));
-        mGoogleSearchSwitch.setEnabled(false);
     }
 
     private void setProtectionEnabled(boolean enabled) {
