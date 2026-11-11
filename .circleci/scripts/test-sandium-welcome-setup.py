@@ -108,7 +108,11 @@ required_view_markers = (
     "privateService.setSearchEngine(privateGoogle.getKeyword())",
     "findGoogleSearchEngine(TemplateUrlService service)",
     "showBlurLevelPicker()",
-    'setBackground(roundRect(CARD, 12))',
+    "selector.setBackground(outlinedRoundRect(CARD, PRIMARY, 28))",
+    "drawable.setStroke(dp(1), strokeColor)",
+    "new LinearLayout.LayoutParams(dp(116), dp(46))",
+    "labels.addView(mBlurRestartHint, matchWrap())",
+    "mBlurRestartHint.setPadding(0, dp(10), 0, dp(8))",
 )
 missing_view_markers = [marker for marker in required_view_markers if marker not in view_source]
 assert not missing_view_markers, "welcome view missing: " + ", ".join(missing_view_markers)
