@@ -5,21 +5,40 @@
 
 package org.chromium.chrome.browser.firstrun;
 
+import android.animation.Animator;
+import android.animation.AnimatorListenerAdapter;
+import android.animation.ValueAnimator;
+import android.app.Activity;
+import android.app.Dialog;
 import android.app.Activity;
 import android.content.res.ColorStateList;
 import android.graphics.Color;
 import android.graphics.Typeface;
+import android.graphics.drawable.ColorDrawable;
+import android.graphics.drawable.ClipDrawable;
+import android.graphics.drawable.Drawable;
+import android.graphics.drawable.GradientDrawable;
+import android.graphics.drawable.LayerDrawable;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.TypedValue;
 import android.view.Gravity;
+import android.view.Window;
+import android.view.WindowManager;
+import android.view.animation.LinearInterpolator;
+import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
+import android.widget.FrameLayout;
+import android.widget.Button;
 import android.widget.CompoundButton;
 import android.widget.LinearLayout;
+import android.widget.ProgressBar;
+import android.widget.RadioButton;
+import android.widget.ScrollView;
 import android.widget.ProgressBar;
 import android.widget.Spinner;
 import android.widget.TextView;
@@ -33,6 +52,10 @@ import org.chromium.chrome.browser.BraveFeatureUtil;
 import org.chromium.chrome.browser.BraveLocalState;
 import org.chromium.chrome.browser.BraveRelaunchUtils;
 import org.chromium.chrome.browser.preferences.website.BraveShieldsContentSettings;
+import org.chromium.chrome.browser.profiles.Profile;
+import org.chromium.chrome.browser.search_engines.TemplateUrlServiceFactory;
+import org.chromium.components.search_engines.TemplateUrl;
+import org.chromium.components.search_engines.TemplateUrlService;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.shields.FilterListServiceFactory;
 
@@ -70,21 +93,31 @@ final class SandiumWelcomeSetupView {
 
     private LinearLayout mRoot;
     private LinearLayout mContent;
+    private ScrollView mScrollView;
     private LinearLayout mAdvancedOptions;
     private TextView mMoreOptionsLabel;
     private TextView mEngineState;
     private TextView mFilterCount;
     private TextView mFinalizing;
     private TextView mPercent;
+    private TextView mProtectionTitle;
+    private TextView mProtectionSubtitle;
+    private TextView mProtectionSpinner;
+    private TextView mBlurValue;
+    private TextView mSearchEngineSummary;
     private ProgressBar mProgress;
     private Button mStartButton;
     private FilterListAndroidHandler mFilterHandler;
+    private TemplateUrlService mTemplateUrlService;
+    private final List<TemplateUrl> mSelectableSearchEngines = new ArrayList<>();
     private Profile mProfile;
     private boolean mExpanded;
     private boolean mDestroyed;
     private boolean mPollInFlight;
     private boolean mCanStartBrowsing;
     private boolean mRequiresRestart;
+    private boolean mRestartInProgress;
+    private boolean mStartInvoked;
     private Switch mDarkenSwitch;
 
     SandiumWelcomeSetupView(Activity activity, Listener listener) {
@@ -101,15 +134,21 @@ final class SandiumWelcomeSetupView {
         mRoot.setBackgroundColor(BACKGROUND);
         mRoot.setSystemUiVisibility(0);
 
-        // The welcome screen is intentionally a single, non-scrollable page.
-        // Its compact vertical rhythm keeps progress, every primary setting, and
-        // the Start action visible together on common Android phone heights.
+        // Keep the existing content anchored at the top. The content only extends
+        // downward when More options is opened; the ScrollView handles overflow
+        // without vertically recentering or shifting the current screen.
+        mScrollView = new ScrollView(mActivity);
+        mScrollView.setFillViewport(true);
+        mScrollView.setClipToPadding(false);
+        mRoot.addView(mScrollView, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
+
         mContent = new LinearLayout(mActivity);
         mContent.setOrientation(LinearLayout.VERTICAL);
         mContent.setPadding(dp(18), dp(18), dp(18), dp(12));
-        mContent.setGravity(Gravity.CENTER_VERTICAL);
-        mRoot.addView(mContent, new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
+        mContent.setGravity(Gravity.TOP);
+        mScrollView.addView(mContent, new ScrollView.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
         TextView title = text("Set up your browser", 27, TEXT, false);
         title.setGravity(Gravity.CENTER);
@@ -144,13 +183,7 @@ final class SandiumWelcomeSetupView {
         mStartButton.setBackground(roundRect(DISABLED_BUTTON, 28));
         mStartButton.setEnabled(false);
         mStartButton.setAlpha(1f);
-        mStartButton.setOnClickListener(v -> {
-            if (mCanStartBrowsing) {
-                mHandler.removeCallbacks(mPollRunnable);
-                mListener.onStartBrowsing();
-                if (mRequiresRestart) BraveRelaunchUtils.restart();
-            }
-        });
+        mStartButton.setOnClickListener(v -> startBrowsingWithFeedback());
         LinearLayout.LayoutParams buttonParams = new LinearLayout.LayoutParams(dp(230), dp(52));
         buttonContainer.addView(mStartButton, buttonParams);
 
@@ -160,6 +193,7 @@ final class SandiumWelcomeSetupView {
     void initialize(Profile profile) {
         mProfile = profile;
         applyInitialPreferences();
+        initializeSearchEngine();
         for (Switch toggle : mSwitches) toggle.setEnabled(true);
         if (mDarkenSwitch != null) mDarkenSwitch.setEnabled(isBlurTransitionEnabled());
         mFilterHandler = FilterListServiceFactory.getInstance()
@@ -275,6 +309,8 @@ final class SandiumWelcomeSetupView {
                                     : BraveShieldsContentSettings.DEFAULT,
                             false);
                 });
+        addDivider(mAdvancedOptions);
+        addSearchEngineRow(mAdvancedOptions);
     }
 
     private void buildFilterProgressCard() {
@@ -297,13 +333,19 @@ final class SandiumWelcomeSetupView {
         labels.setPadding(dp(5), 0, 0, 0);
         heading.addView(labels, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
 
-        TextView title = text("Preparing ad-blocking protection...", 14, TEXT, false);
-        labels.addView(title, matchWrap());
-        TextView subtitle = text(
+        mProtectionSpinner = text("⟳", 22, PRIMARY, false);
+        // Replace the initial decorative glyph with the status-aware indicator.
+        heading.removeView(spinner);
+        mProtectionSpinner.setGravity(Gravity.CENTER);
+        heading.addView(mProtectionSpinner, 0, new LinearLayout.LayoutParams(dp(34), dp(32)));
+
+        mProtectionTitle = text("Preparing ad-blocking protection...", 14, TEXT, false);
+        labels.addView(mProtectionTitle, matchWrap());
+        mProtectionSubtitle = text(
                 "Engine starts after the first successful filter download",
                 11.5f, SECONDARY, false);
-        subtitle.setPadding(0, dp(4), 0, 0);
-        labels.addView(subtitle, matchWrap());
+        mProtectionSubtitle.setPadding(0, dp(4), 0, 0);
+        labels.addView(mProtectionSubtitle, matchWrap());
 
         LinearLayout progressRow = new LinearLayout(mActivity);
         progressRow.setGravity(Gravity.CENTER_VERTICAL);
@@ -367,63 +409,21 @@ final class SandiumWelcomeSetupView {
         summary.setPadding(0, dp(3), dp(4), 0);
         labels.addView(summary, matchWrap());
 
-        Spinner spinner = new Spinner(mActivity);
-        List<String> values = Arrays.asList("Off", "Low", "Medium", "High");
-        ArrayAdapter<String> adapter = new ArrayAdapter<String>(
-                mActivity, android.R.layout.simple_spinner_item, values) {
-            private TextView styledTextView(View convertView, String value) {
-                TextView view = convertView instanceof TextView
-                        ? (TextView) convertView : new TextView(mActivity);
-                view.setText(value);
-                view.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
-                view.setTextColor(TEXT);
-                view.setGravity(Gravity.CENTER_VERTICAL);
-                view.setPadding(dp(7), 0, dp(7), 0);
-                return view;
-            }
-
-            @Override
-            public View getView(int position, View convertView, ViewGroup parent) {
-                return styledTextView(convertView, getItem(position));
-            }
-
-            @Override
-            public View getDropDownView(
-                    int position, View convertView, ViewGroup parent) {
-                return styledTextView(convertView, getItem(position));
-            }
-        };
-        spinner.setAdapter(adapter);
-        String current = ContextUtils.getAppSharedPreferences()
-                .getString(PREF_BLUR_LEVEL, "medium");
-        int selected = "default".equals(current) ? 0 : values.indexOf(capitalize(current));
-        spinner.setSelection(selected < 0 ? 2 : selected, false);
-        spinner.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
-            @Override
-            public void onItemSelected(android.widget.AdapterView<?> parentView, View view,
-                    int position, long id) {
-                boolean off = position == 0;
-                String value = off ? "default"
-                        : values.get(position).toLowerCase(java.util.Locale.ROOT);
-                ContextUtils.getAppSharedPreferences().edit()
-                        .putString(PREF_BLUR_LEVEL, value)
-                        .apply();
-                if (off) {
-                    ContextUtils.getAppSharedPreferences().edit()
-                            .putBoolean(PREF_DARKEN, false).apply();
-                    if (mDarkenSwitch != null) mDarkenSwitch.setChecked(false);
-                }
-                if (mDarkenSwitch != null) mDarkenSwitch.setEnabled(!off);
-                mRequiresRestart = true;
-            }
-
-            @Override
-            public void onNothingSelected(android.widget.AdapterView<?> parentView) {}
-        });
-        LinearLayout.LayoutParams spinnerParams =
-                new LinearLayout.LayoutParams(dp(104), dp(42));
-        spinnerParams.setMargins(dp(6), 0, 0, 0);
-        row.addView(spinner, spinnerParams);
+        LinearLayout selector = new LinearLayout(mActivity);
+        selector.setGravity(Gravity.CENTER_VERTICAL);
+        selector.setPadding(dp(10), 0, dp(8), 0);
+        selector.setBackground(roundRect(CARD, 12));
+        mBlurValue = text(getBlurLevelLabel(), 12, TEXT, false);
+        mBlurValue.setSingleLine(true);
+        selector.addView(mBlurValue, new LinearLayout.LayoutParams(0, dp(40), 1f));
+        TextView chevron = text("⌄", 17, SECONDARY, false);
+        chevron.setGravity(Gravity.CENTER);
+        selector.addView(chevron, new LinearLayout.LayoutParams(dp(20), dp(40)));
+        selector.setOnClickListener(v -> showBlurLevelPicker());
+        LinearLayout.LayoutParams selectorParams =
+                new LinearLayout.LayoutParams(dp(116), dp(42));
+        selectorParams.setMargins(dp(6), 0, 0, 0);
+        row.addView(selector, selectorParams);
     }
 
     private Switch addSwitchRow(LinearLayout parent, String glyph, String title, String summary,
@@ -452,15 +452,385 @@ final class SandiumWelcomeSetupView {
         toggle.setChecked(checked);
         toggle.setShowText(false);
         toggle.setThumbTintList(new ColorStateList(
-                new int[][] { new int[] { android.R.attr.state_checked }, new int[] {} },
-                new int[] { PRIMARY, Color.rgb(185, 188, 197) }));
+                new int[][] {
+                    new int[] { android.R.attr.state_enabled, android.R.attr.state_checked },
+                    new int[] { android.R.attr.state_enabled },
+                    new int[] { android.R.attr.state_checked },
+                    new int[] {}
+                },
+                new int[] {
+                    PRIMARY,
+                    Color.rgb(185, 188, 197),
+                    Color.rgb(172, 179, 207),
+                    Color.rgb(154, 159, 172)
+                }));
         toggle.setTrackTintList(new ColorStateList(
-                new int[][] { new int[] { android.R.attr.state_checked }, new int[] {} },
-                new int[] { Color.rgb(110, 127, 192), Color.rgb(87, 91, 101) }));
+                new int[][] {
+                    new int[] { android.R.attr.state_enabled, android.R.attr.state_checked },
+                    new int[] { android.R.attr.state_enabled },
+                    new int[] { android.R.attr.state_checked },
+                    new int[] {}
+                },
+                new int[] {
+                    Color.rgb(110, 127, 192),
+                    Color.rgb(87, 91, 101),
+                    Color.rgb(88, 100, 147),
+                    Color.rgb(65, 69, 80)
+                }));
         toggle.setOnCheckedChangeListener((button, value) -> onChanged.accept(value));
         row.addView(toggle, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         return toggle;
+    }
+
+    private void initializeSearchEngine() {
+        mTemplateUrlService = TemplateUrlServiceFactory.getForProfile(mProfile);
+        mTemplateUrlService.runWhenLoaded(() -> {
+            if (mDestroyed || mTemplateUrlService == null) return;
+            refreshSelectableSearchEngines();
+
+            // A fresh Sandium welcome flow starts with Google as the standard search
+            // provider. Respect policy-managed profiles and never manufacture provider URLs.
+            if (!mTemplateUrlService.isDefaultSearchManaged()) {
+                TemplateUrl google = findSearchEngine("Google");
+                TemplateUrl current =
+                        mTemplateUrlService.getDefaultSearchEngineTemplateUrl();
+                if (google != null
+                        && (current == null
+                                || !google.getKeyword().equals(current.getKeyword()))) {
+                    mTemplateUrlService.setSearchEngine(google.getKeyword());
+                }
+            }
+            updateSearchEngineSummary();
+        });
+    }
+
+    private void refreshSelectableSearchEngines() {
+        mSelectableSearchEngines.clear();
+        List<TemplateUrl> available = mTemplateUrlService.getTemplateUrls();
+        String[] preferredOrder = {
+            "Brave", "Google", "DuckDuckGo", "Qwant", "Bing", "Startpage"
+        };
+        for (String preferredName : preferredOrder) {
+            for (TemplateUrl engine : available) {
+                if (matchesSearchEngine(engine, preferredName)) {
+                    mSelectableSearchEngines.add(engine);
+                    break;
+                }
+            }
+        }
+    }
+
+    private boolean matchesSearchEngine(TemplateUrl engine, String preferredName) {
+        String name = engine.getShortName().trim().toLowerCase(java.util.Locale.ROOT);
+        String keyword = engine.getKeyword().trim().toLowerCase(java.util.Locale.ROOT);
+        switch (preferredName) {
+            case "Brave":
+                return name.equals("brave") || name.startsWith("brave ")
+                        || keyword.startsWith("brave");
+            case "Google":
+                return name.equals("google") || name.startsWith("google ")
+                        || keyword.equals("google");
+            case "DuckDuckGo":
+                return name.contains("duckduckgo") || keyword.contains("duckduckgo");
+            case "Qwant":
+                return name.contains("qwant") || keyword.contains("qwant");
+            case "Bing":
+                return name.equals("bing") || name.startsWith("bing ")
+                        || keyword.equals("bing");
+            case "Startpage":
+                return name.contains("startpage") || keyword.contains("startpage");
+            default:
+                return false;
+        }
+    }
+
+    private TemplateUrl findSearchEngine(String name) {
+        for (TemplateUrl engine : mSelectableSearchEngines) {
+            if (matchesSearchEngine(engine, name)) return engine;
+        }
+        return null;
+    }
+
+    private String getSelectedSearchEngineName() {
+        if (mTemplateUrlService == null || !mTemplateUrlService.isLoaded()) return "Loading...";
+        TemplateUrl current = mTemplateUrlService.getDefaultSearchEngineTemplateUrl();
+        return current == null ? "Unavailable" : current.getShortName();
+    }
+
+    private void updateSearchEngineSummary() {
+        if (mSearchEngineSummary == null) return;
+        mSearchEngineSummary.setText(getSelectedSearchEngineName());
+        boolean managed = mTemplateUrlService != null
+                && mTemplateUrlService.isLoaded()
+                && mTemplateUrlService.isDefaultSearchManaged();
+        mSearchEngineSummary.setTextColor(managed ? SECONDARY : PRIMARY);
+    }
+
+    private void addSearchEngineRow(LinearLayout parent) {
+        LinearLayout row = new LinearLayout(mActivity);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setPadding(dp(16), dp(10), dp(14), dp(10));
+
+        TextView icon = text("◎", 23, PRIMARY, false);
+        icon.setGravity(Gravity.CENTER);
+        row.addView(icon, new LinearLayout.LayoutParams(dp(34), dp(34)));
+
+        LinearLayout labels = new LinearLayout(mActivity);
+        labels.setOrientation(LinearLayout.VERTICAL);
+        labels.setPadding(dp(6), 0, dp(6), 0);
+        row.addView(labels, new LinearLayout.LayoutParams(0,
+                ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        labels.addView(itemText("Default search engine", 17, TEXT, false), matchWrap());
+        mSearchEngineSummary = itemText(getSelectedSearchEngineName(), 13, PRIMARY, false);
+        mSearchEngineSummary.setPadding(0, dp(2), 0, 0);
+        mSearchEngineSummary.setSingleLine(true);
+        labels.addView(mSearchEngineSummary, matchWrap());
+
+        TextView chevron = text("›", 22, SECONDARY, false);
+        chevron.setGravity(Gravity.CENTER);
+        row.addView(chevron, new LinearLayout.LayoutParams(dp(24), dp(34)));
+        row.setOnClickListener(v -> showSearchEnginePicker());
+        parent.addView(row, matchWrap());
+    }
+
+    private void showSearchEnginePicker() {
+        if (mDestroyed || mTemplateUrlService == null) return;
+        mTemplateUrlService.runWhenLoaded(() -> {
+            if (mDestroyed) return;
+            if (mSelectableSearchEngines.isEmpty()) refreshSelectableSearchEngines();
+            showSearchEnginePickerDialog();
+        });
+    }
+
+    private void showSearchEnginePickerDialog() {
+        Dialog dialog = new Dialog(mActivity);
+        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
+
+        LinearLayout page = new LinearLayout(mActivity);
+        page.setOrientation(LinearLayout.VERTICAL);
+        page.setBackgroundColor(BACKGROUND);
+        page.setPadding(dp(18), dp(18), dp(18), dp(18));
+
+        LinearLayout header = new LinearLayout(mActivity);
+        header.setGravity(Gravity.CENTER_VERTICAL);
+        header.setPadding(0, dp(12), 0, dp(20));
+        TextView back = text("‹", 32, TEXT, false);
+        back.setGravity(Gravity.CENTER);
+        header.addView(back, new LinearLayout.LayoutParams(dp(42), dp(48)));
+        TextView title = text("Search engine", 24, TEXT, false);
+        header.addView(title, new LinearLayout.LayoutParams(0, dp(48), 1f));
+        TextView close = text("×", 30, TEXT, false);
+        close.setGravity(Gravity.CENTER);
+        header.addView(close, new LinearLayout.LayoutParams(dp(42), dp(48)));
+        back.setOnClickListener(v -> dialog.dismiss());
+        close.setOnClickListener(v -> dialog.dismiss());
+        page.addView(header, matchWrap());
+
+        ScrollView listScroll = new ScrollView(mActivity);
+        listScroll.setFillViewport(false);
+        page.addView(listScroll, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
+        LinearLayout listCard = card();
+        listScroll.addView(listCard, new ScrollView.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+
+        TemplateUrl selected =
+                mTemplateUrlService.getDefaultSearchEngineTemplateUrl();
+        if (mSelectableSearchEngines.isEmpty()) {
+            TextView empty = text("No supported search engines are available.", 14,
+                    SECONDARY, false);
+            empty.setPadding(dp(16), dp(18), dp(16), dp(18));
+            listCard.addView(empty, matchWrap());
+        } else {
+            for (int i = 0; i < mSelectableSearchEngines.size(); i++) {
+                TemplateUrl engine = mSelectableSearchEngines.get(i);
+                if (i > 0) addDivider(listCard);
+
+                LinearLayout engineRow = new LinearLayout(mActivity);
+                engineRow.setGravity(Gravity.CENTER_VERTICAL);
+                engineRow.setPadding(dp(18), dp(7), dp(18), dp(7));
+
+                TextView globe = text("◉", 27, SECONDARY, false);
+                globe.setGravity(Gravity.CENTER);
+                engineRow.addView(globe, new LinearLayout.LayoutParams(dp(48), dp(48)));
+
+                TextView name = text(displaySearchEngineName(engine), 17, TEXT, false);
+                name.setPadding(dp(14), 0, dp(8), 0);
+                engineRow.addView(name, new LinearLayout.LayoutParams(0, dp(52), 1f));
+
+                RadioButton radio = new RadioButton(mActivity);
+                radio.setClickable(false);
+                radio.setFocusable(false);
+                radio.setButtonTintList(new ColorStateList(
+                        new int[][] {
+                            new int[] { android.R.attr.state_checked },
+                            new int[] {}
+                        },
+                        new int[] { PRIMARY, SECONDARY }));
+                radio.setChecked(selected != null
+                        && selected.getKeyword().equals(engine.getKeyword()));
+                engineRow.addView(radio, new LinearLayout.LayoutParams(dp(40), dp(48)));
+
+                engineRow.setOnClickListener(v -> {
+                    if (!mTemplateUrlService.isDefaultSearchManaged()) {
+                        mTemplateUrlService.setSearchEngine(engine.getKeyword());
+                        updateSearchEngineSummary();
+                    }
+                    dialog.dismiss();
+                });
+                engineRow.setEnabled(!mTemplateUrlService.isDefaultSearchManaged());
+                listCard.addView(engineRow, matchWrap());
+            }
+        }
+
+        dialog.setContentView(page);
+        Window window = dialog.getWindow();
+        if (window != null) {
+            window.setBackgroundDrawable(new ColorDrawable(BACKGROUND));
+            window.setStatusBarColor(BACKGROUND);
+            window.setNavigationBarColor(BACKGROUND);
+            window.setLayout(WindowManager.LayoutParams.MATCH_PARENT,
+                    WindowManager.LayoutParams.MATCH_PARENT);
+        }
+        dialog.show();
+        if (dialog.getWindow() != null) {
+            dialog.getWindow().setLayout(WindowManager.LayoutParams.MATCH_PARENT,
+                    WindowManager.LayoutParams.MATCH_PARENT);
+        }
+    }
+
+    private String displaySearchEngineName(TemplateUrl engine) {
+        String name = engine.getShortName();
+        if (name.toLowerCase(java.util.Locale.ROOT).startsWith("brave")) return "Brave";
+        if (name.toLowerCase(java.util.Locale.ROOT).startsWith("google")) return "Google";
+        if (name.toLowerCase(java.util.Locale.ROOT).contains("duckduckgo")) return "DuckDuckGo";
+        if (name.toLowerCase(java.util.Locale.ROOT).contains("qwant")) return "Qwant";
+        if (name.toLowerCase(java.util.Locale.ROOT).startsWith("bing")) return "Bing";
+        if (name.toLowerCase(java.util.Locale.ROOT).contains("startpage")) return "Startpage";
+        return name;
+    }
+
+    private String getBlurLevelLabel() {
+        String value = ContextUtils.getAppSharedPreferences()
+                .getString(PREF_BLUR_LEVEL, "medium");
+        return "default".equals(value) ? "Off" : capitalize(value);
+    }
+
+    private void showBlurLevelPicker() {
+        final String[] values = { "Off", "Low", "Medium", "High" };
+        Dialog dialog = new Dialog(mActivity);
+        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
+
+        LinearLayout container = new LinearLayout(mActivity);
+        container.setOrientation(LinearLayout.VERTICAL);
+        container.setPadding(dp(18), dp(14), dp(18), dp(14));
+        container.setBackground(roundRect(CARD, 20));
+
+        TextView title = text("Page transition blur", 17, TEXT, true);
+        title.setPadding(dp(6), dp(4), dp(6), dp(10));
+        container.addView(title, matchWrap());
+
+        String current = getBlurLevelLabel();
+        for (int i = 0; i < values.length; i++) {
+            String value = values[i];
+            if (i > 0) addDivider(container);
+            LinearLayout option = new LinearLayout(mActivity);
+            option.setGravity(Gravity.CENTER_VERTICAL);
+            option.setPadding(dp(6), 0, dp(6), 0);
+            TextView label = text(value, 15, TEXT, false);
+            option.addView(label, new LinearLayout.LayoutParams(0, dp(46), 1f));
+            RadioButton radio = new RadioButton(mActivity);
+            radio.setClickable(false);
+            radio.setFocusable(false);
+            radio.setButtonTintList(new ColorStateList(
+                    new int[][] {
+                        new int[] { android.R.attr.state_checked },
+                        new int[] {}
+                    },
+                    new int[] { PRIMARY, SECONDARY }));
+            radio.setChecked(value.equals(current));
+            option.addView(radio);
+            option.setOnClickListener(v -> {
+                applyBlurLevel(value);
+                dialog.dismiss();
+            });
+            container.addView(option, matchWrap());
+        }
+
+        dialog.setContentView(container);
+        Window window = dialog.getWindow();
+        if (window != null) {
+            window.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+            window.setLayout(dp(280), WindowManager.LayoutParams.WRAP_CONTENT);
+        }
+        dialog.show();
+        if (dialog.getWindow() != null) {
+            dialog.getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+            dialog.getWindow().setLayout(dp(300), WindowManager.LayoutParams.WRAP_CONTENT);
+        }
+    }
+
+    private void applyBlurLevel(String selected) {
+        String value = "Off".equals(selected) ? "default"
+                : selected.toLowerCase(java.util.Locale.ROOT);
+        String previous = ContextUtils.getAppSharedPreferences()
+                .getString(PREF_BLUR_LEVEL, "medium");
+        boolean changed = !value.equals(previous);
+        ContextUtils.getAppSharedPreferences().edit()
+                .putString(PREF_BLUR_LEVEL, value)
+                .putBoolean(PREF_DARKEN,
+                        !"default".equals(value)
+                                && ContextUtils.getAppSharedPreferences()
+                                        .getBoolean(PREF_DARKEN, true))
+                .apply();
+        if ("default".equals(value)) {
+            ContextUtils.getAppSharedPreferences().edit()
+                    .putBoolean(PREF_DARKEN, false).apply();
+            if (mDarkenSwitch != null) mDarkenSwitch.setChecked(false);
+        }
+        if (mBlurValue != null) mBlurValue.setText(selected);
+        if (mDarkenSwitch != null) mDarkenSwitch.setEnabled(!"default".equals(value));
+        if (changed) mRequiresRestart = true;
+    }
+
+    private void startBrowsingWithFeedback() {
+        if (!mCanStartBrowsing || mStartInvoked || mRestartInProgress) return;
+        mStartInvoked = true;
+        mHandler.removeCallbacks(mPollRunnable);
+        mStartButton.setEnabled(false);
+
+        if (!mRequiresRestart) {
+            mListener.onStartBrowsing();
+            return;
+        }
+
+        mRestartInProgress = true;
+        mStartButton.setText("Restarting");
+        mStartButton.setTextColor(PRIMARY_TEXT);
+
+        LayerDrawable background = new LayerDrawable(new Drawable[] {
+            roundRect(PRIMARY, 28),
+            new ClipDrawable(roundRect(Color.rgb(168, 183, 248), 28),
+                    Gravity.LEFT, ClipDrawable.HORIZONTAL)
+        });
+        ClipDrawable progress = (ClipDrawable) background.getDrawable(1);
+        progress.setLevel(0);
+        mStartButton.setBackground(background);
+
+        ValueAnimator animator = ValueAnimator.ofInt(0, 10000);
+        animator.setDuration(1000);
+        animator.setInterpolator(new LinearInterpolator());
+        animator.addUpdateListener(animation ->
+                progress.setLevel((Integer) animation.getAnimatedValue()));
+        animator.addListener(new AnimatorListenerAdapter() {
+            @Override
+            public void onAnimationEnd(Animator animation) {
+                mListener.onStartBrowsing();
+                BraveRelaunchUtils.restart();
+            }
+        });
+        animator.start();
     }
 
     private void setProtectionEnabled(boolean enabled) {
@@ -538,6 +908,19 @@ final class SandiumWelcomeSetupView {
                     ? "○   Ad blocker engine: Activating with 29 filters"
                     : "○   Ad blocker engine: Waiting for all 29 filters"));
         mEngineState.setTextColor(mCanStartBrowsing ? SUCCESS : SECONDARY);
+        mProtectionTitle.setText(mCanStartBrowsing
+                ? "Ad-blocking protection completed"
+                : "Preparing ad-blocking protection...");
+        mProtectionTitle.setTextColor(mCanStartBrowsing ? SUCCESS : TEXT);
+        mProtectionSubtitle.setText(mCanStartBrowsing
+                ? "All 29 filters are loaded and active"
+                : "Engine starts after the first successful filter download");
+        mProtectionSubtitle.setTextColor(mCanStartBrowsing ? SUCCESS : SECONDARY);
+        mProtectionSpinner.setText(mCanStartBrowsing ? "✓" : "⟳");
+        mProtectionSpinner.setTextColor(mCanStartBrowsing ? SUCCESS : PRIMARY);
+        mProgress.setProgressTintList(ColorStateList.valueOf(
+                mCanStartBrowsing ? SUCCESS : PRIMARY));
+        mPercent.setTextColor(mCanStartBrowsing ? SUCCESS : TEXT);
         mFilterCount.setText("Filters: " + downloaded + " of " + REQUIRED_FILTER_COUNT + " loaded");
         mFilterCount.setTextColor(allFiltersReady ? SUCCESS : SECONDARY);
         mFinalizing.setText(mCanStartBrowsing
@@ -546,10 +929,13 @@ final class SandiumWelcomeSetupView {
                     ? "○   Finalizing: Activating the native engine..."
                     : "○   Finalizing: Downloading remaining filters..."));
         mFinalizing.setTextColor(mCanStartBrowsing ? SUCCESS : SECONDARY);
-        mStartButton.setEnabled(mCanStartBrowsing);
-        mStartButton.setTextColor(mCanStartBrowsing ? PRIMARY_TEXT : DISABLED_BUTTON_TEXT);
-        mStartButton.setBackground(roundRect(
-                mCanStartBrowsing ? PRIMARY : DISABLED_BUTTON, 28));
+        mStartButton.setEnabled(mCanStartBrowsing && !mStartInvoked);
+        if (!mRestartInProgress) {
+            mStartButton.setText("Start browsing");
+            mStartButton.setTextColor(mCanStartBrowsing ? PRIMARY_TEXT : DISABLED_BUTTON_TEXT);
+            mStartButton.setBackground(roundRect(
+                    mCanStartBrowsing ? PRIMARY : DISABLED_BUTTON, 28));
+        }
         mStartButton.setAlpha(1f);
     }
 
