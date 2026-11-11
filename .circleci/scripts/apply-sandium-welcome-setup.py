@@ -13,6 +13,7 @@ EXPECTED_CHROMIUM_SHA = "d331de35ca8ab1358c7a17e4bd41627d55eaef51"
 ACTIVITY = Path("android/java/org/chromium/chrome/browser/firstrun/WelcomeOnboardingActivity.java")
 JAVA_SOURCES = Path("android/brave_java_sources.gni")
 VIEW = Path("android/java/org/chromium/chrome/browser/firstrun/SandiumWelcomeSetupView.java")
+RESTART_ACTIVITY = Path("chrome/android/java/src/org/chromium/chrome/browser/BrowserRestartActivity.java")
 
 def read(path: Path) -> str:
     if not path.is_file():
@@ -83,7 +84,18 @@ def transform_activity(source: str) -> str:
     trigger = """    @Override
     public void triggerLayoutInflation() {
         super.triggerLayoutInflation();
-        mSandiumSetupView = new SandiumWelcomeSetupView(this, this::finalStep);
+        mSandiumSetupView = new SandiumWelcomeSetupView(
+                this, new SandiumWelcomeSetupView.Listener() {
+                    @Override
+                    public void onStartBrowsing() {
+                        finalStep();
+                    }
+
+                    @Override
+                    public void onPrepareForRestart() {
+                        prepareForSandiumRestart();
+                    }
+                });
         setContentView(mSandiumSetupView.createView());
 
         checkReferral();
@@ -154,6 +166,12 @@ def transform_activity(source: str) -> str:
 """
     if promo in source:
         source = source.replace(promo, "", 1)
+    source = replace_once(
+        source,
+        "    private void finalStep() {",
+        "    private void prepareForSandiumRestart() {\n        CustomizeBraveMenu.initDefaultInvisibleItems(getResources());\n        OnboardingPrefManager.getInstance().setP3aOnboardingShown(true);\n        FirstRunStatus.setFirstRunFlowComplete(true);\n        FirstRunUtils.setEulaAccepted();\n    }\n\n" + "    private void finalStep() {",
+        "prepare-first-run-before-native-restart",
+    )
 
     destroy = """    @Override
     protected void onDestroy() {
@@ -178,12 +196,25 @@ def transform_activity(source: str) -> str:
         "FirstRunStatus.setFirstRunFlowComplete(true)",
         "FirstRunUtils.setEulaAccepted()",
         "mSandiumSetupView.destroy()",
+        "prepareForSandiumRestart()",
+        "onPrepareForRestart()",
     )
     missing = [item for item in required if item not in source]
     if missing:
         raise RuntimeError("welcome activity verification missing: " + ", ".join(missing))
     if "SHOULD_SHOW_SEARCH_WIDGET_PROMO, true" in source:
         raise RuntimeError("Brave search-widget promotion must not be queued by Sandium first-run")
+    return source
+
+def transform_restart_activity(source: str) -> str:
+    old = "            context.startActivity(restartIntent);"
+    replacement = (
+        "            context.startActivity(restartIntent);\\n"
+        "            overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out);"
+    )
+    source = replace_once(source, old, replacement, "fade-browser-relaunch")
+    if "overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out);" not in source:
+        raise RuntimeError("BrowserRestartActivity fade transition missing")
     return source
 
 def transform_java_sources(source: str) -> str:
@@ -204,7 +235,11 @@ def apply(core: Path, src: Path, repo_root: Path) -> None:
         "sandium.ad_block.engine_warmup_done_v2",
         "REQUIRED_FILTER_COUNT = 29",
         "downloaded == REQUIRED_FILTER_COUNT",
-        "BraveRelaunchUtils.restart()",
+        "BraveRelaunchUtils::restart",
+        "onPrepareForRestart()",
+        "mListener.onPrepareForRestart()",
+        "AccelerateDecelerateInterpolator",
+        "Needs a quick restart to apply",
         "mScrollView.setFillViewport(true)",
         'mStartButton.setText("Restarting")',
         "ValueAnimator.ofInt(0, 10000)",
@@ -242,6 +277,12 @@ def apply(core: Path, src: Path, repo_root: Path) -> None:
         )
     write(core / VIEW, view_source, "welcome-setup-view")
     write(activity_path, transform_activity(read(activity_path)), "welcome-activity")
+    restart_activity_path = src / RESTART_ACTIVITY
+    write(
+        restart_activity_path,
+        transform_restart_activity(read(restart_activity_path)),
+        "fade-browser-restart",
+    )
     write(source_list_path, transform_java_sources(read(source_list_path)), "java-source-registration")
     print("SANDIUM_WELCOME_SETUP_VERIFY=PASS brand_neutral=true expanded_more_options=true "
           "engine_ready_gated_continue=true restart_feedback=true scroll_expansion=true "
