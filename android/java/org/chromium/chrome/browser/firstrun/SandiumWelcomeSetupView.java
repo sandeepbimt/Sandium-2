@@ -447,9 +447,9 @@ final class SandiumWelcomeSetupView {
         TextView restartHint = text("↻  Needs a quick restart to apply", 11, PRIMARY, false);
         restartHint.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
         restartHint.setLetterSpacing(0.01f);
-        restartHint.setPadding(0, dp(5), 0, dp(1));
+        restartHint.setPadding(dp(56), 0, dp(14), dp(8));
         restartHint.setVisibility(showRestartHint && checked ? View.VISIBLE : View.GONE);
-        if (showRestartHint) labels.addView(restartHint, matchWrap());
+        if (showRestartHint) parent.addView(restartHint, matchWrap());
 
         Switch toggle = new Switch(mActivity);
         toggle.setEnabled(false);
