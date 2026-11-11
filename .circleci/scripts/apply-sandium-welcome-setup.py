@@ -220,6 +220,18 @@ def apply(core: Path, src: Path, repo_root: Path) -> None:
     )
     if "class SandiumWelcomeSetupView" not in view_source:
         raise RuntimeError("Sandium setup view class missing from repository workspace")
+    forbidden_search_ui = (
+        "mGoogleSearchSwitch",
+        "addSearchEngineRow",
+        "showSearchEnginePicker",
+        "showSearchEnginePickerDialog",
+    )
+    present_search_ui = [marker for marker in forbidden_search_ui if marker in view_source]
+    if present_search_ui:
+        raise RuntimeError(
+            "welcome setup must select Google in the background, not expose a choice: "
+            + ", ".join(present_search_ui)
+        )
     missing_view_behaviour = [
         marker for marker in required_view_behaviour if marker not in view_source
     ]
