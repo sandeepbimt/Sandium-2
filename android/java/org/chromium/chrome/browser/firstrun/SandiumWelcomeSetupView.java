@@ -378,47 +378,51 @@ final class SandiumWelcomeSetupView {
 
     private void addBlurRow(LinearLayout parent) {
         LinearLayout row = new LinearLayout(mActivity);
-        row.setGravity(Gravity.CENTER_VERTICAL);
-        row.setPadding(dp(16), dp(9), dp(14), dp(9));
+        row.setGravity(Gravity.TOP);
+        row.setPadding(dp(16), dp(12), dp(14), dp(12));
         parent.addView(row, matchWrap());
 
         TextView icon = text("▱", 23, PRIMARY, false);
         icon.setGravity(Gravity.CENTER);
-        row.addView(icon, new LinearLayout.LayoutParams(dp(38), dp(38)));
+        LinearLayout.LayoutParams iconParams = new LinearLayout.LayoutParams(dp(38), dp(38));
+        iconParams.topMargin = dp(2);
+        row.addView(icon, iconParams);
 
         LinearLayout labels = new LinearLayout(mActivity);
         labels.setOrientation(LinearLayout.VERTICAL);
         labels.setPadding(dp(6), 0, dp(8), 0);
-        row.addView(labels, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        row.addView(labels, new LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         labels.addView(itemText("Page transition blur", 17, TEXT, false), matchWrap());
+
         TextView summary = itemText(
                 "Choose how strongly the previous page blurs during navigation",
                 13, SECONDARY, false);
         summary.setPadding(0, dp(3), dp(4), 0);
         labels.addView(summary, matchWrap());
 
-        LinearLayout selector = new LinearLayout(mActivity);
-        selector.setGravity(Gravity.CENTER_VERTICAL);
-        selector.setPadding(dp(10), 0, dp(8), 0);
-        selector.setBackground(roundRect(CARD, 12));
-        mBlurValue = text(getBlurLevelLabel(), 12, TEXT, false);
-        mBlurValue.setSingleLine(true);
-        selector.addView(mBlurValue, new LinearLayout.LayoutParams(0, dp(40), 1f));
-        TextView chevron = text("⌄", 17, SECONDARY, false);
-        chevron.setGravity(Gravity.CENTER);
-        selector.addView(chevron, new LinearLayout.LayoutParams(dp(20), dp(40)));
-        selector.setOnClickListener(v -> showBlurLevelPicker());
-        LinearLayout.LayoutParams selectorParams =
-                new LinearLayout.LayoutParams(dp(116), dp(42));
-        selectorParams.setMargins(dp(6), 0, 0, 0);
-        row.addView(selector, selectorParams);
-
         mBlurRestartHint = text("↻  Needs a quick restart to apply", 11, PRIMARY, false);
         mBlurRestartHint.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
         mBlurRestartHint.setLetterSpacing(0.01f);
-        mBlurRestartHint.setPadding(dp(56), 0, dp(14), dp(8));
+        mBlurRestartHint.setPadding(0, dp(10), 0, dp(8));
         mBlurRestartHint.setVisibility(View.GONE);
-        parent.addView(mBlurRestartHint, matchWrap());
+        labels.addView(mBlurRestartHint, matchWrap());
+
+        LinearLayout selector = new LinearLayout(mActivity);
+        selector.setGravity(Gravity.CENTER_VERTICAL);
+        selector.setPadding(dp(12), 0, dp(8), 0);
+        selector.setBackground(outlinedRoundRect(CARD, PRIMARY, 28));
+        mBlurValue = text(getBlurLevelLabel(), 15, TEXT, false);
+        mBlurValue.setSingleLine(true);
+        selector.addView(mBlurValue, new LinearLayout.LayoutParams(0, dp(44), 1f));
+        TextView chevron = text("⌄", 18, PRIMARY, false);
+        chevron.setGravity(Gravity.CENTER);
+        selector.addView(chevron, new LinearLayout.LayoutParams(dp(22), dp(44)));
+        selector.setOnClickListener(v -> showBlurLevelPicker());
+        LinearLayout.LayoutParams selectorParams =
+                new LinearLayout.LayoutParams(dp(116), dp(46));
+        selectorParams.setMargins(dp(6), dp(1), 0, 0);
+        row.addView(selector, selectorParams);
     }
 
     private Switch addSwitchRow(LinearLayout parent, String glyph, String title, String summary,
@@ -826,6 +830,14 @@ final class SandiumWelcomeSetupView {
         GradientDrawable drawable = new GradientDrawable();
         drawable.setColor(color);
         drawable.setCornerRadius(dp(radiusDp));
+        return drawable;
+    }
+
+    private GradientDrawable outlinedRoundRect(int fillColor, int strokeColor, int radiusDp) {
+        GradientDrawable drawable = new GradientDrawable();
+        drawable.setColor(fillColor);
+        drawable.setCornerRadius(dp(radiusDp));
+        drawable.setStroke(dp(1), strokeColor);
         return drawable;
     }
 
