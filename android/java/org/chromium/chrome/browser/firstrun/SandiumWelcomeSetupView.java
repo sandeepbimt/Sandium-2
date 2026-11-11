@@ -50,7 +50,6 @@ import org.chromium.components.search_engines.TemplateUrlService;
 import org.chromium.chrome.browser.shields.FilterListServiceFactory;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 /** Brand-neutral first-run setup screen for Sandium. */
