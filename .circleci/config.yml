@@ -1661,7 +1661,7 @@ jobs:
             set -euo pipefail
             python3 -m py_compile .circleci/scripts/sandium-checkpoint-shards.py .circleci/scripts/test-sandium-checkpoint-shards.py .circleci/scripts/checkpoint-stage-receipt.py .circleci/scripts/test-checkpoint-stage-receipt.py .circleci/scripts/check-apk-completion-marker.py .circleci/scripts/test-apk-completion-marker.py
             python3 .circleci/scripts/test-sandium-checkpoint-shards.py
-            python3 -m py_compile .circleci/scripts/sandium_checkpoint_contract.py .circleci/scripts/test-sandium-checkpoint-contract.py
+            python3 -m py_compile .circleci/scripts/sandium_checkpoint_contract.py .circleci/scripts/test-sandium-checkpoint-contract.py .circleci/scripts/sandium-pinned-source-checkpoint.py
             python3 .circleci/scripts/test-sandium-checkpoint-contract.py
             python3 .circleci/scripts/test-checkpoint-stage-receipt.py
             python3 .circleci/scripts/test-apk-completion-marker.py
@@ -2696,7 +2696,8 @@ jobs:
             echo "SANDIUM_LATEST_REFERENCE=PROMOTED format=parallel-shards workers=8"
             cat "$CIRCLE_WORKING_DIRECTORY/reference-candidate-manifest.txt"
 
-workflows:  sandium-pinned-data-save:
+workflows:
+  sandium-pinned-data-save:
     jobs:
       - sandium-pinned-data-save:
           filters:
