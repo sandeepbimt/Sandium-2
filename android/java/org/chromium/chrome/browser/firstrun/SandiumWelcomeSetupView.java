@@ -95,6 +95,7 @@ final class SandiumWelcomeSetupView {
     private TextView mProtectionSubtitle;
     private TextView mProtectionSpinner;
     private TextView mBlurValue;
+    private TextView mBlurRestartHint;
     private ProgressBar mProgress;
     private Button mStartButton;
     private FilterListAndroidHandler mFilterHandler;
@@ -411,6 +412,13 @@ final class SandiumWelcomeSetupView {
                 new LinearLayout.LayoutParams(dp(116), dp(42));
         selectorParams.setMargins(dp(6), 0, 0, 0);
         row.addView(selector, selectorParams);
+
+        mBlurRestartHint = text("↻  Needs a quick restart to apply", 11, PRIMARY, false);
+        mBlurRestartHint.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
+        mBlurRestartHint.setLetterSpacing(0.01f);
+        mBlurRestartHint.setPadding(dp(60), 0, dp(14), dp(8));
+        mBlurRestartHint.setVisibility(View.GONE);
+        parent.addView(mBlurRestartHint, matchWrap());
     }
 
     private Switch addSwitchRow(LinearLayout parent, String glyph, String title, String summary,
@@ -612,7 +620,10 @@ final class SandiumWelcomeSetupView {
         }
         if (mBlurValue != null) mBlurValue.setText(selected);
         if (mDarkenSwitch != null) mDarkenSwitch.setEnabled(!"default".equals(value));
-        if (changed) mRequiresRestart = true;
+        if (changed) {
+            mRequiresRestart = true;
+            if (mBlurRestartHint != null) mBlurRestartHint.setVisibility(View.VISIBLE);
+        }
     }
 
     private void startBrowsingWithFeedback() {
