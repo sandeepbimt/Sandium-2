@@ -593,6 +593,45 @@ final class SandiumWelcomeSetupView {
         if (changed) mRequiresRestart = true;
     }
 
+    private void startBrowsingWithFeedback() {
+        if (!mCanStartBrowsing || mStartInvoked || mRestartInProgress) return;
+        mStartInvoked = true;
+        mHandler.removeCallbacks(mPollRunnable);
+        mStartButton.setEnabled(false);
+
+        if (!mRequiresRestart) {
+            mListener.onStartBrowsing();
+            return;
+        }
+
+        mRestartInProgress = true;
+        mStartButton.setText("Restarting");
+        mStartButton.setTextColor(PRIMARY_TEXT);
+
+        LayerDrawable background = new LayerDrawable(new Drawable[] {
+            roundRect(PRIMARY, 28),
+            new ClipDrawable(roundRect(Color.rgb(168, 183, 248), 28),
+                    Gravity.LEFT, ClipDrawable.HORIZONTAL)
+        });
+        ClipDrawable progress = (ClipDrawable) background.getDrawable(1);
+        progress.setLevel(0);
+        mStartButton.setBackground(background);
+
+        ValueAnimator animator = ValueAnimator.ofInt(0, 10000);
+        animator.setDuration(1000);
+        animator.setInterpolator(new LinearInterpolator());
+        animator.addUpdateListener(animation ->
+                progress.setLevel((Integer) animation.getAnimatedValue()));
+        animator.addListener(new AnimatorListenerAdapter() {
+            @Override
+            public void onAnimationEnd(Animator animation) {
+                mListener.onStartBrowsing();
+                BraveRelaunchUtils.restart();
+            }
+        });
+        animator.start();
+    }
+
     private void setProtectionEnabled(boolean enabled) {
         BraveShieldsContentSettings.setShields(
                 mProfile, "", BraveShieldsContentSettings.RESOURCE_IDENTIFIER_BRAVE_SHIELDS,
