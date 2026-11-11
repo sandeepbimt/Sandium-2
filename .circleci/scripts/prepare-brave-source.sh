@@ -136,8 +136,13 @@ if [ "${BRAVE_STAGE_INDEX:?BRAVE_STAGE_INDEX is required}" = "1" ]; then
     pnpm run init --target_os=android --target_arch=arm64 --no-history
   fi
 
-  # Apply Sandium launcher artwork and app display name to the pinned sources.
-  bash "$ROOT/.circleci/scripts/apply-sandium-branding.sh"
+  # Pinned Data Save stores an upstream source foundation. Keep branch-specific
+  # Sandium UI/branding overlays out of this reusable source checkpoint.
+  if [ "$(sed -n 's/^SANDIUM_BUILD_MODE=//p' "$ROOT/brave-work/.sandium/build-mode.txt" | head -n 1)" = "pinned_source" ]; then
+    echo "SANDIUM_PINNED_SOURCE_BRANDING=SKIPPED; overlays are applied later by Fast/Full mode."
+  else
+    bash "$ROOT/.circleci/scripts/apply-sandium-branding.sh"
+  fi
 
   # Match the proven SSfull REAPI fix: compiler crash diagnostics must stay
   # inside this GN output directory. The upstream rebase_path("//out/...", ...)
@@ -671,6 +676,8 @@ PY
     fi
   elif [ "$MODE" = "fast" ]; then
     echo "SANDIUM_FULL_OVERLAYS=SKIPPED mode=fast"
+  elif [ "$MODE" = "pinned_source" ]; then
+    echo "SANDIUM_PINNED_SOURCE_OVERLAYS=SKIPPED; preserving upstream source foundation."
   else
     echo "SANDIUM_BUILD_MODE_GATE=FAIL missing or invalid build-mode marker" >&2
     exit 2
@@ -756,7 +763,12 @@ PY
 fi
 
 # Sandium native Shields/uBlock-compatible filter backport.
-# This runs after source restore/preparation in every stage. It never changes pins.
+# Pinned Data Save must remain an upstream source foundation; feature overlays
+# are applied only after a compatible source checkpoint is restored by Fast/Full.
+if [ "$(sed -n 's/^SANDIUM_BUILD_MODE=//p' "$ROOT/brave-work/.sandium/build-mode.txt" | head -n 1)" = "pinned_source" ]; then
+  echo "SANDIUM_PINNED_SOURCE_FILTER_OVERLAYS=SKIPPED"
+  exit 0
+fi
 SRC_DIR="$ROOT/brave-work/src"
 CORE_DIR="$SRC_DIR/brave"
 EXPECTED_BRAVE_CORE_SHA="44a84b1f89d9a35287289d6a3d493e362f5a5123"
