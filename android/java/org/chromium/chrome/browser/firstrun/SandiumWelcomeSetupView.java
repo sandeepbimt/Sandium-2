@@ -416,7 +416,7 @@ final class SandiumWelcomeSetupView {
         mBlurRestartHint = text("↻  Needs a quick restart to apply", 11, PRIMARY, false);
         mBlurRestartHint.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
         mBlurRestartHint.setLetterSpacing(0.01f);
-        mBlurRestartHint.setPadding(dp(60), 0, dp(14), dp(8));
+        mBlurRestartHint.setPadding(dp(56), 0, dp(14), dp(8));
         mBlurRestartHint.setVisibility(View.GONE);
         parent.addView(mBlurRestartHint, matchWrap());
     }
