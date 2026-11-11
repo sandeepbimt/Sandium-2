@@ -240,6 +240,7 @@ def apply(core: Path, src: Path, repo_root: Path) -> None:
         "mListener.onPrepareForRestart()",
         "AccelerateDecelerateInterpolator",
         "Needs a quick restart to apply",
+        "mBlurRestartHint.setVisibility(View.VISIBLE)",
         "mScrollView.setFillViewport(true)",
         'mStartButton.setText("Restarting")',
         "ValueAnimator.ofInt(0, 10000)",
