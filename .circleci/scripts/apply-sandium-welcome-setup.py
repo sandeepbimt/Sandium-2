@@ -204,20 +204,19 @@ def apply(core: Path, src: Path, repo_root: Path) -> None:
         "sandium.ad_block.engine_warmup_done_v2",
         "REQUIRED_FILTER_COUNT = 29",
         "downloaded == REQUIRED_FILTER_COUNT",
-        'String[] values = { "Off", "Low", "Medium", "High" }',
-        'mDarkenSwitch.setEnabled(!"default".equals(value))',
         "BraveRelaunchUtils.restart()",
         "mScrollView.setFillViewport(true)",
         'mStartButton.setText("Restarting")',
         "ValueAnimator.ofInt(0, 10000)",
         '"Ad-blocking protection completed"',
-        "TemplateUrlServiceFactory.getForProfile(mProfile)",
+        "TemplateUrlServiceFactory.getForProfile(regularProfile)",
         'mTemplateUrlService.setSearchEngine(google.getKeyword())',
-        'mGoogleSearchSwitch = addSwitchRow(parent',
-        "setGoogleAsDefaultSearchEngine(checked)",
-        'mTemplateUrlService.setSearchEngine(target.getKeyword())',
-        "addSearchEngineRow(mAdvancedOptions)",
+        "getOrCreatePrimaryOtrProfile()",
+        "TemplateUrlServiceFactory.getForProfile(privateProfile)",
+        "privateService.setSearchEngine(privateGoogle.getKeyword())",
+        "findGoogleSearchEngine(TemplateUrlService service)",
         "showBlurLevelPicker()",
+        "privateService.runWhenLoaded",
     )
     if "class SandiumWelcomeSetupView" not in view_source:
         raise RuntimeError("Sandium setup view class missing from repository workspace")
@@ -234,8 +233,8 @@ def apply(core: Path, src: Path, repo_root: Path) -> None:
     write(source_list_path, transform_java_sources(read(source_list_path)), "java-source-registration")
     print("SANDIUM_WELCOME_SETUP_VERIFY=PASS brand_neutral=true expanded_more_options=true "
           "engine_ready_gated_continue=true restart_feedback=true scroll_expansion=true "
-          "themed_blur_selector=true google_default_search_toggle=true preserve_eula=true "
-          "preserve_install_referrer=true suppress_brave_promotions=true")
+          "themed_blur_selector=true google_default_normal_private=true no_search_choice=true "
+          "preserve_eula=true preserve_install_referrer=true suppress_brave_promotions=true")
 
 def main() -> None:
     parser = argparse.ArgumentParser()
