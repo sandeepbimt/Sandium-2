@@ -70,7 +70,7 @@ with tempfile.TemporaryDirectory() as temp_dir:
     PATCHER["write"](destination, expected, "welcome-setup-view-idempotence-test")
     assert destination.read_text(encoding="utf-8") == expected
 
-# Keep the actual view's interactive requirements covered by an offline source check.
+# Verify the real welcome view's restart, expansion, blur and search behavior.
 repo_root = HERE.parent.parent
 view_source = (repo_root / "android/java/org/chromium/chrome/browser/firstrun/"
                "SandiumWelcomeSetupView.java").read_text(encoding="utf-8")
@@ -80,19 +80,21 @@ required_view_markers = (
     "ValueAnimator.ofInt(0, 10000)",
     '"Ad-blocking protection completed"',
     "mTemplateUrlService.setSearchEngine(google.getKeyword())",
-    'mGoogleSearchSwitch = addSwitchRow(parent',
-    "setGoogleAsDefaultSearchEngine(checked)",
-    'mTemplateUrlService.setSearchEngine(target.getKeyword())',
-    "addSearchEngineRow(mAdvancedOptions)",
+    "getOrCreatePrimaryOtrProfile()",
+    "TemplateUrlServiceFactory.getForProfile(privateProfile)",
+    "privateService.setSearchEngine(privateGoogle.getKeyword())",
+    "findGoogleSearchEngine(TemplateUrlService service)",
     "showBlurLevelPicker()",
     'setBackground(roundRect(CARD, 12))',
 )
 missing_view_markers = [marker for marker in required_view_markers if marker not in view_source]
 assert not missing_view_markers, "welcome view missing: " + ", ".join(missing_view_markers)
-assert "TemplateUrlServiceFactory.getForProfile(mProfile)" in view_source
+assert "TemplateUrlServiceFactory.getForProfile(regularProfile)" in view_source
+assert "mGoogleSearchSwitch" not in view_source
+assert "addSearchEngineRow" not in view_source
 assert "showSearchEnginePickerDialog" not in view_source
-assert "RadioButton" not in view_source
-assert 'findSearchEngine("Google")' in view_source
-assert 'findSearchEngine("Brave")' in view_source
+assert "setGoogleAsDefaultSearchEngine" not in view_source
+assert 'findGoogleSearchEngine(mTemplateUrlService)' in view_source
+assert 'privateService.runWhenLoaded(() -> {' in view_source
 
 print("SANDIUM_WELCOME_SETUP_PATCHER_TEST=PASS")
