@@ -212,10 +212,14 @@ def apply(core: Path, src: Path, repo_root: Path) -> None:
         "ValueAnimator.ofInt(0, 10000)",
         '"Ad-blocking protection completed"',
         "TemplateUrlServiceFactory.getForProfile(mProfile)",
-        "mTemplateUrlService.setSearchEngine(google.getKeyword())",
+        'mTemplateUrlService.setSearchEngine(google.getKeyword())',
+        'mGoogleSearchSwitch = addSwitchRow(parent',
+        "setGoogleAsDefaultSearchEngine(checked)",
+        'mTemplateUrlService.setSearchEngine(target.getKeyword())',
         "addSearchEngineRow(mAdvancedOptions)",
         "showBlurLevelPicker()",
-    )    if "class SandiumWelcomeSetupView" not in view_source:
+    )
+    if "class SandiumWelcomeSetupView" not in view_source:
         raise RuntimeError("Sandium setup view class missing from repository workspace")
     missing_view_behaviour = [
         marker for marker in required_view_behaviour if marker not in view_source
@@ -230,7 +234,7 @@ def apply(core: Path, src: Path, repo_root: Path) -> None:
     write(source_list_path, transform_java_sources(read(source_list_path)), "java-source-registration")
     print("SANDIUM_WELCOME_SETUP_VERIFY=PASS brand_neutral=true expanded_more_options=true "
           "engine_ready_gated_continue=true restart_feedback=true scroll_expansion=true "
-          "themed_blur_selector=true google_default_search=true preserve_eula=true "
+          "themed_blur_selector=true google_default_search_toggle=true preserve_eula=true "
           "preserve_install_referrer=true suppress_brave_promotions=true")
 
 def main() -> None:
