@@ -1911,6 +1911,9 @@ jobs:
                   print("SANDIUM_TRANSITION_JAVA_GATE=PASS darken_constant=1 init=present change_handler=present")
                   PY
                   python3 .circleci/scripts/verify-sandium-vanilla-brave.py --core "$CORE" --src "$SRC" --out "$SRC/out/android_Release_arm64" --phase verify
+                  python3 -m py_compile .circleci/scripts/apply-sandium-page-load-diagnostics.py .circleci/scripts/test-sandium-page-load-diagnostics.py
+                  python3 .circleci/scripts/test-sandium-page-load-diagnostics.py
+                  python3 .circleci/scripts/apply-sandium-page-load-diagnostics.py --core "$CORE" --src "$SRC"
       - when:
           condition:
             equal: [feature/sandium-shields-two-state-fast, << pipeline.git.branch >>]
