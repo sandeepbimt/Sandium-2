@@ -90,9 +90,10 @@ required_view_markers = (
     "mScrollView.setFillViewport(true)",
     '"↻  Needs a quick restart to apply"',
     "mBlurRestartHint.setVisibility(View.VISIBLE)",
+    "row.setPadding(dp(16), dp(12), dp(14), dp(2))",
     "selector.setBackground(outlinedRoundRect(CARD, PRIMARY, 28))",
-    "labels.addView(mBlurRestartHint, matchWrap())",
-    "mBlurRestartHint.setPadding(0, dp(10), 0, dp(8))",
+    "parent.addView(mBlurRestartHint, matchWrap())",
+    "mBlurRestartHint.setPadding(dp(60), dp(10), dp(14), dp(8))",
     "mBlurRestartHint.setVisibility(View.VISIBLE)",
     "blurTitle.setSingleLine(true)",
     "new LinearLayout.LayoutParams(dp(92), dp(40))",
@@ -115,8 +116,8 @@ required_view_markers = (
     "selector.setBackground(outlinedRoundRect(CARD, PRIMARY, 28))",
     "drawable.setStroke(dp(1), strokeColor)",
     "new LinearLayout.LayoutParams(dp(92), dp(40))",
-    "labels.addView(mBlurRestartHint, matchWrap())",
-    "mBlurRestartHint.setPadding(0, dp(10), 0, dp(8))",
+    "parent.addView(mBlurRestartHint, matchWrap())",
+    "mBlurRestartHint.setPadding(dp(60), dp(10), dp(14), dp(8))",
 )
 missing_view_markers = [marker for marker in required_view_markers if marker not in view_source]
 assert not missing_view_markers, "welcome view missing: " + ", ".join(missing_view_markers)
