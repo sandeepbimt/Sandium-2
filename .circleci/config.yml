@@ -4,7 +4,7 @@ parameters:
   # FAST MODE is the default for ordinary changes; select FULL MODE explicitly.
   sandium_build_mode:
     type: enum
-    enum: [full, fast]
+    enum: [full, fast, pinned_data_save]
     default: fast
 
 jobs:
