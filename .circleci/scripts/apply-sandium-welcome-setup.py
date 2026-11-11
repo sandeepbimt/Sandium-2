@@ -189,7 +189,7 @@ def transform_activity(source: str) -> str:
         raise RuntimeError("existing onDestroy must be reviewed before adding setup cleanup")
 
     required = (
-        "new SandiumWelcomeSetupView(this, this::finalStep)",
+        "new SandiumWelcomeSetupView(",
         "assumeNonNull(mSandiumSetupView).initialize(profile)",
         "setP3aConsent(false)",
         "setMetricsReportingConsent(false, false)",
@@ -209,7 +209,7 @@ def transform_activity(source: str) -> str:
 def transform_restart_activity(source: str) -> str:
     old = "            context.startActivity(restartIntent);"
     replacement = (
-        "            context.startActivity(restartIntent);\\n"
+        "            context.startActivity(restartIntent);\n"
         "            overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out);"
     )
     source = replace_once(source, old, replacement, "fade-browser-relaunch")
