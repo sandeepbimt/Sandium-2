@@ -155,7 +155,7 @@ def apply(core: Path, src: Path) -> None:
         "    local_state_->SetBoolean(prefs::kSandiumAdBlockEngineWarmupRequestedV2, false);\n"
         "  }\n"
         "  std::move(download_manager_getter)\n",
-        "SetBoolean(prefs::kSandiumAdBlockEngineWarmupRequested, false)",
+        "SetBoolean(prefs::kSandiumAdBlockEngineWarmupRequestedV2, false)",
         "reset-stale-homepage-warmup-on-process-start",
     )
     patch_file(
