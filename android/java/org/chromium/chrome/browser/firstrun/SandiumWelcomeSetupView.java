@@ -26,6 +26,7 @@ import android.view.Window;
 import android.view.WindowManager;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.animation.AccelerateDecelerateInterpolator;
 import android.view.animation.LinearInterpolator;
 import android.widget.Button;
 import android.widget.LinearLayout;
@@ -56,6 +57,7 @@ import java.util.List;
 final class SandiumWelcomeSetupView {
     interface Listener {
         void onStartBrowsing();
+        void onPrepareForRestart();
     }
 
     private static final int BACKGROUND = Color.rgb(22, 24, 31);
@@ -228,7 +230,7 @@ final class SandiumWelcomeSetupView {
                 true, checked -> setProtectionEnabled(checked));
         addDivider(card);
 
-        addSwitchRow(card, "☾", "Night Mode",
+        addRestartSwitchRow(card, "☾", "Night Mode",
                 "Force dark mode for web content",
                 true, checked -> {
                     BraveFeatureUtil.enableFeature(BraveFeatureList.ENABLE_FORCE_DARK, checked, true);
@@ -242,7 +244,7 @@ final class SandiumWelcomeSetupView {
         boolean blurEnabled = isBlurTransitionEnabled();
         boolean darkenChecked = blurEnabled && ContextUtils.getAppSharedPreferences()
                 .getBoolean(PREF_DARKEN, true);
-        mDarkenSwitch = addSwitchRow(card, "◐", "Darken transition",
+        mDarkenSwitch = addRestartSwitchRow(card, "◐", "Darken transition",
                 "Dim the outgoing page during the transition",
                 darkenChecked, checked -> {
                     if (!isBlurTransitionEnabled()) return;
@@ -413,6 +415,18 @@ final class SandiumWelcomeSetupView {
 
     private Switch addSwitchRow(LinearLayout parent, String glyph, String title, String summary,
             boolean checked, java.util.function.Consumer<Boolean> onChanged) {
+        return addSwitchRow(parent, glyph, title, summary, checked, false, onChanged);
+    }
+
+    private Switch addRestartSwitchRow(LinearLayout parent, String glyph, String title,
+            String summary, boolean checked,
+            java.util.function.Consumer<Boolean> onChanged) {
+        return addSwitchRow(parent, glyph, title, summary, checked, true, onChanged);
+    }
+
+    private Switch addSwitchRow(LinearLayout parent, String glyph, String title, String summary,
+            boolean checked, boolean showRestartHint,
+            java.util.function.Consumer<Boolean> onChanged) {
         LinearLayout row = new LinearLayout(mActivity);
         row.setGravity(Gravity.CENTER_VERTICAL);
         row.setPadding(dp(16), dp(9), dp(14), dp(9));
@@ -430,6 +444,12 @@ final class SandiumWelcomeSetupView {
         TextView detail = itemText(summary, 13, SECONDARY, false);
         detail.setPadding(0, dp(1), 0, 0);
         labels.addView(detail, matchWrap());
+        TextView restartHint = text("↻  Needs a quick restart to apply", 11, PRIMARY, false);
+        restartHint.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
+        restartHint.setLetterSpacing(0.01f);
+        restartHint.setPadding(0, dp(5), 0, dp(1));
+        restartHint.setVisibility(showRestartHint && checked ? View.VISIBLE : View.GONE);
+        if (showRestartHint) labels.addView(restartHint, matchWrap());
 
         Switch toggle = new Switch(mActivity);
         toggle.setEnabled(false);
@@ -462,7 +482,10 @@ final class SandiumWelcomeSetupView {
                     Color.rgb(88, 100, 147),
                     Color.rgb(65, 69, 80)
                 }));
-        toggle.setOnCheckedChangeListener((button, value) -> onChanged.accept(value));
+        toggle.setOnCheckedChangeListener((button, value) -> {
+            if (showRestartHint) restartHint.setVisibility(View.VISIBLE);
+            onChanged.accept(value);
+        });
         row.addView(toggle, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         return toggle;
@@ -624,8 +647,15 @@ final class SandiumWelcomeSetupView {
         animator.addListener(new AnimatorListenerAdapter() {
             @Override
             public void onAnimationEnd(Animator animation) {
-                mListener.onStartBrowsing();
-                BraveRelaunchUtils.restart();
+                // Mark first-run complete without launching a second Activity.
+                // Chromium's lifetime controller will relaunch the app itself.
+                mListener.onPrepareForRestart();
+                mRoot.animate()
+                        .alpha(0f)
+                        .setDuration(280)
+                        .setInterpolator(new AccelerateDecelerateInterpolator())
+                        .withEndAction(BraveRelaunchUtils::restart)
+                        .start();
             }
         });
         animator.start();
