@@ -69,4 +69,26 @@ with tempfile.TemporaryDirectory() as temp_dir:
     assert destination.read_text(encoding="utf-8") == expected
     PATCHER["write"](destination, expected, "welcome-setup-view-idempotence-test")
     assert destination.read_text(encoding="utf-8") == expected
+
+# Keep the actual view's interactive requirements covered by an offline source check.
+repo_root = HERE.parent.parent
+view_source = (repo_root / "android/java/org/chromium/chrome/browser/firstrun/"
+               "SandiumWelcomeSetupView.java").read_text(encoding="utf-8")
+required_view_markers = (
+    "mScrollView.setFillViewport(true)",
+    'mStartButton.setText("Restarting")',
+    "ValueAnimator.ofInt(0, 10000)",
+    '"Ad-blocking protection completed"',
+    "mTemplateUrlService.setSearchEngine(google.getKeyword())",
+    "addSearchEngineRow(mAdvancedOptions)",
+    "showSearchEnginePickerDialog()",
+    "showBlurLevelPicker()",
+    'setBackground(roundRect(CARD, 12))',
+)
+missing_view_markers = [marker for marker in required_view_markers if marker not in view_source]
+assert not missing_view_markers, "welcome view missing: " + ", ".join(missing_view_markers)
+assert "TemplateUrlServiceFactory.getForProfile(mProfile)" in view_source
+assert '"Brave", "Google", "DuckDuckGo", "Qwant", "Bing", "Startpage"' in view_source
+print("SANDIUM_WELCOME_SETUP_VIEW_TEST=PASS")
+
 print("SANDIUM_WELCOME_SETUP_PATCHER_TEST=PASS")
