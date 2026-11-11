@@ -9,9 +9,11 @@ import android.animation.Animator;
 import android.animation.AnimatorListenerAdapter;
 import android.animation.ValueAnimator;
 import android.app.Activity;
+import android.app.Dialog;
 import android.content.res.ColorStateList;
 import android.graphics.Color;
 import android.graphics.Typeface;
+import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.ClipDrawable;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
@@ -20,12 +22,15 @@ import android.os.Handler;
 import android.os.Looper;
 import android.util.TypedValue;
 import android.view.Gravity;
+import android.view.Window;
+import android.view.WindowManager;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.animation.LinearInterpolator;
 import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
+import android.widget.RadioButton;
 import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Switch;
@@ -503,6 +508,89 @@ final class SandiumWelcomeSetupView {
             }
         }
         return null;
+    }
+
+    private String getBlurLevelLabel() {
+        String value = ContextUtils.getAppSharedPreferences()
+                .getString(PREF_BLUR_LEVEL, "medium");
+        return "default".equals(value) ? "Off" : capitalize(value);
+    }
+
+    private void showBlurLevelPicker() {
+        final String[] values = { "Off", "Low", "Medium", "High" };
+        Dialog dialog = new Dialog(mActivity);
+        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
+
+        LinearLayout container = new LinearLayout(mActivity);
+        container.setOrientation(LinearLayout.VERTICAL);
+        container.setPadding(dp(18), dp(14), dp(18), dp(14));
+        container.setBackground(roundRect(CARD, 20));
+
+        TextView title = text("Page transition blur", 17, TEXT, true);
+        title.setPadding(dp(6), dp(4), dp(6), dp(10));
+        container.addView(title, matchWrap());
+
+        String current = getBlurLevelLabel();
+        for (int i = 0; i < values.length; i++) {
+            String value = values[i];
+            if (i > 0) addDivider(container);
+            LinearLayout option = new LinearLayout(mActivity);
+            option.setGravity(Gravity.CENTER_VERTICAL);
+            option.setPadding(dp(6), 0, dp(6), 0);
+            TextView label = text(value, 15, TEXT, false);
+            option.addView(label, new LinearLayout.LayoutParams(0, dp(46), 1f));
+            RadioButton radio = new RadioButton(mActivity);
+            radio.setClickable(false);
+            radio.setFocusable(false);
+            radio.setButtonTintList(new ColorStateList(
+                    new int[][] {
+                        new int[] { android.R.attr.state_checked },
+                        new int[] {}
+                    },
+                    new int[] { PRIMARY, SECONDARY }));
+            radio.setChecked(value.equals(current));
+            option.addView(radio);
+            option.setOnClickListener(v -> {
+                applyBlurLevel(value);
+                dialog.dismiss();
+            });
+            container.addView(option, matchWrap());
+        }
+
+        dialog.setContentView(container);
+        Window window = dialog.getWindow();
+        if (window != null) {
+            window.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+            window.setLayout(dp(300), WindowManager.LayoutParams.WRAP_CONTENT);
+        }
+        dialog.show();
+        if (dialog.getWindow() != null) {
+            dialog.getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+            dialog.getWindow().setLayout(dp(300), WindowManager.LayoutParams.WRAP_CONTENT);
+        }
+    }
+
+    private void applyBlurLevel(String selected) {
+        String value = "Off".equals(selected) ? "default"
+                : selected.toLowerCase(java.util.Locale.ROOT);
+        String previous = ContextUtils.getAppSharedPreferences()
+                .getString(PREF_BLUR_LEVEL, "medium");
+        boolean changed = !value.equals(previous);
+        ContextUtils.getAppSharedPreferences().edit()
+                .putString(PREF_BLUR_LEVEL, value)
+                .putBoolean(PREF_DARKEN,
+                        !"default".equals(value)
+                                && ContextUtils.getAppSharedPreferences()
+                                        .getBoolean(PREF_DARKEN, true))
+                .apply();
+        if ("default".equals(value)) {
+            ContextUtils.getAppSharedPreferences().edit()
+                    .putBoolean(PREF_DARKEN, false).apply();
+            if (mDarkenSwitch != null) mDarkenSwitch.setChecked(false);
+        }
+        if (mBlurValue != null) mBlurValue.setText(selected);
+        if (mDarkenSwitch != null) mDarkenSwitch.setEnabled(!"default".equals(value));
+        if (changed) mRequiresRestart = true;
     }
 
     private void setProtectionEnabled(boolean enabled) {
