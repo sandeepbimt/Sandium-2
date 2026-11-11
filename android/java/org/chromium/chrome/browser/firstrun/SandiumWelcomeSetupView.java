@@ -379,7 +379,7 @@ final class SandiumWelcomeSetupView {
     private void addBlurRow(LinearLayout parent) {
         LinearLayout row = new LinearLayout(mActivity);
         row.setGravity(Gravity.TOP);
-        row.setPadding(dp(16), dp(12), dp(14), dp(12));
+        row.setPadding(dp(16), dp(12), dp(14), dp(2));
         parent.addView(row, matchWrap());
 
         TextView icon = text("▱", 23, PRIMARY, false);
@@ -406,9 +406,8 @@ final class SandiumWelcomeSetupView {
         mBlurRestartHint = text("↻  Needs a quick restart to apply", 11, PRIMARY, false);
         mBlurRestartHint.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
         mBlurRestartHint.setLetterSpacing(0.01f);
-        mBlurRestartHint.setPadding(0, dp(10), 0, dp(8));
+        mBlurRestartHint.setPadding(dp(60), dp(10), dp(14), dp(8));
         mBlurRestartHint.setVisibility(View.VISIBLE);
-        labels.addView(mBlurRestartHint, matchWrap());
 
         LinearLayout selector = new LinearLayout(mActivity);
         selector.setGravity(Gravity.CENTER_VERTICAL);
@@ -425,6 +424,7 @@ final class SandiumWelcomeSetupView {
                 new LinearLayout.LayoutParams(dp(92), dp(40));
         selectorParams.setMargins(dp(4), dp(1), 0, 0);
         row.addView(selector, selectorParams);
+        parent.addView(mBlurRestartHint, matchWrap());
     }
 
     private Switch addSwitchRow(LinearLayout parent, String glyph, String title, String summary,
