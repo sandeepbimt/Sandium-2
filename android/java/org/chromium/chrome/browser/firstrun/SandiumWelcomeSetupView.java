@@ -213,7 +213,7 @@ final class SandiumWelcomeSetupView {
                 BraveShieldsContentSettings.BLOCK_RESOURCE, false);
         android.content.SharedPreferences preferences = ContextUtils.getAppSharedPreferences();
         android.content.SharedPreferences.Editor editor = preferences.edit();
-        if (!preferences.contains(PREF_BLUR_LEVEL)) editor.putString(PREF_BLUR_LEVEL, "medium");
+        if (!preferences.contains(PREF_BLUR_LEVEL)) editor.putString(PREF_BLUR_LEVEL, "high");
         if (!preferences.contains(PREF_DARKEN)) editor.putBoolean(PREF_DARKEN, true);
         editor.commit();
         // Brave feature overrides are read during native startup; relaunch after
@@ -393,7 +393,9 @@ final class SandiumWelcomeSetupView {
         labels.setPadding(dp(6), 0, dp(8), 0);
         row.addView(labels, new LinearLayout.LayoutParams(
                 0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-        labels.addView(itemText("Page transition blur", 17, TEXT, false), matchWrap());
+        TextView blurTitle = itemText("Page transition blur", 16, TEXT, false);
+        blurTitle.setSingleLine(true);
+        labels.addView(blurTitle, matchWrap());
 
         TextView summary = itemText(
                 "Choose how strongly the previous page blurs during navigation",
@@ -405,23 +407,23 @@ final class SandiumWelcomeSetupView {
         mBlurRestartHint.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
         mBlurRestartHint.setLetterSpacing(0.01f);
         mBlurRestartHint.setPadding(0, dp(10), 0, dp(8));
-        mBlurRestartHint.setVisibility(View.GONE);
+        mBlurRestartHint.setVisibility(View.VISIBLE);
         labels.addView(mBlurRestartHint, matchWrap());
 
         LinearLayout selector = new LinearLayout(mActivity);
         selector.setGravity(Gravity.CENTER_VERTICAL);
-        selector.setPadding(dp(12), 0, dp(8), 0);
+        selector.setPadding(dp(9), 0, dp(6), 0);
         selector.setBackground(outlinedRoundRect(CARD, PRIMARY, 28));
-        mBlurValue = text(getBlurLevelLabel(), 15, TEXT, false);
+        mBlurValue = text(getBlurLevelLabel(), 14, TEXT, false);
         mBlurValue.setSingleLine(true);
         selector.addView(mBlurValue, new LinearLayout.LayoutParams(0, dp(44), 1f));
-        TextView chevron = text("⌄", 18, PRIMARY, false);
+        TextView chevron = text("▾", 15, PRIMARY, false);
         chevron.setGravity(Gravity.CENTER);
-        selector.addView(chevron, new LinearLayout.LayoutParams(dp(22), dp(44)));
+        selector.addView(chevron, new LinearLayout.LayoutParams(dp(16), dp(38)));
         selector.setOnClickListener(v -> showBlurLevelPicker());
         LinearLayout.LayoutParams selectorParams =
-                new LinearLayout.LayoutParams(dp(116), dp(46));
-        selectorParams.setMargins(dp(6), dp(1), 0, 0);
+                new LinearLayout.LayoutParams(dp(92), dp(40));
+        selectorParams.setMargins(dp(4), dp(1), 0, 0);
         row.addView(selector, selectorParams);
     }
 
@@ -546,7 +548,7 @@ final class SandiumWelcomeSetupView {
 
     private String getBlurLevelLabel() {
         String value = ContextUtils.getAppSharedPreferences()
-                .getString(PREF_BLUR_LEVEL, "medium");
+                .getString(PREF_BLUR_LEVEL, "high");
         return "default".equals(value) ? "Off" : capitalize(value);
     }
 
