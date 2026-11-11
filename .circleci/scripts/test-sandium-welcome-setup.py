@@ -94,7 +94,9 @@ assert "mGoogleSearchSwitch" not in view_source
 assert "addSearchEngineRow" not in view_source
 assert "showSearchEnginePickerDialog" not in view_source
 assert "setGoogleAsDefaultSearchEngine" not in view_source
+assert "Use Google as default search engine" not in view_source
 assert 'findGoogleSearchEngine(mTemplateUrlService)' in view_source
+assert 'privateService.runWhenLoaded(() -> {' in view_source
 assert 'privateService.runWhenLoaded(() -> {' in view_source
 
 print("SANDIUM_WELCOME_SETUP_PATCHER_TEST=PASS")
