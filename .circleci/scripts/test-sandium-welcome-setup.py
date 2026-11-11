@@ -89,6 +89,7 @@ view_source = (repo_root / "android/java/org/chromium/chrome/browser/firstrun/"
 required_view_markers = (
     "mScrollView.setFillViewport(true)",
     '"↻  Needs a quick restart to apply"',
+    "mBlurRestartHint.setVisibility(View.VISIBLE)",
     "addRestartSwitchRow(card, \"☾\", \"Night Mode\"",
     "addRestartSwitchRow(card, \"◐\", \"Darken transition\"",
     "mRoot.animate()",
