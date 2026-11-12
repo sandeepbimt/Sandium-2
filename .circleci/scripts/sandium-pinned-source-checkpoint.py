@@ -84,15 +84,30 @@ def shard_tool(root: Path) -> Path:
     return path
 
 
-def prepare(root: Path) -> None:
-    source = inspect_source(root, require_graph=True)
-    out = root / "brave-work" / "src" / "out" / "android_Release_arm64"
+def validate_source_only_outputs(root: Path) -> dict[str, int]:
+    """Reject Sandium build outputs, not APK fixtures bundled with source/deps."""
+    work = root / "brave-work"
+    out = work / "src" / "out" / "android_Release_arm64"
     objects = list(out.rglob("*.o")) if out.exists() else []
     if objects:
-        raise ValueError("Pinned Data Save must not contain compiled objects; found %d" % len(objects))
-    apks = list((root / "brave-work").rglob("*.apk"))
-    if apks:
-        raise ValueError("Pinned Data Save must not compile/package APKs; found %d" % len(apks))
+        examples = [str(path.relative_to(root)) for path in objects[:5]]
+        raise ValueError("Pinned Data Save must not compile object files; found %d: %s"
+                         % (len(objects), ", ".join(examples)))
+    apk_output_dir = out / "apks"
+    produced_apks = sorted(apk_output_dir.glob("*.apk")) if apk_output_dir.is_dir() else []
+    if produced_apks:
+        examples = [str(path.relative_to(root)) for path in produced_apks[:5]]
+        raise ValueError("Pinned Data Save must not package Sandium APKs; found %d in build output: %s"
+                         % (len(produced_apks), ", ".join(examples)))
+    source_apks = [path for path in work.rglob("*.apk") if out not in path.parents]
+    print("SANDIUM_PINNED_SOURCE_APK_INVENTORY=INFO bundled_source_apks=%d examples=%s"
+          % (len(source_apks), ",".join(str(path.relative_to(root)) for path in source_apks[:5]) or "none"))
+    return {"compiled_objects": 0, "sandium_apk_outputs": 0, "bundled_source_apks": len(source_apks)}
+
+
+def prepare(root: Path) -> None:
+    source = inspect_source(root, require_graph=True)
+    output_counts = validate_source_only_outputs(root)
     meta = {
         "CHECKPOINT_VALID": "true",
         "CHECKPOINT_KIND": "pinned_source",
@@ -115,7 +130,7 @@ def prepare(root: Path) -> None:
     (folder / "checkpoint-manifest.txt").write_text(
         "".join("%s=%s\n" % item for item in meta.items()), encoding="utf-8"
     )
-    print("SANDIUM_PINNED_SOURCE_PREPARE=PASS; no APK or object files present.")
+    print("SANDIUM_PINNED_SOURCE_PREPARE=PASS; no Sandium APK outputs or compiled objects present; bundled source APKs=%d." % output_counts["bundled_source_apks"])
     for key, value in source.items():
         print("SANDIUM_PINNED_SOURCE_%s=%s" % (key.upper(), value))
 
