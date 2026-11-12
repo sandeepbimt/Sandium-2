@@ -140,7 +140,7 @@ def main() -> None:
         raise SystemExit("SANDIUM_UI_TEST=FAIL UI policy step is not after all feature overlays")
 
     branding = require(repo / ".circleci/scripts/apply-sandium-branding-refresh.py",
-        '"Sandium"', 'android:inset=\\"8%\\"', "sandium_shields_glow")
+        '"Sandium"', 'android:inset="8%"', "sandium_shields_glow")
     if "Sandium Browser" in branding:
         raise SystemExit("SANDIUM_UI_TEST=FAIL app display name must be Sandium only")
 
