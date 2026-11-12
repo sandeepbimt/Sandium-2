@@ -561,6 +561,32 @@ def main() -> None:
                          f"actual={tag}@{sha}")
     print(f"SANDIUM_ADBLOCK_RELOAD_PIN=PASS {tag}@{sha}")
 
+    # This overlay owns exactly these six Brave Shields source/test files.
+    # A restored CircleCI checkpoint may already contain a partial or older
+    # version of this overlay. Rebase only these owned paths to the verified
+    # pinned Brave HEAD before applying the current complete transformation.
+    owned_paths = [
+        "components/brave_shields/core/browser/ad_block_filters_provider_manager.h",
+        "components/brave_shields/core/browser/ad_block_filters_provider_manager.cc",
+        "components/brave_shields/core/test/ad_block_filters_provider_manager_unittest.cc",
+        "components/brave_shields/content/browser/ad_block_service.h",
+        "components/brave_shields/content/browser/ad_block_service.cc",
+        "components/brave_shields/content/test/ad_block_service_unittest.cc",
+    ]
+    subprocess.run(
+        ["git", "-C", str(core), "restore", "--source=HEAD", "--worktree", "--", *owned_paths],
+        check=True,
+    )
+    dirty_owned = subprocess.run(
+        ["git", "-C", str(core), "diff", "--name-only", "HEAD", "--", *owned_paths],
+        check=True, capture_output=True, text=True,
+    ).stdout.strip()
+    if dirty_owned:
+        raise SystemExit(
+            "SANDIUM_ADBLOCK_RELOAD_RESET=FAIL owned_paths_not_clean=" + dirty_owned
+        )
+    print("SANDIUM_ADBLOCK_RELOAD_RESET=PASS owned_paths=6 source=pinned_HEAD")
+
     write(core / "components/brave_shields/core/browser/ad_block_filters_provider_manager.h",
           transform_manager_header, "MANAGER_HEADER")
     write(core / "components/brave_shields/core/browser/ad_block_filters_provider_manager.cc",
