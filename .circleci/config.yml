@@ -1607,6 +1607,28 @@ jobs:
                     circleci-agent step halt
                   fi
                   echo "BRAVE_APK=NOT_YET_PUBLISHED"
+      # Later stages must check Stage 1's verified APK marker before
+      # restoring the large checkpoint or preparing any source.
+      - when:
+          condition:
+            not:
+              equal: [1, << parameters.stage_index >>]
+          steps:
+            - restore_cache:
+                name: Restore verified APK marker from this workflow's preceding stage
+                keys:
+                  - sandium-brave-apk-complete-v2-{{ .Branch }}-{{ .Revision }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-
+            - run:
+                name: Stop later stages when a verified APK already exists
+                command: |
+                  set -euo pipefail
+                  STATUS="$CIRCLE_WORKING_DIRECTORY/brave-work/.sandium/apk-completion-status.txt"
+                  if python3 "$CIRCLE_WORKING_DIRECTORY/.circleci/scripts/check-apk-completion-marker.py" "$STATUS"; then
+                    echo "BRAVE_APK=ALREADY_PUBLISHED stage=<< parameters.stage_index >>"
+                    cat "$STATUS"
+                    circleci-agent step halt
+                  fi
+                  echo "BRAVE_APK=NOT_YET_PUBLISHED stage=<< parameters.stage_index >>"
       - when:
           condition:
             and:
