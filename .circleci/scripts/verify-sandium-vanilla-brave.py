@@ -106,11 +106,40 @@ def restore_paths(repo: Path, prefixes: tuple[str, ...], label: str) -> int:
     paths = tracked_matching(repo, prefixes)
     if paths:
         run_git(repo, "restore", "--source=HEAD", "--staged", "--worktree", "--", *paths)
+
+    # Continuation checkpoints can retain files created by older overlays even
+    # when those paths are no longer present in the current index. If HEAD owns
+    # the path, restore the pinned upstream file rather than leaving a stale
+    # untracked replacement in the source tree.
+    untracked = untracked_matching(repo, prefixes)
+    restored_untracked = []
+    for path in untracked:
+        exists_in_head = subprocess.run(
+            ["git", "-C", str(repo), "cat-file", "-e", f"HEAD:{path}"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        ).returncode == 0
+        if exists_in_head:
+            run_git(repo, "restore", "--source=HEAD", "--worktree", "--", path)
+            restored_untracked.append(path)
+        else:
+            raise SystemExit(
+                f"SANDIUM_VANILLA_RESTORE=FAIL {label} unexpected_untracked={path}; "
+                "refusing to delete a path not owned by pinned HEAD"
+            )
+
     remaining = run_git(repo, "diff", "--name-only", "HEAD", "--", *paths).splitlines()
-    if remaining:
-        raise SystemExit(f"SANDIUM_VANILLA_RESTORE=FAIL {label} remaining={remaining[:20]}")
-    print(f"SANDIUM_VANILLA_RESTORE=PASS tree={label} tracked_paths={len(paths)}")
-    return len(paths)
+    still_untracked = untracked_matching(repo, prefixes)
+    if remaining or still_untracked:
+        raise SystemExit(
+            f"SANDIUM_VANILLA_RESTORE=FAIL {label} remaining={remaining[:20]} "
+            f"untracked={still_untracked[:20]}"
+        )
+    print(
+        f"SANDIUM_VANILLA_RESTORE=PASS tree={label} tracked_paths={len(paths)} "
+        f"recovered_untracked={len(restored_untracked)}"
+    )
+    return len(paths) + len(restored_untracked)
 
 def strip_gn_overrides_text(source: str) -> str:
     return "".join(line for line in source.splitlines(keepends=True)
