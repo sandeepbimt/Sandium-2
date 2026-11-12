@@ -221,6 +221,21 @@ def replace_toolbar_method(core: Path) -> None:
         mBraveShieldsButton.setImageResource(R.drawable.sandium_toolbar_mark);
         mBraveShieldsButton.setImageAlpha(shieldsEnabled ? 255 : 112);
 
+        // A larger duplicate mark becomes a soft glow on Android 12+ and a
+        // subdued halo fallback on older Android versions.
+        View sandiumGlow = findViewById(R.id.sandium_shields_glow);
+        if (sandiumGlow != null) {
+            sandiumGlow.setVisibility(shieldsEnabled ? View.VISIBLE : View.GONE);
+            sandiumGlow.setAlpha(0.48f);
+            sandiumGlow.setScaleX(1.42f);
+            sandiumGlow.setScaleY(1.42f);
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                sandiumGlow.setRenderEffect(
+                        android.graphics.RenderEffect.createBlurEffect(
+                                7.5f, 7.5f, android.graphics.Shader.TileMode.CLAMP));
+            }
+        }
+
         // Hide only the toolbar Rewards/BAT view. Do not disable the Rewards backend.
         setRewardsLayoutVisibility(View.GONE);
         updateShieldsLayoutBackground(true);
@@ -228,7 +243,10 @@ def replace_toolbar_method(core: Path) -> None:
 
 """
     method = source[begin:finish]
-    if "R.drawable.sandium_toolbar_mark" in method and "setImageAlpha(shieldsEnabled ? 255 : 112)" in method:
+    if ("R.drawable.sandium_toolbar_mark" in method
+            and "setImageAlpha(shieldsEnabled ? 255 : 112)" in method
+            and "R.id.sandium_shields_glow" in method
+            and "RenderEffect.createBlurEffect" in method):
         print("SANDIUM_BRANDING_PATCH=toolbar-shields-mark:ALREADY_APPLIED")
     else:
         write(path, source[:begin] + replacement + source[finish:], "toolbar-shields-mark")
@@ -253,6 +271,7 @@ def apply(args: argparse.Namespace) -> None:
     add_gn_source(
         chrome_build,
         '      "java/res_chromium_base/drawable/themed_app_icon.xml",\n',
+        '      "java/res_base/drawable/sandium_app_icon_inset.xml",\n'
         '      "java/res_chromium_base/drawable-nodpi/sandium_themed_app_icon.webp",\n'
         '      "java/res_chromium_base/mipmap-nodpi/sandium_app_icon.webp",\n',
         "register-chromium-brand-assets",
@@ -268,19 +287,46 @@ def apply(args: argparse.Namespace) -> None:
 
     launcher = src / "chrome/android/java/res_base/drawable/ic_launcher.xml"
     replace_android_icon_item(launcher, "background", "@android:color/black", "launcher-background")
-    replace_android_icon_item(launcher, "foreground", "@mipmap/sandium_app_icon", "launcher-foreground")
+    inset_drawable = src / "chrome/android/java/res_base/drawable/sandium_app_icon_inset.xml"
+    write(
+        inset_drawable,
+        """<?xml version="1.0" encoding="utf-8"?>
+<inset xmlns:android="http://schemas.android.com/apk/res/android"
+    android:drawable="@mipmap/sandium_app_icon"
+    android:inset="8%" />
+""",
+        "launcher-icon-inset",
+    )
+    replace_android_icon_item(launcher, "foreground", "@drawable/sandium_app_icon_inset", "launcher-foreground")
     replace_android_icon_item(launcher, "monochrome", "@drawable/sandium_themed_app_icon", "launcher-monochrome")
 
     launcher_round = src / "chrome/android/java/res_base/drawable/ic_launcher_round.xml"
     replace_android_icon_item(launcher_round, "background", "@android:color/black", "round-launcher-background")
-    replace_android_icon_item(launcher_round, "foreground", "@mipmap/sandium_app_icon", "round-launcher-foreground")
+    replace_android_icon_item(launcher_round, "foreground", "@drawable/sandium_app_icon_inset", "round-launcher-foreground")
     replace_android_icon_item(launcher_round, "monochrome", "@drawable/sandium_themed_app_icon", "round-launcher-monochrome")
     replace_application_label(
         src / "chrome/android/java/AndroidManifest.xml",
-        "Sandium Browser",
+        "Sandium",
     )
 
     toolbar_xml = core / "android/java/brave-res/layout/brave_toolbar.xml"
+    replace_once(
+        toolbar_xml,
+        '      <ImageButton android:id="@+id/brave_shields_button"\\n',
+        '      <ImageView android:id="@+id/sandium_shields_glow"\\n'
+        '          android:layout_width="34dp"\\n'
+        '          android:layout_height="34dp"\\n'
+        '          android:layout_gravity="center"\\n'
+        '          android:src="@drawable/sandium_toolbar_mark"\\n'
+        '          android:scaleType="fitCenter"\\n'
+        '          android:alpha="0.48"\\n'
+        '          android:visibility="gone"\\n'
+        '          android:clickable="false"\\n'
+        '          android:focusable="false"\\n'
+        '          android:importantForAccessibility="no" />\\n'
+        '      <ImageButton android:id="@+id/brave_shields_button"\\n',
+        "toolbar-shields-glow-view",
+    )
     replace_once(
         toolbar_xml,
         'android:src="@drawable/ic_social_brave_release_favicon_fullheight_color"',
