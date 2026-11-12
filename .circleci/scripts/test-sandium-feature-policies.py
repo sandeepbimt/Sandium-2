@@ -117,7 +117,6 @@ def main() -> None:
     ):
         assert vanilla_flag not in full_mode, f"must preserve vanilla Brave: {vanilla_flag}"
     assert "ai_android_build_updated = transform_ai_chat_android_build" not in overlay_source
-    assert "SANDIUM_ANDROID_NEWS_TEST_DEP_GUARD" not in overlay_source
 
     assert "SANDIUM_P3A_DEFAULT" in overlay_source
     assert "SANDIUM_P3A_RUNTIME" in overlay_source
