@@ -2447,6 +2447,7 @@ jobs:
               - equal: [feature/sandium-page-transition-full, << pipeline.git.branch >>]
               - equal: [feature/sandium-filter-bootstrap-full, << pipeline.git.branch >>]
               - equal: [feature/sandium-vanilla-welcome, << pipeline.git.branch >>]
+              - equal: [feature/sandium-branding-refresh, << pipeline.git.branch >>]
           steps:
             - run:
                 name: Validate Brave checkpoint before saving

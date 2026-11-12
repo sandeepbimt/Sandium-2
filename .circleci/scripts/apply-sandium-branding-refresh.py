@@ -268,10 +268,21 @@ def apply(args: argparse.Namespace) -> None:
                   core / "android/java/brave-res/drawable-nodpi/sandium_wallpaper.webp")
 
     chrome_build = src / "chrome/android/BUILD.gn"
+    # The inset drawable belongs to the base module's res_base directory.
+    # Do not add it to chrome_public_apk_base_module_resources: that overlay
+    # target only owns res_chromium_base, and mixing res_base causes its
+    # resource source-list check to reject the other base-module resources.
+    add_gn_source(
+        chrome_build,
+        '      "java/res_base/drawable/ic_launcher.xml",\n',
+        '      "java/res_base/drawable/sandium_app_icon_inset.xml",\n',
+        "register-chromium-base-module-brand-icon",
+    )
+    # These res_chromium_base assets are shared by the base and public APK
+    # override targets, so register them in both matching GN source lists.
     add_gn_source(
         chrome_build,
         '      "java/res_chromium_base/drawable/themed_app_icon.xml",\n',
-        '      "java/res_base/drawable/sandium_app_icon_inset.xml",\n'
         '      "java/res_chromium_base/drawable-nodpi/sandium_themed_app_icon.webp",\n'
         '      "java/res_chromium_base/mipmap-nodpi/sandium_app_icon.webp",\n',
         "register-chromium-brand-assets",

@@ -111,11 +111,29 @@ def main() -> None:
         core / "components/ntp_background_images/common/view_counter_pref_registry.cc",
         "RegisterBooleanPref(prefs::kNewTabPageShowBackgroundImage, true);",
     )
-    require(
+    chrome_build = require(
         src / "chrome/android/BUILD.gn",
+        'android_resources("chrome_base_module_resources") {',
+        'android_resources("chrome_public_apk_base_module_resources") {',
+        "java/res_base/drawable/ic_launcher.xml",
         "java/res_chromium_base/mipmap-nodpi/sandium_app_icon.webp",
         "java/res_chromium_base/drawable-nodpi/sandium_themed_app_icon.webp",
     )
+    base_header = 'android_resources("chrome_base_module_resources") {'
+    override_header = 'android_resources("chrome_public_apk_base_module_resources") {'
+    base_start = chrome_build.find(base_header)
+    override_start = chrome_build.find(override_header)
+    override_end = chrome_build.find("\n  version_resource_dir =", override_start)
+    if base_start < 0 or override_start <= base_start or override_end <= override_start:
+        raise SystemExit("SANDIUM_BRANDING_TEST=FAIL Chromium resource target boundaries are missing")
+    base_target = chrome_build[base_start:override_start]
+    override_target = chrome_build[override_start:override_end]
+    inset_source = '"java/res_base/drawable/sandium_app_icon_inset.xml"'
+    if base_target.count(inset_source) != 1 or inset_source in override_target:
+        raise SystemExit(
+            "SANDIUM_BRANDING_TEST=FAIL launcher inset must be listed only in "
+            "chrome_base_module_resources, not the res_chromium_base overlay target"
+        )
     require(
         core / "android/BUILD.gn",
         "java/brave-res/drawable-nodpi/sandium_toolbar_mark.webp",
