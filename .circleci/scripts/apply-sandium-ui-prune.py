@@ -267,16 +267,39 @@ def patch_make_brave_default_label(core: Path, src: Path) -> None:
     # Change its GRD source in place instead of defining the same Android
     # resource again in brave-res; a second definition makes aapt2 link fail.
     strings = src / "chrome/browser/ui/android/strings/android_chrome_strings.grd"
-    replace_once(
-        strings,
-        '''      <message name="IDS_MAKE_CHROME_DEFAULT" desc="Menu item in the app menu to set Chrome as the default browser.">
-        Make Chrome default
-      </message>''',
-        '''      <message name="IDS_MAKE_CHROME_DEFAULT" desc="Menu item in the app menu to set Chrome as the default browser.">
-        Make Brave default
-      </message>''',
-        "make-brave-default-label-in-chromium-grd",
+    source = read(strings)
+    # Match by the stable GRD message ID, not its translator-facing desc text:
+    # that description varies between Chromium/Brave rolls.
+    pattern = re.compile(
+        r'(<message\\b(?=[^>]*\\bname="IDS_MAKE_CHROME_DEFAULT")[^>]*>)'
+        r'(.*?)'
+        r'(</message>)',
+        re.DOTALL,
     )
+    matches = list(pattern.finditer(source))
+    if len(matches) != 1:
+        raise RuntimeError(
+            "make-brave-default-label-in-chromium-grd: expected exactly one "
+            f"IDS_MAKE_CHROME_DEFAULT message, found {len(matches)}: {strings}"
+        )
+    match = matches[0]
+    body = match.group(2)
+    if re.search(r"\\bMake Brave default\\b", body):
+        print("SANDIUM_UI_PATCH=make-brave-default-label:ALREADY_APPLIED")
+    else:
+        updated_body, count = re.subn(
+            r"(?m)^(\\s*)Make Chrome default(\\s*)$",
+            r"\\1Make Brave default\\2",
+            body,
+            count=1,
+        )
+        if count != 1:
+            raise RuntimeError(
+                "make-brave-default-label-in-chromium-grd: message ID exists "
+                "but its source text is not the expected Make Chrome default"
+            )
+        updated = source[:match.start(2)] + updated_body + source[match.end(2):]
+        write(strings, updated, "make-brave-default-label-in-chromium-grd")
 
     # Clean up artifacts from older workspaces where the duplicate overlay
     # may already have been generated and registered in Brave's GN resources.
