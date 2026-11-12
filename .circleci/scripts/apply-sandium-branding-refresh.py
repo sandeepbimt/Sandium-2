@@ -226,13 +226,13 @@ def replace_toolbar_method(core: Path) -> None:
         View sandiumGlow = findViewById(R.id.sandium_shields_glow);
         if (sandiumGlow != null) {
             sandiumGlow.setVisibility(shieldsEnabled ? View.VISIBLE : View.GONE);
-            sandiumGlow.setAlpha(0.48f);
+            sandiumGlow.setAlpha(0.58f);
             sandiumGlow.setScaleX(1.42f);
             sandiumGlow.setScaleY(1.42f);
             if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
                 sandiumGlow.setRenderEffect(
                         android.graphics.RenderEffect.createBlurEffect(
-                                7.5f, 7.5f, android.graphics.Shader.TileMode.CLAMP));
+                                11.0f, 11.0f, android.graphics.Shader.TileMode.CLAMP));
             }
         }
 
@@ -319,7 +319,7 @@ def apply(args: argparse.Namespace) -> None:
         '          android:layout_gravity="center"\n'
         '          android:src="@drawable/sandium_toolbar_mark"\n'
         '          android:scaleType="fitCenter"\n'
-        '          android:alpha="0.48"\n'
+        '          android:alpha="0.58"\n'
         '          android:visibility="gone"\n'
         '          android:clickable="false"\n'
         '          android:focusable="false"\n'
