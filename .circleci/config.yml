@@ -1665,6 +1665,8 @@ jobs:
                   equal: [feature/sandium-page-transition-full, << pipeline.git.branch >>]
               - not:
                   equal: [feature/sandium-filter-bootstrap-full, << pipeline.git.branch >>]
+              - not:
+                  equal: [feature/sandium-branding-refresh, << pipeline.git.branch >>]
           steps:
             - restore_cache:
                 name: Restore canonical 26 GiB reference (3c8004b / cache job 949)
@@ -1754,6 +1756,8 @@ jobs:
                   equal: [feature/sandium-page-transition-full, << pipeline.git.branch >>]
               - not:
                   equal: [feature/sandium-filter-bootstrap-full, << pipeline.git.branch >>]
+              - not:
+                  equal: [feature/sandium-branding-refresh, << pipeline.git.branch >>]
           steps:
             - restore_cache:
                 name: Restore canonical 26 GiB reference for FAST MODE Stage 2
@@ -1775,6 +1779,8 @@ jobs:
                   equal: [feature/sandium-page-transition-full, << pipeline.git.branch >>]
               - not:
                   equal: [feature/sandium-filter-bootstrap-full, << pipeline.git.branch >>]
+              - not:
+                  equal: [feature/sandium-branding-refresh, << pipeline.git.branch >>]
           steps:
             - restore_cache:
                 name: Restore canonical 26 GiB reference for FAST MODE Stage 3
@@ -1796,6 +1802,8 @@ jobs:
                   equal: [feature/sandium-page-transition-full, << pipeline.git.branch >>]
               - not:
                   equal: [feature/sandium-filter-bootstrap-full, << pipeline.git.branch >>]
+              - not:
+                  equal: [feature/sandium-branding-refresh, << pipeline.git.branch >>]
           steps:
             - restore_cache:
                 name: Restore canonical 26 GiB reference for FAST MODE Stage 4
@@ -1817,6 +1825,8 @@ jobs:
                   equal: [feature/sandium-page-transition-full, << pipeline.git.branch >>]
               - not:
                   equal: [feature/sandium-filter-bootstrap-full, << pipeline.git.branch >>]
+              - not:
+                  equal: [feature/sandium-branding-refresh, << pipeline.git.branch >>]
           steps:
             - restore_cache:
                 name: Restore canonical 26 GiB reference for FAST MODE Stage 5
