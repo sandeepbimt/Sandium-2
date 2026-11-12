@@ -312,19 +312,19 @@ def apply(args: argparse.Namespace) -> None:
     toolbar_xml = core / "android/java/brave-res/layout/brave_toolbar.xml"
     replace_once(
         toolbar_xml,
-        '      <ImageButton android:id="@+id/brave_shields_button"\\n',
-        '      <ImageView android:id="@+id/sandium_shields_glow"\\n'
-        '          android:layout_width="34dp"\\n'
-        '          android:layout_height="34dp"\\n'
-        '          android:layout_gravity="center"\\n'
-        '          android:src="@drawable/sandium_toolbar_mark"\\n'
-        '          android:scaleType="fitCenter"\\n'
-        '          android:alpha="0.48"\\n'
-        '          android:visibility="gone"\\n'
-        '          android:clickable="false"\\n'
-        '          android:focusable="false"\\n'
-        '          android:importantForAccessibility="no" />\\n'
-        '      <ImageButton android:id="@+id/brave_shields_button"\\n',
+        '      <ImageButton android:id="@+id/brave_shields_button"\n',
+        '      <ImageView android:id="@+id/sandium_shields_glow"\n'
+        '          android:layout_width="34dp"\n'
+        '          android:layout_height="34dp"\n'
+        '          android:layout_gravity="center"\n'
+        '          android:src="@drawable/sandium_toolbar_mark"\n'
+        '          android:scaleType="fitCenter"\n'
+        '          android:alpha="0.48"\n'
+        '          android:visibility="gone"\n'
+        '          android:clickable="false"\n'
+        '          android:focusable="false"\n'
+        '          android:importantForAccessibility="no" />\n'
+        '      <ImageButton android:id="@+id/brave_shields_button"\n',
         "toolbar-shields-glow-view",
     )
     replace_once(
