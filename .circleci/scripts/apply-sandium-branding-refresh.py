@@ -343,18 +343,6 @@ def apply(args: argparse.Namespace) -> None:
     replace_toolbar_method(core)
 
     strings = core / "browser/ui/android/strings/android_brave_strings.grd"
-    replace_once(
-        strings,
-        "Note: this may reduce Brave's privacy protections.",
-        "Note: this may reduce Sandium's privacy protections.",
-        "shields-warning-copy",
-    )
-    replace_once(
-        strings,
-        "Enable/Disable Brave Shields",
-        "Open Sandium protection controls",
-        "shields-accessibility-copy",
-    )
 
     sponsored = core / "android/java/org/chromium/chrome/browser/ntp_background_images/util/SponsoredContentUtil.java"
     remove_once(

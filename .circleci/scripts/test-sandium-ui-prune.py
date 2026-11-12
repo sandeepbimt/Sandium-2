@@ -1,0 +1,149 @@
+#!/usr/bin/env python3
+"""Acceptance checks for Sandium's annotated Brave UI policy."""
+from __future__ import annotations
+import argparse
+import re
+from pathlib import Path
+
+def read(path: Path) -> str:
+    if not path.is_file():
+        raise SystemExit(f"SANDIUM_UI_TEST=FAIL missing={path}")
+    return path.read_text(encoding="utf-8")
+
+def require(path: Path, *needles: str) -> str:
+    content = read(path)
+    missing = [needle for needle in needles if needle not in content]
+    if missing:
+        raise SystemExit(f"SANDIUM_UI_TEST=FAIL path={path} missing={missing!r}")
+    return content
+
+def expect_attr(path: Path, key: str, attribute: str, value: str) -> None:
+    content = read(path)
+    tags = re.findall(r"<[A-Za-z_][A-Za-z0-9_.:-]*\b[^>]*>", content, re.DOTALL)
+    matches = [tag for tag in tags if f'android:key="{key}"' in tag]
+    if len(matches) != 1:
+        raise SystemExit(f"SANDIUM_UI_TEST=FAIL path={path} key={key} matches={len(matches)}")
+    match = re.search(re.escape(attribute) + r'="([^"]*)"', matches[0])
+    actual = None if match is None else match.group(1)
+    if actual != value:
+        raise SystemExit(f"SANDIUM_UI_TEST=FAIL path={path} key={key} {attribute}={actual!r} expected={value!r}")
+
+def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--core", type=Path, required=True)
+    parser.add_argument("--src", type=Path, required=True)
+    parser.add_argument("--repo-root", type=Path, required=True)
+    args = parser.parse_args()
+    core, src, repo = args.core.resolve(), args.src.resolve(), args.repo_root.resolve()
+
+    menu = require(core / "browser/customize_menu/android/java/src/org/chromium/brave/browser/customize_menu/CustomizeBraveMenu.java",
+        "public static boolean isRemovedBySandium", '"brave_wallet_id"', '"brave_leo_id"',
+        '"brave_rewards_id"', '"brave_news_id"', '"request_brave_vpn_id"',
+        "if (isRemovedBySandium(resources, itemId)) return false;",
+        "if (isRemovedBySandium(resources, id)) continue;",
+        "MENU_ICON_MAP.put(R.id.default_browser_promo_menu_id, R.drawable.ic_social_brave_release_favicon_fullheight_color);")
+    require(core / "android/java/org/chromium/chrome/browser/tabbed_mode/BraveTabbedAppMenuPropertiesDelegate.java",
+        "R.string.make_chrome_default,",
+        "R.drawable.ic_social_brave_release_favicon_fullheight_color,")
+
+    main_xml = core / "android/java/brave-res/xml/brave_main_preferences.xml"
+    for key in ("brave_news_v2", "brave_wallet", "brave_vpn", "brave_leo",
+                "brave_origin", "brave_sync_layout", "brave_stats"):
+        expect_attr(main_xml, key, "app:isPreferenceVisible", "false")
+    expect_attr(main_xml, "closing_all_tabs_closes_brave", "app:isPreferenceVisible", "true")
+    require(core / "android/java/org/chromium/chrome/browser/settings/BraveMainPreferencesBase.java",
+        "SANDIUM_SHOW_BRAVE_VPN_CALLOUT = false", "if (SANDIUM_SHOW_BRAVE_VPN_CALLOUT")
+
+    search_xml = core / "android/java/brave-res/xml/brave_search_engines_preferences.xml"
+    expect_attr(search_xml, "search_suggestions", "app:isPreferenceVisible", "false")
+    expect_attr(search_xml, "send_web_discovery", "app:isPreferenceVisible", "false")
+    require(core / "android/java/org/chromium/chrome/browser/settings/BraveSearchEnginesPreferences.java",
+        'indexData.removeEntryForKey(frag, "search_suggestions");',
+        'indexData.removeEntryForKey(frag, "send_web_discovery");')
+    require(core / "android/java/org/chromium/chrome/browser/settings/BraveSearchEngineUtils.java",
+        "SANDIUM_GOOGLE_SEARCH_DEFAULTS_APPLIED", "applySandiumGoogleSearchDefaults(profile, templateUrlService);",
+        '"Google".equalsIgnoreCase(templateUrl.getShortName())',
+        "setDSEPrefs(googleTemplateUrl, profile);", "setPrivateDSEPrefs(googleTemplateUrl);",
+        "BravePreferenceKeys.DEFAULT_SEARCH_ENGINE_CHANGED, true")
+    adapter = require(src / "chrome/browser/search_engines/android/java/src/org/chromium/chrome/browser/search_engines/settings/SearchEngineAdapter.java",
+        "private static boolean isSandiumHiddenBraveEngine(TemplateUrl templateUrl)",
+        "prepopulatedUrls.removeIf(SearchEngineAdapter::isSandiumHiddenBraveEngine);",
+        "recentlyVisitedUrls.removeIf(SearchEngineAdapter::isSandiumHiddenBraveEngine);",
+        "|| !isSandiumHiddenBraveEngine(defaultSearchEngineTemplateUrl)")
+    if "if (!mProfile.isOffTheRecord())" in adapter:
+        raise SystemExit("SANDIUM_UI_TEST=FAIL Brave search engine filter is not applied to both tabs")
+    if adapter.index("prepopulatedUrls.removeIf") > adapter.index("int selectedSearchEnginePosition = -1;"):
+        raise SystemExit("SANDIUM_UI_TEST=FAIL Brave filter runs after selected-position calculation")
+
+    privacy_xml = core / "android/java/brave-res/xml/brave_privacy_preferences.xml"
+    for key in ("ens", "sns", "send_p3a_analytics", "send_crash_reports",
+                "brave_stats_usage_ping", "sponsored_ads_enabled"):
+        expect_attr(privacy_xml, key, "app:isPreferenceVisible", "false")
+    for key in ("send_crash_reports", "brave_stats_usage_ping", "sponsored_ads_enabled"):
+        expect_attr(privacy_xml, key, "android:defaultValue", "false")
+    expect_attr(src / "chrome/android/java/res/xml/privacy_preferences.xml",
+        "incognito_lock", "app:isPreferenceVisible", "false")
+    require(core / "android/java/org/chromium/chrome/browser/privacy/settings/BravePrivacySettings.java",
+        'indexData.removeEntryForKey(frag, "incognito_lock");',
+        'indexData.removeEntryForKey(frag, "ens");',
+        'indexData.removeEntryForKey(frag, "sns");',
+        'indexData.removeEntryForKey(frag, "send_p3a_analytics");',
+        'indexData.removeEntryForKey(frag, "send_crash_reports");',
+        'indexData.removeEntryForKey(frag, "brave_stats_usage_ping");',
+        'indexData.removeEntryForKey(frag, "sponsored_ads_enabled");')
+
+    leo = core / "android/java/brave-res/xml/brave_leo_preferences.xml"
+    for key in ("autocomplete_switch", "leo_quick_search_engine", "history_switch"):
+        expect_attr(leo, key, "android:defaultValue", "false")
+    expect_attr(leo, "history_switch", "app:isPreferenceVisible", "true")
+
+    wallet = core / "android/java/brave-res/xml/brave_wallet_preferences.xml"
+    for key in ("web3_notifications_switch", "nft_auto_discovery_switch"):
+        expect_attr(wallet, key, "android:defaultValue", "false")
+    require(core / "android/java/org/chromium/chrome/browser/settings/BraveWalletPreferences.java",
+        "readBoolean(PREF_BRAVE_WALLET_WEB3_NOTIFICATIONS, false)")
+
+    require(core / "browser/ui/android/strings/android_brave_strings.grd",
+        "Brave Shields &amp; privacy", "Brave shields global defaults",
+        "Open external links in Brave", "Allow app links to open in apps outside of Brave",
+        "Closing all tabs closes Brave")
+    require(core / "android/java/brave-res/values/sandium_ui_overrides.xml",
+        '<string name="make_chrome_default">Make Brave default</string>')
+    require(core / "android/BUILD.gn", '"java/brave-res/values/sandium_ui_overrides.xml",')
+
+    config = require(repo / ".circleci/config.yml",
+        "Apply Sandium first-launch native filter bootstrap",
+        "Apply Sandium native page-transition controls and Appearance icons",
+        "Apply Sandium welcome setup and first-successful-list adblock activation",
+        "Apply and verify Sandium UI pruning and preference defaults",
+        "apply-sandium-ui-prune.py", "test-sandium-ui-prune.py",
+        "feature/sandium-branding-refresh")
+    feature_steps = (
+        "Apply Sandium first-launch native filter bootstrap",
+        "Apply Sandium native page-transition controls and Appearance icons",
+        "Apply Sandium welcome setup and first-successful-list adblock activation",
+        "Apply Sandium two-state Shields controls and verify filter retirement",
+    )
+    feature_positions = []
+    for step_name in feature_steps:
+        step_pos = config.index("name: " + step_name)
+        when_pos = config.rfind("      - when:", 0, step_pos)
+        if when_pos < 0 or "feature/sandium-branding-refresh" not in config[when_pos:step_pos]:
+            raise SystemExit(f"SANDIUM_UI_TEST=FAIL branding branch misses feature overlay: {step_name}")
+        feature_positions.append(step_pos)
+    ui_pos = config.index("Apply and verify Sandium UI pruning and preference defaults")
+    checkpoint_pos = config.index("Diagnose restored Siso checkpoint and compare prior stage")
+    if not (max(feature_positions) < ui_pos < checkpoint_pos):
+        raise SystemExit("SANDIUM_UI_TEST=FAIL UI policy step is not after all feature overlays")
+
+    branding = require(repo / ".circleci/scripts/apply-sandium-branding-refresh.py",
+        '"Sandium"', 'android:inset=\\"8%\\"', "sandium_shields_glow")
+    if "Sandium Browser" in branding:
+        raise SystemExit("SANDIUM_UI_TEST=FAIL app display name must be Sandium only")
+
+    print("SANDIUM_UI_TEST=PASS menu=removed settings=pruned "
+          "standard_search=google private_search=google_brave_removed "
+          "privacy=off_then_hidden wallet=none_off leo=off base=850_preserved app_name=Sandium")
+
+if __name__ == "__main__":
+    main()

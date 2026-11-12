@@ -1984,6 +1984,19 @@ jobs:
                   python3 .circleci/scripts/test-sandium-filter-bootstrap.py
       - when:
           condition:
+            equal: [feature/sandium-branding-refresh, << pipeline.git.branch >>]
+          steps:
+            - run:
+                name: Apply and verify Sandium UI pruning and preference defaults
+                command: |
+                  set -euo pipefail
+                  ROOT="$CIRCLE_WORKING_DIRECTORY"
+                  SRC="$ROOT/brave-work/src"
+                  CORE="$SRC/brave"
+                  python3 .circleci/scripts/apply-sandium-ui-prune.py --core "$CORE" --src "$SRC"
+                  python3 .circleci/scripts/test-sandium-ui-prune.py --core "$CORE" --src "$SRC" --repo-root "$ROOT"
+      - when:
+          condition:
             and:
               - equal: [fast, << pipeline.parameters.sandium_build_mode >>]
               - not:
