@@ -193,6 +193,12 @@ def apply_phase(core: Path, src: Path, out: Path, phase: str) -> None:
         return
 
     verify_repo_clean(core, BRAVE_VERIFY_PREFIXES, "brave-core")
+    # The Android source-preparation/build tooling can rewrite Chromium's
+    # PartnerBrowserCustomizations.java after the initial checkpoint restore.
+    # No Sandium overlay owns this file; restore this exact pinned upstream
+    # file immediately before the final integrity check rather than accepting
+    # or silently allowlisting a modified Chromium source file.
+    restore_paths(src, CHROMIUM_RESTORE_PREFIXES, "chromium-final-upstream")
     verify_repo_clean(src, CHROMIUM_RESTORE_PREFIXES, "chromium")
     clean_gn_args(out)
     android_build = core / "android/BUILD.gn"
