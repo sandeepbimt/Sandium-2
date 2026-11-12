@@ -301,7 +301,6 @@ def main() -> None:
     patch_customize_menu(core)
     patch_default_browser_icon(core)
     patch_main_preferences(core)
-    patch_main_preferences_base(core)
     patch_search_engine_preferences(core)
     patch_search_engine_utils(core)
     patch_search_engine_adapter(src)

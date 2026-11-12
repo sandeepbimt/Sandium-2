@@ -141,9 +141,28 @@ def main() -> None:
     if "Sandium Browser" in branding:
         raise SystemExit("SANDIUM_UI_TEST=FAIL app display name must be Sandium only")
 
+    prepare = require(repo / ".circleci/scripts/prepare-brave-source.sh")
+    forbidden_gn_overrides = (
+        "--gn enable_brave_rewards:false",
+        "--gn enable_brave_news:false",
+        "--gn enable_brave_vpn_v1:false",
+        "--gn enable_brave_vpn_v2:false",
+        "--gn enable_brave_wallet:false",
+        "--gn enable_ai_chat:false",
+    )
+    if any(item in prepare for item in forbidden_gn_overrides):
+        raise SystemExit("SANDIUM_UI_TEST=FAIL annotated UI removals must not disable vanilla Brave modules")
+    full_overlays = require(repo / ".circleci/scripts/apply-sandium-full-overlays.py")
+    if "ai_android_build_updated = transform_ai_chat_android_build" in full_overlays:
+        raise SystemExit("SANDIUM_UI_TEST=FAIL AI Chat source must remain vanilla Brave")
+    ui_overlay = require(repo / ".circleci/scripts/apply-sandium-ui-prune.py")
+    if "patch_main_preferences_base(core)" in ui_overlay:
+        raise SystemExit("SANDIUM_UI_TEST=FAIL VPN callout must not receive an unrequested source modification")
+
     print("SANDIUM_UI_TEST=PASS menu=removed settings=pruned "
           "standard_search=google private_search=google_brave_removed "
-          "privacy=off_then_hidden wallet=none_off leo=off base=850_preserved app_name=Sandium")
+          "privacy=off_then_hidden wallet=none_off leo=off vanilla_wallet_vpn_ai_news_rewards=true "
+          "base=850_preserved app_name=Sandium")
 
 if __name__ == "__main__":
     main()
