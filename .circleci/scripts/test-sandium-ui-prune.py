@@ -52,7 +52,7 @@ def main() -> None:
         expect_attr(main_xml, key, "app:isPreferenceVisible", "false")
     require(repo / ".circleci/scripts/apply-sandium-full-overlays.py",
         "SANDIUM_ORIGIN_ENTRY_REMOVED")
-    if 'android:key="brave_origin"' in main_xml:
+    if 'android:key="brave_origin"' in main_xml.read_text(encoding="utf-8"):
         raise SystemExit("SANDIUM_UI_TEST=FAIL Origin entry should be removed by full overlays")
     expect_attr(main_xml, "closing_all_tabs_closes_brave", "app:isPreferenceVisible", "true")
     require(core / "android/java/org/chromium/chrome/browser/settings/BraveMainPreferencesBase.java",
