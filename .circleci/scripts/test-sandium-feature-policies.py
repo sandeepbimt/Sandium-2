@@ -8,12 +8,6 @@ PREPARE = ROOT / ".circleci/scripts/prepare-brave-source.sh"
 OVERLAY = ROOT / ".circleci/scripts/apply-sandium-full-overlays.py"
 
 EXPECTED_GN_ARGS = (
-    "enable_brave_rewards:false",
-    "enable_brave_news:false",
-    "enable_brave_vpn_v1:false",
-    "enable_brave_vpn_v2:false",
-    "enable_brave_wallet:false",
-    "enable_ai_chat:false",
     "enable_brave_talk:false",
     "enable_brave_wayback_machine:false",
     "enable_speedreader:false",
@@ -116,27 +110,14 @@ def main() -> None:
     )
 
     module = runpy.run_path(str(OVERLAY))
-    ai_build_transform = module["transform_ai_chat_android_build"]
-    ai_build = ai_build_transform(AI_ANDROID_BUILD_FIXTURE)
-    assert 'import("//brave/components/ai_chat/core/common/buildflags/buildflags.gni")' in ai_build
-    deps_block = ai_build.split("  deps = [", 1)[1].split("  ]", 1)[0]
-    assert '"//brave/browser/ai_chat"' not in deps_block
-    assert '"//brave/components/ai_chat/core/common/buildflags"' in deps_block
-    assert 'if (enable_ai_chat) {\n    deps += [ "//brave/browser/ai_chat" ]\n  }' in ai_build
-    assert ai_build_transform(ai_build) == ai_build
-
-    ai_source_transform = module["transform_ai_chat_android_source"]
-    ai_source = ai_source_transform(AI_ANDROID_SOURCE_FIXTURE)
-    # One guard protects AI Chat-only includes; the second protects runtime use.
-    assert ai_source.count("#if BUILDFLAG(ENABLE_AI_CHAT)") == 2
-    assert ai_source.count("#endif") == 2
-    assert ai_source_transform(ai_source) == ai_source
-
-    ai_header_transform = module["transform_ai_chat_android_header"]
-    ai_header = ai_header_transform(AI_ANDROID_HEADER_FIXTURE)
-    assert ai_header.count("#if BUILDFLAG(ENABLE_AI_CHAT)") == 2
-    assert ai_header.count("#endif") == 2
-    assert ai_header_transform(ai_header) == ai_header
+    for vanilla_flag in (
+        "enable_brave_rewards:false", "enable_brave_news:false",
+        "enable_brave_vpn_v1:false", "enable_brave_vpn_v2:false",
+        "enable_brave_wallet:false", "enable_ai_chat:false",
+    ):
+        assert vanilla_flag not in full_mode, f"must preserve vanilla Brave: {vanilla_flag}"
+    assert "ai_android_build_updated = transform_ai_chat_android_build" not in overlay_source
+    assert "SANDIUM_ANDROID_NEWS_TEST_DEP_GUARD" not in overlay_source
 
     assert "SANDIUM_P3A_DEFAULT" in overlay_source
     assert "SANDIUM_P3A_RUNTIME" in overlay_source
@@ -183,7 +164,7 @@ def main() -> None:
     assert "cosmetic_filters" not in module["PLAYLIST_UTILS_NEW"]
     assert "uBlock" not in module["PLAYLIST_UTILS_NEW"]
 
-    print("SANDIUM_FEATURE_POLICY_TEST=PASS disabled=13 mode=full shields=untouched")
+    print("SANDIUM_FEATURE_POLICY_TEST=PASS vanilla_wallet_vpn_ai_news_rewards=true remaining_feature_flags=6 shields=untouched")
 
 
 if __name__ == "__main__":
