@@ -1566,6 +1566,7 @@ jobs:
             bash -n .circleci/scripts/prepare-brave-source.sh
             python3 -m py_compile .circleci/scripts/verify-sandium-vanilla-brave.py .circleci/scripts/test-sandium-vanilla-brave.py
             bash -n .circleci/scripts/apply-sandium-branding.sh
+            python3 -m py_compile .circleci/scripts/apply-sandium-branding-refresh.py .circleci/scripts/test-sandium-branding-refresh.py
             python3 -m py_compile .circleci/scripts/generate-sandium-density-assets.py
             python3 -m py_compile .circleci/scripts/apply-sandium-full-overlays.py .circleci/scripts/test-sandium-feature-policies.py
             python3 .circleci/scripts/test-sandium-feature-policies.py
@@ -1848,6 +1849,18 @@ jobs:
             set -euo pipefail
             export BRAVE_STAGE_INDEX="<< parameters.stage_index >>"
             bash .circleci/scripts/prepare-brave-source.sh
+      - when:
+          condition:
+            equal: [feature/sandium-branding-refresh, << pipeline.git.branch >>]
+          steps:
+            - run:
+                name: Apply and verify Sandium branding refresh
+                command: |
+                  set -euo pipefail
+                  ROOT="$CIRCLE_WORKING_DIRECTORY"
+                  SRC="$ROOT/brave-work/src"
+                  CORE="$SRC/brave"
+                  bash "$ROOT/.circleci/scripts/apply-sandium-branding.sh"
       - when:
           condition:
             or:
@@ -2750,6 +2763,7 @@ workflows:
                 - feature/sandium-ubo-filters-v19862
                 - feature/sandium-morphe-reader-fast
                 - feature/sandium-shields-two-state-fast
+                - feature/sandium-branding-refresh
       - brave-android-staged-build:
           name: SANDIUM-FAST-MODE-stage-2
           stage_index: 2
@@ -2762,6 +2776,7 @@ workflows:
                 - feature/sandium-ubo-filters-v19862
                 - feature/sandium-morphe-reader-fast
                 - feature/sandium-shields-two-state-fast
+                - feature/sandium-branding-refresh
       - brave-android-staged-build:
           name: SANDIUM-FAST-MODE-stage-3
           stage_index: 3
@@ -2774,6 +2789,7 @@ workflows:
                 - feature/sandium-ubo-filters-v19862
                 - feature/sandium-morphe-reader-fast
                 - feature/sandium-shields-two-state-fast
+                - feature/sandium-branding-refresh
       - brave-android-staged-build:
           name: SANDIUM-FAST-MODE-stage-4
           stage_index: 4
@@ -2786,6 +2802,7 @@ workflows:
                 - feature/sandium-ubo-filters-v19862
                 - feature/sandium-morphe-reader-fast
                 - feature/sandium-shields-two-state-fast
+                - feature/sandium-branding-refresh
       - brave-android-staged-build:
           name: SANDIUM-FAST-MODE-stage-5
           stage_index: 5
@@ -2798,3 +2815,4 @@ workflows:
                 - feature/sandium-ubo-filters-v19862
                 - feature/sandium-morphe-reader-fast
                 - feature/sandium-shields-two-state-fast
+                - feature/sandium-branding-refresh
