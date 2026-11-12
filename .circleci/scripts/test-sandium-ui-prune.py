@@ -55,8 +55,7 @@ def main() -> None:
     if 'android:key="brave_origin"' in main_xml.read_text(encoding="utf-8"):
         raise SystemExit("SANDIUM_UI_TEST=FAIL Origin entry should be removed by full overlays")
     expect_attr(main_xml, "closing_all_tabs_closes_brave", "app:isPreferenceVisible", "true")
-    require(core / "android/java/org/chromium/chrome/browser/settings/BraveMainPreferencesBase.java",
-        "SANDIUM_SHOW_BRAVE_VPN_CALLOUT = false", "if (SANDIUM_SHOW_BRAVE_VPN_CALLOUT")
+    # VPN remains vanilla Brave; the annotated UI policy hides its entry only.
 
     search_xml = core / "android/java/brave-res/xml/brave_search_engines_preferences.xml"
     expect_attr(search_xml, "search_suggestions", "app:isPreferenceVisible", "false")
