@@ -95,7 +95,7 @@ def main() -> None:
         "((Wallpaper) mNtpImageGlobal).isSponsored()",
     )
     require(
-        core / "components/ntp_background_images/browser/view_counter_pref_registry.cc",
+        core / "components/ntp_background_images/common/view_counter_pref_registry.cc",
         "RegisterBooleanPref(prefs::kNewTabPageShowBackgroundImage, true);",
     )
     require(

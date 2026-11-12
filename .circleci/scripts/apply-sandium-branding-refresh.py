@@ -376,7 +376,7 @@ def apply(args: argparse.Namespace) -> None:
 
     # The pinned Brave source already registers this preference as true. Do not
     # write a profile preference here: existing users' explicit setting is preserved.
-    pref_registry = core / "components/ntp_background_images/browser/view_counter_pref_registry.cc"
+    pref_registry = core / "components/ntp_background_images/common/view_counter_pref_registry.cc"
     pref_source = read(pref_registry)
     if "RegisterBooleanPref(prefs::kNewTabPageShowBackgroundImage, true);" not in pref_source:
         raise RuntimeError("fresh-profile wallpaper default is no longer true; review before changing")
