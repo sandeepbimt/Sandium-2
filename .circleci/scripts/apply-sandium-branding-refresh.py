@@ -42,6 +42,39 @@ def replace_once(path: Path, old: str, new: str, label: str) -> None:
         raise RuntimeError(f"{label}: expected one source anchor, found {count}: {path}")
     write(path, source.replace(old, new, 1), label)
 
+def replace_application_label(path: Path, label: str) -> None:
+    """Set the app label while tolerating harmless Jinja/attribute formatting changes."""
+    source = read(path)
+    application = re.search(r"<application\b[^>]*>", source, re.DOTALL)
+    if application is None:
+        raise RuntimeError(f"application-label: <application> element not found: {path}")
+
+    tag = application.group(0)
+    pattern = re.compile(r'(\bandroid:label\s*=\s*")[^"]*(")', re.DOTALL)
+    matches = list(pattern.finditer(tag))
+    if len(matches) != 1:
+        raise RuntimeError(
+            "application-label: expected one android:label attribute in <application>, "
+            f"found {len(matches)}: {path}"
+        )
+
+    match = matches[0]
+    current = match.group(0)
+    value = current[len(match.group(1)):-len(match.group(2))]
+    if "{% block application_label %}" in value and "{% endblock %}" in value:
+        desired_value = "{% block application_label %}" + label + "{% endblock %}"
+    else:
+        desired_value = label
+    replacement = match.group(1) + desired_value + match.group(2)
+
+    if current == replacement:
+        print("SANDIUM_BRANDING_PATCH=application-label:ALREADY_APPLIED")
+        return
+
+    updated_tag = tag[:match.start()] + replacement + tag[match.end():]
+    updated = source[:application.start()] + updated_tag + source[application.end():]
+    write(path, updated, "application-label")
+
 def replace_android_icon_item(path: Path, element: str, drawable: str, label: str) -> None:
     """Set one adaptive-icon element regardless of the checkpoint's prior drawable."""
     source = read(path)
@@ -242,11 +275,9 @@ def apply(args: argparse.Namespace) -> None:
     replace_android_icon_item(launcher_round, "background", "@android:color/black", "round-launcher-background")
     replace_android_icon_item(launcher_round, "foreground", "@mipmap/sandium_app_icon", "round-launcher-foreground")
     replace_android_icon_item(launcher_round, "monochrome", "@drawable/sandium_themed_app_icon", "round-launcher-monochrome")
-    replace_once(
+    replace_application_label(
         src / "chrome/android/java/AndroidManifest.xml",
-        'android:label="{% block application_label %}@string/app_name{% endblock %}"',
-        'android:label="{% block application_label %}Sandium{% endblock %}"',
-        "application-label",
+        "Sandium Browser",
     )
 
     toolbar_xml = core / "android/java/brave-res/layout/brave_toolbar.xml"
