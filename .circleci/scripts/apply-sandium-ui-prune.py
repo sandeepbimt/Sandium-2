@@ -128,8 +128,9 @@ def patch_default_browser_icon(core: Path) -> None:
 
 def patch_main_preferences(core: Path) -> None:
     path = core / "android/java/brave-res/xml/brave_main_preferences.xml"
+    # brave_origin is removed by the earlier full-overlays pass, not hidden here.
     for key in ("brave_news_v2", "brave_wallet", "brave_vpn", "brave_leo",
-                "brave_origin", "brave_sync_layout", "brave_stats"):
+                "brave_sync_layout", "brave_stats"):
         set_visible(path, key, False)
     set_visible(path, "closing_all_tabs_closes_brave", True)
 

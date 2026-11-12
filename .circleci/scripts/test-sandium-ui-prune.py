@@ -48,8 +48,12 @@ def main() -> None:
 
     main_xml = core / "android/java/brave-res/xml/brave_main_preferences.xml"
     for key in ("brave_news_v2", "brave_wallet", "brave_vpn", "brave_leo",
-                "brave_origin", "brave_sync_layout", "brave_stats"):
+                "brave_sync_layout", "brave_stats"):
         expect_attr(main_xml, key, "app:isPreferenceVisible", "false")
+    require(repo / ".circleci/scripts/apply-sandium-full-overlays.py",
+        "SANDIUM_ORIGIN_ENTRY_REMOVED")
+    if 'android:key="brave_origin"' in main_xml:
+        raise SystemExit("SANDIUM_UI_TEST=FAIL Origin entry should be removed by full overlays")
     expect_attr(main_xml, "closing_all_tabs_closes_brave", "app:isPreferenceVisible", "true")
     require(core / "android/java/org/chromium/chrome/browser/settings/BraveMainPreferencesBase.java",
         "SANDIUM_SHOW_BRAVE_VPN_CALLOUT = false", "if (SANDIUM_SHOW_BRAVE_VPN_CALLOUT")
