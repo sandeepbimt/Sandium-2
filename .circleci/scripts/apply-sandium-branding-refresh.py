@@ -45,12 +45,12 @@ def replace_once(path: Path, old: str, new: str, label: str) -> None:
 def replace_application_label(path: Path, label: str) -> None:
     """Set the app label while tolerating harmless Jinja/attribute formatting changes."""
     source = read(path)
-    application = re.search(r"<application\\b[^>]*>", source, re.DOTALL)
+    application = re.search(r"<application\b[^>]*>", source, re.DOTALL)
     if application is None:
         raise RuntimeError(f"application-label: <application> element not found: {path}")
 
     tag = application.group(0)
-    pattern = re.compile(r'(\\bandroid:label\\s*=\\s*")[^"]*(")', re.DOTALL)
+    pattern = re.compile(r'(\bandroid:label\s*=\s*")[^"]*(")', re.DOTALL)
     matches = list(pattern.finditer(tag))
     if len(matches) != 1:
         raise RuntimeError(
