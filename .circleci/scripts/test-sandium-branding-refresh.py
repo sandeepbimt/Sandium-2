@@ -46,24 +46,35 @@ def main() -> None:
 
     require(
         src / "chrome/android/java/res_base/drawable/ic_launcher.xml",
-        '@mipmap/sandium_app_icon',
+        '@drawable/sandium_app_icon_inset',
         '@drawable/sandium_themed_app_icon',
     )
     require(
         src / "chrome/android/java/res_base/drawable/ic_launcher_round.xml",
-        '@mipmap/sandium_app_icon',
+        '@drawable/sandium_app_icon_inset',
         '@drawable/sandium_themed_app_icon',
     )
-    require(src / "chrome/android/java/AndroidManifest.xml", 'application_label %}Sandium')
+    manifest = require(src / "chrome/android/java/AndroidManifest.xml", 'application_label %}Sandium{% endblock %}')
+    if "Sandium Browser" in manifest:
+        raise SystemExit("SANDIUM_BRANDING_TEST=FAIL obsolete app label remains")
+    require(
+        src / "chrome/android/java/res_base/drawable/sandium_app_icon_inset.xml",
+        'android:drawable="@mipmap/sandium_app_icon"',
+        'android:inset="8%"',
+    )
     require(
         core / "android/java/org/chromium/chrome/browser/toolbar/top/BraveToolbarLayoutImpl.java",
         'R.drawable.sandium_toolbar_mark',
         'setImageAlpha(shieldsEnabled ? 255 : 112)',
+        'R.id.sandium_shields_glow',
+        'RenderEffect.createBlurEffect',
+        'setVisibility(shieldsEnabled ? View.VISIBLE : View.GONE)',
         'mRewardsLayout.setVisibility(View.GONE)',
     )
     require(
         core / "android/java/brave-res/layout/brave_toolbar.xml",
         '@drawable/sandium_toolbar_mark',
+        '@+id/sandium_shields_glow',
         'android:visibility="gone"',
     )
     require(
