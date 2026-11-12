@@ -1639,6 +1639,7 @@ jobs:
                   - equal: [feature/sandium-page-transition-full, << pipeline.git.branch >>]
                   - equal: [feature/sandium-filter-bootstrap-full, << pipeline.git.branch >>]
                   - equal: [feature/sandium-vanilla-welcome, << pipeline.git.branch >>]
+                  - equal: [feature/sandium-branding-refresh, << pipeline.git.branch >>]
           steps:
             - restore_cache:
                 name: Restore canonical 26 GiB checkpoint before branch-local fallbacks
@@ -1684,6 +1685,7 @@ jobs:
                   - equal: [feature/sandium-page-transition-full, << pipeline.git.branch >>]
                   - equal: [feature/sandium-filter-bootstrap-full, << pipeline.git.branch >>]
                   - equal: [feature/sandium-vanilla-welcome, << pipeline.git.branch >>]
+                  - equal: [feature/sandium-branding-refresh, << pipeline.git.branch >>]
           steps:
             - restore_cache:
                 name: Restore reference Stage 1 handoff
@@ -1700,6 +1702,7 @@ jobs:
                   - equal: [feature/sandium-page-transition-full, << pipeline.git.branch >>]
                   - equal: [feature/sandium-filter-bootstrap-full, << pipeline.git.branch >>]
                   - equal: [feature/sandium-vanilla-welcome, << pipeline.git.branch >>]
+                  - equal: [feature/sandium-branding-refresh, << pipeline.git.branch >>]
           steps:
             - restore_cache:
                 name: Restore reference Stage 2 handoff
@@ -1716,6 +1719,7 @@ jobs:
                   - equal: [feature/sandium-page-transition-full, << pipeline.git.branch >>]
                   - equal: [feature/sandium-filter-bootstrap-full, << pipeline.git.branch >>]
                   - equal: [feature/sandium-vanilla-welcome, << pipeline.git.branch >>]
+                  - equal: [feature/sandium-branding-refresh, << pipeline.git.branch >>]
           steps:
             - restore_cache:
                 name: Restore reference Stage 3 handoff
@@ -1732,6 +1736,7 @@ jobs:
                   - equal: [feature/sandium-page-transition-full, << pipeline.git.branch >>]
                   - equal: [feature/sandium-filter-bootstrap-full, << pipeline.git.branch >>]
                   - equal: [feature/sandium-vanilla-welcome, << pipeline.git.branch >>]
+                  - equal: [feature/sandium-branding-refresh, << pipeline.git.branch >>]
           steps:
             - restore_cache:
                 name: Restore reference Stage 4 handoff
@@ -1841,7 +1846,7 @@ jobs:
           name: Select Sandium build mode and validate reference
           command: |
             set -euo pipefail
-            if [ "${CIRCLE_BRANCH:-}" = "feature/sandium-disable-13-brave-features" ] || [ "${CIRCLE_BRANCH:-}" = "feature/sandium-page-transition-full" ] || [ "${CIRCLE_BRANCH:-}" = "feature/sandium-filter-bootstrap-full" ] || [ "${CIRCLE_BRANCH:-}" = "feature/sandium-vanilla-welcome" ]; then
+            if [ "${CIRCLE_BRANCH:-}" = "feature/sandium-disable-13-brave-features" ] || [ "${CIRCLE_BRANCH:-}" = "feature/sandium-page-transition-full" ] || [ "${CIRCLE_BRANCH:-}" = "feature/sandium-filter-bootstrap-full" ] || [ "${CIRCLE_BRANCH:-}" = "feature/sandium-vanilla-welcome" ] || [ "${CIRCLE_BRANCH:-}" = "feature/sandium-branding-refresh" ]; then
               MODE="full"
             else
               MODE="<< pipeline.parameters.sandium_build_mode >>"
@@ -1889,6 +1894,7 @@ jobs:
               - equal: [feature/sandium-filter-bootstrap-full, << pipeline.git.branch >>]
               - equal: [feature/sandium-vanilla-welcome, << pipeline.git.branch >>]
               - equal: [feature/sandium-shields-two-state-fast, << pipeline.git.branch >>]
+              - equal: [feature/sandium-branding-refresh, << pipeline.git.branch >>]
           steps:
             - run:
                 name: Apply Sandium first-launch native filter bootstrap
@@ -1904,6 +1910,7 @@ jobs:
               - equal: [feature/sandium-filter-bootstrap-full, << pipeline.git.branch >>]
               - equal: [feature/sandium-vanilla-welcome, << pipeline.git.branch >>]
               - equal: [feature/sandium-shields-two-state-fast, << pipeline.git.branch >>]
+              - equal: [feature/sandium-branding-refresh, << pipeline.git.branch >>]
           steps:
             - run:
                 name: Apply Sandium native page-transition controls and Appearance icons
@@ -1912,7 +1919,9 @@ jobs:
                   python3 .circleci/scripts/apply-sandium-page-transition-full.py "$CIRCLE_WORKING_DIRECTORY/brave-work/src"
       - when:
           condition:
-            equal: [feature/sandium-vanilla-welcome, << pipeline.git.branch >>]
+            or:
+              - equal: [feature/sandium-vanilla-welcome, << pipeline.git.branch >>]
+              - equal: [feature/sandium-branding-refresh, << pipeline.git.branch >>]
           steps:
             - run:
                 name: Apply Sandium welcome setup and first-successful-list adblock activation
@@ -1948,7 +1957,9 @@ jobs:
                   python3 .circleci/scripts/verify-sandium-vanilla-brave.py --core "$CORE" --src "$SRC" --out "$SRC/out/android_Release_arm64" --phase verify
       - when:
           condition:
-            equal: [feature/sandium-shields-two-state-fast, << pipeline.git.branch >>]
+            or:
+              - equal: [feature/sandium-shields-two-state-fast, << pipeline.git.branch >>]
+              - equal: [feature/sandium-branding-refresh, << pipeline.git.branch >>]
           steps:
             - run:
                 name: Apply Sandium two-state Shields controls and verify filter retirement
@@ -1975,6 +1986,8 @@ jobs:
                   equal: [feature/sandium-shields-two-state-fast, << pipeline.git.branch >>]
               - not:
                   equal: [feature/sandium-vanilla-welcome, << pipeline.git.branch >>]
+              - not:
+                  equal: [feature/sandium-branding-refresh, << pipeline.git.branch >>]
           steps:
             - run:
                 name: Apply pin-guarded Morphe Android startup overlays (FAST MODE only)
@@ -2196,7 +2209,7 @@ jobs:
             export SISO_LIMITS="local=8,remote=80"
             METRICS_PREFIX="sandium-brave-siso-stage-<< parameters.stage_index >>-build-${CIRCLE_BUILD_NUM:-local}-attempt-"
             METRICS_FILE="${METRICS_PREFIX}0.jsonl"
-            if [ "${CIRCLE_BRANCH:-}" = "feature/sandium-disable-13-brave-features" ] || [ "${CIRCLE_BRANCH:-}" = "feature/sandium-page-transition-full" ] || [ "${CIRCLE_BRANCH:-}" = "feature/sandium-filter-bootstrap-full" ] || [ "${CIRCLE_BRANCH:-}" = "feature/sandium-vanilla-welcome" ]; then
+            if [ "${CIRCLE_BRANCH:-}" = "feature/sandium-disable-13-brave-features" ] || [ "${CIRCLE_BRANCH:-}" = "feature/sandium-page-transition-full" ] || [ "${CIRCLE_BRANCH:-}" = "feature/sandium-filter-bootstrap-full" ] || [ "${CIRCLE_BRANCH:-}" = "feature/sandium-vanilla-welcome" ] || [ "${CIRCLE_BRANCH:-}" = "feature/sandium-branding-refresh" ]; then
               BUILD_MODE="full"
             else
               BUILD_MODE="<< pipeline.parameters.sandium_build_mode >>"
@@ -2519,7 +2532,7 @@ jobs:
             ROOT="$CIRCLE_WORKING_DIRECTORY"
             STAGE="<< parameters.stage_index >>"
             APK_STATUS="$ROOT/brave-work/.sandium/apk-completion-status.txt"
-            if [ "${CIRCLE_BRANCH:-}" = "feature/sandium-disable-13-brave-features" ] || [ "${CIRCLE_BRANCH:-}" = "feature/sandium-page-transition-full" ] || [ "${CIRCLE_BRANCH:-}" = "feature/sandium-filter-bootstrap-full" ] || [ "${CIRCLE_BRANCH:-}" = "feature/sandium-vanilla-welcome" ]; then
+            if [ "${CIRCLE_BRANCH:-}" = "feature/sandium-disable-13-brave-features" ] || [ "${CIRCLE_BRANCH:-}" = "feature/sandium-page-transition-full" ] || [ "${CIRCLE_BRANCH:-}" = "feature/sandium-filter-bootstrap-full" ] || [ "${CIRCLE_BRANCH:-}" = "feature/sandium-vanilla-welcome" ] || [ "${CIRCLE_BRANCH:-}" = "feature/sandium-branding-refresh" ]; then
               MODE="full"
             else
               MODE="<< pipeline.parameters.sandium_build_mode >>"
@@ -2679,6 +2692,7 @@ workflows:
         - equal: [feature/sandium-page-transition-full, << pipeline.git.branch >>]
         - equal: [feature/sandium-filter-bootstrap-full, << pipeline.git.branch >>]
         - equal: [feature/sandium-vanilla-welcome, << pipeline.git.branch >>]
+        - equal: [feature/sandium-branding-refresh, << pipeline.git.branch >>]
     jobs:
       - brave-android-staged-build:
           name: SANDIUM-FULL-MODE-stage-1
@@ -2694,6 +2708,7 @@ workflows:
                 - feature/sandium-page-transition-full
                 - feature/sandium-filter-bootstrap-full
                 - feature/sandium-vanilla-welcome
+                - feature/sandium-branding-refresh
       - brave-android-staged-build:
           name: SANDIUM-FULL-MODE-stage-2
           stage_index: 2
@@ -2709,6 +2724,7 @@ workflows:
                 - feature/sandium-page-transition-full
                 - feature/sandium-filter-bootstrap-full
                 - feature/sandium-vanilla-welcome
+                - feature/sandium-branding-refresh
       - brave-android-staged-build:
           name: SANDIUM-FULL-MODE-stage-3
           stage_index: 3
@@ -2724,6 +2740,7 @@ workflows:
                 - feature/sandium-page-transition-full
                 - feature/sandium-filter-bootstrap-full
                 - feature/sandium-vanilla-welcome
+                - feature/sandium-branding-refresh
       - brave-android-staged-build:
           name: SANDIUM-FULL-MODE-stage-4
           stage_index: 4
@@ -2739,6 +2756,7 @@ workflows:
                 - feature/sandium-page-transition-full
                 - feature/sandium-filter-bootstrap-full
                 - feature/sandium-vanilla-welcome
+                - feature/sandium-branding-refresh
       - brave-android-staged-build:
           name: SANDIUM-FULL-MODE-stage-5
           stage_index: 5
@@ -2754,6 +2772,7 @@ workflows:
                 - feature/sandium-page-transition-full
                 - feature/sandium-filter-bootstrap-full
                 - feature/sandium-vanilla-welcome
+                - feature/sandium-branding-refresh
       - promote-brave-reference:
           name: SANDIUM-FULL-MODE-reference-promotion
           requires: [SANDIUM-FULL-MODE-stage-5]
@@ -2773,6 +2792,8 @@ workflows:
             equal: [feature/sandium-filter-bootstrap-full, << pipeline.git.branch >>]
         - not:
             equal: [feature/sandium-vanilla-welcome, << pipeline.git.branch >>]
+        - not:
+            equal: [feature/sandium-branding-refresh, << pipeline.git.branch >>]
     jobs:
       - brave-android-staged-build:
           name: SANDIUM-FAST-MODE-stage-1
