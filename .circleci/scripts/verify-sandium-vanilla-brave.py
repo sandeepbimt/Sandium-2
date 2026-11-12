@@ -182,7 +182,7 @@ def apply_phase(core: Path, src: Path, out: Path, phase: str) -> None:
     if phase == "prepare":
         brave_count = restore_paths(core, BRAVE_RESTORE_PREFIXES, "brave-core")
         chromium_count = restore_paths(src, CHROMIUM_RESTORE_PREFIXES, "chromium")
-        # This file was copied into Brave Core by the retired Reader Typography overlay.
+        # Clear any checkpoint copy; the approved Full Mode overlay will restore the repository-supplied v4 resource.
         if reader_resource.exists():
             reader_resource.unlink()
             print("SANDIUM_VANILLA_RESTORE=PASS retired_reader_resource_removed")
@@ -201,14 +201,31 @@ def apply_phase(core: Path, src: Path, out: Path, phase: str) -> None:
     restore_paths(src, CHROMIUM_RESTORE_PREFIXES, "chromium-final-upstream")
     verify_repo_clean(src, CHROMIUM_RESTORE_PREFIXES, "chromium")
     clean_gn_args(out)
+    # Universal Reader Typography is an approved #850 feature, not a retired
+    # experiment. Require the exact repository-supplied v4 resource, its GN
+    # registration, and the toolbar injection that consumes it.
+    repo_root = Path(__file__).resolve().parents[2]
+    supplied_resource = repo_root / "android/java/brave-res/raw/sandium_reader_typography.js"
     android_build = core / "android/BUILD.gn"
-    if android_build.is_file():
-        text = android_build.read_text(encoding="utf-8")
-        if "sandium_reader_typography" in text:
-            raise SystemExit("SANDIUM_VANILLA_SOURCE_GATE=FAIL retired Reader Typography resource is still registered")
-    if reader_resource.exists():
-        raise SystemExit("SANDIUM_VANILLA_SOURCE_GATE=FAIL retired Reader Typography source file remains in Brave Core")
-    print("SANDIUM_VANILLA_VERIFY=PASS ai_chat=upstream wallet=upstream news=upstream")
+    toolbar = core / "android/java/org/chromium/chrome/browser/toolbar/top/BraveToolbarLayoutImpl.java"
+    if not supplied_resource.is_file() or not reader_resource.is_file():
+        raise SystemExit("SANDIUM_VANILLA_SOURCE_GATE=FAIL approved Universal Reader Typography resource missing")
+    if reader_resource.read_bytes() != supplied_resource.read_bytes():
+        raise SystemExit("SANDIUM_VANILLA_SOURCE_GATE=FAIL Reader Typography resource differs from repository v4 source")
+    if not android_build.is_file() or '"java/brave-res/raw/sandium_reader_typography.js"' not in android_build.read_text(encoding="utf-8"):
+        raise SystemExit("SANDIUM_VANILLA_SOURCE_GATE=FAIL Reader Typography raw resource is not registered")
+    if not toolbar.is_file():
+        raise SystemExit("SANDIUM_VANILLA_SOURCE_GATE=FAIL Reader Typography toolbar integration is missing")
+    toolbar_text = toolbar.read_text(encoding="utf-8")
+    required_reader_hooks = (
+        "private void applySandiumReaderTypography(Tab tab)",
+        "R.raw.sandium_reader_typography",
+        "applySandiumReaderTypography(tab);",
+    )
+    missing_reader_hooks = [item for item in required_reader_hooks if item not in toolbar_text]
+    if missing_reader_hooks:
+        raise SystemExit("SANDIUM_VANILLA_SOURCE_GATE=FAIL Reader Typography integration incomplete: " + repr(missing_reader_hooks))
+    print("SANDIUM_VANILLA_VERIFY=PASS ai_chat=upstream wallet=upstream news=upstream reader_typography=approved_v4")
 
 def main() -> None:
     parser = argparse.ArgumentParser()
