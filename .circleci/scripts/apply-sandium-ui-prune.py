@@ -271,7 +271,7 @@ def patch_make_brave_default_label(core: Path, src: Path) -> None:
     # Match by the stable GRD message ID, not its translator-facing desc text:
     # that description varies between Chromium/Brave rolls.
     pattern = re.compile(
-        r'(<message\\b(?=[^>]*\\bname="IDS_MAKE_CHROME_DEFAULT")[^>]*>)'
+        r'(<message\b(?=[^>]*\bname="IDS_MAKE_CHROME_DEFAULT")[^>]*>)'
         r'(.*?)'
         r'(</message>)',
         re.DOTALL,
@@ -284,12 +284,12 @@ def patch_make_brave_default_label(core: Path, src: Path) -> None:
         )
     match = matches[0]
     body = match.group(2)
-    if re.search(r"\\bMake Brave default\\b", body):
+    if re.search(r"\bMake Brave default\b", body):
         print("SANDIUM_UI_PATCH=make-brave-default-label:ALREADY_APPLIED")
     else:
         updated_body, count = re.subn(
-            r"(?m)^(\\s*)Make Chrome default(\\s*)$",
-            r"\\1Make Brave default\\2",
+            r"(?m)^(\s*)Make Chrome default(\s*)$",
+            r"\1Make Brave default\2",
             body,
             count=1,
         )
@@ -327,7 +327,6 @@ def patch_make_brave_default_label(core: Path, src: Path) -> None:
         )
     else:
         print("SANDIUM_UI_PATCH=remove-duplicate-make-default-GN-entry:ALREADY_ABSENT")
-
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--core", type=Path, required=True)
