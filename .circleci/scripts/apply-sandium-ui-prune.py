@@ -262,36 +262,48 @@ def patch_leo_wallet_preferences(core: Path) -> None:
         "readBoolean(PREF_BRAVE_WALLET_WEB3_NOTIFICATIONS, false)",
         "wallet-web3-notifications-default-off")
 
-def patch_make_brave_default_label(core: Path) -> None:
-    path = core / "android/java/brave-res/values/sandium_ui_overrides.xml"
-    expected = """<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <string name="make_chrome_default">Make Brave default</string>
-</resources>
-"""
-    if path.is_file():
-        source = read(path)
-        if '<string name="make_chrome_default">Make Brave default</string>' in source:
-            print("SANDIUM_UI_PATCH=make-brave-default-label:ALREADY_APPLIED")
-        elif '<string name="make_chrome_default">' in source:
-            source = re.sub(r'<string name="make_chrome_default">.*?</string>',
-                '<string name="make_chrome_default">Make Brave default</string>',
-                source, count=1, flags=re.DOTALL)
-            write(path, source, "make-brave-default-label")
-        elif "</resources>" in source:
-            write(path, source.replace("</resources>",
-                '    <string name="make_chrome_default">Make Brave default</string>\n</resources>', 1),
-                "make-brave-default-label")
-        else:
-            raise RuntimeError(f"invalid resource overlay XML: {path}")
+def patch_make_brave_default_label(core: Path, src: Path) -> None:
+    # This is a Chromium-generated Android string (IDS_MAKE_CHROME_DEFAULT).
+    # Change its GRD source in place instead of defining the same Android
+    # resource again in brave-res; a second definition makes aapt2 link fail.
+    strings = src / "chrome/browser/ui/android/strings/android_chrome_strings.grd"
+    replace_once(
+        strings,
+        '''      <message name="IDS_MAKE_CHROME_DEFAULT" desc="Menu item in the app menu to set Chrome as the default browser.">
+        Make Chrome default
+      </message>''',
+        '''      <message name="IDS_MAKE_CHROME_DEFAULT" desc="Menu item in the app menu to set Chrome as the default browser.">
+        Make Brave default
+      </message>''',
+        "make-brave-default-label-in-chromium-grd",
+    )
+
+    # Clean up artifacts from older workspaces where the duplicate overlay
+    # may already have been generated and registered in Brave's GN resources.
+    override = core / "android/java/brave-res/values/sandium_ui_overrides.xml"
+    if override.is_file():
+        override.unlink()
+        print("SANDIUM_UI_PATCH=remove-duplicate-make-default-overlay:PASS")
     else:
-        path.parent.mkdir(parents=True, exist_ok=True)
-        write(path, expected, "make-brave-default-label")
-    insert_after_once(core / "android/BUILD.gn",
-        '    "java/brave-res/values/array.xml",\n',
-        '    "java/brave-res/values/sandium_ui_overrides.xml",\n',
-        '"java/brave-res/values/sandium_ui_overrides.xml"',
-        "register-make-brave-default-resource")
+        print("SANDIUM_UI_PATCH=remove-duplicate-make-default-overlay:ALREADY_ABSENT")
+
+    build_gn = core / "android/BUILD.gn"
+    source = read(build_gn)
+    stale_entry = '    "java/brave-res/values/sandium_ui_overrides.xml",\n'
+    count = source.count(stale_entry)
+    if count > 1:
+        raise RuntimeError(
+            "remove-duplicate-make-default-GN-entry: expected at most one entry, "
+            f"found {count}: {build_gn}"
+        )
+    if count == 1:
+        write(
+            build_gn,
+            source.replace(stale_entry, "", 1),
+            "remove-duplicate-make-default-GN-entry",
+        )
+    else:
+        print("SANDIUM_UI_PATCH=remove-duplicate-make-default-GN-entry:ALREADY_ABSENT")
 
 def main() -> None:
     parser = argparse.ArgumentParser()
@@ -307,7 +319,7 @@ def main() -> None:
     patch_search_engine_adapter(src)
     patch_privacy_preferences(core, src)
     patch_leo_wallet_preferences(core)
-    patch_make_brave_default_label(core)
+    patch_make_brave_default_label(core, src)
     print("SANDIUM_UI_POLICY=PASS menu=removed settings=pruned "
           "search=google_standard_google_private_brave_removed privacy=off_and_hidden "
           "wallet=none_off leo=off clean_base_preserved=true")

@@ -110,9 +110,35 @@ def main() -> None:
         "Brave Shields &amp; privacy", "Brave shields global defaults",
         "Open external links in Brave", "Allow app links to open in apps outside of Brave",
         "Closing all tabs closes Brave")
-    require(core / "android/java/brave-res/values/sandium_ui_overrides.xml",
-        '<string name="make_chrome_default">Make Brave default</string>')
-    require(core / "android/BUILD.gn", '"java/brave-res/values/sandium_ui_overrides.xml",')
+    chrome_strings = require(
+        src / "chrome/browser/ui/android/strings/android_chrome_strings.grd",
+        '<message name="IDS_MAKE_CHROME_DEFAULT"',
+        "Make Brave default",
+    )
+    make_default_messages = re.findall(
+        r'<message name="IDS_MAKE_CHROME_DEFAULT"[^>]*>.*?</message>',
+        chrome_strings,
+        re.DOTALL,
+    )
+    if (
+        len(make_default_messages) != 1
+        or "Make Brave default" not in make_default_messages[0]
+        or "Make Chrome default" in make_default_messages[0]
+    ):
+        raise SystemExit(
+            "SANDIUM_UI_TEST=FAIL IDS_MAKE_CHROME_DEFAULT must be overridden "
+            "once in Chromium's GRD source"
+        )
+    duplicate_overlay = core / "android/java/brave-res/values/sandium_ui_overrides.xml"
+    if duplicate_overlay.exists():
+        raise SystemExit(
+            "SANDIUM_UI_TEST=FAIL duplicate sandium_ui_overrides.xml must not be packaged"
+        )
+    core_build = read(core / "android/BUILD.gn")
+    if '"java/brave-res/values/sandium_ui_overrides.xml"' in core_build:
+        raise SystemExit(
+            "SANDIUM_UI_TEST=FAIL duplicate Sandium default-browser string remains in GN sources"
+        )
 
     config = require(repo / ".circleci/config.yml",
         "Apply Sandium first-launch native filter bootstrap",
