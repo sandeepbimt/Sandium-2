@@ -652,12 +652,6 @@ PY
       python3 "$ROOT/.circleci/scripts/apply-sandium-full-overlays.py" --core "$CORE_DIR" --src "$SRC_DIR"
       python3 "$ROOT/.circleci/scripts/apply-sandium-fast-morphe.py" "$SRC_DIR"
       ORIGIN_GN_ARGS+=(
-        --gn enable_brave_rewards:false
-        --gn enable_brave_news:false
-        --gn enable_brave_vpn_v1:false
-        --gn enable_brave_vpn_v2:false
-        --gn enable_brave_wallet:false
-        --gn enable_ai_chat:false
         --gn enable_brave_talk:false
         --gn enable_brave_wayback_machine:false
         --gn enable_speedreader:false

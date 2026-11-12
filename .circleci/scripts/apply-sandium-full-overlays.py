@@ -297,32 +297,8 @@ def main():
     # AI Chat is a valid Brave Origin GN exclusion, but Android's tabs_impl
     # target has an unconditional dependency and source references. Guard them
     # against the pinned Android source before asking GN to disable AI Chat.
-    ai_android_build = core / "browser/android/BUILD.gn"
-    ai_android_build_source = ai_android_build.read_text(encoding="utf-8")
-    ai_android_build_updated = transform_ai_chat_android_build(ai_android_build_source)
-    if ai_android_build_updated != ai_android_build_source:
-        ai_android_build.write_text(ai_android_build_updated, encoding="utf-8")
-        print("SANDIUM_AI_CHAT_ANDROID_BUILD=CONDITIONALLY_LINKED")
-    else:
-        print("SANDIUM_AI_CHAT_ANDROID_BUILD=ALREADY_CONDITIONAL")
-
-    ai_android_source = core / "browser/android/brave_tab_features.cc"
-    ai_android_source_text = ai_android_source.read_text(encoding="utf-8")
-    ai_android_source_updated = transform_ai_chat_android_source(ai_android_source_text)
-    if ai_android_source_updated != ai_android_source_text:
-        ai_android_source.write_text(ai_android_source_updated, encoding="utf-8")
-        print("SANDIUM_AI_CHAT_ANDROID_SOURCE=COMPILE_GUARDED")
-    else:
-        print("SANDIUM_AI_CHAT_ANDROID_SOURCE=ALREADY_GUARDED")
-
-    ai_android_header = core / "browser/android/brave_tab_features.h"
-    ai_android_header_text = ai_android_header.read_text(encoding="utf-8")
-    ai_android_header_updated = transform_ai_chat_android_header(ai_android_header_text)
-    if ai_android_header_updated != ai_android_header_text:
-        ai_android_header.write_text(ai_android_header_updated, encoding="utf-8")
-        print("SANDIUM_AI_CHAT_ANDROID_HEADER=COMPILE_GUARDED")
-    else:
-        print("SANDIUM_AI_CHAT_ANDROID_HEADER=ALREADY_GUARDED")
+    # Keep Brave AI Chat implementation and Android build graph vanilla.
+    print("SANDIUM_AI_CHAT_SOURCE=UPSTREAM_UNMODIFIED")
 
     # Playlist cannot be disabled through its GN argument on Android: the
     # pinned buildflags file asserts that ENABLE_PLAYLIST must remain true.
