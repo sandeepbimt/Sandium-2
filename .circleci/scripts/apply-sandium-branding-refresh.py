@@ -119,11 +119,8 @@ def replace_toolbar_method(core: Path) -> None:
     path = core / "android/java/org/chromium/chrome/browser/toolbar/top/BraveToolbarLayoutImpl.java"
     source = read(path)
     start = "    private void setRewardsLayoutVisibility(int visibility) {"
+    applied_start = "    private void setRewardsLayoutVisibility(int requestedVisibility) {"
     end = "    private void requestToolbarSnapshotCapture() {"
-    begin = source.find(start)
-    finish = source.find(end, begin + len(start))
-    if begin < 0 or finish < 0:
-        raise RuntimeError("toolbar Rewards visibility method anchors changed")
     replacement = """    private void setRewardsLayoutVisibility(int requestedVisibility) {
         if (mRewardsLayout == null || mRewardsLayout.getVisibility() == View.GONE) {
             return;
@@ -139,10 +136,37 @@ def replace_toolbar_method(core: Path) -> None:
     }
 
 """
-    method = source[begin:finish]
-    if "mRewardsLayout.setVisibility(View.GONE);" in method and "requestedVisibility" in method:
+    if applied_start in source:
+        # The first replacement changes the parameter name. Recognize that exact
+        # post-patch signature before looking for the original anchor, so cache-
+        # restored and retried stages remain safe to execute.
+        if source.count(applied_start) != 1:
+            raise RuntimeError("toolbar Rewards visibility replacement is not unique")
+        begin = source.find(applied_start)
+        finish = source.find(end, begin + len(applied_start))
+        if finish < 0:
+            raise RuntimeError("toolbar Rewards visibility replacement end anchor changed")
+        method = source[begin:finish]
+        required = (
+            "mRewardsLayout == null || mRewardsLayout.getVisibility() == View.GONE",
+            "mRewardsLayout.setVisibility(View.GONE);",
+            "updateShieldsLayoutBackground(true);",
+            "invalidateToolbarSnapshotOnTablet();",
+        )
+        missing = [anchor for anchor in required if anchor not in method]
+        if missing:
+            raise RuntimeError(
+                "toolbar Rewards visibility replacement is incomplete; "
+                f"review before continuing: {missing!r}"
+            )
         print("SANDIUM_BRANDING_PATCH=hide-toolbar-rewards:ALREADY_APPLIED")
     else:
+        begin = source.find(start)
+        if begin < 0:
+            raise RuntimeError("toolbar Rewards visibility method anchors changed")
+        finish = source.find(end, begin + len(start))
+        if finish < 0:
+            raise RuntimeError("toolbar Rewards visibility method end anchor changed")
         write(path, source[:begin] + replacement + source[finish:], "hide-toolbar-rewards")
 
     source = read(path)
