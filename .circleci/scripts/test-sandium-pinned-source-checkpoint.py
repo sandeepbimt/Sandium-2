@@ -3,7 +3,16 @@
 import tempfile
 import unittest
 from pathlib import Path
-from sandium_pinned_source_checkpoint import validate_source_only_outputs
+import importlib.util
+
+# The production script keeps its CLI filename with hyphens; load it by path.
+MODULE_PATH = Path(__file__).with_name("sandium-pinned-source-checkpoint.py")
+SPEC = importlib.util.spec_from_file_location("sandium_pinned_source_checkpoint", MODULE_PATH)
+if SPEC is None or SPEC.loader is None:
+    raise RuntimeError("Unable to load pinned-source checkpoint module")
+MODULE = importlib.util.module_from_spec(SPEC)
+SPEC.loader.exec_module(MODULE)
+validate_source_only_outputs = MODULE.validate_source_only_outputs
 
 class SourceOnlyOutputTests(unittest.TestCase):
     def setUp(self):

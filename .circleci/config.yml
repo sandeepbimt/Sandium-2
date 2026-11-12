@@ -2701,19 +2701,18 @@ jobs:
 
 workflows:
   sandium-pinned-data-save:
+    # This workflow is intentionally opt-in. Ordinary pushes must not launch
+    # a 15-20 minute source preparation; trigger with pipeline parameter
+    # sandium_build_mode=pinned_data_save when explicitly requested.
+    when:
+      and:
+        - equal: [pinned_data_save, << pipeline.parameters.sandium_build_mode >>]
+        - equal: [feature/sandium-branding-persistent, << pipeline.git.branch >>]
     jobs:
-      - sandium-pinned-data-save:
-          filters:
-            branches:
-              only:
-                - feature/sandium-branding-persistent
+      - sandium-pinned-data-save
       - sandium-pinned-data-save-verify:
           requires:
             - sandium-pinned-data-save
-          filters:
-            branches:
-              only:
-                - feature/sandium-branding-persistent
 
   sandium-checkpoint-contract-tests:
     jobs:
