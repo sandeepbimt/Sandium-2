@@ -81,10 +81,12 @@ def main() -> None:
         core / "android/java/brave-res/layout/brave_custom_tabs_toolbar.xml",
         '@drawable/sandium_toolbar_mark',
     )
+    # The annotated Shields labels are intentionally Brave-branded at these locations.
+    # The branding overlay must not rewrite them to Sandium.
     require(
         core / "browser/ui/android/strings/android_brave_strings.grd",
-        "Note: this may reduce Sandium's privacy protections.",
-        "Open Sandium protection controls",
+        "Note: this may reduce Brave's privacy protections.",
+        "Enable/Disable Brave Shields",
     )
     require(
         core / "android/java/org/chromium/chrome/browser/ntp_background_images/util/SponsoredContentUtil.java",
