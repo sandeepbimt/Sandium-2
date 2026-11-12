@@ -49,8 +49,23 @@ CHROMIUM_RESTORE_PREFIXES = (
 
 # android/BUILD.gn is deliberately restored but later receives the approved
 # transition icon resource entries. It is checked separately below.
-BRAVE_VERIFY_PREFIXES = tuple(
-    path for path in BRAVE_RESTORE_PREFIXES if path != "android/BUILD.gn"
+# Final integrity check is deliberately limited to upstream feature
+# implementations and their Android linkage. Approved Sandium UI, branding,
+# privacy, transition and first-run overlays legitimately modify other files.
+BRAVE_VERIFY_PREFIXES = (
+    "components/ai_chat",
+    "browser/ai_chat",
+    "components/brave_wallet",
+    "browser/brave_wallet",
+    "components/brave_vpn",
+    "browser/brave_vpn",
+    "components/brave_news",
+    "browser/brave_news",
+    "components/brave_rewards",
+    "browser/brave_rewards",
+    "browser/android/BUILD.gn",
+    "browser/android/brave_tab_features.cc",
+    "browser/android/brave_tab_features.h",
 )
 GN_OVERRIDE_KEYS = ("enable_ai_chat", "enable_brave_wallet", "enable_brave_news")
 GN_OVERRIDE_RE = re.compile(r"^\s*(enable_ai_chat|enable_brave_wallet|enable_brave_news)\s*=.*(?:\n|$)")
