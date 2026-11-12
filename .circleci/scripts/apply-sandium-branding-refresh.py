@@ -45,7 +45,7 @@ def replace_once(path: Path, old: str, new: str, label: str) -> None:
 def replace_android_icon_item(path: Path, element: str, drawable: str, label: str) -> None:
     """Set one adaptive-icon element regardless of the checkpoint's prior drawable."""
     source = read(path)
-    pattern = re.compile(r"<" + re.escape(element) + r"\\b[^>]*/>")
+    pattern = re.compile(r"<" + re.escape(element) + r"\b[^>]*/>")
     matches = list(pattern.finditer(source))
     if len(matches) != 1:
         raise RuntimeError(
