@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import re
 import shutil
 import subprocess
 from pathlib import Path
@@ -40,6 +41,22 @@ def replace_once(path: Path, old: str, new: str, label: str) -> None:
     if count != 1:
         raise RuntimeError(f"{label}: expected one source anchor, found {count}: {path}")
     write(path, source.replace(old, new, 1), label)
+
+def replace_android_icon_item(path: Path, element: str, drawable: str, label: str) -> None:
+    """Set one adaptive-icon element regardless of the checkpoint's prior drawable."""
+    source = read(path)
+    pattern = re.compile(r"<" + re.escape(element) + r"\\b[^>]*/>")
+    matches = list(pattern.finditer(source))
+    if len(matches) != 1:
+        raise RuntimeError(
+            f"{label}: expected one <{element}> element, found {len(matches)}: {path}"
+        )
+    replacement = f'<{element} android:drawable="{drawable}"/>'
+    if matches[0].group(0) == replacement:
+        print(f"SANDIUM_BRANDING_PATCH={label}:ALREADY_APPLIED")
+        return
+    updated = source[:matches[0].start()] + replacement + source[matches[0].end():]
+    write(path, updated, label)
 
 def remove_once(path: Path, old: str, label: str) -> None:
     source = read(path)
@@ -192,42 +209,15 @@ def apply(args: argparse.Namespace) -> None:
         "register-brave-brand-assets",
     )
 
-    replace_once(
-        src / "chrome/android/java/res_base/drawable/ic_launcher.xml",
-        '<background android:drawable="@android:color/white"/>',
-        '<background android:drawable="@android:color/black"/>',
-        "launcher-background",
-    )
-    replace_once(
-        src / "chrome/android/java/res_base/drawable/ic_launcher.xml",
-        '<foreground android:drawable="@mipmap/layered_app_icon"/>',
-        '<foreground android:drawable="@mipmap/sandium_app_icon"/>',
-        "launcher-foreground",
-    )
-    replace_once(
-        src / "chrome/android/java/res_base/drawable/ic_launcher.xml",
-        '<monochrome android:drawable="@drawable/themed_app_icon"/>',
-        '<monochrome android:drawable="@drawable/sandium_themed_app_icon"/>',
-        "launcher-monochrome",
-    )
-    replace_once(
-        src / "chrome/android/java/res_base/drawable/ic_launcher_round.xml",
-        '<background android:drawable="@mipmap/layered_app_icon_background"/>',
-        '<background android:drawable="@android:color/black"/>',
-        "round-launcher-background",
-    )
-    replace_once(
-        src / "chrome/android/java/res_base/drawable/ic_launcher_round.xml",
-        '<foreground android:drawable="@mipmap/layered_app_icon_foreground"/>',
-        '<foreground android:drawable="@mipmap/sandium_app_icon"/>',
-        "round-launcher-foreground",
-    )
-    replace_once(
-        src / "chrome/android/java/res_base/drawable/ic_launcher_round.xml",
-        '<monochrome android:drawable="@drawable/themed_app_icon"/>',
-        '<monochrome android:drawable="@drawable/sandium_themed_app_icon"/>',
-        "round-launcher-monochrome",
-    )
+    launcher = src / "chrome/android/java/res_base/drawable/ic_launcher.xml"
+    replace_android_icon_item(launcher, "background", "@android:color/black", "launcher-background")
+    replace_android_icon_item(launcher, "foreground", "@mipmap/sandium_app_icon", "launcher-foreground")
+    replace_android_icon_item(launcher, "monochrome", "@drawable/sandium_themed_app_icon", "launcher-monochrome")
+
+    launcher_round = src / "chrome/android/java/res_base/drawable/ic_launcher_round.xml"
+    replace_android_icon_item(launcher_round, "background", "@android:color/black", "round-launcher-background")
+    replace_android_icon_item(launcher_round, "foreground", "@mipmap/sandium_app_icon", "round-launcher-foreground")
+    replace_android_icon_item(launcher_round, "monochrome", "@drawable/sandium_themed_app_icon", "round-launcher-monochrome")
     replace_once(
         src / "chrome/android/java/AndroidManifest.xml",
         'android:label="{% block application_label %}@string/app_name{% endblock %}"',
