@@ -98,8 +98,10 @@ class BraveTabFeatures {
 def main() -> None:
     prepare = PREPARE.read_text(encoding="utf-8")
     overlay_source = OVERLAY.read_text(encoding="utf-8")
-    full_mode = prepare.split('if [ "$MODE" = "full" ]; then', 1)[1].split(
-        'elif [ "$MODE" = "fast" ]; then', 1
+    assert 'if [ "$MODE" = "full" ]; then' not in prepare
+    assert 'elif [ "$MODE" = "fast" ]; then' not in prepare
+    full_mode = prepare.split("# One fixed product recipe from 0a85", 1)[1].split(
+        'echo "SANDIUM_PRODUCT_RECIPE=', 1
     )[0]
 
     for argument in EXPECTED_GN_ARGS:

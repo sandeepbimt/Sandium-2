@@ -8,6 +8,9 @@ CONFIG = ROOT / ".circleci" / "config.yml"
 
 def main() -> None:
     text = CONFIG.read_text(encoding="utf-8")
+    for name in ("remote-smoke.sh", "bounded-build.sh"):
+        assert name in text, f"Flow config must invoke {name}"
+        text += "\n" + (ROOT / ".circleci/experimental-steps" / name).read_text(encoding="utf-8")
     required = [
         "REMOTE_SMOKE=WARNING",
         "continuing to the real APK build under -strict_remote",

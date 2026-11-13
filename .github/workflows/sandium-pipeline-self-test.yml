@@ -3,6 +3,9 @@ name: Sandium pipeline self-test
 on:
   push:
     paths:
+      - ".circleci/checkpoint/**"
+      - ".circleci/experimental-steps/**"
+      - "tests/**"
       - ".circleci/config.yml"
       - ".circleci/scripts/archive-brave-workspace.sh"
       - ".circleci/scripts/sandium-checkpoint-shards.py"
@@ -20,6 +23,9 @@ on:
       - ".github/workflows/sandium-pipeline-self-test.yml"
   pull_request:
     paths:
+      - ".circleci/checkpoint/**"
+      - ".circleci/experimental-steps/**"
+      - "tests/**"
       - ".circleci/config.yml"
       - ".circleci/scripts/archive-brave-workspace.sh"
       - ".circleci/scripts/sandium-checkpoint-shards.py"
@@ -88,3 +94,7 @@ jobs:
         run: python3 .circleci/scripts/test-sandium-feature-policies.py
       - name: Test Sandium transition-only Full Mode overlay
         run: python3 .circleci/scripts/test-sandium-page-transition-full.py
+      - name: Test Flow checkpoint reconstruction and disk guards
+        run: python3 tests/test_single_pipeline.py
+      - name: Test composed welcome crash fix
+        run: python3 tests/test_composition.py
