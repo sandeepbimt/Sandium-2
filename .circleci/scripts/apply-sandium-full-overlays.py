@@ -71,12 +71,24 @@ def transform_playlist_factory(source):
     include_old = '#include "brave/components/playlist/content/browser/type_converter.h"'
     include_new = (
         include_old + '\n'
-        + '#include "brave/components/playlist/core/browser/utils.h"'
+        + '#include "brave/components/playlist/core/browser/utils.h"\n'
+        + '#include "components/prefs/pref_service.h"'
     )
     if include_new not in source:
+        # Upgrade both vanilla Brave and checkpoints carrying the older
+        # Sandium Playlist overlay; do not duplicate includes.
         if source.count(include_old) != 1:
             raise RuntimeError("SANDIUM_PLAYLIST_FACTORY: utils.h include anchor changed")
-        source = source.replace(include_old, include_new, 1)
+        if '#include "brave/components/playlist/core/browser/utils.h"' in source:
+            if source.count('#include "brave/components/playlist/core/browser/utils.h"') != 1:
+                raise RuntimeError("SANDIUM_PLAYLIST_FACTORY: duplicate utils include")
+            if '#include "components/prefs/pref_service.h"' not in source:
+                source = source.replace(
+                    '#include "brave/components/playlist/core/browser/utils.h"',
+                    '#include "brave/components/playlist/core/browser/utils.h"\n'
+                    '#include "components/prefs/pref_service.h"', 1)
+        else:
+            source = source.replace(include_old, include_new, 1)
 
     default_old = "  registry->RegisterBooleanPref(kPlaylistEnabledPref, true);"
     default_new = "    registry->RegisterBooleanPref(kPlaylistEnabledPref, false);"
