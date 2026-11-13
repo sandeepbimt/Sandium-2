@@ -3,6 +3,8 @@ name: Sandium pipeline self-test
 on:
   push:
     paths:
+      - ".circleci/scripts/**"
+      - ".circleci/tests/**"
       - ".circleci/checkpoint/**"
       - ".circleci/bridge/**"
       - ".circleci/scripts/ensure-flow-tools.sh"
@@ -28,6 +30,8 @@ on:
       - ".github/workflows/sandium-pipeline-self-test.yml"
   pull_request:
     paths:
+      - ".circleci/scripts/**"
+      - ".circleci/tests/**"
       - ".circleci/checkpoint/**"
       - ".circleci/bridge/**"
       - ".circleci/scripts/ensure-flow-tools.sh"
