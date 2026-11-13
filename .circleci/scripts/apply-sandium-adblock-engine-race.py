@@ -539,32 +539,99 @@ def verify(core: Path) -> None:
         "DAT-cache cold-start regression tests":
             "ForceNotifyObserversBypassesStartupSuppression" in manager_test,
     }
+    if has_homepage_warmup(core):
+        for name in (
+            "explicit provider-manager warm-up API",
+            "startup suppression is bypassed for explicit warm-up",
+            "deferred warm-up waits for providers",
+            "DAT-cache cold-start regression tests",
+        ):
+            checks.pop(name)
+        body = manager_cc.split("void AdBlockFiltersProviderManager::ForceNotifyObservers(", 1)[1].split("std::string AdBlockFiltersProviderManager::GetNameForDebugging", 1)[0]
+        checks["preserved explicit homepage activation"] = (
+            "MaybeConsumeEngineStartupChangeNotification(is_for_default_engine)" in body
+            and "NotifyObservers(is_for_default_engine);" in body
+            and "AreAllProvidersInitialized" not in body
+            and manager_cc.count("void AdBlockFiltersProviderManager::ForceNotifyObservers(") == 1
+        )
+        verify_composed_service(service)
     failures = [name for name, ok in checks.items() if not ok]
     if failures:
         raise RuntimeError("Adblock reload verification failed: " + ", ".join(failures))
     print("SANDIUM_ADBLOCK_RELOAD_VERIFY=PASS latest_build_wins=true startup_warmup=true "
-          "stale_callbacks_dropped=true provider_manager_regression=true")
+          "stale_callbacks_dropped=true homepage_composition=" + str(has_homepage_warmup(core)).lower())
 
 
-def main() -> None:
-    if len(sys.argv) != 2:
-        raise SystemExit("usage: apply-sandium-adblock-engine-race.py <brave-core-dir>")
-    core = Path(sys.argv[1]).resolve()
-    if not core.is_dir():
-        raise SystemExit(f"Brave Core directory does not exist: {core}")
-    tag = subprocess.run(["git", "-C", str(core), "describe", "--tags", "--exact-match"],
-                         check=True, capture_output=True, text=True).stdout.strip()
-    sha = subprocess.run(["git", "-C", str(core), "rev-parse", "HEAD"],
-                         check=True, capture_output=True, text=True).stdout.strip()
-    if tag != EXPECTED_CORE_TAG or sha != EXPECTED_CORE_SHA:
-        raise SystemExit(f"SANDIUM_ADBLOCK_RELOAD_PIN=FAIL expected={EXPECTED_CORE_TAG}@{EXPECTED_CORE_SHA} "
-                         f"actual={tag}@{sha}")
-    print(f"SANDIUM_ADBLOCK_RELOAD_PIN=PASS {tag}@{sha}")
+def has_homepage_warmup(core: Path) -> bool:
+    header = read(core / "components/brave_shields/core/browser/ad_block_filters_provider_manager.h")
+    return "void ForceNotifyObservers(bool is_for_default_engine);" in header
 
-    # This overlay owns exactly these six Brave Shields source/test files.
-    # A restored CircleCI checkpoint may already contain a partial or older
-    # version of this overlay. Rebase only these owned paths to the verified
-    # pinned Brave HEAD before applying the current complete transformation.
+
+def verify_composed_service(source: str) -> None:
+    begin = source.index("void RegisterPrefsForAdBlockService(PrefRegistrySimple* registry) {")
+    end = source.index("\n}", begin)
+    body = source[begin:end]
+    for name in ("kSandiumDefaultFilterListsMigrated", "kSandiumAdBlockEngineWarmupRequested",
+                 "kSandiumAdBlockEngineWarmupDone", "kSandiumAdBlockEngineWarmupRequestedV2",
+                 "kSandiumAdBlockEngineWarmupDoneV2"):
+        statement = f"registry->RegisterBooleanPref(prefs::{name}, false);"
+        if body.count(statement) != 1:
+            raise RuntimeError("Missing/duplicate final local-state registration: " + name)
+    if body.count("registry->RegisterListPref(prefs::kSandiumDefaultFilterListsSeeded);") != 1:
+        raise RuntimeError("Missing/duplicate final seeded-list registration")
+    # Check the actual callback and its ordered guards, not a token anywhere
+    # in the translation unit. Pinned formatting is deliberate: fail closed.
+    begin = source.index("void AdBlockService::OnEngineLoaded(")
+    end = source.index("\n}", begin)
+    callback = source[begin:end]
+    completion = "local_state_->SetBoolean(prefs::kSandiumAdBlockEngineWarmupDoneV2, true);"
+    guarded_completion = (
+        "  if (local_state_ && !is_default_engine &&\n"
+        "      local_state_->GetBoolean(prefs::kSandiumAdBlockEngineWarmupRequestedV2) &&\n"
+        "      load_result == FilterListLoadResult::kLoaded) {\n"
+        "    " + completion + "\n  }"
+    )
+    if source.count(completion) != 1 or guarded_completion not in callback:
+        raise RuntimeError("Missing or incorrectly guarded native warm-up completion write")
+    unpack = "auto [load_result, serialized_dat] = std::move(result);"
+    notify = "observers_.Notify(&Observer::OnFilterListLoaded"
+    if not (callback.index(unpack) < callback.index(guarded_completion) < callback.index(notify)):
+        raise RuntimeError("Incorrect native warm-up completion ordering")
+    # The publication callback must reject obsolete resource builds before
+    # invoking the service path that eventually reaches OnEngineLoaded.
+    begin = source.index("void AdBlockService::SourceProviderObserver::OnAllLoaded(")
+    end = source.index("\n}", begin)
+    publication = source[begin:end]
+    guard = "  if (generation != filter_set_generation_) {\n    return;\n  }"
+    if guard not in publication or publication.index(guard) > publication.index("on_resources_loaded_.Run("):
+        raise RuntimeError("Missing/late stale-generation guard before completion publication")
+
+
+
+def transform_pref_test(source: str) -> str:
+    marker = "SandiumWarmupPrefsRegisteredAndRoundTrip"
+    if marker in source:
+        return source
+    test = '''TEST_F(AdBlockServiceTest, SandiumWarmupPrefsRegisteredAndRoundTrip) {
+  for (const char* name : {"sandium.ad_block.engine_warmup_requested_v2",
+                           "sandium.ad_block.engine_warmup_done_v2"}) {
+    ASSERT_NE(prefs_.FindPreference(name), nullptr);
+    EXPECT_FALSE(prefs_.GetBoolean(name));
+    prefs_.SetBoolean(name, true);
+    EXPECT_TRUE(prefs_.GetBoolean(name));
+  }
+}
+
+'''
+    anchor = "TEST_F(AdBlockServiceTest, NewestFilterSetBuildWinsWhenOlderBuildFinishesLast) {"
+    if source.count(anchor) != 1:
+        raise RuntimeError("pref test anchor missing/duplicated")
+    return source.replace(anchor, test + anchor, 1)
+
+
+def reset_shared_sources(core: Path) -> None:
+    # Called only before the bootstrap/homepage sequence. Every changed shared
+    # file is subsequently reconstructed, including from legacy checkpoints.
     owned_paths = [
         "components/brave_shields/core/browser/ad_block_filters_provider_manager.h",
         "components/brave_shields/core/browser/ad_block_filters_provider_manager.cc",
@@ -587,18 +654,49 @@ def main() -> None:
         )
     print("SANDIUM_ADBLOCK_RELOAD_RESET=PASS owned_paths=6 source=pinned_HEAD")
 
-    write(core / "components/brave_shields/core/browser/ad_block_filters_provider_manager.h",
-          transform_manager_header, "MANAGER_HEADER")
-    write(core / "components/brave_shields/core/browser/ad_block_filters_provider_manager.cc",
-          transform_manager_cc, "MANAGER")
-    write(core / "components/brave_shields/core/test/ad_block_filters_provider_manager_unittest.cc",
-          transform_manager_test, "MANAGER_UNIT_TEST")
+
+
+def main() -> None:
+    args = sys.argv[1:]
+    reset_shared = len(args) == 2 and args[0] == "--reset-shared"
+    if not (len(args) == 1 or reset_shared):
+        raise SystemExit("usage: apply-sandium-adblock-engine-race.py [--reset-shared] <brave-core-dir>")
+    core = Path(args[-1]).resolve()
+    if not core.is_dir():
+        raise SystemExit(f"Brave Core directory does not exist: {core}")
+    tag = subprocess.run(["git", "-C", str(core), "describe", "--tags", "--exact-match"],
+                         check=True, capture_output=True, text=True).stdout.strip()
+    sha = subprocess.run(["git", "-C", str(core), "rev-parse", "HEAD"],
+                         check=True, capture_output=True, text=True).stdout.strip()
+    if tag != EXPECTED_CORE_TAG or sha != EXPECTED_CORE_SHA:
+        raise SystemExit(f"SANDIUM_ADBLOCK_RELOAD_PIN=FAIL expected={EXPECTED_CORE_TAG}@{EXPECTED_CORE_SHA} "
+                         f"actual={tag}@{sha}")
+    print(f"SANDIUM_ADBLOCK_RELOAD_PIN=PASS {tag}@{sha}")
+
+    if reset_shared:
+        reset_shared_sources(core)
+        return
+
+    # Shared files were reset before bootstrap, never here: a late reset erases
+    # native pref registrations and warm-up completion logic while Java survives.
+    homepage = has_homepage_warmup(core)
+    if not homepage:
+        write(core / "components/brave_shields/core/browser/ad_block_filters_provider_manager.h",
+              transform_manager_header, "MANAGER_HEADER")
+        write(core / "components/brave_shields/core/browser/ad_block_filters_provider_manager.cc",
+              transform_manager_cc, "MANAGER")
+        write(core / "components/brave_shields/core/test/ad_block_filters_provider_manager_unittest.cc",
+              transform_manager_test, "MANAGER_UNIT_TEST")
     write(core / "components/brave_shields/content/browser/ad_block_service.h",
           transform_header, "HEADER")
     write(core / "components/brave_shields/content/browser/ad_block_service.cc",
           transform_service_cc, "SERVICE")
     write(core / "components/brave_shields/content/test/ad_block_service_unittest.cc",
           transform_unit_test, "UNIT_TEST")
+    if homepage:
+        verify_composed_service(read(core / "components/brave_shields/content/browser/ad_block_service.cc"))
+        write(core / "components/brave_shields/content/test/ad_block_service_unittest.cc",
+              transform_pref_test, "PREF_UNIT_TEST")
     verify(core)
 
 
