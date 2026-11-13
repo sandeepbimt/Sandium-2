@@ -5,6 +5,7 @@ on:
     paths:
       - ".circleci/checkpoint/**"
       - ".circleci/bridge/**"
+      - ".circleci/scripts/ensure-flow-tools.sh"
       - ".circleci/experimental-steps/**"
       - "tests/**"
       - ".circleci/config.yml"
@@ -26,6 +27,7 @@ on:
     paths:
       - ".circleci/checkpoint/**"
       - ".circleci/bridge/**"
+      - ".circleci/scripts/ensure-flow-tools.sh"
       - ".circleci/experimental-steps/**"
       - "tests/**"
       - ".circleci/config.yml"
@@ -108,3 +110,5 @@ jobs:
         run: python3 tests/test_bridge_rollup.py
       - name: Test Flow bridge lifecycle and timeout cleanup
         run: python3 tests/test_bridge_pipeline.py
+      - name: Test selected and system Python package isolation
+        run: python3 tests/test_flow_tools.py

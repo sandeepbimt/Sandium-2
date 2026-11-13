@@ -94,3 +94,22 @@ still exceed this free-tier machine/job budget.
 - Official CircleCI config validation passes (must revalidate after review fixes).
 
 No 68 GiB benchmark, native cache launch or APK/device crash verification was performed.
+
+
+## Python tooling correction after #1069
+
+The previous setup installed APT python3-yaml but imported yaml with PATH-selected
+python3. Those interpreters can have different site-package directories on CircleCI
+machine images. The observed install-success/import-failure is consistent with this
+mismatch; #1069 did not log the interpreter path, so its exact binary is unconfirmed.
+
+`ensure-flow-tools.sh` now handles all six jobs from one shared source. It checks
+zstd/tar everywhere. Only seed configuration tests need PyYAML: their APT package
+and all seed test invocations explicitly use /usr/bin/python3. Normal build/helper
+Python PATH is not modified. Diagnostics report selected and test interpreter paths
+and the imported YAML module location, so the next run can verify image assumptions.
+
+Four regression tests simulate a selected interpreter without system site-packages,
+a separate APT-owned package directory, installation/recheck against that system
+interpreter, and stage jobs that need no YAML. Seed fixture tests also pass under
+the actual local /usr/bin/python3. This is not execution in the CircleCI image.

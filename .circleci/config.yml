@@ -33,23 +33,16 @@ jobs:
         command: python3 -u .circleci/bridge/driver.py gate
     - run:
         name: Ensure legacy shard extraction tools on each fresh machine
-        command: 'set -euo pipefail
-
-          if ! command -v zstd >/dev/null 2>&1 || ! python3 -c "import yaml" >/dev/null 2>&1; then sudo apt-get
-          update -qq; sudo apt-get install -y zstd python3-yaml; fi
-
-          command -v zstd
-
-          command -v tar
-
-          python3 -c "import yaml"'
+        command: bash .circleci/scripts/ensure-flow-tools.sh --with-test-tools
     - run:
         name: Test bridge metadata, rollup and native-boundary lifecycle before cache changes
-        command: 'python3 tests/test_legacy_bridge.py
+        command: '/usr/bin/python3 tests/test_flow_tools.py
 
-          python3 tests/test_bridge_rollup.py
+          /usr/bin/python3 tests/test_legacy_bridge.py
 
-          python3 tests/test_bridge_pipeline.py'
+          /usr/bin/python3 tests/test_bridge_rollup.py
+
+          /usr/bin/python3 tests/test_bridge_pipeline.py'
     - restore_cache:
         name: Restore latest accepted experimental head only
         keys:
@@ -100,16 +93,7 @@ jobs:
         command: python3 -u .circleci/bridge/driver.py gate
     - run:
         name: Ensure legacy shard extraction tools on each fresh machine
-        command: 'set -euo pipefail
-
-          if ! command -v zstd >/dev/null 2>&1 || ! python3 -c "import yaml" >/dev/null 2>&1; then sudo apt-get
-          update -qq; sudo apt-get install -y zstd python3-yaml; fi
-
-          command -v zstd
-
-          command -v tar
-
-          python3 -c "import yaml"'
+        command: bash .circleci/scripts/ensure-flow-tools.sh
     - restore_cache:
         name: Restore latest accepted experimental head only
         keys:
@@ -305,16 +289,7 @@ jobs:
         command: python3 -u .circleci/bridge/driver.py gate
     - run:
         name: Ensure legacy shard extraction tools on each fresh machine
-        command: 'set -euo pipefail
-
-          if ! command -v zstd >/dev/null 2>&1 || ! python3 -c "import yaml" >/dev/null 2>&1; then sudo apt-get
-          update -qq; sudo apt-get install -y zstd python3-yaml; fi
-
-          command -v zstd
-
-          command -v tar
-
-          python3 -c "import yaml"'
+        command: bash .circleci/scripts/ensure-flow-tools.sh
     - restore_cache:
         name: Restore latest accepted experimental head only
         keys:
@@ -510,16 +485,7 @@ jobs:
         command: python3 -u .circleci/bridge/driver.py gate
     - run:
         name: Ensure legacy shard extraction tools on each fresh machine
-        command: 'set -euo pipefail
-
-          if ! command -v zstd >/dev/null 2>&1 || ! python3 -c "import yaml" >/dev/null 2>&1; then sudo apt-get
-          update -qq; sudo apt-get install -y zstd python3-yaml; fi
-
-          command -v zstd
-
-          command -v tar
-
-          python3 -c "import yaml"'
+        command: bash .circleci/scripts/ensure-flow-tools.sh
     - restore_cache:
         name: Restore latest accepted experimental head only
         keys:
@@ -715,16 +681,7 @@ jobs:
         command: python3 -u .circleci/bridge/driver.py gate
     - run:
         name: Ensure legacy shard extraction tools on each fresh machine
-        command: 'set -euo pipefail
-
-          if ! command -v zstd >/dev/null 2>&1 || ! python3 -c "import yaml" >/dev/null 2>&1; then sudo apt-get
-          update -qq; sudo apt-get install -y zstd python3-yaml; fi
-
-          command -v zstd
-
-          command -v tar
-
-          python3 -c "import yaml"'
+        command: bash .circleci/scripts/ensure-flow-tools.sh
     - restore_cache:
         name: Restore latest accepted experimental head only
         keys:
@@ -920,16 +877,7 @@ jobs:
         command: python3 -u .circleci/bridge/driver.py gate
     - run:
         name: Ensure legacy shard extraction tools on each fresh machine
-        command: 'set -euo pipefail
-
-          if ! command -v zstd >/dev/null 2>&1 || ! python3 -c "import yaml" >/dev/null 2>&1; then sudo apt-get
-          update -qq; sudo apt-get install -y zstd python3-yaml; fi
-
-          command -v zstd
-
-          command -v tar
-
-          python3 -c "import yaml"'
+        command: bash .circleci/scripts/ensure-flow-tools.sh
     - restore_cache:
         name: Restore latest accepted experimental head only
         keys:
