@@ -94,6 +94,8 @@ jobs:
         run: python3 .circleci/scripts/test-sandium-feature-policies.py
       - name: Test Sandium transition-only Full Mode overlay
         run: python3 .circleci/scripts/test-sandium-page-transition-full.py
+      - name: Install Flow test dependencies
+        run: python3 -m pip install PyYAML==6.0.3
       - name: Test Flow checkpoint reconstruction and disk guards
         run: python3 tests/test_single_pipeline.py
       - name: Test composed welcome crash fix
