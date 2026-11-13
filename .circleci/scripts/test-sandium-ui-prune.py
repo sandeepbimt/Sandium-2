@@ -67,7 +67,8 @@ def main() -> None:
         "SANDIUM_GOOGLE_SEARCH_DEFAULTS_APPLIED", "applySandiumGoogleSearchDefaults(profile, templateUrlService);",
         '"Google".equalsIgnoreCase(templateUrl.getShortName())',
         "setDSEPrefs(googleTemplateUrl, profile);", "setPrivateDSEPrefs(googleTemplateUrl);",
-        "BravePreferenceKeys.DEFAULT_SEARCH_ENGINE_CHANGED, true")
+        "BravePreferenceKeys.DEFAULT_SEARCH_ENGINE_CHANGED, true",
+        "SharedPreferencesManager preferences = ChromeSharedPreferences.getInstance();")
     adapter = require(src / "chrome/browser/search_engines/android/java/src/org/chromium/chrome/browser/search_engines/settings/SearchEngineAdapter.java",
         "private static boolean isSandiumHiddenBraveEngine(TemplateUrl templateUrl)",
         "prepopulatedUrls.removeIf(SearchEngineAdapter::isSandiumHiddenBraveEngine);",
