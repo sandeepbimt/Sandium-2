@@ -1,3 +1,5 @@
+> Historical conversion-prototype notes. Active bridge implementation and current limitations are documented in BRIDGE.md.
+
 # Sandium – Flow: experimental crash-fix candidate
 
 Base: `0a85c0b6665f4960069ddaaaeb933f56c63b3444`. All 60 base Git blobs were

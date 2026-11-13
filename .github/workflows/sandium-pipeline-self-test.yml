@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - ".circleci/checkpoint/**"
+      - ".circleci/bridge/**"
       - ".circleci/experimental-steps/**"
       - "tests/**"
       - ".circleci/config.yml"
@@ -24,6 +25,7 @@ on:
   pull_request:
     paths:
       - ".circleci/checkpoint/**"
+      - ".circleci/bridge/**"
       - ".circleci/experimental-steps/**"
       - "tests/**"
       - ".circleci/config.yml"
@@ -92,7 +94,7 @@ jobs:
         run: python3 .circleci/scripts/test-brave-build-flow.py
       - name: Test Sandium disabled Brave feature policies
         run: python3 .circleci/scripts/test-sandium-feature-policies.py
-      - name: Test Sandium transition-only Full Mode overlay
+      - name: Test Sandium transition overlay
         run: python3 .circleci/scripts/test-sandium-page-transition-full.py
       - name: Install Flow test dependencies
         run: python3 -m pip install PyYAML==6.0.3
@@ -100,3 +102,9 @@ jobs:
         run: python3 tests/test_single_pipeline.py
       - name: Test composed welcome crash fix
         run: python3 tests/test_composition.py
+      - name: Test legacy-base bridge metadata and restore
+        run: python3 tests/test_legacy_bridge.py
+      - name: Test delta-only rollup against unchanged base
+        run: python3 tests/test_bridge_rollup.py
+      - name: Test Flow bridge lifecycle and timeout cleanup
+        run: python3 tests/test_bridge_pipeline.py

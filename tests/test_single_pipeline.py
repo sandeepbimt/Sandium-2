@@ -134,10 +134,10 @@ class SinglePipeline(unittest.TestCase):
 
     def test_build_reserves_checkpoint_and_native_save_time(self):
         from job_budget import build_seconds
-        self.assertEqual(build_seconds(0,0),840)
-        self.assertEqual(build_seconds(0,700),140)
+        self.assertEqual(build_seconds(0,0),1200)
+        self.assertEqual(build_seconds(0,700),1040)
         with self.assertRaises(ValueError):
-            build_seconds(0,800)
+            build_seconds(0,1700)
 
     def test_restore_duplicate_copy_reports_chunks_and_preserves_bytes(self):
         from unittest.mock import patch

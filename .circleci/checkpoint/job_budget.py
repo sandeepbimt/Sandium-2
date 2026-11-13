@@ -6,9 +6,9 @@ import time
 
 
 def build_seconds(start, now):
-    # Match capture's maximum 30-minute allowance, native save/head 10 minutes,
+    # Match capture's maximum 15-minute allowance, native save/head 10 minutes,
     # and timeout's additional 60-second graceful termination window.
-    remaining = int(start + 3300 - now - 1800 - 600 - 60)
+    remaining = int(start + 3300 - now - 900 - 600 - 60)
     if remaining < 60:
         raise ValueError("Insufficient remaining job time for build plus checkpoint/save reserves")
     return min(1200, remaining)
