@@ -55,7 +55,8 @@ def restore_chain(root, plan, legacy_script, timeout=1700):
 def quiesce(script,root):
     spec=importlib.util.spec_from_file_location('legacy_shards',script)
     mod=importlib.util.module_from_spec(spec);sys.modules[spec.name]=mod;spec.loader.exec_module(mod)
-    if mod.find_open_writers(Path(root)):raise ValueError('Open writers in checkpoint scope')
+    from quiescence import ensure_quiescent
+    ensure_quiescent(Path(root),mod)
 
 
 if __name__=='__main__':

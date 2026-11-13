@@ -66,21 +66,28 @@ def main() -> None:
         core / "android/java/org/chromium/chrome/browser/toolbar/top/BraveToolbarLayoutImpl.java",
         'R.drawable.sandium_toolbar_mark',
         'setImageAlpha(shieldsEnabled ? 255 : 112)',
-        'R.id.sandium_shields_glow',
-        'RenderEffect.createBlurEffect',
-        'setVisibility(shieldsEnabled ? View.VISIBLE : View.GONE)',
+        'class SandiumShieldsTracer',
+        'tracer.setEnabled(shieldsEnabled)',
+        'length * 0.35f',
+        'ValueAnimator.areAnimatorsEnabled()',
+        'unscheduleSelf(this)',
         'mRewardsLayout.setVisibility(View.GONE)',
     )
     require(
         core / "android/java/brave-res/layout/brave_toolbar.xml",
         '@drawable/sandium_toolbar_mark',
-        '@+id/sandium_shields_glow',
-        'android:visibility="gone"',
     )
     require(
         core / "android/java/brave-res/layout/brave_custom_tabs_toolbar.xml",
         '@drawable/sandium_toolbar_mark',
     )
+    for path in (
+        core / "android/java/org/chromium/chrome/browser/toolbar/top/BraveToolbarLayoutImpl.java",
+        core / "android/java/brave-res/layout/brave_toolbar.xml",
+    ):
+        text = path.read_text()
+        if "sandium_shields_glow" in text or "RenderEffect.createBlurEffect" in text:
+            raise SystemExit("SANDIUM_BRANDING_TEST=FAIL obsolete glow remains")
     # The annotated Shields labels are intentionally Brave-branded at these locations.
     # The branding overlay must not rewrite them to Sandium.
     require(

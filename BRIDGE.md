@@ -139,3 +139,34 @@ shared reset/filter-test removal and wrong-path same-basename commands. Seed and
 GitHub run these before expensive source work. The active test audit found no
 other obsolete branch-gated config assumption; build-flow now shares the checker,
 and remaining "Full Mode" wording in fixed-recipe test variables was corrected.
+
+## Checkpoint quiescence correction after #1073
+
+#1073 completed compilation and APK packaging validation, then refused checkpoint
+capture because writable descriptors remained in the workspace. The old bridge
+error did not identify processes, so the exact historical writer is unproven.
+The original archive path had a scoped Android idle-build-server shutdown that the
+bridge omitted; restoring that lifecycle step is the concrete regression fix.
+
+The bridge now invokes that same shutdown: only this workspace's
+fast_local_dev_server.py with --exit-on-idle receives SIGTERM. Other processes are
+not killed. It waits briefly for naturally closing descriptors, then refuses any
+remaining live workspace writer. Diagnostics include PID, executable basename,
+relative path and link count, never argv or environment values.
+
+Every visible FD is inspected. A regular open inode with nlink=0 is not in the
+captured tree; it is reported separately rather than treated as a live tree writer.
+A deleted pathname whose inode still has a hardlink remains blocking, and an
+unlinked FD cannot hide a second live FD in the same process.
+
+Seven real-process tests cover graceful known-server shutdown/flush, unknown-writer
+refusal without killing it or logging secret argv, read-only and other-workspace
+processes, unlinked-only descriptors, live hardlinked deleted names, a second live
+FD, natural closure, and refusal to terminate a server without --exit-on-idle.
+
+This retains the trusted same-user/no-new-writers contract and double-inventory
+checks. Permission-inaccessible processes and writable mmap after FD closure are
+outside this FD scanner's coverage; it is not proof that all machine processes
+cannot mutate the tree. Unknown live writers still block, not get ignored. Browser
+crash code is unchanged by this checkpoint fix; APK packaging success is not device
+runtime validation.

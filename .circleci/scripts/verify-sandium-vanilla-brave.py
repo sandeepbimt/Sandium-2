@@ -176,13 +176,104 @@ def verify_repo_clean(repo: Path, prefixes: tuple[str, ...], label: str) -> None
         )
     print(f"SANDIUM_VANILLA_SOURCE_GATE=PASS tree={label} paths={len(tracked)}")
 
+# Exact retired v4 overlay fragments. Cleanup edits only this feature and
+# fails closed on unknown remnants instead of resetting shared modified files.
+RETIRED_READER = {'resource_line': '    "java/brave-res/raw/sandium_reader_typography.js",\n',
+ 'imports': 'import java.io.ByteArrayOutputStream;\n'
+            'import java.io.IOException;\n'
+            'import java.io.InputStream;\n'
+            'import java.nio.charset.StandardCharsets;\n',
+ 'field_anchor': '    private PlaylistService mPlaylistService;\n',
+ 'field': '    private PlaylistService mPlaylistService;\n'
+          '\n'
+          '    // SANDIUM_READER_TYPOGRAPHY_BEGIN\n'
+          '    private static volatile String sSandiumReaderTypographyScript;\n'
+          '    // SANDIUM_READER_TYPOGRAPHY_END\n',
+ 'method_anchor': '    public void setTabModelSelector(TabModelSelector selector) {\n',
+ 'method': '    private void applySandiumReaderTypography(Tab tab) {\n'
+           '        if (tab == null || tab.getWebContents() == null || tab.getUrl() == null) '
+           'return;\n'
+           '        String scheme = tab.getUrl().getScheme();\n'
+           '        if (!"http".equals(scheme) && !"https".equals(scheme)) return;\n'
+           '        try {\n'
+           '            String script = sSandiumReaderTypographyScript;\n'
+           '            if (script == null) {\n'
+           '                synchronized (BraveToolbarLayoutImpl.class) {\n'
+           '                    script = sSandiumReaderTypographyScript;\n'
+           '                    if (script == null) {\n'
+           '                        try (InputStream input = '
+           'getContext().getResources().openRawResource(\n'
+           '                                R.raw.sandium_reader_typography)) {\n'
+           '                            ByteArrayOutputStream output = new '
+           'ByteArrayOutputStream();\n'
+           '                            byte[] buffer = new byte[8192];\n'
+           '                            int count;\n'
+           '                            while ((count = input.read(buffer)) != -1) {\n'
+           '                                output.write(buffer, 0, count);\n'
+           '                            }\n'
+           '                            script = new String(output.toByteArray(), '
+           'StandardCharsets.UTF_8);\n'
+           '                        }\n'
+           '                        sSandiumReaderTypographyScript = script;\n'
+           '                    }\n'
+           '                }\n'
+           '            }\n'
+           '            tab.getWebContents().evaluateJavaScript(script, null);\n'
+           '        } catch (IOException | RuntimeException error) {\n'
+           '            Log.w(TAG, "Unable to apply Sandium reader typography", error);\n'
+           '        }\n'
+           '    }\n'
+           '\n'
+           '    public void setTabModelSelector(TabModelSelector selector) {\n',
+ 'load_anchor': '                    public void onPageLoadFinished(final Tab tab, GURL url) {\n',
+ 'load_new': '                    public void onPageLoadFinished(final Tab tab, GURL url) {\n'
+             '                        applySandiumReaderTypography(tab);\n',
+ 'shown_anchor': '                    public void onShown(Tab tab, @TabSelectionType int type) {\n',
+ 'shown_new': '                    public void onShown(Tab tab, @TabSelectionType int type) {\n'
+              '                        applySandiumReaderTypography(tab);\n'}
+
+def retire_reader(core: Path, repo_root: Path) -> None:
+    toolbar = core / "android/java/org/chromium/chrome/browser/toolbar/top/BraveToolbarLayoutImpl.java"
+    build = core / "android/BUILD.gn"
+    before_toolbar = toolbar.read_text(encoding="utf-8")
+    updated = before_toolbar
+    for added, original in (("method", "method_anchor"), ("field", "field_anchor"),
+                            ("load_new", "load_anchor"), ("shown_new", "shown_anchor")):
+        fragment = RETIRED_READER[added]
+        if updated.count(fragment) > 1:
+            raise SystemExit("SANDIUM_READER_RETIRE=FAIL duplicate " + added)
+        updated = updated.replace(fragment, RETIRED_READER[original])
+    # These imports were introduced only as a contiguous typography bundle.
+    # Preserve any import still required by another feature in the same file.
+    for line in RETIRED_READER["imports"].splitlines(keepends=True):
+        name = line.strip().removeprefix("import ").removesuffix(";").split(".")[-1]
+        without_import = updated.replace(line, "")
+        if not re.search(r"\b" + re.escape(name) + r"\b", without_import):
+            updated = without_import
+    build_text = build.read_text(encoding="utf-8").replace(RETIRED_READER["resource_line"], "")
+    for text in (updated, build_text):
+        if any(token in text for token in ("sandium_reader_typography", "SandiumReaderTypography", "SANDIUM_READER_TYPOGRAPHY")):
+            raise SystemExit("SANDIUM_READER_RETIRE=FAIL unrecognized reader remnants; no source files written")
+    if updated != before_toolbar:
+        toolbar.write_text(updated, encoding="utf-8")
+    if build_text != build.read_text(encoding="utf-8"):
+        build.write_text(build_text, encoding="utf-8")
+    resource = core / "android/java/brave-res/raw/sandium_reader_typography.js"
+    if resource.exists():
+        resource.unlink()
+    verify_reader_removed(core, repo_root)
+    print("SANDIUM_READER_RETIRE=PASS targeted_cleanup=true")
+
 def apply_phase(core: Path, src: Path, out: Path, phase: str) -> None:
     pin_gate(core, src)
+    if phase == "retire-reader":
+        retire_reader(core, Path(__file__).resolve().parents[2])
+        return
     reader_resource = core / "android/java/brave-res/raw/sandium_reader_typography.js"
     if phase == "prepare":
         brave_count = restore_paths(core, BRAVE_RESTORE_PREFIXES, "brave-core")
         chromium_count = restore_paths(src, CHROMIUM_RESTORE_PREFIXES, "chromium")
-        # Clear any checkpoint copy; the approved Full Mode overlay will restore the repository-supplied v4 resource.
+        # Remove the retired typography resource even from restored checkpoints.
         if reader_resource.exists():
             reader_resource.unlink()
             print("SANDIUM_VANILLA_RESTORE=PASS retired_reader_resource_removed")
@@ -201,38 +292,31 @@ def apply_phase(core: Path, src: Path, out: Path, phase: str) -> None:
     restore_paths(src, CHROMIUM_RESTORE_PREFIXES, "chromium-final-upstream")
     verify_repo_clean(src, CHROMIUM_RESTORE_PREFIXES, "chromium")
     clean_gn_args(out)
-    # Universal Reader Typography is an approved #850 feature, not a retired
-    # experiment. Require the exact repository-supplied v4 resource, its GN
-    # registration, and the toolbar injection that consumes it.
-    repo_root = Path(__file__).resolve().parents[2]
-    supplied_resource = repo_root / "android/java/brave-res/raw/sandium_reader_typography.js"
-    android_build = core / "android/BUILD.gn"
-    toolbar = core / "android/java/org/chromium/chrome/browser/toolbar/top/BraveToolbarLayoutImpl.java"
-    if not supplied_resource.is_file() or not reader_resource.is_file():
-        raise SystemExit("SANDIUM_VANILLA_SOURCE_GATE=FAIL approved Universal Reader Typography resource missing")
-    if reader_resource.read_bytes() != supplied_resource.read_bytes():
-        raise SystemExit("SANDIUM_VANILLA_SOURCE_GATE=FAIL Reader Typography resource differs from repository v4 source")
-    if not android_build.is_file() or '"java/brave-res/raw/sandium_reader_typography.js"' not in android_build.read_text(encoding="utf-8"):
-        raise SystemExit("SANDIUM_VANILLA_SOURCE_GATE=FAIL Reader Typography raw resource is not registered")
-    if not toolbar.is_file():
-        raise SystemExit("SANDIUM_VANILLA_SOURCE_GATE=FAIL Reader Typography toolbar integration is missing")
-    toolbar_text = toolbar.read_text(encoding="utf-8")
-    required_reader_hooks = (
-        "private void applySandiumReaderTypography(Tab tab)",
-        "R.raw.sandium_reader_typography",
-        "applySandiumReaderTypography(tab);",
-    )
-    missing_reader_hooks = [item for item in required_reader_hooks if item not in toolbar_text]
-    if missing_reader_hooks:
-        raise SystemExit("SANDIUM_VANILLA_SOURCE_GATE=FAIL Reader Typography integration incomplete: " + repr(missing_reader_hooks))
-    print("SANDIUM_VANILLA_VERIFY=PASS ai_chat=upstream wallet=upstream news=upstream reader_typography=approved_v4")
+    verify_reader_removed(core, Path(__file__).resolve().parents[2])
+    print("SANDIUM_VANILLA_VERIFY=PASS ai_chat=upstream wallet=upstream news=upstream reader_typography=removed")
+
+
+def verify_reader_removed(core: Path, repo_root: Path) -> None:
+    resource = "android/java/brave-res/raw/sandium_reader_typography.js"
+    if (core / resource).exists() or (repo_root / resource).exists():
+        raise SystemExit("SANDIUM_VANILLA_SOURCE_GATE=FAIL retired typography resource remains")
+    for relative in ("android/BUILD.gn",
+                     "android/java/org/chromium/chrome/browser/toolbar/top/BraveToolbarLayoutImpl.java"):
+        path = core / relative
+        if not path.is_file():
+            raise SystemExit("SANDIUM_VANILLA_SOURCE_GATE=FAIL missing typography removal verification input: " + relative)
+        source = path.read_text(encoding="utf-8")
+        if any(token in source for token in (
+                "sandium_reader_typography", "SandiumReaderTypography",
+                "SANDIUM_READER_TYPOGRAPHY", "quetta-reader-typography")):
+            raise SystemExit("SANDIUM_VANILLA_SOURCE_GATE=FAIL retired typography integration remains: " + relative)
 
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--core", required=True, type=Path)
     parser.add_argument("--src", required=True, type=Path)
     parser.add_argument("--out", required=True, type=Path)
-    parser.add_argument("--phase", required=True, choices=("prepare", "verify"))
+    parser.add_argument("--phase", required=True, choices=("prepare", "verify", "retire-reader"))
     args = parser.parse_args()
     apply_phase(args.core.resolve(), args.src.resolve(), args.out.resolve(), args.phase)
 

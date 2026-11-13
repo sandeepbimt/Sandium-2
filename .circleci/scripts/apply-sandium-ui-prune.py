@@ -150,6 +150,21 @@ def patch_main_preferences_base(core: Path) -> None:
                 && BraveVpnPrefUtils.shouldShowCallout()
 """, "hide-vpn-settings-callout")
 
+def patch_removed_origin_ordering(core: Path) -> None:
+    # Full overlays intentionally remove the Origin purchase row. Brave's
+    # feature flag can still be enabled; never order a preference not inflated.
+    # Keep the mandatory-preference helper strict and entitlement logic intact.
+    path = core / "android/java/org/chromium/chrome/browser/settings/BraveMainPreferencesBase.java"
+    replace_once(path,
+        """        if (ChromeFeatureList.isEnabled(BraveFeatureList.BRAVE_ORIGIN)) {
+            setPreferenceOrder(PREF_BRAVE_ORIGIN, ++generalOrder);
+""",
+        """        // SANDIUM_REMOVED_ORIGIN_ORDER_GUARD
+        if (ChromeFeatureList.isEnabled(BraveFeatureList.BRAVE_ORIGIN)
+                && findPreference(PREF_BRAVE_ORIGIN) != null) {
+            setPreferenceOrder(PREF_BRAVE_ORIGIN, ++generalOrder);
+""", "removed-origin-order-guard")
+
 def patch_search_engine_preferences(core: Path) -> None:
     xml = core / "android/java/brave-res/xml/brave_search_engines_preferences.xml"
     set_visible(xml, "search_suggestions", False)
@@ -336,6 +351,7 @@ def main() -> None:
     patch_customize_menu(core)
     patch_default_browser_icon(core)
     patch_main_preferences(core)
+    patch_removed_origin_ordering(core)
     patch_search_engine_preferences(core)
     patch_search_engine_utils(core)
     patch_search_engine_adapter(src)

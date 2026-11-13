@@ -120,3 +120,11 @@ jobs:
         run: python3 tests/test_flow_tools.py
       - name: Test actual Flow overlay and UI-test wiring in all stages
         run: python3 tests/test_flow_wiring.py
+      - name: Test scoped checkpoint quiescence and writer diagnostics
+        run: python3 tests/test_bridge_quiescence.py
+      - name: Test removed typography and Origin settings ordering
+        run: |
+          python3 tests/test_browser_crash_regressions.py
+          python3 tests/test_settings_origin_crash.py
+      - name: Test Balanced S contour and animator lifecycle
+        run: python3 tests/test_balanced_tracer.py

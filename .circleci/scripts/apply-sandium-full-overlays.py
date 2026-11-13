@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Pin-guarded Sandium Full Mode overlays: Origin-equivalent feature removal and reader typography."""
+"""Pin-guarded Sandium Full Mode overlays: Origin-equivalent feature removal."""
 from pathlib import Path
 import argparse
 import subprocess
@@ -9,8 +9,6 @@ BRAVE_SHA = "44a84b1f89d9a35287289d6a3d493e362f5a5123"
 CHROMIUM_SHA = "d331de35ca8ab1358c7a17e4bd41627d55eaef51"
 BEGIN = "// SANDIUM_ORIGIN_ANALYTICS_BEGIN"
 END = "// SANDIUM_ORIGIN_ANALYTICS_END"
-TYPO_BEGIN = "// SANDIUM_READER_TYPOGRAPHY_BEGIN"
-TYPO_END = "// SANDIUM_READER_TYPOGRAPHY_END"
 
 def git_sha(path):
     return subprocess.check_output(["git", "-C", str(path), "rev-parse", "HEAD"], text=True).strip()
@@ -477,114 +475,6 @@ def main():
     )
     replace_exact(main_prefs, old_origin_row, "    <!-- SANDIUM_ORIGIN_ENTRY_REMOVED -->\n", "SANDIUM_REMOVE_ORIGIN_ENTRY")
 
-    # Add the supplied Universal Reader Typography v4 as an Android raw resource.
-    build_gn = core / "android/BUILD.gn"
-    resource_line = '    "java/brave-res/raw/sandium_reader_typography.js",\n'
-    source = build_gn.read_text(encoding="utf-8")
-    if resource_line.strip() in source:
-        print("SANDIUM_READER_RESOURCE=ALREADY_REGISTERED")
-    else:
-        anchor = '    "java/brave-res/xml/brave_origin_preferences.xml",\n'
-        if source.count(anchor) != 1:
-            raise RuntimeError("SANDIUM_READER_RESOURCE: expected one java_resources XML anchor")
-        build_gn.write_text(source.replace(anchor, anchor + resource_line, 1), encoding="utf-8")
-        print("SANDIUM_READER_RESOURCE=REGISTERED")
-
-    toolbar = core / "android/java/org/chromium/chrome/browser/toolbar/top/BraveToolbarLayoutImpl.java"
-    if not toolbar.is_file():
-        raise RuntimeError(f"SANDIUM_READER_INJECTION: missing {toolbar}")
-    source = toolbar.read_text(encoding="utf-8")
-    import_anchor = "import java.net.URL;\n"
-    imports = (
-        "import java.io.ByteArrayOutputStream;\n"
-        "import java.io.IOException;\n"
-        "import java.io.InputStream;\n"
-        "import java.nio.charset.StandardCharsets;\n"
-    )
-    if "import java.io.InputStream;" not in source:
-        if source.count(import_anchor) != 1:
-            raise RuntimeError("SANDIUM_READER_INJECTION: import anchor not unique")
-        source = source.replace(import_anchor, imports + import_anchor, 1)
-
-    field_anchor = "    private PlaylistService mPlaylistService;\n"
-    field = (
-        field_anchor
-        + "\n"
-        + "    // SANDIUM_READER_TYPOGRAPHY_BEGIN\n"
-        + "    private static volatile String sSandiumReaderTypographyScript;\n"
-        + "    // SANDIUM_READER_TYPOGRAPHY_END\n"
-    )
-    if "sSandiumReaderTypographyScript" not in source:
-        if source.count(field_anchor) != 1:
-            raise RuntimeError("SANDIUM_READER_INJECTION: field anchor not unique")
-        source = source.replace(field_anchor, field, 1)
-
-    method_anchor = "    public void setTabModelSelector(TabModelSelector selector) {\n"
-    method = (
-        "    private void applySandiumReaderTypography(Tab tab) {\n"
-        "        if (tab == null || tab.getWebContents() == null || tab.getUrl() == null) return;\n"
-        "        String scheme = tab.getUrl().getScheme();\n"
-        '        if (!"http".equals(scheme) && !"https".equals(scheme)) return;\n'
-        "        try {\n"
-        "            String script = sSandiumReaderTypographyScript;\n"
-        "            if (script == null) {\n"
-        "                synchronized (BraveToolbarLayoutImpl.class) {\n"
-        "                    script = sSandiumReaderTypographyScript;\n"
-        "                    if (script == null) {\n"
-        "                        try (InputStream input = getContext().getResources().openRawResource(\n"
-        "                                R.raw.sandium_reader_typography)) {\n"
-        "                            ByteArrayOutputStream output = new ByteArrayOutputStream();\n"
-        "                            byte[] buffer = new byte[8192];\n"
-        "                            int count;\n"
-        "                            while ((count = input.read(buffer)) != -1) {\n"
-        "                                output.write(buffer, 0, count);\n"
-        "                            }\n"
-        "                            script = new String(output.toByteArray(), StandardCharsets.UTF_8);\n"
-        "                        }\n"
-        "                        sSandiumReaderTypographyScript = script;\n"
-        "                    }\n"
-        "                }\n"
-        "            }\n"
-        "            tab.getWebContents().evaluateJavaScript(script, null);\n"
-        "        } catch (IOException | RuntimeException error) {\n"
-        '            Log.w(TAG, "Unable to apply Sandium reader typography", error);\n'
-        "        }\n"
-        "    }\n\n"
-        + method_anchor
-    )
-    if "private void applySandiumReaderTypography(Tab tab)" not in source:
-        if source.count(method_anchor) != 1:
-            raise RuntimeError("SANDIUM_READER_INJECTION: method anchor not unique")
-        source = source.replace(method_anchor, method, 1)
-
-    # Apply on finished loads and when a previously loaded tab becomes visible.
-    load_anchor = "                    public void onPageLoadFinished(final Tab tab, GURL url) {\n"
-    load_new = load_anchor + "                        applySandiumReaderTypography(tab);\n"
-    if "applySandiumReaderTypography(tab);" not in source:
-        if source.count(load_anchor) != 1:
-            raise RuntimeError("SANDIUM_READER_INJECTION: page-load anchor not unique")
-        source = source.replace(load_anchor, load_new, 1)
-    shown_anchor = "                    public void onShown(Tab tab, @TabSelectionType int type) {\n"
-    shown_new = shown_anchor + "                        applySandiumReaderTypography(tab);\n"
-    if source.count(shown_anchor) == 1 and "applySandiumReaderTypography(tab);" not in source[source.index(shown_anchor):source.index(shown_anchor)+180]:
-        source = source.replace(shown_anchor, shown_new, 1)
-    toolbar.write_text(source, encoding="utf-8")
-    print("SANDIUM_READER_INJECTION=PATCHED")
-
-    # Keep the resource path and all user-provided v4 algorithm/CSS unchanged.
-    repo_root = Path(__file__).resolve().parents[2]
-    supplied_raw = repo_root / "android/java/brave-res/raw/sandium_reader_typography.js"
-    raw = core / "android/java/brave-res/raw/sandium_reader_typography.js"
-    if not supplied_raw.is_file() or supplied_raw.stat().st_size < 2500:
-        raise RuntimeError(f"SANDIUM_READER_RESOURCE: supplied v4 script is missing or truncated: {supplied_raw}")
-    raw.parent.mkdir(parents=True, exist_ok=True)
-    supplied_bytes = supplied_raw.read_bytes()
-    if raw.exists() and raw.read_bytes() != supplied_bytes:
-        print("SANDIUM_READER_RESOURCE=REFRESHING_FROM_REPOSITORY_SOURCE")
-    raw.write_bytes(supplied_bytes)
-    if raw.read_bytes() != supplied_bytes:
-        raise RuntimeError("SANDIUM_READER_RESOURCE: copy verification failed")
-    print(f"SANDIUM_READER_RESOURCE=PASS bytes={raw.stat().st_size} exact_repository_copy=true")
     print("SANDIUM_FULL_OVERLAYS=PASS")
     
 if __name__ == "__main__":

@@ -87,6 +87,10 @@ def main() -> None:
         "SANDIUM_ORIGIN_ENTRY_REMOVED")
     if 'android:key="brave_origin"' in main_xml.read_text(encoding="utf-8"):
         raise SystemExit("SANDIUM_UI_TEST=FAIL Origin entry should be removed by full overlays")
+    require(core / "android/java/org/chromium/chrome/browser/settings/BraveMainPreferencesBase.java",
+        "// SANDIUM_REMOVED_ORIGIN_ORDER_GUARD",
+        "&& findPreference(PREF_BRAVE_ORIGIN) != null) {",
+        "setPreferenceOrder(PREF_BRAVE_ORIGIN, ++generalOrder);")
     expect_attr(main_xml, "closing_all_tabs_closes_brave", "app:isPreferenceVisible", "true")
     # VPN remains vanilla Brave; the annotated UI policy hides its entry only.
 

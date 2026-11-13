@@ -218,23 +218,16 @@ def replace_toolbar_method(core: Path) -> None:
         // Keep Brave's original state semantics: null-tab and Shields-off states
         // are subdued; a real tab with Shields enabled uses the full-strength mark.
         boolean shieldsEnabled = tab != null && isShieldsOnForTab(tab);
-        mBraveShieldsButton.setImageResource(R.drawable.sandium_toolbar_mark);
-        mBraveShieldsButton.setImageAlpha(shieldsEnabled ? 255 : 112);
-
-        // A larger duplicate mark becomes a soft glow on Android 12+ and a
-        // subdued halo fallback on older Android versions.
-        View sandiumGlow = findViewById(R.id.sandium_shields_glow);
-        if (sandiumGlow != null) {
-            sandiumGlow.setVisibility(shieldsEnabled ? View.VISIBLE : View.GONE);
-            sandiumGlow.setAlpha(0.58f);
-            sandiumGlow.setScaleX(1.42f);
-            sandiumGlow.setScaleY(1.42f);
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
-                sandiumGlow.setRenderEffect(
-                        android.graphics.RenderEffect.createBlurEffect(
-                                11.0f, 11.0f, android.graphics.Shader.TileMode.CLAMP));
-            }
+        android.graphics.drawable.Drawable current = mBraveShieldsButton.getDrawable();
+        SandiumShieldsTracer tracer;
+        if (current instanceof SandiumShieldsTracer) {
+            tracer = (SandiumShieldsTracer) current;
+        } else {
+            tracer = new SandiumShieldsTracer(mBraveShieldsButton);
+            mBraveShieldsButton.setImageDrawable(tracer);
         }
+        mBraveShieldsButton.setImageAlpha(shieldsEnabled ? 255 : 112);
+        tracer.setEnabled(shieldsEnabled);
 
         // Hide only the toolbar Rewards/BAT view. Do not disable the Rewards backend.
         setRewardsLayoutVisibility(View.GONE);
@@ -242,11 +235,173 @@ def replace_toolbar_method(core: Path) -> None:
     }
 
 """
+    replacement += """    /** Balanced tracer, sampled from the verified 64 x 77 logo alpha silhouette. */
+    private static final class SandiumShieldsTracer extends android.graphics.drawable.Drawable
+            implements Runnable, View.OnAttachStateChangeListener,
+                    android.view.ViewTreeObserver.OnWindowFocusChangeListener,
+                    android.view.ViewTreeObserver.OnGlobalLayoutListener {
+        private final android.widget.ImageView mHost;
+        private final android.graphics.drawable.Drawable mMark;
+        private final android.graphics.Path mOutline = new android.graphics.Path();
+        private final android.graphics.Path mScaled = new android.graphics.Path();
+        private final android.graphics.Path mSegment = new android.graphics.Path();
+        private final android.graphics.PathMeasure mMeasure = new android.graphics.PathMeasure();
+        private final android.graphics.Paint mPaint =
+                new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
+        private final android.graphics.Matrix mMatrix = new android.graphics.Matrix();
+        private final float[] mImageMatrixValues = new float[9];
+        private boolean mEnabled;
+        private boolean mListening;
+        private int mAlpha = 255;
+        private final long mEpoch = android.os.SystemClock.uptimeMillis();
+
+        SandiumShieldsTracer(android.widget.ImageView host) {
+            mHost = host;
+            mMark = host.getContext().getDrawable(R.drawable.sandium_toolbar_mark).mutate();
+            mPaint.setStyle(android.graphics.Paint.Style.STROKE);
+            mPaint.setStrokeCap(android.graphics.Paint.Cap.ROUND);
+            mPaint.setStrokeJoin(android.graphics.Paint.Join.ROUND);
+            mPaint.setColor(0xFF46C878);
+            mPaint.setStrokeWidth(2.0f * host.getResources().getDisplayMetrics().density);
+            android.graphics.Path outline = mOutline;
+            outline.moveTo(44.50f, 0.40f);
+            outline.lineTo(49.50f, 0.04f);
+            outline.lineTo(54.50f, 2.15f);
+            outline.lineTo(59.87f, 7.50f);
+            outline.lineTo(62.04f, 11.50f);
+            outline.lineTo(61.69f, 12.50f);
+            outline.lineTo(28.11f, 29.50f);
+            outline.lineTo(29.50f, 30.11f);
+            outline.lineTo(32.50f, 28.27f);
+            outline.lineTo(34.50f, 28.42f);
+            outline.lineTo(57.50f, 35.99f);
+            outline.lineTo(62.64f, 41.50f);
+            outline.lineTo(63.66f, 46.50f);
+            outline.lineTo(62.65f, 51.50f);
+            outline.lineTo(59.76f, 55.50f);
+            outline.lineTo(56.50f, 57.85f);
+            outline.lineTo(20.50f, 75.81f);
+            outline.lineTo(15.50f, 76.93f);
+            outline.lineTo(10.50f, 75.80f);
+            outline.lineTo(4.95f, 71.50f);
+            outline.lineTo(0.96f, 64.50f);
+            outline.lineTo(30.52f, 49.50f);
+            outline.lineTo(29.50f, 48.40f);
+            outline.lineTo(8.50f, 41.70f);
+            outline.lineTo(4.84f, 39.50f);
+            outline.lineTo(2.04f, 36.50f);
+            outline.lineTo(0.03f, 31.50f);
+            outline.lineTo(1.36f, 24.50f);
+            outline.lineTo(6.50f, 18.99f);
+            outline.lineTo(44.50f, 0.40f);
+            outline.close();
+            host.addOnAttachStateChangeListener(this);
+            if (host.isAttachedToWindow()) onViewAttachedToWindow(host);
+        }
+
+        void setEnabled(boolean enabled) {
+            mEnabled = enabled;
+            refresh();
+        }
+
+        private boolean canAnimate() {
+            return mEnabled && mHost.isAttachedToWindow() && mHost.isShown()
+                    && mHost.hasWindowFocus() && isVisible()
+                    && android.animation.ValueAnimator.areAnimatorsEnabled();
+        }
+
+        private void refresh() {
+            unscheduleSelf(this);
+            invalidateSelf();
+            if (canAnimate()) scheduleSelf(this, android.os.SystemClock.uptimeMillis() + 33);
+        }
+
+        @Override
+        public void run() { refresh(); }
+
+        @Override
+        protected void onBoundsChange(android.graphics.Rect bounds) {
+            mMark.setBounds(bounds);
+            mMatrix.setRectToRect(new android.graphics.RectF(0, 0, 64, 77),
+                    new android.graphics.RectF(bounds), android.graphics.Matrix.ScaleToFit.FILL);
+            mOutline.transform(mMatrix, mScaled);
+            mMeasure.setPath(mScaled, true);
+        }
+
+        @Override
+        public void draw(android.graphics.Canvas canvas) {
+            mMark.draw(canvas);
+            if (!mEnabled) return;
+            // ImageView applies its own image matrix; compensate so the final
+            // stroke remains 2dp rather than 2 raster pixels.
+            mHost.getImageMatrix().getValues(mImageMatrixValues);
+            float scale = Math.abs(mImageMatrixValues[android.graphics.Matrix.MSCALE_X]);
+            mPaint.setStrokeWidth(2.0f * mHost.getResources().getDisplayMetrics().density
+                    / Math.max(0.01f, scale));
+            mPaint.setAlpha(mAlpha * 220 / 255);
+            float length = mMeasure.getLength();
+            float phase = android.animation.ValueAnimator.areAnimatorsEnabled()
+                    ? ((android.os.SystemClock.uptimeMillis() - mEpoch) % 3200L) / 3200.0f : 0.0f;
+            float start = length * phase;
+            float end = start + length * 0.35f;
+            mSegment.rewind();
+            mMeasure.getSegment(start, Math.min(end, length), mSegment, true);
+            if (end > length) mMeasure.getSegment(0, end - length, mSegment, true);
+            canvas.drawPath(mSegment, mPaint);
+        }
+
+        @Override
+        public boolean setVisible(boolean visible, boolean restart) {
+            boolean changed = super.setVisible(visible, restart);
+            refresh();
+            return changed;
+        }
+
+        @Override
+        public void setAlpha(int alpha) {
+            mAlpha = alpha;
+            mMark.setAlpha(alpha);
+            invalidateSelf();
+        }
+
+        @Override
+        public void setColorFilter(android.graphics.ColorFilter filter) {
+            // Keep the original logo and green accent independent of toolbar tint.
+        }
+
+        @Override
+        public int getOpacity() { return android.graphics.PixelFormat.TRANSLUCENT; }
+        @Override
+        public int getIntrinsicWidth() { return mMark.getIntrinsicWidth(); }
+        @Override
+        public int getIntrinsicHeight() { return mMark.getIntrinsicHeight(); }
+        @Override
+        public void onWindowFocusChanged(boolean focused) { refresh(); }
+        @Override
+        public void onGlobalLayout() { refresh(); }
+        @Override
+        public void onViewAttachedToWindow(View view) {
+            if (!mListening) {
+                view.getViewTreeObserver().addOnWindowFocusChangeListener(this);
+                view.getViewTreeObserver().addOnGlobalLayoutListener(this);
+                mListening = true;
+            }
+            refresh();
+        }
+        @Override
+        public void onViewDetachedFromWindow(View view) {
+            unscheduleSelf(this);
+            if (view.getViewTreeObserver().isAlive()) {
+                view.getViewTreeObserver().removeOnWindowFocusChangeListener(this);
+                view.getViewTreeObserver().removeOnGlobalLayoutListener(this);
+            }
+            mListening = false;
+        }
+    }
+
+"""
     method = source[begin:finish]
-    if ("R.drawable.sandium_toolbar_mark" in method
-            and "setImageAlpha(shieldsEnabled ? 255 : 112)" in method
-            and "R.id.sandium_shields_glow" in method
-            and "RenderEffect.createBlurEffect" in method):
+    if method == replacement:
         print("SANDIUM_BRANDING_PATCH=toolbar-shields-mark:ALREADY_APPLIED")
     else:
         write(path, source[:begin] + replacement + source[finish:], "toolbar-shields-mark")
@@ -321,23 +476,16 @@ def apply(args: argparse.Namespace) -> None:
     )
 
     toolbar_xml = core / "android/java/brave-res/layout/brave_toolbar.xml"
-    replace_once(
-        toolbar_xml,
-        '      <ImageButton android:id="@+id/brave_shields_button"\n',
-        '      <ImageView android:id="@+id/sandium_shields_glow"\n'
-        '          android:layout_width="34dp"\n'
-        '          android:layout_height="34dp"\n'
-        '          android:layout_gravity="center"\n'
-        '          android:src="@drawable/sandium_toolbar_mark"\n'
-        '          android:scaleType="fitCenter"\n'
-        '          android:alpha="0.58"\n'
-        '          android:visibility="gone"\n'
-        '          android:clickable="false"\n'
-        '          android:focusable="false"\n'
-        '          android:importantForAccessibility="no" />\n'
-        '      <ImageButton android:id="@+id/brave_shields_button"\n',
-        "toolbar-shields-glow-view",
-    )
+    # Remove the previous duplicate/blur layer on restored checkpoints. The
+    # tracer shares the button's drawable bounds, so it cannot drift off the S.
+    toolbar_source = read(toolbar_xml)
+    toolbar_source, removed = re.subn(
+        r'      <ImageView android:id="@\+id/sandium_shields_glow"\s[^>]*?/>\n',
+        "", toolbar_source, flags=re.DOTALL)
+    if removed > 1:
+        raise RuntimeError("duplicate Sandium glow layers")
+    if removed:
+        write(toolbar_xml, toolbar_source, "remove-toolbar-shields-glow")
     replace_once(
         toolbar_xml,
         'android:src="@drawable/ic_social_brave_release_favicon_fullheight_color"',
