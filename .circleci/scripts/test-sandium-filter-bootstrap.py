@@ -103,3 +103,38 @@ with tempfile.TemporaryDirectory() as directory:
                if line.startswith(("+ ", "- "))]
     assert len(changed) == 8, changed
 print("SANDIUM_FILTER_CHECKPOINT_MIGRATION=PASS from=29 to=30 idempotent=true user_choices=preserved")
+
+# #1079 regression: execute every manager replacement in the full bootstrap
+# against a #1075 manager AFTER the later homepage overlay. Checking only the
+# migration helper previously missed the strict method-body rejection.
+with tempfile.TemporaryDirectory() as directory:
+    core = Path(directory)
+    manager = core / "components/brave_shields/content/browser/ad_block_subscription_service_manager.cc"
+    manager.parent.mkdir(parents=True)
+    manager.write_text((HERE / "fixtures/filter-subscription-manager-29.cc").read_text())
+    module = runpy.run_path(str(HERE / "apply-sandium-filter-bootstrap.py"))
+    globals_ = module["apply"].__globals__
+    original_replace = globals_["replace_once"]
+    labels = []
+    def manager_replace(path, old, new, marker, label):
+        if path == manager:
+            labels.append(label)
+            original_replace(path, old, new, marker, label)
+    globals_["replace_once"] = manager_replace
+    module["apply"](core)
+    first = manager.read_text()
+    module["apply"](core)
+    assert manager.read_text() == first
+    assert labels.count("manager-first-launch-high-priority-downloads") == 2
+    assert "MaybeTriggerSandiumHomepageWarmup();\n\n  // File metadata checks" in first
+    assert first.count("void AdBlockSubscriptionServiceManager::MaybeTriggerSandiumHomepageWarmup()") == 1
+    # Fail closed on a real unexpected native body change, rather than using a
+    # broad marker-only success or blindly resetting the whole manager.
+    manager.write_text(first.replace("    if (info->enabled) {", "    if (info->enabled && false) {", 1))
+    try:
+        module["apply"](core)
+    except SystemExit as error:
+        assert "incomplete patch manager-first-launch-high-priority-downloads" in str(error)
+    else:
+        raise AssertionError("unknown manager body drift accepted")
+print("SANDIUM_FILTER_COMPOSED_CHECKPOINT=PASS homepage_preserved=true repeat=true drift_rejected=true")

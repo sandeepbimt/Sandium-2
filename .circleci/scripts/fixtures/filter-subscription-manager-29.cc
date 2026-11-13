@@ -180,6 +180,12 @@ AdBlockSubscriptionServiceManager::AdBlockSubscriptionServiceManager(
       subscription_update_timer_(
           std::make_unique<component_updater::TimerUpdateScheduler>()),
       list_p3a_(list_p3a) {
+  // Clear a stale request left by an older build. The first visible
+  // homepage in this process will set it again after the UI is ready.
+  if (local_state_ &&
+      !local_state_->GetBoolean(prefs::kSandiumAdBlockEngineWarmupDoneV2)) {
+    local_state_->SetBoolean(prefs::kSandiumAdBlockEngineWarmupRequestedV2, false);
+  }
   std::move(download_manager_getter)
       .Run(base::BindOnce(
           &AdBlockSubscriptionServiceManager::OnGetDownloadManager,
@@ -268,6 +274,54 @@ void AdBlockSubscriptionServiceManager::StartDownload(const GURL& sub_url,
   }
 }
 
+bool AdBlockSubscriptionServiceManager::RequestSandiumHomepageWarmup() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  if (!local_state_) {
+    return false;
+  }
+  if (local_state_->GetBoolean(prefs::kSandiumAdBlockEngineWarmupDoneV2)) {
+    return true;
+  }
+  homepage_warmup_requested_ = true;
+  MaybeTriggerSandiumHomepageWarmup();
+  return true;
+}
+
+void AdBlockSubscriptionServiceManager::MaybeTriggerSandiumHomepageWarmup() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  if (!local_state_ ||
+      !homepage_warmup_requested_ ||
+      local_state_->GetBoolean(prefs::kSandiumAdBlockEngineWarmupDoneV2) ||
+      homepage_warmup_engine_reload_requested_ ||
+      subscription_filters_providers_.empty()) {
+    return;
+  }
+  // Do not activate against a partial subscription set. Every enabled
+  // default list must have a successful download timestamp before the
+  // additional native engine is built and marked ready.
+  int enabled_subscription_count = 0;
+  int successfully_downloaded_count = 0;
+  for (const auto& entry : subscription_filters_providers_) {
+    const auto info = GetInfo(entry.first);
+    if (!info || !info->enabled) {
+      continue;
+    }
+    ++enabled_subscription_count;
+    if (!info->last_successful_update_attempt.is_null() &&
+        !info->last_successful_update_attempt.is_min()) {
+      ++successfully_downloaded_count;
+    }
+  }
+  if (enabled_subscription_count == 0 ||
+      successfully_downloaded_count != enabled_subscription_count) {
+    return;
+  }
+  homepage_warmup_engine_reload_requested_ = true;
+  // Build only after all enabled lists have completed successfully.
+  local_state_->SetBoolean(prefs::kSandiumAdBlockEngineWarmupRequestedV2, true);
+  filters_provider_manager_->ForceNotifyObservers(false);
+}
+
 void AdBlockSubscriptionServiceManager::CreateSubscription(
     const GURL& sub_url) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
@@ -341,6 +395,7 @@ void AdBlockSubscriptionServiceManager::EnableSubscription(const GURL& sub_url,
   }
 
   UpdateSubscriptionPrefs(sub_url, *info);
+  MaybeTriggerSandiumHomepageWarmup();
 }
 
 void AdBlockSubscriptionServiceManager::DeleteSubscription(
@@ -367,6 +422,7 @@ void AdBlockSubscriptionServiceManager::DeleteSubscription(
     subscription_filters_providers_.erase(it);
   }
   ClearSubscriptionPrefs(sub_url);
+  MaybeTriggerSandiumHomepageWarmup();
 
   base::ThreadPool::PostTask(
       FROM_HERE,
@@ -578,6 +634,7 @@ void AdBlockSubscriptionServiceManager::EnsureSandiumDefaultSubscriptions() {
   if (migrate_previous_defaults) {
     local_state_->SetBoolean(prefs::kSandiumDefaultFilterListsMigrated, true);
   }
+  MaybeTriggerSandiumHomepageWarmup();
 
   // File metadata checks can block on filesystem access. Run them away from
   // the browser sequence, then re-check subscription state before downloading.
@@ -683,6 +740,7 @@ void AdBlockSubscriptionServiceManager::OnSubscriptionDownloaded(
   if (subscription_filters_provider) {
     subscription_filters_provider->OnListAvailable();
   }
+  MaybeTriggerSandiumHomepageWarmup();
 
   NotifyObserversOfServiceEvent();
 }

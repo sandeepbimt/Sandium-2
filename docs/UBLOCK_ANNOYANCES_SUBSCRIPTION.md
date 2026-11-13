@@ -54,3 +54,17 @@ build source, not the user's stored preferences. A retained exact-pin generated
 29-list manager fixture verifies surgical migration and repeat application.
 Also exercised the complete old bootstrap followed by the new bootstrap twice
 against a materialization of the exact pinned upstream files: passed.
+
+## #1079 composition failure and correction
+
+The first checkpoint fixture omitted the later homepage-warmup overlay. That
+left a test gap: the real checkpoint contains `MaybeTriggerSandiumHomepageWarmup()`
+inside the bootstrap-owned Ensure method, so strict body verification failed
+although the 29-to-30 catalogue migration succeeded. The correction accepts only
+that exact known composed variant, preserving its warmup call and rejecting
+unknown method drift. The retained fixture now includes all actual homepage
+manager transformations. Regression executes the native-manager branches of
+`apply()` twice, rather than only testing the migration helper. A separate local
+integration exercise applied old subscriptions, old bootstrap and full homepage
+overlays to pinned source, then applied the new bootstrap twice: passed. Real
+CircleCI/build/device verification remains required.

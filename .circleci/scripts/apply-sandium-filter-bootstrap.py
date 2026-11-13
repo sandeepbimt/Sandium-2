@@ -296,6 +296,21 @@ void AdBlockSubscriptionServiceManager::OnCheckedSandiumDefaultSubscriptionCache
 
 """
     remove_legacy_startup_warmup(manager_cc)
+    # Restored checkpoints contain the later homepage-warmup overlay as well.
+    # Preserve its exact known insertion rather than rejecting the composed
+    # method or resetting user-choice/download logic. Other drift fails closed.
+    warmup_anchor = (
+        "    local_state_->SetBoolean(prefs::kSandiumDefaultFilterListsMigrated, true);\n"
+        "  }\n\n"
+        "  // File metadata checks can block on filesystem access. Run them away from\n"
+    )
+    warmup_variant = warmup_anchor.replace(
+        "  }\n\n", "  }\n  MaybeTriggerSandiumHomepageWarmup();\n\n", 1
+    )
+    if warmup_variant in manager_cc.read_text(encoding="utf-8"):
+        if migration_method.count(warmup_anchor) != 1:
+            raise SystemExit("SANDIUM_FILTER_BOOTSTRAP=FAIL homepage anchor drift")
+        migration_method = migration_method.replace(warmup_anchor, warmup_variant, 1)
     replace_once(
         manager_cc,
         "// Updates preferences to reflect a new state for the specified filter list\n",
