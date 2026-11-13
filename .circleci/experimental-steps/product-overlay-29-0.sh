@@ -15,3 +15,7 @@ python3 .circleci/scripts/test-sandium-native-theme.py
 # Bounded Android 16 portrait/top-toolbar web-underlap trial; no frost.
 python3 .circleci/scripts/apply-sandium-scroll-status-bar.py "$SRC"
 python3 .circleci/tests/test_status_underlap_patch.py
+
+# Selected grouped site popup; keep underlying Shields policies and handlers.
+python3 .circleci/scripts/apply-sandium-shields-popup.py "$CORE"
+python3 .circleci/scripts/test-sandium-shields-popup.py --core "$CORE"

@@ -15,7 +15,7 @@ REQUIRED = {
  'product-overlay-26-0.sh': ['apply-sandium-page-transition-full.py'],
  'product-overlay-27-0.sh': ['apply-sandium-homepage-adblock-warmup.py','apply-sandium-download-concurrency.py','apply-sandium-welcome-setup.py','test-sandium-homepage-adblock-warmup.py','test-sandium-download-concurrency.py','test-sandium-welcome-setup.py','test-sandium-page-transition-full.py','verify-sandium-vanilla-brave.py'],
  'product-overlay-28-0.sh': ['apply-sandium-shields-two-state.py','apply-sandium-adblock-engine-race.py','test-sandium-shields-two-state.py','test-sandium-adblock-engine-race.py','test-sandium-filter-subscriptions.py','test-sandium-filter-bootstrap.py','apply-sandium-adblock-resources.py','test-sandium-adblock-resources.py'],
- 'product-overlay-29-0.sh': ['apply-sandium-ui-prune.py','test-sandium-ui-prune.py','apply-sandium-visible-branding.py','test-sandium-visible-branding.py','apply-sandium-native-theme.py','test-sandium-native-theme.py','apply-sandium-scroll-status-bar.py','test_status_underlap_patch.py'],
+ 'product-overlay-29-0.sh': ['apply-sandium-ui-prune.py','test-sandium-ui-prune.py','apply-sandium-visible-branding.py','test-sandium-visible-branding.py','apply-sandium-native-theme.py','test-sandium-native-theme.py','apply-sandium-scroll-status-bar.py','test_status_underlap_patch.py','apply-sandium-shields-popup.py','test-sandium-shields-popup.py'],
 }
 
 
@@ -88,5 +88,7 @@ def verify_flow_wiring(repo):
             if invocations[4][1] != ['$CORE']:raise ValueError('Native theme must target restored core')
             if invocations[5][1]:raise ValueError('Native theme tests take no arguments')
             if invocations[6][1] != ['$SRC']:raise ValueError('Status trial must target restored Chromium source')
+            if invocations[8][1] != ['$CORE']:raise ValueError('Apply popup must target restored core')
+            if invocations[9][1] != ['--core', '$CORE']:raise ValueError('Test popup must target restored core')
             if invocations[7][1]:raise ValueError('Status trial tests take no arguments')
     return list(jobs)

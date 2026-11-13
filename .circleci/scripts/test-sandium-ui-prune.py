@@ -17,6 +17,40 @@ def require(path: Path, *needles: str) -> str:
         raise SystemExit(f"SANDIUM_UI_TEST=FAIL path={path} missing={missing!r}")
     return content
 
+UI_COPY = {
+    "IDS_BRAVE_SHIELDS_AND_PRIVACY": "Brave Shields & privacy",
+    "IDS_PREFS_SECTION_BRAVE_SHIELDS_GLOBALS": "Brave shields global defaults",
+    "IDS_PREFS_USE_CUSTOM_TABS_TITLE": "Open external links in Brave",
+    "IDS_SETTINGS_APP_LINKS_LABEL": "Allow app links to open in apps outside of Brave",
+    "IDS_PREFS_CLOSING_ALL_TABS_CLOSES_BRAVE": "Closing all tabs closes Brave",
+}
+
+
+def verify_message_copy(path, expected, final=False):
+    import xml.etree.ElementTree as ET
+    try:
+        root = ET.fromstring(read(path))
+    except ET.ParseError as exc:
+        raise SystemExit(f"SANDIUM_UI_TEST=FAIL malformed GRD: {path}: {exc}")
+    for name, upstream in expected.items():
+        messages = root.findall(f".//message[@name='{name}']")
+        allowed = {upstream.replace("Brave", "Sandium")}
+        if not final:
+            allowed.add(upstream)
+        if (len(messages) != 1 or len(messages[0]) != 0
+                or (messages[0].text or "").strip() not in allowed):
+            raise SystemExit(f"SANDIUM_UI_TEST=FAIL {name}: expected exact browser identity copy")
+
+
+def verify_ui_identity(core, src, final=False):
+    # Early gates see either functional-overlay text or a fully branded checkpoint.
+    # Match stable IDs and exact copy; unrelated text must never satisfy the gate.
+    verify_message_copy(core / "browser/ui/android/strings/android_brave_strings.grd",
+                        UI_COPY, final)
+    verify_message_copy(src / "chrome/browser/ui/android/strings/android_chrome_strings.grd",
+                        {"IDS_MAKE_CHROME_DEFAULT": "Make Brave default"}, final)
+
+
 def expect_attr(path: Path, key: str, attribute: str, value: str) -> None:
     content = read(path)
     tags = re.findall(r"<[A-Za-z_][A-Za-z0-9_.:-]*\b[^>]*>", content, re.DOTALL)
@@ -144,29 +178,7 @@ def main() -> None:
     require(core / "android/java/org/chromium/chrome/browser/settings/BraveWalletPreferences.java",
         "readBoolean(PREF_BRAVE_WALLET_WEB3_NOTIFICATIONS, false)")
 
-    require(core / "browser/ui/android/strings/android_brave_strings.grd",
-        "Brave Shields &amp; privacy", "Brave shields global defaults",
-        "Open external links in Brave", "Allow app links to open in apps outside of Brave",
-        "Closing all tabs closes Brave")
-    chrome_strings = require(
-        src / "chrome/browser/ui/android/strings/android_chrome_strings.grd",
-        '<message name="IDS_MAKE_CHROME_DEFAULT"',
-        "Make Brave default",
-    )
-    make_default_messages = re.findall(
-        r'<message name="IDS_MAKE_CHROME_DEFAULT"[^>]*>.*?</message>',
-        chrome_strings,
-        re.DOTALL,
-    )
-    if (
-        len(make_default_messages) != 1
-        or "Make Brave default" not in make_default_messages[0]
-        or "Make Chrome default" in make_default_messages[0]
-    ):
-        raise SystemExit(
-            "SANDIUM_UI_TEST=FAIL IDS_MAKE_CHROME_DEFAULT must be overridden "
-            "once in Chromium's GRD source"
-        )
+    verify_ui_identity(core, src)
     duplicate_overlay = core / "android/java/brave-res/values/sandium_ui_overrides.xml"
     if duplicate_overlay.exists():
         raise SystemExit(

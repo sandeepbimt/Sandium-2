@@ -82,6 +82,11 @@ def verify_core(core):
     refresh = importlib.util.module_from_spec(refresh_spec)
     refresh_spec.loader.exec_module(refresh)
     refresh.verify_shields_copy(core / b.STRING_FILES[0], final=True)
+    ui_spec = importlib.util.spec_from_file_location(
+        'ui_identity', Path(__file__).with_name('test-sandium-ui-prune.py'))
+    ui = importlib.util.module_from_spec(ui_spec)
+    ui_spec.loader.exec_module(ui)
+    ui.verify_ui_identity(core, core.parent, final=True)
     for rel in b.STRING_FILES:
         content=(core/rel).read_text()
         if b.rebrand_messages(content)[0] != content:

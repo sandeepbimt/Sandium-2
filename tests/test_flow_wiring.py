@@ -51,6 +51,18 @@ class FlowWiring(unittest.TestCase):
             '--report', '--not-report')
         with self.assertRaisesRegex(ValueError,'coverage report'):verify_flow_wiring(root)
 
+    def test_popup_apply_and_test_cannot_be_skipped(self):
+        for name in ('apply-sandium-shields-popup.py', 'test-sandium-shields-popup.py'):
+            root=self.fixture();self.edit(root,'.circleci/experimental-steps/product-overlay-29-0.sh',
+                'python3 .circleci/scripts/'+name, '# python3 .circleci/scripts/'+name)
+            with self.assertRaisesRegex(ValueError,'command'):verify_flow_wiring(root)
+
+    def test_popup_must_target_restored_core(self):
+        root=self.fixture();self.edit(root,'.circleci/experimental-steps/product-overlay-29-0.sh',
+            'apply-sandium-shields-popup.py "$CORE"',
+            'apply-sandium-shields-popup.py "$SRC"')
+        with self.assertRaisesRegex(ValueError,'popup must target restored core'):verify_flow_wiring(root)
+
     def test_status_trial_cannot_be_skipped(self):
         root=self.fixture();self.edit(root,'.circleci/experimental-steps/product-overlay-29-0.sh',
             'python3 .circleci/scripts/apply-sandium-scroll-status-bar.py','echo .circleci/scripts/apply-sandium-scroll-status-bar.py')

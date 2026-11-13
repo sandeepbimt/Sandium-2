@@ -135,6 +135,7 @@ jobs:
       - name: Test visible identity and thirty-list checkpoint migration
         run: |
           python3 .circleci/scripts/test-sandium-branding-checkpoint.py
+          python3 .circleci/scripts/test-sandium-ui-checkpoint.py
           python3 .circleci/scripts/test-sandium-visible-branding.py
           python3 .circleci/scripts/test-sandium-filter-subscriptions.py
           python3 .circleci/scripts/test-sandium-filter-bootstrap.py

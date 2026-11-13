@@ -299,19 +299,19 @@ def patch_make_brave_default_label(core: Path, src: Path) -> None:
         )
     match = matches[0]
     body = match.group(2)
-    if re.search(r"\bMake Brave default\b", body):
+    if body.strip() == "Make Sandium default":
         print("SANDIUM_UI_PATCH=make-brave-default-label:ALREADY_APPLIED")
     else:
         updated_body, count = re.subn(
-            r"(?m)^(\s*)Make Chrome default(\s*)$",
-            r"\1Make Brave default\2",
+            r"\A(\s*)Make (?:Chrome|Brave) default(\s*)\Z",
+            r"\1Make Sandium default\2",
             body,
             count=1,
         )
         if count != 1:
             raise RuntimeError(
                 "make-brave-default-label-in-chromium-grd: message ID exists "
-                "but its source text is not the expected Make Chrome default"
+                f"but its source text is not a recognized default-browser label: {body.strip()!r}"
             )
         updated = source[:match.start(2)] + updated_body + source[match.end(2):]
         write(strings, updated, "make-brave-default-label-in-chromium-grd")
