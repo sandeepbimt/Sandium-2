@@ -170,7 +170,7 @@ def patch_search_engine_utils(core: Path) -> None:
     helper = """    private static void applySandiumGoogleSearchDefaults(
             Profile profile, TemplateUrlService templateUrlService) {
         if (profile.isOffTheRecord() || templateUrlService.isDefaultSearchManaged()) return;
-        ChromeSharedPreferences preferences = ChromeSharedPreferences.getInstance();
+        SharedPreferencesManager preferences = ChromeSharedPreferences.getInstance();
         if (preferences.readBoolean(SANDIUM_GOOGLE_SEARCH_DEFAULTS_APPLIED, false)) return;
         TemplateUrl googleTemplateUrl = null;
         for (TemplateUrl templateUrl : templateUrlService.getTemplateUrls()) {
