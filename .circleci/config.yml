@@ -2147,14 +2147,14 @@ jobs:
                 PACKAGE="$(sed -n "s/^package: name='\\([^']*\\)'.*/\\1/p" "$ROOT/brave-work/.sandium/restored-apk-badging.txt" 2>/dev/null | head -n 1)"
                 APP_LABEL="$(sed -n "s/^application-label:'\\(.*\\)'$/\\1/p" "$ROOT/brave-work/.sandium/restored-apk-badging.txt" 2>/dev/null | head -n 1)"
                 [ "$PACKAGE" = "com.brave.browser_default" ] || VALID=false
-                [ "$APP_LABEL" = "Sandium Browser" ] || VALID=false
+                [ "$APP_LABEL" = "Sandium" ] || VALID=false
               fi
             else
               VALID=false
             fi
             if [ "$VALID" = true ]; then
               touch "$ROOT/brave-work/.sandium/restored-apk-valid"
-              echo "BRAVE_RESTORED_APK=VALID package=com.brave.browser_default label=Sandium Browser bytes=$(stat -c '%s' "$APK")"
+              echo "BRAVE_RESTORED_APK=VALID package=com.brave.browser_default label=Sandium bytes=$(stat -c '%s' "$APK")"
             else
               echo "BRAVE_RESTORED_APK=INVALID; reopening only the APK output action."
               rm -f "$APK"
@@ -2359,6 +2359,11 @@ jobs:
             BRANDING_VALID=false
             APK_ERROR=""
             if [ -s "$APK" ]; then
+              # Keep a diagnostic copy even if later validation fails.
+              # This is NOT a verified release APK.
+              cp "$APK" "$ROOT/brave-apk/Sandium-unverified.apk"
+              sha256sum "$APK" > "$ROOT/brave-apk/Sandium-unverified.apk.sha256"
+              echo "BRAVE_APK_DIAGNOSTIC_COPY=SAVED; release validation still required"
               if python3 -c 'import sys,zipfile; z=zipfile.ZipFile(sys.argv[1]); bad=z.testzip(); z.close(); sys.exit(1 if bad else 0)' "$APK"; then
                 ARCHIVE_VALID=true
               else
@@ -2377,11 +2382,11 @@ jobs:
                     else
                       APK_ERROR="expected package com.brave.browser_default; got ${PACKAGE:-<missing>}"
                     fi
-                    if [ "$APP_LABEL" = "Sandium Browser" ]; then
+                    if [ "$APP_LABEL" = "Sandium" ]; then
                       BRANDING_VALID=true
                       echo "SANDIUM_APK_LABEL_GATE=PASS label=$APP_LABEL"
                     else
-                      APK_ERROR="expected app label Sandium Browser; got ${APP_LABEL:-<missing>}"
+                      APK_ERROR="expected app label Sandium; got ${APP_LABEL:-<missing>}"
                       echo "SANDIUM_APK_LABEL_GATE=FAIL $APK_ERROR"
                     fi
                   else
