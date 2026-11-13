@@ -30,14 +30,14 @@ jobs:
     - checkout
     - run:
         name: Require explicit experimental review
-        command: python3 .circleci/checkpoint/driver.py gate
+        command: python3 -u .circleci/checkpoint/driver.py gate
     - restore_cache:
         name: Restore latest accepted experimental head only
         keys:
         - sandium-experimental-head-v1-{{ checksum ".checkpoint-state/scope-key" }}-
     - run:
         name: Select exact checkpoint and honor verified APK completion
-        command: python3 .circleci/checkpoint/driver.py seed-select
+        command: python3 -u .circleci/checkpoint/driver.py seed-select
     - restore_cache:
         name: Read-only import of the original verified 26 GiB base
         keys:
@@ -51,7 +51,7 @@ jobs:
           bash .circleci/scripts/verify-brave-reference.sh'
     - run:
         name: Capture and export experimental base
-        command: python3 .circleci/checkpoint/driver.py seed-capture
+        command: python3 -u .circleci/checkpoint/driver.py seed-capture
     - save_cache:
         name: Save only new immutable checkpoint payload
         key: sandium-layer-v1-{{ checksum ".checkpoint-state/outgoing.key" }}
@@ -59,7 +59,7 @@ jobs:
         - .checkpoint-incoming
     - run:
         name: Prepare experimental head after payload save
-        command: python3 .circleci/checkpoint/driver.py publish
+        command: python3 -u .circleci/checkpoint/driver.py publish
     - save_cache:
         name: Publish experimental head last; never canonical promotion
         key: sandium-experimental-head-v1-{{ checksum ".checkpoint-state/scope-key" }}-{{ checksum ".checkpoint-head/receipt.json" }}
@@ -82,14 +82,14 @@ jobs:
     - checkout
     - run:
         name: Require explicit experimental review
-        command: python3 .circleci/checkpoint/driver.py gate
+        command: python3 -u .circleci/checkpoint/driver.py gate
     - restore_cache:
         name: Restore latest accepted experimental head only
         keys:
         - sandium-experimental-head-v1-{{ checksum ".checkpoint-state/scope-key" }}-
     - run:
         name: Select exact checkpoint and honor verified APK completion
-        command: python3 .circleci/checkpoint/driver.py select
+        command: python3 -u .circleci/checkpoint/driver.py select
     - run:
         name: Clear incoming payload 0
         command: rm -rf .checkpoint-incoming
@@ -99,7 +99,7 @@ jobs:
         - sandium-layer-v1-{{ checksum ".checkpoint-state/slot-0.key" }}
     - run:
         name: Verify and ingest required layer 0
-        command: python3 .circleci/checkpoint/driver.py ingest --slot 0
+        command: python3 -u .circleci/checkpoint/driver.py ingest --slot 0
     - run:
         name: Clear incoming payload 1
         command: rm -rf .checkpoint-incoming
@@ -109,7 +109,7 @@ jobs:
         - sandium-layer-v1-{{ checksum ".checkpoint-state/slot-1.key" }}
     - run:
         name: Verify and ingest required layer 1
-        command: python3 .circleci/checkpoint/driver.py ingest --slot 1
+        command: python3 -u .circleci/checkpoint/driver.py ingest --slot 1
     - run:
         name: Clear incoming payload 2
         command: rm -rf .checkpoint-incoming
@@ -119,7 +119,7 @@ jobs:
         - sandium-layer-v1-{{ checksum ".checkpoint-state/slot-2.key" }}
     - run:
         name: Verify and ingest required layer 2
-        command: python3 .circleci/checkpoint/driver.py ingest --slot 2
+        command: python3 -u .circleci/checkpoint/driver.py ingest --slot 2
     - run:
         name: Clear incoming payload 3
         command: rm -rf .checkpoint-incoming
@@ -129,7 +129,7 @@ jobs:
         - sandium-layer-v1-{{ checksum ".checkpoint-state/slot-3.key" }}
     - run:
         name: Verify and ingest required layer 3
-        command: python3 .circleci/checkpoint/driver.py ingest --slot 3
+        command: python3 -u .circleci/checkpoint/driver.py ingest --slot 3
     - run:
         name: Clear incoming payload 4
         command: rm -rf .checkpoint-incoming
@@ -139,7 +139,7 @@ jobs:
         - sandium-layer-v1-{{ checksum ".checkpoint-state/slot-4.key" }}
     - run:
         name: Verify and ingest required layer 4
-        command: python3 .circleci/checkpoint/driver.py ingest --slot 4
+        command: python3 -u .circleci/checkpoint/driver.py ingest --slot 4
     - run:
         name: Clear incoming payload 5
         command: rm -rf .checkpoint-incoming
@@ -149,7 +149,7 @@ jobs:
         - sandium-layer-v1-{{ checksum ".checkpoint-state/slot-5.key" }}
     - run:
         name: Verify and ingest required layer 5
-        command: python3 .circleci/checkpoint/driver.py ingest --slot 5
+        command: python3 -u .circleci/checkpoint/driver.py ingest --slot 5
     - run:
         name: Clear incoming payload 6
         command: rm -rf .checkpoint-incoming
@@ -159,7 +159,7 @@ jobs:
         - sandium-layer-v1-{{ checksum ".checkpoint-state/slot-6.key" }}
     - run:
         name: Verify and ingest required layer 6
-        command: python3 .circleci/checkpoint/driver.py ingest --slot 6
+        command: python3 -u .circleci/checkpoint/driver.py ingest --slot 6
     - run:
         name: Clear incoming payload 7
         command: rm -rf .checkpoint-incoming
@@ -169,10 +169,10 @@ jobs:
         - sandium-layer-v1-{{ checksum ".checkpoint-state/slot-7.key" }}
     - run:
         name: Verify and ingest required layer 7
-        command: python3 .circleci/checkpoint/driver.py ingest --slot 7
+        command: python3 -u .circleci/checkpoint/driver.py ingest --slot 7
     - run:
         name: Reconstruct complete base plus all accepted deltas
-        command: python3 .circleci/checkpoint/driver.py restore
+        command: python3 -u .circleci/checkpoint/driver.py restore
     - run:
         name: Configure Siso BuildBuddy API-key credential helper
         command: bash .circleci/experimental-steps/credential-helper.sh
@@ -226,7 +226,7 @@ jobs:
         destination: brave-apk
     - run:
         name: Capture new state and export only incremental payload
-        command: python3 .circleci/checkpoint/driver.py capture
+        command: python3 -u .circleci/checkpoint/driver.py capture
     - save_cache:
         name: Save only new immutable checkpoint payload
         key: sandium-layer-v1-{{ checksum ".checkpoint-state/outgoing.key" }}
@@ -234,7 +234,7 @@ jobs:
         - .checkpoint-incoming
     - run:
         name: Prepare experimental head after payload save
-        command: python3 .circleci/checkpoint/driver.py publish
+        command: python3 -u .circleci/checkpoint/driver.py publish
     - save_cache:
         name: Publish experimental head last; never canonical promotion
         key: sandium-experimental-head-v1-{{ checksum ".checkpoint-state/scope-key" }}-{{ checksum ".checkpoint-head/receipt.json" }}
@@ -242,7 +242,7 @@ jobs:
         - .checkpoint-head/receipt.json
     - run:
         name: Require honest completion or resumable stage
-        command: python3 .circleci/checkpoint/driver.py final
+        command: python3 -u .circleci/checkpoint/driver.py final
   sandium-stage-2:
     machine:
       image: ubuntu-2404:current
@@ -260,14 +260,14 @@ jobs:
     - checkout
     - run:
         name: Require explicit experimental review
-        command: python3 .circleci/checkpoint/driver.py gate
+        command: python3 -u .circleci/checkpoint/driver.py gate
     - restore_cache:
         name: Restore latest accepted experimental head only
         keys:
         - sandium-experimental-head-v1-{{ checksum ".checkpoint-state/scope-key" }}-
     - run:
         name: Select exact checkpoint and honor verified APK completion
-        command: python3 .circleci/checkpoint/driver.py select
+        command: python3 -u .circleci/checkpoint/driver.py select
     - run:
         name: Clear incoming payload 0
         command: rm -rf .checkpoint-incoming
@@ -277,7 +277,7 @@ jobs:
         - sandium-layer-v1-{{ checksum ".checkpoint-state/slot-0.key" }}
     - run:
         name: Verify and ingest required layer 0
-        command: python3 .circleci/checkpoint/driver.py ingest --slot 0
+        command: python3 -u .circleci/checkpoint/driver.py ingest --slot 0
     - run:
         name: Clear incoming payload 1
         command: rm -rf .checkpoint-incoming
@@ -287,7 +287,7 @@ jobs:
         - sandium-layer-v1-{{ checksum ".checkpoint-state/slot-1.key" }}
     - run:
         name: Verify and ingest required layer 1
-        command: python3 .circleci/checkpoint/driver.py ingest --slot 1
+        command: python3 -u .circleci/checkpoint/driver.py ingest --slot 1
     - run:
         name: Clear incoming payload 2
         command: rm -rf .checkpoint-incoming
@@ -297,7 +297,7 @@ jobs:
         - sandium-layer-v1-{{ checksum ".checkpoint-state/slot-2.key" }}
     - run:
         name: Verify and ingest required layer 2
-        command: python3 .circleci/checkpoint/driver.py ingest --slot 2
+        command: python3 -u .circleci/checkpoint/driver.py ingest --slot 2
     - run:
         name: Clear incoming payload 3
         command: rm -rf .checkpoint-incoming
@@ -307,7 +307,7 @@ jobs:
         - sandium-layer-v1-{{ checksum ".checkpoint-state/slot-3.key" }}
     - run:
         name: Verify and ingest required layer 3
-        command: python3 .circleci/checkpoint/driver.py ingest --slot 3
+        command: python3 -u .circleci/checkpoint/driver.py ingest --slot 3
     - run:
         name: Clear incoming payload 4
         command: rm -rf .checkpoint-incoming
@@ -317,7 +317,7 @@ jobs:
         - sandium-layer-v1-{{ checksum ".checkpoint-state/slot-4.key" }}
     - run:
         name: Verify and ingest required layer 4
-        command: python3 .circleci/checkpoint/driver.py ingest --slot 4
+        command: python3 -u .circleci/checkpoint/driver.py ingest --slot 4
     - run:
         name: Clear incoming payload 5
         command: rm -rf .checkpoint-incoming
@@ -327,7 +327,7 @@ jobs:
         - sandium-layer-v1-{{ checksum ".checkpoint-state/slot-5.key" }}
     - run:
         name: Verify and ingest required layer 5
-        command: python3 .circleci/checkpoint/driver.py ingest --slot 5
+        command: python3 -u .circleci/checkpoint/driver.py ingest --slot 5
     - run:
         name: Clear incoming payload 6
         command: rm -rf .checkpoint-incoming
@@ -337,7 +337,7 @@ jobs:
         - sandium-layer-v1-{{ checksum ".checkpoint-state/slot-6.key" }}
     - run:
         name: Verify and ingest required layer 6
-        command: python3 .circleci/checkpoint/driver.py ingest --slot 6
+        command: python3 -u .circleci/checkpoint/driver.py ingest --slot 6
     - run:
         name: Clear incoming payload 7
         command: rm -rf .checkpoint-incoming
@@ -347,10 +347,10 @@ jobs:
         - sandium-layer-v1-{{ checksum ".checkpoint-state/slot-7.key" }}
     - run:
         name: Verify and ingest required layer 7
-        command: python3 .circleci/checkpoint/driver.py ingest --slot 7
+        command: python3 -u .circleci/checkpoint/driver.py ingest --slot 7
     - run:
         name: Reconstruct complete base plus all accepted deltas
-        command: python3 .circleci/checkpoint/driver.py restore
+        command: python3 -u .circleci/checkpoint/driver.py restore
     - run:
         name: Configure Siso BuildBuddy API-key credential helper
         command: bash .circleci/experimental-steps/credential-helper.sh
@@ -404,7 +404,7 @@ jobs:
         destination: brave-apk
     - run:
         name: Capture new state and export only incremental payload
-        command: python3 .circleci/checkpoint/driver.py capture
+        command: python3 -u .circleci/checkpoint/driver.py capture
     - save_cache:
         name: Save only new immutable checkpoint payload
         key: sandium-layer-v1-{{ checksum ".checkpoint-state/outgoing.key" }}
@@ -412,7 +412,7 @@ jobs:
         - .checkpoint-incoming
     - run:
         name: Prepare experimental head after payload save
-        command: python3 .circleci/checkpoint/driver.py publish
+        command: python3 -u .circleci/checkpoint/driver.py publish
     - save_cache:
         name: Publish experimental head last; never canonical promotion
         key: sandium-experimental-head-v1-{{ checksum ".checkpoint-state/scope-key" }}-{{ checksum ".checkpoint-head/receipt.json" }}
@@ -420,7 +420,7 @@ jobs:
         - .checkpoint-head/receipt.json
     - run:
         name: Require honest completion or resumable stage
-        command: python3 .circleci/checkpoint/driver.py final
+        command: python3 -u .circleci/checkpoint/driver.py final
   sandium-stage-3:
     machine:
       image: ubuntu-2404:current
@@ -438,14 +438,14 @@ jobs:
     - checkout
     - run:
         name: Require explicit experimental review
-        command: python3 .circleci/checkpoint/driver.py gate
+        command: python3 -u .circleci/checkpoint/driver.py gate
     - restore_cache:
         name: Restore latest accepted experimental head only
         keys:
         - sandium-experimental-head-v1-{{ checksum ".checkpoint-state/scope-key" }}-
     - run:
         name: Select exact checkpoint and honor verified APK completion
-        command: python3 .circleci/checkpoint/driver.py select
+        command: python3 -u .circleci/checkpoint/driver.py select
     - run:
         name: Clear incoming payload 0
         command: rm -rf .checkpoint-incoming
@@ -455,7 +455,7 @@ jobs:
         - sandium-layer-v1-{{ checksum ".checkpoint-state/slot-0.key" }}
     - run:
         name: Verify and ingest required layer 0
-        command: python3 .circleci/checkpoint/driver.py ingest --slot 0
+        command: python3 -u .circleci/checkpoint/driver.py ingest --slot 0
     - run:
         name: Clear incoming payload 1
         command: rm -rf .checkpoint-incoming
@@ -465,7 +465,7 @@ jobs:
         - sandium-layer-v1-{{ checksum ".checkpoint-state/slot-1.key" }}
     - run:
         name: Verify and ingest required layer 1
-        command: python3 .circleci/checkpoint/driver.py ingest --slot 1
+        command: python3 -u .circleci/checkpoint/driver.py ingest --slot 1
     - run:
         name: Clear incoming payload 2
         command: rm -rf .checkpoint-incoming
@@ -475,7 +475,7 @@ jobs:
         - sandium-layer-v1-{{ checksum ".checkpoint-state/slot-2.key" }}
     - run:
         name: Verify and ingest required layer 2
-        command: python3 .circleci/checkpoint/driver.py ingest --slot 2
+        command: python3 -u .circleci/checkpoint/driver.py ingest --slot 2
     - run:
         name: Clear incoming payload 3
         command: rm -rf .checkpoint-incoming
@@ -485,7 +485,7 @@ jobs:
         - sandium-layer-v1-{{ checksum ".checkpoint-state/slot-3.key" }}
     - run:
         name: Verify and ingest required layer 3
-        command: python3 .circleci/checkpoint/driver.py ingest --slot 3
+        command: python3 -u .circleci/checkpoint/driver.py ingest --slot 3
     - run:
         name: Clear incoming payload 4
         command: rm -rf .checkpoint-incoming
@@ -495,7 +495,7 @@ jobs:
         - sandium-layer-v1-{{ checksum ".checkpoint-state/slot-4.key" }}
     - run:
         name: Verify and ingest required layer 4
-        command: python3 .circleci/checkpoint/driver.py ingest --slot 4
+        command: python3 -u .circleci/checkpoint/driver.py ingest --slot 4
     - run:
         name: Clear incoming payload 5
         command: rm -rf .checkpoint-incoming
@@ -505,7 +505,7 @@ jobs:
         - sandium-layer-v1-{{ checksum ".checkpoint-state/slot-5.key" }}
     - run:
         name: Verify and ingest required layer 5
-        command: python3 .circleci/checkpoint/driver.py ingest --slot 5
+        command: python3 -u .circleci/checkpoint/driver.py ingest --slot 5
     - run:
         name: Clear incoming payload 6
         command: rm -rf .checkpoint-incoming
@@ -515,7 +515,7 @@ jobs:
         - sandium-layer-v1-{{ checksum ".checkpoint-state/slot-6.key" }}
     - run:
         name: Verify and ingest required layer 6
-        command: python3 .circleci/checkpoint/driver.py ingest --slot 6
+        command: python3 -u .circleci/checkpoint/driver.py ingest --slot 6
     - run:
         name: Clear incoming payload 7
         command: rm -rf .checkpoint-incoming
@@ -525,10 +525,10 @@ jobs:
         - sandium-layer-v1-{{ checksum ".checkpoint-state/slot-7.key" }}
     - run:
         name: Verify and ingest required layer 7
-        command: python3 .circleci/checkpoint/driver.py ingest --slot 7
+        command: python3 -u .circleci/checkpoint/driver.py ingest --slot 7
     - run:
         name: Reconstruct complete base plus all accepted deltas
-        command: python3 .circleci/checkpoint/driver.py restore
+        command: python3 -u .circleci/checkpoint/driver.py restore
     - run:
         name: Configure Siso BuildBuddy API-key credential helper
         command: bash .circleci/experimental-steps/credential-helper.sh
@@ -582,7 +582,7 @@ jobs:
         destination: brave-apk
     - run:
         name: Capture new state and export only incremental payload
-        command: python3 .circleci/checkpoint/driver.py capture
+        command: python3 -u .circleci/checkpoint/driver.py capture
     - save_cache:
         name: Save only new immutable checkpoint payload
         key: sandium-layer-v1-{{ checksum ".checkpoint-state/outgoing.key" }}
@@ -590,7 +590,7 @@ jobs:
         - .checkpoint-incoming
     - run:
         name: Prepare experimental head after payload save
-        command: python3 .circleci/checkpoint/driver.py publish
+        command: python3 -u .circleci/checkpoint/driver.py publish
     - save_cache:
         name: Publish experimental head last; never canonical promotion
         key: sandium-experimental-head-v1-{{ checksum ".checkpoint-state/scope-key" }}-{{ checksum ".checkpoint-head/receipt.json" }}
@@ -598,7 +598,7 @@ jobs:
         - .checkpoint-head/receipt.json
     - run:
         name: Require honest completion or resumable stage
-        command: python3 .circleci/checkpoint/driver.py final
+        command: python3 -u .circleci/checkpoint/driver.py final
   sandium-stage-4:
     machine:
       image: ubuntu-2404:current
@@ -616,14 +616,14 @@ jobs:
     - checkout
     - run:
         name: Require explicit experimental review
-        command: python3 .circleci/checkpoint/driver.py gate
+        command: python3 -u .circleci/checkpoint/driver.py gate
     - restore_cache:
         name: Restore latest accepted experimental head only
         keys:
         - sandium-experimental-head-v1-{{ checksum ".checkpoint-state/scope-key" }}-
     - run:
         name: Select exact checkpoint and honor verified APK completion
-        command: python3 .circleci/checkpoint/driver.py select
+        command: python3 -u .circleci/checkpoint/driver.py select
     - run:
         name: Clear incoming payload 0
         command: rm -rf .checkpoint-incoming
@@ -633,7 +633,7 @@ jobs:
         - sandium-layer-v1-{{ checksum ".checkpoint-state/slot-0.key" }}
     - run:
         name: Verify and ingest required layer 0
-        command: python3 .circleci/checkpoint/driver.py ingest --slot 0
+        command: python3 -u .circleci/checkpoint/driver.py ingest --slot 0
     - run:
         name: Clear incoming payload 1
         command: rm -rf .checkpoint-incoming
@@ -643,7 +643,7 @@ jobs:
         - sandium-layer-v1-{{ checksum ".checkpoint-state/slot-1.key" }}
     - run:
         name: Verify and ingest required layer 1
-        command: python3 .circleci/checkpoint/driver.py ingest --slot 1
+        command: python3 -u .circleci/checkpoint/driver.py ingest --slot 1
     - run:
         name: Clear incoming payload 2
         command: rm -rf .checkpoint-incoming
@@ -653,7 +653,7 @@ jobs:
         - sandium-layer-v1-{{ checksum ".checkpoint-state/slot-2.key" }}
     - run:
         name: Verify and ingest required layer 2
-        command: python3 .circleci/checkpoint/driver.py ingest --slot 2
+        command: python3 -u .circleci/checkpoint/driver.py ingest --slot 2
     - run:
         name: Clear incoming payload 3
         command: rm -rf .checkpoint-incoming
@@ -663,7 +663,7 @@ jobs:
         - sandium-layer-v1-{{ checksum ".checkpoint-state/slot-3.key" }}
     - run:
         name: Verify and ingest required layer 3
-        command: python3 .circleci/checkpoint/driver.py ingest --slot 3
+        command: python3 -u .circleci/checkpoint/driver.py ingest --slot 3
     - run:
         name: Clear incoming payload 4
         command: rm -rf .checkpoint-incoming
@@ -673,7 +673,7 @@ jobs:
         - sandium-layer-v1-{{ checksum ".checkpoint-state/slot-4.key" }}
     - run:
         name: Verify and ingest required layer 4
-        command: python3 .circleci/checkpoint/driver.py ingest --slot 4
+        command: python3 -u .circleci/checkpoint/driver.py ingest --slot 4
     - run:
         name: Clear incoming payload 5
         command: rm -rf .checkpoint-incoming
@@ -683,7 +683,7 @@ jobs:
         - sandium-layer-v1-{{ checksum ".checkpoint-state/slot-5.key" }}
     - run:
         name: Verify and ingest required layer 5
-        command: python3 .circleci/checkpoint/driver.py ingest --slot 5
+        command: python3 -u .circleci/checkpoint/driver.py ingest --slot 5
     - run:
         name: Clear incoming payload 6
         command: rm -rf .checkpoint-incoming
@@ -693,7 +693,7 @@ jobs:
         - sandium-layer-v1-{{ checksum ".checkpoint-state/slot-6.key" }}
     - run:
         name: Verify and ingest required layer 6
-        command: python3 .circleci/checkpoint/driver.py ingest --slot 6
+        command: python3 -u .circleci/checkpoint/driver.py ingest --slot 6
     - run:
         name: Clear incoming payload 7
         command: rm -rf .checkpoint-incoming
@@ -703,10 +703,10 @@ jobs:
         - sandium-layer-v1-{{ checksum ".checkpoint-state/slot-7.key" }}
     - run:
         name: Verify and ingest required layer 7
-        command: python3 .circleci/checkpoint/driver.py ingest --slot 7
+        command: python3 -u .circleci/checkpoint/driver.py ingest --slot 7
     - run:
         name: Reconstruct complete base plus all accepted deltas
-        command: python3 .circleci/checkpoint/driver.py restore
+        command: python3 -u .circleci/checkpoint/driver.py restore
     - run:
         name: Configure Siso BuildBuddy API-key credential helper
         command: bash .circleci/experimental-steps/credential-helper.sh
@@ -760,7 +760,7 @@ jobs:
         destination: brave-apk
     - run:
         name: Capture new state and export only incremental payload
-        command: python3 .circleci/checkpoint/driver.py capture
+        command: python3 -u .circleci/checkpoint/driver.py capture
     - save_cache:
         name: Save only new immutable checkpoint payload
         key: sandium-layer-v1-{{ checksum ".checkpoint-state/outgoing.key" }}
@@ -768,7 +768,7 @@ jobs:
         - .checkpoint-incoming
     - run:
         name: Prepare experimental head after payload save
-        command: python3 .circleci/checkpoint/driver.py publish
+        command: python3 -u .circleci/checkpoint/driver.py publish
     - save_cache:
         name: Publish experimental head last; never canonical promotion
         key: sandium-experimental-head-v1-{{ checksum ".checkpoint-state/scope-key" }}-{{ checksum ".checkpoint-head/receipt.json" }}
@@ -776,7 +776,7 @@ jobs:
         - .checkpoint-head/receipt.json
     - run:
         name: Require honest completion or resumable stage
-        command: python3 .circleci/checkpoint/driver.py final
+        command: python3 -u .circleci/checkpoint/driver.py final
   sandium-stage-5:
     machine:
       image: ubuntu-2404:current
@@ -794,14 +794,14 @@ jobs:
     - checkout
     - run:
         name: Require explicit experimental review
-        command: python3 .circleci/checkpoint/driver.py gate
+        command: python3 -u .circleci/checkpoint/driver.py gate
     - restore_cache:
         name: Restore latest accepted experimental head only
         keys:
         - sandium-experimental-head-v1-{{ checksum ".checkpoint-state/scope-key" }}-
     - run:
         name: Select exact checkpoint and honor verified APK completion
-        command: python3 .circleci/checkpoint/driver.py select
+        command: python3 -u .circleci/checkpoint/driver.py select
     - run:
         name: Clear incoming payload 0
         command: rm -rf .checkpoint-incoming
@@ -811,7 +811,7 @@ jobs:
         - sandium-layer-v1-{{ checksum ".checkpoint-state/slot-0.key" }}
     - run:
         name: Verify and ingest required layer 0
-        command: python3 .circleci/checkpoint/driver.py ingest --slot 0
+        command: python3 -u .circleci/checkpoint/driver.py ingest --slot 0
     - run:
         name: Clear incoming payload 1
         command: rm -rf .checkpoint-incoming
@@ -821,7 +821,7 @@ jobs:
         - sandium-layer-v1-{{ checksum ".checkpoint-state/slot-1.key" }}
     - run:
         name: Verify and ingest required layer 1
-        command: python3 .circleci/checkpoint/driver.py ingest --slot 1
+        command: python3 -u .circleci/checkpoint/driver.py ingest --slot 1
     - run:
         name: Clear incoming payload 2
         command: rm -rf .checkpoint-incoming
@@ -831,7 +831,7 @@ jobs:
         - sandium-layer-v1-{{ checksum ".checkpoint-state/slot-2.key" }}
     - run:
         name: Verify and ingest required layer 2
-        command: python3 .circleci/checkpoint/driver.py ingest --slot 2
+        command: python3 -u .circleci/checkpoint/driver.py ingest --slot 2
     - run:
         name: Clear incoming payload 3
         command: rm -rf .checkpoint-incoming
@@ -841,7 +841,7 @@ jobs:
         - sandium-layer-v1-{{ checksum ".checkpoint-state/slot-3.key" }}
     - run:
         name: Verify and ingest required layer 3
-        command: python3 .circleci/checkpoint/driver.py ingest --slot 3
+        command: python3 -u .circleci/checkpoint/driver.py ingest --slot 3
     - run:
         name: Clear incoming payload 4
         command: rm -rf .checkpoint-incoming
@@ -851,7 +851,7 @@ jobs:
         - sandium-layer-v1-{{ checksum ".checkpoint-state/slot-4.key" }}
     - run:
         name: Verify and ingest required layer 4
-        command: python3 .circleci/checkpoint/driver.py ingest --slot 4
+        command: python3 -u .circleci/checkpoint/driver.py ingest --slot 4
     - run:
         name: Clear incoming payload 5
         command: rm -rf .checkpoint-incoming
@@ -861,7 +861,7 @@ jobs:
         - sandium-layer-v1-{{ checksum ".checkpoint-state/slot-5.key" }}
     - run:
         name: Verify and ingest required layer 5
-        command: python3 .circleci/checkpoint/driver.py ingest --slot 5
+        command: python3 -u .circleci/checkpoint/driver.py ingest --slot 5
     - run:
         name: Clear incoming payload 6
         command: rm -rf .checkpoint-incoming
@@ -871,7 +871,7 @@ jobs:
         - sandium-layer-v1-{{ checksum ".checkpoint-state/slot-6.key" }}
     - run:
         name: Verify and ingest required layer 6
-        command: python3 .circleci/checkpoint/driver.py ingest --slot 6
+        command: python3 -u .circleci/checkpoint/driver.py ingest --slot 6
     - run:
         name: Clear incoming payload 7
         command: rm -rf .checkpoint-incoming
@@ -881,10 +881,10 @@ jobs:
         - sandium-layer-v1-{{ checksum ".checkpoint-state/slot-7.key" }}
     - run:
         name: Verify and ingest required layer 7
-        command: python3 .circleci/checkpoint/driver.py ingest --slot 7
+        command: python3 -u .circleci/checkpoint/driver.py ingest --slot 7
     - run:
         name: Reconstruct complete base plus all accepted deltas
-        command: python3 .circleci/checkpoint/driver.py restore
+        command: python3 -u .circleci/checkpoint/driver.py restore
     - run:
         name: Configure Siso BuildBuddy API-key credential helper
         command: bash .circleci/experimental-steps/credential-helper.sh
@@ -938,7 +938,7 @@ jobs:
         destination: brave-apk
     - run:
         name: Capture new state and export only incremental payload
-        command: python3 .circleci/checkpoint/driver.py capture
+        command: python3 -u .circleci/checkpoint/driver.py capture
     - save_cache:
         name: Save only new immutable checkpoint payload
         key: sandium-layer-v1-{{ checksum ".checkpoint-state/outgoing.key" }}
@@ -946,7 +946,7 @@ jobs:
         - .checkpoint-incoming
     - run:
         name: Prepare experimental head after payload save
-        command: python3 .circleci/checkpoint/driver.py publish
+        command: python3 -u .circleci/checkpoint/driver.py publish
     - save_cache:
         name: Publish experimental head last; never canonical promotion
         key: sandium-experimental-head-v1-{{ checksum ".checkpoint-state/scope-key" }}-{{ checksum ".checkpoint-head/receipt.json" }}
@@ -954,7 +954,7 @@ jobs:
         - .checkpoint-head/receipt.json
     - run:
         name: Require honest completion or resumable stage
-        command: python3 .circleci/checkpoint/driver.py final
+        command: python3 -u .circleci/checkpoint/driver.py final
 job-groups:
   sandium-single-checkpoint-chain:
     jobs:

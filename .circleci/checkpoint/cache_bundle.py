@@ -1,3 +1,4 @@
+from progress import advance
 """Real local filesystem layer export/import for native cache directory payloads.
 
 No network client, cache discovery or distributed promotion is implemented.
@@ -34,6 +35,7 @@ def slot_paths(root, index):
 
 
 def export_layer(store, head, compatibility, transport_root, slot, cache_key, link_blobs=False):
+    advance(phase="export-layer")
     if not re.fullmatch(r"[A-Za-z0-9_.-]{1,220}", cache_key):
         raise CheckpointError("Unsafe cache key")
     valid_id(head)
@@ -64,8 +66,14 @@ def export_layer(store, head, compatibility, transport_root, slot, cache_key, li
                 os.link(source, staging / "blobs" / blob)
             else:
                 shutil.copyfile(source, staging / "blobs" / blob)
-            verify_blob(staging / "blobs" / blob, entry)
+            if link_blobs:
+                # Same immutable inode, already byte-verified immediately above.
+                if not os.path.samefile(source, staging / "blobs" / blob):
+                    raise CheckpointError("Export hardlink identity mismatch")
+            else:
+                verify_blob(staging / "blobs" / blob, entry)
             blobs[blob] = entry["size"]
+            advance(items=1)
         envelope = {"schema": 1, "cache_key": cache_key, "slot": slot, "head": head,
                     "parent": layer["parent"], "compatibility": compatibility, "blobs": blobs}
         os.rename(staging, directory)
@@ -84,6 +92,7 @@ def export_layer(store, head, compatibility, transport_root, slot, cache_key, li
 def validate_bundles(plan, transport_root, compatibility):
     restore_steps(plan)  # same bounds, duplicate/key/digest validation as generator
     previous = None
+    advance(phase="validate-bundles")
     bundles = []
     for index, spec in enumerate(plan["layers"]):
         directory, header = slot_paths(transport_root, index)

@@ -119,6 +119,40 @@ class SinglePipeline(unittest.TestCase):
                 driver.disk_guard('fixture', 6)
             driver.disk_guard('fixture', 5)
 
+    def test_watchdog_silent_stall_and_progress_deadline(self):
+        prefix = "import sys,time;sys.path.insert(0," + repr(str(ROOT / '.circleci/checkpoint')) + ");from progress import Watchdog,advance;"
+        silent = subprocess.run([sys.executable, '-c', prefix +
+            "exec('with Watchdog(2,stall_seconds=0.15,poll_seconds=0.02):\\n time.sleep(1)')"], capture_output=True, text=True)
+        self.assertEqual(silent.returncode,124, silent.stderr)
+        self.assertIn('no-measured-progress', silent.stdout)
+        moving = subprocess.run([sys.executable, '-c', prefix +
+            "exec('with Watchdog(0.25,stall_seconds=0.15,poll_seconds=0.02):\\n while True: advance(items=1); time.sleep(0.03)')"],
+            env=dict(os.environ,FLOW_PROGRESS_INTERVAL_SECONDS='0.05'), capture_output=True,text=True)
+        self.assertEqual(moving.returncode,124, moving.stderr)
+        self.assertIn('deadline', moving.stdout)
+        self.assertGreater(moving.stdout.count('FLOW_PROGRESS'),1)
+
+    def test_build_reserves_checkpoint_and_native_save_time(self):
+        from job_budget import build_seconds
+        self.assertEqual(build_seconds(0,0),840)
+        self.assertEqual(build_seconds(0,700),140)
+        with self.assertRaises(ValueError):
+            build_seconds(0,800)
+
+    def test_restore_duplicate_copy_reports_chunks_and_preserves_bytes(self):
+        from unittest.mock import patch
+        import consume_restore
+        with tempfile.TemporaryDirectory() as tmp:
+            source = Path(tmp) / 'source'
+            target = Path(tmp) / 'target'
+            source.write_bytes(b'x' * (2 * 1024**2 + 123))
+            events = []
+            with patch.object(consume_restore, 'advance', side_effect=lambda **kw: events.append(kw)):
+                consume_restore.copy_measured(source, target)
+            self.assertEqual(source.read_bytes(), target.read_bytes())
+            self.assertNotEqual(source.stat().st_ino, target.stat().st_ino)
+            self.assertEqual([e['bytes_done'] for e in events], [1024**2, 1024**2, 123])
+
     def test_false_review_stops_before_work(self):
         with tempfile.TemporaryDirectory() as tmp:
             result=subprocess.run([sys.executable,str(DRIVER),'gate'],env=dict(os.environ,

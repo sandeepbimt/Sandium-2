@@ -3,6 +3,7 @@
 import argparse
 import contextlib
 import fcntl
+from progress import advance
 import hashlib
 import json
 import os
@@ -43,6 +44,7 @@ def fingerprint(st):
 
 def scan(root, store=None):
     """Caller MUST stop all writers. Double scan detects, but cannot prevent, races."""
+    advance(phase="tree-hash-scan")
     root = Path(root)
     if root.is_symlink() or not root.is_dir():
         raise CheckpointError("Source must be a real directory")
@@ -73,6 +75,7 @@ def scan(root, store=None):
                     with output as out, p.open("rb") as source:
                         while chunk := source.read(1024 * 1024):
                             h.update(chunk)
+                            advance(bytes_done=len(chunk))
                             if out:
                                 out.write(chunk)
                         if out:
@@ -93,6 +96,7 @@ def scan(root, store=None):
             if fingerprint(before) != fingerprint(p.lstat()):
                 raise CheckpointError("Source changed during capture: " + name)
             entries[name] = meta
+            advance(items=1)
     visit(root)
     return entries
 
@@ -103,6 +107,7 @@ def verify_blob(path, entry):
         with path.open("rb") as f:
             while chunk := f.read(1024 * 1024):
                 h.update(chunk)
+                advance(bytes_done=len(chunk))
         if h.hexdigest() != entry["blob"] or path.stat().st_size != entry["size"]:
             raise CheckpointError("Corrupt blob")
     except FileNotFoundError as exc:
@@ -143,6 +148,7 @@ class Store:
         return json.loads(path.read_text())["head"] if path.exists() else None
 
     def reconstruct(self, head, compatibility):
+        advance(phase="reconstruct-manifest-chain")
         chain, seen = [], set()
         current = head
         while current:
@@ -160,6 +166,7 @@ class Store:
             if layer["schema"] != 1 or layer["compatibility"] != compatibility:
                 raise CheckpointError("Incompatible checkpoint")
             chain.append(layer)
+            advance(items=1, bytes_done=len(raw))
             current = layer["parent"]
         entries = {}
         for layer in reversed(chain):
@@ -168,6 +175,7 @@ class Store:
                 if name not in entries:
                     raise CheckpointError("Invalid deletion")
                 del entries[name]
+                advance(items=1)
             for name, entry in layer["changed"].items():
                 valid_path(name)
                 if entry["kind"] not in ("file", "directory", "symlink"):
@@ -175,9 +183,11 @@ class Store:
                 if entry["kind"] == "file":
                     valid_id(entry["blob"])
                 entries[name] = entry
+                advance(items=1)
             if digest(encoded(entries)) != layer["state_hash"]:
                 raise CheckpointError("State hash mismatch")
         for name in entries:
+            advance(items=1)
             for parent in PurePosixPath(name).parents:
                 if str(parent) != "." and entries.get(str(parent), {}).get("kind") != "directory":
                     raise CheckpointError("Entry parent is not a directory")

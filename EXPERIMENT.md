@@ -110,3 +110,36 @@ lower-bound checks, not measured guarantees for native CircleCI archive temporar
 space, OS package installation, inode counts, or remaining compilation growth.
 Full-scale peak disk and duration remain required first-run measurements.
 Local integration tests now number 5; crash composition tests remain 11.
+
+### #1065 seed no-output timeout fix (local, not rerun)
+The last reported log was the disk reserve check, followed by CircleCI's 10-minute
+no-output timeout. That narrows the silent region to capture/hash/link/stability/
+export, but does not identify the precise pass. The prior implementation required
+roughly five full content reads for seed capture/export. Same-inode checks now
+remove redundant hardlink rereads while retaining two complete stability scans
+and export source verification (roughly three full content reads).
+
+Driver output is unbuffered. Shared hashing emits cumulative measured byte/item
+counts every 30 seconds of work, including inside large-file reads. This is not a
+heartbeat: a watchdog aborts after 300 seconds without measured work, or after the
+smaller of 1800 seconds and remaining 55-minute job allowance less a 10-minute
+native-save reserve. Native cache operations themselves remain CircleCI-managed.
+The clock begins at the first driver gate; checkout preceding it is not measured.
+
+The compiler budget now reserves the entire 30-minute checkpoint allowance,
+10-minute native-save allowance and 60-second compiler shutdown before that job
+deadline. This is intentionally conservative: at most 14 minutes of compilation
+before earlier restore/preparation overhead, and it refuses if less than 60 seconds
+remain. Measured seed/restore/native-save durations are required before tuning;
+this may demonstrate that the present multi-pass design cannot fit useful work
+in a free-tier job. It is not a guarantee of 60-minute job feasibility.
+
+Seven integration tests include silent-stall termination, progressing work hitting
+its total deadline, and compiler-budget exhaustion; eleven composition tests pass.
+No live rerun was performed for this change.
+
+Restore progress follow-up: input enumeration, materialization and metadata loops
+now report completed items. Independent duplicate-content file copies use 1 MiB
+chunks and report bytes after each successful write, rather than one opaque copy.
+A chunk-fidelity test covers multiple chunks plus tail bytes and independent
+inodes. Eight integration tests and eleven composition tests pass locally.

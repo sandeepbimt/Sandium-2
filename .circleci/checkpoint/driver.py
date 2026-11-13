@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Experimental single-mode real-state bridge. Native cache operations live in YAML."""
+from progress import advance, Watchdog
 import argparse
 import hashlib
 import json
@@ -46,6 +47,8 @@ def gate():
         raise CheckpointError("Nonexperimental namespace forbidden")
     STATE.mkdir(exist_ok=True)
     (STATE / "scope-key").write_text(scope())
+    if not (STATE / "job-start.json").exists():
+        save(STATE / "job-start.json", {"epoch": time.time()})
 
 
 def valid(receipt):
@@ -167,12 +170,17 @@ def capture_linked(store, parent):
     current = scan(work)
     changed = {k: v for k, v in current.items() if old.get(k) != v}
     old_blobs = {v["blob"] for v in old.values() if v["kind"] == "file"}
+    advance(phase="capture-link-and-verify")
     for name, entry in changed.items():
         if entry["kind"] == "file" and entry["blob"] not in old_blobs:
             target = store.path / "blobs" / entry["blob"]
             if not target.exists():
                 os.link(work / name, target)
-            verify_blob(target, entry)
+            # Hardlink shares the scanned inode; the mandatory second complete scan
+            # validates bytes and metadata after linking while writers remain stopped.
+            if not os.path.samefile(work / name, target):
+                verify_blob(target, entry)  # duplicate-content path, not the same inode
+        advance(items=1)
     quiescent()
     if scan(work) != current:
         raise CheckpointError("Tree changed during snapshot")
@@ -196,7 +204,12 @@ def capture(seed=False):
         raise CheckpointError("Build writers still running; snapshot refused")
     # Snapshot/export share immutable hardlinks during this save-only window.
     # Native archive scratch overhead remains unmeasured; retain a minimum reserve.
-    source_bytes = sum(p.stat().st_size for p in (ROOT / "brave-work").rglob("*") if p.is_file() and not p.is_symlink())
+    advance(phase="measure-source-size")
+    source_bytes = 0
+    for p in (ROOT / "brave-work").rglob("*"):
+        if p.is_file() and not p.is_symlink():
+            source_bytes += p.stat().st_size
+        advance(items=1)
     reserve = max(32 * 1024**2, min(8 * 1024**3, source_bytes // 8))
     disk_guard("before-native-cache-packaging-minimum-reserve", reserve)
     compact = bool(layers) and (len(layers) >= 8 or min(x["expires_at"] for x in layers) < time.time() + 172800)
@@ -253,6 +266,16 @@ if __name__ == "__main__":
     parser.add_argument("phase", choices=["gate", "select", "seed-select", "ingest", "restore", "verify-restored", "capture", "seed-capture", "publish", "final"])
     parser.add_argument("--slot", type=int)
     args = parser.parse_args()
-    {"gate": gate, "select": select, "seed-select": lambda: select(True), "ingest": lambda: ingest(args.slot),
+    started = read(STATE / "job-start.json")["epoch"] if (STATE / "job-start.json").exists() else time.time()
+    # Conservative 55-minute job allowance, reserving 10 minutes for native save/head steps.
+    reserve = 600 if args.phase in ("capture", "seed-capture", "restore") else 0
+    remaining = 3300 - (time.time() - started) - reserve
+    budget = min(1800, remaining)
+    if budget <= 0:
+        raise CheckpointError("No checkpoint budget remains before native-save reserve")
+    print("FLOW_BUDGET", json.dumps({"phase": args.phase, "seconds": round(budget), "native_save_reserve": reserve}), flush=True)
+    advance(phase=args.phase)
+    with Watchdog(budget):
+        {"gate": gate, "select": select, "seed-select": lambda: select(True), "ingest": lambda: ingest(args.slot),
      "restore": restore, "verify-restored": verify_restored, "capture": capture, "seed-capture": lambda: capture(True), "publish": publish,
      "final": final_gate}[args.phase]()
