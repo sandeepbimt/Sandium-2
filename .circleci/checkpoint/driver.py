@@ -21,7 +21,14 @@ STATE = ROOT / ".checkpoint-state"
 TRANSPORT = ROOT / ".checkpoint-transport"
 INCOMING = ROOT / ".checkpoint-incoming"
 HEAD = ROOT / ".checkpoint-head" / "receipt.json"
-COMPAT = "brave-44a84b1-chromium-d331de3-arm64-release-single-v1"
+# Product compatibility excludes implementation edits so valid incremental work can
+# survive a patch. Exact recipe identity independently guards completion shortcuts.
+_recipe_spec = importlib.util.spec_from_file_location("product_recipe", Path(__file__).resolve().parents[1] / "scripts/product_recipe.py")
+_recipe_module = importlib.util.module_from_spec(_recipe_spec)
+_recipe_spec.loader.exec_module(_recipe_module)
+PRODUCT_IDENTITY = _recipe_module.identity()
+COMPAT = PRODUCT_IDENTITY["compatibility"]
+RECIPE = PRODUCT_IDENTITY["recipe"]
 
 
 def read(path):
@@ -46,7 +53,7 @@ def gate():
     if not scope().startswith("sandium-exp-single-v1-"):
         raise CheckpointError("Nonexperimental namespace forbidden")
     STATE.mkdir(exist_ok=True)
-    (STATE / "scope-key").write_text(scope())
+    (STATE / "scope-key").write_text(scope() + "-" + COMPAT)
     if not (STATE / "job-start.json").exists():
         save(STATE / "job-start.json", {"epoch": time.time()})
 

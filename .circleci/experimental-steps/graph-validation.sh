@@ -69,3 +69,4 @@ if [ "${SANDIUM_STAGE}" = "1" ]; then
   echo "BRAVE_BUILD_GRAPH_GATE=PASS"
   echo "BRAVE_REMOTE_EXECUTION_CONFIG_GATE=PASS"
 fi
+python3 "$ROOT/.circleci/scripts/product_absence.py" --src "$ROOT/brave-work/src" --out "$OUT" --report "$ROOT/brave-apk/native-removal-report.json"

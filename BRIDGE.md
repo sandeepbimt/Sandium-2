@@ -1,3 +1,5 @@
+> For the planned lean Android product, removal scope, upgrade gates and retained lessons, see [Sandium lean removal plan](docs/SANDIUM_LEAN_REMOVAL_PLAN.md). This does not change the active bridge implementation.
+
 # Sandium – Flow: legacy-base bridge candidate
 
 **Isolated local candidate; do not push or run until independent review completes.**

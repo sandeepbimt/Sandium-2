@@ -17,6 +17,11 @@ if [ -z "$REFERENCE_REVISION" ] || [ "$REFERENCE_REVISION" != "$CURRENT_REVISION
   rm -f "$APK"
   exit 0
 fi
+if ! python3 "$ROOT/.circleci/scripts/apk_recipe.py" verify --root "$ROOT"; then
+  echo "BRAVE_RESTORED_APK=STALE_RECIPE_OR_CONTENT"
+  rm -f "$APK"
+  exit 0
+fi
 VALID=true
 if ! python3 -c 'import sys,zipfile; z=zipfile.ZipFile(sys.argv[1]); bad=z.testzip(); z.close(); sys.exit(1 if bad else 0)' "$APK"; then VALID=false; fi
 if [ "$VALID" = true ] && [ -x "$TOOLS/apksigner" ] && [ -x "$TOOLS/aapt" ]; then

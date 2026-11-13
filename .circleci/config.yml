@@ -11,7 +11,7 @@ parameters:
     default: false
   experiment_namespace:
     type: string
-    default: sandium-exp-single-v1-bridge-crash01
+    default: sandium-exp-single-v1-bridge-lean01
 jobs:
   import-experimental-seed:
     machine:
@@ -36,7 +36,11 @@ jobs:
         command: bash .circleci/scripts/ensure-flow-tools.sh --with-test-tools
     - run:
         name: Test bridge metadata, rollup and native-boundary lifecycle before cache changes
-        command: '/usr/bin/python3 tests/test_balanced_tracer.py
+        command: '/usr/bin/python3 tests/test_usage_removal.py
+
+          /usr/bin/python3 tests/test_product_recipe.py
+
+          /usr/bin/python3 tests/test_balanced_tracer.py
 
           /usr/bin/python3 tests/test_browser_crash_regressions.py
 

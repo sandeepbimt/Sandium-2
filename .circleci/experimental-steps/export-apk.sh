@@ -58,7 +58,7 @@ if [ -s "$APK" ]; then
     fi
   fi
 fi
-if [ -s "$APK" ] && [ "$ARCHIVE_VALID" = true ] && [ "$SIGNATURE_VALID" = true ] && [ "$PACKAGE_VALID" = true ] && [ "$BRANDING_VALID" = true ]; then
+if [ -s "$APK" ] && [ "$ARCHIVE_VALID" = true ] && [ "$SIGNATURE_VALID" = true ] && [ "$PACKAGE_VALID" = true ] && [ "$BRANDING_VALID" = true ] && python3 "$ROOT/.circleci/scripts/apk_recipe.py" record --root "$ROOT"; then
   cp "$APK" "$ROOT/brave-apk/Sandium-Brave-test.apk"
   {
     echo "BUILD_FINISHED=true"

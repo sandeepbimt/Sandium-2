@@ -28,7 +28,7 @@ KIND='legacy-bridge-v1'
 
 def valid(receipt):
     p=receipt['payload']
-    if receipt['id']!=bridge.digest(bridge.encode(p)) or p['scope']!=c.scope() or p['compatibility']!=c.COMPAT or p.get('kind')!=KIND:
+    if receipt['id']!=bridge.digest(bridge.encode(p)) or p['scope']!=c.scope() or p['compatibility']!=c.COMPAT or p.get('kind')!=KIND or not isinstance(p.get('recipe'),str) or len(p['recipe'])!=64:
         raise ValueError('Invalid or incompatible bridge receipt')
     plan=p['plan'];base=plan['base']
     if len(plan['layers'])>7:raise ValueError('Unbounded delta chain')
@@ -58,8 +58,8 @@ def select(seed=False):
     receipt=c.read(HEAD);p=valid(receipt)
     if seed:c.halt();return
     stage=int(os.environ['SANDIUM_STAGE'])
-    if p['apk_verified'] and p['source']==os.environ['CIRCLE_SHA1']:c.halt();return
-    if stage>1 and (p['workflow'],p['stage'],p['source'])!=(os.environ['CIRCLE_WORKFLOW_ID'],stage-1,os.environ['CIRCLE_SHA1']):
+    if p['apk_verified'] and p['source']==os.environ['CIRCLE_SHA1'] and p['recipe']==c.RECIPE:c.halt();return
+    if stage>1 and (p['workflow'],p['stage'],p['source'],p['recipe'])!=(os.environ['CIRCLE_WORKFLOW_ID'],stage-1,os.environ['CIRCLE_SHA1'],c.RECIPE):
         raise ValueError('Exact prior stage receipt required')
     c.save(STATE/'selected.json',receipt)
     plan=p['plan'];(STATE/'base.key').write_text(plan['base']['key'])
@@ -74,7 +74,7 @@ def new_key(kind,ident):
 def make_candidate(plan,previous=None):
     status=ROOT/'brave-apk/status.txt'
     apk=status.exists() and all(x in status.read_text().splitlines() for x in ('BUILD_FINISHED=true','APK_ARCHIVE_VALID=true','APK_SIGNATURE_VALID=true','APK_PACKAGE_ID_VALID=true','APK_BRANDING_VALID=true'))
-    p=dict(kind=KIND,scope=c.scope(),compatibility=c.COMPAT,source=os.environ['CIRCLE_SHA1'],pipeline=int(os.environ['SANDIUM_PIPELINE_NUMBER']),
+    p=dict(kind=KIND,scope=c.scope(),compatibility=c.COMPAT,recipe=c.RECIPE,source=os.environ['CIRCLE_SHA1'],pipeline=int(os.environ['SANDIUM_PIPELINE_NUMBER']),
         workflow=os.environ['CIRCLE_WORKFLOW_ID'],stage=int(os.environ['SANDIUM_STAGE']),plan=plan,apk_verified=apk and previous is not None,previous_receipt=previous)
     c.save(STATE/'candidate.json',dict(id=bridge.digest(bridge.encode(p)),payload=p))
 

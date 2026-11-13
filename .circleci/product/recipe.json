@@ -1,0 +1,54 @@
+{
+  "schema": 1,
+  "product": "sandium-lean",
+  "stage": "usage-ping-exclusion-candidate",
+  "baseline_commit": "952b614ef375ec524954c27997d0e491936d21cb",
+  "pins": {
+    "brave": "44a84b1f89d9a35287289d6a3d493e362f5a5123",
+    "chromium": "d331de35ca8ab1358c7a17e4bd41627d55eaef51"
+  },
+  "target": {
+    "os": "android",
+    "cpu": "arm64",
+    "configuration": "Release",
+    "toolchain": "pinned-chromium-deps",
+    "checkpoint_schema": "legacy-bridge-v1"
+  },
+  "required_absent": [
+    "email_aliases",
+    "leo",
+    "news",
+    "playlist",
+    "rewards_ads",
+    "speedreader",
+    "talk",
+    "tor",
+    "vpn",
+    "wallet_web3",
+    "wayback",
+    "web_discovery",
+    "reporting"
+  ],
+  "active_exclusions": [
+    "talk",
+    "wayback",
+    "speedreader",
+    "tor",
+    "web_discovery"
+  ],
+  "preserve": [
+    "shields",
+    "filter_updates",
+    "https_protection",
+    "fingerprinting_protection",
+    "core_browsing",
+    "local_diagnostics",
+    "sandium_branding",
+    "balanced_s_tracer",
+    "crash_fixes"
+  ],
+  "release_ready": false,
+  "build_flags": {
+    "enable_brave_stats_updater": false
+  }
+}

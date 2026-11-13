@@ -3,6 +3,11 @@ name: Sandium pipeline self-test
 on:
   push:
     paths:
+      - ".circleci/product/**"
+      - ".circleci/scripts/product_recipe.py"
+      - ".circleci/scripts/product_absence.py"
+      - ".circleci/scripts/apk_recipe.py"
+      - ".circleci/scripts/apply-sandium-usage-removal.py"
       - ".circleci/checkpoint/**"
       - ".circleci/bridge/**"
       - ".circleci/scripts/ensure-flow-tools.sh"
@@ -28,6 +33,11 @@ on:
       - ".github/workflows/sandium-pipeline-self-test.yml"
   pull_request:
     paths:
+      - ".circleci/product/**"
+      - ".circleci/scripts/product_recipe.py"
+      - ".circleci/scripts/product_absence.py"
+      - ".circleci/scripts/apk_recipe.py"
+      - ".circleci/scripts/apply-sandium-usage-removal.py"
       - ".circleci/checkpoint/**"
       - ".circleci/bridge/**"
       - ".circleci/scripts/ensure-flow-tools.sh"
@@ -128,3 +138,7 @@ jobs:
           python3 tests/test_settings_origin_crash.py
       - name: Test Balanced S contour and animator lifecycle
         run: python3 tests/test_balanced_tracer.py
+      - name: Test lean recipe identity and APK provenance
+        run: python3 tests/test_product_recipe.py
+      - name: Test compiled usage updater removal integration
+        run: python3 tests/test_usage_removal.py

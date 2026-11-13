@@ -460,6 +460,7 @@ PY
   python3 "$ROOT/.circleci/scripts/apply-sandium-full-overlays.py" --core "$CORE_DIR" --src "$SRC_DIR"
   python3 "$ROOT/.circleci/scripts/apply-sandium-fast-morphe.py" "$SRC_DIR"
   ORIGIN_GN_ARGS+=(
+    --gn enable_brave_stats_updater:false
     --gn enable_brave_talk:false
     --gn enable_brave_wayback_machine:false
     --gn enable_speedreader:false
@@ -515,6 +516,8 @@ PY
   if [ "$MINIMAL_VANILLA_BUILD" = true ]; then
     python3 "$ROOT/.circleci/scripts/verify-sandium-vanilla-brave.py" --core "$CORE_DIR" --src "$SRC_DIR" --out "$OUT" --phase prepare
   fi
+
+  python3 "$ROOT/.circleci/scripts/apply-sandium-usage-removal.py" --core "$CORE_DIR"
 
   # Reuse the pinned Vanilla Welcome GN/Ninja graph when all critical args match.
   # Any missing/stale graph or changed build-critical arg falls back to normal GN generation.
@@ -579,6 +582,8 @@ ACTUAL_CHROMIUM_TAG="$(python3 -c 'import json,sys; print(json.load(open(sys.arg
   echo "SANDIUM_ADBLOCK_PIN_GATE=FAIL Chromium SHA mismatch expected=$EXPECTED_CHROMIUM_SHA actual=$ACTUAL_CHROMIUM_SHA" >&2
   exit 1
 }
+
+python3 "$ROOT/.circleci/scripts/apply-sandium-usage-removal.py" --core "$CORE_DIR"
 
 echo "SANDIUM_SOURCE_PIN_GATE=PASS brave=$ACTUAL_BRAVE_TAG brave_sha=$ACTUAL_BRAVE_SHA chromium=$ACTUAL_CHROMIUM_TAG chromium_sha=$ACTUAL_CHROMIUM_SHA"
 python3 "$ROOT/.circleci/scripts/apply-sandium-filter-subscriptions.py" --core "$CORE_DIR"
