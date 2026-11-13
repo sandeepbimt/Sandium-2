@@ -1,0 +1,1 @@
+Pinned Brave source fixtures for source transformation regression tests. Original copyright and MPL-2.0 notices are retained. These tests validate patch structure and idempotence, not native runtime behavior. See provenance.json for hashes and upstream paths.

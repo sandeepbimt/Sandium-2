@@ -54,6 +54,43 @@ def remove_legacy_startup_warmup(manager_cc: Path) -> None:
         raise SystemExit("SANDIUM_FILTER_BOOTSTRAP=FAIL unexpected startup engine trigger remains")
 
 
+
+def migrate_29_list_checkpoint(manager_cc: Path) -> None:
+    """Upgrade generated #1075 source only; never touch profile preferences/data."""
+    source = manager_cc.read_text(encoding="utf-8")
+    new_url = "https://ublockorigin.github.io/uAssets/filters/annoyances-others.txt"
+    if FILTERS[-1][0] != new_url or len(FILTERS) != 30:
+        raise SystemExit("SANDIUM_FILTER_BOOTSTRAP=FAIL unsupported catalogue migration")
+    old_catalogue = (
+        "constexpr const char* kSandiumDefaultFilterUrls[] = {\n"
+        + "\n".join(f'    "{url}",' for url, _ in FILTERS[:-1]) + "\n};"
+    )
+    new_catalogue = (
+        "constexpr const char* kSandiumDefaultFilterUrls[] = {\n"
+        + "\n".join(f'    "{url}",' for url, _ in FILTERS) + "\n};"
+    )
+    legacy_purge = '''  // Sandium no longer ships the generic uBlock Annoyances list. Remove both
+  // historical URLs from existing profiles and mark them as user-deleted so
+  // the first-launch seeder cannot reintroduce them.
+  DeleteSubscription(GURL("https://ublockorigin.github.io/uAssets/filters/annoyances.txt"));
+  DeleteSubscription(GURL("https://ublockorigin.github.io/uAssetsCDN/filters/annoyances.min.txt"));
+
+'''
+    replacement = '''  // Preserve existing subscriptions and user choices. The new Annoyances leaf
+  // URL is seeded once below; do not purge historical URLs from user profiles.
+
+'''
+    # Only exact known generated blocks are migrated. Other drift continues to
+    # fail closed through replace_once, rather than resetting unrelated edits.
+    if source.count(old_catalogue) == 1:
+        source = source.replace(old_catalogue, new_catalogue, 1)
+    if source.count(legacy_purge) == 1:
+        source = source.replace(legacy_purge, replacement, 1)
+    if source != manager_cc.read_text(encoding="utf-8"):
+        manager_cc.write_text(source, encoding="utf-8")
+        print("SANDIUM_FILTER_BOOTSTRAP_PATCH=migrate-29-list-checkpoint:APPLIED")
+
+
 def verify_pin(core: Path) -> None:
     tag = subprocess.run(
         ["git", "-C", str(core), "describe", "--tags", "--exact-match"],
@@ -82,6 +119,8 @@ def apply(core: Path) -> None:
     adapter = core / "android/java/org/chromium/chrome/browser/shields/ContentFilteringAdapter.java"
     fragment = core / "android/java/org/chromium/chrome/browser/shields/ContentFilteringFragment.java"
     menu = core / "android/java/brave-res/menu/menu_custom_filter_list.xml"
+
+    migrate_29_list_checkpoint(manager_cc)
 
     # Startup seed runs when the profile's ad-block service manager is initialized.
     replace_once(
@@ -159,11 +198,8 @@ def apply(core: Path) -> None:
     return;
   }
 
-  // Sandium no longer ships the generic uBlock Annoyances list. Remove both
-  // historical URLs from existing profiles and mark them as user-deleted so
-  // the first-launch seeder cannot reintroduce them.
-  DeleteSubscription(GURL("https://ublockorigin.github.io/uAssets/filters/annoyances.txt"));
-  DeleteSubscription(GURL("https://ublockorigin.github.io/uAssetsCDN/filters/annoyances.min.txt"));
+  // Preserve existing subscriptions and user choices. The new Annoyances leaf
+  // URL is seeded once below; do not purge historical URLs from user profiles.
 
   const bool migrate_previous_defaults =
       !local_state_->GetBoolean(prefs::kSandiumDefaultFilterListsMigrated);
@@ -568,8 +604,8 @@ def verify(core: Path) -> None:
     ensure_body = manager[ensure_start:ensure_end]
     if "ForceNotifyObservers(false)" in ensure_body:
         raise SystemExit("SANDIUM_FILTER_BOOTSTRAP_VERIFY=FAIL engine warm-up must be homepage-triggered")
-    if len(FILTERS) != 29 or len({url for url, _ in FILTERS}) != 29:
-        raise SystemExit("SANDIUM_FILTER_BOOTSTRAP_VERIFY=FAIL expected 29 unique subscriptions")
+    if len(FILTERS) != 30 or len({url for url, _ in FILTERS}) != 30:
+        raise SystemExit("SANDIUM_FILTER_BOOTSTRAP_VERIFY=FAIL expected 30 unique subscriptions")
     if "updateFilterLists(" in fragment or "SANDIUM_FILTER_REFRESH_PLACEHOLDER" in fragment:
         raise SystemExit("SANDIUM_FILTER_BOOTSTRAP_VERIFY=FAIL wrong or incomplete refresh action")
     if "base::ReadFileToString(cached_list_path" in service:
@@ -583,7 +619,7 @@ def verify(core: Path) -> None:
     if "OnCheckedSandiumDefaultSubscriptionCaches" not in manager:
         raise SystemExit("SANDIUM_FILTER_BOOTSTRAP_VERIFY=FAIL async startup completion handler missing")
     print("SANDIUM_FILTER_BOOTSTRAP_VERIFY=PASS startup_seed=true refresh=native_subscriptions "
-          "lists=29 default_enabled=true cache_metadata=source_entries+bytes "
+          "lists=30 default_enabled=true cache_metadata=source_entries+bytes "
           "async_filter_io=true async_startup_cache_probe=true engine_warmup=homepage_deferred_success_gated")
 
 

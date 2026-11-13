@@ -1,0 +1,33 @@
+{
+  "brave_core_sha": "44a84b1f89d9a35287289d6a3d493e362f5a5123",
+  "files": {
+    "ad_block_default_resource_provider.h": {
+      "upstream_path": "components/brave_shields/core/browser/ad_block_default_resource_provider.h",
+      "sha256": "5d402825795d11d5288e54cadc3e93ce6bace7c0e6e3c4d2de491c319a6aed45"
+    },
+    "ad_block_default_resource_provider.cc": {
+      "upstream_path": "components/brave_shields/core/browser/ad_block_default_resource_provider.cc",
+      "sha256": "11d281e97635f9b7fc9591a67b2401549e197ae8c5341271f0ef10c8f7b04659"
+    },
+    "ad_block_custom_resource_provider.h": {
+      "upstream_path": "components/brave_shields/core/browser/ad_block_custom_resource_provider.h",
+      "sha256": "4a932153d6314274840e5217a6481225ac545caa7874f570c73b7272fc45391e"
+    },
+    "ad_block_custom_resource_provider.cc": {
+      "upstream_path": "components/brave_shields/core/browser/ad_block_custom_resource_provider.cc",
+      "sha256": "4fc28625cbe6db73e440643a8ba5cc6df89f1b6e1e7955d3c23091151c7d6de7"
+    },
+    "ad_block_custom_resource_provider_unittest.cc": {
+      "upstream_path": "components/brave_shields/core/browser/ad_block_custom_resource_provider_unittest.cc",
+      "sha256": "cb3b5c42307505ecb5eca3f68a256b6dc7e97f22fc8b9d25f5e29f6c3c9310d4"
+    },
+    "lib.rs": {
+      "upstream_path": "components/brave_shields/core/common/adblock/rs/src/lib.rs",
+      "sha256": "1f2549773004402e8597c82d8bea8efddf23a3fc79bd183fd69e1e8ff1757594"
+    },
+    "resource_storage.rs": {
+      "upstream_path": "components/brave_shields/core/common/adblock/rs/src/resource_storage.rs",
+      "sha256": "67e19be9ba638e8612f79dbf0bf5d962b908a2e416e81bde06ebe730b2f461c9"
+    }
+  }
+}

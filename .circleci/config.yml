@@ -36,7 +36,15 @@ jobs:
         command: bash .circleci/scripts/ensure-flow-tools.sh --with-test-tools
     - run:
         name: Test bridge metadata, rollup and native-boundary lifecycle before cache changes
-        command: '/usr/bin/python3 tests/test_balanced_tracer.py
+        command: '/usr/bin/python3 .circleci/scripts/test-sandium-adblock-resources.py
+
+          /usr/bin/python3 .circleci/scripts/test-sandium-visible-branding.py
+
+          /usr/bin/python3 .circleci/scripts/test-sandium-filter-subscriptions.py
+
+          /usr/bin/python3 .circleci/scripts/test-sandium-filter-bootstrap.py
+
+          /usr/bin/python3 tests/test_balanced_tracer.py
 
           /usr/bin/python3 tests/test_browser_crash_regressions.py
 

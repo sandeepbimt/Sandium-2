@@ -14,6 +14,8 @@ from pathlib import Path
 EXPECTED_CORE_TAG = "v1.98.62"
 EXPECTED_CORE_SHA = "44a84b1f89d9a35287289d6a3d493e362f5a5123"
 
+# Use the direct leaf for Annoyances: upstream annoyances.txt is an
+# !#include wrapper, which the native subscription downloader does not expand.
 FILTERS = (
     ("https://ublockorigin.github.io/uAssets/filters/filters.txt", "uBlock filters – Ads"),
     ("https://ublockorigin.github.io/uAssets/filters/privacy.txt", "uBlock filters – Privacy"),
@@ -44,6 +46,7 @@ FILTERS = (
     ("https://filters.adtidy.org/extension/ublock/filters/19.txt", "AdGuard – Popup Overlays"),
     ("https://filters.adtidy.org/extension/ublock/filters/22.txt", "AdGuard – Widgets"),
     ("https://easylist-downloads.adblockplus.org/indianlist.txt", "🇮🇳in 🇱🇰lk 🇳🇵np: IndianList"),
+    ("https://ublockorigin.github.io/uAssets/filters/annoyances-others.txt", "uBlock filters – Annoyances"),
 )
 
 # The earlier Sandium updater/catalogue patch can be present inside a restored
@@ -453,8 +456,8 @@ def verify_android_sources(core: Path) -> None:
         raise SystemExit("SANDIUM_FILTER_SUBSCRIPTIONS_VERIFY=FAIL Brave component filter catalogue still used")
     if "getSandiumFilterDisplayName(url)" not in adapter:
         raise SystemExit("SANDIUM_FILTER_SUBSCRIPTIONS_VERIFY=FAIL friendly names are not rendered")
-    if len(FILTERS) != 29 or len({url for url, _ in FILTERS}) != 29:
-        raise SystemExit("SANDIUM_FILTER_SUBSCRIPTIONS_VERIFY=FAIL expected 29 unique selected list URLs")
+    if len(FILTERS) != 30 or len({url for url, _ in FILTERS}) != 30:
+        raise SystemExit("SANDIUM_FILTER_SUBSCRIPTIONS_VERIFY=FAIL expected 30 unique selected list URLs")
     print(
         "SANDIUM_FILTER_SUBSCRIPTIONS_VERIFY=PASS "
         f"lists={len(FILTERS)} auto_update=native_subscription_manager default_enabled=true "

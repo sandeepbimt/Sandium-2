@@ -7,8 +7,8 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 FILTERS = runpy.run_path(str(HERE / "apply-sandium-filter-subscriptions.py"))["FILTERS"]
 PATCH = (HERE / "apply-sandium-filter-bootstrap.py").read_text(encoding="utf-8")
-assert len(FILTERS) == 29 and len({url for url, _ in FILTERS}) == 29
-assert all(title != "uBlock filters – Annoyances" for _, title in FILTERS)
+assert len(FILTERS) == 30 and len({url for url, _ in FILTERS}) == 30
+assert FILTERS[-1] == ("https://ublockorigin.github.io/uAssets/filters/annoyances-others.txt", "uBlock filters – Annoyances")
 assert all("annoyances.min.txt" not in url for url, _ in FILTERS)
 assert 'DeleteSubscription(GURL("https://ublockorigin.github.io/uAssets/filters/annoyances.txt"))' in PATCH
 assert 'DeleteSubscription(GURL("https://ublockorigin.github.io/uAssetsCDN/filters/annoyances.min.txt"))' in PATCH
@@ -67,7 +67,39 @@ force_end = HOMEPAGE_WARMUP_PATCH.index(
 force_body = HOMEPAGE_WARMUP_PATCH[force_start:force_end]
 assert "AreAllProvidersInitialized" not in force_body
 assert "explicit Sandium activation request" in force_body
-print("SANDIUM_FILTER_BOOTSTRAP_UNIT_TEST=PASS lists=29 enabled=true startup_seed=true refresh=true metadata=true homepage_deferred_warmup=true download_gated=true first_filter_bypass=true")
+print("SANDIUM_FILTER_BOOTSTRAP_UNIT_TEST=PASS lists=30 enabled=true startup_seed=true refresh=true metadata=true homepage_deferred_warmup=true download_gated=true first_filter_bypass=true")
 
 assert "base::Value::List" not in PATCH
 assert "base::GetFileSize(cached_list, &cached_size)" not in PATCH
+
+# A new default URL seeds once without reenabling existing disabled entries or
+# resurrecting explicitly deleted entries. Preserve these upgrade guards.
+assert "A prior user deletion is recorded in seeded_urls and must remain deleted." in PATCH
+assert "if (was_seeded) {\n        continue;" in PATCH
+assert "if (info->enabled)" in PATCH
+assert "migrate_29_list_checkpoint(manager_cc)" in PATCH
+
+# Real #1075-style generated native manager, built from the exact pinned source
+# with the previous 29-list bootstrap. Migration must be surgical and idempotent.
+import tempfile
+import difflib
+BOOTSTRAP = runpy.run_path(str(HERE / "apply-sandium-filter-bootstrap.py"))
+with tempfile.TemporaryDirectory() as directory:
+    manager = Path(directory) / "manager.cc"
+    original = (HERE / "fixtures/filter-subscription-manager-29.cc").read_text()
+    manager.write_text(original)
+    BOOTSTRAP["migrate_29_list_checkpoint"](manager)
+    upgraded = manager.read_text()
+    BOOTSTRAP["migrate_29_list_checkpoint"](manager)
+    assert manager.read_text() == upgraded
+    assert upgraded.count('"https://ublockorigin.github.io/uAssets/filters/annoyances-others.txt"') == 1
+    assert 'DeleteSubscription(GURL("https://ublockorigin.github.io/uAssets/filters/annoyances.txt"))' not in upgraded
+    assert 'DeleteSubscription(GURL("https://ublockorigin.github.io/uAssetsCDN/filters/annoyances.min.txt"))' not in upgraded
+    assert "if (was_seeded) {\n        continue;" in upgraded
+    assert "if (info->enabled)" in upgraded
+    # Native declaration, user deletion handler and all download/update logic
+    # are unchanged. Only the catalogue insertion and obsolete purge change.
+    changed = [line for line in difflib.ndiff(original.splitlines(), upgraded.splitlines())
+               if line.startswith(("+ ", "- "))]
+    assert len(changed) == 8, changed
+print("SANDIUM_FILTER_CHECKPOINT_MIGRATION=PASS from=29 to=30 idempotent=true user_choices=preserved")

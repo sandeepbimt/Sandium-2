@@ -41,6 +41,14 @@ class FlowWiring(unittest.TestCase):
             'python3 .circleci/scripts/test-sandium-ui-prune.py','echo .circleci/scripts/test-sandium-ui-prune.py')
         with self.assertRaisesRegex(ValueError,'command'):verify_flow_wiring(root)
 
+    def test_final_branding_cannot_be_skipped_or_reordered(self):
+        root=self.fixture();self.edit(root,'.circleci/experimental-steps/product-overlay-29-0.sh',
+            'python3 .circleci/scripts/apply-sandium-visible-branding.py','echo .circleci/scripts/apply-sandium-visible-branding.py')
+        with self.assertRaisesRegex(ValueError,'command'):verify_flow_wiring(root)
+        root=self.fixture();self.edit(root,'.circleci/experimental-steps/product-overlay-29-0.sh',
+            '--report', '--not-report')
+        with self.assertRaisesRegex(ValueError,'coverage report'):verify_flow_wiring(root)
+
     def test_stage_three_wrong_feature_ui_order_fails(self):
         root=self.fixture();p=root/'.circleci/config.yml';text=p.read_text()
         a=text.index('  sandium-stage-3:');b=text.index('  sandium-stage-4:',a)

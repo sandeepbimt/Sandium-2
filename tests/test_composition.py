@@ -26,6 +26,7 @@ def module(name):
 
 RACE = module('apply-sandium-adblock-engine-race')
 HOME = module('apply-sandium-homepage-adblock-warmup')
+RESOURCES = module('apply-sandium-adblock-resources')
 
 def apply_exact_calls(script, function, variable_paths, core):
     # Execute the actual constant replacement expressions, not rewritten copies.
@@ -85,6 +86,25 @@ class Composition(unittest.TestCase):
     def sequence(self):
         RACE.reset_shared_sources(self.core)
         self.bootstrap();self.homepage();self.race()
+    def test_resources_compose_after_warmup_and_generation_guards(self):
+        self.sequence()
+        before=(self.core/SERVICE).read_text()
+        after=RESOURCES.service_cc(before)
+        header=RESOURCES.service_header((self.core/HEADER).read_text())
+        self.assertEqual(after,RESOURCES.service_cc(after))
+        self.assertEqual(header,RESOURCES.service_header(header))
+        self.assertIn('registry->RegisterBooleanPref(prefs::kSandiumAdBlockEngineWarmupDoneV2, false);',after)
+        self.assertIn('local_state_->SetBoolean(prefs::kSandiumAdBlockEngineWarmupDoneV2, true);',after)
+        self.assertIn('if (generation != filter_set_generation_)',after)
+        self.assertIn('OnDATResourcesLoaded',after)
+        self.assertNotIn('adblock::new_empty_resource_storage()',after[after.index('void AdBlockService::SourceProviderObserver::OnDATFileRead('):after.index('void AdBlockService::SourceProviderObserver::OnFilterSetCreated(')])
+        # Full later runs reset shared sources before all overlays, then produce
+        # the identical final warmup/race/resources composition.
+        (self.core/SERVICE).write_text(after);(self.core/HEADER).write_text(header)
+        self.sequence()
+        self.assertEqual(after,RESOURCES.service_cc((self.core/SERVICE).read_text()))
+        self.assertEqual(header,RESOURCES.service_header((self.core/HEADER).read_text()))
+
     def test_original_late_reset_reproduces_missing_registration(self):
         self.bootstrap();self.homepage()
         self.race()
