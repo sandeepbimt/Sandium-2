@@ -294,6 +294,21 @@ def main():
         "SANDIUM_WEB_DISCOVERY",
     )
 
+    # Web Discovery is disabled by Sandium's GN overlay; Brave's Rewards page
+    # still refers to the preference, which is only declared when enabled.
+    # Preserve Rewards and the Mojo callback, guard only the disabled pref write.
+    rewards_handler = core / "browser/ui/webui/brave_rewards/rewards_page_handler.cc"
+    replace_exact(
+        rewards_handler,
+        "  prefs_->SetBoolean(kWebDiscoveryEnabled, enabled);\n"
+        "  std::move(callback).Run();",
+        "#if BUILDFLAG(ENABLE_WEB_DISCOVERY)\n"
+        "  prefs_->SetBoolean(kWebDiscoveryEnabled, enabled);\n"
+        "#endif  // BUILDFLAG(ENABLE_WEB_DISCOVERY)\n"
+        "  std::move(callback).Run();",
+        "SANDIUM_REWARDS_WEB_DISCOVERY_GUARD",
+    )
+
     # AI Chat is a valid Brave Origin GN exclusion, but Android's tabs_impl
     # target has an unconditional dependency and source references. Guard them
     # against the pinned Android source before asking GN to disable AI Chat.
