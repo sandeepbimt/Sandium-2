@@ -139,3 +139,9 @@ jobs:
           python3 .circleci/scripts/test-sandium-filter-bootstrap.py
       - name: Test redirect resources and stale-callback protection
         run: python3 .circleci/scripts/test-sandium-adblock-resources.py
+      - name: Test dynamic onboarding readiness and checkpoint overwrite
+        run: python3 .circleci/scripts/test-sandium-welcome-setup.py
+      - name: Test shared native charcoal and pale-green palette
+        run: python3 .circleci/scripts/test-sandium-native-theme.py
+      - name: Test bounded Android 16 status underlap and checkpoint rollback
+        run: python3 .circleci/tests/test_status_underlap_patch.py

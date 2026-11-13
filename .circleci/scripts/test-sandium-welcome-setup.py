@@ -132,3 +132,80 @@ assert 'privateService.runWhenLoaded(() -> {' in view_source
 assert 'privateService.runWhenLoaded(() -> {' in view_source
 
 print("SANDIUM_WELCOME_SETUP_PATCHER_TEST=PASS")
+
+# Execute the boolean expression extracted from production Java (not a second
+# hardcoded count gate). This is logic coverage, not an Android/JVM execution.
+import re
+expression = re.search(
+    r"static boolean allEnabledFiltersDownloaded\(int downloaded, int total\) \{\s*return ([^;]+);",
+    view_source).group(1)
+assert expression == "total > 0 && downloaded == total"
+def downloaded_ready(downloaded, total):
+    return eval(expression.replace("&&", "and"), {"__builtins__": {}},
+                {"downloaded": downloaded, "total": total})
+assert "return ready && allEnabledFiltersDownloaded(downloaded, total);" in view_source
+for ready, downloaded, total, expected in [
+    (True, 30, 30, True),
+    (False, 30, 30, False),
+    (True, 29, 30, False),
+    (True, 0, 0, False),
+    (False, 0, 0, False),
+    (True, 29, 29, True),  # One intentionally disabled list.
+    (True, 31, 31, True),  # Additional manual subscription.
+    (True, 28, 29, False), # Enabled list has no successful download.
+    (True, 31, 30, False),
+]:
+    assert (ready and downloaded_ready(downloaded, total)) == expected
+assert "REQUIRED_FILTER_COUNT" not in view_source
+assert "29 filters" not in view_source
+assert "if (!item.enabled) continue;" in view_source
+assert "if (successful > 0) downloaded++;" in view_source
+assert "subscriptions == null" in view_source
+assert "Unable to read filter status. Retrying..." in view_source
+assert "mStartButton.setEnabled(mCanStartBrowsing && !mStartInvoked);" in view_source
+
+# Real apply() over an old generated view must overwrite the obsolete constant,
+# and applying again must preserve the new dynamic gate and all existing setup.
+with tempfile.TemporaryDirectory() as temp_dir:
+    core = Path(temp_dir) / "core"
+    src = Path(temp_dir) / "src"
+    activity_path = core / PATCHER["ACTIVITY"]
+    activity_path.parent.mkdir(parents=True)
+    activity_path.write_text(patched)
+    source_list = core / PATCHER["JAVA_SOURCES"]
+    source_list.parent.mkdir(parents=True, exist_ok=True)
+    source_list.write_text('  "../../brave/android/java/org/chromium/chrome/browser/firstrun/WelcomeOnboardingActivity.java",\n')
+    restart_path = src / PATCHER["RESTART_ACTIVITY"]
+    restart_path.parent.mkdir(parents=True)
+    restart_path.write_text(restart_patched)
+    view_path = core / PATCHER["VIEW"]
+    view_path.write_text("class SandiumWelcomeSetupView {\n"
+                         "private static final int REQUIRED_FILTER_COUNT = 29;\n}\n")
+    PATCHER["apply"].__globals__["verify_pins"] = lambda core, src: None
+    PATCHER["apply"](core, src, repo_root)
+    first = view_path.read_text()
+    PATCHER["apply"](core, src, repo_root)
+    assert view_path.read_text() == first == view_source
+    assert "REQUIRED_FILTER_COUNT" not in first
+print("SANDIUM_WELCOME_DYNAMIC_COUNT_TEST=PASS count_cases=9 native_ready_required=true old_view_replaced=true")
+
+# Readiness is the native activation signal, not a promise that every imported
+# rule or resource was accepted and executed on every site.
+assert "All filter rules applied" not in view_source
+assert "loaded and active" not in view_source
+assert "Enabled lists downloaded; native engine reports ready" in view_source
+assert "Finalizing: Native engine reports ready" in view_source
+
+# Frozen no-logo charcoal / near-white green welcome design.
+assert 'text("Setup Sandium", 27, TEXT, true)' in view_source
+assert 'Color.rgb(27, 31, 33)' in view_source
+assert 'Color.rgb(41, 46, 49)' in view_source
+assert 'Color.rgb(230, 244, 232)' in view_source
+assert 'Color.rgb(23, 39, 28)' in view_source
+assert 'subtitle.setMaxLines(2)' not in view_source
+assert 'dp(6), dp(8), dp(6), dp(28)' in view_source
+assert 'ImageView' not in view_source
+assert 'new LinearLayout.LayoutParams(dp(230), dp(52))' not in view_source
+assert 'Color.rgb(110, 127, 192)' not in view_source
+print("SANDIUM_WELCOME_FROZEN_DESIGN_TEST=PASS")
+assert "Color.rgb(168, 183, 248)" not in view_source

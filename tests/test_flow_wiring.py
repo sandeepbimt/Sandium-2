@@ -15,7 +15,9 @@ class FlowWiring(unittest.TestCase):
         shutil.copytree(ROOT/'.circleci/experimental-steps',root/'.circleci/experimental-steps')
         shutil.copy2(ROOT/'.circleci/config.yml',root/'.circleci/config.yml')
         for names in REQUIRED.values():
-            for name in names:(root/'.circleci/scripts'/name).touch()
+            for name in names:
+                target=root/('.circleci/tests' if name == 'test_status_underlap_patch.py' else '.circleci/scripts')/name
+                target.parent.mkdir(parents=True,exist_ok=True);target.touch()
         return root
 
     def edit(self,root,path,old,new):
@@ -48,6 +50,16 @@ class FlowWiring(unittest.TestCase):
         root=self.fixture();self.edit(root,'.circleci/experimental-steps/product-overlay-29-0.sh',
             '--report', '--not-report')
         with self.assertRaisesRegex(ValueError,'coverage report'):verify_flow_wiring(root)
+
+    def test_status_trial_cannot_be_skipped(self):
+        root=self.fixture();self.edit(root,'.circleci/experimental-steps/product-overlay-29-0.sh',
+            'python3 .circleci/scripts/apply-sandium-scroll-status-bar.py','echo .circleci/scripts/apply-sandium-scroll-status-bar.py')
+        with self.assertRaisesRegex(ValueError,'command'):verify_flow_wiring(root)
+
+    def test_native_theme_cannot_be_skipped(self):
+        root=self.fixture();self.edit(root,'.circleci/experimental-steps/product-overlay-29-0.sh',
+            'python3 .circleci/scripts/apply-sandium-native-theme.py','echo .circleci/scripts/apply-sandium-native-theme.py')
+        with self.assertRaisesRegex(ValueError,'command'):verify_flow_wiring(root)
 
     def test_stage_three_wrong_feature_ui_order_fails(self):
         root=self.fixture();p=root/'.circleci/config.yml';text=p.read_text()

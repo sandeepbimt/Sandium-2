@@ -233,8 +233,9 @@ def apply(core: Path, src: Path, repo_root: Path) -> None:
     view_source = read(repo_root / VIEW)
     required_view_behaviour = (
         "sandium.ad_block.engine_warmup_done_v2",
-        "REQUIRED_FILTER_COUNT = 29",
-        "downloaded == REQUIRED_FILTER_COUNT",
+        "return total > 0 && downloaded == total;",
+        "return ready && allEnabledFiltersDownloaded(downloaded, total);",
+        "mCanStartBrowsing = canStartWithProtection(ready, downloaded, total);",
         "BraveRelaunchUtils::restart",
         "onPrepareForRestart()",
         "mListener.onPrepareForRestart()",
@@ -262,6 +263,8 @@ def apply(core: Path, src: Path, repo_root: Path) -> None:
         "showBlurLevelPicker()",
         "privateService.runWhenLoaded",
     )
+    if "REQUIRED_FILTER_COUNT" in view_source or "29 filters" in view_source:
+        raise RuntimeError("welcome view contains obsolete fixed filter-count gate")
     if "class SandiumWelcomeSetupView" not in view_source:
         raise RuntimeError("Sandium setup view class missing from repository workspace")
     forbidden_search_ui = (

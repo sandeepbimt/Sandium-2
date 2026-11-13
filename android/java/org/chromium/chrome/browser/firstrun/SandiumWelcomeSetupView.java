@@ -60,21 +60,20 @@ final class SandiumWelcomeSetupView {
         void onPrepareForRestart();
     }
 
-    private static final int BACKGROUND = Color.rgb(22, 24, 31);
-    private static final int CARD = Color.rgb(38, 41, 50);
-    private static final int SEPARATOR = Color.rgb(20, 22, 28);
-    private static final int PRIMARY = Color.rgb(205, 214, 255);
-    private static final int PRIMARY_TEXT = Color.rgb(39, 54, 130);
-    private static final int DISABLED_BUTTON = Color.rgb(66, 70, 82);
-    private static final int DISABLED_BUTTON_TEXT = Color.rgb(176, 181, 194);
-    private static final int TEXT = Color.rgb(245, 246, 250);
-    private static final int SECONDARY = Color.rgb(174, 180, 194);
-    private static final int SUCCESS = Color.rgb(82, 211, 133);
+    private static final int BACKGROUND = Color.rgb(27, 31, 33);
+    private static final int CARD = Color.rgb(41, 46, 49);
+    private static final int SEPARATOR = Color.rgb(57, 64, 65);
+    private static final int PRIMARY = Color.rgb(230, 244, 232);
+    private static final int PRIMARY_TEXT = Color.rgb(23, 39, 28);
+    private static final int DISABLED_BUTTON = Color.rgb(65, 74, 69);
+    private static final int DISABLED_BUTTON_TEXT = Color.rgb(172, 184, 175);
+    private static final int TEXT = Color.rgb(246, 248, 247);
+    private static final int SECONDARY = Color.rgb(191, 201, 198);
+    private static final int SUCCESS = PRIMARY;
 
     private static final String PREF_BLUR_LEVEL = "sandium_page_transition_blur_level";
     private static final String PREF_DARKEN = "sandium_page_transition_darken";
     private static final String PREF_ENGINE_READY = "sandium.ad_block.engine_warmup_done_v2";
-    private static final int REQUIRED_FILTER_COUNT = 29;
 
     private final Activity mActivity;
     private final Listener mListener;
@@ -140,17 +139,17 @@ final class SandiumWelcomeSetupView {
         mScrollView.addView(mContent, new ScrollView.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
-        TextView title = text("Set up your browser", 27, TEXT, false);
+        TextView title = text("Setup Sandium", 27, TEXT, true);
         title.setGravity(Gravity.CENTER);
         mContent.addView(title, matchWrap());
         TextView subtitle = text(
-                "Choose your preferred browsing experience. Change these anytime in Settings.",
+                "Choose your preferred browsing experience.\nChange these anytime in Settings.",
                 13, SECONDARY, false);
         subtitle.setGravity(Gravity.CENTER);
-        subtitle.setMaxLines(2);
+        // Allow wrapping at large accessibility font scales; do not truncate.
         subtitle.setLineSpacing(0, 1f);
         LinearLayout.LayoutParams subtitleParams = matchWrap();
-        subtitleParams.setMargins(dp(6), dp(5), dp(6), dp(14));
+        subtitleParams.setMargins(dp(6), dp(8), dp(6), dp(28));
         mContent.addView(subtitle, subtitleParams);
 
         buildFilterProgressCard();
@@ -174,7 +173,8 @@ final class SandiumWelcomeSetupView {
         mStartButton.setEnabled(false);
         mStartButton.setAlpha(1f);
         mStartButton.setOnClickListener(v -> startBrowsingWithFeedback());
-        LinearLayout.LayoutParams buttonParams = new LinearLayout.LayoutParams(dp(230), dp(52));
+        LinearLayout.LayoutParams buttonParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(52));
         buttonContainer.addView(mStartButton, buttonParams);
 
         return mRoot;
@@ -188,7 +188,7 @@ final class SandiumWelcomeSetupView {
         if (mDarkenSwitch != null) mDarkenSwitch.setEnabled(isBlurTransitionEnabled());
         mFilterHandler = FilterListServiceFactory.getInstance()
                 .getFilterListAndroidHandler(profile, null);
-        // Queue the native warm-up immediately. Native code waits for all 29
+        // Queue the native warm-up immediately. Native code waits for the actual
         // enabled subscriptions, then marks ready only after the additional engine loads.
         FilterListServiceFactory.requestSandiumHomepageWarmup(profile);
         pollFilterStatus();
@@ -330,7 +330,7 @@ final class SandiumWelcomeSetupView {
         mProtectionTitle = text("Preparing ad-blocking protection...", 14, TEXT, false);
         labels.addView(mProtectionTitle, matchWrap());
         mProtectionSubtitle = text(
-                "Engine starts after the first successful filter download",
+                "Engine starts after all enabled filters have downloaded successfully",
                 11.5f, SECONDARY, false);
         mProtectionSubtitle.setPadding(0, dp(4), 0, 0);
         labels.addView(mProtectionSubtitle, matchWrap());
@@ -344,7 +344,7 @@ final class SandiumWelcomeSetupView {
         mProgress.setMax(100);
         mProgress.setProgress(0);
         mProgress.setProgressTintList(ColorStateList.valueOf(PRIMARY));
-        mProgress.setProgressBackgroundTintList(ColorStateList.valueOf(Color.rgb(64, 68, 78)));
+        mProgress.setProgressBackgroundTintList(ColorStateList.valueOf(Color.rgb(62, 73, 67)));
         progressRow.addView(mProgress, new LinearLayout.LayoutParams(0, dp(5), 1f));
 
         mPercent = text("0%", 11, TEXT, false);
@@ -354,7 +354,7 @@ final class SandiumWelcomeSetupView {
         progressRow.addView(mPercent, percentParams);
 
         View divider = new View(mActivity);
-        divider.setBackgroundColor(Color.rgb(69, 73, 83));
+        divider.setBackgroundColor(Color.rgb(73, 84, 78));
         LinearLayout.LayoutParams dividerParams = matchWrap();
         dividerParams.height = dp(1);
         dividerParams.setMargins(dp(12), 0, dp(12), dp(4));
@@ -479,9 +479,9 @@ final class SandiumWelcomeSetupView {
                 },
                 new int[] {
                     PRIMARY,
-                    Color.rgb(185, 188, 197),
-                    Color.rgb(172, 179, 207),
-                    Color.rgb(154, 159, 172)
+                    Color.rgb(186, 197, 190),
+                    Color.rgb(169, 188, 174),
+                    Color.rgb(153, 166, 158)
                 }));
         toggle.setTrackTintList(new ColorStateList(
                 new int[][] {
@@ -491,10 +491,10 @@ final class SandiumWelcomeSetupView {
                     new int[] {}
                 },
                 new int[] {
-                    Color.rgb(110, 127, 192),
-                    Color.rgb(87, 91, 101),
-                    Color.rgb(88, 100, 147),
-                    Color.rgb(65, 69, 80)
+                    Color.rgb(112, 134, 116),
+                    Color.rgb(83, 96, 89),
+                    Color.rgb(79, 98, 84),
+                    Color.rgb(63, 75, 68)
                 }));
         toggle.setOnCheckedChangeListener((button, value) -> {
             if (showRestartHint) restartHint.setVisibility(View.VISIBLE);
@@ -649,7 +649,7 @@ final class SandiumWelcomeSetupView {
 
         LayerDrawable background = new LayerDrawable(new Drawable[] {
             roundRect(PRIMARY, 28),
-            new ClipDrawable(roundRect(Color.rgb(168, 183, 248), 28),
+            new ClipDrawable(roundRect(Color.rgb(190, 218, 196), 28),
                     Gravity.LEFT, ClipDrawable.HORIZONTAL)
         });
         ClipDrawable progress = (ClipDrawable) background.getDrawable(1);
@@ -720,6 +720,13 @@ final class SandiumWelcomeSetupView {
         try {
             mFilterHandler.getSubscriptions(subscriptions -> {
                 if (mDestroyed) return;
+                if (subscriptions == null) {
+                    mPollInFlight = false;
+                    updateEngineStatus(false, 0, 0);
+                    mFinalizing.setText("○   Unable to read filter status. Retrying...");
+                    schedulePoll();
+                    return;
+                }
                 int enabled = 0;
                 int downloaded = 0;
                 for (SubscriptionInfo item : subscriptions) {
@@ -735,44 +742,56 @@ final class SandiumWelcomeSetupView {
             });
         } catch (RuntimeException exception) {
             mPollInFlight = false;
-            updateEngineStatus(engineReady, 0, 0);
+            updateEngineStatus(false, 0, 0);
+            mFinalizing.setText("○   Unable to read filter status. Retrying...");
             schedulePoll();
         }
+    }
+
+    // Count the selected subscriptions, not a build-time default-list constant.
+    // Keep the native activation signal: downloads alone do not prove readiness.
+    static boolean allEnabledFiltersDownloaded(int downloaded, int total) {
+        return total > 0 && downloaded == total;
+    }
+
+    static boolean canStartWithProtection(boolean ready, int downloaded, int total) {
+        return ready && allEnabledFiltersDownloaded(downloaded, total);
     }
 
     private void updateEngineStatus(boolean ready, int downloaded, int total) {
         int percent = total == 0 ? 0 : Math.min(100, (downloaded * 100) / total);
         mProgress.setProgress(percent);
         mPercent.setText(percent + "%");
-        boolean allFiltersReady = total == REQUIRED_FILTER_COUNT
-                && downloaded == REQUIRED_FILTER_COUNT;
-        mCanStartBrowsing = ready && allFiltersReady;
+        boolean allFiltersReady = allEnabledFiltersDownloaded(downloaded, total);
+        mCanStartBrowsing = canStartWithProtection(ready, downloaded, total);
         mEngineState.setText(mCanStartBrowsing
-                ? "✓   Ad blocker engine: Ready with all 29 filters"
+                ? "✓   Ad blocker engine: Ready with " + total + " enabled filters"
                 : (allFiltersReady
-                    ? "○   Ad blocker engine: Activating with 29 filters"
-                    : "○   Ad blocker engine: Waiting for all 29 filters"));
+                    ? "○   Ad blocker engine: Activating with " + total + " enabled filters"
+                    : "○   Ad blocker engine: Waiting for enabled filters"));
         mEngineState.setTextColor(mCanStartBrowsing ? SUCCESS : SECONDARY);
         mProtectionTitle.setText(mCanStartBrowsing
                 ? "Ad-blocking protection completed"
                 : "Preparing ad-blocking protection...");
         mProtectionTitle.setTextColor(mCanStartBrowsing ? SUCCESS : TEXT);
         mProtectionSubtitle.setText(mCanStartBrowsing
-                ? "All 29 filters are loaded and active"
-                : "Engine starts after the first successful filter download");
+                ? "Enabled lists downloaded; native engine reports ready"
+                : "Engine starts after all enabled filters have downloaded successfully");
         mProtectionSubtitle.setTextColor(mCanStartBrowsing ? SUCCESS : SECONDARY);
         mProtectionSpinner.setText(mCanStartBrowsing ? "✓" : "⟳");
         mProtectionSpinner.setTextColor(mCanStartBrowsing ? SUCCESS : PRIMARY);
         mProgress.setProgressTintList(ColorStateList.valueOf(
                 mCanStartBrowsing ? SUCCESS : PRIMARY));
         mPercent.setTextColor(mCanStartBrowsing ? SUCCESS : TEXT);
-        mFilterCount.setText("Filters: " + downloaded + " of " + REQUIRED_FILTER_COUNT + " loaded");
+        mFilterCount.setText("Filters: " + downloaded + " of " + total + " enabled filters loaded");
         mFilterCount.setTextColor(allFiltersReady ? SUCCESS : SECONDARY);
         mFinalizing.setText(mCanStartBrowsing
-                ? "✓   Finalizing: All filter rules applied"
+                ? "✓   Finalizing: Native engine reports ready"
                 : (allFiltersReady
                     ? "○   Finalizing: Activating the native engine..."
-                    : "○   Finalizing: Downloading remaining filters..."));
+                    : (total == 0
+                        ? "○   Waiting for enabled filter subscriptions..."
+                        : "○   Waiting for remaining downloads; check your connection.")));
         mFinalizing.setTextColor(mCanStartBrowsing ? SUCCESS : SECONDARY);
         mStartButton.setEnabled(mCanStartBrowsing && !mStartInvoked);
         if (!mRestartInProgress) {

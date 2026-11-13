@@ -7,3 +7,11 @@ python3 .circleci/scripts/test-sandium-ui-prune.py --core "$CORE" --src "$SRC" -
 # Final identity pass after all functional overlays; source identifiers and legal/service names stay intact.
 python3 .circleci/scripts/apply-sandium-visible-branding.py --core "$CORE" --report "$ROOT/sandium-visible-branding-report.json"
 python3 .circleci/scripts/test-sandium-visible-branding.py --core "$CORE"
+
+# Final shared native palette after identity / functional resource overlays.
+python3 .circleci/scripts/apply-sandium-native-theme.py "$CORE"
+python3 .circleci/scripts/test-sandium-native-theme.py
+
+# Bounded Android 16 portrait/top-toolbar web-underlap trial; no frost.
+python3 .circleci/scripts/apply-sandium-scroll-status-bar.py "$SRC"
+python3 .circleci/tests/test_status_underlap_patch.py

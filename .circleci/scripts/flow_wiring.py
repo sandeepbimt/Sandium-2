@@ -15,7 +15,7 @@ REQUIRED = {
  'product-overlay-26-0.sh': ['apply-sandium-page-transition-full.py'],
  'product-overlay-27-0.sh': ['apply-sandium-homepage-adblock-warmup.py','apply-sandium-download-concurrency.py','apply-sandium-welcome-setup.py','test-sandium-homepage-adblock-warmup.py','test-sandium-download-concurrency.py','test-sandium-welcome-setup.py','test-sandium-page-transition-full.py','verify-sandium-vanilla-brave.py'],
  'product-overlay-28-0.sh': ['apply-sandium-shields-two-state.py','apply-sandium-adblock-engine-race.py','test-sandium-shields-two-state.py','test-sandium-adblock-engine-race.py','test-sandium-filter-subscriptions.py','test-sandium-filter-bootstrap.py','apply-sandium-adblock-resources.py','test-sandium-adblock-resources.py'],
- 'product-overlay-29-0.sh': ['apply-sandium-ui-prune.py','test-sandium-ui-prune.py','apply-sandium-visible-branding.py','test-sandium-visible-branding.py'],
+ 'product-overlay-29-0.sh': ['apply-sandium-ui-prune.py','test-sandium-ui-prune.py','apply-sandium-visible-branding.py','test-sandium-visible-branding.py','apply-sandium-native-theme.py','test-sandium-native-theme.py','apply-sandium-scroll-status-bar.py','test_status_underlap_patch.py'],
 }
 
 
@@ -39,7 +39,7 @@ def shell_invocations(path):
             continue
         if not tokens or tokens[0] not in ('python3','bash'):
             raise ValueError(f'{path.name}: unsupported shell command in overlay wrapper')
-        if len(tokens)>1 and tokens[0] in ('python3','bash') and tokens[1].startswith(('.circleci/scripts/','$ROOT/.circleci/scripts/','${ROOT}/.circleci/scripts/')):
+        if len(tokens)>1 and tokens[0] in ('python3','bash') and tokens[1].startswith(('.circleci/scripts/','$ROOT/.circleci/scripts/','${ROOT}/.circleci/scripts/','.circleci/tests/')):
             if any(t in (';','&&','||','|','&') for t in tokens):raise ValueError('Compound/optional overlay invocation unsupported')
             result.append((Path(tokens[1]).name,tokens[2:]))
     if heredoc:raise ValueError('Unclosed shell heredoc')
@@ -74,7 +74,7 @@ def verify_flow_wiring(repo):
         invocations=shell_invocations(repo/'.circleci/experimental-steps'/wrapper)
         names=[name for name,args in invocations]
         for name in names:
-            if not (repo/'.circleci/scripts'/name).is_file():raise ValueError(f'Missing invoked script {name}')
+            if not (repo/('.circleci/tests' if name == 'test_status_underlap_patch.py' else '.circleci/scripts')/name).is_file():raise ValueError(f'Missing invoked script {name}')
         if names!=expected:raise ValueError(f'{wrapper}: actual apply/test command sequence differs: {names}')
         if wrapper=='product-overlay-25-0.sh' and '--reset-shared' not in invocations[0][1]:raise ValueError('Shared reset must precede feature consumers')
         if wrapper=='product-overlay-29-0.sh':
@@ -82,7 +82,11 @@ def verify_flow_wiring(repo):
                 for flag in ('--core','--src'):
                     if flag not in args:raise ValueError(f'{name}: missing {flag}')
             if '--repo-root' not in invocations[1][1]:raise ValueError('UI test must inspect the active repository')
-            for name,args in invocations[2:]:
+            for name,args in invocations[2:4]:
                 if '--core' not in args:raise ValueError(f'{name}: missing --core')
             if '--report' not in invocations[2][1]:raise ValueError('Final branding must export coverage report')
+            if invocations[4][1] != ['$CORE']:raise ValueError('Native theme must target restored core')
+            if invocations[5][1]:raise ValueError('Native theme tests take no arguments')
+            if invocations[6][1] != ['$SRC']:raise ValueError('Status trial must target restored Chromium source')
+            if invocations[7][1]:raise ValueError('Status trial tests take no arguments')
     return list(jobs)

@@ -68,3 +68,30 @@ manager transformations. Regression executes the native-manager branches of
 integration exercise applied old subscriptions, old bootstrap and full homepage
 overlays to pinned source, then applied the new bootstrap twice: passed. Real
 CircleCI/build/device verification remains required.
+
+## Onboarding regression after #1082
+
+The 30-subscription build exposed an unrelated fixed UI gate: onboarding still
+required exactly 29 downloaded subscriptions. The correction uses the actual
+nonzero count of enabled subscriptions, requires every enabled subscription to
+have a successful download, and still requires the native engine-ready signal.
+Null/error status fails closed. Checkpoint preparation overwrites the old Java
+view with this corrected source. Status wording reports downloads and the native
+ready signal, not a claim that every source rule has been accepted or executed.
+Offline tests cover 29/30/31 selections, missing downloads, zero lists, error
+handling and replay; Android runtime validation remains necessary.
+
+## Frozen welcome design accompanying the count correction
+
+The approved no-logo welcome uses `Setup Sandium`, a two-line subtitle followed
+by a blank gap, charcoal background (`#1B1F21`) and cards (`#292E31`), and
+near-white green controls (`#E6F4E8`) with dark readable button text. The CTA is
+full width within its existing padded container; inactive and restarting states
+remain distinct. The actual controls, restart behavior, filter readiness gate,
+and More options scrolling are preserved. Subtitle wrapping is not capped, so
+larger accessibility text is not truncated. The mockup's assertion that every
+rule is applied is deliberately not copied: status reports downloaded lists
+and the native engine readiness signal. Android rendering still needs device
+verification after compilation. Browser-wide colors and scroll/status-bar
+behavior require their own reviewed patches; this welcome file alone does not
+claim those changes.
