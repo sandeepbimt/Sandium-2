@@ -300,38 +300,14 @@ def apply(core: Path, src: Path) -> None:
         "}\n\n"
         "void FilterListService::RequestSandiumHomepageWarmup(\n"
         "    RequestSandiumHomepageWarmupCallback callback) {\n"
+        "  auto* subscription_service_manager =\n"
+        "      ad_block_service_->subscription_service_manager();\n"
         "  std::move(callback).Run(\n"
-        "      ad_block_service_->RequestSandiumHomepageWarmup());\n"
+        "      subscription_service_manager &&\n"
+        "      subscription_service_manager->RequestSandiumHomepageWarmup());\n"
         "}\n",
         "FilterListService::RequestSandiumHomepageWarmup(",
         "filter-list-service-homepage-implementation",
-    )
-
-    adblock_h = core / "components/brave_shields/content/browser/ad_block_service.h"
-    patch_file(
-        adblock_h,
-        "  void AddObserver(Observer* observer);\n",
-        "  void AddObserver(Observer* observer);\n"
-        "  // Request the one-time additional-engine rebuild when Sandium's\n"
-        "  // homepage is first shown. Returns false if the request cannot be queued.\n"
-        "  bool RequestSandiumHomepageWarmup();\n",
-        "bool RequestSandiumHomepageWarmup();",
-        "adblock-service-homepage-api",
-    )
-    adblock_cc = core / "components/brave_shields/content/browser/ad_block_service.cc"
-    patch_file(
-        adblock_cc,
-        "AdBlockService::~AdBlockService() = default;\n",
-        "AdBlockService::~AdBlockService() = default;\n\n"
-        "bool AdBlockService::RequestSandiumHomepageWarmup() {\n"
-        "  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);\n"
-        "  if (!subscription_service_manager_) {\n"
-        "    return false;\n"
-        "  }\n"
-        "  return subscription_service_manager_->RequestSandiumHomepageWarmup();\n"
-        "}\n",
-        "bool AdBlockService::RequestSandiumHomepageWarmup()",
-        "adblock-service-homepage-implementation",
     )
 
     factory = core / "android/java/org/chromium/chrome/browser/shields/FilterListServiceFactory.java"
@@ -418,8 +394,8 @@ def verify(core: Path, src: Path) -> None:
     required = (
         "RequestSandiumHomepageWarmup() => (bool accepted);",
         "RequestSandiumHomepageWarmupCallback callback",
-        "ad_block_service_->RequestSandiumHomepageWarmup()",
-        "subscription_service_manager_->RequestSandiumHomepageWarmup()",
+        "ad_block_service_->subscription_service_manager()",
+        "subscription_service_manager->RequestSandiumHomepageWarmup()",
         "MaybeTriggerSandiumHomepageWarmup()",
         "kSandiumAdBlockEngineWarmupRequestedV2",
         "kSandiumAdBlockEngineWarmupDoneV2",
