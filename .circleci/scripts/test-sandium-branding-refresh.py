@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 from pathlib import Path
+import xml.etree.ElementTree as ET
 
 EXPECTED = {
     "icon.webp": "dbddd3838a9995ead3ef456a8ab964b7142e4c255232f1e27daf57572a73b3fe",
@@ -19,6 +20,31 @@ def require(path: Path, *needles: str) -> str:
     if missing:
         raise SystemExit(f"SANDIUM_BRANDING_TEST=FAIL path={path} missing={missing!r}")
     return text
+
+SHIELDS_COPY = {
+    "IDS_SHIELDS_WARNING_LINE2": "Note: this may reduce Brave's privacy protections.",
+    "IDS_ACCESSIBILITY_TOOLBAR_BTN_BRAVE_SHIELDS": "Enable/Disable Brave Shields",
+}
+
+def verify_shields_copy(path: Path, *, final: bool = False) -> None:
+    """Validate semantics by ID, including sources restored after the final overlay.
+
+    Early preparation may see either pinned upstream copy or a previously branded
+    checkpoint. The final pass permits only Sandium. Never accept missing labels,
+    duplicates, nested content, or a weaker privacy warning.
+    """
+    try:
+        root = ET.parse(path).getroot()
+    except (OSError, ET.ParseError) as exc:
+        raise SystemExit(f"SANDIUM_BRANDING_TEST=FAIL invalid_strings={path}: {exc}")
+    for name, upstream in SHIELDS_COPY.items():
+        matches = [m for m in root.iter("message") if m.get("name") == name]
+        allowed = {upstream.replace("Brave", "Sandium")}
+        if not final:
+            allowed.add(upstream)
+        if (len(matches) != 1 or len(matches[0]) != 0
+                or (matches[0].text or "").strip() not in allowed):
+            raise SystemExit(f"SANDIUM_BRANDING_TEST=FAIL path={path} message={name} invalid_copy")
 
 def main() -> None:
     parser = argparse.ArgumentParser()
@@ -88,13 +114,8 @@ def main() -> None:
         text = path.read_text()
         if "sandium_shields_glow" in text or "RenderEffect.createBlurEffect" in text:
             raise SystemExit("SANDIUM_BRANDING_TEST=FAIL obsolete glow remains")
-    # The annotated Shields labels are intentionally Brave-branded at these locations.
-    # The branding overlay must not rewrite them to Sandium.
-    require(
-        core / "browser/ui/android/strings/android_brave_strings.grd",
-        "Note: this may reduce Brave's privacy protections.",
-        "Enable/Disable Brave Shields",
-    )
+    # A restored checkpoint can already contain the later visible-branding pass.
+    verify_shields_copy(core / "browser/ui/android/strings/android_brave_strings.grd")
     require(
         core / "android/java/org/chromium/chrome/browser/ntp_background_images/util/SponsoredContentUtil.java",
         "R.drawable.sandium_wallpaper",

@@ -134,6 +134,7 @@ jobs:
         run: python3 tests/test_balanced_tracer.py
       - name: Test visible identity and thirty-list checkpoint migration
         run: |
+          python3 .circleci/scripts/test-sandium-branding-checkpoint.py
           python3 .circleci/scripts/test-sandium-visible-branding.py
           python3 .circleci/scripts/test-sandium-filter-subscriptions.py
           python3 .circleci/scripts/test-sandium-filter-bootstrap.py

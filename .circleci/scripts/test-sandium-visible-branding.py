@@ -77,6 +77,11 @@ class BrandingTests(unittest.TestCase):
 
 
 def verify_core(core):
+    refresh_spec = importlib.util.spec_from_file_location(
+        'branding_refresh', Path(__file__).with_name('test-sandium-branding-refresh.py'))
+    refresh = importlib.util.module_from_spec(refresh_spec)
+    refresh_spec.loader.exec_module(refresh)
+    refresh.verify_shields_copy(core / b.STRING_FILES[0], final=True)
     for rel in b.STRING_FILES:
         content=(core/rel).read_text()
         if b.rebrand_messages(content)[0] != content:
