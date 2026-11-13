@@ -6,6 +6,9 @@ on:
       - ".circleci/checkpoint/**"
       - ".circleci/bridge/**"
       - ".circleci/scripts/ensure-flow-tools.sh"
+      - ".circleci/scripts/flow_wiring.py"
+      - ".circleci/scripts/test-sandium-ui-prune.py"
+      - ".circleci/scripts/apply-sandium-ui-prune.py"
       - ".circleci/experimental-steps/**"
       - "tests/**"
       - ".circleci/config.yml"
@@ -28,6 +31,9 @@ on:
       - ".circleci/checkpoint/**"
       - ".circleci/bridge/**"
       - ".circleci/scripts/ensure-flow-tools.sh"
+      - ".circleci/scripts/flow_wiring.py"
+      - ".circleci/scripts/test-sandium-ui-prune.py"
+      - ".circleci/scripts/apply-sandium-ui-prune.py"
       - ".circleci/experimental-steps/**"
       - "tests/**"
       - ".circleci/config.yml"
@@ -112,3 +118,5 @@ jobs:
         run: python3 tests/test_bridge_pipeline.py
       - name: Test selected and system Python package isolation
         run: python3 tests/test_flow_tools.py
+      - name: Test actual Flow overlay and UI-test wiring in all stages
+        run: python3 tests/test_flow_wiring.py

@@ -100,13 +100,13 @@ def main() -> None:
     overlay_source = OVERLAY.read_text(encoding="utf-8")
     assert 'if [ "$MODE" = "full" ]; then' not in prepare
     assert 'elif [ "$MODE" = "fast" ]; then' not in prepare
-    full_mode = prepare.split("# One fixed product recipe from 0a85", 1)[1].split(
+    product_recipe = prepare.split("# One fixed product recipe from 0a85", 1)[1].split(
         'echo "SANDIUM_PRODUCT_RECIPE=', 1
     )[0]
 
     for argument in EXPECTED_GN_ARGS:
         needle = "--gn " + argument
-        assert full_mode.count(needle) == 1, f"missing/duplicate Full Mode GN arg: {needle}"
+        assert product_recipe.count(needle) == 1, f"missing/duplicate fixed product GN arg: {needle}"
     assert "enable_playlist:false" not in prepare, (
         "Pinned Android buildflags explicitly reject enable_playlist=false"
     )
@@ -117,7 +117,7 @@ def main() -> None:
         "enable_brave_vpn_v1:false", "enable_brave_vpn_v2:false",
         "enable_brave_wallet:false", "enable_ai_chat:false",
     ):
-        assert vanilla_flag not in full_mode, f"must preserve vanilla Brave: {vanilla_flag}"
+        assert vanilla_flag not in product_recipe, f"must preserve vanilla Brave: {vanilla_flag}"
     assert "ai_android_build_updated = transform_ai_chat_android_build" not in overlay_source
 
     assert "SANDIUM_P3A_DEFAULT" in overlay_source

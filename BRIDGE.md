@@ -113,3 +113,29 @@ Four regression tests simulate a selected interpreter without system site-packag
 a separate APT-owned package directory, installation/recheck against that system
 interpreter, and stage jobs that need no YAML. Seed fixture tests also pass under
 the actual local /usr/bin/python3. This is not execution in the CircleCI image.
+
+## UI-test wiring correction after #1071
+
+#1071 saved/published the unchanged compressed base successfully. Stage 1 restored,
+inventoried and prepared source, then stopped at a UI test that still expected old
+branch-gated inline YAML commands. Build, delta capture/save and head advancement
+did not run. This change does not remove UI assertions or change product features.
+
+The UI test now calls a repository-policy function that validates actual Flow
+wrappers and retains its branding/GN/vanilla-module source checks. Native UI/XML/
+resource assertions still run against the real restored source tree. Repository-
+only assertions are also directly tested locally, before expensive build work.
+
+The stdlib wiring checker verifies direct wrapper invocations in all five stages,
+actual apply/test command sequences and overlay/UI/graph/smoke/build ordering.
+It accepts the generated Flow YAML/shell subset, not arbitrary YAML or shell.
+It is a bounded static guard, not a proof of arbitrary script execution. No new
+PyYAML dependency is added to build-stage Python. Unknown shell statements and
+simple early-exit/conditional bypasses are rejected.
+
+Ten mutation/repository-policy tests cover all stages, removed/commented apply or
+test calls, stage-specific reordering/omission, conditional/early-exit bypasses,
+shared reset/filter-test removal and wrong-path same-basename commands. Seed and
+GitHub run these before expensive source work. The active test audit found no
+other obsolete branch-gated config assumption; build-flow now shares the checker,
+and remaining "Full Mode" wording in fixed-recipe test variables was corrected.

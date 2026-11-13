@@ -28,6 +28,39 @@ def expect_attr(path: Path, key: str, attribute: str, value: str) -> None:
     if actual != value:
         raise SystemExit(f"SANDIUM_UI_TEST=FAIL path={path} key={key} {attribute}={actual!r} expected={value!r}")
 
+def verify_repository_policy(repo: Path) -> None:
+    # Flow invokes unconditional shell wrappers; verify their actual commands and
+    # stage ordering instead of demanding removed branch-gated inline YAML text.
+    from flow_wiring import verify_flow_wiring
+    try:
+        verify_flow_wiring(repo)
+    except ValueError as exc:
+        raise SystemExit(f"SANDIUM_UI_TEST=FAIL Flow wiring: {exc}") from exc
+
+    branding = require(repo / ".circleci/scripts/apply-sandium-branding-refresh.py",
+        '"Sandium"', 'android:inset="8%"', "sandium_shields_glow")
+    if "Sandium Browser" in branding:
+        raise SystemExit("SANDIUM_UI_TEST=FAIL app display name must be Sandium only")
+
+    prepare = require(repo / ".circleci/scripts/prepare-brave-source.sh")
+    forbidden_gn_overrides = (
+        "--gn enable_brave_rewards:false",
+        "--gn enable_brave_news:false",
+        "--gn enable_brave_vpn_v1:false",
+        "--gn enable_brave_vpn_v2:false",
+        "--gn enable_brave_wallet:false",
+        "--gn enable_ai_chat:false",
+    )
+    if any(item in prepare for item in forbidden_gn_overrides):
+        raise SystemExit("SANDIUM_UI_TEST=FAIL annotated UI removals must not disable vanilla Brave modules")
+    full_overlays = require(repo / ".circleci/scripts/apply-sandium-full-overlays.py")
+    if "ai_android_build_updated = transform_ai_chat_android_build" in full_overlays:
+        raise SystemExit("SANDIUM_UI_TEST=FAIL AI Chat source must remain vanilla Brave")
+    ui_overlay = require(repo / ".circleci/scripts/apply-sandium-ui-prune.py")
+    if "patch_main_preferences_base(core)" in ui_overlay:
+        raise SystemExit("SANDIUM_UI_TEST=FAIL VPN callout must not receive an unrequested source modification")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--core", type=Path, required=True)
@@ -141,53 +174,7 @@ def main() -> None:
             "SANDIUM_UI_TEST=FAIL duplicate Sandium default-browser string remains in GN sources"
         )
 
-    config = require(repo / ".circleci/config.yml",
-        "Apply Sandium first-launch native filter bootstrap",
-        "Apply Sandium native page-transition controls and Appearance icons",
-        "Apply Sandium welcome setup and first-successful-list adblock activation",
-        "Apply and verify Sandium UI pruning and preference defaults",
-        "apply-sandium-ui-prune.py", "test-sandium-ui-prune.py",
-        "feature/sandium-branding-refresh")
-    feature_steps = (
-        "Apply Sandium first-launch native filter bootstrap",
-        "Apply Sandium native page-transition controls and Appearance icons",
-        "Apply Sandium welcome setup and first-successful-list adblock activation",
-        "Apply Sandium two-state Shields controls and verify filter retirement",
-    )
-    feature_positions = []
-    for step_name in feature_steps:
-        step_pos = config.index("name: " + step_name)
-        when_pos = config.rfind("      - when:", 0, step_pos)
-        if when_pos < 0 or "feature/sandium-branding-refresh" not in config[when_pos:step_pos]:
-            raise SystemExit(f"SANDIUM_UI_TEST=FAIL branding branch misses feature overlay: {step_name}")
-        feature_positions.append(step_pos)
-    ui_pos = config.index("Apply and verify Sandium UI pruning and preference defaults")
-    checkpoint_pos = config.index("Diagnose restored Siso checkpoint and compare prior stage")
-    if not (max(feature_positions) < ui_pos < checkpoint_pos):
-        raise SystemExit("SANDIUM_UI_TEST=FAIL UI policy step is not after all feature overlays")
-
-    branding = require(repo / ".circleci/scripts/apply-sandium-branding-refresh.py",
-        '"Sandium"', 'android:inset="8%"', "sandium_shields_glow")
-    if "Sandium Browser" in branding:
-        raise SystemExit("SANDIUM_UI_TEST=FAIL app display name must be Sandium only")
-
-    prepare = require(repo / ".circleci/scripts/prepare-brave-source.sh")
-    forbidden_gn_overrides = (
-        "--gn enable_brave_rewards:false",
-        "--gn enable_brave_news:false",
-        "--gn enable_brave_vpn_v1:false",
-        "--gn enable_brave_vpn_v2:false",
-        "--gn enable_brave_wallet:false",
-        "--gn enable_ai_chat:false",
-    )
-    if any(item in prepare for item in forbidden_gn_overrides):
-        raise SystemExit("SANDIUM_UI_TEST=FAIL annotated UI removals must not disable vanilla Brave modules")
-    full_overlays = require(repo / ".circleci/scripts/apply-sandium-full-overlays.py")
-    if "ai_android_build_updated = transform_ai_chat_android_build" in full_overlays:
-        raise SystemExit("SANDIUM_UI_TEST=FAIL AI Chat source must remain vanilla Brave")
-    ui_overlay = require(repo / ".circleci/scripts/apply-sandium-ui-prune.py")
-    if "patch_main_preferences_base(core)" in ui_overlay:
-        raise SystemExit("SANDIUM_UI_TEST=FAIL VPN callout must not receive an unrequested source modification")
+    verify_repository_policy(repo)
 
     print("SANDIUM_UI_TEST=PASS menu=removed settings=pruned "
           "standard_search=google private_search=google_brave_removed "

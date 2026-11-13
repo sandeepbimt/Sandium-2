@@ -36,7 +36,9 @@ jobs:
         command: bash .circleci/scripts/ensure-flow-tools.sh --with-test-tools
     - run:
         name: Test bridge metadata, rollup and native-boundary lifecycle before cache changes
-        command: '/usr/bin/python3 tests/test_flow_tools.py
+        command: '/usr/bin/python3 tests/test_flow_wiring.py
+
+          /usr/bin/python3 tests/test_flow_tools.py
 
           /usr/bin/python3 tests/test_legacy_bridge.py
 
