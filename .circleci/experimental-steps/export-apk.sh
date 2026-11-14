@@ -60,7 +60,8 @@ if [ -s "$APK" ]; then
   fi
 fi
 if [ "$ARCHIVE_VALID" = true ]; then
-  if python3 "$ROOT/.circleci/scripts/audit-sandium-stripped-apk.py" "$APK" --report "$ROOT/brave-apk/removal-dex.json"; then
+  if python3 "$ROOT/.circleci/scripts/audit-sandium-stripped-apk.py" "$APK" --report "$ROOT/brave-apk/removal-dex.json" --recipe "$ROOT/.circleci/features/removal-recipe.json" \
+    && python3 "$ROOT/.circleci/scripts/removal-evidence.py" bind --root "$ROOT" --apk "$APK"; then
     REMOVALS_VALID=true
   else
     APK_ERROR="feature implementation remains in APK DEX or audit invalid"

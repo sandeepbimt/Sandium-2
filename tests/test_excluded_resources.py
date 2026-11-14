@@ -30,5 +30,6 @@ class ExcludedResourceTests(unittest.TestCase):
   es=json.loads(m.MANIFEST.read_text());recipe=json.loads((ROOT/'.circleci/features/removal-recipe.json').read_text())
   self.assertEqual(len(es),193)
   self.assertTrue({e['path'] for e in es}<=set(recipe['core_restore']))
-  self.assertEqual(recipe['steps'][-1]['script'],'.circleci/scripts/remove-sandium-excluded-resources.py')
+  self.assertEqual(recipe['steps'][-2]['script'],'.circleci/scripts/remove-sandium-excluded-resources.py')
+  self.assertEqual(recipe['steps'][-1]['script'],'.circleci/scripts/sync-sandium-removal-overlays.py')
 if __name__=='__main__':unittest.main()

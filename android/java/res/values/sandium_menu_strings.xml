@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <string name="sandium_menu_cancel">Cancel</string>
+  <string name="sandium_menu_cancel_edits">Cancel menu edits</string>
+  <string name="sandium_menu_edit">Edit Menu</string>
+  <string name="sandium_menu_done">Done</string>
+  <string name="sandium_menu_save_edits">Save menu edits</string>
+  <string name="sandium_menu_all">All Menu</string>
+  <string name="sandium_menu_back_paged">Back to paged menu</string>
+  <string name="sandium_menu_edit_description">Edit menu</string>
+  <string name="sandium_menu_drag_hint">Drag to move · Tap − to remove</string>
+  <string name="sandium_menu_native">Original controls</string>
+  <string name="sandium_menu_native_description">Original menu for specialized controls</string>
+  <string name="sandium_menu_previous">Previous menu page</string>
+  <string name="sandium_menu_next">Next menu page</string>
+  <string name="sandium_menu_available">Available actions</string>
+  <string name="sandium_menu_reset">Reset to default</string>
+  <string name="sandium_menu_reset_description">Reset menu layout</string>
+  <string name="sandium_menu_reset_question">Reset menu layout to default?</string>
+  <string name="sandium_menu_reset_confirm">Reset</string>
+  <string name="sandium_menu_on">On</string>
+  <string name="sandium_menu_off">Off</string>
+  <string name="sandium_menu_options">Options</string>
+  <string name="sandium_menu_back_all">‹ All Menu</string>
+  <string name="sandium_menu_back_description">Back to Sandium menu</string>
+  <string name="sandium_menu_add">Add</string>
+  <string name="sandium_menu_earlier">Move earlier</string>
+  <string name="sandium_menu_later">Move later</string>
+  <string name="sandium_menu_previous_page">Move to previous page</string>
+  <string name="sandium_menu_next_page">Move to next page</string>
+  <string name="sandium_menu_remove">Remove</string>
+  <string name="sandium_menu_page_description">Menu page %1$d of %2$d</string>
+  <string name="sandium_menu_add_action">Add %1$s</string>
+  <string name="sandium_menu_remove_action">Remove %1$s</string>
+</resources>

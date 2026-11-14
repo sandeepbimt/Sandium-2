@@ -22,9 +22,29 @@ def once(text, old, new):
     return text.replace(old, new, 1)
 
 
+def compact_header(text):
+    """Migrate both fresh and already-grouped checkpoint layouts without scaling hit areas."""
+    root = ET.fromstring(text)
+    nodes = {e.get(A+'id', '').removeprefix('@+id/'): e for e in root.iter()}
+    for name, attrs in {
+        'site_text_unified': {'textSize': '16sp', 'lineHeight': '22sp'},
+        'shields_status_text': {'textSize': '13sp', 'lineHeight': '18sp',
+                                'maxLines': '2', 'textColor': '?attr/colorOnSurfaceVariant'},
+        'shields_toggle_switch': {'scaleX': '1', 'scaleY': '1', 'minWidth': '48dp',
+                                  'minHeight': '48dp', 'layout_marginStart': '12dp',
+                                  'layout_marginEnd': '0dp'},
+    }.items():
+        if name not in nodes:
+            raise ValueError('Missing compact header control: '+name)
+        for key, value in attrs.items():
+            nodes[name].set(A+key, value)
+    ET.indent(root, space='    ')
+    return text[:text.index('<LinearLayout')] + ET.tostring(root, encoding='unicode')+'\n'
+
+
 def layout(text):
     if MARKER in text:
-        return text
+        return compact_header(text)
     root = ET.fromstring(text)
     def byid(name):
         matches = [e for e in root.iter() if e.get(A+'id') == '@+id/'+name]
@@ -99,7 +119,7 @@ def layout(text):
     ET.indent(root, space='    ')
     # Keep upstream license header.
     prefix = text[:text.index('<LinearLayout')]
-    return prefix + '<!-- '+MARKER+' -->\n' + ET.tostring(root, encoding='unicode')+'\n'
+    return compact_header(prefix + '<!-- '+MARKER+' -->\n' + ET.tostring(root, encoding='unicode')+'\n')
 
 
 def java(text):
@@ -171,6 +191,20 @@ def colors(text, zero, positive):
     return text
 
 
+COLOR_FILES = ('java/brave-res/values/sandium_shields_colors.xml',
+               'java/brave-res/values-night/sandium_shields_colors.xml')
+
+def register_colors(text):
+    anchor = '    "java/brave-res/values/brave_ids.xml",\n'
+    for path in COLOR_FILES:
+        entry = '    "'+path+'",\n'
+        if entry not in text:
+            text = once(text, anchor, anchor+entry)
+        if text.count(entry) != 1:
+            raise ValueError('Duplicate popup color source: '+path)
+    return text
+
+
 def validate_layout(text):
     root = ET.fromstring(text)
     parents = {c:p for p in root.iter() for c in p}
@@ -195,8 +229,13 @@ def apply(core):
     changes = {core/LAYOUT:layout((core/LAYOUT).read_text()),
                core/JAVA:java((core/JAVA).read_text()), core/STRINGS:strings((core/STRINGS).read_text())}
     for folder, zero, positive in [('values','#795900','#365B40'),('values-night','#E9D58B','#B7D9BE')]:
-        p = core/('android/java/res/'+folder+'/brave_colors.xml')
-        changes[p] = colors(p.read_text(), zero, positive)
+        p = core/('android/java/brave-res/'+folder+'/sandium_shields_colors.xml')
+        changes[p] = colors('<resources>\n</resources>\n', zero, positive)
+        # Clean up old misplaced definitions from checkpointed overlay inputs.
+        overlay = core/('android/java/res/'+folder+'/brave_colors.xml')
+        changes[overlay] = re.sub(r'    <color name="sandium_shields_count_(?:zero|positive)">[^<]*</color>\n', '', overlay.read_text())
+    build = core/'android/BUILD.gn'
+    changes[build] = register_colors(build.read_text())
     for path, old, new in [
         ('android/java/brave-res/drawable/advanced_options_bg.xml', '?attr/colorSurface', '?attr/colorSurfaceContainer'),
         ('android/java/brave-res/drawable/unified_panel_background.xml', '?attr/colorSurfaceContainer', '?attr/colorSurfaceContainerLowest')]:
@@ -211,7 +250,8 @@ def apply(core):
         if p.suffix in ('.xml','.grd'):
             ET.fromstring(s)
     for p,s in changes.items():
-        if p.read_text()!=s:
+        if not p.exists() or p.read_text()!=s:
+            p.parent.mkdir(parents=True, exist_ok=True)
             p.write_text(s)
     print('SANDIUM_GROUPED_POPUP=PASS controls=direct count=ads+trackers protections=unchanged')
 

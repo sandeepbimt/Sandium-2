@@ -36,6 +36,23 @@ class PopupTests(unittest.TestCase):
         self.assertEqual(new, m.layout(new))
         ids = lambda s: {e.get(m.A+'id') for e in ET.fromstring(s).iter() if e.get(m.A+'id')}
         self.assertEqual(ids(old), ids(new))
+    def test_compact_header_retains_native_touch_target_and_scalable_text(self):
+        new = m.layout(original(m.LAYOUT))
+        nodes = {e.get(m.A+'id', '').removeprefix('@+id/'):e for e in ET.fromstring(new).iter()}
+        for name, size in [('site_text_unified','16sp'),('shields_status_text','13sp')]:
+            self.assertEqual(nodes[name].get(m.A+'textSize'), size)
+            self.assertEqual(nodes[name].get(m.A+'layout_height'), 'wrap_content')
+        self.assertEqual(nodes['shields_status_text'].get(m.A+'maxLines'), '2')
+        switch = nodes['shields_toggle_switch']
+        for attr in ['minWidth', 'minHeight']:
+            self.assertEqual(switch.get(m.A+attr), '48dp')
+        for attr in ['scaleX', 'scaleY']:
+            self.assertEqual(switch.get(m.A+attr), '1')
+        self.assertEqual(new,m.layout(new))
+        # A cached pre-fix grouped layout must migrate, not skip because of its marker.
+        old = new.replace('android:scaleX="1"', 'android:scaleX="1.25"')
+        self.assertEqual(new,m.layout(old))
+
     def test_xml_parses_and_native_popup_geometry_unchanged(self):
         ET.fromstring(m.layout(original(m.LAYOUT)))
         old=original(m.JAVA); new=m.java(old)
@@ -62,6 +79,22 @@ class PopupTests(unittest.TestCase):
         s=m.strings(original(m.STRINGS)); ET.fromstring(s)
         self.assertEqual(s,m.strings(s))
         self.assertIn('<ph name="COUNT">%1$s<ex>23</ex></ph> trackers and ads blocked',s)
+    def test_custom_colors_are_declared_in_shipping_resource_target(self):
+        source=original('android/BUILD.gn')
+        new=m.register_colors(source)
+        self.assertEqual(new,m.register_colors(new))
+        target=new[new.index('android_resources("java_resources") {'):]
+        for path in m.COLOR_FILES:
+            self.assertEqual(target.count('"'+path+'"'),1)
+        for folder,zero,positive in [('values','#795900','#365B40'),('values-night','#E9D58B','#B7D9BE')]:
+            colorfile=args.core/('android/java/brave-res/'+folder+'/sandium_shields_colors.xml')
+            colors={e.get('name'):e.text for e in ET.parse(colorfile).getroot()}
+            self.assertEqual(colors,{'sandium_shields_count_zero':zero,'sandium_shields_count_positive':positive})
+            overlay=(args.core/('android/java/res/'+folder+'/brave_colors.xml')).read_text()
+            self.assertNotIn('sandium_shields_count_',overlay)
+        applied=(args.core/'android/BUILD.gn').read_text()
+        for path in m.COLOR_FILES:
+            self.assertEqual(applied.count('"'+path+'"'),1)
     def test_malformed_input_fails_closed(self):
         with self.assertRaises(ValueError): m.java('not the pinned implementation')
         with self.assertRaises(ValueError): m.validate_layout('<LinearLayout/>')

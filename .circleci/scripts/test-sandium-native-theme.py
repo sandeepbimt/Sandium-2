@@ -28,8 +28,44 @@ class ThemeTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             theme.recolor('<resources><color name="x">#000000</color><color name="x">#111111</color></resources>',{'x':'#222222'})
     def test_text_contrast(self):
-        for fg,bg in [(theme.ACCENT,theme.BACKGROUND),(theme.ON_ACCENT,theme.ACCENT),(theme.LIGHT_GREEN,'#FFFFFF'),('#EFF2EF',theme.CARD),('#C4CCC7',theme.BACKGROUND)]:
+        for fg,bg in [(theme.ACCENT,theme.BACKGROUND),(theme.ON_ACCENT,theme.ACCENT),(theme.LIGHT_PRIMARY,'#FFFFFF'),(theme.NIGHT['schemes_on_surface'],theme.CARD),(theme.NIGHT['schemes_on_surface_variant'],theme.CARD)]:
             self.assertGreaterEqual(contrast(fg,bg),4.5,(fg,bg))
+    def test_neutral_surfaces(self):
+        for color in [theme.BACKGROUND, theme.CARD,
+                      theme.NIGHT['schemes_on_surface_variant']]:
+            self.assertEqual(color[1:3], color[3:5])
+            self.assertEqual(color[3:5], color[5:7])
+    def test_welcome_checked_switch_contrast(self):
+        self.assertGreaterEqual(contrast(theme.ACCENT, '#6F561E'), 3)
+        source = (Path(__file__).resolve().parents[2] / 'android/java/org/chromium/chrome/browser/firstrun/SandiumWelcomeSetupView.java').read_text()
+        self.assertIn('private static final int SUCCESS = Color.rgb(230, 244, 232)', source)
+        self.assertIn('                    PRIMARY,', source)
+    def test_settings_subpage_tokens_have_readable_day_and_night_pairs(self):
+        for name in ['filter_title_color', 'filter_summary_color',
+                     'bookmark_menu_text_color', 'brave_theme_hint_text',
+                     'bookmark_import_export_dialog_button_color', 'url_text_primary', 'text_tertiary']:
+            self.assertGreaterEqual(contrast(theme.NIGHT[name], theme.CARD), 4.5, name)
+            self.assertGreaterEqual(contrast(theme.LIGHT[name], '#E8E8E8'), 4.5, name)
+        self.assertEqual(theme.NIGHT['bookmark_menu_bg_color'], theme.CARD)
+        self.assertEqual(theme.COMMON['baseline_neutral_0'], theme.BACKGROUND)
+    def test_sand_gold_active_controls(self):
+        self.assertEqual(theme.ACCENT, '#E8D3A2')
+        self.assertEqual(theme.NIGHT['shield_toggle_button_tint'], theme.ACCENT)
+        self.assertEqual(theme.LIGHT['shield_toggle_button_tint'], theme.LIGHT_PRIMARY)
+        for surface in ['#000000', '#212121', '#303030', '#383838']:
+            self.assertGreaterEqual(contrast(theme.ACCENT, surface), 4.5)
+        for surface in ['#FFFFFF', '#F3F3F3', '#E8E8E8']:
+            self.assertGreaterEqual(contrast(theme.LIGHT_PRIMARY, surface), 4.5)
+        self.assertGreaterEqual(contrast('#BDBDBD', '#505050'), 3)  # OFF thumb/track
+    def test_menu_action_resource_closure(self):
+        root = Path(__file__).resolve().parents[2]
+        for folder, expected in [('values', theme.LIGHT_PRIMARY), ('values-night', theme.ACCENT)]:
+            colors = {e.get('name'): e.text for e in ET.parse(root / f'android/java/res/{folder}/sandium_menu_colors.xml').getroot()}
+            self.assertEqual(colors['sandium_menu_accent'], expected)
+            self.assertGreaterEqual(contrast(expected, colors['sandium_menu_surface_container']), 4.5)
+        source = (root / 'android/java/org/chromium/chrome/browser/ui/appmenu/SandiumPagedMenu.java').read_text()
+        self.assertIn('R.color.sandium_menu_accent', source)
+        self.assertIn('text(label, 16, mAccentColor)', source)
     def test_scope(self):
         allkeys=set(theme.COMMON)|set(theme.NIGHT)|set(theme.LIGHT)
         self.assertFalse(any('error' in x or 'wallet' in x or 'incognito' in x or 'private_window' in x for x in allkeys))

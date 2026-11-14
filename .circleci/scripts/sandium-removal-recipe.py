@@ -2,7 +2,7 @@
 """Ordered compile-exclusion recipe. Reset only declared pinned inputs before UI.
 Unchanged outputs may reuse Siso actions; a prior APK never satisfies new revision.
 """
-import argparse,hashlib,json,os,re,subprocess,sys
+import argparse,hashlib,json,os,re,subprocess,sys,tempfile
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[2]
 MANIFEST=ROOT/'.circleci/features/removal-recipe.json'
@@ -14,17 +14,42 @@ def load(path=MANIFEST):
   if len(m[key])!=len(set(m[key])):raise ValueError('Duplicate reset path')
   for p in m[key]:
    if Path(p).is_absolute() or '..' in Path(p).parts:raise ValueError('Unsafe reset path')
+ for target,patch in m.get('chromium_restore_patches',{}).items():
+  if target not in m['chromium_restore'] or not patch.startswith('patches/') or '..' in Path(patch).parts:
+   raise ValueError('Invalid pinned Chromium patch replay mapping')
  return m
 
+def restore_payload(m, core_reader, chromium_reader, core_only=False):
+ """Compute all raw reset bytes and pinned Brave patch results before live writes.
+ Readers fetch exact pinned blobs in production; fixture tests share this path.
+ """
+ result={'core':{p:core_reader(p) for p in m['core_restore']},
+         'chromium':{} if core_only else {p:chromium_reader(p) for p in m['chromium_restore']}}
+ if core_only:return result
+ with tempfile.TemporaryDirectory(prefix='sandium-reset-preflight-') as temporary:
+  stage=Path(temporary)
+  for relative,data in result['chromium'].items():
+   target=stage/relative;target.parent.mkdir(parents=True,exist_ok=True);target.write_bytes(data)
+  for target,patch in m.get('chromium_restore_patches',{}).items():
+   data=core_reader(patch)
+   # A declared patch may only affect its declared reset target, never another input.
+   paths=re.findall(rb'^\+\+\+ b/(.+)$',data,re.M)
+   if paths != [target.encode()]:raise ValueError('Pinned replay patch target mismatch: '+patch)
+   command=['git','apply','--whitespace=nowarn','--include='+target]
+   subprocess.run(command+['--check','-'],cwd=stage,input=data,check=True,capture_output=True)
+   subprocess.run(command+['-'],cwd=stage,input=data,check=True,capture_output=True)
+  result['chromium']={p:(stage/p).read_bytes() for p in result['chromium']}
+ return result
+
 def reset(m,core,src,out,core_only=False):
- pending=[]
- for repo,pin,key in [(core,m['brave_pin'],'core_restore'),(src,m['chromium_pin'],'chromium_restore')]:
+ for repo,pin in [(core,m['brave_pin']),(src,m['chromium_pin'])]:
   actual=subprocess.check_output(['git','-C',str(repo),'rev-parse','HEAD'],text=True).strip()
   if actual!=pin:raise ValueError('Unexpected upstream pin '+str(repo))
-  for relative in ([] if core_only and key=='chromium_restore' else m[key]):
-   data=subprocess.check_output(['git','-C',str(repo),'show',pin+':'+relative])
-   pending.append((repo/relative,data))
- # Missing pin/path fails before any restoration, and custom Sandium files are never reset.
+ def blob(repo,pin,path):return subprocess.check_output(['git','-C',str(repo),'show',pin+':'+path])
+ payload=restore_payload(m,lambda p:blob(core,m['brave_pin'],p),lambda p:blob(src,m['chromium_pin'],p),core_only)
+ pending=[(repo/relative,data) for repo,key in [(core,'core'),(src,'chromium')] for relative,data in payload[key].items()]
+ # All pins, files and Brave patches validated before mutation. An interruption
+ # during writes is recovered by the same deterministic reset on the next run.
  for p,data in pending:p.parent.mkdir(parents=True,exist_ok=True);p.write_bytes(data)
  # Retired product overrides cannot reach the old preparation GN pass before
  # final dependency surgery has been replayed (Playlist asserts on Android).

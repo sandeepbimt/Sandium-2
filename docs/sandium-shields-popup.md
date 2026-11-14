@@ -49,3 +49,13 @@ or device validation has yet been performed. Source checks are not runtime valid
 Before marking the APK verified: test zero/positive count, navigation while open, reopen,
 Shields off/on without changing hidden settings, each submenu and Back, Shred cancellation,
 clear blocked elements empty/nonempty, element picker, landscape, large fonts, RTL and TalkBack.
+
+### Compact header correction (14 Nov 2026)
+The device screenshot showed a 20sp domain, inherited large status label and a
+1.25x enlarged native switch dominating the popup. Domain is now 16sp/22sp,
+status 13sp/18sp (up to two lines), and the native switch is unscaled with a
+minimum 48dp hit target in both dimensions. Header stays vertically centered;
+text remains scalable and wrap-content. Cached grouped layouts migrate too.
+No protection handler, logo, footer count/color, popup geometry or pipeline is
+changed. Ten pinned-source popup tests and seven product-gate tests pass.
+Device/font-scale visual verification remains required in the resulting APK.

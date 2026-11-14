@@ -69,7 +69,11 @@ class BuildPrecheckTests(unittest.TestCase):
     parsed=m.parse_args(args[2:]);found+=1
     self.assertEqual(parsed.job_start,Path('/tmp/source/.checkpoint-state/job-start.json'))
     self.assertEqual(parsed.compile_seconds,0)
-  self.assertGreater(found,0)
+  # Full-only deliberately removed diagnostic-only compile runs. If absent,
+  # ensure the actual compile wrapper is wired instead of requiring obsolete CI.
+  if found == 0:
+   self.assertIn('full-bounded-build.sh', (root/'.circleci/config.yml').read_text())
+   self.assertNotIn('precheck-sandium-build.py', (root/'.circleci/config.yml').read_text())
  def test_packaging_readiness_missing_fails(self):
   with tempfile.TemporaryDirectory() as d:
    with self.assertRaises(ValueError):m.package_readiness(Path(d))

@@ -13,7 +13,7 @@ def commands(root):
     scripts = root / '.circleci/scripts'; reports = root / 'brave-apk'
     prefix = [sys.executable]
     preparation = [
-        prefix + [str(scripts/'test-sandium-removal-composition.py'), '--source', str(core), '--gn', str(src/'buildtools/linux64/gn')],
+        prefix + [str(scripts/'test-sandium-removal-composition.py'), '--source', str(core), '--chromium-source', str(src), '--gn', str(src/'buildtools/linux64/gn')],
         prefix + [str(scripts/'sandium-removal-recipe.py'), '--core', str(core), '--src', str(src), '--out', str(out), '--phase', 'apply'],
     ]
     audits = [

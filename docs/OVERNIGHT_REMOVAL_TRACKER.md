@@ -280,3 +280,37 @@ remain outstanding. No Origin entitlement or payment gate has been bypassed.
   reported separately from APK absence proof and device/runtime acceptance.
   Avoid universal “all removed” claims until the relevant artifact and behavior
   checks have actually run.
+
+## Resume over #1150 (2026-11-14 evening)
+
+User authorized resuming all13 exclusions after UI-only #1150 settles, retaining
+its startup vector-copy correction and sand-gold interactive palette. Candidate
+starts from local50545b5 (published UI tree92e930d), not the old UI branch.
+Preserved removal work/lessons fromb695a153 and the verified #1138 maintenance
+head are restored. This is an experiment, not a claim of final device success.
+
+- Full only, existing35-minute budget/one-hour limit, increment-first then optional
+  full refresh, APK-first export and maintenance schedules remain unchanged.
+- Publication remains experiment/sandium-overnight-removal, namespace
+  sandium-exp-single-v1-bridge-crash01; UI-only branch/head must not be written.
+- UI29 now runs its latest toolbar/menu/theme/motion code before removal30.
+- Reset covers all current UI upstream inputs and replays six exact pinned Brave
+  Chromium patches in a disposable staging tree before modifying live files.
+  Raw Chromium reset alone loses essential Brave toolbar/layout/menu wiring.
+- Complete UI→removal composition passes initial/repeat/interrupted recovery;
+  malformed patch preflight rejects before live writes. Pins unchanged.
+- Final colors from native-theme are synchronized to compiled Chromium resource
+  paths together with removal NTP overrides; generic broad copying is forbidden.
+- Fresh graph receipts bind source revision, recipe and3PASS report hashes.
+  APK export binds the actual APK SHA256 and recipe to schema2 DEX audit output.
+  DEX listed-name checks cover six groups only; seven groups require graph/source
+  evidence. No claim of full runtime/network absence follows from these checks.
+- Retained hash-pinned compatibility declarations/interfaces remain documented.
+  Origin entitlement/payment gates are not bypassed.
+- Test harness corrections: load checkpoint driver by explicit path to avoid
+  bridge-driver module-name collision; no longer require diagnostic-only CI
+  precheck step which Full-only intentionally removed.
+
+Pending: independent final review, #1150 final checkpoint settlement, actual
+combined GN/Java/native/link/package build, APK/resource/manifest evidence and
+user device test. Do not label candidate stripped/working merely from fixtures.

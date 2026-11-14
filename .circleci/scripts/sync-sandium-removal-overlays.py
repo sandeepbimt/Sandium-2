@@ -23,6 +23,12 @@ COPIED_ROOTS = (
     'browser/download/internal/android/java/res/',
     'app/theme/brave/android/',
 )
+# Native-theme edits these reset inputs after branding. Publish their final
+# bytes too so the compiled Chromium overlay retains #1150 sand-gold colors.
+UI_OWNED_COPIED = {
+    'android/java/res/values/brave_colors.xml',
+    'android/java/res/values-night/brave_colors.xml',
+}
 FORBIDDEN = (
     b'@drawable/product_vpn_layer_list', b'@drawable/ic_news_settings',
     b'@layout/brave_news_load_new_content',
@@ -46,10 +52,17 @@ def contained(root, relative):
 def apply(core, src, manifest=None):
     manifest = manifest or json.loads((ROOT / '.circleci/features/removal-recipe.json').read_text())
     copied = {p for p in manifest['core_restore'] if p.startswith(COPIED_ROOTS)}
+    declared_ui = set(manifest.get('ui_only_core_restore', [])) & copied
+    if not declared_ui <= UI_OWNED_COPIED:
+        raise ValueError('Unreviewed UI-owned copied resource')
+    copied -= declared_ui
     if copied != set(MAPPINGS):
         raise ValueError('Review removal overlay mappings: ' + repr(sorted(copied ^ set(MAPPINGS))))
     pending = []
-    for source, destination in MAPPINGS.items():
+    mappings = dict(MAPPINGS)
+    for source in declared_ui:
+        mappings[source] = source.replace('android/java/res/', 'chrome/android/java/res/', 1)
+    for source, destination in mappings.items():
         data = contained(core, source).read_bytes()
         if any(reference in data for reference in FORBIDDEN):
             raise ValueError('Removed NTP component resource reference remains: ' + source)

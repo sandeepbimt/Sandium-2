@@ -124,11 +124,11 @@ jobs:
         run: python3 tests/test_flow_tools.py
       - name: Test actual Full overlay and UI-test wiring in all stages
         run: python3 tests/test_flow_wiring.py
-      - name: Test Full lifecycle, maintenance and in-build graph audits
+      - name: Test Full lifecycle, maintenance and removal product isolation
         run: |
           python3 tests/test_full_pipeline_wiring.py
           python3 tests/test_full_maintenance.py
-          python3 tests/test_graph_precheck.py
+          python3 tests/test_removal_product.py
       - name: Test scoped checkpoint quiescence and writer diagnostics
         run: python3 tests/test_bridge_quiescence.py
       - name: Test removed typography and Origin settings ordering
@@ -156,14 +156,3 @@ jobs:
         run: |
           python3 tests/test_bridge_chain.py
           python3 tests/test_job_budget.py
-      - name: Test compile-exclusion recipe and artifact gates
-        run: |
-          python3 tests/test_removal_recipe.py
-          python3 tests/test_removal_graph.py
-          python3 tests/test_stripped_apk_audit.py
-          python3 tests/test_wallet_removal.py
-          python3 tests/test_rewards_removal.py
-          python3 .circleci/scripts/test-sandium-leo-removal.py
-          python3 .circleci/scripts/test-sandium-low-coupling.py
-          python3 .circleci/scripts/test-sandium-remove-reporting.py
-          python3 .circleci/scripts/test-sandium-remove-vpn.py

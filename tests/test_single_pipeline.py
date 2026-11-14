@@ -117,7 +117,11 @@ class SinglePipeline(unittest.TestCase):
     def test_disk_guard_fails_closed(self):
         from unittest.mock import patch
         from collections import namedtuple
-        import driver
+        # Avoid the bridge module named driver cached by other test modules.
+        import importlib.util
+        spec = importlib.util.spec_from_file_location('checkpoint_disk_guard', DRIVER)
+        driver = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(driver)
         from checkpoint import CheckpointError
         usage = namedtuple('usage', 'total used free')
         with patch.object(driver.shutil, 'disk_usage', return_value=usage(100, 95, 5)):
