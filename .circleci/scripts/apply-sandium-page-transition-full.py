@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Full-mode Sandium page-transition overlay for pinned Brave/Chromium sources.
 
-This deliberately extends the existing, pin-guarded Android blur overlay. It does
+This integrates the existing, pin-guarded Android blur overlay with bounded visual transition durations. It does
 not touch Brave Shields, subscriptions, filter data, or any ad-block source.
 """
 from pathlib import Path
@@ -56,14 +56,14 @@ def transform_startup(source: str) -> str:
     source = replace_once_or_done(
         source,
         "nav-animation-fade-hold-duration-ms/300/nav-animation-fade-out-duration-ms/150",
-        "nav-animation-fade-hold-duration-ms/450/nav-animation-fade-out-duration-ms/225",
-        "Medium duration +50%",
+        "nav-animation-fade-hold-duration-ms/240/nav-animation-fade-out-duration-ms/120",
+        "Medium bounded animation duration",
     )
     source = replace_once_or_done(
         source,
         "nav-animation-fade-hold-duration-ms/450/nav-animation-fade-out-duration-ms/200",
-        "nav-animation-fade-hold-duration-ms/675/nav-animation-fade-out-duration-ms/300",
-        "High duration +50%",
+        "nav-animation-fade-hold-duration-ms/320/nav-animation-fade-out-duration-ms/160",
+        "High bounded animation duration",
     )
     level_read = (
         '        String level = ContextUtils.getAppSharedPreferences().getString("sandium_page_transition_blur_level", "default");\n'
@@ -84,8 +84,8 @@ def transform_startup(source: str) -> str:
         "Pass Darken FeatureParam to Chromium",
     )
     checks = {
-        "Medium hold 450 ms": "nav-animation-fade-hold-duration-ms/450/nav-animation-fade-out-duration-ms/225",
-        "High hold 675 ms": "nav-animation-fade-hold-duration-ms/675/nav-animation-fade-out-duration-ms/300",
+        "Medium hold 240 ms": "nav-animation-fade-hold-duration-ms/240/nav-animation-fade-out-duration-ms/120",
+        "High hold 320 ms": "nav-animation-fade-hold-duration-ms/320/nav-animation-fade-out-duration-ms/160",
         "Darken preference read": darken_read.strip(),
         "Darken native parameter": '"/nav-animation-darken/" + (darken ? "true" : "false")',
     }
@@ -561,8 +561,8 @@ def main() -> None:
     write_transform(root / TRANSITION_CC, transform_transition_cc, "SANDIUM_TRANSITION_NATIVE_CC")
     write_transform(root / TRANSITION_H, transform_transition_h, "SANDIUM_TRANSITION_NATIVE_H")
 
-    print("SANDIUM_TRANSITION_MEDIUM=hold:450ms,fade:225ms (+50%)")
-    print("SANDIUM_TRANSITION_HIGH=hold:675ms,fade:300ms (+50%)")
+    print("SANDIUM_TRANSITION_MEDIUM=hold:240ms,fade:120ms (responsive)")
+    print("SANDIUM_TRANSITION_HIGH=hold:320ms,fade:160ms (responsive)")
     print("SANDIUM_TRANSITION_DARKEN=default:false; persisted; native compositor layer")
     print("SANDIUM_TRANSITION_NIGHT_MODE_FALLBACK=blink::features::kForceWebContentsDarkMode -> black")
     print("SANDIUM_TRANSITION_APPEARANCE_ICON=ic_appearance")
