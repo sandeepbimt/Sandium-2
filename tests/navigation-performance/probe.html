@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Sandium navigation diagnostic</title>
+  <style>
+    body { margin: 0; font: 16px system-ui, sans-serif; color: #202124; background: #f8f9fa; }
+    header { position: sticky; top: 0; z-index: 10; padding: 14px; background: white; border-bottom: 1px solid #ddd; }
+    button,a { margin: 5px 5px 5px 0; padding: 9px; font: inherit; }
+    pre { max-height: 260px; overflow: auto; white-space: pre-wrap; font-size: 12px; background: #eee; padding: 10px; }
+    .spacer { min-height: 2400px; padding: 12px; }
+    #anchor { padding: 16px; background: #dceaff; }
+  </style>
+</head>
+<body>
+<header>
+  <strong id="page-title">Navigation diagnostic</strong>
+  <p>Same-origin test only. Data stays in this tab's sessionStorage until exported or cleared.</p>
+  <a id="next" href="?page=b">Go to page B</a>
+  <button id="back">Back</button><button id="forward">Forward</button>
+  <button id="reload">Refresh</button><button id="jump">Scroll to marker</button>
+  <button id="download">Export JSON</button><button id="clear">Clear log</button>
+  <pre id="log" aria-live="polite"></pre>
+</header>
+<main class="spacer">
+  <h1 id="heading">Page A</h1>
+  <p>Visit B, then go Back. The browser should restore the scroll position if page state is eligible.</p>
+  <p>Compare with Refresh, which must perform a real reload rather than substituting history.</p>
+  <div style="height:1100px"></div>
+  <div id="anchor">Scroll-restoration marker: 1100+ CSS pixels from the top.</div>
+  <div style="height:1100px"></div>
+</main>
+<script>
+(() => {
+  "use strict";
+  const STORAGE_KEY = "sandium_nav_probe_v1";
+  const page = new URL(location.href).searchParams.get("page") === "b" ? "B" : "A";
+  const entries = () => {
+    try {
+      const value = JSON.parse(sessionStorage.getItem(STORAGE_KEY) || "[]");
+      return Array.isArray(value) ? value : [];
+    } catch (_) { return []; }
+  };
+  const nav = performance.getEntriesByType("navigation")[0] || {};
+  const output = document.getElementById("log");
+  document.getElementById("heading").textContent = "Page " + page;
+  document.getElementById("page-title").textContent = "Sandium navigation probe: " + page;
+  document.getElementById("next").textContent = page === "A" ? "Go to page B" : "Go to page A";
+  document.getElementById("next").href = "?page=" + (page === "A" ? "b" : "a");
+
+  function render() {
+    const history = entries();
+    output.textContent = history.slice(-8).map(x => JSON.stringify(x)).join("\n")
+      || "No events yet.";
+  }
+
+  function log(event, detail) {
+    const history = entries();
+    history.push(Object.assign({
+      event, page, urlPath: location.pathname, // No query strings or page content recorded.
+      at: new Date().toISOString(), sinceNavigationMs: Math.round(performance.now()),
+      scrollY: Math.round(window.scrollY), navType: nav.type || "unknown"
+    }, detail || {}));
+    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(history.slice(-160)));
+    render();
+  }
+
+  window.addEventListener("pageshow", e => {
+    log("pageshow", {bfcacheRestored: !!e.persisted,
+      responseStartMs: Math.round(nav.responseStart || 0),
+      domContentLoadedMs: Math.round(nav.domContentLoadedEventEnd || 0),
+      loadEndMs: Math.round(nav.loadEventEnd || 0)});
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      log("scroll-after-pageshow");
+      if (nav.type === "back_forward" && !e.persisted && "notRestoredReasons" in nav) {
+        const reasons = nav.notRestoredReasons;
+        log("bfcache-not-restored", {reasons: reasons ? reasons.reasons : null});
+      }
+    }));
+  });
+  // pagehide is bfcache-compatible; do not add unload or unconditional beforeunload.
+  window.addEventListener("pagehide", e => log("pagehide", {bfcacheCandidate: !!e.persisted}));
+  window.addEventListener("error", e => log("error", {message: String(e.message || "script error").slice(0, 120)}));
+  window.addEventListener("unhandledrejection", () => log("unhandledrejection"));
+  if ("PerformanceObserver" in window) {
+    try {
+      new PerformanceObserver(list => {
+        for (const entry of list.getEntries()) {
+          log("longtask", {durationMs: Math.round(entry.duration)});
+        }
+      }).observe({type: "longtask", buffered: true});
+    } catch (_) { /* not exposed on all browsers */ }
+  }
+  let scrollScheduled = false;
+  window.addEventListener("scroll", () => {
+    if (scrollScheduled) return;
+    scrollScheduled = true;
+    requestAnimationFrame(() => {
+      scrollScheduled = false;
+      log("scroll");
+    });
+  }, {passive: true});
+
+  document.getElementById("back").onclick = () => history.back();
+  document.getElementById("forward").onclick = () => history.forward();
+  document.getElementById("reload").onclick = () => location.reload();
+  document.getElementById("jump").onclick = () =>
+    document.getElementById("anchor").scrollIntoView({behavior: "instant"});
+  document.getElementById("clear").onclick = () => {
+    sessionStorage.removeItem(STORAGE_KEY);
+    render();
+  };
+  document.getElementById("download").onclick = () => {
+    const blob = new Blob([JSON.stringify(entries(), null, 2)], {type: "application/json"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "sandium-navigation-probe.json";
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
+  render();
+})();
+</script>
+</body>
+</html>
