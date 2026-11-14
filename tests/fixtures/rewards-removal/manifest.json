@@ -25,6 +25,7 @@
     "browser/ui/BUILD.gn": "9d8d60bbd4bdba90a7f02be0e4cfa51be16d5f9d2b68b49262450c2e3c339355",
     "browser/brave_profile_prefs.cc": "d4f72b4a8ca82500b7123f61e771bce5181a914c9ab69c5b98681e898dfb6df8",
     "browser/browser_context_keyed_service_factories.cc": "acdf13c89a9b96480728e4db593ee536d6eead43769ca3e2426a60284e225b1f",
-    "android/BUILD.gn": "c84a6d7bd61bd35d3a936a61a9a519e53085bcaefdbd6fec579422ce765b05f4"
+    "android/BUILD.gn": "c84a6d7bd61bd35d3a936a61a9a519e53085bcaefdbd6fec579422ce765b05f4",
+    "chromium_src/chrome/browser/prefs/browser_prefs.cc": "b4f6671586ef4c2c34ba06d1055dd9bb2ddecaaca09074fff8891b9b3dae18e9"
   }
 }

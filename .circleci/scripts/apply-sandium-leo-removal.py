@@ -36,6 +36,18 @@ def imports(s):return re.sub(r'^import [^\n]*(?:brave_leo|BraveLeo)[^\n]*\n','',
 A='android/java/org/chromium/chrome/browser/'
 O='browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/suggestions/'
 
+def builder(s):
+ s=imports(s);s=method(s,'setLeoAutocompleteDelegate');s=method(s,'isBraveLeoEnabled')
+ s=block(s,'        if (isBraveLeoEnabled()')
+ # These helpers only served Leo insertion/initialization, not normal suggestions.
+ s=method(s,'getTileNavSuggestPosition')
+ s=s.replace('            AutocompleteUIContext uiContext =\n                    createUIContext(context, host, textProvider, actionDelegate);\n','')
+ s=s.replace('    @SuppressWarnings("UnusedVariable")\n    private AutocompleteUIContext createUIContext(', '    private AutocompleteUIContext createUIContext(')
+ s=method(s,'createUIContext')
+ s=s.replace('mLeoAutocompleteDelegate.isAutoCompleteEnabled(tab.getWebContents())','UserPrefs.get(tab.getProfile()).getBoolean(BravePref.AUTOCOMPLETE_ENABLED)')
+ s=re.sub(r'^.*(?:mBraveLeoSuggestionProcessor|private BraveLeoAutocompleteDelegate mLeoAutocompleteDelegate)[^\n]*\n','',s,flags=re.M)
+ return s
+
 def apply(core):
  touched=[]
  def edit(rel,fn):
@@ -108,12 +120,6 @@ def apply(core):
   for name in ('isAutoCompleteEnabled','isLeoEnabled','openLeoQuery','onVoiceResults'):s=method(s,name)
   return s
  edit(A+'omnibox/suggestions/BraveAutocompleteMediator.java',mediator)
- def builder(s):
-  s=imports(s);s=method(s,'setLeoAutocompleteDelegate');s=method(s,'isBraveLeoEnabled')
-  s=block(s,'        if (isBraveLeoEnabled()')
-  s=s.replace('mLeoAutocompleteDelegate.isAutoCompleteEnabled(tab.getWebContents())','UserPrefs.get(tab.getProfile()).getBoolean(BravePref.AUTOCOMPLETE_ENABLED)')
-  s=re.sub(r'^.*(?:mBraveLeoSuggestionProcessor|private BraveLeoAutocompleteDelegate mLeoAutocompleteDelegate)[^\n]*\n','',s,flags=re.M)
-  return s
  edit(O+'BraveDropdownItemViewInfoListBuilder.java',builder)
  def factory(s):
   s=imports(s)

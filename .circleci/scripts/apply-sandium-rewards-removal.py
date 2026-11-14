@@ -17,7 +17,8 @@ JAVA_FILES=['app/BraveActivity.java','toolbar/top/BraveToolbarLayoutImpl.java',
 FILES=[JAVA+x for x in JAVA_FILES]+['android/brave_java_sources.gni','build/android/config.gni',
  'browser/android/preferences/BUILD.gn','browser/android/preferences/brave_pref_service_bridge.cc',
  'browser/sources.gni','browser/ui/BUILD.gn','browser/brave_profile_prefs.cc',
- 'browser/browser_context_keyed_service_factories.cc','android/BUILD.gn']
+ 'browser/browser_context_keyed_service_factories.cc','android/BUILD.gn',
+ 'chromium_src/chrome/browser/prefs/browser_prefs.cc']
 
 def methods(s,names,body=''):
  for name in names:s=w.method(s,name,body)
@@ -130,6 +131,13 @@ def transform(path,s):
  elif path=='browser/android/preferences/brave_pref_service_bridge.cc':
   s=s.replace('#include "brave/components/brave_rewards/core/pref_names.h"\n','')
   s=s.replace('  GetOriginalProfile()->GetPrefs()->SetUint64(\n      brave_rewards::prefs::kPromotionLastFetchStamp, 0);','  // Sandium: Rewards implementation excluded; no stored data is deleted.')
+ elif path=='chromium_src/chrome/browser/prefs/browser_prefs.cc':
+  # The Ads CAPTCHA implementation is excluded; leave old stored preferences
+  # inert instead of linking its obsolete-data migration back into the APK.
+  for old in ('#include "brave/components/brave_adaptive_captcha/prefs_util.h"\n',
+              '  brave_adaptive_captcha::MigrateObsoleteProfilePrefs(profile_prefs);\n'):
+   if s.count(old)!=1:raise ValueError('Unexpected adaptive CAPTCHA migration anchor')
+   s=s.replace(old,'',1)
  elif path=='browser/brave_profile_prefs.cc':
   s=s.replace('#include "brave/components/brave_adaptive_captcha/brave_adaptive_captcha_service.h"\n','')
   s=re.sub(r'  brave_adaptive_captcha::BraveAdaptiveCaptchaService::RegisterProfilePrefs\(\s*registry\);\n','',s)

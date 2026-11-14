@@ -29,6 +29,21 @@ class RewardsRemovalTest(unittest.TestCase):
         for p in ['browser/brave_profile_prefs.cc','browser/browser_context_keyed_service_factories.cc']:
             self.assertNotIn('brave_adaptive_captcha::',(self.core/p).read_text())
         self.assertNotIn('SCHEDULED_CAPTCHA',(self.core/(m.JAVA+'app/BraveActivity.java')).read_text())
+    def test_obsolete_captcha_migration_removed_without_other_pref_changes(self):
+        path='chromium_src/chrome/browser/prefs/browser_prefs.cc'
+        original=(self.core/path).read_text()
+        m.apply(self.core)
+        result=(self.core/path).read_text()
+        self.assertNotIn('brave_adaptive_captcha',result)
+        for line in original.splitlines():
+            if 'brave_adaptive_captcha' not in line:
+                self.assertIn(line,result)
+    def test_captcha_migration_drift_fails_before_writes(self):
+        path=self.core/'chromium_src/chrome/browser/prefs/browser_prefs.cc'
+        path.write_text(path.read_text().replace('MigrateObsoleteProfilePrefs(profile_prefs);','Unexpected(profile_prefs);'))
+        before={x:(self.core/x).read_bytes() for x in m.FILES}
+        with self.assertRaisesRegex(ValueError,'migration anchor'):m.apply(self.core)
+        self.assertEqual(before,{x:(self.core/x).read_bytes() for x in m.FILES})
     def test_android_notification_circular_include_follows_ads_dependency(self):
         m.apply(self.core)
         s=(self.core/'browser/sources.gni').read_text()
