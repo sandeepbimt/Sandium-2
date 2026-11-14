@@ -10,7 +10,7 @@ import shlex
 
 ORDER = [f'product-overlay-{i}-0.sh' for i in range(24,31)] + ['graph-validation.sh','remote-smoke.sh','bounded-build.sh']
 REQUIRED = {
- 'product-overlay-30-0.sh': ['sandium-removal-recipe.py','audit-sandium-removal-graph.py','audit-sandium-low-coupling.py','audit-sandium-leo-removal.py'],
+ 'product-overlay-30-0.sh': ['test-sandium-removal-composition.py','sandium-removal-recipe.py','audit-sandium-removal-graph.py','audit-sandium-low-coupling.py','audit-sandium-leo-removal.py'],
  'product-overlay-24-0.sh': ['apply-sandium-branding.sh'],
  'product-overlay-25-0.sh': ['apply-sandium-adblock-engine-race.py','apply-sandium-filter-subscriptions.py','apply-sandium-filter-bootstrap.py'],
  'product-overlay-26-0.sh': ['apply-sandium-page-transition-full.py'],

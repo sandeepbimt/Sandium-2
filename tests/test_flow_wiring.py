@@ -23,6 +23,13 @@ class FlowWiring(unittest.TestCase):
     def edit(self,root,path,old,new):
         p=root/path;text=p.read_text();self.assertIn(old,text);p.write_text(text.replace(old,new,1))
 
+    def test_removal_composition_regression_cannot_be_skipped(self):
+        root=self.fixture()
+        self.edit(root,'.circleci/experimental-steps/product-overlay-30-0.sh',
+            'python3 .circleci/scripts/test-sandium-removal-composition.py',
+            '# python3 .circleci/scripts/test-sandium-removal-composition.py')
+        with self.assertRaisesRegex(ValueError,'command'):verify_flow_wiring(root)
+
     def test_actual_all_five_flow_stages(self):
         jobs=verify_flow_wiring(ROOT)
         self.assertEqual(sum(j.startswith('sandium-stage-') for j in jobs),5)
