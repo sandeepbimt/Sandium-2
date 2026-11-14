@@ -17,6 +17,10 @@ a = p.parse_args()
 
 if a.src:
     src=a.src
+    menu_button=(src/m.MENU_BUTTON).read_text()
+    assert m.menu_button(menu_button)==menu_button
+    assert "sandiumAnimationCopy(mMenuImageButton.getDrawable())" in menu_button
+    assert "sandiumAnimationCopy(mUpdateBadgeView.getDrawable())" in menu_button
     phone=(src/m.PHONE).read_text()
     pref=(src/m.PREF).read_text()
     brave=(a.core/m.BRAVE).read_text()
@@ -66,7 +70,7 @@ if a.src:
 if not a.upstream_fixtures:
     p.error('choose --src for post-apply checks or --upstream-fixtures for pristine transform tests')
 
-cases = [(m.phone,a.upstream_fixtures/'ToolbarPhone.java'),
+cases = [(m.menu_button,a.upstream_fixtures/'MenuButton.java'), (m.phone,a.upstream_fixtures/'ToolbarPhone.java'),
          (m.preference,a.upstream_fixtures/'AddressBarPreference.java'),
          (m.menu,a.upstream_fixtures/'menu_button.xml'),
          (m.build,a.upstream_fixtures/'BUILD.gn'),(m.brave,a.core/m.BRAVE),
@@ -121,3 +125,30 @@ try: m.layout('<layout/>')
 except ValueError: pass
 else: raise AssertionError('Missing Brave include did not fail closed')
 print('PASS: pinned transformations, idempotence, resource XML, action/omnibox contracts. NOT compiled/device-tested.')
+
+# Regression for #1148: toolbar XML is VectorDrawable, whereas pinned MenuButton
+# used unconditional BitmapDrawable casts during initial tint/layout callbacks.
+native_menu=(a.upstream_fixtures/'MenuButton.java').read_text()
+fixed_menu=m.menu_button(native_menu)
+assert 'sandiumAnimationCopy(mMenuImageButton.getDrawable())' in fixed_menu
+assert 'sandiumAnimationCopy(mUpdateBadgeView.getDrawable())' in fixed_menu
+assert 'if (copy instanceof BitmapDrawable) return (BitmapDrawable) copy;' in fixed_menu
+assert 'newDrawable(getResources()).mutate()' in fixed_menu
+for state in ('State', 'Level', 'LayoutDirection'):
+    assert 'copy.set'+state+'(source.get'+state+'())' in fixed_menu
+assert 'Bitmap.Config.ARGB_8888' in fixed_menu
+assert 'bitmap.setDensity(getResources().getDisplayMetrics().densityDpi)' in fixed_menu
+assert 'copy.setBounds(0, 0, width, height)' in fixed_menu
+assert 'return new BitmapDrawable(getResources(), bitmap)' in fixed_menu
+for existing in ('setGravity(Gravity.CENTER)', 'setColorFilter(color, PorterDuff.Mode.SRC_IN)',
+                 'drawable.setAlpha(alpha)', 'drawable.draw(canvas)',
+                 'mMenuImageButton.setOnTouchListener(mAppMenuButtonHelper)',
+                 'mMenuImageButton.setAccessibilityDelegate(mAppMenuButtonHelper.getAccessibilityDelegate())'):
+    assert fixed_menu.count(existing)==native_menu.count(existing), existing
+try:
+    m.menu_button(native_menu.replace('(BitmapDrawable)', '(Drawable)'))
+except ValueError:
+    pass
+else:
+    raise AssertionError('Changed upstream cast must fail closed')
+print('PASS: #1148 animation-copy type/density/tint/interaction source regression. NOT Android runtime.')

@@ -39,7 +39,7 @@ import java.util.Set;
 final class SandiumPagedMenu extends FrameLayout {
     private static final String PREF = "sandium.menu.layout.v1";
     private static final int PAGE_SIZE = 8;
-    private final int mPanelColor, mTextColor, mSecondaryTextColor, mDividerColor;
+    private final int mPanelColor, mTextColor, mSecondaryTextColor, mDividerColor, mAccentColor;
     private final ModelList mModels;
     private final SandiumMenuMetadata.FooterProvider mFooter;
     private final View mNative;
@@ -94,6 +94,7 @@ final class SandiumPagedMenu extends FrameLayout {
         mTextColor = context.getColor(R.color.sandium_menu_on_surface);
         mSecondaryTextColor = context.getColor(R.color.sandium_menu_on_surface_variant);
         mDividerColor = context.getColor(R.color.sandium_menu_outline_variant);
+        mAccentColor = context.getColor(R.color.sandium_menu_accent);
         mFooter = footer instanceof SandiumMenuMetadata.FooterProvider
                 ? (SandiumMenuMetadata.FooterProvider) footer : null;
         if (mFooter != null) SandiumMenuMetadata.watchFooter(mFooter, mFooterChanged);
@@ -243,7 +244,7 @@ final class SandiumPagedMenu extends FrameLayout {
         t.setTextColor(color); t.setGravity(Gravity.CENTER); return t;
     }
     private TextView button(String label, String description, Runnable click) {
-        TextView t = text(label, 16, mTextColor); t.setMinHeight(dp(48));
+        TextView t = text(label, 16, mAccentColor); t.setMinHeight(dp(48));
         t.setTag("control:" + description); t.setContentDescription(description); t.setFocusable(true); t.setOnClickListener(v -> click.run());
         return t;
     }

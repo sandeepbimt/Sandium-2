@@ -11,6 +11,7 @@ PIN = 'd331de35ca8ab1358c7a17e4bd41627d55eaef51'
 BRAVE_PIN = '44a84b1f89d9a35287289d6a3d493e362f5a5123'
 BASE = 'chrome/browser/ui/android/toolbar/'
 PHONE = BASE+'java/src/org/chromium/chrome/browser/toolbar/top/ToolbarPhone.java'
+MENU_BUTTON = BASE+'java/src/org/chromium/chrome/browser/toolbar/menu_button/MenuButton.java'
 PREF = BASE+'java/src/org/chromium/chrome/browser/toolbar/settings/AddressBarPreference.java'
 BRAVE = 'android/java/org/chromium/chrome/browser/toolbar/top/BraveToolbarLayoutImpl.java'
 MARKER = 'SANDIUM_NATIVE_BOTTOM_TOOLBAR_V1'
@@ -200,6 +201,37 @@ def menu(s):
     return once(s, '@drawable/ic_more_vert_24dp', '@drawable/sandium_toolbar_menu')
 
 
+def menu_button(s):
+    """Preserve native bitmap animation semantics for our vector hamburger."""
+    if 'SANDIUM_MENU_DRAWABLE_COPY_V1' in s: return s
+    s = once(s, 'import android.graphics.Canvas;',
+             'import android.graphics.Bitmap;\nimport android.graphics.Canvas;')
+    for view in ('mMenuImageButton', 'mUpdateBadgeView'):
+        old = '(BitmapDrawable)\n                        '+view+'.getDrawable().getConstantState().newDrawable().mutate()'
+        s = once(s, old, 'sandiumAnimationCopy('+view+'.getDrawable())')
+    return once(s, '    @EnsuresNonNull({"mMenuImageButtonAnimationDrawable"})', '\n'.join([
+        '    // SANDIUM_MENU_DRAWABLE_COPY_V1: MenuButton animates bitmap snapshots, but the',
+        '    // Sandium hamburger is a vector. Rasterize only the private animation copy;',
+        '    // keep the live icon, badge, tint, gravity, and touch/accessibility behavior.',
+        '    private BitmapDrawable sandiumAnimationCopy(Drawable source) {',
+        '        Drawable copy = assumeNonNull(source.getConstantState()).newDrawable(getResources()).mutate();',
+        '        if (copy instanceof BitmapDrawable) return (BitmapDrawable) copy;',
+        '        copy.setState(source.getState());',
+        '        copy.setLevel(source.getLevel());',
+        '        copy.setLayoutDirection(source.getLayoutDirection());',
+        '        int width = Math.max(1, copy.getIntrinsicWidth());',
+        '        int height = Math.max(1, copy.getIntrinsicHeight());',
+        '        Bitmap bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);',
+        '        bitmap.setDensity(getResources().getDisplayMetrics().densityDpi);',
+        '        copy.setBounds(0, 0, width, height);',
+        '        copy.draw(new Canvas(bitmap));',
+        '        return new BitmapDrawable(getResources(), bitmap);',
+        '    }',
+        '',
+        '    @EnsuresNonNull({"mMenuImageButtonAnimationDrawable"})',
+    ]))
+
+
 def commandline(s):
     if 'SANDIUM_SINGLE_TOOLBAR_FEATURES_V1' in s: return s
     return once(s, '        CommandLine.getInstance().appendSwitchesAndArguments(args);', """        CommandLine.getInstance().appendSwitchesAndArguments(args);
@@ -249,7 +281,7 @@ def apply(src, core):
         raise ValueError('Unexpected Chromium pin')
     if subprocess.check_output(['git','-C',str(core),'rev-parse','HEAD'],text=True).strip() != BRAVE_PIN:
         raise ValueError('Unexpected Brave pin')
-    changes = [(src/PHONE,phone), (src/PREF,preference), (core/BRAVE,brave),
+    changes = [(src/MENU_BUTTON,menu_button), (src/PHONE,phone), (src/PREF,preference), (core/BRAVE,brave),
                (src/BASE/'java/res/layout/toolbar_phone.xml',layout),
                (src/BASE/'java/res/layout/menu_button.xml',menu), (src/BASE/'BUILD.gn',build),
                (core/'android/java/org/chromium/base/BraveCommandLineInitUtil.java',commandline)]

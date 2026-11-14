@@ -5,19 +5,19 @@ from pathlib import Path
 import re
 import xml.etree.ElementTree as ET
 
-ACCENT = '#F5F5F5'
+ACCENT = '#E8D3A2'  # Light sand gold for active controls, never ordinary body text.
 BACKGROUND = '#000000'
 CARD = '#212121'
-ON_ACCENT = '#171717'
-LIGHT_PRIMARY = '#333333'
+ON_ACCENT = '#292211'
+LIGHT_PRIMARY = '#6F561E'  # Same warm family, readable on light surfaces.
 COMMON = {
     # Chromium's default dark controls, primary text and filled buttons use tone80.
     'baseline_primary_80': ACCENT,
     'baseline_primary_20': ON_ACCENT,
-    # Keep readable neutral text/controls on light surfaces instead of pale-on-white.
+    # Keep readable warm-gold text/controls on light surfaces instead of pale-on-white.
     'baseline_primary_40': LIGHT_PRIMARY,
-    'baseline_primary_90': '#E5E5E5',
-    'baseline_primary_10': '#171717',
+    'baseline_primary_90': '#F5E6C4',
+    'baseline_primary_10': '#241A04',
     'gm3_baseline_surface_dark': BACKGROUND,
     'gm3_baseline_surface_container_lowest_dark': '#000000',
     'gm3_baseline_surface_container_low_dark': '#171717',
@@ -37,13 +37,13 @@ NIGHT = {
     'schemes_on_surface_variant': '#BDBDBD',
     'schemes_outline_variant': '#454545',
     'button_background': ACCENT,
-    'button_background_10': '#19F5F5F5',
+    'button_background_10': '#19E8D3A2',
     'text_on_primary': ON_ACCENT,
     'text_interactive': ACCENT,
     'icon_interactive': ACCENT,
     'brave_link': ACCENT,
     'brave_text_button_color': ACCENT,
-    'brave_button_pressed': '#D6D6D6',
+    'brave_button_pressed': '#D5BB80',
     'container_background': BACKGROUND,
     'onboarding_bg_color': BACKGROUND,
     'onboarding_card_bg_color': CARD,
@@ -58,9 +58,9 @@ LIGHT = {
     'schemes_primary': LIGHT_PRIMARY,
     'schemes_on_primary': '#FFFFFF',
     'button_background': LIGHT_PRIMARY,
-    'button_background_10': '#19333333',
+    'button_background_10': '#196F561E',
     'brave_text_button_color': LIGHT_PRIMARY,
-    'brave_button_pressed': '#1F1F1F',
+    'brave_button_pressed': '#503C10',
     'text_interactive': LIGHT_PRIMARY,
     'icon_interactive': LIGHT_PRIMARY,
     'brave_link': LIGHT_PRIMARY,
@@ -76,7 +76,7 @@ for tone, value in {
     COMMON[f'baseline_neutral_{tone}'] = '#' + value
 for tone, value in {30: '474747', 50: '797979', 60: '919191', 80: 'C6C6C6', 90: 'E2E2E2'}.items():
     COMMON[f'baseline_neutral_variant_{tone}'] = '#' + value
-for tone, value in {30: '474747', 50: '797979', 60: '919191', 70: 'ABABAB', 95: 'F1F1F1'}.items():
+for tone, value in {30: '513F18', 50: '8A7038', 60: 'A78B50', 70: 'C8AE73', 95: 'FFF3D9'}.items():
     COMMON[f'baseline_primary_{tone}'] = '#' + value
 for family, tones in {
     'secondary': {10: '171717', 25: '3B3B3B', 30: '474747', 35: '545454',
@@ -87,7 +87,7 @@ for family, tones in {
     for tone, value in tones.items():
         COMMON[f'baseline_{family}_{tone}'] = '#' + value
 COMMON.update({
-    'gm3_baseline_surface_tint_light': '#333333',
+    'gm3_baseline_surface_tint_light': LIGHT_PRIMARY,
     'gm3_baseline_surface_container_low_light': '#F7F7F7',
     'gm3_baseline_surface_container_light': '#F3F3F3',
     'gm3_baseline_surface_container_high_light': '#EEEEEE',
@@ -98,7 +98,7 @@ COMMON.update({
 for name in (
     'menu_icon_color', 'url_text_primary', 'text_primary', 'onboarding_text_color',
     'scan_qr_code_text_color', 'set_default_text_color', 'shield_text_color',
-    'shield_toggle_button_tint', 'filter_title_color',
+    'filter_title_color',
     'add_custom_filter_text_input_hint_color', 'bookmark_import_export_dialog_title_color',
 ):
     NIGHT[name] = '#FAFAFA'
@@ -121,6 +121,9 @@ for name in ('brave_sync_bg_secondary_color', 'bookmark_menu_bg_color',
              'notification_rationale_dialog_card_bg_color'):
     NIGHT[name] = CARD
     LIGHT[name] = '#F3F3F3'
+# Explicit Shields control token must not fall back to ordinary body text.
+NIGHT['shield_toggle_button_tint'] = ACCENT
+LIGHT['shield_toggle_button_tint'] = LIGHT_PRIMARY
 NIGHT['bookmark_import_export_dialog_button_color'] = ACCENT
 LIGHT['bookmark_import_export_dialog_button_color'] = LIGHT_PRIMARY
 NIGHT['text_tertiary'] = '#A0A0A0'

@@ -63,8 +63,8 @@ final class SandiumWelcomeSetupView {
     private static final int BACKGROUND = Color.rgb(0, 0, 0);
     private static final int CARD = Color.rgb(33, 33, 33);
     private static final int SEPARATOR = Color.rgb(69, 69, 69);
-    private static final int PRIMARY = Color.rgb(245, 245, 245);
-    private static final int PRIMARY_TEXT = Color.rgb(23, 23, 23);
+    private static final int PRIMARY = Color.rgb(232, 211, 162);
+    private static final int PRIMARY_TEXT = Color.rgb(41, 34, 17);
     private static final int DISABLED_BUTTON = Color.rgb(55, 55, 55);
     private static final int DISABLED_BUTTON_TEXT = Color.rgb(160, 160, 160);
     private static final int TEXT = Color.rgb(250, 250, 250);
@@ -501,7 +501,7 @@ final class SandiumWelcomeSetupView {
                     new int[] {}
                 },
                 new int[] {
-                    PRIMARY_TEXT,
+                    PRIMARY,
                     Color.rgb(189, 189, 189),
                     Color.rgb(84, 84, 84),
                     Color.rgb(133, 133, 133)
@@ -514,7 +514,7 @@ final class SandiumWelcomeSetupView {
                     new int[] {}
                 },
                 new int[] {
-                    Color.rgb(245, 245, 245),
+                    Color.rgb(111, 86, 30),
                     Color.rgb(80, 80, 80),
                     Color.rgb(145, 145, 145),
                     Color.rgb(63, 63, 63)
@@ -672,7 +672,7 @@ final class SandiumWelcomeSetupView {
 
         LayerDrawable background = new LayerDrawable(new Drawable[] {
             roundRect(PRIMARY, 28),
-            new ClipDrawable(roundRect(Color.rgb(214, 214, 214), 28),
+            new ClipDrawable(roundRect(Color.rgb(213, 187, 128), 28),
                     Gravity.LEFT, ClipDrawable.HORIZONTAL)
         });
         ClipDrawable progress = (ClipDrawable) background.getDrawable(1);

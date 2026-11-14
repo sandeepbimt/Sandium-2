@@ -21,7 +21,7 @@
     ".circleci/scripts/apply-sandium-filter-subscriptions.py": "4809c3b9973ce5b53ad11436639a837ce6b68aa4a12b1ed240afcfc83633a702",
     ".circleci/scripts/apply-sandium-full-overlays.py": "9dc54f36dd0507bd434f5b981ed4a40469c830c3c5c0323896a5c06ce18af97f",
     ".circleci/scripts/apply-sandium-homepage-adblock-warmup.py": "27f212f4ec9544320d8fb9186ec1c5d931f1bf6bd7f7d25d2f9c5e2123759448",
-    ".circleci/scripts/apply-sandium-native-theme.py": "0dc90e5f8006fb89f24b0d72a9e52966fc4eabb26a3d879fee254587760a6ffb",
+    ".circleci/scripts/apply-sandium-native-theme.py": "e8258210037aa2d3e8403c50c16c3f434857d199593980a707541d7115c55ce0",
     ".circleci/scripts/apply-sandium-page-transition-full.py": "2673b79f1f506cc5a67216848ccd356b06313262f0007a6ae9e4f3c94ff372d8",
     ".circleci/scripts/apply-sandium-scroll-status-bar.py": "a6c017203aecc5abc605a5aad12653db7dddb176a65f30b101dfa54dfc175c1c",
     ".circleci/scripts/apply-sandium-shields-popup.py": "eaca25aec6ba08e28775815c112f8446f87dd49630da98bd86ea78770f2c078d",
@@ -31,21 +31,21 @@
     ".circleci/scripts/apply-sandium-welcome-setup.py": "024d88a18e0227aab4d820cab996791224b1fe5ba9b782567465f458cb2f325b",
     ".circleci/scripts/prepare-brave-source.sh": "94cf7b7531ba5a7f6aa9acd8805e106a6fa537852ee9648ed89c6ed488e024a5",
     ".circleci/scripts/verify-sandium-vanilla-brave.py": "cda2cd002fff424e51e6fd5e8a47386dd6b9b6b873901178b25c46264399a735",
-    "android/java/org/chromium/chrome/browser/firstrun/SandiumWelcomeSetupView.java": "1cb7f4351edf0289e931b82207bcc9135ae47fdf2cc31e86eb005db4bad3cb95",
+    "android/java/org/chromium/chrome/browser/firstrun/SandiumWelcomeSetupView.java": "84f8b00a21b4dfa4e5d0cb789685c3f6f74c8739d2e39f43aa66fa356abd8c49",
     "brave/android/java/brave-res/drawable/ic_sandium_page_transition_blur.xml": "529c6f132696af0f0feb996340be22a58dc869a560f8e2c9ac444c54917abf4e",
     "brave/android/java/brave-res/drawable/ic_sandium_page_transition_darken.xml": "0e95594b554cea7bd0c53ea386f32436a7e070b4cf42703dd8e9b89c9642b0f9",
-    ".circleci/scripts/apply-sandium-bottom-toolbar.py": "6d89bb7ab4ac2f91c12a8a3175dabdb11a8e7bfbf113c68dc03c41fa7e83eb28",
-    ".circleci/scripts/test-sandium-bottom-toolbar.py": "e438437c922095f839b2acfdca89d1aa236a65ea1b9b5f13aaec06074ad4744f",
+    ".circleci/scripts/apply-sandium-bottom-toolbar.py": "ccdf6b99530a4505c5d42d0360f9f8efcba2ba432c6dc296fdc3e401686d2a4d",
+    ".circleci/scripts/test-sandium-bottom-toolbar.py": "40e3750bb0bdc4e97b9c13e306406fffbc65d5b146f1ba526748cdce8152bb24",
     ".circleci/scripts/apply-sandium-paged-menu.py": "4283569e4b096587ca1bdb0ccb40ee94a6b39e38510308e06874e03fa4f53675",
     ".circleci/scripts/flow_wiring.py": "c6b0c7fec3638f0664ddcbde0406bdd4606abfea62e6acc322b554e1d28fdab3",
     "android/java/org/chromium/chrome/browser/ui/appmenu/SandiumMenuState.java": "64b707978412cca96095221e68d14764b15a2da241a1e7698de1f375c77b652f",
-    "android/java/org/chromium/chrome/browser/ui/appmenu/SandiumPagedMenu.java": "e5d170b74d1448e3266a1da152200a409cde19de245e87440ab45aa24faa6b55",
+    "android/java/org/chromium/chrome/browser/ui/appmenu/SandiumPagedMenu.java": "51d40f26ad6e5584cd176dae726fc3da294fc0b6e85088feb2e9855354706957",
     "android/java/org/chromium/chrome/browser/ui/appmenu/SandiumMenuMetadata.java": "73c796d7c1c623bfa2d5246e68b7a5763a76bf78eec225d0722f60f171d24be2",
     "android/java/res/values/sandium_menu_strings.xml": "d3eca4b49ce74d0f310e1c96183a4d9409e5a8beaf74f0ea4cd50f6feea764cf",
     ".circleci/scripts/apply-sandium-chrome-theme.py": "13cfd73d17cd342cec9b1f3bf332f29be873a0b850cfb40942b7cd4660623ccf",
     ".circleci/scripts/test-sandium-chrome-theme.py": "d9443c1ab2e17e2319b2df23af0e61ef2fd70b030450175a39eac53a8a4f3958",
-    "android/java/res/values/sandium_menu_colors.xml": "f9f8d4769126a41870b851497f680bd4a3991a1a318ce4a4275b5cd8eb483ca9",
-    "android/java/res/values-night/sandium_menu_colors.xml": "9eaf543c76b48a8ca1c53af5d92e24fa3dfffab35a2c07a239e5b963b0c23e70",
+    "android/java/res/values/sandium_menu_colors.xml": "80034032a77c6103bb5fa493a965cc85bc9cfebf70cb15b1f7285fae343fb8c9",
+    "android/java/res/values-night/sandium_menu_colors.xml": "119b30aa02e716695fda4a2009ac14c7d9af3b2807b6204002ca65333428c495",
     ".circleci/scripts/test-sandium-motion.py": "2f515f89c3ae52e6dc94b0fae7d2d2763d7d3a2c951cab2a3ad8850e4cbf668f"
   },
   "reviewed_ui_fixes": {
@@ -56,8 +56,8 @@
     },
     ".circleci/scripts/apply-sandium-native-theme.py": {
       "baseline_sha256": "f4b09779d4d205f58581252dd19c593aeb4c6135dd56acb9e56644b6b5941396",
-      "accepted_sha256": "0dc90e5f8006fb89f24b0d72a9e52966fc4eabb26a3d879fee254587760a6ffb",
-      "reason": "Integrate independently reviewed native icon semantics and bounded reduced-motion-aware content fades; preserve all Full pipeline and APK gates."
+      "accepted_sha256": "e8258210037aa2d3e8403c50c16c3f434857d199593980a707541d7115c55ce0",
+      "reason": "Integrate independently reviewed native icon semantics and bounded reduced-motion-aware content fades; preserve all Full pipeline and APK gates. User-requested light sand-gold active control palette; neutral surfaces, semantic status colors and Sandium logo/tracer preserved."
     },
     ".circleci/scripts/apply-sandium-scroll-status-bar.py": {
       "baseline_sha256": "7433644bbb340a4a5190a04fa92e251684ca2816b3ecb772b19605a3aaef4efe",
@@ -66,8 +66,8 @@
     },
     "android/java/org/chromium/chrome/browser/firstrun/SandiumWelcomeSetupView.java": {
       "baseline_sha256": "90df1a8d5a01c44a9e6a7d1dea16928fc8688f11011264c324579296570fa782",
-      "accepted_sha256": "1cb7f4351edf0289e931b82207bcc9135ae47fdf2cc31e86eb005db4bad3cb95",
-      "reason": "Integrate independently reviewed native icon semantics and bounded reduced-motion-aware content fades; preserve all Full pipeline and APK gates."
+      "accepted_sha256": "84f8b00a21b4dfa4e5d0cb789685c3f6f74c8739d2e39f43aa66fa356abd8c49",
+      "reason": "Integrate independently reviewed native icon semantics and bounded reduced-motion-aware content fades; preserve all Full pipeline and APK gates. User-requested light sand-gold active control palette; neutral surfaces, semantic status colors and Sandium logo/tracer preserved."
     },
     ".circleci/experimental-steps/product-overlay-29-0.sh": {
       "baseline_sha256": "f0c5e311df35a1b61c0e27224fec4708203eaa58ec761c7a07d524fa53468400",
@@ -76,13 +76,13 @@
     },
     ".circleci/scripts/apply-sandium-bottom-toolbar.py": {
       "baseline_sha256": null,
-      "accepted_sha256": "6d89bb7ab4ac2f91c12a8a3175dabdb11a8e7bfbf113c68dc03c41fa7e83eb28",
-      "reason": "Fix #1146 adjacent Java TYPE_USE annotation placement on qualified Tab type; preserve toolbar behavior and pipeline."
+      "accepted_sha256": "ccdf6b99530a4505c5d42d0360f9f8efcba2ba432c6dc296fdc3e401686d2a4d",
+      "reason": "Fix #1148 verified VectorDrawable-to-BitmapDrawable startup crash by rasterizing only native menu animation copies; preserve live icons, tint, interactions and Full pipeline."
     },
     ".circleci/scripts/test-sandium-bottom-toolbar.py": {
       "baseline_sha256": null,
-      "accepted_sha256": "e438437c922095f839b2acfdca89d1aa236a65ea1b9b5f13aaec06074ad4744f",
-      "reason": "Fix #1146 adjacent Java TYPE_USE annotation placement on qualified Tab type; preserve toolbar behavior and pipeline."
+      "accepted_sha256": "40e3750bb0bdc4e97b9c13e306406fffbc65d5b146f1ba526748cdce8152bb24",
+      "reason": "Fix #1148 verified VectorDrawable-to-BitmapDrawable startup crash by rasterizing only native menu animation copies; preserve live icons, tint, interactions and Full pipeline."
     },
     ".circleci/scripts/apply-sandium-paged-menu.py": {
       "baseline_sha256": "cdf80ce5ddcfdc0ab28cc25dbe22f35cc769144e2aa3c7f14cb2c24ad80dbaea",
@@ -101,8 +101,8 @@
     },
     "android/java/org/chromium/chrome/browser/ui/appmenu/SandiumPagedMenu.java": {
       "baseline_sha256": "99ad36ed25ba3cf651d5a0fc37e5f37cce9a13216dcf3887cfba88aaabd66daa",
-      "accepted_sha256": "e5d170b74d1448e3266a1da152200a409cde19de245e87440ab45aa24faa6b55",
-      "reason": "Integrate independently reviewed native icon semantics and bounded reduced-motion-aware content fades; preserve all Full pipeline and APK gates. Final owner-directed slight outer menu corner radius:12dp; welcome/Shields unchanged."
+      "accepted_sha256": "51d40f26ad6e5584cd176dae726fc3da294fc0b6e85088feb2e9855354706957",
+      "reason": "Integrate independently reviewed native icon semantics and bounded reduced-motion-aware content fades; preserve all Full pipeline and APK gates. Final owner-directed slight outer menu corner radius:12dp; welcome/Shields unchanged. User-requested light sand-gold active control palette; neutral surfaces, semantic status colors and Sandium logo/tracer preserved."
     },
     "android/java/org/chromium/chrome/browser/ui/appmenu/SandiumMenuMetadata.java": {
       "baseline_sha256": null,
@@ -126,13 +126,13 @@
     },
     "android/java/res/values/sandium_menu_colors.xml": {
       "baseline_sha256": null,
-      "accepted_sha256": "f9f8d4769126a41870b851497f680bd4a3991a1a318ce4a4275b5cd8eb483ca9",
-      "reason": "Coordinated reviewed native UI composition, resource closure and bounded native dispatch; preserve Full pipeline and non-removal scope."
+      "accepted_sha256": "80034032a77c6103bb5fa493a965cc85bc9cfebf70cb15b1f7285fae343fb8c9",
+      "reason": "Coordinated reviewed native UI composition, resource closure and bounded native dispatch; preserve Full pipeline and non-removal scope. User-requested light sand-gold active control palette; neutral surfaces, semantic status colors and Sandium logo/tracer preserved."
     },
     "android/java/res/values-night/sandium_menu_colors.xml": {
       "baseline_sha256": null,
-      "accepted_sha256": "9eaf543c76b48a8ca1c53af5d92e24fa3dfffab35a2c07a239e5b963b0c23e70",
-      "reason": "Coordinated reviewed native UI composition, resource closure and bounded native dispatch; preserve Full pipeline and non-removal scope."
+      "accepted_sha256": "119b30aa02e716695fda4a2009ac14c7d9af3b2807b6204002ca65333428c495",
+      "reason": "Coordinated reviewed native UI composition, resource closure and bounded native dispatch; preserve Full pipeline and non-removal scope. User-requested light sand-gold active control palette; neutral surfaces, semantic status colors and Sandium logo/tracer preserved."
     },
     ".circleci/scripts/test-sandium-motion.py": {
       "baseline_sha256": null,

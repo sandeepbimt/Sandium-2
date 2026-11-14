@@ -4,4 +4,5 @@
   <color name="sandium_menu_on_surface">#FAFAFA</color>
   <color name="sandium_menu_on_surface_variant">#BDBDBD</color>
   <color name="sandium_menu_outline_variant">#454545</color>
+  <color name="sandium_menu_accent">#E8D3A2</color>
 </resources>

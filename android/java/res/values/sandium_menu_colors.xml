@@ -4,4 +4,5 @@
   <color name="sandium_menu_on_surface">#202020</color>
   <color name="sandium_menu_on_surface_variant">#616161</color>
   <color name="sandium_menu_outline_variant">#BDBDBD</color>
+  <color name="sandium_menu_accent">#6F561E</color>
 </resources>
