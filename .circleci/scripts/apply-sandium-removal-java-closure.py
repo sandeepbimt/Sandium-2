@@ -7,6 +7,8 @@ from pathlib import Path
 spec=importlib.util.spec_from_file_location('wallet',Path(__file__).with_name('apply-sandium-wallet-removal.py'))
 w=importlib.util.module_from_spec(spec);spec.loader.exec_module(w)
 MARK='// SANDIUM_REMOVAL_JAVA_CLOSURE_V1\n'
+PROGUARD='android/java/proguard.flags'
+PLAYLIST_RULE='# Needed by the gson use inside the prebuilt Brave Playlist AAR.\n-keep,allowobfuscation,allowshrinking class com.google.gson.reflect.TypeToken\n'
 REGISTRY='chrome/android/java/src/org/chromium/chrome/browser/settings/search/SearchIndexProviderRegistry.java'
 PROVIDERS=(
 'playlist.settings.BravePlaylistPreferences', 'settings.BraveLeoDefaultModelPreferences',
@@ -26,6 +28,10 @@ def region(s,start,end,new):
  a=s.index(start);b=s.index(end,a);return s[:a]+new+s[b:]
 
 def transform(path,s):
+ if path==PROGUARD:
+  marker='# SANDIUM_PLAYLIST_PROGUARD_CLOSURE_V1\n'
+  if s.startswith(marker):return s
+  return marker+once(s,PLAYLIST_RULE)
  if s.startswith(MARK):return s
  if path==REGISTRY:
   for name in PROVIDERS:
@@ -61,7 +67,7 @@ def transform(path,s):
  return MARK+s
 
 def apply(core,src):
- paths=[(src,REGISTRY)]+[(core,w.JAVA+p) for p in ('toolbar/top/BraveToolbarLayoutImpl.java','privacy/settings/BravePrivacySettings.java','settings/BackgroundImagesPreferences.java')]
+ paths=[(src,REGISTRY),(core,PROGUARD)]+[(core,w.JAVA+p) for p in ('toolbar/top/BraveToolbarLayoutImpl.java','privacy/settings/BravePrivacySettings.java','settings/BackgroundImagesPreferences.java')]
  pending=[(base/p,transform(p,(base/p).read_text())) for base,p in paths]
  for path,text in pending:path.write_text(text)
  print('SANDIUM_REMOVAL_JAVA_CLOSURE=PASS registry+rewards-observer+sponsored-preferences')

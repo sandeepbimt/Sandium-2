@@ -64,6 +64,7 @@ with tempfile.TemporaryDirectory() as temporary:
   assert 'SandiumShieldsTracer' in native and 'sandiumNewTab.setOnClickListener' in native
   assert 'onTermsOfServiceUpdateAccepted' not in native
   closure=load('apply-sandium-removal-java-closure')
+  assert 'com.google.gson.reflect.TypeToken' not in (core/closure.PROGUARD).read_text()
   registry=(src/closure.REGISTRY).read_text()
   assert all(provider not in registry for provider in closure.PROVIDERS)
   assert 'AppearancePreferences.SEARCH_INDEX_DATA_PROVIDER' in registry
