@@ -318,7 +318,7 @@ jobs:
     - run:
         name: Check current source feature composition
         command: |
-          python3 tests/test_ui_only_product.py
+          bash .circleci/scripts/check-ui-only-product.sh
           python3 tests/test_composition.py
     - run:
         name: Prepare pinned Brave Android source
@@ -749,7 +749,7 @@ jobs:
     - run:
         name: Check current source feature composition
         command: |
-          python3 tests/test_ui_only_product.py
+          bash .circleci/scripts/check-ui-only-product.sh
           python3 tests/test_composition.py
     - run:
         name: Prepare pinned Brave Android source
@@ -1165,7 +1165,7 @@ jobs:
     - run:
         name: Check current source feature composition
         command: |
-          python3 tests/test_ui_only_product.py
+          bash .circleci/scripts/check-ui-only-product.sh
           python3 tests/test_composition.py
     - run:
         name: Prepare pinned Brave Android source
@@ -1581,7 +1581,7 @@ jobs:
     - run:
         name: Check current source feature composition
         command: |
-          python3 tests/test_ui_only_product.py
+          bash .circleci/scripts/check-ui-only-product.sh
           python3 tests/test_composition.py
     - run:
         name: Prepare pinned Brave Android source
@@ -1997,7 +1997,7 @@ jobs:
     - run:
         name: Check current source feature composition
         command: |
-          python3 tests/test_ui_only_product.py
+          bash .circleci/scripts/check-ui-only-product.sh
           python3 tests/test_composition.py
     - run:
         name: Prepare pinned Brave Android source

@@ -39,7 +39,15 @@ class UIOnly(unittest.TestCase):
    self.assertIn('verify-ui-only-scope.py',runs[0],name)
    self.assertNotIn('product-overlay-30', '\n'.join(runs),name)
   for n in range(1,6):
-   self.assertIn('test_ui_only_product.py', str(cfg['jobs'][f'full-stage-{n}']),n)
+   self.assertIn('check-ui-only-product.sh', str(cfg['jobs'][f'full-stage-{n}']),n)
+ def test_ci_gate_installs_pinned_isolated_yaml_dependency(self):
+  script=(ROOT/'.circleci/scripts/check-ui-only-product.sh').read_text()
+  self.assertIn('PyYAML==6.0.2',script)
+  self.assertIn('--only-binary=:all:',script)
+  self.assertIn('--target "$DEPS"',script)
+  self.assertIn('PYTHONPATH="$DEPS',script)
+  self.assertIn('tests/test_ui_only_product.py',script)
+  self.assertLess(script.index('pip install'),script.index('tests/test_ui_only_product.py'))
  def test_real_driver_accepts_ui_seed_scope(self):
   with tempfile.TemporaryDirectory() as tmp:
    env=dict(os.environ,CIRCLE_WORKING_DIRECTORY=tmp,CIRCLE_PROJECT_REPONAME='Sandium-2',
