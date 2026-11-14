@@ -7,11 +7,11 @@ ROOT = Path(__file__).resolve().parents[2]
 CONFIG = ROOT / ".circleci" / "config.yml"
 
 def main() -> None:
-    from flow_wiring import verify_flow_wiring
-    verify_flow_wiring(ROOT)
+    from flow_wiring import verify_full_wiring
+    verify_full_wiring(ROOT)
     text = CONFIG.read_text(encoding="utf-8")
-    for name in ("remote-smoke.sh", "bounded-build.sh"):
-        assert name in text, f"Flow config must invoke {name}"
+    for name in ("remote-smoke.sh", "full-bounded-build.sh"):
+        assert name in text, f"Full config must invoke {name}"
         text += "\n" + (ROOT / ".circleci/experimental-steps" / name).read_text(encoding="utf-8")
     required = [
         "REMOTE_SMOKE=WARNING",

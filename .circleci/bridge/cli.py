@@ -8,7 +8,7 @@ from pathlib import Path
 import subprocess
 import signal
 import sys
-from bridge import begin,capture,apply,base_id,digest,encode
+from bridge import begin,capture,apply_chain,base_id,digest,encode
 
 
 def atomic(path,value):
@@ -33,10 +33,12 @@ def run_bounded(command, timeout=1700):
         raise
 
 
+MAX_LAYERS=7
+
 def restore_chain(root, plan, legacy_script, timeout=1700):
     root=Path(root)
     if (root/'brave-work').exists() or (root/'brave-work').is_symlink():raise ValueError('Restore requires empty/disposable job tree')
-    if len(plan['layers'])>7:raise ValueError('Bounded bridge plan supports base plus at most seven deltas')
+    if len(plan['layers'])>MAX_LAYERS:raise ValueError(f'Checkpoint plan exceeds {MAX_LAYERS} incremental slots')
     raw=(root/'brave-workspace-checkpoint.manifest.json').read_bytes()
     if digest(raw)!=plan['base_manifest_sha256']:raise ValueError('Wrong original base manifest')
     manifest=json.loads(raw)
@@ -44,9 +46,7 @@ def restore_chain(root, plan, legacy_script, timeout=1700):
     # Original restore verifies every compressed shard hash before extraction.
     run_bounded([sys.executable,'-u',str(legacy_script),'restore','--root',str(root)],timeout)
     head=base_id(raw)
-    for layer in plan['layers']:
-        if layer['parent']!=head:raise ValueError('Missing/reordered delta')
-        head=apply(root/'brave-work',layer['archive'],layer['id'],head)
+    head=apply_chain(root/'brave-work',plan['layers'],head)
     if head!=plan['head']:raise ValueError('Incomplete chain')
     atomic(root/'.bridge-restored.json',dict(head=head,base=plan['base_manifest_sha256']))
     return head

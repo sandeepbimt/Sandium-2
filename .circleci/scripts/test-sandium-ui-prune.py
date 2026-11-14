@@ -63,13 +63,13 @@ def expect_attr(path: Path, key: str, attribute: str, value: str) -> None:
         raise SystemExit(f"SANDIUM_UI_TEST=FAIL path={path} key={key} {attribute}={actual!r} expected={value!r}")
 
 def verify_repository_policy(repo: Path) -> None:
-    # Flow invokes unconditional shell wrappers; verify their actual commands and
+    # Full invokes unconditional shell wrappers; verify their actual commands and
     # stage ordering instead of demanding removed branch-gated inline YAML text.
-    from flow_wiring import verify_flow_wiring
+    from flow_wiring import verify_full_wiring
     try:
-        verify_flow_wiring(repo)
+        verify_full_wiring(repo)
     except ValueError as exc:
-        raise SystemExit(f"SANDIUM_UI_TEST=FAIL Flow wiring: {exc}") from exc
+        raise SystemExit(f"SANDIUM_UI_TEST=FAIL Full wiring: {exc}") from exc
 
     branding = require(repo / ".circleci/scripts/apply-sandium-branding-refresh.py",
         '"Sandium"', 'android:inset="8%"', "sandium_shields_glow")

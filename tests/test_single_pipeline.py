@@ -18,12 +18,18 @@ from checkpoint import scan
 class SinglePipeline(unittest.TestCase):
     def test_complete_config_is_one_mode_and_noncanonical(self):
         config = yaml.safe_load((ROOT / '.circleci/config.yml').read_text())
-        self.assertEqual(list(config['workflows']), ['sandium-flow'])
+        self.assertEqual(list(config['workflows']), ['sandium-full', 'sandium-checkpoint-maintenance'])
+        # Maintenance is not a second APK build mode.
+        maintenance=json.dumps(config['jobs']['maintain-full-checkpoint'])
+        self.assertNotIn('bounded-build.sh',maintenance)
+        self.assertIn('maintenance-capture',maintenance)
         self.assertNotIn('sandium_build_mode', config['parameters'])
-        self.assertFalse(config['parameters']['run_experiment']['default'])
-        self.assertFalse(config['parameters']['publication_reviewed']['default'])
-        group = config['job-groups']['sandium-single-checkpoint-chain']['jobs']
-        self.assertEqual(len(group), 6)
+        self.assertNotIn('run_experiment', config['parameters'])
+        self.assertFalse(config['parameters']['run_build']['default'])
+        self.assertFalse(config['parameters']['run_maintenance']['default'])
+        self.assertFalse(config['parameters']['allow_seed_import']['default'])
+        group = config['job-groups']['sandium-full-chain']['jobs']
+        self.assertEqual(len(group), 8)
         for job in config['jobs'].values():
             for step in job['steps']:
                 if isinstance(step, dict) and 'save_cache' in step:
@@ -31,7 +37,7 @@ class SinglePipeline(unittest.TestCase):
                     self.assertNotIn('sandium-brave-handoff', key)
                     self.assertNotIn('reference', key)
         for number in range(1, 6):
-            steps = config['jobs'][f'sandium-stage-{number}']['steps']
+            steps = config['jobs'][f'full-stage-{number}']['steps']
             commands = [s['run']['command'] for s in steps if isinstance(s, dict) and 'run' in s]
             self.assertTrue(any('driver.py restore' in c for c in commands))
             self.assertTrue(any('bounded-build.sh' in c for c in commands))
@@ -135,7 +141,8 @@ class SinglePipeline(unittest.TestCase):
     def test_build_reserves_checkpoint_and_native_save_time(self):
         from job_budget import build_seconds
         self.assertEqual(build_seconds(0,0),1200)
-        self.assertEqual(build_seconds(0,700),1040)
+        self.assertEqual(build_seconds(0,700),860)
+        self.assertEqual(700+build_seconds(0,700)+900+600+60+180,3300)
         with self.assertRaises(ValueError):
             build_seconds(0,1700)
 

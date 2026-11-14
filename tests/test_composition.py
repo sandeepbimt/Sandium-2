@@ -159,7 +159,8 @@ class Composition(unittest.TestCase):
         self.assertIn('python3 tests/test_composition.py', source)
         self.assertNotIn('sandium_build_mode', source)
         self.assertIn('job-groups:', source)
-        self.assertIn('sandium-flow:', source)
+        self.assertIn('sandium-full:', source)
+        self.assertNotIn('sandium-flow:', source)
     def test_config_reset_precedes_bootstrap_and_late_race(self):
         import re
         config=(ROOT/'.circleci/config.yml').read_text()

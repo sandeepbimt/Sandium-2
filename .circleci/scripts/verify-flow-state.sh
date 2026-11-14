@@ -6,7 +6,7 @@ SRC="$WORK/src"
 CORE="$SRC/brave"
 OUT="$SRC/out/android_Release_arm64"
 fail() { echo "SANDIUM_FLOW_STATE_GATE=FAIL $*" >&2; exit 1; }
-python3 "$ROOT/.circleci/bridge/driver.py" verify-restored
+python3 "$ROOT/.circleci/bridge/full_driver.py" verify-restored
 [ -s "$SRC/.git/HEAD" ] || fail "Chromium Git metadata missing"
 [ -s "$CORE/.git/HEAD" ] || fail "Brave Git metadata missing"
 [ "$(git -C "$SRC" rev-parse HEAD)" = "d331de35ca8ab1358c7a17e4bd41627d55eaef51" ] || fail "Chromium checkout does not match reference"
