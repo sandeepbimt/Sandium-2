@@ -62,6 +62,15 @@ with tempfile.TemporaryDirectory() as temporary:
   assert 'sandiumAnimationCopy' in button and 'SANDIUM_MENU_DRAWABLE_COPY_V1' in button
   native=(core/toolbar.BRAVE).read_text()
   assert 'SandiumShieldsTracer' in native and 'sandiumNewTab.setOnClickListener' in native
+  assert 'onTermsOfServiceUpdateAccepted' not in native
+  closure=load('apply-sandium-removal-java-closure')
+  registry=(src/closure.REGISTRY).read_text()
+  assert all(provider not in registry for provider in closure.PROVIDERS)
+  assert 'AppearancePreferences.SEARCH_INDEX_DATA_PROVIDER' in registry
+  for relative in ('privacy/settings/BravePrivacySettings.java','settings/BackgroundImagesPreferences.java'):
+   mixed=(core/('android/java/org/chromium/chrome/browser/'+relative)).read_text()
+   assert 'BravePref.SPONSORED_ENABLED' not in mixed
+   assert 'mShowSponsoredContentPref' not in mixed and 'mSponsoredAdsEnabled' not in mixed
   assert 'SANDIUM_NATIVE_BOTTOM_TOOLBAR_V1' in (src/toolbar.PHONE).read_text()
   assert (src/menu.INTERNAL/'java/res/values-night/sandium_menu_colors.xml').read_bytes()==(root/'android/java/res/values-night/sandium_menu_colors.xml').read_bytes()
  def snapshot():return {str(p.relative_to(src)):p.read_bytes() for p in src.rglob('*') if p.is_file()}

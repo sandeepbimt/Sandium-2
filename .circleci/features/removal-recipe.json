@@ -347,6 +347,7 @@
   "chromium_restore": [
     "chrome/android/java/src/org/chromium/chrome/browser/crash/ChromeMinidumpUploadJobServiceImpl.java",
     "chrome/android/java/src/org/chromium/chrome/browser/crash/MinidumpUploadServiceImpl.java",
+    "chrome/android/java/src/org/chromium/chrome/browser/settings/search/SearchIndexProviderRegistry.java",
     "chrome/browser/ui/android/appmenu/BUILD.gn",
     "chrome/browser/ui/android/appmenu/internal/BUILD.gn",
     "chrome/browser/ui/android/appmenu/internal/java/src/org/chromium/chrome/browser/ui/appmenu/AppMenu.java",
@@ -461,6 +462,15 @@
       ]
     },
     {
+      "script": ".circleci/scripts/apply-sandium-removal-java-closure.py",
+      "args": [
+        "--core",
+        "{core}",
+        "--src",
+        "{src}"
+      ]
+    },
+    {
       "script": ".circleci/scripts/remove-sandium-excluded-resources.py",
       "args": [
         "--core",
@@ -484,7 +494,8 @@
     "chrome/browser/ui/android/toolbar/BUILD.gn": "patches/chrome-browser-ui-android-toolbar-BUILD.gn.patch",
     "chrome/browser/ui/android/toolbar/java/res/layout/toolbar_phone.xml": "patches/chrome-browser-ui-android-toolbar-java-res-layout-toolbar_phone.xml.patch",
     "chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/ToolbarPhone.java": "patches/chrome-browser-ui-android-toolbar-java-src-org-chromium-chrome-browser-toolbar-top-ToolbarPhone.java.patch",
-    "components/minidump_uploader/BUILD.gn": "patches/components-minidump_uploader-BUILD.gn.patch"
+    "components/minidump_uploader/BUILD.gn": "patches/components-minidump_uploader-BUILD.gn.patch",
+    "chrome/android/java/src/org/chromium/chrome/browser/settings/search/SearchIndexProviderRegistry.java": "patches/chrome-android-java-src-org-chromium-chrome-browser-settings-search-SearchIndexProviderRegistry.java.patch"
   },
   "ui_baseline": "50545b503d3429ee1a1dad86317147e87d4b556b",
   "ui_reset_note": "Reset pinned upstream inputs only; replay exact pinned Brave patches for declared Chromium paths before UI overlays. Sandium-created classes/resources are retained and recopied by their owning overlays.",
