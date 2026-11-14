@@ -97,15 +97,25 @@ def maintenance_capture():
     raw=(d.ROOT/d.MANIFEST).read_bytes()
     if bridge.base_id(raw)!=plan['base']['id'] or bridge.digest(raw)!=plan['base']['manifest_sha256']:
         raise ValueError('Wrong maintenance base')
+    if (d.ROOT/'brave-work').exists():raise ValueError('Maintenance requires fresh disposable workspace')
     rolled=d.ROOT/'.full-maintenance.zip'
     if plan['layers']:
         from rollup import rollup
         result=rollup(plan['base']['id'],[dict(path=d.LAYERS/f'{i}.zip',id=x['id']) for i,x in enumerate(plan['layers'])],rolled)
+        # Rollup verifies every input, copies/checks all surviving blobs, fsyncs
+        # the merged archive and returns its digest. Keep that verified overlay,
+        # not both it and every downloaded input while extracting the full base.
+        # These are disposable local copies, never accepted remote caches/head.
+        released=0
+        for i in range(len(plan['layers'])):
+            path=d.LAYERS/f'{i}.zip'
+            released+=path.stat().st_size
+            path.unlink()
+        print('FULL_MAINTENANCE_LOCAL_INPUTS_RELEASED',dict(layers=len(plan['layers']),bytes=released),flush=True)
     else:
         result=None
     # Verify/extract original compressed shards, then prove the new overlay can
     # actually restore. This expensive refresh is NEVER part of ordinary capture.
-    if (d.ROOT/'brave-work').exists():raise ValueError('Maintenance requires fresh disposable workspace')
     cli.run_bounded([os.sys.executable,'-u',str(d.LEGACY),'restore','--root',str(d.ROOT)],d.operation_budget-10)
     if result is None:
         with zipfile.ZipFile(rolled,'w') as z:

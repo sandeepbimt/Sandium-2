@@ -22,7 +22,13 @@ class MaintenanceTests(unittest.TestCase):
             plan=dict(base=dict(id=baseid,manifest_sha256=bridge.digest(raw),key='old-base',expires_at=time.time()+100,archive_bytes=0),head=r['id'],layers=[dict(id=r['id'],parent=baseid,key='old-layer',expires_at=time.time()+100,content_bytes=(layers/'0.zip').stat().st_size)])
             payload=dict(plan=plan,source='SOURCE_UNCHANGED',apk_verified=True,pipeline=1,workflow='old',stage=5)
             receipt=dict(id='OLD_RECEIPT',payload=payload);f.d.c.save(state/'selected.json',receipt)
-            with mock.patch.multiple(f.d,ROOT=root,STATE=state,LAYERS=layers,INCOMING=root/'incoming',operation_budget=1000,create=True), mock.patch.object(f.d,'gate'), mock.patch.object(f.d,'valid',side_effect=lambda rec:rec['payload']),mock.patch.object(f.d,'new_key',side_effect=lambda k,i:k+'-'+i),mock.patch.object(f.cli,'run_bounded',side_effect=lambda *a:clone(base,root/'brave-work')),mock.patch.dict(os.environ,{'SANDIUM_PIPELINE_NUMBER':'2','CIRCLE_WORKFLOW_ID':'new','SANDIUM_STAGE':'0'}):
+            def restore_base(*args):
+                self.assertFalse((layers/'0.zip').exists())
+                self.assertTrue((root/'.full-maintenance.zip').is_file())
+                self.assertEqual(f.d.c.read(state/'selected.json'),receipt)
+                self.assertFalse((state/'candidate.json').exists())
+                clone(base,root/'brave-work')
+            with mock.patch.multiple(f.d,ROOT=root,STATE=state,LAYERS=layers,INCOMING=root/'incoming',operation_budget=1000,create=True), mock.patch.object(f.d,'gate'), mock.patch.object(f.d,'valid',side_effect=lambda rec:rec['payload']),mock.patch.object(f.d,'new_key',side_effect=lambda k,i:k+'-'+i),mock.patch.object(f.cli,'run_bounded',side_effect=restore_base),mock.patch.dict(os.environ,{'SANDIUM_PIPELINE_NUMBER':'2','CIRCLE_WORKFLOW_ID':'new','SANDIUM_STAGE':'0'}):
                 f.maintenance_capture()
                 with self.assertRaises(FileNotFoundError):f.publish()
                 import shutil
@@ -48,6 +54,35 @@ class MaintenanceTests(unittest.TestCase):
             self.assertEqual((root/'brave-work/keep').read_text(),'new')
             self.assertEqual(len(candidate['plan']['layers']),1)
             self.assertGreater(candidate['plan']['base']['expires_at'],time.time()+13*86400)
+    def test_refresh_failure_never_replaces_accepted_head(self):
+        for failure in ('existing_workspace', 'corrupt_input', 'base_restore'):
+            with self.subTest(failure=failure), tempfile.TemporaryDirectory() as t:
+                root=Path(t);state=root/'state';state.mkdir();layers=root/'layers';layers.mkdir()
+                raw=b'{"shards": []}';(root/f.d.MANIFEST).write_bytes(raw);baseid=bridge.base_id(raw)
+                work=root/'work';work.mkdir();(work/'keep').write_text('original')
+                before=bridge.begin(work,baseid,'job');(work/'keep').write_text('updated')
+                archive=layers/'0.zip';r=bridge.capture(work,before,'job',archive,lambda:None)
+                receipt=dict(id='OLD_RECEIPT',payload=dict(plan=dict(
+                    base=dict(id=baseid,manifest_sha256=bridge.digest(raw)),
+                    layers=[dict(id=r['id'])])))
+                f.d.c.save(state/'selected.json',receipt)
+                if failure=='existing_workspace':(root/'brave-work').mkdir()
+                if failure=='corrupt_input':
+                    with archive.open('ab') as stream:stream.write(b'corrupt')
+                input_bytes=archive.read_bytes()
+                with mock.patch.multiple(f.d,ROOT=root,STATE=state,LAYERS=layers,operation_budget=1000,create=True), mock.patch.object(f.d,'gate'), mock.patch.object(f.d,'valid',side_effect=lambda rec:rec['payload']), mock.patch.object(f.cli,'run_bounded',side_effect=RuntimeError('extraction failed')) as extract:
+                    with self.assertRaises((ValueError,RuntimeError)):f.maintenance_capture()
+                self.assertEqual(f.d.c.read(state/'selected.json'),receipt)
+                self.assertFalse((state/'candidate.json').exists())
+                if failure=='base_restore':
+                    extract.assert_called_once()
+                    self.assertFalse(archive.exists())
+                    self.assertTrue((root/'.full-maintenance.zip').is_file())
+                else:
+                    extract.assert_not_called()
+                    self.assertEqual(archive.read_bytes(),input_bytes)
+                    self.assertFalse((root/'.full-maintenance.zip').exists())
+
     def test_optional_job_requires_exact_workflow_apk_and_request(self):
         with tempfile.TemporaryDirectory() as t:
             root=Path(t);state=root/'state';state.mkdir();head=root/'receipt'
