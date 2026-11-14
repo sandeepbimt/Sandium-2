@@ -24,7 +24,7 @@
     ".circleci/scripts/apply-sandium-native-theme.py": "243a6c50ec35be9a0d2d1193839fbb2ff9b7163bd737ec690f6bbc845c02a52f",
     ".circleci/scripts/apply-sandium-page-transition-full.py": "2673b79f1f506cc5a67216848ccd356b06313262f0007a6ae9e4f3c94ff372d8",
     ".circleci/scripts/apply-sandium-scroll-status-bar.py": "7433644bbb340a4a5190a04fa92e251684ca2816b3ecb772b19605a3aaef4efe",
-    ".circleci/scripts/apply-sandium-shields-popup.py": "766a021fd5d5dba51e1ce78f37bc82f0d14bec5207aeebf5b15e26a1b8ec1076",
+    ".circleci/scripts/apply-sandium-shields-popup.py": "bdeeccbb7533138083c823d1662777d6e0d802f5bc3927367d155941e6a02b91",
     ".circleci/scripts/apply-sandium-shields-two-state.py": "0adbe604fef6fce954955538f49aacc22e800f42599c2dc69d817e71f639a6c5",
     ".circleci/scripts/apply-sandium-ui-prune.py": "328873ada9d6fbb4990834f0eb2ea157619c698620fec8ca4d9e17737d573015",
     ".circleci/scripts/apply-sandium-visible-branding.py": "50a2407ec795659aa944c2b440d1bfc217fcb688b849fe6e441d0be5a0409a69",
@@ -34,5 +34,12 @@
     "android/java/org/chromium/chrome/browser/firstrun/SandiumWelcomeSetupView.java": "4636f6a1ea52cd13086ea6bac8343713b26e62ce59ee77bc94064071ae5be37b",
     "brave/android/java/brave-res/drawable/ic_sandium_page_transition_blur.xml": "529c6f132696af0f0feb996340be22a58dc869a560f8e2c9ac444c54917abf4e",
     "brave/android/java/brave-res/drawable/ic_sandium_page_transition_darken.xml": "0e95594b554cea7bd0c53ea386f32436a7e070b4cf42703dd8e9b89c9642b0f9"
+  },
+  "reviewed_ui_fixes": {
+    ".circleci/scripts/apply-sandium-shields-popup.py": {
+      "baseline_sha256": "766a021fd5d5dba51e1ce78f37bc82f0d14bec5207aeebf5b15e26a1b8ec1076",
+      "accepted_sha256": "bdeeccbb7533138083c823d1662777d6e0d802f5bc3927367d155941e6a02b91",
+      "reason": "Fix #1142 missing popup color IDs: declare and register custom day/night colors in Brave java_resources; retain exact palette and UI-only scope."
+    }
   }
 }

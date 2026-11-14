@@ -62,6 +62,22 @@ class PopupTests(unittest.TestCase):
         s=m.strings(original(m.STRINGS)); ET.fromstring(s)
         self.assertEqual(s,m.strings(s))
         self.assertIn('<ph name="COUNT">%1$s<ex>23</ex></ph> trackers and ads blocked',s)
+    def test_custom_colors_are_declared_in_shipping_resource_target(self):
+        source=original('android/BUILD.gn')
+        new=m.register_colors(source)
+        self.assertEqual(new,m.register_colors(new))
+        target=new[new.index('android_resources("java_resources") {'):]
+        for path in m.COLOR_FILES:
+            self.assertEqual(target.count('"'+path+'"'),1)
+        for folder,zero,positive in [('values','#795900','#365B40'),('values-night','#E9D58B','#B7D9BE')]:
+            colorfile=args.core/('android/java/brave-res/'+folder+'/sandium_shields_colors.xml')
+            colors={e.get('name'):e.text for e in ET.parse(colorfile).getroot()}
+            self.assertEqual(colors,{'sandium_shields_count_zero':zero,'sandium_shields_count_positive':positive})
+            overlay=(args.core/('android/java/res/'+folder+'/brave_colors.xml')).read_text()
+            self.assertNotIn('sandium_shields_count_',overlay)
+        applied=(args.core/'android/BUILD.gn').read_text()
+        for path in m.COLOR_FILES:
+            self.assertEqual(applied.count('"'+path+'"'),1)
     def test_malformed_input_fails_closed(self):
         with self.assertRaises(ValueError): m.java('not the pinned implementation')
         with self.assertRaises(ValueError): m.validate_layout('<LinearLayout/>')
