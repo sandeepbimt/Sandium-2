@@ -128,6 +128,9 @@ def main():
         "nav-animation-blur-sigma/1.0",
         "nav-animation-blur-sigma/2.0",
         "nav-animation-blur-sigma/4.0",
+        "nav-animation-fade-hold-duration-ms/200/nav-animation-fade-out-duration-ms/100",
+        "nav-animation-fade-hold-duration-ms/240/nav-animation-fade-out-duration-ms/120",
+        "nav-animation-fade-hold-duration-ms/320/nav-animation-fade-out-duration-ms/160",
         'getSwitchValue("disable-features", "")',
         'appendSwitchWithValue("enable-features"',
     ):
