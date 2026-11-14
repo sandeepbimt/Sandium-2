@@ -57,7 +57,7 @@ def phone(s):
         boolean hideHomeButton = false; // Forward owns the start slot independent of Home prefs.''')
     s = once(s, '            getTabSwitcherButtonCoordinator().setHasSpaceToShow(!shouldModifyToolbarButtons);', '            getTabSwitcherButtonCoordinator().setHasSpaceToShow(true);')
     s = once(s, '    private ImageView mHomeButton;', """    private ImageView mHomeButton;
-    private @Nullable org.chromium.chrome.browser.tab.Tab mSandiumObservedTab;
+    private org.chromium.chrome.browser.tab.@Nullable Tab mSandiumObservedTab;
     private final org.chromium.chrome.browser.tab.TabObserver mSandiumNavigationObserver =
             new org.chromium.chrome.browser.tab.TabObserver() {
                 @Override

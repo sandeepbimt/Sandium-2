@@ -107,6 +107,8 @@ assert 'onNavigationStateChanged()' in phone
 assert 'removeObserver(mSandiumNavigationObserver)' in phone
 assert 'findViewById(R.id.sandium_shields_row)' in phone
 assert 'mToolbarButtonsContainer.getChildAt(0)' not in phone
+assert '@Nullable org.chromium.chrome.browser.tab.Tab' not in phone
+assert 'org.chromium.chrome.browser.tab.@Nullable Tab mSandiumObservedTab' in phone
 assert 'mHomeButton.setAlpha' not in phone
 assert 'setHasSpaceToShow(true)' in phone
 brave=m.brave((a.core/m.BRAVE).read_text())

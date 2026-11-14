@@ -51,6 +51,8 @@ def run(audit, chromium, repo):
         assert 'if (isRemovedBySandium(resources, menuItemId)' in custom
         assert 'SandiumMenuMetadata.record' in custom
         java = (src / patch.INTERNAL / ('java/src/' + patch.PACKAGE + 'AppMenu.java')).read_text()
+        assert '@Nullable org.chromium.ui.modelutil.MVCListAdapter.ModelList' not in java
+        assert java.count('org.chromium.ui.modelutil.MVCListAdapter.@Nullable ModelList') == 2
         assert java.index('contentView = menu;') < java.index('popup.setContentView(contentView);')
         assert 'smallestScreenWidthDp < 600' in java
         assert 'popup.update(x, visibleDisplayFrame.bottom - inset - nextHeight' in java

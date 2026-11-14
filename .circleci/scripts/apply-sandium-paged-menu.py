@@ -25,9 +25,9 @@ def once(text, old, new):
 def appmenu(text):
     if 'SANDIUM_PAGED_MENU_V1' in text and 'menu.setNativeDrillDown(' not in text:
         raise ValueError('Older unpublished menu draft detected; restore pinned AppMenu.java before applying this revision')
-    text = once(text, '    private @Nullable Context mContext;', '''    private @Nullable org.chromium.ui.modelutil.MVCListAdapter.ModelList mSandiumModels;
+    text = once(text, '    private @Nullable Context mContext;', '''    private org.chromium.ui.modelutil.MVCListAdapter.@Nullable ModelList mSandiumModels;
     private @Nullable SandiumPagedMenu mSandiumMenu;
-    void setSandiumModels(@Nullable org.chromium.ui.modelutil.MVCListAdapter.ModelList models) {
+    void setSandiumModels(org.chromium.ui.modelutil.MVCListAdapter.@Nullable ModelList models) {
         mSandiumModels = models;
     }
     private @Nullable Context mContext;''')
