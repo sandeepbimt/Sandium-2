@@ -23,7 +23,7 @@ class Audit(unittest.TestCase):
     z.writestr('classes.dex',dex(['Lretained/Core;'],[0]));z.writestr('classes2.dex',dex(['Lorg/chromium/chrome/browser/vpn/Impl;'],[0]))
    with self.assertRaisesRegex(ValueError,'implementations remain'):m.audit(p)
  def test_actual_leo_package_rejected(self):
-  for name in ['Lorg/chromium/chrome/browser/brave_leo/BraveLeoUtils;', 'Lorg/chromium/chrome/browser/settings/BraveLeoPreferences;']:
+  for name in ['Lorg/chromium/chrome/browser/brave_leo/BraveLeoUtils;', 'Lorg/chromium/chrome/browser/settings/BraveLeoPreferences;', 'Lorg/chromium/chrome/browser/ntp/SponsoredRichMediaWebView;', 'Lorg/chromium/chrome/browser/ntp/NewTabTakeoverSafeAreaReporter;']:
    with self.subTest(name=name), tempfile.TemporaryDirectory() as td:
     p=Path(td)/'a.apk'
     with zipfile.ZipFile(p,'w') as z:z.writestr('classes.dex',dex([name],[0]))

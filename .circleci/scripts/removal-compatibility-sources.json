@@ -1,0 +1,23 @@
+{
+  "schema": 1,
+  "purpose": "Exact pinned compatibility declarations. Does not permit engines or prove sponsored NTP removal.",
+  "files": {
+    "components/brave_ads/core/mojom/BUILD.gn": "5ee74af722969d61a499f8fb3b6b844fa9fe8cb3d36712cb00a08e6b03117f03",
+    "components/brave_ads/core/mojom/brave_ads.mojom": "fc56af5c243edc1b909189fcfef9190718e1bd7605b5d1a30373d077b89efe66",
+    "components/brave_news/common/BUILD.gn": "733d16861bd76172cc79e9e6899b55dc7e699d3b9df802e8a0769b18442ded4f",
+    "components/brave_news/common/brave_news.mojom": "ab31d50bd8ec4c29b31f7105d666dd4ce3ce357abdf1889dd103f26427547737",
+    "components/brave_rewards/core/mojom/BUILD.gn": "a0f064e0a8f9798240076b0e6e32e79a7942bd5163de7310abdfae821544cacf",
+    "components/brave_rewards/core/mojom/rewards.mojom": "7e57c4d200cbad6b6ebea25d4a390d904e6e36e8645191c806cd9459cf065646",
+    "components/brave_rewards/core/mojom/rewards_database.mojom": "33b556572cdc1d7e4e67b76fd3f91a0ded984dc912529178cedcf25d48862418",
+    "components/brave_rewards/core/mojom/rewards_page.mojom": "661726656532645b483b0da9f4ece6d520ad7506a13d9e44ca7e80ee11bb58eb",
+    "components/brave_vpn/common/mojom/BUILD.gn": "d18a3542c2fd89dde71da5a763d4e3844bf5f9b1f1ddde04203d6e4a720495e3",
+    "components/brave_vpn/common/mojom/brave_vpn.mojom": "b0a8f075100d7831958608e35e3afe20955b4e27d13b759ed037e54426a591d1",
+    "components/brave_ads/core/browser/service/BUILD.gn": "bf399dd243d7e689ea9b79cafa27316ec664dedcb782cdf0e1fb7cb17c423abc",
+    "components/brave_ads/core/browser/service/ads_service.cc": "045d9368028c02a60adbf90e08221de3550cb4fdf1dc6608bf1089e8310c2f6b",
+    "components/brave_ads/core/browser/service/ads_service.h": "46b0ca7a37510e31ecb9aa339f7bd07a8e5c042ddcd2df28587a1e16dc049781",
+    "components/brave_ads/core/browser/service/ads_service_callback.h": "5cdb1cfdf2576be7f97336fd22a05d72269a115a6407f948053b6f7ce8efa972",
+    "components/brave_ads/core/browser/service/ads_service_observer.h": "9511a9e17fcc48850f04b17b9a2708a8e6c5ab2dba028e7f2aea15ecf25e80ec",
+    "components/services/bat_ads/public/interfaces/BUILD.gn": "3d433b2f0415389b3245b0b2ecfe3272eaa98a70669558b03198c9fb6fa3b0f2",
+    "components/services/bat_ads/public/interfaces/bat_ads.mojom": "e0a88790b2487f92e86259b115f3889ce9477f614208409291620e11d26774d4"
+  }
+}

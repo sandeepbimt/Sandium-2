@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Inspect actual DEX class definitions, not incidental string references.
-This proves listed feature implementations are absent from DEX, not runtime/network
+This checks listed class names in DEX, not obfuscated-name equivalence, runtime/network
 behavior or native absence. Native dependency closure is a separate mandatory gate.
 """
 import argparse,json,struct,zipfile
@@ -11,7 +11,7 @@ PREFIXES={
  'playlist':['Lorg/chromium/chrome/browser/playlist/'],
  'leo':['Lorg/chromium/chrome/browser/ai_chat/','Lorg/chromium/chrome/browser/leo/','Lorg/chromium/chrome/browser/brave_leo/','Lorg/chromium/chrome/browser/settings/BraveLeo','Lorg/chromium/chrome/browser/toolbar/adaptive/BraveLeo','Lorg/chromium/chrome/browser/omnibox/BraveLeo','Lorg/chromium/chrome/browser/omnibox/suggestions/BraveLeo'],
  'news':['Lorg/chromium/chrome/browser/brave_news/','Lorg/chromium/chrome/browser/settings/BraveNews'],
- 'rewards_ads':['Lorg/chromium/chrome/browser/rewards/','Lorg/chromium/chrome/browser/ads/'],
+ 'rewards_ads':['Lorg/chromium/chrome/browser/rewards/','Lorg/chromium/chrome/browser/ads/','Lorg/chromium/chrome/browser/ntp/SponsoredRichMediaWebView','Lorg/chromium/chrome/browser/ntp/BraveNewTabTakeoverInfobar','Lorg/chromium/chrome/browser/ntp/NewTabTakeoverSafeAreaReporter'],
 }
 def u32(d,n):return struct.unpack_from('<I',d,n)[0]
 def dex_classes(d):

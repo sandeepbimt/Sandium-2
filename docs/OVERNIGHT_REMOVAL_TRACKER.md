@@ -76,3 +76,30 @@ DEX prefix checks alone cannot establish absence of R8-obfuscated implementation
 ### Bounded continuation budget
 
 The next candidate uses a shared job-start-based save policy in compilation and capture: 300 seconds only for a validated ordinary delta chain with no seven-layer rollup or expiry/base refresh due through the entire remaining one-hour horizon; otherwise 600 seconds. The 900-second capture allowance and 60-second graceful shutdown remain. An explicit 180 seconds is reserved for post-build export/audit and artifact work, within the 55-minute internal deadline and five-minute hard-limit cushion. This is a bounded allowance, not a guarantee that an unusually large artifact upload fits; publication-last preserves the previous accepted head if the new increment cannot be saved. Source setup or GN exceeding the build cutoff still fails closed rather than spending checkpoint reserves.
+
+## Native graph audit refinement after #1098
+
+GN generation succeeded. The strict graph gate exposed remaining shared protocol
+bindings and the abstract Ads interface, not the excluded Ads/Rewards engines.
+The audit now permits only enumerated generated target variants backed by the
+hash-pinned input manifest `removal-compatibility-sources.json`. Any source drift
+or unlisted target still fails. This includes News/Rewards/VPN shared protocol
+schemas and Ads value/callback types required by surviving NTP consumers.
+`AdsService` here is only constructor/destructor/observer interface plumbing;
+`AdsServiceImpl`, engine, model, targeting and delivery targets remain forbidden.
+This is retained compatibility code, not a claim that every feature-named byte
+has been removed. Native build, APK and runtime evidence remain pending.
+
+The separate NTP sponsored-content implementation found during review must be
+removed or documented as remaining before claiming Rewards/Ads complete. Merely
+allowing interface target names does not prove sponsored-content removal.
+
+### Sponsored NTP follow-up candidate
+The paired NTP transforms now compile-exclude sponsored component installers,
+static/dynamic/site URL loaders, the Android takeover WebUI resource pack and
+rich-media Java classes. Shared NTP services retain regular/custom wallpaper
+behavior while sponsor parsing, update scheduling, ad requests, ad events and
+sponsor timers are removed from their method bodies. Legacy value declarations
+and empty callbacks remain for compatibility. Native graph and DEX gates also
+check these extra implementations. This is source/fixture-verified only until
+native compilation and actual artifact checks pass; no runtime success claimed.

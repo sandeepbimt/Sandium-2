@@ -59,6 +59,7 @@
     "android/java/org/chromium/chrome/browser/ntp/BraveNtpAdapter.java",
     "android/java/org/chromium/chrome/browser/ntp/IncognitoNewTabPageView.java",
     "android/java/org/chromium/chrome/browser/ntp/OnBraveNtpListener.java",
+    "android/java/org/chromium/chrome/browser/ntp_background_images/NTPBackgroundImagesBridge.java",
     "android/java/org/chromium/chrome/browser/ntp_background_images/model/Wallpaper.java",
     "android/java/org/chromium/chrome/browser/omnibox/suggestions/BraveAutocompleteMediator.java",
     "android/java/org/chromium/chrome/browser/onboarding/OnboardingPrefManager.java",
@@ -90,6 +91,7 @@
     "browser/brave_browser_main_extra_parts.cc",
     "browser/brave_browser_process_impl.cc",
     "browser/brave_browser_process_impl.h",
+    "browser/brave_content_browser_client.cc",
     "browser/brave_local_state_prefs.cc",
     "browser/brave_profile_prefs.cc",
     "browser/brave_stats/BUILD.gn",
@@ -99,6 +101,10 @@
     "browser/first_run/android/BUILD.gn",
     "browser/first_run/android/java/src/org/chromium/chrome/browser/firstrun/OnboardingStepAdapter.java",
     "browser/first_run/android/javatests/src/org/chromium/chrome/browser/firstrun/OnboardingStepAdapterTest.java",
+    "browser/ntp_background/android/BUILD.gn",
+    "browser/ntp_background/android/ntp_background_images_bridge.cc",
+    "browser/ntp_background/android/ntp_background_images_bridge.h",
+    "browser/ntp_background/view_counter_service_factory.cc",
     "browser/sources.gni",
     "browser/ui/BUILD.gn",
     "browser/ui/android/omnibox/BUILD.gn",
@@ -109,10 +115,24 @@
     "build/android/config.gni",
     "chromium_src/chrome/browser/component_updater/registration.cc",
     "chromium_src/chrome/browser/prefs/browser_prefs.cc",
+    "chromium_src/chrome/browser/ui/webui/chrome_web_ui_configs.cc",
     "components/minidump_uploader/sources.gni",
+    "components/ntp_background_images/browser/BUILD.gn",
+    "components/ntp_background_images/browser/ntp_background_images_service.cc",
+    "components/ntp_background_images/browser/ntp_background_images_service.h",
+    "components/ntp_background_images/browser/sponsored_content/new_tab_takeover/dynamic/ntp_dynamic_new_tab_takeover_ad_event_handler.cc",
+    "components/ntp_background_images/browser/sponsored_content/new_tab_takeover/dynamic/ntp_dynamic_new_tab_takeover_ad_event_handler.h",
+    "components/ntp_background_images/browser/sponsored_content/new_tab_takeover/new_tab_takeover_infobar_util.cc",
+    "components/ntp_background_images/browser/sponsored_content/new_tab_takeover/ntp_sponsored_content_data.cc",
+    "components/ntp_background_images/browser/sponsored_content/site/ntp_sponsored_sites_data.cc",
+    "components/ntp_background_images/browser/view_counter_model.cc",
+    "components/ntp_background_images/browser/view_counter_model.h",
+    "components/ntp_background_images/browser/view_counter_service.cc",
+    "components/ntp_background_images/browser/view_counter_service.h",
     "components/p3a/BUILD.gn",
     "components/p3a/p3a_service.h",
     "components/playlist/core/common/buildflags/buildflags.gni",
+    "components/resources/BUILD.gn",
     "renderer/brave_content_renderer_client.cc",
     "renderer/sources.gni"
   ],
@@ -188,6 +208,20 @@
         "{src}",
         "--include-p3a",
         "--include-crash-upload"
+      ]
+    },
+    {
+      "script": ".circleci/scripts/apply-sandium-ntp-sponsored-removal.py",
+      "args": [
+        "--core",
+        "{core}"
+      ]
+    },
+    {
+      "script": ".circleci/scripts/apply-sandium-ntp-consumers.py",
+      "args": [
+        "--core",
+        "{core}"
       ]
     }
   ],

@@ -1,0 +1,17 @@
+{
+  "core": [
+    "components/ntp_background_images/browser/ntp_background_images_service.cc",
+    "components/ntp_background_images/browser/view_counter_service.cc",
+    "components/ntp_background_images/browser/BUILD.gn",
+    "browser/ntp_background/view_counter_service_factory.cc",
+    "components/ntp_background_images/browser/ntp_background_images_service.h",
+    "components/ntp_background_images/browser/view_counter_service.h",
+    "components/ntp_background_images/browser/sponsored_content/new_tab_takeover/ntp_sponsored_content_data.cc",
+    "components/ntp_background_images/browser/sponsored_content/site/ntp_sponsored_sites_data.cc",
+    "components/ntp_background_images/browser/sponsored_content/new_tab_takeover/dynamic/ntp_dynamic_new_tab_takeover_ad_event_handler.cc",
+    "components/ntp_background_images/browser/sponsored_content/new_tab_takeover/dynamic/ntp_dynamic_new_tab_takeover_ad_event_handler.h",
+    "components/ntp_background_images/browser/sponsored_content/new_tab_takeover/new_tab_takeover_infobar_util.cc",
+    "components/ntp_background_images/browser/view_counter_model.cc",
+    "components/ntp_background_images/browser/view_counter_model.h"
+  ]
+}
