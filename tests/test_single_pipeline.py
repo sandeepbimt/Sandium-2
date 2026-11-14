@@ -18,7 +18,11 @@ from checkpoint import scan
 class SinglePipeline(unittest.TestCase):
     def test_complete_config_is_one_mode_and_noncanonical(self):
         config = yaml.safe_load((ROOT / '.circleci/config.yml').read_text())
-        self.assertEqual(list(config['workflows']), ['sandium-flow'])
+        self.assertEqual(list(config['workflows']), ['sandium-flow', 'sandium-graph-precheck'])
+        # Diagnostic graph checking is not a second APK build mode.
+        diagnostic=json.dumps(config['jobs']['sandium-graph-precheck'])
+        self.assertNotIn('bounded-build.sh',diagnostic)
+        self.assertNotIn('save_cache',diagnostic)
         self.assertNotIn('sandium_build_mode', config['parameters'])
         self.assertFalse(config['parameters']['run_experiment']['default'])
         self.assertFalse(config['parameters']['publication_reviewed']['default'])

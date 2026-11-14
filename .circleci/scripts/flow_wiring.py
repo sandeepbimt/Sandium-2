@@ -10,7 +10,7 @@ import shlex
 
 ORDER = [f'product-overlay-{i}-0.sh' for i in range(24,31)] + ['graph-validation.sh','remote-smoke.sh','bounded-build.sh']
 REQUIRED = {
- 'product-overlay-30-0.sh': ['test-sandium-removal-composition.py','sandium-removal-recipe.py','audit-sandium-removal-graph.py','audit-sandium-low-coupling.py','audit-sandium-leo-removal.py'],
+ 'product-overlay-30-0.sh': ['test-sandium-removal-composition.py','sandium-removal-recipe.py','precheck-graph.py'],
  'product-overlay-24-0.sh': ['apply-sandium-branding.sh'],
  'product-overlay-25-0.sh': ['apply-sandium-adblock-engine-race.py','apply-sandium-filter-subscriptions.py','apply-sandium-filter-bootstrap.py'],
  'product-overlay-26-0.sh': ['apply-sandium-page-transition-full.py'],
@@ -77,6 +77,7 @@ def verify_flow_wiring(repo):
         for name in names:
             if not (repo/('.circleci/tests' if name == 'test_status_underlap_patch.py' else '.circleci/scripts')/name).is_file():raise ValueError(f'Missing invoked script {name}')
         if names!=expected:raise ValueError(f'{wrapper}: actual apply/test command sequence differs: {names}')
+        if wrapper=='product-overlay-30-0.sh' and invocations[-1][1] != ['--audits-only']:raise ValueError('Aggregated audits must not repeat preparation')
         if wrapper=='product-overlay-25-0.sh' and '--reset-shared' not in invocations[0][1]:raise ValueError('Shared reset must precede feature consumers')
         if wrapper=='product-overlay-29-0.sh':
             for name,args in invocations[:2]:

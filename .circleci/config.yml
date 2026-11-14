@@ -1,5 +1,11 @@
 version: 2.1
 parameters:
+  precheck_compile_seconds:
+    type: integer
+    default: 0
+  run_graph_precheck:
+    type: boolean
+    default: false
   run_experiment:
     type: boolean
     default: false
@@ -1096,6 +1102,183 @@ jobs:
     - run:
         name: Require honest completion or resumable stage
         command: python3 -u .circleci/bridge/driver.py final
+  sandium-graph-precheck:
+    machine:
+      image: ubuntu-2404:current
+    resource_class: large
+    retention:
+      caches: 15d
+    environment:
+      SANDIUM_PRECHECK_COMPILE_SECONDS: << pipeline.parameters.precheck_compile_seconds >>
+      SANDIUM_STAGE: '1'
+      SANDIUM_PIPELINE_NUMBER: << pipeline.number >>
+      SANDIUM_EXPERIMENT_SCOPE: << pipeline.parameters.experiment_namespace >>
+      SANDIUM_EXPERIMENT_REVIEWED: << pipeline.parameters.publication_reviewed >>
+      SANDIUM_ALLOW_SEED_IMPORT: << pipeline.parameters.allow_seed_import >>
+      SISO_LIMITS: local=8,remote=80
+    steps:
+    - checkout
+    - run:
+        name: Require explicit experimental review
+        command: python3 -u .circleci/bridge/driver.py gate
+    - run:
+        name: Ensure legacy shard extraction tools on each fresh machine
+        command: bash .circleci/scripts/ensure-flow-tools.sh --with-test-tools
+    - run:
+        name: Test diagnostic wiring and safety before expensive restore
+        command: /usr/bin/python3 -m unittest discover -s tests -p "test_*.py"
+    - restore_cache:
+        name: Restore latest accepted experimental head only
+        keys:
+        - sandium-experimental-head-v1-{{ checksum ".checkpoint-state/scope-key" }}-
+    - run:
+        name: Select exact checkpoint for independent graph precheck
+        command: python3 -u .circleci/bridge/driver.py precheck-select
+    - restore_cache:
+        name: Restore exact unchanged legacy base
+        keys:
+        - sandium-bridge-base-v1-{{ checksum ".checkpoint-state/base.key" }}
+    - run:
+        name: Clear incoming payload 0
+        command: rm -rf .checkpoint-incoming
+    - restore_cache:
+        name: Restore exact required layer 0
+        keys:
+        - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-0.key" }}
+    - run:
+        name: Verify and ingest required layer 0
+        command: python3 -u .circleci/bridge/driver.py ingest --slot 0
+    - run:
+        name: Clear incoming payload 1
+        command: rm -rf .checkpoint-incoming
+    - restore_cache:
+        name: Restore exact required layer 1
+        keys:
+        - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-1.key" }}
+    - run:
+        name: Verify and ingest required layer 1
+        command: python3 -u .circleci/bridge/driver.py ingest --slot 1
+    - run:
+        name: Clear incoming payload 2
+        command: rm -rf .checkpoint-incoming
+    - restore_cache:
+        name: Restore exact required layer 2
+        keys:
+        - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-2.key" }}
+    - run:
+        name: Verify and ingest required layer 2
+        command: python3 -u .circleci/bridge/driver.py ingest --slot 2
+    - run:
+        name: Clear incoming payload 3
+        command: rm -rf .checkpoint-incoming
+    - restore_cache:
+        name: Restore exact required layer 3
+        keys:
+        - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-3.key" }}
+    - run:
+        name: Verify and ingest required layer 3
+        command: python3 -u .circleci/bridge/driver.py ingest --slot 3
+    - run:
+        name: Clear incoming payload 4
+        command: rm -rf .checkpoint-incoming
+    - restore_cache:
+        name: Restore exact required layer 4
+        keys:
+        - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-4.key" }}
+    - run:
+        name: Verify and ingest required layer 4
+        command: python3 -u .circleci/bridge/driver.py ingest --slot 4
+    - run:
+        name: Clear incoming payload 5
+        command: rm -rf .checkpoint-incoming
+    - restore_cache:
+        name: Restore exact required layer 5
+        keys:
+        - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-5.key" }}
+    - run:
+        name: Verify and ingest required layer 5
+        command: python3 -u .circleci/bridge/driver.py ingest --slot 5
+    - run:
+        name: Clear incoming payload 6
+        command: rm -rf .checkpoint-incoming
+    - restore_cache:
+        name: Restore exact required layer 6
+        keys:
+        - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-6.key" }}
+    - run:
+        name: Verify and ingest required layer 6
+        command: python3 -u .circleci/bridge/driver.py ingest --slot 6
+    - run:
+        name: Clear incoming payload 7
+        command: rm -rf .checkpoint-incoming
+    - restore_cache:
+        name: Restore exact required layer 7
+        keys:
+        - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-7.key" }}
+    - run:
+        name: Verify and ingest required layer 7
+        command: python3 -u .circleci/bridge/driver.py ingest --slot 7
+    - run:
+        name: Reconstruct complete base plus all accepted deltas
+        command: python3 -u .circleci/bridge/driver.py restore
+        no_output_timeout: 35m
+    - run:
+        name: Configure Siso BuildBuddy API-key credential helper
+        command: bash .circleci/experimental-steps/credential-helper.sh
+    - run:
+        name: Check crash-fix composition before real build
+        command: python3 tests/test_composition.py
+    - run:
+        name: Validate pinned reference and prepare single product recipe
+        command: 'export BRAVE_STAGE_INDEX="${SANDIUM_STAGE}"
+
+          bash .circleci/scripts/verify-flow-state.sh
+
+          bash .circleci/scripts/prepare-brave-source.sh'
+    - run:
+        name: Apply and verify Sandium branding refresh
+        command: bash .circleci/experimental-steps/product-overlay-24-0.sh
+    - run:
+        name: Apply Sandium first-launch native filter bootstrap
+        command: bash .circleci/experimental-steps/product-overlay-25-0.sh
+    - run:
+        name: Apply Sandium native page-transition controls and Appearance icons
+        command: bash .circleci/experimental-steps/product-overlay-26-0.sh
+    - run:
+        name: Apply Sandium welcome setup and first-successful-list adblock activation
+        command: bash .circleci/experimental-steps/product-overlay-27-0.sh
+    - run:
+        name: Apply Sandium two-state Shields controls and verify filter retirement
+        command: bash .circleci/experimental-steps/product-overlay-28-0.sh
+    - run:
+        name: Apply and verify Sandium UI pruning and preference defaults
+        command: bash .circleci/experimental-steps/product-overlay-29-0.sh
+    - run:
+        name: Compile-exclude and audit all thirteen Sandium removal groups
+        command: python3 .circleci/scripts/precheck-graph.py
+    - run:
+        name: Validate build graph and remote-execution settings
+        command: bash .circleci/experimental-steps/graph-validation.sh
+    - run:
+        name: Mark completed graph-only precheck
+        command: python3 .circleci/scripts/precheck-graph-result.py --success
+    - run:
+        name: Plan or optionally compile selected source owners and inspect packaging tools
+        command: >-
+          python3 .circleci/scripts/precheck-sandium-build.py
+          --src "$CIRCLE_WORKING_DIRECTORY/brave-work/src"
+          --out "$CIRCLE_WORKING_DIRECTORY/brave-work/src/out/android_Release_arm64"
+          --manifest .circleci/features/removal-recipe.json
+          --report-dir "$CIRCLE_WORKING_DIRECTORY/brave-apk/build-precheck"
+          --compile-seconds "$SANDIUM_PRECHECK_COMPILE_SECONDS"
+          --job-start "$CIRCLE_WORKING_DIRECTORY/.checkpoint-state/job-start.json"
+    - run:
+        name: Report honest graph-only precheck outcome
+        when: always
+        command: python3 .circleci/scripts/precheck-graph-result.py
+    - store_artifacts:
+        path: brave-apk
+        destination: graph-precheck
 job-groups:
   sandium-single-checkpoint-chain:
     jobs:
@@ -1117,7 +1300,15 @@ job-groups:
         - sandium-stage-4
 workflows:
   sandium-flow:
-    when: << pipeline.parameters.run_experiment >>
+    when:
+      and:
+      - << pipeline.parameters.run_experiment >>
+      - not: << pipeline.parameters.run_graph_precheck >>
     jobs:
     - sandium-single-checkpoint-chain:
+        serial-group: << pipeline.project.slug >>/sandium-single-experiment
+  sandium-graph-precheck:
+    when: << pipeline.parameters.run_graph_precheck >>
+    jobs:
+    - sandium-graph-precheck:
         serial-group: << pipeline.project.slug >>/sandium-single-experiment

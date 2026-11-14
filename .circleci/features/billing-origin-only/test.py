@@ -19,6 +19,22 @@ with tempfile.TemporaryDirectory() as d:
  for required in ['if (!isOriginProduct) return;', 'BillingClient.ProductType.INAPP', 'BraveOriginSubscriptionPrefs.setOriginPurchaseToken(', 'mPurchaseProfile, purchase.getPurchaseToken()', 'queryOriginProductDetailsAsync', 'consumeExistingOriginPurchase', 'initiatePurchaseInApp']:
   assert required in text,required
  assert '"link-order"' in (core/'android/java/org/chromium/chrome/browser/billing/LinkSubscriptionUtils.java').read_text()
+ # Native renderer preserves real Origin linking, but has no Leo/VPN product paths.
+ native=core/'components/brave_mobile_subscription/renderer/android'
+ cc=(native/'subscription_render_frame_observer.cc').read_text()
+ header=(native/'subscription_render_frame_observer.h').read_text()
+ gn=(native/'BUILD.gn').read_text()
+ for forbidden in ('ai_chat', 'kLeo', 'kVPN', 'braveLeo', 'braveVpn', 'enable_brave_vpn'):
+  assert forbidden not in cc+header+gn,forbidden
+ for required in ('base::FeatureList::IsEnabled(brave_origin::features::kBraveOrigin)',
+                  'origin_subscription_->GetPurchaseTokenOrderId',
+                  'origin_subscription_->SetLinkStatus',
+                  'skus::IsSafeOrigin(', '"braveOrigin.receipt"', '"braveOrigin.orderId"',
+                  'if (!IsAllowed())', 'if (!IsValueAllowed(purchase_token))'):
+  assert required in cc,required
+ assert 'enum class Product { kOrigin = 2 };' in header
+ assert 'mojo::Remote<brave_origin::mojom::OriginIAPSubscription>' in header
+ assert '"//brave/components/brave_origin/mojom"' in gn
  # Corrupt an expected replacement; fail closed before writing any other file.
  op=next(o for o in mod.OPS if len(o['new']) > 100)
  target=core/op['path'];target.write_text(target.read_text().replace(op['new'],'SOURCE_DRIFT_SENTINEL',1))

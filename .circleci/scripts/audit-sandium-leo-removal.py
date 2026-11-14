@@ -14,6 +14,9 @@ def violations(deps):
 def android(core):
  errors=[]
  registry={
+  'components/brave_mobile_subscription/renderer/android/BUILD.gn':('components/ai_chat/',),
+  'components/brave_mobile_subscription/renderer/android/subscription_render_frame_observer.h':('ai_chat', 'kLeo'),
+  'components/brave_mobile_subscription/renderer/android/subscription_render_frame_observer.cc':('ai_chat', 'kLeo', 'braveLeo'),
   'android/brave_java_sources.gni':('/brave_leo/','/BraveLeo'),
   'build/android/config.gni':('/brave_leo/','components/ai_chat/core/common/mojom:mojom_java'),
   'android/java/AndroidManifest.xml':('brave_leo.BraveLeoPlansActivity',),

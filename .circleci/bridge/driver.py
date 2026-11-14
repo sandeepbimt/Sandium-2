@@ -51,7 +51,7 @@ def gate():
         raise ValueError('Dedicated bridge namespace required')
 
 
-def select(seed=False):
+def select(seed=False, precheck=False):
     gate()
     if not HEAD.exists():
         if not seed or os.environ.get('SANDIUM_ALLOW_SEED_IMPORT')!='true':raise ValueError('No accepted bridge head')
@@ -59,7 +59,7 @@ def select(seed=False):
     receipt=c.read(HEAD);p=valid(receipt)
     if seed:c.halt();return
     stage=int(os.environ['SANDIUM_STAGE'])
-    if p['apk_verified'] and p['source']==os.environ['CIRCLE_SHA1']:c.halt();return
+    if not precheck and p['apk_verified'] and p['source']==os.environ['CIRCLE_SHA1']:c.halt();return
     if stage>1 and (p['workflow'],p['stage'],p['source'])!=(os.environ['CIRCLE_WORKFLOW_ID'],stage-1,os.environ['CIRCLE_SHA1']):
         raise ValueError('Exact prior stage receipt required')
     c.save(STATE/'selected.json',receipt)
@@ -168,5 +168,5 @@ if __name__=='__main__':
     # since per-file parent-side progress cannot observe its internal tar reads.
     stall=budget if args.phase in ('seed-capture','restore') else 300
     with Watchdog(budget,stall_seconds=stall):
-        {'gate':gate,'seed-select':lambda:select(True),'select':select,'seed-capture':seed_capture,'ingest':lambda:ingest(args.slot),
+        {'gate':gate,'seed-select':lambda:select(True),'select':select,'precheck-select':lambda:select(precheck=True),'seed-capture':seed_capture,'ingest':lambda:ingest(args.slot),
          'restore':restore,'verify-restored':verify_restored,'begin':begin,'capture':capture,'publish':c.publish,'final':c.final_gate}[args.phase]()

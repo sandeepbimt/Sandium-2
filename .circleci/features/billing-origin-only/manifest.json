@@ -4,6 +4,9 @@
   "touched_files": [
     "android/java/org/chromium/chrome/browser/app/BraveActivity.java",
     "android/java/org/chromium/chrome/browser/billing/InAppPurchaseWrapper.java",
-    "android/java/org/chromium/chrome/browser/billing/LinkSubscriptionUtils.java"
+    "android/java/org/chromium/chrome/browser/billing/LinkSubscriptionUtils.java",
+    "components/brave_mobile_subscription/renderer/android/BUILD.gn",
+    "components/brave_mobile_subscription/renderer/android/subscription_render_frame_observer.h",
+    "components/brave_mobile_subscription/renderer/android/subscription_render_frame_observer.cc"
   ]
 }

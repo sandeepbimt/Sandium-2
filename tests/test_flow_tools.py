@@ -52,9 +52,9 @@ class FlowTools(unittest.TestCase):
         for name,job in config['jobs'].items():
             commands=[s['run']['command'] for s in job['steps'] if isinstance(s,dict) and 'run' in s]
             setups=[c for c in commands if 'ensure-flow-tools.sh' in c]
-            self.assertEqual(setups,['bash .circleci/scripts/ensure-flow-tools.sh'+(' --with-test-tools' if name=='import-experimental-seed' else '')])
-            if name=='import-experimental-seed':
-                test=next(c for c in commands if 'tests/test_bridge_pipeline.py' in c)
+            self.assertEqual(setups,['bash .circleci/scripts/ensure-flow-tools.sh'+(' --with-test-tools' if name in ('import-experimental-seed','sandium-graph-precheck') else '')])
+            if name in ('import-experimental-seed','sandium-graph-precheck'):
+                test=next(c for c in commands if ('tests/test_bridge_pipeline.py' if name=='import-experimental-seed' else 'unittest discover') in c)
                 self.assertTrue(all(line.startswith('/usr/bin/python3 ') for line in test.splitlines()))
 
 if __name__=='__main__':unittest.main()
