@@ -264,6 +264,7 @@
     "android/java/org/chromium/chrome/browser/toolbar/top/BraveToolbarLayoutImpl.java",
     "android/java/org/chromium/chrome/browser/ui/BraveAdaptiveToolbarUiCoordinator.java",
     "android/java/org/chromium/chrome/browser/widget/quickactionsearchandbookmark/QuickActionSearchAndBookmarkWidgetProvider.java",
+    "android/java/res/layout/new_tab_page_incognito.xml",
     "android/java/res/layout/new_tab_page_layout.xml",
     "browser/android/BUILD.gn",
     "browser/android/brave_init_android.cc",
@@ -294,6 +295,7 @@
     "browser/first_run/android/java/res/layout/make_brave_better_landscape_content.xml",
     "browser/first_run/android/java/src/org/chromium/chrome/browser/firstrun/OnboardingStepAdapter.java",
     "browser/first_run/android/javatests/src/org/chromium/chrome/browser/firstrun/OnboardingStepAdapterTest.java",
+    "browser/notifications/BUILD.gn",
     "browser/ntp_background/android/BUILD.gn",
     "browser/ntp_background/android/ntp_background_images_bridge.cc",
     "browser/ntp_background/android/ntp_background_images_bridge.h",
@@ -331,8 +333,7 @@
     "components/playlist/core/common/buildflags/buildflags.gni",
     "components/resources/BUILD.gn",
     "renderer/brave_content_renderer_client.cc",
-    "renderer/sources.gni",
-    "browser/notifications/BUILD.gn"
+    "renderer/sources.gni"
   ],
   "chromium_restore": [
     "components/minidump_uploader/BUILD.gn",
@@ -427,6 +428,15 @@
       "args": [
         "--core",
         "{core}"
+      ]
+    },
+    {
+      "script": ".circleci/scripts/sync-sandium-removal-overlays.py",
+      "args": [
+        "--core",
+        "{core}",
+        "--src",
+        "{src}"
       ]
     }
   ],

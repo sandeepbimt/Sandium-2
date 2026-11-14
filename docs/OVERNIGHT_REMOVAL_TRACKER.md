@@ -120,3 +120,10 @@ then published its experimental head before the honest completion gate stopped
 successor jobs. No APK or runtime success is claimed. Regression checks cover
 ownership, hash drift, symlink refusal, retained files, and reset/replay; actual
 native compilation remains the authoritative next test.
+
+### #1122: final copied NTP resources and private-page VPN promotion
+
+- Real AAPT link failed after 2,125 completed actions: Chromium's copied normal NTP still referenced News icon/include removed from the Brave resource target; private NTP retained a hidden VPN promotional section referencing a deleted VPN drawable.
+- Remove the private-page VPN views, matching Java fields/bindings/tint/helper and dangling layout constraint. Keep the two ordinary private-browsing explanatory sections and their icons.
+- After the removal recipe, synchronize only the final two audited NTP XML overrides to their actual Chromium build inputs. Do not rerun global branding/preparation or restore removed product resources. Verify exact copies; reject unreviewed new copied-resource inputs.
+- Add reset coverage for private NTP XML, pinned fixture/idempotence/drift tests, and final-overlay composition coverage. Source/graph success still does not imply APK/runtime success; a real successor build remains necessary.

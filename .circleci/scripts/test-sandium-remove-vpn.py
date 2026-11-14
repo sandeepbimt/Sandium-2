@@ -26,6 +26,19 @@ class Tests(unittest.TestCase):
    self.assertNotIn('/browser/vpn/',out)
    self.assertNotIn('org.chromium.chrome.browser.vpn.',out)
    self.assertNotIn('com_wireguard_android',out)
+ def test_private_ntp_promotion_is_removed_not_hidden(self):
+  import xml.etree.ElementTree as ET
+  p='android/java/res/layout/new_tab_page_incognito.xml'
+  out=M['transform'](p,(FIX/p).read_text())
+  ET.fromstring(out)
+  self.assertNotRegex(out,r'product_vpn_layer_list|brave_new_tab_private_vpn|tv_third|iv_third|tv_try_vpn')
+  self.assertIn('brave_new_tab_private_visibility_description',out)
+  self.assertIn('layout_constraintBottom_toBottomOf="parent"',out)
+  java=M['JAVA']+'ntp/IncognitoNewTabPageView.java'
+  output=M['transform'](java,(FIX/java).read_text())
+  self.assertNotRegex(M['mask'](output),r'mVpn|iv_third|tv_third|tv_try_vpn')
+  self.assertIn('tintLayerListIcon(R.id.iv_second_icon, iconTint)',output)
+  with self.assertRaises(ValueError):M['transform'](p,(FIX/p).read_text().replace('@+id/tv_try_vpn','@+id/new_vpn'))
  def test_drift_fails_before_writes(self):
   with tempfile.TemporaryDirectory() as d:
    root=Path(d);shutil.copytree(FIX,root,dirs_exist_ok=True)

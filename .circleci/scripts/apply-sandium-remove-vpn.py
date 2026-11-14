@@ -5,7 +5,7 @@ Feature-local transforms run after normal Sandium overlays. No user-data deletio
 import argparse,re
 from pathlib import Path
 JAVA='android/java/org/chromium/chrome/browser/'
-FILES=[JAVA+x for x in ['app/BraveActivity.java','BraveApplicationImplBase.java','rate/RateUtils.java','ntp/IncognitoNewTabPageView.java','ntp/BraveIncognitoNewTabPage.java','settings/BraveMainPreferencesBase.java','tabbed_mode/BraveTabbedAppMenuPropertiesDelegate.java']]+['android/brave_java_sources.gni','build/android/config.gni','android/java/AndroidManifest.xml','android/BUILD.gn','android/java/brave-res/xml/brave_main_preferences.xml']
+FILES=[JAVA+x for x in ['app/BraveActivity.java','BraveApplicationImplBase.java','rate/RateUtils.java','ntp/IncognitoNewTabPageView.java','ntp/BraveIncognitoNewTabPage.java','settings/BraveMainPreferencesBase.java','tabbed_mode/BraveTabbedAppMenuPropertiesDelegate.java']]+['android/brave_java_sources.gni','build/android/config.gni','android/java/AndroidManifest.xml','android/BUILD.gn','android/java/brave-res/xml/brave_main_preferences.xml','android/java/res/layout/new_tab_page_incognito.xml']
 
 def mask(s):
     return re.sub(r'//[^\n]*|/\*.*?\*/|"(?:\\.|[^"\\])*"|\'(?:\\.|[^\'\\])*\'',lambda m:''.join('\n' if c=='\n' else ' ' for c in m[0]),s,flags=re.S)
@@ -51,8 +51,27 @@ def transform(path,s):
     elif path.endswith('/RateUtils.java'):
         s=s.replace('BraveVpnPrefUtils.isSubscriptionPurchase()\n                || ', '')
     elif path.endswith('/IncognitoNewTabPageView.java'):
-        for n in ['setVpnDisabledByPolicy','updateVpnSectionVisibility']:s=method(s,n)
-        # Layout remains hidden while other incognito view resources are audited.
+        for n in ['setVpnDisabledByPolicy','updateVpnSectionVisibility','setVpnSectionVisibility']:s=method(s,n)
+        s=re.sub(r'(?m)^    private (?:View|TextView|boolean) mVpn\w+;\n','',s)
+        s=re.sub(r'(?m)^        mVpn\w+ = findViewById\(R.id.\w+\);\n','',s)
+        s=s.replace('        // Hide by default, will be shown by setVpnDisabledByPolicy() if allowed\n','')
+        s=s.replace('        setVpnSectionVisibility(View.GONE);\n','')
+        s=s.replace('        tintLayerListIcon(R.id.iv_third_icon, iconTint);\n','')
+        if re.search(r'\b(?:mVpn\w*|setVpnSectionVisibility|iv_third_icon|tv_third_title|tv_third_description|tv_try_vpn)\b',mask(s)):
+            raise ValueError('Residual incognito VPN view dependency')
+    elif path.endswith('/new_tab_page_incognito.xml'):
+        marker='<!-- Sandium: VPN promotion removed from private NTP. -->'
+        if marker not in s:
+            for view in ('iv_third_icon','tv_third_title','tv_third_description','tv_try_vpn'):
+                pattern=r'        <(?:ImageView|TextView)\b(?=[^>]*android:id="@\+id/'+view+r'")[^>]*/>'
+                s,count=re.subn(pattern,'',s)
+                if count!=1:raise ValueError('Pinned VPN layout anchor changed: '+view)
+            anchor='                app:layout_constraintBottom_toTopOf="@+id/tv_third_title"\n'
+            if s.count(anchor)!=1:raise ValueError('Pinned VPN layout constraint changed')
+            s=s.replace(anchor,'                app:layout_constraintBottom_toBottomOf="parent"\n')
+            s=s.replace('</org.chromium.chrome.browser.ntp.IncognitoNewTabPageView>',marker+'\n</org.chromium.chrome.browser.ntp.IncognitoNewTabPageView>')
+        if re.search(r'product_vpn_layer_list|brave_new_tab_private_vpn|iv_third_icon|tv_third_title|tv_third_description|tv_try_vpn',s):
+            raise ValueError('Residual VPN XML promotion')
     elif path.endswith('/BraveIncognitoNewTabPage.java'):
         s=re.sub(r'(?m)^.*mIncognitoNewTabPageView.setVpnDisabledByPolicy.*\n','',s)
     elif path.endswith('/BraveMainPreferencesBase.java'):
