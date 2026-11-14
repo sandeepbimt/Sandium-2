@@ -17,6 +17,15 @@ class FullWiring(unittest.TestCase):
    self.assertIn('export-apk.sh',joined)
    self.assertIn('full-bounded-build.sh',joined)
    self.assertNotIn('archive-brave-workspace.sh archive',joined)
+ def test_shell_state_gate_uses_full_capacity_driver(self):
+  script=(ROOT/'.circleci/scripts/verify-flow-state.sh').read_text()
+  self.assertIn('"$ROOT/.circleci/bridge/full_driver.py" verify-restored',script)
+  self.assertNotIn('"$ROOT/.circleci/bridge/driver.py"',script)
+  # Each build stage reaches the same gate, not an obsolete seven-layer verifier.
+  cfg=yaml.safe_load((ROOT/'.circleci/config.yml').read_text())
+  for n in range(1,6):
+   commands='\n'.join(s['run']['command'] for s in cfg['jobs'][f'full-stage-{n}']['steps'] if isinstance(s,dict) and isinstance(s.get('run'),dict))
+   self.assertIn('verify-flow-state.sh',commands)
  def test_maintenance_separate_and_capacity(self):
   cfg=yaml.safe_load((ROOT/'.circleci/config.yml').read_text())
   for n in range(1,6):
