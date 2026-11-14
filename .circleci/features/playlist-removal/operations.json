@@ -1,0 +1,513 @@
+[
+  {
+    "path": "android/java/org/chromium/chrome/browser/app/BraveActivity.java",
+    "old": "import com.brave.playlist.util.ConstantUtils;\n",
+    "new": "",
+    "anchor": "import com.brave.playlist.util.ConstantUtils;\n",
+    "count": 1
+  },
+  {
+    "path": "android/java/org/chromium/chrome/browser/app/BraveActivity.java",
+    "old": "import com.brave.playlist.util.PlaylistPreferenceUtils;\n",
+    "new": "",
+    "anchor": "import com.brave.playlist.util.PlaylistPreferenceUtils;\n",
+    "count": 1
+  },
+  {
+    "path": "android/java/org/chromium/chrome/browser/app/BraveActivity.java",
+    "old": "import com.brave.playlist.util.PlaylistUtils;\n",
+    "new": "",
+    "anchor": "import com.brave.playlist.util.PlaylistUtils;\n",
+    "count": 1
+  },
+  {
+    "path": "android/java/org/chromium/chrome/browser/app/BraveActivity.java",
+    "old": "import org.chromium.chrome.browser.playlist.PlaylistHostActivity;\n",
+    "new": "",
+    "anchor": "import org.chromium.chrome.browser.playlist.PlaylistHostActivity;\n",
+    "count": 1
+  },
+  {
+    "path": "android/java/org/chromium/chrome/browser/app/BraveActivity.java",
+    "old": "import org.chromium.chrome.browser.playlist.settings.BravePlaylistPreferences;\n",
+    "new": "",
+    "anchor": "import org.chromium.chrome.browser.playlist.settings.BravePlaylistPreferences;\n",
+    "count": 1
+  },
+  {
+    "path": "android/java/org/chromium/chrome/browser/app/BraveActivity.java",
+    "old": "        } else if (id == R.id.brave_playlist_id) {\n            openPlaylist(true);\n        } else if (id == R.id.add_to_playlist_id) {\n            BraveToolbarLayoutImpl layout = getBraveToolbarLayout();\n            layout.addMediaToPlaylist();\n",
+    "new": "",
+    "anchor": "id == R.id.brave_playlist_id"
+  },
+  {
+    "path": "android/java/org/chromium/chrome/browser/app/BraveActivity.java",
+    "old": "    private void openPlaylist(boolean shouldHandlePlaylistActivity) {\n        if (!shouldHandlePlaylistActivity) mIsDeepLink = true;\n\n        if (ChromeSharedPreferences.getInstance()\n                .readBoolean(PlaylistPreferenceUtils.SHOULD_SHOW_PLAYLIST_ONBOARDING, true)) {\n            PlaylistUtils.openPlaylistMenuOnboardingActivity(BraveActivity.this);\n            ChromeSharedPreferences.getInstance()\n                    .writeBoolean(PlaylistPreferenceUtils.SHOULD_SHOW_PLAYLIST_ONBOARDING, false);\n        } else if (shouldHandlePlaylistActivity) {\n            openPlaylistActivity(BraveActivity.this, ConstantUtils.ALL_PLAYLIST);\n        }\n    }\n",
+    "new": "",
+    "anchor": "private void openPlaylist("
+  },
+  {
+    "path": "android/java/org/chromium/chrome/browser/app/BraveActivity.java",
+    "old": "    public void openPlaylistActivity(Context context, String playlistId) {\n        Intent playlistActivityIntent = new Intent(context, PlaylistHostActivity.class);\n        playlistActivityIntent.putExtra(ConstantUtils.PLAYLIST_ID, playlistId);\n        playlistActivityIntent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);\n        playlistActivityIntent.setAction(Intent.ACTION_VIEW);\n        context.startActivity(playlistActivityIntent);\n    }\n",
+    "new": "",
+    "anchor": "public void openPlaylistActivity("
+  },
+  {
+    "path": "android/java/org/chromium/chrome/browser/app/BraveActivity.java",
+    "old": "    public void openBravePlaylistSettings() {\n        SettingsNavigation settingsLauncher = SettingsNavigationFactory.createSettingsNavigation();\n        settingsLauncher.startSettings(this, BravePlaylistPreferences.class);\n    }\n",
+    "new": "",
+    "anchor": "public void openBravePlaylistSettings("
+  },
+  {
+    "path": "android/java/org/chromium/chrome/browser/app/BraveActivity.java",
+    "old": "        if (ChromeSharedPreferences.getInstance()\n                .readBoolean(BravePreferenceKeys.BRAVE_DEFERRED_DEEPLINK_PLAYLIST, false)) {\n            ChromeSharedPreferences.getInstance()\n                    .writeBoolean(BravePreferenceKeys.BRAVE_DEFERRED_DEEPLINK_PLAYLIST, false);\n            openPlaylist(false);\n        } else ",
+    "new": "        ",
+    "anchor": "BRAVE_DEFERRED_DEEPLINK_PLAYLIST"
+  },
+  {
+    "path": "android/java/org/chromium/chrome/browser/app/BraveActivity.java",
+    "old": "&& (lastPathSegment.equalsIgnoreCase(BraveConstants.DEEPLINK_ANDROID_PLAYLIST)\n                            || lastPathSegment.equalsIgnoreCase(\n                                    BraveConstants.DEEPLINK_ANDROID_VPN))",
+    "new": "&& lastPathSegment.equalsIgnoreCase(BraveConstants.DEEPLINK_ANDROID_VPN)",
+    "anchor": "BraveConstants.DEEPLINK_ANDROID_PLAYLIST"
+  },
+  {
+    "path": "android/java/org/chromium/chrome/browser/toolbar/top/BraveToolbarLayoutImpl.java",
+    "old": "import com.brave.playlist.enums.PlaylistOptionsEnum;\n",
+    "new": "",
+    "anchor": "import com.brave.playlist.enums.PlaylistOptionsEnum;\n",
+    "count": 1
+  },
+  {
+    "path": "android/java/org/chromium/chrome/browser/toolbar/top/BraveToolbarLayoutImpl.java",
+    "old": "import com.brave.playlist.listener.PlaylistOnboardingActionClickListener;\n",
+    "new": "",
+    "anchor": "import com.brave.playlist.listener.PlaylistOnboardingActionClickListener;\n",
+    "count": 1
+  },
+  {
+    "path": "android/java/org/chromium/chrome/browser/toolbar/top/BraveToolbarLayoutImpl.java",
+    "old": "import com.brave.playlist.listener.PlaylistOptionsListener;\n",
+    "new": "",
+    "anchor": "import com.brave.playlist.listener.PlaylistOptionsListener;\n",
+    "count": 1
+  },
+  {
+    "path": "android/java/org/chromium/chrome/browser/toolbar/top/BraveToolbarLayoutImpl.java",
+    "old": "import com.brave.playlist.model.PlaylistOptionsModel;\n",
+    "new": "",
+    "anchor": "import com.brave.playlist.model.PlaylistOptionsModel;\n",
+    "count": 1
+  },
+  {
+    "path": "android/java/org/chromium/chrome/browser/toolbar/top/BraveToolbarLayoutImpl.java",
+    "old": "import com.brave.playlist.model.SnackBarActionModel;\n",
+    "new": "",
+    "anchor": "import com.brave.playlist.model.SnackBarActionModel;\n",
+    "count": 1
+  },
+  {
+    "path": "android/java/org/chromium/chrome/browser/toolbar/top/BraveToolbarLayoutImpl.java",
+    "old": "import com.brave.playlist.util.ConstantUtils;\n",
+    "new": "",
+    "anchor": "import com.brave.playlist.util.ConstantUtils;\n",
+    "count": 1
+  },
+  {
+    "path": "android/java/org/chromium/chrome/browser/toolbar/top/BraveToolbarLayoutImpl.java",
+    "old": "import com.brave.playlist.util.PlaylistViewUtils;\n",
+    "new": "",
+    "anchor": "import com.brave.playlist.util.PlaylistViewUtils;\n",
+    "count": 1
+  },
+  {
+    "path": "android/java/org/chromium/chrome/browser/toolbar/top/BraveToolbarLayoutImpl.java",
+    "old": "import org.chromium.chrome.browser.playlist.PlaylistServiceFactoryAndroid;\n",
+    "new": "",
+    "anchor": "import org.chromium.chrome.browser.playlist.PlaylistServiceFactoryAndroid;\n",
+    "count": 1
+  },
+  {
+    "path": "android/java/org/chromium/chrome/browser/toolbar/top/BraveToolbarLayoutImpl.java",
+    "old": "import org.chromium.chrome.browser.playlist.PlaylistServiceObserverImpl;\n",
+    "new": "",
+    "anchor": "import org.chromium.chrome.browser.playlist.PlaylistServiceObserverImpl;\n",
+    "count": 1
+  },
+  {
+    "path": "android/java/org/chromium/chrome/browser/toolbar/top/BraveToolbarLayoutImpl.java",
+    "old": "import org.chromium.chrome.browser.playlist.PlaylistServiceObserverImpl.PlaylistServiceObserverImplDelegate;\n",
+    "new": "",
+    "anchor": "import org.chromium.chrome.browser.playlist.PlaylistServiceObserverImpl.PlaylistServiceObserverImplDelegate;\n",
+    "count": 1
+  },
+  {
+    "path": "android/java/org/chromium/chrome/browser/toolbar/top/BraveToolbarLayoutImpl.java",
+    "old": "import org.chromium.mojo.bindings.ConnectionErrorHandler;\n",
+    "new": "",
+    "anchor": "import org.chromium.mojo.bindings.ConnectionErrorHandler;\n",
+    "count": 1
+  },
+  {
+    "path": "android/java/org/chromium/chrome/browser/toolbar/top/BraveToolbarLayoutImpl.java",
+    "old": "import org.chromium.mojo.system.MojoException;\n",
+    "new": "",
+    "anchor": "import org.chromium.mojo.system.MojoException;\n",
+    "count": 1
+  },
+  {
+    "path": "android/java/org/chromium/chrome/browser/toolbar/top/BraveToolbarLayoutImpl.java",
+    "old": "import org.chromium.playlist.mojom.PlaylistItem;\n",
+    "new": "",
+    "anchor": "import org.chromium.playlist.mojom.PlaylistItem;\n",
+    "count": 1
+  },
+  {
+    "path": "android/java/org/chromium/chrome/browser/toolbar/top/BraveToolbarLayoutImpl.java",
+    "old": "import org.chromium.playlist.mojom.PlaylistService;\n",
+    "new": "",
+    "anchor": "import org.chromium.playlist.mojom.PlaylistService;\n",
+    "count": 1
+  },
+  {
+    "path": "android/java/org/chromium/chrome/browser/toolbar/top/BraveToolbarLayoutImpl.java",
+    "old": "                BraveRewardsNativeWorker.PublisherObserver,\n                ConnectionErrorHandler,\n                PlaylistServiceObserverImplDelegate {",
+    "new": "                BraveRewardsNativeWorker.PublisherObserver {",
+    "anchor": "PlaylistServiceObserverImplDelegate {"
+  },
+  {
+    "path": "android/java/org/chromium/chrome/browser/toolbar/top/BraveToolbarLayoutImpl.java",
+    "old": "    public static boolean mShouldShowPlaylistMenu;\n",
+    "new": "",
+    "anchor": "    public static boolean mShouldShowPlaylistMenu;\n",
+    "count": 1
+  },
+  {
+    "path": "android/java/org/chromium/chrome/browser/toolbar/top/BraveToolbarLayoutImpl.java",
+    "old": "    private PlaylistServiceObserverImpl mPlaylistServiceObserver;\n",
+    "new": "",
+    "anchor": "    private PlaylistServiceObserverImpl mPlaylistServiceObserver;\n",
+    "count": 1
+  },
+  {
+    "path": "android/java/org/chromium/chrome/browser/toolbar/top/BraveToolbarLayoutImpl.java",
+    "old": "    private PlaylistService mPlaylistService;\n",
+    "new": "",
+    "anchor": "    private PlaylistService mPlaylistService;\n",
+    "count": 1
+  },
+  {
+    "path": "android/java/org/chromium/chrome/browser/toolbar/top/BraveToolbarLayoutImpl.java",
+    "old": "        if (mPlaylistService != null) {\n            mPlaylistService.close();\n        }\n",
+    "new": "",
+    "anchor": "if (mPlaylistService != null) {"
+  },
+  {
+    "path": "android/java/org/chromium/chrome/browser/toolbar/top/BraveToolbarLayoutImpl.java",
+    "old": "        if (mPlaylistServiceObserver != null) {\n            mPlaylistServiceObserver.close();\n            mPlaylistServiceObserver.destroy();\n            mPlaylistServiceObserver = null;\n        }\n",
+    "new": "",
+    "anchor": "if (mPlaylistServiceObserver != null) {"
+  },
+  {
+    "path": "android/java/org/chromium/chrome/browser/toolbar/top/BraveToolbarLayoutImpl.java",
+    "old": "    @Override\n    public void onConnectionError(MojoException e) {\n        if (isPlaylistEnabledByPrefsAndFlags()) {\n            mPlaylistService = null;\n            initPlaylistService();\n        }\n    }\n",
+    "new": "",
+    "anchor": "public void onConnectionError("
+  },
+  {
+    "path": "android/java/org/chromium/chrome/browser/toolbar/top/BraveToolbarLayoutImpl.java",
+    "old": "    private void initPlaylistService() {\n        Tab currentTab = getToolbarDataProvider().getTab();\n        if (mPlaylistService != null || currentTab == null) {\n            return;\n        }\n\n        if (currentTab.isIncognito()) {\n            return;\n        }\n\n        mPlaylistService =\n                PlaylistServiceFactoryAndroid.getInstance()\n                        .getPlaylistService(\n                                Profile.fromWebContents(currentTab.getWebContents()), this);\n    }\n",
+    "new": "",
+    "anchor": "private void initPlaylistService("
+  },
+  {
+    "path": "android/java/org/chromium/chrome/browser/toolbar/top/BraveToolbarLayoutImpl.java",
+    "old": "    private boolean isPlaylistEnabledByPrefsAndFlags() {\n        Tab currentTab = getToolbarDataProvider().getTab();\n        if (currentTab == null) {\n            return false;\n        }\n        return ChromeFeatureList.isEnabled(BraveFeatureList.BRAVE_PLAYLIST)\n                && ChromeSharedPreferences.getInstance()\n                        .readBoolean(BravePreferenceKeys.PREF_ENABLE_PLAYLIST, true)\n                && !currentTab.isIncognito();\n    }\n",
+    "new": "",
+    "anchor": "private boolean isPlaylistEnabledByPrefsAndFlags("
+  },
+  {
+    "path": "android/java/org/chromium/chrome/browser/toolbar/top/BraveToolbarLayoutImpl.java",
+    "old": "    private void hidePlaylistButton() {\n        mShouldShowPlaylistMenu = false;\n        try {\n            ViewGroup viewGroup =\n                    BraveActivity.getBraveActivity().getWindow().getDecorView().findViewById(\n                            android.R.id.content);\n            View playlistButton = viewGroup.findViewById(R.id.playlist_button_id);\n            if (playlistButton != null && playlistButton.getVisibility() == View.VISIBLE) {\n                playlistButton.setVisibility(View.GONE);\n            }\n        } catch (BraveActivity.BraveActivityNotFoundException e) {\n            Log.e(TAG, \"hidePlaylistButton \" + e);\n        }\n    }\n",
+    "new": "",
+    "anchor": "private void hidePlaylistButton("
+  },
+  {
+    "path": "android/java/org/chromium/chrome/browser/toolbar/top/BraveToolbarLayoutImpl.java",
+    "old": "    private boolean isPlaylistButtonVisible() {\n        try {\n            ViewGroup viewGroup =\n                    BraveActivity.getBraveActivity().getWindow().getDecorView().findViewById(\n                            android.R.id.content);\n            View playlistButton = viewGroup.findViewById(R.id.playlist_button_id);\n            return playlistButton != null && playlistButton.getVisibility() == View.VISIBLE;\n        } catch (BraveActivity.BraveActivityNotFoundException e) {\n            Log.e(TAG, \"isPlaylistButtonVisible \" + e);\n            return false;\n        }\n    }\n",
+    "new": "",
+    "anchor": "private boolean isPlaylistButtonVisible("
+  },
+  {
+    "path": "android/java/org/chromium/chrome/browser/toolbar/top/BraveToolbarLayoutImpl.java",
+    "old": "    private void findMediaFiles() {\n        if (mPlaylistService != null && isPlaylistEnabledByPrefsAndFlags()) {\n            hidePlaylistButton();\n            mPlaylistService.findMediaFilesFromActiveTab();\n        }\n    }\n",
+    "new": "",
+    "anchor": "private void findMediaFiles("
+  },
+  {
+    "path": "android/java/org/chromium/chrome/browser/toolbar/top/BraveToolbarLayoutImpl.java",
+    "old": "    private void showPlaylistButton(PlaylistItem[] items) {\n        try {\n            ViewGroup viewGroup =\n                    BraveActivity.getBraveActivity().getWindow().getDecorView().findViewById(\n                            android.R.id.content);\n\n            PlaylistOptionsListener playlistOptionsListener =\n                    new PlaylistOptionsListener() {\n                        @Override\n                        public void onPlaylistOptionClicked(\n                                PlaylistOptionsModel playlistOptionsModel) {\n                            try {\n                                if (playlistOptionsModel.getOptionType()\n                                        == PlaylistOptionsEnum.ADD_MEDIA) {\n                                    addMediaToPlaylist(items);\n                                } else if (playlistOptionsModel.getOptionType()\n                                        == PlaylistOptionsEnum.OPEN_PLAYLIST) {\n                                    BraveActivity.getBraveActivity()\n                                            .openPlaylistActivity(\n                                                    getContext(), ConstantUtils.DEFAULT_PLAYLIST);\n                                } else if (playlistOptionsModel.getOptionType()\n                                        == PlaylistOptionsEnum.PLAYLIST_SETTINGS) {\n                                    BraveActivity.getBraveActivity().openBravePlaylistSettings();\n                                }\n                            } catch (BraveActivity.BraveActivityNotFoundException e) {\n                                Log.e(TAG, \"showPlaylistButton onOptionClicked \" + e);\n                            }\n                        }\n                    };\n            if (!isPlaylistButtonVisible()) {\n                PlaylistOnboardingActionClickListener playlistOnboardingActionClickListener =\n                        new PlaylistOnboardingActionClickListener() {\n                            @Override\n                            public void onOnboardingActionClick() {\n                                addMediaToPlaylist(items);\n                            }\n                        };\n\n                PlaylistViewUtils.showPlaylistButton(\n                        BraveActivity.getBraveActivity(),\n                        viewGroup,\n                        playlistOptionsListener,\n                        playlistOnboardingActionClickListener);\n            }\n        } catch (BraveActivity.BraveActivityNotFoundException e) {\n            Log.e(TAG, \"showPlaylistButton \" + e);\n        }\n    }\n",
+    "new": "",
+    "anchor": "private void showPlaylistButton("
+  },
+  {
+    "path": "android/java/org/chromium/chrome/browser/toolbar/top/BraveToolbarLayoutImpl.java",
+    "old": "    private void addMediaToPlaylist(PlaylistItem[] items) {\n        if (mPlaylistService == null) {\n            return;\n        }\n        mPlaylistService.getPlaylist(\n                ConstantUtils.DEFAULT_PLAYLIST,\n                defaultPlaylist -> {\n                    Set<String> pageSources = new HashSet<String>();\n                    for (PlaylistItem defaultPlaylistItem : defaultPlaylist.items) {\n                        pageSources.add(defaultPlaylistItem.pageSource.url);\n                    }\n                    List<PlaylistItem> playlistItems = new ArrayList<>();\n                    for (PlaylistItem playlistItem : items) {\n                        // Check for duplicates in default playlist\n                        if (!pageSources.contains(playlistItem.pageSource.url)) {\n                            playlistItems.add(playlistItem);\n                        }\n                    }\n                    if (playlistItems.size() > 0) {\n                        mPlaylistService.addMediaFiles(\n                                playlistItems.toArray(new PlaylistItem[0]),\n                                ConstantUtils.DEFAULT_PLAYLIST,\n                                true,\n                                addedItems -> {\n                                    if (addedItems.length > 0) {\n                                        showAddedToPlaylistSnackBar();\n                                    }\n                                });\n                    } else {\n                        showAlreadyAddedToPlaylistSnackBar();\n                    }\n                });\n    }\n",
+    "new": "",
+    "anchor": "private void addMediaToPlaylist("
+  },
+  {
+    "path": "android/java/org/chromium/chrome/browser/toolbar/top/BraveToolbarLayoutImpl.java",
+    "old": "    public void addMediaToPlaylist() {\n        Tab currentTab = getToolbarDataProvider().getTab();\n        if (mPlaylistService == null || currentTab == null) {\n            return;\n        }\n        mPlaylistService.addMediaFilesFromActiveTabToPlaylist(\n                ConstantUtils.DEFAULT_PLAYLIST,\n                true,\n                addedItems -> {\n                    if (addedItems.length > 0) {\n                        showAddedToPlaylistSnackBar();\n                    }\n                });\n    }\n",
+    "new": "",
+    "anchor": "public void addMediaToPlaylist("
+  },
+  {
+    "path": "android/java/org/chromium/chrome/browser/toolbar/top/BraveToolbarLayoutImpl.java",
+    "old": "    private void showAddedToPlaylistSnackBar() {\n        SnackBarActionModel snackBarActionModel =\n                new SnackBarActionModel(\n                        getContext().getResources().getString(R.string.view_action),\n                        new View.OnClickListener() {\n                            @Override\n                            public void onClick(View v) {\n                                try {\n                                    BraveActivity.getBraveActivity()\n                                            .openPlaylistActivity(\n                                                    getContext(), ConstantUtils.DEFAULT_PLAYLIST);\n                                } catch (BraveActivity.BraveActivityNotFoundException e) {\n                                    Log.e(TAG, \"showAddedToPlaylistSnackBar onClick \", e);\n                                }\n                            }\n                        });\n        try {\n            ViewGroup viewGroup =\n                    BraveActivity.getBraveActivity().getWindow().getDecorView().findViewById(\n                            android.R.id.content);\n            String playlistName =\n                    getContext().getResources().getString(R.string.playlist_play_later);\n            PlaylistViewUtils.showSnackBarWithActions(\n                    viewGroup,\n                    String.format(\n                            getContext().getResources().getString(R.string.added_to_playlist),\n                            playlistName),\n                    snackBarActionModel);\n        } catch (BraveActivity.BraveActivityNotFoundException e) {\n            Log.e(TAG, \"showAddedToPlaylistSnackBar \", e);\n        }\n    }\n",
+    "new": "",
+    "anchor": "private void showAddedToPlaylistSnackBar("
+  },
+  {
+    "path": "android/java/org/chromium/chrome/browser/toolbar/top/BraveToolbarLayoutImpl.java",
+    "old": "    private void showAlreadyAddedToPlaylistSnackBar() {\n        SnackBarActionModel snackBarActionModel =\n                new SnackBarActionModel(\n                        getContext().getResources().getString(R.string.close_text),\n                        new View.OnClickListener() {\n                            @Override\n                            public void onClick(View v) {\n                                // Do nothing\n                            }\n                        });\n        try {\n            ViewGroup viewGroup =\n                    BraveActivity.getBraveActivity()\n                            .getWindow()\n                            .getDecorView()\n                            .findViewById(android.R.id.content);\n            PlaylistViewUtils.showSnackBarWithActions(\n                    viewGroup,\n                    getContext().getResources().getString(R.string.already_added_in_playlist),\n                    snackBarActionModel);\n        } catch (BraveActivity.BraveActivityNotFoundException e) {\n            Log.e(TAG, \"showAlreadyAddedToPlaylistSnackBar \" + e);\n        }\n    }\n",
+    "new": "",
+    "anchor": "private void showAlreadyAddedToPlaylistSnackBar("
+  },
+  {
+    "path": "android/java/org/chromium/chrome/browser/toolbar/top/BraveToolbarLayoutImpl.java",
+    "old": "    @Override\n    public void onMediaFilesUpdated(Url pageUrl, PlaylistItem[] playlistItems) {\n        Tab currentTab = getToolbarDataProvider().getTab();\n        if (currentTab == null || !pageUrl.url.equals(currentTab.getUrl().getSpec())) {\n            return;\n        }\n        if (playlistItems.length > 0 && !UrlUtilities.isNtpUrl(currentTab.getUrl().getSpec())) {\n            mShouldShowPlaylistMenu = true;\n            if (ChromeSharedPreferences.getInstance()\n                    .readBoolean(BravePreferenceKeys.PREF_ADD_TO_PLAYLIST_BUTTON, true)) {\n                showPlaylistButton(playlistItems);\n            }\n        }\n    }\n",
+    "new": "",
+    "anchor": "public void onMediaFilesUpdated("
+  },
+  {
+    "path": "android/java/org/chromium/chrome/browser/toolbar/top/BraveToolbarLayoutImpl.java",
+    "old": "        if (isPlaylistEnabledByPrefsAndFlags()) {\n            initPlaylistService();\n            mPlaylistServiceObserver = new PlaylistServiceObserverImpl(this);\n            mPlaylistService.addObserver(mPlaylistServiceObserver);\n        }\n",
+    "new": "",
+    "anchor": "if (isPlaylistEnabledByPrefsAndFlags()) {"
+  },
+  {
+    "path": "android/java/org/chromium/chrome/browser/toolbar/top/BraveToolbarLayoutImpl.java",
+    "old": "                        findMediaFiles();\n",
+    "new": "",
+    "anchor": "                        findMediaFiles();\n",
+    "count": 1
+  },
+  {
+    "path": "android/java/org/chromium/chrome/browser/toolbar/top/BraveToolbarLayoutImpl.java",
+    "old": "                        hidePlaylistButton();\n",
+    "new": "",
+    "anchor": "                        hidePlaylistButton();\n",
+    "count": 3
+  },
+  {
+    "path": "android/java/org/chromium/chrome/browser/tabbed_mode/BraveTabbedAppMenuPropertiesDelegate.java",
+    "old": "        if (ChromeFeatureList.isEnabled(BraveFeatureList.BRAVE_PLAYLIST)) {\n            modelList.add(buildBravePlaylistItem());\n            modelList.add(buildBraveAddToPlaylistItem());\n        }\n",
+    "new": "",
+    "anchor": "if (ChromeFeatureList.isEnabled(BraveFeatureList.BRAVE_PLAYLIST)"
+  },
+  {
+    "path": "android/java/org/chromium/chrome/browser/tabbed_mode/BraveTabbedAppMenuPropertiesDelegate.java",
+    "old": "        if (ChromeFeatureList.isEnabled(BraveFeatureList.BRAVE_PLAYLIST)\n                && ChromeSharedPreferences.getInstance()\n                        .readBoolean(BravePreferenceKeys.PREF_ENABLE_PLAYLIST, true)) {\n            addMenuItemAfter(\n                    modelList,\n                    buildBravePlaylistItem(),\n                    Arrays.asList(R.id.brave_wallet_id, R.id.all_bookmarks_menu_id));\n        }\n",
+    "new": "",
+    "anchor": "if (ChromeFeatureList.isEnabled(BraveFeatureList.BRAVE_PLAYLIST)"
+  },
+  {
+    "path": "android/java/org/chromium/chrome/browser/tabbed_mode/BraveTabbedAppMenuPropertiesDelegate.java",
+    "old": "        if (ChromeFeatureList.isEnabled(BraveFeatureList.BRAVE_PLAYLIST)\n                && ChromeSharedPreferences.getInstance()\n                        .readBoolean(BravePreferenceKeys.PREF_ENABLE_PLAYLIST, true)\n                && !ChromeSharedPreferences.getInstance()\n                        .readBoolean(BravePreferenceKeys.PREF_ADD_TO_PLAYLIST_BUTTON, true)\n                && BraveToolbarLayoutImpl.mShouldShowPlaylistMenu) {\n            addMenuItemAfter(\n                    modelList,\n                    buildBraveAddToPlaylistItem(),\n                    Arrays.asList(\n                            R.id.brave_playlist_id,\n                            R.id.brave_wallet_id,\n                            R.id.all_bookmarks_menu_id));\n        }\n",
+    "new": "",
+    "anchor": "if (ChromeFeatureList.isEnabled(BraveFeatureList.BRAVE_PLAYLIST)"
+  },
+  {
+    "path": "android/java/org/chromium/chrome/browser/tabbed_mode/BraveTabbedAppMenuPropertiesDelegate.java",
+    "old": "    private MVCListAdapter.ListItem buildBravePlaylistItem() {\n        return new MVCListAdapter.ListItem(\n                AppMenuHandler.AppMenuItemType.STANDARD,\n                AppMenuItemUtils.buildModelForStandardMenuItem(\n                        mContext,\n                        mAppMenuItemTheme,\n                        R.id.brave_playlist_id,\n                        R.string.brave_playlist,\n                        shouldShowIconBeforeItem() ? R.drawable.ic_product_playlist : 0,\n                        isMenuIconAtStart()));\n    }\n",
+    "new": "",
+    "anchor": "private MVCListAdapter.ListItem buildBravePlaylistItem("
+  },
+  {
+    "path": "android/java/org/chromium/chrome/browser/tabbed_mode/BraveTabbedAppMenuPropertiesDelegate.java",
+    "old": "    private MVCListAdapter.ListItem buildBraveAddToPlaylistItem() {\n        return new MVCListAdapter.ListItem(\n                AppMenuHandler.AppMenuItemType.STANDARD,\n                AppMenuItemUtils.buildModelForStandardMenuItem(\n                        mContext,\n                        mAppMenuItemTheme,\n                        R.id.add_to_playlist_id,\n                        R.string.playlist_add_to_playlist,\n                        shouldShowIconBeforeItem() ? R.drawable.ic_product_playlist_add : 0,\n                        isMenuIconAtStart()));\n    }\n",
+    "new": "",
+    "anchor": "private MVCListAdapter.ListItem buildBraveAddToPlaylistItem("
+  },
+  {
+    "path": "android/java/org/chromium/chrome/browser/settings/BraveMainPreferencesBase.java",
+    "old": "        if (!ChromeFeatureList.isEnabled(BraveFeatureList.BRAVE_PLAYLIST)) {\n            removePreferenceIfPresent(PREF_BRAVE_PLAYLIST);\n        }\n",
+    "new": "",
+    "anchor": "if (!ChromeFeatureList.isEnabled(BraveFeatureList.BRAVE_PLAYLIST))"
+  },
+  {
+    "path": "android/java/org/chromium/chrome/browser/settings/BraveMainPreferencesBase.java",
+    "old": "        if (ChromeFeatureList.isEnabled(BraveFeatureList.BRAVE_PLAYLIST)) {\n            setPreferenceOrder(PREF_BRAVE_PLAYLIST, ++featuresSectionOrder);\n        } else {\n            removePreferenceIfPresent(PREF_BRAVE_PLAYLIST);\n        }\n",
+    "new": "",
+    "anchor": "if (ChromeFeatureList.isEnabled(BraveFeatureList.BRAVE_PLAYLIST))"
+  },
+  {
+    "path": "android/brave_java_sources.gni",
+    "old": "import(\"//brave/android/java/org/chromium/chrome/browser/playlist/sources.gni\")\n",
+    "new": "",
+    "anchor": "import(\"//brave/android/java/org/chromium/chrome/browser/playlist/sources.gni\")\n",
+    "count": 1
+  },
+  {
+    "path": "android/brave_java_sources.gni",
+    "old": "  \"../../brave/android/java/org/chromium/chrome/browser/playlist/PlaylistHostActivity.java\",\n",
+    "new": "",
+    "anchor": "  \"../../brave/android/java/org/chromium/chrome/browser/playlist/PlaylistHostActivity.java\",\n",
+    "count": 1
+  },
+  {
+    "path": "android/brave_java_sources.gni",
+    "old": "  \"../../brave/android/java/org/chromium/chrome/browser/playlist/PlaylistServiceFactoryAndroid.java\",\n",
+    "new": "",
+    "anchor": "  \"../../brave/android/java/org/chromium/chrome/browser/playlist/PlaylistServiceFactoryAndroid.java\",\n",
+    "count": 1
+  },
+  {
+    "path": "android/brave_java_sources.gni",
+    "old": "  \"../../brave/android/java/org/chromium/chrome/browser/playlist/PlaylistServiceObserverImpl.java\",\n",
+    "new": "",
+    "anchor": "  \"../../brave/android/java/org/chromium/chrome/browser/playlist/PlaylistServiceObserverImpl.java\",\n",
+    "count": 1
+  },
+  {
+    "path": "android/brave_java_sources.gni",
+    "old": "  \"../../brave/android/java/org/chromium/chrome/browser/playlist/PlaylistStreamingObserverImpl.java\",\n",
+    "new": "",
+    "anchor": "  \"../../brave/android/java/org/chromium/chrome/browser/playlist/PlaylistStreamingObserverImpl.java\",\n",
+    "count": 1
+  },
+  {
+    "path": "android/brave_java_sources.gni",
+    "old": "  \"../../brave/android/java/org/chromium/chrome/browser/playlist/hls_content/HlsServiceImpl.java\",\n",
+    "new": "",
+    "anchor": "  \"../../brave/android/java/org/chromium/chrome/browser/playlist/hls_content/HlsServiceImpl.java\",\n",
+    "count": 1
+  },
+  {
+    "path": "android/brave_java_sources.gni",
+    "old": "  \"../../brave/android/java/org/chromium/chrome/browser/playlist/hls_content/HlsUtils.java\",\n",
+    "new": "",
+    "anchor": "  \"../../brave/android/java/org/chromium/chrome/browser/playlist/hls_content/HlsUtils.java\",\n",
+    "count": 1
+  },
+  {
+    "path": "android/brave_java_sources.gni",
+    "old": "  \"../../brave/android/java/org/chromium/chrome/browser/playlist/settings/BravePlaylistPreferences.java\",\n",
+    "new": "",
+    "anchor": "  \"../../brave/android/java/org/chromium/chrome/browser/playlist/settings/BravePlaylistPreferences.java\",\n",
+    "count": 1
+  },
+  {
+    "path": "android/brave_java_sources.gni",
+    "old": "  \"../../brave/android/java/org/chromium/chrome/browser/playlist/settings/BravePlaylistResetPreference.java\",\n",
+    "new": "",
+    "anchor": "  \"../../brave/android/java/org/chromium/chrome/browser/playlist/settings/BravePlaylistResetPreference.java\",\n",
+    "count": 1
+  },
+  {
+    "path": "android/brave_java_sources.gni",
+    "old": "  \"//brave/android/java/org/chromium/chrome/browser/playlist/hls_content/HlsService.java\",\n",
+    "new": "",
+    "anchor": "  \"//brave/android/java/org/chromium/chrome/browser/playlist/hls_content/HlsService.java\",\n",
+    "count": 1
+  },
+  {
+    "path": "build/android/config.gni",
+    "old": "import(\"//brave/android/java/org/chromium/chrome/browser/playlist/sources.gni\")\n",
+    "new": "",
+    "anchor": "import(\"//brave/android/java/org/chromium/chrome/browser/playlist/sources.gni\")\n",
+    "count": 1
+  },
+  {
+    "path": "build/android/config.gni",
+    "old": "  \"//brave/components/playlist/core/common/mojom:mojom_java\",\n",
+    "new": "",
+    "anchor": "  \"//brave/components/playlist/core/common/mojom:mojom_java\",\n",
+    "count": 1
+  },
+  {
+    "path": "build/android/config.gni",
+    "old": "brave_chrome_java_deps += brave_app_playlist_deps\n",
+    "new": "",
+    "anchor": "brave_chrome_java_deps += brave_app_playlist_deps\n",
+    "count": 1
+  },
+  {
+    "path": "build/android/config.gni",
+    "old": "  \"//brave/android/java/org/chromium/chrome/browser/playlist/PlaylistServiceFactoryAndroid.java\",\n",
+    "new": "",
+    "anchor": "  \"//brave/android/java/org/chromium/chrome/browser/playlist/PlaylistServiceFactoryAndroid.java\",\n",
+    "count": 1
+  },
+  {
+    "path": "android/BUILD.gn",
+    "old": "    \"java/brave-res/layout/activity_playlist_host.xml\",\n",
+    "new": "",
+    "anchor": "    \"java/brave-res/layout/activity_playlist_host.xml\",\n",
+    "count": 1
+  },
+  {
+    "path": "android/BUILD.gn",
+    "old": "    \"java/brave-res/xml/brave_playlist_preferences.xml\",\n",
+    "new": "",
+    "anchor": "    \"java/brave-res/xml/brave_playlist_preferences.xml\",\n",
+    "count": 1
+  },
+  {
+    "path": "components/playlist/core/common/buildflags/buildflags.gni",
+    "old": "assert(enable_playlist || !is_android,\n       \"enable_playlist=false is not supported on Android\")\n",
+    "new": "# Sandium Android removes Playlist Java, JNI, services and packaging separately.\n",
+    "anchor": "assert(enable_playlist || !is_android"
+  },
+  {
+    "path": "android/java/AndroidManifest.xml",
+    "old": "<activity\n    android:name=\"org.chromium.chrome.browser.customtabs.BraveAccountCustomTabActivity\"\n    android:configChanges=\"orientation|keyboardHidden|keyboard|screenSize|mcc|mnc|screenLayout|smallestScreenSize|uiMode|navigation\"\n    android:theme=\"@style/BraveAccountTheme\"\n    android:exported=\"false\"/>\n\n<activity\n    android:name=\"org.chromium.chrome.browser.customtabs.FullScreenCustomTabActivity\"\n    android:configChanges=\"orientation|keyboardHidden|keyboard|screenSize|mcc|mnc|screenLayout|smallestScreenSize|uiMode|navigation\"\n    android:theme=\"@style/BottomSheetActivityTheme\"\n    android:exported=\"false\"/>\n\n<!-- Onboarding notification -->\n<receiver android:name=\"org.chromium.chrome.browser.notifications.BraveOnboardingNotification\"\n    android:exported=\"false\">\n</receiver>\n<receiver android:name=\"org.chromium.chrome.browser.vpn.DisconnectVpnBroadcastReceiver\"\n    android:exported=\"false\">\n    <intent-filter>\n        <action android:name=\"disconnect_vpn\" />\n    </intent-filter>\n</receiver>\n\n<activity\n    android:name=\"org.chromium.chrome.browser.firstrun.WelcomeOnboardingActivity\"\n    android:theme=\"@style/Theme.Brave.WelcomeOnboarding\"/>\n\n<activity android:name=\"org.chromium.chrome.browser.crypto_wallet.activities.BraveWalletActivity\"\n    android:theme=\"@style/Theme.Chromium.Activity\" />\n\n<activity android:name=\"org.chromium.chrome.browser.crypto_wallet.activities.AddAccountActivity\"\n    android:theme=\"@style/Theme.Chromium.Activity\"/>\n\n<activity android:name=\"org.chromium.chrome.browser.crypto_wallet.activities.NetworkSelectorActivity\"\n    android:theme=\"@style/Theme.Chromium.Activity\" />\n\n<activity android:name=\"org.chromium.chrome.browser.crypto_wallet.activities.AccountSelectorActivity\"\n    android:theme=\"@style/Theme.Chromium.Activity\" />\n\n<activity android:name=\"org.chromium.chrome.browser.crypto_wallet.activities.AdvanceTxSettingActivity\"\n    android:theme=\"@style/Theme.Chromium.Activity\" />\n\n<activity android:name=\"org.chromium.chrome.browser.crypto_wallet.activities.BraveWalletDAppsActivity\"\n    android:theme=\"@style/Theme.Chromium.Activity.FakeTranslucent\" />\n\n<activity\n    android:name=\"org.chromium.chrome.browser.vpn.split_tunnel.SplitTunnelActivity\"\n    android:theme=\"@style/Theme.Chromium.Activity\"/>\n\n<activity\n    android:name=\"org.chromium.chrome.browser.vpn.activities.VpnPaywallActivity\"\n    android:theme=\"@style/Theme.Chromium.Activity\"\n    android:noHistory=\"true\"\n    android:launchMode=\"singleTask\" />\n\n<activity\n    android:name=\"org.chromium.chrome.browser.vpn.activities.BraveVpnProfileActivity\"\n    android:theme=\"@style/Theme.Brave.VpnProfile\"\n    android:noHistory=\"true\"\n    android:launchMode=\"singleTask\"\n    android:configChanges=\"orientation|keyboardHidden|screenSize\"/>\n\n<activity\n    android:name=\"org.chromium.chrome.browser.vpn.activities.VpnAlwaysOnActivity\"\n    android:theme=\"@style/Theme.Chromium.Activity\"\n    android:noHistory=\"true\"\n    android:launchMode=\"singleTask\"/>\n\n<activity\n    android:name=\"org.chromium.chrome.browser.vpn.activities.VpnServerSelectionActivity\"\n    android:theme=\"@style/Theme.Chromium.Activity\"\n    android:configChanges=\"orientation|keyboardHidden|screenSize\"/>\n\n<activity\n    android:name=\"org.chromium.chrome.browser.vpn.activities.VpnServerActivity\"\n    android:theme=\"@style/Theme.Chromium.Activity\"\n    android:configChanges=\"orientation|keyboardHidden|screenSize\"/>\n\n<activity\n    android:name=\"org.chromium.chrome.browser.vpn.activities.BraveVpnParentActivity\"\n    android:theme=\"@style/Theme.Chromium.Activity\"/>\n\n<activity\n    android:name=\"org.chromium.chrome.browser.vpn.activities.BraveVpnSupportActivity\"\n    android:theme=\"@style/Theme.Chromium.Activity\"/>\n\n<activity\n    android:name=\"org.chromium.chrome.browser.playlist.PlaylistHostActivity\"\n    android:theme=\"@style/Theme.Chromium.Activity.Fullscreen\"\n    android:configChanges=\"orientation|keyboardHidden|screenSize\"/>\n\n<activity android:name=\"org.chromium.chrome.browser.settings.BraveSettingsActivity\"\n    android:theme=\"@style/Theme.Chromium.Settings\"\n    android:configChanges=\"orientation|keyboardHidden|keyboard|screenSize|mcc|mnc|screenLayout|smallestScreenSize|uiMode\"\n    android:label=\"@string/settings\"\n    android:exported=\"false\">\n</activity>",
+    "new": "",
+    "anchor": "org.chromium.chrome.browser.customtabs.BraveAccountCustomTabActivity"
+  },
+  {
+    "path": "android/java/AndroidManifest.xml",
+    "old": "<activity\n    android:name=\"com.brave.playlist.activity.PlaylistMenuOnboardingActivity\"\n    android:exported=\"false\"\n    android:launchMode=\"singleTask\"\n    android:theme=\"@style/Theme.Chromium.Activity.Fullscreen\" />",
+    "new": "",
+    "anchor": "com.brave.playlist.activity.PlaylistMenuOnboardingActivity"
+  },
+  {
+    "path": "android/java/AndroidManifest.xml",
+    "old": "<service\n    android:name=\"org.chromium.chrome.browser.playlist.hls_content.HlsService\"\n    android:exported=\"false\">\n</service>",
+    "new": "",
+    "anchor": "org.chromium.chrome.browser.playlist.hls_content.HlsService"
+  },
+  {
+    "path": "android/java/AndroidManifest.xml",
+    "old": "<service\n    android:name=\"com.brave.playlist.playback_service.VideoPlaybackService\"\n    android:foregroundServiceType=\"mediaPlayback\"\n    android:exported=\"false\">\n    <intent-filter>\n        <action android:name=\"androidx.media3.session.MediaSessionService\"/>\n        <action android:name=\"android.media.browse.MediaBrowserService\"/>\n    </intent-filter>\n</service>",
+    "new": "",
+    "anchor": "com.brave.playlist.playback_service.VideoPlaybackService"
+  },
+  {
+    "path": "android/java/brave-res/xml/brave_main_preferences.xml",
+    "old": "<org.chromium.components.browser_ui.settings.ChromeBasePreference\n        android:fragment=\"org.chromium.chrome.browser.playlist.settings.BravePlaylistPreferences\"\n        android:key=\"brave_playlist\"\n        android:icon=\"@drawable/ic_open_playlist\"\n        android:order=\"4\"\n        android:title=\"@string/brave_playlist\"/>",
+    "new": "",
+    "anchor": "android:key=\"brave_playlist\""
+  },
+  {
+    "path": "browser/customize_menu/android/BUILD.gn",
+    "old": "    \"//brave/third_party/android_deps:com_brave_playlist_java\",\n",
+    "new": "",
+    "anchor": "    \"//brave/third_party/android_deps:com_brave_playlist_java\",\n",
+    "count": 1
+  },
+  {
+    "path": "browser/customize_menu/android/java/src/org/chromium/brave/browser/customize_menu/CustomizeBraveMenu.java",
+    "old": "        MENU_ICON_MAP.put(R.id.brave_playlist_id, R.drawable.ic_product_playlist);\n",
+    "new": "",
+    "anchor": "        MENU_ICON_MAP.put(R.id.brave_playlist_id, R.drawable.ic_product_playlist);\n",
+    "count": 1
+  },
+  {
+    "path": "browser/customize_menu/android/java/src/org/chromium/brave/browser/customize_menu/CustomizeBraveMenu.java",
+    "old": "        MENU_ICON_MAP.put(R.id.add_to_playlist_id, R.drawable.ic_product_playlist_add);\n",
+    "new": "",
+    "anchor": "        MENU_ICON_MAP.put(R.id.add_to_playlist_id, R.drawable.ic_product_playlist_add);\n",
+    "count": 1
+  }
+]

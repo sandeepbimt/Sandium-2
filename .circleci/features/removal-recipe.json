@@ -1,0 +1,195 @@
+{
+  "schema": 1,
+  "baseline": "104df3fefd98f22123296d05a2e6540518eb0b6e",
+  "brave_pin": "44a84b1f89d9a35287289d6a3d493e362f5a5123",
+  "chromium_pin": "d331de35ca8ab1358c7a17e4bd41627d55eaef51",
+  "groups": [
+    "Email aliases",
+    "Leo/AI Chat",
+    "News",
+    "Playlist",
+    "Rewards + Brave Ads",
+    "Speedreader",
+    "Talk",
+    "Tor",
+    "VPN",
+    "Wallet + Web3 domains",
+    "Wayback Machine",
+    "Web Discovery",
+    "Reporting: daily ping, crash uploads, P3A"
+  ],
+  "gn_args": {
+    "enable_playlist": false,
+    "enable_playlist_webui": false,
+    "enable_brave_news": false,
+    "enable_brave_wallet": false,
+    "enable_brave_rewards": false,
+    "enable_brave_ads": false,
+    "enable_brave_stats_updater": false,
+    "enable_brave_vpn_v1": false,
+    "enable_brave_vpn_v2": false,
+    "enable_brave_talk": false,
+    "enable_brave_wayback_machine": false,
+    "enable_speedreader": false,
+    "enable_tor": false,
+    "enable_web_discovery_native": false,
+    "enable_web_discovery": false,
+    "enable_ai_chat": false
+  },
+  "core_restore": [
+    "android/BUILD.gn",
+    "android/brave_java_sources.gni",
+    "android/java/AndroidManifest.xml",
+    "android/java/brave-res/layout/quick_action_search_and_bookmark_widget_layout.xml",
+    "android/java/brave-res/layout/widget_search_preview.xml",
+    "android/java/brave-res/xml/brave_main_preferences.xml",
+    "android/java/brave-res/xml/brave_privacy_preferences.xml",
+    "android/java/brave-res/xml/brave_search_engines_preferences.xml",
+    "android/java/org/chromium/chrome/browser/BraveApplicationImplBase.java",
+    "android/java/org/chromium/chrome/browser/app/BraveActivity.java",
+    "android/java/org/chromium/chrome/browser/billing/InAppPurchaseWrapper.java",
+    "android/java/org/chromium/chrome/browser/billing/LinkSubscriptionUtils.java",
+    "android/java/org/chromium/chrome/browser/browsing_data/BraveClearBrowsingDataFragment.java",
+    "android/java/org/chromium/chrome/browser/firstrun/WelcomeOnboardingActivity.java",
+    "android/java/org/chromium/chrome/browser/notifications/BraveNotificationWarningDialog.java",
+    "android/java/org/chromium/chrome/browser/notifications/retention/RetentionNotificationPublisher.java",
+    "android/java/org/chromium/chrome/browser/ntp/BraveIncognitoNewTabPage.java",
+    "android/java/org/chromium/chrome/browser/ntp/BraveNewTabPageLayout.java",
+    "android/java/org/chromium/chrome/browser/ntp/BraveNewTabTakeoverInfobar.java",
+    "android/java/org/chromium/chrome/browser/ntp/BraveNtpAdapter.java",
+    "android/java/org/chromium/chrome/browser/ntp/IncognitoNewTabPageView.java",
+    "android/java/org/chromium/chrome/browser/ntp/OnBraveNtpListener.java",
+    "android/java/org/chromium/chrome/browser/ntp_background_images/model/Wallpaper.java",
+    "android/java/org/chromium/chrome/browser/omnibox/suggestions/BraveAutocompleteMediator.java",
+    "android/java/org/chromium/chrome/browser/onboarding/OnboardingPrefManager.java",
+    "android/java/org/chromium/chrome/browser/preferences/BravePrefServiceBridge.java",
+    "android/java/org/chromium/chrome/browser/privacy/settings/BravePrivacySettings.java",
+    "android/java/org/chromium/chrome/browser/rate/RateUtils.java",
+    "android/java/org/chromium/chrome/browser/settings/AppearancePreferences.java",
+    "android/java/org/chromium/chrome/browser/settings/BackgroundImagesPreferences.java",
+    "android/java/org/chromium/chrome/browser/settings/BraveLicensePreferences.java",
+    "android/java/org/chromium/chrome/browser/settings/BraveMainPreferencesBase.java",
+    "android/java/org/chromium/chrome/browser/settings/BraveOriginPreferences.java",
+    "android/java/org/chromium/chrome/browser/settings/BravePreferenceFragment.java",
+    "android/java/org/chromium/chrome/browser/settings/BraveSearchEnginesPreferences.java",
+    "android/java/org/chromium/chrome/browser/settings/developer/BraveQAPreferences.java",
+    "android/java/org/chromium/chrome/browser/shields/CreateCustomFiltersFragment.java",
+    "android/java/org/chromium/chrome/browser/site_settings/BraveSiteSettingsDelegate.java",
+    "android/java/org/chromium/chrome/browser/sync/settings/BraveManageSyncSettings.java",
+    "android/java/org/chromium/chrome/browser/tabbed_mode/BraveTabbedAppMenuPropertiesDelegate.java",
+    "android/java/org/chromium/chrome/browser/toolbar/top/BraveToolbarLayoutImpl.java",
+    "android/java/org/chromium/chrome/browser/ui/BraveAdaptiveToolbarUiCoordinator.java",
+    "android/java/org/chromium/chrome/browser/widget/quickactionsearchandbookmark/QuickActionSearchAndBookmarkWidgetProvider.java",
+    "android/java/res/layout/new_tab_page_layout.xml",
+    "browser/android/BUILD.gn",
+    "browser/android/brave_init_android.cc",
+    "browser/android/brave_tab_features.cc",
+    "browser/android/brave_tab_features.h",
+    "browser/android/preferences/BUILD.gn",
+    "browser/android/preferences/brave_pref_service_bridge.cc",
+    "browser/brave_browser_main_extra_parts.cc",
+    "browser/brave_browser_process_impl.cc",
+    "browser/brave_browser_process_impl.h",
+    "browser/brave_local_state_prefs.cc",
+    "browser/brave_profile_prefs.cc",
+    "browser/brave_stats/BUILD.gn",
+    "browser/browser_context_keyed_service_factories.cc",
+    "browser/customize_menu/android/BUILD.gn",
+    "browser/customize_menu/android/java/src/org/chromium/brave/browser/customize_menu/CustomizeBraveMenu.java",
+    "browser/first_run/android/BUILD.gn",
+    "browser/first_run/android/java/src/org/chromium/chrome/browser/firstrun/OnboardingStepAdapter.java",
+    "browser/first_run/android/javatests/src/org/chromium/chrome/browser/firstrun/OnboardingStepAdapterTest.java",
+    "browser/sources.gni",
+    "browser/ui/BUILD.gn",
+    "browser/ui/android/omnibox/BUILD.gn",
+    "browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/suggestions/BraveDropdownItemViewInfoListBuilder.java",
+    "browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/suggestions/BraveOmniboxViewHolderFactory.java",
+    "browser/ui/android/toolbar/java/brave-res/layout/brave_adaptive_preference_buttons.xml",
+    "browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/adaptive/settings/BraveRadioButtonGroupAdaptiveToolbarPreference.java",
+    "build/android/config.gni",
+    "chromium_src/chrome/browser/component_updater/registration.cc",
+    "chromium_src/chrome/browser/prefs/browser_prefs.cc",
+    "components/minidump_uploader/sources.gni",
+    "components/p3a/BUILD.gn",
+    "components/p3a/p3a_service.h",
+    "components/playlist/core/common/buildflags/buildflags.gni",
+    "renderer/brave_content_renderer_client.cc",
+    "renderer/sources.gni"
+  ],
+  "chromium_restore": [
+    "components/minidump_uploader/BUILD.gn",
+    "chrome/android/java/src/org/chromium/chrome/browser/crash/MinidumpUploadServiceImpl.java",
+    "chrome/android/java/src/org/chromium/chrome/browser/crash/ChromeMinidumpUploadJobServiceImpl.java"
+  ],
+  "generated_overwrite": [
+    "components/minidump_uploader/android/java/src/org/chromium/components/minidump_uploader/MinidumpUploader.java",
+    "android/java/org/chromium/chrome/browser/SandiumTextUtils.java"
+  ],
+  "steps": [
+    {
+      "script": ".circleci/features/playlist-removal/apply.py",
+      "args": [
+        "--core",
+        "{core}"
+      ]
+    },
+    {
+      "script": ".circleci/features/billing-origin-only/apply.py",
+      "args": [
+        "--core",
+        "{core}"
+      ]
+    },
+    {
+      "script": ".circleci/features/news-removal/apply.py",
+      "args": [
+        "--core",
+        "{core}"
+      ]
+    },
+    {
+      "script": ".circleci/scripts/apply-sandium-remove-vpn.py",
+      "args": [
+        "{core}"
+      ]
+    },
+    {
+      "script": ".circleci/scripts/apply-sandium-wallet-removal.py",
+      "args": [
+        "{core}"
+      ]
+    },
+    {
+      "script": ".circleci/scripts/apply-sandium-rewards-removal.py",
+      "args": [
+        "{core}"
+      ]
+    },
+    {
+      "script": ".circleci/scripts/apply-sandium-low-coupling-removal.py",
+      "args": [
+        "--core",
+        "{core}"
+      ]
+    },
+    {
+      "script": ".circleci/scripts/apply-sandium-leo-removal.py",
+      "args": [
+        "--core",
+        "{core}"
+      ]
+    },
+    {
+      "script": ".circleci/scripts/apply-sandium-remove-reporting.py",
+      "args": [
+        "--core",
+        "{core}",
+        "--src",
+        "{src}",
+        "--include-p3a",
+        "--include-crash-upload"
+      ]
+    }
+  ],
+  "verification": "Source candidate only; native graph/compile/APK/runtime pending"
+}

@@ -1,0 +1,21 @@
+{
+  "brave": "44a84b1f89d9a35287289d6a3d493e362f5a5123",
+  "chromium": "d331de35ca8ab1358c7a17e4bd41627d55eaef51",
+  "files": {
+    "BraveActivity.snippet.java": "320e489c44b869921e2d15d7b87b22ed449edfb60173ca2311b26f5e0119c6f8",
+    "brave_init_android.cc": "71476bab5b5697b26c58a597b86c7c2861f9aea8227e1309d3a7d5bca5763255",
+    "brave_stats.BUILD.gn": "eeb9b0a803662ae162737b8524ddf74350df3591070a316947bf6a197a952c94",
+    "brave/browser/brave_browser_process_impl.cc": "2514aa7eb9ee665156217bc2416b2e693c4aeaad780cdf443d2d98b369f74d09",
+    "brave/browser/brave_browser_main_extra_parts.cc": "a677c5a8551a8986d527b06c461b3937060518be9683097568e790e0207585d9",
+    "brave/browser/brave_browser_process_impl.h": "aae3e25cb6fea7180d442f9e503717a7b70539a39952eae9e1975b363d81f9f1",
+    "brave/browser/brave_local_state_prefs.cc": "6c4126189d7fa2c0bc31b1aeaac00e9af0b6102347871de2e2523355e1d201bd",
+    "brave/components/p3a/BUILD.gn": "1aebfaecd6bd7cbb7589e65bed4948b1016b0d7b817e4a79a01a15f6691f0eb7",
+    "brave/components/p3a/p3a_service.h": "b80243ac8769729b086db3361dd53035c77ca2e41379a3dbf06fd6ced58230a3",
+    "brave/components/minidump_uploader/sources.gni": "c534374e22491c307ead06aa3074abf76f93a023ae7dacd0c1d7509c26fbdc3e",
+    "brave/chromium_src/chrome/browser/component_updater/registration.cc": "35038e6ba9808a9772b31897c0b1c5158224fc981059ea0cba9cc022310be254",
+    "brave/chromium_src/chrome/browser/prefs/browser_prefs.cc": "b4f6671586ef4c2c34ba06d1055dd9bb2ddecaaca09074fff8891b9b3dae18e9",
+    "chromium/components/minidump_uploader/BUILD.gn": "34a1854c09efe5f1a422abd74ccda7465e4630bbb167397c8e2fae60d8d3a425",
+    "chromium/chrome/android/java/src/org/chromium/chrome/browser/crash/MinidumpUploadServiceImpl.java": "9ece9ad89c10f52f96bd775465234dd891227ee830720e3d585424e626642490",
+    "chromium/chrome/android/java/src/org/chromium/chrome/browser/crash/ChromeMinidumpUploadJobServiceImpl.java": "df022adf77432d19a3095a5f98ed12b33e977d01ca28faaf8142f1c9ed450617"
+  }
+}

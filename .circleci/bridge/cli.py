@@ -8,7 +8,7 @@ from pathlib import Path
 import subprocess
 import signal
 import sys
-from bridge import begin,capture,apply,base_id,digest,encode
+from bridge import begin,capture,apply_chain,base_id,digest,encode
 
 
 def atomic(path,value):
@@ -44,9 +44,7 @@ def restore_chain(root, plan, legacy_script, timeout=1700):
     # Original restore verifies every compressed shard hash before extraction.
     run_bounded([sys.executable,'-u',str(legacy_script),'restore','--root',str(root)],timeout)
     head=base_id(raw)
-    for layer in plan['layers']:
-        if layer['parent']!=head:raise ValueError('Missing/reordered delta')
-        head=apply(root/'brave-work',layer['archive'],layer['id'],head)
+    head=apply_chain(root/'brave-work',plan['layers'],head)
     if head!=plan['head']:raise ValueError('Incomplete chain')
     atomic(root/'.bridge-restored.json',dict(head=head,base=plan['base_manifest_sha256']))
     return head

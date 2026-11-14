@@ -147,3 +147,18 @@ jobs:
         run: python3 .circleci/scripts/test-sandium-native-theme.py
       - name: Test bounded Android 16 status underlap and checkpoint rollback
         run: python3 .circleci/tests/test_status_underlap_patch.py
+      - name: Test linear checkpoint chain restore and reserves
+        run: |
+          python3 tests/test_bridge_chain.py
+          python3 tests/test_job_budget.py
+      - name: Test compile-exclusion recipe and artifact gates
+        run: |
+          python3 tests/test_removal_recipe.py
+          python3 tests/test_removal_graph.py
+          python3 tests/test_stripped_apk_audit.py
+          python3 tests/test_wallet_removal.py
+          python3 tests/test_rewards_removal.py
+          python3 .circleci/scripts/test-sandium-leo-removal.py
+          python3 .circleci/scripts/test-sandium-low-coupling.py
+          python3 .circleci/scripts/test-sandium-remove-reporting.py
+          python3 .circleci/scripts/test-sandium-remove-vpn.py

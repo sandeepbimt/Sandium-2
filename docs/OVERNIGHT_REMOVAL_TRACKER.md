@@ -1,0 +1,67 @@
+# Sandium overnight Origin-feature removal tracker
+
+Prepared from the owner's agreed 13-group scope and the published plan at Sandium commit `09d774a94289c9a339adee7a0db247d28c395b8e`. Current implementation audit reads `104df3f`, supplied by the integration coordinator as the latest baseline. Do not substitute the older #1075 browser for the latest accepted UI/filter/popup work. Coordinator must resolve the full commit SHA and current APK/run acceptance before branching.
+
+## Exact scope and initial status
+
+| # | Agreed group | Current evidence / remaining work |
+|---|---|---|
+| 1 | Email aliases | Earlier exact-pin audit showed Android excluded by derived upstream flag. Reverify generated graph and package; do not add a nonexistent GN argument. |
+| 2 | Leo / AI Chat | Still retained by latest vanilla-component contract. Needs Android tabs target, observers, Java/JNI/resources, service and UI removal. |
+| 3 | Brave News | Still retained. Prior isolated candidate was never deployed; reconstruct/review before use. Remove NTP feed/service, settings, Java/JNI and resources without damaging Sandium homepage. |
+| 4 | Playlist | Prior code suppresses runtime allowance/factory. Android asserts enabled. Requires dependency adaptation, not deleting assertion or disabling at runtime. |
+| 5 | Rewards + browser-based Brave Ads | Retained. Remove ledger/ads/promotion services, notifications and resources; Shields and blocking must remain. |
+| 6 | Speedreader | Current prepare requests GN false; earlier pin audit Android default excluded. Need build/package proof. |
+| 7 | Talk | Current prepare requests GN false. Need graph/package proof and removal of exclusive Android UI/hooks. Keep ordinary website WebRTC. |
+| 8 | Tor | Current prepare requests GN false; earlier pin audit Android default excluded. Keep normal private browsing. |
+| 9 | VPN | Retained. Audit both VPN v1/v2 declared flags; derived enable_brave_vpn is not an override. Remove app/startup/billing/manifest/WireGuard/exclusive resources. |
+| 10 | Wallet + Web3 domains | Retained. Remove UI, services, provider injection, native bridges and special domain resolution. Preserve general crypto/WebCrypto/TLS and inert valuable legacy data. |
+| 11 | Wayback Machine | Current prepare requests GN false; upstream Android default excluded. Need graph/package proof, not blocking visits to archive.org. |
+| 12 | Web Discovery Project | Current prepare requests both general and Android-native flags false. Need absence proof for collection/upload and Android integration. |
+| 13 | Reporting: daily usage ping + crash reporting + P3A | Current app still uses runtime defaults for reporting. Previous daily-updater candidate was not accepted (#1077 failed before compile). Recover/review its Java/JNI/parameter-source exclusion. P3A and remote crash uploads need separate removal. Keep local diagnostics and essential security/filter updates. |
+
+Status vocabulary: **remaining**, **candidate only**, **not applicable/absent upstream (source proof)**, **excluded in generated graph**, **absent in APK**, **runtime/upgrade verified**. Do not collapse these into a premature “removed”. All 13 are currently short of complete release verification in this tracker.
+
+## Current source blockers verified at 104df3f
+
+- `prepare-brave-source.sh` still uses `MINIMAL_VANILLA_BUILD=false`, adds only Talk/Wayback/Speedreader/Tor/Web Discovery GN exclusions.
+- `verify-sandium-vanilla-brave.py` restores AI/Wallet/News and Android linkage, strips their explicit GN overrides, and verifies these modules remain upstream-unmodified. This contract conflicts with actual removal. Replace it carefully with explicit product-manifest validation; do not merely delete failing tests.
+- Restore pinned source once before feature overlays. Late restoration previously erased a Sandium adblock preference registration and caused a startup crash.
+- No paid Origin entitlement shortcut or `is_brave_origin_branded` hack. This is source-built Sandium feature exclusion.
+
+## Ordered implementation plan
+
+1. **Freeze latest working baseline and isolate recipe.** Preserve latest branding/filter/popup work, exact upstream pins, signing/package identity. Create separate branch and compatible checkpoint lineage. Fingerprint effective GN arguments, removal manifest, patch order/content, toolchain and all feature-package files. Completion must match exact recipe/APK, not only name/package.
+2. **Recover validated foundation, not old app.** Reuse only reviewed recipe guards and daily-updater patch from old lean work. Correct #1077 audit runner to use the established Brave GN environment and print all stdout/stderr. The old failure's exact hidden error was never recovered; missing Python path was a strong hypothesis, not proven crash output.
+3. **Prove low-coupling groups.** Audit 1/6/7/8/11/12 generated dependencies and packaging, clean remaining exclusive integration if present. Group already absent on Android is not a new deletion.
+4. **Daily usage updater first true native removal.** Remove exclusive updater/parameter sources and Android Java restart call, JNI declaration and native function as a unit. Preserve Safe Browsing JNI. Compile and checkpoint before wider edits.
+5. **News next, isolated patch.** Prior work found settings NPE risk: removing `brave_news_v2` XML while leaving unconditional ordering dereferences null. Remove/guard both. Keep wallpaper/top-sites/local Shields stats. Feature package must precede other overlapping BraveActivity edits and be included in recipe fingerprint.
+6. **Separate VPN, Leo, Rewards/Ads, Wallet and Playlist batches.** For each, inventory complete native target closure + Java/JNI/Mojo + resources/manifest + services/jobs before toggling GN arguments. Build each separately or only combine tightly related changes with explicit tests. Do not stack unvalidated high-coupling deletions merely to meet an overnight deadline.
+7. **Finish reporting.** Remove remote usage/P3A/crash integrations and their consumers; retain local logs, crash handling and updater functionality needed for security/filter resources. Remote reporting and local crash diagnostics are distinct.
+8. **Final acceptance.** Compare clean-output and incremental builds; inspect DEX/resources/manifest/link inputs; run fresh-install and upgrade checks. Report incomplete groups honestly if the time window ends.
+
+## Per-group acceptance and per-run report
+
+For each run publish: exact commit, scope/batch, 13-row status delta, APK availability, tests passed/failed/not-run, checkpoint save/restore proof, next blocker. A saved checkpoint is not a finished APK. A green compile is not a runtime proof.
+
+Each group needs: no implementation in generated dependency closure; no exclusive APK content; no startup factory/provider/job; no runtime UI/deep-link activation; controlled network checks; old prefs/data cannot re-enable it; upgrade/startup/settings/media/downloads/passwords/tabs/Shields/filter-update tests. Shared retained code, mandatory legal notices and harmless migration identifiers are documented exceptions, not failures.
+
+Never silently delete existing wallet or valuable user data. Never strip all strings containing “Brave” or all files containing “ads”. Sync is not one of the 13 groups. Original browser engine privacy/security functionality stays.
+
+## Flow constraints
+
+One Flow pipeline, not Full/Fast. Enforce one-hour job budget including restore, prepare, GN, build, shutdown, delta capture and upload. Stop compilation with checkpoint reserve. Reuse valid unchanged outputs through correct dependency checking. Keep known-good canonical payloads immutable. New recipe may import a compatible base, but must regenerate/validate its graph and must not accept an older product's APK completion marker. Verify base+delta reconstruction and deletion handling rather than only completion shortcuts. Do not combine removal with untested archive-codec changes.
+
+## Evidence sources
+
+- Published agreed plan: `https://github.com/sandeepbimt/Sandium-2/blob/09d774a94289c9a339adee7a0db247d28c395b8e/docs/SANDIUM_LEAN_REMOVAL_PLAN.md`
+- Published first-candidate ledger: same revision, `docs/LEAN_IMPLEMENTATION_LEDGER.md`.
+- Current read-only code audit: `https://github.com/sandeepbimt/Sandium-2/blob/104df3f/.circleci/scripts/verify-sandium-vanilla-brave.py` and `prepare-brave-source.sh`.
+
+This document does not claim new implementation, push, build or device verification. It is the handoff plan for the authorized overnight work.
+
+## Integration candidate, 13 November 2026 overnight
+
+All thirteen groups now have source candidates integrated on the latest UI base. Native graph, Android compilation, final APK and runtime proof remain pending. Rewards retains the pinned `core:core` compatibility library (preference registration, publisher helpers, flags and policy/country support helpers); it is not the Rewards service/engine or browser Ads implementation. Its exact source list is independently gated so it cannot silently gain a service source. P3A likewise retains only documented compatibility headers and enum conversion. These are explicit shared-code exceptions, not claims of zero residual feature-related identifiers. The APK DEX audit checks actual class definitions and includes Brave's real `brave_leo` package.
+
+DEX prefix checks alone cannot establish absence of R8-obfuscated implementation. Generated dependency/source exclusions are mandatory separate gates; final binary review must also consider mapping and retained resources. Native compile success plus original-package DEX absence is not equivalent to device/runtime verification.

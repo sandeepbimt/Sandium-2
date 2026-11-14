@@ -66,6 +66,10 @@ jobs:
 
           /usr/bin/python3 tests/test_bridge_rollup.py
 
+          /usr/bin/python3 tests/test_bridge_chain.py
+
+          /usr/bin/python3 tests/test_job_budget.py
+
           /usr/bin/python3 tests/test_bridge_pipeline.py'
     - restore_cache:
         name: Restore latest accepted experimental head only
@@ -247,6 +251,9 @@ jobs:
     - run:
         name: Apply and verify Sandium UI pruning and preference defaults
         command: bash .circleci/experimental-steps/product-overlay-29-0.sh
+    - run:
+        name: Compile-exclude and audit all thirteen Sandium removal groups
+        command: bash .circleci/experimental-steps/product-overlay-30-0.sh
     - run:
         name: Validate build graph and remote-execution settings
         command: bash .circleci/experimental-steps/graph-validation.sh
@@ -444,6 +451,9 @@ jobs:
         name: Apply and verify Sandium UI pruning and preference defaults
         command: bash .circleci/experimental-steps/product-overlay-29-0.sh
     - run:
+        name: Compile-exclude and audit all thirteen Sandium removal groups
+        command: bash .circleci/experimental-steps/product-overlay-30-0.sh
+    - run:
         name: Validate build graph and remote-execution settings
         command: bash .circleci/experimental-steps/graph-validation.sh
     - run:
@@ -639,6 +649,9 @@ jobs:
     - run:
         name: Apply and verify Sandium UI pruning and preference defaults
         command: bash .circleci/experimental-steps/product-overlay-29-0.sh
+    - run:
+        name: Compile-exclude and audit all thirteen Sandium removal groups
+        command: bash .circleci/experimental-steps/product-overlay-30-0.sh
     - run:
         name: Validate build graph and remote-execution settings
         command: bash .circleci/experimental-steps/graph-validation.sh
@@ -836,6 +849,9 @@ jobs:
         name: Apply and verify Sandium UI pruning and preference defaults
         command: bash .circleci/experimental-steps/product-overlay-29-0.sh
     - run:
+        name: Compile-exclude and audit all thirteen Sandium removal groups
+        command: bash .circleci/experimental-steps/product-overlay-30-0.sh
+    - run:
         name: Validate build graph and remote-execution settings
         command: bash .circleci/experimental-steps/graph-validation.sh
     - run:
@@ -1031,6 +1047,9 @@ jobs:
     - run:
         name: Apply and verify Sandium UI pruning and preference defaults
         command: bash .circleci/experimental-steps/product-overlay-29-0.sh
+    - run:
+        name: Compile-exclude and audit all thirteen Sandium removal groups
+        command: bash .circleci/experimental-steps/product-overlay-30-0.sh
     - run:
         name: Validate build graph and remote-execution settings
         command: bash .circleci/experimental-steps/graph-validation.sh

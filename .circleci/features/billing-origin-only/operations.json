@@ -1,0 +1,380 @@
+[
+  {
+    "path": "android/java/org/chromium/chrome/browser/billing/InAppPurchaseWrapper.java",
+    "old": "import com.android.billingclient.api.InAppMessageParams;\n",
+    "new": "",
+    "anchor": "import com.android.billingclient.api.InAppMessageParams;\n",
+    "count": 1
+  },
+  {
+    "path": "android/java/org/chromium/chrome/browser/billing/InAppPurchaseWrapper.java",
+    "old": "import org.chromium.base.ApplicationState;\n",
+    "new": "",
+    "anchor": "import org.chromium.base.ApplicationState;\n",
+    "count": 1
+  },
+  {
+    "path": "android/java/org/chromium/chrome/browser/billing/InAppPurchaseWrapper.java",
+    "old": "import org.chromium.base.ApplicationStatus;\n",
+    "new": "",
+    "anchor": "import org.chromium.base.ApplicationStatus;\n",
+    "count": 1
+  },
+  {
+    "path": "android/java/org/chromium/chrome/browser/billing/InAppPurchaseWrapper.java",
+    "old": "import org.chromium.chrome.browser.brave_leo.BraveLeoPrefUtils;\n",
+    "new": "",
+    "anchor": "import org.chromium.chrome.browser.brave_leo.BraveLeoPrefUtils;\n",
+    "count": 1
+  },
+  {
+    "path": "android/java/org/chromium/chrome/browser/billing/InAppPurchaseWrapper.java",
+    "old": "import org.chromium.chrome.browser.brave_leo.BraveLeoUtils;\n",
+    "new": "",
+    "anchor": "import org.chromium.chrome.browser.brave_leo.BraveLeoUtils;\n",
+    "count": 1
+  },
+  {
+    "path": "android/java/org/chromium/chrome/browser/billing/InAppPurchaseWrapper.java",
+    "old": "import org.chromium.chrome.browser.vpn.utils.BraveVpnPrefUtils;\n",
+    "new": "",
+    "anchor": "import org.chromium.chrome.browser.vpn.utils.BraveVpnPrefUtils;\n",
+    "count": 1
+  },
+  {
+    "path": "android/java/org/chromium/chrome/browser/billing/InAppPurchaseWrapper.java",
+    "old": "import org.chromium.chrome.browser.vpn.utils.BraveVpnUtils;\n",
+    "new": "",
+    "anchor": "import org.chromium.chrome.browser.vpn.utils.BraveVpnUtils;\n",
+    "count": 1
+  },
+  {
+    "path": "android/java/org/chromium/chrome/browser/billing/InAppPurchaseWrapper.java",
+    "old": "import java.util.HashMap;\n",
+    "new": "",
+    "anchor": "import java.util.HashMap;\n",
+    "count": 1
+  },
+  {
+    "path": "android/java/org/chromium/chrome/browser/billing/InAppPurchaseWrapper.java",
+    "old": "import java.util.Map;\n",
+    "new": "",
+    "anchor": "import java.util.Map;\n",
+    "count": 1
+  },
+  {
+    "path": "android/java/org/chromium/chrome/browser/billing/InAppPurchaseWrapper.java",
+    "old": "    // Brave Leo AI Chat subscription product IDs\n    private static final String LEO_MONTHLY_SUBSCRIPTION = \"brave.leo.monthly\";\n    private static final String LEO_YEARLY_SUBSCRIPTION = \"brave.leo.yearly\";\n\n",
+    "new": "",
+    "anchor": "    // Brave Leo AI Chat subscription product IDs"
+  },
+  {
+    "path": "android/java/org/chromium/chrome/browser/billing/InAppPurchaseWrapper.java",
+    "old": "    private static final String VPN_NIGHTLY_MONTHLY_SUBSCRIPTION = \"nightly.bravevpn.monthly\";\n    private static final String VPN_NIGHTLY_YEARLY_SUBSCRIPTION = \"nightly.bravevpn.yearly\";\n\n    private static final String VPN_BETA_MONTHLY_SUBSCRIPTION = \"beta.bravevpn.monthly\";\n    private static final String VPN_BETA_YEARLY_SUBSCRIPTION = \"beta.bravevpn.yearly\";\n\n    public static final String VPN_RELEASE_MONTHLY_SUBSCRIPTION = \"brave.vpn.monthly\";\n    public static final String VPN_RELEASE_YEARLY_SUBSCRIPTION = \"brave.vpn.yearly\";\n",
+    "new": "",
+    "anchor": "    private static final String VPN_NIGHTLY_MONTHLY_SUBSCRIPTION"
+  },
+  {
+    "path": "android/java/org/chromium/chrome/browser/billing/InAppPurchaseWrapper.java",
+    "old": "    // VPN monthly subscription product details\n    private final MutableLiveData<ProductDetails> mMutableMonthlyProductDetailsVPN =\n            new MutableLiveData<>();\n    private final LiveData<ProductDetails> mMonthlyProductDetailsVPN =\n            mMutableMonthlyProductDetailsVPN;\n    // Leo monthly subscription product details\n    private final MutableLiveData<ProductDetails> mMutableMonthlyProductDetailsLeo =\n            new MutableLiveData<>();\n    private final LiveData<ProductDetails> mMonthlyProductDetailsLeo =\n            mMutableMonthlyProductDetailsLeo;\n",
+    "new": "",
+    "anchor": "    // VPN monthly subscription product details"
+  },
+  {
+    "path": "android/java/org/chromium/chrome/browser/billing/InAppPurchaseWrapper.java",
+    "old": "    // VPN yearly subscription product details\n    private final MutableLiveData<ProductDetails> mMutableYearlyProductDetailsVPN =\n            new MutableLiveData<>();\n    private final LiveData<ProductDetails> mYearlyProductDetailsVPN =\n            mMutableYearlyProductDetailsVPN;\n    // Leo yearly subscription product details\n    private final MutableLiveData<ProductDetails> mMutableYearlyProductDetailsLeo =\n            new MutableLiveData<>();\n    private final LiveData<ProductDetails> mYearlyProductDetailsLeo =\n            mMutableYearlyProductDetailsLeo;\n\n    private void setYearlyProductDetails(\n            @Nullable ProductDetails productDetails, SubscriptionProduct product) {\n        if (product.equals(SubscriptionProduct.LEO)) {\n            mMutableYearlyProductDetailsLeo.postValue(productDetails);\n        } else if (product.equals(SubscriptionProduct.VPN)) {\n            mMutableYearlyProductDetailsVPN.postValue(productDetails);\n        }\n    }\n\n    public LiveData<ProductDetails> getYearlyProductDetails(SubscriptionProduct product) {\n        if (product.equals(SubscriptionProduct.LEO)) {\n            return mYearlyProductDetailsLeo;\n        }\n        return mYearlyProductDetailsVPN;\n    }\n\n",
+    "new": "",
+    "anchor": "    // VPN yearly subscription product details"
+  },
+  {
+    "path": "android/java/org/chromium/chrome/browser/billing/InAppPurchaseWrapper.java",
+    "old": "    public enum SubscriptionType {\n        MONTHLY,\n        YEARLY\n    }\n",
+    "new": "",
+    "anchor": "public enum SubscriptionType {"
+  },
+  {
+    "path": "android/java/org/chromium/chrome/browser/billing/InAppPurchaseWrapper.java",
+    "old": "        VPN, // Brave VPN service for secure browsing\n",
+    "new": "",
+    "anchor": "        VPN, // Brave VPN service for secure browsing\n",
+    "count": 1
+  },
+  {
+    "path": "android/java/org/chromium/chrome/browser/billing/InAppPurchaseWrapper.java",
+    "old": "        LEO, // Brave Leo AI Chat premium features\n",
+    "new": "",
+    "anchor": "        LEO, // Brave Leo AI Chat premium features\n",
+    "count": 1
+  },
+  {
+    "path": "android/java/org/chromium/chrome/browser/billing/InAppPurchaseWrapper.java",
+    "old": "    private boolean mInAppMessagesShownThisForeground;\n",
+    "new": "",
+    "anchor": "    private boolean mInAppMessagesShownThisForeground;\n",
+    "count": 1
+  },
+  {
+    "path": "android/java/org/chromium/chrome/browser/billing/InAppPurchaseWrapper.java",
+    "old": "    private boolean mAppStateListenerRegistered;\n",
+    "new": "",
+    "anchor": "    private boolean mAppStateListenerRegistered;\n",
+    "count": 1
+  },
+  {
+    "path": "android/java/org/chromium/chrome/browser/billing/InAppPurchaseWrapper.java",
+    "old": "    private void setMonthlyProductDetails(\n            @Nullable ProductDetails productDetails, SubscriptionProduct product) {\n        if (product.equals(SubscriptionProduct.LEO)) {\n            mMutableMonthlyProductDetailsLeo.postValue(productDetails);\n        } else if (product.equals(SubscriptionProduct.VPN)) {\n            mMutableMonthlyProductDetailsVPN.postValue(productDetails);\n        }\n    }\n",
+    "new": "",
+    "anchor": "private void setMonthlyProductDetails("
+  },
+  {
+    "path": "android/java/org/chromium/chrome/browser/billing/InAppPurchaseWrapper.java",
+    "old": "    public LiveData<ProductDetails> getMonthlyProductDetails(SubscriptionProduct product) {\n        if (product.equals(SubscriptionProduct.LEO)) {\n            return mMonthlyProductDetailsLeo;\n        }\n        // Default to VPN product details\n        return mMonthlyProductDetailsVPN;\n    }\n",
+    "new": "",
+    "anchor": "public LiveData<ProductDetails> getMonthlyProductDetails("
+  },
+  {
+    "path": "android/java/org/chromium/chrome/browser/billing/InAppPurchaseWrapper.java",
+    "old": "    public boolean isMonthlySubscription(String productId) {\n        return productId.equals(VPN_NIGHTLY_MONTHLY_SUBSCRIPTION)\n                || productId.equals(VPN_BETA_MONTHLY_SUBSCRIPTION)\n                || productId.equals(VPN_RELEASE_MONTHLY_SUBSCRIPTION);\n    }\n",
+    "new": "",
+    "anchor": "public boolean isMonthlySubscription("
+  },
+  {
+    "path": "android/java/org/chromium/chrome/browser/billing/InAppPurchaseWrapper.java",
+    "old": "    public String getProductId(SubscriptionProduct product, SubscriptionType subscriptionType) {\n        if (product.equals(SubscriptionProduct.VPN)) {\n            String bravePackageName = ContextUtils.getApplicationContext().getPackageName();\n            if (bravePackageName.equals(BraveConstants.BRAVE_PRODUCTION_PACKAGE_NAME)) {\n                return subscriptionType == SubscriptionType.MONTHLY ?\n                        VPN_RELEASE_MONTHLY_SUBSCRIPTION\n                        : VPN_RELEASE_YEARLY_SUBSCRIPTION;\n            } else if (bravePackageName.equals(BraveConstants.BRAVE_BETA_PACKAGE_NAME)) {\n                return subscriptionType == SubscriptionType.MONTHLY\n                        ? VPN_BETA_MONTHLY_SUBSCRIPTION\n                        : VPN_BETA_YEARLY_SUBSCRIPTION;\n            } else {\n                return subscriptionType == SubscriptionType.MONTHLY ?\n                        VPN_NIGHTLY_MONTHLY_SUBSCRIPTION\n                        : VPN_NIGHTLY_YEARLY_SUBSCRIPTION;\n            }\n        } else if (product.equals(SubscriptionProduct.LEO)) {\n            return subscriptionType == SubscriptionType.MONTHLY\n                    ? LEO_MONTHLY_SUBSCRIPTION\n                    : LEO_YEARLY_SUBSCRIPTION;\n        } else {\n            assert false;\n            return \"\";\n        }\n    }\n",
+    "new": "",
+    "anchor": "public String getProductId("
+  },
+  {
+    "path": "android/java/org/chromium/chrome/browser/billing/InAppPurchaseWrapper.java",
+    "old": "    public void queryProductDetailsAsync(SubscriptionProduct product) {\n        Map<String, ProductDetails> productDetails = new HashMap<>();\n        List<QueryProductDetailsParams.Product> products = new ArrayList<>();\n        products.add(\n                QueryProductDetailsParams.Product.newBuilder()\n                        .setProductId(getProductId(product, SubscriptionType.MONTHLY))\n                        .setProductType(BillingClient.ProductType.SUBS)\n                        .build());\n        products.add(\n                QueryProductDetailsParams.Product.newBuilder()\n                        .setProductId(getProductId(product, SubscriptionType.YEARLY))\n                        .setProductType(BillingClient.ProductType.SUBS)\n                        .build());\n        QueryProductDetailsParams queryProductDetailsParams =\n                QueryProductDetailsParams.newBuilder().setProductList(products).build();\n\n        MutableLiveData<Boolean> _billingConnectionState = new MutableLiveData<>();\n        LiveData<Boolean> billingConnectionState = _billingConnectionState;\n        startBillingServiceConnection(_billingConnectionState);\n        LiveDataUtil.observeOnce(\n                billingConnectionState,\n                isConnected -> {\n                    if (isConnected && mBillingClient != null) {\n                        mBillingClient.queryProductDetailsAsync(\n                                queryProductDetailsParams,\n                                (billingResult, queryProductDetailsResult) -> {\n                                    // End connection after getting the product details\n                                    endConnection();\n\n                                    if (billingResult.getResponseCode()\n                                            == BillingClient.BillingResponseCode.OK) {\n                                        for (ProductDetails productDetail :\n                                                queryProductDetailsResult.getProductDetailsList()) {\n                                            productDetails.put(\n                                                    productDetail.getProductId(), productDetail);\n                                        }\n                                        setMonthlyProductDetails(\n                                                productDetails.get(\n                                                        getProductId(\n                                                                product, SubscriptionType.MONTHLY)),\n                                                product);\n                                        setYearlyProductDetails(\n                                                productDetails.get(\n                                                        getProductId(\n                                                                product, SubscriptionType.YEARLY)),\n                                                product);\n                                    } else {\n                                        Log.e(\n                                                TAG,\n                                                \"queryProductDetailsAsync failed\"\n                                                        + billingResult.getDebugMessage());\n                                        showToast(billingResult.getDebugMessage());\n                                    }\n                                });\n                    }\n                });\n    }\n",
+    "new": "",
+    "anchor": "public void queryProductDetailsAsync("
+  },
+  {
+    "path": "android/java/org/chromium/chrome/browser/billing/InAppPurchaseWrapper.java",
+    "old": "    private boolean isVPNProduct(List<String> productIds) {\n        return productIds.contains(VPN_NIGHTLY_MONTHLY_SUBSCRIPTION) ||\n                productIds.contains(VPN_NIGHTLY_YEARLY_SUBSCRIPTION) ||\n                productIds.contains(VPN_BETA_MONTHLY_SUBSCRIPTION) ||\n                productIds.contains(VPN_BETA_YEARLY_SUBSCRIPTION) ||\n                productIds.contains(VPN_RELEASE_MONTHLY_SUBSCRIPTION) ||\n                productIds.contains(VPN_RELEASE_YEARLY_SUBSCRIPTION);\n    }\n",
+    "new": "",
+    "anchor": "private boolean isVPNProduct("
+  },
+  {
+    "path": "android/java/org/chromium/chrome/browser/billing/InAppPurchaseWrapper.java",
+    "old": "    private boolean isLeoProduct(List<String> productIds) {\n        return productIds.contains(LEO_MONTHLY_SUBSCRIPTION)\n                || productIds.contains(LEO_YEARLY_SUBSCRIPTION);\n    }\n",
+    "new": "",
+    "anchor": "private boolean isLeoProduct("
+  },
+  {
+    "path": "android/java/org/chromium/chrome/browser/billing/InAppPurchaseWrapper.java",
+    "old": "    public void maybeShowSubscriptionInAppMessages(Activity activity, Profile profile) {\n        if (mInAppMessagesShownThisForeground) {\n            return;\n        }\n        boolean hasVpnSubscription = BraveVpnPrefUtils.isSubscriptionPurchase();\n        boolean hasLeoSubscription = BraveLeoPrefUtils.getIsSubscriptionActive(profile);\n        if (!hasVpnSubscription && !hasLeoSubscription) {\n            return;\n        }\n        // Register the throttle-reset listener lazily, only after confirming\n        // this user actually has a subscription. Non-subscribers never pay any\n        // listener cost.\n        ensureAppStateListenerRegistered();\n        mInAppMessagesShownThisForeground = true;\n        showInAppMessages(activity);\n    }\n",
+    "new": "",
+    "anchor": "public void maybeShowSubscriptionInAppMessages("
+  },
+  {
+    "path": "android/java/org/chromium/chrome/browser/billing/InAppPurchaseWrapper.java",
+    "old": "    private void ensureAppStateListenerRegistered() {\n        if (mAppStateListenerRegistered) {\n            return;\n        }\n        mAppStateListenerRegistered = true;\n        // Clear the per-foreground throttle only when *all* activities are\n        // stopped, i.e. the app is truly backgrounded. In-app navigation\n        // (BraveActivity -> Settings -> back) stays in HAS_RUNNING_ACTIVITIES\n        // and must not re-trigger a Play call.\n        ApplicationStatus.registerApplicationStateListener(\n                state -> {\n                    if ((state == ApplicationState.HAS_STOPPED_ACTIVITIES\n                                    || state == ApplicationState.HAS_DESTROYED_ACTIVITIES)\n                            && mInAppMessagesShownThisForeground) {\n                        mInAppMessagesShownThisForeground = false;\n                    }\n                });\n    }\n",
+    "new": "",
+    "anchor": "private void ensureAppStateListenerRegistered("
+  },
+  {
+    "path": "android/java/org/chromium/chrome/browser/billing/InAppPurchaseWrapper.java",
+    "old": "    private void showInAppMessages(Activity activity) {\n        InAppMessageParams params =\n                InAppMessageParams.newBuilder()\n                        .addInAppMessageCategoryToShow(\n                                InAppMessageParams.InAppMessageCategoryId.TRANSACTIONAL)\n                        .build();\n\n        MutableLiveData<Boolean> _billingConnectionState = new MutableLiveData<>();\n        LiveData<Boolean> billingConnectionState = _billingConnectionState;\n        startBillingServiceConnection(_billingConnectionState);\n        LiveDataUtil.observeOnce(\n                billingConnectionState,\n                isConnected -> {\n                    if (isConnected && mBillingClient != null) {\n                        mBillingClient.showInAppMessages(\n                                activity, params, result -> endConnection());\n                    } else {\n                        endConnection();\n                    }\n                });\n    }\n",
+    "new": "",
+    "anchor": "private void showInAppMessages("
+  },
+  {
+    "path": "android/java/org/chromium/chrome/browser/billing/InAppPurchaseWrapper.java",
+    "old": "        String productType =\n                type.equals(SubscriptionProduct.ORIGIN)\n                        ? BillingClient.ProductType.INAPP\n                        : BillingClient.ProductType.SUBS;",
+    "new": "        if (type != SubscriptionProduct.ORIGIN) {\n            throw new IllegalArgumentException(\"Only Origin purchases are supported\");\n        }\n        String productType = BillingClient.ProductType.INAPP;",
+    "anchor": "        String productType =\n                type.equals(SubscriptionProduct.ORIGIN)\n                        ? BillingClient.ProductType.INAPP\n                        : BillingClient.ProductType.SUBS;"
+  },
+  {
+    "path": "android/java/org/chromium/chrome/browser/billing/InAppPurchaseWrapper.java",
+    "old": "                                            boolean isVPNProduct = isVPNProduct(productIds);\n",
+    "new": "",
+    "anchor": "                                            boolean isVPNProduct = isVPNProduct(productIds);\n",
+    "count": 1
+  },
+  {
+    "path": "android/java/org/chromium/chrome/browser/billing/InAppPurchaseWrapper.java",
+    "old": "                                            boolean isLeoProduct = isLeoProduct(productIds);\n",
+    "new": "",
+    "anchor": "                                            boolean isLeoProduct = isLeoProduct(productIds);\n",
+    "count": 1
+  },
+  {
+    "path": "android/java/org/chromium/chrome/browser/billing/InAppPurchaseWrapper.java",
+    "old": "        boolean isVPNProduct = isVPNProduct(productIds);\n",
+    "new": "",
+    "anchor": "        boolean isVPNProduct = isVPNProduct(productIds);\n",
+    "count": 1
+  },
+  {
+    "path": "android/java/org/chromium/chrome/browser/billing/InAppPurchaseWrapper.java",
+    "old": "        boolean isLeoProduct = isLeoProduct(productIds);\n",
+    "new": "",
+    "anchor": "        boolean isLeoProduct = isLeoProduct(productIds);\n",
+    "count": 1
+  },
+  {
+    "path": "android/java/org/chromium/chrome/browser/billing/InAppPurchaseWrapper.java",
+    "old": "                                            if ((isVPNProduct\n                                                            && type.equals(SubscriptionProduct.VPN))\n                                                    || (isLeoProduct\n                                                            && type.equals(SubscriptionProduct.LEO))\n                                                    || (isOriginProduct\n                                                            && type.equals(\n                                                                    SubscriptionProduct.ORIGIN))) {",
+    "new": "                                            if (isOriginProduct\n                                                    && type == SubscriptionProduct.ORIGIN) {",
+    "anchor": "if ((isVPNProduct"
+  },
+  {
+    "path": "android/java/org/chromium/chrome/browser/billing/InAppPurchaseWrapper.java",
+    "old": "                                                    isVPNProduct,\n                                                    isLeoProduct,\n",
+    "new": "",
+    "anchor": "                                                    isVPNProduct,"
+  },
+  {
+    "path": "android/java/org/chromium/chrome/browser/billing/InAppPurchaseWrapper.java",
+    "old": "            if (isVPNProduct) {\n                BraveVpnPrefUtils.setSubscriptionPurchase(true);\n            } else if (isLeoProduct) {\n                receiptAcknowledged(context, purchase, false, true, false);\n            } else if (isOriginProduct) {\n                receiptAcknowledged(context, purchase, false, false, true);\n            }",
+    "new": "            if (isOriginProduct) {\n                receiptAcknowledged(context, purchase, true);\n            }",
+    "anchor": "if (isVPNProduct)"
+  },
+  {
+    "path": "android/java/org/chromium/chrome/browser/billing/InAppPurchaseWrapper.java",
+    "old": "            boolean isVPNProduct,\n            boolean isLeoProduct,\n",
+    "new": "",
+    "anchor": "            boolean isVPNProduct,"
+  },
+  {
+    "path": "android/java/org/chromium/chrome/browser/billing/InAppPurchaseWrapper.java",
+    "old": "        if (isVPNProduct) {\n            BraveVpnPrefUtils.setSubscriptionPurchase(true);\n            if (activity != null) {\n                BraveVpnUtils.openBraveVpnProfileActivity(activity);\n            }\n        } else if (isLeoProduct && activity != null) {\n            activity.runOnUiThread(\n                    new Runnable() {\n                        @Override\n                        public void run() {\n                            BraveLeoPrefUtils.setIsSubscriptionActive(true);\n                            BraveLeoPrefUtils.setChatPackageName();\n                            BraveLeoPrefUtils.setChatProductId(\n                                    purchase.getProducts().get(0).toString());\n                            BraveLeoPrefUtils.setChatPurchaseToken(purchase.getPurchaseToken());\n                            BraveLeoUtils.bringMainActivityOnTop();\n                        }\n                    });\n        } else if (isOriginProduct && activity != null) {\n",
+    "new": "        if (isOriginProduct && activity != null) {\n",
+    "anchor": "if (isVPNProduct)"
+  },
+  {
+    "path": "android/java/org/chromium/chrome/browser/billing/InAppPurchaseWrapper.java",
+    "old": "        boolean isOriginProduct = isOriginProduct(productIds);\n        if (!purchase.isAcknowledged()) {",
+    "new": "        boolean isOriginProduct = isOriginProduct(productIds);\n        if (!isOriginProduct) return;\n        if (!purchase.isAcknowledged()) {",
+    "anchor": "        boolean isOriginProduct = isOriginProduct(productIds);\n        if (!purchase.isAcknowledged()) {"
+  },
+  {
+    "path": "android/java/org/chromium/chrome/browser/billing/InAppPurchaseWrapper.java",
+    "old": "    /**\n     * Surfaces Play in-app messages for subscription-related events: declined payment methods\n     * (account hold / grace period) and opt-in price-rise consent. Play renders any pending message\n     * as a dialog above {@code activity}; if there is nothing to show the callback returns\n     * NO_ACTION_NEEDED and the user sees nothing. Only SUBS products are eligible \u2014 Origin (INAPP)\n     * is excluded by Play.\n     */\n",
+    "new": "",
+    "anchor": "    /**\n     * Surfaces Play in-app messages for subscription-related events: declined payment methods\n     * (account hold / grace period) and opt-in price-rise consent. Play renders any pending message\n     * as a dialog above {@code activity}; if there is nothing to show the callback returns\n     * NO_ACTION_NEEDED and the user sees nothing. Only SUBS products are eligible \u2014 Origin (INAPP)\n     * is excluded by Play.\n     */\n"
+  },
+  {
+    "path": "android/java/org/chromium/chrome/browser/billing/InAppPurchaseWrapper.java",
+    "old": "    /**\n     * Asks Play to surface any pending in-app messages for the user's subscriptions (failed\n     * renewals, opt-in price-rise consent). Gated on the user having an active Play subscription to\n     * VPN or Leo, and throttled to one call per foreground session. The throttle is reset\n     * automatically when the app is fully backgrounded; callers do not need to manage it.\n     */\n",
+    "new": "",
+    "anchor": "    /**\n     * Asks Play to surface any pending in-app messages for the user's subscriptions (failed\n     * renewals, opt-in price-rise consent). Gated on the user having an active Play subscription to\n     * VPN or Leo, and throttled to one call per foreground session. The throttle is reset\n     * automatically when the app is fully backgrounded; callers do not need to manage it.\n     */\n"
+  },
+  {
+    "path": "android/java/org/chromium/chrome/browser/billing/InAppPurchaseWrapper.java",
+    "old": "    /**\n     * Gets the LiveData containing monthly subscription product details for the specified product.\n     *\n     * @param product The subscription product type (VPN, LEO, or ORIGIN)\n     * @return LiveData containing the product details, defaults to VPN if product not recognized\n     */\n",
+    "new": "",
+    "anchor": "    /**\n     * Gets the LiveData containing monthly subscription product details for the specified product.\n     *\n     * @param product The subscription product type (VPN, LEO, or ORIGIN)\n     * @return LiveData containing the product details, defaults to VPN if product not recognized\n     */\n"
+  },
+  {
+    "path": "android/java/org/chromium/chrome/browser/billing/InAppPurchaseWrapper.java",
+    "old": "    /**\n     * Sets the monthly subscription product details for the specified subscription product. Updates\n     * the appropriate LiveData based on the product type.\n     *\n     * @param productDetails The Google Play Billing product details\n     * @param product The subscription product type (VPN, LEO, or ORIGIN)\n     */\n",
+    "new": "",
+    "anchor": "    /**\n     * Sets the monthly subscription product details for the specified subscription product. Updates\n     * the appropriate LiveData based on the product type.\n     *\n     * @param productDetails The Google Play Billing product details\n     * @param product The subscription product type (VPN, LEO, or ORIGIN)\n     */\n"
+  },
+  {
+    "path": "android/java/org/chromium/chrome/browser/billing/InAppPurchaseWrapper.java",
+    "old": "    public void initiatePurchase(Activity activity, ProductDetails productDetails) {\n        List<ProductDetails.SubscriptionOfferDetails> offerDetails =\n                productDetails.getSubscriptionOfferDetails();\n        if (offerDetails == null || offerDetails.isEmpty()) {\n            Log.e(TAG, \"No subscription offer details available\");\n            return;\n        }\n        String offerToken = offerDetails.get(0).getOfferToken();\n        List<BillingFlowParams.ProductDetailsParams> productDetailsParamsList = new ArrayList<>();\n        productDetailsParamsList.add(\n                BillingFlowParams.ProductDetailsParams.newBuilder()\n                        .setProductDetails(productDetails)\n                        .setOfferToken(offerToken)\n                        .build());\n\n        BillingFlowParams billingFlowParams =\n                BillingFlowParams.newBuilder()\n                        .setProductDetailsParamsList(productDetailsParamsList)\n                        .build();\n        MutableLiveData<Boolean> _billingConnectionState = new MutableLiveData<>();\n        LiveData<Boolean> billingConnectionState = _billingConnectionState;\n        startBillingServiceConnection(_billingConnectionState);\n        LiveDataUtil.observeOnce(\n                billingConnectionState,\n                isConnected -> {\n                    if (isConnected && mBillingClient != null) {\n                        BillingResult unused_billingResult =\n                                mBillingClient.launchBillingFlow(activity, billingFlowParams);\n                    }\n                });\n    }\n",
+    "new": "",
+    "anchor": "public void initiatePurchase(Activity"
+  },
+  {
+    "path": "android/java/org/chromium/chrome/browser/billing/InAppPurchaseWrapper.java",
+    "old": "    public void initiatePurchase(\n            Activity activity, ProductDetails productDetails, @Nullable Profile profile) {\n        // Store the profile for use in the asynchronous purchase callback flow\n        mPurchaseProfile = profile;\n\n        // Delegate to the original method\n        initiatePurchase(activity, productDetails);\n    }\n",
+    "new": "",
+    "anchor": "public void initiatePurchase(\n"
+  },
+  {
+    "path": "android/java/org/chromium/chrome/browser/billing/InAppPurchaseWrapper.java",
+    "old": "    private ProductDetails.@Nullable PricingPhase getPricingPhase(ProductDetails productDetails) {\n        if (productDetails.getSubscriptionOfferDetails() != null) {\n            for (ProductDetails.SubscriptionOfferDetails subscriptionOfferDetails :\n                    productDetails.getSubscriptionOfferDetails()) {\n                if (subscriptionOfferDetails.getOfferId() == null) {\n                    for (ProductDetails.PricingPhase pricingPhase :\n                            subscriptionOfferDetails.getPricingPhases().getPricingPhaseList()) {\n                        if (pricingPhase.getPriceAmountMicros() > 0) {\n                            return pricingPhase;\n                        }\n                    }\n                }\n            }\n        }\n        return null;\n    }\n",
+    "new": "",
+    "anchor": "private ProductDetails.@Nullable PricingPhase getPricingPhase("
+  },
+  {
+    "path": "android/java/org/chromium/chrome/browser/billing/InAppPurchaseWrapper.java",
+    "old": "    public @Nullable SpannableString getFormattedProductPrice(\n            Context context, ProductDetails productDetails, int stringRes) {\n        ProductDetails.PricingPhase pricingPhase = getPricingPhase(productDetails);\n        if (pricingPhase != null) {\n            double price = ((double) pricingPhase.getPriceAmountMicros() / MICRO_UNITS);\n            String priceString = String.format(Locale.getDefault(), \"%.2f\", price);\n            String currencySymbol =\n                    Currency.getInstance(pricingPhase.getPriceCurrencyCode()).getSymbol();\n            String priceWithSymbol = currencySymbol + priceString;\n            String finalPrice =\n                    context.getResources()\n                            .getString(\n                                    stringRes,\n                                    pricingPhase.getPriceCurrencyCode() + \" \" + priceWithSymbol);\n            SpannableString priceSpannable = new SpannableString(finalPrice);\n            int index = finalPrice.indexOf(priceWithSymbol);\n            priceSpannable.setSpan(\n                    new TextAppearanceSpan(context, R.style.LargeSemibold),\n                    index,\n                    index + priceWithSymbol.length(),\n                    Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);\n            priceSpannable.setSpan(\n                    new ForegroundColorSpan(context.getColor(android.R.color.white)),\n                    index,\n                    index + priceWithSymbol.length(),\n                    Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);\n            return priceSpannable;\n        }\n        return null;\n    }\n",
+    "new": "",
+    "anchor": "public @Nullable SpannableString getFormattedProductPrice("
+  },
+  {
+    "path": "android/java/org/chromium/chrome/browser/billing/InAppPurchaseWrapper.java",
+    "old": "    public @Nullable SpannableString getFormattedFullProductPrice(\n            Context context, ProductDetails productDetails) {\n        ProductDetails.PricingPhase pricingPhase = getPricingPhase(productDetails);\n        if (pricingPhase != null) {\n            double yearlyPrice = ((double) pricingPhase.getPriceAmountMicros() / MICRO_UNITS) * 12;\n            String priceString = String.format(Locale.getDefault(), \"%.2f\", yearlyPrice);\n            String currencySymbol =\n                    Currency.getInstance(pricingPhase.getPriceCurrencyCode()).getSymbol();\n            String priceWithSymbol = currencySymbol + priceString;\n            String finalPrice = pricingPhase.getPriceCurrencyCode() + \" \" + priceWithSymbol;\n            SpannableString priceSpannable = new SpannableString(finalPrice);\n            int index = finalPrice.indexOf(priceWithSymbol);\n            priceSpannable.setSpan(\n                    new TextAppearanceSpan(context, R.style.LargeSemibold),\n                    index,\n                    index + priceWithSymbol.length(),\n                    Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);\n            priceSpannable.setSpan(\n                    new ForegroundColorSpan(context.getColor(android.R.color.white)),\n                    index,\n                    index + priceWithSymbol.length(),\n                    Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);\n            return priceSpannable;\n        }\n        return null;\n    }\n",
+    "new": "",
+    "anchor": "public @Nullable SpannableString getFormattedFullProductPrice("
+  },
+  {
+    "path": "android/java/org/chromium/chrome/browser/billing/InAppPurchaseWrapper.java",
+    "old": "    public int getYearlyDiscountPercentage(\n            ProductDetails monthlyProductDetails, ProductDetails yearlyProductDetails) {\n        ProductDetails.PricingPhase monthlyPricingPhase = getPricingPhase(monthlyProductDetails);\n        ProductDetails.PricingPhase yearlyPricingPhase = getPricingPhase(yearlyProductDetails);\n        if (monthlyPricingPhase != null && yearlyPricingPhase != null) {\n            double yearlyPrice =\n                    ((double) monthlyPricingPhase.getPriceAmountMicros() / MICRO_UNITS) * 12;\n            double yearlyActualPrice =\n                    ((double) yearlyPricingPhase.getPriceAmountMicros() / MICRO_UNITS);\n            if (yearlyPrice == 0) {\n                return 0;\n            }\n            double discountPrice = yearlyPrice - yearlyActualPrice;\n            double discountPercentage = (discountPrice / yearlyPrice) * 100;\n            return (int) Math.round(discountPercentage);\n        }\n        return 0;\n    }\n",
+    "new": "",
+    "anchor": "public int getYearlyDiscountPercentage("
+  },
+  {
+    "path": "android/java/org/chromium/chrome/browser/billing/InAppPurchaseWrapper.java",
+    "old": "import android.text.Spannable;\n",
+    "new": "",
+    "anchor": "import android.text.Spannable;\n",
+    "count": 1
+  },
+  {
+    "path": "android/java/org/chromium/chrome/browser/billing/InAppPurchaseWrapper.java",
+    "old": "import android.text.SpannableString;\n",
+    "new": "",
+    "anchor": "import android.text.SpannableString;\n",
+    "count": 1
+  },
+  {
+    "path": "android/java/org/chromium/chrome/browser/billing/InAppPurchaseWrapper.java",
+    "old": "import android.text.Spanned;\n",
+    "new": "",
+    "anchor": "import android.text.Spanned;\n",
+    "count": 1
+  },
+  {
+    "path": "android/java/org/chromium/chrome/browser/billing/InAppPurchaseWrapper.java",
+    "old": "import android.text.style.ForegroundColorSpan;\n",
+    "new": "",
+    "anchor": "import android.text.style.ForegroundColorSpan;\n",
+    "count": 1
+  },
+  {
+    "path": "android/java/org/chromium/chrome/browser/billing/InAppPurchaseWrapper.java",
+    "old": "import android.text.style.TextAppearanceSpan;\n",
+    "new": "",
+    "anchor": "import android.text.style.TextAppearanceSpan;\n",
+    "count": 1
+  },
+  {
+    "path": "android/java/org/chromium/chrome/browser/billing/InAppPurchaseWrapper.java",
+    "old": "import java.util.Currency;\n",
+    "new": "",
+    "anchor": "import java.util.Currency;\n",
+    "count": 1
+  },
+  {
+    "path": "android/java/org/chromium/chrome/browser/billing/InAppPurchaseWrapper.java",
+    "old": "import java.util.Locale;\n",
+    "new": "",
+    "anchor": "import java.util.Locale;\n",
+    "count": 1
+  },
+  {
+    "path": "android/java/org/chromium/chrome/browser/billing/InAppPurchaseWrapper.java",
+    "old": "    private static final long MICRO_UNITS =\n            1000000; // 1,000,000 micro-units equal one unit of the currency\n\n",
+    "new": "",
+    "anchor": "private static final long MICRO_UNITS"
+  },
+  {
+    "path": "android/java/org/chromium/chrome/browser/billing/LinkSubscriptionUtils.java",
+    "old": "        String linkType =\n                (SubscriptionProduct.VPN == subscriptionProduct) ? \"connect-receipt\" : \"link-order\";",
+    "new": "        String linkType = \"link-order\";",
+    "anchor": "        String linkType =\n                (SubscriptionProduct.VPN == subscriptionProduct) ? \"connect-receipt\" : \"link-order\";"
+  },
+  {
+    "path": "android/java/org/chromium/chrome/browser/app/BraveActivity.java",
+    "old": "        Profile profile = mTabModelProfileSupplier.get();\n        if (profile != null) {\n            InAppPurchaseWrapper.getInstance()\n                    .maybeShowSubscriptionInAppMessages(BraveActivity.this, profile);\n        }\n",
+    "new": "",
+    "anchor": ".maybeShowSubscriptionInAppMessages(BraveActivity.this, profile);"
+  }
+]

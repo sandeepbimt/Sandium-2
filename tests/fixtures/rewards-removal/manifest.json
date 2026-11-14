@@ -1,0 +1,30 @@
+{
+  "brave_pin": "44a84b1f89d9a35287289d6a3d493e362f5a5123",
+  "sha256": {
+    "android/java/org/chromium/chrome/browser/app/BraveActivity.java": "8591b4a2782b9cce933e0e79a9fed8eef053ad62b07ef5c373ae58f4ef1cbe21",
+    "android/java/org/chromium/chrome/browser/toolbar/top/BraveToolbarLayoutImpl.java": "e45604d1b90919c8e36a0521b9013c0db1c8b8c305bd851cab7ebc819e5db1ae",
+    "android/java/org/chromium/chrome/browser/tabbed_mode/BraveTabbedAppMenuPropertiesDelegate.java": "268ae2e47856cbaacc89a8eebc8c6a62f41aa8e3a33026e2f5e4addcb6b351e9",
+    "android/java/org/chromium/chrome/browser/shields/CreateCustomFiltersFragment.java": "f10322b7c621fbf86f0dbe321d0d0105ef6632be818fdfe566704bf3378e26f1",
+    "android/java/org/chromium/chrome/browser/settings/BraveLicensePreferences.java": "8591273aa1293a7d0715c1d36d07fffa0ff38e6e96ca9f13de9308716e09854e",
+    "android/java/org/chromium/chrome/browser/settings/BravePreferenceFragment.java": "26ec1bdc1bd768fc4b06b684c69fcbeb897e5aa5978728c967004fc0fadb9171",
+    "android/java/org/chromium/chrome/browser/settings/BackgroundImagesPreferences.java": "164514032b174edb3e94a7bce905778ef6cd7f6d72e4704e46f8fe1b450b922f",
+    "android/java/org/chromium/chrome/browser/settings/AppearancePreferences.java": "4579cb7af7b5d1af9667bed32f9f008e47b96e717d7152c24835c3a24f304025",
+    "android/java/org/chromium/chrome/browser/settings/developer/BraveQAPreferences.java": "3a27a7d0f6bc29dc6cbf56cca62b93ad5ae9327c94d4e520fe4d70950fd50d01",
+    "android/java/org/chromium/chrome/browser/privacy/settings/BravePrivacySettings.java": "7bb2b4d3783f56f1cdfe428cb48f3357ddefdfdce568546b652da82d4d105fee",
+    "android/java/org/chromium/chrome/browser/onboarding/OnboardingPrefManager.java": "1cace7f9ef8e18f9db532dd04c0ae7588089e82b34b9ff7434917907a58b9511",
+    "android/java/org/chromium/chrome/browser/ntp/BraveNewTabTakeoverInfobar.java": "6fb34b041691e176a4d1efc103ee71329c1b300a3122610290e2dfedc2289103",
+    "android/java/org/chromium/chrome/browser/notifications/BraveNotificationWarningDialog.java": "ae020f7a59655ed7421b8b6c255e287f14d2adbad54bc84ea7186d413270a065",
+    "android/java/org/chromium/chrome/browser/browsing_data/BraveClearBrowsingDataFragment.java": "8ae112ed05e71b720d10558a1ec5dcea22e0923f5f4617b693f68bbdcad13b21",
+    "android/java/org/chromium/chrome/browser/notifications/retention/RetentionNotificationPublisher.java": "57fe48bdaaaa424000707aeda5760d604b5bb3fe076e52d2857e7580b27f4503",
+    "android/java/org/chromium/chrome/browser/ntp_background_images/model/Wallpaper.java": "cc742193494bf25960a5e4f379a5d55d7662a0a3f6ea282554715a89182e329e",
+    "android/brave_java_sources.gni": "59e58d22a5c01f934f116e28bfee6c7731d8f12679723fdc98cdbbe019756484",
+    "build/android/config.gni": "db98cd5a8ed9c2099c36be0112dc0b3bb9650f93d4f73f25ce0fb54b8c69f838",
+    "browser/android/preferences/BUILD.gn": "7ab6f3f979b271cbc41c6e700e597ab2257071afb70ed870848df4c3a5837b54",
+    "browser/android/preferences/brave_pref_service_bridge.cc": "fc8d01b099a3af7a112819dd1289e976f46ef68fc55d24ecce9f0546b69c9df4",
+    "browser/sources.gni": "820ea8e98a51bd0ae9861807164db2b7514e7a8e4746623eebaa715bb5472c5e",
+    "browser/ui/BUILD.gn": "9d8d60bbd4bdba90a7f02be0e4cfa51be16d5f9d2b68b49262450c2e3c339355",
+    "browser/brave_profile_prefs.cc": "d4f72b4a8ca82500b7123f61e771bce5181a914c9ab69c5b98681e898dfb6df8",
+    "browser/browser_context_keyed_service_factories.cc": "acdf13c89a9b96480728e4db593ee536d6eead43769ca3e2426a60284e225b1f",
+    "android/BUILD.gn": "c84a6d7bd61bd35d3a936a61a9a519e53085bcaefdbd6fec579422ce765b05f4"
+  }
+}

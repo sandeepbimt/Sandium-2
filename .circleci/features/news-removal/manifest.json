@@ -1,0 +1,72 @@
+{
+  "pin": "44a84b1f89d9a35287289d6a3d493e362f5a5123",
+  "gn_args": {
+    "enable_brave_news": false
+  },
+  "files": {
+    "android/java/org/chromium/chrome/browser/ntp/BraveNewTabPageLayout.java": {
+      "before_sha256": "72e0af3d49167e2dddf2d023b2137a850893247073db343d27bdab058025dc0a",
+      "after_sha256": "13e34e00052c83b684ffc6e43b4c4560af3ba24342256266bc546566ec0c9c51"
+    },
+    "android/java/org/chromium/chrome/browser/ntp/BraveNtpAdapter.java": {
+      "before_sha256": "c7e7bd8d3d4be2a9f441a37d898c61f9a15b7a9bbecf3bac2124982621ae8dfc",
+      "after_sha256": "70cfb2719a872a21657256f7271c674ec08b7f5eb077baeb445cbf8082838b06"
+    },
+    "android/java/org/chromium/chrome/browser/ntp/OnBraveNtpListener.java": {
+      "before_sha256": "611d6867b4532bf2f8cc9ab9b6ae071f96237ff204a6080070d15394581dfb39",
+      "after_sha256": "b83a3511b87bd40c9188d0b4a2bd66a764b3a285e641bb1f0ef4a62b8c832f94"
+    },
+    "android/java/org/chromium/chrome/browser/app/BraveActivity.java": {
+      "before_sha256": "8591b4a2782b9cce933e0e79a9fed8eef053ad62b07ef5c373ae58f4ef1cbe21",
+      "after_sha256": "ad54a2ea88ab4cedd110dd68c3ee64802822b290927668705ec8731cbcd6ba29"
+    },
+    "android/java/org/chromium/chrome/browser/tabbed_mode/BraveTabbedAppMenuPropertiesDelegate.java": {
+      "before_sha256": "268ae2e47856cbaacc89a8eebc8c6a62f41aa8e3a33026e2f5e4addcb6b351e9",
+      "after_sha256": "4ce493cf8430b86440fe44aa38d645795bc49a998a273663a94edfbc5c3a9004"
+    },
+    "android/java/org/chromium/chrome/browser/settings/BraveMainPreferencesBase.java": {
+      "before_sha256": "9db08d9e6fca660488a406e72bda777b0536ad7b77c4165fed190260b2672c9b",
+      "after_sha256": "b49a12caa7283d0ea6258e3427d662af474d2a1f01dd480795410beb64864dc5"
+    },
+    "android/java/org/chromium/chrome/browser/preferences/BravePrefServiceBridge.java": {
+      "before_sha256": "78a95851b1810cc4892c8e18fd78237ba2f033e6efe51850e3f726525831d89b",
+      "after_sha256": "57ebd91580dd60ebee74bcd87a5c0f955533d94a81bb12dba4f415213ddf820b"
+    },
+    "browser/android/preferences/brave_pref_service_bridge.cc": {
+      "before_sha256": "fc8d01b099a3af7a112819dd1289e976f46ef68fc55d24ecce9f0546b69c9df4",
+      "after_sha256": "3a1dfce37874b783da7d473e08b70c1a001426dba9980f66d1b8f0e5b959af94"
+    },
+    "browser/android/preferences/BUILD.gn": {
+      "before_sha256": "7ab6f3f979b271cbc41c6e700e597ab2257071afb70ed870848df4c3a5837b54",
+      "after_sha256": "dccfb76e1a09da152981852964216e24ed05cedf1a487b488ef7bcfcd331ee35"
+    },
+    "build/android/config.gni": {
+      "before_sha256": "db98cd5a8ed9c2099c36be0112dc0b3bb9650f93d4f73f25ce0fb54b8c69f838",
+      "after_sha256": "dd2e6c1d42e0f14fa5f3f75846a1c429239f5d555f2bbb1fd71d7f69c946246a"
+    },
+    "android/brave_java_sources.gni": {
+      "before_sha256": "59e58d22a5c01f934f116e28bfee6c7731d8f12679723fdc98cdbbe019756484",
+      "after_sha256": "bfbe791b202e9e84e0d5b368d7ccae4dd217338893996cb52f9c472b15a547e6"
+    },
+    "android/java/brave-res/xml/brave_main_preferences.xml": {
+      "before_sha256": "39979da1b815a3dafd9a19311a8fba1bafe34d3a6659ca6f4dfcf694aa299a32",
+      "after_sha256": "3ada63c98a386b6b4f0194c005b8bb1d168fa50b3e1ffd9961ef9fdb3ecbc526"
+    },
+    "android/java/res/layout/new_tab_page_layout.xml": {
+      "before_sha256": "6c8c8cefd80acdbfb5d2ec9ee2f6a78506e16ac27ffc8f454fae87ae171ff159",
+      "after_sha256": "9289c94de95afe17daf54fefffe46b783e51a1f501a1bf65a9cffe4880a6ec4e"
+    },
+    "android/BUILD.gn": {
+      "before_sha256": "c84a6d7bd61bd35d3a936a61a9a519e53085bcaefdbd6fec579422ce765b05f4",
+      "after_sha256": "c217dc61be074e7189f2503566d1572511192b50b9d46339704f381b90a2c3ff"
+    },
+    "renderer/sources.gni": {
+      "before_sha256": "f0d16a0f039ebb862cd5800b18697d11d8faf75b7bd93d1ce7b5ea4fdc8342fb",
+      "after_sha256": "5209b5725d8d535d3b3a369b0a15b4eb719239ec26d69053acc3fb66643bd8a9"
+    },
+    "renderer/brave_content_renderer_client.cc": {
+      "before_sha256": "18836a170249897ee47d8ceaa1a28eb0158341d2f0bc560bea27a91e170491c3",
+      "after_sha256": "a19c9a3343104ab10da0d7f2cc9f0e0e50bc6cf22b77b34acb468d78f46fb763"
+    }
+  }
+}

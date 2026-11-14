@@ -1,0 +1,17 @@
+{
+  "brave_pin": "44a84b1f89d9a35287289d6a3d493e362f5a5123",
+  "sha256": {
+    "android/java/org/chromium/chrome/browser/app/BraveActivity.java": "8591b4a2782b9cce933e0e79a9fed8eef053ad62b07ef5c373ae58f4ef1cbe21",
+    "android/java/org/chromium/chrome/browser/toolbar/top/BraveToolbarLayoutImpl.java": "e45604d1b90919c8e36a0521b9013c0db1c8b8c305bd851cab7ebc819e5db1ae",
+    "android/java/org/chromium/chrome/browser/privacy/settings/BravePrivacySettings.java": "7bb2b4d3783f56f1cdfe428cb48f3357ddefdfdce568546b652da82d4d105fee",
+    "android/java/org/chromium/chrome/browser/settings/BraveMainPreferencesBase.java": "9db08d9e6fca660488a406e72bda777b0536ad7b77c4165fed190260b2672c9b",
+    "android/java/org/chromium/chrome/browser/site_settings/BraveSiteSettingsDelegate.java": "f13fdabcd35f6d5eb3c21c8b2bf06766069e495b22ccf02c6764a741440576aa",
+    "android/java/org/chromium/chrome/browser/tabbed_mode/BraveTabbedAppMenuPropertiesDelegate.java": "268ae2e47856cbaacc89a8eebc8c6a62f41aa8e3a33026e2f5e4addcb6b351e9",
+    "android/java/org/chromium/chrome/browser/ui/BraveAdaptiveToolbarUiCoordinator.java": "70022660cdbf819429cc9c3ee2357d9fefdb87f7e8da5a5a1e00f3855388d7a0",
+    "android/brave_java_sources.gni": "59e58d22a5c01f934f116e28bfee6c7731d8f12679723fdc98cdbbe019756484",
+    "android/java/AndroidManifest.xml": "beabef90de000348b3ee5bad86fc85aeab5f3c61b9e232776929ae6b4972a628",
+    "android/BUILD.gn": "c84a6d7bd61bd35d3a936a61a9a519e53085bcaefdbd6fec579422ce765b05f4",
+    "android/java/brave-res/xml/brave_main_preferences.xml": "39979da1b815a3dafd9a19311a8fba1bafe34d3a6659ca6f4dfcf694aa299a32",
+    "android/java/brave-res/xml/brave_privacy_preferences.xml": "4f695978df005da4f2e32d290abb82f34e09ccf865501cf55223de6b216879eb"
+  }
+}

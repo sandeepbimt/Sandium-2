@@ -1,0 +1,876 @@
+{
+  "pin": "44a84b1f89d9a35287289d6a3d493e362f5a5123",
+  "status": "audit_only_not_removal_proof",
+  "required_gn_args_after_adaptation": {
+    "enable_brave_wallet": false,
+    "enable_brave_rewards": false,
+    "enable_brave_ads": false
+  },
+  "source_list_candidates": [
+    {
+      "path": "android/brave_java_sources.gni",
+      "line": 15,
+      "text": "import(\"//brave/browser/brave_ads/android/java_sources.gni\")"
+    },
+    {
+      "path": "android/brave_java_sources.gni",
+      "line": 41,
+      "text": "\"../../brave/android/java/org/chromium/chrome/browser/BraveRewardsBalance.java\","
+    },
+    {
+      "path": "android/brave_java_sources.gni",
+      "line": 42,
+      "text": "\"../../brave/android/java/org/chromium/chrome/browser/BraveRewardsExternalWallet.java\","
+    },
+    {
+      "path": "android/brave_java_sources.gni",
+      "line": 43,
+      "text": "\"../../brave/android/java/org/chromium/chrome/browser/BraveRewardsHelper.java\","
+    },
+    {
+      "path": "android/brave_java_sources.gni",
+      "line": 44,
+      "text": "\"../../brave/android/java/org/chromium/chrome/browser/BraveRewardsNativeWorker.java\","
+    },
+    {
+      "path": "android/brave_java_sources.gni",
+      "line": 45,
+      "text": "\"../../brave/android/java/org/chromium/chrome/browser/BraveRewardsObserver.java\","
+    },
+    {
+      "path": "android/brave_java_sources.gni",
+      "line": 46,
+      "text": "\"../../brave/android/java/org/chromium/chrome/browser/BraveRewardsPolicy.java\","
+    },
+    {
+      "path": "android/brave_java_sources.gni",
+      "line": 110,
+      "text": "\"../../brave/android/java/org/chromium/chrome/browser/crypto_wallet/BlockchainRegistryFactory.java\","
+    },
+    {
+      "path": "android/brave_java_sources.gni",
+      "line": 111,
+      "text": "\"../../brave/android/java/org/chromium/chrome/browser/crypto_wallet/BraveWalletPolicy.java\","
+    },
+    {
+      "path": "android/brave_java_sources.gni",
+      "line": 112,
+      "text": "\"../../brave/android/java/org/chromium/chrome/browser/crypto_wallet/BraveWalletProviderDelegateImplHelper.java\","
+    },
+    {
+      "path": "android/brave_java_sources.gni",
+      "line": 113,
+      "text": "\"../../brave/android/java/org/chromium/chrome/browser/crypto_wallet/BraveWalletServiceFactory.java\","
+    },
+    {
+      "path": "android/brave_java_sources.gni",
+      "line": 114,
+      "text": "\"../../brave/android/java/org/chromium/chrome/browser/crypto_wallet/activities/AccountSelectorActivity.java\","
+    },
+    {
+      "path": "android/brave_java_sources.gni",
+      "line": 115,
+      "text": "\"../../brave/android/java/org/chromium/chrome/browser/crypto_wallet/activities/AddAccountActivity.java\","
+    },
+    {
+      "path": "android/brave_java_sources.gni",
+      "line": 116,
+      "text": "\"../../brave/android/java/org/chromium/chrome/browser/crypto_wallet/activities/AdvanceTxSettingActivity.java\","
+    },
+    {
+      "path": "android/brave_java_sources.gni",
+      "line": 117,
+      "text": "\"../../brave/android/java/org/chromium/chrome/browser/crypto_wallet/activities/BraveWalletActivity.java\","
+    },
+    {
+      "path": "android/brave_java_sources.gni",
+      "line": 118,
+      "text": "\"../../brave/android/java/org/chromium/chrome/browser/crypto_wallet/activities/BraveWalletBaseActivity.java\","
+    },
+    {
+      "path": "android/brave_java_sources.gni",
+      "line": 119,
+      "text": "\"../../brave/android/java/org/chromium/chrome/browser/crypto_wallet/activities/BraveWalletDAppsActivity.java\","
+    },
+    {
+      "path": "android/brave_java_sources.gni",
+      "line": 120,
+      "text": "\"../../brave/android/java/org/chromium/chrome/browser/crypto_wallet/activities/NetworkSelectorActivity.java\","
+    },
+    {
+      "path": "android/brave_java_sources.gni",
+      "line": 121,
+      "text": "\"../../brave/android/java/org/chromium/chrome/browser/crypto_wallet/adapters/AccountSelectorRecyclerView.java\","
+    },
+    {
+      "path": "android/brave_java_sources.gni",
+      "line": 122,
+      "text": "\"../../brave/android/java/org/chromium/chrome/browser/crypto_wallet/adapters/ApproveTxFragmentPageAdapter.java\","
+    },
+    {
+      "path": "android/brave_java_sources.gni",
+      "line": 123,
+      "text": "\"../../brave/android/java/org/chromium/chrome/browser/crypto_wallet/adapters/AutoGridLayoutManager.java\","
+    },
+    {
+      "path": "android/brave_java_sources.gni",
+      "line": 124,
+      "text": "\"../../brave/android/java/org/chromium/chrome/browser/crypto_wallet/adapters/CreateAccountAdapter.java\","
+    },
+    {
+      "path": "android/brave_java_sources.gni",
+      "line": 125,
+      "text": "\"../../brave/android/java/org/chromium/chrome/browser/crypto_wallet/adapters/FragmentNavigationItemAdapter.java\","
+    },
+    {
+      "path": "android/brave_java_sources.gni",
+      "line": 126,
+      "text": "\"../../brave/android/java/org/chromium/chrome/browser/crypto_wallet/adapters/NetworkSelectorAdapter.java\","
+    },
+    {
+      "path": "android/brave_java_sources.gni",
+      "line": 127,
+      "text": "\"../../brave/android/java/org/chromium/chrome/browser/crypto_wallet/adapters/NetworkSpinnerAdapter.java\","
+    },
+    {
+      "path": "android/brave_java_sources.gni",
+      "line": 128,
+      "text": "\"../../brave/android/java/org/chromium/chrome/browser/crypto_wallet/adapters/OnboardingNetworkSelectorGridAdapter.java\","
+    },
+    {
+      "path": "android/brave_java_sources.gni",
+      "line": 129,
+      "text": "\"../../brave/android/java/org/chromium/chrome/browser/crypto_wallet/adapters/RecoveryPhraseAdapter.java\","
+    },
+    {
+      "path": "android/brave_java_sources.gni",
+      "line": 130,
+      "text": "\"../../brave/android/java/org/chromium/chrome/browser/crypto_wallet/adapters/TwoLineItemRecyclerViewAdapter.java\","
+    },
+    {
+      "path": "android/brave_java_sources.gni",
+      "line": 131,
+      "text": "\"../../brave/android/java/org/chromium/chrome/browser/crypto_wallet/adapters/WalletOnboardingPagerAdapter.java\","
+    },
+    {
+      "path": "android/brave_java_sources.gni",
+      "line": 132,
+      "text": "\"../../brave/android/java/org/chromium/chrome/browser/crypto_wallet/controller/DAppsWalletController.java\","
+    },
+    {
+      "path": "android/brave_java_sources.gni",
+      "line": 133,
+      "text": "\"../../brave/android/java/org/chromium/chrome/browser/crypto_wallet/fragments/ApproveTxBottomSheetDialogFragment.java\","
+    },
+    {
+      "path": "android/brave_java_sources.gni",
+      "line": 134,
+      "text": "\"../../brave/android/java/org/chromium/chrome/browser/crypto_wallet/fragments/BaseWalletNextPageFragment.java\","
+    },
+    {
+      "path": "android/brave_java_sources.gni",
+      "line": 135,
+      "text": "\"../../brave/android/java/org/chromium/chrome/browser/crypto_wallet/fragments/CreateAccountBottomSheetFragment.java\","
+    },
+    {
+      "path": "android/brave_java_sources.gni",
+      "line": 136,
+      "text": "\"../../brave/android/java/org/chromium/chrome/browser/crypto_wallet/fragments/SolanaTxDetailsFragment.java\","
+    },
+    {
+      "path": "android/brave_java_sources.gni",
+      "line": 137,
+      "text": "\"../../brave/android/java/org/chromium/chrome/browser/crypto_wallet/fragments/TwoLineItemBottomSheetFragment.java\","
+    },
+    {
+      "path": "android/brave_java_sources.gni",
+      "line": 138,
+      "text": "\"../../brave/android/java/org/chromium/chrome/browser/crypto_wallet/fragments/TwoLineItemFragment.java\","
+    },
+    {
+      "path": "android/brave_java_sources.gni",
+      "line": 139,
+      "text": "\"../../brave/android/java/org/chromium/chrome/browser/crypto_wallet/fragments/TxDetailsFragment.java\","
+    },
+    {
+      "path": "android/brave_java_sources.gni",
+      "line": 140,
+      "text": "\"../../brave/android/java/org/chromium/chrome/browser/crypto_wallet/fragments/TxFragment.java\","
+    },
+    {
+      "path": "android/brave_java_sources.gni",
+      "line": 141,
+      "text": "\"../../brave/android/java/org/chromium/chrome/browser/crypto_wallet/fragments/UnlockWalletFragment.java\","
+    },
+    {
+      "path": "android/brave_java_sources.gni",
+      "line": 142,
+      "text": "\"../../brave/android/java/org/chromium/chrome/browser/crypto_wallet/fragments/WalletBottomSheetDialogFragment.java\","
+    },
+    {
+      "path": "android/brave_java_sources.gni",
+      "line": 143,
+      "text": "\"../../brave/android/java/org/chromium/chrome/browser/crypto_wallet/fragments/WalletFragmentCallback.java\","
+    },
+    {
+      "path": "android/brave_java_sources.gni",
+      "line": 144,
+      "text": "\"../../brave/android/java/org/chromium/chrome/browser/crypto_wallet/fragments/dapps/AddSwitchChainNetworkFragment.java\","
+    },
+    {
+      "path": "android/brave_java_sources.gni",
+      "line": 145,
+      "text": "\"../../brave/android/java/org/chromium/chrome/browser/crypto_wallet/fragments/dapps/AddTokenFragment.java\","
+    },
+    {
+      "path": "android/brave_java_sources.gni",
+      "line": 146,
+      "text": "\"../../brave/android/java/org/chromium/chrome/browser/crypto_wallet/fragments/dapps/BaseDAppsFragment.java\","
+    },
+    {
+      "path": "android/brave_java_sources.gni",
+      "line": 147,
+      "text": "\"../../brave/android/java/org/chromium/chrome/browser/crypto_wallet/fragments/dapps/ConnectAccountFragment.java\","
+    },
+    {
+      "path": "android/brave_java_sources.gni",
+      "line": 148,
+      "text": "\"../../brave/android/java/org/chromium/chrome/browser/crypto_wallet/fragments/dapps/EncryptionKeyFragment.java\","
+    },
+    {
+      "path": "android/brave_java_sources.gni",
+      "line": 149,
+      "text": "\"../../brave/android/java/org/chromium/chrome/browser/crypto_wallet/fragments/dapps/SignMessageErrorFragment.java\","
+    },
+    {
+      "path": "android/brave_java_sources.gni",
+      "line": 150,
+      "text": "\"../../brave/android/java/org/chromium/chrome/browser/crypto_wallet/fragments/dapps/SignMessageFragment.java\","
+    },
+    {
+      "path": "android/brave_java_sources.gni",
+      "line": 151,
+      "text": "\"../../brave/android/java/org/chromium/chrome/browser/crypto_wallet/fragments/dapps/SignSolTransactionsFragment.java\","
+    },
+    {
+      "path": "android/brave_java_sources.gni",
+      "line": 152,
+      "text": "\"../../brave/android/java/org/chromium/chrome/browser/crypto_wallet/fragments/dapps/SiweMessageFragment.java\","
+    },
+    {
+      "path": "android/brave_java_sources.gni",
+      "line": 153,
+      "text": "\"../../brave/android/java/org/chromium/chrome/browser/crypto_wallet/fragments/onboarding/BaseOnboardingWalletFragment.java\","
+    },
+    {
+      "path": "android/brave_java_sources.gni",
+      "line": 154,
+      "text": "\"../../brave/android/java/org/chromium/chrome/browser/crypto_wallet/fragments/onboarding/OnboardingBackupWalletFragment.java\","
+    },
+    {
+      "path": "android/brave_java_sources.gni",
+      "line": 155,
+      "text": "\"../../brave/android/java/org/chromium/chrome/browser/crypto_wallet/fragments/onboarding/OnboardingConfirmationFragment.java\","
+    },
+    {
+      "path": "android/brave_java_sources.gni",
+      "line": 156,
+      "text": "\"../../brave/android/java/org/chromium/chrome/browser/crypto_wallet/fragments/onboarding/OnboardingCreatingWalletFragment.java\","
+    },
+    {
+      "path": "android/brave_java_sources.gni",
+      "line": 157,
+      "text": "\"../../brave/android/java/org/chromium/chrome/browser/crypto_wallet/fragments/onboarding/OnboardingFingerprintUnlockFragment.java\","
+    },
+    {
+      "path": "android/brave_java_sources.gni",
+      "line": 158,
+      "text": "\"../../brave/android/java/org/chromium/chrome/browser/crypto_wallet/fragments/onboarding/OnboardingInitWalletFragment.java\","
+    },
+    {
+      "path": "android/brave_java_sources.gni",
+      "line": 159,
+      "text": "\"../../brave/android/java/org/chromium/chrome/browser/crypto_wallet/fragments/onboarding/OnboardingNetworkSelectionFragment.java\","
+    },
+    {
+      "path": "android/brave_java_sources.gni",
+      "line": 160,
+      "text": "\"../../brave/android/java/org/chromium/chrome/browser/crypto_wallet/fragments/onboarding/OnboardingRecoveryPhraseFragment.java\","
+    },
+    {
+      "path": "android/brave_java_sources.gni",
+      "line": 161,
+      "text": "\"../../brave/android/java/org/chromium/chrome/browser/crypto_wallet/fragments/onboarding/OnboardingRestoreWalletFragment.java\","
+    },
+    {
+      "path": "android/brave_java_sources.gni",
+      "line": 162,
+      "text": "\"../../brave/android/java/org/chromium/chrome/browser/crypto_wallet/fragments/onboarding/OnboardingSecurePasswordFragment.java\","
+    },
+    {
+      "path": "android/brave_java_sources.gni",
+      "line": 163,
+      "text": "\"../../brave/android/java/org/chromium/chrome/browser/crypto_wallet/fragments/onboarding/OnboardingTermsOfUseFragment.java\","
+    },
+    {
+      "path": "android/brave_java_sources.gni",
+      "line": 164,
+      "text": "\"../../brave/android/java/org/chromium/chrome/browser/crypto_wallet/fragments/onboarding/OnboardingVerifyRecoveryPhraseFragment.java\","
+    },
+    {
+      "path": "android/brave_java_sources.gni",
+      "line": 165,
+      "text": "\"../../brave/android/java/org/chromium/chrome/browser/crypto_wallet/listeners/AccountSelectorItemListener.java\","
+    },
+    {
+      "path": "android/brave_java_sources.gni",
+      "line": 166,
+      "text": "\"../../brave/android/java/org/chromium/chrome/browser/crypto_wallet/listeners/OnNextPage.java\","
+    },
+    {
+      "path": "android/brave_java_sources.gni",
+      "line": 167,
+      "text": "\"../../brave/android/java/org/chromium/chrome/browser/crypto_wallet/listeners/TransactionListener.java\","
+    },
+    {
+      "path": "android/brave_java_sources.gni",
+      "line": 168,
+      "text": "\"../../brave/android/java/org/chromium/chrome/browser/crypto_wallet/modal/BraveWalletPanel.java\","
+    },
+    {
+      "path": "android/brave_java_sources.gni",
+      "line": 169,
+      "text": "\"../../brave/android/java/org/chromium/chrome/browser/crypto_wallet/modal/DAppsDialog.java\","
+    },
+    {
+      "path": "android/brave_java_sources.gni",
+      "line": 170,
+      "text": "\"../../brave/android/java/org/chromium/chrome/browser/crypto_wallet/model/AccountSelectorItemModel.java\","
+    },
+    {
+      "path": "android/brave_java_sources.gni",
+      "line": 171,
+      "text": "\"../../brave/android/java/org/chromium/chrome/browser/crypto_wallet/model/CryptoAccountTypeInfo.java\","
+    },
+    {
+      "path": "android/brave_java_sources.gni",
+      "line": 172,
+      "text": "\"../../brave/android/java/org/chromium/chrome/browser/crypto_wallet/model/OnboardingViewModel.java\","
+    },
+    {
+      "path": "android/brave_java_sources.gni",
+      "line": 173,
+      "text": "\"../../brave/android/java/org/chromium/chrome/browser/crypto_wallet/model/TxNonSwipeableViewPager.java\","
+    },
+    {
+      "path": "android/brave_java_sources.gni",
+      "line": 174,
+      "text": "\"../../brave/android/java/org/chromium/chrome/browser/crypto_wallet/model/WalletAccountCreationRequest.java\","
+    },
+    {
+      "path": "android/brave_java_sources.gni",
+      "line": 175,
+      "text": "\"../../brave/android/java/org/chromium/chrome/browser/crypto_wallet/observers/ApprovedTxObserver.java\","
+    },
+    {
+      "path": "android/brave_java_sources.gni",
+      "line": 176,
+      "text": "\"../../brave/android/java/org/chromium/chrome/browser/crypto_wallet/observers/BraveWalletServiceObserverImpl.java\","
+    },
+    {
+      "path": "android/brave_java_sources.gni",
+      "line": 177,
+      "text": "\"../../brave/android/java/org/chromium/chrome/browser/crypto_wallet/observers/KeyringServiceObserverImpl.java\","
+    },
+    {
+      "path": "android/brave_java_sources.gni",
+      "line": 178,
+      "text": "\"../../brave/android/java/org/chromium/chrome/browser/crypto_wallet/observers/TxServiceObserverImpl.java\","
+    },
+    {
+      "path": "android/brave_java_sources.gni",
+      "line": 179,
+      "text": "\"../../brave/android/java/org/chromium/chrome/browser/crypto_wallet/permission/BraveDappPermissionPromptDialog.java\","
+    },
+    {
+      "path": "android/brave_java_sources.gni",
+      "line": 180,
+      "text": "\"../../brave/android/java/org/chromium/chrome/browser/crypto_wallet/permission/BravePermissionAccountsListAdapter.java\","
+    },
+    {
+      "path": "android/brave_java_sources.gni",
+      "line": 181,
+      "text": "\"../../brave/android/java/org/chromium/chrome/browser/crypto_wallet/presenters/Amount.java\","
+    },
+    {
+      "path": "android/brave_java_sources.gni",
+      "line": 182,
+      "text": "\"../../brave/android/java/org/chromium/chrome/browser/crypto_wallet/presenters/SolanaInstructionPresenter.java\","
+    },
+    {
+      "path": "android/brave_java_sources.gni",
+      "line": 183,
+      "text": "\"../../brave/android/java/org/chromium/chrome/browser/crypto_wallet/util/AccountsPermissionsHelper.java\","
+    },
+    {
+      "path": "android/brave_java_sources.gni",
+      "line": 184,
+      "text": "\"../../brave/android/java/org/chromium/chrome/browser/crypto_wallet/util/AndroidUtils.java\","
+    },
+    {
+      "path": "android/brave_java_sources.gni",
+      "line": 185,
+      "text": "\"../../brave/android/java/org/chromium/chrome/browser/crypto_wallet/util/AssetUtils.java\","
+    },
+    {
+      "path": "android/brave_java_sources.gni",
+      "line": 186,
+      "text": "\"../../brave/android/java/org/chromium/chrome/browser/crypto_wallet/util/AsyncUtils.java\","
+    },
+    {
+      "path": "android/brave_java_sources.gni",
+      "line": 187,
+      "text": "\"../../brave/android/java/org/chromium/chrome/browser/crypto_wallet/util/BalanceHelper.java\","
+    },
+    {
+      "path": "android/brave_java_sources.gni",
+      "line": 188,
+      "text": "\"../../brave/android/java/org/chromium/chrome/browser/crypto_wallet/util/Blockies.java\","
+    },
+    {
+      "path": "android/brave_java_sources.gni",
+      "line": 189,
+      "text": "\"../../brave/android/java/org/chromium/chrome/browser/crypto_wallet/util/ItemOffsetDecoration.java\","
+    },
+    {
+      "path": "android/brave_java_sources.gni",
+      "line": 190,
+      "text": "\"../../brave/android/java/org/chromium/chrome/browser/crypto_wallet/util/JavaUtils.java\","
+    },
+    {
+      "path": "android/brave_java_sources.gni",
+      "line": 191,
+      "text": "\"../../brave/android/java/org/chromium/chrome/browser/crypto_wallet/util/KeystoreHelper.java\","
+    },
+    {
+      "path": "android/brave_java_sources.gni",
+      "line": 192,
+      "text": "\"../../brave/android/java/org/chromium/chrome/browser/crypto_wallet/util/NavigationItem.java\","
+    },
+    {
+      "path": "android/brave_java_sources.gni",
+      "line": 193,
+      "text": "\"../../brave/android/java/org/chromium/chrome/browser/crypto_wallet/util/NetworkUtils.java\","
+    },
+    {
+      "path": "android/brave_java_sources.gni",
+      "line": 194,
+      "text": "\"../../brave/android/java/org/chromium/chrome/browser/crypto_wallet/util/ParsedTransaction.java\","
+    },
+    {
+      "path": "android/brave_java_sources.gni",
+      "line": 195,
+      "text": "\"../../brave/android/java/org/chromium/chrome/browser/crypto_wallet/util/ParsedTransactionFees.java\","
+    },
+    {
+      "path": "android/brave_java_sources.gni",
+      "line": 196,
+      "text": "\"../../brave/android/java/org/chromium/chrome/browser/crypto_wallet/util/PendingTxHelper.java\","
+    },
+    {
+      "path": "android/brave_java_sources.gni",
+      "line": 197,
+      "text": "\"../../brave/android/java/org/chromium/chrome/browser/crypto_wallet/util/SolanaTransactionsGasHelper.java\","
+    },
+    {
+      "path": "android/brave_java_sources.gni",
+      "line": 198,
+      "text": "\"../../brave/android/java/org/chromium/chrome/browser/crypto_wallet/util/TokenUtils.java\","
+    },
+    {
+      "path": "android/brave_java_sources.gni",
+      "line": 199,
+      "text": "\"../../brave/android/java/org/chromium/chrome/browser/crypto_wallet/util/TransactionUtils.java\","
+    },
+    {
+      "path": "android/brave_java_sources.gni",
+      "line": 200,
+      "text": "\"../../brave/android/java/org/chromium/chrome/browser/crypto_wallet/util/Utils.java\","
+    },
+    {
+      "path": "android/brave_java_sources.gni",
+      "line": 201,
+      "text": "\"../../brave/android/java/org/chromium/chrome/browser/crypto_wallet/util/Validations.java\","
+    },
+    {
+      "path": "android/brave_java_sources.gni",
+      "line": 202,
+      "text": "\"../../brave/android/java/org/chromium/chrome/browser/crypto_wallet/util/WalletConstants.java\","
+    },
+    {
+      "path": "android/brave_java_sources.gni",
+      "line": 203,
+      "text": "\"../../brave/android/java/org/chromium/chrome/browser/crypto_wallet/util/WalletDataFilesInstallerUtil.java\","
+    },
+    {
+      "path": "android/brave_java_sources.gni",
+      "line": 204,
+      "text": "\"../../brave/android/java/org/chromium/chrome/browser/crypto_wallet/util/WalletNativeUtils.java\","
+    },
+    {
+      "path": "android/brave_java_sources.gni",
+      "line": 205,
+      "text": "\"../../brave/android/java/org/chromium/chrome/browser/crypto_wallet/util/WalletUtils.java\","
+    },
+    {
+      "path": "android/brave_java_sources.gni",
+      "line": 329,
+      "text": "\"../../brave/android/java/org/chromium/chrome/browser/rewards/adaptive_captcha/AdaptiveCaptchaHelper.java\","
+    },
+    {
+      "path": "android/brave_java_sources.gni",
+      "line": 391,
+      "text": "\"../../brave/android/java/org/chromium/chrome/browser/settings/developer/BraveRewardsDebugPreferences.java\","
+    },
+    {
+      "path": "android/brave_java_sources.gni",
+      "line": 523,
+      "text": "brave_java_sources += brave_ads_java_sources"
+    },
+    {
+      "path": "build/android/config.gni",
+      "line": 62,
+      "text": "\"//brave/components/brave_ads/core/mojom:mojom_java\","
+    },
+    {
+      "path": "build/android/config.gni",
+      "line": 65,
+      "text": "\"//brave/components/brave_rewards/core/mojom:mojom_java\","
+    },
+    {
+      "path": "build/android/config.gni",
+      "line": 143,
+      "text": "\"//brave/android/java/org/chromium/chrome/browser/BraveRewardsNativeWorker.java\","
+    },
+    {
+      "path": "build/android/config.gni",
+      "line": 165,
+      "text": "\"//brave/browser/brave_ads/android/java/org/chromium/chrome/browser/BraveAdsNativeHelper.java\","
+    },
+    {
+      "path": "build/android/config.gni",
+      "line": 170,
+      "text": "\"//brave/android/java/org/chromium/chrome/browser/crypto_wallet/BlockchainRegistryFactory.java\","
+    },
+    {
+      "path": "build/android/config.gni",
+      "line": 171,
+      "text": "\"//brave/android/java/org/chromium/chrome/browser/crypto_wallet/BraveWalletProviderDelegateImplHelper.java\","
+    },
+    {
+      "path": "build/android/config.gni",
+      "line": 172,
+      "text": "\"//brave/android/java/org/chromium/chrome/browser/crypto_wallet/BraveWalletServiceFactory.java\","
+    },
+    {
+      "path": "build/android/config.gni",
+      "line": 173,
+      "text": "\"//brave/android/java/org/chromium/chrome/browser/crypto_wallet/fragments/dapps/ConnectAccountFragment.java\","
+    },
+    {
+      "path": "build/android/config.gni",
+      "line": 174,
+      "text": "\"//brave/android/java/org/chromium/chrome/browser/crypto_wallet/permission/BraveDappPermissionPromptDialog.java\","
+    },
+    {
+      "path": "build/android/config.gni",
+      "line": 175,
+      "text": "\"//brave/android/java/org/chromium/chrome/browser/crypto_wallet/util/WalletNativeUtils.java\","
+    },
+    {
+      "path": "browser/brave_ads/android/java_sources.gni",
+      "line": 6,
+      "text": "brave_ads_java_sources = ["
+    },
+    {
+      "path": "browser/brave_ads/android/java_sources.gni",
+      "line": 7,
+      "text": "\"../../brave/browser/brave_ads/android/java/org/chromium/chrome/browser/BraveAdsNativeHelper.java\","
+    },
+    {
+      "path": "browser/brave_ads/android/java_sources.gni",
+      "line": 8,
+      "text": "\"../../brave/browser/brave_ads/android/java/org/chromium/chrome/browser/device_id/DeviceIdImplAndroid.java\","
+    },
+    {
+      "path": "browser/brave_ads/android/java_sources.gni",
+      "line": 9,
+      "text": "\"../../brave/browser/brave_ads/android/java/org/chromium/chrome/browser/dialogs/BraveAdsSignupDialog.java\","
+    },
+    {
+      "path": "browser/brave_ads/android/java_sources.gni",
+      "line": 10,
+      "text": "\"../../brave/browser/brave_ads/android/java/org/chromium/chrome/browser/notifications/BraveAds.java\","
+    }
+  ],
+  "java_consumers": [
+    {
+      "path": "android/java/org/chromium/chrome/browser/BraveRewardsExternalWallet.java",
+      "imports": [
+        "org.chromium.brave_rewards.mojom.WalletStatus"
+      ]
+    },
+    {
+      "path": "android/java/org/chromium/chrome/browser/BraveRewardsNativeWorker.java",
+      "imports": [
+        "org.chromium.brave_rewards.mojom.PublisherStatus"
+      ]
+    },
+    {
+      "path": "android/java/org/chromium/chrome/browser/app/BraveActivity.java",
+      "imports": [
+        "org.chromium.brave_wallet.mojom.AssetRatioService",
+        "org.chromium.brave_wallet.mojom.BlockchainRegistry",
+        "org.chromium.brave_wallet.mojom.BraveWalletService",
+        "org.chromium.brave_wallet.mojom.CoinType",
+        "org.chromium.brave_wallet.mojom.EthTxManagerProxy",
+        "org.chromium.brave_wallet.mojom.JsonRpcService",
+        "org.chromium.brave_wallet.mojom.KeyringService",
+        "org.chromium.brave_wallet.mojom.NetworkInfo",
+        "org.chromium.brave_wallet.mojom.SignDataUnion",
+        "org.chromium.brave_wallet.mojom.SolanaTxManagerProxy",
+        "org.chromium.brave_wallet.mojom.TxService",
+        "org.chromium.chrome.browser.crypto_wallet.BlockchainRegistryFactory",
+        "org.chromium.chrome.browser.crypto_wallet.BraveWalletPolicy",
+        "org.chromium.chrome.browser.crypto_wallet.BraveWalletServiceFactory",
+        "org.chromium.chrome.browser.crypto_wallet.activities.AddAccountActivity",
+        "org.chromium.chrome.browser.crypto_wallet.activities.BraveWalletActivity",
+        "org.chromium.chrome.browser.crypto_wallet.activities.BraveWalletDAppsActivity",
+        "org.chromium.chrome.browser.crypto_wallet.model.CryptoAccountTypeInfo",
+        "org.chromium.chrome.browser.crypto_wallet.util.Utils"
+      ]
+    },
+    {
+      "path": "android/java/org/chromium/chrome/browser/app/domain/CryptoModel.java",
+      "imports": [
+        "org.chromium.brave_wallet.mojom.AccountInfo",
+        "org.chromium.brave_wallet.mojom.BlockchainRegistry",
+        "org.chromium.brave_wallet.mojom.BraveWalletConstants",
+        "org.chromium.brave_wallet.mojom.BraveWalletService",
+        "org.chromium.brave_wallet.mojom.CoinType",
+        "org.chromium.brave_wallet.mojom.DecryptRequest",
+        "org.chromium.brave_wallet.mojom.EthTxManagerProxy",
+        "org.chromium.brave_wallet.mojom.GetEncryptionPublicKeyRequest",
+        "org.chromium.brave_wallet.mojom.JsonRpcService",
+        "org.chromium.brave_wallet.mojom.KeyringService",
+        "org.chromium.brave_wallet.mojom.SolanaTxManagerProxy",
+        "org.chromium.brave_wallet.mojom.TransactionInfo",
+        "org.chromium.brave_wallet.mojom.TxService",
+        "org.chromium.chrome.browser.crypto_wallet.model.CryptoAccountTypeInfo",
+        "org.chromium.chrome.browser.crypto_wallet.util.PendingTxHelper"
+      ]
+    },
+    {
+      "path": "android/java/org/chromium/chrome/browser/app/domain/CryptoSharedData.java",
+      "imports": [
+        "org.chromium.brave_wallet.mojom.AccountInfo",
+        "org.chromium.chrome.browser.crypto_wallet.model.CryptoAccountTypeInfo"
+      ]
+    },
+    {
+      "path": "android/java/org/chromium/chrome/browser/app/domain/DappsModel.java",
+      "imports": [
+        "org.chromium.brave_wallet.mojom.AccountInfo",
+        "org.chromium.brave_wallet.mojom.BraveWalletService",
+        "org.chromium.brave_wallet.mojom.CoinType",
+        "org.chromium.brave_wallet.mojom.JsonRpcService",
+        "org.chromium.brave_wallet.mojom.KeyringService",
+        "org.chromium.brave_wallet.mojom.KeyringServiceObserver",
+        "org.chromium.brave_wallet.mojom.SignMessageRequest",
+        "org.chromium.brave_wallet.mojom.SignSolTransactionsRequest",
+        "org.chromium.brave_wallet.mojom.SolanaSignature",
+        "org.chromium.brave_wallet.mojom.TransactionInfo",
+        "org.chromium.brave_wallet.mojom.TransactionStatus",
+        "org.chromium.chrome.browser.crypto_wallet.activities.BraveWalletDAppsActivity",
+        "org.chromium.chrome.browser.crypto_wallet.model.WalletAccountCreationRequest",
+        "org.chromium.chrome.browser.crypto_wallet.util.PendingTxHelper",
+        "org.chromium.chrome.browser.crypto_wallet.util.Utils"
+      ]
+    },
+    {
+      "path": "android/java/org/chromium/chrome/browser/app/domain/KeyringModel.java",
+      "imports": [
+        "org.chromium.brave_wallet.mojom.AccountInfo",
+        "org.chromium.brave_wallet.mojom.AllAccountsInfo",
+        "org.chromium.brave_wallet.mojom.BraveWalletConstants",
+        "org.chromium.brave_wallet.mojom.BraveWalletService",
+        "org.chromium.brave_wallet.mojom.CoinType",
+        "org.chromium.brave_wallet.mojom.JsonRpcService",
+        "org.chromium.brave_wallet.mojom.KeyringId",
+        "org.chromium.brave_wallet.mojom.KeyringService",
+        "org.chromium.brave_wallet.mojom.KeyringServiceObserver",
+        "org.chromium.brave_wallet.mojom.NetworkInfo",
+        "org.chromium.chrome.browser.crypto_wallet.observers.KeyringServiceObserverImpl",
+        "org.chromium.chrome.browser.crypto_wallet.util.AssetUtils",
+        "org.chromium.chrome.browser.crypto_wallet.util.WalletUtils"
+      ]
+    },
+    {
+      "path": "android/java/org/chromium/chrome/browser/app/domain/NetworkModel.java",
+      "imports": [
+        "org.chromium.brave_wallet.mojom.AccountInfo",
+        "org.chromium.brave_wallet.mojom.BraveWalletConstants",
+        "org.chromium.brave_wallet.mojom.BraveWalletService",
+        "org.chromium.brave_wallet.mojom.CoinType",
+        "org.chromium.brave_wallet.mojom.JsonRpcService",
+        "org.chromium.brave_wallet.mojom.JsonRpcServiceObserver",
+        "org.chromium.brave_wallet.mojom.NetworkInfo",
+        "org.chromium.chrome.browser.crypto_wallet.util.JavaUtils",
+        "org.chromium.chrome.browser.crypto_wallet.util.NetworkUtils",
+        "org.chromium.chrome.browser.crypto_wallet.util.WalletConstants"
+      ]
+    },
+    {
+      "path": "android/java/org/chromium/chrome/browser/app/domain/WalletModel.java",
+      "imports": [
+        "org.chromium.brave_wallet.mojom.AssetRatioService",
+        "org.chromium.brave_wallet.mojom.BlockchainRegistry",
+        "org.chromium.brave_wallet.mojom.BraveWalletService",
+        "org.chromium.brave_wallet.mojom.EthTxManagerProxy",
+        "org.chromium.brave_wallet.mojom.JsonRpcService",
+        "org.chromium.brave_wallet.mojom.KeyringService",
+        "org.chromium.brave_wallet.mojom.NetworkInfo",
+        "org.chromium.brave_wallet.mojom.SolanaTxManagerProxy",
+        "org.chromium.brave_wallet.mojom.TxService"
+      ]
+    },
+    {
+      "path": "android/java/org/chromium/chrome/browser/app/helpers/ImageLoader.java",
+      "imports": [
+        "org.chromium.chrome.browser.crypto_wallet.util.Utils",
+        "org.chromium.chrome.browser.crypto_wallet.util.WalletConstants"
+      ]
+    },
+    {
+      "path": "android/java/org/chromium/chrome/browser/ntp_background_images/model/Wallpaper.java",
+      "imports": [
+        "org.chromium.brave_ads.mojom.NewTabPageAdMetricType"
+      ]
+    },
+    {
+      "path": "android/java/org/chromium/chrome/browser/privacy/settings/BravePrivacySettings.java",
+      "imports": [
+        "org.chromium.chrome.browser.crypto_wallet.BraveWalletPolicy"
+      ]
+    },
+    {
+      "path": "android/java/org/chromium/chrome/browser/settings/BraveMainPreferencesBase.java",
+      "imports": [
+        "org.chromium.chrome.browser.crypto_wallet.BraveWalletPolicy"
+      ]
+    },
+    {
+      "path": "android/java/org/chromium/chrome/browser/settings/BraveWalletAddNetworksFragment.java",
+      "imports": [
+        "org.chromium.brave_wallet.mojom.CoinType",
+        "org.chromium.brave_wallet.mojom.JsonRpcService",
+        "org.chromium.brave_wallet.mojom.NetworkInfo",
+        "org.chromium.brave_wallet.mojom.ProviderError",
+        "org.chromium.chrome.browser.crypto_wallet.BraveWalletServiceFactory",
+        "org.chromium.chrome.browser.crypto_wallet.util.AndroidUtils"
+      ]
+    },
+    {
+      "path": "android/java/org/chromium/chrome/browser/settings/BraveWalletAutoLockPreferences.java",
+      "imports": [
+        "org.chromium.brave_wallet.mojom.KeyringService",
+        "org.chromium.chrome.browser.crypto_wallet.BraveWalletServiceFactory"
+      ]
+    },
+    {
+      "path": "android/java/org/chromium/chrome/browser/settings/BraveWalletNetworksPreference.java",
+      "imports": [
+        "org.chromium.brave_wallet.mojom.AllNetworks",
+        "org.chromium.brave_wallet.mojom.CoinType",
+        "org.chromium.brave_wallet.mojom.JsonRpcService",
+        "org.chromium.brave_wallet.mojom.NetworkInfo",
+        "org.chromium.chrome.browser.crypto_wallet.BraveWalletServiceFactory"
+      ]
+    },
+    {
+      "path": "android/java/org/chromium/chrome/browser/settings/BraveWalletPreferences.java",
+      "imports": [
+        "org.chromium.brave_wallet.mojom.DefaultWallet",
+        "org.chromium.brave_wallet.mojom.KeyringService",
+        "org.chromium.chrome.browser.crypto_wallet.BraveWalletServiceFactory",
+        "org.chromium.chrome.browser.crypto_wallet.util.WalletConstants"
+      ]
+    },
+    {
+      "path": "android/java/org/chromium/chrome/browser/settings/BraveWalletResetPreference.java",
+      "imports": [
+        "org.chromium.chrome.browser.crypto_wallet.util.KeystoreHelper",
+        "org.chromium.chrome.browser.crypto_wallet.util.Utils",
+        "org.chromium.chrome.browser.crypto_wallet.util.WalletConstants",
+        "org.chromium.chrome.browser.crypto_wallet.util.WalletNativeUtils",
+        "org.chromium.chrome.browser.crypto_wallet.util.WalletUtils"
+      ]
+    },
+    {
+      "path": "android/java/org/chromium/chrome/browser/settings/BraveWalletResetTxHistoryAndNoncePreference.java",
+      "imports": [
+        "org.chromium.brave_wallet.mojom.TxService",
+        "org.chromium.chrome.browser.crypto_wallet.BraveWalletServiceFactory"
+      ]
+    },
+    {
+      "path": "android/java/org/chromium/chrome/browser/settings/NetworkPreferenceAdapter.java",
+      "imports": [
+        "org.chromium.brave_wallet.mojom.CoinType",
+        "org.chromium.brave_wallet.mojom.NetworkInfo"
+      ]
+    },
+    {
+      "path": "android/java/org/chromium/chrome/browser/site_settings/BraveSiteSettingsDelegate.java",
+      "imports": [
+        "org.chromium.chrome.browser.crypto_wallet.BraveWalletPolicy"
+      ]
+    },
+    {
+      "path": "android/java/org/chromium/chrome/browser/site_settings/BraveWalletEthereumConnectedSitesPreference.java",
+      "imports": [
+        "org.chromium.brave_wallet.mojom.BraveWalletService",
+        "org.chromium.brave_wallet.mojom.CoinType",
+        "org.chromium.chrome.browser.crypto_wallet.BraveWalletServiceFactory"
+      ]
+    },
+    {
+      "path": "android/java/org/chromium/chrome/browser/site_settings/BraveWalletSolanaConnectedSitesPreference.java",
+      "imports": [
+        "org.chromium.brave_wallet.mojom.BraveWalletService",
+        "org.chromium.brave_wallet.mojom.CoinType",
+        "org.chromium.chrome.browser.crypto_wallet.BraveWalletServiceFactory"
+      ]
+    },
+    {
+      "path": "android/java/org/chromium/chrome/browser/tabbed_mode/BraveTabbedAppMenuPropertiesDelegate.java",
+      "imports": [
+        "org.chromium.chrome.browser.crypto_wallet.BraveWalletPolicy"
+      ]
+    },
+    {
+      "path": "android/java/org/chromium/chrome/browser/toolbar/adaptive/BraveWalletButtonController.java",
+      "imports": [
+        "org.chromium.chrome.browser.crypto_wallet.BraveWalletPolicy"
+      ]
+    },
+    {
+      "path": "android/java/org/chromium/chrome/browser/toolbar/top/BraveToolbarLayoutImpl.java",
+      "imports": [
+        "org.chromium.chrome.browser.crypto_wallet.BraveWalletPolicy",
+        "org.chromium.chrome.browser.crypto_wallet.controller.DAppsWalletController"
+      ]
+    }
+  ],
+  "caveat": "Candidates include guarded entries. Resolve actual GN graph and compile Android before claiming exclusion."
+}

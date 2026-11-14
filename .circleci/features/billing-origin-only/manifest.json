@@ -1,0 +1,9 @@
+{
+  "pin": "44a84b1f89d9a35287289d6a3d493e362f5a5123",
+  "required_gn_args": {},
+  "touched_files": [
+    "android/java/org/chromium/chrome/browser/app/BraveActivity.java",
+    "android/java/org/chromium/chrome/browser/billing/InAppPurchaseWrapper.java",
+    "android/java/org/chromium/chrome/browser/billing/LinkSubscriptionUtils.java"
+  ]
+}

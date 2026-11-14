@@ -73,7 +73,7 @@ def new_key(kind,ident):
 
 def make_candidate(plan,previous=None):
     status=ROOT/'brave-apk/status.txt'
-    apk=status.exists() and all(x in status.read_text().splitlines() for x in ('BUILD_FINISHED=true','APK_ARCHIVE_VALID=true','APK_SIGNATURE_VALID=true','APK_PACKAGE_ID_VALID=true','APK_BRANDING_VALID=true'))
+    apk=status.exists() and all(x in status.read_text().splitlines() for x in ('BUILD_FINISHED=true','APK_ARCHIVE_VALID=true','APK_SIGNATURE_VALID=true','APK_PACKAGE_ID_VALID=true','APK_BRANDING_VALID=true','APK_REMOVALS_VALID=true'))
     p=dict(kind=KIND,scope=c.scope(),compatibility=c.COMPAT,source=os.environ['CIRCLE_SHA1'],pipeline=int(os.environ['SANDIUM_PIPELINE_NUMBER']),
         workflow=os.environ['CIRCLE_WORKFLOW_ID'],stage=int(os.environ['SANDIUM_STAGE']),plan=plan,apk_verified=apk and previous is not None,previous_receipt=previous)
     c.save(STATE/'candidate.json',dict(id=bridge.digest(bridge.encode(p)),payload=p))

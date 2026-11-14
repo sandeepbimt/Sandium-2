@@ -1,0 +1,21 @@
+{
+  "pin": "44a84b1f89d9a35287289d6a3d493e362f5a5123",
+  "gn_args": {
+    "enable_playlist": false,
+    "enable_playlist_webui": false
+  },
+  "touched_files": [
+    "android/BUILD.gn",
+    "android/brave_java_sources.gni",
+    "android/java/AndroidManifest.xml",
+    "android/java/brave-res/xml/brave_main_preferences.xml",
+    "android/java/org/chromium/chrome/browser/app/BraveActivity.java",
+    "android/java/org/chromium/chrome/browser/settings/BraveMainPreferencesBase.java",
+    "android/java/org/chromium/chrome/browser/tabbed_mode/BraveTabbedAppMenuPropertiesDelegate.java",
+    "android/java/org/chromium/chrome/browser/toolbar/top/BraveToolbarLayoutImpl.java",
+    "browser/customize_menu/android/BUILD.gn",
+    "browser/customize_menu/android/java/src/org/chromium/brave/browser/customize_menu/CustomizeBraveMenu.java",
+    "build/android/config.gni",
+    "components/playlist/core/common/buildflags/buildflags.gni"
+  ]
+}

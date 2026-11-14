@@ -18,6 +18,7 @@ ARCHIVE_VALID=false
 SIGNATURE_VALID=not_checked
 PACKAGE_VALID=false
 BRANDING_VALID=false
+REMOVALS_VALID=false
 APK_ERROR=""
 if [ -s "$APK" ]; then
   # Keep a diagnostic copy even if later validation fails.
@@ -58,7 +59,14 @@ if [ -s "$APK" ]; then
     fi
   fi
 fi
-if [ -s "$APK" ] && [ "$ARCHIVE_VALID" = true ] && [ "$SIGNATURE_VALID" = true ] && [ "$PACKAGE_VALID" = true ] && [ "$BRANDING_VALID" = true ]; then
+if [ "$ARCHIVE_VALID" = true ]; then
+  if python3 "$ROOT/.circleci/scripts/audit-sandium-stripped-apk.py" "$APK" --report "$ROOT/brave-apk/removal-dex.json"; then
+    REMOVALS_VALID=true
+  else
+    APK_ERROR="feature implementation remains in APK DEX or audit invalid"
+  fi
+fi
+if [ -s "$APK" ] && [ "$ARCHIVE_VALID" = true ] && [ "$SIGNATURE_VALID" = true ] && [ "$PACKAGE_VALID" = true ] && [ "$BRANDING_VALID" = true ] && [ "$REMOVALS_VALID" = true ]; then
   cp "$APK" "$ROOT/brave-apk/Sandium-Brave-test.apk"
   {
     echo "BUILD_FINISHED=true"
@@ -66,6 +74,7 @@ if [ -s "$APK" ] && [ "$ARCHIVE_VALID" = true ] && [ "$SIGNATURE_VALID" = true ]
     echo "APK_SIGNATURE_VALID=true"
     echo "APK_PACKAGE_ID_VALID=true"
     echo "APK_BRANDING_VALID=true"
+    echo "APK_REMOVALS_VALID=true"
     echo "APK_PACKAGE_ID=com.brave.browser_default"
     echo "APK_SIZE_BYTES=$(stat -c '%s' "$APK")"
   } > "$ROOT/brave-apk/status.txt"
@@ -77,6 +86,7 @@ else
     echo "APK_SIGNATURE_VALID=$SIGNATURE_VALID"
     echo "APK_PACKAGE_ID_VALID=$PACKAGE_VALID"
     echo "APK_BRANDING_VALID=$BRANDING_VALID"
+    echo "APK_REMOVALS_VALID=$REMOVALS_VALID"
     echo "APK_VALIDATION_ERROR=${APK_ERROR:-APK not produced}"
   } > "$ROOT/brave-apk/status.txt"
   echo "BRAVE_APK_VALIDATION=FAIL ${APK_ERROR:-APK not produced}"

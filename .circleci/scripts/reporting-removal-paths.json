@@ -1,0 +1,29 @@
+{
+  "schema": 1,
+  "core_restore": [
+    "android/java/org/chromium/chrome/browser/app/BraveActivity.java",
+    "browser/android/brave_init_android.cc",
+    "browser/brave_stats/BUILD.gn",
+    "components/p3a/p3a_service.h",
+    "components/p3a/BUILD.gn",
+    "browser/brave_browser_process_impl.cc",
+    "browser/brave_browser_process_impl.h",
+    "browser/brave_browser_main_extra_parts.cc",
+    "chromium_src/chrome/browser/component_updater/registration.cc",
+    "browser/brave_local_state_prefs.cc",
+    "chromium_src/chrome/browser/prefs/browser_prefs.cc",
+    "components/minidump_uploader/sources.gni"
+  ],
+  "chromium_restore": [
+    "components/minidump_uploader/BUILD.gn",
+    "chrome/android/java/src/org/chromium/chrome/browser/crash/MinidumpUploadServiceImpl.java",
+    "chrome/android/java/src/org/chromium/chrome/browser/crash/ChromeMinidumpUploadJobServiceImpl.java"
+  ],
+  "core_generated_overwrite": [
+    "components/minidump_uploader/android/java/src/org/chromium/components/minidump_uploader/MinidumpUploader.java"
+  ],
+  "required_gn": {
+    "enable_brave_stats_updater": false
+  },
+  "order": "Restore listed tracked paths BEFORE all existing overlays. Apply removal AFTER overlays24-29. Generated uploader is overwritten every application; do not git restore nonexistent generated path."
+}
