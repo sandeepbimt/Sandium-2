@@ -58,6 +58,8 @@ def transform(path,s):
     elif path.endswith('/BraveMainPreferencesBase.java'):
         s=re.sub(r'(?m)^.*private @Nullable VpnCalloutPreference.*\n','',s)
         s=block(s,'if (getActivity() != null\n                && !getActivity().isFinishing()\n                && BraveVpnPrefUtils.shouldShowCallout()')
+        s=block(s,'if (SANDIUM_SHOW_BRAVE_VPN_CALLOUT\n                && getActivity() != null\n                && !getActivity().isFinishing()\n                && BraveVpnPrefUtils.shouldShowCallout()')
+        s=s.replace('    private static final boolean SANDIUM_SHOW_BRAVE_VPN_CALLOUT = false;\n', '')
         s=region(s,'        if (getActivity() != null\n                && !getActivity().isFinishing()\n                && BraveVpnUtils.isVpnFeatureSupported(getActivity()))','        if (BraveLeoPrefUtils.isLeoEnabled())')
         s=method(s,'checkVpnPolicyAndUpdatePreference').replace('        checkVpnPolicyAndUpdatePreference();','')
         s=s.replace('if (BraveVpnPolicy.isDisabledByPolicy(profile)) {','{')

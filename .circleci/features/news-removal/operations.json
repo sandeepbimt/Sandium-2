@@ -1208,7 +1208,10 @@
     "old": "    <org.chromium.components.browser_ui.settings.ChromeBasePreference\n        android:fragment=\"org.chromium.chrome.browser.settings.BraveNewsPreferencesV2\"\n        android:key=\"brave_news_v2\"\n        android:icon=\"@drawable/ic_product_brave_news\"\n        android:order=\"2\"\n        android:title=\"@string/brave_news_title\"/>\n",
     "new": "",
     "count": 1,
-    "anchor": "android:fragment=\"org.chromium.chrome.browser.settings.BraveNewsPreferencesV2\""
+    "anchor": "android:fragment=\"org.chromium.chrome.browser.settings.BraveNewsPreferencesV2\"",
+    "old_variants": [
+      "    <org.chromium.components.browser_ui.settings.ChromeBasePreference\n        android:fragment=\"org.chromium.chrome.browser.settings.BraveNewsPreferencesV2\"\n        android:key=\"brave_news_v2\"\n        android:icon=\"@drawable/ic_product_brave_news\"\n        android:order=\"2\"\n        android:title=\"@string/brave_news_title\" app:isPreferenceVisible=\"false\" />\n"
+    ]
   },
   {
     "path": "android/java/res/layout/new_tab_page_layout.xml",

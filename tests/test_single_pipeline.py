@@ -135,7 +135,8 @@ class SinglePipeline(unittest.TestCase):
     def test_build_reserves_checkpoint_and_native_save_time(self):
         from job_budget import build_seconds
         self.assertEqual(build_seconds(0,0),1200)
-        self.assertEqual(build_seconds(0,700),1040)
+        self.assertEqual(build_seconds(0,700),860)
+        self.assertEqual(700+build_seconds(0,700)+900+600+60+180,3300)
         with self.assertRaises(ValueError):
             build_seconds(0,1700)
 

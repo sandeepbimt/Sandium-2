@@ -7,6 +7,10 @@ def apply(core):
     staged={}
     for op in OPS:
         p=core/op['path']; s=staged.get(p,p.read_text());old,new=op['old'],op['new']
+        variants=[old]+op.get('old_variants',[])
+        present=[v for v in variants if v in s]
+        if len(present)>1:raise RuntimeError(f"News ambiguous source: {op['path']}")
+        if present:old=present[0]
         count=s.count(old)
         if count:
             if count!=op.get('count',1):raise RuntimeError(f"News source drift: {op['path']} {op['anchor'][:100]}")

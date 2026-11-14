@@ -13,6 +13,7 @@ import time
 HERE=Path(__file__).resolve().parent
 sys.path.insert(0,str(HERE.parent/'checkpoint'))
 from progress import advance,Watchdog
+from job_budget import save_policy
 spec=importlib.util.spec_from_file_location('flow_common',HERE.parent/'checkpoint/driver.py')
 c=importlib.util.module_from_spec(spec);spec.loader.exec_module(c)
 import bridge
@@ -148,6 +149,16 @@ if __name__=='__main__':
     parser=argparse.ArgumentParser();parser.add_argument('phase');parser.add_argument('--slot',type=int);args=parser.parse_args()
     started=c.read(STATE/'job-start.json')['epoch'] if (STATE/'job-start.json').exists() else time.time()
     reserve=600 if args.phase in ('capture','seed-capture','restore') else 0
+    if args.phase == 'capture':
+        # Same horizon-based classification used before compilation. Missing or
+        # malformed plans cannot buy extra time; capture itself still validates.
+        try:
+            plan=c.read(STATE/'selected.json')['payload']['plan']
+        except (OSError, KeyError, TypeError, ValueError):
+            plan=None
+        policy=save_policy(plan,started)
+        reserve=policy['seconds']
+        print('FLOW_CAPTURE_SAVE_POLICY',json.dumps(policy),flush=True)
     remaining=3300-(time.time()-started)-reserve
     budget=min(900 if args.phase=='capture' else 1800,remaining)
     if budget<=0:raise ValueError('No remaining job budget')

@@ -13,7 +13,21 @@ with tempfile.TemporaryDirectory(prefix='news-removal-') as d:
     # Existing Sandium24-29 wallpaper guard must survive final removal overlay.
     ntp=core/'android/java/org/chromium/chrome/browser/ntp/BraveNewTabPageLayout.java'
     ntp.write_text(ntp.read_text().replace('                && mNtpImageGlobal instanceof Wallpaper\n','                && mNtpImageGlobal instanceof Wallpaper\n                && ((Wallpaper) mNtpImageGlobal).isSponsored()\n'))
+    # Current UI overlay hides this exact preference before component removal.
+    prefs=core/'android/java/brave-res/xml/brave_main_preferences.xml'
+    op=next(o for o in mod.OPS if o['path'].endswith('/brave_main_preferences.xml'))
+    prefs.write_text(prefs.read_text().replace(op['old'],op['old_variants'][0]))
+    known=prefs.read_text()
+    for bad in [known.replace(op['old_variants'][0],op['old_variants'][0].replace('false','true')),
+                known+'\n'+op['old']]:
+        prefs.write_text(bad)
+        try:mod.apply(core)
+        except RuntimeError:pass
+        else:raise AssertionError('Unknown or ambiguous News preference was accepted')
+        assert prefs.read_text()==bad
+    prefs.write_text(known)
     mod.apply(core);mod.apply(core)
+    assert 'BraveNewsPreferencesV2' not in prefs.read_text()
     assert 'isSponsored()' in ntp.read_text()
     for name in ['BraveNewTabPageLayout.java','BraveNtpAdapter.java']:
         text=(core/'android/java/org/chromium/chrome/browser/ntp'/name).read_text()
