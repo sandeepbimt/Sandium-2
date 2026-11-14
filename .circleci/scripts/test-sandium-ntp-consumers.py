@@ -21,8 +21,20 @@ class Test(unittest.TestCase):
    self.assertIn('setBackgroundImage(mNtpImageGlobal)',first['android/java/org/chromium/chrome/browser/ntp/BraveNewTabPageLayout.java'])
    self.assertNotIn('RecordViewedAdEvent',first[m.FILES[0]])
    self.assertNotIn('RecordClickedAdEvent',first[m.FILES[0]])
-   self.assertNotIn('new_tab_takeover/android:new_tab_takeover',first['browser/sources.gni'])
+   for path in ('browser/sources.gni','browser/ui/BUILD.gn','browser/ui/config.gni'):
+    self.assertNotIn('new_tab_takeover/android:new_tab_takeover',first[path])
+   self.assertIn('//brave/build/android:jni_headers',first['browser/ui/BUILD.gn'])
    self.assertNotIn('new_tab_takeover_generated.pak',first['components/resources/BUILD.gn'])
+ def test_ui_dependency_drift_fails_before_write(self):
+  for relative in ('browser/ui/BUILD.gn','browser/ui/config.gni'):
+   with self.subTest(path=relative), tempfile.TemporaryDirectory() as d:
+    root=Path(d)
+    for p in m.FILES:
+     (root/p).parent.mkdir(parents=True,exist_ok=True);shutil.copy(CORE/p,root/p)
+    p=root/relative;p.write_text(p.read_text().replace('new_tab_takeover/android:new_tab_takeover','new_tab_takeover/android:changed'))
+    original=(root/m.FILES[0]).read_bytes()
+    with self.assertRaises(ValueError):m.apply(root)
+    self.assertEqual(original,(root/m.FILES[0]).read_bytes())
  def test_drift_fails_before_write(self):
   with tempfile.TemporaryDirectory() as d:
    root=Path(d)

@@ -112,6 +112,7 @@
     "browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/suggestions/BraveOmniboxViewHolderFactory.java",
     "browser/ui/android/toolbar/java/brave-res/layout/brave_adaptive_preference_buttons.xml",
     "browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/adaptive/settings/BraveRadioButtonGroupAdaptiveToolbarPreference.java",
+    "browser/ui/config.gni",
     "build/android/config.gni",
     "chromium_src/chrome/browser/component_updater/registration.cc",
     "chromium_src/chrome/browser/prefs/browser_prefs.cc",

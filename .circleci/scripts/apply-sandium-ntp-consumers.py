@@ -9,7 +9,7 @@ FILES=(
 'browser/ntp_background/android/BUILD.gn',
 'browser/brave_content_browser_client.cc',
 'chromium_src/chrome/browser/ui/webui/chrome_web_ui_configs.cc',
-'browser/sources.gni', 'components/resources/BUILD.gn',
+'browser/sources.gni', 'browser/ui/BUILD.gn', 'browser/ui/config.gni', 'components/resources/BUILD.gn',
 'android/brave_java_sources.gni',
 'android/java/org/chromium/chrome/browser/ntp/BraveNewTabPageLayout.java',
 'android/java/org/chromium/chrome/browser/ntp_background_images/NTPBackgroundImagesBridge.java')
@@ -27,6 +27,8 @@ def verify(p,s):
   'browser/ntp_background/android/ntp_background_images_bridge.cc': ('RecordClickedAdEvent','RecordViewedAdEvent','CreateNewTabTakeoverWallpaper'),
   'browser/ntp_background/android/ntp_background_images_bridge.h': ('WallpaperLogoClicked','CreateNewTabTakeoverWallpaper'),
   'browser/sources.gni': ('new_tab_takeover/android:new_tab_takeover',),
+  'browser/ui/BUILD.gn': ('new_tab_takeover/android:new_tab_takeover',),
+  'browser/ui/config.gni': ('new_tab_takeover/android:new_tab_takeover',),
   'components/resources/BUILD.gn': ('new_tab_takeover_generated.pak',),
   'browser/brave_content_browser_client.cc': ('NewTabTakeoverUI',),
   'chromium_src/chrome/browser/ui/webui/chrome_web_ui_configs.cc': ('NewTabTakeoverUIConfig',),
@@ -58,6 +60,9 @@ def transform(p,s):
   s=once(s,'#include "brave/browser/ui/webui/new_tab_takeover/android/new_tab_takeover_ui_config.h"\n')
   s=once(s,'  map.AddWebUIConfig(std::make_unique<NewTabTakeoverUIConfig>());\n')
  elif p=='browser/sources.gni':s=once(s,'    "//brave/browser/ui/webui/new_tab_takeover/android:new_tab_takeover",\n')
+ elif p=='browser/ui/BUILD.gn':s=once(s,'      "//brave/browser/ui/webui/new_tab_takeover/android:new_tab_takeover",\n')
+ elif p=='browser/ui/config.gni':
+  s=once(s,'if (is_android) {\n  brave_ui_allow_circular_includes_from +=\n      [ "//brave/browser/ui/webui/new_tab_takeover/android:new_tab_takeover" ]\n}\n')
  elif p=='components/resources/BUILD.gn':
   s=once(s,'  if (is_android) {\n    deps += [ "//brave/components/new_tab_takeover:new_tab_takeover_generated_resources" ]\n    sources += [ "$root_gen_dir/brave/components/new_tab_takeover/new_tab_takeover_generated.pak" ]\n  }\n')
  elif p=='android/brave_java_sources.gni':
