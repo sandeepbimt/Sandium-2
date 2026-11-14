@@ -156,6 +156,9 @@ def p3a_transform(path, s):
         end = s.index('\n  RecordInitialP3AValues();', start)
         s = s[:start] + s[end:]
         s = s.replace('  RecordInitialP3AValues();\n', '')
+        # Its only caller is gone: remove the reporting-only definition too,
+        # rather than suppressing -Wunused-function or retaining dead reporting.
+        s = replace_function(s, 'void RecordInitialP3AValues()', '')
         s = s.replace('#include "brave/components/p3a/p3a_service.h"\n', '')
     elif path == 'chromium_src/chrome/browser/component_updater/registration.cc':
         s = remove_required(s, '  p3a::MaybeToggleP3AComponent(cus, g_brave_browser_process->p3a_service());\n', 'component')

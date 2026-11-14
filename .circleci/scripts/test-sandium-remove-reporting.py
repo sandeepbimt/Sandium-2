@@ -103,6 +103,17 @@ class P3ARemovalTest(unittest.TestCase):
         self.assertNotIn('MaybeToggleP3AComponent', result)
         self.assertIn('RegisterQueryFilterComponent', result)
 
+    def test_initial_reporting_helper_removed_and_lifecycle_preserved(self):
+        path = 'browser/brave_browser_main_extra_parts.cc'
+        result = m.p3a_transform(path, (FIX/'brave'/path).read_text())
+        self.assertNotIn('RecordInitialP3AValues', result)
+        self.assertNotIn('MaybeRecordShieldsUsageP3A', result)
+        self.assertNotIn('Brave.Core.CrashReportsEnabled', result)
+        for retained in ('StartBraveServices()', 'brave_referrals_service()',
+                         'uptime_monitor()->Init()', 'BraveWindowTracker::CreateInstance',
+                         'BraveWindowTracker::ClearInstance'):
+            self.assertIn(retained, result)
+
     def test_compatibility_header_has_no_network_or_observer(self):
         for forbidden in ('URLLoader', 'MessageManager', 'ScopedObservation', 'statistics_recorder', 'RemoteConfigManager'):
             self.assertNotIn(forbidden, m.P3A_HEADER)
