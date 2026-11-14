@@ -146,6 +146,20 @@ def capture(root, before, job_id, destination, quiesce):
         os.unlink(tmp)
 
 
+def validate_topology(target):
+    """Check every direct parent in a complete, normalized-path inventory.
+
+    Checking every node makes the ancestor condition inductive: a missing or
+    non-directory ancestor fails at its child. Never use this on a partial map.
+    Paths are validated by inventory()/safe() before reaching this function.
+    """
+    for name in target:
+        measured(items=1)
+        parent, separator, _ = name.rpartition('/')
+        if separator and target.get(parent, {}).get('kind') != 'directory':
+            raise ValueError('Non-directory parent')
+
+
 def _apply(root, archive, expected_id, parent, prior=None):
     """Apply only to a disposable restored job tree; failure invalidates whole tree."""
     root=Path(root)
@@ -158,17 +172,14 @@ def _apply(root, archive, expected_id, parent, prior=None):
         if len(set(names))!=len(names):raise ValueError('Duplicate archive members')
         m=json.loads(z.read('manifest.json'))
         if m['schema']!=1 or m['parent']!=parent:raise ValueError('Wrong ordered parent')
-        entries=m['entries'];deleted=m['deleted']
+        entries=m['entries'];deleted=set(m['deleted'])
         for name in set(entries)|set(deleted):safe(name)
         # Validate full target topology BEFORE touching disk, never traverse symlink parents.
         if prior is None:
             prior=inventory(root)
         target={n:public(e) for n,e in prior.items() if n not in deleted};target.update(entries)
         expected_members={'manifest.json'}
-        for n,e in target.items():
-            measured(items=1)
-            for p in PurePosixPath(n).parents:
-                if str(p)!='.' and target.get(str(p),{}).get('kind')!='directory':raise ValueError('Non-directory parent')
+        validate_topology(target)
         for n,e in entries.items():
             measured(items=1)
             if e['kind'] not in ('file','directory','symlink'):raise ValueError('Bad kind')

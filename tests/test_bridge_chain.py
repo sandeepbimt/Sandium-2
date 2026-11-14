@@ -6,6 +6,7 @@ import os
 import shutil
 import tempfile
 import unittest
+import itertools
 from unittest import mock
 import bridge
 from bridge import begin, capture, apply, apply_chain, root_metadata
@@ -15,6 +16,28 @@ from test_bridge_rollup import clone
 
 
 class ChainRestoreTests(unittest.TestCase):
+    def test_direct_parent_topology_matches_all_ancestor_check(self):
+        names=['a','a/b','a/b/c','a/b/c/d','z','z/x']
+        # Exhaustively compare absent/directory/file/symlink ancestors. This
+        # includes missing intermediate ancestors and deep symlink traversal.
+        for kinds in itertools.product([None,'directory','file','symlink'],repeat=len(names)):
+            target={name:dict(kind=kind) for name,kind in zip(names,kinds) if kind}
+            expected=all(str(p)=='.' or target.get(str(p),{}).get('kind')=='directory'
+                         for name in target for p in Path(name).parents)
+            try:
+                bridge.validate_topology(target)
+                actual=True
+            except ValueError:
+                actual=False
+            self.assertEqual(actual,expected,(target,expected))
+
+    def test_deleted_membership_uses_set_not_repeated_list_scan(self):
+        # Keep this guard alongside the real deletion/type-change fixture: the
+        # accepted manifests carry a list, but full-tree membership must be O(1).
+        import inspect
+        source=inspect.getsource(bridge._apply)
+        self.assertIn("deleted=set(m['deleted'])",source)
+
     def fixture(self, root, count=7):
         base=root/'base';base.mkdir();(base/'dir').mkdir()
         (base/'dir/a').write_bytes(b'old');os.link(base/'dir/a',base/'dir/b')
