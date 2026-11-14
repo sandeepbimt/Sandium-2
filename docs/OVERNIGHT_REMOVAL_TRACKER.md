@@ -148,3 +148,135 @@ native compilation remains the authoritative next test.
   preserving Bookmarks/History/Downloads and superclass fallback. Both exact
   pinned input/output digests are guarded, and the predictor is reset on replay.
   Five focused tests and repeated full composition/recovery checks pass.
+
+## Full-only continuation: #1126–#1138 (14 November 2026)
+
+This section is an evidence ledger, not APK acceptance. It supersedes the earlier
+Flow-only pipeline wording above: the owner selected Full as the sole build mode,
+based on `fc220e7f`, with accepted incremental checkpoint reuse and maintenance.
+The older scope/status rows remain historical initial assessments. At this ledger
+cutoff, all thirteen groups have source/graph checks, but no new stripped APK has
+been produced and verified. Fresh-install, upgrade, UI, network and runtime tests
+remain outstanding. No Origin entitlement or payment gate has been bypassed.
+
+### #1126: renderer variable after News removal
+
+- Actual C++ compilation failed on an unused `registry` in the renderer after the
+  News consumer was removed (`-Werror`). Acquire the registry only when surviving
+  AI Chat or native Web Discovery consumers are enabled; retain the observer and
+  unrelated renderer lifecycle. Do not suppress the warning or re-enable News.
+- Pinned tests, complete removal replay/recovery, four feature-flag cases and
+  independent review passed. Local reviewed fix `efd46c2` was published as
+  `98a66b6` for the successor.
+- Job3392 saved a 299 MiB increment and accepted-head receipt before the workflow
+  ended failed. No APK. A compiler failure and a terminal workflow failure are
+  separate events while checkpoint publication is still running.
+
+### #1128: Full verifier still called the legacy driver
+
+- Restore accepted eight increments, but the pre-build shell verifier still used
+  the legacy seven-layer driver. This was a pipeline wiring defect, not a corrupt
+  accepted checkpoint. No new compilation or increment was produced.
+- Point the verifier to `full_driver.py`; keep Full's sixteen-layer limit aligned
+  with its sixteen slots and maintenance threshold of eleven. Do not bypass the
+  verifier to continue the build.
+- Twenty-six Full tests passed, including fresh-process boundaries (0/7/8/11/15/16
+  accepted, 17 rejected), integrity failures and actual sixteen-delta replay and
+  rollup. Reviewed local `052112d` was published as `b7b25c1`.
+
+### #1130: orphan P3A helper
+
+- The corrected verifier passed after restoring all eight accepted increments.
+  Actual compilation then failed on unused `RecordInitialP3AValues` in
+  `brave_browser_main_extra_parts.cc`; its reporting callers were already removed.
+- Remove the entire orphan definition, including nested desktop code, rather than
+  suppressing warnings. Preserve unrelated browser lifecycle/services. Sixteen
+  reporting tests and independent review passed; local `3459ad8` was published
+  as `9be6ad2`.
+- Job3414 saved a 336 MiB increment and a 1.4 KiB accepted receipt: nine layers.
+  The final failure gate stopped the failed build only after preserving progress.
+  No APK. Action counters are per-run observations, not an ETA or proof of the
+  number of remaining source defects.
+
+### #1132: sponsored NTP Java/JNI input closure
+
+- Compilation failed because generated `SponsoredRichMediaWebViewJni.java` still
+  referenced `SponsoredRichMediaWebView.Natives`. Removing a shipping Java class
+  alone did not remove its JNI generator input in `build/android/config.gni`.
+- Exclude that matching generator input using an anchored, checked transform.
+  Preserve all other JNI entries, including ordinary wallpaper support; do not
+  add a stub or re-enable sponsored content. Five targeted tests and independent
+  review passed. Local `2595661` was published as `62d7e05`.
+- Job3425 saved a 346 MiB increment and a 1.5 KiB accepted receipt: ten layers.
+  No APK. Future feature removals must review Java source lists and generator
+  inputs together, not just generated-class/package-name scans.
+
+### #1134: obsolete Ads migration and orphan Leo Java code
+
+- The real build reached linking and failed on undefined
+  `brave_adaptive_captcha::MigrateObsoleteProfilePrefs(PrefService*)`, a remaining
+  migration caller after the Ads CAPTCHA implementation was excluded.
+- Remove only the obsolete include/call. Leave old preferences inert, preserve
+  unrelated migrations, and never silently delete valuable user data.
+- The same run exposed two Java-analysis warnings left by Leo removal: an unused
+  UI context and private tile helper. Remove the known orphan code rather than
+  spend a successor run rediscovering those already observed warnings. Bytecode
+  adapter compatibility was reviewed; twelve Rewards and five Leo tests passed.
+  Reviewed local `d965120` was published as `9ce5870`.
+- Job3436 saved a 347 MiB increment and a 1.5 KiB accepted receipt: eleven layers.
+  No APK. The next workflow correctly entered checkpoint maintenance before
+  compilation at the eleven-layer threshold.
+
+### #1136: maintenance peak-local-disk failure
+
+- Maintenance job3446 merged the eleven inputs into an approximately 8.813 GB
+  overlay, but base extraction then failed with `No space left on device`.
+  It retained all downloaded input deltas plus their merged copy while extracting
+  the base. Ordinary build restore did not have that additional merged copy.
+- This is current runner-local disk use, not historical remote APK artifact
+  storage. Deleting hosted APK artifacts does not free that runner's disk.
+- The bounded fix releases only disposable local input ZIPs after the merged
+  rollup has been verified and fsynced, before base extraction. Do not delete
+  accepted remote caches, overwrite the old receipt, skip full replay proof, or
+  publish without exact remote-cache readback.
+- Independent failure-path review and twenty-seven Full tests passed, including
+  existing-workspace refusal, corrupt input and extraction failure. Inputs remain
+  intact until verified rollup creation; failure must leave the accepted receipt
+  unchanged and publish no candidate. Local `1933e79` was published as `4dc9514`.
+- #1136 produced neither an APK nor a replacement checkpoint. The eleven-layer
+  job3436 head remained authoritative. Local tests did not prove sufficient space
+  in CI; that required the successor's actual extraction.
+
+### #1138: verified maintenance publication, no APK acceptance
+
+- Workflow `a5023abf-d813-43cd-b155-d8086a061d3a`, commit `4dc9514`, maintenance
+  job3457: released 30.420 GB of local input copies after verified rollup creation;
+  eight-shard base extraction passed. Before overlay application, 29.802 GB was
+  free against 8.847 GB required. Complete eleven-to-one-layer replay passed.
+- Maintenance job3457 subsequently completed: exact new base and increment were
+  read back, step161 verified eight shards (`zstd_test=true`) and overlay blobs,
+  and step163 published the 1.7 KiB accepted receipt plus previous receipt. The
+  eleven-to-one-layer replacement was therefore verified and published, not just
+  constructed locally. Root then coordinated cancellation of the following
+  removal build stage, which was still restoring its base, to prioritize the
+  separately authorized UI-only APK. No compilation/APK was verified in #1138.
+- Preserve previous checkpoint evidence after replacement. Daily scheduled
+  maintenance and APK-first behavior remain separate commitments; a schedule's
+  existence alone does not prove a refresh ran successfully or guarantee cache
+  retention indefinitely.
+
+### Reuse and separation rules for future work
+
+- Preserve the exact commits, manifests, fixtures and regression tests when
+  pausing this removal experiment. The pre-removal UI baseline is
+  `104df3fefd98f22123296d05a2e6540518eb0b6e`; UI overlays24–29 are separate from
+  removal overlay30. A UI-only build is a different source recipe, not a claim
+  that this removal experiment succeeded.
+- Do not merely skip the removal overlay on a restored stripped-product tree.
+  Restore/reset the intended pinned source, regenerate the graph, validate the
+  exact product recipe and reject stale APK/completion markers. Separate branch
+  and checkpoint lineage keep UI-only work from overwriting removal progress.
+- Source/native-closure checks and retained compatibility exceptions must be
+  reported separately from APK absence proof and device/runtime acceptance.
+  Avoid universal “all removed” claims until the relevant artifact and behavior
+  checks have actually run.
