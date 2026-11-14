@@ -29,6 +29,24 @@ class RewardsRemovalTest(unittest.TestCase):
         for p in ['browser/brave_profile_prefs.cc','browser/browser_context_keyed_service_factories.cc']:
             self.assertNotIn('brave_adaptive_captcha::',(self.core/p).read_text())
         self.assertNotIn('SCHEDULED_CAPTCHA',(self.core/(m.JAVA+'app/BraveActivity.java')).read_text())
+    def test_android_notification_circular_include_follows_ads_dependency(self):
+        m.apply(self.core)
+        s=(self.core/'browser/sources.gni').read_text()
+        self.assertIn(m.NOTIFICATION_CIRCULAR_NEW,s)
+        self.assertNotIn(m.NOTIFICATION_CIRCULAR_OLD,s)
+        self.assertIn('if (enable_brave_ads) {',m.NOTIFICATION_CIRCULAR_NEW)
+        self.assertIn('"//brave/browser/android/preferences"',m.NOTIFICATION_CIRCULAR_NEW)
+        self.assertIn('browser/sources.gni',m.FILES)
+    def test_notification_anchor_drift_fails_before_writes(self):
+        p=self.core/'browser/sources.gni'
+        p.write_text(p.read_text().replace(m.NOTIFICATION_CIRCULAR_OLD,'# unexpected upstream change'))
+        before={x:(self.core/x).read_bytes() for x in m.FILES}
+        with self.assertRaisesRegex(ValueError,'circular-include contract'):m.apply(self.core)
+        self.assertEqual(before,{x:(self.core/x).read_bytes() for x in m.FILES})
+    def test_marked_notification_drift_fails(self):
+        m.apply(self.core);p=self.core/'browser/sources.gni'
+        p.write_text(p.read_text().replace(m.NOTIFICATION_CIRCULAR_NEW,m.NOTIFICATION_CIRCULAR_OLD))
+        with self.assertRaisesRegex(ValueError,'ungated Android notifications'):m.apply(self.core)
     def test_shields_and_filter_help_preserved(self):
         m.apply(self.core)
         s=(self.core/(m.JAVA+'toolbar/top/BraveToolbarLayoutImpl.java')).read_text()

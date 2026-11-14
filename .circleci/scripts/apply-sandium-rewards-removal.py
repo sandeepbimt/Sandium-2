@@ -34,6 +34,18 @@ def replace_region(s,start,end,replacement=''):
 def no_override(s,name):
  return re.sub(r'    @Override\n(?=    public [^\n]*\b'+name+r'\()', '', s)
 
+NOTIFICATION_CIRCULAR_OLD='''if (is_android) {
+  brave_chrome_browser_allow_circular_includes_from += [
+    "//brave/browser/android:android_browser_process",
+    "//brave/browser/android:tabs_impl",
+    "//brave/browser/android/preferences",
+    "//brave/browser/notifications",
+  ]
+}'''
+NOTIFICATION_CIRCULAR_NEW=NOTIFICATION_CIRCULAR_OLD.replace(
+ '    "//brave/browser/notifications",\n','').replace(
+ '\n}', '\n  if (enable_brave_ads) {\n    brave_chrome_browser_allow_circular_includes_from +=\n        [ "//brave/browser/notifications" ]\n  }\n}')
+
 def transform(path,s):
  marker=('#' if path.endswith(('.gn','.gni')) else '//')+' SANDIUM_REWARDS_IMPLEMENTATION_REMOVED_V1\n'
  if s.startswith(marker):return s
@@ -111,6 +123,10 @@ def transform(path,s):
  elif path in ['browser/android/preferences/BUILD.gn','browser/sources.gni','browser/ui/BUILD.gn']:
   # Reward common pref-name/feature headers remain as inert compatibility data.
   s=''.join(line for line in s.splitlines(True) if not ('"//brave/' in line and 'brave_adaptive_captcha' in line))
+  if path=='browser/sources.gni':
+   if s.count(NOTIFICATION_CIRCULAR_OLD)!=1:
+    raise ValueError('Unexpected pinned Android notifications circular-include contract')
+   s=s.replace(NOTIFICATION_CIRCULAR_OLD,NOTIFICATION_CIRCULAR_NEW,1)
  elif path=='browser/android/preferences/brave_pref_service_bridge.cc':
   s=s.replace('#include "brave/components/brave_rewards/core/pref_names.h"\n','')
   s=s.replace('  GetOriginalProfile()->GetPrefs()->SetUint64(\n      brave_rewards::prefs::kPromotionLastFetchStamp, 0);','  // Sandium: Rewards implementation excluded; no stored data is deleted.')
@@ -153,6 +169,8 @@ public final class SandiumTextUtils {
 def apply(core):
  outputs={p:transform(p,(core/p).read_text()) for p in FILES}
  for p,s in outputs.items():
+  if p=='browser/sources.gni' and (s.count(NOTIFICATION_CIRCULAR_NEW)!=1 or NOTIFICATION_CIRCULAR_OLD in s):
+   raise ValueError('Residual ungated Android notifications circular include')
   if p.endswith('.cc') and 'brave_adaptive_captcha::' in w.masked(s):
    raise ValueError('Residual adaptive captcha implementation '+p)
   if p.endswith('.java'):
