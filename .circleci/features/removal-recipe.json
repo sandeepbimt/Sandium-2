@@ -333,7 +333,9 @@
     "components/playlist/core/common/buildflags/buildflags.gni",
     "components/resources/BUILD.gn",
     "renderer/brave_content_renderer_client.cc",
-    "renderer/sources.gni"
+    "renderer/sources.gni",
+    "chromium_src/chrome/browser/flags/android/chrome_feature_list.cc",
+    "browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/adaptive/BraveAdaptiveToolbarStatePredictor.java"
   ],
   "chromium_restore": [
     "components/minidump_uploader/BUILD.gn",
@@ -393,6 +395,13 @@
     },
     {
       "script": ".circleci/scripts/apply-sandium-leo-removal.py",
+      "args": [
+        "--core",
+        "{core}"
+      ]
+    },
+    {
+      "script": ".circleci/scripts/apply-sandium-native-feature-map.py",
       "args": [
         "--core",
         "{core}"

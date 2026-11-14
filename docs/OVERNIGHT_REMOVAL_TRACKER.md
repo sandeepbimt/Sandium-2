@@ -127,3 +127,24 @@ native compilation remains the authoritative next test.
 - Remove the private-page VPN views, matching Java fields/bindings/tint/helper and dangling layout constraint. Keep the two ordinary private-browsing explanatory sections and their icons.
 - After the removal recipe, synchronize only the final two audited NTP XML overrides to their actual Chromium build inputs. Do not rerun global branding/preparation or restore removed product resources. Verify exact copies; reject unreviewed new copied-resource inputs.
 - Add reset coverage for private NTP XML, pinned fixture/idempotence/drift tests, and final-overlay composition coverage. Source/graph success still does not imply APK/runtime success; a real successor build remains necessary.
+
+### #1124: Android native feature-map compile closure
+
+- Exact commit `962394f` restored #1122's accepted head and all six increments.
+- Real compilation reached action 2,866/7,003, then failed in Chromium's Android
+  feature-map override: unconditional Leo, News and Playlist feature headers each
+  asserted that their now-excluded product was enabled. This is a source consumer
+  closure defect, not a cache failure or justification to re-enable those products.
+- Remove those headers, Leo feature-map macro/entries, and the analogous Rewards
+  and Playlist native registrations. Preserve all retained browser feature entries
+  and Origin/payment code byte-for-byte. The exact input and output SHA-256 guards
+  fail closed on upstream drift; add this override to the pinned reset manifest.
+- Four focused tests and complete removal composition/reset/replay/interruption
+  checks pass. APK/native full compile remains pending on the successor; do not
+  claim runtime verification from these checks. Native Java lookups should be
+  reviewed alongside future feature registration removals.
+- Independent consumer review found retained toolbar prediction queried the removed
+  Leo native feature. Reject obsolete saved Leo and Wallet toolbar variants while
+  preserving Bookmarks/History/Downloads and superclass fallback. Both exact
+  pinned input/output digests are guarded, and the predictor is reset on replay.
+  Five focused tests and repeated full composition/recovery checks pass.
