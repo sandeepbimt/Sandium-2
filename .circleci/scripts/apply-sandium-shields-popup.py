@@ -22,9 +22,29 @@ def once(text, old, new):
     return text.replace(old, new, 1)
 
 
+def compact_header(text):
+    """Migrate both fresh and already-grouped checkpoint layouts without scaling hit areas."""
+    root = ET.fromstring(text)
+    nodes = {e.get(A+'id', '').removeprefix('@+id/'): e for e in root.iter()}
+    for name, attrs in {
+        'site_text_unified': {'textSize': '16sp', 'lineHeight': '22sp'},
+        'shields_status_text': {'textSize': '13sp', 'lineHeight': '18sp',
+                                'maxLines': '2', 'textColor': '?attr/colorOnSurfaceVariant'},
+        'shields_toggle_switch': {'scaleX': '1', 'scaleY': '1', 'minWidth': '48dp',
+                                  'minHeight': '48dp', 'layout_marginStart': '12dp',
+                                  'layout_marginEnd': '0dp'},
+    }.items():
+        if name not in nodes:
+            raise ValueError('Missing compact header control: '+name)
+        for key, value in attrs.items():
+            nodes[name].set(A+key, value)
+    ET.indent(root, space='    ')
+    return text[:text.index('<LinearLayout')] + ET.tostring(root, encoding='unicode')+'\n'
+
+
 def layout(text):
     if MARKER in text:
-        return text
+        return compact_header(text)
     root = ET.fromstring(text)
     def byid(name):
         matches = [e for e in root.iter() if e.get(A+'id') == '@+id/'+name]
@@ -99,7 +119,7 @@ def layout(text):
     ET.indent(root, space='    ')
     # Keep upstream license header.
     prefix = text[:text.index('<LinearLayout')]
-    return prefix + '<!-- '+MARKER+' -->\n' + ET.tostring(root, encoding='unicode')+'\n'
+    return compact_header(prefix + '<!-- '+MARKER+' -->\n' + ET.tostring(root, encoding='unicode')+'\n')
 
 
 def java(text):

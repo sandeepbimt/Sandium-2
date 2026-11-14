@@ -2,6 +2,8 @@
 import importlib.util
 from pathlib import Path
 import tempfile
+import subprocess
+import types
 import unittest
 
 BASE = Path(__file__).resolve().parent
@@ -19,6 +21,33 @@ class UnderlapPatchTests(unittest.TestCase):
                 once = patch.transform(name, self.original(name))
                 self.assertNotEqual(once, self.original(name))
                 self.assertEqual(once, patch.transform(name, once))
+
+    def test_previous_gradient_checkpoint_migrates(self):
+        name = "EdgeToEdgeBaseLayout.java"
+        current = patch.transform(name, self.original(name))
+        previous = current.replace("0xE6000000", "0xB3000000")
+        self.assertEqual(current, patch.transform(name, previous))
+
+    def test_bottom_controls_and_previous_checkpoint_migration(self):
+        previous = types.ModuleType('previous')
+        try:
+            old_script = subprocess.check_output(['git', 'show',
+                '4b4aa9d:.circleci/scripts/apply-sandium-scroll-status-bar.py'],
+                text=True, stderr=subprocess.DEVNULL)
+        except subprocess.CalledProcessError:
+            self.skipTest('Previous local review commit absent in shallow CI checkout')
+        exec(old_script, previous.__dict__)
+        for name in patch.FILES:
+            old = previous.transform(name, self.original(name))
+            current = patch.transform(name, old)
+            self.assertEqual(current, patch.transform(name, current), name)
+            self.assertEqual(current, patch.transform(name, self.original(name)), name)
+        controller = patch.transform('EdgeToEdgeControllerImpl.java', self.original('EdgeToEdgeControllerImpl.java'))
+        self.assertIn('ControlsPosition.BOTTOM', controller)
+        self.assertIn('controls.getTopControlsHeight() == 0', controller)
+        self.assertIn('controls.getBottomControlsHeight() > 0', controller)
+        self.assertIn('public void onTopControlsHeightChanged(int topControlsHeight, int topControlsMinHeight) {\n        refreshSandiumUnderlap();', controller)
+        self.assertIn('mBottomControlsHeight = bottomControlsHeight;\n        refreshSandiumUnderlap();', controller)
 
     def test_rejects_drift_before_any_writes(self):
         with tempfile.TemporaryDirectory() as tmp:

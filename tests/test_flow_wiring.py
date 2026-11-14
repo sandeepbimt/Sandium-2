@@ -122,4 +122,17 @@ class FullOverlayWiring(unittest.TestCase):
             '.circleci/scripts/apply-sandium-ui-prune.py','/tmp/apply-sandium-ui-prune.py')
         with self.assertRaisesRegex(ValueError,'command'):verify_full_wiring(root)
 
+    def test_new_ui_contracts_cannot_be_skipped(self):
+        for token in ('apply-sandium-bottom-toolbar.py', 'test-sandium-bottom-toolbar.py', 'apply-sandium-paged-menu.py'):
+            root=self.fixture();self.edit(root,'.circleci/experimental-steps/product-overlay-29-0.sh',
+                'python3 .circleci/scripts/'+token, '# python3 .circleci/scripts/'+token)
+            with self.assertRaisesRegex(ValueError,'command'): verify_full_wiring(root)
+
+    def test_new_ui_contracts_require_actual_restored_inputs(self):
+        cases=[('test-sandium-bottom-toolbar.py --src "$SRC"','test-sandium-bottom-toolbar.py --src "$CORE"','toolbar'),
+               ('--repo "$ROOT" --verify-only','--repo "$ROOT"','verification')]
+        for old,new,error in cases:
+            root=self.fixture();self.edit(root,'.circleci/experimental-steps/product-overlay-29-0.sh',old,new)
+            with self.assertRaisesRegex(ValueError,error): verify_full_wiring(root)
+
 if __name__=='__main__':unittest.main()

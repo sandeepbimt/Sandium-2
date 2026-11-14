@@ -12,10 +12,20 @@ python3 .circleci/scripts/test-sandium-visible-branding.py --core "$CORE"
 python3 .circleci/scripts/apply-sandium-native-theme.py "$CORE"
 python3 .circleci/scripts/test-sandium-native-theme.py
 
-# Bounded Android 16 portrait/top-toolbar web-underlap trial; no frost.
+# Bounded Android 16 portrait top/bottom-toolbar web-underlap trial; no frost.
 python3 .circleci/scripts/apply-sandium-scroll-status-bar.py "$SRC"
 python3 .circleci/tests/test_status_underlap_patch.py
 
 # Selected grouped site popup; keep underlying Shields policies and handlers.
 python3 .circleci/scripts/apply-sandium-shields-popup.py "$CORE"
 python3 .circleci/scripts/test-sandium-shields-popup.py --core "$CORE"
+
+# Native bottom toolbar and paged menu preserve existing omnibox and action dispatch.
+python3 .circleci/scripts/apply-sandium-bottom-toolbar.py --src "$SRC" --core "$CORE"
+python3 .circleci/scripts/test-sandium-bottom-toolbar.py --src "$SRC" --core "$CORE"
+python3 .circleci/scripts/apply-sandium-paged-menu.py "$SRC" --repo "$ROOT"
+python3 .circleci/scripts/apply-sandium-paged-menu.py "$SRC" --repo "$ROOT" --verify-only
+
+python3 .circleci/scripts/apply-sandium-chrome-theme.py "$SRC"
+python3 .circleci/scripts/test-sandium-chrome-theme.py
+python3 .circleci/scripts/test-sandium-motion.py

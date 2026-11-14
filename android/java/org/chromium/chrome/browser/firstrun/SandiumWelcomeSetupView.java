@@ -60,16 +60,16 @@ final class SandiumWelcomeSetupView {
         void onPrepareForRestart();
     }
 
-    private static final int BACKGROUND = Color.rgb(27, 31, 33);
-    private static final int CARD = Color.rgb(41, 46, 49);
-    private static final int SEPARATOR = Color.rgb(57, 64, 65);
-    private static final int PRIMARY = Color.rgb(230, 244, 232);
-    private static final int PRIMARY_TEXT = Color.rgb(23, 39, 28);
-    private static final int DISABLED_BUTTON = Color.rgb(65, 74, 69);
-    private static final int DISABLED_BUTTON_TEXT = Color.rgb(172, 184, 175);
-    private static final int TEXT = Color.rgb(246, 248, 247);
-    private static final int SECONDARY = Color.rgb(191, 201, 198);
-    private static final int SUCCESS = PRIMARY;
+    private static final int BACKGROUND = Color.rgb(0, 0, 0);
+    private static final int CARD = Color.rgb(33, 33, 33);
+    private static final int SEPARATOR = Color.rgb(69, 69, 69);
+    private static final int PRIMARY = Color.rgb(245, 245, 245);
+    private static final int PRIMARY_TEXT = Color.rgb(23, 23, 23);
+    private static final int DISABLED_BUTTON = Color.rgb(55, 55, 55);
+    private static final int DISABLED_BUTTON_TEXT = Color.rgb(160, 160, 160);
+    private static final int TEXT = Color.rgb(250, 250, 250);
+    private static final int SECONDARY = Color.rgb(189, 189, 189);
+    private static final int SUCCESS = Color.rgb(230, 244, 232);
 
     private static final String PREF_BLUR_LEVEL = "sandium_page_transition_blur_level";
     private static final String PREF_DARKEN = "sandium_page_transition_darken";
@@ -177,6 +177,7 @@ final class SandiumWelcomeSetupView {
                 ViewGroup.LayoutParams.MATCH_PARENT, dp(52));
         buttonContainer.addView(mStartButton, buttonParams);
 
+        fadeIn(mContent);
         return mRoot;
     }
 
@@ -196,8 +197,28 @@ final class SandiumWelcomeSetupView {
 
     void destroy() {
         mDestroyed = true;
+        if (mContent != null) { mContent.animate().cancel(); mContent.setAlpha(1f); }
+        if (mAdvancedOptions != null) {
+            mAdvancedOptions.animate().cancel(); mAdvancedOptions.setAlpha(1f);
+        }
         mHandler.removeCallbacks(mPollRunnable);
         mFilterHandler = null;
+    }
+
+    // App-owned content only; never delay input or change native switch animation.
+    private void fadeIn(View view) {
+        if (!ValueAnimator.areAnimatorsEnabled()) return;
+        view.animate().cancel();
+        view.setAlpha(0f);
+        view.post(() -> {
+            if (!mDestroyed && view.isAttachedToWindow()
+                    && view.getVisibility() == View.VISIBLE && ValueAnimator.areAnimatorsEnabled()) {
+                view.animate().alpha(1f).setDuration(120).setStartDelay(0)
+                        .setInterpolator(new LinearInterpolator()).start();
+            } else {
+                view.setAlpha(1f);
+            }
+        });
     }
 
     private void applyInitialPreferences() {
@@ -268,7 +289,9 @@ final class SandiumWelcomeSetupView {
         more.addView(arrow, new LinearLayout.LayoutParams(dp(24), dp(30)));
         more.setOnClickListener(v -> {
             mExpanded = !mExpanded;
+            mAdvancedOptions.animate().cancel(); mAdvancedOptions.setAlpha(1f);
             mAdvancedOptions.setVisibility(mExpanded ? View.VISIBLE : View.GONE);
+            if (mExpanded) fadeIn(mAdvancedOptions);
             mMoreOptionsLabel.setText(mExpanded ? "Fewer options" : "More options");
             arrow.setText(mExpanded ? "⌄" : "›");
         });
@@ -344,7 +367,7 @@ final class SandiumWelcomeSetupView {
         mProgress.setMax(100);
         mProgress.setProgress(0);
         mProgress.setProgressTintList(ColorStateList.valueOf(PRIMARY));
-        mProgress.setProgressBackgroundTintList(ColorStateList.valueOf(Color.rgb(62, 73, 67)));
+        mProgress.setProgressBackgroundTintList(ColorStateList.valueOf(Color.rgb(62, 62, 62)));
         progressRow.addView(mProgress, new LinearLayout.LayoutParams(0, dp(5), 1f));
 
         mPercent = text("0%", 11, TEXT, false);
@@ -354,7 +377,7 @@ final class SandiumWelcomeSetupView {
         progressRow.addView(mPercent, percentParams);
 
         View divider = new View(mActivity);
-        divider.setBackgroundColor(Color.rgb(73, 84, 78));
+        divider.setBackgroundColor(Color.rgb(69, 69, 69));
         LinearLayout.LayoutParams dividerParams = matchWrap();
         dividerParams.height = dp(1);
         dividerParams.setMargins(dp(12), 0, dp(12), dp(4));
@@ -478,10 +501,10 @@ final class SandiumWelcomeSetupView {
                     new int[] {}
                 },
                 new int[] {
-                    PRIMARY,
-                    Color.rgb(186, 197, 190),
-                    Color.rgb(169, 188, 174),
-                    Color.rgb(153, 166, 158)
+                    PRIMARY_TEXT,
+                    Color.rgb(189, 189, 189),
+                    Color.rgb(84, 84, 84),
+                    Color.rgb(133, 133, 133)
                 }));
         toggle.setTrackTintList(new ColorStateList(
                 new int[][] {
@@ -491,10 +514,10 @@ final class SandiumWelcomeSetupView {
                     new int[] {}
                 },
                 new int[] {
-                    Color.rgb(112, 134, 116),
-                    Color.rgb(83, 96, 89),
-                    Color.rgb(79, 98, 84),
-                    Color.rgb(63, 75, 68)
+                    Color.rgb(245, 245, 245),
+                    Color.rgb(80, 80, 80),
+                    Color.rgb(145, 145, 145),
+                    Color.rgb(63, 63, 63)
                 }));
         toggle.setOnCheckedChangeListener((button, value) -> {
             if (showRestartHint) restartHint.setVisibility(View.VISIBLE);
@@ -649,7 +672,7 @@ final class SandiumWelcomeSetupView {
 
         LayerDrawable background = new LayerDrawable(new Drawable[] {
             roundRect(PRIMARY, 28),
-            new ClipDrawable(roundRect(Color.rgb(190, 218, 196), 28),
+            new ClipDrawable(roundRect(Color.rgb(214, 214, 214), 28),
                     Gravity.LEFT, ClipDrawable.HORIZONTAL)
         });
         ClipDrawable progress = (ClipDrawable) background.getDrawable(1);

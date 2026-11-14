@@ -196,12 +196,13 @@ assert "loaded and active" not in view_source
 assert "Enabled lists downloaded; native engine reports ready" in view_source
 assert "Finalizing: Native engine reports ready" in view_source
 
-# Frozen no-logo charcoal / near-white green welcome design.
+# Frozen no-logo layout with approved neutral charcoal theme and green readiness.
 assert 'text("Setup Sandium", 27, TEXT, true)' in view_source
-assert 'Color.rgb(27, 31, 33)' in view_source
-assert 'Color.rgb(41, 46, 49)' in view_source
-assert 'Color.rgb(230, 244, 232)' in view_source
-assert 'Color.rgb(23, 39, 28)' in view_source
+assert 'private static final int BACKGROUND = Color.rgb(0, 0, 0);' in view_source
+assert 'private static final int CARD = Color.rgb(33, 33, 33);' in view_source
+assert 'private static final int SUCCESS = Color.rgb(230, 244, 232);' in view_source
+assert 'private static final int PRIMARY = Color.rgb(245, 245, 245);' in view_source
+assert 'private static final int PRIMARY_TEXT = Color.rgb(23, 23, 23);' in view_source
 assert 'subtitle.setMaxLines(2)' not in view_source
 assert 'dp(6), dp(8), dp(6), dp(28)' in view_source
 assert 'ImageView' not in view_source

@@ -15,7 +15,7 @@ REQUIRED = {
  'product-overlay-26-0.sh': ['apply-sandium-page-transition-full.py'],
  'product-overlay-27-0.sh': ['apply-sandium-homepage-adblock-warmup.py','apply-sandium-download-concurrency.py','apply-sandium-welcome-setup.py','test-sandium-homepage-adblock-warmup.py','test-sandium-download-concurrency.py','test-sandium-welcome-setup.py','test-sandium-page-transition-full.py','verify-sandium-vanilla-brave.py'],
  'product-overlay-28-0.sh': ['apply-sandium-shields-two-state.py','apply-sandium-adblock-engine-race.py','test-sandium-shields-two-state.py','test-sandium-adblock-engine-race.py','test-sandium-filter-subscriptions.py','test-sandium-filter-bootstrap.py','apply-sandium-adblock-resources.py','test-sandium-adblock-resources.py'],
- 'product-overlay-29-0.sh': ['apply-sandium-ui-prune.py','test-sandium-ui-prune.py','apply-sandium-visible-branding.py','test-sandium-visible-branding.py','apply-sandium-native-theme.py','test-sandium-native-theme.py','apply-sandium-scroll-status-bar.py','test_status_underlap_patch.py','apply-sandium-shields-popup.py','test-sandium-shields-popup.py'],
+ 'product-overlay-29-0.sh': ['apply-sandium-ui-prune.py','test-sandium-ui-prune.py','apply-sandium-visible-branding.py','test-sandium-visible-branding.py','apply-sandium-native-theme.py','test-sandium-native-theme.py','apply-sandium-scroll-status-bar.py','test_status_underlap_patch.py','apply-sandium-shields-popup.py','test-sandium-shields-popup.py','apply-sandium-bottom-toolbar.py','test-sandium-bottom-toolbar.py','apply-sandium-paged-menu.py','apply-sandium-paged-menu.py','apply-sandium-chrome-theme.py','test-sandium-chrome-theme.py','test-sandium-motion.py'],
 }
 
 
@@ -94,4 +94,15 @@ def verify_full_wiring(repo):
             if invocations[8][1] != ['$CORE']:raise ValueError('Apply popup must target restored core')
             if invocations[9][1] != ['--core', '$CORE']:raise ValueError('Test popup must target restored core')
             if invocations[7][1]:raise ValueError('Status trial tests take no arguments')
+            for index in (10,11):
+                if invocations[index][1] != ['--src', '$SRC', '--core', '$CORE']:
+                    raise ValueError('Native toolbar must target restored source/core')
+            if invocations[12][1] != ['$SRC','--repo','$ROOT']:
+                raise ValueError('Paged menu must target restored source and active repository')
+            if invocations[13][1] != ['$SRC','--repo','$ROOT','--verify-only']:
+                raise ValueError('Paged menu post-apply verification is required')
+            if invocations[14][1] != ['$SRC'] or invocations[15][1]:
+                raise ValueError('Chrome theme must target restored source with its contract test')
+            if invocations[16][1]:
+                raise ValueError('Motion contract takes no external inputs')
     return list(jobs)

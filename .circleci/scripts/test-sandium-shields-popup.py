@@ -36,6 +36,23 @@ class PopupTests(unittest.TestCase):
         self.assertEqual(new, m.layout(new))
         ids = lambda s: {e.get(m.A+'id') for e in ET.fromstring(s).iter() if e.get(m.A+'id')}
         self.assertEqual(ids(old), ids(new))
+    def test_compact_header_retains_native_touch_target_and_scalable_text(self):
+        new = m.layout(original(m.LAYOUT))
+        nodes = {e.get(m.A+'id', '').removeprefix('@+id/'):e for e in ET.fromstring(new).iter()}
+        for name, size in [('site_text_unified','16sp'),('shields_status_text','13sp')]:
+            self.assertEqual(nodes[name].get(m.A+'textSize'), size)
+            self.assertEqual(nodes[name].get(m.A+'layout_height'), 'wrap_content')
+        self.assertEqual(nodes['shields_status_text'].get(m.A+'maxLines'), '2')
+        switch = nodes['shields_toggle_switch']
+        for attr in ['minWidth', 'minHeight']:
+            self.assertEqual(switch.get(m.A+attr), '48dp')
+        for attr in ['scaleX', 'scaleY']:
+            self.assertEqual(switch.get(m.A+attr), '1')
+        self.assertEqual(new,m.layout(new))
+        # A cached pre-fix grouped layout must migrate, not skip because of its marker.
+        old = new.replace('android:scaleX="1"', 'android:scaleX="1.25"')
+        self.assertEqual(new,m.layout(old))
+
     def test_xml_parses_and_native_popup_geometry_unchanged(self):
         ET.fromstring(m.layout(original(m.LAYOUT)))
         old=original(m.JAVA); new=m.java(old)

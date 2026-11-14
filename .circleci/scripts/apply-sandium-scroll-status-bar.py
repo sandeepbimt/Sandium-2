@@ -25,6 +25,16 @@ def replace(s, old, new):
     return s.replace(old,new,1)
 
 def transform(name,s):
+    # Migrate already-patched checkpoints without duplicating the overlay.
+    if name == "EdgeToEdgeBaseLayout.java":
+        s = s.replace("new int[] {0xB3000000, 0x99000000, 0x00000000}",
+                      "new int[] {0xE6000000, 0x99000000, 0x00000000}")
+    if name == "EdgeToEdgeControllerImpl.java":
+        s = s.replace('        return controls.getControlsPosition() == BrowserControlsStateProvider.ControlsPosition.TOP\n                && controls.getTopControlsHeight() > 0\n                && controls.getTopControlsMinHeightOffset() == 0\n                && !controls.isVisibilityForced();', '        if (controls.isVisibilityForced() || controls.getTopControlsMinHeightOffset() != 0) {\n            return false;\n        }\n        if (controls.getControlsPosition() == BrowserControlsStateProvider.ControlsPosition.TOP) {\n            return controls.getTopControlsHeight() > 0;\n        }\n        // Native bottom placement removes the entire top toolbar. Decline transitional\n        // or extra top-layer geometry rather than allowing content under native controls.\n        return controls.getControlsPosition() == BrowserControlsStateProvider.ControlsPosition.BOTTOM\n                && controls.getTopControlsHeight() == 0\n                && controls.getBottomControlsHeight() > 0;')
+    if name == "EdgeToEdgeControllerTest.java":
+        s = s.replace('        when(mBrowserControlsStateProvider.getControlsPosition())\n                .thenReturn(BrowserControlsStateProvider.ControlsPosition.TOP);\n        assertTrue(EdgeToEdgeControllerImpl.isSandiumPageAndControlsSupported(\n                mTab, mBrowserControlsStateProvider));\n    }\n', '        when(mBrowserControlsStateProvider.getTopControlsHeight()).thenReturn(0);\n        // No bottom controls yet: migration must still fail closed.\n        assertFalse(EdgeToEdgeControllerImpl.isSandiumPageAndControlsSupported(\n                mTab, mBrowserControlsStateProvider));\n        when(mBrowserControlsStateProvider.getBottomControlsHeight()).thenReturn(100);\n        assertTrue(EdgeToEdgeControllerImpl.isSandiumPageAndControlsSupported(\n                mTab, mBrowserControlsStateProvider));\n        when(mBrowserControlsStateProvider.getTopControlsHeight()).thenReturn(1);\n        assertFalse(EdgeToEdgeControllerImpl.isSandiumPageAndControlsSupported(\n                mTab, mBrowserControlsStateProvider));\n        when(mBrowserControlsStateProvider.getControlsPosition())\n                .thenReturn(BrowserControlsStateProvider.ControlsPosition.TOP);\n        when(mBrowserControlsStateProvider.getTopControlsHeight()).thenReturn(100);\n        assertTrue(EdgeToEdgeControllerImpl.isSandiumPageAndControlsSupported(\n                mTab, mBrowserControlsStateProvider));\n    }\n')
+    if name == "EdgeToEdgeControllerImpl.java" and "public void onTopControlsHeightChanged(" not in s:
+        s = s.replace('    @Override\n    public void onControlsPositionChanged(int controlsPosition) {\n        refreshSandiumUnderlap();\n    }\n', '    @Override\n    public void onTopControlsHeightChanged(int topControlsHeight, int topControlsMinHeight) {\n        refreshSandiumUnderlap();\n    }\n\n    @Override\n    public void onControlsPositionChanged(int controlsPosition) {\n        refreshSandiumUnderlap();\n    }\n')
     # Normalize the isolated rollback gate before idempotence checks.
     s=s.replace("SANDIUM_TOP_UNDERLAP_EXPERIMENT = false;", "SANDIUM_TOP_UNDERLAP_EXPERIMENT = true;")
     if name == 'InsetObserver.java':
@@ -95,7 +105,7 @@ def transform(name,s):
         mSandiumTopProtectionHeight = height;
         mSandiumTopProtectionPaint.setShader(height == 0 ? null :
                 new android.graphics.LinearGradient(0, 0, 0, height * 1.5f,
-                        new int[] {0xB3000000, 0x99000000, 0x00000000},
+                        new int[] {0xE6000000, 0x99000000, 0x00000000},
                         new float[] {0f, 0.67f, 1f}, android.graphics.Shader.TileMode.CLAMP));
         invalidate();
     }
@@ -268,8 +278,19 @@ def transform(name,s):
                 .thenReturn(BrowserControlsStateProvider.ControlsPosition.BOTTOM);
         assertFalse(EdgeToEdgeControllerImpl.isSandiumPageAndControlsSupported(
                 mTab, mBrowserControlsStateProvider));
+        when(mBrowserControlsStateProvider.getTopControlsHeight()).thenReturn(0);
+        // No bottom controls yet: migration must still fail closed.
+        assertFalse(EdgeToEdgeControllerImpl.isSandiumPageAndControlsSupported(
+                mTab, mBrowserControlsStateProvider));
+        when(mBrowserControlsStateProvider.getBottomControlsHeight()).thenReturn(100);
+        assertTrue(EdgeToEdgeControllerImpl.isSandiumPageAndControlsSupported(
+                mTab, mBrowserControlsStateProvider));
+        when(mBrowserControlsStateProvider.getTopControlsHeight()).thenReturn(1);
+        assertFalse(EdgeToEdgeControllerImpl.isSandiumPageAndControlsSupported(
+                mTab, mBrowserControlsStateProvider));
         when(mBrowserControlsStateProvider.getControlsPosition())
                 .thenReturn(BrowserControlsStateProvider.ControlsPosition.TOP);
+        when(mBrowserControlsStateProvider.getTopControlsHeight()).thenReturn(100);
         assertTrue(EdgeToEdgeControllerImpl.isSandiumPageAndControlsSupported(
                 mTab, mBrowserControlsStateProvider));
     }
@@ -300,10 +321,17 @@ def transform(name,s):
                 || tab.getWebContents() == null) return false;
         String scheme = tab.getUrl().getScheme();
         if (!"https".equals(scheme) && !"http".equals(scheme)) return false;
-        return controls.getControlsPosition() == BrowserControlsStateProvider.ControlsPosition.TOP
-                && controls.getTopControlsHeight() > 0
-                && controls.getTopControlsMinHeightOffset() == 0
-                && !controls.isVisibilityForced();
+        if (controls.isVisibilityForced() || controls.getTopControlsMinHeightOffset() != 0) {
+            return false;
+        }
+        if (controls.getControlsPosition() == BrowserControlsStateProvider.ControlsPosition.TOP) {
+            return controls.getTopControlsHeight() > 0;
+        }
+        // Native bottom placement removes the entire top toolbar. Decline transitional
+        // or extra top-layer geometry rather than allowing content under native controls.
+        return controls.getControlsPosition() == BrowserControlsStateProvider.ControlsPosition.BOTTOM
+                && controls.getTopControlsHeight() == 0
+                && controls.getBottomControlsHeight() > 0;
     }
 
     private boolean shouldSandiumUnderlap(@Nullable Tab tab) {
@@ -353,6 +381,11 @@ def transform(name,s):
     }
 
     @Override
+    public void onTopControlsHeightChanged(int topControlsHeight, int topControlsMinHeight) {
+        refreshSandiumUnderlap();
+    }
+
+    @Override
     public void onControlsPositionChanged(int controlsPosition) {
         refreshSandiumUnderlap();
     }
@@ -384,6 +417,8 @@ def transform(name,s):
         s=replace(s,'        updateBrowserControlsVisibility(\n                mBottomControlsHeight > 0 && bottomOffset < mBottomControlsHeight);', """        updateBrowserControlsVisibility(
                 mBottomControlsHeight > 0 && bottomOffset < mBottomControlsHeight);
         refreshSandiumUnderlap();""")
+        s=replace(s,'        mBottomControlsHeight = bottomControlsHeight;',
+            '        mBottomControlsHeight = bottomControlsHeight;\n        refreshSandiumUnderlap();')
         s=replace(s,'    public void onStartedShowing(int layoutType) {', """    public void onStartedShowing(int layoutType) {
         mSandiumNonBrowsingTransition = layoutType != LayoutType.BROWSING;
         refreshSandiumUnderlap();""")

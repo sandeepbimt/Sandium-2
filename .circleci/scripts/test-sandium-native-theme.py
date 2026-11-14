@@ -28,8 +28,26 @@ class ThemeTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             theme.recolor('<resources><color name="x">#000000</color><color name="x">#111111</color></resources>',{'x':'#222222'})
     def test_text_contrast(self):
-        for fg,bg in [(theme.ACCENT,theme.BACKGROUND),(theme.ON_ACCENT,theme.ACCENT),(theme.LIGHT_GREEN,'#FFFFFF'),('#EFF2EF',theme.CARD),('#C4CCC7',theme.BACKGROUND)]:
+        for fg,bg in [(theme.ACCENT,theme.BACKGROUND),(theme.ON_ACCENT,theme.ACCENT),(theme.LIGHT_PRIMARY,'#FFFFFF'),(theme.NIGHT['schemes_on_surface'],theme.CARD),(theme.NIGHT['schemes_on_surface_variant'],theme.CARD)]:
             self.assertGreaterEqual(contrast(fg,bg),4.5,(fg,bg))
+    def test_neutral_surfaces(self):
+        for color in [theme.BACKGROUND, theme.CARD, theme.ACCENT,
+                      theme.NIGHT['schemes_on_surface_variant']]:
+            self.assertEqual(color[1:3], color[3:5])
+            self.assertEqual(color[3:5], color[5:7])
+    def test_welcome_checked_switch_contrast(self):
+        self.assertGreaterEqual(contrast('#171717', '#F5F5F5'), 3)
+        source = (Path(__file__).resolve().parents[2] / 'android/java/org/chromium/chrome/browser/firstrun/SandiumWelcomeSetupView.java').read_text()
+        self.assertIn('private static final int SUCCESS = Color.rgb(230, 244, 232)', source)
+        self.assertIn('                    PRIMARY_TEXT,', source)
+    def test_settings_subpage_tokens_have_readable_day_and_night_pairs(self):
+        for name in ['filter_title_color', 'filter_summary_color',
+                     'bookmark_menu_text_color', 'brave_theme_hint_text',
+                     'bookmark_import_export_dialog_button_color', 'url_text_primary', 'text_tertiary']:
+            self.assertGreaterEqual(contrast(theme.NIGHT[name], theme.CARD), 4.5, name)
+            self.assertGreaterEqual(contrast(theme.LIGHT[name], '#E8E8E8'), 4.5, name)
+        self.assertEqual(theme.NIGHT['bookmark_menu_bg_color'], theme.CARD)
+        self.assertEqual(theme.COMMON['baseline_neutral_0'], theme.BACKGROUND)
     def test_scope(self):
         allkeys=set(theme.COMMON)|set(theme.NIGHT)|set(theme.LIGHT)
         self.assertFalse(any('error' in x or 'wallet' in x or 'incognito' in x or 'private_window' in x for x in allkeys))
