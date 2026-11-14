@@ -128,8 +128,8 @@ def assert_idempotent(transform, source, label):
 def main():
     startup = assert_idempotent(MODULE.transform_startup, STARTUP_FIXTURE, "startup")
     for value in (
-        "nav-animation-fade-hold-duration-ms/450/nav-animation-fade-out-duration-ms/225",
-        "nav-animation-fade-hold-duration-ms/675/nav-animation-fade-out-duration-ms/300",
+        "nav-animation-fade-hold-duration-ms/240/nav-animation-fade-out-duration-ms/120",
+        "nav-animation-fade-hold-duration-ms/320/nav-animation-fade-out-duration-ms/160",
         'getBoolean("sandium_page_transition_darken", false)',
         '"/nav-animation-darken/" + (darken ? "true" : "false")',
     ):
@@ -214,7 +214,7 @@ def main():
     assert "float initial_darken_opacity_ = 0.0f;" in native_header
 
     print("SANDIUM_PAGE_TRANSITION_FULL_TESTS=PASS")
-    print("SANDIUM_PAGE_TRANSITION_DURATIONS=PASS medium=450/225 high=675/300")
+    print("SANDIUM_PAGE_TRANSITION_DURATIONS=PASS medium=240/120 high=320/160")
     print("SANDIUM_PAGE_TRANSITION_DARKEN=PASS preference+native-layer+cleanup")
     print("SANDIUM_PAGE_TRANSITION_NIGHT_MODE=PASS dark fallback")
     print("SANDIUM_PAGE_TRANSITION_APPEARANCE_ICON=PASS")
