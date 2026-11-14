@@ -3,7 +3,7 @@
 Uses intersecting UI overlays; does not replace full CI old-overlay or GN tests.
 """
 import json,subprocess,tempfile,pathlib,sys,importlib.util,argparse
-a=argparse.ArgumentParser();a.add_argument('--source',type=pathlib.Path,required=True);source=a.parse_args().source
+a=argparse.ArgumentParser();a.add_argument('--source',type=pathlib.Path,required=True);a.add_argument('--gn',type=pathlib.Path);args=a.parse_args();source=args.source
 root=pathlib.Path(__file__).resolve().parents[2];m=json.loads((root/'.circleci/features/removal-recipe.json').read_text())
 with tempfile.TemporaryDirectory() as d:
  src=pathlib.Path(d)/'src';core=src/'brave';core.mkdir(parents=True)
@@ -28,6 +28,11 @@ with tempfile.TemporaryDirectory() as d:
  for step in m['steps']:
   print('APPLY',step['script'],flush=True)
   subprocess.run([sys.executable,str(root/step['script'])]+[subs.get(a,a) for a in step['args']],check=True)
+ if args.gn:
+  gn_files=sorted(p for p in src.rglob('*') if p.suffix in ('.gn','.gni'))
+  for p in gn_files:
+   subprocess.run([str(args.gn.resolve()),'format','--dump-tree=json',str(p)],stdout=subprocess.DEVNULL,check=True)
+  print('GENERATED_GN_SYNTAX_PASS',len(gn_files),flush=True)
  before={p:p.read_bytes() for p in src.rglob('*') if p.is_file()}
  for p in m['core_restore']:
   (core/p).write_bytes(subprocess.check_output(['git','-C',str(source),'show',m['brave_pin']+':'+p]))

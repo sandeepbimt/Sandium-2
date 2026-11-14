@@ -78,6 +78,13 @@ class P3ARemovalTest(unittest.TestCase):
                 result = m.p3a_transform(path, original)
                 self.assertEqual(result, m.p3a_transform(path, result))
 
+    def test_gn_marker_uses_gn_comment_syntax(self):
+        path = 'components/p3a/BUILD.gn'
+        result = m.p3a_transform(path, (FIX/'brave'/path).read_text())
+        self.assertTrue(result.startswith('# Sandium:'))
+        self.assertFalse(any(line.lstrip().startswith('//') for line in result.splitlines()))
+        self.assertEqual(result, m.p3a_transform(path, result))
+
     def test_reporting_sources_not_in_shipping_target(self):
         result = m.p3a_transform('components/p3a/BUILD.gn', (FIX/'brave/components/p3a/BUILD.gn').read_text())
         shipping = result[:result.index('source_set("unit_tests")')]

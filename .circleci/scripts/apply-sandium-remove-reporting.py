@@ -128,7 +128,8 @@ def replace_function(s, signature, replacement):
 
 
 def p3a_transform(path, s):
-    if P3A_MARKER in s:
+    marker = P3A_MARKER.replace('//', '#', 1) if path.endswith(('.gn', '.gni')) else P3A_MARKER
+    if marker in s:
         return s
     if path == 'components/p3a/p3a_service.h':
         if 'class P3AService : public base::RefCountedThreadSafe' not in s:
@@ -169,7 +170,7 @@ def p3a_transform(path, s):
             s = remove_required(s, '  p3a::' + cls + '::' + method + '(' + arg + ');\n', cls)
     else:
         raise RuntimeError('unexpected P3A path ' + path)
-    return P3A_MARKER + '\n' + s
+    return marker + '\n' + s
 
 
 P3A_FILES = ('components/p3a/p3a_service.h', 'components/p3a/BUILD.gn',
