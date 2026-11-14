@@ -1989,9 +1989,14 @@
  #include "brave/components/brave_search/common/brave_search_utils.h"
  #include "brave/components/brave_search/renderer/brave_search_render_frame_observer.h"
  #include "brave/components/brave_shields/core/common/features.h"
-@@ -182,11 +181,7 @@
-   auto* rfo = new BraveRenderFrameObserver(render_frame);
-   auto* registry = rfo->registry();
+@@ -182,11 +181,10 @@
+-  auto* rfo = new BraveRenderFrameObserver(render_frame);
+-  auto* registry = rfo->registry();
++#if BUILDFLAG(ENABLE_AI_CHAT) || BUILDFLAG(ENABLE_WEB_DISCOVERY_NATIVE)
++  auto* registry = (new BraveRenderFrameObserver(render_frame))->registry();
++#else
++  new BraveRenderFrameObserver(render_frame);
++#endif
  
 -  // Only the main frame is queried by `brave_news::FetchRssLinks`, so binding
 -  // a receiver on subframes would just be dead weight.

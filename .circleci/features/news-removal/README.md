@@ -29,3 +29,8 @@ Integration: renderer source and renderer client edits are News-only; coordinate
 AI and Playlist workers editing these files. Activity and settings hunks also compose
 with disjoint removals. Apply entire staged cluster on a disposable post-overlay tree
 and run GN generation/Java compilation plus first-launch/NTP/settings/menu tests.
+
+#1126 regression: removing RSS leaves no unconditional registry consumer. Keep
+the renderer observer in all builds, but acquire its registry only when AI Chat
+or Web Discovery native consumers compile. This avoids unused-variable failures
+without suppressing warnings or enabling an excluded feature.

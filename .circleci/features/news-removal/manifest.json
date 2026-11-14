@@ -66,7 +66,7 @@
     },
     "renderer/brave_content_renderer_client.cc": {
       "before_sha256": "18836a170249897ee47d8ceaa1a28eb0158341d2f0bc560bea27a91e170491c3",
-      "after_sha256": "a19c9a3343104ab10da0d7f2cc9f0e0e50bc6cf22b77b34acb468d78f46fb763"
+      "after_sha256": "e17021ededb42c08a58511638ed947e005f43e0c66e4c4f80489f50e1ef25df1"
     }
   }
 }

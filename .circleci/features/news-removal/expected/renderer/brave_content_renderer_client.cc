@@ -178,8 +178,11 @@ void BraveContentRendererClient::RenderThreadStarted() {
 void BraveContentRendererClient::RenderFrameCreated(
     content::RenderFrame* render_frame) {
   ChromeContentRendererClient::RenderFrameCreated(render_frame);
-  auto* rfo = new BraveRenderFrameObserver(render_frame);
-  auto* registry = rfo->registry();
+#if BUILDFLAG(ENABLE_AI_CHAT) || BUILDFLAG(ENABLE_WEB_DISCOVERY_NATIVE)
+  auto* registry = (new BraveRenderFrameObserver(render_frame))->registry();
+#else
+  new BraveRenderFrameObserver(render_frame);
+#endif
 
 
 

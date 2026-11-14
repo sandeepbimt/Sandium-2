@@ -1583,5 +1583,12 @@
     "new": "",
     "count": 1,
     "anchor": "if (render_frame->IsMainFrame()) {"
+  },
+  {
+    "path": "renderer/brave_content_renderer_client.cc",
+    "old": "  auto* rfo = new BraveRenderFrameObserver(render_frame);\n  auto* registry = rfo->registry();",
+    "new": "#if BUILDFLAG(ENABLE_AI_CHAT) || BUILDFLAG(ENABLE_WEB_DISCOVERY_NATIVE)\n  auto* registry = (new BraveRenderFrameObserver(render_frame))->registry();\n#else\n  new BraveRenderFrameObserver(render_frame);\n#endif",
+    "count": 1,
+    "anchor": "  auto* rfo = new BraveRenderFrameObserver(render_frame);"
   }
 ]

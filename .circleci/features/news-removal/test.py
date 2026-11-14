@@ -40,4 +40,11 @@ with tempfile.TemporaryDirectory(prefix='news-removal-') as d:
     assert 'mMvTilesContainerLayout' in ntp.read_text() and 'checkForBraveStats' in ntp.read_text()
     assert 'brave_news/renderer' not in (core/'renderer/sources.gni').read_text()
     assert 'RssLinkReader' not in (core/'renderer/brave_content_renderer_client.cc').read_text()
+    renderer=(core/'renderer/brave_content_renderer_client.cc').read_text()
+    assert '''#if BUILDFLAG(ENABLE_AI_CHAT) || BUILDFLAG(ENABLE_WEB_DISCOVERY_NATIVE)
+  auto* registry = (new BraveRenderFrameObserver(render_frame))->registry();
+#else
+  new BraveRenderFrameObserver(render_frame);
+#endif''' in renderer
+    assert 'auto* rfo' not in renderer
     print('PASS pinned source, idempotence, wallpaper composition, News source/JNI exclusion, retained stats/top-sites')
