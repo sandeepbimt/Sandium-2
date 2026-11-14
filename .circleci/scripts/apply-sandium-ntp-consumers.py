@@ -10,7 +10,7 @@ FILES=(
 'browser/brave_content_browser_client.cc',
 'chromium_src/chrome/browser/ui/webui/chrome_web_ui_configs.cc',
 'browser/sources.gni', 'browser/ui/BUILD.gn', 'browser/ui/config.gni', 'components/resources/BUILD.gn',
-'android/brave_java_sources.gni',
+'android/brave_java_sources.gni', 'build/android/config.gni',
 'android/java/org/chromium/chrome/browser/ntp/BraveNewTabPageLayout.java',
 'android/java/org/chromium/chrome/browser/ntp_background_images/NTPBackgroundImagesBridge.java')
 def once(s,old,new=''):
@@ -26,6 +26,8 @@ def verify(p,s):
  forbidden = {
   'browser/ntp_background/android/ntp_background_images_bridge.cc': ('RecordClickedAdEvent','RecordViewedAdEvent','CreateNewTabTakeoverWallpaper'),
   'browser/ntp_background/android/ntp_background_images_bridge.h': ('WallpaperLogoClicked','CreateNewTabTakeoverWallpaper'),
+  'build/android/config.gni': ('SponsoredRichMediaWebView',),
+  'android/brave_java_sources.gni': ('SponsoredRichMediaWebView', 'NewTabTakeoverSafeAreaReporter', 'BraveNewTabTakeoverInfobar'),
   'browser/sources.gni': ('new_tab_takeover/android:new_tab_takeover',),
   'browser/ui/BUILD.gn': ('new_tab_takeover/android:new_tab_takeover',),
   'browser/ui/config.gni': ('new_tab_takeover/android:new_tab_takeover',),
@@ -65,6 +67,9 @@ def transform(p,s):
   s=once(s,'if (is_android) {\n  brave_ui_allow_circular_includes_from +=\n      [ "//brave/browser/ui/webui/new_tab_takeover/android:new_tab_takeover" ]\n}\n')
  elif p=='components/resources/BUILD.gn':
   s=once(s,'  if (is_android) {\n    deps += [ "//brave/components/new_tab_takeover:new_tab_takeover_generated_resources" ]\n    sources += [ "$root_gen_dir/brave/components/new_tab_takeover/new_tab_takeover_generated.pak" ]\n  }\n')
+ elif p=='build/android/config.gni':
+  # JNI generation must exclude the same class as shipping Java sources.
+  s=once(s,'  "//brave/android/java/org/chromium/chrome/browser/ntp/SponsoredRichMediaWebView.java",\n')
  elif p=='android/brave_java_sources.gni':
   for c in ('BraveNewTabTakeoverInfobar','NewTabTakeoverSafeAreaReporter','SponsoredRichMediaWebView'):
    s=once(s,'  "../../brave/android/java/org/chromium/chrome/browser/ntp/'+c+'.java",\n')

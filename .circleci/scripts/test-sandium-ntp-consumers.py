@@ -25,6 +25,19 @@ class Test(unittest.TestCase):
     self.assertNotIn('new_tab_takeover/android:new_tab_takeover',first[path])
    self.assertIn('//brave/build/android:jni_headers',first['browser/ui/BUILD.gn'])
    self.assertNotIn('new_tab_takeover_generated.pak',first['components/resources/BUILD.gn'])
+ def test_sponsored_jni_removed_and_retained_jni_preserved(self):
+  path='build/android/config.gni'
+  original=(CORE/path).read_text()
+  result=m.transform(path,original)
+  self.assertNotIn('SponsoredRichMediaWebView',result)
+  for line in original.splitlines():
+   if '.java"' in line and 'SponsoredRichMediaWebView' not in line:
+    self.assertIn(line,result)
+  self.assertEqual(result,m.transform(path,result))
+ def test_sponsored_jni_anchor_drift_fails(self):
+  path='build/android/config.gni'
+  original=(CORE/path).read_text().replace('SponsoredRichMediaWebView.java','Unexpected.java')
+  with self.assertRaises(ValueError):m.transform(path,original)
  def test_ui_dependency_drift_fails_before_write(self):
   for relative in ('browser/ui/BUILD.gn','browser/ui/config.gni'):
    with self.subTest(path=relative), tempfile.TemporaryDirectory() as d:
