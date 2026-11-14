@@ -16,19 +16,19 @@ def load(path=MANIFEST):
    if Path(p).is_absolute() or '..' in Path(p).parts:raise ValueError('Unsafe reset path')
  return m
 
-def reset(m,core,src,out):
+def reset(m,core,src,out,core_only=False):
  pending=[]
  for repo,pin,key in [(core,m['brave_pin'],'core_restore'),(src,m['chromium_pin'],'chromium_restore')]:
   actual=subprocess.check_output(['git','-C',str(repo),'rev-parse','HEAD'],text=True).strip()
   if actual!=pin:raise ValueError('Unexpected upstream pin '+str(repo))
-  for relative in m[key]:
+  for relative in ([] if core_only and key=='chromium_restore' else m[key]):
    data=subprocess.check_output(['git','-C',str(repo),'show',pin+':'+relative])
    pending.append((repo/relative,data))
  # Missing pin/path fails before any restoration, and custom Sandium files are never reset.
  for p,data in pending:p.parent.mkdir(parents=True,exist_ok=True);p.write_bytes(data)
  # Retired product overrides cannot reach the old preparation GN pass before
  # final dependency surgery has been replayed (Playlist asserts on Android).
- for name in ('args.gn','args_generated.gni'):
+ for name in (() if core_only else ('args.gn','args_generated.gni')):
   p=out/name
   if p.is_file():
    text=p.read_text()
@@ -62,6 +62,6 @@ def apply(m,core,src,out):
  print('SANDIUM_REMOVAL_RECIPE=APPLIED graph_generated=true recipe='+hashlib.sha256(MANIFEST.read_bytes()).hexdigest())
 
 if __name__=='__main__':
- p=argparse.ArgumentParser();p.add_argument('--core',type=Path,required=True);p.add_argument('--src',type=Path,required=True);p.add_argument('--out',type=Path,required=True);p.add_argument('--phase',choices=['reset','apply'],required=True);a=p.parse_args();m=load()
- if a.phase=='reset':reset(m,a.core,a.src,a.out)
+ p=argparse.ArgumentParser();p.add_argument('--core',type=Path,required=True);p.add_argument('--src',type=Path,required=True);p.add_argument('--out',type=Path,required=True);p.add_argument('--phase',choices=['reset','reset-core','apply'],required=True);a=p.parse_args();m=load()
+ if a.phase in ('reset','reset-core'):reset(m,a.core,a.src,a.out,core_only=a.phase=='reset-core')
  else:apply(m,a.core,a.src,a.out)

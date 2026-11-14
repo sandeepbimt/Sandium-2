@@ -103,6 +103,9 @@ if [ "${BRAVE_STAGE_INDEX:?BRAVE_STAGE_INDEX is required}" = "1" ]; then
      [ -d "$SRC_DIR/third_party" ] && [ -d "$SRC_DIR/build" ]; then
     SOURCE_REUSE=true
     echo "BRAVE_SOURCE_REUSE=PASS; pinned source restored."
+    # Restore only declared Brave inputs before patch/branding consumers.
+    # Chromium and GN args retain their existing later full-reset ordering.
+    python3 "$ROOT/.circleci/scripts/sandium-removal-recipe.py" --core "$CORE_DIR" --src "$SRC_DIR" --out "$OUT" --phase reset-core
     if [ -s "$ROOT/brave-work/.sandium/workspace-checkpoint-restored" ]; then
       # The archive already contains the matching .gclient, generated GN/Siso
       # configuration, Ninja metadata and Siso filesystem journal. Re-running
@@ -139,6 +142,7 @@ if [ "${BRAVE_STAGE_INDEX:?BRAVE_STAGE_INDEX is required}" = "1" ]; then
     echo "BRAVE_SOURCE_REUSE=MISS; source checkout incomplete or pin mismatch; full init required."
     cd "$CORE_DIR"
     pnpm run init --target_os=android --target_arch=arm64 --no-history
+    python3 "$ROOT/.circleci/scripts/sandium-removal-recipe.py" --core "$CORE_DIR" --src "$SRC_DIR" --out "$OUT" --phase reset-core
   fi
 
   # Apply Sandium launcher artwork and app display name to the pinned sources.
