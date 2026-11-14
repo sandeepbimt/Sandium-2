@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
-"""Pin-guarded Fast Mode UI and startup integration for native page-transition blur."""
+"""Pin-guarded Fast Mode UI and startup integration for native page-transition blur.
+
+Keep the optional animation responsive: visual fade timings must not dominate
+page navigation. History state and scroll restoration remain Chromium-owned."""
 from pathlib import Path
 import subprocess
 import sys
@@ -55,9 +58,9 @@ HELPER_BLOCK = (
     '        if ("low".equals(level)) {\n'
     '            params = "nav-animation-blur-sigma/1.0/nav-animation-fade-hold-duration-ms/200/nav-animation-fade-out-duration-ms/100";\n'
     '        } else if ("medium".equals(level)) {\n'
-    '            params = "nav-animation-blur-sigma/2.0/nav-animation-fade-hold-duration-ms/300/nav-animation-fade-out-duration-ms/150";\n'
+    '            params = "nav-animation-blur-sigma/2.0/nav-animation-fade-hold-duration-ms/240/nav-animation-fade-out-duration-ms/120";\n'
     '        } else if ("high".equals(level)) {\n'
-    '            params = "nav-animation-blur-sigma/4.0/nav-animation-fade-hold-duration-ms/450/nav-animation-fade-out-duration-ms/200";\n'
+    '            params = "nav-animation-blur-sigma/4.0/nav-animation-fade-hold-duration-ms/320/nav-animation-fade-out-duration-ms/160";\n'
     "        }\n"
     '        if (params.isEmpty()) {\n'
     '            // Default means Brave original behaviour: no navigation blur animation.\n'
