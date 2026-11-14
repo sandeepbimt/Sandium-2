@@ -84,3 +84,12 @@ Sparse replay, maintenance readback, product composition, pipeline wiring and br
 unit tests are run locally. These do not prove APK correctness or production speed.
 Real CI timing, refreshed remote cache retrieval, schedule registration and APK
 verification must be reported from the actual deployed runs.
+
+## First Full-only run: #1120 (2026-11-14)
+
+Commit `c3770a2`, workflow `0e961a96-53f4-4ab5-8221-a79a38906eab`, job3359:
+- Canonical cache download:169.655s. Eight-worker base extraction plus replay of five accepted layers:389.207s; restore reported `whole_tree_scans=0`.
+- Capture-baseline inventory after restore:175.896s. Keep this distinct from restore when comparing timings.
+- Checkpoint and feature composition checks passed. UI pruning application passed, but its repository acceptance helper still required deleted Flow job `sandium-stage-1`, so the run stopped before compilation. No APK or new checkpoint was published.
+- Correct the shared acceptance helper and both callers to validate the actual Full-only jobs and build wrapper. Preserve all overlay ordering/argument checks and negative mutation tests. Include both repository-only UI policy and real build-flow acceptance entry points in migration checks, not merely YAML structure tests.
+- These timings verify restoration only, not end-to-end performance, compilation, stripped APK content, or runtime behavior.

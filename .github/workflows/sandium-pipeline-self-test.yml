@@ -108,9 +108,9 @@ jobs:
         run: python3 .circleci/scripts/test-sandium-feature-policies.py
       - name: Test Sandium transition overlay
         run: python3 .circleci/scripts/test-sandium-page-transition-full.py
-      - name: Install Flow test dependencies
+      - name: Install pipeline test dependencies
         run: python3 -m pip install PyYAML==6.0.3
-      - name: Test Flow checkpoint reconstruction and disk guards
+      - name: Test retained checkpoint reconstruction and Full configuration
         run: python3 tests/test_single_pipeline.py
       - name: Test composed welcome crash fix
         run: python3 tests/test_composition.py
@@ -118,12 +118,17 @@ jobs:
         run: python3 tests/test_legacy_bridge.py
       - name: Test delta-only rollup against unchanged base
         run: python3 tests/test_bridge_rollup.py
-      - name: Test Flow bridge lifecycle and timeout cleanup
+      - name: Test bridge lifecycle and timeout cleanup
         run: python3 tests/test_bridge_pipeline.py
       - name: Test selected and system Python package isolation
         run: python3 tests/test_flow_tools.py
-      - name: Test actual Flow overlay and UI-test wiring in all stages
+      - name: Test actual Full overlay and UI-test wiring in all stages
         run: python3 tests/test_flow_wiring.py
+      - name: Test Full lifecycle, maintenance and in-build graph audits
+        run: |
+          python3 tests/test_full_pipeline_wiring.py
+          python3 tests/test_full_maintenance.py
+          python3 tests/test_graph_precheck.py
       - name: Test scoped checkpoint quiescence and writer diagnostics
         run: python3 tests/test_bridge_quiescence.py
       - name: Test removed typography and Origin settings ordering

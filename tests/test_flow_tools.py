@@ -46,15 +46,16 @@ class FlowTools(unittest.TestCase):
         self.assertEqual(apt,'');self.assertNotIn('FLOW_TEST_PYTHON=',output)
         self.assertIn('test_tools=false',output)
 
-    def test_config_uses_shared_helper_everywhere_and_system_python_for_seed_tests(self):
+    def test_config_uses_shared_helper_everywhere_without_yaml_in_build_stages(self):
         import yaml
         config=yaml.safe_load((ROOT/'.circleci/config.yml').read_text())
         for name,job in config['jobs'].items():
             commands=[s['run']['command'] for s in job['steps'] if isinstance(s,dict) and 'run' in s]
             setups=[c for c in commands if 'ensure-flow-tools.sh' in c]
-            self.assertEqual(setups,['bash .circleci/scripts/ensure-flow-tools.sh'+(' --with-test-tools' if name in ('import-experimental-seed','sandium-graph-precheck') else '')])
-            if name in ('import-experimental-seed','sandium-graph-precheck'):
-                test=next(c for c in commands if ('tests/test_bridge_pipeline.py' if name=='import-experimental-seed' else 'unittest discover') in c)
-                self.assertTrue(all(line.startswith('/usr/bin/python3 ') for line in test.splitlines()))
+            self.assertEqual(setups,['bash .circleci/scripts/ensure-flow-tools.sh'+(' --with-test-tools' if name=='initialize-full-checkpoint' else '')])
+            # Full build-stage wiring uses the standard library, not an apt-only
+            # yaml module accidentally imported through the selected Python.
+            if name.startswith('full-stage-'):
+                self.assertFalse(any('import yaml' in c or 'pip install' in c for c in commands))
 
 if __name__=='__main__':unittest.main()

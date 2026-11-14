@@ -1,6 +1,6 @@
-"""Validate active Flow's generated YAML subset and actual overlay shell commands.
+"""Validate active Full-only pipeline's generated YAML subset and actual overlay shell commands.
 
-This intentionally accepts only direct run-command wrappers used by Flow, not a
+This intentionally accepts only direct run-command wrappers used by Full, not a
 partial general YAML interpreter. Unknown/conditional wiring fails closed. No
 PyYAML dependency is introduced into build-stage Python.
 """
@@ -8,7 +8,7 @@ from pathlib import Path
 import re
 import shlex
 
-ORDER = [f'product-overlay-{i}-0.sh' for i in range(24,31)] + ['graph-validation.sh','remote-smoke.sh','bounded-build.sh']
+ORDER = [f'product-overlay-{i}-0.sh' for i in range(24,31)] + ['graph-validation.sh','remote-smoke.sh','full-bounded-build.sh']
 REQUIRED = {
  'product-overlay-30-0.sh': ['test-sandium-removal-composition.py','sandium-removal-recipe.py','precheck-graph.py'],
  'product-overlay-24-0.sh': ['apply-sandium-branding.sh'],
@@ -47,15 +47,17 @@ def shell_invocations(path):
     return result
 
 
-def verify_flow_wiring(repo):
+def verify_full_wiring(repo):
     repo=Path(repo);text=(repo/'.circleci/config.yml').read_text()
     section=re.search(r'^jobs:\s*\n(.*?)(?=^[A-Za-z][A-Za-z0-9_-]*:|\Z)',text,re.M|re.S)
     if not section:raise ValueError('Missing jobs section')
     chunks=re.split(r'^  ([A-Za-z0-9_-]+):\s*\n',section.group(1),flags=re.M)
     jobs=dict(zip(chunks[1::2],chunks[2::2]))
+    if any(name.startswith('sandium-stage-') for name in jobs):
+        raise ValueError('Obsolete Flow jobs must not remain active')
     for stage in range(1,6):
-        name=f'sandium-stage-{stage}'
-        if name not in jobs:raise ValueError(f'Missing Flow job {name}')
+        name=f'full-stage-{stage}'
+        if name not in jobs:raise ValueError(f'Missing Full job {name}')
         job=jobs[name]
         if 'feature/sandium-branding-refresh' in job or re.search(r'^    - when:',job,re.M):raise ValueError('Legacy conditional feature wiring')
         blocks=re.findall(r'^    - run:\s*\n(.*?)(?=^    - |\Z)',job,re.M|re.S)

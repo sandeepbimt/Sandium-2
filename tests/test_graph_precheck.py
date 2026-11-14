@@ -12,19 +12,16 @@ def module(name):
     m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m); return m
 
 class GraphPrecheck(unittest.TestCase):
-    def test_diagnostic_job_cannot_compile_or_publish(self):
+    def test_graph_audit_is_in_real_build_not_separate_diagnostic_mode(self):
         c = yaml.safe_load((ROOT/'.circleci/config.yml').read_text())
-        job = c['jobs']['sandium-graph-precheck']; text=json.dumps(job)
-        for bad in ('save_cache', 'driver.py capture', 'driver.py publish', 'driver.py begin', 'bounded-build.sh', 'remote-smoke.sh', 'export-apk.sh'):
-            self.assertNotIn(bad, text)
-        self.assertIn('driver.py precheck-select', text)
-        self.assertIn('driver.py restore', text)
-        self.assertIn('prepare-brave-source.sh', text)
-        for i in range(24,30):self.assertIn(f'product-overlay-{i}-0.sh',text)
-        self.assertIn('precheck-graph.py',text)
-        self.assertIn('graph-validation.sh',text)
-        self.assertEqual(c['workflows']['sandium-flow']['when']['and'][1], {'not':'<< pipeline.parameters.run_graph_precheck >>'})
-        self.assertEqual(c['workflows']['sandium-graph-precheck']['when'], '<< pipeline.parameters.run_graph_precheck >>')
+        self.assertNotIn('sandium-graph-precheck', c['jobs'])
+        self.assertNotIn('run_graph_precheck', c['parameters'])
+        for stage in range(1,6):
+            text=json.dumps(c['jobs'][f'full-stage-{stage}'])
+            self.assertIn('product-overlay-30-0.sh',text)
+            self.assertLess(text.index('product-overlay-30-0.sh'),text.index('full-bounded-build.sh'))
+        overlay=(ROOT/'.circleci/experimental-steps/product-overlay-30-0.sh').read_text()
+        self.assertIn('precheck-graph.py --audits-only',overlay)
     def test_audit_failures_are_aggregated_not_skipped(self):
         calls=[]
         def run(command, check):
