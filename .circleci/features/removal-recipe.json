@@ -331,7 +331,8 @@
     "components/playlist/core/common/buildflags/buildflags.gni",
     "components/resources/BUILD.gn",
     "renderer/brave_content_renderer_client.cc",
-    "renderer/sources.gni"
+    "renderer/sources.gni",
+    "browser/notifications/BUILD.gn"
   ],
   "chromium_restore": [
     "components/minidump_uploader/BUILD.gn",

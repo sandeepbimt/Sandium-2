@@ -12,6 +12,8 @@
     "android/java/AndroidManifest.xml": "beabef90de000348b3ee5bad86fc85aeab5f3c61b9e232776929ae6b4972a628",
     "android/BUILD.gn": "c84a6d7bd61bd35d3a936a61a9a519e53085bcaefdbd6fec579422ce765b05f4",
     "android/java/brave-res/xml/brave_main_preferences.xml": "39979da1b815a3dafd9a19311a8fba1bafe34d3a6659ca6f4dfcf694aa299a32",
-    "android/java/brave-res/xml/brave_privacy_preferences.xml": "4f695978df005da4f2e32d290abb82f34e09ccf865501cf55223de6b216879eb"
+    "android/java/brave-res/xml/brave_privacy_preferences.xml": "4f695978df005da4f2e32d290abb82f34e09ccf865501cf55223de6b216879eb",
+    "build/android/config.gni": "db98cd5a8ed9c2099c36be0112dc0b3bb9650f93d4f73f25ce0fb54b8c69f838",
+    "browser/notifications/BUILD.gn": "cf8dd46dbf955aad3bfcdf038db1b30f267c7dc1b3817308cd756899356d4af9"
   }
 }

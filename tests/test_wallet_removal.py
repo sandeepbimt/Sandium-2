@@ -20,6 +20,23 @@ class WalletRemovalTest(unittest.TestCase):
         self.core = Path(self.tmp.name)
         shutil.copytree(FIXTURES, self.core, dirs_exist_ok=True)
 
+    def test_wallet_enum_target_and_consumers_gated(self):
+        m.apply(self.core)
+        gn=(self.core/'android/BUILD.gn').read_text()
+        self.assertIn('if (enable_brave_wallet) {\n  java_cpp_enum(',gn)
+        self.assertNotIn('sources = []',gn[:gn.index('java_cpp_template')])
+        for rel in ('build/android/config.gni','browser/notifications/BUILD.gn'):
+            text=(self.core/rel).read_text()
+            self.assertEqual(text.count(m.ENUM_LABEL),1)
+            self.assertRegex(text,r'if \(enable_brave_wallet\) \{\s+(?:brave_chrome_java_srcjar_deps|deps) \+= \[ '+re.escape(m.ENUM_LABEL))
+
+    def test_enum_anchor_drift_is_atomic(self):
+        p=self.core/'build/android/config.gni'
+        p.write_text(p.read_text().replace(m.ENUM_LABEL,'"//brave/android:unexpected"'))
+        before={rel:(self.core/rel).read_bytes() for rel in m.TOUCHED}
+        with self.assertRaisesRegex(ValueError,'anchor drift'):m.apply(self.core)
+        self.assertEqual(before,{rel:(self.core/rel).read_bytes() for rel in m.TOUCHED})
+
     def test_pinned_fixtures(self):
         manifest = json.loads((FIXTURES/'manifest.json').read_text())
         for p, digest in manifest['sha256'].items():

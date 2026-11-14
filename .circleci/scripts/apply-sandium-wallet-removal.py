@@ -18,7 +18,8 @@ MIXED = ['app/BraveActivity.java', 'toolbar/top/BraveToolbarLayoutImpl.java',
          'ui/BraveAdaptiveToolbarUiCoordinator.java']
 TOUCHED = [JAVA+x for x in MIXED] + ['android/brave_java_sources.gni', 'android/java/AndroidManifest.xml', 'android/BUILD.gn',
     'android/java/brave-res/xml/brave_main_preferences.xml',
-    'android/java/brave-res/xml/brave_privacy_preferences.xml']
+    'android/java/brave-res/xml/brave_privacy_preferences.xml',
+    'build/android/config.gni', 'browser/notifications/BUILD.gn']
 
 def masked(text):
     # Preserve offsets while ignoring comments/string literals for brace scanning.
@@ -64,7 +65,39 @@ def excluded(path):
             or path.endswith('/settings/NetworkPreferenceAdapter.java')
             or path.endswith('/toolbar/adaptive/BraveWalletButtonController.java'))
 
+ENUM_LABEL = '"//brave/android:brave_android_java_enums_srcjar"'
+
+def enum_wiring(relative, text):
+    marker = '# Sandium: Wallet-only enum generator follows Wallet build flag.'
+    if relative not in ('android/BUILD.gn', 'build/android/config.gni', 'browser/notifications/BUILD.gn'):
+        return text
+    if marker in text:
+        return text
+    if relative == 'android/BUILD.gn':
+        old = 'java_cpp_enum("brave_android_java_enums_srcjar") {\n  sources = []\n\n  if (enable_brave_wallet) {\n    sources += [ "//brave/components/decentralized_dns/core/constants.h" ]\n  }\n}'
+        new = marker + '\nif (enable_brave_wallet) {\n  java_cpp_enum("brave_android_java_enums_srcjar") {\n    sources = [ "//brave/components/decentralized_dns/core/constants.h" ]\n  }\n}'
+    elif relative == 'build/android/config.gni':
+        old = 'brave_chrome_java_srcjar_deps = [\n  ' + ENUM_LABEL + ',\n'
+        if text.count(old) != 1:
+            raise ValueError('Wallet enum srcjar list anchor drift')
+        text = text.replace(old, 'brave_chrome_java_srcjar_deps = [\n', 1)
+        old = '\nbrave_chrome_app_java_resources_deps = ['
+        new = '\n' + marker + '\nif (enable_brave_wallet) {\n  brave_chrome_java_srcjar_deps += [ ' + ENUM_LABEL + ' ]\n}\n' + old
+    else:
+        old = '    deps += [\n      ' + ENUM_LABEL + ',\n'
+        if text.count(old) != 1:
+            raise ValueError('Wallet enum notification dependency anchor drift')
+        text = text.replace(old, '    deps += [\n', 1)
+        old = '    deps += [\n      "//chrome/browser:browser_process",'
+        new = '    ' + marker + '\n    if (enable_brave_wallet) {\n      deps += [ ' + ENUM_LABEL + ' ]\n    }\n' + old
+    if text.count(old) != 1:
+        raise ValueError('Wallet enum target/dependency anchor drift: ' + relative)
+    return text.replace(old, new, 1)
+
 def transform(relative, text):
+    text = enum_wiring(relative, text)
+    if relative in ('build/android/config.gni', 'browser/notifications/BUILD.gn'):
+        return text
     if text.startswith(MARKER):
         if re.search(r'(?:org\.chromium\.(?:brave_wallet|chrome\.browser\.crypto_wallet)\.|\b(?:mBraveWalletService|mKeyringService|mJsonRpcService|mWalletModel|DAppsWalletController|BraveWalletServiceFactory|BlockchainRegistryFactory)\b)', masked(text)):
             raise ValueError('wallet implementation reintroduced after marker: '+relative)
