@@ -141,7 +141,7 @@ def rollup(base_head, layers, destination):
                     if size != e['size'] or h.hexdigest() != e['sha256']:
                         raise ValueError('Bad surviving blob')
                     copied += size
-                manifest = dict(schema=1, parent=base_head, entries=entries, deleted=sorted(deleted), root_metadata=root_meta)
+                manifest = dict(schema=1, tombstones_idempotent=True, parent=base_head, entries=entries, deleted=sorted(deleted), root_metadata=root_meta)
                 out.writestr('manifest.json', encode(manifest))
             for source, initial in inputs:
                 if fingerprint(source) != initial: raise ValueError('Input changed during rollup')

@@ -33,10 +33,12 @@ def run_bounded(command, timeout=1700):
         raise
 
 
+MAX_LAYERS=7
+
 def restore_chain(root, plan, legacy_script, timeout=1700):
     root=Path(root)
     if (root/'brave-work').exists() or (root/'brave-work').is_symlink():raise ValueError('Restore requires empty/disposable job tree')
-    if len(plan['layers'])>7:raise ValueError('Bounded bridge plan supports base plus at most seven deltas')
+    if len(plan['layers'])>MAX_LAYERS:raise ValueError(f'Checkpoint plan exceeds {MAX_LAYERS} incremental slots')
     raw=(root/'brave-workspace-checkpoint.manifest.json').read_bytes()
     if digest(raw)!=plan['base_manifest_sha256']:raise ValueError('Wrong original base manifest')
     manifest=json.loads(raw)

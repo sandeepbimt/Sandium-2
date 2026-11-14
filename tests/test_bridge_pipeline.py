@@ -33,17 +33,18 @@ def fixture(root):
 class NativeBridge(unittest.TestCase):
     def test_config_orders_restore_inventory_upload_publication(self):
         config=yaml.safe_load((ROOT/'.circleci/config.yml').read_text())
-        self.assertEqual(list(config['workflows']),['sandium-flow', 'sandium-graph-precheck'])
+        self.assertEqual(list(config['workflows']),['sandium-full', 'sandium-checkpoint-maintenance'])
         for name,job in config['jobs'].items():
             text=json.dumps(job)
             self.assertNotIn('checkpoint/driver.py',text)
-            if name=='sandium-graph-precheck':
+            if name in ('maintain-full-checkpoint','optional-post-apk-refresh'):
                 self.assertNotIn('driver.py capture',text)
-                self.assertNotIn('driver.py publish',text)
+                self.assertIn('full_driver.py maintenance-readback',text)
+                self.assertIn('full_driver.py publish',text)
                 self.assertNotIn('driver.py begin',text)
                 self.assertNotIn('bounded-build.sh',text)
                 continue
-            if name=='import-experimental-seed':
+            if name=='initialize-full-checkpoint':
                 self.assertNotIn('archive-brave-workspace.sh restore',text)
                 self.assertNotIn('outgoing.key',text)
                 continue

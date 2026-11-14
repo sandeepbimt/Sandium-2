@@ -25,6 +25,8 @@ INCOMING=ROOT/'.checkpoint-incoming';LAYERS=ROOT/'.bridge-layers'
 MANIFEST='brave-workspace-checkpoint.manifest.json'
 SHARDS='brave-workspace-checkpoint.shards'
 KIND='legacy-bridge-v1'
+MAX_LAYERS=7
+SLOT_COUNT=8
 
 
 def valid(receipt):
@@ -32,7 +34,7 @@ def valid(receipt):
     if receipt['id']!=bridge.digest(bridge.encode(p)) or p['scope']!=c.scope() or p['compatibility']!=c.COMPAT or p.get('kind')!=KIND:
         raise ValueError('Invalid or incompatible bridge receipt')
     plan=p['plan'];base=plan['base']
-    if len(plan['layers'])>7:raise ValueError('Unbounded delta chain')
+    if len(plan['layers'])>MAX_LAYERS:raise ValueError('Unbounded delta chain')
     if min(x['expires_at'] for x in [base]+plan['layers'])<=time.time():raise ValueError('Expired dependency; no base-only fallback')
     if p['pipeline']>int(os.environ['SANDIUM_PIPELINE_NUMBER']):raise ValueError('Old rerun refused')
     expected=base['id']
@@ -65,7 +67,7 @@ def select(seed=False, precheck=False):
     c.save(STATE/'selected.json',receipt)
     plan=p['plan'];(STATE/'base.key').write_text(plan['base']['key'])
     c.disk_guard('before-bridge-cache-restore',plan['base']['archive_bytes']+sum(x['content_bytes'] for x in plan['layers'])+32*1024**2)
-    for i in range(8):(STATE/f'slot-{i}.key').write_text(plan['layers'][i]['key'] if i<len(plan['layers']) else f'unused-{c.scope()}-{i}')
+    for i in range(SLOT_COUNT):(STATE/f'slot-{i}.key').write_text(plan['layers'][i]['key'] if i<len(plan['layers']) else f'unused-{c.scope()}-{i}')
 
 
 def new_key(kind,ident):
