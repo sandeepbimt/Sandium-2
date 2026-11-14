@@ -1,0 +1,975 @@
+[
+  {
+    "path": "android/java/brave-res/color/brave_news_settings_follow_button_text_color.xml",
+    "sha256": "398bd10ed0b0e66535c6d8121dba667a0cbb4b33a2f0b11b043e6f7a4e970413",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/drawable-hdpi/vpn_install_bg.png",
+    "sha256": "843e57239d2e45228efeb92fb150ed1e8e87f38dbf3b74e0eecac55f9267b1ef",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/drawable-mdpi/vpn_install_bg.png",
+    "sha256": "5d272f3352363349391412a5e310ded7a616b64b8da8543f8b50c3c0dded91d3",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/drawable-night/ic_vpn_always_on_1.xml",
+    "sha256": "2b9e1de73d16e60c9b8149e23eca33d3372f5e475645b5caaca51a5d20fc57c1",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/drawable-night/ic_vpn_always_on_2.xml",
+    "sha256": "9869092b60472c5a528779c80d47c6773776bb4428da44f128ef1b4ab733c8f3",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/drawable-night/ic_vpn_always_on_3.xml",
+    "sha256": "44c840e65357ea13d80d4dfeeb7c844eb9980d577e1bb2cbc8c846f96fb22fe5",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/drawable-xhdpi/vpn_install_bg.png",
+    "sha256": "4d6d5fb91eee8c71ef5ce271afc0ba820aa695c6398bdb740607c3ad2240f68a",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/drawable-xxhdpi/vpn_install_bg.png",
+    "sha256": "6cbb78df42d2b5d486ee8009c7b00c6f2471e15b38b8e9d4ec40e79c3f470717",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/drawable/brave_news_settings_list_divider.xml",
+    "sha256": "c6178a33f258e2d6e763d786bd338e78baa88dde3e001aa64e4fb330c061db5b",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/drawable/brave_news_settings_publisher_bg.xml",
+    "sha256": "0404a4df56a1acd3ebd4a63e4e74864946826470325cd7708ae3336fc0d0a18e",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/drawable/brave_news_settings_search_bg.xml",
+    "sha256": "bc7d66eab63951f0937ba708730fe0da4523aed75abbcd1ef092277a77769f97",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/drawable/brave_news_settings_unfollow_bg.xml",
+    "sha256": "0e7ba6e61025b941a90bd3cf5b052362512b8d74527659c6b8b59d604056475c",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/drawable/ic_brave_news_no_source.xml",
+    "sha256": "06acd53e6d3e90f10640407fce74d562202761b557fbcfd9d087d725bc2ba3f3",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/drawable/ic_brave_vpn_graphic.xml",
+    "sha256": "f88d54ebe98c865caf8f6b0fe933f2c7b3ad8e3dcc77d1444f723b4487013871",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/drawable/ic_channel_brave.xml",
+    "sha256": "d5c99b387e93b60a5ba6208ec4b9d97d4573725ee0ef11826d4b1e2b4976d17f",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/drawable/ic_channel_business.xml",
+    "sha256": "281207c408c32cbb7bb65bfd2ccb7136164f864447ab667cf80c59d062ce2612",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/drawable/ic_channel_cars.xml",
+    "sha256": "d185d210fe357f8802af6ffed8e5a3841831d10a65d9867826ce00704efb7815",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/drawable/ic_channel_crypto.xml",
+    "sha256": "789a580f4fccc603109b27fc49215af7632b2bac7dd0284dcdb744f05fe40424",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/drawable/ic_channel_culture.xml",
+    "sha256": "dddd122cf323f737ebd1c0df8878375f93483f065e9b5c1f8a28de21e22b2272",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/drawable/ic_channel_default.xml",
+    "sha256": "b8dcd962329c7115682d87f51643d75ee146b926e96ff81b11f05fe0df4dc2d8",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/drawable/ic_channel_entertainment.xml",
+    "sha256": "e73a40258fcc83406c677c39e75e14158d0fb93418fb6edad9b2ab7c5837b0d2",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/drawable/ic_channel_fashion.xml",
+    "sha256": "384b04583ac42888d91655723b5f049f2f2d155e639cf3accbbec7d7627a6896",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/drawable/ic_channel_filmtv.xml",
+    "sha256": "78a57e4d3a1cf1cd1a0e69e29260517881f742fc0be770f470933ea742934fae",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/drawable/ic_channel_food.xml",
+    "sha256": "a6c20309cfa4be47a1aecfa76e874401b41e77461bc0e0d84ba3a43d998fc876",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/drawable/ic_channel_fun.xml",
+    "sha256": "1b77cca87bd80a093c4e796865069f86018393a705c583b159d22fae49946412",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/drawable/ic_channel_gaming.xml",
+    "sha256": "aba3d89473fa3b7b5bc24f889257dd319cbdfc5ee8f5d9797a02dcae9974b647",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/drawable/ic_channel_health.xml",
+    "sha256": "0a6da60878036547b1925b2bf24b7a3c05b18e2e4a99f8fd382023cd9f518b7e",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/drawable/ic_channel_home.xml",
+    "sha256": "710abfcad3eb68c9c0c258b5a3d319be7357abcbd18b6de0e8b984c92eed4a19",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/drawable/ic_channel_music.xml",
+    "sha256": "b34eeb720f2507c65aad7b43787fd5052adaacf74b70b8d0d4485b8eedebe114",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/drawable/ic_channel_politics.xml",
+    "sha256": "f28055d17e3a79bcfff6f2cf680932afcc7c4ec3f745ad792a57688c1e39f0d7",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/drawable/ic_channel_science.xml",
+    "sha256": "6786f69c6c61142881089ab0849e85de4c1417168f7c3cef1cd42bb560639b53",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/drawable/ic_channel_sports.xml",
+    "sha256": "534038fb73ce4b1b1b7eb493017af4885f6547bb8c324bc29509139a40d88b74",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/drawable/ic_channel_tech_reviews.xml",
+    "sha256": "2b3a08e64c055f9519cc1faf6a51a135ff065786e980a7e2a6dbcc051b58e82f",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/drawable/ic_channel_technology.xml",
+    "sha256": "a4c1e3817c92e68971a502a2adb0a104c54072416e29a22840860f0a4b43fb00",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/drawable/ic_channel_top_news.xml",
+    "sha256": "dc6e2ffb1803332739ca48d22d51bd7c7cf88b1c72a94c7ba979bc236609fced",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/drawable/ic_channel_travel.xml",
+    "sha256": "a43ea0f09bdb4ba95bca9f02e505a98736094dc6acd2596e8ecfaf3000356943",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/drawable/ic_channel_us_news.xml",
+    "sha256": "2069ba9900cf015bc87ee390949460f29360ea1fed4bb45d23915721cfde8844",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/drawable/ic_channel_weather.xml",
+    "sha256": "746d269ab1c8448a7c095238b31616a755918ca5a882cd8bcab1bf2f7273290a",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/drawable/ic_channel_world_news.xml",
+    "sha256": "243025e9876ef792a7e30c0ad5da475b9b3da78bf2471b5111cef16197c3a235",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/drawable/ic_circle_news_settings.xml",
+    "sha256": "84d1d0fe4c1c8260c745c369d3da052ccfd9ba4e2375228e8b4d0e4034266e9d",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/drawable/ic_news_settings.xml",
+    "sha256": "411e1e68b5bbd61157c25efeeb9ed016757cd08c93656616e9484ad9eccd1273",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/drawable/ic_vpn_always_on_1.xml",
+    "sha256": "c980dba0fb16766969a285258e16778859cc666fc6121c53490e934fd82b9e10",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/drawable/ic_vpn_always_on_2.xml",
+    "sha256": "99632a162c0795650f305a4d1fd5a3b6cfb5a1e32afcdea9fb0f9d3199d4feb6",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/drawable/ic_vpn_always_on_3.xml",
+    "sha256": "8f98019113bf4904c20b7601d8bc31a301d3e7edf9538ee591b1ab518043e430",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/drawable/ic_vpn_promo.xml",
+    "sha256": "48a633034f46a98cc63a063ea6e3b0208b67ab3e2653dfcac8ab09ff8b864d54",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/drawable/leo_plan_active_bg.xml",
+    "sha256": "5f5551df3023087d318f0bc1b778445d6be75f8e002d56c744031a94c4b7400c",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/drawable/leo_plan_non_active_bg.xml",
+    "sha256": "e856d89f48a0e2c449a611bd9a5adf5a83c3a95e266c3e05ad44585fa9f55171",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/drawable/leo_plan_premium_adv_bg.xml",
+    "sha256": "7a760cdb8db0512a9aa60f1429b29205002d16a02dd7ba5187639dd3f9a0a07f",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/drawable/leo_plan_upgrade_now_bg.xml",
+    "sha256": "b080897a9074c72498f85214c7fe3eadf9b15bc1f571f48c7cd89eb9a7ef2d0f",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/drawable/leo_tip_icon_background.xml",
+    "sha256": "4c037c2955cbaa6c9e60db8a3c9fda39eede7d56ce07927581f5d4c9910398ec",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/drawable/leo_yearly_bg.xml",
+    "sha256": "693c31045c469966f7ba7b222d1121cdb8a6e7cf792c8187c4c02cb71b3098f6",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/drawable/news_button_bg.xml",
+    "sha256": "ffda63e217ae97829e841771c1bd89a11f22941770a4467e3ae99a00b72f441c",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/drawable/news_settings_following_count_bg.xml",
+    "sha256": "b59e68b1e91948a051e3e67014775d9315fbdf82cd7f0e24fd7e967a0d1bdb4c",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/drawable/news_settings_item_bg.xml",
+    "sha256": "bb23d9f9ebf65eae1cc0687c2903895dddcfc611fef8df86fc911a20d9435b6f",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/drawable/product_vpn_layer_list.xml",
+    "sha256": "c402a134b37f0cf4bc3ef347317d92247182a5cea710586190b105d3ccb4b7c5",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/drawable/rating_news_button_background.xml",
+    "sha256": "53723e7e6d5ff4ea65fd3cacd0d4941cb9d35cb5aded63cc176d21153adde70f",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/drawable/vpn_install_phone.xml",
+    "sha256": "5587fe5231fdd0b02f2afd8cf7cfa577d850fdb04fbdf01793bcb955090267fc",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/drawable/vpn_paywall_bg.xml",
+    "sha256": "e31963260820b0844d562bc5e359124c31e7f6921720150039af03609373012c",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/drawable/vpn_paywall_selected_bg.xml",
+    "sha256": "0da49a3c1d2e14c4e0733fe64e5d7d3c103855b63ec088757de9df9c3650547e",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/drawable/vpn_plan_action_gradient.xml",
+    "sha256": "b0befa4958aaf91108e977fe8fae188d09dfd1f9a021880da963c2c2f1022cf2",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/layout-land/activity_brave_leo_plans.xml",
+    "sha256": "64ce16f0a7703efb4c28dab05a3cf1e53719bd700abf29ec40a69875214863a2",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/layout-land/activity_brave_vpn_profile.xml",
+    "sha256": "d21a2a5751ad62b52dc775c838eefcee5acc89ab7de2e3d97699131a52ec5f87",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/layout-land/activity_vpn_paywall.xml",
+    "sha256": "9ce0c57b778865eaaeb7999ea7e8d747da7fc498fc96c406c70ec5b6efca668d",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/layout-land/approve_tx_bottom_sheet.xml",
+    "sha256": "38309ab82aa4b5553158de4fd6c3310d3cda944e9ebede85f0d28062d14474e5",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/layout-land/fragment_onboarding_network_selection.xml",
+    "sha256": "bb4b6040d5cc37039141f6d45ccfbd33e03b82c1b2190b54fb45029f5346424f",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/layout-land/fragment_sign_message.xml",
+    "sha256": "eecf821f07101e813a51f7c07979baf5d06bcac55d3899b59602f3469d1d8ead",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/layout-land/fragment_sign_tx_message.xml",
+    "sha256": "137e05b464182ea050949bee2eedce36eabb49c028c0c788afbb12cd81d5322f",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/layout-land/fragment_siwe.xml",
+    "sha256": "ec2210993acf5276bb265795b074e5d7d4eb619ebfcc82f08070e0eb7d4dda1d",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/layout-land/fragment_unlock_wallet.xml",
+    "sha256": "a8dc1118333c3470695f6f26ac90bcd862fa62f5109fbdb056164e7c27726855",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/layout-sw600dp-land/approve_tx_bottom_sheet.xml",
+    "sha256": "451a56f2bbc5996eaafd328aee36e6d916787573c22264e3b0089e8cd13a8965",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/layout-sw600dp-land/fragment_onboarding_network_selection.xml",
+    "sha256": "8377a02952a4345c4a3b427c08dad80d33107f12c47dcc60781ce38cccb62577",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/layout-sw600dp-land/fragment_sign_message.xml",
+    "sha256": "4a0e99a399d7d389bb02ede3277ae9b76d81f894bd989874db8e703159f42298",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/layout-sw600dp-land/fragment_sign_tx_message.xml",
+    "sha256": "02c4b5f8826ba8bfa4e1ad81ed13920bf78b08fc82ac9188ef860f52e2c7bd2c",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/layout-sw600dp-land/fragment_siwe.xml",
+    "sha256": "e1fe3aa55c227a7777055a4311648585ed997381a7be7e04a6bb1f4677440d83",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/layout-sw600dp-land/fragment_unlock_wallet.xml",
+    "sha256": "91822687c8d494a68fab02a53139008eb0c6089437d73523e3487fb8fcbcfb3c",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/layout/activity_account_selector.xml",
+    "sha256": "a2a79949ce4ac123aaf84ccff3dad6c0bd4fe986ae8b5f1a9405f1dd464b922f",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/layout/activity_add_account.xml",
+    "sha256": "517dbe97c9e32be102710b3ba64e6c0fef8067b88367b81aba70ff022c68b2cf",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/layout/activity_advance_tx_setting.xml",
+    "sha256": "1a8a16dfb28f5ea4a324cc11b9d93300ef942ada99e98b48d98ee28952102ab6",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/layout/activity_auto_reconnect_vpn.xml",
+    "sha256": "1074ea83a509fab11abfd96819bbe54ed77e6969b49b5cced61e45ca03a05762",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/layout/activity_brave_leo_plans.xml",
+    "sha256": "7782273e2aa2c26ee5b7ebe205d8710caba030aa3d444c79233c0b5050698ce0",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/layout/activity_brave_vpn_profile.xml",
+    "sha256": "a9129ef3c04e32d2d06137c5f3d78cf105a2eb36b41265abe94afd8734e55b92",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/layout/activity_brave_vpn_support.xml",
+    "sha256": "6ec5da4c30ecb5175ebc879c8a5267b440e6c0803ef60275767f8e1994cb2896",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/layout/activity_brave_wallet.xml",
+    "sha256": "317dea528e8bebf96a8affd4fd955e8d2e234097366fb1ac5d45277f0a319118",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/layout/activity_brave_wallet_dapps.xml",
+    "sha256": "0c748e50a234ed90c7f713ddff85522cb3ccff2e57cbd6afc2d134114f42546d",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/layout/activity_network_selector.xml",
+    "sha256": "543ce8cbe09e15cb4f22a64e27c77821ca8ccee76e50f124eb4b7c8ce62585aa",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/layout/activity_playlist_host.xml",
+    "sha256": "6d19a552f94e40e09d8fe8e7f831f5bb95bcbdff2ca0af116cb2356340d1396e",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/layout/activity_vpn_paywall.xml",
+    "sha256": "90d29c863c81938fdf97d9af7ddfe1d2570610b88927bc71d9c016e59cfedc3a",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/layout/activity_vpn_server.xml",
+    "sha256": "6c662e7b7876b717dc530d8403413e125b4c1224f33a24a9c16661e297a72dab",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/layout/activity_vpn_server_selection.xml",
+    "sha256": "ea9a377180da6ca05f6d45e7c074f8827e2042ded61c2ae91afcbfba53eaeb98",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/layout/approve_tx_bottom_sheet.xml",
+    "sha256": "188ac121bfff41b1f02bf742f5bb19d3215c24b381af9b7bbc6baaaf9a719a6e",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/layout/auto_reconnect_vpn_tutorial_item_layout.xml",
+    "sha256": "4bc18ac249fae71d323cf08d8ff6363eb69822e0427e8fafccac067682909d8e",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/layout/brave_ads_existing_user_dialog_layout.xml",
+    "sha256": "c63bcec6c38bdf01a1ad406319c2d39e4f3dbb7d17fd141d2501e574ebbe2194",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/layout/brave_ads_new_user_dialog_layout.xml",
+    "sha256": "827c9546801e922620da2546a2b9b9668fea26e159047065de3204aa57d0b716",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/layout/brave_leo_clear_history_dialog.xml",
+    "sha256": "4f5790f472014ac1a1dabd31c2a08dcc1e89c24492d661282c412e56a409660e",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/layout/brave_leo_reset_dialog.xml",
+    "sha256": "ab8a7db87d051c06e2d6a5b627d2a1c3fed3c6d76cf3b153b12975d012178f48",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/layout/brave_news_card_menu.xml",
+    "sha256": "523c246d8ec2da6537c8fa7562710125726427ba4ab3a08f237ac0b6a5a7a6f6",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/layout/brave_news_load_new_content.xml",
+    "sha256": "ee28e0a887c4830dcbf52b82b8717423031c578bed7ab839ce4a0b371dcc4f1d",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/layout/brave_news_no_sources.xml",
+    "sha256": "2d5c4b824ce6a546e19194aeb99ca71bf734f64867144dc5b5e7e4392ea7698b",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/layout/brave_news_row.xml",
+    "sha256": "ebfde8fc66a9d2bfa8c946d7b2983a02d6a2b7b38739f5e6b79ffff9385c652e",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/layout/brave_news_settings.xml",
+    "sha256": "0018f5d9ffddc326b8d7d1bfa2e76a2e7b717914a9f469f3d2a115c153ab6c3b",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/layout/brave_news_settings_details.xml",
+    "sha256": "cd36234d32a9145fb3a8667844196aebfaff97c5a10aa8878daef005357b4d4d",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/layout/brave_permission_prompt_dialog.xml",
+    "sha256": "a87702e0d64120520c0512fb83694affbcd3b9915d16a3c9f92b85b9a1bef2fb",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/layout/brave_rating_news_layout.xml",
+    "sha256": "d3d54da1bbc2ae5de84ad180e406115361b7423f35a47b0d57187d3e5d44b233",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/layout/brave_vpn_server_selection_item_layout.xml",
+    "sha256": "d991fe30498cf67a2329eede5b8c821ef6d906841891d05adcd8bc91a70e3b12",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/layout/brave_wallet_accounts_list_item.xml",
+    "sha256": "73a3d08479ad1f1bfd9c6673669cb240f6012417aa65a87d6de1789b796f538e",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/layout/brave_wallet_add_network.xml",
+    "sha256": "a268b6a124c48b065f0650dc7d74651cb2419b8c26987ae10feced6182c21155",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/layout/brave_wallet_autolock_layout.xml",
+    "sha256": "8ba40c67e83ae729cdef7afe65129d4ed2d97860708e99ac92273e977daf7f6a",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/layout/brave_wallet_connected_sites_list_item.xml",
+    "sha256": "134a4db446c2bd26eff0cfbfda9a48b243b505e2efd737fb7ae6571c5112f5cc",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/layout/brave_wallet_edit_gas.xml",
+    "sha256": "f5b686d21852455ca44e6ac2de46d0d497cc9cebe1b59ccdeccaa127b022de1e",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/layout/brave_wallet_network_item.xml",
+    "sha256": "338628002416226df5dbe25b5c66c9f8eb26076dea370f59a60012f1f7325fc4",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/layout/brave_wallet_network_label.xml",
+    "sha256": "8234f6b815a8fe03e3a7cff04590e6b3a32a697d4da4a449b392d6fe7ad8585a",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/layout/brave_wallet_panel_layout.xml",
+    "sha256": "40835833253f24dcd661509d718a9dc0bf086d2c78c5b229be5ff1eb2752fbf9",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/layout/brave_wallet_preference_confirmation_text_layout.xml",
+    "sha256": "ad86c8aeda183f7a527a4a4fc1e20a34a1af5abcb48b1de4c871d4906b18ae64",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/layout/brave_wallet_reset_content.xml",
+    "sha256": "a35498c2010ee2ef5a6b3a7c1ddbc11ccdeecee74b15e1ca94fee948436150af",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/layout/dapps_dialog.xml",
+    "sha256": "ed683a6ef578c6f30a966cabb780f949ffeb629dfe48a2124ebbf24711e99264",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/layout/dialog_skip_onboarding.xml",
+    "sha256": "71c8a6e2f2ad447bbc4b2d4a7d9a07444b2bfb63a9fe1e997eadc67b688b3b4f",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/layout/fragment_add_switch_ethereum_chain.xml",
+    "sha256": "9b402fd18b1d32902d9709278d51acb677390a274296c7003f51d317d7e213a3",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/layout/fragment_add_token.xml",
+    "sha256": "d66c71d880201c95fdb638607186618073e52ba7dc2f399e0ca2131132e55619",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/layout/fragment_backup_wallet.xml",
+    "sha256": "4e4888447b331fc46a47870a60693210edeef3a86d81cfdb2d98bde750c9eec4",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/layout/fragment_brave_vpn_always_on_error_dialog.xml",
+    "sha256": "894c5bbcb90acd02b09220ec26ced689d662c6a0edb7bfb71d5a334e4f9a4ca1",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/layout/fragment_brave_vpn_confirm_dialog.xml",
+    "sha256": "aad47a3e3e518cc02ddeef8a2616477561fcfbd84b9cabb476646375d052e188",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/layout/fragment_brave_vpn_plan.xml",
+    "sha256": "a833454da2af8a334d89b0cace0ac4ba92e9caec64b30cac74207a0397e81647",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/layout/fragment_confirmation_wallet.xml",
+    "sha256": "e09bd2eb265501d1306c73aa6d2bfa4f1dd7444b5c02cb921ca4571ea838329a",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/layout/fragment_connect_account.xml",
+    "sha256": "fe9e756564d859a739a188164b835dff14ee5e5ace369fb6e599620f23b40389",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/layout/fragment_create_account.xml",
+    "sha256": "ec3e37f157895d772c5c0015c02c0e3ef780df421effff7c5ff2677ca04725fe",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/layout/fragment_creating_wallet.xml",
+    "sha256": "0da00ba5267bb609c5cdf3dbb26a1a7cb7146e1179bc4eb0ae997ea066d1d0cc",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/layout/fragment_encryption_key.xml",
+    "sha256": "0a9caeb3ac73aa1b2be396bd2b67727d03418704f073ab452c1f9463a76f6630",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/layout/fragment_fingerprint_unlock.xml",
+    "sha256": "8388ab4c1f8f07c8b6789b9f3d24e34df16eee40a44649d24ec579ec9e1e1cac",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/layout/fragment_link_subscription_dialog.xml",
+    "sha256": "6fe1bae9687033bdd1d9d489c641821bbdf9d842d793839143bc8d2634992a3f",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/layout/fragment_onboarding_network_selection.xml",
+    "sha256": "f91d108f7ecc293d76abba96b7e777678b4e64d2e38f2866049e3bc9bb4764d4",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/layout/fragment_recovery_phrase.xml",
+    "sha256": "f71beb5e8aa5a4c210b0b1e2591a26dddb1e7b01f59a14006240680a9494d0d1",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/layout/fragment_restore_wallet.xml",
+    "sha256": "d5c3fc4551e05758bd47119da030f9008f6e9db639be61f87956b1b57a521803",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/layout/fragment_secure_password.xml",
+    "sha256": "63de04734c0efbad9e854b375d5106f6893dcc8717f4c8c68adbde5109fa5383",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/layout/fragment_setup_wallet.xml",
+    "sha256": "762c2c552b59e8ac1865dc6ff140fc480a67dbf1c34499d8ea42dfcc98d72545",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/layout/fragment_sign_message.xml",
+    "sha256": "ce6e3c572a290135ca03f56eda8a18c094d6d0e0a24a0ec9bb916cd62355e6b7",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/layout/fragment_sign_message_error.xml",
+    "sha256": "7e669135801d6ab56e453f48651c8eb720b2c19bca231bebc79abd926f40ac03",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/layout/fragment_sign_tx_message.xml",
+    "sha256": "ccb9c40ce794c4c0ef8a14a5ce94ad43afbfbbdcd1ddace0c40fa46df8a4cfe9",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/layout/fragment_siwe.xml",
+    "sha256": "30552f34815337528aed33e66be93cade77c66deb4b300334ba95e4ddb836c14",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/layout/fragment_terms_of_use_wallet.xml",
+    "sha256": "e5aaf6f6bc58a150af88d554cbc69cecfa7b76cd380565b4317b519290f676f0",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/layout/fragment_transaction.xml",
+    "sha256": "af502e7a7b323006d34fd1d7da494b533880781393d8508ae656d9a336d967dd",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/layout/fragment_transaction_details.xml",
+    "sha256": "ba92ab4d8e970cabfd5b17ad259b816a1951d6121be72912e55767cc33ebabca",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/layout/fragment_two_line_item_list.xml",
+    "sha256": "f56e524aa99b2e44b2d07b1653d985f684bca7c3981aee4646777c13d0cea2d9",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/layout/fragment_two_line_item_sheet.xml",
+    "sha256": "7c1ff3484ce017c19c7dcb9a51fc865102246d5b949b84b0729a1f8166873195",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/layout/fragment_unlock_wallet.xml",
+    "sha256": "9d79b361e51a2264670d24428dbae44de58cdacbe7eee3df0d1ec2644f2d1dc6",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/layout/fragment_verify_recovery_phrase.xml",
+    "sha256": "a1b799d667e2819b5aaa6cd2fbe4330097a96169226e46af9db4bcd01731804d",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/layout/item_create_account.xml",
+    "sha256": "b2fc5cbe106cfb936ac49c3c10d0f417ec7a62b4cdb8745a698780edc33f2b22",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/layout/item_fragment_two_line_divider_item.xml",
+    "sha256": "bd6a4f1fd05fc46ad46f36e433873128c5283979dcd494c01b5660014e91e056",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/layout/item_fragment_two_line_item.xml",
+    "sha256": "0cce46e6095adf78498780b3cbe961b5ffe6c92015d20b43274da519ed2256d0",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/layout/item_fragment_two_line_single_text.xml",
+    "sha256": "ad91d34aaa98a5d4c12708d177053e42b35b5f90bd81620dc0b8c860f0be6efa",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/layout/item_network_selector.xml",
+    "sha256": "9156b9106a7f29b8b5ac80efd2bbbe7602488080fab2b53d9e665ba2276a2508",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/layout/item_news_settings.xml",
+    "sha256": "2bad4d9bf001e24cc9ff7fbbf5bba7327e214707853b00e7944a13ba1347a713",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/layout/item_news_settings_section.xml",
+    "sha256": "4180f66c9f8619458ba9370c674861eb066e8592001c96c0001f46b2dd70a12c",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/layout/item_two_line_horizontal.xml",
+    "sha256": "5f8c3d68ae5cc53175823319d312ef10763e1351ae7ff49183eada1397736ed8",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/layout/label_network_selector.xml",
+    "sha256": "f3317e0725bc26e9d1300f119b7b88c6d45b0e241e5f4fc8ab963fa773a3829c",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/layout/network_spinner_items.xml",
+    "sha256": "85902e90f5901b19752164fbdc74895a1e3f539b9e79389cdbb8c0e29e8fc378",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/layout/news_loading.xml",
+    "sha256": "20e7f98e8a40b294529357a155a2e2d54b5a320e2f62b549c950ccd25e33676b",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/layout/optin_layout.xml",
+    "sha256": "39553a872d6a5e9e8701e04bbab2698c6dc171a765c3e81396eca9dabe4bf00b",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/layout/radio_button_group_ddns_resolve_method_preference.xml",
+    "sha256": "ce5bf64e57b76b26a153401e4f61f518062d27542dbb64e42899c8b193acdfeb",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/layout/recovery_phrase_item_layout.xml",
+    "sha256": "dd706bc5a9a200fa820e8e4c2abdbdf60d17bfd66d0e0deb9b44769c3295a763",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/layout/selected_network_item.xml",
+    "sha256": "87fe91d494ac0499d19e94d801d31bff46f5ecabfca1c184862d2dff4bdf5e87",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/layout/view_holder_account_selector.xml",
+    "sha256": "b22d23fe1569792ef7b31ad3ab58090be87ecf651a2ca077bff31ff27030d725",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/layout/view_holder_onboarding_header_network_selector.xml",
+    "sha256": "939fdc47e226b3c83c2c23000518796456d9c556d3286bd6e13a88171bc2f36c",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/layout/view_holder_onboarding_network_selector.xml",
+    "sha256": "b1d1c843f82ac169eefb201360d3f6f3c04cbfc5a88bf14e1ef345913cb72687",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/layout/vpn_location_menu_item_action_layout.xml",
+    "sha256": "c5224a6a3d9486dc6853bd9e5d35a5c6c3ca2212825180814233632889799cfa",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/layout/vpn_region_preference_layout.xml",
+    "sha256": "7b36aaab0a48c779ea1dd3aece309799078c322f02a00e32381f020a69e14c1c",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/layout/vpn_server_item_layout.xml",
+    "sha256": "0cf3382b921400f23b7cda25413de42ebc94cca8f6e35a6530804e11dff9c1ec",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/layout/vpn_settings_callout_modal_layout.xml",
+    "sha256": "3361b6d992a07b9696ae061a0a7d36bf9fee511e7f0b45c79fdd6abc10cf7035",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/menu/menu_brave_news_settings_search.xml",
+    "sha256": "759d8666bae2682c24e7c7283cecffa77afb9204138d859332525bc204f545d4",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/menu/menu_brave_vpn.xml",
+    "sha256": "2d1eeded4d8d5157d046916b5de99288be684fd595431e29fe8de67f806fee53",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/xml/brave_ethereum_preferences.xml",
+    "sha256": "f1ab46bd99897b221175297bd20e5d540322ebce25b1dbbf8c197dd40c276540",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/xml/brave_leo_default_model_preferences.xml",
+    "sha256": "3339624d4123e61d2856ad1c8d60c866df48da8a65856c59299ef5cd9eb04e5e",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/xml/brave_leo_preferences.xml",
+    "sha256": "aafec2b634ceea314314af12b64a3f5045192614bbfb06194e59e5d9f92584a8",
+    "gn": "android/BUILD.gn",
+    "allowed_sha256": [
+      "aafec2b634ceea314314af12b64a3f5045192614bbfb06194e59e5d9f92584a8",
+      "bf306fc8252ddd02c76166fac071a4ef29efa600c874c6a43d548b6922ebb3d3"
+    ]
+  },
+  {
+    "path": "android/java/brave-res/xml/brave_leo_radio_button_group_default_model_preference.xml",
+    "sha256": "ecd9baa52270bc889bae6421a2ff205dca210328df28fc43518238eaa57736c3",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/xml/brave_origin_preferences.xml",
+    "sha256": "2374ac37e6f5faea54d35f1c4372f18d41420052623fe39822dd9974d7852f72",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/xml/brave_playlist_preferences.xml",
+    "sha256": "13d971cd55980469756e99b792b9f1fd3b2691e124e56f2c846068278a170a05",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/xml/brave_rewards_debug_preferences.xml",
+    "sha256": "4124cae787a3b0a9bab58999549d081cf1d1171d55b66c0efd1170bdef2aae20",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/xml/brave_solana_preferences.xml",
+    "sha256": "b50a125254bf901fdffa1955c6985c65fa1bbf5cad248960d6f48054c676043c",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/xml/brave_vpn_preferences.xml",
+    "sha256": "beb9f0fb3919d2a599f397a1e012594df68e560226277d98bf8d977605f21de9",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/xml/brave_wallet_networks_preference.xml",
+    "sha256": "89aee7e83ed0f3ed28e44b70f80231cc00991571080bf80b9106fdb14ee22903",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/xml/brave_wallet_preferences.xml",
+    "sha256": "741b4c043c63b544695b0918cadc5f7f7d3381dc5e4f452c4ed2de8f2823284f",
+    "gn": "android/BUILD.gn",
+    "allowed_sha256": [
+      "741b4c043c63b544695b0918cadc5f7f7d3381dc5e4f452c4ed2de8f2823284f",
+      "5aed6c4794903ae5fdb3b11fbc03e75f5456698ce061b022e443b95984d22406"
+    ]
+  },
+  {
+    "path": "android/java/brave-res/xml/ens_preferences.xml",
+    "sha256": "e91a697c097a24e77b699ae8f4d6c23f2b3081529b3a2d63c65081328bb81e34",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/xml/sns_preferences.xml",
+    "sha256": "7b1905a59f36db886e415a03942b5f2f1554024f9b1677838f61179ec1846def",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "android/java/brave-res/xml/unstoppable_domains_preferences.xml",
+    "sha256": "b9c3b48e2c7c065d80266ecdfabdb8087c7fb77ceebe4d7e5a4022cea07b35d9",
+    "gn": "android/BUILD.gn"
+  },
+  {
+    "path": "browser/first_run/android/java/res/layout-land/help_brave_search.xml",
+    "sha256": "e34d09206d50ebb6c0811db8c254f7522e2df6c523ddfb43475b10d4bd2d72e5",
+    "gn": "browser/first_run/android/BUILD.gn"
+  },
+  {
+    "path": "browser/first_run/android/java/res/layout-land/make_brave_better.xml",
+    "sha256": "2f969994fab19592594a7be958e3ba684c7d8bad89b9df5edc54408154a80be1",
+    "gn": "browser/first_run/android/BUILD.gn"
+  },
+  {
+    "path": "browser/first_run/android/java/res/layout-sw600dp-land/help_brave_search.xml",
+    "sha256": "6ea3e5dd83483b7ca5a4615578d7d37a8c38d5310189d277f3be249f232418d5",
+    "gn": "browser/first_run/android/BUILD.gn"
+  },
+  {
+    "path": "browser/first_run/android/java/res/layout-sw600dp-land/make_brave_better.xml",
+    "sha256": "2b6e720e2f5982d69041247893e77b37ed5522ce95f8abf7eb2beac735134155",
+    "gn": "browser/first_run/android/BUILD.gn"
+  },
+  {
+    "path": "browser/first_run/android/java/res/layout-sw600dp-port/help_brave_search.xml",
+    "sha256": "ce448474e27f87ec540410525e49abc21a16ced5775d139b06cabf3dfd5442e3",
+    "gn": "browser/first_run/android/BUILD.gn"
+  },
+  {
+    "path": "browser/first_run/android/java/res/layout-sw600dp-port/make_brave_better.xml",
+    "sha256": "a500a26b752997e9737e08ca93bef549f5bc19cdb1edcf7e176ecb78fbe980c3",
+    "gn": "browser/first_run/android/BUILD.gn"
+  },
+  {
+    "path": "browser/first_run/android/java/res/layout/help_brave_search.xml",
+    "sha256": "6cb0c00bd9ccb56a9c58d1528feb149ec883f7eda7f385626f7f71208bec2579",
+    "gn": "browser/first_run/android/BUILD.gn"
+  },
+  {
+    "path": "browser/first_run/android/java/res/layout/help_brave_search_landscape_content.xml",
+    "sha256": "f3441954aed8c40738a766ac6a546fbf33a7250904b11c52bb93626c79f6e86e",
+    "gn": "browser/first_run/android/BUILD.gn"
+  },
+  {
+    "path": "browser/first_run/android/java/res/layout/make_brave_better.xml",
+    "sha256": "477b0b99d1cb6e76a24fa7ae78e646e4ec5d5e4f9e7ff245c47874979a31ab9f",
+    "gn": "browser/first_run/android/BUILD.gn"
+  },
+  {
+    "path": "browser/first_run/android/java/res/layout/make_brave_better_landscape_content.xml",
+    "sha256": "90e5651cb055b9778fa46ef32663a5b2d0e79f9746c371fef851abd12a578535",
+    "gn": "browser/first_run/android/BUILD.gn"
+  }
+]

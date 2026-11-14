@@ -103,3 +103,20 @@ sponsor timers are removed from their method bodies. Legacy value declarations
 and empty callbacks remain for compatibility. Native graph and DEX gates also
 check these extra implementations. This is source/fixture-verified only until
 native compilation and actual artifact checks pass; no runtime success claimed.
+
+### Flow #1104: resource-directory ownership repair
+All three native removal graph gates passed, but actual compilation rejected
+first-run resources excluded from GN while still physically present. The audit
+was expanded to the entire composed recipe: 193 pinned resources (183 Android,
+10 first-run), covering all affected component removals rather than just the
+first reported directory. An explicit path/hash manifest now removes these only
+after verifying final owning GN no longer declares them. All checks complete
+before deleting any file; shared/retained resources are untouched. Every path is
+restored from the pinned source before recipe replay. Chromium's resource checker
+remains enabled. Known UI-overlay variants are explicitly hash-allowed.
+
+The failed build preserved 631 changed items in a 119 MiB incremental payload,
+then published its experimental head before the honest completion gate stopped
+successor jobs. No APK or runtime success is claimed. Regression checks cover
+ownership, hash drift, symlink refusal, retained files, and reset/replay; actual
+native compilation remains the authoritative next test.

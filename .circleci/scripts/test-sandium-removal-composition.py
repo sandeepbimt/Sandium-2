@@ -7,7 +7,7 @@ a=argparse.ArgumentParser();a.add_argument('--source',type=pathlib.Path,required
 root=pathlib.Path(__file__).resolve().parents[2];m=json.loads((root/'.circleci/features/removal-recipe.json').read_text())
 with tempfile.TemporaryDirectory() as d:
  src=pathlib.Path(d)/'src';core=src/'brave';core.mkdir(parents=True)
- for p in m['core_restore']+['android/java/brave-res/xml/brave_search_engines_preferences.xml']:
+ for p in m['core_restore']+['android/java/brave-res/xml/brave_search_engines_preferences.xml','android/java/org/chromium/chrome/browser/settings/BraveWalletPreferences.java']:
   dst=core/p;dst.parent.mkdir(parents=True,exist_ok=True);dst.write_bytes(subprocess.check_output(['git','-C',str(source),'show',m['brave_pin']+':'+p]))
  for p in m['chromium_restore']:
   fixture=root/'.circleci/tests/fixtures/reporting-pinned/chromium'/p
@@ -19,6 +19,7 @@ with tempfile.TemporaryDirectory() as d:
  activity=core/'android/java/org/chromium/chrome/browser/firstrun/WelcomeOnboardingActivity.java';activity.write_text(welcome.transform_activity(activity.read_text()))
  prune.patch_customize_menu(core)
  prune.patch_privacy_preferences(core,src)
+ prune.patch_leo_wallet_preferences(core)
  prune.patch_search_engine_preferences(core)
  prune.patch_main_preferences_base(core)
  prune.patch_main_preferences(core)
@@ -41,6 +42,7 @@ with tempfile.TemporaryDirectory() as d:
  activity.write_text(welcome.transform_activity(activity.read_text()))
  prune.patch_customize_menu(core)
  prune.patch_privacy_preferences(core,src)
+ prune.patch_leo_wallet_preferences(core)
  prune.patch_search_engine_preferences(core)
  prune.patch_main_preferences_base(core)
  prune.patch_main_preferences(core)
@@ -58,6 +60,7 @@ with tempfile.TemporaryDirectory() as d:
  activity.write_text(welcome.transform_activity(activity.read_text()))
  prune.patch_customize_menu(core)
  prune.patch_privacy_preferences(core,src)
+ prune.patch_leo_wallet_preferences(core)
  prune.patch_search_engine_preferences(core)
  prune.patch_main_preferences_base(core)
  prune.patch_main_preferences(core)
@@ -72,6 +75,7 @@ with tempfile.TemporaryDirectory() as d:
  activity.write_text(welcome.transform_activity(activity.read_text()))
  prune.patch_customize_menu(core)
  prune.patch_privacy_preferences(core,src)
+ prune.patch_leo_wallet_preferences(core)
  prune.patch_search_engine_preferences(core)
  prune.patch_main_preferences_base(core)
  prune.patch_main_preferences(core)
