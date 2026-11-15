@@ -111,7 +111,7 @@ def transform(relative, text):
     if relative == 'android/brave_java_sources.gni':
         return ''.join(line for line in text.splitlines(True) if not excluded(line.strip().strip(',').strip(chr(34))))
     if relative == 'android/java/AndroidManifest.xml':
-        return re.sub(r'<activity\b[^>]*android:name="org\.chromium\.chrome\.browser\.crypto_wallet\.[^"]+"[^>]*(?:/>|>[\s\S]*?</activity>)', '', text)
+        return re.sub(r'<activity\b[^>]*android:name="org\.chromium\.chrome\.browser\.crypto_wallet\.[^"]+"[^>]*?(?:/>|(?<!/)>[\s\S]*?</activity>)', '', text)
     if relative == JAVA+'app/BraveActivity.java':
         typed=['getWalletModel','showAccountCreation','viewOnBlockExplorer','openBraveWalletDAppsActivity']
         for name in typed: text=method(text,name)

@@ -13,6 +13,12 @@ PREFIXES={
  'news':['Lorg/chromium/chrome/browser/brave_news/','Lorg/chromium/chrome/browser/settings/BraveNews'],
  'rewards_ads':['Lorg/chromium/chrome/browser/rewards/','Lorg/chromium/chrome/browser/ads/','Lorg/chromium/chrome/browser/ntp/SponsoredRichMediaWebView','Lorg/chromium/chrome/browser/ntp/BraveNewTabTakeoverInfobar','Lorg/chromium/chrome/browser/ntp/NewTabTakeoverSafeAreaReporter'],
 }
+REQUIRED_ACTIVITIES = (
+ 'org.chromium.chrome.browser.firstrun.WelcomeOnboardingActivity',
+ 'org.chromium.chrome.browser.settings.BraveSettingsActivity',
+ 'org.chromium.chrome.browser.customtabs.BraveAccountCustomTabActivity',
+ 'org.chromium.chrome.browser.customtabs.FullScreenCustomTabActivity',
+)
 UNPROVEN_GROUPS = ["Email aliases", "Speedreader", "Talk", "Tor", "Wayback Machine",
                    "Web Discovery", "Reporting: daily ping, crash uploads, P3A"]
 def sha256(path):
@@ -81,11 +87,18 @@ def audit(apk,recipe=None,mapping=None):
   forbidden=[n for n in names if n in ('assets/brave_vpn_confirm.json',
    'assets/ntp_news_optin_icon_animation.json') or re.fullmatch(r'lib/[^/]+/libwg-go\.so',n)]
   if forbidden:raise ValueError('Excluded packaged payload remains '+json.dumps(forbidden))
+  if recipe and 'AndroidManifest.xml' not in names:
+   raise ValueError('Required AndroidManifest.xml missing from APK')
   if 'AndroidManifest.xml' in names:
    manifest=z.read('AndroidManifest.xml')
    for token in ('com.wireguard.android.backend.GoBackend$VpnService','android.permission.BIND_VPN_SERVICE'):
     if token.encode() in manifest or token.encode('utf-16le') in manifest:
      raise ValueError('Excluded VPN manifest reference remains '+token)
+   # Manifest-bound activity names are retained by Android/R8. A missing
+   # onboarding declaration caused #1162 to finish immediately on first launch.
+   for activity in REQUIRED_ACTIVITIES:
+    if activity.encode() not in manifest and activity.encode('utf-16le') not in manifest:
+     raise ValueError('Required retained activity missing from APK manifest '+activity)
   dex=[n for n in names if n.endswith('.dex')]
   if not dex:raise ValueError('No DEX in APK')
   classes=[c for n in dex for c in dex_classes(z.read(n))]

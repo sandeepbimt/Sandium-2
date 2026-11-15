@@ -57,6 +57,9 @@ with tempfile.TemporaryDirectory() as temporary:
   for step in m['steps'] if steps is None else steps:
    subprocess.run([sys.executable,str(root/step['script'])]+[subs.get(x,x) for x in step['args']],check=True)
  def preserved_ui():
+  manifest=(core/"android/java/AndroidManifest.xml").read_text()
+  apk_audit=load("audit-sandium-stripped-apk")
+  assert all(name in manifest for name in apk_audit.REQUIRED_ACTIVITIES)
   menu.verify(src,root,False)
   button=(src/toolbar.MENU_BUTTON).read_text()
   assert 'sandiumAnimationCopy' in button and 'SANDIUM_MENU_DRAWABLE_COPY_V1' in button

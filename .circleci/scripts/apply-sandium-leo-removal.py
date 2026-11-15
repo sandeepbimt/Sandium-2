@@ -33,6 +33,9 @@ def ifelse(s,anchor,keep_else=False):
 
 def imports(s):return re.sub(r'^import [^\n]*(?:brave_leo|BraveLeo)[^\n]*\n','',s,flags=re.M)
 
+def manifest(s):
+ return re.sub(r'\s*<activity\b(?=[^>]*brave_leo\.BraveLeoPlansActivity)[^>]*?(?:/>|(?<!/)>.*?</activity>)','',s,flags=re.S)
+
 A='android/java/org/chromium/chrome/browser/'
 O='browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/suggestions/'
 
@@ -56,7 +59,7 @@ def apply(core):
  # Exclusive source registrations are removed, not runtime-hidden.
  edit('android/brave_java_sources.gni',lambda s:re.sub(r'^.*(?:/brave_leo/|/BraveLeo)[^\n]*\n','',s,flags=re.M))
  edit('build/android/config.gni',lambda s:re.sub(r'^.*(?:/brave_leo/|components/ai_chat/core/common/mojom:mojom_java)[^\n]*\n','',s,flags=re.M))
- edit('android/java/AndroidManifest.xml',lambda s:re.sub(r'\s*<activity\b(?=[^>]*brave_leo\.BraveLeoPlansActivity)[^>]*(?:/>|>.*?</activity>)','',s,flags=re.S))
+ edit('android/java/AndroidManifest.xml',manifest)
  edit('android/BUILD.gn',lambda s:re.sub(r'^.*"java/brave-res/(?:drawable/leo_|layout(?:-land)?/(?:activity_brave_leo|brave_leo)|xml/brave_leo)[^\n]*\n','',s,flags=re.M))
  edit('browser/android/BUILD.gn',lambda s:s.replace('    "//brave/browser/ai_chat",\n',''))
  def tabs(s):

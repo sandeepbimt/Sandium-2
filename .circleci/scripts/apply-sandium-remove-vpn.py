@@ -92,7 +92,7 @@ def transform(path,s):
     elif path.endswith('.gni'):
         s=''.join(line for line in s.splitlines(True) if not any(t in line for t in ['/browser/vpn/','brave_vpn/common/mojom:mojom_java','com_wireguard_android']))
     elif path.endswith('AndroidManifest.xml'):
-        s=re.sub(r'<(activity|service|receiver)\b(?=[^>]*android:name="org\.chromium\.chrome\.browser\.vpn\.)[^>]*(?:/>|>.*?</\1>)','',s,flags=re.S)
+        s=re.sub(r'<(activity|service|receiver)\b(?=[^>]*android:name="org\.chromium\.chrome\.browser\.vpn\.)[^>]*?(?:/>|(?<!/)>.*?</\1>)','',s,flags=re.S)
     elif path.endswith('brave_main_preferences.xml'):
         s=re.sub(r'<(?:org\.chromium\.chrome\.browser\.vpn\.[^\s>]+|Preference)\b(?=[^>]*(?:brave_vpn|pref_vpn_callout))[^>]*/>','',s,flags=re.S)
     elif path=='android/BUILD.gn':

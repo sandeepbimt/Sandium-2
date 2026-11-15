@@ -42,6 +42,7 @@ class Audit(unittest.TestCase):
   with tempfile.TemporaryDirectory() as td:
    p=Path(td)/'a.apk';recipe=Path(td)/'recipe.json'
    with zipfile.ZipFile(p,'w') as z:z.writestr('classes.dex',dex(['Lretained/Core;'],[0]))
+   with zipfile.ZipFile(p,'a') as z:z.writestr('AndroidManifest.xml','\0'.join(m.REQUIRED_ACTIVITIES))
    recipe.write_text(json.dumps({'schema':1,'groups':['group'+str(i) for i in range(13)],'brave_pin':'a'*40,'chromium_pin':'b'*40}))
    r=m.audit(p,recipe)
    self.assertEqual(r['apk_sha256'],hashlib.sha256(p.read_bytes()).hexdigest())
