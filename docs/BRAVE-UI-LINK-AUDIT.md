@@ -105,3 +105,14 @@ Validated both pristine invocation and the exact CI apply-then-test ordering wit
 temporary Brave/Chromium inputs. Both pass, including idempotence, historical upgrade,
 launcher mutation rejection and retained certificate controls. Full Android compilation
 is still pending; #1181 did not test the earlier compiler fixes.
+
+## #1183 fail-closed provenance investigation
+
+#1183 passed production suppression but failed full-file equality against the
+transformed pinned fixture. The actual file was not retained in CI artifacts;
+no harmless formatting explanation is established. Official pinned Chromium
+bytes match the fixture, and local pristine, already-overlaid, and complete
+reset/replay inputs pass. Keep the equality gate: on mismatch print live-input,
+expected and actual SHA-256 plus a unified source diff. This is diagnostic, not
+a claimed fix. The canonical composition harness now invokes this test directly
+after the overlay, matching production order, including replay/recovery passes.

@@ -2,6 +2,7 @@
 """Pinned-source replay/idempotence checks. Not Android/device validation."""
 import argparse
 import hashlib
+import difflib
 import importlib.util
 from pathlib import Path
 import shutil
@@ -42,6 +43,7 @@ with tempfile.TemporaryDirectory() as d:
     connection = root / m.CONNECTION
     connection.parent.mkdir(parents=True, exist_ok=True)
     shutil.copyfile(a.src / m.CONNECTION, connection)
+    live_input_sha256 = hashlib.sha256(connection.read_bytes()).hexdigest()
     m.apply_chromium(root)
     c = connection.read_text()
     m.apply_chromium(root)
@@ -61,7 +63,14 @@ with tempfile.TemporaryDirectory() as d:
     assert hashlib.sha256(fixture.read_bytes()).hexdigest() == '5a30895d6511c7cb3a2bf02d3e1d03d15541dfb63fdae91e583760f356147770'
     connection.write_text(original)
     m.apply_chromium(root)
-    assert connection.read_text() == c, 'pristine and actual-tree outputs differ'
+    expected = connection.read_text()
+    if expected != c:
+        print('SANDIUM_UI_LINKS_MISMATCH live_input_sha256=' + live_input_sha256 + ' expected_sha256=' + hashlib.sha256(expected.encode()).hexdigest()
+              + ' actual_sha256=' + hashlib.sha256(c.encode()).hexdigest(), flush=True)
+        print(''.join(difflib.unified_diff(expected.splitlines(keepends=True),
+              c.splitlines(keepends=True), fromfile='pinned-transformed',
+              tofile='actual-transformed')), flush=True)
+        raise AssertionError('pristine and actual-tree outputs differ')
     begin = original.index('    private void addMoreInfoLink(String linkText) {')
     finish = original.index('\n    }', begin) + len('\n    }')
     previous = """    private void addMoreInfoLink(String linkText) {

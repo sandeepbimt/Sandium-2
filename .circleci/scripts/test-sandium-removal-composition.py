@@ -90,6 +90,8 @@ with tempfile.TemporaryDirectory() as temporary:
   pp=src/progress.PATH;pp.write_text(progress.transform(pp.read_text()))
   for path,text in suggest.plan(src).items():path.write_text(text)
   links.apply(core);links.apply_chromium(src)
+  # Production stage29 invokes this test on the already-composed live inputs.
+  subprocess.run([sys.executable,str(root/'.circleci/scripts/test-sandium-ui-links.py'),'--core',str(core),'--src',str(src)],check=True)
   shield_layout=core/toggles.SHIELDS;shield_layout.write_text(popup.layout(shield_layout.read_text()))
   toggles.apply(src,core)
  def removal(steps=None):
