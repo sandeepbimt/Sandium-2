@@ -37,7 +37,7 @@ class MotionTests(unittest.TestCase):
         self.assertIn('disableTree(oldPage)', text)
         self.assertIn('IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS', text)
         self.assertIn('finishPanelMotion(); finishPageMotion();', text)
-        self.assertIn('(mAll && mDraft == null) || mDragging != null', text)
+        self.assertIn('mNativeVisible || mDragging != null', text)
         self.assertIn('mSwipeEligible && Math.abs', text)
         self.assertIn('new LinearLayout.LayoutParams(dp(48), dp(48))', text)
         self.assertIn('target.setContentDescription(s(R.string.sandium_menu_page_description', text)

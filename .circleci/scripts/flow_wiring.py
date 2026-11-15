@@ -16,7 +16,7 @@ REQUIRED = {
  'product-overlay-26-0.sh': ['apply-sandium-page-transition-full.py','apply-sandium-back-transition.py','trace-sandium-back-geometry.py'],
  'product-overlay-27-0.sh': ['apply-sandium-homepage-adblock-warmup.py','apply-sandium-download-concurrency.py','apply-sandium-welcome-setup.py','test-sandium-homepage-adblock-warmup.py','test-sandium-download-concurrency.py','test-sandium-welcome-setup.py','test-sandium-page-transition-full.py','verify-sandium-vanilla-brave.py'],
  'product-overlay-28-0.sh': ['apply-sandium-shields-two-state.py','apply-sandium-adblock-engine-race.py','test-sandium-shields-two-state.py','test-sandium-adblock-engine-race.py','test-sandium-filter-subscriptions.py','test-sandium-filter-bootstrap.py','apply-sandium-adblock-resources.py','test-sandium-adblock-resources.py'],
- 'product-overlay-29-0.sh': ['apply-sandium-ui-prune.py','test-sandium-ui-prune.py','apply-sandium-visible-branding.py','test-sandium-visible-branding.py','apply-sandium-native-theme.py','test-sandium-native-theme.py','apply-sandium-scroll-status-bar.py','test_status_underlap_patch.py','apply-sandium-shields-popup.py','test-sandium-shields-popup.py','apply-sandium-bottom-toolbar.py','test-sandium-bottom-toolbar.py','apply-sandium-paged-menu.py','apply-sandium-paged-menu.py','apply-sandium-chrome-theme.py','test-sandium-chrome-theme.py','test-sandium-motion.py','apply-sandium-unified-address.py','apply-sandium-unified-address.py','test-sandium-unified-address.py'],
+ 'product-overlay-29-0.sh': ['apply-sandium-ui-prune.py','test-sandium-ui-prune.py','apply-sandium-visible-branding.py','test-sandium-visible-branding.py','apply-sandium-native-theme.py','test-sandium-native-theme.py','apply-sandium-scroll-status-bar.py','test_status_underlap_patch.py','apply-sandium-shields-popup.py','test-sandium-shields-popup.py','apply-sandium-bottom-toolbar.py','test-sandium-bottom-toolbar.py','apply-sandium-paged-menu.py','apply-sandium-paged-menu.py','apply-sandium-chrome-theme.py','test-sandium-chrome-theme.py','test-sandium-motion.py','apply-sandium-unified-address.py','apply-sandium-unified-address.py','test-sandium-unified-address.py','apply-sandium-toolbar-refinements.py','apply-sandium-toolbar-refinements.py','test-sandium-toolbar-refinements.py','apply-sandium-search-choices.py','apply-sandium-search-choices.py','test-sandium-search-choices.py','apply-sandium-focus-follow.py','apply-sandium-focus-follow.py','test-sandium-focus-follow.py'],
 }
 
 
@@ -113,6 +113,12 @@ def verify_full_wiring(repo):
                 raise ValueError('Chrome theme must target restored source with its contract test')
             if invocations[17][1] != ['--src','$SRC','--core','$CORE'] or invocations[18][1] != ['--src','$SRC','--core','$CORE','--verify-only'] or invocations[19][1]:
                 raise ValueError('Unified address requires pinned source/core and readback verification')
+            if invocations[20][1] != ['--src','$SRC'] or invocations[21][1] != ['--src','$SRC','--verify-only'] or invocations[22][1]:
+                raise ValueError('Toolbar refinements require pinned source and readback')
             if invocations[16][1]:
                 raise ValueError('Motion contract takes no external inputs')
+            if invocations[23][1] != ['--core','$CORE'] or invocations[24][1] != ['--core','$CORE','--verify-only'] or invocations[25][1]:
+                raise ValueError('Search choices require pinned core and readback verification')
+            if invocations[26][1] != ['--src','$SRC'] or invocations[27][1] != ['--src','$SRC','--verify-only'] or invocations[28][1]:
+                raise ValueError('Focus follow requires pinned source and readback')
     return list(jobs)

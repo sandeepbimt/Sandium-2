@@ -34,3 +34,17 @@ python3 .circleci/scripts/test-sandium-motion.py
 python3 .circleci/scripts/apply-sandium-unified-address.py --src "$SRC" --core "$CORE"
 python3 .circleci/scripts/apply-sandium-unified-address.py --src "$SRC" --core "$CORE" --verify-only
 python3 .circleci/scripts/test-sandium-unified-address.py
+
+# Device-feedback corrections preserve native security and native URL text ownership.
+python3 .circleci/scripts/apply-sandium-toolbar-refinements.py --src "$SRC"
+python3 .circleci/scripts/apply-sandium-toolbar-refinements.py --src "$SRC" --verify-only
+python3 .circleci/scripts/test-sandium-toolbar-refinements.py
+# No typing engine strip; Brave omitted from both Android engine-choice screens.
+python3 .circleci/scripts/apply-sandium-search-choices.py --core "$CORE"
+python3 .circleci/scripts/apply-sandium-search-choices.py --core "$CORE" --verify-only
+python3 .circleci/scripts/test-sandium-search-choices.py
+
+# Refresh same-position native focus geometry; device placement still needs testing.
+python3 .circleci/scripts/apply-sandium-focus-follow.py --src "$SRC"
+python3 .circleci/scripts/apply-sandium-focus-follow.py --src "$SRC" --verify-only
+python3 .circleci/scripts/test-sandium-focus-follow.py

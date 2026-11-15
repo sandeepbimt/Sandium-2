@@ -44,11 +44,11 @@ final class SandiumPagedMenu extends FrameLayout {
     private final SandiumMenuMetadata.FooterProvider mFooter;
     private final View mNative;
     private final ListView mNativeList;
+    private int mUncataloguedNativeRow = -1;
     private final LinkedHashMap<String, Entry> mCatalog = new LinkedHashMap<>();
     private SandiumMenuState mSaved;
     private SandiumMenuState mDraft;
     private int mPage;
-    private boolean mAll;
     private int mRenderedScreen = -1;
     private int mRenderedPage = -1;
     private View mMotionPanel;
@@ -128,11 +128,16 @@ final class SandiumPagedMenu extends FrameLayout {
 
     private void add(PropertyModel model, int row, boolean nativeRow) {
         String key = key(model);
-        if (key == null || key.equals("brave_customize_menu_id")
-                || key.equals("default_browser_promo_menu_id")) return;
-        if (!model.containsKey(AppMenuItemProperties.TITLE)) return;
-        CharSequence title = model.get(AppMenuItemProperties.TITLE);
-        if (title == null || title.length() == 0) return;
+        if ("brave_customize_menu_id".equals(key)
+                || "default_browser_promo_menu_id".equals(key)) return;
+        CharSequence title = model.containsKey(AppMenuItemProperties.TITLE)
+                ? model.get(AppMenuItemProperties.TITLE) : null;
+        if (key == null || title == null || title.length() == 0) {
+            // Do not silently strand conditional/custom native controls lacking stable tile IDs.
+            // Explicitly excluded actions above never create this fallback.
+            if (row >= 0 && mUncataloguedNativeRow < 0) mUncataloguedNativeRow = row;
+            return;
+        }
         mCatalog.putIfAbsent(key, new Entry(model, row, nativeRow));
     }
 
@@ -155,6 +160,7 @@ final class SandiumPagedMenu extends FrameLayout {
         for (PropertyModel model : mObserved) model.removeObserver(mObserver);
         mObserved.clear();
         mCatalog.clear();
+        mUncataloguedNativeRow = -1;
         for (int i = 0; i < mModels.size(); i++) {
             ListItem item = mModels.get(i);
             observe(item.model);
@@ -268,15 +274,14 @@ final class SandiumPagedMenu extends FrameLayout {
 
     boolean handleBack() {
         if (mDraft != null) { mDraft = null; render(); return true; }
-        if (mNativeVisible) { if (mNativeReset != null) mNativeReset.run(); mAll = true; render(); return true; }
-        if (mAll) { mAll = false; render(); return true; }
+        if (mNativeVisible) { if (mNativeReset != null) mNativeReset.run(); render(); return true; }
         return false;
     }
     void setNativeDrillDown(java.util.function.BooleanSupplier supplier) { mNativeDrillDown = supplier; }
     void setNativeReset(Runnable reset) { mNativeReset = reset; }
     void setResizeListener(Runnable resize) { mResize = resize; }
     int preferredHeight(int available) {
-        return Math.min(available, mAll || mDraft != null || mNativeVisible
+        return Math.min(available, mDraft != null || mNativeVisible
                 ? (int) (available * .88f) : dp(410));
     }
     private void finishPanelMotion() {
@@ -355,14 +360,14 @@ final class SandiumPagedMenu extends FrameLayout {
 
     private void render() {
         // Fade only actual navigation, never network/model updates or drag reorders.
-        int screen = mDraft != null ? 2 : mAll ? 1 : 0;
+        int screen = mDraft != null ? 2 : 0;
         if (screen != mRenderedScreen) mPageMinimumHeight = 0;
         else if (mPageContent != null) {
             mPageMinimumHeight = Math.max(mPageMinimumHeight, mPageContent.getHeight());
         }
         int pageDirection = Integer.compare(mPage, mRenderedPage);
         boolean pageTransition = mRenderedScreen == screen && mRenderedPage >= 0
-                && mPage != mRenderedPage && !(mAll && mDraft == null) && !mNativeVisible;
+                && mPage != mRenderedPage && !mNativeVisible;
         finishPageMotion();
         View oldPage = pageTransition ? mPageContent : null;
         mPageViewport = null; mPageContent = null;
@@ -381,17 +386,23 @@ final class SandiumPagedMenu extends FrameLayout {
         LinearLayout heading = row();
         if (mDraft != null) {
             weighted(heading, button(s(R.string.sandium_menu_cancel), s(R.string.sandium_menu_cancel_edits), () -> { mDraft = null; render(); }));
-            weighted(heading, text(s(R.string.sandium_menu_edit), 18, mTextColor));
+            weighted(heading, new View(getContext()));
             weighted(heading, button(s(R.string.sandium_menu_done), s(R.string.sandium_menu_save_edits), () -> {
                 mSaved = mDraft; mDraft = null;
                 getContext().getSharedPreferences(PREF, Context.MODE_PRIVATE).edit()
                         .putString("layout", mSaved.serialize()).apply(); render();
             }));
         } else {
-            weighted(heading, button(mAll ? "‹" : s(R.string.sandium_menu_all), mAll ? s(R.string.sandium_menu_back_paged) : s(R.string.sandium_menu_all),
-                    () -> { mAll = !mAll; render(); }));
-            weighted(heading, text(mAll ? s(R.string.sandium_menu_all) : "", 18, mTextColor));
-            weighted(heading, button("+", s(R.string.sandium_menu_edit_description), () -> { mDraft = mSaved.copy(); render(); }));
+            // Only show a native escape hatch when an unrepresentable custom action exists.
+            if (mUncataloguedNativeRow >= 0) {
+                heading.addView(button(s(R.string.sandium_menu_native),
+                        s(R.string.sandium_menu_native_description),
+                        () -> showNative(mUncataloguedNativeRow)));
+            }
+            // One unambiguous edit affordance; no redundant All Menu screen/title.
+            heading.addView(new View(getContext()), new LinearLayout.LayoutParams(0, 1, 1));
+            heading.addView(button(s(R.string.sandium_menu_edit), s(R.string.sandium_menu_edit_description),
+                    () -> { mDraft = mSaved.copy(); render(); }));
         }
         panel.addView(heading);
         if (mResize != null) post(mResize);
@@ -410,11 +421,7 @@ final class SandiumPagedMenu extends FrameLayout {
         List<String> visible = state().visibleKeys(editableKeys());
         int pages = Math.max(1, state().pageCount(editableKeys(), PAGE_SIZE));
         mPage = Math.max(0, Math.min(mPage, pages - 1));
-        if (mAll && mDraft == null) {
-            grid(body, new ArrayList<>(editableKeys()), false);
-            body.addView(button(s(R.string.sandium_menu_native), s(R.string.sandium_menu_native_description),
-                    () -> showNative(-1)));
-        } else {
+        { // Paged menu/editor share exactly the same indicator geometry.
             FrameLayout viewport = new FrameLayout(getContext());
             viewport.setClipChildren(true); viewport.setClipToPadding(true);
             // A sparse final page must not pull the editor's available-actions region upward.
@@ -444,7 +451,15 @@ final class SandiumPagedMenu extends FrameLayout {
                 View mark = new View(getContext());
                 mark.setBackground(shape(i == mPage ? mAccentColor : mDividerColor, 2));
                 mark.setImportantForAccessibility(IMPORTANT_FOR_ACCESSIBILITY_NO);
-                target.addView(mark, new FrameLayout.LayoutParams(dp(i == mPage ? 20 : 12), dp(3), Gravity.CENTER));
+                // Two marks sit together around their shared seam (8dp visual gap),
+                // while each retains its own non-overlapping 48dp accessible hit target.
+                FrameLayout.LayoutParams markParams = new FrameLayout.LayoutParams(dp(20), dp(3), Gravity.CENTER);
+                if (pages == 2) {
+                    markParams.gravity = Gravity.CENTER_VERTICAL | (i == 0 ? Gravity.END : Gravity.START);
+                    if (i == 0) markParams.setMarginEnd(dp(4));
+                    else markParams.setMarginStart(dp(4));
+                }
+                target.addView(mark, markParams);
                 dragPage(target, i - mPage);
                 pager.addView(target, new LinearLayout.LayoutParams(dp(48), dp(48)));
             }
@@ -669,7 +684,7 @@ final class SandiumPagedMenu extends FrameLayout {
         removeAllViews();
         if (mNative.getParent() instanceof ViewGroup) ((ViewGroup) mNative.getParent()).removeView(mNative);
         LinearLayout content = column();
-        content.addView(button(s(R.string.sandium_menu_back_all), s(R.string.sandium_menu_back_description), () -> { if (mNativeReset != null) mNativeReset.run(); mAll = true; render(); }));
+        content.addView(button(s(R.string.sandium_menu_back_all), s(R.string.sandium_menu_back_description), () -> { if (mNativeReset != null) mNativeReset.run(); render(); }));
         content.addView(mNative, new LinearLayout.LayoutParams(-1, 0, 1));
         addView(content, new LayoutParams(-1, -1));
         if (mResize != null) post(mResize);
@@ -731,7 +746,7 @@ final class SandiumPagedMenu extends FrameLayout {
     }
     @Override public boolean onInterceptTouchEvent(MotionEvent event) {
         if (event.getActionMasked() == MotionEvent.ACTION_DOWN) clearPendingNativeAction();
-        if (mNativeVisible || (mAll && mDraft == null) || mDragging != null) return super.onInterceptTouchEvent(event);
+        if (mNativeVisible || mDragging != null) return super.onInterceptTouchEvent(event);
         if (event.getActionMasked() == MotionEvent.ACTION_DOWN) {
             mDownX = event.getX(); mDownY = event.getY();
             android.graphics.Rect bounds = new android.graphics.Rect();

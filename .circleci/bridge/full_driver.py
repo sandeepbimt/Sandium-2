@@ -4,6 +4,7 @@ import argparse
 import copy
 import datetime
 import json
+import math
 import os
 from pathlib import Path
 import shutil
@@ -18,13 +19,38 @@ cli.apply_chain = sparse_restore.apply_chain
 d.MAX_LAYERS=16;d.SLOT_COUNT=16;cli.MAX_LAYERS=16
 
 
-def summary(plan, receipt_id):
-    expiry=min(x['expires_at'] for x in [plan['base']]+plan['layers'])
+REFRESH_MARGIN_SECONDS = 2 * 86400
+
+
+def dependency_expiry(plan, now):
+    """Use retained immutable cache deadlines, never restore/publication time.
+
+    Invalid metadata cannot justify skipping preservation or invent a new TTL.
+    Fail closed before selecting/writing any replacement checkpoint.
+    """
+    if not isinstance(plan, dict) or not isinstance(plan.get('base'), dict) or not isinstance(plan.get('layers'), list):
+        raise ValueError('Checkpoint expiry metadata missing or malformed')
+    values = []
+    for record in [plan['base']] + plan['layers']:
+        value = record.get('expires_at') if isinstance(record, dict) else None
+        if (isinstance(value, bool) or not isinstance(value, (int, float))
+                or not math.isfinite(value) or value <= now
+                or value > now + 15 * 86400 + 300):
+            raise ValueError('Invalid/expired checkpoint dependency expiry; preserve accepted head and investigate metadata')
+        values.append(value)
+    return min(values)
+
+
+def summary(plan, receipt_id, now=None):
+    now=time.time() if now is None else now
+    expiry=dependency_expiry(plan,now)
     utc=lambda t:datetime.datetime.fromtimestamp(t,datetime.timezone.utc).isoformat()
     return dict(receipt_id=receipt_id,layers=len(plan['layers']),capacity=16,
                 capacity_due=len(plan['layers'])>=11,earliest_dependency_expires_at=utc(expiry),
-                due_at=utc(expiry-2*86400),base_expiry=utc(plan['base']['expires_at']),
-                refresh_due=expiry<=time.time()+2*86400,
+                due_at=utc(expiry-REFRESH_MARGIN_SECONDS),base_expiry=utc(plan['base']['expires_at']),
+                refresh_due=expiry<=now+REFRESH_MARGIN_SECONDS,
+                refresh_margin_seconds=REFRESH_MARGIN_SECONDS,
+                expiry_basis='earliest_immutable_base_or_increment_deadline',
                 last_verified_refresh=plan.get('last_verified_refresh'))
 
 
@@ -61,8 +87,10 @@ def post_publish_eligibility():
     remaining=3300-(time.time()-d.c.read(d.STATE/'job-start.json')['epoch'])
     exact=(p['source']==os.environ['CIRCLE_SHA1'] and p['workflow']==os.environ['CIRCLE_WORKFLOW_ID']
            and p['pipeline']==int(os.environ['SANDIUM_PIPELINE_NUMBER']) and p['stage']==int(os.environ['SANDIUM_STAGE']))
+    age=summary(p['plan'],receipt['id'])
     request=dict(head=receipt['id'],source=p['source'],workflow=p['workflow'],pipeline=p['pipeline'],stage=p['stage'],
-                 remaining_seconds=remaining,eligible=bool(exact and p['apk_verified'] and remaining>1200))
+                 remaining_seconds=remaining,expiry=age,
+                 eligible=bool(exact and p['apk_verified'] and remaining>1200 and age['refresh_due']))
     d.c.save(d.STATE/'optional-refresh-request.json',request)
     print('FULL_POST_PUBLISH_REFRESH_ELIGIBILITY',json.dumps(request),flush=True)
 
@@ -72,8 +100,10 @@ def optional_check():
     receipt=d.c.read(d.HEAD);p=d.valid(receipt)
     request_path=d.STATE/'optional-refresh-request.json'
     request=d.c.read(request_path) if request_path.exists() else {}
+    # Recompute against the exact accepted head: old cached requests are not authority.
+    age=summary(p['plan'],receipt['id'])
     bound=dict(head=receipt['id'],source=p['source'],workflow=p['workflow'],pipeline=p['pipeline'],stage=p['stage'])
-    if not (request.get('eligible') is True and request.get('remaining_seconds',0)>1200
+    if not (age['refresh_due'] and request.get('eligible') is True and request.get('remaining_seconds',0)>1200
             and all(request.get(k)==v for k,v in bound.items()) and p['apk_verified']
             and p['source']==os.environ['CIRCLE_SHA1']
             and p['workflow']==os.environ['CIRCLE_WORKFLOW_ID']
@@ -87,7 +117,7 @@ def optional_check():
     d.c.disk_guard('before-optional-maintenance-restore',plan['base']['archive_bytes']+sum(x['content_bytes'] for x in plan['layers'])+32*1024**2)
     for i in range(d.SLOT_COUNT):
         (d.STATE/f'slot-{i}.key').write_text(plan['layers'][i]['key'] if i<len(plan['layers']) else f'unused-{d.c.scope()}-{i}')
-    report=summary(plan,receipt['id']);report['reason']='verified_apk_and_more_than_20_minutes_remained_after_durable_increment_publication'
+    report=age;report['reason']='earliest_dependency_within_2_days_and_verified_apk_and_more_than_20_minutes_remained_after_durable_increment_publication'
     d.c.save(d.STATE/'maintenance-report.json',report)
     print('FULL_OPTIONAL_REFRESH_SELECTED',json.dumps(report),flush=True)
 

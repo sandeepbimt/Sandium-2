@@ -14,7 +14,8 @@ def load(name):
 recipe=load('sandium-removal-recipe');m=recipe.load()
 welcome=load('apply-sandium-welcome-setup');prune=load('apply-sandium-ui-prune')
 toolbar=load('apply-sandium-bottom-toolbar');menu=load('apply-sandium-paged-menu')
-address=load('apply-sandium-unified-address');home=load('apply-sandium-home-shortcuts');video=load('apply-sandium-video-gestures')
+focus=load('apply-sandium-focus-follow');search=load('apply-sandium-search-choices')
+refinements=load('apply-sandium-toolbar-refinements');address=load('apply-sandium-unified-address');home=load('apply-sandium-home-shortcuts');video=load('apply-sandium-video-gestures')
 theme=load('apply-sandium-native-theme');status=load('apply-sandium-scroll-status-bar');chrome=load('apply-sandium-chrome-theme');branding=load('apply-sandium-branding-refresh')
 def blob(repo,pin,path):return subprocess.check_output(['git','-C',str(repo),'show',pin+':'+path])
 def core_blob(path):return blob(a.source,m['brave_pin'],path)
@@ -30,6 +31,9 @@ if a.home_fixtures:
   fixture_map[path]=a.home_fixtures/P(path).name
 for path in ['chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/LocationBarModel.java', 'chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/ToolbarPositionController.java', 'chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/LocationBarPhone.java']:
  fixture_map[path]=root/'tests/fixtures/unified-address'/P(path).name
+for path in [refinements.UTIL, refinements.DIMENS, refinements.TOP+'ToggleTabStackButton.java', refinements.TOP+'ToggleTabStackButtonCoordinator.java']:
+ fixture_map[path]=root/'tests/fixtures/toolbar-refinements'/P(path).name
+fixture_map[search.CHROME]=root/'tests/fixtures/search-choices/SearchEngineAdapter.java'
 def chromium_blob(path):
  if a.chromium_source:return blob(a.chromium_source,m['chromium_pin'],path)
  fixture=fixture_map.get(path,root/'.circleci/tests/fixtures/reporting-pinned/chromium'/path)
@@ -61,6 +65,9 @@ with tempfile.TemporaryDirectory() as temporary:
   for path,transform in address.transformations(src,core):path.write_text(transform(path.read_text()))
   write(src/toolbar.BASE/'java/res/drawable/sandium_toolbar_menu.xml',address.menu_resource().encode())
   address.verify(src,core)
+  for path,transform in refinements.transformations(src):path.write_text(transform(path.read_text()))
+  for path,text in search.outputs(core):path.write_text(text)
+  fp=src/focus.PATH;fp.write_text(focus.transform(fp.read_text()))
  def removal(steps=None):
   subs={'{core}':str(core),'{src}':str(src),'{out}':str(src/'out'),'{repo}':str(root)}
   for step in m['steps'] if steps is None else steps:

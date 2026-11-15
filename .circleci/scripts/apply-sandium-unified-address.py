@@ -76,7 +76,7 @@ OMNIBOX = 'chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browse
 
 def location_phone(s):
     if MARKER in s:
-        return s
+        return location_scroll_ownership(s)
     # Reuse upstream's complete constraints, fit measurement, long-origin scrolling,
     # accessibility click forwarding, and focused restoration. Do not enable unrelated
     # toolbar experiments globally or center a clipped TextView over the omnibox.
@@ -102,6 +102,34 @@ def location_phone(s):
     # a small toolbar. Never allow URL width to consume adjacent controls' hit regions.
     s = once(s, '            maxUrlWidth = Math.max(mMinUrlWidthPx, maxUrlWidth);',
              '            maxUrlWidth = Math.max(1, maxUrlWidth);')
+    return location_scroll_ownership(s)
+
+
+def location_scroll_ownership(s):
+    if 'SANDIUM_URLBAR_LAYOUT_OWNERSHIP_V1' in s:
+        return s
+    # Center the measured UrlBar VIEW using the packed constraint chain above,
+    # not its editable TextView internals. UrlBar owns horizontal wrapping,
+    # focus/BiDi alignment, TLD visibility and scroll restoration. Overriding
+    # those from parent measurement conflicts with the native layout contract.
+    # #1171 tripped its invariant when scrollDisplayText requested another layout.
+    start = s.index('        updateUrlBarAlignmentAndGravity(centeringApplied, fitsInCenteringSpace);')
+    end = s.index('        if (centeringApplied) {', start)
+    s = s[:start] + """        // SANDIUM_URLBAR_LAYOUT_OWNERSHIP_V1: packed VIEW centering only.
+        // Do not mutate native text alignment, horizontal scrolling or scrollX here.
+        // Native UrlBar maintains focus, BiDi and origin visibility invariants.
+
+""" + s[end:]
+    start = s.index('    /**\n     * Updates the UrlBar\'s text alignment and gravity')
+    end = s.index('    /** Calculates the maximum allowed width', start)
+    s = s[:start] + s[end:]
+    s = once(s, '''     * <p>If the URL fits, horizontal scrolling is disabled to prevent visual misalignment, and its
+     * scroll is reset to (0, 0).
+     *
+     * <p>If the URL does not fit, it is start-aligned, horizontal scrolling is enabled to allow
+     * navigating the full text, and its layout width is capped.''', '''     * <p>Sandium centers the measured view using its packed constraint chain. Native UrlBar
+     * owns text alignment, wrapping and origin scrolling for both fitting and long text.
+     * Parent measurement changes only the available view width, not the text behavior.''')
     return s
 
 

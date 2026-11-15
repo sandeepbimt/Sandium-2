@@ -28,10 +28,34 @@ class UnifiedAddress(unittest.TestCase):
         self.assertIn('mUrlBar == null || mUrlBar.hasFocus()',out)
         self.assertIn('OmniboxViewUtil.isRegularTabContext(pageClassification)',out)
         self.assertIn('fitsInCenteringSpace',out)
-        self.assertIn('mUrlBar.setHorizontallyScrolling(!centeringApplied || !fitsInCenteringSpace)',out)
-        self.assertIn('Gravity.START | Gravity.CENTER_VERTICAL',out)
+        self.assertIn('ConstraintLayout.LayoutParams.CHAIN_PACKED',out)
+        # #1171 device regression: parent centering must not fight UrlBar's
+        # native layout/scroll/focus invariant. Do not hide/disable its assertion.
+        for forbidden in ('mUrlBar.setHorizontallyScrolling(', 'mUrlBar.setGravity(',
+                          'mUrlBar.setTextAlignment(', 'mUrlBar.scrollTo('):
+            self.assertNotIn(forbidden,out)
+        self.assertIn('SANDIUM_URLBAR_LAYOUT_OWNERSHIP_V1',out)
         self.assertIn('maxUrlWidth = Math.max(1, maxUrlWidth)',out)
         self.assertIn('mLocationBarDataProvider.removeObserver(mUrlObserver)',out)
+
+    def test_centered_url_does_not_add_an_inner_pill(self):
+        original=(FIX/'LocationBarPhone.java').read_text()
+        out=m.location_phone(original)
+        # The single enclosing native toolbar surface remains the paint owner.
+        # Centering changes geometry, not URL paint or a second drawable surface.
+        for token in ('setBackground(', 'setBackgroundColor(', 'setBackgroundResource(',
+                      'GradientDrawable', 'drawRoundRect('):
+            self.assertEqual(out.count(token), original.count(token))
+        self.assertIn('ConstraintLayout.LayoutParams.CHAIN_PACKED',out)
+        self.assertIn('maxUrlWidth = Math.max(1, maxUrlWidth)',out)
+
+    def test_existing_v1_overlay_gets_scroll_ownership_upgrade(self):
+        # Re-applying to a checkpoint containing V1 must not bypass the new fix.
+        old='// SANDIUM_UNIFIED_ADDRESS_V1\n'+(FIX/'LocationBarPhone.java').read_text()
+        out=m.location_phone(old)
+        self.assertIn('SANDIUM_URLBAR_LAYOUT_OWNERSHIP_V1',out)
+        self.assertNotIn('mUrlBar.setHorizontallyScrolling(',out)
+        self.assertEqual(out,m.location_phone(out))
 
     def test_phone_composition_and_responsive_actions(self):
         out=m.bottom.phone((FIX/'ToolbarPhone.java').read_text())

@@ -347,7 +347,10 @@
     "BUILD.gn",
     "third_party/android_deps/BUILD.gn",
     "android/java/brave-res/values/brave_ids.xml",
-    "android/java/org/chromium/chrome/browser/suggestions/mostvisited/BraveMostVisitedSites.java"
+    "android/java/org/chromium/chrome/browser/suggestions/mostvisited/BraveMostVisitedSites.java",
+    "browser/quick_search_engines/android/java/src/org/chromium/brave/browser/quick_search_engines/utils/QuickSearchEnginesUtil.java",
+    "android/java/org/chromium/chrome/browser/search_engines/settings/BraveBaseSearchEngineAdapter.java",
+    "android/java/org/chromium/chrome/browser/search_engines/settings/BraveSearchEngineAdapter.java"
   ],
   "chromium_restore": [
     "chrome/android/chrome_public_apk_tmpl.gni",
@@ -380,7 +383,12 @@
     "components/ntp_tiles/custom_links_manager_impl.cc",
     "chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/LocationBarModel.java",
     "chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/ToolbarPositionController.java",
-    "chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/LocationBarPhone.java"
+    "chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/LocationBarPhone.java",
+    "chrome/browser/util/android/java/src/org/chromium/chrome/browser/util/BrowserUiUtils.java",
+    "chrome/browser/ui/android/omnibox/java/res/values/dimens.xml",
+    "chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/ToggleTabStackButton.java",
+    "chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/ToggleTabStackButtonCoordinator.java",
+    "chrome/browser/search_engines/android/java/src/org/chromium/chrome/browser/search_engines/settings/SearchEngineAdapter.java"
   ],
   "generated_overwrite": [
     "components/minidump_uploader/android/java/src/org/chromium/components/minidump_uploader/MinidumpUploader.java",
@@ -516,7 +524,8 @@
     "chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/ToolbarPhone.java": "patches/chrome-browser-ui-android-toolbar-java-src-org-chromium-chrome-browser-toolbar-top-ToolbarPhone.java.patch",
     "components/minidump_uploader/BUILD.gn": "patches/components-minidump_uploader-BUILD.gn.patch",
     "chrome/android/java/src/org/chromium/chrome/browser/settings/search/SearchIndexProviderRegistry.java": "patches/chrome-android-java-src-org-chromium-chrome-browser-settings-search-SearchIndexProviderRegistry.java.patch",
-    "chrome/android/chrome_public_apk_tmpl.gni": "patches/chrome-android-chrome_public_apk_tmpl.gni.patch"
+    "chrome/android/chrome_public_apk_tmpl.gni": "patches/chrome-android-chrome_public_apk_tmpl.gni.patch",
+    "chrome/browser/search_engines/android/java/src/org/chromium/chrome/browser/search_engines/settings/SearchEngineAdapter.java": "patches/chrome-browser-search_engines-android-java-src-org-chromium-chrome-browser-search_engines-settings-SearchEngineAdapter.java.patch"
   },
   "ui_baseline": "50545b503d3429ee1a1dad86317147e87d4b556b",
   "ui_reset_note": "Reset pinned upstream inputs only; replay exact pinned Brave patches for declared Chromium paths before UI overlays. Sandium-created classes/resources are retained and recopied by their owning overlays.",
@@ -527,7 +536,10 @@
     "android/java/res/values-night/brave_colors.xml",
     "android/java/res/values/brave_colors.xml",
     "browser/ui/android/theme/java/src/org/chromium/chrome/browser/theme/BraveDynamicColors.java",
-    "browser/ui/android/theme/junit/src/org/chromium/chrome/browser/theme/BraveDynamicColorsTest.java"
+    "browser/ui/android/theme/junit/src/org/chromium/chrome/browser/theme/BraveDynamicColorsTest.java",
+    "browser/quick_search_engines/android/java/src/org/chromium/brave/browser/quick_search_engines/utils/QuickSearchEnginesUtil.java",
+    "android/java/org/chromium/chrome/browser/search_engines/settings/BraveBaseSearchEngineAdapter.java",
+    "android/java/org/chromium/chrome/browser/search_engines/settings/BraveSearchEngineAdapter.java"
   ],
   "ui_only_chromium_restore": [
     "chrome/browser/ui/android/appmenu/BUILD.gn",
@@ -550,6 +562,11 @@
     "ui/edge_to_edge/android/java/src/org/chromium/ui/edge_to_edge/layout/EdgeToEdgeBaseLayout.java",
     "ui/edge_to_edge/android/java/src/org/chromium/ui/edge_to_edge/layout/EdgeToEdgeLayoutCoordinator.java",
     "ui/edge_to_edge/android/junit/src/org/chromium/ui/edge_to_edge/EdgeToEdgeSystemBarColorHelperUnitTest.java",
-    "ui/edge_to_edge/android/junit/src/org/chromium/ui/edge_to_edge/layout/EdgeToEdgeLayoutUnitTest.java"
+    "ui/edge_to_edge/android/junit/src/org/chromium/ui/edge_to_edge/layout/EdgeToEdgeLayoutUnitTest.java",
+    "chrome/browser/util/android/java/src/org/chromium/chrome/browser/util/BrowserUiUtils.java",
+    "chrome/browser/ui/android/omnibox/java/res/values/dimens.xml",
+    "chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/ToggleTabStackButton.java",
+    "chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/ToggleTabStackButtonCoordinator.java",
+    "chrome/browser/search_engines/android/java/src/org/chromium/chrome/browser/search_engines/settings/SearchEngineAdapter.java"
   ]
 }

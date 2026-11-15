@@ -87,7 +87,7 @@ class MaintenanceTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as t:
             root=Path(t);state=root/'state';state.mkdir();head=root/'receipt'
             payload=dict(source='sha',workflow='workflow',pipeline=3,stage=1,apk_verified=True,
-                plan=dict(base=dict(key='base',archive_bytes=0,expires_at=time.time()+14*86400),layers=[]))
+                plan=dict(base=dict(key='base',archive_bytes=0,expires_at=time.time()+86400),layers=[]))
             f.d.c.save(head,dict(id='receipt',payload=payload))
             f.d.c.save(state/'job-start.json',dict(epoch=time.time()-100))
             with mock.patch.multiple(f.d,STATE=state,HEAD=head),mock.patch.object(f.d,'gate'),mock.patch.object(f.d,'valid',side_effect=lambda rec:rec['payload']),mock.patch.object(f.d.c,'disk_guard'),mock.patch.object(f.d.c,'halt') as halt,mock.patch.object(f.d.c,'scope',return_value='scope'),mock.patch.dict(os.environ,{'CIRCLE_SHA1':'sha','CIRCLE_WORKFLOW_ID':'workflow','SANDIUM_PIPELINE_NUMBER':'3','SANDIUM_STAGE':'1'}):
@@ -97,6 +97,62 @@ class MaintenanceTests(unittest.TestCase):
                 payload['workflow']='other';f.d.c.save(head,dict(id='wrong',payload=payload))
                 f.optional_check();halt.assert_called_once()
             self.assertEqual(json.loads((state/'selected.json').read_text())['id'],'receipt')
+
+    def test_increment_publication_preserves_restored_dependency_deadlines(self):
+        with tempfile.TemporaryDirectory() as t:
+            root=Path(t);state=root/'state';state.mkdir();incoming=root/'incoming'
+            now=time.time();plan=dict(base=dict(id='base',key='base-key',expires_at=now+86400),head='old',layers=[dict(id='old',parent='base',key='old-key',expires_at=now+3*86400)])
+            f.d.c.save(state/'selected.json',dict(id='restored',payload=dict(plan=plan)))
+            f.d.c.save(state/'inventory.json',{})
+            def captured(work, inventory, identity, archive, quiesce):
+                archive.write_bytes(b'increment');return dict(id='new',parent='old')
+            with mock.patch.multiple(f.d,ROOT=root,STATE=state,INCOMING=incoming),mock.patch.object(f.d,'gate'),mock.patch.object(f.d,'valid',side_effect=lambda rec:rec['payload']),mock.patch.object(f.bridge,'capture',side_effect=captured),mock.patch.object(f.d,'new_key',return_value='new-key'),mock.patch.object(f.d,'make_candidate') as candidate,mock.patch.dict(os.environ,{'CIRCLE_WORKFLOW_ID':'workflow','CIRCLE_BUILD_NUM':'1'}):
+                f.capture()
+            saved,parent=candidate.call_args.args
+            self.assertEqual(parent,'restored');self.assertEqual(saved['base'],plan['base'])
+            self.assertEqual(saved['layers'][:-1],plan['layers'])
+            self.assertGreater(saved['layers'][-1]['expires_at'],now+13*86400)
+            self.assertTrue(f.summary(saved,'new')['refresh_due'])
+
+    def test_fresh_head_skips_optional_even_with_stale_eligible_request(self):
+        with tempfile.TemporaryDirectory() as t:
+            root=Path(t);state=root/'state';state.mkdir();head=root/'receipt'
+            payload=dict(source='sha',workflow='workflow',pipeline=3,stage=1,apk_verified=True,
+                plan=dict(base=dict(key='base',archive_bytes=0,expires_at=time.time()+14*86400),layers=[]))
+            f.d.c.save(head,dict(id='receipt',payload=payload))
+            f.d.c.save(state/'job-start.json',dict(epoch=time.time()-100))
+            with mock.patch.multiple(f.d,STATE=state,HEAD=head),mock.patch.object(f.d,'gate'),mock.patch.object(f.d,'valid',side_effect=lambda rec:rec['payload']),mock.patch.object(f.d.c,'disk_guard') as disk,mock.patch.object(f.d.c,'halt') as halt,mock.patch.dict(os.environ,{'CIRCLE_SHA1':'sha','CIRCLE_WORKFLOW_ID':'workflow','SANDIUM_PIPELINE_NUMBER':'3','SANDIUM_STAGE':'1'}):
+                f.post_publish_eligibility()
+                request=f.d.c.read(state/'optional-refresh-request.json')
+                self.assertFalse(request['eligible']);self.assertFalse(request['expiry']['refresh_due'])
+                request['eligible']=True;f.d.c.save(state/'optional-refresh-request.json',request)
+                f.optional_check();halt.assert_called_once();disk.assert_not_called()
+                self.assertFalse((state/'selected.json').exists())
+                self.assertEqual(f.d.c.read(head)['id'],'receipt')
+                payload['plan']['base']['expires_at']=float('nan');f.d.c.save(head,dict(id='bad',payload=payload))
+                with self.assertRaises(ValueError):f.post_publish_eligibility()
+                with self.assertRaises(ValueError):f.optional_check()
+                self.assertFalse((state/'selected.json').exists())
+
+    def test_dependency_age_uses_oldest_layer_not_latest_receipt(self):
+        now=2000000000
+        plan=dict(base=dict(expires_at=now+14*86400), layers=[dict(expires_at=now+86400),dict(expires_at=now+14*86400)])
+        report=f.summary(plan,'new-published-receipt',now=now)
+        self.assertTrue(report['refresh_due'])
+        self.assertEqual(report['earliest_dependency_expires_at'],f.datetime.datetime.fromtimestamp(now+86400,f.datetime.timezone.utc).isoformat())
+        plan['layers']=[]
+        self.assertFalse(f.summary(plan,'new-published-receipt',now=now)['refresh_due'])
+        for seconds,expected in [(2*86400,True),(2*86400+1,False)]:
+            plan['base']['expires_at']=now+seconds
+            self.assertEqual(f.summary(plan,'r',now=now)['refresh_due'],expected)
+
+    def test_expiry_metadata_never_guesses_new_ttl(self):
+        now=2000000000
+        for value in [None,True,'2026-11-29',float('nan'),float('inf'),now,now-1,now+16*86400]:
+            with self.subTest(value=value),self.assertRaises(ValueError):
+                f.summary(dict(base=dict(expires_at=value),layers=[]),'r',now=now)
+        for plan in [{},{'base':{},'layers':[]},{'base':{'expires_at':now+86400},'layers':[{}]}]:
+            with self.assertRaises(ValueError):f.summary(plan,'r',now=now)
 
     def test_due_reserves_five_stages(self):
         plan=dict(base=dict(expires_at=time.time()+14*86400),layers=[dict(expires_at=time.time()+14*86400)]*11)

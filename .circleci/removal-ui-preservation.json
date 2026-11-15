@@ -1,7 +1,7 @@
 {
   "baseline": "50545b503d3429ee1a1dad86317147e87d4b556b",
   "files": {
-    ".circleci/experimental-steps/product-overlay-29-0.sh": "3c6db1c0d84eee8d48262dce580244a7fa481afa84e25e0a2bae3dc1e4f34e13",
+    ".circleci/experimental-steps/product-overlay-29-0.sh": "855a37be473eefb8ae8df35d47796b6a0568df3507788b6f1a339a43655c4b64",
     ".circleci/scripts/apply-sandium-bottom-toolbar.py": "ccdf6b99530a4505c5d42d0360f9f8efcba2ba432c6dc296fdc3e401686d2a4d",
     ".circleci/scripts/apply-sandium-chrome-theme.py": "13cfd73d17cd342cec9b1f3bf332f29be873a0b850cfb40942b7cd4660623ccf",
     ".circleci/scripts/apply-sandium-native-theme.py": "de626469be532107ce07d878ceedd5d29fde8d75c9fba3972df4d0e5955d176f",
@@ -10,17 +10,17 @@
     ".circleci/scripts/apply-sandium-shields-popup.py": "eaca25aec6ba08e28775815c112f8446f87dd49630da98bd86ea78770f2c078d",
     ".circleci/scripts/test-sandium-bottom-toolbar.py": "40e3750bb0bdc4e97b9c13e306406fffbc65d5b146f1ba526748cdce8152bb24",
     ".circleci/scripts/test-sandium-chrome-theme.py": "d9443c1ab2e17e2319b2df23af0e61ef2fd70b030450175a39eac53a8a4f3958",
-    ".circleci/scripts/test-sandium-motion.py": "74b9dd70966d8bb8311820ff698923592ff43824dc5176f2e423f90aedac74e5",
+    ".circleci/scripts/test-sandium-motion.py": "8497a74a1b8702f8d474c662964ceede179903bda22d7251c64765d92a7bd330",
     ".circleci/scripts/test-sandium-native-theme.py": "52b92d4791d0b1cb12fae16d107ae09c7b0aa69747b5462152d0e5ba318691da",
     ".circleci/scripts/test-sandium-paged-menu.py": "5fb49d8f1afa86db1238aa0836fe1a3eb7cfa13efe58d30671b31429bcafd34d",
     ".circleci/scripts/test-sandium-shields-popup.py": "49ea362d9b0322c77f02356d457bbc3efed8053ca878d261468ca614f3049de0",
     "android/java/org/chromium/chrome/browser/firstrun/SandiumWelcomeSetupView.java": "2f4555a13403ff9a87c6aa47ff6c12e898f1f5b63bc2aa7f1a3d917ec2633b8b",
     "android/java/org/chromium/chrome/browser/ui/appmenu/SandiumMenuMetadata.java": "73c796d7c1c623bfa2d5246e68b7a5763a76bf78eec225d0722f60f171d24be2",
     "android/java/org/chromium/chrome/browser/ui/appmenu/SandiumMenuState.java": "64b707978412cca96095221e68d14764b15a2da241a1e7698de1f375c77b652f",
-    "android/java/org/chromium/chrome/browser/ui/appmenu/SandiumPagedMenu.java": "2b805e228d18c1b22c4b7a93c56e54206b783b04cb8aaba99ee59ae2d0885f16",
+    "android/java/org/chromium/chrome/browser/ui/appmenu/SandiumPagedMenu.java": "c950341c0efdca2b7fd2db7865abfd7fb59e2095d3284366f0bd4637810eb52c",
     "android/java/res/values-night/sandium_menu_colors.xml": "c563cee895d6757052b265bafcee5b1bff8d97554e02c242c0b267e601032e25",
     "android/java/res/values/sandium_menu_colors.xml": "743dc995baa6bc57bf9150bbdc8e9060d4def7e7974b63fb42e3cd9ddbe961c1",
-    "android/java/res/values/sandium_menu_strings.xml": "d3eca4b49ce74d0f310e1c96183a4d9409e5a8beaf74f0ea4cd50f6feea764cf"
+    "android/java/res/values/sandium_menu_strings.xml": "7cff1ba0ad48e9e9ae84fb6fd209146add8abc7317c50d8bce9bc7b3ef009757"
   },
   "approved_ui_updates": [
     {
@@ -70,6 +70,36 @@
         ".circleci/experimental-steps/product-overlay-29-0.sh": {
           "previous_sha256": "3ab459800bf914a36e6cc36aee46efcfb578b860ddf3cf14f08c3ebb94c0ca6f",
           "current_sha256": "3c6db1c0d84eee8d48262dce580244a7fa481afa84e25e0a2bae3dc1e4f34e13"
+        }
+      }
+    },
+    {
+      "reason": "Nov15 08:46 user #1171 device-feedback menu labels, compact page indicators and toolbar refinement wiring; preserve native security and #1150/#1166 provenance",
+      "changes": {
+        ".circleci/experimental-steps/product-overlay-29-0.sh": {
+          "previous_sha256": "3c6db1c0d84eee8d48262dce580244a7fa481afa84e25e0a2bae3dc1e4f34e13",
+          "current_sha256": "56038b5c22d16c663ffb1a4aca9c0ecd085a301c0241386e1581e2718009021c"
+        },
+        ".circleci/scripts/test-sandium-motion.py": {
+          "previous_sha256": "74b9dd70966d8bb8311820ff698923592ff43824dc5176f2e423f90aedac74e5",
+          "current_sha256": "8497a74a1b8702f8d474c662964ceede179903bda22d7251c64765d92a7bd330"
+        },
+        "android/java/org/chromium/chrome/browser/ui/appmenu/SandiumPagedMenu.java": {
+          "previous_sha256": "2b805e228d18c1b22c4b7a93c56e54206b783b04cb8aaba99ee59ae2d0885f16",
+          "current_sha256": "c950341c0efdca2b7fd2db7865abfd7fb59e2095d3284366f0bd4637810eb52c"
+        },
+        "android/java/res/values/sandium_menu_strings.xml": {
+          "previous_sha256": "d3eca4b49ce74d0f310e1c96183a4d9409e5a8beaf74f0ea4cd50f6feea764cf",
+          "current_sha256": "7cff1ba0ad48e9e9ae84fb6fd209146add8abc7317c50d8bce9bc7b3ef009757"
+        }
+      }
+    },
+    {
+      "reason": "Reviewed #1171 search choices and bounded native focus follow after toolbar refinements; blue flash unchanged",
+      "changes": {
+        ".circleci/experimental-steps/product-overlay-29-0.sh": {
+          "previous_sha256": "56038b5c22d16c663ffb1a4aca9c0ecd085a301c0241386e1581e2718009021c",
+          "current_sha256": "855a37be473eefb8ae8df35d47796b6a0568df3507788b6f1a339a43655c4b64"
         }
       }
     }
