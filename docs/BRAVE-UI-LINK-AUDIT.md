@@ -78,3 +78,15 @@ instrumentation, accessibility or device test has been performed. Verify both
 Settings screenshots and WebRTC on device, plus strict cookies and custom filter
 editing, after integration. Do not report exhaustive all-UI removal without the wider
 Chromium/WebUI and legal review described above.
+
+### #1179 ErrorProne correction
+
+The first Android build caught dead private support state left by the no-op
+connection-info callback: unused launcher, HELP_URL, mMoreInfoLink and linkText.
+The follow-up removes the unreachable support launcher and its imports/state,
+including mLinkUrl/TAG, rather than disabling warnings. The native callback keeps
+its String signature with the explicit `unusedLinkText` name; ErrorProne recognizes
+unused-prefixed parameters. Certificate and reset decisions remain unchanged.
+Tests now cover pristine source, upgrading the old no-op, idempotence, leftover
+identifier assertions and launcher body drift. Full ErrorProne/Android rerun still
+required; source replay alone is not a successful build.

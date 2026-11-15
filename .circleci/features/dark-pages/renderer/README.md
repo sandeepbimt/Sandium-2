@@ -275,3 +275,27 @@ and added its declaration to style_adjuster.h. A new test compiles the actual
 helper against protected-access fake APIs and exercises root/pseudo/inheritance,
 manual, managed/unmanaged, image/SVG, printing and forced-colors cases. This
 strengthens source/type validation but still is not a full native Blink compile.
+
+## #1179 generated storage correction (local only)
+The two inherited paint-policy booleans lacked `field_group`, adding them to
+ComputedStyleBase's hot root Data bitfields. Exact pinned generation shows root
+bit count159→161, crossing a32-bit allocation boundary: compiled extracted actual
+Data declarations measure20→24bytes. This explains the4-byte growth reported by
+#1179's unchanged ComputedStyle size assertion (68 versus64).
+
+Both booleans now use existing `field_group: "inherited"`, alongside upstream
+InForcedColorsMode. They remain inherited, defaultfalse, paint-invalidating,
+compared in inherited group equality, copied via the existing inherited group,
+and set through generated copy-on-write Access. No size assertion is modified.
+Exact regenerated root storage and Data declarations are byte-for-byte baseline
+again; inherited group bit count15→17 fits its existing4-byte word. Root Data
+measures20/24/20bytes (baseline/broken/fixed), inherited bitfields4/4/4.
+
+Generation used the pinned make_computed_style_base.py with exact css_properties,
+computed_style_field_aliases, runtime_enabled_features, css_value_keywords and
+css_group_config inputs, varying only computed_style_extra_fields. Run
+`check_generated_packing.py BASELINE_DIR BROKEN_DIR FIXED_DIR` on those generator
+outputs to verify root-storage identity, generated setters/group equality and
+compile their actual bitfield declarations. This is stronger than a hand-written
+layout model but is NOT a full Chromium/Android compile: the actual unchanged
+ComputedStyle assertion still requires the next authorized native build.

@@ -147,6 +147,16 @@ class RendererPatchTest(unittest.TestCase):
         self.assertIn('builder.SetSandiumPaletteEnabled(false)', block)
         self.assertNotIn('SetSandiumManualColorOverride(false)', style)
 
+    def test_policy_bits_use_existing_inherited_storage_group(self):
+        patcher.apply(self.root)
+        text = (self.root / 'third_party/blink/renderer/core/style/computed_style_extra_fields.json5').read_text()
+        for name in ('SandiumManualColorOverride', 'SandiumPaletteEnabled'):
+            block = text.split('name: "' + name + '"', 1)[1].split('}', 1)[0]
+            self.assertIn('field_group: "inherited"', block)
+            self.assertIn('inherited: true', block)
+            self.assertIn('default_value: "false"', block)
+            self.assertIn('invalidate: ["paint"]', block)
+
     def test_preservation_default_when_enabled(self):
         for flags in range(-1, 16):
             self.assertEqual(flags >= 0 and (flags & 1) != 0, flags >= 0 and bool(flags & 1))

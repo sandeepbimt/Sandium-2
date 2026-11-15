@@ -122,18 +122,44 @@ def apply(core):
 
 CONNECTION = 'components/page_info/android/java/src/org/chromium/components/page_info/ConnectionInfoView.java'
 
+LAUNCHER_SHA256 = '966fc8a13fea648a9b756a8745a8492d04f1d82e20c6ae1dd74b209874031925'
+CONNECTION_DEAD_DECLARATIONS = ['import android.content.Intent;\n', 'import android.provider.Browser;\n', 'import org.chromium.base.Log;\n', '    private static final String TAG = "ConnectionInfoView";\n', '    private static final String HELP_URL =\n            "https://support.google.com/chrome?p=android_connection_info";\n', '    private @Nullable TextView mMoreInfoLink;\n', '    private @Nullable String mLinkUrl;\n']
+
 def apply_chromium(src):
     p = src / CONNECTION
     s = p.read_text()
-    start = s.find('    private void addMoreInfoLink(String linkText) {')
-    if start < 0: raise RuntimeError('connection-info anchor drift')
-    end = s.index('\n    }', start) + len('\n    }')
-    # CalledByNative entry remains. Certificate details, warnings and reset controls
-    # are distinct sections and remain intact. Only the external help row is omitted.
-    replacement = """    private void addMoreInfoLink(String linkText) {
+    signature = '    private void addMoreInfoLink(String linkText) {'
+    replacement = """    private void addMoreInfoLink(String unusedLinkText) {
+        // Sandium: JNI signature retained; external support row intentionally omitted.
+    }"""
+    previous = """    private void addMoreInfoLink(String linkText) {
         // Sandium: retain local security information, omit external support link.
     }"""
-    guarded_body(p, s, start, end, replacement, '4d328ec9758233a77c406ae398fb90e18c1d2b2c5ae1a04bc5a19d973c4633ac')
+    if replacement not in s:
+        start = s.find(signature)
+        if start < 0: raise RuntimeError('connection-info anchor drift')
+        end = s.index('\n    }', start) + len('\n    }')
+        body = s[start:end]
+        if body != previous and hashlib.sha256(body.encode()).hexdigest() != '4d328ec9758233a77c406ae398fb90e18c1d2b2c5ae1a04bc5a19d973c4633ac':
+            raise RuntimeError('connection-info body drift')
+        s = s[:start] + replacement + s[end:]
+    # Remove the now-unreachable outbound launcher, not certificate/security code.
+    anchor = '    private void showConnectionSecurityInfo() {'
+    if anchor in s:
+        start = s.index(anchor)
+        end = s.index('\n    }', start) + len('\n    }')
+        if hashlib.sha256(s[start:end].encode()).hexdigest() != LAUNCHER_SHA256:
+            raise RuntimeError('connection-info launcher drift')
+        s = s[:start] + s[end:]
+    for declaration in CONNECTION_DEAD_DECLARATIONS:
+        if s.count(declaration) > 1:
+            raise RuntimeError('duplicate connection support declaration')
+        s = s.replace(declaration, '')
+    # No orphaned launcher state/imports may survive a partially modified checkpoint.
+    for token in ('HELP_URL', 'mMoreInfoLink', 'mLinkUrl', 'showConnectionSecurityInfo', 'Log.', 'Intent.', 'Browser.'):
+        if token in s:
+            raise RuntimeError('orphaned connection support code: ' + token)
+    p.write_text(s)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()

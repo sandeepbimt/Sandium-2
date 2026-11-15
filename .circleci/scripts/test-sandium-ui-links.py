@@ -48,6 +48,27 @@ with tempfile.TemporaryDirectory() as d:
     assert 'mDescriptionLayout.addView(mMoreInfoLink)' not in c
     assert 'mCertificateLayout.addView(mCertificateViewerTextView)' in c
     assert 'resetCertDecisions(' in c
+    assert 'private void addMoreInfoLink(String unusedLinkText)' in c
+    assert '@CalledByNative' in c
+    for dead in ('HELP_URL', 'mMoreInfoLink', 'mLinkUrl', 'showConnectionSecurityInfo', 'import android.content.Intent;', 'import android.provider.Browser;', 'import org.chromium.base.Log;'):
+        assert dead not in c, dead
+    # Upgrade the failed #1179 generated no-op as well as pristine pinned source.
+    original = (a.src / m.CONNECTION).read_text()
+    begin = original.index('    private void addMoreInfoLink(String linkText) {')
+    finish = original.index('\n    }', begin) + len('\n    }')
+    previous = """    private void addMoreInfoLink(String linkText) {
+        // Sandium: retain local security information, omit external support link.
+    }"""
+    connection.write_text(original[:begin] + previous + original[finish:])
+    m.apply_chromium(root)
+    assert connection.read_text() == c
+    connection.write_text(original.replace('        // TODO(crbug.com/40129299):', '        // changed launcher:'))
+    try:
+        m.apply_chromium(root)
+        raise AssertionError('launcher drift not rejected')
+    except RuntimeError:
+        pass
+    connection.write_text(c)
     # Each whole-method suppression must reject an unreviewed body, not merely
     # locate a signature and overwrite newly added security/product behavior.
     for rel in (m.PATHS[5], m.PATHS[6], m.CONNECTION):
