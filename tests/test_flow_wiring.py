@@ -30,6 +30,13 @@ class FullOverlayWiring(unittest.TestCase):
             '# python3 .circleci/scripts/test-sandium-removal-composition.py')
         with self.assertRaisesRegex(ValueError,'command'):verify_full_wiring(root)
 
+    def test_dark_combined_readback_cannot_be_weakened(self):
+        root=self.fixture()
+        self.edit(root,'.circleci/experimental-steps/product-overlay-30-0.sh',
+            'apply-sandium-dark-combined.py "$SRC" --repo "$ROOT" --verify-only',
+            'apply-sandium-dark-combined.py "$SRC" --repo "$ROOT"')
+        with self.assertRaisesRegex(ValueError,'Dark Pages'):verify_full_wiring(root)
+
     def test_actual_all_five_full_stages(self):
         jobs=verify_full_wiring(ROOT)
         self.assertEqual(sum(j.startswith('full-stage-') for j in jobs),5)

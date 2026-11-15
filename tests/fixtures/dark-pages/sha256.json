@@ -1,0 +1,11 @@
+{
+  "chrome/browser/ui/android/night_mode/BUILD.gn": "ae1bd7fadebc8b15b621458703c9b21ba2b602fdd4c9273a3fb29680284d1ee4",
+  "chrome/browser/ui/android/night_mode/java/src/org/chromium/chrome/browser/night_mode/WebContentsThemeClient.java": "6c90a59d8d3237c24ce2c3eabba64ed3320da6b957b4192e7f8304a1a6d41eee",
+  "brave/browser/brave_profile_prefs.cc": "d4f72b4a8ca82500b7123f61e771bce5181a914c9ab69c5b98681e898dfb6df8",
+  "brave/android/java/org/chromium/chrome/browser/shields/BraveUnifiedPanelHandler.java": "51974b01b39f92ed889e42f79d63cadb32b2c935434a9f6e2c6430587354f7c7",
+  "brave/android/java/org/chromium/chrome/browser/settings/AppearancePreferences.java": "4579cb7af7b5d1af9667bed32f9f008e47b96e717d7152c24835c3a24f304025",
+  "brave/android/java/brave-res/layout/brave_shields_tab_content.xml": "17ae4c5cb5627276c012df9990caececb0be142f6cccc0b0ea2075d6d8c5833c",
+  "brave/android/brave_java_sources.gni": "59e58d22a5c01f934f116e28bfee6c7731d8f12679723fdc98cdbbe019756484",
+  "brave/android/BUILD.gn": "c84a6d7bd61bd35d3a936a61a9a519e53085bcaefdbd6fec579422ce765b05f4",
+  "brave/android/java/org/chromium/chrome/browser/firstrun/SandiumWelcomeSetupView.java": "48b7dcd35b27c2e49871394547e757f14f3812c65c1fe61e13384cbb0cff44da"
+}

@@ -59,7 +59,7 @@ assert set(re.findall(r'R.string.(sandium_\w+)',java))<=names
 print('PASS: pinned transformations, idempotence, drift, resource and source contracts; Android compile/device not run')
 
 # Numbered layout: newest upper-left (20), oldest reaches lower-right (1).
-assert 'bridge.reorderCustomLink(url, 0)' in java
+assert 'return bridge.addCustomLink(title, url, 0)' in java
 assert java.count('addNewest(') == 3
 assert 'Collections.reverse' not in java
 assert 'mExpanded ? 5 : 4' in java

@@ -144,6 +144,57 @@ LIGHT.update({
     'toolbar_text_box_bg_color': '#F3F3F3',
 })
 
+# Scoped tooltip palette: never recolor primitive_primary globally, which is
+# shared with unrelated Brave surfaces. Keep the success shield semantic green.
+NIGHT.update({
+    'sandium_shields_tooltip_surface': BACKGROUND,
+    'sandium_shields_tooltip_group': CARD,
+    'sandium_shields_tooltip_text': '#FAFAFA',
+    'sandium_shields_tooltip_secondary': '#BDBDBD',
+})
+LIGHT.update({
+    'sandium_shields_tooltip_surface': '#FFFFFF',
+    'sandium_shields_tooltip_group': '#F3F3F3',
+    'sandium_shields_tooltip_text': '#202020',
+    'sandium_shields_tooltip_secondary': '#616161',
+})
+TOOLTIP_BACKGROUND = 'android/java/brave-res/drawable/shields_tooltip_background.xml'
+TOOLTIP_GROUP = 'android/java/brave-res/drawable/shields_tooltip_pill_bg.xml'
+TOOLTIP_LAYOUT = 'android/java/brave-res/layout/brave_shields_tooltip_layout.xml'
+TOOLTIP_TOOLBAR = 'android/java/org/chromium/chrome/browser/toolbar/top/BraveToolbarLayoutImpl.java'
+
+def tooltip_replace(source, old, new, count=1):
+    if source.count(new) == count and old not in source:
+        return source
+    if source.count(old) != count or new in source:
+        raise ValueError('Pinned Shields tooltip style anchor changed: ' + old)
+    return source.replace(old, new)
+
+def tooltip_style(source, kind):
+    if kind == TOOLTIP_BACKGROUND:
+        source = tooltip_replace(source, '@color/primitive_primary_35', '@color/sandium_shields_tooltip_surface')
+        source = tooltip_replace(source, 'android:radius="28dp"', 'android:radius="16dp"')
+    elif kind == TOOLTIP_GROUP:
+        source = tooltip_replace(source, '@color/primitive_primary_40', '@color/sandium_shields_tooltip_group')
+        source = tooltip_replace(source, 'android:radius="20dp"', 'android:radius="12dp"')
+    elif kind == TOOLTIP_LAYOUT:
+        old = 'android:textColor="@color/onboarding_welcome_text_color"'
+        primary = 'android:textColor="@color/sandium_shields_tooltip_text"'
+        secondary = 'android:textColor="@color/sandium_shields_tooltip_secondary"'
+        if source.count(old) == 2 and primary not in source and secondary not in source:
+            source = source.replace(old, primary, 1).replace(old, secondary, 1)
+        elif old in source or source.count(primary) != 1 or source.count(secondary) != 1:
+            raise ValueError('Pinned Shields tooltip text anchors changed')
+    elif kind == TOOLTIP_TOOLBAR:
+        source = tooltip_replace(source,
+            '.arrowColor(\n                                ContextCompat.getColor(getContext(), R.color.primitive_primary_35))',
+            '.arrowColor(\n                                ContextCompat.getColor(getContext(), R.color.sandium_shields_tooltip_surface))')
+    else:
+        raise ValueError('Unknown tooltip input')
+    if kind != TOOLTIP_TOOLBAR:
+        ET.fromstring(source)
+    return source
+
 DYNAMIC = 'browser/ui/android/theme/java/src/org/chromium/chrome/browser/theme/BraveDynamicColors.java'
 OLD_DEFAULT = 'BravePreferenceKeys.BRAVE_ANDROID_DYNAMIC_COLORS_ENABLED,\n                        getCachedDefaultFlag().isEnabled());'
 NEW_DEFAULT = 'BravePreferenceKeys.BRAVE_ANDROID_DYNAMIC_COLORS_ENABLED,\n                        false); // Sandium baseline; explicit user choice still wins.'
@@ -337,6 +388,9 @@ def apply(root):
     source = source.replace('Returns the persisted user preference or the cached default when it is unset.',
                             'Returns the persisted user preference, or the Sandium baseline when unset.')
     result[java] = source
+    for relative in (TOOLTIP_BACKGROUND, TOOLTIP_GROUP, TOOLTIP_LAYOUT, TOOLTIP_TOOLBAR):
+        target = root / relative
+        result[target] = tooltip_style(target.read_text(), relative)
     settings = root / SETTINGS
     result[settings] = settings_surface(settings_motion(settings.read_text()))
     test = root / 'browser/ui/android/theme/junit/src/org/chromium/chrome/browser/theme/BraveDynamicColorsTest.java'

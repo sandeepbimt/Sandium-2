@@ -1,0 +1,1 @@
+package android.app;public class Activity extends android.content.Context {public boolean finishing,destroyed;public Application app=new Application();public boolean isFinishing(){return finishing;}public boolean isDestroyed(){return destroyed;}public Application getApplication(){return app;}}

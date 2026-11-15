@@ -16,6 +16,11 @@ python3 .circleci/scripts/apply-sandium-home-shortcuts.py "$SRC" --repo "$ROOT" 
 python3 .circleci/scripts/apply-sandium-video-gestures.py "$SRC" --repo "$ROOT"
 python3 .circleci/scripts/apply-sandium-video-gestures.py "$SRC" --repo "$ROOT" --verify-only
 
+# Pinned Dark Pages and manual correction, staged together after all UI consumers.
+python3 .circleci/scripts/apply-sandium-dark-combined.py "$SRC" --repo "$ROOT"
+python3 .circleci/scripts/apply-sandium-dark-combined.py "$SRC" --repo "$ROOT" --verify-only
+python3 .circleci/scripts/test-sandium-dark-composition.py
+
 # Run every independent audit before failing, so one build reports all graph defects.
 python3 .circleci/scripts/precheck-graph.py --audits-only
 python3 .circleci/scripts/removal-evidence.py capture --root "$ROOT"

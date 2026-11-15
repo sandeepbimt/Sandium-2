@@ -100,12 +100,9 @@ required_view_markers = (
     "if (!preferences.contains(PREF_BLUR_LEVEL)) editor.putString(PREF_BLUR_LEVEL, \"high\")",
     "addRestartSwitchRow(card, \"☾\", \"Night Mode\"",
     "addRestartSwitchRow(card, \"◐\", \"Darken transition\"",
-    "mRoot.animate()",
-    "AccelerateDecelerateInterpolator",
     "mListener.onPrepareForRestart()",
-    "BraveRelaunchUtils::restart",
+    "BraveRelaunchUtils.restart()",
     'mStartButton.setText("Restarting")',
-    "ValueAnimator.ofInt(0, 10000)",
     '"Ad-blocking protection completed"',
     "mTemplateUrlService.setSearchEngine(google.getKeyword())",
     "getOrCreatePrimaryOtrProfile()",
@@ -196,17 +193,33 @@ assert "loaded and active" not in view_source
 assert "Enabled lists downloaded; native engine reports ready" in view_source
 assert "Finalizing: Native engine reports ready" in view_source
 
-# Frozen no-logo layout with approved neutral charcoal theme and green readiness.
-assert 'text("Setup Sandium", 27, TEXT, true)' in view_source
+# Profile-card header with Oppo theme and unchanged green readiness signal.
+assert 'text("Sandium", 24, TEXT, true)' in view_source
 assert 'private static final int BACKGROUND = Color.rgb(0, 0, 0);' in view_source
 assert 'private static final int CARD = Color.rgb(26, 26, 26);' in view_source
 assert 'private static final int SUCCESS = Color.rgb(230, 244, 232);' in view_source
 assert 'private static final int PRIMARY = Color.rgb(25, 140, 255);' in view_source
 assert 'private static final int PRIMARY_TEXT = Color.rgb(8, 15, 24);' in view_source
 assert 'subtitle.setMaxLines(2)' not in view_source
-assert 'dp(6), dp(8), dp(6), dp(28)' in view_source
-assert 'ImageView' not in view_source
+assert 'params.bottomMargin = dp(18);' in view_source
+assert 'logo.setImageResource(R.drawable.sandium_toolbar_mark);' in view_source
+assert 'logo.setScaleType(ImageView.ScaleType.FIT_CENTER);' in view_source
+assert 'logo.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);' in view_source
+assert 'title.setAccessibilityHeading(true);' in view_source
+assert 'Choose your browsing preferences.' in view_source
+assert 'logo.setImageTintList' not in view_source
+assert 'logo.setColorFilter' not in view_source
 assert 'new LinearLayout.LayoutParams(dp(230), dp(52))' not in view_source
 assert 'Color.rgb(110, 127, 192)' not in view_source
 print("SANDIUM_WELCOME_FROZEN_DESIGN_TEST=PASS")
 assert "Color.rgb(168, 183, 248)" not in view_source
+
+# Oppo-reference category icons are decorative, independent from toggle state.
+assert 'ICON_GREEN = Color.rgb(2, 190, 18)' in view_source
+assert 'ICON_AMBER = Color.rgb(253, 178, 0)' in view_source
+assert 'ICON_ORANGE = Color.rgb(255, 119, 1)' in view_source
+assert 'text(glyph, 23, welcomeIconColor(glyph), false)' in view_source
+assert 'params.setMarginStart(dp(56));' in view_source
+assert 'params.setMarginEnd(dp(14));' in view_source
+assert 'if (i > 0) addDivider(container);' in view_source  # Picker dividers unchanged.
+print("SANDIUM_WELCOME_OPPO_CATEGORY_STYLE=PASS")

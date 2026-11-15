@@ -5,8 +5,6 @@
 
 package org.chromium.chrome.browser.firstrun;
 
-import android.animation.Animator;
-import android.animation.AnimatorListenerAdapter;
 import android.animation.ValueAnimator;
 import android.app.Activity;
 import android.app.Dialog;
@@ -14,10 +12,7 @@ import android.content.res.ColorStateList;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.ColorDrawable;
-import android.graphics.drawable.ClipDrawable;
-import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
-import android.graphics.drawable.LayerDrawable;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.TypedValue;
@@ -26,10 +21,10 @@ import android.view.Window;
 import android.view.WindowManager;
 import android.view.View;
 import android.view.ViewGroup;
-import android.view.animation.AccelerateDecelerateInterpolator;
 import android.view.animation.LinearInterpolator;
 import android.widget.Button;
 import android.widget.LinearLayout;
+import android.widget.ImageView;
 import android.widget.ProgressBar;
 import android.widget.RadioButton;
 import android.widget.ScrollView;
@@ -40,6 +35,7 @@ import org.chromium.base.BraveFeatureList;
 import org.chromium.base.ContextUtils;
 import org.chromium.brave_shields.mojom.FilterListAndroidHandler;
 import org.chromium.brave_shields.mojom.SubscriptionInfo;
+import org.chromium.chrome.R;
 import org.chromium.chrome.browser.BraveFeatureUtil;
 import org.chromium.chrome.browser.BraveLocalState;
 import org.chromium.chrome.browser.BraveRelaunchUtils;
@@ -70,6 +66,11 @@ final class SandiumWelcomeSetupView {
     private static final int TEXT = Color.rgb(250, 250, 250);
     private static final int SECONDARY = Color.rgb(189, 189, 189);
     private static final int SUCCESS = Color.rgb(230, 244, 232);
+    // Decorative category colors sampled from the owner's Oppo Settings reference.
+    // These do not encode switch state, warnings or native protection readiness.
+    private static final int ICON_GREEN = Color.rgb(2, 190, 18);
+    private static final int ICON_AMBER = Color.rgb(253, 178, 0);
+    private static final int ICON_ORANGE = Color.rgb(255, 119, 1);
 
     private static final String PREF_BLUR_LEVEL = "sandium_page_transition_blur_level";
     private static final String PREF_DARKEN = "sandium_page_transition_darken";
@@ -139,18 +140,7 @@ final class SandiumWelcomeSetupView {
         mScrollView.addView(mContent, new ScrollView.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
-        TextView title = text("Setup Sandium", 27, TEXT, true);
-        title.setGravity(Gravity.CENTER);
-        mContent.addView(title, matchWrap());
-        TextView subtitle = text(
-                "Choose your preferred browsing experience.\nChange these anytime in Settings.",
-                13, SECONDARY, false);
-        subtitle.setGravity(Gravity.CENTER);
-        // Allow wrapping at large accessibility font scales; do not truncate.
-        subtitle.setLineSpacing(0, 1f);
-        LinearLayout.LayoutParams subtitleParams = matchWrap();
-        subtitleParams.setMargins(dp(6), dp(8), dp(6), dp(28));
-        mContent.addView(subtitle, subtitleParams);
+        buildBrandCard();
 
         buildFilterProgressCard();
         buildMainSettingsCard();
@@ -243,6 +233,42 @@ final class SandiumWelcomeSetupView {
         mRequiresRestart = true;
     }
 
+    private void buildBrandCard() {
+        // Oppo profile-card arrangement, using the exact existing Sandium asset.
+        // This is an informational brand header, not a fake account/sign-in button.
+        LinearLayout brand = new LinearLayout(mActivity);
+        brand.setOrientation(LinearLayout.HORIZONTAL);
+        brand.setGravity(Gravity.CENTER_VERTICAL);
+        brand.setPadding(dp(16), dp(18), dp(16), dp(18));
+        brand.setBackground(roundRect(CARD, 24));
+
+        ImageView logo = new ImageView(mActivity);
+        logo.setImageResource(R.drawable.sandium_toolbar_mark);
+        logo.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        logo.setPadding(dp(8), dp(8), dp(8), dp(8));
+        logo.setBackground(roundRect(Color.rgb(36, 36, 36), 28));
+        // No crop or tint: preserve every part and color of the original artwork.
+        logo.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+        brand.addView(logo, new LinearLayout.LayoutParams(dp(56), dp(56)));
+
+        LinearLayout labels = new LinearLayout(mActivity);
+        labels.setOrientation(LinearLayout.VERTICAL);
+        labels.setPaddingRelative(dp(14), 0, 0, 0);
+        brand.addView(labels, new LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        TextView title = text("Sandium", 24, TEXT, true);
+        title.setAccessibilityHeading(true);
+        labels.addView(title, matchWrap());
+        TextView subtitle = text("Choose your browsing preferences.", 13, SECONDARY, false);
+        subtitle.setPadding(0, dp(4), 0, 0);
+        subtitle.setLineSpacing(0, 1f);
+        // Wrap naturally at large font scales; the existing page stays scrollable.
+        labels.addView(subtitle, matchWrap());
+        LinearLayout.LayoutParams params = matchWrap();
+        params.bottomMargin = dp(18);
+        mContent.addView(brand, params);
+    }
+
     private void buildMainSettingsCard() {
         LinearLayout card = card();
         mContent.addView(card, matchWrap());
@@ -250,7 +276,7 @@ final class SandiumWelcomeSetupView {
         addSwitchRow(card, "⬡", "Block trackers & ads",
                 "Prevents trackers & ads from loading and showing in webpages",
                 true, checked -> setProtectionEnabled(checked));
-        addDivider(card);
+        addSettingsDivider(card);
 
         addRestartSwitchRow(card, "☾", "Night Mode",
                 "Force dark mode for web content",
@@ -258,10 +284,10 @@ final class SandiumWelcomeSetupView {
                     BraveFeatureUtil.enableFeature(BraveFeatureList.ENABLE_FORCE_DARK, checked, true);
                     mRequiresRestart = true;
                 });
-        addDivider(card);
+        addSettingsDivider(card);
 
         addBlurRow(card);
-        addDivider(card);
+        addSettingsDivider(card);
 
         boolean blurEnabled = isBlurTransitionEnabled();
         boolean darkenChecked = blurEnabled && ContextUtils.getAppSharedPreferences()
@@ -275,7 +301,7 @@ final class SandiumWelcomeSetupView {
                     mRequiresRestart = true;
                 });
         mDarkenSwitch.setEnabled(blurEnabled);
-        addDivider(card);
+        addSettingsDivider(card);
 
         LinearLayout more = new LinearLayout(mActivity);
         more.setGravity(Gravity.CENTER_VERTICAL);
@@ -301,7 +327,7 @@ final class SandiumWelcomeSetupView {
         mAdvancedOptions.setOrientation(LinearLayout.VERTICAL);
         mAdvancedOptions.setVisibility(View.GONE);
         card.addView(mAdvancedOptions, matchWrap());
-        addDivider(mAdvancedOptions);
+        addSettingsDivider(mAdvancedOptions);
         addSwitchRow(mAdvancedOptions, "◈", "Block third-party cookies",
                 "Prevent third-party sites from storing cookies",
                 false, checked -> {
@@ -311,7 +337,7 @@ final class SandiumWelcomeSetupView {
                                     : BraveShieldsContentSettings.DEFAULT,
                             false);
                 });
-        addDivider(mAdvancedOptions);
+        addSettingsDivider(mAdvancedOptions);
         addSwitchRow(mAdvancedOptions, "◇", "Strict fingerprinting protection",
                 "Use stronger protection against device fingerprinting",
                 false, checked -> {
@@ -469,7 +495,7 @@ final class SandiumWelcomeSetupView {
         row.setPadding(dp(16), dp(9), dp(14), dp(9));
         parent.addView(row, matchWrap());
 
-        TextView icon = text(glyph, 23, PRIMARY, false);
+        TextView icon = text(glyph, 23, welcomeIconColor(glyph), false);
         icon.setGravity(Gravity.CENTER);
         row.addView(icon, new LinearLayout.LayoutParams(dp(34), dp(32)));
 
@@ -656,7 +682,7 @@ final class SandiumWelcomeSetupView {
     }
 
     private void startBrowsingWithFeedback() {
-        if (!mCanStartBrowsing || mStartInvoked || mRestartInProgress) return;
+        if (mDestroyed || !mCanStartBrowsing || mStartInvoked || mRestartInProgress) return;
         mStartInvoked = true;
         mHandler.removeCallbacks(mPollRunnable);
         mStartButton.setEnabled(false);
@@ -670,35 +696,11 @@ final class SandiumWelcomeSetupView {
         mStartButton.setText("Restarting");
         mStartButton.setTextColor(PRIMARY_TEXT);
 
-        LayerDrawable background = new LayerDrawable(new Drawable[] {
-            roundRect(PRIMARY, 28),
-            new ClipDrawable(roundRect(Color.rgb(69, 160, 255), 28),
-                    Gravity.LEFT, ClipDrawable.HORIZONTAL)
-        });
-        ClipDrawable progress = (ClipDrawable) background.getDrawable(1);
-        progress.setLevel(0);
-        mStartButton.setBackground(background);
-
-        ValueAnimator animator = ValueAnimator.ofInt(0, 10000);
-        animator.setDuration(1000);
-        animator.setInterpolator(new LinearInterpolator());
-        animator.addUpdateListener(animation ->
-                progress.setLevel((Integer) animation.getAnimatedValue()));
-        animator.addListener(new AnimatorListenerAdapter() {
-            @Override
-            public void onAnimationEnd(Animator animation) {
-                // Mark first-run complete without launching a second Activity.
-                // Chromium's lifetime controller will relaunch the app itself.
-                mListener.onPrepareForRestart();
-                mRoot.animate()
-                        .alpha(0f)
-                        .setDuration(280)
-                        .setInterpolator(new AccelerateDecelerateInterpolator())
-                        .withEndAction(BraveRelaunchUtils::restart)
-                        .start();
-            }
-        });
-        animator.start();
+        // Readiness was already verified before enabling Start. Do not represent
+        // a cosmetic timer as additional setup work or hold restart behind animation.
+        // Mark first-run complete first; the native lifetime controller owns restart.
+        mListener.onPrepareForRestart();
+        BraveRelaunchUtils.restart();
     }
 
     private void setProtectionEnabled(boolean enabled) {
@@ -844,6 +846,27 @@ final class SandiumWelcomeSetupView {
         card.setBackground(roundRect(CARD, 24));
         card.setClipToOutline(true);
         return card;
+    }
+
+    private static int welcomeIconColor(String glyph) {
+        switch (glyph) {
+            case "⬡": return ICON_GREEN;
+            case "☾": return ICON_AMBER;
+            case "◐":
+            case "◈": return ICON_ORANGE;
+            default: return PRIMARY;
+        }
+    }
+
+    private void addSettingsDivider(LinearLayout parent) {
+        View divider = new View(mActivity);
+        divider.setBackgroundColor(SEPARATOR);
+        LinearLayout.LayoutParams params = matchWrap();
+        params.height = dp(1);
+        // Align with the label column, leaving the colored icon gutter uninterrupted.
+        params.setMarginStart(dp(56));
+        params.setMarginEnd(dp(14));
+        parent.addView(divider, params);
     }
 
     private void addDivider(LinearLayout parent) {

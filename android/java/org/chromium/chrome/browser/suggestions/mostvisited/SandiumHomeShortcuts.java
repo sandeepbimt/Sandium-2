@@ -371,12 +371,9 @@ public final class SandiumHomeShortcuts extends LinearLayout {
         })); dialog.show();
     }
     private static boolean addNewest(MostVisitedSitesBridge bridge, String title, GURL url) {
-        if (!bridge.addCustomLink(title, url, null)) return false;
-        // Native persistence owns order. Existing manual order is unchanged except for
-        // the new first item. Do not reverse the list or migrate existing profiles.
-        // Addition already succeeded: do not invite a duplicate retry on reorder failure.
-        bridge.reorderCustomLink(url, 0);
-        return true;
+        // Native indexed insertion persists the final order in a single mutation.
+        // No intermediate append state or second reorder can be lost on shutdown.
+        return bridge.addCustomLink(title, url, 0);
     }
     public static boolean addCurrent(Tab tab) {
         if (tab == null || tab.isIncognito() || !safe(tab.getUrl())) return false;

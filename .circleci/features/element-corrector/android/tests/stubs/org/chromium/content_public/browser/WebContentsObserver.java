@@ -1,0 +1,1 @@
+package org.chromium.content_public.browser;public class WebContentsObserver {public WebContentsObserver(WebContents c){}public void destroy(){}public void didStartNavigationInPrimaryMainFrame(NavigationHandle n){}public void webContentsDestroyed(){}}

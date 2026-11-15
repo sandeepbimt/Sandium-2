@@ -18,6 +18,12 @@ fade=load('apply-sandium-settings-fade');progress=load('apply-sandium-progress-d
 focus=load('apply-sandium-focus-follow');search=load('apply-sandium-search-choices')
 refinements=load('apply-sandium-toolbar-refinements');address=load('apply-sandium-unified-address');home=load('apply-sandium-home-shortcuts');video=load('apply-sandium-video-gestures')
 theme=load('apply-sandium-native-theme');status=load('apply-sandium-scroll-status-bar');chrome=load('apply-sandium-chrome-theme');branding=load('apply-sandium-branding-refresh')
+darkjava=load('apply-sandium-dark-pages')
+def feature_module(name,relative):
+ spec=importlib.util.spec_from_file_location(name,root/relative);module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module);return module
+darkrenderer=feature_module('darkrenderer','.circleci/features/dark-pages/renderer/apply.py')
+darkmanual=[feature_module('manual_'+kind,'.circleci/features/element-corrector/apply-'+kind+'-draft.py') for kind in ['native','browser','transport']]
+darkchooser=feature_module('darkchooser','.circleci/features/element-corrector/android/apply.py')
 def blob(repo,pin,path):return subprocess.check_output(['git','-C',str(repo),'show',pin+':'+path])
 def core_blob(path):return blob(a.source,m['brave_pin'],path)
 fixture_map={progress.PATH:root/'tests/fixtures/progress/ToolbarProgressBarLayer.java',fade.SETTINGS:root/'.circleci/tests/fixtures/settings-fade/SettingsActivity.java'}
@@ -38,6 +44,12 @@ for path in ['chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/bro
 for path in [refinements.UTIL, refinements.DIMENS, refinements.TOP+'ToggleTabStackButton.java', refinements.TOP+'ToggleTabStackButtonCoordinator.java']:
  fixture_map[path]=root/'tests/fixtures/toolbar-refinements'/P(path).name
 fixture_map[search.CHROME]=root/'tests/fixtures/search-choices/SearchEngineAdapter.java'
+import json
+for path in json.loads((root/'.circleci/features/dark-pages/integration-plan.json').read_text())['chromium_restore']:
+ for folder in ['.circleci/features/dark-pages/renderer/fixtures','tests/fixtures/dark-pages']:
+  candidate=root/folder/path
+  if candidate.is_file():fixture_map[path]=candidate
+
 def chromium_blob(path):
  if a.chromium_source:return blob(a.chromium_source,m['chromium_pin'],path)
  fixture=fixture_map.get(path,root/'.circleci/tests/fixtures/reporting-pinned/chromium'/path)
@@ -57,6 +69,7 @@ with tempfile.TemporaryDirectory() as temporary:
  privacy=src/'chrome/android/java/res/xml/privacy_preferences.xml';privacy.parent.mkdir(parents=True,exist_ok=True)
  privacy.write_text('<Preference android:key="incognito_lock" />') # unrelated old UI seam; not removal/reset input
  def ui():
+  write(core/darkjava.WELCOME,(root/darkjava.WELCOME).read_bytes())
   activity=core/'android/java/org/chromium/chrome/browser/firstrun/WelcomeOnboardingActivity.java';activity.write_text(welcome.transform_activity(activity.read_text()))
   branding.replace_toolbar_method(core)
   prune.patch_customize_menu(core);prune.patch_privacy_preferences(core,src);prune.patch_leo_wallet_preferences(core)
@@ -128,18 +141,22 @@ with tempfile.TemporaryDirectory() as temporary:
   assert 'mAdsTrakersBlockPref.setOnPreferenceChangeListener(this);' in privacy
   assert 'SANDIUM_NATIVE_BOTTOM_TOOLBAR_V1' in (src/toolbar.PHONE).read_text()
   assert (src/menu.INTERNAL/'java/res/values-night/sandium_menu_colors.xml').read_bytes()==(root/'android/java/res/values-night/sandium_menu_colors.xml').read_bytes()
+ def dark_ui():
+  combined=load('apply-sandium-dark-combined')
+  for path,text in combined.compose(src,root).items():write(path,text.encode())
+  assert all(path.read_text()==text for path,text in combined.compose(src,root).items())
  def video_ui():
   outputs=video.transformations(src,root)
   for path,text in outputs.items():write(path,text.encode())
   assert all(path.read_text()==text for path,text in video.transformations(src,root).items())
  def snapshot():return {str(p.relative_to(src)):p.read_bytes() for p in src.rglob('*') if p.is_file()}
- ui();removal();home.apply(src,root);home.apply(src,root,True);video_ui();preserved_ui();before=snapshot()
+ ui();removal();home.apply(src,root);home.apply(src,root,True);video_ui();dark_ui();preserved_ui();before=snapshot()
  if a.gn:
   for path in sorted(p for p in src.rglob('*') if p.suffix in ('.gn','.gni')):
    subprocess.run([str(a.gn.resolve()),'format','--dump-tree=json',str(path)],stdout=subprocess.DEVNULL,check=True)
- reset();ui();removal();home.apply(src,root);home.apply(src,root,True);video_ui();preserved_ui()
+ reset();ui();removal();home.apply(src,root);home.apply(src,root,True);video_ui();dark_ui();preserved_ui()
  if before!=snapshot():raise RuntimeError('UI/removal reset+replay changed output')
- reset();ui();removal(m['steps'][:4]);reset();ui();removal();home.apply(src,root);home.apply(src,root,True);video_ui();preserved_ui()
+ reset();ui();removal(m['steps'][:4]);reset();ui();removal();home.apply(src,root);home.apply(src,root,True);video_ui();dark_ui();preserved_ui()
  if before!=snapshot():raise RuntimeError('UI/removal partial-failure recovery changed output')
  # Verify production staging fails before returning any write set on bad patches.
  def bad_reader(path):return b'not a patch' if path in m['chromium_restore_patches'].values() else core_blob(path)

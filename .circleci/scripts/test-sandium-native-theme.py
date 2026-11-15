@@ -102,6 +102,40 @@ class ThemeTests(unittest.TestCase):
         self.assertIn('PRIMARY = Color.rgb(25, 140, 255)', welcome)
         self.assertIn('BACKGROUND = Color.rgb(0, 0, 0)', welcome)
 
+    def test_shields_tooltip_pinned_styles_idempotent(self):
+        fixture = Path(__file__).resolve().parents[1] / 'tests/fixtures/shields-tooltip'
+        for path in (theme.TOOLTIP_BACKGROUND, theme.TOOLTIP_GROUP, theme.TOOLTIP_LAYOUT, theme.TOOLTIP_TOOLBAR):
+            original = (fixture / Path(path).name).read_text()
+            result = theme.tooltip_style(original, path)
+            self.assertEqual(result, theme.tooltip_style(result, path))
+            self.assertNotEqual(result, original)
+            with self.assertRaises(ValueError): theme.tooltip_style('unexpected', path)
+            if path == theme.TOOLTIP_TOOLBAR:
+                # Every line but the arrow color remains byte-for-byte identical:
+                # anchoring, counters, click/dismiss and once-only policy are untouched.
+                self.assertEqual(result.replace('R.color.sandium_shields_tooltip_surface', 'R.color.primitive_primary_35'), original)
+            if path == theme.TOOLTIP_LAYOUT:
+                self.assertEqual(result.replace('@color/sandium_shields_tooltip_text', '@color/onboarding_welcome_text_color').replace('@color/sandium_shields_tooltip_secondary', '@color/onboarding_welcome_text_color'), original)
+                self.assertIn('app:tint="@color/brave_theme_success"', result)
+                self.assertIn('android:contentDescription="@null"', result)
+    def test_shields_tooltip_contrast_and_resource_closure(self):
+        for palette in (theme.NIGHT, theme.LIGHT):
+            for text in ('text', 'secondary'):
+                for surface in ('surface', 'group'):
+                    self.assertGreaterEqual(contrast(palette['sandium_shields_tooltip_' + text], palette['sandium_shields_tooltip_' + surface]), 4.5)
+        self.assertEqual(theme.NIGHT['sandium_shields_tooltip_surface'], theme.BACKGROUND)
+        self.assertEqual(theme.NIGHT['sandium_shields_tooltip_group'], theme.CARD)
+        import json
+        root = Path(__file__).resolve().parents[2]
+        recipe = json.loads((root / '.circleci/features/removal-recipe.json').read_text())
+        for key in ('core_restore', 'ui_only_core_restore'):
+            for path in (theme.TOOLTIP_BACKGROUND, theme.TOOLTIP_GROUP, theme.TOOLTIP_LAYOUT, theme.TOOLTIP_TOOLBAR):
+                self.assertIn(path, recipe[key])
+
+    def test_welcome_reference_category_icon_contrast(self):
+        for color in ['#02BE12', '#FDB200', '#FF7701', theme.ACCENT]:
+            self.assertGreaterEqual(contrast(color, theme.CARD), 3)
+
     def test_scope(self):
         allkeys=set(theme.COMMON)|set(theme.NIGHT)|set(theme.LIGHT)
         self.assertFalse(any('error' in x or 'wallet' in x or 'incognito' in x or 'private_window' in x for x in allkeys))

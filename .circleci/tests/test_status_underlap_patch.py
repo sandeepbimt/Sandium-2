@@ -2,7 +2,8 @@
 import importlib.util
 from pathlib import Path
 import tempfile
-import subprocess
+import hashlib
+import json
 import types
 import unittest
 
@@ -10,6 +11,14 @@ BASE = Path(__file__).resolve().parent
 spec = importlib.util.spec_from_file_location('patch', BASE.parent / 'scripts/apply-sandium-scroll-status-bar.py')
 patch = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(patch)
+
+def baseline(name):
+    folder = BASE / 'fixtures/status-bar/baselines'
+    provenance = json.loads((folder / 'provenance.json').read_text())[name]
+    data = (folder / (name + '.py')).read_bytes()
+    if hashlib.sha256(data).hexdigest() != provenance['sha256']:
+        raise ValueError('Historical fixture digest mismatch: ' + name)
+    return data.decode()
 
 class UnderlapPatchTests(unittest.TestCase):
     def original(self, name):
@@ -33,8 +42,7 @@ class UnderlapPatchTests(unittest.TestCase):
         self.assertIn('mInsetObserver.removeInsetsConsumer(mWindowInsetsConsumer)', text)
 
     def test_hidden_hint_does_not_relax_downstream_underlap_or_invent_bottom_inset(self):
-        before = subprocess.check_output(['git', 'show',
-            '57dca6b:.circleci/scripts/apply-sandium-scroll-status-bar.py'], text=True)
+        before = baseline('57dca6b')
         old = types.ModuleType('old_status'); exec(before, old.__dict__)
         for name in old.FILES:
             self.assertEqual(old.transform(name, self.original(name)),
@@ -55,8 +63,7 @@ class UnderlapPatchTests(unittest.TestCase):
         for forbidden in ['evaluateJavaScript', 'setTranslationY(', 'getScrollY(', 'scrollTo(', 'setTopControlsHeight(']:
             self.assertNotIn(forbidden, text)
         old = types.ModuleType('previous_status')
-        exec(subprocess.check_output(['git', 'show',
-            '9ba8861:.circleci/scripts/apply-sandium-scroll-status-bar.py'], text=True), old.__dict__)
+        exec(baseline('9ba8861'), old.__dict__)
         self.assertEqual(old.transform('EdgeToEdgeControllerImpl.java',
                                        self.original('EdgeToEdgeControllerImpl.java')),
                          patch.undo_spacer('EdgeToEdgeControllerImpl.java', text))
@@ -113,29 +120,24 @@ class UnderlapPatchTests(unittest.TestCase):
 
     def test_bottom_controls_and_previous_checkpoint_migration(self):
         previous = types.ModuleType('previous')
-        try:
-            old_script = subprocess.check_output(['git', 'show',
-                '4b4aa9d:.circleci/scripts/apply-sandium-scroll-status-bar.py'],
-                text=True, stderr=subprocess.DEVNULL)
-        except subprocess.CalledProcessError:
-            self.skipTest('Previous local review commit absent in shallow CI checkout')
+        # Published navigation baseline replaces unavailable local-only4b4aa9d.
+        old_script = baseline('d6b31ba')
         exec(old_script, previous.__dict__)
         for name in patch.FILES:
             old = previous.transform(name, self.original(name))
             current = patch.transform(name, old)
             self.assertEqual(current, patch.transform(name, current), name)
-            self.assertEqual(current, patch.undo_spacer(name, patch.transform(name, self.original(name))), name)
+            self.assertEqual(current, patch.transform(name, self.original(name)), name)
         controller = patch.transform('EdgeToEdgeControllerImpl.java', self.original('EdgeToEdgeControllerImpl.java'))
         self.assertIn('ControlsPosition.BOTTOM', controller)
-        self.assertIn('controls.getTopControlsHeight() == 0', controller)
+        self.assertIn('controls.getTopControlsHeight() == controls.getSandiumStatusSpacerHeight()', controller)
         self.assertIn('controls.getBottomControlsHeight() > 0', controller)
         self.assertIn('public void onTopControlsHeightChanged(int topControlsHeight, int topControlsMinHeight) {\n        refreshSandiumUnderlap();', controller)
         self.assertIn('mBottomControlsHeight = bottomControlsHeight;\n        refreshSandiumUnderlap();', controller)
 
     def test_current_checkpoint_upgrade_and_back_trace_composition(self):
         old = types.ModuleType('old')
-        exec(subprocess.check_output(['git', 'show',
-            'd6b31ba:.circleci/scripts/apply-sandium-scroll-status-bar.py'], text=True), old.__dict__)
+        exec(baseline('d6b31ba'), old.__dict__)
         for name in patch.FILES:
             self.assertEqual(patch.transform(name, self.original(name)),
                              patch.transform(name, old.transform(name, self.original(name))))

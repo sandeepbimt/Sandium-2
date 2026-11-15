@@ -74,11 +74,9 @@ Integration update: the Nov 15 final palette supersedes gold in the frozen geome
 ## November 15 numbered layout revision
 
 The reference numbers put **20 at upper-left** and **1 at lower-right**.
-Both add entry points now add through the native profile manager and move the
-new URL to index zero. The existing relative order, user drag edits and native
-sync storage are preserved; there is no list reversal or migration. If an add
-succeeds but its subsequent native reorder fails, the added item remains saved
-in native order rather than reporting failure and inviting a duplicate retry.
+Both add entry points now use native indexed insertion at position zero in
+a single persisted mutation. The existing relative order, user drag edits and native
+sync storage are preserved; there is no list reversal or migration. There is no intermediate append/reorder state to lose during shutdown.
 
 Collapsed layout reserves four rows of five slots. The first item uses the
 upper-left slot, with invisible non-interactive column placeholders keeping
@@ -111,3 +109,21 @@ editable and draggable target. This is a frosted visual approximation, not a
 live backdrop-blur effect. Small/transparent source favicons can still have
 different optical weight; source content is not cropped or stretched to fake
 identical visual silhouettes. Device visual confirmation remains required.
+
+
+### Close/restart persistence audit
+Java indexed insertion passes position0 through MostVisitedSitesBridge JNI to
+MostVisitedSites::AddCustomLinkTo and CustomLinksManagerImpl::AddLinkTo.
+Add, delete and drag reorder all call StoreLinks. CustomLinksStore writes the
+ordered list to the profile's mobile custom-links preference, not this View's
+memory. A newly created manager retrieves that list in stored order; the
+homepage observer copies CUSTOM_LINKS in order without sorting/reversing.
+Closing/detaching the page destroys bridges, not profile preferences.
+
+Tests execute the exact patched native AddLinkTo body in a host harness,
+including26 sequential front insertions, one save per insertion and recreation
+from the saved list. Source audit verifies the actual pref serialization and
+retrieval paths. This is not an Android process-restart/disk-flush test. Normal
+close/reopen should retain order through Chromium profile preferences; abrupt
+power loss before Chromium flushes pending pref writes is not guaranteed.
+App-data clearing/uninstall and synchronized changes are distinct cases.

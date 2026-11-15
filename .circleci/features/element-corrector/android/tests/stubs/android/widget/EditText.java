@@ -1,0 +1,1 @@
+package android.widget;public class EditText extends TextView {public String error;public EditText(android.content.Context c){super(c);}public void setSingleLine(boolean b){}public void setHint(int i){}public void setHintTextColor(int i){}public void setFilters(android.text.InputFilter[]f){}public String getText(){return text;}public void setError(String s){error=s;}}

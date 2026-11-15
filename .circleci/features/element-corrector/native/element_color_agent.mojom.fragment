@@ -1,0 +1,9 @@
+// Dedicated transport for manual correction; cosmetic blocking methods unchanged.
+interface ElementColorAgent {
+  RestoreColorRules(mojo_base.mojom.UnguessableToken session, mojo_base.mojom.ListValue rules);
+  StartColorPicker(mojo_base.mojom.UnguessableToken session);
+  PreviewColor(mojo_base.mojom.UnguessableToken session, uint64 node, int32 property, uint32 rgb);
+  CommitColor(mojo_base.mojom.UnguessableToken session, uint64 node, int32 property, uint32 rgb) => (bool applied);
+  ClearColorRules(mojo_base.mojom.UnguessableToken session);
+  CancelColorPicker(mojo_base.mojom.UnguessableToken session);
+};

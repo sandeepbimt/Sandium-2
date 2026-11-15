@@ -1,0 +1,1 @@
+package org.chromium.chrome.browser.tab;import org.chromium.content_public.browser.WebContents;import org.chromium.url.GURL;public class Tab {public WebContents contents;public int reloads;public Tab(WebContents w){contents=w;}public WebContents getWebContents(){return contents;}public GURL getUrl(){return contents.url;}public void reload(){reloads++;}}

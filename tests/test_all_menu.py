@@ -14,13 +14,13 @@ class AllMenu(unittest.TestCase):
   self.assertIn('if (!keys.contains(ALL_MENU)) keys.add(ALL_MENU)',S)
   self.assertIn('if (permanent) options = java.util.Arrays.copyOf(options, 4)',S)
   self.assertIn('if (which == 4 && !permanent) mDraft.hide(key)',S)
-  self.assertIn('mDraft.move(moving, destination, quickAvailable())',S)
+  self.assertIn('mDraft.move(mDragging, destination, quickAvailable())',S)
  def test_navigation_and_reclaimed_header(self):
   header=S[S.index('// Only show a native escape'):S.index('panel.addView(heading)')]
   self.assertIn('if (mAllMenu)',header)
   self.assertIn('int screen = mDraft != null ? 2 : mAllMenu ? 1 : 0',S)
   self.assertIn('if (mAllMenu && !mNativeVisible)',S)
-  self.assertIn('grid(actionsGroup, new ArrayList<>(editableKeys()), false)',S)
+  self.assertIn('for (String key : mSaved.knownKeys()) if (available.contains(key)) directory.add(key)',S)
  def test_page_boundaries(self):
   for n in range(201):
    actions=list(range(n))+['all']

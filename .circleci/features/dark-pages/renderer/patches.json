@@ -1,0 +1,296 @@
+[
+  {
+    "path": "chrome/browser/android/web_contents_theme_client.h",
+    "old": "  bool IsForceDarkWebContentEnabled();",
+    "new": "  bool IsForceDarkWebContentEnabled();\n  int SandiumDarkPageFlags(const GURL& document_url);",
+    "count": 1
+  },
+  {
+    "path": "chrome/browser/android/web_contents_theme_client.cc",
+    "old": "}  // namespace night_mode",
+    "new": "int WebContentsThemeClient::SandiumDarkPageFlags(const GURL& document_url) {\n  JNIEnv* env = base::android::AttachCurrentThread();\n  return Java_WebContentsThemeClient_sandiumDarkPageFlags(env, &GetWebContents(), document_url) & 1;\n}\n\n}  // namespace night_mode",
+    "count": 1
+  },
+  {
+    "path": "third_party/blink/public/common/web_preferences/web_preferences.h",
+    "old": "  bool force_dark_mode_enabled = false;",
+    "new": "  bool force_dark_mode_enabled = false;\n  // Sandium per-page policy: enabled; image pixels preserved by default.\n  int sandium_dark_page_flags = -1;",
+    "count": 1
+  },
+  {
+    "path": "third_party/blink/public/mojom/webpreferences/web_preferences.mojom",
+    "old": "  bool force_dark_mode_enabled;",
+    "new": "  bool force_dark_mode_enabled;\n  int32 sandium_dark_page_flags = -1;",
+    "count": 1
+  },
+  {
+    "path": "third_party/blink/public/common/web_preferences/web_preferences_mojom_traits.h",
+    "old": "  static bool force_dark_mode_enabled(",
+    "new": "  static int32_t sandium_dark_page_flags(\n      const blink::web_pref::WebPreferences& r) {\n    return r.sandium_dark_page_flags;\n  }\n  static bool force_dark_mode_enabled(",
+    "count": 1
+  },
+  {
+    "path": "third_party/blink/common/web_preferences/web_preferences_mojom_traits.cc",
+    "old": "  out->force_dark_mode_enabled = data.force_dark_mode_enabled();",
+    "new": "  out->force_dark_mode_enabled = data.force_dark_mode_enabled();\n  out->sandium_dark_page_flags = data.sandium_dark_page_flags() < 0 ? -1 : (data.sandium_dark_page_flags() & 1);",
+    "count": 1
+  },
+  {
+    "path": "third_party/blink/public/web/web_settings.h",
+    "old": "  virtual void SetForceDarkModeEnabled(bool) = 0;",
+    "new": "  virtual void SetForceDarkModeEnabled(bool) = 0;\n  virtual void SetSandiumDarkPageFlags(int) = 0;",
+    "count": 1
+  },
+  {
+    "path": "third_party/blink/renderer/core/exported/web_settings_impl.h",
+    "old": "  void SetForceDarkModeEnabled(bool) override;",
+    "new": "  void SetForceDarkModeEnabled(bool) override;\n  void SetSandiumDarkPageFlags(int) override;",
+    "count": 1
+  },
+  {
+    "path": "third_party/blink/renderer/core/exported/web_settings_impl.cc",
+    "old": "void WebSettingsImpl::SetForceDarkModeEnabled(bool enabled) {",
+    "new": "void WebSettingsImpl::SetSandiumDarkPageFlags(int flags) {\n  settings_->SetSandiumDarkPageFlags(flags < 0 ? -1 : (flags & 1));\n}\n\nvoid WebSettingsImpl::SetForceDarkModeEnabled(bool enabled) {",
+    "count": 1
+  },
+  {
+    "path": "third_party/blink/renderer/core/exported/web_view_impl.cc",
+    "old": "  settings->SetForceDarkModeEnabled(prefs.force_dark_mode_enabled);",
+    "new": "  settings->SetForceDarkModeEnabled(prefs.force_dark_mode_enabled);\n  settings->SetSandiumDarkPageFlags(prefs.sandium_dark_page_flags);",
+    "count": 1
+  },
+  {
+    "path": "third_party/blink/renderer/core/frame/settings.json5",
+    "old": "      name: \"forceDarkModeEnabled\",",
+    "new": "      name: \"sandiumDarkPageFlags\",\n      type: \"int\",\n      initial: -1,\n      invalidate: [\"Style\", \"Paint\"],\n    },\n    {\n      name: \"forceDarkModeEnabled\",",
+    "count": 1
+  },
+  {
+    "path": "third_party/blink/renderer/core/paint/paint_auto_dark_mode.cc",
+    "old": "#include \"third_party/blink/renderer/core/frame/local_frame.h\"",
+    "new": "#include \"third_party/blink/renderer/core/frame/local_frame.h\"\n#include \"third_party/blink/renderer/core/frame/settings.h\"",
+    "count": 1
+  },
+  {
+    "path": "third_party/blink/renderer/core/paint/paint_auto_dark_mode.cc",
+    "old": "  if (!style.ForceDark())\n    return ImageAutoDarkMode::Disabled();",
+    "new": "  // No synchronous decoding or pixel scan: preserve original image pixels.\n  // Flags belong to this frame, never a process-global runtime feature.\n  const Settings* settings = local_frame.GetSettings();\n  const int flags = settings ? settings->GetSandiumDarkPageFlags() : -1;\n  if (style.SandiumManualColorOverride() || !style.ForceDark() || (flags >= 0 && (flags & 1) != 0))\n    return ImageAutoDarkMode::Disabled();",
+    "count": 1
+  },
+  {
+    "path": "chrome/browser/android/web_contents_theme_client.h",
+    "old": "#include \"content/public/browser/web_contents_user_data.h\"",
+    "new": "#include \"content/public/browser/web_contents_user_data.h\"\n#include \"url/gurl.h\"",
+    "count": 1
+  },
+  {
+    "path": "chrome/browser/android/web_contents_theme_client.cc",
+    "old": "#include \"content/public/browser/web_contents.h\"",
+    "new": "#include \"content/public/browser/web_contents.h\"\n#include \"url/android/gurl_android.h\"",
+    "count": 1
+  },
+  {
+    "path": "chrome/browser/chrome_content_browser_client.cc",
+    "old": "void ChromeContentBrowserClient::OverrideWebPreferences(",
+    "new": "#if BUILDFLAG(IS_ANDROID)\n// Bind policy to the committed document, never the visible/pending address.\n// This is a post-commit path; it does not promise pre-first-paint delivery.\nbool ApplySandiumCommittedDarkPolicy(WebContents* contents,\n                                    content::SiteInstance& main_frame_site,\n                                    WebPreferences* prefs) {\n  const int previous_flags = prefs->sandium_dark_page_flags;\n  prefs->sandium_dark_page_flags = -1;\n  auto* frame = contents->GetPrimaryMainFrame();\n  auto* client = night_mode::WebContentsThemeClient::FromWebContents(contents);\n  if (!client || !frame || frame->GetSiteInstance() != &main_frame_site ||\n      frame->IsErrorDocument() || frame->GetLastCommittedOrigin().opaque() ||\n      !frame->GetLastCommittedURL().SchemeIsHTTPOrHTTPS()) {\n    return previous_flags != -1;\n  }\n  const int flags = client->SandiumDarkPageFlags(frame->GetLastCommittedURL());\n  prefs->sandium_dark_page_flags = flags;\n  // Preserve the native baseline and author prefers-color-scheme. Managed OFF\n  // is handled by the document style policy, not by mutating shared force-dark.\n  return flags != previous_flags;\n}\n#endif\n\nvoid ChromeContentBrowserClient::OverrideWebPreferences(",
+    "count": 1
+  },
+  {
+    "path": "chrome/browser/chrome_content_browser_client.cc",
+    "old": "  web_prefs->is_xslt_deprecation_banner_suppressed =\n      prefs->GetBoolean(prefs::kXSLTDeprecationBannerSuppressed);",
+    "new": "  web_prefs->is_xslt_deprecation_banner_suppressed =\n      prefs->GetBoolean(prefs::kXSLTDeprecationBannerSuppressed);\n#if BUILDFLAG(IS_ANDROID)\n  ApplySandiumCommittedDarkPolicy(web_contents, main_frame_site, web_prefs);\n#endif",
+    "count": 1
+  },
+  {
+    "path": "chrome/browser/chrome_content_browser_client.cc",
+    "old": "  return prefs_changed;\n}\n\nbool ChromeContentBrowserClient::\n    WebPreferencesNeedUpdateForColorRelatedStateChanges(",
+    "new": "#if BUILDFLAG(IS_ANDROID)\n  prefs_changed |= ApplySandiumCommittedDarkPolicy(web_contents, main_frame_site, web_prefs);\n#endif\n  return prefs_changed;\n}\n\nbool ChromeContentBrowserClient::\n    WebPreferencesNeedUpdateForColorRelatedStateChanges(",
+    "count": 1
+  },
+  {
+    "path": "third_party/blink/renderer/core/style/computed_style_extra_fields.json5",
+    "old": "      name: \"DarkColorScheme\",",
+    "new": "      name: \"SandiumManualColorOverride\",\n      field_template: \"primitive\",\n      type_name: \"bool\",\n      default_value: \"false\",\n      inherited: true,\n      invalidate: [\"paint\"],\n    },\n    {\n      name: \"SandiumPaletteEnabled\",\n      field_template: \"primitive\",\n      type_name: \"bool\",\n      default_value: \"false\",\n      inherited: true,\n      invalidate: [\"paint\"],\n    },\n    {\n      name: \"DarkColorScheme\",",
+    "count": 1
+  },
+  {
+    "path": "third_party/blink/renderer/core/css/resolver/style_adjuster.cc",
+    "old": "void StyleAdjuster::RunUncacheableStyleAdjustment(",
+    "new": "// Paint-only policy. Never rewrite authored color values or inheritance.\nvoid StyleAdjuster::ApplySandiumPaintPolicy(ComputedStyleBuilder& builder,\n                                    Element& element,\n                                    const Element* actual_element,\n                                    const ComputedStyle* parent_style) {\n  if (builder.SandiumManualColorOverride()) {\n    builder.SetColorSchemeForced(false);\n    builder.SetSandiumPaletteEnabled(false);\n    return;\n  }\n  const Settings* settings = element.GetDocument().GetSettings();\n  if (!settings || settings->GetSandiumDarkPageFlags() < 0 ||\n      builder.InForcedColorsMode() || element.GetDocument().Printing()) {\n    builder.SetSandiumPaletteEnabled(false);\n    return;\n  }\n  // Preserve excluded regions without allowing a second stock inversion.\n  builder.SetColorSchemeForced(false);\n  if (!(settings->GetSandiumDarkPageFlags() & 1)) {\n    builder.SetSandiumPaletteEnabled(false);\n    return;\n  }\n  const bool document_root = actual_element == element.GetDocument().documentElement() &&\n      builder.StyleType() == kPseudoIdNone;\n  bool enabled = document_root || (parent_style && parent_style->SandiumPaletteEnabled());\n  if ((actual_element && actual_element->IsSVGElement()) ||\n      builder.BackgroundInternal().AnyLayerHasImage()) {\n    enabled = false;\n  }\n  builder.SetSandiumPaletteEnabled(enabled);\n}\n\nvoid StyleAdjuster::RunUncacheableStyleAdjustment(",
+    "count": 1
+  },
+  {
+    "path": "third_party/blink/renderer/core/css/resolver/style_adjuster.cc",
+    "old": "  if (element.HasCustomStyleCallbacks()) {\n    element.AdjustStyle(base::PassKey<StyleAdjuster>(), builder);\n  }\n}",
+    "new": "  if (element.HasCustomStyleCallbacks()) {\n    element.AdjustStyle(base::PassKey<StyleAdjuster>(), builder);\n  }\n  ApplySandiumPaintPolicy(builder, element, element_or_pseudo_element, parent_style);\n}",
+    "count": 1
+  },
+  {
+    "path": "third_party/blink/renderer/core/paint/paint_auto_dark_mode.h",
+    "old": "  return AutoDarkMode(\n      role, style.ForceDark(),\n      style.VisitedDependentColorFast(GetCSSPropertyBackgroundColor()).Rgb());",
+    "new": "  if (style.SandiumManualColorOverride())\n    return AutoDarkMode::Disabled(role);\n  AutoDarkMode mode(\n      role, style.ForceDark() || style.SandiumPaletteEnabled(),\n      style.VisitedDependentColorFast(GetCSSPropertyBackgroundColor()).Rgb());\n  mode.sandium_palette = style.SandiumPaletteEnabled();\n  return mode;",
+    "count": 1
+  },
+  {
+    "path": "third_party/blink/renderer/platform/graphics/graphics_context.h",
+    "old": "  SkColor contrast_color = 0;",
+    "new": "  SkColor contrast_color = 0;\n  bool sandium_palette = false;",
+    "count": 1
+  },
+  {
+    "path": "third_party/blink/renderer/platform/graphics/graphics_context.cc",
+    "old": "SkColor4f DarkModeColor(GraphicsContext& context,",
+    "new": "// Per-draw palette: no process-global policy, image decode or author-style mutation.\nSkColor4f SandiumPaletteColor(const SkColor4f& color,\n                            DarkModeFilter::ElementRole role) {\n  if (color.fA == 0.f || role == DarkModeFilter::ElementRole::kSVG)\n    return color;\n  if (role == DarkModeFilter::ElementRole::kBorder) {\n    const float spread = std::max({color.fR, color.fG, color.fB}) -\n        std::min({color.fR, color.fG, color.fB});\n    if (spread <= 24.f/255.f)\n      return {112.f/255.f, 112.f/255.f, 112.f/255.f, color.fA};\n    // Retain validation/error/status hue while lifting visibility on dark surfaces.\n    return {(112.f + color.fR * 143.f)/255.f,\n            (112.f + color.fG * 143.f)/255.f,\n            (112.f + color.fB * 143.f)/255.f, color.fA};\n  }\n  if (role == DarkModeFilter::ElementRole::kSelection)\n    return {23.f/255.f, 58.f/255.f, 91.f/255.f, color.fA};\n  const float hi = std::max({color.fR, color.fG, color.fB});\n  const float lo = std::min({color.fR, color.fG, color.fB});\n  const bool foreground = role == DarkModeFilter::ElementRole::kForeground ||\n      role == DarkModeFilter::ElementRole::kListSymbol;\n  constexpr float surface = 26.f / 255.f;\n  if (foreground) {\n    if (lo >= 180.f / 255.f)\n      return color;\n    if (hi - lo <= 24.f / 255.f)\n      return {232.f/255.f, 232.f/255.f, 232.f/255.f, color.fA};\n    return {(180.f + color.fR * 75.f)/255.f,\n            (180.f + color.fG * 75.f)/255.f,\n            (180.f + color.fB * 75.f)/255.f, color.fA};\n  }\n  if (hi <= surface)\n    return color;\n  if (hi - lo <= 24.f/255.f)\n    return {surface, surface, surface, color.fA};\n  return {color.fR * surface, color.fG * surface, color.fB * surface, color.fA};\n}\n\nSkColor4f DarkModeColor(GraphicsContext& context,",
+    "count": 1
+  },
+  {
+    "path": "third_party/blink/renderer/platform/graphics/graphics_context.cc",
+    "old": "  if (auto_dark_mode.enabled && !context.IsAutoDarkModePaused()) {\n    return context.GetDarkModeFilter()->InvertColorIfNeeded(",
+    "new": "  if (auto_dark_mode.enabled && !context.IsAutoDarkModePaused()) {\n    if (auto_dark_mode.sandium_palette)\n      return SandiumPaletteColor(color, auto_dark_mode.role);\n    return context.GetDarkModeFilter()->InvertColorIfNeeded(",
+    "count": 1
+  },
+  {
+    "path": "third_party/blink/renderer/platform/graphics/graphics_context.cc",
+    "old": "    if (auto_dark_mode.enabled && !context->IsAutoDarkModePaused()) {\n      dark_mode_flags_ = context->GetDarkModeFilter()->ApplyToFlagsIfNeeded(",
+    "new": "    if (auto_dark_mode.enabled && !context->IsAutoDarkModePaused()) {\n      if (auto_dark_mode.sandium_palette) {\n        if (!flags.HasShader()) {\n          dark_mode_flags_ = flags;\n          dark_mode_flags_->setColor(SandiumPaletteColor(flags.getColor4f(), auto_dark_mode.role));\n          flags_ = &dark_mode_flags_.value();\n        } else {\n          flags_ = &flags;\n        }\n        return;\n      }\n      dark_mode_flags_ = context->GetDarkModeFilter()->ApplyToFlagsIfNeeded(",
+    "count": 1
+  },
+  {
+    "path": "third_party/blink/renderer/platform/graphics/graphics_context.cc",
+    "old": "#include \"third_party/blink/renderer/platform/graphics/graphics_context.h\"",
+    "new": "#include \"third_party/blink/renderer/platform/graphics/graphics_context.h\"\n\n#include <algorithm>",
+    "count": 1
+  },
+  {
+    "path": "third_party/blink/renderer/core/paint/view_painter.cc",
+    "old": "  AutoDarkMode auto_dark_mode(\n      PaintAutoDarkMode(style, DarkModeFilter::ElementRole::kBackground));",
+    "new": "  AutoDarkMode auto_dark_mode(\n      PaintAutoDarkMode(style, DarkModeFilter::ElementRole::kBackground));\n  // LayoutView style is synthesized separately; use the real root paint policy.\n  if (root_object && root_object->StyleRef().SandiumPaletteEnabled() &&\n      !root_object->StyleRef().SandiumManualColorOverride() &&\n      !document.Printing() && !style.HasBackgroundImage()) {\n    auto_dark_mode.enabled = true;\n    auto_dark_mode.sandium_palette = true;\n  }",
+    "count": 1
+  },
+  {
+    "path": "content/public/browser/content_browser_client.h",
+    "old": "  virtual bool OverrideWebPreferencesAfterNavigation(",
+    "new": "  // Document-bound Sandium policy for a browser-authorized navigation commit.\n  // -1 means unmanaged; 0/1 are explicit page dark-mode OFF/ON.\n  virtual int GetSandiumDarkPageFlagsForNavigation(\n      WebContents* web_contents, const GURL& document_url);\n\n  virtual bool OverrideWebPreferencesAfterNavigation(",
+    "count": 1
+  },
+  {
+    "path": "content/public/browser/content_browser_client.cc",
+    "old": "bool ContentBrowserClient::OverrideWebPreferencesAfterNavigation(",
+    "new": "int ContentBrowserClient::GetSandiumDarkPageFlagsForNavigation(\n    WebContents* web_contents, const GURL& document_url) {\n  return -1;\n}\n\nbool ContentBrowserClient::OverrideWebPreferencesAfterNavigation(",
+    "count": 1
+  },
+  {
+    "path": "chrome/browser/chrome_content_browser_client.h",
+    "old": "  bool OverrideWebPreferencesAfterNavigation(",
+    "new": "  int GetSandiumDarkPageFlagsForNavigation(\n      content::WebContents* web_contents, const GURL& document_url) override;\n  bool OverrideWebPreferencesAfterNavigation(",
+    "count": 1
+  },
+  {
+    "path": "chrome/browser/chrome_content_browser_client.cc",
+    "old": "bool ChromeContentBrowserClient::OverrideWebPreferencesAfterNavigation(",
+    "new": "int ChromeContentBrowserClient::GetSandiumDarkPageFlagsForNavigation(\n    WebContents* web_contents, const GURL& document_url) {\n#if BUILDFLAG(IS_ANDROID)\n  if (web_contents && document_url.SchemeIsHTTPOrHTTPS()) {\n    if (auto* client = night_mode::WebContentsThemeClient::FromWebContents(web_contents))\n      return client->SandiumDarkPageFlags(document_url) & 1;\n  }\n#endif\n  return -1;\n}\n\nbool ChromeContentBrowserClient::OverrideWebPreferencesAfterNavigation(",
+    "count": 1
+  },
+  {
+    "path": "third_party/blink/public/mojom/navigation/navigation_params.mojom",
+    "old": "struct CommitNavigationParams {",
+    "new": "struct CommitNavigationParams {\n  // Browser-supplied policy for this document only. Never inferred from a visible URL.\n  // -1 is unmanaged; explicit OFF/ON are 0/1. Only outermost main-frame commits use it.\n  int32 sandium_dark_page_flags = -1;\n",
+    "count": 1
+  },
+  {
+    "path": "content/browser/renderer_host/navigation_request.cc",
+    "old": "  SanitizeRedirectsForCommit(common_params, commit_params);",
+    "new": "  SanitizeRedirectsForCommit(common_params, commit_params);\n\n  // Use the final, browser-validated target after redirects. Do not mutate the\n  // outgoing document's WebPreferences during beforeunload or speculative loading.\n  commit_params->sandium_dark_page_flags = -1;\n  if (IsInOutermostMainFrame() && !origin_to_commit.opaque() &&\n      common_params->url.SchemeIsHTTPOrHTTPS() && !commit_params->is_view_source) {\n    commit_params->sandium_dark_page_flags =\n        GetContentClient()->browser()->GetSandiumDarkPageFlagsForNavigation(\n            GetWebContents(), common_params->url);\n  }\n",
+    "count": 1
+  },
+  {
+    "path": "third_party/blink/public/web/web_navigation_params.h",
+    "old": "  bool is_browser_initiated = false;",
+    "new": "  bool is_browser_initiated = false;\n\n  // Document-specific browser policy, applied after old-document detachment.\n  int sandium_dark_page_flags = -1;\n",
+    "count": 1
+  },
+  {
+    "path": "content/renderer/render_frame_impl.cc",
+    "old": "  navigation_params->origin_to_commit = commit_params.origin_to_commit;",
+    "new": "  navigation_params->sandium_dark_page_flags = commit_params.sandium_dark_page_flags;\n  navigation_params->origin_to_commit = commit_params.origin_to_commit;",
+    "count": 1
+  },
+  {
+    "path": "third_party/blink/renderer/core/loader/frame_loader.cc",
+    "old": "  tls_version_warning_origins_.clear();",
+    "new": "  // The outgoing document and its unload handlers have finished, and a\n  // provisional frame has successfully swapped in. Apply policy before the new\n  // DocumentLoader installs its Document, so the first style/paint sees it.\n  // Script/XSLT replacement documents inherit policy; subframes cannot change\n  // the top-level Page's shared Settings.\n  if (commit_reason == CommitReason::kRegular && frame_->IsOutermostMainFrame()) {\n    if (Settings* settings = frame_->GetSettings()) {\n      const int policy = navigation_params->sandium_dark_page_flags;\n      settings->SetSandiumDarkPageFlagsForCommit(policy >= 0 ? (policy & 1) : -1);\n      // Native force-dark and preferred-color-scheme remain untouched. The\n      // per-document style hook handles managed OFF/ON and unmanaged restore.\n    }\n  }\n\n  tls_version_warning_origins_.clear();",
+    "count": 1
+  },
+  {
+    "path": "third_party/blink/renderer/build/scripts/templates/settings_base.h.tmpl",
+    "old": "  void SetFromStrings(const String& name, const String& value);",
+    "new": "  // Only for FrameLoader after old-document detach and before new-document\n  // installation. Normal live policy changes must use the invalidating setter.\n  void SetSandiumDarkPageFlagsForCommit(int flags) {\n    sandium_dark_page_flags_ = flags < 0 ? -1 : (flags & 1);\n  }\n\n  void SetFromStrings(const String& name, const String& value);",
+    "count": 1
+  },
+  {
+    "path": "third_party/blink/public/mojom/page/page.mojom",
+    "old": "struct PageRestoreParams {",
+    "new": "struct PageRestoreParams {\n  // Current browser policy for the restored/activated top-level document.\n  // All RenderViews receive the same policy; -1 leaves native behavior.\n  int32 sandium_dark_page_flags = -1;\n",
+    "count": 1
+  },
+  {
+    "path": "third_party/blink/public/mojom/page/page.mojom",
+    "old": "struct PrerenderPageActivationParams {",
+    "new": "struct PrerenderPageActivationParams {\n  // Current browser policy for the restored/activated top-level document.\n  // All RenderViews receive the same policy; -1 leaves native behavior.\n  int32 sandium_dark_page_flags = -1;\n",
+    "count": 1
+  },
+  {
+    "path": "content/browser/renderer_host/render_frame_host_manager.cc",
+    "old": "    if (prev_state == RenderFrameHostLifecycleStateImpl::kInBackForwardCache) {\n      for (const auto& rvh : render_view_hosts_to_restore) {",
+    "new": "    if (prev_state == RenderFrameHostLifecycleStateImpl::kInBackForwardCache) {\n      int sandium_policy = -1;\n      auto* restored_main_frame = current_frame_host();\n      if (restored_main_frame->IsOutermostMainFrame() &&\n          !restored_main_frame->IsErrorDocument() &&\n          !restored_main_frame->GetLastCommittedOrigin().opaque() &&\n          restored_main_frame->GetLastCommittedURL().SchemeIsHTTPOrHTTPS()) {\n        sandium_policy = GetContentClient()->browser()->GetSandiumDarkPageFlagsForNavigation(\n            WebContents::FromRenderFrameHost(restored_main_frame),\n            restored_main_frame->GetLastCommittedURL());\n      }\n      for (const auto& rvh : render_view_hosts_to_restore) {",
+    "count": 1
+  },
+  {
+    "path": "content/browser/renderer_host/render_frame_host_manager.cc",
+    "old": "        blink::mojom::PageRestoreParamsPtr page_restore_params =\n            pending_stored_page->page_restore_params().Clone();",
+    "new": "        blink::mojom::PageRestoreParamsPtr page_restore_params =\n            pending_stored_page->page_restore_params().Clone();\n        page_restore_params->sandium_dark_page_flags = sandium_policy;",
+    "count": 1
+  },
+  {
+    "path": "content/browser/renderer_host/render_frame_host_manager.cc",
+    "old": "#include \"content/public/browser/content_browser_client.h\"",
+    "new": "#include \"content/public/browser/content_browser_client.h\"\n#include \"content/public/browser/web_contents.h\"",
+    "count": 1
+  },
+  {
+    "path": "content/browser/renderer_host/page_impl.cc",
+    "old": "  bool view_transition_state_consumed = false;\n  for (const auto& rvh : render_view_hosts) {",
+    "new": "  bool view_transition_state_consumed = false;\n  int sandium_policy = -1;\n  if (main_document_->IsOutermostMainFrame() && !main_document_->IsErrorDocument() &&\n      !main_document_->GetLastCommittedOrigin().opaque() &&\n      main_document_->GetLastCommittedURL().SchemeIsHTTPOrHTTPS()) {\n    sandium_policy = GetContentClient()->browser()->GetSandiumDarkPageFlagsForNavigation(\n        WebContents::FromRenderFrameHost(&main_document_.get()),\n        main_document_->GetLastCommittedURL());\n  }\n  for (const auto& rvh : render_view_hosts) {",
+    "count": 1
+  },
+  {
+    "path": "content/browser/renderer_host/page_impl.cc",
+    "old": "    auto params = blink::mojom::PrerenderPageActivationParams::New();",
+    "new": "    auto params = blink::mojom::PrerenderPageActivationParams::New();\n    params->sandium_dark_page_flags = sandium_policy;",
+    "count": 1
+  },
+  {
+    "path": "content/browser/renderer_host/page_impl.cc",
+    "old": "#include \"content/public/browser/content_browser_client.h\"",
+    "new": "#include \"content/public/browser/content_browser_client.h\"\n#include \"content/public/browser/web_contents.h\"",
+    "count": 1
+  },
+  {
+    "path": "third_party/blink/renderer/core/exported/web_view_impl.cc",
+    "old": "  bool restoring_from_bfcache = !new_state->is_in_back_forward_cache &&\n                                old_state->is_in_back_forward_cache;",
+    "new": "  bool restoring_from_bfcache = !new_state->is_in_back_forward_cache &&\n                                old_state->is_in_back_forward_cache;\n  if (restoring_from_bfcache && page_restore_params) {\n    const int policy = page_restore_params->sandium_dark_page_flags;\n    // Existing cached Documents require normal style/paint invalidation, before\n    // resume/visibility/pageshow can expose their first restored frame.\n    page->GetSettings().SetSandiumDarkPageFlags(policy < 0 ? -1 : (policy & 1));\n  }\n",
+    "count": 1
+  },
+  {
+    "path": "third_party/blink/renderer/core/exported/web_view_impl.cc",
+    "old": "  TRACE_EVENT0(\"navigation\", \"WebViewImpl::ActivatePrerenderedPage\");\n\n  // From here all new documents will have prerendering false.",
+    "new": "  TRACE_EVENT0(\"navigation\", \"WebViewImpl::ActivatePrerenderedPage\");\n\n  const int sandium_policy = prerender_page_activation_params->sandium_dark_page_flags;\n  GetPage()->GetSettings().SetSandiumDarkPageFlags(\n      sandium_policy < 0 ? -1 : (sandium_policy & 1));\n\n  // From here all new documents will have prerendering false.",
+    "count": 1
+  },
+  {
+    "path": "third_party/blink/renderer/core/css/resolver/style_adjuster.h",
+    "old": " private:\n  static void AdjustStyleForSvgElement(",
+    "new": " private:\n  static void ApplySandiumPaintPolicy(ComputedStyleBuilder& builder,\n                                     Element& element,\n                                     const Element* actual_element,\n                                     const ComputedStyle* parent_style);\n  static void AdjustStyleForSvgElement(",
+    "count": 1
+  }
+]
