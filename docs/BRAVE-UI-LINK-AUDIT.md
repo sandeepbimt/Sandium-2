@@ -90,3 +90,18 @@ unused-prefixed parameters. Certificate and reset decisions remain unchanged.
 Tests now cover pristine source, upgrading the old no-op, idempotence, leftover
 identifier assertions and launcher body drift. Full ErrorProne/Android rerun still
 required; source replay alone is not a successful build.
+
+### #1181 regression-test input correction
+
+The production overlay succeeded, but the subsequent test reread its already-modified
+`--src` tree as if it were pristine. Its historical `linkText` signature lookup failed
+before compilation. Historical migration and launcher-mutation cases now use the
+existing pinned Chromium fixture with an explicit SHA-256 assertion. The actual
+supplied source is still copied, transformed and checked first; its complete output
+must equal the pristine fixture's transformed output. No production transformation,
+warning policy or security guard changes.
+
+Validated both pristine invocation and the exact CI apply-then-test ordering with
+temporary Brave/Chromium inputs. Both pass, including idempotence, historical upgrade,
+launcher mutation rejection and retained certificate controls. Full Android compilation
+is still pending; #1181 did not test the earlier compiler fixes.

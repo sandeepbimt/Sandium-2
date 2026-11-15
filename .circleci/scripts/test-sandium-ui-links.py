@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Pinned-source replay/idempotence checks. Not Android/device validation."""
 import argparse
+import hashlib
 import importlib.util
 from pathlib import Path
 import shutil
@@ -53,7 +54,14 @@ with tempfile.TemporaryDirectory() as d:
     for dead in ('HELP_URL', 'mMoreInfoLink', 'mLinkUrl', 'showConnectionSecurityInfo', 'import android.content.Intent;', 'import android.provider.Browser;', 'import org.chromium.base.Log;'):
         assert dead not in c, dead
     # Upgrade the failed #1179 generated no-op as well as pristine pinned source.
-    original = (a.src / m.CONNECTION).read_text()
+    # CI invokes this test AFTER applying the overlay to --src. Historical
+    # migration/drift cases must use hermetic pristine input, not that live tree.
+    fixture = Path(__file__).resolve().parents[2] / 'tests/fixtures/ui-links/ConnectionInfoView.java'
+    original = fixture.read_text()
+    assert hashlib.sha256(fixture.read_bytes()).hexdigest() == '5a30895d6511c7cb3a2bf02d3e1d03d15541dfb63fdae91e583760f356147770'
+    connection.write_text(original)
+    m.apply_chromium(root)
+    assert connection.read_text() == c, 'pristine and actual-tree outputs differ'
     begin = original.index('    private void addMoreInfoLink(String linkText) {')
     finish = original.index('\n    }', begin) + len('\n    }')
     previous = """    private void addMoreInfoLink(String linkText) {
