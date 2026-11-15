@@ -58,6 +58,9 @@ def violations(deps):
  bad={}
  for line in deps.splitlines():
   label=line.strip().split('(',1)[0]
+  if label.startswith('//brave/third_party/android_deps:com_wireguard_android'):
+   bad.setdefault('vpn',[]).append(label)
+   continue
   if label in METADATA or label in COMPATIBILITY or any(label.startswith(x+'__') for x in METADATA):continue
   for group,prefixes in PREFIXES.items():
    if any(label.startswith('//brave/'+p+':') or label.startswith('//brave/'+p+'/') for p in prefixes):bad.setdefault(group,[]).append(label)

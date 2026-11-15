@@ -314,3 +314,16 @@ head are restored. This is an experiment, not a claim of final device success.
 Pending: independent final review, #1150 final checkpoint settlement, actual
 combined GN/Java/native/link/package build, APK/resource/manifest evidence and
 user device test. Do not label candidate stripped/working merely from fixtures.
+
+## #1156 packaged-payload gap (2026-11-15)
+Actual APK hash matched the CI evidence, but ZIP and manifest inspection found
+WireGuard native library/service and VPN/News assets despite prior engine gates.
+Cause: shared android_deps group still pulled the WireGuard AAR; explicit
+GoBackend service and root file assets were outside the old transform scope.
+The packaging transform removes those exact edges/declaration/assets while
+preserving shared libraries, onboarding/Shields assets, credits and UI.
+Reset/replay now includes root BUILD and android_deps BUILD. Native graph and
+actual APK gates now reject WireGuard targets/classes/library/service references
+and both excluded assets. The new gate correctly rejects the real #1156 APK.
+209 tests and full pinned UI1150/removal composition, reset replay and interrupted
+recovery passed; Android successor and runtime behavior remain to verify.

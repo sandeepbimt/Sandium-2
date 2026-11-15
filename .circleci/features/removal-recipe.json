@@ -343,7 +343,9 @@
     "components/resources/BUILD.gn",
     "renderer/brave_content_renderer_client.cc",
     "renderer/sources.gni",
-    "android/java/proguard.flags"
+    "android/java/proguard.flags",
+    "BUILD.gn",
+    "third_party/android_deps/BUILD.gn"
   ],
   "chromium_restore": [
     "chrome/android/java/src/org/chromium/chrome/browser/crash/ChromeMinidumpUploadJobServiceImpl.java",
@@ -469,6 +471,13 @@
         "{core}",
         "--src",
         "{src}"
+      ]
+    },
+    {
+      "script": ".circleci/scripts/remove-sandium-packaged-extras.py",
+      "args": [
+        "--core",
+        "{core}"
       ]
     },
     {

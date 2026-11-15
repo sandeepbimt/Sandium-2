@@ -6,7 +6,7 @@ behavior or native absence. Native dependency closure is a separate mandatory ga
 import argparse,hashlib,json,re,struct,zipfile
 from pathlib import Path
 PREFIXES={
- 'vpn':['Lorg/chromium/chrome/browser/vpn/'],
+ 'vpn':['Lorg/chromium/chrome/browser/vpn/','Lcom/wireguard/'],
  'wallet':['Lorg/chromium/chrome/browser/crypto_wallet/'],
  'playlist':['Lorg/chromium/chrome/browser/playlist/'],
  'leo':['Lorg/chromium/chrome/browser/ai_chat/','Lorg/chromium/chrome/browser/leo/','Lorg/chromium/chrome/browser/brave_leo/','Lorg/chromium/chrome/browser/settings/BraveLeo','Lorg/chromium/chrome/browser/toolbar/adaptive/BraveLeo','Lorg/chromium/chrome/browser/omnibox/BraveLeo','Lorg/chromium/chrome/browser/omnibox/suggestions/BraveLeo'],
@@ -78,6 +78,14 @@ def audit(apk,recipe=None,mapping=None):
  with zipfile.ZipFile(apk) as z:
   names=z.namelist()
   if len(names)!=len(set(names)):raise ValueError('Duplicate APK archive entry')
+  forbidden=[n for n in names if n in ('assets/brave_vpn_confirm.json',
+   'assets/ntp_news_optin_icon_animation.json') or re.fullmatch(r'lib/[^/]+/libwg-go\.so',n)]
+  if forbidden:raise ValueError('Excluded packaged payload remains '+json.dumps(forbidden))
+  if 'AndroidManifest.xml' in names:
+   manifest=z.read('AndroidManifest.xml')
+   for token in ('com.wireguard.android.backend.GoBackend$VpnService','android.permission.BIND_VPN_SERVICE'):
+    if token.encode() in manifest or token.encode('utf-16le') in manifest:
+     raise ValueError('Excluded VPN manifest reference remains '+token)
   dex=[n for n in names if n.endswith('.dex')]
   if not dex:raise ValueError('No DEX in APK')
   classes=[c for n in dex for c in dex_classes(z.read(n))]
@@ -92,6 +100,7 @@ def audit(apk,recipe=None,mapping=None):
  if bad:raise ValueError('Feature implementations remain '+json.dumps(bad))
  if before!=sha256(apk):raise ValueError('APK changed during audit')
  report={'schema':2,'apk':str(apk),'apk_sha256':before,'apk_bytes':Path(apk).stat().st_size,
+  'packaged_payload_checks':['VPN asset','News opt-in asset','WireGuard native library','VPN manifest references'],
   'dex_files':len(dex),'class_count':len(classes),
   'result':'listed_class_definitions_absent','checked_java_prefix_groups':list(PREFIXES),
   'groups_without_java_prefix_proof':UNPROVEN_GROUPS,
