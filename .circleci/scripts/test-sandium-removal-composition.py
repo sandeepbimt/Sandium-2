@@ -14,12 +14,16 @@ def load(name):
 recipe=load('sandium-removal-recipe');m=recipe.load()
 welcome=load('apply-sandium-welcome-setup');prune=load('apply-sandium-ui-prune')
 toolbar=load('apply-sandium-bottom-toolbar');menu=load('apply-sandium-paged-menu')
+fade=load('apply-sandium-settings-fade');progress=load('apply-sandium-progress-diagnostics');suggest=load('apply-sandium-suggestion-anchor');links=load('apply-sandium-ui-links');toggles=load('apply-sandium-oppo-toggles');popup=load('apply-sandium-shields-popup')
 focus=load('apply-sandium-focus-follow');search=load('apply-sandium-search-choices')
 refinements=load('apply-sandium-toolbar-refinements');address=load('apply-sandium-unified-address');home=load('apply-sandium-home-shortcuts');video=load('apply-sandium-video-gestures')
 theme=load('apply-sandium-native-theme');status=load('apply-sandium-scroll-status-bar');chrome=load('apply-sandium-chrome-theme');branding=load('apply-sandium-branding-refresh')
 def blob(repo,pin,path):return subprocess.check_output(['git','-C',str(repo),'show',pin+':'+path])
 def core_blob(path):return blob(a.source,m['brave_pin'],path)
-fixture_map={}
+fixture_map={progress.PATH:root/'tests/fixtures/progress/ToolbarProgressBarLayer.java',fade.SETTINGS:root/'.circleci/tests/fixtures/settings-fade/SettingsActivity.java'}
+fixture_map[links.CONNECTION]=root/'tests/fixtures/ui-links/ConnectionInfoView.java'
+for path in [toggles.STYLE,toggles.BUILD]:fixture_map[path]=root/'.circleci/tests/fixtures/oppo-toggles'/P(path).name
+for path,_,_ in suggest.CHANGES:fixture_map[path]=root/"tests/fixtures/suggestion-anchor"/P(path).name
 for name,path in status.FILES.items():fixture_map[path]=root/'.circleci/tests/fixtures/status-bar'/name
 for name,path in [('TopUiThemeColorProvider.java',chrome.REL),('BottomUiThemeColorProvider.java',chrome.BOTTOM_REL)]:fixture_map[path]=root/'.circleci/tests/fixtures/theme'/name
 if a.toolbar_fixtures:
@@ -68,11 +72,37 @@ with tempfile.TemporaryDirectory() as temporary:
   for path,transform in refinements.transformations(src):path.write_text(transform(path.read_text()))
   for path,text in search.outputs(core):path.write_text(text)
   fp=src/focus.PATH;fp.write_text(focus.transform(fp.read_text()))
+  for path,transform in [(src/fade.SETTINGS,fade.settings),(core/fade.BRAVE_SETTINGS,fade.brave),(core/'android/BUILD.gn',fade.build)]:path.write_text(transform(path.read_text()))
+  for path,text in fade.resources().items():write(core/path,text.encode())
+  pp=src/progress.PATH;pp.write_text(progress.transform(pp.read_text()))
+  for path,text in suggest.plan(src).items():path.write_text(text)
+  links.apply(core);links.apply_chromium(src)
+  shield_layout=core/toggles.SHIELDS;shield_layout.write_text(popup.layout(shield_layout.read_text()))
+  toggles.apply(src,core)
  def removal(steps=None):
   subs={'{core}':str(core),'{src}':str(src),'{out}':str(src/'out'),'{repo}':str(root)}
   for step in m['steps'] if steps is None else steps:
    subprocess.run([sys.executable,str(root/step['script'])]+[subs.get(x,x) for x in step['args']],check=True)
  def preserved_ui():
+  assert toggles.MARKER in (src/toggles.STYLE).read_text()
+  for name in ("thumb","track"):
+   assert (src/toggles.BASE/("java/res/color/sandium_switch_"+name+".xml")).read_text()==toggles.selector(name=="thumb")
+  assert (core/toggles.SHIELDS).read_text().count("Widget.Sandium.ShieldsSwitch")==3
+  # Removal closure legitimately removes the sponsored wallpaper support field entirely.
+  assert 'mLearnMorePreference' not in (core/links.PATHS[2]).read_text()
+  for path, marker in [(core/links.PATHS[0],'removeSandiumSupportItems'),
+                       (core/links.PATHS[1],'mLearnMore.setVisibility(View.GONE);'),
+                       (core/links.PATHS[3],'android.graphics.Typeface.NORMAL)))'),
+                       (core/links.PATHS[4],'tvSummary.setMovementMethod(null);'),
+                       (core/links.PATHS[5],'dismiss onboarding without opening'),
+                       (core/links.PATHS[6],'// Sandium:'),
+                       (src/links.CONNECTION,'// Sandium:')]:
+   assert marker in path.read_text(), 'later overlay lost UI link suppression: '+str(path)
+  assert all(path.read_text()==text for path,text in suggest.plan(src).items())
+  assert progress.MARKER in (src/progress.PATH).read_text()
+  assert fade.MARK in (src/fade.SETTINGS).read_text()
+  assert fade.MARK in (core/fade.BRAVE_SETTINGS).read_text()
+  assert 'shared_x_axis_' not in (src/fade.SETTINGS).read_text()
   manifest=(core/"android/java/AndroidManifest.xml").read_text()
   apk_audit=load("audit-sandium-stripped-apk")
   assert all(name in manifest for name in apk_audit.REQUIRED_ACTIVITIES)

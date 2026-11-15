@@ -38,13 +38,65 @@ class UnderlapPatchTests(unittest.TestCase):
         old = types.ModuleType('old_status'); exec(before, old.__dict__)
         for name in old.FILES:
             self.assertEqual(old.transform(name, self.original(name)),
-                             patch.transform(name, self.original(name)), name)
+                             patch.undo_spacer(name, patch.transform(name, self.original(name))), name)
         creator = patch.transform('EdgeToEdgeControllerCreator.java',
                                   self.original('EdgeToEdgeControllerCreator.java'))
         self.assertNotIn('setInsets(', creator)
         self.assertNotIn('setDecorFitsSystemWindows', creator)
         self.assertNotIn('getUrl(', creator)
         self.assertNotIn('getTitle(', creator)
+
+    def test_spacer_uses_native_sizing_not_scroll_padding_or_dom(self):
+        text = patch.transform('EdgeToEdgeControllerImpl.java',
+                               self.original('EdgeToEdgeControllerImpl.java'))
+        self.assertIn('controls.getTopControlsHeight() == controls.getSandiumStatusSpacerHeight()', text)
+        self.assertIn('controls.getTopControlsMinHeight() == 0', text)
+        self.assertIn('wasSandiumUnderlap || mCurrentTab != null', text)
+        for forbidden in ['evaluateJavaScript', 'setTranslationY(', 'getScrollY(', 'scrollTo(', 'setTopControlsHeight(']:
+            self.assertNotIn(forbidden, text)
+        old = types.ModuleType('previous_status')
+        exec(subprocess.check_output(['git', 'show',
+            '9ba8861:.circleci/scripts/apply-sandium-scroll-status-bar.py'], text=True), old.__dict__)
+        self.assertEqual(old.transform('EdgeToEdgeControllerImpl.java',
+                                       self.original('EdgeToEdgeControllerImpl.java')),
+                         patch.undo_spacer('EdgeToEdgeControllerImpl.java', text))
+
+    def test_transitive_provider_forwards_explicit_web_activation(self):
+        name = 'TransitiveTopInsetProvider.java'
+        text = patch.transform(name, self.original(name))
+        self.assertIn('return provider != null && provider.isSandiumWebUnderlapActive();', text)
+        self.assertEqual(patch.undo_spacer(name, text), self.original(name))
+
+    def test_stacker_owns_spacer_and_reports_before_height_callbacks(self):
+        name = 'TopControlsStacker.java'
+        text = patch.transform(name, self.original(name))
+        self.assertIn('mControls.put(TopControlType.SANDIUM_STATUS_SPACER, new TopControlLayer()', text)
+        self.assertIn('if (mSandiumDestroyed) return;', text)
+        start = text.index('private void updateTopControlsHeight(')
+        self.assertLess(text.index('setSandiumStatusSpacerHeight(', start),
+                        text.index('setTopControlsHeight(', start))
+        self.assertIn('mSandiumDestroyed = true;', text)
+        self.assertIn('mBrowserControlsSizer.setSandiumStatusSpacerHeight(0);', text)
+        tpc = patch.transform('ToolbarPositionController.java', self.original('ToolbarPositionController.java'))
+        self.assertIn('mTopInsetProvider.isSandiumWebUnderlapActive()', tpc)
+        self.assertIn('sandiumSpacer ? systemTopInset : 0', tpc)
+        self.assertIn('public void destroy() {\n        mTopControlsStacker.setSandiumStatusSpacerHeight(0);', tpc)
+
+    def test_fade_stays_inside_reserved_status_strip(self):
+        text = patch.transform('EdgeToEdgeBaseLayout.java', self.original('EdgeToEdgeBaseLayout.java'))
+        self.assertNotIn('height * 1.5f', text)
+        self.assertNotIn('mSandiumTopProtectionHeight * 1.5f', text)
+        self.assertIn('new android.graphics.LinearGradient(0, 0, 0, height,', text)
+        controller = patch.transform('EdgeToEdgeControllerImpl.java', self.original('EdgeToEdgeControllerImpl.java'))
+        self.assertNotIn('setTopControlsHeight(', controller)
+
+    def test_bottom_toolbar_does_not_receive_status_padding(self):
+        name = 'ToolbarPositionController.java'
+        text = patch.transform(name, self.original(name))
+        self.assertIn('getControlsPosition() == ControlsPosition.BOTTOM) {\n            consumeTopInset = false;', text)
+        self.assertLess(text.index('consumeTopInset = false;'),
+                        text.index('mTopInset = consumeTopInset ? systemTopInset : 0;'))
+        self.assertEqual(patch.undo_spacer(name, text), self.original(name))
 
     def test_all_pinned_sources_transform_idempotently(self):
         for name in patch.FILES:
@@ -72,7 +124,7 @@ class UnderlapPatchTests(unittest.TestCase):
             old = previous.transform(name, self.original(name))
             current = patch.transform(name, old)
             self.assertEqual(current, patch.transform(name, current), name)
-            self.assertEqual(current, patch.transform(name, self.original(name)), name)
+            self.assertEqual(current, patch.undo_spacer(name, patch.transform(name, self.original(name))), name)
         controller = patch.transform('EdgeToEdgeControllerImpl.java', self.original('EdgeToEdgeControllerImpl.java'))
         self.assertIn('ControlsPosition.BOTTOM', controller)
         self.assertIn('controls.getTopControlsHeight() == 0', controller)

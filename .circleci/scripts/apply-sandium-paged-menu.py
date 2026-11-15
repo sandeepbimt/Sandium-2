@@ -43,7 +43,7 @@ def appmenu(text):
             int inset = Math.round(8 * context.getResources().getDisplayMetrics().density);
             int width = Math.max(1, visibleDisplayFrame.width() - 2 * inset);
             int available = Math.max(1, visibleDisplayFrame.height() - 2 * inset);
-            int height = menu.preferredHeight(available);
+            int height = menu.preferredHeight(width, available);
             int x = visibleDisplayFrame.left + inset;
             popup.setWidth(width);
             popup.setHeight(height);
@@ -51,13 +51,15 @@ def appmenu(text):
             popupPosition[1] = visibleDisplayFrame.bottom - inset - height;
             menu.setResizeListener(() -> {
                 if (!popup.isShowing()) return;
-                int nextHeight = menu.preferredHeight(available);
+                int nextHeight = menu.preferredHeight(width, available);
                 popup.update(x, visibleDisplayFrame.bottom - inset - nextHeight, width, nextHeight);
             });
-            // Avoid the anchored zoom/slide on the custom bottom sheet. Keep
-            // native popup lifecycle/dismissal, including outside-tap and Back.
-            popup.setAnimationStyle(SysUtils.isLowEndDevice()
-                    || !ValueAnimator.areAnimatorsEnabled() ? 0 : R.style.PopupWindowAnimFade);
+            // The Sandium view owns opening; the framework owns exit, including
+            // Back/outside/action/lifecycle dismissal. Never defer native cleanup ourselves.
+            popup.setAnimationStyle(0);
+            popup.setEnterTransition(null);
+            popup.setExitTransition(SysUtils.isLowEndDevice() || !ValueAnimator.areAnimatorsEnabled()
+                    ? null : new android.transition.Fade(android.transition.Fade.OUT).setDuration(80));
             contentView = menu;
         }
         popup.setContentView(contentView);''')

@@ -57,3 +57,41 @@ import re
 names={e.get('name') for e in ET.parse(repo/'android/java/res/values/sandium_home_strings.xml').getroot()}
 assert set(re.findall(r'R.string.(sandium_\w+)',java))<=names
 print('PASS: pinned transformations, idempotence, drift, resource and source contracts; Android compile/device not run')
+
+# Numbered layout: newest upper-left (20), oldest reaches lower-right (1).
+assert 'bridge.reorderCustomLink(url, 0)' in java
+assert java.count('addNewest(') == 3
+assert 'Collections.reverse' not in java
+assert 'mExpanded ? 5 : 4' in java
+assert 'reservedHeight - height' in java
+assert 'mScroll.setBackground(shape(mPanel, 16))' in java
+assert 'count > 0 && i < rows * 5' in java
+for count in [1, 2, 5, 6, 19, 20, 21, 25, 26, 200]:
+    saved = []
+    for n in range(1, count + 1): saved.insert(0, n)
+    assert saved[0] == count
+    if count == 20: assert saved[19] == 1
+    shown = min(20, count)
+    rows = (shown + 4) // 5
+    assert 1 <= rows <= 4
+    panel = min(4 * 76, rows * 76)
+    assert panel + (4 * 76 - panel) == 304
+    expanded_panel = min(5 * 76, ((count + 4) // 5) * 76)
+    assert expanded_panel <= 380
+# Manual order remains authoritative; next addition prepends without reversing it.
+saved = [3, 1, 2]; saved.insert(0, 4); assert saved == [4, 3, 1, 2]
+for source in [(audit/layout_path).read_text(), (repo/'.circleci/features/news-removal/expected'/layout_path).read_text()]:
+    changed=m.layout(source)
+    assert changed.count('mIsBraveStatsEnabled = false; // Sandium homepage') == 2
+    assert 'BraveStatsUtil.showBraveStats();' in changed
+    assert 'NtpUtil.shouldDisplayBraveStats()' not in changed
+print('PASS: numbered order, bounded row/panel geometry models, native ordering contracts and display-only stats suppression')
+
+assert 'GradientDrawable.Orientation.TL_BR' in java
+assert 'frost.setCornerRadius(dp(12))' in java
+assert 'frost.setStroke(dp(1), 0x26ffffff)' in java
+assert 'ImageView.ScaleType.FIT_CENTER' in java
+assert 'icon.setPadding(dp(6),dp(6),dp(6),dp(6))' in java
+assert 'content.addView(iconBox, new LinearLayout.LayoutParams(dp(44), dp(44)))' in java
+assert 'RenderEffect' not in java and 'setColorFilter' not in java
+print('PASS: uniform frosted icon bounds, aspect-preserving content and no runtime blur/tint')

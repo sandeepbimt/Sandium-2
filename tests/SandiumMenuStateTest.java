@@ -134,6 +134,23 @@ public class SandiumMenuStateTest {
             equal(fuzz.serialize(), SandiumMenuState.load(fuzz.serialize(), DEFAULT,
                     Set.of("exit")).serialize());
         }
+        // Synthetic permanent-navigation order uses the same draft/persistence machinery.
+        String navigation = "sandium:all-menu";
+        SandiumMenuState quick = SandiumMenuState.reset(DEFAULT, Set.of());
+        quick.reconcile(Set.of(navigation), Set.of());
+        Set<String> withNavigation = set(DEFAULT); withNavigation.add(navigation);
+        SandiumMenuState moving = quick.copy();
+        check(moving.move(navigation, 0, withNavigation));
+        equal(navigation, moving.visibleKeys(withNavigation).get(0));
+        equal(navigation, quick.visibleKeys(withNavigation).get(DEFAULT.size())); // Cancel isolation.
+        SandiumMenuState reopened = SandiumMenuState.load(moving.serialize(), withNavigation, Set.of());
+        equal(navigation, reopened.visibleKeys(withNavigation).get(0));
+        check(reopened.hide(navigation));
+        reopened.show(navigation); // Rendering repairs old hidden state.
+        equal(navigation, reopened.visibleKeys(withNavigation).get(0));
+        check(reopened.move("exit", 0, withNavigation));
+        equal("exit", reopened.visibleKeys(withNavigation).get(0));
+        equal(navigation, reopened.visibleKeys(withNavigation).get(1));
         System.out.println("SandiumMenuState tests passed");
     }
 }

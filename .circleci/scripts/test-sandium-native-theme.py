@@ -36,10 +36,10 @@ class ThemeTests(unittest.TestCase):
             self.assertEqual(color[1:3], color[3:5])
             self.assertEqual(color[3:5], color[5:7])
     def test_welcome_checked_switch_contrast(self):
-        self.assertGreaterEqual(contrast(theme.ACCENT, '#203D58'), 3)
+        self.assertGreaterEqual(contrast('#FFFFFF', '#198CFF'), 3)
         source = (Path(__file__).resolve().parents[2] / 'android/java/org/chromium/chrome/browser/firstrun/SandiumWelcomeSetupView.java').read_text()
         self.assertIn('private static final int SUCCESS = Color.rgb(230, 244, 232)', source)
-        self.assertIn('                    PRIMARY,', source)
+        self.assertIn('Color.rgb(25, 140, 255)', source)
     def test_settings_subpage_tokens_have_readable_day_and_night_pairs(self):
         for name in ['filter_title_color', 'filter_summary_color',
                      'bookmark_menu_text_color', 'brave_theme_hint_text',
@@ -49,10 +49,10 @@ class ThemeTests(unittest.TestCase):
         self.assertEqual(theme.NIGHT['bookmark_menu_bg_color'], theme.CARD)
         self.assertEqual(theme.COMMON['baseline_neutral_0'], '#000000')
     def test_reference_blue_active_controls(self):
-        self.assertEqual(theme.ACCENT, '#6E8EB5')
+        self.assertEqual(theme.ACCENT, '#198CFF')
         self.assertEqual(theme.NIGHT['shield_toggle_button_tint'], theme.ACCENT)
         self.assertEqual(theme.LIGHT['shield_toggle_button_tint'], theme.LIGHT_PRIMARY)
-        for surface in ['#080808', '#101010', '#181818', '#202020']:
+        for surface in ['#000000', '#1A1A1A', '#242424']:
             self.assertGreaterEqual(contrast(theme.ACCENT, surface), 4.5)
         for surface in ['#FFFFFF', '#F3F3F3', '#E8E8E8']:
             self.assertGreaterEqual(contrast(theme.LIGHT_PRIMARY, surface), 4.5)
@@ -84,6 +84,24 @@ class ThemeTests(unittest.TestCase):
         self.assertEqual(result.count('fragmentView.setBackgroundColor(sandiumSettingsBackground())'), 1)
         # Destroyed-view callback must remain untouched.
         self.assertIn('                    View insetView = getInsetView(fragment, fragmentView);', result)
+    def test_oppo_group_contract(self):
+        self.assertEqual(theme.BACKGROUND, '#000000')
+        self.assertEqual(theme.CARD, '#1A1A1A')
+        self.assertEqual(theme.NIGHT['dialog_bg_color_dark_baseline'], theme.CARD)
+        self.assertIn('instanceof androidx.preference.PreferenceFragmentCompat', theme.SETTINGS_GROUPS)
+        self.assertIn('instanceof androidx.preference.PreferenceGroupAdapter', theme.SETTINGS_GROUPS)
+        self.assertIn('instanceof androidx.preference.PreferenceCategory', theme.SETTINGS_GROUPS)
+        self.assertIn('a.getParent() == b.getParent()', theme.SETTINGS_GROUPS)
+        self.assertIn('getItemDecorationAt(i) instanceof SandiumPreferenceGroups', theme.SETTINGS_GROUPS)
+        self.assertNotIn('setBackground', theme.SETTINGS_GROUPS)
+        self.assertNotIn('setOnClickListener', theme.SETTINGS_GROUPS)
+        self.assertNotIn('setAdapter', theme.SETTINGS_GROUPS)
+        root = Path(__file__).resolve().parents[2]
+        welcome = (root / 'android/java/org/chromium/chrome/browser/firstrun/SandiumWelcomeSetupView.java').read_text()
+        self.assertIn('CARD = Color.rgb(26, 26, 26)', welcome)
+        self.assertIn('PRIMARY = Color.rgb(25, 140, 255)', welcome)
+        self.assertIn('BACKGROUND = Color.rgb(0, 0, 0)', welcome)
+
     def test_scope(self):
         allkeys=set(theme.COMMON)|set(theme.NIGHT)|set(theme.LIGHT)
         self.assertFalse(any('error' in x or 'wallet' in x or 'incognito' in x or 'private_window' in x for x in allkeys))

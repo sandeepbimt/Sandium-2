@@ -1,26 +1,26 @@
 {
   "baseline": "50545b503d3429ee1a1dad86317147e87d4b556b",
   "files": {
-    ".circleci/experimental-steps/product-overlay-29-0.sh": "855a37be473eefb8ae8df35d47796b6a0568df3507788b6f1a339a43655c4b64",
+    ".circleci/experimental-steps/product-overlay-29-0.sh": "9facc9a8733f405cddf4d845ca87677568dfe3a93d17431b81ec29f0b103cb0d",
     ".circleci/scripts/apply-sandium-bottom-toolbar.py": "ccdf6b99530a4505c5d42d0360f9f8efcba2ba432c6dc296fdc3e401686d2a4d",
     ".circleci/scripts/apply-sandium-chrome-theme.py": "13cfd73d17cd342cec9b1f3bf332f29be873a0b850cfb40942b7cd4660623ccf",
-    ".circleci/scripts/apply-sandium-native-theme.py": "de626469be532107ce07d878ceedd5d29fde8d75c9fba3972df4d0e5955d176f",
-    ".circleci/scripts/apply-sandium-paged-menu.py": "4283569e4b096587ca1bdb0ccb40ee94a6b39e38510308e06874e03fa4f53675",
-    ".circleci/scripts/apply-sandium-scroll-status-bar.py": "0bda8f91076d7f41fd0c68a8b240fa38e3aeb55f22c93a0f8ed4ab72e802cfd9",
+    ".circleci/scripts/apply-sandium-native-theme.py": "b2dfeb788aa94d9a0c01447bb94ea5ccba0dc7cb5eaeb71027adfd4a5347d0b7",
+    ".circleci/scripts/apply-sandium-paged-menu.py": "126eed2d8d2abd37a7df6033bb48eb8e8a8549d4ea90c7626adbbb60a9fafcfa",
+    ".circleci/scripts/apply-sandium-scroll-status-bar.py": "a81b3f5c332d3cfb747c977b96a0dea0389e5b13b6e81d2dbbe691d99c364b9a",
     ".circleci/scripts/apply-sandium-shields-popup.py": "eaca25aec6ba08e28775815c112f8446f87dd49630da98bd86ea78770f2c078d",
     ".circleci/scripts/test-sandium-bottom-toolbar.py": "40e3750bb0bdc4e97b9c13e306406fffbc65d5b146f1ba526748cdce8152bb24",
     ".circleci/scripts/test-sandium-chrome-theme.py": "d9443c1ab2e17e2319b2df23af0e61ef2fd70b030450175a39eac53a8a4f3958",
-    ".circleci/scripts/test-sandium-motion.py": "8497a74a1b8702f8d474c662964ceede179903bda22d7251c64765d92a7bd330",
-    ".circleci/scripts/test-sandium-native-theme.py": "52b92d4791d0b1cb12fae16d107ae09c7b0aa69747b5462152d0e5ba318691da",
-    ".circleci/scripts/test-sandium-paged-menu.py": "5fb49d8f1afa86db1238aa0836fe1a3eb7cfa13efe58d30671b31429bcafd34d",
+    ".circleci/scripts/test-sandium-motion.py": "08cc78b118e6bbca0b72719d1d2f1b016f64733380df036384a8af881daccf88",
+    ".circleci/scripts/test-sandium-native-theme.py": "f28c22984d79abd68e338f522d0618db97ce9551f45fa6db194ddb294ae40015",
+    ".circleci/scripts/test-sandium-paged-menu.py": "6c397cb398f02a0564bb462b1e110fb1e9a943df00e137de33db5ed1c1d0059a",
     ".circleci/scripts/test-sandium-shields-popup.py": "49ea362d9b0322c77f02356d457bbc3efed8053ca878d261468ca614f3049de0",
-    "android/java/org/chromium/chrome/browser/firstrun/SandiumWelcomeSetupView.java": "2f4555a13403ff9a87c6aa47ff6c12e898f1f5b63bc2aa7f1a3d917ec2633b8b",
+    "android/java/org/chromium/chrome/browser/firstrun/SandiumWelcomeSetupView.java": "48b7dcd35b27c2e49871394547e757f14f3812c65c1fe61e13384cbb0cff44da",
     "android/java/org/chromium/chrome/browser/ui/appmenu/SandiumMenuMetadata.java": "73c796d7c1c623bfa2d5246e68b7a5763a76bf78eec225d0722f60f171d24be2",
     "android/java/org/chromium/chrome/browser/ui/appmenu/SandiumMenuState.java": "64b707978412cca96095221e68d14764b15a2da241a1e7698de1f375c77b652f",
-    "android/java/org/chromium/chrome/browser/ui/appmenu/SandiumPagedMenu.java": "c6a51bfd473850e67a3537fbc0e05ad93c499dde22a6e7945b3763888b8022b7",
-    "android/java/res/values-night/sandium_menu_colors.xml": "c9a64cb30b2df67eafa6846da63d6d32aacf86aa97c5f1a4784ffebe8f92d184",
+    "android/java/org/chromium/chrome/browser/ui/appmenu/SandiumPagedMenu.java": "c164285068c4573a707bc6f7c868768cc5fdb52a96745604f6fa63c0f39cbfe2",
+    "android/java/res/values-night/sandium_menu_colors.xml": "f27fa7dfce1f671ff7029c2a6b29b8c0afa30a029bf93520dbbaf0b4989310a7",
     "android/java/res/values/sandium_menu_colors.xml": "3c9efcdaf512005133b0c56c7b2376d6890225b72a7e6257a7cad54d8675efde",
-    "android/java/res/values/sandium_menu_strings.xml": "7cff1ba0ad48e9e9ae84fb6fd209146add8abc7317c50d8bce9bc7b3ef009757"
+    "android/java/res/values/sandium_menu_strings.xml": "3319581c963c8a237d5b1f0394d84aeb870979be9828c0370983abd63e1de65f"
   },
   "approved_ui_updates": [
     {
@@ -135,6 +135,136 @@
         ".circleci/scripts/apply-sandium-scroll-status-bar.py": {
           "previous_sha256": "00faffb3d630fa3deaff2c4775efb3b2a557ff4685832d01c012e8635b7d0c20",
           "current_sha256": "0bda8f91076d7f41fd0c68a8b240fa38e3aeb55f22c93a0f8ed4ab72e802cfd9"
+        }
+      }
+    },
+    {
+      "reason": "Nov15 menu fit feedback: intrinsic sheet height, bounded sparse cells and compact accessible editor controls",
+      "changes": {
+        "android/java/org/chromium/chrome/browser/ui/appmenu/SandiumPagedMenu.java": {
+          "previous_sha256": "c6a51bfd473850e67a3537fbc0e05ad93c499dde22a6e7945b3763888b8022b7",
+          "current_sha256": "ef17569d421d6c84960d9203eaf9a37e9eb3bedf85c45d7932487e63fc48589f"
+        },
+        ".circleci/scripts/apply-sandium-paged-menu.py": {
+          "previous_sha256": "4283569e4b096587ca1bdb0ccb40ee94a6b39e38510308e06874e03fa4f53675",
+          "current_sha256": "3ee6f0722a335a5b5b85c0db0af53f13c3aba3e9d4c146e47debc7b6e07551ea"
+        }
+      }
+    },
+    {
+      "reason": "Nov15 user requests fluid fast subtle initial menu opening fade; view-owned100ms with reduced motion and low-end guard",
+      "changes": {
+        "android/java/org/chromium/chrome/browser/ui/appmenu/SandiumPagedMenu.java": {
+          "previous_sha256": "ef17569d421d6c84960d9203eaf9a37e9eb3bedf85c45d7932487e63fc48589f",
+          "current_sha256": "56c9a1eeddd45f9834a818aa92bd215358bf2882b73ac8282d1da565dbe0d8c3"
+        },
+        ".circleci/scripts/apply-sandium-paged-menu.py": {
+          "previous_sha256": "3ee6f0722a335a5b5b85c0db0af53f13c3aba3e9d4c146e47debc7b6e07551ea",
+          "current_sha256": "6d3ffab2db0ada0c4e55d3c2ea6ae7892aefdd0cec0b048080158fa8bb23f985"
+        },
+        ".circleci/scripts/test-sandium-motion.py": {
+          "previous_sha256": "8497a74a1b8702f8d474c662964ceede179903bda22d7251c64765d92a7bd330",
+          "current_sha256": "a1923856c27958fdbd79bcb8a9a5417b9dab91956c7a7cc2ce419395136ee24d"
+        }
+      }
+    },
+    {
+      "reason": "Reviewed Settings fade0e86832 wiring plus requested trace-only progress83e7e9d reset/apply/verify/test; no visual progress fix claimed.",
+      "changes": {
+        ".circleci/experimental-steps/product-overlay-29-0.sh": {
+          "previous_sha256": "855a37be473eefb8ae8df35d47796b6a0568df3507788b6f1a339a43655c4b64",
+          "current_sha256": "cce25cf408010408e6b608d295024c780d05504c7c59d40f6ccb12b4e1527e40"
+        }
+      }
+    },
+    {
+      "reason": "User requested initial page header safe below status gradient; registered native scroll-away status layer with explicit ownership, unchanged web safety exclusions; device validation pending",
+      "changes": {
+        ".circleci/scripts/apply-sandium-scroll-status-bar.py": {
+          "previous_sha256": "0bda8f91076d7f41fd0c68a8b240fa38e3aeb55f22c93a0f8ed4ab72e802cfd9",
+          "current_sha256": "a81b3f5c332d3cfb747c977b96a0dea0389e5b13b6e81d2dbbe691d99c364b9a"
+        }
+      }
+    },
+    {
+      "reason": "Nov15 requirements audit: native80ms dismissal fade with low-end/reduced-motion guard, no delayed callbacks or custom dismissal",
+      "changes": {
+        ".circleci/scripts/apply-sandium-paged-menu.py": {
+          "previous_sha256": "6d3ffab2db0ada0c4e55d3c2ea6ae7892aefdd0cec0b048080158fa8bb23f985",
+          "current_sha256": "126eed2d8d2abd37a7df6033bb48eb8e8a8549d4ea90c7626adbbb60a9fafcfa"
+        },
+        ".circleci/scripts/test-sandium-motion.py": {
+          "previous_sha256": "a1923856c27958fdbd79bcb8a9a5417b9dab91956c7a7cc2ce419395136ee24d",
+          "current_sha256": "08cc78b118e6bbca0b72719d1d2f1b016f64733380df036384a8af881daccf88"
+        }
+      }
+    },
+    {
+      "reason": "Reviewed bottom-ranked suggestion series f4197d7 wired after native omnibox mods with pinned reset and readback.",
+      "changes": {
+        ".circleci/experimental-steps/product-overlay-29-0.sh": {
+          "previous_sha256": "cce25cf408010408e6b608d295024c780d05504c7c59d40f6ccb12b4e1527e40",
+          "current_sha256": "1581c7f07fbec8a6a9b84b4a2974e6b034503e12842c5a3f2c815a14997d6957"
+        }
+      }
+    },
+    {
+      "reason": "Scoped reviewed Brave UI link series3c18beb after other UI transforms; pinned reset and replay test. Remaining audit gaps documented.",
+      "changes": {
+        ".circleci/experimental-steps/product-overlay-29-0.sh": {
+          "previous_sha256": "1581c7f07fbec8a6a9b84b4a2974e6b034503e12842c5a3f2c815a14997d6957",
+          "current_sha256": "c76b7e4cdeda809ddb3d30564acfee1640719f49aee09861d7c6e99ee4f3e310"
+        }
+      }
+    },
+    {
+      "reason": "Latest user replaces quick-menu Edit header with permanent All menu directory and contextual Edit; modest rounded edges",
+      "changes": {
+        ".circleci/scripts/test-sandium-paged-menu.py": {
+          "previous_sha256": "5fb49d8f1afa86db1238aa0836fe1a3eb7cfa13efe58d30671b31429bcafd34d",
+          "current_sha256": "6c397cb398f02a0564bb462b1e110fb1e9a943df00e137de33db5ed1c1d0059a"
+        },
+        "android/java/org/chromium/chrome/browser/ui/appmenu/SandiumPagedMenu.java": {
+          "previous_sha256": "56c9a1eeddd45f9834a818aa92bd215358bf2882b73ac8282d1da565dbe0d8c3",
+          "current_sha256": "83ee69e14ae21dde63a950a2fcc3c2f7dd2cc737535cb86bb8c0a3f37eba128b"
+        },
+        "android/java/res/values/sandium_menu_strings.xml": {
+          "previous_sha256": "7cff1ba0ad48e9e9ae84fb6fd209146add8abc7317c50d8bce9bc7b3ef009757",
+          "current_sha256": "3319581c963c8a237d5b1f0394d84aeb870979be9828c0370983abd63e1de65f"
+        }
+      }
+    },
+    {
+      "reason": "Clarified permanent All menu may be reordered, never removed; preserve draft/order and accessible move actions",
+      "changes": {
+        "android/java/org/chromium/chrome/browser/ui/appmenu/SandiumPagedMenu.java": {
+          "previous_sha256": "83ee69e14ae21dde63a950a2fcc3c2f7dd2cc737535cb86bb8c0a3f37eba128b",
+          "current_sha256": "c164285068c4573a707bc6f7c868768cc5fdb52a96745604f6fa63c0f39cbfe2"
+        }
+      }
+    },
+    {
+      "reason": "Reviewed Oppo palette/theme0598ad2+928c869+96b7833+1ff048e and fixed-switch72d81b4+3c4970d+e383b42; retain native callbacks and Settings grouping limitations.",
+      "changes": {
+        ".circleci/experimental-steps/product-overlay-29-0.sh": {
+          "previous_sha256": "c76b7e4cdeda809ddb3d30564acfee1640719f49aee09861d7c6e99ee4f3e310",
+          "current_sha256": "9facc9a8733f405cddf4d845ca87677568dfe3a93d17431b81ec29f0b103cb0d"
+        },
+        ".circleci/scripts/apply-sandium-native-theme.py": {
+          "previous_sha256": "de626469be532107ce07d878ceedd5d29fde8d75c9fba3972df4d0e5955d176f",
+          "current_sha256": "b2dfeb788aa94d9a0c01447bb94ea5ccba0dc7cb5eaeb71027adfd4a5347d0b7"
+        },
+        ".circleci/scripts/test-sandium-native-theme.py": {
+          "previous_sha256": "52b92d4791d0b1cb12fae16d107ae09c7b0aa69747b5462152d0e5ba318691da",
+          "current_sha256": "f28c22984d79abd68e338f522d0618db97ce9551f45fa6db194ddb294ae40015"
+        },
+        "android/java/org/chromium/chrome/browser/firstrun/SandiumWelcomeSetupView.java": {
+          "previous_sha256": "2f4555a13403ff9a87c6aa47ff6c12e898f1f5b63bc2aa7f1a3d917ec2633b8b",
+          "current_sha256": "48b7dcd35b27c2e49871394547e757f14f3812c65c1fe61e13384cbb0cff44da"
+        },
+        "android/java/res/values-night/sandium_menu_colors.xml": {
+          "previous_sha256": "c9a64cb30b2df67eafa6846da63d6d32aacf86aa97c5f1a4784ffebe8f92d184",
+          "current_sha256": "f27fa7dfce1f671ff7029c2a6b29b8c0afa30a029bf93520dbbaf0b4989310a7"
         }
       }
     }

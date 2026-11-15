@@ -109,7 +109,7 @@ def button(s):
         float x = centerX + (getLayoutDirection() == LAYOUT_DIRECTION_RTL ? -10 : 10) * d;
         float y = centerY - 10 * d;
         mSandiumAddPaint.setStyle(android.graphics.Paint.Style.FILL);
-        mSandiumAddPaint.setColor(android.graphics.Color.rgb(110, 142, 181));
+        mSandiumAddPaint.setColor(android.graphics.Color.rgb(25, 140, 255));
         mSandiumAddPaint.setAlpha(isEnabled() ? 255 : 100);
         canvas.drawCircle(x, y, 6 * d, mSandiumAddPaint);
         mSandiumAddPaint.setColor(android.graphics.Color.rgb(8, 8, 8));

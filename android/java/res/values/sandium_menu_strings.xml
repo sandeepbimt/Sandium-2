@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+  <string name="sandium_menu_all">All menu</string>
+  <string name="sandium_menu_all_description">All menu actions and customization</string>
   <string name="sandium_menu_cancel">Cancel</string>
   <string name="sandium_menu_cancel_edits">Cancel menu edits</string>
   <string name="sandium_menu_edit">Edit</string>

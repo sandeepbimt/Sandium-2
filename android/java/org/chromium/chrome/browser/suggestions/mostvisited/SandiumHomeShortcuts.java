@@ -55,9 +55,9 @@ public final class SandiumHomeShortcuts extends LinearLayout {
         super(context);
         mProfile = profile; mOpen = open;
         setOrientation(VERTICAL);
-        mText = color(android.R.attr.textColorPrimary, Color.WHITE);
-        mPanel = color(android.R.attr.colorBackground, 0xff080808);
-        mAccent = color(android.R.attr.colorAccent, 0xff6e8eb5);
+        mText = Color.WHITE; // Shortcut labels sit on the dark translucent surface in either theme.
+        mPanel = 0xcc1a1a1a; // Preserve wallpaper through the rounded shortcut group.
+        mAccent = color(android.R.attr.colorAccent, 0xff198cff);
         setPadding(dp(8), dp(4), dp(8), dp(4));
         setBackground(shape(Color.TRANSPARENT, 16));
     }
@@ -138,7 +138,7 @@ public final class SandiumHomeShortcuts extends LinearLayout {
     private void render() {
         if (!isAttachedToWindow() || mDragging != null) return;
         mBack.setEnabled(isShown() && getWindowVisibility() == VISIBLE && (mEditing || mExpanded));
-        setBackground(shape(mExpanded ? mPanel : Color.TRANSPARENT, 16));
+        setBackground(shape(Color.TRANSPARENT, 16));
         int scroll = mScroll == null ? 0 : mScroll.getScrollY();
         stopWiggles(); mEditTiles.clear(); mGeneration++; removeAllViews();
         if (mEditing) {
@@ -151,6 +151,8 @@ public final class SandiumHomeShortcuts extends LinearLayout {
         }
         mScroll = new ScrollView(getContext()); mScroll.setFillViewport(false);
         mScroll.setClipToPadding(false);
+        mScroll.setBackground(shape(mPanel, 16));
+        mScroll.setClipToOutline(true);
         mScroll.setVerticalScrollBarEnabled(mExpanded);
         mScroll.setScrollbarFadingEnabled(false);
         if (android.os.Build.VERSION.SDK_INT >= 29) {
@@ -167,6 +169,14 @@ public final class SandiumHomeShortcuts extends LinearLayout {
             GridLayout.LayoutParams lp = new GridLayout.LayoutParams(GridLayout.spec(i / 5), GridLayout.spec(i % 5, 1f));
             lp.width = 0; lp.height = dp(76); grid.addView(tile, lp);
         }
+        // Establish all five equal columns even when only one shortcut exists.
+        // Empty slots are neither focusable nor accessibility items.
+        for (int i = count; count > 0 && i < rows * 5; i++) {
+            View slot = new View(getContext());
+            slot.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+            GridLayout.LayoutParams lp = new GridLayout.LayoutParams(GridLayout.spec(i / 5), GridLayout.spec(i % 5, 1f));
+            lp.width = 0; lp.height = dp(76); grid.addView(slot, lp);
+        }
         if (count == 0) {
             TextView empty = button(getResources().getString(R.string.sandium_home_add),this::addDialog);
             GridLayout.LayoutParams emptyParams = new GridLayout.LayoutParams(GridLayout.spec(0),GridLayout.spec(0,5));
@@ -177,10 +187,17 @@ public final class SandiumHomeShortcuts extends LinearLayout {
         if (parentHeight == 0) parentHeight = getResources().getDisplayMetrics().heightPixels;
         int footerHeight = mSites.size() > 20 ? 48 : 0;
         int headerHeight = mEditing ? 48 : 0;
-        // Expanded surface reaches near the top, covering stats, but never the native toolbar.
+        // Keep slot 20 (upper-left) stable as rows fill toward slot 1 (lower-right).
+        // Only populated rows have a panel; the reserved empty area stays transparent.
         int available = Math.max(dp(76), parentHeight - dp(8 + 16 + 8 + footerHeight + headerHeight));
-        int height = mExpanded ? available : Math.min(available, dp(Math.min(4, rows) * 76));
+        int reservedHeight = Math.min(available, dp((mExpanded ? 5 : 4) * 76));
+        int height = Math.min(reservedHeight, dp(rows * 76));
         addView(mScroll, new LinearLayout.LayoutParams(-1, height));
+        if (height < reservedHeight) {
+            View space = new View(getContext());
+            space.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+            addView(space, new LinearLayout.LayoutParams(-1, reservedHeight - height));
+        }
         if (mSites.size() > 20) {
             FrameLayout footer = new FrameLayout(getContext());
             View arrow = new ChevronButton(getContext());
@@ -231,10 +248,21 @@ public final class SandiumHomeShortcuts extends LinearLayout {
         FrameLayout box = new FrameLayout(getContext());
         LinearLayout content = new LinearLayout(getContext()); content.setOrientation(VERTICAL);
         content.setGravity(Gravity.CENTER);
-        FrameLayout iconBox = new FrameLayout(getContext()); iconBox.setBackground(shape(mPanel, 10));
+        FrameLayout iconBox = new FrameLayout(getContext());
+        // Uniform frosted rounded-square backing, not a blur of the favicon or page.
+        // Static drawable avoids per-frame wallpaper sampling/render effects.
+        GradientDrawable frost = new GradientDrawable(GradientDrawable.Orientation.TL_BR,
+                new int[]{0xb34b4e54, 0xb32b2e34});
+        frost.setCornerRadius(dp(12));
+        frost.setStroke(dp(1), 0x26ffffff);
+        iconBox.setBackground(frost);
+        iconBox.setClipToOutline(true);
+        iconBox.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
         TextView letter = text(site.title.isEmpty() ? "•" : site.title.substring(0, 1).toUpperCase(java.util.Locale.ROOT), 23);
         iconBox.addView(letter, new FrameLayout.LayoutParams(-1, -1));
         ImageView icon = new ImageView(getContext()); icon.setPadding(dp(6),dp(6),dp(6),dp(6));
+        icon.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        icon.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
         iconBox.addView(icon, new FrameLayout.LayoutParams(-1, -1));
         content.addView(iconBox, new LinearLayout.LayoutParams(dp(44), dp(44)));
         TextView title = text(site.title.isEmpty() ? site.url.getHost() : site.title, 11);
@@ -338,14 +366,22 @@ public final class SandiumHomeShortcuts extends LinearLayout {
         dialog.setOnShowListener(d -> dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
             GURL url = new GURL(address.getText().toString().trim());
             if (!safe(url)) { address.setError(getResources().getString(R.string.sandium_home_invalid)); return; }
-            if (mBridge != null && mBridge.addCustomLink(title.getText().toString().trim(),url,null)) dialog.dismiss();
+            if (mBridge != null && addNewest(mBridge, title.getText().toString().trim(), url)) dialog.dismiss();
             else address.setError(getResources().getString(R.string.sandium_home_limit));
         })); dialog.show();
+    }
+    private static boolean addNewest(MostVisitedSitesBridge bridge, String title, GURL url) {
+        if (!bridge.addCustomLink(title, url, null)) return false;
+        // Native persistence owns order. Existing manual order is unchanged except for
+        // the new first item. Do not reverse the list or migrate existing profiles.
+        // Addition already succeeded: do not invite a duplicate retry on reorder failure.
+        bridge.reorderCustomLink(url, 0);
+        return true;
     }
     public static boolean addCurrent(Tab tab) {
         if (tab == null || tab.isIncognito() || !safe(tab.getUrl())) return false;
         MostVisitedSitesBridge bridge = new MostVisitedSitesBridge(tab.getProfile(), true);
-        try { return bridge.addCustomLink(tab.getTitle(),tab.getUrl(),null); }
+        try { return addNewest(bridge, tab.getTitle(), tab.getUrl()); }
         finally { bridge.destroy(); }
     }
 }

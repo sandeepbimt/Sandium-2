@@ -67,7 +67,7 @@ def run(audit, chromium, repo):
         assert 'popup.update(x, visibleDisplayFrame.bottom - inset - nextHeight' in java
         assert 'exitBrave();' in (core / 'android/java/org/chromium/chrome/browser/app/BraveActivity.java').read_text()
     java_source = (repo / 'android/java' / patch.PACKAGE / 'SandiumPagedMenu.java').read_text()
-    assert 'setBackground(shape(mPanelColor, 12));' in java_source
+    assert 'setBackground(shape(mPanelColor, 16));' in java_source
     resource_names = {e.get('name') for e in ET.parse(repo / 'android/java/res/values/sandium_menu_strings.xml').getroot()}
     required = set(re.findall(r'R\.string\.(sandium_menu_[a-z_]+)', java_source))
     assert required <= resource_names, required - resource_names

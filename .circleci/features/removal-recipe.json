@@ -350,7 +350,11 @@
     "android/java/org/chromium/chrome/browser/suggestions/mostvisited/BraveMostVisitedSites.java",
     "browser/quick_search_engines/android/java/src/org/chromium/brave/browser/quick_search_engines/utils/QuickSearchEnginesUtil.java",
     "android/java/org/chromium/chrome/browser/search_engines/settings/BraveBaseSearchEngineAdapter.java",
-    "android/java/org/chromium/chrome/browser/search_engines/settings/BraveSearchEngineAdapter.java"
+    "android/java/org/chromium/chrome/browser/search_engines/settings/BraveSearchEngineAdapter.java",
+    "android/java/org/chromium/chrome/browser/settings/BraveWebrtcPolicyPreference.java",
+    "android/java/org/chromium/chrome/browser/onboarding/v2/HighlightDialogFragment.java",
+    "android/java/org/chromium/chrome/browser/upgrade/NotificationIntent.java",
+    "android/java/brave-res/layout/brave_shields_tab_content.xml"
   ],
   "chromium_restore": [
     "chrome/android/chrome_public_apk_tmpl.gni",
@@ -389,11 +393,33 @@
     "chrome/browser/ui/android/omnibox/java/res/values/dimens.xml",
     "chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/ToggleTabStackButton.java",
     "chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/ToggleTabStackButtonCoordinator.java",
-    "chrome/browser/search_engines/android/java/src/org/chromium/chrome/browser/search_engines/settings/SearchEngineAdapter.java"
+    "chrome/browser/search_engines/android/java/src/org/chromium/chrome/browser/search_engines/settings/SearchEngineAdapter.java",
+    "chrome/android/java/src/org/chromium/chrome/browser/settings/SettingsActivity.java",
+    "chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/ToolbarProgressBarLayer.java",
+    "chrome/browser/browser_controls/android/java/src/org/chromium/chrome/browser/browser_controls/TopControlsStacker.java",
+    "chrome/browser/browser_controls/android/java/src/org/chromium/chrome/browser/browser_controls/BrowserControlsStateProvider.java",
+    "chrome/browser/browser_controls/android/java/src/org/chromium/chrome/browser/browser_controls/BrowserControlsSizer.java",
+    "chrome/android/java/src/org/chromium/chrome/browser/fullscreen/BrowserControlsManager.java",
+    "chrome/browser/ui/android/edge_to_edge/java/src/org/chromium/chrome/browser/ui/edge_to_edge/TopInsetProvider.java",
+    "chrome/browser/browser_controls/android/java/src/org/chromium/chrome/browser/browser_controls/TopControlsStackerUnitTest.java",
+    "chrome/browser/ui/android/edge_to_edge/java/src/org/chromium/chrome/browser/ui/edge_to_edge/TransitiveTopInsetProvider.java",
+    "chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/suggestions/OmniboxSuggestionsDropdownEmbedder.java",
+    "chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/OmniboxSuggestionsDropdownEmbedderImpl.java",
+    "chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/suggestions/OmniboxSuggestionsContainer.java",
+    "chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/suggestions/OmniboxSuggestionsDropdown.java",
+    "chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/suggestions/base/BaseSuggestionView.java",
+    "chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/suggestions/HeaderDecoration.java",
+    "chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/suggestions/GroupSeparatorDecoration.java",
+    "chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/suggestions/SuggestionHorizontalDivider.java",
+    "components/page_info/android/java/src/org/chromium/components/page_info/ConnectionInfoView.java",
+    "components/browser_ui/styles/android/BUILD.gn",
+    "components/browser_ui/styles/android/java/res/values/styles.xml"
   ],
   "generated_overwrite": [
     "components/minidump_uploader/android/java/src/org/chromium/components/minidump_uploader/MinidumpUploader.java",
-    "android/java/org/chromium/chrome/browser/SandiumTextUtils.java"
+    "android/java/org/chromium/chrome/browser/SandiumTextUtils.java",
+    "components/browser_ui/styles/android/java/res/color/sandium_switch_thumb.xml",
+    "components/browser_ui/styles/android/java/res/color/sandium_switch_track.xml"
   ],
   "steps": [
     {
@@ -540,7 +566,15 @@
     "browser/ui/android/theme/junit/src/org/chromium/chrome/browser/theme/BraveDynamicColorsTest.java",
     "browser/quick_search_engines/android/java/src/org/chromium/brave/browser/quick_search_engines/utils/QuickSearchEnginesUtil.java",
     "android/java/org/chromium/chrome/browser/search_engines/settings/BraveBaseSearchEngineAdapter.java",
-    "android/java/org/chromium/chrome/browser/search_engines/settings/BraveSearchEngineAdapter.java"
+    "android/java/org/chromium/chrome/browser/search_engines/settings/BraveSearchEngineAdapter.java",
+    "android/BUILD.gn",
+    "android/java/org/chromium/chrome/browser/settings/BraveWebrtcPolicyPreference.java",
+    "android/java/org/chromium/chrome/browser/settings/BackgroundImagesPreferences.java",
+    "android/java/org/chromium/chrome/browser/privacy/settings/BravePrivacySettings.java",
+    "android/java/org/chromium/chrome/browser/shields/CreateCustomFiltersFragment.java",
+    "android/java/org/chromium/chrome/browser/onboarding/v2/HighlightDialogFragment.java",
+    "android/java/org/chromium/chrome/browser/upgrade/NotificationIntent.java",
+    "android/java/brave-res/layout/brave_shields_tab_content.xml"
   ],
   "ui_only_chromium_restore": [
     "chrome/browser/ui/android/appmenu/BUILD.gn",
@@ -569,6 +603,26 @@
     "chrome/browser/ui/android/omnibox/java/res/values/dimens.xml",
     "chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/ToggleTabStackButton.java",
     "chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/ToggleTabStackButtonCoordinator.java",
-    "chrome/browser/search_engines/android/java/src/org/chromium/chrome/browser/search_engines/settings/SearchEngineAdapter.java"
+    "chrome/browser/search_engines/android/java/src/org/chromium/chrome/browser/search_engines/settings/SearchEngineAdapter.java",
+    "chrome/android/java/src/org/chromium/chrome/browser/settings/SettingsActivity.java",
+    "chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/ToolbarProgressBarLayer.java",
+    "chrome/browser/browser_controls/android/java/src/org/chromium/chrome/browser/browser_controls/TopControlsStacker.java",
+    "chrome/browser/browser_controls/android/java/src/org/chromium/chrome/browser/browser_controls/BrowserControlsStateProvider.java",
+    "chrome/browser/browser_controls/android/java/src/org/chromium/chrome/browser/browser_controls/BrowserControlsSizer.java",
+    "chrome/android/java/src/org/chromium/chrome/browser/fullscreen/BrowserControlsManager.java",
+    "chrome/browser/ui/android/edge_to_edge/java/src/org/chromium/chrome/browser/ui/edge_to_edge/TopInsetProvider.java",
+    "chrome/browser/browser_controls/android/java/src/org/chromium/chrome/browser/browser_controls/TopControlsStackerUnitTest.java",
+    "chrome/browser/ui/android/edge_to_edge/java/src/org/chromium/chrome/browser/ui/edge_to_edge/TransitiveTopInsetProvider.java",
+    "chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/suggestions/OmniboxSuggestionsDropdownEmbedder.java",
+    "chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/OmniboxSuggestionsDropdownEmbedderImpl.java",
+    "chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/suggestions/OmniboxSuggestionsContainer.java",
+    "chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/suggestions/OmniboxSuggestionsDropdown.java",
+    "chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/suggestions/base/BaseSuggestionView.java",
+    "chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/suggestions/HeaderDecoration.java",
+    "chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/suggestions/GroupSeparatorDecoration.java",
+    "chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/suggestions/SuggestionHorizontalDivider.java",
+    "components/page_info/android/java/src/org/chromium/components/page_info/ConnectionInfoView.java",
+    "components/browser_ui/styles/android/BUILD.gn",
+    "components/browser_ui/styles/android/java/res/values/styles.xml"
   ]
 }

@@ -36,7 +36,7 @@ class Refinements(unittest.TestCase):
         self.assertIn('getLayoutDirection() == LAYOUT_DIRECTION_RTL ? -10 : 10',out)
         self.assertIn('float y = centerY - 10 * d;',out)
         self.assertIn('canvas.drawCircle(x, y, 6 * d, mSandiumAddPaint)',out)
-        self.assertIn('Color.rgb(110, 142, 181)',out)
+        self.assertIn('Color.rgb(25, 140, 255)',out)
         self.assertNotIn('centerY + 8 * d',out)
 
     def test_no_duplicate_new_tab_slot_even_compact(self):
@@ -74,7 +74,7 @@ class Refinements(unittest.TestCase):
 
     def test_menu_labels_and_compact_accessible_indicators(self):
         source=(ROOT/'android/java/org/chromium/chrome/browser/ui/appmenu/SandiumPagedMenu.java').read_text()
-        self.assertNotIn('mAll',source)
+        self.assertIn('if (mAllMenu)',source) # Latest user moves Edit into All menu.
         self.assertNotIn('button("+", s(R.string.sandium_menu_edit_description)',source)
         self.assertIn('button(s(R.string.sandium_menu_edit)',source)
         self.assertNotIn('weighted(heading, new View(getContext()));',source)
@@ -104,7 +104,7 @@ class Refinements(unittest.TestCase):
                       'grid(availableGroup, mDraft.hiddenKeys(editableKeys()), true)',
                       'group.setBackground(shape(mGroupColor, 12))'):
             self.assertIn(token, source)
-        for folder,expected in [('values','#FFFFFF'),('values-night','#242424')]:
+        for folder,expected in [('values','#FFFFFF'),('values-night','#1A1A1A')]:
             colors={e.get('name'): e.text for e in ET.parse(ROOT/f'android/java/res/{folder}/sandium_menu_colors.xml').getroot()}
             self.assertEqual(colors['sandium_menu_group_surface'], expected)
 

@@ -60,10 +60,10 @@ final class SandiumWelcomeSetupView {
         void onPrepareForRestart();
     }
 
-    private static final int BACKGROUND = Color.rgb(8, 8, 8);
-    private static final int CARD = Color.rgb(16, 16, 16);
+    private static final int BACKGROUND = Color.rgb(0, 0, 0);
+    private static final int CARD = Color.rgb(26, 26, 26);
     private static final int SEPARATOR = Color.rgb(69, 69, 69);
-    private static final int PRIMARY = Color.rgb(110, 142, 181);
+    private static final int PRIMARY = Color.rgb(25, 140, 255);
     private static final int PRIMARY_TEXT = Color.rgb(8, 15, 24);
     private static final int DISABLED_BUTTON = Color.rgb(55, 55, 55);
     private static final int DISABLED_BUTTON_TEXT = Color.rgb(160, 160, 160);
@@ -501,8 +501,8 @@ final class SandiumWelcomeSetupView {
                     new int[] {}
                 },
                 new int[] {
-                    PRIMARY,
-                    Color.rgb(189, 189, 189),
+                    Color.WHITE,
+                    Color.rgb(232, 232, 232),
                     Color.rgb(84, 84, 84),
                     Color.rgb(133, 133, 133)
                 }));
@@ -514,7 +514,7 @@ final class SandiumWelcomeSetupView {
                     new int[] {}
                 },
                 new int[] {
-                    Color.rgb(32, 61, 88),
+                    Color.rgb(25, 140, 255), // Fixed Oppo switch palette, even with dynamic colors.
                     Color.rgb(80, 80, 80),
                     Color.rgb(145, 145, 145),
                     Color.rgb(63, 63, 63)
@@ -672,7 +672,7 @@ final class SandiumWelcomeSetupView {
 
         LayerDrawable background = new LayerDrawable(new Drawable[] {
             roundRect(PRIMARY, 28),
-            new ClipDrawable(roundRect(Color.rgb(213, 187, 128), 28),
+            new ClipDrawable(roundRect(Color.rgb(69, 160, 255), 28),
                     Gravity.LEFT, ClipDrawable.HORIZONTAL)
         });
         ClipDrawable progress = (ClipDrawable) background.getDrawable(1);

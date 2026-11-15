@@ -1,0 +1,11 @@
+# All menu navigation, November 15 feedback
+
+References: user screenshots155601 (Sandium),155602/155603 (Edge quick pages),155604 (Edge All Menu). Latest instruction supersedes prior removal of All Menu and top-right Edit.
+
+Quick menu has no empty Edit header. A permanent All menu tile is appended after customized actions, paged in the same eight-cell grid. It cannot be hidden or deleted; its position is saved with the other actions and can be changed through editor drag or accessible move commands. An otherwise empty customized list still includes it. Adding the tile may require another quick page if existing actions fill the prior pages. Exit remains an ordinary customizable action.
+
+All menu opens a scrollable directory: library shortcuts followed by all currently catalogued actions, including those hidden from quick pages. Existing live disabled/managed/site/private conditions and native handlers are unchanged. No unavailable feature is fabricated. Edit is available here; Cancel/Back discards the draft and Done saves, returning to the directory. Back from the directory returns to quick pages. Existing long-press edit shortcut remains available. Editor permits moving All menu but offers no remove control; a persisted hidden flag is repaired. A saturated512-entry historical catalog falls back to a visible appended tile rather than losing access; reordering that fallback is not available until the state is reset. Native specialized controls retain their escape hatch.
+
+Outer menu radius16dp, grey group radius12dp, same bounded intrinsic sizing and accessibility overflow. Existing guarded entrance/exit and page transitions retained. Tests cover synthetic entry isolation, navigation source contracts,0–200 action pagination arithmetic, pinned composition/reset/replay. No Android build or device rendering/navigation test was run by this change's author.
+
+Movability follow-up: editor long-press drag and tap-to-move commands now include All menu; no remove command is exposed, and stale hidden flags are repaired. Five source tests, menu-fit/refinement/motion tests and full pinned composition passed. Added Java state lifecycle assertions for move/save/reopen/cancel and hidden repair; this follow-up did not execute them because javac is unavailable in this workspace. No Android/device validation claimed.

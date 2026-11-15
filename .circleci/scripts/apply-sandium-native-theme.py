@@ -5,9 +5,9 @@ from pathlib import Path
 import re
 import xml.etree.ElementTree as ET
 
-ACCENT = '#6E8EB5'  # Reference muted blue for active controls, never ordinary body text.
-BACKGROUND = '#080808'
-CARD = '#101010'
+ACCENT = '#198CFF'  # Sampled Oppo ON-track; shared baseline interactive color.
+BACKGROUND = '#000000'
+CARD = '#1A1A1A'
 ON_ACCENT = '#080F18'
 LIGHT_PRIMARY = '#365D86'  # Same blue family, readable on light surfaces.
 COMMON = {
@@ -20,10 +20,10 @@ COMMON = {
     'baseline_primary_10': '#071C32',
     'gm3_baseline_surface_dark': BACKGROUND,
     'gm3_baseline_surface_container_lowest_dark': BACKGROUND,
-    'gm3_baseline_surface_container_low_dark': '#101010',
+    'gm3_baseline_surface_container_low_dark': CARD,
     'gm3_baseline_surface_container_dark': CARD,
-    'gm3_baseline_surface_container_high_dark': '#181818',
-    'gm3_baseline_surface_container_highest_dark': '#202020',
+    'gm3_baseline_surface_container_high_dark': CARD,
+    'gm3_baseline_surface_container_highest_dark': '#242424',
     'gm3_baseline_surface_tint_dark': ACCENT,
     'toolbar_background_primary_dark': BACKGROUND,
 }
@@ -32,12 +32,12 @@ NIGHT = {
     'schemes_on_primary': ON_ACCENT,
     'schemes_surface_container_lowest': BACKGROUND,
     'schemes_surface_container': CARD,
-    'schemes_surface_container_highest': '#202020',
+    'schemes_surface_container_highest': '#242424',
     'schemes_on_surface': '#FAFAFA',
     'schemes_on_surface_variant': '#BDBDBD',
     'schemes_outline_variant': '#454545',
     'button_background': ACCENT,
-    'button_background_10': '#196E8EB5',
+    'button_background_10': '#19198CFF',
     'text_on_primary': ON_ACCENT,
     'text_interactive': ACCENT,
     'icon_interactive': ACCENT,
@@ -49,7 +49,7 @@ NIGHT = {
     'onboarding_card_bg_color': CARD,
     'toolbar_background_color_for_ntp': BACKGROUND,
     'location_bar_background_color_for_ntp': CARD,
-    'dialog_bg_color_dark_baseline': BACKGROUND,
+    'dialog_bg_color_dark_baseline': CARD,
     'divider_interactive': '#454545',
     'semantic_text_interactive': ACCENT,
     'semantic_divider_interactive': '#454545',
@@ -69,14 +69,14 @@ LIGHT = {
 # dialogs and controls. Keep error/security/private-mode token families untouched.
 # These are neutral tonal values, not a global replacement of every hex literal.
 for tone, value in {
-    0: '000000', 10: '101010', 20: '181818', 30: '474747', 40: '616161',
+    0: '000000', 10: '1A1A1A', 20: '242424', 30: '474747', 40: '616161',
     50: '797979', 60: '919191', 70: 'ABABAB', 80: 'C6C6C6',
     90: 'E2E2E2', 95: 'F1F1F1', 99: 'FCFCFC',
 }.items():
     COMMON[f'baseline_neutral_{tone}'] = '#' + value
 for tone, value in {30: '474747', 50: '797979', 60: '919191', 80: 'C6C6C6', 90: 'E2E2E2'}.items():
     COMMON[f'baseline_neutral_variant_{tone}'] = '#' + value
-for tone, value in {30: '254563', 50: '50759E', 60: '6E8EB5', 70: 'A2BCDC', 95: 'EBF3FF'}.items():
+for tone, value in {30: '254563', 50: '50759E', 60: '198CFF', 70: 'A2BCDC', 95: 'EBF3FF'}.items():
     COMMON[f'baseline_primary_{tone}'] = '#' + value
 for family, tones in {
     'secondary': {10: '171717', 25: '3B3B3B', 30: '474747', 35: '545454',
@@ -131,7 +131,7 @@ LIGHT['text_tertiary'] = '#616161'
 
 NIGHT.update({
     'card_background_solid': CARD,
-    'toolbar_text_box_bg_color': '#181818',
+    'toolbar_text_box_bg_color': CARD,
 })
 LIGHT.update({
     'schemes_on_surface': '#202020',
@@ -164,6 +164,95 @@ def recolor(text, mapping):
     return text
 
 SETTINGS = 'android/java/org/chromium/chrome/browser/settings/BraveSettingsActivity.java'
+
+SETTINGS_GROUPS = """    // SANDIUM_OPPO_GROUPS: decoration only; native row binding, ripple, clicks,
+    // summaries, switch geometry and accessibility remain owned by Preferences.
+    private void sandiumStylePreferenceGroups(Fragment fragment, View fragmentView) {
+        if (!(fragment instanceof androidx.preference.PreferenceFragmentCompat)
+                || org.chromium.chrome.browser.theme.BraveDynamicColors.isDynamicColorsEnabled()) {
+            return;
+        }
+        RecyclerView list = fragmentView.findViewById(R.id.recycler_view);
+        if (list == null || !(list.getAdapter() instanceof androidx.preference.PreferenceGroupAdapter)) {
+            return;
+        }
+        for (int i = 0; i < list.getItemDecorationCount(); i++) {
+            if (list.getItemDecorationAt(i) instanceof SandiumPreferenceGroups) return;
+        }
+        list.addItemDecoration(new SandiumPreferenceGroups(
+                getColor(R.color.card_background_solid), getResources().getDisplayMetrics().density));
+    }
+
+    private static final class SandiumPreferenceGroups extends RecyclerView.ItemDecoration {
+        private final android.graphics.Paint mPaint =
+                new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
+        private final android.graphics.Path mPath = new android.graphics.Path();
+        private final android.graphics.RectF mBounds = new android.graphics.RectF();
+        private final float[] mRadii = new float[8];
+        private final float mRadius;
+        private final int mGutter;
+        private final int mGap;
+
+        SandiumPreferenceGroups(int color, float density) {
+            mPaint.setColor(color);
+            mRadius = 16 * density;
+            mGutter = Math.round(12 * density);
+            mGap = Math.round(6 * density);
+        }
+
+        private static androidx.preference.@Nullable Preference item(RecyclerView parent, int index) {
+            if (!(parent.getAdapter() instanceof androidx.preference.PreferenceGroupAdapter adapter)
+                    || index < 0 || index >= adapter.getItemCount()) return null;
+            return adapter.getItem(index);
+        }
+
+        private static boolean ordinary(androidx.preference.@Nullable Preference item) {
+            // Category headers retain their own native surfaces.
+            return item != null && !(item instanceof androidx.preference.PreferenceCategory);
+        }
+
+        private static boolean sameGroup(androidx.preference.@Nullable Preference a,
+                androidx.preference.@Nullable Preference b) {
+            return a != null && b != null && ordinary(a) && ordinary(b)
+                    && a.getParent() == b.getParent();
+        }
+
+        @Override
+        public void getItemOffsets(android.graphics.Rect out, View view,
+                RecyclerView parent, RecyclerView.State state) {
+            int position = parent.getChildAdapterPosition(view);
+            androidx.preference.Preference current = item(parent, position);
+            if (!ordinary(current)) return;
+            out.left = mGutter;
+            out.right = mGutter;
+            out.top = sameGroup(item(parent, position - 1), current) ? 0 : mGap;
+            out.bottom = sameGroup(current, item(parent, position + 1)) ? 0 : mGap;
+        }
+
+        @Override
+        public void onDraw(android.graphics.Canvas canvas, RecyclerView parent,
+                RecyclerView.State state) {
+            for (int i = 0; i < parent.getChildCount(); i++) {
+                View row = parent.getChildAt(i);
+                int position = parent.getChildAdapterPosition(row);
+                androidx.preference.Preference current = item(parent, position);
+                if (!ordinary(current)) continue;
+                float top = sameGroup(item(parent, position - 1), current) ? 0 : mRadius;
+                float bottom = sameGroup(current, item(parent, position + 1)) ? 0 : mRadius;
+                mBounds.set(row.getLeft(), row.getTop() + row.getTranslationY(),
+                        row.getRight(), row.getBottom() + row.getTranslationY());
+                mPath.reset();
+                for (int corner = 0; corner < 8; corner++) {
+                    mRadii[corner] = corner < 4 ? top : bottom;
+                }
+                mPath.addRoundRect(mBounds, mRadii, android.graphics.Path.Direction.CW);
+                canvas.drawPath(mPath, mPaint);
+            }
+        }
+    }
+
+"""
+
 
 def settings_motion(source):
     """Fade newly created app-owned settings content, never scroll/model updates."""
@@ -217,12 +306,17 @@ def settings_surface(source):
         // Paint only the screen root, never preference cards, dialogs or web content.
         if (fragment.getParentFragment() == null) {
             fragmentView.setBackgroundColor(sandiumSettingsBackground());
+            sandiumStylePreferenceGroups(fragment, fragmentView);
         }
         View insetView = getInsetView(fragment, fragmentView);"""
     if new_fragment not in source:
         if source.count(old_fragment) != 1:
             raise ValueError('Pinned Settings root anchor changed')
         source = source.replace(old_fragment, new_fragment, 1)
+    if SETTINGS_GROUPS not in source:
+        if source.count(anchor) != 1:
+            raise ValueError('Pinned Settings group anchor changed')
+        source = source.replace(anchor, SETTINGS_GROUPS + anchor, 1)
     return source
 
 def apply(root):

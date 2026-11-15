@@ -69,3 +69,45 @@ The reference's example websites/logos are illustrative; the implementation neve
 
 
 Integration update: the Nov 15 final palette supersedes gold in the frozen geometry. Shortcut accents continue to resolve the shared native colorAccent, with light-blue #6E8EB5 fallback; background fallback is #080808. Geometry and interactions remain frozen.
+
+
+## November 15 numbered layout revision
+
+The reference numbers put **20 at upper-left** and **1 at lower-right**.
+Both add entry points now add through the native profile manager and move the
+new URL to index zero. The existing relative order, user drag edits and native
+sync storage are preserved; there is no list reversal or migration. If an add
+succeeds but its subsequent native reorder fails, the added item remains saved
+in native order rather than reporting failure and inviting a duplicate retry.
+
+Collapsed layout reserves four rows of five slots. The first item uses the
+upper-left slot, with invisible non-interactive column placeholders keeping
+its width consistent. The rounded, translucent dark group covers populated
+rows only; unused reserved rows are transparent. More than twenty entries
+shows the expand arrow. Expanded mode shows at most five rows (less if the
+available viewport requires it) and scrolls to remaining items, with the
+existing visible scrollbar and drag-edge scrolling. Empty state retains Add.
+Labels are white against this dark surface even with a light app theme.
+
+Homepage Privacy Stats visibility is disabled at both NTP assignment points;
+Shields, counter collection and other Stats functionality are not disabled.
+
+Validation: pinned upstream/removal composition, idempotence and drift tests;
+numbered ordering and viewport arithmetic models; existing native capacity
+harness. These are not Android rendering or device gesture tests. Device QA
+must cover 1/5/6/20/21/25/26 items, narrow/landscape/font-scaled windows,
+expansion, reorder, delete and sync changes. No CI build was started here.
+
+
+### Frosted icon backing
+Reference `155600.jpg` uses consistent rounded-square icon surfaces. All shortcut
+icons retain 44dp outer bounds with a 12dp corner radius, a subtle static
+translucent gray diagonal gradient and faint border. Favicons fit within a32dp
+content square (6dp padding), preserving aspect ratio and original colors;
+letter fallback remains visible until a real favicon arrives. No bitmap blur,
+recoloring, wallpaper sampling or additional network fetch is introduced.
+The backing is decorative; the existing full tile remains the accessible,
+editable and draggable target. This is a frosted visual approximation, not a
+live backdrop-blur effect. Small/transparent source favicons can still have
+different optical weight; source content is not cropped or stretched to fake
+identical visual silhouettes. Device visual confirmation remains required.

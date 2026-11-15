@@ -7,6 +7,15 @@ import hashlib
 from pathlib import Path
 
 FILES = {
+ 'TransitiveTopInsetProvider.java': 'chrome/browser/ui/android/edge_to_edge/java/src/org/chromium/chrome/browser/ui/edge_to_edge/TransitiveTopInsetProvider.java',
+ 'TopControlsStackerUnitTest.java': 'chrome/browser/browser_controls/android/java/src/org/chromium/chrome/browser/browser_controls/TopControlsStackerUnitTest.java',
+ 'TopControlsStacker.java': 'chrome/browser/browser_controls/android/java/src/org/chromium/chrome/browser/browser_controls/TopControlsStacker.java',
+ 'BrowserControlsStateProvider.java': 'chrome/browser/browser_controls/android/java/src/org/chromium/chrome/browser/browser_controls/BrowserControlsStateProvider.java',
+ 'BrowserControlsSizer.java': 'chrome/browser/browser_controls/android/java/src/org/chromium/chrome/browser/browser_controls/BrowserControlsSizer.java',
+ 'BrowserControlsManager.java': 'chrome/android/java/src/org/chromium/chrome/browser/fullscreen/BrowserControlsManager.java',
+ 'TopInsetProvider.java': 'chrome/browser/ui/android/edge_to_edge/java/src/org/chromium/chrome/browser/ui/edge_to_edge/TopInsetProvider.java',
+
+ 'ToolbarPositionController.java': 'chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/ToolbarPositionController.java',
  'EdgeToEdgeControllerCreator.java': 'chrome/browser/ui/android/edge_to_edge/java/src/org/chromium/chrome/browser/ui/edge_to_edge/EdgeToEdgeControllerCreator.java',
  'EdgeToEdgeControllerTest.java': 'chrome/browser/ui/android/edge_to_edge/internal/junit/src/org/chromium/chrome/browser/ui/edge_to_edge/EdgeToEdgeControllerTest.java',
  'EdgeToEdgeLayoutUnitTest.java': 'ui/edge_to_edge/android/junit/src/org/chromium/ui/edge_to_edge/layout/EdgeToEdgeLayoutUnitTest.java',
@@ -26,7 +35,174 @@ def replace(s, old, new):
     if s.count(old) != 1: raise RuntimeError('Unexpected pinned source: '+old[:100])
     return s.replace(old,new,1)
 
+
+# Scroll-away header reservation: native controls own the offset, never website CSS
+# or per-scroll Android translation. Keep reversible exact anchors for checkpoints.
+SPACER_PATCHES = {'EdgeToEdgeBaseLayout.java': [('new android.graphics.LinearGradient(0, 0, 0, height * 1.5f,',
+                                'new android.graphics.LinearGradient(0, 0, 0, height,'),
+                               ('canvas.drawRect(0, 0, getWidth(), mSandiumTopProtectionHeight * 1.5f,',
+                                'canvas.drawRect(0, 0, getWidth(), mSandiumTopProtectionHeight,')],
+ 'TopInsetProvider.java': [('public interface TopInsetProvider extends Destroyable {',
+                            'public interface TopInsetProvider extends Destroyable {\n'
+                            '    /** Sandium ordinary-web underlap only; native edge-to-edge pages do not own a '
+                            'spacer. */\n'
+                            '    default boolean isSandiumWebUnderlapActive() { return false; }\n')],
+ 'BrowserControlsStateProvider.java': [('public interface BrowserControlsStateProvider {',
+                                        'public interface BrowserControlsStateProvider {\n'
+                                        "    /** Height owned by Sandium's registered scroll-away status layer, "
+                                        'not other controls. */\n'
+                                        '    default int getSandiumStatusSpacerHeight() { return 0; }\n')],
+ 'BrowserControlsSizer.java': [('public interface BrowserControlsSizer extends BrowserControlsVisibilityManager {',
+                                'public interface BrowserControlsSizer extends BrowserControlsVisibilityManager '
+                                '{\n'
+                                '    /** Metadata only. TopControlsStacker remains the sole writer of aggregate '
+                                'height. */\n'
+                                '    default void setSandiumStatusSpacerHeight(int height) {}\n')],
+ 'BrowserControlsManager.java': [('    @Override\n'
+                                  '    public void setTopControlsHeight(int topControlsHeight, int '
+                                  'topControlsMinHeight) {',
+                                  '    private int mSandiumStatusSpacerHeight;\n'
+                                  '\n'
+                                  '    @Override\n'
+                                  '    public int getSandiumStatusSpacerHeight() { return '
+                                  'mSandiumStatusSpacerHeight; }\n'
+                                  '\n'
+                                  '    @Override\n'
+                                  '    public void setSandiumStatusSpacerHeight(int height) {\n'
+                                  '        mSandiumStatusSpacerHeight = Math.max(0, height);\n'
+                                  '    }\n'
+                                  '\n'
+                                  '    @Override\n'
+                                  '    public void setTopControlsHeight(int topControlsHeight, int '
+                                  'topControlsMinHeight) {')],
+ 'EdgeToEdgeControllerImpl.java': [('    private boolean mSandiumScrollUnderStatusBar;',
+                                    '    private boolean mSandiumScrollUnderStatusBar;\n'
+                                    '\n'
+                                    '    @Override\n'
+                                    '    public boolean isSandiumWebUnderlapActive() {\n'
+                                    '        return mSandiumScrollUnderStatusBar;\n'
+                                    '    }\n'),
+                                   ('&& controls.getTopControlsHeight() == 0',
+                                    '&& controls.getTopControlsHeight() == '
+                                    'controls.getSandiumStatusSpacerHeight()\n'
+                                    '                && controls.getTopControlsMinHeight() == 0')],
+ 'ToolbarPositionController.java': [("        // Exits early if the top padding doesn't need adjusting.\n"
+                                     '        if (NtpCustomizationUtils.shouldSkipTopInsetsChange(',
+                                     '        // A bottom toolbar never owns status padding. Register a separate '
+                                     'native\n'
+                                     '        // scroll-away top layer so the header starts below the status bar '
+                                     'at origin.\n'
+                                     '        boolean sandiumSpacer = consumeTopInset\n'
+                                     '                && mTopInsetProvider.isSandiumWebUnderlapActive()\n'
+                                     '                && layoutType == LayoutType.BROWSING\n'
+                                     '                && mBrowserControlsSizer.getControlsPosition() == '
+                                     'ControlsPosition.BOTTOM;\n'
+                                     '        mTopControlsStacker.setSandiumStatusSpacerHeight(sandiumSpacer ? '
+                                     'systemTopInset : 0);\n'
+                                     '        if (mBrowserControlsSizer.getControlsPosition() == '
+                                     'ControlsPosition.BOTTOM) {\n'
+                                     '            consumeTopInset = false;\n'
+                                     '        }\n'
+                                     "        // Exits early if the top padding doesn't need adjusting.\n"
+                                     '        if (NtpCustomizationUtils.shouldSkipTopInsetsChange('),
+                                    ('    public void destroy() {',
+                                     '    public void destroy() {\n'
+                                     '        mTopControlsStacker.setSandiumStatusSpacerHeight(0);')],
+ 'TopControlsStacker.java': [('    @IntDef({\n        TopControlType.STATUS_INDICATOR,',
+                              '    @IntDef({\n'
+                              '        TopControlType.SANDIUM_STATUS_SPACER,\n'
+                              '        TopControlType.STATUS_INDICATOR,'),
+                             ('        int STATUS_INDICATOR = 0;',
+                              '        int SANDIUM_STATUS_SPACER = 7;\n        int STATUS_INDICATOR = 0;'),
+                             ('                TopControlType.STATUS_INDICATOR,',
+                              '                TopControlType.SANDIUM_STATUS_SPACER,\n'
+                              '                TopControlType.STATUS_INDICATOR,'),
+                             ('    private int mTotalHeight;',
+                              '    private int mSandiumStatusSpacerHeight;\n'
+                              '    private boolean mSandiumDestroyed;\n'
+                              '\n'
+                              '    /** Updates only our registered layer. Existing native layers keep ownership '
+                              'of their sizes. */\n'
+                              '    public void setSandiumStatusSpacerHeight(int height) {\n'
+                              '        if (mSandiumDestroyed) return;\n'
+                              '        height = Math.max(0, height);\n'
+                              '        if (height == mSandiumStatusSpacerHeight) return;\n'
+                              '        mSandiumStatusSpacerHeight = height;\n'
+                              '        requestLayerUpdateSync(false);\n'
+                              '    }\n'
+                              '\n'
+                              '    private int mTotalHeight;'),
+                             ('        mControls = new HashMap<>();',
+                              '        mControls = new HashMap<>();\n'
+                              '        mControls.put(TopControlType.SANDIUM_STATUS_SPACER, new TopControlLayer() '
+                              '{\n'
+                              '            @Override\n'
+                              '            public int getTopControlType() { return '
+                              'TopControlType.SANDIUM_STATUS_SPACER; }\n'
+                              '            @Override\n'
+                              '            public int getTopControlHeight() { return mSandiumStatusSpacerHeight; '
+                              '}\n'
+                              '            @Override\n'
+                              '            public int getTopControlVisibility() {\n'
+                              '                return mSandiumStatusSpacerHeight > 0\n'
+                              '                        ? TopControlVisibility.VISIBLE : '
+                              'TopControlVisibility.HIDDEN;\n'
+                              '            }\n'
+                              '        });'),
+                             ('    private void updateTopControlsHeight(boolean requireAnimations) {',
+                              '    private void updateTopControlsHeight(boolean requireAnimations) {\n'
+                              '        // Publish ownership before the aggregate-height observer callbacks.\n'
+                              '        '
+                              'mBrowserControlsSizer.setSandiumStatusSpacerHeight(mSandiumStatusSpacerHeight);'),
+                             ('    public void destroy() {',
+                              '    public void destroy() {\n'
+                              '        mSandiumDestroyed = true;\n'
+                              '        mBrowserControlsSizer.setSandiumStatusSpacerHeight(0);'),
+                             ('            case TopControlType.STATUS_INDICATOR:',
+                              '            case TopControlType.SANDIUM_STATUS_SPACER:\n'
+                              '                return "SANDIUM_STATUS_SPACER";\n'
+                              '            case TopControlType.STATUS_INDICATOR:')]}
+
+# A final underlap notification must clear our layer even when native HUB defers its
+# usual top-inset callbacks. An absent tab must also release only our reservation.
+SPACER_PATCHES['EdgeToEdgeControllerImpl.java'].append((
+    '                    mCurrentTab != null || activeLayoutType != LayoutType.HUB;',
+    '                    wasSandiumUnderlap || mCurrentTab != null || activeLayoutType != LayoutType.HUB;'))
+SPACER_PATCHES['ToolbarPositionController.java'].append((
+    '                && layoutType != LayoutType.TOOLBAR_SWIPE) {\n            return false;',
+    '                && layoutType != LayoutType.TOOLBAR_SWIPE) {\n            mTopControlsStacker.setSandiumStatusSpacerHeight(0);\n            return false;'))
+
+SPACER_PATCHES['TopControlsStackerUnitTest.java'] = [(
+    '    @Test\n    public void testAddRemoveControl() {',
+    '    @Test\n    public void testSandiumSpacerPreservesOtherLayersAndZeroMinimum() {\n        TestLayer toolbar = TestLayer.toolbarLayer();\n        mTopControlsStacker.addControl(toolbar);\n        mTopControlsStacker.setSandiumStatusSpacerHeight(24);\n        assertControlsHeight(124, 0);\n        verify(mBrowserControlsSizer).setSandiumStatusSpacerHeight(24);\n        mTopControlsStacker.setSandiumStatusSpacerHeight(0);\n        assertControlsHeight(100, 0);\n        verify(mBrowserControlsSizer, atLeastOnce()).setSandiumStatusSpacerHeight(0);\n    }\n\n    @Test\n    public void testSandiumSpacerIgnoresUpdatesAfterDestroy() {\n        mTopControlsStacker.setSandiumStatusSpacerHeight(24);\n        mTopControlsStacker.destroy();\n        reset(mBrowserControlsSizer);\n        mTopControlsStacker.setSandiumStatusSpacerHeight(60);\n        verify(mBrowserControlsSizer, never()).setTopControlsHeight(60, 0);\n        verify(mBrowserControlsSizer, never()).setSandiumStatusSpacerHeight(60);\n    }\n\n    @Test\n    public void testAddRemoveControl() {')]
+
+SPACER_PATCHES['TransitiveTopInsetProvider.java'] = [(
+    '    @Override\n    public void addObserver(TopInsetProvider.Observer observer) {',
+    '    @Override\n    public boolean isSandiumWebUnderlapActive() {\n        var provider = mTopInsetProviderSupplier.get();\n        return provider != null && provider.isSandiumWebUnderlapActive();\n    }\n\n    @Override\n    public void addObserver(TopInsetProvider.Observer observer) {')]
+
+SPACER_PATCHES['EdgeToEdgeControllerImpl.java'].extend([
+    ('    private boolean mSandiumScrollUnderStatusBar;',
+     '    private boolean mSandiumScrollUnderStatusBar;\n    private boolean mSandiumStatusDestroyed;'),
+    ('        return mSandiumScrollUnderStatusBar;',
+     '        return mSandiumScrollUnderStatusBar && !mSandiumStatusDestroyed;'),
+    ('    public void destroy() {\n        if (mSandiumScrollUnderStatusBar) {',
+     '    public void destroy() {\n        mSandiumStatusDestroyed = true;\n        if (mSandiumScrollUnderStatusBar) {'),
+])
+
+def undo_spacer(name, text):
+    for old, new in reversed(SPACER_PATCHES.get(name, [])):
+        if new in text:
+            if text.count(new) != 1: raise RuntimeError('Duplicate scroll-away spacer anchor')
+            text = text.replace(new, old, 1)
+    return text
+
+def apply_spacer(name, text):
+    for old, new in SPACER_PATCHES.get(name, []):
+        text = replace(text, old, new)
+    return text
+
 def transform(name,s):
+    s = undo_spacer(name, s)
     # Strip only this exact-version extension before the older whole-block idempotence anchors.
     if name == 'EdgeToEdgeControllerImpl.java' and '    // Constraint/visibility changes do not necessarily move browser controls.' in s:
         start = s.index('    // Constraint/visibility changes do not necessarily move browser controls.')
@@ -571,7 +747,7 @@ def transform(name,s):
                     + ",status=" + statusBarInsets.top + ",padding=" + overallInsets.top);
         }
         // Consume the insets since the root view already adjusted their paddings.""")
-    return s
+    return apply_spacer(name, s)
 
 def apply(root, enabled=True):
     pending=[]

@@ -30,6 +30,12 @@ def layout(t):
     t=once(t,'    private boolean mIsTopSitesEnabled;', '''    private @Nullable SandiumHomeShortcuts mSandiumShortcuts;
     private boolean mIsTopSitesEnabled;''')
     t=t.replace('mIsTopSitesEnabled = NtpUtil.shouldDisplayTopSites();','mIsTopSitesEnabled = false; // Sandium owns the native shortcut surface.')
+    # Hide only the homepage stats card, not Shields or its underlying counters.
+    stats_old='mIsBraveStatsEnabled = NtpUtil.shouldDisplayBraveStats();'
+    stats_new='mIsBraveStatsEnabled = false; // Sandium homepage has no Privacy Stats card.'
+    if t.count(stats_old) + t.count(stats_new) != 2:
+        raise ValueError('Home stats display anchor mismatch')
+    t=t.replace(stats_old,stats_new)
     t=shortcut_visibility_listener(t)
     return once(t,'        mActivity = activity;','''        mActivity = activity;
         if (mSandiumShortcuts == null && !profile.isOffTheRecord()) {
@@ -50,16 +56,23 @@ def layout(t):
         }''')
 
 def delegate(t):
-    return once(t,'        // Page Zoom\n        final MVCListAdapter.ModelList modelList = new MVCListAdapter.ModelList();','''        // Page Zoom
-        final MVCListAdapter.ModelList modelList = new MVCListAdapter.ModelList();
-        Tab sandiumHomeTab = mActivityTabProvider.get();
-        if (sandiumHomeTab != null && !sandiumHomeTab.isIncognito()
-                && ("https".equals(sandiumHomeTab.getUrl().getScheme()) || "http".equals(sandiumHomeTab.getUrl().getScheme()))) {
-            modelList.add(new MVCListAdapter.ListItem(AppMenuItemType.STANDARD,
-                    AppMenuItemUtils.buildModelForStandardMenuItem(mContext, mAppMenuItemTheme,
-                            R.id.sandium_add_home_shortcut, R.string.sandium_add_home_shortcut,
-                            R.drawable.ic_baseline_add_24, isMenuIconAtStart())));
-        }''')
+    action = r"""        Tab sandiumHomeTab = mActivityTabProvider.get();
+        // Keep the customizable action discoverable on the internal homepage, but never
+        // persist an internal/private URL. Native dispatch revalidates the current tab.
+        boolean sandiumCanAddHome = sandiumHomeTab != null && !sandiumHomeTab.isIncognito()
+                && ("https".equals(sandiumHomeTab.getUrl().getScheme()) || "http".equals(sandiumHomeTab.getUrl().getScheme()));
+        org.chromium.ui.modelutil.PropertyModel sandiumAddHomeModel =
+                AppMenuItemUtils.buildModelForStandardMenuItem(mContext, mAppMenuItemTheme,
+                        R.id.sandium_add_home_shortcut, R.string.sandium_add_home_shortcut,
+                        R.drawable.ic_baseline_add_24, isMenuIconAtStart());
+        sandiumAddHomeModel.set(AppMenuItemProperties.ENABLED, sandiumCanAddHome);
+        modelList.add(new MVCListAdapter.ListItem(AppMenuItemType.STANDARD, sandiumAddHomeModel));"""
+    t = once(t, '        // Page Zoom\n        final MVCListAdapter.ModelList modelList = new MVCListAdapter.ModelList();',
+             '        // Page Zoom\n        final MVCListAdapter.ModelList modelList = new MVCListAdapter.ModelList();\n' + action)
+    # buildPageActionsModelList is Brave's separate customization catalog, not the live menu.
+    # Register the same guarded action in the real page-menu model before customization too.
+    anchor = '        if (menuGroup == MenuGroup.PAGE_MENU) {\n'
+    return once(t, anchor, anchor + '\n'.join('    ' + line for line in action.splitlines()) + '\n')
 
 def activity(t):
     return once(t,'        // Handle items replaced by Brave.','''        if (id == R.id.sandium_add_home_shortcut) {

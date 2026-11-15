@@ -48,3 +48,26 @@ python3 .circleci/scripts/test-sandium-search-choices.py
 python3 .circleci/scripts/apply-sandium-focus-follow.py --src "$SRC"
 python3 .circleci/scripts/apply-sandium-focus-follow.py --src "$SRC" --verify-only
 python3 .circleci/scripts/test-sandium-focus-follow.py
+
+# Settings owns scoped fade resources, not shared app-wide axis animations.
+python3 .circleci/scripts/apply-sandium-settings-fade.py --src "$SRC" --core "$CORE"
+python3 .circleci/scripts/apply-sandium-settings-fade.py --src "$SRC" --core "$CORE" --verify-only
+python3 .circleci/scripts/test-sandium-settings-fade.py
+
+# Bounded opt-in geometry diagnostics only; does not fix loading-bar appearance.
+python3 .circleci/scripts/apply-sandium-progress-diagnostics.py --src "$SRC"
+python3 .circleci/scripts/apply-sandium-progress-diagnostics.py --src "$SRC" --verify-only
+python3 .circleci/scripts/test-sandium-progress-diagnostics.py
+
+# Native bottom-ranked suggestion groups after omnibox composition.
+python3 .circleci/scripts/apply-sandium-suggestion-anchor.py "$SRC"
+python3 .circleci/scripts/apply-sandium-suggestion-anchor.py "$SRC" --verify-only
+python3 .circleci/scripts/test-sandium-suggestion-anchor.py
+
+# Scoped audited Brave UI-link suppression; operational services unchanged.
+python3 .circleci/scripts/apply-sandium-ui-links.py --core "$CORE" --src "$SRC"
+python3 .circleci/scripts/test-sandium-ui-links.py --core "$CORE" --src "$SRC"
+
+# Fixed high-contrast native switch palette, after Shields and native theme.
+python3 .circleci/scripts/apply-sandium-oppo-toggles.py "$SRC" "$CORE"
+python3 .circleci/scripts/test-sandium-oppo-toggles.py

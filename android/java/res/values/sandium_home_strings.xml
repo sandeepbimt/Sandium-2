@@ -1,5 +1,5 @@
 <resources>
-  <string name="sandium_add_home_shortcut">Add to Sandium home</string>
+  <string name="sandium_add_home_shortcut">Add to Sandium homepage</string>
   <string name="sandium_home_added">Added to Sandium home</string>
   <string name="sandium_home_unavailable">Already saved or unavailable</string>
   <string name="sandium_home_less">⌄  Show less</string>

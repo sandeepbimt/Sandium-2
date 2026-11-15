@@ -39,6 +39,8 @@ import java.util.Set;
 final class SandiumPagedMenu extends FrameLayout {
     private static final String PREF = "sandium.menu.layout.v1";
     private static final int PAGE_SIZE = 8;
+    private static final String ALL_MENU = "sandium:all-menu";
+    private boolean mAllMenu;
     private final int mGroupColor, mPanelColor, mTextColor, mSecondaryTextColor, mDividerColor, mAccentColor;
     private final ModelList mModels;
     private final SandiumMenuMetadata.FooterProvider mFooter;
@@ -59,6 +61,7 @@ final class SandiumPagedMenu extends FrameLayout {
     private int mPageMotionGeneration;
     private int mPageMinimumHeight;
     private android.animation.ValueAnimator mPanelAnimator;
+    private android.animation.ValueAnimator mEntranceAnimator;
     private float mPanelAlpha = 1f;
     private boolean mNativeVisible;
     private float mDownX, mDownY;
@@ -85,6 +88,7 @@ final class SandiumPagedMenu extends FrameLayout {
     private PendingNativeAction mPendingNativeAction;
     private long mLastPageDrag;
     private ScrollView mScroll;
+    private LinearLayout mHeading, mBody;
 
     private static final class Entry {
         final PropertyModel model;
@@ -107,7 +111,7 @@ final class SandiumPagedMenu extends FrameLayout {
                 ? (SandiumMenuMetadata.FooterProvider) footer : null;
         if (mFooter != null) SandiumMenuMetadata.watchFooter(mFooter, mFooterChanged);
         mModels = models; mNative = nativeContent; mNativeList = nativeList;
-        setBackground(shape(mPanelColor, 12));
+        setBackground(shape(mPanelColor, 16));
         setClipToOutline(true);
         refreshCatalog();
         Set<String> hidden = new HashSet<>();
@@ -148,7 +152,38 @@ final class SandiumPagedMenu extends FrameLayout {
     private void scheduleRefresh() {
         if (!mRefreshPending) { mRefreshPending = true; post(mRefreshTask); }
     }
+    @Override protected void onAttachedToWindow() {
+        super.onAttachedToWindow();
+        finishEntranceMotion();
+        if (org.chromium.base.SysUtils.isLowEndDevice()
+                || !android.animation.ValueAnimator.areAnimatorsEnabled()) return;
+        // Own the opening fade: OEM PopupWindow window-animation styles can be skipped.
+        // Set before the first draw; no translation, scale, delayed input or hidden controls.
+        setAlpha(0f);
+        mEntranceAnimator = android.animation.ValueAnimator.ofFloat(0f, 1f);
+        mEntranceAnimator.setDuration(100);
+        mEntranceAnimator.setInterpolator(new android.view.animation.LinearInterpolator());
+        mEntranceAnimator.addUpdateListener(animation -> setAlpha((float) animation.getAnimatedValue()));
+        mEntranceAnimator.addListener(new android.animation.AnimatorListenerAdapter() {
+            @Override public void onAnimationEnd(android.animation.Animator animation) {
+                if (mEntranceAnimator == animation) {
+                    mEntranceAnimator = null;
+                    setAlpha(1f);
+                }
+            }
+        });
+        mEntranceAnimator.start();
+    }
+    private void finishEntranceMotion() {
+        if (mEntranceAnimator != null) {
+            android.animation.ValueAnimator animation = mEntranceAnimator;
+            mEntranceAnimator = null;
+            animation.cancel();
+        }
+        setAlpha(1f);
+    }
     @Override protected void onDetachedFromWindow() {
+        finishEntranceMotion();
         for (PropertyModel model : mObserved) model.removeObserver(mObserver);
         mObserved.clear(); mRequestedIcons.clear(); removeCallbacks(mRefreshTask); mRefreshPending = false;
         if (mFooter != null) SandiumMenuMetadata.watchFooter(mFooter, null);
@@ -285,15 +320,22 @@ final class SandiumPagedMenu extends FrameLayout {
 
     boolean handleBack() {
         if (mDraft != null) { mDraft = null; render(); return true; }
+        if (mAllMenu && !mNativeVisible) { mAllMenu = false; render(); return true; }
         if (mNativeVisible) { if (mNativeReset != null) mNativeReset.run(); render(); return true; }
         return false;
     }
     void setNativeDrillDown(java.util.function.BooleanSupplier supplier) { mNativeDrillDown = supplier; }
     void setNativeReset(Runnable reset) { mNativeReset = reset; }
     void setResizeListener(Runnable resize) { mResize = resize; }
-    int preferredHeight(int available) {
-        return Math.min(available, mDraft != null || mNativeVisible
-                ? (int) (available * .88f) : dp(410));
+    int preferredHeight(int width, int available) {
+        if (mNativeVisible || mHeading == null || mBody == null) return Math.max(1, (int) (available * .88f));
+        int contentWidth = Math.max(1, width - dp(24));
+        int exactWidth = MeasureSpec.makeMeasureSpec(contentWidth, MeasureSpec.EXACTLY);
+        mHeading.measure(exactWidth, MeasureSpec.makeMeasureSpec(available, MeasureSpec.AT_MOST));
+        mBody.measure(exactWidth, MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED));
+        // Grow the sheet to fit this page; retain real scrolling when accessibility/font/window
+        // constraints make its intrinsic content taller than the usable display.
+        return Math.max(1, Math.min(available, dp(16) + mHeading.getMeasuredHeight() + mBody.getMeasuredHeight()));
     }
     private void finishPanelMotion() {
         if (mPanelAnimator != null) { mPanelAnimator.cancel(); mPanelAnimator = null; }
@@ -371,7 +413,7 @@ final class SandiumPagedMenu extends FrameLayout {
 
     private void render() {
         // Fade only actual navigation, never network/model updates or drag reorders.
-        int screen = mDraft != null ? 2 : 0;
+        int screen = mDraft != null ? 2 : mAllMenu ? 1 : 0;
         if (screen != mRenderedScreen) mPageMinimumHeight = 0;
         else if (mPageContent != null) {
             mPageMinimumHeight = Math.max(mPageMinimumHeight, mPageContent.getHeight());
@@ -394,7 +436,7 @@ final class SandiumPagedMenu extends FrameLayout {
         mMotionPanel = panel;
         panel.setAlpha(mPanelAlpha);
         if (transition) startPanelMotion();
-        LinearLayout heading = row();
+        LinearLayout heading = row(); mHeading = heading;
         if (mDraft != null) {
             weighted(heading, button(s(R.string.sandium_menu_cancel), s(R.string.sandium_menu_cancel_edits), () -> { mDraft = null; render(); }));
             // A plain View with WRAP_CONTENT uses the parent's available height.
@@ -412,21 +454,28 @@ final class SandiumPagedMenu extends FrameLayout {
                         s(R.string.sandium_menu_native_description),
                         () -> showNative(mUncataloguedNativeRow)));
             }
-            // One unambiguous edit affordance; no redundant All Menu screen/title.
-            heading.addView(new View(getContext()), new LinearLayout.LayoutParams(0, 1, 1));
-            TextView editAction = button(s(R.string.sandium_menu_edit),
-                    s(R.string.sandium_menu_edit_description),
-                    () -> { mDraft = mSaved.copy(); render(); });
-            editAction.setMinWidth(dp(64));
-            LinearLayout.LayoutParams editParams = new LinearLayout.LayoutParams(-2, -2);
-            editParams.setMarginEnd(dp(8));
-            heading.addView(editAction, editParams);
+            if (mAllMenu) {
+                heading.addView(button(s(R.string.sandium_menu_back_all),
+                        s(R.string.sandium_menu_back_description),
+                        () -> { mAllMenu = false; render(); }));
+                TextView title = text(s(R.string.sandium_menu_all), 18, mTextColor);
+                title.setGravity(Gravity.CENTER);
+                heading.addView(title, new LinearLayout.LayoutParams(0, -2, 1));
+                TextView editAction = button(s(R.string.sandium_menu_edit),
+                        s(R.string.sandium_menu_edit_description),
+                        () -> { mDraft = mSaved.copy(); render(); });
+                editAction.setMinWidth(dp(64));
+                LinearLayout.LayoutParams editParams = new LinearLayout.LayoutParams(-2, -2);
+                editParams.setMarginEnd(dp(8));
+                heading.addView(editAction, editParams);
+            }
+
         }
         panel.addView(heading);
         if (mResize != null) post(mResize);
         ScrollView scroll = new ScrollView(getContext()); mScroll = scroll; scroll.setFillViewport(false);
         panel.addView(scroll, new LinearLayout.LayoutParams(-1, 0, 1));
-        LinearLayout body = column(); scroll.addView(body);
+        LinearLayout body = column(); mBody = body; scroll.addView(body);
         List<String> libraryKeys = new ArrayList<>();
         for (String key : LIBRARY) if (mCatalog.containsKey(key)) libraryKeys.add(key);
         LinearLayout libraryGroup = group(body);
@@ -436,8 +485,14 @@ final class SandiumPagedMenu extends FrameLayout {
             TextView instructions = text(s(R.string.sandium_menu_drag_hint), 13, mSecondaryTextColor);
             instructions.setPadding(0, dp(10), 0, dp(10)); actionsGroup.addView(instructions);
         }
-        List<String> visible = state().visibleKeys(editableKeys());
-        int pages = Math.max(1, state().pageCount(editableKeys(), PAGE_SIZE));
+        if (mAllMenu && mDraft == null) {
+            // Browse every catalogued action using its live enabled/managed state.
+            // Hidden means hidden from the quick pages, not removed from this directory.
+            grid(actionsGroup, new ArrayList<>(editableKeys()), false);
+            return;
+        }
+        List<String> visible = quickKeys();
+        int pages = quickPageCount();
         mPage = Math.max(0, Math.min(mPage, pages - 1));
         { // Paged menu/editor share exactly the same indicator geometry.
             FrameLayout viewport = new FrameLayout(getContext());
@@ -445,7 +500,7 @@ final class SandiumPagedMenu extends FrameLayout {
             // A sparse final page must not pull the editor's available-actions region upward.
             viewport.setMinimumHeight(mPageMinimumHeight);
             LinearLayout pageGrid = column();
-            grid(pageGrid, state().page(editableKeys(), mPage, PAGE_SIZE), false);
+            grid(pageGrid, visible.subList(mPage * PAGE_SIZE, Math.min(visible.size(), (mPage + 1) * PAGE_SIZE)), false);
             viewport.addView(pageGrid, new FrameLayout.LayoutParams(-1, -2));
             actionsGroup.addView(viewport);
             mPageViewport = viewport; mPageContent = pageGrid;
@@ -519,9 +574,23 @@ final class SandiumPagedMenu extends FrameLayout {
         for (int i = 0; i < keys.size(); i++) {
             if (i % columns == 0) { line = row(); parent.addView(line); }
             final String key = keys.get(i);
+            if (ALL_MENU.equals(key)) {
+                TextView all = button("▦\n" + s(R.string.sandium_menu_all),
+                        s(R.string.sandium_menu_all_description),
+                        () -> { mAllMenu = true; render(); });
+                all.setMinimumHeight(dp(96));
+                all.setTag(ALL_MENU);
+                // Persist order like other tiles, but never offer removal.
+                if (mDraft != null) {
+                    all.setOnClickListener(v -> editOptions(ALL_MENU));
+                    bindMove(all, ALL_MENU);
+                }
+                weighted(line, all);
+                continue;
+            }
             Entry entry = mCatalog.get(key);
             LinearLayout tile = column(); tile.setGravity(Gravity.CENTER);
-            tile.setPadding(dp(3), dp(10), dp(3), dp(10)); tile.setMinimumHeight(dp(96));
+            tile.setPadding(dp(3), dp(mDraft != null && !library(key) ? 28 : 10), dp(3), dp(10)); tile.setMinimumHeight(dp(96));
             ImageView icon = new ImageView(getContext());
             icon.setId(R.id.menu_item_icon);
             requestIcon(entry.model);
@@ -560,29 +629,18 @@ final class SandiumPagedMenu extends FrameLayout {
             tile.addView(label, new LinearLayout.LayoutParams(-1, -2));
             tile.setTag("action:" + key); tile.setFocusable(true); tile.setContentDescription(title(entry));
             tile.setAlpha(enabled(entry.model) || mDraft != null ? 1 : .4f);
+            FrameLayout editCell = null;
             if (mDraft != null && !library(key)) {
-                tile.addView(button(available ? "+" : "−", s(available ? R.string.sandium_menu_add_action : R.string.sandium_menu_remove_action, title(entry)),
-                        () -> { if (available) mDraft.show(key); else mDraft.hide(key); render(); }));
+                editCell = new FrameLayout(getContext());
+                editCell.addView(tile, new FrameLayout.LayoutParams(-1, -2));
+                TextView editControl = button(available ? "+" : "−",
+                        s(available ? R.string.sandium_menu_add_action : R.string.sandium_menu_remove_action, title(entry)),
+                        () -> { if (available) mDraft.show(key); else mDraft.hide(key); render(); });
+                FrameLayout.LayoutParams editControlParams = new FrameLayout.LayoutParams(dp(48), dp(48), Gravity.TOP | Gravity.END);
+                editCell.addView(editControl, editControlParams);
                 tile.setOnClickListener(v -> editOptions(key));
                 if (!available) {
-                    tile.setOnLongClickListener(v -> {
-                        mDragging = key;
-                        boolean started = v.startDragAndDrop(ClipData.newPlainText("Sandium menu action", key),
-                                new View.DragShadowBuilder(v), key, 0);
-                        if (!started) mDragging = null;
-                        return started;
-                    });
-                    tile.setOnDragListener((v, event) -> {
-                        if (event.getAction() == DragEvent.ACTION_DRAG_ENDED) { mDragging = null; scheduleRefresh(); return true; }
-                        if (!(event.getLocalState() instanceof String) || mDraft == null) return false;
-                        if (event.getAction() == DragEvent.ACTION_DROP) {
-                            String moving = (String) event.getLocalState();
-                            if (!moving.equals(mDragging)) return false;
-                            int destination = mDraft.visibleKeys(editableKeys()).indexOf(key);
-                            mDraft.move(moving, destination, editableKeys()); render(); return true;
-                        }
-                        return true;
-                    });
+                    bindMove(tile, key);
                 }
             } else {
                 tile.setEnabled(enabled(entry.model)); tile.setOnClickListener(v -> activate(key));
@@ -619,9 +677,9 @@ final class SandiumPagedMenu extends FrameLayout {
                     }
                 });
             }
-            weighted(line, tile);
+            weighted(line, editCell == null ? tile : editCell);
         }
-        if (line != null) for (int i = keys.size() % columns; i != 0 && i < columns; i++) weighted(line, new View(getContext()));
+        if (line != null) for (int i = keys.size() % columns; i != 0 && i < columns; i++) line.addView(new View(getContext()), new LinearLayout.LayoutParams(0, 1, 1));
     }
 
     private void disableTree(View view) {
@@ -710,8 +768,44 @@ final class SandiumPagedMenu extends FrameLayout {
         if (row >= 0) mNativeList.setSelection(row + mNativeList.getHeaderViewsCount());
     }
 
+    private Set<String> quickAvailable() {
+        Set<String> keys = editableKeys(); keys.add(ALL_MENU); return keys;
+    }
+    private List<String> quickKeys() {
+        // Repair stale hidden state and append to old profiles once. Never disappear
+        // even when the bounded saved catalog is full or contains corrupt old data.
+        state().reconcile(java.util.Collections.singleton(ALL_MENU), java.util.Collections.emptySet());
+        state().show(ALL_MENU);
+        List<String> keys = new ArrayList<>(state().visibleKeys(quickAvailable()));
+        if (!keys.contains(ALL_MENU)) keys.add(ALL_MENU);
+        return keys;
+    }
+    private int quickPageCount() { return (quickKeys().size() + PAGE_SIZE - 1) / PAGE_SIZE; }
+
+    private void bindMove(View tile, String key) {
+        tile.setOnLongClickListener(v -> {
+            mDragging = key;
+            boolean started = v.startDragAndDrop(ClipData.newPlainText("Sandium menu action", key),
+                    new View.DragShadowBuilder(v), key, 0);
+            if (!started) mDragging = null;
+            return started;
+        });
+        tile.setOnDragListener((v, event) -> {
+            if (event.getAction() == DragEvent.ACTION_DRAG_ENDED) { mDragging = null; scheduleRefresh(); return true; }
+            if (!(event.getLocalState() instanceof String) || mDraft == null) return false;
+            if (event.getAction() == DragEvent.ACTION_DROP) {
+                String moving = (String) event.getLocalState();
+                if (!moving.equals(mDragging)) return false;
+                int destination = quickKeys().indexOf(key);
+                mDraft.move(moving, destination, quickAvailable()); render(); return true;
+            }
+            return true;
+        });
+    }
+
     private void page(int direction) {
-        int count = Math.max(1, state().pageCount(editableKeys(), PAGE_SIZE));
+        if (mAllMenu && mDraft == null) return;
+        int count = quickPageCount();
         int next = Math.max(0, Math.min(count - 1, mPage + direction));
         if (next == mPage) return;
         View focus = findFocus();
@@ -737,17 +831,20 @@ final class SandiumPagedMenu extends FrameLayout {
         });
     }
     private void editOptions(String key) {
-        Entry entry = mCatalog.get(key); if (entry == null || mDraft == null) return;
+        Entry entry = mCatalog.get(key);
+        boolean permanent = ALL_MENU.equals(key);
+        if ((!permanent && entry == null) || mDraft == null) return;
         final boolean hidden = mDraft.isHidden(key);
         String[] options = hidden ? new String[] {s(R.string.sandium_menu_add)} : new String[] {
                 s(R.string.sandium_menu_earlier), s(R.string.sandium_menu_later), s(R.string.sandium_menu_previous_page), s(R.string.sandium_menu_next_page), s(R.string.sandium_menu_remove)};
-        new AlertDialog.Builder(getContext()).setTitle(title(entry)).setItems(options, (dialog, which) -> {
+        if (permanent) options = java.util.Arrays.copyOf(options, 4); // No Remove action.
+        new AlertDialog.Builder(getContext()).setTitle(permanent ? s(R.string.sandium_menu_all) : title(entry)).setItems(options, (dialog, which) -> {
             if (mDraft == null) return;
             if (hidden) mDraft.show(key);
             else {
-                int index = mDraft.visibleKeys(editableKeys()).indexOf(key);
-                if (which == 4) mDraft.hide(key);
-                else mDraft.move(key, index + new int[] {-1, 1, -PAGE_SIZE, PAGE_SIZE}[which], editableKeys());
+                int index = quickKeys().indexOf(key);
+                if (which == 4 && !permanent) mDraft.hide(key);
+                else mDraft.move(key, index + new int[] {-1, 1, -PAGE_SIZE, PAGE_SIZE}[which], quickAvailable());
             }
             render();
         }).show();
