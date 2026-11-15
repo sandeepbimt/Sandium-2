@@ -75,6 +75,11 @@ with tempfile.TemporaryDirectory() as temporary:
    mixed=(core/('android/java/org/chromium/chrome/browser/'+relative)).read_text()
    assert 'BravePref.SPONSORED_ENABLED' not in mixed
    assert 'mShowSponsoredContentPref' not in mixed and 'mSponsoredAdsEnabled' not in mixed
+  privacy=(core/'android/java/org/chromium/chrome/browser/privacy/settings/BravePrivacySettings.java').read_text()
+  assert 'mUstoppableDomains' not in privacy
+  main=(core/'android/java/org/chromium/chrome/browser/settings/BraveMainPreferencesBase.java').read_text()
+  assert 'setPreferenceOrder(PREF_BRAVE_WALLET,' not in main
+  assert 'mAdsTrakersBlockPref.setOnPreferenceChangeListener(this);' in privacy
   assert 'SANDIUM_NATIVE_BOTTOM_TOOLBAR_V1' in (src/toolbar.PHONE).read_text()
   assert (src/menu.INTERNAL/'java/res/values-night/sandium_menu_colors.xml').read_bytes()==(root/'android/java/res/values-night/sandium_menu_colors.xml').read_bytes()
  def snapshot():return {str(p.relative_to(src)):p.read_bytes() for p in src.rglob('*') if p.is_file()}

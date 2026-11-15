@@ -134,6 +134,22 @@ def transform(relative, text):
         text=method(text,'showWalletIcon','        if (mWalletLayout != null) mWalletLayout.setVisibility(View.GONE);')
         text=remove_block(text,'        if (mDAppsWalletController != null)')
         text=re.sub(r'(?m)^    private DAppsWalletController \w+;\n','',text)
+    elif relative == JAVA+'settings/BraveMainPreferencesBase.java':
+        old = '        setPreferenceOrder(PREF_BRAVE_WALLET, ++featuresSectionOrder);\n'
+        if text.count(old) != 1:
+            raise ValueError('Wallet main preference order anchor drift')
+        text = text.replace(old, '', 1)
+    elif relative == JAVA+'privacy/settings/BravePrivacySettings.java':
+        # Wallet XML removal also removes decentralized-DNS preferences. Do not
+        # bind a listener to their absent view during Privacy Settings creation.
+        for old in (
+            '    private Preference mUstoppableDomains;\n',
+            '        mUstoppableDomains = (Preference) findPreference(PREF_UNSTOPPABLE_DOMAINS);\n'
+            '        mUstoppableDomains.setOnPreferenceChangeListener(this);\n',
+        ):
+            if text.count(old) != 1:
+                raise ValueError('Wallet privacy listener anchor drift')
+            text = text.replace(old, '', 1)
     elif relative == JAVA+'ui/BraveAdaptiveToolbarUiCoordinator.java':
         text=re.sub(r'        var walletButtonController =[\s\S]*?AdaptiveToolbarButtonVariant\.WALLET, walletButtonController\);\n','',text)
         text=re.sub(r'^import .*BraveWalletButtonController;\n','',text,flags=re.M)

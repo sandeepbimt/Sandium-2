@@ -55,6 +55,30 @@ class WalletRemovalTest(unittest.TestCase):
         for forbidden in ['new WalletModel(', 'mBraveWalletService', 'mKeyringService', 'getPendingSignMessageRequests(', 'new Intent(this, BraveWalletActivity.class)']:
             self.assertNotIn(forbidden, activity)
 
+    def test_removed_dns_preference_has_no_listener_binding(self):
+        m.apply(self.core)
+        java=(self.core/(m.JAVA+'privacy/settings/BravePrivacySettings.java')).read_text()
+        xml=(self.core/'android/java/brave-res/xml/brave_privacy_preferences.xml').read_text()
+        self.assertNotIn('mUstoppableDomains',java)
+        main=(self.core/(m.JAVA+'settings/BraveMainPreferencesBase.java')).read_text()
+        self.assertNotIn('setPreferenceOrder(PREF_BRAVE_WALLET,',main)
+        self.assertIn('setPreferenceOrder(PREF_SHIELDS_AND_PRIVACY,',main)
+        for key in ('unstoppable_domains','ens','sns'):
+            self.assertNotIn('android:key="'+key+'"',xml)
+        for retained in ('mDeAmpPref.setOnPreferenceChangeListener(this);',
+                         'mAdsTrakersBlockPref.setOnPreferenceChangeListener(this);',
+                         'mBlockCrosssiteCookies.setOnPreferenceChangeListener(this);'):
+            self.assertIn(retained,java)
+
+    def test_privacy_binding_drift_fails_atomically(self):
+        path=self.core/(m.JAVA+'privacy/settings/BravePrivacySettings.java')
+        path.write_text(path.read_text().replace('private Preference mUstoppableDomains;',
+                                                'private Preference changedBinding;'))
+        before={rel:(self.core/rel).read_bytes() for rel in m.TOUCHED}
+        with self.assertRaisesRegex(ValueError,'privacy listener anchor drift'):
+            m.apply(self.core)
+        self.assertEqual(before,{rel:(self.core/rel).read_bytes() for rel in m.TOUCHED})
+
     def test_idempotent(self):
         m.apply(self.core)
         first = {p:(self.core/p).read_bytes() for p in m.TOUCHED}
