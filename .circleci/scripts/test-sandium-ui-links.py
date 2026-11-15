@@ -8,6 +8,12 @@ from pathlib import Path
 import shutil
 import tempfile
 
+def matches_pinned_source(expected, actual):
+    # #1185 hashes prove the sole difference is the bundled fixture's one extra
+    # EOF blank line. Do not strip arbitrary whitespace or normalize Java code.
+    return actual == expected or (expected.endswith('}\n\n') and actual == expected[:-1])
+
+
 spec = importlib.util.spec_from_file_location('links', Path(__file__).with_name('apply-sandium-ui-links.py'))
 m = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(m)
@@ -64,13 +70,19 @@ with tempfile.TemporaryDirectory() as d:
     connection.write_text(original)
     m.apply_chromium(root)
     expected = connection.read_text()
-    if expected != c:
+    if not matches_pinned_source(expected, c):
         print('SANDIUM_UI_LINKS_MISMATCH live_input_sha256=' + live_input_sha256 + ' expected_sha256=' + hashlib.sha256(expected.encode()).hexdigest()
               + ' actual_sha256=' + hashlib.sha256(c.encode()).hexdigest(), flush=True)
         print(''.join(difflib.unified_diff(expected.splitlines(keepends=True),
               c.splitlines(keepends=True), fromfile='pinned-transformed',
               tofile='actual-transformed')), flush=True)
         raise AssertionError('pristine and actual-tree outputs differ')
+    assert matches_pinned_source(expected, expected)
+    assert matches_pinned_source(expected, expected[:-1])
+    for changed in (expected[:-2], expected + '\n', expected + ' ',
+                    expected.replace('mCertificateLayout.addView', 'changed.addView', 1),
+                    expected.replace('    private', '   private', 1)):
+        assert not matches_pinned_source(expected, changed), 'unexpected drift admitted'
     begin = original.index('    private void addMoreInfoLink(String linkText) {')
     finish = original.index('\n    }', begin) + len('\n    }')
     previous = """    private void addMoreInfoLink(String linkText) {
@@ -78,7 +90,7 @@ with tempfile.TemporaryDirectory() as d:
     }"""
     connection.write_text(original[:begin] + previous + original[finish:])
     m.apply_chromium(root)
-    assert connection.read_text() == c
+    assert connection.read_text() == expected
     connection.write_text(original.replace('        // TODO(crbug.com/40129299):', '        // changed launcher:'))
     try:
         m.apply_chromium(root)

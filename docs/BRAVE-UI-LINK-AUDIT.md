@@ -116,3 +116,18 @@ reset/replay inputs pass. Keep the equality gate: on mismatch print live-input,
 expected and actual SHA-256 plus a unified source diff. This is diagnostic, not
 a claimed fix. The canonical composition harness now invokes this test directly
 after the overlay, matching production order, including replay/recovery passes.
+
+### #1185 evidence and narrow correction
+
+The diagnostic run proved a single removed blank line at EOF, with no other
+source delta: expected SHA-256
+`50d95453a76bf66ae48be020c0b0ad4540e7e23a8bbcfbc7d4673ffcb944b94a`, actual
+`073b2a610228f2565f52567f23877db61687a2a1e56e637d773f9cd4f7a40c49`.
+Removing exactly the final newline from transformed bundled fixture reproduces
+that actual hash locally. The test now permits only exact fixture output or
+that one verified EOF-blank-line variant. It does not strip whitespace, ignore
+lines, or weaken production method/body guards. Historical migration compares
+against the fixture-derived expected output, not live formatting. Regression
+checks reject internal code/indentation changes, missing final newline, extra
+blank lines and appended spaces. Exact CI-hash pristine and post-overlay inputs
+both pass; certificate code mutation still fails and prints diagnostics.
