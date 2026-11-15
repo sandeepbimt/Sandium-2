@@ -19,6 +19,17 @@ class Extras(unittest.TestCase):
    if p.endswith('AndroidManifest.xml'):
     self.assertNotIn('GoBackend$VpnService',out)
     self.assertIn('org.chromium.chrome.browser.vpn.wireguard.WireguardService',out) # separate existing VPN transform owns this
+ def test_chromium_native_injection(self):
+  patch=(ROOT/'tests/fixtures/packaged-extras/chrome-android-chrome_public_apk_tmpl.gni.patch').read_text()
+  injected=next(line[1:] for line in patch.splitlines() if line.startswith('+') and '_wireguard_target =' in line)
+  untouched='  loadable_modules += [ "other.so" ]\n'
+  for line in (injected, injected.replace(' deps +=', '\n    deps +=').replace(' _libwireguard_dir =','\n    _libwireguard_dir =').replace(' loadable_modules +=','\n    loadable_modules +=')):
+   output=m.transform_apk_template(untouched+line+'\n'+untouched)
+   self.assertNotIn('wireguard',output)
+   self.assertEqual(output.count('other.so'),2)
+   self.assertEqual(output,m.transform_apk_template(output))
+  with self.assertRaisesRegex(ValueError,'Residual WireGuard'):
+   m.transform_apk_template(injected.replace('libwg-go.so','unexpected.so')+'\n')
  def test_wireguard_graph_edges(self):
   spec=importlib.util.spec_from_file_location('graph',ROOT/'.circleci/scripts/audit-sandium-removal-graph.py')
   g=importlib.util.module_from_spec(spec);spec.loader.exec_module(g)

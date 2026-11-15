@@ -348,6 +348,7 @@
     "third_party/android_deps/BUILD.gn"
   ],
   "chromium_restore": [
+    "chrome/android/chrome_public_apk_tmpl.gni",
     "chrome/android/java/src/org/chromium/chrome/browser/crash/ChromeMinidumpUploadJobServiceImpl.java",
     "chrome/android/java/src/org/chromium/chrome/browser/crash/MinidumpUploadServiceImpl.java",
     "chrome/android/java/src/org/chromium/chrome/browser/settings/search/SearchIndexProviderRegistry.java",
@@ -477,7 +478,9 @@
       "script": ".circleci/scripts/remove-sandium-packaged-extras.py",
       "args": [
         "--core",
-        "{core}"
+        "{core}",
+        "--src",
+        "{src}"
       ]
     },
     {
@@ -505,7 +508,8 @@
     "chrome/browser/ui/android/toolbar/java/res/layout/toolbar_phone.xml": "patches/chrome-browser-ui-android-toolbar-java-res-layout-toolbar_phone.xml.patch",
     "chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/ToolbarPhone.java": "patches/chrome-browser-ui-android-toolbar-java-src-org-chromium-chrome-browser-toolbar-top-ToolbarPhone.java.patch",
     "components/minidump_uploader/BUILD.gn": "patches/components-minidump_uploader-BUILD.gn.patch",
-    "chrome/android/java/src/org/chromium/chrome/browser/settings/search/SearchIndexProviderRegistry.java": "patches/chrome-android-java-src-org-chromium-chrome-browser-settings-search-SearchIndexProviderRegistry.java.patch"
+    "chrome/android/java/src/org/chromium/chrome/browser/settings/search/SearchIndexProviderRegistry.java": "patches/chrome-android-java-src-org-chromium-chrome-browser-settings-search-SearchIndexProviderRegistry.java.patch",
+    "chrome/android/chrome_public_apk_tmpl.gni": "patches/chrome-android-chrome_public_apk_tmpl.gni.patch"
   },
   "ui_baseline": "50545b503d3429ee1a1dad86317147e87d4b556b",
   "ui_reset_note": "Reset pinned upstream inputs only; replay exact pinned Brave patches for declared Chromium paths before UI overlays. Sandium-created classes/resources are retained and recopied by their owning overlays.",
