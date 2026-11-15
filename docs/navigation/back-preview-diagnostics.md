@@ -31,9 +31,11 @@ including when screenshot capture subsequently gets skipped.
 
 Only when upstream chooses a missing/invalid screenshot fallback, use the
 *destination entry's* remembered color, never the outgoing site's color. Valid
-bitmap/texture previews remain exactly upstream. If the color is unavailable,
-use neutral #121212 in night/incognito context, #FAFAFA otherwise, rather than
-a potentially tinted dynamic-color surface. A genuinely blue document may
+bitmap/texture previews remain exactly upstream. If the color is unavailable, use the destination entry's separately captured
+`PageImpl::inferred_color_scheme()` to select dark grey #121212 or off-white
+#FAFAFA. If both destination signals are unknown, use neutral browser
+night/incognito or light context, never the outgoing page's color/scheme and
+never a potentially tinted dynamic-color surface. A genuinely blue document may
 legitimately produce a blue fallback. HTML theme-color is deliberately not used:
 it describes browser chrome, not necessarily the page background.
 
@@ -45,15 +47,23 @@ colors stay within the same navigation entry lifetime and are not serialized.
 ## Diagnostics
 Under `navigation` tracing:
 - `SandiumBackPreviewSelection`: fallback bool and upstream cache reason enum.
-- `SandiumBackFallbackColor`: destination-color availability and resolved ARGB.
+- `SandiumBackFallbackColor`: source0=neutral context,1=destination background,
+  2=destination inferred scheme, and resolved ARGB.
 - `SandiumBackPreviewBounds`: physical preview width/height.
 - `SandiumBackHandoffState`: state enum and physical size at state processing.
+- `SandiumBackActivatedGeometry/Controls/Scroll`: renderer activation viewport,
+  page scale, destination-frame sequence-match flag, top-controls geometry and root scroll offset when available.
+- Java `SandiumUnderlapReapply`: current/requested underlap, system top inset,
+  consumed-inset flag and forced-controls flag, only while tracing is enabled.
+  This does not change the existing guard or request-insets behavior. Exact
+  instrumentation resets before the frozen status overlay reapplies and is added
+  afterward, preventing duplicated fields/methods on restored checkpoints. A
+  full-controller repeated-composition test verifies that sequence.
 
 No navigation URL, page text or image pixels are added to trace. Pair a fresh
 trace with screen recording to determine whether the visible flash is fallback,
-a valid screenshot or live-renderer handoff. These events alone cannot prove
-root scroll/inset mismatch; add narrowly targeted geometry instrumentation if
-that persists. Do not alter inset guards merely on suspicion.
+a valid screenshot or live-renderer handoff. Correlate these events to the exact visible frame; they are diagnostics, not
+proof that a geometry mismatch occurred. No geometry-freezing fix is included. Do not alter inset guards merely on suspicion.
 
 ## Integration and safeguards
 Active Full product-overlay-26 invokes this after the existing page transition
@@ -63,7 +73,7 @@ preferences, top insets or existing native/error/fullscreen safety guards. No CI
 was started by this work. Settings crash fixes remain in the branch ancestry.
 
 ## Validation and limits
-Six local pinned-source transformation tests pass, including repeat application,
+Nine local pinned-source transformation tests pass, including repeat application,
 unknown-source rejection before writes, duplicate-anchor rejection, both capture
 paths, and preservation of complete valid-screenshot/gesture functions.
 `test-brave-build-flow.py` passes. Independent source review corrected use of

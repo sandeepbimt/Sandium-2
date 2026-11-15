@@ -19,11 +19,11 @@ class RemovalProduct(unittest.TestCase):
    with self.assertRaises(ValueError):m.verify(dict(env,**{key:value}))
  def test_current_ui_then_removal_every_stage(self):
   cfg=yaml.safe_load((ROOT/'.circleci/config.yml').read_text())
-  self.assertEqual(cfg['parameters']['checkpoint_namespace']['default'],'sandium-exp-single-v1-bridge-crash01')
+  self.assertEqual(cfg['parameters']['checkpoint_namespace']['default'],'sandium-exp-single-v1-bridge-backpreview01')
   self.assertFalse(cfg['parameters']['allow_seed_import']['default'])
   for name,job in cfg['jobs'].items():
    runs=[x['run']['command'] for x in job['steps'] if isinstance(x,dict) and isinstance(x.get('run'),dict)]
-   self.assertIn('verify-removal-scope.py',runs[0],name)
+   self.assertIn('verify-back-preview-scope.py',runs[0],name)
    if name.startswith('full-stage-'):
     commands='\n'.join(runs)
     self.assertLess(commands.index('product-overlay-29-0.sh'),commands.index('product-overlay-30-0.sh'))

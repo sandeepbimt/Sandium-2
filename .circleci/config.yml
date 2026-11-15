@@ -12,7 +12,7 @@ parameters:
     default: false
   checkpoint_namespace:
     type: string
-    default: sandium-exp-single-v1-bridge-crash01
+    default: sandium-exp-single-v1-bridge-backpreview01
   run_maintenance:
     type: boolean
     default: false
@@ -35,7 +35,7 @@ jobs:
     - run:
         name: Require authorized checkpoint scope
         command: |
-          python3 .circleci/scripts/verify-removal-scope.py
+          python3 .circleci/scripts/verify-back-preview-scope.py
           python3 -u .circleci/bridge/full_driver.py gate
           python3 tests/test_browser_crash_regressions.py
           python3 tests/test_settings_origin_crash.py
@@ -49,25 +49,24 @@ jobs:
     - run:
         name: Select exact checkpoint and honor verified APK completion
         command: python3 -u .circleci/bridge/full_driver.py seed-select
+    - run:
+        name: Prove empty isolated target before frozen source import
+        command: python3 -u .circleci/bridge/fork_back_preview.py prepare
     - restore_cache:
-        name: Read-only import of the original verified 26 GiB base
+        name: Read only exact verified 1166 receipt; never latest-prefix fallback
         keys:
-        - sandium-brave-handoff-v2-sandium/fix-archive-completion-gate-d0bc6af6-e2a7-451e-8561-3c90eb48c2e1-stage-1
+        - sandium-experimental-head-v1-UHElyZWl7v4t+BDNIuwsl8ERHc8_YdW6aI8Kz55sxTY=-Kii3RVq+Ku7mFo7d3L6X2KAZuhk9feAAx1hdflFR_d4=
     - run:
-        name: Verify original compressed base; no decompressed conversion
-        command: python3 -u .circleci/bridge/full_driver.py seed-capture
-        no_output_timeout: 35m
-    - save_cache:
-        name: Retain identical original compressed base in isolated namespace
-        key: sandium-bridge-base-v1-{{ checksum ".checkpoint-state/base.key" }}
-        paths:
-        - brave-workspace-checkpoint.shards
-        - brave-workspace-checkpoint.manifest.json
+        name: Validate frozen source and prepare isolated metadata seed
+        command: python3 -u .circleci/bridge/fork_back_preview.py import
+    - store_artifacts:
+        path: .checkpoint-state/back-seed-report.json
+        destination: back-preview-seed
     - run:
-        name: Prepare experimental head after payload save
+        name: Publish validated isolated metadata seed
         command: python3 -u .circleci/bridge/full_driver.py publish
     - save_cache:
-        name: Publish complete checkpoint receipt only after payload save
+        name: Save isolated seed receipt; payload verification occurs at normal restore
         key: sandium-experimental-head-v1-{{ checksum ".checkpoint-state/scope-key" }}-{{ checksum ".checkpoint-head/receipt.json"
           }}
         paths:
@@ -90,7 +89,7 @@ jobs:
     - run:
         name: Require authorized checkpoint scope
         command: |
-          python3 .circleci/scripts/verify-removal-scope.py
+          python3 .circleci/scripts/verify-back-preview-scope.py
           python3 -u .circleci/bridge/full_driver.py gate
     - run:
         name: Ensure legacy shard extraction tools on each fresh machine
@@ -523,7 +522,7 @@ jobs:
     - run:
         name: Require authorized checkpoint scope
         command: |
-          python3 .circleci/scripts/verify-removal-scope.py
+          python3 .circleci/scripts/verify-back-preview-scope.py
           python3 -u .circleci/bridge/full_driver.py gate
     - run:
         name: Ensure legacy shard extraction tools on each fresh machine
@@ -941,7 +940,7 @@ jobs:
     - run:
         name: Require authorized checkpoint scope
         command: |
-          python3 .circleci/scripts/verify-removal-scope.py
+          python3 .circleci/scripts/verify-back-preview-scope.py
           python3 -u .circleci/bridge/full_driver.py gate
     - run:
         name: Ensure legacy shard extraction tools on each fresh machine
@@ -1359,7 +1358,7 @@ jobs:
     - run:
         name: Require authorized checkpoint scope
         command: |
-          python3 .circleci/scripts/verify-removal-scope.py
+          python3 .circleci/scripts/verify-back-preview-scope.py
           python3 -u .circleci/bridge/full_driver.py gate
     - run:
         name: Ensure legacy shard extraction tools on each fresh machine
@@ -1777,7 +1776,7 @@ jobs:
     - run:
         name: Require authorized checkpoint scope
         command: |
-          python3 .circleci/scripts/verify-removal-scope.py
+          python3 .circleci/scripts/verify-back-preview-scope.py
           python3 -u .circleci/bridge/full_driver.py gate
     - run:
         name: Ensure legacy shard extraction tools on each fresh machine
@@ -2195,7 +2194,7 @@ jobs:
     - run:
         name: Require authorized checkpoint scope
         command: |
-          python3 .circleci/scripts/verify-removal-scope.py
+          python3 .circleci/scripts/verify-back-preview-scope.py
           python3 -u .circleci/bridge/full_driver.py gate
     - run:
         name: Ensure legacy shard extraction tools on each fresh machine
@@ -2432,7 +2431,7 @@ jobs:
     - run:
         name: Require authorized checkpoint scope
         command: |
-          python3 .circleci/scripts/verify-removal-scope.py
+          python3 .circleci/scripts/verify-back-preview-scope.py
           python3 -u .circleci/bridge/full_driver.py gate
     - run:
         name: Ensure legacy shard extraction tools on each fresh machine

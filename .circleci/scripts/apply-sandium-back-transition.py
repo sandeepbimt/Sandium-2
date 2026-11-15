@@ -11,6 +11,29 @@ CHROMIUM_SHA = "d331de35ca8ab1358c7a17e4bd41627d55eaef51"
 BRAVE_SHA = "44a84b1f89d9a35287289d6a3d493e362f5a5123"
 CHANGES = [
     (
+        'content/browser/navigation_transitions/back_forward_transition_animator.cc',
+        '  CHECK(new_render_widget_host_);\n  CHECK_NE(primary_main_frame_navigation_entry_item_sequence_number_',
+        '''  CHECK(new_render_widget_host_);
+  const auto& sandium_metadata = new_render_widget_host_->render_frame_metadata_provider()
+                                     ->LastRenderFrameMetadata();
+  TRACE_EVENT("navigation", "SandiumBackActivatedGeometry",
+              "viewport_width", sandium_metadata.viewport_size_in_pixels.width(),
+              "viewport_height", sandium_metadata.viewport_size_in_pixels.height(),
+              "scale", sandium_metadata.page_scale_factor,
+              "destination_matches", sandium_metadata.primary_main_frame_item_sequence_number ==
+                  primary_main_frame_navigation_entry_item_sequence_number_);
+  TRACE_EVENT("navigation", "SandiumBackActivatedControls",
+              "top_height", sandium_metadata.browser_controls_metadata.top_controls_height,
+              "top_ratio", sandium_metadata.browser_controls_metadata.top_controls_shown_ratio,
+              "top_min_offset", sandium_metadata.browser_controls_metadata.top_controls_min_height_offset);
+  if (sandium_metadata.root_scroll_offset) {
+    TRACE_EVENT("navigation", "SandiumBackActivatedScroll",
+                "x", sandium_metadata.root_scroll_offset->x(),
+                "y", sandium_metadata.root_scroll_offset->y());
+  }
+  CHECK_NE(primary_main_frame_navigation_entry_item_sequence_number_'''
+    ),
+    (
         'content/browser/renderer_host/navigation_transitions/navigation_transition_utils.cc',
         '#include "content/browser/renderer_host/navigation_request.h"',
         '#include "content/browser/renderer_host/navigation_request.h"\n#include "content/browser/renderer_host/page_impl.h"'
@@ -26,6 +49,12 @@ CHANGES = [
     sandium_page_background_ = color && SkColorGetA(*color) == 255
                                    ? color : std::nullopt;
   }
+  std::optional<bool> sandium_page_is_dark() const {
+    return sandium_page_is_dark_;
+  }
+  void set_sandium_page_is_dark(std::optional<bool> is_dark) {
+    sandium_page_is_dark_ = is_dark;
+  }
 
   const SkBitmap& favicon() const { return favicon_; }'''
     ),
@@ -33,6 +62,7 @@ CHANGES = [
         'content/browser/renderer_host/navigation_transitions/navigation_transition_data.h',
 '''  // The favicon used to compose the fallback UX.''',
 '''  std::optional<SkColor> sandium_page_background_;
+  std::optional<bool> sandium_page_is_dark_;
 
   // The favicon used to compose the fallback UX.'''
     ),
@@ -49,6 +79,7 @@ void SandiumCapturePageBackground(NavigationRequest& request,
     return;
   }
   entry->navigation_transition_data().set_sandium_page_background(std::nullopt);
+  entry->navigation_transition_data().set_sandium_page_is_dark(std::nullopt);
   auto* frame = request.frame_tree_node()->current_frame_host();
   if (entry->GetPageType() != PAGE_TYPE_NORMAL ||
       !entry->GetURL().SchemeIsHTTPOrHTTPS() || !frame->IsRenderFrameLive() ||
@@ -57,6 +88,10 @@ void SandiumCapturePageBackground(NavigationRequest& request,
   }
   entry->navigation_transition_data().set_sandium_page_background(
       frame->GetPage().background_color());
+  if (const auto scheme = frame->GetPage().inferred_color_scheme()) {
+    entry->navigation_transition_data().set_sandium_page_is_dark(
+        *scheme == blink::mojom::PreferredColorScheme::kDark);
+  }
 }
 
 bool ShouldSkipScreenshotWithMissReason('''
@@ -92,11 +127,23 @@ bool ShouldSkipScreenshotWithMissReason('''
     };
     const auto page_color = destination_entry->navigation_transition_data()
                                 .sandium_page_background();
-    if (destination_entry->GetURL().SchemeIsHTTPOrHTTPS() && page_color) {
-      fallback_ux_->color_config.background_color = SkColor4f::FromColor(*page_color);
+    const auto page_is_dark = destination_entry->navigation_transition_data()
+                                  .sandium_page_is_dark();
+    int color_source = 0;  // Neutral browser context when destination is unknown.
+    if (destination_entry->GetPageType() == PAGE_TYPE_NORMAL &&
+        destination_entry->GetURL().SchemeIsHTTPOrHTTPS()) {
+      if (page_color) {
+        fallback_ux_->color_config.background_color = SkColor4f::FromColor(*page_color);
+        color_source = 1;
+      } else if (page_is_dark.has_value()) {
+        fallback_ux_->color_config.background_color = SkColor4f::FromColor(
+            *page_is_dark ? SkColorSetRGB(0x12, 0x12, 0x12)
+                          : SkColorSetRGB(0xFA, 0xFA, 0xFA));
+        color_source = 2;
+      }
     }
     TRACE_EVENT("navigation", "SandiumBackFallbackColor",
-                "destination_color", page_color.has_value(),
+                "color_source", color_source,
                 "argb", fallback_ux_->color_config.background_color.toSkColor());
   }
   const auto sandium_size = web_contents_view_android->GetNativeView()
