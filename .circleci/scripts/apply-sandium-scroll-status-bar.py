@@ -7,6 +7,7 @@ import hashlib
 from pathlib import Path
 
 FILES = {
+ 'EdgeToEdgeControllerCreator.java': 'chrome/browser/ui/android/edge_to_edge/java/src/org/chromium/chrome/browser/ui/edge_to_edge/EdgeToEdgeControllerCreator.java',
  'EdgeToEdgeControllerTest.java': 'chrome/browser/ui/android/edge_to_edge/internal/junit/src/org/chromium/chrome/browser/ui/edge_to_edge/EdgeToEdgeControllerTest.java',
  'EdgeToEdgeLayoutUnitTest.java': 'ui/edge_to_edge/android/junit/src/org/chromium/ui/edge_to_edge/layout/EdgeToEdgeLayoutUnitTest.java',
  'EdgeToEdgeSystemBarColorHelperUnitTest.java': 'ui/edge_to_edge/android/junit/src/org/chromium/ui/edge_to_edge/EdgeToEdgeSystemBarColorHelperUnitTest.java',
@@ -47,6 +48,45 @@ def transform(name,s):
         s = s.replace('    @Override\n    public void onControlsPositionChanged(int controlsPosition) {\n        refreshSandiumUnderlap();\n    }\n', '    @Override\n    public void onTopControlsHeightChanged(int topControlsHeight, int topControlsMinHeight) {\n        refreshSandiumUnderlap();\n    }\n\n    @Override\n    public void onControlsPositionChanged(int controlsPosition) {\n        refreshSandiumUnderlap();\n    }\n')
     # Normalize the isolated rollback gate before idempotence checks.
     s=s.replace("SANDIUM_TOP_UNDERLAP_EXPERIMENT = false;", "SANDIUM_TOP_UNDERLAP_EXPERIMENT = true;")
+    if name == 'EdgeToEdgeControllerCreator.java':
+        s=replace(s, '                && !navigationBarInsets.equals(Insets.NONE)) {',
+            '                && (!navigationBarInsets.equals(Insets.NONE)\n'
+            '                        || canCreateSandiumHiddenGestureController(activity, insets))) {')
+        s=replace(s, '    @SuppressWarnings("NullAway")', """    @VisibleForTesting
+    static boolean canCreateSandiumHiddenGestureController(
+            Activity activity, WindowInsetsCompat insets) {
+        // Hidden gesture hints legitimately have zero navbar height. Require positive
+        // gesture evidence, never infer navigation mode merely from absent tappable insets.
+        // Creation does not enable underlap: the controller still applies all page,
+        // fullscreen, keyboard, cutout, layout and native-screen guards on every update.
+        if (!EdgeToEdgeUtils.isSandiumTopUnderlapExperimentEnabled()
+                || !EdgeToEdgeUtils.isEdgeToEdgeEverywhereEnabled()
+                || !"ChromeTabbedActivity".equals(activity.getClass().getSimpleName())
+                || activity.isInMultiWindowMode() || activity.isInPictureInPictureMode()) {
+            return false;
+        }
+        var config = activity.getResources().getConfiguration();
+        if (config.smallestScreenWidthDp >= 600
+                || config.orientation != android.content.res.Configuration.ORIENTATION_PORTRAIT
+                || !EdgeToEdgeUtils.doAllInsetsIndicateGestureNavigation(insets)
+                || !insets.getInsets(WindowInsetsCompat.Type.navigationBars()).equals(Insets.NONE)) {
+            return false;
+        }
+        Insets status = insets.getInsets(WindowInsetsCompat.Type.statusBars());
+        Insets cutout = insets.getInsets(WindowInsetsCompat.Type.displayCutout());
+        boolean supported = insets.isVisible(WindowInsetsCompat.Type.statusBars())
+                && status.top > 0 && status.left == 0 && status.right == 0
+                && cutout.left == 0 && cutout.right == 0 && cutout.bottom == 0
+                && cutout.top <= status.top
+                && insets.getInsets(WindowInsetsCompat.Type.captionBar()).equals(Insets.NONE);
+        if (org.chromium.base.TraceEvent.enabled()) {
+            org.chromium.base.TraceEvent.instant("SandiumHiddenGestureController",
+                    "supported=" + supported + ",status=" + status.top);
+        }
+        return supported;
+    }
+
+    @SuppressWarnings("NullAway")""")
     if name == 'InsetObserver.java':
         s=replace(s,'    private int mBottomInsetsForEdgeToEdge;', '    private int mBottomInsetsForEdgeToEdge;\n    private int mSandiumTopInsetForEdgeToEdge;')
         s=replace(s,'        newSafeArea.bottom += mBottomInsetsForEdgeToEdge;', '        newSafeArea.bottom += mBottomInsetsForEdgeToEdge;\n        newSafeArea.top = Math.max(newSafeArea.top, mSandiumTopInsetForEdgeToEdge);')

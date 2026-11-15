@@ -39,7 +39,7 @@ import java.util.Set;
 final class SandiumPagedMenu extends FrameLayout {
     private static final String PREF = "sandium.menu.layout.v1";
     private static final int PAGE_SIZE = 8;
-    private final int mPanelColor, mTextColor, mSecondaryTextColor, mDividerColor, mAccentColor;
+    private final int mGroupColor, mPanelColor, mTextColor, mSecondaryTextColor, mDividerColor, mAccentColor;
     private final ModelList mModels;
     private final SandiumMenuMetadata.FooterProvider mFooter;
     private final View mNative;
@@ -97,6 +97,7 @@ final class SandiumPagedMenu extends FrameLayout {
 
     SandiumPagedMenu(Context context, ModelList models, View nativeContent, ListView nativeList, View footer) {
         super(context);
+        mGroupColor = context.getColor(R.color.sandium_menu_group_surface);
         mPanelColor = context.getColor(R.color.sandium_menu_surface_container);
         mTextColor = context.getColor(R.color.sandium_menu_on_surface);
         mSecondaryTextColor = context.getColor(R.color.sandium_menu_on_surface_variant);
@@ -265,6 +266,16 @@ final class SandiumPagedMenu extends FrameLayout {
     private LinearLayout column() {
         LinearLayout l = new LinearLayout(getContext()); l.setOrientation(LinearLayout.VERTICAL); return l;
     }
+    private LinearLayout group(LinearLayout parent) {
+        LinearLayout group = column();
+        group.setBackground(shape(mGroupColor, 12));
+        group.setPadding(dp(4), dp(4), dp(4), dp(4));
+        // Decorative surface only: do not intercept item clicks, drags or accessibility.
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(-1, -2);
+        params.bottomMargin = dp(10);
+        parent.addView(group, params);
+        return group;
+    }
     private LinearLayout row() {
         LinearLayout l = new LinearLayout(getContext()); l.setOrientation(LinearLayout.HORIZONTAL); return l;
     }
@@ -386,7 +397,9 @@ final class SandiumPagedMenu extends FrameLayout {
         LinearLayout heading = row();
         if (mDraft != null) {
             weighted(heading, button(s(R.string.sandium_menu_cancel), s(R.string.sandium_menu_cancel_edits), () -> { mDraft = null; render(); }));
-            weighted(heading, new View(getContext()));
+            // A plain View with WRAP_CONTENT uses the parent's available height.
+            // Keep this empty title slot bounded or the header consumes the editor body.
+            heading.addView(new View(getContext()), new LinearLayout.LayoutParams(0, 1, 1));
             weighted(heading, button(s(R.string.sandium_menu_done), s(R.string.sandium_menu_save_edits), () -> {
                 mSaved = mDraft; mDraft = null;
                 getContext().getSharedPreferences(PREF, Context.MODE_PRIVATE).edit()
@@ -401,8 +414,13 @@ final class SandiumPagedMenu extends FrameLayout {
             }
             // One unambiguous edit affordance; no redundant All Menu screen/title.
             heading.addView(new View(getContext()), new LinearLayout.LayoutParams(0, 1, 1));
-            heading.addView(button(s(R.string.sandium_menu_edit), s(R.string.sandium_menu_edit_description),
-                    () -> { mDraft = mSaved.copy(); render(); }));
+            TextView editAction = button(s(R.string.sandium_menu_edit),
+                    s(R.string.sandium_menu_edit_description),
+                    () -> { mDraft = mSaved.copy(); render(); });
+            editAction.setMinWidth(dp(64));
+            LinearLayout.LayoutParams editParams = new LinearLayout.LayoutParams(-2, -2);
+            editParams.setMarginEnd(dp(8));
+            heading.addView(editAction, editParams);
         }
         panel.addView(heading);
         if (mResize != null) post(mResize);
@@ -411,12 +429,12 @@ final class SandiumPagedMenu extends FrameLayout {
         LinearLayout body = column(); scroll.addView(body);
         List<String> libraryKeys = new ArrayList<>();
         for (String key : LIBRARY) if (mCatalog.containsKey(key)) libraryKeys.add(key);
-        grid(body, libraryKeys, false);
-        View divider = new View(getContext()); divider.setBackgroundColor(mDividerColor);
-        body.addView(divider, new LinearLayout.LayoutParams(-1, dp(1)));
+        LinearLayout libraryGroup = group(body);
+        grid(libraryGroup, libraryKeys, false);
+        LinearLayout actionsGroup = group(body);
         if (mDraft != null) {
             TextView instructions = text(s(R.string.sandium_menu_drag_hint), 13, mSecondaryTextColor);
-            instructions.setPadding(0, dp(10), 0, dp(10)); body.addView(instructions);
+            instructions.setPadding(0, dp(10), 0, dp(10)); actionsGroup.addView(instructions);
         }
         List<String> visible = state().visibleKeys(editableKeys());
         int pages = Math.max(1, state().pageCount(editableKeys(), PAGE_SIZE));
@@ -429,7 +447,7 @@ final class SandiumPagedMenu extends FrameLayout {
             LinearLayout pageGrid = column();
             grid(pageGrid, state().page(editableKeys(), mPage, PAGE_SIZE), false);
             viewport.addView(pageGrid, new FrameLayout.LayoutParams(-1, -2));
-            body.addView(viewport);
+            actionsGroup.addView(viewport);
             mPageViewport = viewport; mPageContent = pageGrid;
             if (pageTransition) slidePage(oldPage, pageDirection);
             LinearLayout pager = row(); pager.setGravity(Gravity.CENTER);
@@ -467,12 +485,13 @@ final class SandiumPagedMenu extends FrameLayout {
             android.widget.HorizontalScrollView pagerScroll = new android.widget.HorizontalScrollView(getContext());
             pagerScroll.setHorizontalScrollBarEnabled(false); pagerScroll.setFillViewport(true);
             pagerScroll.addView(pager);
-            body.addView(pagerScroll);
+            actionsGroup.addView(pagerScroll);
         }
         if (mDraft != null) {
-            body.addView(text(s(R.string.sandium_menu_available), 15, mSecondaryTextColor));
-            grid(body, mDraft.hiddenKeys(editableKeys()), true);
-            body.addView(button(s(R.string.sandium_menu_reset), s(R.string.sandium_menu_reset_description), () -> {
+            LinearLayout availableGroup = group(body);
+            availableGroup.addView(text(s(R.string.sandium_menu_available), 15, mSecondaryTextColor));
+            grid(availableGroup, mDraft.hiddenKeys(editableKeys()), true);
+            availableGroup.addView(button(s(R.string.sandium_menu_reset), s(R.string.sandium_menu_reset_description), () -> {
                 SandiumMenuState editing = mDraft;
                 new AlertDialog.Builder(getContext()).setMessage(s(R.string.sandium_menu_reset_question))
                         .setNegativeButton(s(R.string.sandium_menu_cancel), null).setPositiveButton(s(R.string.sandium_menu_reset_confirm), (d, which) -> {

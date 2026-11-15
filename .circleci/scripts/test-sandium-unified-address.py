@@ -18,9 +18,36 @@ class UnifiedAddress(unittest.TestCase):
         self.assertIn('formatUrlForDisplayOmitSchemePathAndTrivialSubdomains(gurl)',out)
         self.assertIn('buildUrlBarData(gurl, false, identity, formattedUrl)',out)
         self.assertNotIn('split(".")',out)
-        # Every earlier special, offline and rewritten branch is byte-for-byte preserved.
-        anchor='            return buildUrlBarData(gurl, false, formattedUrl);'
-        self.assertEqual(original[:original.index(anchor)],out[:out.index('            // SANDIUM_UNIFIED_ADDRESS_V1:')])
+        # Special/offline/publisher/frozen handling before normal display is intact.
+        anchor='            String urlForDisplay = getUrlForDisplay();\n            if (!urlForDisplay.equals(formattedUrl))'
+        self.assertEqual(original[:original.index(anchor)],out[:out.index('            String urlForDisplay = getUrlForDisplay();\n            // SANDIUM_CONCISE_NATIVE_DISPLAY_V2')])
+        self.assertIn('!urlForDisplay.equals(sandiumNativeDisplay)',out)
+        self.assertIn('formatUrlForDisplayOmitSchemeOmitTrivialSubdomains(gurl.getSpec())',out)
+        self.assertLess(out.index('SANDIUM_CONCISE_NATIVE_DISPLAY_V2'),out.index('String identity ='))
+
+    def test_v1_display_overlay_upgrades_idempotently(self):
+        original=(FIX/'LocationBarModel.java').read_text()
+        v2=m.model(original)
+        new_start=v2.index('            String urlForDisplay = getUrlForDisplay();\n            // SANDIUM_CONCISE_NATIVE_DISPLAY_V2')
+        new_end=v2.index('\n\n            // SANDIUM_UNIFIED_ADDRESS_V1:',new_start)
+        old_start=original.index('            String urlForDisplay = getUrlForDisplay();\n            if (!urlForDisplay.equals(formattedUrl))')
+        old_end=original.index('\n\n            return buildUrlBarData(gurl, false, formattedUrl);',old_start)
+        v1=v2[:new_start]+original[old_start:old_end]+v2[new_end:]
+        self.assertEqual(v2,m.model(v1))
+
+    def test_display_admission_contract_cases(self):
+        # Decision model only: native formatter output is an explicit input, not
+        # reimplemented in Python. Native formatting requires Android testing.
+        def admitted(scheme, display, editing, native):
+            ordinary=scheme in ('http','https')
+            return display==editing or (ordinary and display==native)
+        self.assertTrue(admitted('https','google.com/search?q=news',
+                                 'https://www.google.com/search?q=news','google.com/search?q=news'))
+        self.assertFalse(admitted('https','publisher.example/story',
+                                  'https://proxy.example/story','proxy.example/story'))
+        self.assertFalse(admitted('chrome','google.com','chrome://ai','google.com'))
+        self.assertFalse(admitted('https','login.example.com',
+                                  'https://evil.example/path','evil.example/path'))
 
     def test_native_centering_and_safe_overflow(self):
         out=m.location_phone((FIX/'LocationBarPhone.java').read_text())

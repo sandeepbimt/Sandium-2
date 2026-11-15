@@ -6,7 +6,7 @@
     ".circleci/scripts/apply-sandium-chrome-theme.py": "13cfd73d17cd342cec9b1f3bf332f29be873a0b850cfb40942b7cd4660623ccf",
     ".circleci/scripts/apply-sandium-native-theme.py": "de626469be532107ce07d878ceedd5d29fde8d75c9fba3972df4d0e5955d176f",
     ".circleci/scripts/apply-sandium-paged-menu.py": "4283569e4b096587ca1bdb0ccb40ee94a6b39e38510308e06874e03fa4f53675",
-    ".circleci/scripts/apply-sandium-scroll-status-bar.py": "00faffb3d630fa3deaff2c4775efb3b2a557ff4685832d01c012e8635b7d0c20",
+    ".circleci/scripts/apply-sandium-scroll-status-bar.py": "0bda8f91076d7f41fd0c68a8b240fa38e3aeb55f22c93a0f8ed4ab72e802cfd9",
     ".circleci/scripts/apply-sandium-shields-popup.py": "eaca25aec6ba08e28775815c112f8446f87dd49630da98bd86ea78770f2c078d",
     ".circleci/scripts/test-sandium-bottom-toolbar.py": "40e3750bb0bdc4e97b9c13e306406fffbc65d5b146f1ba526748cdce8152bb24",
     ".circleci/scripts/test-sandium-chrome-theme.py": "d9443c1ab2e17e2319b2df23af0e61ef2fd70b030450175a39eac53a8a4f3958",
@@ -17,9 +17,9 @@
     "android/java/org/chromium/chrome/browser/firstrun/SandiumWelcomeSetupView.java": "2f4555a13403ff9a87c6aa47ff6c12e898f1f5b63bc2aa7f1a3d917ec2633b8b",
     "android/java/org/chromium/chrome/browser/ui/appmenu/SandiumMenuMetadata.java": "73c796d7c1c623bfa2d5246e68b7a5763a76bf78eec225d0722f60f171d24be2",
     "android/java/org/chromium/chrome/browser/ui/appmenu/SandiumMenuState.java": "64b707978412cca96095221e68d14764b15a2da241a1e7698de1f375c77b652f",
-    "android/java/org/chromium/chrome/browser/ui/appmenu/SandiumPagedMenu.java": "c950341c0efdca2b7fd2db7865abfd7fb59e2095d3284366f0bd4637810eb52c",
-    "android/java/res/values-night/sandium_menu_colors.xml": "c563cee895d6757052b265bafcee5b1bff8d97554e02c242c0b267e601032e25",
-    "android/java/res/values/sandium_menu_colors.xml": "743dc995baa6bc57bf9150bbdc8e9060d4def7e7974b63fb42e3cd9ddbe961c1",
+    "android/java/org/chromium/chrome/browser/ui/appmenu/SandiumPagedMenu.java": "c6a51bfd473850e67a3537fbc0e05ad93c499dde22a6e7945b3763888b8022b7",
+    "android/java/res/values-night/sandium_menu_colors.xml": "c9a64cb30b2df67eafa6846da63d6d32aacf86aa97c5f1a4784ffebe8f92d184",
+    "android/java/res/values/sandium_menu_colors.xml": "3c9efcdaf512005133b0c56c7b2376d6890225b72a7e6257a7cad54d8675efde",
     "android/java/res/values/sandium_menu_strings.xml": "7cff1ba0ad48e9e9ae84fb6fd209146add8abc7317c50d8bce9bc7b3ef009757"
   },
   "approved_ui_updates": [
@@ -100,6 +100,41 @@
         ".circleci/experimental-steps/product-overlay-29-0.sh": {
           "previous_sha256": "56038b5c22d16c663ffb1a4aca9c0ecd085a301c0241386e1581e2718009021c",
           "current_sha256": "855a37be473eefb8ae8df35d47796b6a0568df3507788b6f1a339a43655c4b64"
+        }
+      }
+    },
+    {
+      "reason": "Nov15 user reported blank #1173 Edit menu: bound empty title spacer height so editor body remains visible; inset Edit label as requested",
+      "changes": {
+        "android/java/org/chromium/chrome/browser/ui/appmenu/SandiumPagedMenu.java": {
+          "previous_sha256": "c950341c0efdca2b7fd2db7865abfd7fb59e2095d3284366f0bd4637810eb52c",
+          "current_sha256": "0a012dfa0ecc3be5a5b2deee3fa4acf3886d32d6c4e71fd2bb771403aef739ea"
+        }
+      }
+    },
+    {
+      "reason": "Nov15 user reference155514: grey rounded groups on dark menu and editor, preserving blue accent and existing action order",
+      "changes": {
+        "android/java/org/chromium/chrome/browser/ui/appmenu/SandiumPagedMenu.java": {
+          "previous_sha256": "0a012dfa0ecc3be5a5b2deee3fa4acf3886d32d6c4e71fd2bb771403aef739ea",
+          "current_sha256": "c6a51bfd473850e67a3537fbc0e05ad93c499dde22a6e7945b3763888b8022b7"
+        },
+        "android/java/res/values/sandium_menu_colors.xml": {
+          "previous_sha256": "743dc995baa6bc57bf9150bbdc8e9060d4def7e7974b63fb42e3cd9ddbe961c1",
+          "current_sha256": "3c9efcdaf512005133b0c56c7b2376d6890225b72a7e6257a7cad54d8675efde"
+        },
+        "android/java/res/values-night/sandium_menu_colors.xml": {
+          "previous_sha256": "c563cee895d6757052b265bafcee5b1bff8d97554e02c242c0b267e601032e25",
+          "current_sha256": "c9a64cb30b2df67eafa6846da63d6d32aacf86aa97c5f1a4784ffebe8f92d184"
+        }
+      }
+    },
+    {
+      "reason": "User requested mandatory gradient; initialize guarded top-underlap controller with positive gesture evidence when OEM hides navbar hint, without changing downstream exclusions",
+      "changes": {
+        ".circleci/scripts/apply-sandium-scroll-status-bar.py": {
+          "previous_sha256": "00faffb3d630fa3deaff2c4775efb3b2a557ff4685832d01c012e8635b7d0c20",
+          "current_sha256": "0bda8f91076d7f41fd0c68a8b240fa38e3aeb55f22c93a0f8ed4ab72e802cfd9"
         }
       }
     }

@@ -11,6 +11,11 @@ CHROMIUM_SHA = "d331de35ca8ab1358c7a17e4bd41627d55eaef51"
 BRAVE_SHA = "44a84b1f89d9a35287289d6a3d493e362f5a5123"
 CHANGES = [
     (
+        "cc/slim/layer_tree_impl.cc",
+        "    // Apply new pass's occlusion to parent pass.\n    if (transform_new_pass_to_parent_target.Preserves2dAxisAlignment()) {",
+        '    // Children draw at opacity 1 inside this pass, but their occlusion may\n    // hide parent content only when the composed pass is fully opaque.\n    // Preserve rear content during translucent screenshot crossfades.\n    if (parent_opacity * layer.opacity() == 1.0f &&\n        transform_new_pass_to_parent_target.Preserves2dAxisAlignment()) {'
+    ),
+    (
         'content/browser/navigation_transitions/back_forward_transition_animator.cc',
         '  CHECK(new_render_widget_host_);\n  CHECK_NE(primary_main_frame_navigation_entry_item_sequence_number_',
         '''  CHECK(new_render_widget_host_);

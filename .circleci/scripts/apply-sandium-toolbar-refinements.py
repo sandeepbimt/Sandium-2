@@ -104,8 +104,15 @@ def button(s):
     private void drawSandiumAdd(Canvas canvas, float centerX, float centerY) {
         if (!mSandiumDualAction) return;
         float d = getResources().getDisplayMetrics().density;
-        float x = centerX + (getLayoutDirection() == LAYOUT_DIRECTION_RTL ? -17 : 17) * d;
-        float y = centerY + 8 * d;
+        // SANDIUM_TAB_BADGE_V2: reference has a blue circular + at top-end,
+        // overlapping the existing native count outline, not a detached bottom +.
+        float x = centerX + (getLayoutDirection() == LAYOUT_DIRECTION_RTL ? -10 : 10) * d;
+        float y = centerY - 10 * d;
+        mSandiumAddPaint.setStyle(android.graphics.Paint.Style.FILL);
+        mSandiumAddPaint.setColor(android.graphics.Color.rgb(110, 142, 181));
+        mSandiumAddPaint.setAlpha(isEnabled() ? 255 : 100);
+        canvas.drawCircle(x, y, 6 * d, mSandiumAddPaint);
+        mSandiumAddPaint.setColor(android.graphics.Color.rgb(8, 8, 8));
         mSandiumAddPaint.setStrokeWidth(1.5f * d);
         mSandiumAddPaint.setStrokeCap(android.graphics.Paint.Cap.ROUND);
         mSandiumAddPaint.setAlpha(isEnabled() ? 255 : 100);

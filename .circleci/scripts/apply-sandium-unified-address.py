@@ -16,18 +16,40 @@ MODEL = bottom.BASE + 'java/src/org/chromium/chrome/browser/toolbar/LocationBarM
 
 
 def model(s):
-    if MARKER in s:
+    if 'SANDIUM_CONCISE_NATIVE_DISPLAY_V2' in s:
         return s
-    return once(s, '            return buildUrlBarData(gurl, false, formattedUrl);', '''            // SANDIUM_UNIFIED_ADDRESS_V1: only ordinary, non-rewritten web URLs.
-            // Preserve native IDN/spoof formatting and meaningful subdomains/ports. This
-            // display string is NEVER used for navigation, clipboard or URL editing.
-            // Earlier offline, publisher, frozen and special-page paths stay untouched.
+    # V1 added concise formatting after the native display/edit comparison. That
+    # comparison differs on ordinary HTTPS/www URLs, so it skipped our formatter.
+    # Admit only the exact native equivalent display of the same canonical URL.
+    # Unknown rewrites keep their native identity; never parse/strip it with regex.
+    old_guard = '''            String urlForDisplay = getUrlForDisplay();
+            if (!urlForDisplay.equals(formattedUrl)) {
+                return buildUrlBarData(gurl, false, urlForDisplay, formattedUrl);
+            }'''
+    new_guard = '''            String urlForDisplay = getUrlForDisplay();
+            // SANDIUM_CONCISE_NATIVE_DISPLAY_V2: ordinary scheme/www elision is
+            // not a rewritten identity. Compare against Chromium's own formatter.
+            boolean sandiumOrdinaryWeb = "https".equals(gurl.getScheme())
+                    || "http".equals(gurl.getScheme());
+            String sandiumNativeDisplay = sandiumOrdinaryWeb
+                    ? org.chromium.components.url_formatter.UrlFormatter
+                            .formatUrlForDisplayOmitSchemeOmitTrivialSubdomains(gurl.getSpec())
+                    : "";
+            if (!urlForDisplay.equals(formattedUrl)
+                    && (!sandiumOrdinaryWeb || !urlForDisplay.equals(sandiumNativeDisplay))) {
+                return buildUrlBarData(gurl, false, urlForDisplay, formattedUrl);
+            }'''
+    if MARKER not in s:
+        s = once(s, '            return buildUrlBarData(gurl, false, formattedUrl);', '''            // SANDIUM_UNIFIED_ADDRESS_V1: ordinary, non-rewritten web URLs only.
+            // Keep native safe IDN formatting, meaningful subdomains and ports.
+            // Earlier offline, publisher, frozen and special-page paths stay intact.
             if ("https".equals(gurl.getScheme()) || "http".equals(gurl.getScheme())) {
                 String identity = org.chromium.components.url_formatter.UrlFormatter
                         .formatUrlForDisplayOmitSchemePathAndTrivialSubdomains(gurl);
                 return buildUrlBarData(gurl, false, identity, formattedUrl);
             }
             return buildUrlBarData(gurl, false, formattedUrl);''')
+    return once(s, old_guard, new_guard)
 
 
 def phone(s):

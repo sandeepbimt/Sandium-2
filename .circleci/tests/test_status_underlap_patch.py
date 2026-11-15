@@ -15,6 +15,37 @@ class UnderlapPatchTests(unittest.TestCase):
     def original(self, name):
         return (BASE / 'fixtures/status-bar' / name).read_text()
 
+    def test_hidden_gesture_controller_creation_preserves_positive_evidence(self):
+        name = 'EdgeToEdgeControllerCreator.java'
+        text = patch.transform(name, self.original(name))
+        self.assertIn('&& EdgeToEdgeUtils.doAllInsetsIndicateGestureNavigation(insets)', text)
+        self.assertIn('&& (!navigationBarInsets.equals(Insets.NONE)', text)
+        self.assertIn('|| canCreateSandiumHiddenGestureController(activity, insets)', text)
+        for guard in ['isSandiumTopUnderlapExperimentEnabled()', 'isEdgeToEdgeEverywhereEnabled()',
+                      'ChromeTabbedActivity', 'isInMultiWindowMode()', 'isInPictureInPictureMode()',
+                      'smallestScreenWidthDp >= 600', 'ORIENTATION_PORTRAIT',
+                      'doAllInsetsIndicateGestureNavigation(insets)',
+                      'isVisible(WindowInsetsCompat.Type.statusBars())',
+                      'cutout.top <= status.top', 'Type.captionBar()']:
+            self.assertIn(guard, text)
+        self.assertEqual(text, patch.transform(name, text))
+        self.assertIn('hasInsetsConsumer(InsetConsumerSource.EDGE_TO_EDGE_CONTROLLER_IMPL)', text)
+        self.assertIn('mInsetObserver.removeInsetsConsumer(mWindowInsetsConsumer)', text)
+
+    def test_hidden_hint_does_not_relax_downstream_underlap_or_invent_bottom_inset(self):
+        before = subprocess.check_output(['git', 'show',
+            '57dca6b:.circleci/scripts/apply-sandium-scroll-status-bar.py'], text=True)
+        old = types.ModuleType('old_status'); exec(before, old.__dict__)
+        for name in old.FILES:
+            self.assertEqual(old.transform(name, self.original(name)),
+                             patch.transform(name, self.original(name)), name)
+        creator = patch.transform('EdgeToEdgeControllerCreator.java',
+                                  self.original('EdgeToEdgeControllerCreator.java'))
+        self.assertNotIn('setInsets(', creator)
+        self.assertNotIn('setDecorFitsSystemWindows', creator)
+        self.assertNotIn('getUrl(', creator)
+        self.assertNotIn('getTitle(', creator)
+
     def test_all_pinned_sources_transform_idempotently(self):
         for name in patch.FILES:
             with self.subTest(name=name):
