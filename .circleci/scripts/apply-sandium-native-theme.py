@@ -5,25 +5,25 @@ from pathlib import Path
 import re
 import xml.etree.ElementTree as ET
 
-ACCENT = '#E8D3A2'  # Light sand gold for active controls, never ordinary body text.
-BACKGROUND = '#000000'
-CARD = '#212121'
-ON_ACCENT = '#292211'
-LIGHT_PRIMARY = '#6F561E'  # Same warm family, readable on light surfaces.
+ACCENT = '#6E8EB5'  # Reference muted blue for active controls, never ordinary body text.
+BACKGROUND = '#080808'
+CARD = '#101010'
+ON_ACCENT = '#080F18'
+LIGHT_PRIMARY = '#365D86'  # Same blue family, readable on light surfaces.
 COMMON = {
     # Chromium's default dark controls, primary text and filled buttons use tone80.
     'baseline_primary_80': ACCENT,
     'baseline_primary_20': ON_ACCENT,
-    # Keep readable warm-gold text/controls on light surfaces instead of pale-on-white.
+    # Keep readable blue text/controls on light surfaces instead of pale-on-white.
     'baseline_primary_40': LIGHT_PRIMARY,
-    'baseline_primary_90': '#F5E6C4',
-    'baseline_primary_10': '#241A04',
+    'baseline_primary_90': '#D5E4F6',
+    'baseline_primary_10': '#071C32',
     'gm3_baseline_surface_dark': BACKGROUND,
-    'gm3_baseline_surface_container_lowest_dark': '#000000',
-    'gm3_baseline_surface_container_low_dark': '#171717',
+    'gm3_baseline_surface_container_lowest_dark': BACKGROUND,
+    'gm3_baseline_surface_container_low_dark': '#101010',
     'gm3_baseline_surface_container_dark': CARD,
-    'gm3_baseline_surface_container_high_dark': '#303030',
-    'gm3_baseline_surface_container_highest_dark': '#383838',
+    'gm3_baseline_surface_container_high_dark': '#181818',
+    'gm3_baseline_surface_container_highest_dark': '#202020',
     'gm3_baseline_surface_tint_dark': ACCENT,
     'toolbar_background_primary_dark': BACKGROUND,
 }
@@ -32,18 +32,18 @@ NIGHT = {
     'schemes_on_primary': ON_ACCENT,
     'schemes_surface_container_lowest': BACKGROUND,
     'schemes_surface_container': CARD,
-    'schemes_surface_container_highest': '#383838',
+    'schemes_surface_container_highest': '#202020',
     'schemes_on_surface': '#FAFAFA',
     'schemes_on_surface_variant': '#BDBDBD',
     'schemes_outline_variant': '#454545',
     'button_background': ACCENT,
-    'button_background_10': '#19E8D3A2',
+    'button_background_10': '#196E8EB5',
     'text_on_primary': ON_ACCENT,
     'text_interactive': ACCENT,
     'icon_interactive': ACCENT,
     'brave_link': ACCENT,
     'brave_text_button_color': ACCENT,
-    'brave_button_pressed': '#D5BB80',
+    'brave_button_pressed': '#8AA8CA',
     'container_background': BACKGROUND,
     'onboarding_bg_color': BACKGROUND,
     'onboarding_card_bg_color': CARD,
@@ -58,9 +58,9 @@ LIGHT = {
     'schemes_primary': LIGHT_PRIMARY,
     'schemes_on_primary': '#FFFFFF',
     'button_background': LIGHT_PRIMARY,
-    'button_background_10': '#196F561E',
+    'button_background_10': '#19365D86',
     'brave_text_button_color': LIGHT_PRIMARY,
-    'brave_button_pressed': '#503C10',
+    'brave_button_pressed': '#254563',
     'text_interactive': LIGHT_PRIMARY,
     'icon_interactive': LIGHT_PRIMARY,
     'brave_link': LIGHT_PRIMARY,
@@ -69,14 +69,14 @@ LIGHT = {
 # dialogs and controls. Keep error/security/private-mode token families untouched.
 # These are neutral tonal values, not a global replacement of every hex literal.
 for tone, value in {
-    0: '000000', 10: '171717', 20: '303030', 30: '474747', 40: '616161',
+    0: '000000', 10: '101010', 20: '181818', 30: '474747', 40: '616161',
     50: '797979', 60: '919191', 70: 'ABABAB', 80: 'C6C6C6',
     90: 'E2E2E2', 95: 'F1F1F1', 99: 'FCFCFC',
 }.items():
     COMMON[f'baseline_neutral_{tone}'] = '#' + value
 for tone, value in {30: '474747', 50: '797979', 60: '919191', 80: 'C6C6C6', 90: 'E2E2E2'}.items():
     COMMON[f'baseline_neutral_variant_{tone}'] = '#' + value
-for tone, value in {30: '513F18', 50: '8A7038', 60: 'A78B50', 70: 'C8AE73', 95: 'FFF3D9'}.items():
+for tone, value in {30: '254563', 50: '50759E', 60: '6E8EB5', 70: 'A2BCDC', 95: 'EBF3FF'}.items():
     COMMON[f'baseline_primary_{tone}'] = '#' + value
 for family, tones in {
     'secondary': {10: '171717', 25: '3B3B3B', 30: '474747', 35: '545454',
@@ -131,7 +131,7 @@ LIGHT['text_tertiary'] = '#616161'
 
 NIGHT.update({
     'card_background_solid': CARD,
-    'toolbar_text_box_bg_color': '#303030',
+    'toolbar_text_box_bg_color': '#181818',
 })
 LIGHT.update({
     'schemes_on_surface': '#202020',
@@ -192,6 +192,39 @@ def settings_motion(source):
         raise ValueError('Pinned Settings motion callback mismatch')
     return source.replace(old, new, 1)
 
+def settings_surface(source):
+    old = 'contentView.setBackgroundColor(SemanticColorUtils.getSettingsBackgroundColor(this));'
+    new = 'contentView.setBackgroundColor(sandiumSettingsBackground());'
+    helper = """    // SANDIUM_SETTINGS_SURFACE: preserve explicit dynamic-color opt-in and light theme.
+    private int sandiumSettingsBackground() {
+        boolean night = (getResources().getConfiguration().uiMode
+                & android.content.res.Configuration.UI_MODE_NIGHT_MASK)
+                == android.content.res.Configuration.UI_MODE_NIGHT_YES;
+        if (night && !org.chromium.chrome.browser.theme.BraveDynamicColors.isDynamicColorsEnabled()) {
+            return getColor(R.color.container_background);
+        }
+        return SemanticColorUtils.getSettingsBackgroundColor(this);
+    }
+
+"""
+    anchor = '    private void onSettingsFragmentViewReady(Fragment fragment, View fragmentView) {'
+    if helper not in source:
+        if source.count(anchor) != 1 or source.count(old) != 1:
+            raise ValueError('Pinned Settings surface anchors changed')
+        source = source.replace(old, new, 1).replace(anchor, helper + anchor, 1)
+    old_fragment = '\n        View insetView = getInsetView(fragment, fragmentView);'
+    new_fragment = """
+        // Paint only the screen root, never preference cards, dialogs or web content.
+        if (fragment.getParentFragment() == null) {
+            fragmentView.setBackgroundColor(sandiumSettingsBackground());
+        }
+        View insetView = getInsetView(fragment, fragmentView);"""
+    if new_fragment not in source:
+        if source.count(old_fragment) != 1:
+            raise ValueError('Pinned Settings root anchor changed')
+        source = source.replace(old_fragment, new_fragment, 1)
+    return source
+
 def apply(root):
     paths = {
         root / 'android/java/res/values/brave_colors.xml': {**COMMON, **LIGHT},
@@ -211,7 +244,7 @@ def apply(root):
                             'Returns the persisted user preference, or the Sandium baseline when unset.')
     result[java] = source
     settings = root / SETTINGS
-    result[settings] = settings_motion(settings.read_text())
+    result[settings] = settings_surface(settings_motion(settings.read_text()))
     test = root / 'browser/ui/android/theme/junit/src/org/chromium/chrome/browser/theme/BraveDynamicColorsTest.java'
     test_source = test.read_text()
     old = """public void testIsDynamicColorsEnabled_defaultEnabled_userPreferenceUnset_returnsTrue() {

@@ -29,3 +29,8 @@ python3 .circleci/scripts/apply-sandium-paged-menu.py "$SRC" --repo "$ROOT" --ve
 python3 .circleci/scripts/apply-sandium-chrome-theme.py "$SRC"
 python3 .circleci/scripts/test-sandium-chrome-theme.py
 python3 .circleci/scripts/test-sandium-motion.py
+
+# Frozen unified bar follows the intermediate bottom-toolbar source contract.
+python3 .circleci/scripts/apply-sandium-unified-address.py --src "$SRC" --core "$CORE"
+python3 .circleci/scripts/apply-sandium-unified-address.py --src "$SRC" --core "$CORE" --verify-only
+python3 .circleci/scripts/test-sandium-unified-address.py

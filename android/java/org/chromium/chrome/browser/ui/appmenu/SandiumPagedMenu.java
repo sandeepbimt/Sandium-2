@@ -52,10 +52,17 @@ final class SandiumPagedMenu extends FrameLayout {
     private int mRenderedScreen = -1;
     private int mRenderedPage = -1;
     private View mMotionPanel;
+    private FrameLayout mPageViewport;
+    private View mPageContent;
+    private View mOutgoingPage;
+    private android.animation.ValueAnimator mPageAnimator;
+    private int mPageMotionGeneration;
+    private int mPageMinimumHeight;
     private android.animation.ValueAnimator mPanelAnimator;
     private float mPanelAlpha = 1f;
     private boolean mNativeVisible;
     private float mDownX, mDownY;
+    private boolean mSwipeEligible;
     private String mDragging;
     private final Map<PropertyModel, LazyOneshotSupplier<Drawable>> mRequestedIcons = new java.util.IdentityHashMap<>();
     private final Set<PropertyModel> mObserved = new HashSet<>();
@@ -121,7 +128,8 @@ final class SandiumPagedMenu extends FrameLayout {
 
     private void add(PropertyModel model, int row, boolean nativeRow) {
         String key = key(model);
-        if (key == null || key.equals("brave_customize_menu_id")) return;
+        if (key == null || key.equals("brave_customize_menu_id")
+                || key.equals("default_browser_promo_menu_id")) return;
         if (!model.containsKey(AppMenuItemProperties.TITLE)) return;
         CharSequence title = model.get(AppMenuItemProperties.TITLE);
         if (title == null || title.length() == 0) return;
@@ -140,7 +148,7 @@ final class SandiumPagedMenu extends FrameLayout {
         if (mFooter != null) SandiumMenuMetadata.watchFooter(mFooter, null);
         if (mResize != null) removeCallbacks(mResize);
         clearPendingNativeAction();
-        finishPanelMotion();
+        finishPanelMotion(); finishPageMotion();
         super.onDetachedFromWindow();
     }
     private void refreshCatalog() {
@@ -292,11 +300,74 @@ final class SandiumPagedMenu extends FrameLayout {
         mPanelAnimator.start();
     }
 
+    private void finishPageMotion() {
+        ++mPageMotionGeneration;
+        if (mPageAnimator != null) { mPageAnimator.cancel(); mPageAnimator = null; }
+        if (mPageContent != null) mPageContent.setTranslationX(0f);
+        if (mOutgoingPage != null && mOutgoingPage.getParent() instanceof ViewGroup) {
+            ((ViewGroup) mOutgoingPage.getParent()).removeView(mOutgoingPage);
+        }
+        mOutgoingPage = null;
+    }
+
+    private void slidePage(View oldPage, int direction) {
+        if (oldPage == null || mPageContent == null || mPageViewport == null
+                || mDragging != null || !isAttachedToWindow()
+                || !android.animation.ValueAnimator.areAnimatorsEnabled()) return;
+        if (oldPage.getParent() instanceof ViewGroup) {
+            ((ViewGroup) oldPage.getParent()).removeView(oldPage);
+        }
+        // Retain the outgoing grid until the incoming grid settles; fixed header never moves.
+        disableTree(oldPage);
+        oldPage.setImportantForAccessibility(IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS);
+        mOutgoingPage = oldPage;
+        FrameLayout viewport = mPageViewport;
+        View incoming = mPageContent;
+        viewport.addView(oldPage, 0, new FrameLayout.LayoutParams(-1, -2));
+        int initialSign = getLayoutDirection() == LAYOUT_DIRECTION_RTL ? -direction : direction;
+        incoming.setTranslationX(initialSign * Math.max(1, getWidth()));
+        int generation = mPageMotionGeneration;
+        viewport.post(() -> {
+            if (generation != mPageMotionGeneration || viewport != mPageViewport
+                    || !viewport.isAttachedToWindow()) return;
+            if (!android.animation.ValueAnimator.areAnimatorsEnabled()) {
+                finishPageMotion(); return;
+            }
+            float width = viewport.getWidth();
+            int sign = getLayoutDirection() == LAYOUT_DIRECTION_RTL ? -direction : direction;
+            incoming.setTranslationX(sign * width);
+            mPageAnimator = android.animation.ValueAnimator.ofFloat(0f, 1f);
+            mPageAnimator.setDuration(180);
+            mPageAnimator.setInterpolator(new android.view.animation.DecelerateInterpolator());
+            mPageAnimator.addUpdateListener(animation -> {
+                float progress = (float) animation.getAnimatedValue();
+                incoming.setTranslationX(sign * width * (1f - progress));
+                oldPage.setTranslationX(-sign * width * progress);
+            });
+            mPageAnimator.addListener(new android.animation.AnimatorListenerAdapter() {
+                @Override public void onAnimationEnd(android.animation.Animator animation) {
+                    if (generation == mPageMotionGeneration) finishPageMotion();
+                }
+            });
+            mPageAnimator.start();
+        });
+    }
+
     private void render() {
         // Fade only actual navigation, never network/model updates or drag reorders.
         int screen = mDraft != null ? 2 : mAll ? 1 : 0;
+        if (screen != mRenderedScreen) mPageMinimumHeight = 0;
+        else if (mPageContent != null) {
+            mPageMinimumHeight = Math.max(mPageMinimumHeight, mPageContent.getHeight());
+        }
+        int pageDirection = Integer.compare(mPage, mRenderedPage);
+        boolean pageTransition = mRenderedScreen == screen && mRenderedPage >= 0
+                && mPage != mRenderedPage && !(mAll && mDraft == null) && !mNativeVisible;
+        finishPageMotion();
+        View oldPage = pageTransition ? mPageContent : null;
+        mPageViewport = null; mPageContent = null;
         boolean transition = mRenderedScreen != -1
-                && (screen != mRenderedScreen || mPage != mRenderedPage || mNativeVisible);
+                && (screen != mRenderedScreen || mNativeVisible);
         mRenderedScreen = screen; mRenderedPage = mPage;
         clearPendingNativeAction();
         removeAllViews(); mNativeVisible = false;
@@ -344,18 +415,44 @@ final class SandiumPagedMenu extends FrameLayout {
             body.addView(button(s(R.string.sandium_menu_native), s(R.string.sandium_menu_native_description),
                     () -> showNative(-1)));
         } else {
-            grid(body, state().page(editableKeys(), mPage, PAGE_SIZE), false);
-            LinearLayout pager = row();
-            TextView previous = button("‹", s(R.string.sandium_menu_previous), () -> page(-1));
-            previous.setEnabled(mPage > 0); dragPage(previous, -1); weighted(pager, previous);
-            StringBuilder dots = new StringBuilder();
-            for (int i = 0; i < pages; i++) dots.append(i == mPage ? "● " : "○ ");
-            TextView indicator = text(dots.toString(), 14, mSecondaryTextColor);
-            indicator.setContentDescription(s(R.string.sandium_menu_page_description, mPage + 1, pages));
-            weighted(pager, indicator);
-            TextView next = button("›", s(R.string.sandium_menu_next), () -> page(1));
-            next.setEnabled(mPage < pages - 1); dragPage(next, 1); weighted(pager, next);
-            body.addView(pager);
+            FrameLayout viewport = new FrameLayout(getContext());
+            viewport.setClipChildren(true); viewport.setClipToPadding(true);
+            // A sparse final page must not pull the editor's available-actions region upward.
+            viewport.setMinimumHeight(mPageMinimumHeight);
+            LinearLayout pageGrid = column();
+            grid(pageGrid, state().page(editableKeys(), mPage, PAGE_SIZE), false);
+            viewport.addView(pageGrid, new FrameLayout.LayoutParams(-1, -2));
+            body.addView(viewport);
+            mPageViewport = viewport; mPageContent = pageGrid;
+            if (pageTransition) slidePage(oldPage, pageDirection);
+            LinearLayout pager = row(); pager.setGravity(Gravity.CENTER);
+            // Small Edge-style marks with full 48dp touch targets, also keyboard/TalkBack reachable.
+            for (int i = 0; i < pages; i++) {
+                final int destination = i;
+                FrameLayout target = new FrameLayout(getContext());
+                target.setFocusable(true); target.setClickable(true);
+                target.setTag("page:" + i);
+                target.setContentDescription(s(R.string.sandium_menu_page_description, i + 1, pages));
+                target.setSelected(i == mPage);
+                target.setOnClickListener(v -> page(destination - mPage));
+                target.setAccessibilityDelegate(new View.AccessibilityDelegate() {
+                    @Override public void onInitializeAccessibilityNodeInfo(View host, AccessibilityNodeInfo info) {
+                        super.onInitializeAccessibilityNodeInfo(host, info);
+                        info.setClassName("android.widget.Button");
+                    }
+                });
+                View mark = new View(getContext());
+                mark.setBackground(shape(i == mPage ? mAccentColor : mDividerColor, 2));
+                mark.setImportantForAccessibility(IMPORTANT_FOR_ACCESSIBILITY_NO);
+                target.addView(mark, new FrameLayout.LayoutParams(dp(i == mPage ? 20 : 12), dp(3), Gravity.CENTER));
+                dragPage(target, i - mPage);
+                pager.addView(target, new LinearLayout.LayoutParams(dp(48), dp(48)));
+            }
+            // Horizontal scrolling keeps every page selector accessible for large customized menus.
+            android.widget.HorizontalScrollView pagerScroll = new android.widget.HorizontalScrollView(getContext());
+            pagerScroll.setHorizontalScrollBarEnabled(false); pagerScroll.setFillViewport(true);
+            pagerScroll.addView(pager);
+            body.addView(pagerScroll);
         }
         if (mDraft != null) {
             body.addView(text(s(R.string.sandium_menu_available), 15, mSecondaryTextColor));
@@ -421,6 +518,7 @@ final class SandiumPagedMenu extends FrameLayout {
             icon.setEnabled(mDraft != null || enabled(entry.model));
             AppMenuItemViewBinder.bindStandardItem(iconModel, icon, AppMenuItemProperties.ICON);
             if (icon.getDrawable() != null) icon.getDrawable().setLevel(level);
+            if (library(key)) icon.setImageTintList(android.content.res.ColorStateList.valueOf(mAccentColor));
             icon.setImportantForAccessibility(IMPORTANT_FOR_ACCESSIBILITY_NO);
             tile.addView(icon, new LinearLayout.LayoutParams(dp(26), dp(26)));
             TextView label = text(title(entry), 12, mTextColor); label.setMaxLines(3);
@@ -564,7 +662,7 @@ final class SandiumPagedMenu extends FrameLayout {
     }
 
     private void showNative(int row) {
-        finishPanelMotion(); mMotionPanel = null;
+        finishPanelMotion(); finishPageMotion(); mMotionPanel = null;
         clearPendingNativeAction();
         mNativeVisible = true;
         if (mNativeReset != null) mNativeReset.run();
@@ -580,7 +678,19 @@ final class SandiumPagedMenu extends FrameLayout {
 
     private void page(int direction) {
         int count = Math.max(1, state().pageCount(editableKeys(), PAGE_SIZE));
-        mPage = Math.max(0, Math.min(count - 1, mPage + direction)); render();
+        int next = Math.max(0, Math.min(count - 1, mPage + direction));
+        if (next == mPage) return;
+        View focus = findFocus();
+        View a11yFocus = accessibilityFocus(this);
+        boolean restoreKeyFocus = focus != null && String.valueOf(focus.getTag()).startsWith("page:");
+        boolean restoreA11yFocus = a11yFocus != null && String.valueOf(a11yFocus.getTag()).startsWith("page:");
+        mPage = next; render();
+        View destination = findViewWithTag("page:" + mPage);
+        if (destination != null) {
+            if (restoreKeyFocus) destination.requestFocus();
+            if (restoreA11yFocus) destination.performAccessibilityAction(
+                    AccessibilityNodeInfo.ACTION_ACCESSIBILITY_FOCUS, null);
+        }
     }
     private void dragPage(View v, int direction) {
         v.setOnDragListener((target, event) -> {
@@ -621,16 +731,28 @@ final class SandiumPagedMenu extends FrameLayout {
     }
     @Override public boolean onInterceptTouchEvent(MotionEvent event) {
         if (event.getActionMasked() == MotionEvent.ACTION_DOWN) clearPendingNativeAction();
-        if (mNativeVisible || mAll || mDraft != null) return super.onInterceptTouchEvent(event);
+        if (mNativeVisible || (mAll && mDraft == null) || mDragging != null) return super.onInterceptTouchEvent(event);
         if (event.getActionMasked() == MotionEvent.ACTION_DOWN) {
             mDownX = event.getX(); mDownY = event.getY();
+            android.graphics.Rect bounds = new android.graphics.Rect();
+            mSwipeEligible = mPageViewport != null;
+            if (mSwipeEligible) {
+                mPageViewport.getDrawingRect(bounds);
+                offsetDescendantRectToMyCoords(mPageViewport, bounds);
+                mSwipeEligible = bounds.contains((int) mDownX, (int) mDownY);
+            }
         } else if (event.getActionMasked() == MotionEvent.ACTION_MOVE
-                && Math.abs(event.getX() - mDownX) > dp(48)
+                && mSwipeEligible && Math.abs(event.getX() - mDownX) > dp(48)
                 && Math.abs(event.getX() - mDownX) > Math.abs(event.getY() - mDownY) * 1.5f) return true;
         return super.onInterceptTouchEvent(event);
     }
     @Override public boolean onTouchEvent(MotionEvent event) {
+        if (event.getActionMasked() == MotionEvent.ACTION_CANCEL) {
+            mSwipeEligible = false; return true;
+        }
         if (event.getActionMasked() == MotionEvent.ACTION_UP) {
+            boolean eligible = mSwipeEligible; mSwipeEligible = false;
+            if (!eligible) return super.onTouchEvent(event);
             float distance = event.getX() - mDownX;
             if (Math.abs(distance) > dp(48)) {
                 int direction = distance < 0 ? 1 : -1;

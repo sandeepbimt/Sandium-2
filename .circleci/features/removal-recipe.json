@@ -345,7 +345,9 @@
     "renderer/sources.gni",
     "android/java/proguard.flags",
     "BUILD.gn",
-    "third_party/android_deps/BUILD.gn"
+    "third_party/android_deps/BUILD.gn",
+    "android/java/brave-res/values/brave_ids.xml",
+    "android/java/org/chromium/chrome/browser/suggestions/mostvisited/BraveMostVisitedSites.java"
   ],
   "chromium_restore": [
     "chrome/android/chrome_public_apk_tmpl.gni",
@@ -373,7 +375,12 @@
     "ui/edge_to_edge/android/java/src/org/chromium/ui/edge_to_edge/layout/EdgeToEdgeBaseLayout.java",
     "ui/edge_to_edge/android/java/src/org/chromium/ui/edge_to_edge/layout/EdgeToEdgeLayoutCoordinator.java",
     "ui/edge_to_edge/android/junit/src/org/chromium/ui/edge_to_edge/EdgeToEdgeSystemBarColorHelperUnitTest.java",
-    "ui/edge_to_edge/android/junit/src/org/chromium/ui/edge_to_edge/layout/EdgeToEdgeLayoutUnitTest.java"
+    "ui/edge_to_edge/android/junit/src/org/chromium/ui/edge_to_edge/layout/EdgeToEdgeLayoutUnitTest.java",
+    "chrome/browser/ntp_tiles/chrome_custom_links_manager_factory.cc",
+    "components/ntp_tiles/custom_links_manager_impl.cc",
+    "chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/LocationBarModel.java",
+    "chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/ToolbarPositionController.java",
+    "chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/LocationBarPhone.java"
   ],
   "generated_overwrite": [
     "components/minidump_uploader/android/java/src/org/chromium/components/minidump_uploader/MinidumpUploader.java",

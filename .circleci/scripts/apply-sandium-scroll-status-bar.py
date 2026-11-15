@@ -3,6 +3,7 @@
 See docs/STATUS_BAR_RESEARCH.md before integration.
 """
 import argparse
+import hashlib
 from pathlib import Path
 
 FILES = {
@@ -25,6 +26,15 @@ def replace(s, old, new):
     return s.replace(old,new,1)
 
 def transform(name,s):
+    # Strip only this exact-version extension before the older whole-block idempotence anchors.
+    if name == 'EdgeToEdgeControllerImpl.java' and '    // Constraint/visibility changes do not necessarily move browser controls.' in s:
+        start = s.index('    // Constraint/visibility changes do not necessarily move browser controls.')
+        end = s.index('    private void refreshSandiumUnderlap() {', start)
+        if (s.count('    // Constraint/visibility changes do not necessarily move browser controls.') != 1
+                or hashlib.sha256(s[start:end].encode()).hexdigest() != '98322a066b83fcbf0db360805e976586798891e80033c86744d27dc2f3f94846'):
+            raise RuntimeError('Unrecognized status eligibility extension')
+        s = s[:start] + s[end:]
+        s = s.replace('        traceSandiumStatusEligibility(sandiumUnderlap);\n', '')
     # Migrate already-patched checkpoints without duplicating the overlay.
     if name == "EdgeToEdgeBaseLayout.java":
         s = s.replace("new int[] {0xB3000000, 0x99000000, 0x00000000}",
@@ -458,6 +468,69 @@ def transform(name,s):
                     .setSandiumScrollUnderStatusBar(false);
             if (mInsetObserver != null) mInsetObserver.updateSandiumTopInsetForEdgeToEdge(0);
         }""")
+    if name == 'EdgeToEdgeControllerImpl.java':
+        s=replace(s, '    private void refreshSandiumUnderlap() {', """    // Constraint/visibility changes do not necessarily move browser controls. Reassess the
+    // existing guards even when there is no offset or height callback; never bypass them.
+    @Override
+    public void onAndroidControlsVisibilityChanged(int visibility) {
+        refreshSandiumUnderlap();
+    }
+
+    @Override
+    public void onOffsetTagsInfoChanged(
+            org.chromium.chrome.browser.browser_controls.BrowserControlsOffsetTagsInfo oldInfo,
+            org.chromium.chrome.browser.browser_controls.BrowserControlsOffsetTagsInfo newInfo,
+            int constraints, boolean shouldUpdateOffsets) {
+        refreshSandiumUnderlap();
+    }
+
+    private void traceSandiumStatusEligibility(boolean active) {
+        if (!org.chromium.base.TraceEvent.enabled()) return;
+        var controls = mBrowserControlsStateProvider;
+        var config = mActivity.getResources().getConfiguration();
+        // Numeric geometry/state only: no URL, title, page pixels or navigation history.
+        org.chromium.base.TraceEvent.instant("SandiumStatusEligibility",
+                "active=" + active
+                + ",sdk=" + android.os.Build.VERSION.SDK_INT
+                + ",unified=" + mDisablePaddingRootView
+                + ",tabbed=" + "ChromeTabbedActivity".equals(mActivity.getClass().getSimpleName())
+                + ",portrait=" + (config.orientation
+                        == android.content.res.Configuration.ORIENTATION_PORTRAIT)
+                + ",tablet=" + (config.smallestScreenWidthDp >= 600)
+                + ",multi=" + mActivity.isInMultiWindowMode()
+                + ",pip=" + mActivity.isInPictureInPictureMode()
+                + ",tappable=" + EdgeToEdgeUtils.hasTappableNavigationBar(mActivity.getWindow())
+                + ",top=" + mSystemInsets.top
+                + ",geometry=" + isSandiumTopGeometrySupported(
+                        mSystemInsets, mSandiumCutoutInsets, mSandiumCaptionInsets)
+                + ",keyboard=" + (mKeyboardInsets != null && mKeyboardInsets.bottom > 0)
+                + ",indicator=" + mStatusIndicatorVisible
+                + ",transition=" + mSandiumNonBrowsingTransition
+                + ",crashed=" + mSandiumCrashedTab
+                + ",fullscreen=" + (mFullscreenManager == null
+                        || mFullscreenManager.getPersistentFullscreenMode())
+                + ",browsing=" + (mLayoutManager != null
+                        && mLayoutManager.getActiveLayoutType() == LayoutType.BROWSING)
+                + ",pageControls=" + (controls != null
+                        && isSandiumPageAndControlsSupported(mCurrentTab, controls))
+                + ",forced=" + (controls != null && controls.isVisibilityForced())
+                + ",position=" + (controls == null ? -1 : controls.getControlsPosition())
+                + ",topHeight=" + (controls == null ? -1 : controls.getTopControlsHeight())
+                + ",topMin=" + (controls == null ? -1 : controls.getTopControlsMinHeightOffset())
+                + ",bottomHeight=" + (controls == null ? -1 : controls.getBottomControlsHeight()));
+    }
+
+    private void refreshSandiumUnderlap() {""")
+        s=replace(s, '        boolean sandiumUnderlap = shouldSandiumUnderlap(mCurrentTab);',
+            '        boolean sandiumUnderlap = shouldSandiumUnderlap(mCurrentTab);\n'
+            '        traceSandiumStatusEligibility(sandiumUnderlap);')
+    if name == 'EdgeToEdgeLayoutCoordinator.java':
+        s=replace(s, '        // Consume the insets since the root view already adjusted their paddings.', """        if (org.chromium.base.TraceEvent.enabled()) {
+            org.chromium.base.TraceEvent.instant("SandiumStatusPaintGeometry",
+                    "protection=" + mView.getSandiumTopProtectionHeightForTesting()
+                    + ",status=" + statusBarInsets.top + ",padding=" + overallInsets.top);
+        }
+        // Consume the insets since the root view already adjusted their paddings.""")
     return s
 
 def apply(root, enabled=True):

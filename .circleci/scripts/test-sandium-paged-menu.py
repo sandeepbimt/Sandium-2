@@ -32,6 +32,15 @@ def run(audit, chromium, repo):
                 'android/java/org/chromium/chrome/browser/app/appmenu/AppMenuIconRowFooter.java']:
             target = core / relative; target.parent.mkdir(parents=True, exist_ok=True); shutil.copyfile(audit / relative, target)
         prune.patch_customize_menu(core)
+        custom_path = core / patch.CUSTOMIZE
+        assert '"default_browser_promo_menu_id".equals(resourceName)' in custom_path.read_text()
+        # Checkpoint already carrying the previous policy must acquire this new exclusion.
+        prior = custom_path.read_text().replace(
+            'return "default_browser_promo_menu_id".equals(resourceName)\n                    || "brave_wallet_id".equals(resourceName)',
+            'return "brave_wallet_id".equals(resourceName)')
+        custom_path.write_text(prior)
+        prune.patch_customize_menu(core)
+        assert '"default_browser_promo_menu_id".equals(resourceName)' in custom_path.read_text()
         patch.apply(src, repo, False)
         first = {str(p.relative_to(src)): p.read_bytes() for p in src.rglob('*') if p.is_file()}
         patch.apply(src, repo, False)

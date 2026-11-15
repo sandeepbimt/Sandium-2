@@ -10,13 +10,13 @@ import shlex
 
 ORDER = [f'product-overlay-{i}-0.sh' for i in range(24,31)] + ['graph-validation.sh','remote-smoke.sh','full-bounded-build.sh']
 REQUIRED = {
- 'product-overlay-30-0.sh': ['test-sandium-removal-composition.py','trace-sandium-back-geometry.py','sandium-removal-recipe.py','precheck-graph.py','removal-evidence.py'],
+ 'product-overlay-30-0.sh': ['test-sandium-removal-composition.py','trace-sandium-back-geometry.py','sandium-removal-recipe.py','apply-sandium-home-shortcuts.py','apply-sandium-home-shortcuts.py','apply-sandium-video-gestures.py','apply-sandium-video-gestures.py','precheck-graph.py','removal-evidence.py'],
  'product-overlay-24-0.sh': ['apply-sandium-branding.sh'],
  'product-overlay-25-0.sh': ['apply-sandium-adblock-engine-race.py','apply-sandium-filter-subscriptions.py','apply-sandium-filter-bootstrap.py'],
  'product-overlay-26-0.sh': ['apply-sandium-page-transition-full.py','apply-sandium-back-transition.py','trace-sandium-back-geometry.py'],
  'product-overlay-27-0.sh': ['apply-sandium-homepage-adblock-warmup.py','apply-sandium-download-concurrency.py','apply-sandium-welcome-setup.py','test-sandium-homepage-adblock-warmup.py','test-sandium-download-concurrency.py','test-sandium-welcome-setup.py','test-sandium-page-transition-full.py','verify-sandium-vanilla-brave.py'],
  'product-overlay-28-0.sh': ['apply-sandium-shields-two-state.py','apply-sandium-adblock-engine-race.py','test-sandium-shields-two-state.py','test-sandium-adblock-engine-race.py','test-sandium-filter-subscriptions.py','test-sandium-filter-bootstrap.py','apply-sandium-adblock-resources.py','test-sandium-adblock-resources.py'],
- 'product-overlay-29-0.sh': ['apply-sandium-ui-prune.py','test-sandium-ui-prune.py','apply-sandium-visible-branding.py','test-sandium-visible-branding.py','apply-sandium-native-theme.py','test-sandium-native-theme.py','apply-sandium-scroll-status-bar.py','test_status_underlap_patch.py','apply-sandium-shields-popup.py','test-sandium-shields-popup.py','apply-sandium-bottom-toolbar.py','test-sandium-bottom-toolbar.py','apply-sandium-paged-menu.py','apply-sandium-paged-menu.py','apply-sandium-chrome-theme.py','test-sandium-chrome-theme.py','test-sandium-motion.py'],
+ 'product-overlay-29-0.sh': ['apply-sandium-ui-prune.py','test-sandium-ui-prune.py','apply-sandium-visible-branding.py','test-sandium-visible-branding.py','apply-sandium-native-theme.py','test-sandium-native-theme.py','apply-sandium-scroll-status-bar.py','test_status_underlap_patch.py','apply-sandium-shields-popup.py','test-sandium-shields-popup.py','apply-sandium-bottom-toolbar.py','test-sandium-bottom-toolbar.py','apply-sandium-paged-menu.py','apply-sandium-paged-menu.py','apply-sandium-chrome-theme.py','test-sandium-chrome-theme.py','test-sandium-motion.py','apply-sandium-unified-address.py','apply-sandium-unified-address.py','test-sandium-unified-address.py'],
 }
 
 
@@ -80,6 +80,11 @@ def verify_full_wiring(repo):
             if not (repo/('.circleci/tests' if name == 'test_status_underlap_patch.py' else '.circleci/scripts')/name).is_file():raise ValueError(f'Missing invoked script {name}')
         if names!=expected:raise ValueError(f'{wrapper}: actual apply/test command sequence differs: {names}')
         if wrapper=='product-overlay-30-0.sh' and invocations[0][1] != ['--source','$CORE','--chromium-source','$SRC','--gn','$SRC/buildtools/linux64/gn']:raise ValueError('Composition must read both pinned repositories')
+        if wrapper=='product-overlay-30-0.sh':
+            if invocations[3][1] != ['$SRC','--repo','$ROOT'] or invocations[4][1] != ['$SRC','--repo','$ROOT','--verify-only']:
+                raise ValueError('Home shortcuts must target restored source and verify after removal')
+            if invocations[5][1] != ['$SRC','--repo','$ROOT'] or invocations[6][1] != ['$SRC','--repo','$ROOT','--verify-only']:
+                raise ValueError('Fullscreen controls require actual-tree verification')
         if wrapper=='product-overlay-30-0.sh' and invocations[-2][1] != ['--audits-only']:raise ValueError('Aggregated audits must not repeat preparation')
         if wrapper=='product-overlay-26-0.sh' and invocations[-1][1] != ['$CIRCLE_WORKING_DIRECTORY/brave-work/src','--reset']:raise ValueError('Geometry trace must reset before status overlay')
         if wrapper=='product-overlay-25-0.sh' and '--reset-shared' not in invocations[0][1]:raise ValueError('Shared reset must precede feature consumers')
@@ -106,6 +111,8 @@ def verify_full_wiring(repo):
                 raise ValueError('Paged menu post-apply verification is required')
             if invocations[14][1] != ['$SRC'] or invocations[15][1]:
                 raise ValueError('Chrome theme must target restored source with its contract test')
+            if invocations[17][1] != ['--src','$SRC','--core','$CORE'] or invocations[18][1] != ['--src','$SRC','--core','$CORE','--verify-only'] or invocations[19][1]:
+                raise ValueError('Unified address requires pinned source/core and readback verification')
             if invocations[16][1]:
                 raise ValueError('Motion contract takes no external inputs')
     return list(jobs)

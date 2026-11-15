@@ -1,0 +1,1 @@
+package org.chromium.content_public.browser; public class WebContents { public WebContentsObserver observer; public MediaSession session=new MediaSession(); public boolean fullscreen=true,video=true; public boolean isFullscreenForCurrentTab(){return fullscreen;} public boolean hasActiveEffectivelyFullscreenVideo(){return video;} }

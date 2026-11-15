@@ -79,7 +79,8 @@ def patch_customize_menu(core: Path) -> None:
     helper = """    public static boolean isRemovedBySandium(final Resources resources, final int itemId) {
         try {
             String resourceName = resources.getResourceEntryName(itemId);
-            return "brave_wallet_id".equals(resourceName)
+            return "default_browser_promo_menu_id".equals(resourceName)
+                    || "brave_wallet_id".equals(resourceName)
                     || "brave_leo_id".equals(resourceName)
                     || "brave_rewards_id".equals(resourceName)
                     || "brave_news_id".equals(resourceName)
@@ -93,6 +94,12 @@ def patch_customize_menu(core: Path) -> None:
 """
     insert_before_once(path, "    public static boolean isVisible(final Resources resources, final int itemId) {",
         helper, "public static boolean isRemovedBySandium", "menu-remove-policy-helper")
+    # Upgrade already-patched checkpoints as well as clean source.
+    source = read(path)
+    if '"default_browser_promo_menu_id".equals(resourceName)' not in source:
+        source = source.replace('return "brave_wallet_id".equals(resourceName)',
+            'return "default_browser_promo_menu_id".equals(resourceName)\n                    || "brave_wallet_id".equals(resourceName)', 1)
+        write(path, source, "menu-remove-default-promo")
     replace_once(path,
         """    public static boolean isVisible(final Resources resources, final int itemId) {
         String resourceName;

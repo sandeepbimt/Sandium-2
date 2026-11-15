@@ -49,6 +49,40 @@ class UnderlapPatchTests(unittest.TestCase):
         self.assertIn('public void onTopControlsHeightChanged(int topControlsHeight, int topControlsMinHeight) {\n        refreshSandiumUnderlap();', controller)
         self.assertIn('mBottomControlsHeight = bottomControlsHeight;\n        refreshSandiumUnderlap();', controller)
 
+    def test_current_checkpoint_upgrade_and_back_trace_composition(self):
+        old = types.ModuleType('old')
+        exec(subprocess.check_output(['git', 'show',
+            'd6b31ba:.circleci/scripts/apply-sandium-scroll-status-bar.py'], text=True), old.__dict__)
+        for name in patch.FILES:
+            self.assertEqual(patch.transform(name, self.original(name)),
+                             patch.transform(name, old.transform(name, self.original(name))))
+        spec = importlib.util.spec_from_file_location('geometry', BASE.parent / 'scripts/trace-sandium-back-geometry.py')
+        geom = importlib.util.module_from_spec(spec); spec.loader.exec_module(geom)
+        name = 'EdgeToEdgeControllerImpl.java'
+        current = patch.transform(name, self.original(name))
+        traced = geom.transform(current)
+        self.assertEqual(traced, geom.transform(patch.transform(name, geom.reset(traced))))
+
+    def test_unknown_extension_drift_fails_closed(self):
+        name = 'EdgeToEdgeControllerImpl.java'
+        current = patch.transform(name, self.original(name))
+        with self.assertRaisesRegex(RuntimeError, 'Unrecognized status eligibility extension'):
+            patch.transform(name, current.replace('SandiumStatusEligibility', 'UnexpectedStatusTrace'))
+
+    def test_visibility_recheck_keeps_guards_and_traces_no_browsing_data(self):
+        text = patch.transform('EdgeToEdgeControllerImpl.java', self.original('EdgeToEdgeControllerImpl.java'))
+        self.assertIn('public void onAndroidControlsVisibilityChanged(int visibility)', text)
+        self.assertIn('public void onOffsetTagsInfoChanged(', text)
+        self.assertIn('if (controls.isVisibilityForced()', text)
+        trace = text[text.index('    private void traceSandiumStatusEligibility'):text.index('    private void refreshSandiumUnderlap')]
+        self.assertIn('if (!org.chromium.base.TraceEvent.enabled()) return;', trace)
+        for private_data in ['getUrl(', 'getTitle(', 'getLastCommittedUrl(', 'evaluateJavaScript']:
+            self.assertNotIn(private_data, trace)
+        layout = patch.transform('EdgeToEdgeLayoutCoordinator.java', self.original('EdgeToEdgeLayoutCoordinator.java'))
+        self.assertIn('SandiumStatusPaintGeometry', layout)
+        self.assertIn('protection=', layout)
+        self.assertIn('padding=', layout)
+
     def test_rejects_drift_before_any_writes(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

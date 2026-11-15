@@ -1,0 +1,1 @@
+package android.provider; public class Settings {public static class System {public static final String SCREEN_BRIGHTNESS="brightness"; public static int getInt(Object c,String k,int d){return 128;}}}

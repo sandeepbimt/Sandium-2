@@ -1,0 +1,1 @@
+package org.chromium.content_public.browser; public class NavigationHandle {public boolean committed=true,same,activation;public boolean hasCommitted(){return committed;}public boolean isPageActivation(){return activation;}public boolean isSameDocument(){return same;}}

@@ -7,13 +7,14 @@ import argparse,importlib.util,pathlib,subprocess,sys,tempfile
 P=pathlib.Path
 parser=argparse.ArgumentParser();parser.add_argument('--source',type=P,required=True)
 parser.add_argument('--chromium-source',type=P);parser.add_argument('--chromium-fixtures',type=P)
-parser.add_argument('--toolbar-fixtures',type=P);parser.add_argument('--gn',type=P)
+parser.add_argument('--home-fixtures',type=P);parser.add_argument('--toolbar-fixtures',type=P);parser.add_argument('--gn',type=P)
 a=parser.parse_args();root=P(__file__).resolve().parents[2]
 def load(name):
  sp=importlib.util.spec_from_file_location(name,root/'.circleci/scripts'/(name+'.py'));module=importlib.util.module_from_spec(sp);sp.loader.exec_module(module);return module
 recipe=load('sandium-removal-recipe');m=recipe.load()
 welcome=load('apply-sandium-welcome-setup');prune=load('apply-sandium-ui-prune')
 toolbar=load('apply-sandium-bottom-toolbar');menu=load('apply-sandium-paged-menu')
+address=load('apply-sandium-unified-address');home=load('apply-sandium-home-shortcuts');video=load('apply-sandium-video-gestures')
 theme=load('apply-sandium-native-theme');status=load('apply-sandium-scroll-status-bar');chrome=load('apply-sandium-chrome-theme');branding=load('apply-sandium-branding-refresh')
 def blob(repo,pin,path):return subprocess.check_output(['git','-C',str(repo),'show',pin+':'+path])
 def core_blob(path):return blob(a.source,m['brave_pin'],path)
@@ -24,6 +25,11 @@ if a.toolbar_fixtures:
  for name,path in [('ToolbarPhone.java',toolbar.PHONE),('AddressBarPreference.java',toolbar.PREF),('MenuButton.java',toolbar.MENU_BUTTON),('toolbar_phone.xml',toolbar.BASE+'java/res/layout/toolbar_phone.xml'),('menu_button.xml',toolbar.BASE+'java/res/layout/menu_button.xml'),('BUILD.gn',toolbar.BASE+'BUILD.gn')]:fixture_map[path]=a.toolbar_fixtures/name
 if a.chromium_fixtures:
  for name,path in [('AppMenu.java',menu.INTERNAL+'java/src/'+menu.PACKAGE+'AppMenu.java'),('AppMenuHandlerImpl.java',menu.INTERNAL+'java/src/'+menu.PACKAGE+'AppMenuHandlerImpl.java'),('appmenu_internal_BUILD.gn',menu.INTERNAL+'BUILD.gn'),('appmenu_BUILD.gn',menu.PUBLIC+'BUILD.gn')]:fixture_map[path]=a.chromium_fixtures/name
+if a.home_fixtures:
+ for path in ('chrome/browser/ntp_tiles/chrome_custom_links_manager_factory.cc','components/ntp_tiles/custom_links_manager_impl.cc'):
+  fixture_map[path]=a.home_fixtures/P(path).name
+for path in ['chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/LocationBarModel.java', 'chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/ToolbarPositionController.java', 'chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/LocationBarPhone.java']:
+ fixture_map[path]=root/'tests/fixtures/unified-address'/P(path).name
 def chromium_blob(path):
  if a.chromium_source:return blob(a.chromium_source,m['chromium_pin'],path)
  fixture=fixture_map.get(path,root/'.circleci/tests/fixtures/reporting-pinned/chromium'/path)
@@ -38,7 +44,7 @@ with tempfile.TemporaryDirectory() as temporary:
   for base,key in [(core,'core'),(src,'chromium')]:
    for relative,data in payload[key].items():write(base/relative,data)
  reset()
- for path in ['android/java/brave-res/xml/brave_search_engines_preferences.xml','android/java/org/chromium/chrome/browser/settings/BraveWalletPreferences.java']:
+ for path in ['browser/brave_tab_helpers.cc','browser/sources.gni','android/java/brave-res/xml/brave_search_engines_preferences.xml','android/java/org/chromium/chrome/browser/settings/BraveWalletPreferences.java']:
   if not (core/path).exists():write(core/path,core_blob(path))
  privacy=src/'chrome/android/java/res/xml/privacy_preferences.xml';privacy.parent.mkdir(parents=True,exist_ok=True)
  privacy.write_text('<Preference android:key="incognito_lock" />') # unrelated old UI seam; not removal/reset input
@@ -52,6 +58,9 @@ with tempfile.TemporaryDirectory() as temporary:
   for path,transform in [(src/toolbar.MENU_BUTTON,toolbar.menu_button),(src/toolbar.PHONE,toolbar.phone),(src/toolbar.PREF,toolbar.preference),(core/toolbar.BRAVE,toolbar.brave),(src/toolbar.BASE/'java/res/layout/toolbar_phone.xml',toolbar.layout),(src/toolbar.BASE/'java/res/layout/menu_button.xml',toolbar.menu),(src/toolbar.BASE/'BUILD.gn',toolbar.build),(core/'android/java/org/chromium/base/BraveCommandLineInitUtil.java',toolbar.commandline)]:path.write_text(transform(path.read_text()))
   for path,text in toolbar.resources().items():write(src/toolbar.BASE/path,text.encode())
   menu.apply(src,root,False);menu.verify(src,root,False);chrome.apply(src)
+  for path,transform in address.transformations(src,core):path.write_text(transform(path.read_text()))
+  write(src/toolbar.BASE/'java/res/drawable/sandium_toolbar_menu.xml',address.menu_resource().encode())
+  address.verify(src,core)
  def removal(steps=None):
   subs={'{core}':str(core),'{src}':str(src),'{out}':str(src/'out'),'{repo}':str(root)}
   for step in m['steps'] if steps is None else steps:
@@ -82,18 +91,22 @@ with tempfile.TemporaryDirectory() as temporary:
   assert 'mAdsTrakersBlockPref.setOnPreferenceChangeListener(this);' in privacy
   assert 'SANDIUM_NATIVE_BOTTOM_TOOLBAR_V1' in (src/toolbar.PHONE).read_text()
   assert (src/menu.INTERNAL/'java/res/values-night/sandium_menu_colors.xml').read_bytes()==(root/'android/java/res/values-night/sandium_menu_colors.xml').read_bytes()
+ def video_ui():
+  outputs=video.transformations(src,root)
+  for path,text in outputs.items():write(path,text.encode())
+  assert all(path.read_text()==text for path,text in video.transformations(src,root).items())
  def snapshot():return {str(p.relative_to(src)):p.read_bytes() for p in src.rglob('*') if p.is_file()}
- ui();removal();preserved_ui();before=snapshot()
+ ui();removal();home.apply(src,root);home.apply(src,root,True);video_ui();preserved_ui();before=snapshot()
  if a.gn:
   for path in sorted(p for p in src.rglob('*') if p.suffix in ('.gn','.gni')):
    subprocess.run([str(a.gn.resolve()),'format','--dump-tree=json',str(path)],stdout=subprocess.DEVNULL,check=True)
- reset();ui();removal();preserved_ui()
+ reset();ui();removal();home.apply(src,root);home.apply(src,root,True);video_ui();preserved_ui()
  if before!=snapshot():raise RuntimeError('UI/removal reset+replay changed output')
- reset();ui();removal(m['steps'][:4]);reset();ui();removal();preserved_ui()
+ reset();ui();removal(m['steps'][:4]);reset();ui();removal();home.apply(src,root);home.apply(src,root,True);video_ui();preserved_ui()
  if before!=snapshot():raise RuntimeError('UI/removal partial-failure recovery changed output')
  # Verify production staging fails before returning any write set on bad patches.
  def bad_reader(path):return b'not a patch' if path in m['chromium_restore_patches'].values() else core_blob(path)
  try:recipe.restore_payload(m,bad_reader,chromium_blob)
  except (ValueError,subprocess.CalledProcessError):pass
  else:raise AssertionError('Corrupt pinned patch was accepted')
- print('UI1150 + ALL REMOVALS COMPOSE; RESET+REPLAY + INTERRUPTION + BAD-PATCH PREFLIGHT PASS')
+ print('UI1150 + UNIFIED ADDRESS + HOME SHORTCUTS + SAFE FULLSCREEN CONTROLS + ALL REMOVALS COMPOSE; RESET+REPLAY + INTERRUPTION + BAD-PATCH PREFLIGHT PASS')

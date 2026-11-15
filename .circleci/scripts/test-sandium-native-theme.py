@@ -36,7 +36,7 @@ class ThemeTests(unittest.TestCase):
             self.assertEqual(color[1:3], color[3:5])
             self.assertEqual(color[3:5], color[5:7])
     def test_welcome_checked_switch_contrast(self):
-        self.assertGreaterEqual(contrast(theme.ACCENT, '#6F561E'), 3)
+        self.assertGreaterEqual(contrast(theme.ACCENT, '#203D58'), 3)
         source = (Path(__file__).resolve().parents[2] / 'android/java/org/chromium/chrome/browser/firstrun/SandiumWelcomeSetupView.java').read_text()
         self.assertIn('private static final int SUCCESS = Color.rgb(230, 244, 232)', source)
         self.assertIn('                    PRIMARY,', source)
@@ -47,12 +47,12 @@ class ThemeTests(unittest.TestCase):
             self.assertGreaterEqual(contrast(theme.NIGHT[name], theme.CARD), 4.5, name)
             self.assertGreaterEqual(contrast(theme.LIGHT[name], '#E8E8E8'), 4.5, name)
         self.assertEqual(theme.NIGHT['bookmark_menu_bg_color'], theme.CARD)
-        self.assertEqual(theme.COMMON['baseline_neutral_0'], theme.BACKGROUND)
-    def test_sand_gold_active_controls(self):
-        self.assertEqual(theme.ACCENT, '#E8D3A2')
+        self.assertEqual(theme.COMMON['baseline_neutral_0'], '#000000')
+    def test_reference_blue_active_controls(self):
+        self.assertEqual(theme.ACCENT, '#6E8EB5')
         self.assertEqual(theme.NIGHT['shield_toggle_button_tint'], theme.ACCENT)
         self.assertEqual(theme.LIGHT['shield_toggle_button_tint'], theme.LIGHT_PRIMARY)
-        for surface in ['#000000', '#212121', '#303030', '#383838']:
+        for surface in ['#080808', '#101010', '#181818', '#202020']:
             self.assertGreaterEqual(contrast(theme.ACCENT, surface), 4.5)
         for surface in ['#FFFFFF', '#F3F3F3', '#E8E8E8']:
             self.assertGreaterEqual(contrast(theme.LIGHT_PRIMARY, surface), 4.5)
@@ -66,6 +66,24 @@ class ThemeTests(unittest.TestCase):
         source = (root / 'android/java/org/chromium/chrome/browser/ui/appmenu/SandiumPagedMenu.java').read_text()
         self.assertIn('R.color.sandium_menu_accent', source)
         self.assertIn('text(label, 16, mAccentColor)', source)
+    def test_settings_surface_migration(self):
+        source = ('contentView.setBackgroundColor(SemanticColorUtils.getSettingsBackgroundColor(this));\n'
+            '    private void onSettingsFragmentViewReady(Fragment fragment, View fragmentView) {\n'
+            '        View insetView = getInsetView(fragment, fragmentView);\n}')
+        result = theme.settings_surface(source)
+        self.assertEqual(result, theme.settings_surface(result))
+        self.assertIn('BraveDynamicColors.isDynamicColorsEnabled()', result)
+        self.assertIn('fragment.getParentFragment() == null', result)
+        self.assertIn('fragmentView.setBackgroundColor(sandiumSettingsBackground())', result)
+        self.assertIn('UI_MODE_NIGHT_YES', result)
+        with self.assertRaises(ValueError): theme.settings_surface('unexpected')
+    def test_settings_surface_actual_pinned_fixture(self):
+        original = (Path(__file__).resolve().parents[1] / 'tests/fixtures/motion/BraveSettingsActivity.java').read_text()
+        result = theme.settings_surface(theme.settings_motion(original))
+        self.assertEqual(result, theme.settings_surface(theme.settings_motion(result)))
+        self.assertEqual(result.count('fragmentView.setBackgroundColor(sandiumSettingsBackground())'), 1)
+        # Destroyed-view callback must remain untouched.
+        self.assertIn('                    View insetView = getInsetView(fragment, fragmentView);', result)
     def test_scope(self):
         allkeys=set(theme.COMMON)|set(theme.NIGHT)|set(theme.LIGHT)
         self.assertFalse(any('error' in x or 'wallet' in x or 'incognito' in x or 'private_window' in x for x in allkeys))

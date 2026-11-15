@@ -58,3 +58,43 @@ Trial-only rollback, also idempotent on restored checkpoint sources:
 `--disable` returns the architecture gate to stock behavior while keeping inert methods. Do NOT simply skip the script on an existing modified checkpoint: it could retain the enabled source. For full source removal use the generated patch reversed against matching source or reconstruct clean pinned sources. Ordinary upstream EdgelessTopInset behavior remains whatever upstream flag selects when the Sandium gate is disabled.
 
 Review corrections: raw cutout and caption geometry retained independently of system-bar insets; 3-button-nav early bypass clears custom top state and notifies toolbar observers; inactive paths do not call mocked/unneeded color helper; exact URL/load callbacks re-evaluate internal-page/error transitions. Native tests remain unexecuted locally.
+
+## November 15 follow-up: solid status strip on #1169 family
+
+Evidence inspected: user's 155441.jpg shows a hard black strip above an HTTP(S)
+article, not a visible fade. The earlier back-navigation trace metadata reports
+Android SDK 37, so it is incorrect to assume that device is excluded by `>=36`.
+The screenshot itself does not establish its OS, flags, forced-controls state,
+root inset ownership, or whether the screenshot was captured on #1169.
+
+Source findings:
+* The existing gradient is already post-child, transparent at 1.5× the status
+  inset. The opaque status rectangle should have zero height when top insets are
+  consumed. Merely changing its color does not repair an inactive underlap path.
+* Eligibility requires unified root inset ownership plus supported activity,
+  page, controls, layout, cutouts, keyboard, and window configuration.
+* The existing listener responds to offsets/heights/position but did not respond
+  to Android controls visibility or offset-tag constraint changes. The pinned
+  BrowserControlsStateProvider documents these as distinct notifications, not
+  synonymous with offsets. The new callbacks recheck the **same** guards when
+  constraints change without movement. They do not force acceptance.
+* Added trace-only `SandiumStatusEligibility` (booleans and numeric geometry) and
+  `SandiumStatusPaintGeometry` (protection/status/padding heights) distinguish an
+  eligibility refusal, unconsumed inset, missing protection, and compositor
+  rendering failure. No URLs, titles, page pixels or history are recorded.
+
+No eligibility restriction, alpha, gradient curve, inset dimensions, animation
+or safe-area behavior is changed. Android 14/15, landscape, keyboard, fullscreen,
+native screens and unsupported cutouts keep their prior behavior. Do not call
+this a proven visual fix. The missing screenshot-linked runtime state prevents
+identifying the exact refusal or layer from existing evidence.
+
+Validation: Python transformation/migration/source-contract tests, including
+#1169 checkpoint migration and repeated back-geometry instrumentation composition.
+Native compilation, Robolectric execution, OEM SurfaceView compositing and device
+visual checks remain outstanding. Capture a trace while reproducing the strip:
+`active=false` plus eligibility fields identifies the guard; `active=true` with
+`protection>0,status=0,padding=0` but a solid strip points to another compositor/
+window layer rather than permission to remove safety gates. Verify white/image
+pages retain readable icons, then keyboard, back navigation, rotation, fullscreen,
+tabs and Settings. Reject a change that introduces page position jumps.

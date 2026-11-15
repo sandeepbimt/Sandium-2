@@ -1,0 +1,1 @@
+package android.content.res; public class Resources {public static class NotFoundException extends RuntimeException {} public static class Theme {public boolean resolveAttribute(int a,android.util.TypedValue v,boolean b){return false;}}public static class Metrics {public float density=1;} public Metrics getDisplayMetrics(){return new Metrics();} }

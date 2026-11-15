@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-  <color name="sandium_menu_surface_container">#212121</color>
+  <color name="sandium_menu_surface_container">#101010</color>
   <color name="sandium_menu_on_surface">#FAFAFA</color>
   <color name="sandium_menu_on_surface_variant">#BDBDBD</color>
   <color name="sandium_menu_outline_variant">#454545</color>
-  <color name="sandium_menu_accent">#E8D3A2</color>
+  <color name="sandium_menu_accent">#6E8EB5</color>
 </resources>
