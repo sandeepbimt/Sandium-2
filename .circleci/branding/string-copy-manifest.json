@@ -1,0 +1,481 @@
+{
+  "schema": 1,
+  "brave_pin": "44a84b1f89d9a35287289d6a3d493e362f5a5123",
+  "source": "brave/build/commands/lib/branding.js and l10nUtil.js; recursive part graph",
+  "roots": [
+    {
+      "core": "components/components_strings.grd",
+      "consumed": "components/components_strings.grd"
+    },
+    {
+      "core": "app/generated_resources.grd",
+      "consumed": "chrome/app/generated_resources.grd"
+    },
+    {
+      "core": "browser/ui/android/strings/android_chrome_strings.grd",
+      "consumed": "chrome/browser/ui/android/strings/android_chrome_strings.grd"
+    },
+    {
+      "core": "android/features/tab_ui/java/strings/android_chrome_tab_ui_strings.grd",
+      "consumed": "chrome/android/features/tab_ui/java/strings/android_chrome_tab_ui_strings.grd"
+    },
+    {
+      "core": "components/webapps/browser/android/android_webapps_strings.grd",
+      "consumed": "components/webapps/browser/android/android_webapps_strings.grd"
+    },
+    {
+      "core": "components/browser_ui/strings/android/browser_ui_strings.grd",
+      "consumed": "components/browser_ui/strings/android/browser_ui_strings.grd"
+    },
+    {
+      "core": "app/brave_strings.grd",
+      "consumed": "chrome/app/chromium_strings.grd"
+    },
+    {
+      "core": "app/brave_strings.grd",
+      "consumed": "chrome/app/brave_strings.grd"
+    },
+    {
+      "core": "components/components_brave_strings.grd",
+      "consumed": "components/components_chromium_strings.grd"
+    },
+    {
+      "core": "components/components_brave_strings.grd",
+      "consumed": "components/components_brave_strings.grd"
+    },
+    {
+      "core": "app/settings_brave_strings.grdp",
+      "consumed": "chrome/app/settings_chromium_strings.grdp"
+    }
+  ],
+  "copies": [
+    {
+      "core": "android/features/tab_ui/java/strings/android_chrome_tab_ui_strings.grd",
+      "consumed": "chrome/android/features/tab_ui/java/strings/android_chrome_tab_ui_strings.grd"
+    },
+    {
+      "core": "app/access_code_cast_strings.grdp",
+      "consumed": "chrome/app/access_code_cast_strings.grdp"
+    },
+    {
+      "core": "app/actor_strings.grdp",
+      "consumed": "chrome/app/actor_strings.grdp"
+    },
+    {
+      "core": "app/app_management_strings.grdp",
+      "consumed": "chrome/app/app_management_strings.grdp"
+    },
+    {
+      "core": "app/bookmarks_strings.grdp",
+      "consumed": "chrome/app/bookmarks_strings.grdp"
+    },
+    {
+      "core": "app/brave_strings.grd",
+      "consumed": "chrome/app/brave_strings.grd"
+    },
+    {
+      "core": "app/brave_strings.grd",
+      "consumed": "chrome/app/chromium_strings.grd"
+    },
+    {
+      "core": "app/certificate_manager.grdp",
+      "consumed": "chrome/app/certificate_manager.grdp"
+    },
+    {
+      "core": "app/chromeos_shared_strings.grdp",
+      "consumed": "chrome/app/chromeos_shared_strings.grdp"
+    },
+    {
+      "core": "app/extensions_strings.grdp",
+      "consumed": "chrome/app/extensions_strings.grdp"
+    },
+    {
+      "core": "app/generated_resources.grd",
+      "consumed": "chrome/app/generated_resources.grd"
+    },
+    {
+      "core": "app/glic_strings.grdp",
+      "consumed": "chrome/app/glic_strings.grdp"
+    },
+    {
+      "core": "app/gmc_strings.grdp",
+      "consumed": "chrome/app/gmc_strings.grdp"
+    },
+    {
+      "core": "app/media_live_preview_strings.grdp",
+      "consumed": "chrome/app/media_live_preview_strings.grdp"
+    },
+    {
+      "core": "app/media_router_strings.grdp",
+      "consumed": "chrome/app/media_router_strings.grdp"
+    },
+    {
+      "core": "app/nearby_share_strings.grdp",
+      "consumed": "chrome/app/nearby_share_strings.grdp"
+    },
+    {
+      "core": "app/notebooks_strings.grdp",
+      "consumed": "chrome/app/notebooks_strings.grdp"
+    },
+    {
+      "core": "app/os_settings_search_tag_strings.grdp",
+      "consumed": "chrome/app/os_settings_search_tag_strings.grdp"
+    },
+    {
+      "core": "app/os_settings_strings.grdp",
+      "consumed": "chrome/app/os_settings_strings.grdp"
+    },
+    {
+      "core": "app/password_manager_ui_strings.grdp",
+      "consumed": "chrome/app/password_manager_ui_strings.grdp"
+    },
+    {
+      "core": "app/printing_strings.grdp",
+      "consumed": "chrome/app/printing_strings.grdp"
+    },
+    {
+      "core": "app/profiles_strings.grdp",
+      "consumed": "chrome/app/profiles_strings.grdp"
+    },
+    {
+      "core": "app/settings_brave_strings.grdp",
+      "consumed": "chrome/app/settings_brave_strings.grdp"
+    },
+    {
+      "core": "app/settings_brave_strings.grdp",
+      "consumed": "chrome/app/settings_chromium_strings.grdp"
+    },
+    {
+      "core": "app/settings_strings.grdp",
+      "consumed": "chrome/app/settings_strings.grdp"
+    },
+    {
+      "core": "app/shared_settings_strings.grdp",
+      "consumed": "chrome/app/shared_settings_strings.grdp"
+    },
+    {
+      "core": "app/sharesheet_strings.grdp",
+      "consumed": "chrome/app/sharesheet_strings.grdp"
+    },
+    {
+      "core": "app/shortcut_input_strings.grdp",
+      "consumed": "chrome/app/shortcut_input_strings.grdp"
+    },
+    {
+      "core": "app/skills_strings.grdp",
+      "consumed": "chrome/app/skills_strings.grdp"
+    },
+    {
+      "core": "app/support_tool_strings.grdp",
+      "consumed": "chrome/app/support_tool_strings.grdp"
+    },
+    {
+      "core": "app/vr_strings.grdp",
+      "consumed": "chrome/app/vr_strings.grdp"
+    },
+    {
+      "core": "app/whats_new_strings.grdp",
+      "consumed": "chrome/app/whats_new_strings.grdp"
+    },
+    {
+      "core": "browser/ui/android/strings/android_chrome_strings.grd",
+      "consumed": "chrome/browser/ui/android/strings/android_chrome_strings.grd"
+    },
+    {
+      "core": "components/android_system_error_page_strings.grdp",
+      "consumed": "components/android_system_error_page_strings.grdp"
+    },
+    {
+      "core": "components/arc_strings.grdp",
+      "consumed": "components/arc_strings.grdp"
+    },
+    {
+      "core": "components/autofill_payments_strings.grdp",
+      "consumed": "components/autofill_payments_strings.grdp"
+    },
+    {
+      "core": "components/autofill_strings.grdp",
+      "consumed": "components/autofill_strings.grdp"
+    },
+    {
+      "core": "components/blocked_content_strings.grdp",
+      "consumed": "components/blocked_content_strings.grdp"
+    },
+    {
+      "core": "components/bookmark_bar_strings.grdp",
+      "consumed": "components/bookmark_bar_strings.grdp"
+    },
+    {
+      "core": "components/bookmark_component_strings.grdp",
+      "consumed": "components/bookmark_component_strings.grdp"
+    },
+    {
+      "core": "components/browser_ui/strings/android/browser_ui_strings.grd",
+      "consumed": "components/browser_ui/strings/android/browser_ui_strings.grd"
+    },
+    {
+      "core": "components/browser_ui/strings/android/site_settings.grdp",
+      "consumed": "components/browser_ui/strings/android/site_settings.grdp"
+    },
+    {
+      "core": "components/browsing_data_strings.grdp",
+      "consumed": "components/browsing_data_strings.grdp"
+    },
+    {
+      "core": "components/collaboration_strings.grdp",
+      "consumed": "components/collaboration_strings.grdp"
+    },
+    {
+      "core": "components/commerce_strings.grdp",
+      "consumed": "components/commerce_strings.grdp"
+    },
+    {
+      "core": "components/components_brave_strings.grd",
+      "consumed": "components/components_brave_strings.grd"
+    },
+    {
+      "core": "components/components_brave_strings.grd",
+      "consumed": "components/components_chromium_strings.grd"
+    },
+    {
+      "core": "components/components_settings_strings.grdp",
+      "consumed": "components/components_settings_strings.grdp"
+    },
+    {
+      "core": "components/components_strings.grd",
+      "consumed": "components/components_strings.grd"
+    },
+    {
+      "core": "components/compose_strings.grdp",
+      "consumed": "components/compose_strings.grdp"
+    },
+    {
+      "core": "components/contextual_cueing_strings.grdp",
+      "consumed": "components/contextual_cueing_strings.grdp"
+    },
+    {
+      "core": "components/contextual_tasks_strings.grdp",
+      "consumed": "components/contextual_tasks_strings.grdp"
+    },
+    {
+      "core": "components/crash_strings.grdp",
+      "consumed": "components/crash_strings.grdp"
+    },
+    {
+      "core": "components/dialog_strings.grdp",
+      "consumed": "components/dialog_strings.grdp"
+    },
+    {
+      "core": "components/dom_distiller_strings.grdp",
+      "consumed": "components/dom_distiller_strings.grdp"
+    },
+    {
+      "core": "components/enterprise_strings.grdp",
+      "consumed": "components/enterprise_strings.grdp"
+    },
+    {
+      "core": "components/error_page_strings.grdp",
+      "consumed": "components/error_page_strings.grdp"
+    },
+    {
+      "core": "components/external_intents_strings.grdp",
+      "consumed": "components/external_intents_strings.grdp"
+    },
+    {
+      "core": "components/facilitated_payments_strings.grdp",
+      "consumed": "components/facilitated_payments_strings.grdp"
+    },
+    {
+      "core": "components/find_in_page_strings.grdp",
+      "consumed": "components/find_in_page_strings.grdp"
+    },
+    {
+      "core": "components/flags_strings.grdp",
+      "consumed": "components/flags_strings.grdp"
+    },
+    {
+      "core": "components/fullscreen_control_strings.grdp",
+      "consumed": "components/fullscreen_control_strings.grdp"
+    },
+    {
+      "core": "components/global_media_controls_strings.grdp",
+      "consumed": "components/global_media_controls_strings.grdp"
+    },
+    {
+      "core": "components/heavy_ad_intervention_strings.grdp",
+      "consumed": "components/heavy_ad_intervention_strings.grdp"
+    },
+    {
+      "core": "components/history_clusters_strings.grdp",
+      "consumed": "components/history_clusters_strings.grdp"
+    },
+    {
+      "core": "components/history_strings.grdp",
+      "consumed": "components/history_strings.grdp"
+    },
+    {
+      "core": "components/javascript_dialogs_strings.grdp",
+      "consumed": "components/javascript_dialogs_strings.grdp"
+    },
+    {
+      "core": "components/live_caption_strings.grdp",
+      "consumed": "components/live_caption_strings.grdp"
+    },
+    {
+      "core": "components/login_dialog_strings.grdp",
+      "consumed": "components/login_dialog_strings.grdp"
+    },
+    {
+      "core": "components/management_strings.grdp",
+      "consumed": "components/management_strings.grdp"
+    },
+    {
+      "core": "components/media_message_center_strings.grdp",
+      "consumed": "components/media_message_center_strings.grdp"
+    },
+    {
+      "core": "components/new_or_sad_tab_strings.grdp",
+      "consumed": "components/new_or_sad_tab_strings.grdp"
+    },
+    {
+      "core": "components/omnibox_pedal_ui_strings.grdp",
+      "consumed": "components/omnibox_pedal_ui_strings.grdp"
+    },
+    {
+      "core": "components/omnibox_strings.grdp",
+      "consumed": "components/omnibox_strings.grdp"
+    },
+    {
+      "core": "components/page_info_strings.grdp",
+      "consumed": "components/page_info_strings.grdp"
+    },
+    {
+      "core": "components/paint_preview_strings.grdp",
+      "consumed": "components/paint_preview_strings.grdp"
+    },
+    {
+      "core": "components/password_manager_strings.grdp",
+      "consumed": "components/password_manager_strings.grdp"
+    },
+    {
+      "core": "components/payments_strings.grdp",
+      "consumed": "components/payments_strings.grdp"
+    },
+    {
+      "core": "components/pdf_strings.grdp",
+      "consumed": "components/pdf_strings.grdp"
+    },
+    {
+      "core": "components/permissions_strings.grdp",
+      "consumed": "components/permissions_strings.grdp"
+    },
+    {
+      "core": "components/personal_context_strings.grdp",
+      "consumed": "components/personal_context_strings.grdp"
+    },
+    {
+      "core": "components/policy_strings.grdp",
+      "consumed": "components/policy_strings.grdp"
+    },
+    {
+      "core": "components/print_media_strings.grdp",
+      "consumed": "components/print_media_strings.grdp"
+    },
+    {
+      "core": "components/printing_component_strings.grdp",
+      "consumed": "components/printing_component_strings.grdp"
+    },
+    {
+      "core": "components/protocol_handler_strings.grdp",
+      "consumed": "components/protocol_handler_strings.grdp"
+    },
+    {
+      "core": "components/reset_password_strings.grdp",
+      "consumed": "components/reset_password_strings.grdp"
+    },
+    {
+      "core": "components/saved_tab_groups_strings.grdp",
+      "consumed": "components/saved_tab_groups_strings.grdp"
+    },
+    {
+      "core": "components/search_engine_choice_strings.grdp",
+      "consumed": "components/search_engine_choice_strings.grdp"
+    },
+    {
+      "core": "components/security_interstitials_strings.grdp",
+      "consumed": "components/security_interstitials_strings.grdp"
+    },
+    {
+      "core": "components/send_tab_to_self_strings.grdp",
+      "consumed": "components/send_tab_to_self_strings.grdp"
+    },
+    {
+      "core": "components/site_settings_strings.grdp",
+      "consumed": "components/site_settings_strings.grdp"
+    },
+    {
+      "core": "components/smart_tab_sharing.grdp",
+      "consumed": "components/smart_tab_sharing.grdp"
+    },
+    {
+      "core": "components/ssl_errors_strings.grdp",
+      "consumed": "components/ssl_errors_strings.grdp"
+    },
+    {
+      "core": "components/subresource_filter_strings.grdp",
+      "consumed": "components/subresource_filter_strings.grdp"
+    },
+    {
+      "core": "components/supervised_user_strings.grdp",
+      "consumed": "components/supervised_user_strings.grdp"
+    },
+    {
+      "core": "components/sync_ui_strings.grdp",
+      "consumed": "components/sync_ui_strings.grdp"
+    },
+    {
+      "core": "components/tab_groups_strings.grdp",
+      "consumed": "components/tab_groups_strings.grdp"
+    },
+    {
+      "core": "components/tab_resume_strings.grdp",
+      "consumed": "components/tab_resume_strings.grdp"
+    },
+    {
+      "core": "components/translate_strings.grdp",
+      "consumed": "components/translate_strings.grdp"
+    },
+    {
+      "core": "components/undo_strings.grdp",
+      "consumed": "components/undo_strings.grdp"
+    },
+    {
+      "core": "components/user_data_importer_strings.grdp",
+      "consumed": "components/user_data_importer_strings.grdp"
+    },
+    {
+      "core": "components/user_education_strings.grdp",
+      "consumed": "components/user_education_strings.grdp"
+    },
+    {
+      "core": "components/version_ui_strings.grdp",
+      "consumed": "components/version_ui_strings.grdp"
+    },
+    {
+      "core": "components/wallet_strings.grdp",
+      "consumed": "components/wallet_strings.grdp"
+    },
+    {
+      "core": "components/webapps/browser/android/android_webapps_strings.grd",
+      "consumed": "components/webapps/browser/android/android_webapps_strings.grd"
+    },
+    {
+      "core": "components/webapps_strings.grdp",
+      "consumed": "components/webapps_strings.grdp"
+    },
+    {
+      "core": "components/webxr_strings.grdp",
+      "consumed": "components/webxr_strings.grdp"
+    }
+  ]
+}

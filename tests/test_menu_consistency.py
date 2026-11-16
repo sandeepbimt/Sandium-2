@@ -8,7 +8,7 @@ S=(ROOT/'android/java/org/chromium/chrome/browser/ui/appmenu/SandiumPagedMenu.ja
 class MenuConsistency(unittest.TestCase):
  def test_height_independent_of_content_and_screen(self):
   height=S[S.index('int preferredHeight('):S.index('private void finishPanelMotion')]
-  for forbidden in ('mBody','mHeading','mDraft','mAllMenu','mPage','mNativeVisible','measure('):
+  for forbidden in ('mBody','mHeading','mAllMenu','mPage','mNativeVisible','measure('):
    self.assertNotIn(forbidden,height)
   self.assertIn('Math.min(available',height)
   self.assertIn('rows * tileHeight()',height)
@@ -27,8 +27,8 @@ class MenuConsistency(unittest.TestCase):
   self.assertIn('tile.removeView(label)',S)
   self.assertIn('addTileLabel(tile, captionSlot)',S)
   self.assertIn('label.setSingleLine(true)',S)
-  self.assertIn('control.setSingleLine(true)',S)
-  self.assertIn('Math.max(dp(48) + sample.getLineHeight(), sample.getLineHeight() * 2)',S)
+  self.assertIn('stateLabel.setSingleLine(true)',S)
+  self.assertIn('return sample.getLineHeight() * 2;',S)
   self.assertIn('handler.onItemClick(liveAction, null)',S)
   self.assertIn('tile.setContentDescription(title(entry))',S)
  def test_null_icon_uses_one_slot(self):
@@ -38,5 +38,5 @@ class MenuConsistency(unittest.TestCase):
   import xml.etree.ElementTree as ET,re
   names={x.get('name') for x in ET.parse(ROOT/'android/java/res/values/sandium_menu_strings.xml').getroot()}
   self.assertLessEqual(set(re.findall(r'R.string.(sandium_menu_[a-z_]+)',S)),names)
-  self.assertIn('default: return title(entry)',S)
+  self.assertIn('? s(R.string.sandium_menu_save_page) : title(entry)',S)
 if __name__=='__main__': unittest.main()

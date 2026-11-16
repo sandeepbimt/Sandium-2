@@ -62,21 +62,22 @@ bool ElementColorRuleStore::ValidRule(const base::DictValue& rule) {
       !BoundedText(rule.FindString("role"), 64, true)) return false;
   if (locator) {
     if (!rule.FindString("id")->empty() || locator->size() != 2 ||
-        !BoundedText(locator->FindString("anchor"),128,false)) return false;
+        !BoundedText(locator->FindString("anchor"),128,true)) return false;
     const auto* steps=locator->FindList("steps");
-    if (!steps || steps->empty() || steps->size()>23) return false;
+    if (!steps || steps->empty() || steps->size()>24) return false;
     for (const auto& item : *steps) {
       const auto* step=item.GetIfDict();
-      if (!step || step->size()!=3 || !Tag(step->FindString("tag")) ||
+      if (!step || (step->size()!=3 && step->size()!=5) || !Tag(step->FindString("tag")) ||
           !BoundedText(step->FindString("role"),64,true)) return false;
+      if (step->size()==5) {
+        auto ordinal=step->FindInt("ordinal"), count=step->FindInt("count");
+        if (!ordinal || !count || *ordinal<1 || *count<2 || *count>4096 || *ordinal>*count) return false;
+      }
       const auto* classes=step->FindList("classes");
       if (!classes || classes->size()>12) return false;
       for (const auto& token : *classes) {
         const auto* text=token.GetIfString();
         if (!BoundedText(text,64,false)) return false;
-        for (unsigned char ch : *text)
-          if (!((ch>='a' && ch<='z') || (ch>='A' && ch<='Z') ||
-                (ch>='0' && ch<='9') || ch=='_' || ch=='-')) return false;
       }
     }
   }

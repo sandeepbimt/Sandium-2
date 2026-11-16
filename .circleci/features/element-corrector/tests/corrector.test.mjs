@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {captureTarget, captureDescriptor, matchRemembered, validateRule, createCorrector, resolveTarget} from '../renderer/corrector.mjs';
+import {captureTarget, createRememberedRestorer, watchRememberedRules, captureDescriptor, matchRemembered, validateRule, createCorrector, resolveTarget} from '../renderer/corrector.mjs';
 function fixture() {
   const doc = {};
   function el(tag, parent, attrs = {}) {
@@ -108,8 +108,8 @@ test('ambiguous changed or absent remembered targets remain unchanged',()=>{cons
  assert.equal(matchRemembered({...rule,id:'missing'},f.doc),null);
  f.el('header',f.body,{id:'masthead'});assert.equal(matchRemembered(rule,f.doc),null);
 });
-test('anonymous and over-limit remembered selection rejected',()=>{const f=fixture();
- assert.throws(()=>captureDescriptor(f.el('div',f.body),f.doc),/Visit-only/);
+test('anonymous without IDs now persists while document limit still applies',()=>{const f=fixture();
+ const target=f.el('div',f.body);assert.equal(captureDescriptor(target,f.doc).locator.anchor,'');
  f.doc.querySelectorAll=()=>Array(4097).fill(f.header);
  assert.equal(matchRemembered({tag:'header',id:'masthead',role:'',ancestors:[],property:1,rgb:0},f.doc),null);
 });
@@ -153,7 +153,7 @@ test('anonymous persistence rejects ambiguous and changed structure',()=>{
   const r={...captureDescriptor(image,f.doc),property:2,rgb:1};
   f.el('img',f.header,{class:'brand'});
   assert.equal(matchRemembered(r,f.doc),null);
-  assert.throws(()=>captureDescriptor(image,f.doc),/Ambiguous/);
+  assert.equal(captureDescriptor(image,f.doc).locator.steps.at(-1).count,2);
   const other=fixture();other.el('img',other.header,{class:'changed'});
   assert.equal(matchRemembered(r,other.doc),null);
   const missing=fixture();missing.header.getAttribute=()=>null;
@@ -179,4 +179,65 @@ test('native sorted-key persistence restores legacy unique-ID rules after restar
   const disk=JSON.stringify(nativeDict(rule));
   assert.notEqual(disk,JSON.stringify(rule));
   const second=fixture();assert.equal(matchRemembered(JSON.parse(disk),second.doc),second.logo);
+});
+
+test('root structural rule roundtrips anonymous text background and image without IDs',()=>{
+ const first=fixture();first.header.getAttribute=()=>null;
+ const image=first.el('img',first.header,{class:'logo md:wide'});
+ const title=first.el('span',first.header);
+ const rules=[{...captureDescriptor(image,first.doc),property:2,rgb:12},
+  {...captureDescriptor(title,first.doc),property:0,rgb:13},
+  {...captureDescriptor(title,first.doc),property:1,rgb:14}];
+ assert.ok(rules.every(rule=>rule.locator.anchor===''));
+ const second=fixture();second.header.getAttribute=()=>null;
+ const image2=second.el('img',second.header,{class:'md:wide logo'}), title2=second.el('span',second.header);
+ const persisted=JSON.parse(JSON.stringify(nativeDict(rules)));
+ assert.equal(matchRemembered(persisted[0],second.doc),image2);
+ assert.equal(matchRemembered(persisted[1],second.doc),title2);
+ assert.equal(matchRemembered(persisted[2],second.doc),title2);
+});
+test('identical sibling selector stays precise and rejects count drift',()=>{
+ const f=fixture();const one=f.el('span',f.header), two=f.el('span',f.header);
+ const r={...captureDescriptor(two,f.doc),property:0,rgb:3};
+ assert.equal(r.locator.steps.at(-1).ordinal,2);
+ const next=fixture();next.el('span',next.header);const target=next.el('span',next.header);
+ assert.equal(matchRemembered(nativeDict(r),next.doc),target);
+ next.el('span',next.header);assert.equal(matchRemembered(r,next.doc),null);
+});
+test('pending rules restore late nodes once and never rematch replacements',()=>{
+ const source=fixture();const target=source.el('span',source.header,{class:'late'});
+ const r={...captureDescriptor(target,source.doc),property:0,rgb:1};
+ const dest=fixture(),calls=[];
+ const restorer=createRememberedRestorer(dest.doc,[nativeDict(r)],(node,index)=>calls.push([node,index]));
+ assert.equal(restorer.retry(),1);assert.equal(calls.length,0);
+ const late=dest.el('span',dest.header,{class:'late'});
+ assert.equal(restorer.retry(),0);assert.equal(calls[0][0],late);
+ late.isConnected=false;dest.header.children.pop();dest.el('span',dest.header,{class:'late'});
+ assert.equal(restorer.retry(),0);assert.equal(calls.length,1);
+});
+test('stopping pending restoration prevents stale-document writes',()=>{
+ const source=fixture(),target=source.el('span',source.header);
+ const r={...captureDescriptor(target,source.doc),property:0,rgb:1};
+ const dest=fixture(),calls=[];
+ const restorer=createRememberedRestorer(dest.doc,[r],node=>calls.push(node));
+ assert.equal(restorer.retry(),1);restorer.stop();dest.el('span',dest.header);
+ assert.equal(restorer.retry(),0);assert.equal(calls.length,0);
+});
+test('watcher coalesces mutations and releases itself when all rules match',()=>{
+ const f=fixture(),selected=f.el('span',f.header,{class:'late'});
+ const rule={...captureDescriptor(selected,f.doc),property:0,rgb:1};
+ f.header.children.pop();selected.isConnected=false;
+ const original={MutationObserver:globalThis.MutationObserver,setTimeout:globalThis.setTimeout,
+  clearTimeout:globalThis.clearTimeout};
+ let trigger,scheduled,disconnected=false,apply=0;
+ globalThis.MutationObserver=class {constructor(fn){trigger=fn;}observe(target){assert.equal(target,f.doc);}disconnect(){disconnected=true;}};
+ globalThis.setTimeout=fn=>{assert.equal(scheduled,undefined);scheduled=fn;return 1;};
+ globalThis.clearTimeout=()=>{scheduled=undefined;};
+ try {
+  watchRememberedRules(f.doc,[rule],()=>{apply++;return true;});
+  trigger();trigger();assert.equal(apply,0);
+  f.el('span',f.header,{class:'late'});const run=scheduled;scheduled=undefined;run();
+  assert.equal(apply,1);assert.equal(disconnected,true);
+  assert.equal(globalThis.__sandiumCancelRestore,undefined);
+ } finally {globalThis.__sandiumCancelRestore?.();Object.assign(globalThis,original);}
 });

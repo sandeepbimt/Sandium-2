@@ -8,6 +8,7 @@
 #include "third_party/blink/renderer/core/dom/element_traversal.h"
 #include "third_party/blink/renderer/core/editing/editing_utilities.h"
 #include "third_party/blink/renderer/core/html_names.h"
+#include "third_party/blink/renderer/core/frame/settings.h"
 #include "third_party/blink/renderer/core/style/computed_style.h"
 #include "third_party/blink/renderer/platform/graphics/color.h"
 
@@ -153,6 +154,12 @@ void SandiumElementColors::Apply(Element& element, ComputedStyleBuilder& builder
       if (!saved_[i - 1]->element || saved_[i - 1]->element == &element) saved_.EraseAt(i - 1);
     return;
   }
+  // Explicit Dark Pages OFF suppresses manual colours too. Keep saved_/preview_
+  // intact so enabling the policy restores them during the next style recalc.
+  // The setting invalidates Style and Paint; fresh style builders contain the
+  // authored values, not the previous corrected foreground/background/image.
+  const Settings* settings = element.GetDocument().GetSettings();
+  if (settings && settings->GetSandiumDarkPageFlags() == 0) return;
   // This runs after the palette policy in the uncacheable per-element path.
   bool has_surface_override = preview_ && preview_->element == &element &&
       (preview_->foreground || preview_->background);

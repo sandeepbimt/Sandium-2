@@ -16,14 +16,22 @@ def insert(text,anchor,entry):
  return text.replace(anchor,anchor+entry,1)
 def handler(text):
  if 'SandiumElementColorsUtils.start(' in text:
-  old="                Context context = mContext;\n                Tab selectedTab = mCurrentTab;\n                if (context == null || selectedTab == null) return;\n                hide(); // The page must receive the user's element selection.\n                org.chromium.chrome.browser.sandium.dark.SandiumElementColorsUtils.start(\n                        context, selectedTab);"
-  return text.replace(old,old.replace('context','correctionContext'))
+  start=text.index('        View correctColors =')
+  end=text.index('        }',text.index('            });',start))+10
+  block=text[start:end].replace('Context context = mContext;', 'Context correctionContext = mContext;').replace('context == null', 'correctionContext == null').replace('                        context, selectedTab);','                        correctionContext, selectedTab);')
+  guard="""                if (!Boolean.TRUE.equals(org.chromium.chrome.browser.night_mode.SandiumDarkPages
+                        .enabled(selectedTab.getWebContents(), selectedTab.getUrl()))) return;"""
+  if guard not in block:
+   block=block.replace('                hide();',guard+'\n                hide();')
+  return text[:start]+block+text[end:]
  return insert(text,'        setupAdvancedOptionsListeners();\n','''        View correctColors = popupView.findViewById(R.id.sandium_element_colors_button);
         if (correctColors != null) {
             correctColors.setOnClickListener(v -> {
                 Context correctionContext = mContext;
                 Tab selectedTab = mCurrentTab;
                 if (correctionContext == null || selectedTab == null) return;
+                if (!Boolean.TRUE.equals(org.chromium.chrome.browser.night_mode.SandiumDarkPages
+                        .enabled(selectedTab.getWebContents(), selectedTab.getUrl()))) return;
                 hide(); // The page must receive the user's element selection.
                 org.chromium.chrome.browser.sandium.dark.SandiumElementColorsUtils.start(
                         correctionContext, selectedTab);
@@ -31,11 +39,37 @@ def handler(text):
         }
 ''')
 def layout(text):
- if '@+id/sandium_element_colors_button' in text:return text
+ if '@+id/sandium_element_colors_button' in text:return regroup(text)
  if 'SANDIUM_GROUPED_POPUP_V1' not in text:raise ValueError('Grouped Shield popup must be composed first')
  root=ET.fromstring(text);view=ET.Element('TextView')
  for k,v in {'id':'@+id/sandium_element_colors_button','layout_width':'match_parent','layout_height':'wrap_content','minHeight':'48dp','paddingHorizontal':'16dp','paddingVertical':'12dp','layout_marginTop':'10dp','gravity':'center_vertical','background':'@drawable/advanced_options_bg','text':'@string/sandium_element_title','textSize':'16sp','textColor':'?attr/colorOnSurface','clickable':'true','focusable':'true'}.items():view.set(A+k,v)
  root.insert(3,view);ET.indent(root,space='    ')
+ return regroup(text[:text.index('<LinearLayout')]+ET.tostring(root,encoding='unicode')+'\n')
+def regroup(text):
+ root=ET.fromstring(text)
+ def node(name):
+  return next(e for e in root.iter() if e.get(A+'id')=='@+id/'+name)
+ def detach(e):
+  for parent in root.iter():
+   if e in list(parent):parent.remove(e);return e
+ appearance=[detach(node(n)) for n in ('sandium_dark_pages_button','sandium_element_colors_button')]
+ controls=node('advanced_options_content')
+ privacy=[detach(node(n)) for n in ('trackers_item','block_element_item','clear_blocked_elements_divider','clear_blocked_elements_button')]
+ data=[detach(node(n)) for n in ('cookies_item','shred_data_item')]
+ for e in list(root):
+  if e.get(A+'id')=='@+id/sandium_appearance_group':root.remove(e)
+ for e in list(controls):controls.remove(e)
+ def card(children):
+  c=ET.Element('LinearLayout')
+  for k,v in {'layout_width':'match_parent','layout_height':'wrap_content','orientation':'vertical','layout_marginTop':'10dp','background':'@drawable/advanced_options_bg','clipToOutline':'true'}.items():c.set(A+k,v)
+  for e in children:
+   if e in appearance:
+    e.attrib.pop(A+'background',None);e.attrib.pop(A+'layout_marginTop',None)
+   c.append(e)
+  return c
+ c=card(appearance);c.set(A+'id','@+id/sandium_appearance_group');root.insert(2,c)
+ controls.append(card(privacy));controls.append(card(data))
+ ET.indent(root,space='    ')
  return text[:text.index('<LinearLayout')]+ET.tostring(root,encoding='unicode')+'\n'
 def plan(core):
  gni=core/'android/brave_java_sources.gni';build=core/'android/BUILD.gn';jni=core/'build/android/config.gni'

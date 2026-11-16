@@ -65,11 +65,11 @@ export function validateRule(rule, doc) {
   if (!target || (rule.property === 'image' && target.localName !== 'img')) return null;
   return true;
 }
-// Remember unique IDs, or an unambiguous structural chain below a unique ID.
-// Never store text, source URLs, positional indices or executable selectors.
+// Typed site rules: prefer unique IDs, otherwise retain a bounded structural
+// selector to the document root. No text, URLs or executable CSS is captured.
 function stableStep(node) {
   const classes = (node.getAttribute('class') || '').trim().split(/\s+/).filter(Boolean).sort();
-  if (classes.length > 12 || classes.some(x => !/^[a-zA-Z_][a-zA-Z0-9_-]{0,63}$/.test(x)))
+  if (classes.length > 12 || classes.some(x => x.length>64 || /[\x00-\x1f\x7f]/.test(x)))
     throw new Error('Unstable classes');
   return {tag:node.localName, role:node.getAttribute('role') || '', classes};
 }
@@ -88,7 +88,8 @@ function sameAncestors(a,b) {
 function sameLocator(a,b) {
   if (!a || !b) return !a && !b;
   return a.anchor===b.anchor && Array.isArray(b.steps) && a.steps.length===b.steps.length &&
-    a.steps.every((step,index)=>sameStepValue(step,b.steps[index]));
+    a.steps.every((step,index)=>sameStepValue(step,b.steps[index]) &&
+      step.ordinal===b.steps[index].ordinal && step.count===b.steps[index].count);
 }
 function uniqueId(doc, id) {
   const nodes = doc.querySelectorAll('[id]');
@@ -102,19 +103,26 @@ export function captureDescriptor(element, doc) {
   const own = path.at(-1);
   const result = {tag:own.tag, id:own.id, role:own.role,
     ancestors:path.slice(0,-1).map(part => ({tag:part.tag,id:part.id}))};
-  if (own.id) { uniqueId(doc, own.id); return result; }
+  if (own.id) {
+    try { uniqueId(doc,own.id); return result; } catch { result.id=''; }
+  }
   const steps=[];
-  let cursor=element;
-  while (cursor && cursor !== doc.documentElement && !cursor.getAttribute('id')) {
+  let cursor=element, anchor='';
+  while (cursor && cursor !== doc.documentElement) {
+    if (cursor!==element && cursor.getAttribute('id')) {
+      try { uniqueId(doc,cursor.getAttribute('id')); anchor=cursor.getAttribute('id'); break; }
+      catch { /* Duplicate ID: retain a structural path instead. */ }
+    }
     const step=stableStep(cursor);
     const siblings=Array.from(cursor.parentElement?.children || []).filter(n => sameStep(n,step));
-    if (siblings.length !== 1) throw new Error('Ambiguous child');
+    if (!siblings.length || siblings.length>4096) throw new Error('Unsupported siblings');
+    if (siblings.length>1) {
+      step.ordinal=siblings.indexOf(cursor)+1;step.count=siblings.length;
+    }
     steps.unshift(step);cursor=cursor.parentElement;
   }
-  const anchor=cursor?.getAttribute('id');
-  if (cursor === doc.documentElement || !anchor || anchor.length>128 || /[\x00-\x1f\x7f]/.test(anchor) || !steps.length)
-    throw new Error('Visit-only target');
-  uniqueId(doc,anchor);
+  if (anchor.length>128 || /[\x00-\x1f\x7f]/.test(anchor) || !steps.length || steps.length>24)
+    throw new Error('Unsupported path');
   result.locator={anchor,steps};
   return result;
 }
@@ -129,13 +137,17 @@ export function matchRemembered(rule, doc) {
     if (rule.id) target=uniqueId(doc,rule.id);
     else {
       const locator=rule.locator;
-      if (!locator || typeof locator.anchor!=='string' || !locator.anchor || locator.anchor.length>128 ||
-          !Array.isArray(locator.steps) || !locator.steps.length || locator.steps.length>23) return null;
-      target=uniqueId(doc,locator.anchor);
+      if (!locator || typeof locator.anchor!=='string' || locator.anchor.length>128 ||
+          !Array.isArray(locator.steps) || !locator.steps.length || locator.steps.length>24) return null;
+      target=locator.anchor ? uniqueId(doc,locator.anchor) : doc.documentElement;
       for (const step of locator.steps) {
         const children=Array.from(target.children).filter(node=>sameStep(node,step));
-        if(children.length!==1)return null;
-        target=children[0];
+        if (step.ordinal!==undefined || step.count!==undefined) {
+          if (!Number.isInteger(step.ordinal) || !Number.isInteger(step.count) ||
+              step.ordinal<1 || step.count<2 || step.count>4096 || step.ordinal>step.count ||
+              children.length!==step.count) return null;
+          target=children[step.ordinal-1];
+        } else { if(children.length!==1)return null;target=children[0]; }
       }
     }
     const descriptor=captureDescriptor(target,doc);
@@ -144,6 +156,42 @@ export function matchRemembered(rule, doc) {
         !sameLocator(descriptor.locator,rule.locator)) return null;
     return target;
   } catch { return null; }
+}
+// Keep absent rules pending for late-loaded DOM nodes. Bind each rule once per
+// restore session; later node replacement does not acquire an existing binding.
+export function createRememberedRestorer(doc,rules,apply) {
+  if (!Array.isArray(rules) || rules.length>MAX_RULES) throw new Error('Rule limit');
+  const pending=new Map(rules.map((rule,index)=>[index,rule]));
+  let stopped=false;
+  return {
+    retry() {
+      if(stopped)return 0;
+      for(const [index,rule] of pending) {
+        const node=matchRemembered(rule,doc);
+        if(node && apply(node,index)!==false)pending.delete(index);
+      }
+      return pending.size;
+    },
+    stop() { stopped=true;pending.clear(); },
+  };
+}
+export function watchRememberedRules(doc,rules,apply) {
+  globalThis.__sandiumCancelRestore?.();
+  const restorer=createRememberedRestorer(doc,rules,apply);
+  let timer=null, observer=null, stopped=false;
+  const stop=()=>{
+    stopped=true;observer?.disconnect();if(timer!==null)clearTimeout(timer);
+    timer=null;restorer.stop();
+    if(globalThis.__sandiumCancelRestore===stop)delete globalThis.__sandiumCancelRestore;
+  };
+  globalThis.__sandiumCancelRestore=stop;
+  if(!restorer.retry()){stop();return;}
+  observer=new MutationObserver(()=>{
+    if(stopped || timer!==null)return;
+    timer=setTimeout(()=>{timer=null;if(!restorer.retry())stop();},200);
+  });
+  observer.observe(doc,{childList:true,subtree:true,attributes:true,
+    attributeFilter:['id','class','role']});
 }
 /** Unenabled native contract: overrides MUST bind to the exact DOM node, not a
  * selector or a mutable DOM attribute. Browser validates current session/document.

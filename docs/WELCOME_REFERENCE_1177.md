@@ -49,3 +49,14 @@ still use setup's restart. Start browsing exposes a separate green one-second
 pre-restart bar, explicitly labelled as restart feedback, not additional download
 progress. A lifecycle-owned handler dispatches restart independently of animation
 settings and is cancelled when the welcome view is destroyed.
+
+## 16 November available-space correction after device feedback
+The owner's installed build showed a large empty region below More options.
+The default main-settings card now uses fill-viewport surplus, distributing it
+between complete vertically centered setting groups. Each group keeps its title,
+summary and restart hint together. Natural WRAP_CONTENT minimum measurement is
+preserved; no text scaling or fixed screen-height assumption is introduced.
+Expanding More options removes these weights and uses natural scrollable height;
+collapsing restores viewport fill and scroll-to-top. Logo/progress/button behavior,
+font sizes and the large-font overflow fallback are unchanged. Actual device
+layout remains a required follow-up check.

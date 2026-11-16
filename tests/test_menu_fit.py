@@ -7,12 +7,12 @@ class MenuFit(unittest.TestCase):
   self.assertNotIn('weighted(line, new View',s)
   self.assertIn('int preferredHeight(int width, int available)',s)
   self.assertNotIn('mBody.measure(exactWidth',s)
-  self.assertIn('Math.min(available, dp(16 + 48 + 36 + 48)',s)
+  self.assertIn('Math.min(available, dp(16 + 48 + 24 + 48)',s)
   self.assertIn('new LinearLayout.LayoutParams(0, 1, 1)',s)
- def test_editor_overlay_keeps_target_and_native_dispatch(self):
+ def test_editor_tile_keeps_target_and_native_dispatch(self):
   s=(ROOT/'android/java/org/chromium/chrome/browser/ui/appmenu/SandiumPagedMenu.java').read_text()
-  self.assertIn('new FrameLayout.LayoutParams(dp(48), dp(48), Gravity.TOP | Gravity.END)',s)
-  self.assertIn('weighted(line, editCell == null ? tile : editCell)',s)
+  self.assertIn('Math.max(dp(48), dp(26 + 2 + 4 + 4) + labelHeight())',s)
+  self.assertIn('weighted(line, tile)',s)
   self.assertIn('mDraft.show(key)',s); self.assertIn('mDraft.hide(key)',s)
   self.assertIn('ScrollView scroll = new ScrollView',s)
  def test_home_action_in_live_and_customization_models(self):

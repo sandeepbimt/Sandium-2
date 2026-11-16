@@ -46,6 +46,8 @@ public final class SandiumElementColorsUtils {
     public static void start(Context context, Tab tab) {
         ThreadUtils.assertOnUiThread();
         if (!(context instanceof Activity) || tab == null || tab.getWebContents() == null) return;
+        if (!Boolean.TRUE.equals(org.chromium.chrome.browser.night_mode.SandiumDarkPages
+                .enabled(tab.getWebContents(), tab.getUrl()))) return;
         Activity activity=(Activity) context;
         if (activity.isFinishing() || activity.isDestroyed()) return;
         Controller previous=ACTIVE.get(tab);

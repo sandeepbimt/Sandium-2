@@ -53,6 +53,14 @@ public final class SandiumMenuState {
         return Collections.unmodifiableList(result);
     }
 
+    /** Project product navigation last without changing saved user ordering or hidden state. */
+    public List<String> visibleKeysWithTrailing(Set<String> available, String trailing) {
+        ArrayList<String> result = new ArrayList<>(visibleKeys(available));
+        result.remove(trailing);
+        result.add(trailing);
+        return Collections.unmodifiableList(result);
+    }
+
     public List<String> hiddenKeys(Set<String> available) {
         ArrayList<String> result = new ArrayList<>();
         for (String key : mOrder) {

@@ -57,9 +57,7 @@ def profile(text):
 ''')
 
 def shields(text):
-    if 'SandiumDarkPagesUi.showSite(' in text: return text
-    anchor='        setupAdvancedOptionsListeners();\n'
-    return once(text,anchor,anchor+'''        // Independent from the Shields ad-block master switch.
+    old = """        // Independent from the Shields ad-block master switch.
         View darkPages = popupView.findViewById(R.id.sandium_dark_pages_button);
         if (darkPages != null) {
             darkPages.setOnClickListener(v -> {
@@ -69,7 +67,15 @@ def shields(text):
                 }
             });
         }
-''')
+"""
+    entry = """        // Independent from the Shields ad-block master switch.
+        org.chromium.chrome.browser.sandium.dark.SandiumDarkPagesUi.bindSiteToggle(
+                mContext, mCurrentTab, popupView, () -> hide());
+"""
+    if entry in text: return text
+    if old in text: return once(text, old, entry)
+    anchor='        setupAdvancedOptionsListeners();\n'
+    return once(text,anchor,anchor+entry)
 
 def appearance(text):
     anchor='        SettingsUtils.addPreferencesFromResource(this, R.xml.brave_appearance_preferences);\n'
@@ -145,10 +151,16 @@ def welcome(text):
                 });''')
 
 def layout(text):
-    if '@+id/sandium_dark_pages_button' in text: return text
+    if '@+id/sandium_dark_pages_button' in text:
+        root=ET.fromstring(text)
+        node=next(n for n in root.iter() if n.get(A+'id')=='@+id/sandium_dark_pages_button')
+        if node.tag == 'androidx.appcompat.widget.SwitchCompat': return text
+        node.tag='androidx.appcompat.widget.SwitchCompat'
+        ET.indent(root,space='    ')
+        return text[:text.index('<LinearLayout')]+ET.tostring(root,encoding='unicode')+'\n'
     if 'SANDIUM_GROUPED_POPUP_V1' not in text: raise ValueError('Grouped popup must apply first')
     root=ET.fromstring(text)
-    node=ET.Element('TextView')
+    node=ET.Element('androidx.appcompat.widget.SwitchCompat')
     for key,value in {'id':'@+id/sandium_dark_pages_button','layout_width':'match_parent',
             'layout_height':'wrap_content','minHeight':'48dp','gravity':'center_vertical',
             'paddingHorizontal':'16dp','paddingVertical':'12dp','layout_marginTop':'10dp',

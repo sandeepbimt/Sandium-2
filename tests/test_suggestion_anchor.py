@@ -32,11 +32,25 @@ class SuggestionAnchor(unittest.TestCase):
         self.assertIn('selectedView.performClick()',out)
     def test_initial_hint_and_changes(self):
         out=self.composed()
-        self.assertEqual(out['OmniboxSuggestionsContainer.java'].count('mDropdown.setAnchorSuggestionsToBottom('),2)
+        self.assertEqual(out['OmniboxSuggestionsContainer.java'].count('mDropdown.setAnchorSuggestionsToBottom('),3)
     def test_only_phone_bottom_default_false(self):
         out=self.composed()
         self.assertIn('&& mControlsPositionSupplier.get() == ControlsPosition.BOTTOM',out['OmniboxSuggestionsDropdownEmbedderImpl.java'])
         self.assertIn('default boolean shouldAnchorSuggestionsToBottom() { return false; }',out['OmniboxSuggestionsDropdownEmbedder.java'])
+    def test_short_dropdown_is_anchored_not_just_reversed(self):
+        import xml.etree.ElementTree as ET
+        xml=ET.parse(ROOT/'tests/fixtures/suggestion-anchor/suggestions_result_container.xml').getroot()
+        ns='{http://schemas.android.com/apk/res/android}'
+        self.assertEqual(xml.attrib[ns+'layout_height'],'match_parent')
+        self.assertEqual(xml[0].attrib[ns+'layout_height'],'wrap_content')
+        out=self.composed()['OmniboxSuggestionsContainer.java']
+        self.assertIn('mSandiumOriginalDropdownGravity = ((FrameLayout.LayoutParams)',out)
+        self.assertIn('~android.view.Gravity.VERTICAL_GRAVITY_MASK',out)
+        self.assertIn('| android.view.Gravity.BOTTOM',out)
+        self.assertIn(': mSandiumOriginalDropdownGravity;',out)
+        self.assertIn('if (dropdownParams.gravity != targetGravity)',out)
+        self.assertNotIn('setTranslationY',out)
+
     def test_reverse_decorations_and_rounding(self):
         out=self.composed()
         self.assertIn('outRect.bottom = mHeaderHeight',out['HeaderDecoration.java'])

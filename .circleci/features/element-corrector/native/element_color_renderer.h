@@ -23,7 +23,7 @@ class ElementColorRenderer final : public content::RenderFrameObserver,
  private:
   void Bind(mojo::PendingAssociatedReceiver<mojom::ElementColorAgent>);
   void RestoreColorRules(const base::UnguessableToken&,base::ListValue) override;
-  void RestoreNode(v8::Isolate*,v8::Local<v8::Value>,int);
+  bool RestoreNode(v8::Isolate*,v8::Local<v8::Value>,int);
   void StartColorPicker(const base::UnguessableToken&) override;
   void PreviewColor(const base::UnguessableToken&,uint64_t,int32_t,uint32_t) override;
   void CommitColor(const base::UnguessableToken&,uint64_t,int32_t,uint32_t,CommitColorCallback) override;

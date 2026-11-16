@@ -86,6 +86,8 @@ final class SandiumWelcomeSetupView {
     private LinearLayout mContent;
     private ScrollView mScrollView;
     private LinearLayout mAdvancedOptions;
+    private LinearLayout mMainSettingsCard;
+    private final List<LinearLayout> mMainSettingGroups = new ArrayList<>();
     private TextView mMoreOptionsLabel;
     private TextView mEngineState;
     private TextView mFilterCount;
@@ -298,7 +300,10 @@ final class SandiumWelcomeSetupView {
 
     private void buildMainSettingsCard() {
         LinearLayout card = card();
-        mContent.addView(card, matchWrap());
+        mMainSettingsCard = card;
+        LinearLayout.LayoutParams cardParams = matchWrap();
+        cardParams.weight = 1f;
+        mContent.addView(card, cardParams);
 
         addSwitchRow(card, "⬡", "Block trackers & ads",
                 "Block ads and trackers",
@@ -342,6 +347,7 @@ final class SandiumWelcomeSetupView {
         more.addView(arrow, new LinearLayout.LayoutParams(dp(24), dp(30)));
         more.setOnClickListener(v -> {
             mExpanded = !mExpanded;
+            updateSettingsStretch();
             mAdvancedOptions.animate().cancel(); mAdvancedOptions.setAlpha(1f);
             mAdvancedOptions.setVisibility(mExpanded ? View.VISIBLE : View.GONE);
             if (mExpanded) fadeIn(mAdvancedOptions);
@@ -453,11 +459,42 @@ final class SandiumWelcomeSetupView {
         return line;
     }
 
+    // The fill-viewport pass has surplus height only when natural content fits.
+    // Distribute that surplus between complete setting groups, keeping each
+    // description and restart hint together. Never scale text or force a height.
+    private LinearLayout addSettingGroup(LinearLayout parent) {
+        LinearLayout group = new LinearLayout(mActivity);
+        group.setOrientation(LinearLayout.VERTICAL);
+        group.setGravity(Gravity.CENTER_VERTICAL);
+        LinearLayout.LayoutParams params = matchWrap();
+        if (parent == mMainSettingsCard) {
+            params.weight = mExpanded ? 0f : 1f;
+            mMainSettingGroups.add(group);
+        }
+        parent.addView(group, params);
+        return group;
+    }
+
+    private void updateSettingsStretch() {
+        float weight = mExpanded ? 0f : 1f;
+        LinearLayout.LayoutParams cardParams =
+                (LinearLayout.LayoutParams) mMainSettingsCard.getLayoutParams();
+        cardParams.weight = weight;
+        mMainSettingsCard.setLayoutParams(cardParams);
+        for (LinearLayout group : mMainSettingGroups) {
+            LinearLayout.LayoutParams params =
+                    (LinearLayout.LayoutParams) group.getLayoutParams();
+            params.weight = weight;
+            group.setLayoutParams(params);
+        }
+    }
+
     private void addBlurRow(LinearLayout parent) {
+        LinearLayout group = addSettingGroup(parent);
         LinearLayout row = new LinearLayout(mActivity);
         row.setGravity(Gravity.TOP);
         row.setPadding(dp(16), dp(12), dp(14), dp(2));
-        parent.addView(row, matchWrap());
+        group.addView(row, matchWrap());
 
         TextView icon = text("▱", 23, PRIMARY, false);
         icon.setGravity(Gravity.CENTER);
@@ -501,7 +538,7 @@ final class SandiumWelcomeSetupView {
                 new LinearLayout.LayoutParams(dp(92), dp(40));
         selectorParams.setMargins(dp(4), dp(1), 0, 0);
         row.addView(selector, selectorParams);
-        parent.addView(mBlurRestartHint, matchWrap());
+        group.addView(mBlurRestartHint, matchWrap());
     }
 
     private Switch addSwitchRow(LinearLayout parent, String glyph, String title, String summary,
@@ -518,10 +555,11 @@ final class SandiumWelcomeSetupView {
     private Switch addSwitchRow(LinearLayout parent, String glyph, String title, String summary,
             boolean checked, boolean showRestartHint,
             java.util.function.Consumer<Boolean> onChanged) {
+        LinearLayout group = addSettingGroup(parent);
         LinearLayout row = new LinearLayout(mActivity);
         row.setGravity(Gravity.CENTER_VERTICAL);
         row.setPadding(dp(16), dp(5), dp(14), dp(5));
-        parent.addView(row, matchWrap());
+        group.addView(row, matchWrap());
 
         TextView icon = text(glyph, 23, welcomeIconColor(glyph), false);
         icon.setGravity(Gravity.CENTER);
@@ -542,7 +580,7 @@ final class SandiumWelcomeSetupView {
         restartHint.setLetterSpacing(0.01f);
         restartHint.setPadding(dp(56), 0, dp(14), dp(4));
         restartHint.setVisibility(showRestartHint && checked ? View.VISIBLE : View.GONE);
-        if (showRestartHint) parent.addView(restartHint, matchWrap());
+        if (showRestartHint) group.addView(restartHint, matchWrap());
 
         Switch toggle = new Switch(mActivity);
         toggle.setEnabled(false);

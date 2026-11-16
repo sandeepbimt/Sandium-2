@@ -156,6 +156,38 @@ CHANGES = [('chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/brow
   '            float bottom = OmniboxSuggestionsDropdown.isBottomRanked(parent)\n'
   '                    ? child.getY() + mHeight : child.getY() + child.getHeight();')]
 
+# The dropdown is wrap_content inside a full-height FrameLayout. Reversing its
+# rows alone leaves the short group at the top. Anchor the child, not its data.
+CHANGES += [
+ ('chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/suggestions/OmniboxSuggestionsContainer.java',
+  '    private OmniboxSuggestionsDropdown mDropdown;',
+  '    // SANDIUM_SUGGESTION_EDIT_17\n'
+  '    private OmniboxSuggestionsDropdown mDropdown;\n'
+  '    private int mSandiumOriginalDropdownGravity;'),
+ ('chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/suggestions/OmniboxSuggestionsContainer.java',
+  '        mDropdown = findViewById(R.id.omnibox_suggestions_dropdown);',
+  '    // SANDIUM_SUGGESTION_EDIT_18\n'
+  '        mDropdown = findViewById(R.id.omnibox_suggestions_dropdown);\n'
+  '        mSandiumOriginalDropdownGravity = ((FrameLayout.LayoutParams) mDropdown.getLayoutParams()).gravity;'),
+ ('chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/suggestions/OmniboxSuggestionsContainer.java',
+  '        boolean shouldWrapDropdownHeight = mEmbedder != null && !mEmbedder.isPhoneStyleWindow();',
+  '    // SANDIUM_SUGGESTION_EDIT_19\n'
+  '        boolean bottomAnchor = mEmbedder != null && mEmbedder.shouldAnchorSuggestionsToBottom();\n'
+  '        FrameLayout.LayoutParams dropdownParams = (FrameLayout.LayoutParams) mDropdown.getLayoutParams();\n'
+  '        int baseGravity = mSandiumOriginalDropdownGravity == -1\n'
+  '                ? android.view.Gravity.TOP | android.view.Gravity.START\n'
+  '                : mSandiumOriginalDropdownGravity;\n'
+  '        int targetGravity = bottomAnchor\n'
+  '                ? (baseGravity & ~android.view.Gravity.VERTICAL_GRAVITY_MASK) | android.view.Gravity.BOTTOM\n'
+  '                : mSandiumOriginalDropdownGravity;\n'
+  '        if (dropdownParams.gravity != targetGravity) {\n'
+  '            dropdownParams.gravity = targetGravity;\n'
+  '            mDropdown.setLayoutParams(dropdownParams);\n'
+  '        }\n'
+  '        mDropdown.setAnchorSuggestionsToBottom(bottomAnchor);\n'
+  '        boolean shouldWrapDropdownHeight = mEmbedder != null && !mEmbedder.isPhoneStyleWindow();'),
+]
+
 def transform(s, old, new):
     marker = new.splitlines()[0].strip()
     if s.count(marker) == 1: return s

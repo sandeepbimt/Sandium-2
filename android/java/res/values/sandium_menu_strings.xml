@@ -9,7 +9,7 @@
   <string name="sandium_menu_done">Done</string>
   <string name="sandium_menu_save_edits">Save menu edits</string>
   <string name="sandium_menu_edit_description">Edit menu</string>
-  <string name="sandium_menu_drag_hint">Drag to move · Tap − to remove</string>
+  <string name="sandium_menu_drag_hint">Drag to move · Tap for options</string>
   <string name="sandium_menu_native">Original controls</string>
   <string name="sandium_menu_native_description">Original menu for specialized controls</string>
   <string name="sandium_menu_previous">Previous menu page</string>
@@ -46,4 +46,7 @@
   <string name="sandium_menu_home">Home</string>
   <string name="sandium_menu_reload">Reload</string>
   <string name="sandium_menu_save_failed">Could not save menu changes. Please try again.</string>
+  <string name="sandium_menu_reset_short">Reset</string>
+  <string name="sandium_menu_all_fixed">All menu, fixed last action</string>
+  <string name="sandium_menu_edit_action">Edit %1$s. Tap for options; long press to move.</string>
 </resources>

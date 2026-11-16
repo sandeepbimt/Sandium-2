@@ -118,3 +118,41 @@ origins remain isolated. The write request is asynchronous; it is not a promise
 against instant process kill or storage failure. Fresh-document JS tests include
 native sorted-key serialization and all three correction properties. Actual
 Android disk/relaunch verification remains a device-test requirement.
+
+### Ordinary site-rule persistence (16 November follow-up)
+
+The user's Indian Express screenshot showed a successful preview followed by
+"Applied for this visit only". Requiring a unique element ID was unnecessarily
+restrictive compared with a cosmetic-filter picker. The updated implementation
+now saves bounded typed structural rules for ordinary anonymous elements, anchored
+at a unique ID when available or at the document root otherwise. Equal siblings
+use a matching-sibling ordinal **and count**. This is original implementation;
+no uBlock code is transplanted. Reference principles: uBlock's Element-picker
+wiki and Brave's AdBlockCustomFiltersProvider persist site-scoped rules.
+
+Text, background and image-artwork rules stay in the browser profile's exact-origin
+store. No page text, image URLs, arbitrary stylesheet or JS is persisted. Existing
+ID/ancestor rules are retained. The saved descriptor must match tag, role, class
+set and ancestry; sibling-count drift or missing/changed structure does not lead
+to a guessed alternative. A same-count reorder of indistinguishable siblings can
+still select the same structural slot, like a positional CSS rule. This is not
+an identity guarantee across a site's redesign.
+
+Absent rules remain saved. A debounced, document-local mutation observer retries
+pending rules after late node insertion or class/ID/role changes, then disconnects
+once all are bound. It never rebinds an already-bound rule in that restore session.
+Cancel/navigation destroys the watcher; returning to a visible tab starts a fresh
+restore session. Same-document navigation does not discard the pending watcher.
+Internal pages, editable/form/media targets and out-of-bound descriptors remain
+unsupported; storage limits/errors can still prevent a save. Private profiles
+remain session-only by design. Android rendering/restart testing is still pending.
+
+### Dark Pages OFF and saved corrections
+
+Effective Dark Pages flags `0` now suppress manual foreground, background and
+image-artwork application in the native per-element style path. The document's
+saved entries and browser profile rules are not deleted. Turning ON and reloading
+restores the same rules; the policy setting also invalidates Style/Paint.
+A focused C++ harness exercises the actual Apply function through ON/OFF/ON,
+including preview and all three saved properties. This is not a full Blink/device
+rendering test.

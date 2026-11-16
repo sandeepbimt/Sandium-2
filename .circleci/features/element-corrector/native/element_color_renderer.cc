@@ -58,16 +58,18 @@ void ElementColorRenderer::RestoreColorRules(const base::UnguessableToken& token
   auto json=base::WriteJson(remembered_);
   if(!json || json->size()>262144)return;
   Execute(std::string(kSandiumElementCoreScript)+";const rules="+*json+
-      ";rules.forEach((rule,index)=>{const node=matchRemembered(rule,document);if(node)cf_worker.sandiumRestore(node,index);});})();");
-  remembered_.clear();
+      ";watchRememberedRules(document,rules,(node,index)=>cf_worker.sandiumRestore(node,index));})();");
 }
-void ElementColorRenderer::RestoreNode(v8::Isolate* isolate,v8::Local<v8::Value> value,int index) {
-  if(!session_ || !Current(*session_) || index<0 || static_cast<size_t>(index)>=remembered_.size() || nodes_.size()>=64)return;
-  const auto* rule=remembered_[index].GetIfDict();if(!rule)return;
+bool ElementColorRenderer::RestoreNode(v8::Isolate* isolate,v8::Local<v8::Value> value,int index) {
+  if(!session_ || !Current(*session_) || index<0 || static_cast<size_t>(index)>=remembered_.size() || nodes_.size()>=64)return false;
+  const auto* rule=remembered_[index].GetIfDict();if(!rule)return false;
   auto property=rule->FindInt("property"),rgb=rule->FindInt("rgb");
   auto node=blink::WebElement::FromV8Value(isolate,value);
-  if(!property || !rgb || *rgb<0 || node.IsNull() || !node.IsConnected() || node.GetDocument()!=document_)return;
-  if(node.SandiumCommitColor(*property,static_cast<uint32_t>(*rgb)))nodes_.emplace(++next_,node);
+  if(!property || !rgb || *rgb<0 || node.IsNull() || !node.IsConnected() || node.GetDocument()!=document_)return false;
+  if(!node.SandiumCommitColor(*property,static_cast<uint32_t>(*rgb)))return false;
+  nodes_.emplace(++next_,node);
+  remembered_[index]=base::Value();  // A rule binds at most once in this restore session.
+  return true;
 }
 void ElementColorRenderer::Select(v8::Isolate* isolate,v8::Local<v8::Value> value,const std::string& descriptor) {
   if (!session_ || !Current(*session_) || nodes_.size()>=64 || descriptor.size()>8192) return;
@@ -117,7 +119,7 @@ void ElementColorRenderer::CancelColorPicker(const base::UnguessableToken& token
   if (Current(token)) Reset(false);
 }
 void ElementColorRenderer::Reset(bool clear_saved) {
-  if (session_ && Current(*session_)) Execute("globalThis.__sandiumCancelPicker?.();");
+  if (session_ && Current(*session_)) Execute("globalThis.__sandiumCancelPicker?.();globalThis.__sandiumCancelRestore?.();");
   // Cleanup binds to the captured Document, never an adopted selected node.
   auto root=document_.IsNull() ? blink::WebElement() : document_.DocumentElement();
   if(!root.IsNull()) {

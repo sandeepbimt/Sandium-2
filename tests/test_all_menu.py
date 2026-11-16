@@ -4,16 +4,15 @@ ROOT=Path(__file__).resolve().parents[1]
 S=(ROOT/'android/java/org/chromium/chrome/browser/ui/appmenu/SandiumPagedMenu.java').read_text()
 class AllMenu(unittest.TestCase):
  def test_permanent_entry_outside_saved_actions(self):
-  self.assertIn('keys.add(ALL_MENU)',S)
+  self.assertIn('state().visibleKeysWithTrailing(quickAvailable(), ALL_MENU)',S)
   self.assertNotIn('mCatalog.put(ALL_MENU',S)
   tile=S[S.index('if (ALL_MENU.equals(key))'):S.index('Entry entry = mCatalog.get(key);',S.index('if (ALL_MENU.equals(key))'))]
   self.assertIn('continue;',tile);self.assertNotIn('mDraft.hide',tile)
-  self.assertIn('bindMove(all, ALL_MENU)',tile)
- def test_permanent_but_movable(self):
-  self.assertIn('state().show(ALL_MENU)',S)
-  self.assertIn('if (!keys.contains(ALL_MENU)) keys.add(ALL_MENU)',S)
-  self.assertIn('if (permanent) options = java.util.Arrays.copyOf(options, 4)',S)
-  self.assertIn('if (which == 4 && !permanent) mDraft.hide(key)',S)
+  self.assertNotIn('bindMove(all, ALL_MENU)',tile)
+ def test_permanent_last_not_movable(self):
+  self.assertIn('private Set<String> quickAvailable() { return editableKeys(); }',S)
+  self.assertIn('if (ALL_MENU.equals(key) || entry == null || mDraft == null) return;',S)
+  self.assertIn('all.setEnabled(false)',S)
   self.assertIn('mDraft.move(mDragging, destination, quickAvailable())',S)
  def test_navigation_and_reclaimed_header(self):
   header=S[S.index('// Only show a native escape'):S.index('panel.addView(heading)')]

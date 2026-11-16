@@ -92,7 +92,7 @@ required_view_markers = (
     "mBlurRestartHint.setVisibility(View.VISIBLE)",
     "row.setPadding(dp(16), dp(12), dp(14), dp(2))",
     "selector.setBackground(outlinedRoundRect(CARD, PRIMARY, 28))",
-    "parent.addView(mBlurRestartHint, matchWrap())",
+    "group.addView(mBlurRestartHint, matchWrap())",
     "mBlurRestartHint.setPadding(dp(60), 0, dp(14), dp(4))",
     "mBlurRestartHint.setVisibility(View.VISIBLE)",
     "blurTitle.setSingleLine(true)",
@@ -113,7 +113,7 @@ required_view_markers = (
     "selector.setBackground(outlinedRoundRect(CARD, PRIMARY, 28))",
     "drawable.setStroke(dp(1), strokeColor)",
     "new LinearLayout.LayoutParams(dp(92), dp(40))",
-    "parent.addView(mBlurRestartHint, matchWrap())",
+    "group.addView(mBlurRestartHint, matchWrap())",
     "mBlurRestartHint.setPadding(dp(60), 0, dp(14), dp(4))",
 )
 missing_view_markers = [marker for marker in required_view_markers if marker not in view_source]

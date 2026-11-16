@@ -17,8 +17,36 @@ STRING_FILES = (
     'app/brave_strings_override.grd',
 )
 # These still describe third-party services or mandatory attribution, not our app.
-PROTECTED_ID = re.compile(r'(?:COPYRIGHT|LICENSE|LEGAL|TERMS|PRIVACY_POLICY|CREDITS|ABOUT_VERSION|BRAVE_SEARCH|VPN|WALLET|REWARDS|BRAVE_ADS|BRAVE_NEWS|LEO|AI_CHAT|BRAVE_TALK|ORIGIN|PREMIUM|BRAVE_ACCOUNT)')
-PROTECTED_TEXT = re.compile(r'Brave (?:Software|Authors|Search|VPN|Wallet|Rewards|Ads|News|Leo|Talk|Origin|Premium|Account)|(?:[Cc]opyright|[Ll]icen[cs]e|[Tt]erms of|[Pp]rivacy [Pp]olicy)')
+PROTECTED_ID = re.compile(r'(?:COPYRIGHT|LICENSE|LEGAL|TERMS|PRIVACY_POLICY|CREDITS|ABOUT_VERSION|BRAVE_SEARCH|VPN|WALLET|REWARDS|BRAVE_ADS|BRAVE_NEWS|LEO|AI_CHAT|BRAVE_TALK|ORIGIN|PREMIUM|BRAVE_ACCOUNT|FEEDBACK|SURVEY|CREATE_GOOGLE|MANAGE_GOOGLE|CHANGE_GOOGLE|FIND_MY_PHONE|LEAK_HELP_MESSAGE|PERSONAL_CONTEXT|NTP_MODULES_TASKS_INFO)')
+PROTECTED_TEXT = re.compile(r'Brave (?:Software|Authors|Search|VPN|Wallet|Rewards|Ads|News|Leo|Talk|Origin|Premium|Account|Help Center|Community|Cast|Home app|Webstore|Drive|Docs|Sheets|Slides|Calendar|Sites|Keep|Forms|Disability Support|servers|help)|(?:[Cc]opyright|[Ll]icen[cs]e|[Tt]erms of|[Pp]rivacy [Pp]olicy)')
+# Provider identities and data-recipient disclosures are not browser branding.
+# Inspect readable text (not XML tags) so inline markup cannot split a guard.
+PROVIDER_ID = re.compile(
+    r'(?:EULA|UMA|METRICS|CRASH_REPORT|AUTOFILL_AI|SUGGESTIONS_FROM_GEMINI|'
+    r'COMPOSE_|HISTORY_EMBEDDINGS|CONTEXTUAL_TASKS|STS_SETTINGS|'
+    r'POLICY_RISK_TAG_GOOGLE_SHARING|MERCHANT_VIEWER|AUTOFILL_GMAIL_OTP|PIX_ACCOUNT_LINKING|GEMINI|GOOGLE_BOTTOM_BAR|'
+    r'MANAGEMENT_.*(?:REPORT|TELEMETRY)|CONTEXTUAL_CUEING|HISTORY_SYNC|RECENT_TABS_SYNC|'
+    r'NEW_TAB_OTR_SUBTITLE|DO_NOT_TRACK_SUMMARY_DISCLAIMER|UNIVERSAL_OPT_OUT_INFO_TEXT|'
+    r'PAGE_INFO_CHANGE_PASSWORD_DETAILS_SIGNED_IN_NON_SYNC)')
+PROVIDER_TEXT = re.compile(
+    r"Brave(?:['’]s)? (?:sync chains?|servers?|services?|Browser Cloud Management|"
+    r'Enterprise|Advanced Protection|Translate|Pay(?:ments)?|Play|Web Store|'
+    r'Photos|Lens|Maps|Meet|DNS|AI|Workspace|Drawings|Jamboard|Apps Script|App Home|'
+    r'App Voice|Notifications Platform|Root Store|Sync|Dashboard|Terms|Account)\b|'
+    r'(?:sent|send(?:ing)?|shared|shar(?:e|ing)|upload(?:ed|ing)?|'
+    r'transmit(?:ted|ting)?|report(?:ed|ing)?)[^.]{0,600}(?:to|with) Brave\b|'
+    r'(?:provided|powered|delivered|optimized|managed|owned|operated|developed|stored|reviewed|verified) by Brave\b|'
+    r'Discover by Brave\b|'
+    r'reviews? from Brave\b|(?:including|notify) Brave\b|'
+    r'Brave may personalize\b', re.I)
+
+
+def protected_message(name, body):
+    readable = re.sub(r'\s+', ' ', re.sub(r'<[^>]*>', ' ', body))
+    return bool(PROTECTED_ID.search(name) or PROTECTED_TEXT.search(body)
+                or PROVIDER_ID.search(name) or PROVIDER_TEXT.search(readable))
+
+
 MESSAGE = re.compile(r'(<message\b[^>]*\bname="([^"]+)"[^>]*>)(.*?)(</message>)', re.S)
 
 
@@ -28,7 +56,7 @@ def rebrand_messages(source):
         start, name, body, end = m.groups()
         if not re.search(r'\bBrave\b', body):
             return m.group(0)
-        if PROTECTED_ID.search(name) or PROTECTED_TEXT.search(body):
+        if protected_message(name, body):
             retained.append(name)
             return m.group(0)
         # Placeholders/examples, tags, comments and URL values are not app copy.
@@ -39,6 +67,68 @@ def rebrand_messages(source):
             changed.append(name)
         return start + body2 + end
     return MESSAGE.sub(message, source), changed, retained
+
+
+COPY_MANIFEST = Path(__file__).resolve().parents[1] / 'branding/string-copy-manifest.json'
+
+
+def branding_copy_manifest(core):
+    manifest = json.loads(COPY_MANIFEST.read_text())
+    expected = {(x['core'], x['consumed']) for x in manifest['copies']}
+    actual = set()
+    def visit(canonical, consumed):
+        pair = (canonical, consumed)
+        if pair in actual:
+            return
+        actual.add(pair)
+        for part in re.findall(r'<part\s+file="([^"]+)"', (core / canonical).read_text()):
+            if part == 'chromeos_strings.grdp':
+                continue  # same exclusion as pinned Brave l10nUtil.js
+            visit((Path(canonical).parent / part).as_posix(),
+                  (Path(consumed).parent / part).as_posix())
+    for root in manifest['roots']:
+        visit(root['core'], root['consumed'])
+    if actual != expected:
+        raise RuntimeError('Brave string copy inventory drift: '
+                           + str(sorted(actual ^ expected)))
+    for canonical, consumed in expected:
+        if not (core / canonical).is_file() or not (core.parent / consumed).is_file():
+            raise RuntimeError('Missing consumed branding resource: ' + consumed)
+    return sorted(expected)
+
+
+def rebrand_consumed_graph(core, verify=False):
+    # npm's branding copy runs BEFORE the final product overlay. Fix both the
+    # canonical copy source and the already-copied resources used by this build.
+    # Do not recopy whole files: that would discard earlier Sandium UI changes.
+    pairs = branding_copy_manifest(core)
+    paths = {core / canonical for canonical, _ in pairs}
+    paths.update(core.parent / consumed for _, consumed in pairs)
+    report = {}
+    for path in sorted(paths):
+        old = path.read_text()
+        new, changed, retained = rebrand_messages(old)
+        if verify and new != old:
+            raise RuntimeError('Unbranded consumed resource: ' + str(path))
+        if not verify and new != old:
+            path.write_text(new)
+        report[str(path.relative_to(core.parent))] = {
+            'changed': changed, 'preserved_service_or_legal': retained}
+    return report
+
+
+DEVELOPER_XML = 'android/java/res/xml/developer_preferences.xml'
+
+
+def rebrand_developer_hint(source):
+    pattern = re.compile(r'(android:title="Hint: You can also enable Developer options on '
+                         r'Beta/Stable channels by tapping the )(?:Chrome|Brave|Sandium)'
+                         r'( version in &quot;Settings > About )(?:Chrome|Brave|Sandium)'
+                         r'(&quot; multiple times\.")')
+    result, count = pattern.subn(r'\1Sandium\2Sandium\3', source)
+    if count != 1:
+        raise RuntimeError('Developer options branding hint changed')
+    return result
 
 
 def rebrand_about_titles(source):
@@ -122,6 +212,9 @@ def mark_drawable(width, height):
 
 def apply(core):
     report = {'changed_messages': {}, 'retained_service_or_legal_messages': {}, 'logo_paths': []}
+    report['copied_resource_graph'] = rebrand_consumed_graph(core)
+    for hint in (core / DEVELOPER_XML, core.parent / ('chrome/' + DEVELOPER_XML)):
+        hint.write_text(rebrand_developer_hint(hint.read_text()))
     for rel in STRING_FILES:
         p = core / rel
         if not p.is_file():

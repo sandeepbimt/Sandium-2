@@ -9,10 +9,10 @@ import shutil
 ROOT = Path(__file__).resolve().parents[1]
 JAVA = ROOT/'android/java/org/chromium/chrome/browser/ui/appmenu'
 S = (JAVA/'SandiumPagedMenu.java').read_text()
+P = (JAVA/'SandiumMenuPreferences.java').read_text()
 class MenuPersistence(unittest.TestCase):
     def test_all_edit_paths_save_before_render(self):
         for fragment in [
-            'else mDraft.hide(key); persistDraft(); render();',
             'mDraft.move(mDragging, destination, quickAvailable()); persistDraft(); render();',
             'mDraft = SandiumMenuState.reset(defaults, new HashSet<>()); persistDraft();',
         ]: self.assertIn(fragment, S)
@@ -23,9 +23,10 @@ class MenuPersistence(unittest.TestCase):
         self.assertIn('if (mDraft != null) { finishEditing(); render(); return true; }', S)
         self.assertIn('if (writeLayout(mDraft)) { mSaved = mDraft; mDraft = null; }', S)
     def test_disk_acknowledgement_and_failure(self):
-        self.assertIn('.putString("layout", value.serialize()).commit()', S)
+        self.assertIn('mPreferences.save(value.serialize())', S)
+        self.assertIn('.putString(KEY, layout).commit()', P)
         self.assertNotIn('.apply()', S)
-        self.assertIn('android.os.StrictMode.setThreadPolicy(policy);', S)
+        self.assertIn('android.os.StrictMode.setThreadPolicy(policy);', P)
         self.assertIn('if (mDraft != null && !writeLayout(mDraft)) mDraft = mPersisted.copy();', S)
         self.assertIn('R.string.sandium_menu_save_failed', S)
     @unittest.skipUnless(shutil.which('java'), 'Java runtime unavailable')

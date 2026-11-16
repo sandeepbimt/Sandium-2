@@ -37,7 +37,7 @@ import java.util.Set;
 /** Original Sandium presentation over the live Chromium action model; no browser policy writes. */
 @SuppressWarnings("UseSharedPreferencesManagerFromChromeCheck") // Private versioned UI layout, not browser preferences.
 final class SandiumPagedMenu extends FrameLayout {
-    private static final String PREF = "sandium.menu.layout.v1";
+    private final SandiumMenuPreferences mPreferences;
     private static final int PAGE_SIZE = 8;
     private static final String ALL_MENU = "sandium:all-menu";
     private boolean mAllMenu;
@@ -102,6 +102,7 @@ final class SandiumPagedMenu extends FrameLayout {
 
     SandiumPagedMenu(Context context, ModelList models, View nativeContent, ListView nativeList, View footer) {
         super(context);
+        mPreferences = new SandiumMenuPreferences(context);
         mGroupColor = context.getColor(R.color.sandium_menu_group_surface);
         mPanelColor = context.getColor(R.color.sandium_menu_surface_container);
         mTextColor = context.getColor(R.color.sandium_menu_on_surface);
@@ -119,8 +120,7 @@ final class SandiumPagedMenu extends FrameLayout {
         for (Map.Entry<String, Entry> e : mCatalog.entrySet()) {
             if (!SandiumMenuMetadata.wasVisible(e.getValue().model)) hidden.add(e.getKey());
         }
-        mSaved = SandiumMenuState.load(context.getSharedPreferences(PREF, Context.MODE_PRIVATE)
-                .getString("layout", ""), mCatalog.keySet(), hidden);
+        mSaved = SandiumMenuState.load(mPreferences.load(), mCatalog.keySet(), hidden);
         mPersisted = mSaved.copy();
         render();
     }
@@ -303,16 +303,17 @@ final class SandiumPagedMenu extends FrameLayout {
             case "home_menu_id": return s(R.string.sandium_menu_home);
             case "reload_menu_id": return "Reload this page".equals(title(entry))
                     ? s(R.string.sandium_menu_reload) : title(entry); // Preserve Stop loading.
-            default: return title(entry);
+            default: return "Download this page".equals(title(entry))
+                    ? s(R.string.sandium_menu_save_page) : title(entry);
         }
     }
     private int columns() { return getResources().getConfiguration().fontScale > 1.3f ? 2 : 4; }
     private int labelHeight() {
         TextView sample = text("", 12, mTextColor);
         sample.setIncludeFontPadding(false);
-        return Math.max(dp(48) + sample.getLineHeight(), sample.getLineHeight() * 2);
+        return sample.getLineHeight() * 2;
     }
-    private int tileHeight() { return dp(26 + 4 + 28 + 10) + labelHeight(); }
+    private int tileHeight() { return Math.max(dp(48), dp(26 + 2 + 4 + 4) + labelHeight()); }
     private TextView tileLabel(String value) {
         TextView label = text(value, 12, mTextColor);
         label.setIncludeFontPadding(false);
@@ -325,14 +326,14 @@ final class SandiumPagedMenu extends FrameLayout {
     private LinearLayout tile() {
         LinearLayout tile = column();
         tile.setGravity(Gravity.TOP | Gravity.CENTER_HORIZONTAL);
-        tile.setPadding(dp(3), dp(28), dp(3), dp(10));
+        tile.setPadding(dp(3), dp(4), dp(3), dp(4));
         tile.setMinimumHeight(tileHeight());
         bindPressFeedback(tile);
         return tile;
     }
     private void addTileLabel(LinearLayout tile, View label) {
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(-1, labelHeight());
-        params.topMargin = dp(4);
+        params.topMargin = dp(2);
         tile.addView(label, params);
     }
     private Drawable allMenuIcon() {
@@ -405,7 +406,7 @@ final class SandiumPagedMenu extends FrameLayout {
         group.setPadding(dp(4), dp(4), dp(4), dp(4));
         // Decorative surface only: do not intercept item clicks, drags or accessibility.
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(-1, -2);
-        params.bottomMargin = dp(10);
+        params.bottomMargin = dp(4);
         parent.addView(group, params);
         return group;
     }
@@ -420,15 +421,7 @@ final class SandiumPagedMenu extends FrameLayout {
     // queues disk I/O, which can be lost when Exit/process termination follows an edit.
     // This bounded layout write is performed only on user edits, never during scrolling.
     private boolean writeLayout(SandiumMenuState value) {
-        android.os.StrictMode.ThreadPolicy policy = android.os.StrictMode.allowThreadDiskWrites();
-        boolean saved;
-        try {
-            saved = getContext().getApplicationContext()
-                    .getSharedPreferences(PREF, Context.MODE_PRIVATE).edit()
-                    .putString("layout", value.serialize()).commit();
-        } finally {
-            android.os.StrictMode.setThreadPolicy(policy);
-        }
+        boolean saved = mPreferences.save(value.serialize());
         if (saved) mPersisted = value.copy();
         else android.widget.Toast.makeText(getContext(), R.string.sandium_menu_save_failed,
                 android.widget.Toast.LENGTH_LONG).show();
@@ -459,7 +452,10 @@ final class SandiumPagedMenu extends FrameLayout {
         // Only window/font configuration changes it, never current labels or action count.
         int rows = (LIBRARY.length + columns() - 1) / columns()
                 + (PAGE_SIZE + columns() - 1) / columns();
-        return Math.max(1, Math.min(available, dp(16 + 48 + 36 + 48) + rows * tileHeight()));
+        // Editor omits the immutable library row and fits one available-action row.
+        // Keep its bounded extra header space independent of the live catalog too.
+        int editorExtra = mDraft != null ? dp(48) : 0;
+        return Math.max(1, Math.min(available, dp(16 + 48 + 24 + 48) + rows * tileHeight() + editorExtra));
     }
 
     private void finishPanelMotion() {
@@ -565,7 +561,8 @@ final class SandiumPagedMenu extends FrameLayout {
             }));
             // A plain View with WRAP_CONTENT uses the parent's available height.
             // Keep this empty title slot bounded or the header consumes the editor body.
-            heading.addView(new View(getContext()), new LinearLayout.LayoutParams(0, 1, 1));
+            weighted(heading, button(s(R.string.sandium_menu_reset_short),
+                    s(R.string.sandium_menu_reset_description), this::resetLayout));
             weighted(heading, button(s(R.string.sandium_menu_done), s(R.string.sandium_menu_save_edits), () -> {
                 finishEditing(); render();
             }));
@@ -603,12 +600,14 @@ final class SandiumPagedMenu extends FrameLayout {
         LinearLayout body = column(); mBody = body; scroll.addView(body);
         List<String> libraryKeys = new ArrayList<>();
         for (String key : LIBRARY) if (mCatalog.containsKey(key)) libraryKeys.add(key);
-        LinearLayout libraryGroup = group(body);
-        grid(libraryGroup, libraryKeys, false);
+        if (mDraft == null) {
+            LinearLayout libraryGroup = group(body);
+            grid(libraryGroup, libraryKeys, false);
+        }
         LinearLayout actionsGroup = group(body);
         if (mDraft != null) {
             TextView instructions = text(s(R.string.sandium_menu_drag_hint), 13, mSecondaryTextColor);
-            instructions.setPadding(0, dp(10), 0, dp(10)); actionsGroup.addView(instructions);
+            instructions.setMinHeight(dp(24)); actionsGroup.addView(instructions);
         }
         if (mAllMenu && mDraft == null) {
             // Browse every catalogued action using its live enabled/managed state.
@@ -634,35 +633,51 @@ final class SandiumPagedMenu extends FrameLayout {
             mPageViewport = viewport; mPageContent = pageGrid;
             if (pageTransition) slidePage(oldPage, pageDirection);
             LinearLayout pager = row(); pager.setGravity(Gravity.CENTER);
-            // Small Edge-style marks with full 48dp touch targets, also keyboard/TalkBack reachable.
+            // Compact decorative marks inside one accessible 48dp-high pager.
+            // The widget exposes range/scroll actions; small marks are not tiny TalkBack buttons.
+            pager.setFocusable(true);
+            pager.setImportantForAccessibility(IMPORTANT_FOR_ACCESSIBILITY_YES);
+            pager.setTag("pager");
+            pager.setContentDescription(s(R.string.sandium_menu_page_description, mPage + 1, pages));
+            pager.setMinimumWidth(dp(48));
+            pager.setAccessibilityDelegate(new View.AccessibilityDelegate() {
+                @Override public void onInitializeAccessibilityNodeInfo(View host, AccessibilityNodeInfo info) {
+                    super.onInitializeAccessibilityNodeInfo(host, info);
+                    info.setClassName("android.widget.SeekBar");
+                    info.setRangeInfo(AccessibilityNodeInfo.RangeInfo.obtain(
+                            AccessibilityNodeInfo.RangeInfo.RANGE_TYPE_INT, 0, pages - 1, mPage));
+                    info.setScrollable(pages > 1);
+                    if (mPage > 0) info.addAction(AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD);
+                    if (mPage + 1 < pages) info.addAction(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD);
+                }
+                @Override public boolean performAccessibilityAction(View host, int action, android.os.Bundle args) {
+                    if (action == AccessibilityNodeInfo.ACTION_SCROLL_FORWARD && mPage + 1 < pages) { page(1); return true; }
+                    if (action == AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD && mPage > 0) { page(-1); return true; }
+                    return super.performAccessibilityAction(host, action, args);
+                }
+            });
+            pager.setOnKeyListener((v, code, event) -> {
+                if (event.getAction() != android.view.KeyEvent.ACTION_DOWN) return false;
+                int direction = code == android.view.KeyEvent.KEYCODE_DPAD_LEFT ? -1
+                        : code == android.view.KeyEvent.KEYCODE_DPAD_RIGHT ? 1 : 0;
+                if (direction == 0) return false;
+                if (getLayoutDirection() == LAYOUT_DIRECTION_RTL) direction = -direction;
+                page(direction); return true;
+            });
             for (int i = 0; i < pages; i++) {
                 final int destination = i;
                 FrameLayout target = new FrameLayout(getContext());
-                target.setFocusable(true); target.setClickable(true);
+                target.setClickable(true);
+                target.setImportantForAccessibility(IMPORTANT_FOR_ACCESSIBILITY_NO);
                 bindPressFeedback(target);
                 target.setTag("page:" + i);
-                target.setContentDescription(s(R.string.sandium_menu_page_description, i + 1, pages));
                 target.setSelected(i == mPage);
                 target.setOnClickListener(v -> page(destination - mPage));
-                target.setAccessibilityDelegate(new View.AccessibilityDelegate() {
-                    @Override public void onInitializeAccessibilityNodeInfo(View host, AccessibilityNodeInfo info) {
-                        super.onInitializeAccessibilityNodeInfo(host, info);
-                        info.setClassName("android.widget.Button");
-                    }
-                });
                 View mark = new View(getContext());
                 mark.setBackground(shape(i == mPage ? mAccentColor : mDividerColor, 2));
                 mark.setImportantForAccessibility(IMPORTANT_FOR_ACCESSIBILITY_NO);
-                // Two marks sit together around their shared seam (8dp visual gap),
-                // while each retains its own non-overlapping 48dp accessible hit target.
-                FrameLayout.LayoutParams markParams = new FrameLayout.LayoutParams(dp(20), dp(3), Gravity.CENTER);
-                if (pages == 2) {
-                    markParams.gravity = Gravity.CENTER_VERTICAL | (i == 0 ? Gravity.END : Gravity.START);
-                    if (i == 0) markParams.setMarginEnd(dp(4));
-                    else markParams.setMarginStart(dp(4));
-                }
-                target.addView(mark, markParams);
-                pager.addView(target, new LinearLayout.LayoutParams(dp(48), dp(48)));
+                target.addView(mark, new FrameLayout.LayoutParams(dp(20), dp(3), Gravity.CENTER));
+                pager.addView(target, new LinearLayout.LayoutParams(dp(28), dp(48)));
             }
             // Horizontal scrolling keeps every page selector accessible for large customized menus.
             android.widget.HorizontalScrollView pagerScroll = new android.widget.HorizontalScrollView(getContext());
@@ -672,19 +687,22 @@ final class SandiumPagedMenu extends FrameLayout {
         }
         if (mDraft != null) {
             LinearLayout availableGroup = group(body);
-            availableGroup.addView(text(s(R.string.sandium_menu_available), 15, mSecondaryTextColor));
+            TextView availableTitle = text(s(R.string.sandium_menu_available), 12, mSecondaryTextColor);
+            availableTitle.setMinHeight(dp(24)); availableGroup.addView(availableTitle);
             grid(availableGroup, mDraft.hiddenKeys(editableKeys()), true);
-            availableGroup.addView(button(s(R.string.sandium_menu_reset), s(R.string.sandium_menu_reset_description), () -> {
-                SandiumMenuState editing = mDraft;
-                new AlertDialog.Builder(getContext()).setMessage(s(R.string.sandium_menu_reset_question))
-                        .setNegativeButton(s(R.string.sandium_menu_cancel), null).setPositiveButton(s(R.string.sandium_menu_reset_confirm), (d, which) -> {
-                            if (mDraft == null || mDraft != editing) return;
-                            List<String> defaults = new ArrayList<>(mCatalog.keySet());
-                            for (String known : mDraft.knownKeys()) if (!defaults.contains(known)) defaults.add(known);
-                            mDraft = SandiumMenuState.reset(defaults, new HashSet<>()); persistDraft(); mPage = 0; render();
-                        }).show();
-            }));
         }
+    }
+
+    private void resetLayout() {
+        SandiumMenuState editing = mDraft;
+        new AlertDialog.Builder(getContext()).setMessage(s(R.string.sandium_menu_reset_question))
+                .setNegativeButton(s(R.string.sandium_menu_cancel), null)
+                .setPositiveButton(s(R.string.sandium_menu_reset_confirm), (d, which) -> {
+                    if (mDraft == null || mDraft != editing) return;
+                    List<String> defaults = new ArrayList<>(mCatalog.keySet());
+                    for (String known : mDraft.knownKeys()) if (!defaults.contains(known)) defaults.add(known);
+                    mDraft = SandiumMenuState.reset(defaults, new HashSet<>()); persistDraft(); mPage = 0; render();
+                }).show();
     }
 
     private void requestIcon(PropertyModel model) {
@@ -713,10 +731,10 @@ final class SandiumPagedMenu extends FrameLayout {
                 all.setFocusable(true);
                 all.setOnClickListener(v -> { mAllMenu = true; render(); });
                 all.setTag(ALL_MENU);
-                // Persist order like other tiles, but never offer removal.
+                // Product navigation stays last; it is neither movable nor removable.
                 if (mDraft != null) {
-                    all.setOnClickListener(v -> editOptions(ALL_MENU));
-                    bindMove(all, ALL_MENU);
+                    all.setEnabled(false);
+                    all.setContentDescription(s(R.string.sandium_menu_all_fixed));
                 }
                 weighted(line, all);
                 continue;
@@ -762,19 +780,13 @@ final class SandiumPagedMenu extends FrameLayout {
             addTileLabel(tile, label);
             tile.setTag("action:" + key); tile.setFocusable(true); tile.setContentDescription(title(entry));
             tile.setAlpha(enabled(entry.model) || mDraft != null ? 1 : .4f);
-            FrameLayout editCell = null;
             if (mDraft != null && !library(key)) {
-                editCell = new FrameLayout(getContext());
-                editCell.addView(tile, new FrameLayout.LayoutParams(-1, -2));
-                TextView editControl = button(available ? "+" : "−",
-                        s(available ? R.string.sandium_menu_add_action : R.string.sandium_menu_remove_action, title(entry)),
-                        () -> { if (available) mDraft.show(key); else mDraft.hide(key); persistDraft(); render(); });
-                FrameLayout.LayoutParams editControlParams = new FrameLayout.LayoutParams(dp(48), dp(48), Gravity.TOP | Gravity.END);
-                editCell.addView(editControl, editControlParams);
+                // A full-size action tile remains the editing target. Tap exposes the
+                // accessible Add/Remove/Move choices; long press starts direct drag.
+                tile.setContentDescription(s(available ? R.string.sandium_menu_add_action
+                        : R.string.sandium_menu_edit_action, title(entry)));
                 tile.setOnClickListener(v -> editOptions(key));
-                if (!available) {
-                    bindMove(tile, key);
-                }
+                if (!available) bindMove(tile, key);
             } else {
                 tile.setEnabled(enabled(entry.model)); tile.setOnClickListener(v -> activate(key));
                 ModelList secondary = entry.model.containsKey(AppMenuItemProperties.ADDITIONAL_ICONS)
@@ -784,28 +796,39 @@ final class SandiumPagedMenu extends FrameLayout {
                     boolean checkable = action.containsKey(AppMenuItemProperties.CHECKABLE)
                             && action.get(AppMenuItemProperties.CHECKABLE);
                     String caption = checkable ? (action.get(AppMenuItemProperties.CHECKED) ? s(R.string.sandium_menu_on) : s(R.string.sandium_menu_off)) : s(R.string.sandium_menu_options);
-                    TextView control = button(caption, title(entry) + " " + caption, () -> {
-                        refreshCatalog();
-                        Entry current = mCatalog.get(key);
-                        if (current == null || !enabled(current.model)) return;
-                        ModelList liveChildren = current.model.get(AppMenuItemProperties.ADDITIONAL_ICONS);
-                        if (liveChildren == null || liveChildren.size() != 1) return;
-                        PropertyModel liveAction = liveChildren.get(0).model;
-                        if (!enabled(liveAction)) return;
-                        AppMenuClickHandler handler = current.model.get(AppMenuItemProperties.CLICK_HANDLER);
-                        if (handler != null) handler.onItemClick(liveAction, null);
-                    });
-                    control.setIncludeFontPadding(false);
-                    control.setSingleLine(true);
-                    control.setEllipsize(android.text.TextUtils.TruncateAt.END);
-                    control.setEnabled(enabled(action));
-                    tile.removeView(label);
-                    // Keep state in a separate line so a long/localized title cannot hide it.
-                    LinearLayout captionSlot = column();
-                    label.setSingleLine(true);
-                    captionSlot.addView(label, new LinearLayout.LayoutParams(-1, label.getLineHeight()));
-                    captionSlot.addView(control, new LinearLayout.LayoutParams(-1, dp(48)));
-                    addTileLabel(tile, captionSlot);
+                    // Desktop-style checkable rows have one action: use the entire tile
+                    // as its >=48dp target rather than reserving 48dp below every label.
+                    if (checkable) {
+                        tile.setContentDescription(title(entry) + " " + caption);
+                        tile.setEnabled(enabled(entry.model) && enabled(action));
+                        tile.setOnClickListener(v -> {
+                            refreshCatalog();
+                            Entry current = mCatalog.get(key);
+                            if (current == null || !enabled(current.model)) return;
+                            ModelList liveChildren = current.model.get(AppMenuItemProperties.ADDITIONAL_ICONS);
+                            if (liveChildren == null || liveChildren.size() != 1) return;
+                            PropertyModel liveAction = liveChildren.get(0).model;
+                            if (!enabled(liveAction) || !liveAction.containsKey(AppMenuItemProperties.CHECKABLE)
+                                    || !liveAction.get(AppMenuItemProperties.CHECKABLE)) return;
+                            AppMenuClickHandler handler = current.model.get(AppMenuItemProperties.CLICK_HANDLER);
+                            if (handler != null) handler.onItemClick(liveAction, null);
+                        });
+                        tile.removeView(label);
+                        LinearLayout captionSlot = column();
+                        label.setSingleLine(true);
+                        captionSlot.addView(label, new LinearLayout.LayoutParams(-1, label.getLineHeight()));
+                        TextView stateLabel = tileLabel(caption); stateLabel.setSingleLine(true);
+                        captionSlot.addView(stateLabel, new LinearLayout.LayoutParams(-1, stateLabel.getLineHeight()));
+                        addTileLabel(tile, captionSlot);
+                    }
+                    else {
+                        // Do not drop additional actions just to compact their presentation.
+                        tile.setOnClickListener(v -> {
+                            refreshCatalog(); Entry current = mCatalog.get(key);
+                            if (current != null && enabled(current.model)) showNative(current.row);
+                        });
+                    }
+
                 }
                 tile.setOnLongClickListener(v -> { mDraft = mSaved.copy(); render(); return true; });
                 if (mDraft != null) { disableTree(tile); tile.setAlpha(.45f); }
@@ -813,6 +836,13 @@ final class SandiumPagedMenu extends FrameLayout {
                     @Override public void onInitializeAccessibilityNodeInfo(View host, AccessibilityNodeInfo info) {
                         super.onInitializeAccessibilityNodeInfo(host, info);
                         info.setClassName("android.widget.Button");
+                        ModelList children = entry.model.containsKey(AppMenuItemProperties.ADDITIONAL_ICONS)
+                                ? entry.model.get(AppMenuItemProperties.ADDITIONAL_ICONS) : null;
+                        if (children != null && children.size() == 1
+                                && children.get(0).model.containsKey(AppMenuItemProperties.CHECKABLE)
+                                && children.get(0).model.get(AppMenuItemProperties.CHECKABLE)) {
+                            info.setCheckable(true); info.setChecked(children.get(0).model.get(AppMenuItemProperties.CHECKED));
+                        }
                         if (entry.model.containsKey(AppMenuItemProperties.CHECKABLE)
                                 && entry.model.get(AppMenuItemProperties.CHECKABLE)) {
                             info.setCheckable(true); info.setChecked(entry.model.get(AppMenuItemProperties.CHECKED));
@@ -820,7 +850,7 @@ final class SandiumPagedMenu extends FrameLayout {
                     }
                 });
             }
-            weighted(line, editCell == null ? tile : editCell);
+            weighted(line, tile);
         }
         if (line != null) for (int i = keys.size() % columns; i != 0 && i < columns; i++) line.addView(new View(getContext()), new LinearLayout.LayoutParams(0, 1, 1));
     }
@@ -911,17 +941,11 @@ final class SandiumPagedMenu extends FrameLayout {
         if (row >= 0) mNativeList.setSelection(row + mNativeList.getHeaderViewsCount());
     }
 
-    private Set<String> quickAvailable() {
-        Set<String> keys = editableKeys(); keys.add(ALL_MENU); return keys;
-    }
+    private Set<String> quickAvailable() { return editableKeys(); }
     private List<String> quickKeys() {
-        // Repair stale hidden state and append to old profiles once. Never disappear
-        // even when the bounded saved catalog is full or contains corrupt old data.
-        state().reconcile(java.util.Collections.singleton(ALL_MENU), java.util.Collections.emptySet());
-        state().show(ALL_MENU);
-        List<String> keys = new ArrayList<>(state().visibleKeys(quickAvailable()));
-        if (!keys.contains(ALL_MENU)) keys.add(ALL_MENU);
-        return keys;
+        // Saved legacy positions of All menu are ignored, not destructively migrated.
+        // Preserve every user action's order/hidden state; append product navigation last.
+        return state().visibleKeysWithTrailing(quickAvailable(), ALL_MENU);
     }
     private int quickPageCount() { return (quickKeys().size() + PAGE_SIZE - 1) / PAGE_SIZE; }
 
@@ -942,10 +966,10 @@ final class SandiumPagedMenu extends FrameLayout {
         if (next == mPage) return;
         View focus = findFocus();
         View a11yFocus = accessibilityFocus(this);
-        boolean restoreKeyFocus = focus != null && String.valueOf(focus.getTag()).startsWith("page:");
-        boolean restoreA11yFocus = a11yFocus != null && String.valueOf(a11yFocus.getTag()).startsWith("page:");
+        boolean restoreKeyFocus = focus != null && "pager".equals(focus.getTag());
+        boolean restoreA11yFocus = a11yFocus != null && "pager".equals(a11yFocus.getTag());
         mPage = next; render();
-        View destination = findViewWithTag("page:" + mPage);
+        View destination = findViewWithTag("pager");
         if (destination != null) {
             if (restoreKeyFocus) destination.requestFocus();
             if (restoreA11yFocus) destination.performAccessibilityAction(
@@ -997,18 +1021,16 @@ final class SandiumPagedMenu extends FrameLayout {
     }
     private void editOptions(String key) {
         Entry entry = mCatalog.get(key);
-        boolean permanent = ALL_MENU.equals(key);
-        if ((!permanent && entry == null) || mDraft == null) return;
+        if (ALL_MENU.equals(key) || entry == null || mDraft == null) return;
         final boolean hidden = mDraft.isHidden(key);
         String[] options = hidden ? new String[] {s(R.string.sandium_menu_add)} : new String[] {
                 s(R.string.sandium_menu_earlier), s(R.string.sandium_menu_later), s(R.string.sandium_menu_previous_page), s(R.string.sandium_menu_next_page), s(R.string.sandium_menu_remove)};
-        if (permanent) options = java.util.Arrays.copyOf(options, 4); // No Remove action.
-        new AlertDialog.Builder(getContext()).setTitle(permanent ? s(R.string.sandium_menu_all) : title(entry)).setItems(options, (dialog, which) -> {
+        new AlertDialog.Builder(getContext()).setTitle(title(entry)).setItems(options, (dialog, which) -> {
             if (mDraft == null) return;
             if (hidden) mDraft.show(key);
             else {
                 int index = quickKeys().indexOf(key);
-                if (which == 4 && !permanent) mDraft.hide(key);
+                if (which == 4) mDraft.hide(key);
                 else mDraft.move(key, index + new int[] {-1, 1, -PAGE_SIZE, PAGE_SIZE}[which], quickAvailable());
             }
             persistDraft(); render();

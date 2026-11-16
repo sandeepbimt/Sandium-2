@@ -15,6 +15,51 @@ import org.chromium.url.GURL;
 
 /** Browser-owned dark-page control. Manual element correction is a separate surface. */
 public final class SandiumDarkPagesUi {
+    /** One explicit per-origin switch. Keep saved corrections when appearance is disabled. */
+    public static void bindSiteToggle(Context context, Tab tab, android.view.View root,
+            Runnable dismiss) {
+        androidx.appcompat.widget.SwitchCompat toggle =
+                root.findViewById(R.id.sandium_dark_pages_button);
+        android.view.View correct = root.findViewById(R.id.sandium_element_colors_button);
+        if (toggle == null) return;
+        boolean available = context != null && tab != null && tab.getWebContents() != null
+                && SandiumDarkPages.origin(tab.getUrl()) != null
+                && SandiumDarkPages.usable(Profile.fromWebContents(tab.getWebContents()));
+        boolean enabled = available && Boolean.TRUE.equals(
+                SandiumDarkPages.enabled(tab.getWebContents(), tab.getUrl()));
+        toggle.setOnCheckedChangeListener(null);
+        toggle.setEnabled(available);
+        toggle.setChecked(enabled);
+        if (correct != null) {
+            correct.setEnabled(enabled);
+            correct.setAlpha(enabled ? 1f : 0.5f);
+        }
+        if (!available) return;
+        Profile profile = Profile.fromWebContents(tab.getWebContents());
+        String origin = SandiumDarkPages.origin(tab.getUrl());
+        toggle.setOnCheckedChangeListener((button, checked) -> {
+            if (!current(tab, profile, origin)) {
+                bindSiteToggle(context, tab, root, dismiss);
+                return;
+            }
+            try {
+                SandiumDarkPages.set(profile, tab.getUrl(), Control.DARK_PAGE,
+                        checked ? Choice.ON : Choice.OFF);
+                if (correct != null) {
+                    correct.setEnabled(checked);
+                    correct.setAlpha(checked ? 1f : 0.5f);
+                }
+                // Reload applies both renderer policy and retained corrections consistently.
+                dismiss.run();
+                tab.reload();
+            } catch (IllegalStateException failure) {
+                bindSiteToggle(context, tab, root, dismiss);
+                Toast.makeText(context, R.string.sandium_dark_pages_failed,
+                        Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+
     private static final int[] LABELS = {R.string.sandium_dark_pages_enabled};
     private static final Control[] CONTROLS = {Control.DARK_PAGE};
     private static String[] choices(Context context) {

@@ -6,6 +6,7 @@ import re
 import tempfile
 import unittest
 import xml.etree.ElementTree as ET
+from unittest.mock import patch
 
 spec = importlib.util.spec_from_file_location('branding', Path(__file__).with_name('apply-sandium-visible-branding.py'))
 b = importlib.util.module_from_spec(spec)
@@ -68,6 +69,101 @@ class BrandingTests(unittest.TestCase):
             self.assertIn(b.ABOUT_JAVA, recipe[key])
             self.assertIn(b.LEGAL_JAVA, recipe[key])
 
+    def test_consumed_copy_and_recursive_parts_are_branded_together(self):
+        import json
+        with tempfile.TemporaryDirectory() as temporary:
+            src=Path(temporary); core=src/'brave'
+            canonical='browser/ui/android/strings/android_chrome_strings.grd'
+            consumed='chrome/'+canonical
+            pairs=[{'core':canonical,'consumed':consumed},
+                   {'core':'browser/ui/android/strings/child.grdp','consumed':'chrome/browser/ui/android/strings/child.grdp'}]
+            root='<grit><part file="child.grdp"/><message name="IDS_PASSWORD_MANAGER_SETTINGS_TITLE">Brave Password Manager</message></grit>'
+            child='<grit-part><message name="IDS_CLEAR">Clear Brave browsing data</message><message name="IDS_LEGAL">Copyright The Brave Authors</message><message name="IDS_URL">https://brave.com</message></grit-part>'
+            for pair, text in zip(pairs, [root,child]):
+                for path in (core/pair['core'],src/pair['consumed']):
+                    path.parent.mkdir(parents=True,exist_ok=True);path.write_text(text)
+            manifest=src/'manifest.json'
+            manifest.write_text(json.dumps({'roots':[pairs[0]],'copies':pairs}))
+            with patch.object(b,'COPY_MANIFEST',manifest):
+                with self.assertRaisesRegex(RuntimeError,'Unbranded consumed'):
+                    b.rebrand_consumed_graph(core,verify=True)
+                report=b.rebrand_consumed_graph(core)
+                self.assertEqual(len(report),4)
+                self.assertIn('Sandium Password Manager',(src/consumed).read_text())
+                for path in (core/pairs[1]['core'],src/pairs[1]['consumed']):
+                    self.assertIn('Clear Sandium browsing data',path.read_text())
+                    self.assertIn('The Brave Authors',path.read_text())
+                    self.assertIn('https://brave.com',path.read_text())
+                b.rebrand_consumed_graph(core,verify=True)
+                # Simulate npm overwriting consumed files from old checkpoint.
+                (src/consumed).write_text(root)
+                b.rebrand_consumed_graph(core)
+                b.rebrand_consumed_graph(core,verify=True)
+                # Source drift must not silently escape the inventory.
+                (core/canonical).write_text(root.replace('child.grdp','new.grdp'))
+                (core/Path(canonical).parent/'new.grdp').write_text(child)
+                with self.assertRaisesRegex(RuntimeError,'inventory drift'):
+                    b.branding_copy_manifest(core)
+
+    def test_developer_hint_keeps_copyright_and_identifiers(self):
+        source='<!-- Copyright The Brave Authors --><Preference android:key="beta_stable_hint" android:title="Hint: You can also enable Developer options on Beta/Stable channels by tapping the Brave version in &quot;Settings > About Brave&quot; multiple times."/>'
+        out=b.rebrand_developer_hint(source)
+        self.assertIn('About Sandium',out)
+        self.assertIn('The Brave Authors',out)
+        self.assertEqual(out,b.rebrand_developer_hint(out))
+        with self.assertRaises(RuntimeError):b.rebrand_developer_hint('<changed/>')
+        import json
+        recipe=json.loads((Path(__file__).resolve().parents[1]/'features/removal-recipe.json').read_text())
+        for key in ('core_restore','ui_only_core_restore'):
+            self.assertIn(b.DEVELOPER_XML,recipe[key])
+        for key in ('chromium_restore','ui_only_chromium_restore'):
+            self.assertIn('chrome/'+b.DEVELOPER_XML,recipe[key])
+
+    def test_service_and_data_recipient_claims_not_rebranded(self):
+        for ident,text in [('IDS_FEEDBACK_ATTACH_FILE_NOTE','File will be sent to Brave for debugging'),
+                           ('IDS_CREATE_GOOGLE_DOC','Create a Brave document'),
+                           ('IDS_POLICY_OFF_CWS_URL_ERROR','Brave Webstore'),
+                           ('IDS_DICTIONARY','downloads from Brave servers')]:
+            source=f'<message name="{ident}">{text}</message>'
+            self.assertEqual(source,b.rebrand_messages(source)[0])
+
+    def test_provider_and_disclosure_semantics_survive_broad_graph(self):
+        examples = [
+            ('IDS_CRASH_REPORTING', 'Automatically send crash reports to Brave'),
+            ('IDS_GENERIC', 'Page content will be shared with <b>Brave</b>'),
+            ('IDS_GENERIC', 'Data is stored by Brave'),
+            ('IDS_GENERIC', 'Your chats may be reviewed by Brave'),
+            ('IDS_GENERIC', 'Brave Browser Cloud Management'),
+            ('IDS_GENERIC', "Brave’s Advanced Protection"),
+            ('IDS_AUTOFILL_AI_NOTICE', 'Brave will process this data'),
+            ('IDS_FEATURE_SHOWCASE_GEMINI_DISCLOSURE_2', 'Brave Terms apply'),
+            ('IDS_GENERIC', 'Use Brave DNS as backup'),
+            ('IDS_GENERIC', 'Brave Root Store'),
+            ('IDS_GENERIC', 'Brave Sync'),
+            ('IDS_GENERIC', 'Brave Workspace data'),
+            ('IDS_GENERIC', 'Brave Apps Script'),
+            ('IDS_GENERIC', 'Brave AI Mode'),
+            ('IDS_AUTOFILL_GMAIL_OTP_REQUIRED_STEP_2', 'Smart features in other Brave products'),
+            ('IDS_MERCHANT_VIEWER_PREVIEW_SHEET_TITLE', 'Brave | About this store'),
+            ('IDS_PIX_ACCOUNT_LINKING_PROMPT_C_BODY', 'Brave encryption protects your info'),
+            ('IDS_GENERIC', 'Brave account'),
+            ('IDS_CONTEXTUAL_CUEING_SETTINGS_CONSIDER_1_PRIVATE', 'Brave processes page titles and URLs in the cloud'),
+            ('IDS_GENERIC', 'Brave may personalize Search based on your history'),
+            ('IDS_GENERIC', 'Notify Brave that your account may be at risk'),
+            ('IDS_GENERIC', 'Websites and services, including Brave'),
+        ]
+        for ident, body in examples:
+            with self.subTest(ident=ident, body=body):
+                source = f'<message name="{ident}">{body}</message>'
+                out, changed, retained = b.rebrand_messages(source)
+                self.assertEqual(source, out)
+                self.assertEqual([], changed)
+                self.assertEqual([ident], retained)
+
+    def test_factual_external_help_center_is_preserved(self):
+        source='<message name="IDS_HELP">Open the Brave Help Center in a new tab</message>'
+        self.assertEqual(source,b.rebrand_messages(source)[0])
+
     def test_drawable_preserves_aspect_and_intrinsic_dimensions(self):
         root = ET.fromstring(b.mark_drawable(162,162))
         ns='{http://schemas.android.com/apk/res/android}'
@@ -86,6 +182,9 @@ class BrandingTests(unittest.TestCase):
                 target=core.parent/rel
                 target.parent.mkdir(parents=True, exist_ok=True)
                 target.write_text((Path(__file__).resolve().parents[2]/'tests/fixtures/about-branding'/f'{name}.java').read_text())
+            for hint in (core/b.DEVELOPER_XML, core.parent/('chrome/'+b.DEVELOPER_XML)):
+                hint.parent.mkdir(parents=True, exist_ok=True)
+                hint.write_text('<Preference android:title="Hint: You can also enable Developer options on Beta/Stable channels by tapping the Brave version in &quot;Settings > About Brave&quot; multiple times."/>')
             for rel in b.STRING_FILES:
                 p=core/rel;p.parent.mkdir(parents=True,exist_ok=True)
                 p.write_text('<grit><message name="IDS_BROWSER">Brave browser</message></grit>')
@@ -106,19 +205,25 @@ class BrandingTests(unittest.TestCase):
             n=core/'android/java/org/chromium/chrome/browser/notifications/retention/RetentionNotificationUtil.java'
             n.parent.mkdir(parents=True,exist_ok=True)
             n.write_text('private static final String BRAVE_BROWSER = "Brave Browser";')
-            b.apply(core)
+            with patch.object(b, 'rebrand_consumed_graph', return_value={}):
+                b.apply(core)
             self.assertIn('ic_social_brave_release_favicon_fullheight_color',
                           (core/'android/java/brave-res/xml/brave_main_preferences.xml').read_text())
             self.assertIn('R.drawable.sandium_ntp_mark',j.read_text())
             self.assertIn('canvas.scale((float) size / intrinsicWidth',j.read_text())
             self.assertIn('"Sandium"',n.read_text())
             first={str(p):p.read_bytes() for p in core.parent.rglob('*') if p.is_file()}
-            b.apply(core)
+            with patch.object(b, 'rebrand_consumed_graph', return_value={}):
+                b.apply(core)
             self.assertEqual(first,{str(p):p.read_bytes() for p in core.parent.rglob('*') if p.is_file()})
             self.assertIn('The Brave Authors', (core/'android/java/brave-res/drawable/ic_brave_logo.xml').read_text())
 
 
 def verify_core(core):
+    b.rebrand_consumed_graph(core, verify=True)
+    for hint in (core/b.DEVELOPER_XML, core.parent/('chrome/'+b.DEVELOPER_XML)):
+        if b.rebrand_developer_hint(hint.read_text()) != hint.read_text():
+            raise RuntimeError('Developer hint unbranded')
     refresh_spec = importlib.util.spec_from_file_location(
         'branding_refresh', Path(__file__).with_name('test-sandium-branding-refresh.py'))
     refresh = importlib.util.module_from_spec(refresh_spec)

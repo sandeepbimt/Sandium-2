@@ -28,6 +28,7 @@ def blob(repo,pin,path):return subprocess.check_output(['git','-C',str(repo),'sh
 def core_blob(path):return blob(a.source,m['brave_pin'],path)
 fixture_map={progress.PATH:root/'tests/fixtures/progress/ToolbarProgressBarLayer.java',fade.SETTINGS:root/'.circleci/tests/fixtures/settings-fade/SettingsActivity.java'}
 fixture_map[links.CONNECTION]=root/'tests/fixtures/ui-links/ConnectionInfoView.java'
+fixture_map['chrome/android/java/res/xml/developer_preferences.xml']=root/'tests/fixtures/about-branding/developer_preferences.xml'
 for name in ('AboutChromeSettings','LegalInformationSettings'):
  fixture_map['chrome/android/java/src/org/chromium/chrome/browser/about_settings/'+name+'.java']=root/'tests/fixtures/about-branding'/(name+'.java')
 for path in [toggles.STYLE,toggles.BUILD]:fixture_map[path]=root/'.circleci/tests/fixtures/oppo-toggles'/P(path).name

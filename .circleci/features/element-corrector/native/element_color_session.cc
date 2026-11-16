@@ -145,7 +145,7 @@ void ElementColorSession::DOMContentLoaded(content::RenderFrameHost* frame) {
   transport_->Restore(*frame,*session_,std::move(rules));
 }
 void ElementColorSession::DidFinishNavigation(content::NavigationHandle* handle) {
-  if (handle->HasCommitted() && handle->IsInPrimaryMainFrame()) {
+  if (handle->HasCommitted() && handle->IsInPrimaryMainFrame() && !handle->IsSameDocument()) {
     auto alive=lifetime_factory_.GetWeakPtr();
     const uint64_t generation=begin_generation_;
     const bool restored=handle->IsServedFromBackForwardCache() || handle->IsPrerenderedPageActivation();
@@ -156,6 +156,7 @@ void ElementColorSession::DidFinishNavigation(content::NavigationHandle* handle)
 }
 void ElementColorSession::OnVisibilityChanged(content::Visibility visibility) {
   if (visibility!=content::Visibility::VISIBLE) Cancel();
+  else if (!shutting_down_ && web_contents()) DOMContentLoaded(web_contents()->GetPrimaryMainFrame());
 }
 void ElementColorSession::WebContentsDestroyed() {
   shutting_down_=true;lifetime_factory_.InvalidateWeakPtrs();Cancel();

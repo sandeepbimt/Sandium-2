@@ -173,7 +173,7 @@ def apply(src, repo, verify_pin=True):
         core / CUSTOMIZE: customize,
         core / 'android/java/org/chromium/chrome/browser/app/appmenu/AppMenuIconRowFooter.java': footer,
         core / 'android/java/org/chromium/chrome/browser/app/BraveActivity.java': activity,
-        src / INTERNAL / 'BUILD.gn': lambda t: register_resources(register(t, ['SandiumPagedMenu', 'SandiumMenuState'])),
+        src / INTERNAL / 'BUILD.gn': lambda t: register_resources(register(t, ['SandiumPagedMenu', 'SandiumMenuState', 'SandiumMenuPreferences'])),
         src / PUBLIC / 'BUILD.gn': lambda t: register(t, ['SandiumMenuMetadata']),
     }
     # Validate every transformation before mutating any source file.
@@ -188,7 +188,7 @@ def apply(src, repo, verify_pin=True):
         color = src / INTERNAL / relative
         color.parent.mkdir(parents=True, exist_ok=True)
         color.write_bytes((repo / 'android' / relative).read_bytes())
-    for name, base in [('SandiumMenuState', INTERNAL), ('SandiumPagedMenu', INTERNAL), ('SandiumMenuMetadata', PUBLIC)]:
+    for name, base in [('SandiumMenuPreferences', INTERNAL), ('SandiumMenuState', INTERNAL), ('SandiumPagedMenu', INTERNAL), ('SandiumMenuMetadata', PUBLIC)]:
         dest = src / base / ('java/src/' + PACKAGE + name + '.java')
         dest.parent.mkdir(parents=True, exist_ok=True)
         dest.write_text((repo / 'android/java' / PACKAGE / (name + '.java')).read_text())
@@ -208,14 +208,14 @@ def verify(src, repo, verify_pin=True):
         core / CUSTOMIZE: customize,
         core / 'android/java/org/chromium/chrome/browser/app/appmenu/AppMenuIconRowFooter.java': footer,
         core / 'android/java/org/chromium/chrome/browser/app/BraveActivity.java': activity,
-        src / INTERNAL / 'BUILD.gn': lambda t: register_resources(register(t, ['SandiumPagedMenu', 'SandiumMenuState'])),
+        src / INTERNAL / 'BUILD.gn': lambda t: register_resources(register(t, ['SandiumPagedMenu', 'SandiumMenuState', 'SandiumMenuPreferences'])),
         src / PUBLIC / 'BUILD.gn': lambda t: register(t, ['SandiumMenuMetadata']),
     }
     for path, transform in transforms.items():
         current = path.read_text()
         if transform(current) != current:
             raise ValueError('Menu contract not applied: ' + str(path))
-    for name, base in [('SandiumMenuState', INTERNAL), ('SandiumPagedMenu', INTERNAL), ('SandiumMenuMetadata', PUBLIC)]:
+    for name, base in [('SandiumMenuPreferences', INTERNAL), ('SandiumMenuState', INTERNAL), ('SandiumPagedMenu', INTERNAL), ('SandiumMenuMetadata', PUBLIC)]:
         dest = src / base / ('java/src/' + PACKAGE + name + '.java')
         if dest.read_bytes() != (repo / 'android/java' / PACKAGE / (name + '.java')).read_bytes():
             raise ValueError('Menu Java drift: ' + str(dest))

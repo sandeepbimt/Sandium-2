@@ -19,3 +19,22 @@ class WelcomeCompact(unittest.TestCase):
   self.assertEqual(s,patch(s))
   old=s.replace('// Setup restart applies startup-only transition choices.\n        mRequiresRestart = true;','').replace('mSandiumDarkPageSwitch = addRestartSwitchRow','mSandiumDarkPageSwitch = addSwitchRow')
   self.assertIn('mSandiumDarkPageSwitch = addRestartSwitchRow',patch(old))
+ def test_spare_height_belongs_to_complete_settings_groups(self):
+  s=VIEW.read_text()
+  build=s.split('private void buildMainSettingsCard()',1)[1].split('private void buildFilterProgressCard()',1)[0]
+  self.assertIn('cardParams = matchWrap()',build)
+  self.assertIn('cardParams.weight = 1f',build)
+  self.assertIn('mMainSettingsCard = card',build)
+  self.assertIn('updateSettingsStretch()',build)
+  group=s.split('private LinearLayout addSettingGroup(',1)[1].split('private void addBlurRow(',1)[0]
+  self.assertIn('group.setGravity(Gravity.CENTER_VERTICAL)',group)
+  self.assertIn('parent == mMainSettingsCard',group)
+  self.assertIn('params = matchWrap()',group)
+  self.assertIn('float weight = mExpanded ? 0f : 1f',group)
+  self.assertIn('params.weight = weight',group)
+  self.assertIn('cardParams.weight = weight',group)
+  self.assertNotIn('params.height = 0',group)
+  switch=s.split('boolean checked, boolean showRestartHint,',1)[1].split('private void initializeSearchEngine()',1)[0]
+  self.assertIn('group.addView(row, matchWrap())',switch)
+  self.assertIn('group.addView(restartHint, matchWrap())',switch)
+  self.assertIn('group.addView(mBlurRestartHint, matchWrap())',s)
