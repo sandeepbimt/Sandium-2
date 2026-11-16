@@ -10,36 +10,71 @@ concurrency:
   group: sandium-android15-probe
   cancel-in-progress: false
 jobs:
-  probe:
+  android15:
     if: github.repository_visibility == 'public'
     runs-on: ubuntu-24.04
-    timeout-minutes: 5
+    timeout-minutes: 20
     steps:
-      - name: Inspect existing acceleration access without changing permissions
+      - name: Enable owner-approved scoped KVM access and install official Android SDK packages
         shell: bash
         run: |
-          set -u
-          echo "This is a standard public-repository runner; no artifacts or caches are uploaded."
-          uname -a
-          id
-          lscpu | grep -E 'Architecture|CPU\(s\)|Virtualization|Hypervisor' || true
-          ls -l /dev/kvm || true
-          python3 - <<'PY'
-          import os, fcntl
-          try:
-              fd = os.open('/dev/kvm', os.O_RDWR)
-              print('KVM_OPEN=SUCCESS')
-              print('KVM_API_VERSION=' + str(fcntl.ioctl(fd, 0xAE00, 0)))
-              os.close(fd)
-          except OSError as error:
-              print('KVM_OPEN=FAILED: ' + str(error))
-          PY
-          echo "ANDROID_HOME=${ANDROID_HOME:-unset}"
-          if [ -x "${ANDROID_HOME:-/none}/emulator/emulator" ]; then
-            "$ANDROID_HOME/emulator/emulator" -version | head -8
-            "$ANDROID_HOME/emulator/emulator" -accel-check || true
-          fi
-          if [ -d "${ANDROID_HOME:-/none}/system-images" ]; then
-            find "$ANDROID_HOME/system-images" -name source.properties -maxdepth 5 -print
-          fi
-          printf 'Read-only Android capability probe completed. No emulator, permission change, APK install, or paid resource was used.\n' >> "$GITHUB_STEP_SUMMARY"
+          set -euo pipefail
+          # Owner approved read/write access for this disposable runner user only.
+          sudo setfacl -m "u:$(id -un):rw" /dev/kvm
+          getfacl /dev/kvm
+          SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          "$SDKMANAGER" 'emulator' 'platform-tools' 'system-images;android-35;google_apis;x86_64'
+          "$ANDROID_HOME/emulator/emulator" -version
+          "$ANDROID_HOME/emulator/emulator" -accel-check
+          cat "$ANDROID_HOME/system-images/android-35/google_apis/x86_64/source.properties"
+      - name: Verify exact APK and boot Android 15 with KVM required
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --location --retry 2 --max-time 180 -o Sandium.apk 'https://output.circle-artifacts.com/output/job/3c0661b0-0a6a-40b2-97f3-553080d3b902/artifacts/0/brave-apk/Sandium-Brave-test.apk'
+          echo 'd33297048c49b65c2f4b797651e6708f7f101ef7e30f9fb90af3091b31459de5  Sandium.apk' | sha256sum --check
+          unzip -l Sandium.apk | grep 'lib/' | head -15 || true
+          echo no | "$ANDROID_HOME/cmdline-tools/latest/bin/avdmanager" create avd --force --name sandium15 --package 'system-images;android-35;google_apis;x86_64'
+          cat >> "$HOME/.android/avd/sandium15.avd/config.ini" <<'CONFIG'
+          hw.lcd.width=720
+          hw.lcd.height=1600
+          hw.lcd.density=280
+          hw.ramSize=3072
+          hw.cpu.ncore=2
+          CONFIG
+          "$ANDROID_HOME/emulator/emulator" -avd sandium15 -no-window -no-audio -no-snapshot -no-boot-anim -gpu swiftshader -accel on > emulator.log 2>&1 &
+          echo $! > emulator.pid
+          adb start-server
+          timeout 480 bash -c 'until adb shell getprop sys.boot_completed 2>/dev/null | tr -d "\r" | grep -qx 1; do sleep 4; done'
+          adb shell getprop ro.build.version.release
+          adb shell getprop ro.build.version.sdk
+          adb shell getprop ro.product.cpu.abilist
+          adb shell getprop ro.dalvik.vm.native.bridge
+          adb shell wm size
+          adb shell wm density
+          adb shell input keyevent 82
+          adb shell cmd overlay enable-exclusive --category com.android.internal.systemui.navbar.gestural
+          adb shell settings get secure navigation_mode
+          adb logcat -c
+          adb logcat -v threadtime > logcat.txt &
+          adb uninstall com.brave.browser_default || true
+          adb install --no-streaming Sandium.apk
+          adb shell dumpsys package com.brave.browser_default | grep -E 'versionName|versionCode|primaryCpuAbi|targetSdk|enableOnBackInvokedCallback'
+          adb shell monkey -p com.brave.browser_default -c android.intent.category.LAUNCHER 1
+          sleep 35
+          adb shell uiautomator dump /sdcard/ui.xml
+          adb shell cat /sdcard/ui.xml
+          adb exec-out screencap -p > launch.png
+          echo SCREENSHOT_LAUNCH_BEGIN
+          base64 -w 0 launch.png; echo
+          echo SCREENSHOT_LAUNCH_END
+          echo 'Android15 boot, exact APK installation and initial launch completed. No performance conclusions yet.' >> "$GITHUB_STEP_SUMMARY"
+      - name: Bounded diagnostic evidence and cleanup (no artifact storage)
+        if: always()
+        shell: bash
+        run: |
+          if [ -f emulator.log ]; then tail -100 emulator.log; fi
+          if [ -f logcat.txt ]; then grep -E 'FATAL EXCEPTION|Fatal signal|ANR in|chromium|BackNavigation|BackGesture|WindowOnBack' logcat.txt | tail -150 || true; fi
+          adb shell dumpsys activity activities | grep -E 'mResumedActivity|topResumedActivity' || true
+          adb emu kill || true
+          if [ -f emulator.pid ]; then kill "$(cat emulator.pid)" 2>/dev/null || true; fi
