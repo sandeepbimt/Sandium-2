@@ -23,7 +23,14 @@ jobs:
           sudo setfacl -m "u:$(id -un):rw" /dev/kvm
           getfacl /dev/kvm
           SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
-          "$SDKMANAGER" 'emulator' 'platform-tools' 'system-images;android-35;google_apis;x86_64'
+          "$SDKMANAGER" 'emulator' 'platform-tools'
+          echo "$ANDROID_HOME/platform-tools" >> "$GITHUB_PATH"
+          # Verified official r09 archive; explicit checksum catches truncated CDN downloads.
+          curl --fail --location --retry 3 --max-time 300 -o image.zip 'https://dl.google.com/android/repository/sys-img/google_apis/x86_64-35_r09.zip'
+          echo 'c67b9ba0ff5bc0eb6d046871bfa228af14d4d47b02f0cdae94f048e511b7566e  image.zip' | sha256sum --check
+          mkdir -p "$ANDROID_HOME/system-images/android-35/google_apis"
+          unzip -q image.zip -d "$ANDROID_HOME/system-images/android-35/google_apis"
+          rm image.zip
           "$ANDROID_HOME/emulator/emulator" -version
           "$ANDROID_HOME/emulator/emulator" -accel-check
           cat "$ANDROID_HOME/system-images/android-35/google_apis/x86_64/source.properties"
