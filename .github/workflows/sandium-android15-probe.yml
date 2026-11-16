@@ -22,6 +22,8 @@ jobs:
           # Owner approved read/write access for this disposable runner user only.
           sudo setfacl -m "u:$(id -un):rw" /dev/kvm
           getfacl /dev/kvm
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends libpulse0 libnss3 libx11-6 libxcb1 libxcomposite1 libxcursor1 libxi6 libxtst6 libxrandr2 libasound2t64 libegl1 libvulkan1
           SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
           "$SDKMANAGER" 'emulator' 'platform-tools'
           echo "$ANDROID_HOME/platform-tools" >> "$GITHUB_PATH"
