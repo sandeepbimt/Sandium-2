@@ -2,6 +2,18 @@
 import pathlib,re,unittest
 ROOT=pathlib.Path(__file__).resolve().parents[1]
 class Guards(unittest.TestCase):
+ def test_transport_special_members_are_out_of_line(self):
+  header=(ROOT/'native/element_color_transport.h').read_text()
+  source=(ROOT/'native/element_color_transport.cc').read_text()
+  self.assertIn('  MojoElementColorTransport();',header)
+  self.assertIn('  ~MojoElementColorTransport() override;',header)
+  self.assertNotRegex(header,r'~?MojoElementColorTransport\([^)]*\)[^;]*=\s*default')
+  for name in ('MojoElementColorTransport','~MojoElementColorTransport'):
+   self.assertEqual(source.count('MojoElementColorTransport::'+name+'() = default;'),1)
+  # Ownership and endpoint cleanup stay delegated to the same member types.
+  self.assertIn('content::WeakDocumentPtr document_;',header)
+  self.assertIn('mojo::AssociatedRemote<cosmetic_filters::mojom::ElementColorAgent> remote_;',header)
+
  def test_pinned_html_tag_symbols(self):
   # Chromium d331de35 name_style_converter.py SHA256:
   # a1e3dd43238477fc04e68485b55e2001694cf9bef5eb41438cb1772f6f014783

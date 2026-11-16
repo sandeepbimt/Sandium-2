@@ -161,7 +161,7 @@
   {
     "baseline_index": 29,
     "candidate_index": 32,
-    "status": "byte-identical task object"
+    "status": "user-approved no marker save after failed build"
   },
   {
     "baseline_index": 30,
@@ -186,12 +186,12 @@
   {
     "baseline_index": 34,
     "candidate_index": 37,
-    "status": "byte-identical task object"
+    "status": "user-approved fail-fast genuine build failures; attested budget handoff only"
   },
   {
     "baseline_index": 35,
     "candidate_index": 38,
-    "status": "current APK binary/product validation"
+    "status": "current APK validation; user-approved on-success only"
   },
   {
     "baseline_index": 36,
@@ -201,12 +201,12 @@
   {
     "baseline_index": 37,
     "candidate_index": 40,
-    "status": "byte-identical task object"
+    "status": "user-approved no marker save after failed build"
   },
   {
     "baseline_index": 38,
     "candidate_index": 41,
-    "status": "byte-identical task object"
+    "status": "user-approved no marker save after failed build"
   },
   {
     "baseline_index": 39,

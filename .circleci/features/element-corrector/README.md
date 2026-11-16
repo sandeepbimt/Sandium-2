@@ -69,3 +69,12 @@ Unicode rather than enabling Chromium-extension parsing. The existing parser
 depth default and post-parse validation remain unchanged. A compile regression
 uses the actual pinned json_reader.h and the extracted production call, with an
 old-syntax negative control; dependencies are stubbed, not a full native build.
+
+### #1203 Chromium complex-class special members
+MojoElementColorTransport now declares an explicit constructor and virtual
+(overriding) destructor in its header, with both defaulted out of line in the
+existing translation unit. This addresses the actual chromium-style diagnostics
+without disabling warnings or changing endpoint ownership/member cleanup order.
+The adjacent session, renderer and rule-store types already have out-of-line
+special members. Source guards and full overlay replay cover the declarations
+and definitions; only an authorized Chromium build can rerun its style plugin.

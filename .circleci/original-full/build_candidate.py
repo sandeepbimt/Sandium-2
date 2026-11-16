@@ -36,7 +36,17 @@ for i,step in enumerate(old):
   if i==23:
    for st in product['overlays']:out.append(copy.deepcopy(st));mapping.append({'baseline_index':None,'exception':'current Sandium product overlays','name':st['run']['name']})
   continue
- elif i==35:step=copy.deepcopy(product['export']);kind='current APK binary/product validation'
+ elif i==34:
+  step=copy.deepcopy(step)
+  from failfast import transform
+  step['run']['command']=transform(step['run']['command'])
+  kind='user-approved fail-fast genuine build failures; attested budget handoff only'
+ elif i==35:
+  step=copy.deepcopy(product['export']);step['run']['when']='on_success';kind='current APK validation; user-approved on-success only'
+ elif isinstance(step,dict) and ('run' in step or 'save_cache' in step) and next(iter(step.values())).get('when')=='always':
+  step=copy.deepcopy(step);next(iter(step.values()))['when']='on_success'
+  kind='user-approved no marker save after failed build'
+
  else:kind='byte-identical task object'
  mapping.append({'baseline_index':i,'candidate_index':len(out),'status':kind});out.append(step)
  if i==20:

@@ -586,7 +586,7 @@ jobs:
         key: sandium-brave-apt-v1-ubuntu2404-{{ .Branch }}-{{ epoch }}
         paths:
         - .apt-cache
-        when: always
+        when: on_success
     - save_cache:
         key: sandium-brave-node-v1-24.16.0
         paths:
@@ -691,10 +691,9 @@ jobs:
           \ print(\"BRAVE_GCLIENT_ROOT_GATE=PASS src=%s\" % actual)' \"$ROOT_SRC\"\nexport BRAVE_STAGE_INDEX=\"<< parameters.stage_index\
           \ >>\"\nbash \"$ROOT/.circleci/scripts/capture-brave-siso-checkpoint.sh\" before-build\nBUILD_RC=0\nINITIAL_BUILD_RC=0\n\
           CAS_RECOVERY_COUNT=0\ntrap 'rc=$?; BRAVE_BUILD_EXIT_CODE=\"${BUILD_RC:-$rc}\" BRAVE_BUILD_INITIAL_EXIT_CODE=\"${INITIAL_BUILD_RC:-not_set}\"\
-          \ BRAVE_BUILD_INITIAL_TIMEOUT=\"$([ \"${INITIAL_BUILD_RC:-0}\" -eq 124 ] && echo true || ([ \"${INITIAL_BUILD_RC:-0}\"\
-          \ -eq 130 ] && echo true || echo false))\" bash \"$ROOT/.circleci/scripts/capture-brave-siso-checkpoint.sh\" after-build\
-          \ || echo \"BRAVE_SISO_DIAGNOSTICS=WARNING after-build capture failed\"; exit \"$rc\"' EXIT\nexport SISO_LIMITS=\"\
-          local=8,remote=80\"\nMETRICS_PREFIX=\"sandium-brave-siso-stage-<< parameters.stage_index >>-build-${CIRCLE_BUILD_NUM:-local}-attempt-\"\
+          \ BRAVE_BUILD_INITIAL_TIMEOUT=\"${BUILD_BUDGET_ATTESTED:-false}\" bash \"$ROOT/.circleci/scripts/capture-brave-siso-checkpoint.sh\"\
+          \ after-build || echo \"BRAVE_SISO_DIAGNOSTICS=WARNING after-build capture failed\"; exit \"$rc\"' EXIT\nexport\
+          \ SISO_LIMITS=\"local=8,remote=80\"\nMETRICS_PREFIX=\"sandium-brave-siso-stage-<< parameters.stage_index >>-build-${CIRCLE_BUILD_NUM:-local}-attempt-\"\
           \nMETRICS_FILE=\"${METRICS_PREFIX}0.jsonl\"\nif [ \"${CIRCLE_BRANCH:-}\" = \"feature/sandium-disable-13-brave-features\"\
           \ ] || [ \"${CIRCLE_BRANCH:-}\" = \"feature/sandium-page-transition-full\" ] || [ \"${CIRCLE_BRANCH:-}\" = \"feature/sandium-filter-bootstrap-full\"\
           \ ] || [ \"${CIRCLE_BRANCH:-}\" = \"feature/sandium-vanilla-welcome\" ]; then\n  BUILD_MODE=\"full\"\nelse\n  BUILD_MODE=\"\
@@ -702,54 +701,61 @@ jobs:
           \ ;;\n  fast) STAGE_BUILD_BUDGET_SECONDS=2700 ;;\n  *) echo \"BRAVE_BUILD_MODE_GATE=FAIL unsupported mode=$BUILD_MODE\"\
           \ >&2; exit 2 ;;\nesac\nSTAGE_BUILD_DEADLINE=$((SECONDS + STAGE_BUILD_BUDGET_SECONDS))\necho \"BRAVE_BUILD_MODE=$BUILD_MODE\"\
           \nif [ \"$BUILD_MODE\" = \"full\" ]; then\n  echo \"SANDIUM_CI_NAME=SANDIUM-FULL-MODE\"\nelse\n  echo \"SANDIUM_CI_NAME=SANDIUM-FAST-MODE\"\
-          \nfi\necho \"BRAVE_BUILD_SLICE_BUDGET_SECONDS=$STAGE_BUILD_BUDGET_SECONDS metrics=$METRICS_FILE\"\ntimeout --signal=INT\
-          \ --kill-after=60s \"${STAGE_BUILD_BUDGET_SECONDS}s\" autoninja -strict_remote -metrics_json \"$METRICS_FILE\" -C\
-          \ \"$OUT\" -j80 brave || BUILD_RC=$?\nINITIAL_BUILD_RC=\"$BUILD_RC\"\nwhile [ \"$BUILD_RC\" -ne 0 ] && [ \"$BUILD_RC\"\
-          \ -ne 124 ] && [ \"$BUILD_RC\" -ne 130 ] \\\n  && [ \"$CAS_RECOVERY_COUNT\" -lt 2 ] \\\n  && [ -s \"$OUT/siso_output\"\
+          \nfi\nBUILD_BUDGET_ATTESTED=false\nrun_budget() {\n  local duration=\"$1\"; shift\n  local marker=\"$STATUS_DIR/build-budget-result.json\"\
+          \n  rm -f \"$marker\"\n  BUILD_BUDGET_ATTESTED=false\n  local rc=0\n  python3 \"$ROOT/.circleci/original-full/run_budget.py\"\
+          \ --seconds \"${duration%s}\" --marker \"$marker\" -- \"$@\" || rc=$?\n  if [ \"$rc\" -eq 124 ] && python3 - \"\
+          $marker\" <<'PYATTEST'\nimport json,sys\ntry: d=json.load(open(sys.argv[1]))\nexcept (OSError,ValueError): sys.exit(1)\n\
+          sys.exit(0 if d == {'budget_expired': True, 'exit_code': 124} else 1)\nPYATTEST\n  then BUILD_BUDGET_ATTESTED=true;\
+          \ fi\n  return \"$rc\"\n}\necho \"BRAVE_BUILD_SLICE_BUDGET_SECONDS=$STAGE_BUILD_BUDGET_SECONDS metrics=$METRICS_FILE\"\
+          \nrun_budget \"${STAGE_BUILD_BUDGET_SECONDS}s\" autoninja -strict_remote -metrics_json \"$METRICS_FILE\" -C \"$OUT\"\
+          \ -j80 brave || BUILD_RC=$?\nINITIAL_BUILD_RC=\"$BUILD_RC\"\nwhile [ \"$BUILD_RC\" -ne 0 ] && [ \"$BUILD_RC\" -ne\
+          \ 124 ] && [ \"$BUILD_RC\" -ne 130 ] \\\n  && [ \"$CAS_RECOVERY_COUNT\" -lt 2 ] \\\n  && [ -s \"$OUT/siso_output\"\
           \ ] \\\n  && grep -Eq 'rpc error: code = FailedPrecondition desc = download inputs: could not (fetch inputs|get\
           \ input tree): Digest hash:.*not found' \"$OUT/siso_output\"; do\n  CAS_RECOVERY_COUNT=$((CAS_RECOVERY_COUNT + 1))\n\
           \  echo \"BRAVE_CAS_LOCAL_RECOVERY_ATTEMPT=$CAS_RECOVERY_COUNT\"\n  LOCAL_RECOVERY_METRICS_FILE=\"${METRICS_PREFIX}${CAS_RECOVERY_COUNT}-local-recovery.jsonl\"\
           \n  REMAINING_STAGE_SECONDS=$((STAGE_BUILD_DEADLINE - SECONDS))\n  if [ \"$REMAINING_STAGE_SECONDS\" -le 0 ]; then\n\
-          \    BUILD_RC=124\n    echo \"BRAVE_BUILD_RESUME=SKIPPED stage build budget exhausted before CAS recovery.\"\n \
-          \   break\n  fi\n  if timeout --signal=INT --kill-after=60s \"${REMAINING_STAGE_SECONDS}s\" bash \"$ROOT/.circleci/scripts/recover-siso-missing-cas-inputs.sh\"\
-          \ \"$OUT\" \"$LOCAL_RECOVERY_METRICS_FILE\"; then\n    REMAINING_STAGE_SECONDS=$((STAGE_BUILD_DEADLINE - SECONDS))\n\
-          \    if [ \"$REMAINING_STAGE_SECONDS\" -le 0 ]; then\n      BUILD_RC=124\n      echo \"BRAVE_BUILD_RESUME=SKIPPED\
-          \ stage build budget exhausted after CAS recovery.\"\n      break\n    fi\n    echo \"BRAVE_BUILD_RESUME=START mode=strict-remote\
-          \ timeout_seconds=$REMAINING_STAGE_SECONDS (remaining stage budget)\"\n    RESUME_METRICS_FILE=\"${METRICS_PREFIX}${CAS_RECOVERY_COUNT}-resume.jsonl\"\
-          \n    BUILD_RC=0\n    timeout --signal=INT --kill-after=60s \"${REMAINING_STAGE_SECONDS}s\" autoninja -strict_remote\
-          \ -metrics_json \"$RESUME_METRICS_FILE\" -C \"$OUT\" -j80 brave || BUILD_RC=$?\n  else\n    BUILD_RC=$?\n    echo\
-          \ \"BRAVE_CAS_LOCAL_RECOVERY=FAIL exit=$BUILD_RC; preserving outputs and metrics.\"\n    break\n  fi\ndone\nREMOTE_EXECUTION_AUDIT=NOT_AVAILABLE\n\
-          if [ -s \"$OUT/$METRICS_FILE\" ]; then\n  if python3 \"$ROOT/.circleci/scripts/verify-brave-remote-metrics.py\"\
-          \ --audit \"$OUT/$METRICS_FILE\"; then\n    REMOTE_EXECUTION_AUDIT=PASS\n  else\n    REMOTE_AUDIT_RC=$?\n    REMOTE_EXECUTION_AUDIT=\"\
-          WARNING_EXIT_$REMOTE_AUDIT_RC\"\n    echo \"BRAVE_REMOTE_EXECUTION_AUDIT=WARNING exit=$REMOTE_AUDIT_RC; preserving\
-          \ build metrics and continuing stage handoff.\"\n  fi\nelse\n  echo \"BRAVE_REMOTE_EXECUTION_AUDIT=NOT_AVAILABLE\
-          \ main_metrics=$OUT/$METRICS_FILE\"\nfi\nBUILD_TIME_SLICE_EXPIRED=false\nBUILD_COMMAND_SUCCEEDED=false\nBUILD_SLICE_INCOMPLETE=true\n\
-          # GNU timeout returns 124 when the stage budget expires. Signal-like\n# exit codes (130/137/143) alone are NOT proof\
+          \    echo \"BRAVE_BUILD_RESUME=FAIL budget exhausted with unresolved action failure.\"\n    break\n  fi\n  if run_budget\
+          \ \"${REMAINING_STAGE_SECONDS}s\" bash \"$ROOT/.circleci/scripts/recover-siso-missing-cas-inputs.sh\" \"$OUT\" \"\
+          $LOCAL_RECOVERY_METRICS_FILE\"; then\n    REMAINING_STAGE_SECONDS=$((STAGE_BUILD_DEADLINE - SECONDS))\n    if [\
+          \ \"$REMAINING_STAGE_SECONDS\" -le 0 ]; then\n      BUILD_RC=124\n      BUILD_BUDGET_ATTESTED=true\n      echo \"\
+          BRAVE_BUILD_RESUME=SKIPPED stage budget exhausted after successful recovery.\"\n      break\n    fi\n    echo \"\
+          BRAVE_BUILD_RESUME=START mode=strict-remote timeout_seconds=$REMAINING_STAGE_SECONDS (remaining stage budget)\"\n\
+          \    RESUME_METRICS_FILE=\"${METRICS_PREFIX}${CAS_RECOVERY_COUNT}-resume.jsonl\"\n    BUILD_RC=0\n    run_budget\
+          \ \"${REMAINING_STAGE_SECONDS}s\" autoninja -strict_remote -metrics_json \"$RESUME_METRICS_FILE\" -C \"$OUT\" -j80\
+          \ brave || BUILD_RC=$?\n  else\n    BUILD_RC=$?\n    echo \"BRAVE_CAS_LOCAL_RECOVERY=FAIL exit=$BUILD_RC; preserving\
+          \ outputs and metrics.\"\n    break\n  fi\ndone\nREMOTE_EXECUTION_AUDIT=NOT_AVAILABLE\nif [ -s \"$OUT/$METRICS_FILE\"\
+          \ ]; then\n  if python3 \"$ROOT/.circleci/scripts/verify-brave-remote-metrics.py\" --audit \"$OUT/$METRICS_FILE\"\
+          ; then\n    REMOTE_EXECUTION_AUDIT=PASS\n  else\n    REMOTE_AUDIT_RC=$?\n    REMOTE_EXECUTION_AUDIT=\"WARNING_EXIT_$REMOTE_AUDIT_RC\"\
+          \n    echo \"BRAVE_REMOTE_EXECUTION_AUDIT=WARNING exit=$REMOTE_AUDIT_RC; preserving build metrics and continuing\
+          \ stage handoff.\"\n  fi\nelse\n  echo \"BRAVE_REMOTE_EXECUTION_AUDIT=NOT_AVAILABLE main_metrics=$OUT/$METRICS_FILE\"\
+          \nfi\nBUILD_TIME_SLICE_EXPIRED=false\nBUILD_COMMAND_SUCCEEDED=false\nBUILD_SLICE_INCOMPLETE=true\n# The budget supervisor\
+          \ attests expiry independently of child exit codes. Signal-like\n# exit codes (130/137/143) alone are NOT proof\
           \ of a time-slice expiry:\n# a local OOM killer or an externally killed compiler can return them\n# much earlier\
           \ than the budget. Classify those as failed work instead.\nif [ \"$BUILD_RC\" -eq 0 ]; then\n  BUILD_REASON=\"BUILD_COMMAND_SUCCESS\"\
-          \n  BUILD_COMMAND_SUCCEEDED=true\n  BUILD_SLICE_INCOMPLETE=false\nelif [ \"$BUILD_RC\" -eq 124 ] || [ \"$SECONDS\"\
-          \ -ge \"$STAGE_BUILD_DEADLINE\" ]; then\n  BUILD_TIME_SLICE_EXPIRED=true\n  BUILD_REASON=\"TIME_SLICE_COMPLETE\"\
-          \nelse\n  BUILD_REASON=\"ACTION_FAILED_HANDOFF\"\n  echo \"BRAVE_BUILD_COMMAND=INCOMPLETE exit=$BUILD_RC; no APK\
-          \ success is claimed. \"\n  echo \"Completed actions may be checkpointed; failed actions must remain pending for\
-          \ the next stage.\"\nfi\n{\n  echo \"BUILD_EXIT_CODE=$BUILD_RC\"\n  echo \"BUILD_INITIAL_EXIT_CODE=$INITIAL_BUILD_RC\"\
-          \n  echo \"BUILD_REASON=$BUILD_REASON\"\n  echo \"BUILD_TIME_SLICE_EXPIRED=$BUILD_TIME_SLICE_EXPIRED\"\n  echo \"\
-          BUILD_COMMAND_SUCCEEDED=$BUILD_COMMAND_SUCCEEDED\"\n  echo \"BUILD_SLICE_INCOMPLETE=$BUILD_SLICE_INCOMPLETE\"\n\
-          \  echo \"BUILD_HANDOFF_ALLOWED=true\"\n  echo \"STAGE_BUILD_BUDGET_SECONDS=$STAGE_BUILD_BUDGET_SECONDS\"\n  echo\
-          \ \"REMOTE_EXECUTION_AUDIT=$REMOTE_EXECUTION_AUDIT\"\n  echo \"CAS_RECOVERY_ATTEMPTS=$CAS_RECOVERY_COUNT\"\n  echo\
-          \ \"BUILD_WINDOW_FINISHED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)\"\n} > \"$BUILD_STATUS\"\nif [ \"$BUILD_COMMAND_SUCCEEDED\"\
+          \n  BUILD_COMMAND_SUCCEEDED=true\n  BUILD_SLICE_INCOMPLETE=false\nelif [ \"$BUILD_RC\" -eq 124 ] && [ \"$BUILD_BUDGET_ATTESTED\"\
+          \ = true ]; then\n  BUILD_TIME_SLICE_EXPIRED=true\n  BUILD_REASON=\"TIME_SLICE_COMPLETE\"\nelse\n  BUILD_REASON=\"\
+          ACTION_FAILED\"\n  echo \"BRAVE_BUILD_COMMAND=FAIL exit=$BUILD_RC; stopping without archive or stage handoff.\"\n\
+          fi\n{\n  echo \"BUILD_EXIT_CODE=$BUILD_RC\"\n  echo \"BUILD_INITIAL_EXIT_CODE=$INITIAL_BUILD_RC\"\n  echo \"BUILD_REASON=$BUILD_REASON\"\
+          \n  echo \"BUILD_TIME_SLICE_EXPIRED=$BUILD_TIME_SLICE_EXPIRED\"\n  echo \"BUILD_COMMAND_SUCCEEDED=$BUILD_COMMAND_SUCCEEDED\"\
+          \n  echo \"BUILD_SLICE_INCOMPLETE=$BUILD_SLICE_INCOMPLETE\"\n  echo \"BUILD_HANDOFF_ALLOWED=$([ \"$BUILD_COMMAND_SUCCEEDED\"\
+          \ = true ] || [ \"$BUILD_TIME_SLICE_EXPIRED\" = true ] && echo true || echo false)\"\n  echo \"STAGE_BUILD_BUDGET_SECONDS=$STAGE_BUILD_BUDGET_SECONDS\"\
+          \n  echo \"REMOTE_EXECUTION_AUDIT=$REMOTE_EXECUTION_AUDIT\"\n  echo \"CAS_RECOVERY_ATTEMPTS=$CAS_RECOVERY_COUNT\"\
+          \n  echo \"BUILD_WINDOW_FINISHED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)\"\n} > \"$BUILD_STATUS\"\nif [ \"$BUILD_COMMAND_SUCCEEDED\"\
           \ = true ]; then\n  echo \"BRAVE_BUILD_STAGE_STATUS=COMMAND_SUCCESS exit=$BUILD_RC reason=$BUILD_REASON remote_audit=$REMOTE_EXECUTION_AUDIT\"\
-          \nelse\n  echo \"BRAVE_BUILD_STAGE_STATUS=INCOMPLETE exit=$BUILD_RC reason=$BUILD_REASON \"\n  echo \"build_budget_seconds=$STAGE_BUILD_BUDGET_SECONDS;\
-          \ time_slice_expired=$BUILD_TIME_SLICE_EXPIRED; \"\n  echo \"The build did not finish in this slice; the next stage\
-          \ will resume using Ninja/Siso native state.\"\nfi\n"
+          \nelif [ \"$BUILD_TIME_SLICE_EXPIRED\" = true ]; then\n  echo \"BRAVE_BUILD_STAGE_STATUS=INCOMPLETE exit=$BUILD_RC\
+          \ reason=$BUILD_REASON \"\n  echo \"build_budget_seconds=$STAGE_BUILD_BUDGET_SECONDS; time_slice_expired=$BUILD_TIME_SLICE_EXPIRED;\
+          \ \"\n  echo \"The build did not finish in this slice; the next stage will resume using Ninja/Siso native state.\"\
+          \nfi\n\nif [ \"$BUILD_REASON\" = ACTION_FAILED ]; then exit \"$BUILD_RC\"; fi\n"
     - run:
         name: Export APK status and artifacts
         command: bash .circleci/experimental-steps/export-apk.sh
+        when: on_success
     - store_artifacts:
         path: brave-apk
         destination: brave-apk
     - run:
         name: Record APK completion marker
-        when: always
+        when: on_success
         command: "set -euo pipefail\nROOT=\"$CIRCLE_WORKING_DIRECTORY\"\nmkdir -p \"$ROOT/brave-work/.sandium\"\nSTATUS=\"\
           $ROOT/brave-apk/status.txt\"\nMARKER=\"$ROOT/brave-work/.sandium/apk-completion-status.txt\"\nif [ -s \"$STATUS\"\
           \ ]; then\n  cp \"$STATUS\" \"$MARKER\"\nelse\n  printf 'BUILD_FINISHED=false\\nAPK_ARCHIVE_VALID=false\\nAPK_SIGNATURE_VALID=not_yet_built\\\
@@ -761,7 +767,7 @@ jobs:
           >>
         paths:
         - brave-work/.sandium/apk-completion-status.txt
-        when: always
+        when: on_success
     - when:
         condition:
           or:

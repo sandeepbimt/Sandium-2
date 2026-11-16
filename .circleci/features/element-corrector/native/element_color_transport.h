@@ -8,6 +8,8 @@ namespace sandium {
 // Dedicated interface: does not reset the existing element-blocker Agent receiver.
 class MojoElementColorTransport final : public ElementColorTransport {
  public:
+  MojoElementColorTransport();
+  ~MojoElementColorTransport() override;
   void Start(content::RenderFrameHost&,const base::UnguessableToken&) override;
   void Preview(content::RenderFrameHost&,const base::UnguessableToken&,uint64_t,int,uint32_t) override;
   void Commit(content::RenderFrameHost&,const base::UnguessableToken&,uint64_t,int,uint32_t,

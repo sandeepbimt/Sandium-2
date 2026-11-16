@@ -4,6 +4,9 @@
 #include "third_party/blink/public/common/associated_interfaces/associated_interface_provider.h"
 #include "mojo/public/cpp/bindings/callback_helpers.h"
 namespace sandium {
+MojoElementColorTransport::MojoElementColorTransport() = default;
+MojoElementColorTransport::~MojoElementColorTransport() = default;
+
 bool MojoElementColorTransport::SameDocument(content::RenderFrameHost& frame) const {
   return remote_.is_bound() && document_.AsRenderFrameHostIfValid()==&frame;
 }
