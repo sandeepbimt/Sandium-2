@@ -15,16 +15,18 @@ def insert(text,anchor,entry):
  if text.count(anchor)!=1:raise ValueError('Element chooser anchor changed: '+anchor)
  return text.replace(anchor,anchor+entry,1)
 def handler(text):
- if 'SandiumElementColorsUtils.start(' in text:return text
+ if 'SandiumElementColorsUtils.start(' in text:
+  old="                Context context = mContext;\n                Tab selectedTab = mCurrentTab;\n                if (context == null || selectedTab == null) return;\n                hide(); // The page must receive the user's element selection.\n                org.chromium.chrome.browser.sandium.dark.SandiumElementColorsUtils.start(\n                        context, selectedTab);"
+  return text.replace(old,old.replace('context','correctionContext'))
  return insert(text,'        setupAdvancedOptionsListeners();\n','''        View correctColors = popupView.findViewById(R.id.sandium_element_colors_button);
         if (correctColors != null) {
             correctColors.setOnClickListener(v -> {
-                Context context = mContext;
+                Context correctionContext = mContext;
                 Tab selectedTab = mCurrentTab;
-                if (context == null || selectedTab == null) return;
+                if (correctionContext == null || selectedTab == null) return;
                 hide(); // The page must receive the user's element selection.
                 org.chromium.chrome.browser.sandium.dark.SandiumElementColorsUtils.start(
-                        context, selectedTab);
+                        correctionContext, selectedTab);
             });
         }
 ''')

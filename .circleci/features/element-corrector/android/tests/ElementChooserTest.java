@@ -21,13 +21,15 @@ public class ElementChooserTest {
  public static void main(String[] args)throws Exception{
   Native n=new Native();SandiumElementColorsUtilsJni.instance=n;Activity a=new Activity();Tab t=new Tab();
   SandiumElementColorsUtils.start(a,t);long first=n.id;check(active().size()==1&&a.app.callbacks.size()==1);
+  check(t.contents.observers==1);
   SandiumElementColorsUtils.onSelection(t,first);Object controller=active().get(t);check(AlertDialog.shown.size()==1);
   EditText color=(EditText)field(controller,"color");Button preview=(Button)field(controller,"preview");Button save=(Button)field(controller,"save");
   color.setText("url(x)");preview.performClick();check(n.previews==0&&color.error!=null);
   color.setText("#1A1A1A");preview.performClick();check(n.previews==1&&n.mode==1&&n.rgb==0x1a1a1a);
   save.performClick();save.performClick();check(n.saves==1&&!save.enabled);
   SandiumElementColorsUtils.onSaveResult(t,first-1,0);check(active().size()==1);
-  SandiumElementColorsUtils.onSaveResult(t,first,0);check(active().isEmpty()&&a.app.callbacks.isEmpty());
+  SandiumElementColorsUtils.onSaveResult(t,first,0);check(active().isEmpty()&&a.app.callbacks.isEmpty()&&t.contents.observers==0);
+  check(t.contents.observers==0);
   check(android.widget.Toast.last==org.chromium.chrome.R.string.sandium_element_saved);
   SandiumElementColorsUtils.start(a,t);long second=n.id;SandiumElementColorsUtils.onSelection(t,second);
   SandiumElementColorsUtils.start(a,t);long third=n.id;int dialogs=AlertDialog.shown.size();
@@ -36,11 +38,11 @@ public class ElementChooserTest {
   SandiumElementColorsUtils.onSelection(t,third);controller=active().get(t);
   ((AlertDialog)field(controller,"dialog")).dismiss();check(active().isEmpty());
   SandiumElementColorsUtils.start(a,t);controller=active().get(t);int cancels=n.cancels;
-  ((WebContentsObserver)field(controller,"observer")).webContentsDestroyed();check(active().isEmpty()&&n.cancels==cancels);
+  ((WebContentsObserver)field(controller,"observer")).webContentsDestroyed();check(active().isEmpty()&&n.cancels==cancels&&t.contents.observers==0);
   SandiumElementColorsUtils.start(a,t);for(var callback:new ArrayList<>(a.app.callbacks))callback.onActivityStopped(a);
-  check(active().isEmpty()&&a.app.callbacks.isEmpty());
-  SandiumElementColorsUtils.start(a,t);long fourth=n.id;t.contents=new WebContents();SandiumElementColorsUtils.onSelection(t,fourth);check(active().isEmpty());
-  n.allowed=false;SandiumElementColorsUtils.start(a,t);check(active().isEmpty()&&a.app.callbacks.isEmpty());
+  check(active().isEmpty()&&a.app.callbacks.isEmpty()&&t.contents.observers==0);
+  SandiumElementColorsUtils.start(a,t);long fourth=n.id;WebContents replaced=t.contents;t.contents=new WebContents();SandiumElementColorsUtils.onSelection(t,fourth);check(active().isEmpty()&&replaced.observers==0);
+  n.allowed=false;SandiumElementColorsUtils.start(a,t);check(active().isEmpty()&&a.app.callbacks.isEmpty()&&t.contents.observers==0);
   n.allowed=true;SandiumElementColorsUtils.start(a,t);controller=active().get(t);
   ((WebContentsObserver)field(controller,"observer")).didStartNavigationInPrimaryMainFrame(new NavigationHandle());check(active().isEmpty());
   SandiumElementColorsUtils.start(a,t);SandiumElementColorsUtils.onSelection(t,n.id);controller=active().get(t);

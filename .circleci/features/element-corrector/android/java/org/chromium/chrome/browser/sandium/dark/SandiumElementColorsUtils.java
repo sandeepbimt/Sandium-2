@@ -208,7 +208,7 @@ public final class SandiumElementColorsUtils {
             if(closed)return;closed=true;
             if(ACTIVE.get(tab)==this)ACTIVE.remove(tab);
             handler.removeCallbacks(timeout);
-            if(observer!=null){observer.destroy();observer=null;}
+            if(observer!=null){WebContentsObserver oldObserver=observer;observer=null;oldObserver.observe(null);}
             activity.getApplication().unregisterActivityLifecycleCallbacks(this);
             if(resetDialog!=null){AlertDialog value=resetDialog;resetDialog=null;value.dismiss();}
             if(dialog!=null){AlertDialog value=dialog;dialog=null;value.dismiss();}

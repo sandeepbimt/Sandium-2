@@ -31,3 +31,16 @@ lifecycle/typed-command assertions. This does not test real Android rendering,
 Mojo/JNI compilation, keyed node overrides, persistent matching or device UI.
 The existing Java+renderer composition test also replays this source transform;
 all remain disabled pending complete-source/native review and build validation.
+
+### #1193 pinned Java API and listener scope correction
+Chromium d331de35ca8ab1358c7a17e4bd41627d55eaef51 WebContentsObserver
+exposes final `observe(WebContents)` and documents null as detach; it has no
+`destroy()` method. Close now clears the observer field before `observe(null)`.
+The test double no longer invents destroy and verifies observer registration
+and removal during navigation, replacement and teardown.
+
+The Shield listener now uses `correctionContext`, avoiding setupViews' existing
+`Context context` local. The transform migrates only its exact prior listener
+block. The Java test runner compiles the actual injected listener with a matching
+outer context local, alongside the chooser lifecycle assertions. These are local
+Java/stub checks, not a full Chromium Android build.
