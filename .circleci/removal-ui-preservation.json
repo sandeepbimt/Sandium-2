@@ -4,17 +4,17 @@
     ".circleci/experimental-steps/product-overlay-29-0.sh": "9facc9a8733f405cddf4d845ca87677568dfe3a93d17431b81ec29f0b103cb0d",
     ".circleci/scripts/apply-sandium-bottom-toolbar.py": "ccdf6b99530a4505c5d42d0360f9f8efcba2ba432c6dc296fdc3e401686d2a4d",
     ".circleci/scripts/apply-sandium-chrome-theme.py": "13cfd73d17cd342cec9b1f3bf332f29be873a0b850cfb40942b7cd4660623ccf",
-    ".circleci/scripts/apply-sandium-native-theme.py": "bab09bccac54195e2d4c937de703f870632224b01b92373e9034c29beb3287f8",
+    ".circleci/scripts/apply-sandium-native-theme.py": "c63eefddc4ba6a167850e2f358c3383427f12c8094e79e8631be269bd6159931",
     ".circleci/scripts/apply-sandium-paged-menu.py": "657d83f8e9f3e974df841c1226172942ae2b41c09c6eb6c30d461183fec0884e",
-    ".circleci/scripts/apply-sandium-scroll-status-bar.py": "e03c353c2b80cfa22969c26cce3ab9845b485fa5e36e476a133b7662bb6f69ae",
+    ".circleci/scripts/apply-sandium-scroll-status-bar.py": "a674e1e98a78e319032ef4fc186a106952aa7d55c7f89fb0b29d3890fed1ba4d",
     ".circleci/scripts/apply-sandium-shields-popup.py": "eaca25aec6ba08e28775815c112f8446f87dd49630da98bd86ea78770f2c078d",
     ".circleci/scripts/test-sandium-bottom-toolbar.py": "40e3750bb0bdc4e97b9c13e306406fffbc65d5b146f1ba526748cdce8152bb24",
     ".circleci/scripts/test-sandium-chrome-theme.py": "d9443c1ab2e17e2319b2df23af0e61ef2fd70b030450175a39eac53a8a4f3958",
     ".circleci/scripts/test-sandium-motion.py": "0ffd22e66aa0c34be6fbe670bb761f90a08e376f1a04153671284efb39faf2ef",
-    ".circleci/scripts/test-sandium-native-theme.py": "54f1082d5143359335f061b1a8753dd98eaebfb5a437c6a4cd9287d2658113ee",
+    ".circleci/scripts/test-sandium-native-theme.py": "df0c2baa1273ec3cf4110f6f2a2eb9054aef7fe2a7032ac445f5b16a28031e6e",
     ".circleci/scripts/test-sandium-paged-menu.py": "6c397cb398f02a0564bb462b1e110fb1e9a943df00e137de33db5ed1c1d0059a",
     ".circleci/scripts/test-sandium-shields-popup.py": "49ea362d9b0322c77f02356d457bbc3efed8053ca878d261468ca614f3049de0",
-    "android/java/org/chromium/chrome/browser/firstrun/SandiumWelcomeSetupView.java": "cdc0eda224b55d6fbab454c19a0a1d8b87ba07f55815a33f042f7f9efd21462c",
+    "android/java/org/chromium/chrome/browser/firstrun/SandiumWelcomeSetupView.java": "0214eaa028e3491f9d95b38044229d10d45facb73d5680fe8576f02d774b405d",
     "android/java/org/chromium/chrome/browser/ui/appmenu/SandiumMenuMetadata.java": "73c796d7c1c623bfa2d5246e68b7a5763a76bf78eec225d0722f60f171d24be2",
     "android/java/org/chromium/chrome/browser/ui/appmenu/SandiumMenuState.java": "59c967e4ce6711c86cb24795060697d5fbdf7d48a52f00534a7d5541f78da2a0",
     "android/java/org/chromium/chrome/browser/ui/appmenu/SandiumPagedMenu.java": "efd56bc86e3ac88d68722a93c811aef31b013bd24aa48f8f6a872282b6045e4e",
@@ -426,6 +426,28 @@
         "android/java/org/chromium/chrome/browser/ui/appmenu/SandiumPagedMenu.java": {
           "previous_sha256": "18ba5c5fc1fec3bbdc644d4414fb4de84976ed93140c686aacbafab105324ca0",
           "current_sha256": "efd56bc86e3ac88d68722a93c811aef31b013bd24aa48f8f6a872282b6045e4e"
+        }
+      }
+    },
+    {
+      "reason": "Isolated native-status API15 experiment only: record exact cf10777 status/helper, shared Settings surface and Welcome backing changes already in the test candidate. Retain all other hashes; does not authorize normal branch publication.",
+      "source_commit": "cf1077725d2428f88c474940bc59902b6c4421b1",
+      "changes": {
+        ".circleci/scripts/apply-sandium-native-theme.py": {
+          "previous_sha256": "bab09bccac54195e2d4c937de703f870632224b01b92373e9034c29beb3287f8",
+          "current_sha256": "c63eefddc4ba6a167850e2f358c3383427f12c8094e79e8631be269bd6159931"
+        },
+        ".circleci/scripts/apply-sandium-scroll-status-bar.py": {
+          "previous_sha256": "e03c353c2b80cfa22969c26cce3ab9845b485fa5e36e476a133b7662bb6f69ae",
+          "current_sha256": "a674e1e98a78e319032ef4fc186a106952aa7d55c7f89fb0b29d3890fed1ba4d"
+        },
+        ".circleci/scripts/test-sandium-native-theme.py": {
+          "previous_sha256": "54f1082d5143359335f061b1a8753dd98eaebfb5a437c6a4cd9287d2658113ee",
+          "current_sha256": "df0c2baa1273ec3cf4110f6f2a2eb9054aef7fe2a7032ac445f5b16a28031e6e"
+        },
+        "android/java/org/chromium/chrome/browser/firstrun/SandiumWelcomeSetupView.java": {
+          "previous_sha256": "cdc0eda224b55d6fbab454c19a0a1d8b87ba07f55815a33f042f7f9efd21462c",
+          "current_sha256": "0214eaa028e3491f9d95b38044229d10d45facb73d5680fe8576f02d774b405d"
         }
       }
     }

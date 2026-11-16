@@ -2,7 +2,7 @@
 """Ordered compile-exclusion recipe. Reset only declared pinned inputs before UI.
 Unchanged outputs may reuse Siso actions; a prior APK never satisfies new revision.
 """
-import argparse,hashlib,json,os,re,subprocess,sys,tempfile
+import argparse,hashlib,importlib.util,json,os,re,subprocess,sys,tempfile
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[2]
 MANIFEST=ROOT/'.circleci/features/removal-recipe.json'
@@ -17,6 +17,12 @@ def load(path=MANIFEST):
  for target,patch in m.get('chromium_restore_patches',{}).items():
   if target not in m['chromium_restore'] or not patch.startswith('patches/') or '..' in Path(patch).parts:
    raise ValueError('Invalid pinned Chromium patch replay mapping')
+ # Status overlay inputs must exist in both the real reset and disposable
+ # composition tree. Derive inventory from the patcher, never a second list.
+ spec=importlib.util.spec_from_file_location('sandium_status_inventory',ROOT/'.circleci/scripts/apply-sandium-scroll-status-bar.py')
+ status=importlib.util.module_from_spec(spec);spec.loader.exec_module(status)
+ missing=set(status.FILES.values())-set(m['chromium_restore'])
+ if missing:raise ValueError('Status input absent from removal chromium_restore: '+', '.join(sorted(missing)))
  # Every dark/manual patch input must survive the production reset and the
  # disposable full composition tree, not only the standalone feature fixtures.
  dark=json.loads((ROOT/'.circleci/features/dark-pages/integration-plan.json').read_text())

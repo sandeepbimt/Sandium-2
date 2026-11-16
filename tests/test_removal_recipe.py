@@ -4,6 +4,16 @@ from unittest.mock import patch
 P=Path(__file__).resolve().parents[1]/'.circleci/scripts/sandium-removal-recipe.py'
 spec=importlib.util.spec_from_file_location('removal',P);m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m)
 class Recipe(unittest.TestCase):
+ def test_status_input_inventory_fails_closed(self):
+  recipe=m.load()
+  target='ui/edge_to_edge/android/java/src/org/chromium/ui/edge_to_edge/SystemBarColorHelper.java'
+  self.assertIn(target,recipe['chromium_restore'])
+  self.assertIn(target,recipe['ui_only_chromium_restore'])
+  recipe['chromium_restore'].remove(target)
+  with tempfile.TemporaryDirectory() as d:
+   manifest=Path(d)/'recipe.json';manifest.write_text(json.dumps(recipe))
+   with self.assertRaisesRegex(ValueError,'Status input absent.*SystemBarColorHelper'):
+    m.load(manifest)
  def test_composition_gate_precedes_actual_apply(self):
   script=(P.parents[1]/'experimental-steps/product-overlay-30-0.sh').read_text()
   self.assertLess(script.index('test-sandium-removal-composition.py'),script.index('sandium-removal-recipe.py'))
