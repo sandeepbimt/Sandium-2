@@ -20,7 +20,7 @@ class Tests(unittest.TestCase):
   self.assertEqual(outputs,patch.transformations(self.src,ROOT))
  def test_explicit_document_contract(self):
   text=patch.theme((self.src/patch.THEME).read_text())
-  self.assertIn('@JniType("GURL") org.chromium.url.GURL documentUrl',text)
+  self.assertIn('@JniType("GURL") GURL documentUrl',text)
   self.assertIn('SandiumDarkPages.flags(webContents, documentUrl)',text)
   adapter=(ROOT/'.circleci/features/dark-pages/java/org/chromium/chrome/browser/night_mode/SandiumDarkPages.java').read_text()
   self.assertNotIn('getVisibleUrl',adapter)

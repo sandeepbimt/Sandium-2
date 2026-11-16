@@ -76,7 +76,7 @@ class Composition(unittest.TestCase):
    j=(src/java.THEME).read_text()
    c=(src/'chrome/browser/android/web_contents_theme_client.cc').read_text()
    self.assertIn('sandiumDarkPageFlags(',j)
-   self.assertIn('@JniType("GURL") org.chromium.url.GURL documentUrl',j)
+   self.assertIn('@JniType("GURL") GURL documentUrl',j)
    self.assertIn('Java_WebContentsThemeClient_sandiumDarkPageFlags',c)
    self.assertIn('document_url',c)
    self.assertIn('url/android/gurl_android.h',c)

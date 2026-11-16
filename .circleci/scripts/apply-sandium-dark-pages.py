@@ -25,6 +25,8 @@ def once(text, old, new):
     return text.replace(old,new,1)
 
 def theme(text):
+    text=once(text,'import org.chromium.content_public.browser.WebContents;','import org.chromium.content_public.browser.WebContents;\nimport org.chromium.url.GURL;')
+    text=text.replace('@JniType("GURL") org.chromium.url.GURL documentUrl','@JniType("GURL") GURL documentUrl')
     if 'SANDIUM_DARK_PAGES_POLICY_V1' in text: return text
     anchor='public class WebContentsThemeClient {'
     return once(text,anchor,anchor+'''
@@ -32,7 +34,7 @@ def theme(text):
     @CalledByNative
     public static int sandiumDarkPageFlags(
             @JniType("content::WebContents*") WebContents webContents,
-            @JniType("GURL") org.chromium.url.GURL documentUrl) {
+            @JniType("GURL") GURL documentUrl) {
         return SandiumDarkPages.flags(webContents, documentUrl);
     }
 ''')
