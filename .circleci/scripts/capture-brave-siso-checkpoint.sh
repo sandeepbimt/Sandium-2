@@ -191,9 +191,10 @@ def read_values(path):
 with open(comparison_path, "w", encoding="utf-8") as report:
     report.write("CURRENT_STAGE=%s\n" % stage)
     if not candidates:
-        report.write("HANDOFF_COMPARISON=NO_PRIOR_CHECKPOINT_REPORT; first build or legacy checkpoint predates durable reports.\n")
+        report.write("HANDOFF_COMPARISON=FAIL missing same-workflow prior checkpoint-ready report.\n")
+        report.flush()
         print(open(comparison_path, encoding="utf-8").read(), end="")
-        raise SystemExit(0)
+        raise SystemExit(1)
 
     previous_path = candidates[0]
     previous = read_values(previous_path)

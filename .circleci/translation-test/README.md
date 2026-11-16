@@ -37,3 +37,10 @@ Tests: `python3 -m unittest discover -s tests -p test_translation_test_isolation
 plus normal canonical suites. The canonical runner deliberately verifies the
 normal config fixture in a temporary checkout; the isolation tests independently
 verify this derived config and its unchanged compilation/publication gates.
+
+Restore integrity is captured after archive extraction, fixed-reference postrestore
+validation, and reference selection, but **before** pinned-source preparation and
+product overlays. Those steps legitimately regenerate GN arguments and outputs;
+comparing after them falsely reports checkpoint corruption. The existing byte/hash/count criteria are preserved; a missing same-workflow
+prior report now fails closed in continuation stages. No outputs are deleted
+or cache reuse disabled; later graph/remote-execution gates remain in place.

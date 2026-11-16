@@ -68,6 +68,27 @@ class TranslationBuildIsolation(unittest.TestCase):
         self.assertIn('test "${CIRCLE_BRANCH:-}" = "' + module.BRANCH + '"', commands[guard])
         self.assertEqual([{'path': 'brave-apk', 'destination': 'sandium-arm-translation-test-only/brave-apk'}], list(walk(self.cfg, 'store_artifacts')))
 
+    def test_exact_restore_integrity_precedes_source_mutation(self):
+        steps = self.cfg['jobs']['brave-android-staged-build']['steps']
+        original = self.normal['jobs']['brave-android-staged-build']['steps']
+        name = 'Diagnose restored Siso checkpoint and compare prior stage'
+        matches = [i for i, step in enumerate(steps) if isinstance(step, dict)
+                   and step.get('run', {}).get('name') == name]
+        self.assertEqual(len(matches), 1)
+        capture = matches[0]
+        self.assertEqual(steps[capture], next(step for step in original
+                         if isinstance(step, dict) and step.get('run', {}).get('name') == name))
+        self.assertEqual(steps[capture + 1]['run']['name'], 'Prepare pinned Brave Android source')
+        for token in ('archive-brave-workspace.sh restore', 'fixed_reference.py postrestore',
+                      'Select Sandium build mode and validate reference'):
+            prior = next(i for i, step in enumerate(steps) if token in str(step))
+            self.assertLess(prior, capture)
+        # Move, do not remove or duplicate any existing run/gate; ordering alone
+        # must fix the false comparison. Keep graph and strict remote gates later.
+        normal_runs = list(walk(original, 'run'))
+        test_runs = [run for run in walk(steps, 'run') if module.GUARD not in run.get('command', '')]
+        self.assertCountEqual(normal_runs, test_runs)
+
     def test_wiring_accepts_exact_test_fixture_rejects_mutation(self):
         spec = importlib.util.spec_from_file_location('translation_wiring', ROOT / '.circleci/scripts/flow_wiring.py')
         wiring = importlib.util.module_from_spec(spec)

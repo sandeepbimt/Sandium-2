@@ -43,6 +43,21 @@ def derive(normal):
         return result
 
     job['steps'] = isolate_steps(job['steps'])
+    # Compare the exact archive payload before source preparation/overlays run GN
+    # and legitimately rewrite generated arguments or generated outputs. Keep the
+    # strict comparison command intact: this is restore integrity, not a claim
+    # that the subsequent product regeneration leaves every byte unchanged.
+    steps = job['steps']
+    captures = [step for step in steps if isinstance(step, dict) and
+                step.get('run', {}).get('name') ==
+                'Diagnose restored Siso checkpoint and compare prior stage']
+    if len(captures) != 1:
+        raise ValueError('Expected exactly one strict restore integrity capture')
+    capture = captures[0]
+    steps.remove(capture)
+    prepare = next(i for i, step in enumerate(steps) if isinstance(step, dict) and
+                   step.get('run', {}).get('name') == 'Prepare pinned Brave Android source')
+    steps.insert(prepare, capture)
     for definition in cfg['workflows']['sandium-full-mode']['jobs']:
         definition['brave-android-staged-build']['filters'] = {'branches': {'only': BRANCH}}
     return cfg

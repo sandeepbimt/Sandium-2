@@ -537,6 +537,15 @@ jobs:
           \ --handoff \"<< parameters.stage_index >>\" \"$CIRCLE_WORKFLOW_ID\" \"$CIRCLE_SHA1\"\n  fi\nelse\n  echo \"SANDIUM_BUILD_MODE_GATE=FAIL\
           \ unsupported mode=$MODE\" >&2\n  exit 2\nfi\n"
     - run:
+        name: Diagnose restored Siso checkpoint and compare prior stage
+        command: 'set -euo pipefail
+
+          export BRAVE_STAGE_INDEX="<< parameters.stage_index >>"
+
+          bash .circleci/scripts/capture-brave-siso-checkpoint.sh restore
+
+          '
+    - run:
         name: Prepare pinned Brave Android source
         no_output_timeout: 45m
         command: 'set -euo pipefail
@@ -574,15 +583,6 @@ jobs:
           test "${CIRCLE_BRANCH:-}" = "experiment/arm-translation-guard"
 
           python3 .circleci/scripts/apply-sandium-translation-guard.py "$CIRCLE_WORKING_DIRECTORY/brave-work/src"
-
-          '
-    - run:
-        name: Diagnose restored Siso checkpoint and compare prior stage
-        command: 'set -euo pipefail
-
-          export BRAVE_STAGE_INDEX="<< parameters.stage_index >>"
-
-          bash .circleci/scripts/capture-brave-siso-checkpoint.sh restore
 
           '
     - run:
