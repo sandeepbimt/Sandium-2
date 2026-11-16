@@ -74,7 +74,7 @@ jobs:
           adb shell getconf PAGE_SIZE
           adb shell getprop ro.build.fingerprint
           adb shell getprop ro.dalvik.vm.isa.arm64
-      - name: Minimal ARM64 JNI process identity probe
+      - name: Minimal ARM64 JNI target ISA probe
         shell: bash
         run: |
           set -euo pipefail
@@ -92,11 +92,17 @@ jobs:
           XML
           cat > probe/probe.c <<'C'
           #include <jni.h>
+          #include <dlfcn.h>
+          #include <android/log.h>
           #include <stdio.h>
           #include <unistd.h>
           #include <errno.h>
           #include <string.h>
           JNIEXPORT jstring JNICALL Java_org_sandium_probe_Main_inspect(JNIEnv*e,jclass c){
+           Dl_info info={0};void*target=(void*)(*e)->FindClass;int found=dladdr(target,&info);
+           unsigned char *base=(unsigned char*)info.dli_fbase;
+           __android_log_print(ANDROID_LOG_INFO,"SandiumBridgeProbe","JNI target=%p dladdr=%d path=%s base=%p ELFmachine=%u magic=%02x%02x%02x%02x",target,found,info.dli_fname?info.dli_fname:"null",base,found&&base?base[18]+256*base[19]:0,found&&base?base[0]:0,found&&base?base[1]:0,found&&base?base[2]:0,found&&base?base[3]:0);
+           FILE*maps=fopen("/proc/self/maps","r");char line[1024];if(maps){while(fgets(line,sizeof(line),maps)){unsigned long lo=0,hi=0;if(sscanf(line,"%lx-%lx",&lo,&hi)==2&&((unsigned long)target>=lo&&(unsigned long)target<hi))__android_log_print(ANDROID_LOG_INFO,"SandiumBridgeProbe","TARGET_MAP %s",line);}fclose(maps);}
            unsigned char h[20]={0};char link[512]={0};char out[2048];
            ssize_t n=readlink("/proc/self/exe",link,sizeof(link)-1);int le=errno;
            FILE*f=fopen("/proc/self/exe","rb");int oe=errno;size_t r=f?fread(h,1,20,f):0;int re=errno;if(f)fclose(f);
@@ -114,7 +120,7 @@ jobs:
           NDK=$(find "$ANDROID_HOME/ndk" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)
           JAR=$(find "$ANDROID_HOME/platforms" -name android.jar | sort -V | tail -1)
           echo "BT=$BT NDK=$NDK JAR=$JAR"
-          "$NDK/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android29-clang" -shared -fPIC -O0 probe/probe.c -o probe/lib/arm64-v8a/libprobe.so
+          "$NDK/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android29-clang" -shared -fPIC -O0 probe/probe.c -ldl -llog -o probe/lib/arm64-v8a/libprobe.so
           javac -source 8 -target 8 -bootclasspath "$JAR" -d probe/classes probe/src/org/sandium/probe/Main.java
           "$BT/d8" --lib "$JAR" --output probe probe/classes/org/sandium/probe/Main.class
           "$BT/aapt" package -f -M probe/AndroidManifest.xml -I "$JAR" -F probe/unsigned.apk
