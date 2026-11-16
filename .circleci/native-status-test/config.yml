@@ -1,0 +1,725 @@
+version: 2.1
+parameters:
+  run_build:
+    type: boolean
+    default: false
+  sandium_build_mode:
+    type: enum
+    enum:
+    - full
+    default: full
+  run_maintenance:
+    type: boolean
+    default: false
+jobs:
+  brave-android-staged-build:
+    parameters:
+      stage_index:
+        type: integer
+    machine:
+      image: ubuntu-2404:current
+    resource_class: large
+    steps:
+    - checkout
+    - when:
+        condition:
+          equal:
+          - 2
+          - << parameters.stage_index >>
+        steps:
+        - restore_cache:
+            name: Restore verified APK marker for stage 2
+            keys:
+            - sandium-brave-apk-complete-v2-{{ .Branch }}-{{ .Revision }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-1
+        - run:
+            name: Stop stage 2 when a prior stage published a verified APK
+            command: "set -euo pipefail\nSTATUS=\"$CIRCLE_WORKING_DIRECTORY/brave-work/.sandium/apk-completion-status.txt\"\nif python3 \"$CIRCLE_WORKING_DIRECTORY/.circleci/scripts/check-apk-completion-marker.py\" \"$STATUS\"; then\n  echo \"BRAVE_APK=ALREADY_PUBLISHED\"\n  cat \"$STATUS\"\n  circleci-agent step halt\nfi\necho \"BRAVE_APK=NOT_YET_PUBLISHED\"\n"
+    - when:
+        condition:
+          equal:
+          - 3
+          - << parameters.stage_index >>
+        steps:
+        - restore_cache:
+            name: Restore verified APK marker for stage 3
+            keys:
+            - sandium-brave-apk-complete-v2-{{ .Branch }}-{{ .Revision }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-2
+            - sandium-brave-apk-complete-v2-{{ .Branch }}-{{ .Revision }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-1
+        - run:
+            name: Stop stage 3 when a prior stage published a verified APK
+            command: "set -euo pipefail\nSTATUS=\"$CIRCLE_WORKING_DIRECTORY/brave-work/.sandium/apk-completion-status.txt\"\nif python3 \"$CIRCLE_WORKING_DIRECTORY/.circleci/scripts/check-apk-completion-marker.py\" \"$STATUS\"; then\n  echo \"BRAVE_APK=ALREADY_PUBLISHED\"\n  cat \"$STATUS\"\n  circleci-agent step halt\nfi\necho \"BRAVE_APK=NOT_YET_PUBLISHED\"\n"
+    - when:
+        condition:
+          equal:
+          - 4
+          - << parameters.stage_index >>
+        steps:
+        - restore_cache:
+            name: Restore verified APK marker for stage 4
+            keys:
+            - sandium-brave-apk-complete-v2-{{ .Branch }}-{{ .Revision }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-3
+            - sandium-brave-apk-complete-v2-{{ .Branch }}-{{ .Revision }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-2
+            - sandium-brave-apk-complete-v2-{{ .Branch }}-{{ .Revision }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-1
+        - run:
+            name: Stop stage 4 when a prior stage published a verified APK
+            command: "set -euo pipefail\nSTATUS=\"$CIRCLE_WORKING_DIRECTORY/brave-work/.sandium/apk-completion-status.txt\"\nif python3 \"$CIRCLE_WORKING_DIRECTORY/.circleci/scripts/check-apk-completion-marker.py\" \"$STATUS\"; then\n  echo \"BRAVE_APK=ALREADY_PUBLISHED\"\n  cat \"$STATUS\"\n  circleci-agent step halt\nfi\necho \"BRAVE_APK=NOT_YET_PUBLISHED\"\n"
+    - when:
+        condition:
+          equal:
+          - 5
+          - << parameters.stage_index >>
+        steps:
+        - restore_cache:
+            name: Restore verified APK marker for stage 5
+            keys:
+            - sandium-brave-apk-complete-v2-{{ .Branch }}-{{ .Revision }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-4
+            - sandium-brave-apk-complete-v2-{{ .Branch }}-{{ .Revision }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-3
+            - sandium-brave-apk-complete-v2-{{ .Branch }}-{{ .Revision }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-2
+            - sandium-brave-apk-complete-v2-{{ .Branch }}-{{ .Revision }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-1
+        - run:
+            name: Stop stage 5 when a prior stage published a verified APK
+            command: "set -euo pipefail\nSTATUS=\"$CIRCLE_WORKING_DIRECTORY/brave-work/.sandium/apk-completion-status.txt\"\nif python3 \"$CIRCLE_WORKING_DIRECTORY/.circleci/scripts/check-apk-completion-marker.py\" \"$STATUS\"; then\n  echo \"BRAVE_APK=ALREADY_PUBLISHED\"\n  cat \"$STATUS\"\n  circleci-agent step halt\nfi\necho \"BRAVE_APK=NOT_YET_PUBLISHED\"\n"
+    - run:
+        name: Configure Siso BuildBuddy API-key credential helper
+        command: "# Siso requires an explicit credential helper in non-Google CI.\n# Never enable xtrace here: BUILDBUDDY_API_KEY is a secret.\nset -eu\nif [ -z \"$(printenv BUILDBUDDY_API_KEY 2>/dev/null || true)\" ]; then\n  echo \"MISSING_REQUIRED_SECRET=BUILDBUDDY_API_KEY\" >&2\n  echo \"Set BUILDBUDDY_API_KEY in CircleCI project environment variables.\" >&2\n  exit 1\nfi\nHELPER=/tmp/sandium-buildbuddy-credential-helper.py\nprintf '%s\\n' \\\n  '#!/usr/bin/env python3' \\\n  'import json' \\\n  'import os' \\\n  'import sys' \\\n  '' \\\n  'if len(sys.argv) < 2 or sys.argv[1] != \"get\":' \\\n  '    raise SystemExit(1)' \\\n  'sys.stdin.read()' \\\n  'key = os.environ[\"BUILDBUDDY_API_KEY\"]' \\\n  'print(json.dumps({\"headers\": {\"x-buildbuddy-api-key\": [key]}}))' \\\n  > \"$HELPER\"\nchmod 700 \"$HELPER\"\necho 'export SISO_CREDENTIAL_HELPER=/tmp/sandium-buildbuddy-credential-helper.py' >> \"$BASH_ENV\"\n# Brave v1.98.62 installs depot_tools at vendor/depot_tools relative to src/brave.\n\
+          # Keep this separate from the Afterbird sibling checkout layout.\necho 'export PATH=\"$CIRCLE_WORKING_DIRECTORY/brave-work/src/brave/vendor/depot_tools:$PATH\"' >> \"$BASH_ENV\"\necho 'export DEPOT_TOOLS_UPDATE=0' >> \"$BASH_ENV\"\necho 'export SISO_LIMITS=local=8,remote=80' >> \"$BASH_ENV\"\necho \"SISO_CREDENTIAL_HELPER=CONFIGURED (secret value not printed)\"\n"
+    - run:
+        name: Run lightweight Brave continuation self-test
+        command: 'set -euo pipefail
+
+          python3 -m py_compile .circleci/scripts/sandium-checkpoint-shards.py .circleci/scripts/test-sandium-checkpoint-shards.py .circleci/scripts/checkpoint-stage-receipt.py .circleci/scripts/test-checkpoint-stage-receipt.py .circleci/scripts/check-apk-completion-marker.py .circleci/scripts/test-apk-completion-marker.py
+
+          python3 .circleci/scripts/test-sandium-checkpoint-shards.py
+
+          python3 .circleci/scripts/test-checkpoint-stage-receipt.py
+
+          python3 .circleci/scripts/test-apk-completion-marker.py
+
+          python3 -m py_compile .circleci/scripts/apply-sandium-blur-transition.py .circleci/scripts/test-sandium-blur-transition.py
+
+          python3 .circleci/scripts/test-sandium-blur-transition.py
+
+          python3 -m py_compile .circleci/scripts/apply-sandium-blur-transition.py .circleci/scripts/test-sandium-blur-transition.py
+
+          python3 .circleci/scripts/test-sandium-blur-transition.py
+
+          python3 -m py_compile .circleci/scripts/verify-brave-remote-metrics.py
+
+          python3 -m py_compile .circleci/scripts/apply-sandium-page-transition-full.py .circleci/scripts/test-sandium-page-transition-full.py
+
+          python3 .circleci/scripts/test-sandium-page-transition-full.py
+
+          python3 .circleci/scripts/test-brave-remote-metrics.py
+
+          bash -n .circleci/scripts/archive-brave-workspace.sh
+
+          bash -n .circleci/scripts/verify-brave-reference.sh
+
+          bash -n .circleci/scripts/verify-brave-remote-smoke.sh
+
+          bash -n .circleci/scripts/capture-brave-siso-checkpoint.sh
+
+          bash -n .circleci/scripts/prepare-brave-source.sh
+
+          python3 -m py_compile .circleci/scripts/verify-sandium-vanilla-brave.py .circleci/scripts/test-sandium-vanilla-brave.py
+
+          bash -n .circleci/scripts/apply-sandium-branding.sh
+
+          python3 -m py_compile .circleci/scripts/generate-sandium-density-assets.py
+
+          python3 -m py_compile .circleci/scripts/apply-sandium-full-overlays.py .circleci/scripts/test-sandium-feature-policies.py
+
+          python3 .circleci/scripts/test-sandium-feature-policies.py
+
+          python3 -m py_compile .circleci/scripts/apply-sandium-filter-subscriptions.py .circleci/scripts/test-sandium-filter-subscriptions.py
+
+          python3 .circleci/scripts/test-sandium-filter-subscriptions.py
+
+          python3 -m py_compile .circleci/scripts/apply-sandium-filter-bootstrap.py .circleci/scripts/test-sandium-filter-bootstrap.py
+
+          python3 .circleci/scripts/test-sandium-filter-bootstrap.py
+
+          python3 -m py_compile .circleci/scripts/apply-sandium-homepage-adblock-warmup.py .circleci/scripts/test-sandium-homepage-adblock-warmup.py
+
+          python3 .circleci/scripts/test-sandium-homepage-adblock-warmup.py
+
+          python3 -m py_compile .circleci/scripts/apply-sandium-download-concurrency.py .circleci/scripts/test-sandium-download-concurrency.py
+
+          python3 .circleci/scripts/test-sandium-download-concurrency.py
+
+          python3 -m py_compile .circleci/scripts/apply-sandium-welcome-setup.py .circleci/scripts/test-sandium-welcome-setup.py
+
+          python3 .circleci/scripts/test-sandium-welcome-setup.py
+
+          python3 -m py_compile .circleci/scripts/verify-sandium-vanilla-brave.py .circleci/scripts/test-sandium-vanilla-brave.py
+
+          python3 .circleci/scripts/test-sandium-vanilla-brave.py
+
+          python3 -m py_compile .circleci/scripts/apply-sandium-shields-two-state.py .circleci/scripts/test-sandium-shields-two-state.py
+
+          python3 .circleci/scripts/test-sandium-shields-two-state.py
+
+          python3 -m py_compile .circleci/scripts/apply-sandium-adblock-engine-race.py .circleci/scripts/test-sandium-adblock-engine-race.py
+
+          python3 .circleci/scripts/test-sandium-adblock-engine-race.py
+
+          bash -n .circleci/scripts/recover-siso-missing-cas-inputs.sh
+
+          echo "BRAVE_PIPELINE_SELF_TEST=PASS"
+
+          '
+    - when:
+        condition:
+          equal:
+          - 1
+          - << parameters.stage_index >>
+        steps:
+        - restore_cache:
+            name: Restore verified APK marker from the same source revision
+            keys:
+            - sandium-brave-apk-complete-v2-{{ .Branch }}-{{ .Revision }}-
+        - run:
+            name: Stop when this revision already has a published APK
+            command: "set -euo pipefail\nSTATUS=\"$CIRCLE_WORKING_DIRECTORY/brave-work/.sandium/apk-completion-status.txt\"\nif python3 \"$CIRCLE_WORKING_DIRECTORY/.circleci/scripts/check-apk-completion-marker.py\" \"$STATUS\"; then\n  echo \"BRAVE_APK=ALREADY_PUBLISHED for revision {{ .Revision }}\"\n  cat \"$STATUS\"\n  circleci-agent step halt\nfi\necho \"BRAVE_APK=NOT_YET_PUBLISHED\"\n"
+    - when:
+        condition:
+          and:
+          - equal:
+            - 1
+            - << parameters.stage_index >>
+          - or:
+            - equal:
+              - full
+              - << pipeline.parameters.sandium_build_mode >>
+            - equal:
+              - feature/sandium-disable-13-brave-features
+              - << pipeline.git.branch >>
+            - equal:
+              - feature/sandium-page-transition-full
+              - << pipeline.git.branch >>
+            - equal:
+              - feature/sandium-filter-bootstrap-full
+              - << pipeline.git.branch >>
+            - equal:
+              - feature/sandium-vanilla-welcome
+              - << pipeline.git.branch >>
+        steps:
+        - restore_cache:
+            name: Read accepted fixed-reference metadata only
+            keys:
+            - fixed-sandium-reference-v1-backpreview01-
+        - restore_cache:
+            name: Read legacy accepted receipt only for initial fixed-base metadata bootstrap
+            keys:
+            - sandium-experimental-head-v1-fSJgSbKhoW8y5Z2yXRIK+o_g6oruZ_+JUYmKGb3vgt4=-
+        - run:
+            name: Select exact fixed base without consuming legacy increments
+            command: python3 .circleci/original-full/fixed_reference.py select --root "$CIRCLE_WORKING_DIRECTORY" --legacy-script .circleci/scripts/sandium-checkpoint-shards.py --legacy-receipt "$CIRCLE_WORKING_DIRECTORY/.checkpoint-head/receipt.json"
+        - restore_cache:
+            name: Restore only exact selected fixed complete reference
+            keys:
+            - sandium-bridge-base-v1-{{ checksum ".fixed-reference/cache.key" }}
+        - run:
+            name: Verify fixed reference manifest identity and all eight shard hashes
+            command: python3 .circleci/original-full/fixed_reference.py preverify --root "$CIRCLE_WORKING_DIRECTORY" --legacy-script .circleci/scripts/sandium-checkpoint-shards.py
+    - when:
+        condition:
+          and:
+          - equal:
+            - 1
+            - << parameters.stage_index >>
+          - equal:
+            - fast
+            - << pipeline.parameters.sandium_build_mode >>
+          - not:
+              equal:
+              - feature/sandium-disable-13-brave-features
+              - << pipeline.git.branch >>
+          - not:
+              equal:
+              - feature/sandium-page-transition-full
+              - << pipeline.git.branch >>
+          - not:
+              equal:
+              - feature/sandium-filter-bootstrap-full
+              - << pipeline.git.branch >>
+        steps:
+        - restore_cache:
+            name: Restore canonical 26 GiB reference (3c8004b / cache job 949)
+            keys:
+            - sandium-brave-handoff-v2-sandium/fix-archive-completion-gate-d0bc6af6-e2a7-451e-8561-3c90eb48c2e1-stage-1
+    - when:
+        condition:
+          and:
+          - equal:
+            - 2
+            - << parameters.stage_index >>
+          - or:
+            - equal:
+              - full
+              - << pipeline.parameters.sandium_build_mode >>
+            - equal:
+              - feature/sandium-disable-13-brave-features
+              - << pipeline.git.branch >>
+            - equal:
+              - feature/sandium-page-transition-full
+              - << pipeline.git.branch >>
+            - equal:
+              - feature/sandium-filter-bootstrap-full
+              - << pipeline.git.branch >>
+            - equal:
+              - feature/sandium-vanilla-welcome
+              - << pipeline.git.branch >>
+        steps:
+        - restore_cache:
+            name: Restore reference Stage 1 handoff
+            keys:
+            - sandium-brave-handoff-v2-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-1
+            - sandium-brave-handoff-v1-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-1
+    - when:
+        condition:
+          and:
+          - equal:
+            - 3
+            - << parameters.stage_index >>
+          - or:
+            - equal:
+              - full
+              - << pipeline.parameters.sandium_build_mode >>
+            - equal:
+              - feature/sandium-disable-13-brave-features
+              - << pipeline.git.branch >>
+            - equal:
+              - feature/sandium-page-transition-full
+              - << pipeline.git.branch >>
+            - equal:
+              - feature/sandium-filter-bootstrap-full
+              - << pipeline.git.branch >>
+            - equal:
+              - feature/sandium-vanilla-welcome
+              - << pipeline.git.branch >>
+        steps:
+        - restore_cache:
+            name: Restore reference Stage 2 handoff
+            keys:
+            - sandium-brave-handoff-v2-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-2
+            - sandium-brave-handoff-v1-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-2
+    - when:
+        condition:
+          and:
+          - equal:
+            - 4
+            - << parameters.stage_index >>
+          - or:
+            - equal:
+              - full
+              - << pipeline.parameters.sandium_build_mode >>
+            - equal:
+              - feature/sandium-disable-13-brave-features
+              - << pipeline.git.branch >>
+            - equal:
+              - feature/sandium-page-transition-full
+              - << pipeline.git.branch >>
+            - equal:
+              - feature/sandium-filter-bootstrap-full
+              - << pipeline.git.branch >>
+            - equal:
+              - feature/sandium-vanilla-welcome
+              - << pipeline.git.branch >>
+        steps:
+        - restore_cache:
+            name: Restore reference Stage 3 handoff
+            keys:
+            - sandium-brave-handoff-v2-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-3
+            - sandium-brave-handoff-v1-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-3
+    - when:
+        condition:
+          and:
+          - equal:
+            - 5
+            - << parameters.stage_index >>
+          - or:
+            - equal:
+              - full
+              - << pipeline.parameters.sandium_build_mode >>
+            - equal:
+              - feature/sandium-disable-13-brave-features
+              - << pipeline.git.branch >>
+            - equal:
+              - feature/sandium-page-transition-full
+              - << pipeline.git.branch >>
+            - equal:
+              - feature/sandium-filter-bootstrap-full
+              - << pipeline.git.branch >>
+            - equal:
+              - feature/sandium-vanilla-welcome
+              - << pipeline.git.branch >>
+        steps:
+        - restore_cache:
+            name: Restore reference Stage 4 handoff
+            keys:
+            - sandium-brave-handoff-v2-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-4
+            - sandium-brave-handoff-v1-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-4
+    - when:
+        condition:
+          and:
+          - equal:
+            - 2
+            - << parameters.stage_index >>
+          - equal:
+            - fast
+            - << pipeline.parameters.sandium_build_mode >>
+          - not:
+              equal:
+              - feature/sandium-disable-13-brave-features
+              - << pipeline.git.branch >>
+          - not:
+              equal:
+              - feature/sandium-page-transition-full
+              - << pipeline.git.branch >>
+          - not:
+              equal:
+              - feature/sandium-filter-bootstrap-full
+              - << pipeline.git.branch >>
+        steps:
+        - restore_cache:
+            name: Restore canonical 26 GiB reference for FAST MODE Stage 2
+            keys:
+            - sandium-brave-handoff-v2-sandium/fix-archive-completion-gate-d0bc6af6-e2a7-451e-8561-3c90eb48c2e1-stage-1
+    - when:
+        condition:
+          and:
+          - equal:
+            - 3
+            - << parameters.stage_index >>
+          - equal:
+            - fast
+            - << pipeline.parameters.sandium_build_mode >>
+          - not:
+              equal:
+              - feature/sandium-disable-13-brave-features
+              - << pipeline.git.branch >>
+          - not:
+              equal:
+              - feature/sandium-page-transition-full
+              - << pipeline.git.branch >>
+          - not:
+              equal:
+              - feature/sandium-filter-bootstrap-full
+              - << pipeline.git.branch >>
+        steps:
+        - restore_cache:
+            name: Restore canonical 26 GiB reference for FAST MODE Stage 3
+            keys:
+            - sandium-brave-handoff-v2-sandium/fix-archive-completion-gate-d0bc6af6-e2a7-451e-8561-3c90eb48c2e1-stage-1
+    - when:
+        condition:
+          and:
+          - equal:
+            - 4
+            - << parameters.stage_index >>
+          - equal:
+            - fast
+            - << pipeline.parameters.sandium_build_mode >>
+          - not:
+              equal:
+              - feature/sandium-disable-13-brave-features
+              - << pipeline.git.branch >>
+          - not:
+              equal:
+              - feature/sandium-page-transition-full
+              - << pipeline.git.branch >>
+          - not:
+              equal:
+              - feature/sandium-filter-bootstrap-full
+              - << pipeline.git.branch >>
+        steps:
+        - restore_cache:
+            name: Restore canonical 26 GiB reference for FAST MODE Stage 4
+            keys:
+            - sandium-brave-handoff-v2-sandium/fix-archive-completion-gate-d0bc6af6-e2a7-451e-8561-3c90eb48c2e1-stage-1
+    - when:
+        condition:
+          and:
+          - equal:
+            - 5
+            - << parameters.stage_index >>
+          - equal:
+            - fast
+            - << pipeline.parameters.sandium_build_mode >>
+          - not:
+              equal:
+              - feature/sandium-disable-13-brave-features
+              - << pipeline.git.branch >>
+          - not:
+              equal:
+              - feature/sandium-page-transition-full
+              - << pipeline.git.branch >>
+          - not:
+              equal:
+              - feature/sandium-filter-bootstrap-full
+              - << pipeline.git.branch >>
+        steps:
+        - restore_cache:
+            name: Restore canonical 26 GiB reference for FAST MODE Stage 5
+            keys:
+            - sandium-brave-handoff-v2-sandium/fix-archive-completion-gate-d0bc6af6-e2a7-451e-8561-3c90eb48c2e1-stage-1
+    - restore_cache:
+        keys:
+        - sandium-brave-node-v1-24.16.0
+    - restore_cache:
+        name: Restore Ubuntu Android build-dependency package cache
+        keys:
+        - sandium-brave-apt-v1-ubuntu2404-
+    - run:
+        name: SANDIUM FULL/FAST MODE - Restore checkpoint with up to 8 parallel workers
+        no_output_timeout: 30m
+        command: 'set -euo pipefail
+
+          export BRAVE_STAGE_INDEX="<< parameters.stage_index >>"
+
+          export SANDIUM_ARCHIVE_WORKERS=8
+
+          bash .circleci/scripts/archive-brave-workspace.sh restore
+
+          '
+    - when:
+        condition:
+          equal:
+          - 1
+          - << parameters.stage_index >>
+        steps:
+        - run:
+            name: Verify restored fixed-reference source pins and accept bootstrap metadata
+            command: python3 .circleci/original-full/fixed_reference.py postrestore --root "$CIRCLE_WORKING_DIRECTORY" --legacy-script .circleci/scripts/sandium-checkpoint-shards.py
+    - run:
+        name: Select Sandium build mode and validate reference
+        command: "set -euo pipefail\nif [ \"${CIRCLE_BRANCH:-}\" = \"feature/sandium-disable-13-brave-features\" ] || [ \"${CIRCLE_BRANCH:-}\" = \"feature/sandium-page-transition-full\" ] || [ \"${CIRCLE_BRANCH:-}\" = \"feature/sandium-filter-bootstrap-full\" ] || [ \"${CIRCLE_BRANCH:-}\" = \"feature/sandium-vanilla-welcome\" ]; then\n  MODE=\"full\"\nelse\n  MODE=\"<< pipeline.parameters.sandium_build_mode >>\"\nfi\nROOT=\"$CIRCLE_WORKING_DIRECTORY\"\nmkdir -p \"$ROOT/brave-work/.sandium\"\n# This marker distinguishes an archive created by this run from the\n# immutable reference archive restored at the start of FAST MODE.\nrm -f \"$ROOT/brave-work/.sandium/workspace-archive-created-this-run\"\nprintf 'SANDIUM_BUILD_MODE=%s\\n' \"$MODE\" > \"$ROOT/brave-work/.sandium/build-mode.txt\"\necho \"SANDIUM_BUILD_MODE=$MODE\"\nif [ \"$MODE\" = \"fast\" ]; then\n  echo \"SANDIUM_CI_NAME=SANDIUM-FAST-MODE\"\n  bash \"$ROOT/.circleci/scripts/verify-brave-reference.sh\"\nelif [ \"$MODE\" = \"full\"\
+          \ ]; then\n  echo \"SANDIUM_CI_NAME=SANDIUM-FULL-MODE\"\n  echo \"SANDIUM_FULL_MODE=FORCED; stage budget=20 minutes; canonical checkpoint validation required.\"\n  if [ \"<< parameters.stage_index >>\" -eq 1 ]; then\n    bash \"$ROOT/.circleci/scripts/verify-brave-reference.sh\"\n  else\n    bash \"$ROOT/.circleci/scripts/verify-brave-reference.sh\" --handoff \"<< parameters.stage_index >>\" \"$CIRCLE_WORKFLOW_ID\" \"$CIRCLE_SHA1\"\n  fi\nelse\n  echo \"SANDIUM_BUILD_MODE_GATE=FAIL unsupported mode=$MODE\" >&2\n  exit 2\nfi\n"
+    - run:
+        name: Diagnose restored Siso checkpoint and compare prior stage
+        command: 'set -euo pipefail
+
+          export BRAVE_STAGE_INDEX="<< parameters.stage_index >>"
+
+          bash .circleci/scripts/capture-brave-siso-checkpoint.sh restore
+
+          '
+    - run:
+        name: Reverse isolated native status candidate before normal overlay replay
+        command: 'set -euo pipefail
+
+          test "${CIRCLE_BRANCH:-}" = "experiment/native-status-api15"
+
+          python3 experiments/native-status/cleanup.py --src "$CIRCLE_WORKING_DIRECTORY/brave-work/src" --core "$CIRCLE_WORKING_DIRECTORY/brave-work/src/brave" --write
+
+          '
+    - run:
+        name: Prepare pinned Brave Android source
+        no_output_timeout: 45m
+        command: 'set -euo pipefail
+
+          export BRAVE_STAGE_INDEX="<< parameters.stage_index >>"
+
+          bash .circleci/scripts/prepare-brave-source.sh
+
+          '
+    - run:
+        name: Apply and verify Sandium branding refresh
+        command: bash .circleci/experimental-steps/product-overlay-24-0.sh
+    - run:
+        name: Apply Sandium first-launch native filter bootstrap
+        command: bash .circleci/experimental-steps/product-overlay-25-0.sh
+    - run:
+        name: Apply Sandium native page-transition controls and Appearance icons
+        command: bash .circleci/experimental-steps/product-overlay-26-0.sh
+    - run:
+        name: Apply Sandium welcome setup and first-successful-list adblock activation
+        command: bash .circleci/experimental-steps/product-overlay-27-0.sh
+    - run:
+        name: Apply Sandium two-state Shields controls and verify filter retirement
+        command: bash .circleci/experimental-steps/product-overlay-28-0.sh
+    - run:
+        name: Apply and verify Sandium UI pruning and preference defaults
+        command: bash .circleci/experimental-steps/product-overlay-29-0.sh
+    - run:
+        name: Compile-exclude and audit all thirteen Sandium removal groups
+        command: bash .circleci/experimental-steps/product-overlay-30-0.sh
+    - run:
+        name: Apply isolated ARM translation JNI compatibility experiment
+        command: 'set -euo pipefail
+
+          test "${CIRCLE_BRANCH:-}" = "experiment/native-status-api15"
+
+          python3 .circleci/scripts/apply-sandium-translation-guard.py "$CIRCLE_WORKING_DIRECTORY/brave-work/src"
+
+          '
+    - run:
+        name: Apply isolated API15 native NTP and Settings status candidate
+        command: 'set -euo pipefail
+
+          test "${CIRCLE_BRANCH:-}" = "experiment/native-status-api15"
+
+          python3 -m unittest discover -s experiments/native-status -p ''test*.py''
+
+          python3 experiments/native-status/prepare.py --src "$CIRCLE_WORKING_DIRECTORY/brave-work/src" --core "$CIRCLE_WORKING_DIRECTORY/brave-work/src/brave" --test-only-enable --test-only-native-screens --write
+
+          '
+    - run:
+        name: Validate build graph and remote-execution settings
+        command: "set -euo pipefail\nROOT=\"$CIRCLE_WORKING_DIRECTORY\"\nOUT=\"$ROOT/brave-work/src/out/android_Release_arm64\"\nSISO_ENV=\"$ROOT/brave-work/src/build/config/siso/.sisoenv\"\nSISO_RC=\"$ROOT/brave-work/src/build/config/siso/.sisorc\"\nSISO_BACKEND=\"$ROOT/brave-work/src/build/config/siso/backend_config/backend.star\"\ntest -s \"$SISO_ENV\" || { echo \"BRAVE_STAGE_CONFIG_GATE=FAIL missing Siso .sisoenv\" >&2; exit 1; }\ntest -s \"$SISO_RC\" || { echo \"BRAVE_STAGE_CONFIG_GATE=FAIL missing Siso .sisorc\" >&2; exit 1; }\ntest -s \"$SISO_BACKEND\" || { echo \"BRAVE_STAGE_CONFIG_GATE=FAIL missing Siso backend.star\" >&2; exit 1; }\ngrep -Fx \"SISO_CREDENTIAL_HELPER=/tmp/sandium-buildbuddy-credential-helper.py\" \"$SISO_ENV\" >/dev/null || { echo \"BRAVE_STAGE_CONFIG_GATE=FAIL Siso credential helper path mismatch\" >&2; cat \"$SISO_ENV\" >&2; exit 1; }\nSISO_ADDRESS=\"$(sed -n 's/^SISO_REAPI_ADDRESS=//p' \"$SISO_ENV\" | tail -n 1)\"\nSISO_INSTANCE=\"$(sed -n 's/^SISO_REAPI_INSTANCE=//p'\
+          \ \"$SISO_ENV\" | tail -n 1)\"\ntest -n \"$SISO_ADDRESS\" && [[ \"$SISO_ADDRESS\" == *:443 ]] || { echo \"BRAVE_STAGE_CONFIG_GATE=FAIL invalid Siso REAPI address\" >&2; cat \"$SISO_ENV\" >&2; exit 1; }\ntest \"$SISO_INSTANCE\" = \"default\" || { echo \"BRAVE_STAGE_CONFIG_GATE=FAIL Siso instance differs from pinned Brave .gclient default\" >&2; cat \"$SISO_ENV\" >&2; exit 1; }\nfor REQUIRED_SISO_FLAG in \\\n  '-reapi_keep_exec_stream' \\\n  '-fs_min_flush_timeout 300s' \\\n  '-reapi_byte_stream_read_threshold 1024' \\\n  '-config googlechrome,remote-link' \\\n  '-re_cache_enable_write=true'; do\n  grep -Fq -- \"$REQUIRED_SISO_FLAG\" \"$SISO_RC\" || {\n    echo \"BRAVE_STAGE_CONFIG_GATE=FAIL missing Siso flag: $REQUIRED_SISO_FLAG\" >&2\n    cat \"$SISO_RC\" >&2\n    exit 1\n  }\ndone\ntest -x /tmp/sandium-buildbuddy-credential-helper.py || { echo \"BRAVE_STAGE_CONFIG_GATE=FAIL helper missing on this runner\" >&2; exit 1; }\nPYTHON_REMOTE_WRAPPER=\"$ROOT/brave-work/src/buildtools/reclient_cfgs/python/python_remote_wrapper\"\
+          \ntest -x \"$PYTHON_REMOTE_WRAPPER\" || { echo \"BRAVE_STAGE_CONFIG_GATE=FAIL Brave Python remote wrapper missing executable mode\" >&2; ls -l \"$PYTHON_REMOTE_WRAPPER\" 2>&1 || true; exit 1; }\ntest \"${SISO_LIMITS:-}\" = \"local=8,remote=80\" || { echo \"BRAVE_STAGE_CONFIG_GATE=FAIL unexpected SISO_LIMITS: ${SISO_LIMITS:-unset}\" >&2; exit 1; }\nBRAVE_DEPOT_TOOLS=\"$ROOT/brave-work/src/brave/vendor/depot_tools\"\ntest -x \"$BRAVE_DEPOT_TOOLS/autoninja\" || {\n  echo \"BRAVE_STAGE_CONFIG_GATE=FAIL Brave-managed depot_tools/autoninja missing at $BRAVE_DEPOT_TOOLS/autoninja\" >&2\n  ls -ld \"$BRAVE_DEPOT_TOOLS\" \"$BRAVE_DEPOT_TOOLS/autoninja\" 2>&1 || true\n  exit 1\n}\nexport PATH=\"$BRAVE_DEPOT_TOOLS:$PATH\"\ncommand -v autoninja >/dev/null || { echo \"BRAVE_STAGE_CONFIG_GATE=FAIL autoninja missing from PATH after adding Brave depot_tools\" >&2; exit 1; }\nif [ \"<< parameters.stage_index >>\" = \"1\" ]; then\n  for required in build.ninja args.gn; do\n    if [ ! -s \"$OUT/$required\"\
+          \ ]; then\n      echo \"BRAVE_BUILD_GRAPH_GATE=FAIL missing=$OUT/$required\" >&2\n      find \"$ROOT/brave-work/src/out\" -maxdepth 4 -type f \\( -name build.ninja -o -name args.gn -o -name args_generated.gni \\) -print 2>/dev/null | head -100 >&2 || true\n      exit 1\n    fi\n  done\n  ARGS_GENERATED=\"$OUT/args_generated.gni\"\n  test -s \"$ARGS_GENERATED\" || { echo \"BRAVE_REMOTE_EXECUTION_CONFIG_GATE=FAIL missing $ARGS_GENERATED\" >&2; exit 1; }\n  grep -F 'args_generated.gni' \"$OUT/args.gn\" >/dev/null || { echo \"BRAVE_REMOTE_EXECUTION_CONFIG_GATE=FAIL args.gn does not import args_generated.gni\" >&2; cat \"$OUT/args.gn\" >&2; exit 1; }\n  echo \"=== Actual generated GN args (args_generated.gni) ===\"\n  grep -nE 'use_remoteexec|use_siso|use_reclient' \"$ARGS_GENERATED\" || true\n  require_arg() {\n    local name=\"$1\" expected=\"$2\"\n    if ! grep -Eq \"^[[:space:]]*${name}[[:space:]]*=[[:space:]]*${expected}[[:space:]]*$\" \"$ARGS_GENERATED\"; then\n      echo \"BRAVE_REMOTE_EXECUTION_CONFIG_GATE=FAIL\
+          \ expected ${name}=${expected} in $ARGS_GENERATED\" >&2\n      echo \"=== Brave .env RBE setting ===\" >&2\n      grep -nE '^(rbe_service|use_remoteexec)=' \"$ROOT/brave-work/src/brave/.env\" >&2 || true\n      echo \"=== generated args file ===\" >&2\n      grep -nE 'use_remoteexec|use_siso|use_reclient' \"$ARGS_GENERATED\" >&2 || true\n      echo \"=== args.gn imports ===\" >&2\n      grep -n 'args_generated.gni' \"$OUT/args.gn\" >&2 || true\n      echo \"=== end diagnostics ===\" >&2\n      exit 1\n    fi\n  }\n  require_arg use_remoteexec true\n  require_arg use_siso true\n  require_arg use_reclient false\n  echo \"BRAVE_BUILD_GRAPH_GATE=PASS\"\n  echo \"BRAVE_REMOTE_EXECUTION_CONFIG_GATE=PASS\"\nfi\n"
+    - run:
+        name: Verify restored Brave APK before scheduling build work
+        command: "set -euo pipefail\nROOT=\"$CIRCLE_WORKING_DIRECTORY\"\nOUT=\"$ROOT/brave-work/src/out/android_Release_arm64\"\nAPK=\"$OUT/apks/BraveMonoarm64.apk\"\nTOOLS=\"$ROOT/brave-work/src/third_party/android_sdk/public/build-tools/37.0.0\"\nmkdir -p \"$ROOT/brave-work/.sandium\"\nrm -f \"$ROOT/brave-work/.sandium/restored-apk-valid\"\nif [ ! -s \"$APK\" ]; then\n  echo \"BRAVE_RESTORED_APK=ABSENT\"\n  exit 0\nfi\nMANIFEST=\"$ROOT/brave-work/.sandium/checkpoint-manifest.txt\"\nCURRENT_REVISION=\"${CIRCLE_SHA1:-{{ .Revision }}}\"\nREFERENCE_REVISION=\"$(sed -n 's/^REFERENCE_SOURCE_REVISION=//p' \"$MANIFEST\" | head -n 1)\"\nif [ -z \"$REFERENCE_REVISION\" ] || [ \"$REFERENCE_REVISION\" != \"$CURRENT_REVISION\" ]; then\n  echo \"BRAVE_RESTORED_APK=STALE_REFERENCE; reference_revision=${REFERENCE_REVISION:-missing} current_revision=$CURRENT_REVISION\"\n  rm -f \"$APK\"\n  exit 0\nfi\nVALID=true\nif ! python3 -c 'import sys,zipfile; z=zipfile.ZipFile(sys.argv[1]); bad=z.testzip(); z.close();\
+          \ sys.exit(1 if bad else 0)' \"$APK\"; then VALID=false; fi\nif [ \"$VALID\" = true ] && [ -x \"$TOOLS/apksigner\" ] && [ -x \"$TOOLS/aapt\" ]; then\n  \"$TOOLS/apksigner\" verify \"$APK\" >/dev/null 2>&1 || VALID=false\n  if [ \"$VALID\" = true ]; then\n    \"$TOOLS/aapt\" dump badging \"$APK\" > \"$ROOT/brave-work/.sandium/restored-apk-badging.txt\" 2>/dev/null || VALID=false\n  fi\n  PACKAGE=\"\"\n  APP_LABEL=\"\"\n  if [ \"$VALID\" = true ]; then\n    PACKAGE=\"$(sed -n \"s/^package: name='\\\\([^']*\\\\)'.*/\\\\1/p\" \"$ROOT/brave-work/.sandium/restored-apk-badging.txt\" 2>/dev/null | head -n 1)\"\n    APP_LABEL=\"$(sed -n \"s/^application-label:'\\\\(.*\\\\)'$/\\\\1/p\" \"$ROOT/brave-work/.sandium/restored-apk-badging.txt\" 2>/dev/null | head -n 1)\"\n    [ \"$PACKAGE\" = \"com.brave.browser_default\" ] || VALID=false\n    [ \"$APP_LABEL\" = \"Sandium Browser\" ] || VALID=false\n  fi\nelse\n  VALID=false\nfi\nif [ \"$VALID\" = true ]; then\n  touch \"$ROOT/brave-work/.sandium/restored-apk-valid\"\
+          \n  echo \"BRAVE_RESTORED_APK=VALID package=com.brave.browser_default label=Sandium Browser bytes=$(stat -c '%s' \"$APK\")\"\nelse\n  echo \"BRAVE_RESTORED_APK=INVALID; reopening only the APK output action.\"\n  rm -f \"$APK\"\nfi\n"
+    - run:
+        name: Verify BuildBuddy remote worker before Android compilation
+        no_output_timeout: 15m
+        command: "set -uo pipefail\nROOT=\"$CIRCLE_WORKING_DIRECTORY\"\nmkdir -p \"$ROOT/brave-work/.sandium\"\nSTATUS=\"$ROOT/brave-work/.sandium/remote-smoke-status.txt\"\nif [ -s \"$ROOT/brave-work/.sandium/restored-apk-valid\" ]; then\n  printf 'REMOTE_SMOKE=SKIPPED_VALID_APK\\n' > \"$STATUS\"\n  echo \"BRAVE_REMOTE_SMOKE=SKIPPED reason=already-verified-apk\"\nelse\n  export BRAVE_STAGE_INDEX=\"<< parameters.stage_index >>\"\n  if bash .circleci/scripts/verify-brave-remote-smoke.sh; then\n    printf 'REMOTE_SMOKE=PASS\\n' > \"$STATUS\"\n    echo \"BRAVE_REMOTE_SMOKE_STATUS=PASS\"\n  else\n    RC=$?\n    printf 'REMOTE_SMOKE=WARNING\\nREMOTE_SMOKE_EXIT_CODE=%s\\n' \"$RC\" > \"$STATUS\"\n    echo \"BRAVE_REMOTE_SMOKE_STATUS=WARNING exit=$RC; continuing to the real APK build under -strict_remote. Main APK metrics are authoritative.\"\n  fi\nfi\n"
+    - run:
+        name: Build bounded Brave Android APK slice
+        no_output_timeout: 50m
+        command: "set -euo pipefail\nROOT=\"$CIRCLE_WORKING_DIRECTORY\"\nOUT=\"$ROOT/brave-work/src/out/android_Release_arm64\"\nSTATUS_DIR=\"$ROOT/brave-work/.sandium\"\nmkdir -p \"$STATUS_DIR\"\nBUILD_STATUS=\"$STATUS_DIR/build-stage-status.txt\"\nSMOKE_STATUS=\"$STATUS_DIR/remote-smoke-status.txt\"\nif [ -s \"$STATUS_DIR/restored-apk-valid\" ]; then\n  echo \"BRAVE_APK=ALREADY_PRESENT_AND_VERIFIED\"\n  printf 'BUILD_EXIT_CODE=0\\nBUILD_REASON=RESTORED_VALID_APK\\n' > \"$BUILD_STATUS\"\n  exit 0\nfi\nif [ ! -s \"$OUT/build.ninja\" ]; then\n  echo \"BRAVE_BUILD_GRAPH_GATE=FAIL missing $OUT/build.ninja\" >&2\n  exit 1\nfi\nif [ -z \"$(printenv BUILDBUDDY_API_KEY 2>/dev/null || true)\" ]; then\n  echo \"MISSING_REQUIRED_SECRET=BUILDBUDDY_API_KEY\" >&2\n  exit 1\nfi\nif ! grep -Eq '^REMOTE_SMOKE=(PASS|WARNING|SKIPPED_VALID_APK)$' \"$SMOKE_STATUS\" 2>/dev/null; then\n  echo \"BRAVE_REMOTE_SMOKE_STATUS=UNKNOWN; refusing to start a build without a recorded preflight outcome.\" >&2\n  exit 2\n\
+          fi\nif grep -qx 'REMOTE_SMOKE=WARNING' \"$SMOKE_STATUS\"; then\n  echo \"BRAVE_REMOTE_SMOKE=WARNING; not blocking compilation. The Android APK build will run with -strict_remote and its own Siso metrics will be audited.\"\nfi\nROOT_SRC=\"$ROOT/brave-work/src\"\nBRAVE_DEPOT_TOOLS=\"$ROOT_SRC/brave/vendor/depot_tools\"\ntest -s \"$ROOT/brave-work/.gclient\" || { echo \"BRAVE_GCLIENT_ROOT_GATE=FAIL missing .gclient\" >&2; exit 1; }\ntest -s \"$ROOT/brave-work/.gclient_entries\" || { echo \"BRAVE_GCLIENT_ROOT_GATE=FAIL missing .gclient_entries\" >&2; exit 1; }\ntest -x \"$BRAVE_DEPOT_TOOLS/autoninja\" || { echo \"BRAVE_GCLIENT_ROOT_GATE=FAIL Brave autoninja missing\" >&2; exit 1; }\nexport PATH=\"$BRAVE_DEPOT_TOOLS:$PATH\"\nexport DEPOT_TOOLS_UPDATE=0\ncd \"$ROOT_SRC\"\nexport PYTHONPATH=\"$ROOT_SRC/brave/script:$ROOT_SRC/tools/grit/grit/extern:$ROOT_SRC/brave/vendor/requests:$ROOT_SRC/build:$BRAVE_DEPOT_TOOLS${PYTHONPATH:+:$PYTHONPATH}\"\n\"$ROOT_SRC/third_party/cpython3/host/bin/python3\"\
+          \ -c 'from brave_version_utils import generate_base_version_code; assert generate_base_version_code(1, 2) > 0; print(\"BRAVE_PYTHONPATH_GATE=PASS\")'\npython3 -c 'import os,sys,gclient_paths; expected=os.path.realpath(sys.argv[1]); actual=gclient_paths.GetPrimarySolutionPath(); assert actual is not None and os.path.realpath(actual)==expected, \"BRAVE_GCLIENT_ROOT_GATE=FAIL expected=%s actual=%s\" % (expected,actual); print(\"BRAVE_GCLIENT_ROOT_GATE=PASS src=%s\" % actual)' \"$ROOT_SRC\"\nexport BRAVE_STAGE_INDEX=\"<< parameters.stage_index >>\"\nbash \"$ROOT/.circleci/scripts/capture-brave-siso-checkpoint.sh\" before-build\nBUILD_RC=0\nINITIAL_BUILD_RC=0\nCAS_RECOVERY_COUNT=0\ntrap 'rc=$?; BRAVE_BUILD_EXIT_CODE=\"${BUILD_RC:-$rc}\" BRAVE_BUILD_INITIAL_EXIT_CODE=\"${INITIAL_BUILD_RC:-not_set}\" BRAVE_BUILD_INITIAL_TIMEOUT=\"${BUILD_BUDGET_ATTESTED:-false}\" bash \"$ROOT/.circleci/scripts/capture-brave-siso-checkpoint.sh\" after-build || echo \"BRAVE_SISO_DIAGNOSTICS=WARNING after-build\
+          \ capture failed\"; exit \"$rc\"' EXIT\nexport SISO_LIMITS=\"local=8,remote=80\"\nMETRICS_PREFIX=\"sandium-brave-siso-stage-<< parameters.stage_index >>-build-${CIRCLE_BUILD_NUM:-local}-attempt-\"\nMETRICS_FILE=\"${METRICS_PREFIX}0.jsonl\"\nif [ \"${CIRCLE_BRANCH:-}\" = \"feature/sandium-disable-13-brave-features\" ] || [ \"${CIRCLE_BRANCH:-}\" = \"feature/sandium-page-transition-full\" ] || [ \"${CIRCLE_BRANCH:-}\" = \"feature/sandium-filter-bootstrap-full\" ] || [ \"${CIRCLE_BRANCH:-}\" = \"feature/sandium-vanilla-welcome\" ]; then\n  BUILD_MODE=\"full\"\nelse\n  BUILD_MODE=\"<< pipeline.parameters.sandium_build_mode >>\"\nfi\ncase \"$BUILD_MODE\" in\n  full) STAGE_BUILD_BUDGET_SECONDS=1200 ;;\n  fast) STAGE_BUILD_BUDGET_SECONDS=2700 ;;\n  *) echo \"BRAVE_BUILD_MODE_GATE=FAIL unsupported mode=$BUILD_MODE\" >&2; exit 2 ;;\nesac\nSTAGE_BUILD_DEADLINE=$((SECONDS + STAGE_BUILD_BUDGET_SECONDS))\necho \"BRAVE_BUILD_MODE=$BUILD_MODE\"\nif [ \"$BUILD_MODE\" = \"full\" ]; then\n  echo\
+          \ \"SANDIUM_CI_NAME=SANDIUM-FULL-MODE\"\nelse\n  echo \"SANDIUM_CI_NAME=SANDIUM-FAST-MODE\"\nfi\nBUILD_BUDGET_ATTESTED=false\nrun_budget() {\n  local duration=\"$1\"; shift\n  local marker=\"$STATUS_DIR/build-budget-result.json\"\n  rm -f \"$marker\"\n  BUILD_BUDGET_ATTESTED=false\n  local rc=0\n  python3 \"$ROOT/.circleci/original-full/run_budget.py\" --seconds \"${duration%s}\" --marker \"$marker\" -- \"$@\" || rc=$?\n  if [ \"$rc\" -eq 124 ] && python3 \"$ROOT/.circleci/original-full/run_budget.py\" --check-expired --marker \"$marker\"\n  then BUILD_BUDGET_ATTESTED=true; fi\n  return \"$rc\"\n}\necho \"BRAVE_BUILD_SLICE_BUDGET_SECONDS=$STAGE_BUILD_BUDGET_SECONDS metrics=$METRICS_FILE\"\nrun_budget \"${STAGE_BUILD_BUDGET_SECONDS}s\" autoninja -strict_remote -metrics_json \"$METRICS_FILE\" -C \"$OUT\" -j80 brave || BUILD_RC=$?\nINITIAL_BUILD_RC=\"$BUILD_RC\"\nwhile [ \"$BUILD_RC\" -ne 0 ] && [ \"$BUILD_RC\" -ne 124 ] && [ \"$BUILD_RC\" -ne 130 ] \\\n  && [ \"$CAS_RECOVERY_COUNT\"\
+          \ -lt 2 ] \\\n  && [ -s \"$OUT/siso_output\" ] \\\n  && grep -Eq 'rpc error: code = FailedPrecondition desc = download inputs: could not (fetch inputs|get input tree): Digest hash:.*not found' \"$OUT/siso_output\"; do\n  CAS_RECOVERY_COUNT=$((CAS_RECOVERY_COUNT + 1))\n  echo \"BRAVE_CAS_LOCAL_RECOVERY_ATTEMPT=$CAS_RECOVERY_COUNT\"\n  LOCAL_RECOVERY_METRICS_FILE=\"${METRICS_PREFIX}${CAS_RECOVERY_COUNT}-local-recovery.jsonl\"\n  REMAINING_STAGE_SECONDS=$((STAGE_BUILD_DEADLINE - SECONDS))\n  if [ \"$REMAINING_STAGE_SECONDS\" -le 0 ]; then\n    echo \"BRAVE_BUILD_RESUME=FAIL budget exhausted with unresolved action failure.\"\n    break\n  fi\n  if run_budget \"${REMAINING_STAGE_SECONDS}s\" bash \"$ROOT/.circleci/scripts/recover-siso-missing-cas-inputs.sh\" \"$OUT\" \"$LOCAL_RECOVERY_METRICS_FILE\"; then\n    REMAINING_STAGE_SECONDS=$((STAGE_BUILD_DEADLINE - SECONDS))\n    if [ \"$REMAINING_STAGE_SECONDS\" -le 0 ]; then\n      BUILD_RC=124\n      BUILD_BUDGET_ATTESTED=true\n      echo\
+          \ \"BRAVE_BUILD_RESUME=SKIPPED stage budget exhausted after successful recovery.\"\n      break\n    fi\n    echo \"BRAVE_BUILD_RESUME=START mode=strict-remote timeout_seconds=$REMAINING_STAGE_SECONDS (remaining stage budget)\"\n    RESUME_METRICS_FILE=\"${METRICS_PREFIX}${CAS_RECOVERY_COUNT}-resume.jsonl\"\n    BUILD_RC=0\n    run_budget \"${REMAINING_STAGE_SECONDS}s\" autoninja -strict_remote -metrics_json \"$RESUME_METRICS_FILE\" -C \"$OUT\" -j80 brave || BUILD_RC=$?\n  else\n    BUILD_RC=$?\n    echo \"BRAVE_CAS_LOCAL_RECOVERY=FAIL exit=$BUILD_RC; preserving outputs and metrics.\"\n    break\n  fi\ndone\nREMOTE_EXECUTION_AUDIT=NOT_AVAILABLE\nif [ -s \"$OUT/$METRICS_FILE\" ]; then\n  if python3 \"$ROOT/.circleci/scripts/verify-brave-remote-metrics.py\" --audit \"$OUT/$METRICS_FILE\"; then\n    REMOTE_EXECUTION_AUDIT=PASS\n  else\n    REMOTE_AUDIT_RC=$?\n    REMOTE_EXECUTION_AUDIT=\"WARNING_EXIT_$REMOTE_AUDIT_RC\"\n    echo \"BRAVE_REMOTE_EXECUTION_AUDIT=WARNING exit=$REMOTE_AUDIT_RC;\
+          \ preserving build metrics and continuing stage handoff.\"\n  fi\nelse\n  echo \"BRAVE_REMOTE_EXECUTION_AUDIT=NOT_AVAILABLE main_metrics=$OUT/$METRICS_FILE\"\nfi\nBUILD_TIME_SLICE_EXPIRED=false\nBUILD_COMMAND_SUCCEEDED=false\nBUILD_SLICE_INCOMPLETE=true\n# The budget supervisor attests expiry independently of child exit codes. Signal-like\n# exit codes (130/137/143) alone are NOT proof of a time-slice expiry:\n# a local OOM killer or an externally killed compiler can return them\n# much earlier than the budget. Classify those as failed work instead.\nif [ \"$BUILD_RC\" -eq 0 ]; then\n  BUILD_REASON=\"BUILD_COMMAND_SUCCESS\"\n  BUILD_COMMAND_SUCCEEDED=true\n  BUILD_SLICE_INCOMPLETE=false\nelif [ \"$BUILD_RC\" -eq 124 ] && [ \"$BUILD_BUDGET_ATTESTED\" = true ]; then\n  BUILD_TIME_SLICE_EXPIRED=true\n  BUILD_REASON=\"TIME_SLICE_COMPLETE\"\nelse\n  BUILD_REASON=\"ACTION_FAILED\"\n  echo \"BRAVE_BUILD_COMMAND=FAIL exit=$BUILD_RC; stopping without archive or stage handoff.\"\nfi\n{\n\
+          \  echo \"BUILD_EXIT_CODE=$BUILD_RC\"\n  echo \"BUILD_INITIAL_EXIT_CODE=$INITIAL_BUILD_RC\"\n  echo \"BUILD_REASON=$BUILD_REASON\"\n  echo \"BUILD_TIME_SLICE_EXPIRED=$BUILD_TIME_SLICE_EXPIRED\"\n  echo \"BUILD_COMMAND_SUCCEEDED=$BUILD_COMMAND_SUCCEEDED\"\n  echo \"BUILD_SLICE_INCOMPLETE=$BUILD_SLICE_INCOMPLETE\"\n  echo \"BUILD_HANDOFF_ALLOWED=$([ \"$BUILD_COMMAND_SUCCEEDED\" = true ] || [ \"$BUILD_TIME_SLICE_EXPIRED\" = true ] && echo true || echo false)\"\n  echo \"STAGE_BUILD_BUDGET_SECONDS=$STAGE_BUILD_BUDGET_SECONDS\"\n  echo \"REMOTE_EXECUTION_AUDIT=$REMOTE_EXECUTION_AUDIT\"\n  echo \"CAS_RECOVERY_ATTEMPTS=$CAS_RECOVERY_COUNT\"\n  echo \"BUILD_WINDOW_FINISHED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)\"\n} > \"$BUILD_STATUS\"\nif [ \"$BUILD_COMMAND_SUCCEEDED\" = true ]; then\n  echo \"BRAVE_BUILD_STAGE_STATUS=COMMAND_SUCCESS exit=$BUILD_RC reason=$BUILD_REASON remote_audit=$REMOTE_EXECUTION_AUDIT\"\nelif [ \"$BUILD_TIME_SLICE_EXPIRED\" = true ]; then\n  echo \"BRAVE_BUILD_STAGE_STATUS=INCOMPLETE\
+          \ exit=$BUILD_RC reason=$BUILD_REASON \"\n  echo \"build_budget_seconds=$STAGE_BUILD_BUDGET_SECONDS; time_slice_expired=$BUILD_TIME_SLICE_EXPIRED; \"\n  echo \"The build did not finish in this slice; the next stage will resume using Ninja/Siso native state.\"\nfi\n\nif [ \"$BUILD_REASON\" = ACTION_FAILED ]; then exit \"$BUILD_RC\"; fi\n"
+    - run:
+        name: Export APK status and artifacts
+        command: bash .circleci/experimental-steps/export-apk.sh
+        when: on_success
+    - store_artifacts:
+        path: brave-apk
+        destination: sandium-native-status-test-only/brave-apk
+    - run:
+        name: Record APK completion marker
+        when: on_success
+        command: "set -euo pipefail\nROOT=\"$CIRCLE_WORKING_DIRECTORY\"\nmkdir -p \"$ROOT/brave-work/.sandium\"\nSTATUS=\"$ROOT/brave-apk/status.txt\"\nMARKER=\"$ROOT/brave-work/.sandium/apk-completion-status.txt\"\nif [ -s \"$STATUS\" ]; then\n  cp \"$STATUS\" \"$MARKER\"\nelse\n  printf 'BUILD_FINISHED=false\\nAPK_ARCHIVE_VALID=false\\nAPK_SIGNATURE_VALID=not_yet_built\\nAPK_PACKAGE_ID_VALID=false\\nAPK_BRANDING_VALID=false\\n' > \"$MARKER\"\nfi\necho \"BRAVE_APK_COMPLETION_MARKER=$(grep -qx 'BUILD_FINISHED=true' \"$MARKER\" && echo VERIFIED || echo INCOMPLETE)\"\n"
+    - save_cache:
+        name: Save small revision-scoped verified APK marker
+        key: sandium-brave-apk-complete-v2-{{ .Branch }}-{{ .Revision }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-<< parameters.stage_index >>
+        paths:
+        - brave-work/.sandium/apk-completion-status.txt
+        when: on_success
+    - run:
+        name: Skip large handoff after verified APK publication
+        command: "set -euo pipefail\nROOT=\"$CIRCLE_WORKING_DIRECTORY\"\nSTATUS_DIR=\"$ROOT/brave-work/.sandium\"\nAPK_STATUS=\"$STATUS_DIR/apk-completion-status.txt\"\nif python3 \"$ROOT/.circleci/scripts/check-apk-completion-marker.py\" \"$APK_STATUS\" && grep -qx 'APK_REMOVALS_VALID=true' \"$APK_STATUS\"; then\n  echo \"FINAL_STAGE_GATE=PASS APK validated and artifacts published; large handoff archive skipped.\"\n  circleci-agent step halt\n  exit 0\nfi\nBUILD_STATUS=\"$STATUS_DIR/build-stage-status.txt\"\nif grep -qx 'BUILD_REASON=TIME_SLICE_COMPLETE' \"$BUILD_STATUS\" && grep -qx 'BUILD_TIME_SLICE_EXPIRED=true' \"$BUILD_STATUS\" && grep -qx 'BUILD_HANDOFF_ALLOWED=true' \"$BUILD_STATUS\"; then\n  echo \"CHECKPOINT_HANDOFF=REQUIRED unfinished attested time-slice; preserving native build state.\"\n  exit 0\nfi\necho \"FINAL_STAGE_GATE=FAIL APK validation incomplete without an attested time-slice; refusing archive.\" >&2\nexit 1\n"
+    - when:
+        condition:
+          or:
+          - equal:
+            - full
+            - << pipeline.parameters.sandium_build_mode >>
+          - equal:
+            - feature/sandium-disable-13-brave-features
+            - << pipeline.git.branch >>
+          - equal:
+            - feature/sandium-page-transition-full
+            - << pipeline.git.branch >>
+          - equal:
+            - feature/sandium-filter-bootstrap-full
+            - << pipeline.git.branch >>
+          - equal:
+            - feature/sandium-vanilla-welcome
+            - << pipeline.git.branch >>
+        steps:
+        - run:
+            name: Validate Brave checkpoint before saving
+            command: "set -euo pipefail\nROOT=\"$CIRCLE_WORKING_DIRECTORY\"\nSRC=\"$ROOT/brave-work/src\"\nCORE=\"$SRC/brave\"\nOUT=\"$SRC/out/android_Release_arm64\"\ntest -e \"$SRC/.git\" || { echo \"CHECKPOINT_SAVE=REFUSED missing Chromium Git checkout\" >&2; exit 1; }\ntest -e \"$CORE/.git\" || { echo \"CHECKPOINT_SAVE=REFUSED missing Brave Git checkout\" >&2; exit 1; }\ntest -s \"$ROOT/brave-work/.gclient\" || { echo \"CHECKPOINT_SAVE=REFUSED missing .gclient\" >&2; exit 1; }\nPYTHON_REMOTE_WRAPPER=\"$SRC/buildtools/reclient_cfgs/python/python_remote_wrapper\"\ntest -x \"$PYTHON_REMOTE_WRAPPER\" || { echo \"CHECKPOINT_SAVE=REFUSED Brave Python remote wrapper is not executable\" >&2; exit 1; }\ntest -s \"$OUT/build.ninja\" || { echo \"CHECKPOINT_SAVE=REFUSED missing build.ninja\" >&2; exit 1; }\ntest -s \"$OUT/args.gn\" || { echo \"CHECKPOINT_SAVE=REFUSED missing args.gn\" >&2; exit 1; }\nARGS_GENERATED=\"$OUT/args_generated.gni\"\nSISO_ENV=\"$SRC/build/config/siso/.sisoenv\"\nSISO_RC=\"\
+              $SRC/build/config/siso/.sisorc\"\nSISO_BACKEND=\"$SRC/build/config/siso/backend_config/backend.star\"\ntest -s \"$ARGS_GENERATED\" || { echo \"CHECKPOINT_SAVE=REFUSED missing args_generated.gni\" >&2; exit 1; }\ngrep -F 'args_generated.gni' \"$OUT/args.gn\" >/dev/null || { echo \"CHECKPOINT_SAVE=REFUSED args.gn import missing\" >&2; exit 1; }\ngrep -Fx 'use_remoteexec=true' \"$ARGS_GENERATED\" >/dev/null || { echo \"CHECKPOINT_SAVE=REFUSED generated use_remoteexec missing\" >&2; exit 1; }\ngrep -Fx 'use_siso=true' \"$ARGS_GENERATED\" >/dev/null || { echo \"CHECKPOINT_SAVE=REFUSED generated use_siso missing\" >&2; exit 1; }\ngrep -Fx 'use_reclient=false' \"$ARGS_GENERATED\" >/dev/null || { echo \"CHECKPOINT_SAVE=REFUSED generated use_reclient missing\" >&2; exit 1; }\ntest -s \"$SISO_ENV\" && test -s \"$SISO_RC\" && test -s \"$SISO_BACKEND\" || { echo \"CHECKPOINT_SAVE=REFUSED Siso configuration incomplete\" >&2; exit 1; }\nSISO_BRAVE_CONFIG=\"$SRC/build/config/siso/brave_siso_config.star\"\
+              \ntest -s \"$SISO_BRAVE_CONFIG\" || { echo \"CHECKPOINT_SAVE=REFUSED missing Brave Siso configuration\" >&2; exit 1; }\ngrep -Fq 'rule[\"canonicalize_dir\"] = True' \"$SISO_BRAVE_CONFIG\" || { echo \"CHECKPOINT_SAVE=REFUSED Siso canonical workdir must remain enabled\" >&2; exit 1; }\ngrep -Fq '\"./args.gn\"' \"$SISO_BRAVE_CONFIG\" || { echo \"CHECKPOINT_SAVE=REFUSED Siso remote rules lack explicit ./args.gn workdir anchor\" >&2; exit 1; }\nbash \"$ROOT/.circleci/scripts/verify-clang-diagnostics-gn.sh\"\necho \"CHECKPOINT_CLANG_DIAGNOSTIC_PATH_GATE=PASS\"\ngrep -Fx \"SISO_CREDENTIAL_HELPER=/tmp/sandium-buildbuddy-credential-helper.py\" \"$SISO_ENV\" >/dev/null || { echo \"CHECKPOINT_SAVE=REFUSED Siso credential helper not configured\" >&2; exit 1; }\nfor REQUIRED_SISO_FLAG in \\\n  '-reapi_keep_exec_stream' \\\n  '-fs_min_flush_timeout 300s' \\\n  '-reapi_byte_stream_read_threshold 1024' \\\n  '-config googlechrome,remote-link' \\\n  '-re_cache_enable_write=true'; do\n  grep\
+              \ -Fq -- \"$REQUIRED_SISO_FLAG\" \"$SISO_RC\" || {\n    echo \"CHECKPOINT_SAVE=REFUSED missing Siso flag: $REQUIRED_SISO_FLAG\" >&2\n    exit 1\n  }\ndone\ntest -x /tmp/sandium-buildbuddy-credential-helper.py || { echo \"CHECKPOINT_SAVE=REFUSED credential helper not executable\" >&2; exit 1; }\nCHROMIUM_SHA=\"$(git -C \"$SRC\" rev-parse HEAD)\"\nBRAVE_TAG=\"$(git -C \"$CORE\" describe --tags --exact-match 2>/dev/null || true)\"\ntest \"$CHROMIUM_SHA\" = \"d331de35ca8ab1358c7a17e4bd41627d55eaef51\" || { echo \"CHECKPOINT_SAVE=REFUSED Chromium SHA mismatch: $CHROMIUM_SHA\" >&2; exit 1; }\ntest \"$BRAVE_TAG\" = \"v1.98.62\" || { echo \"CHECKPOINT_SAVE=REFUSED Brave tag mismatch: $BRAVE_TAG\" >&2; exit 1; }\nmkdir -p \"$ROOT/brave-work/.sandium\"\nAPK_VALIDATED=false\nAPK_MARKER=\"$ROOT/brave-work/.sandium/apk-completion-status.txt\"\nif python3 \"$ROOT/.circleci/scripts/check-apk-completion-marker.py\" \"$APK_MARKER\"; then\n  APK_VALIDATED=true\nfi\n{\n  echo \"CHECKPOINT_VALID=true\"\
+              \n  echo \"REFERENCE_MODE=reference\"\n  echo \"APK_VALIDATED=$APK_VALIDATED\"\n  echo \"REFERENCE_READY=$APK_VALIDATED\"\n  echo \"REFERENCE_SOURCE_REVISION=$CIRCLE_SHA1\"\n  echo \"BRAVE_CORE_TAG=$BRAVE_TAG\"\n  echo \"CHROMIUM_SHA=$CHROMIUM_SHA\"\n  echo \"TARGET=android-arm64\"\n  echo \"BUILD_TYPE=Release\"\n  echo \"STAGE=<< parameters.stage_index >>\"\n  echo \"WORKFLOW_ID=$CIRCLE_WORKFLOW_ID\"\n  echo \"ARGS_GENERATED_SHA256=$(sha256sum \"$ARGS_GENERATED\" | awk '{print $1}')\"\n  echo \"SISO_ENV_SHA256=$(sha256sum \"$SISO_ENV\" | awk '{print $1}')\"\n  echo \"SISO_RC_SHA256=$(sha256sum \"$SISO_RC\" | awk '{print $1}')\"\n  echo \"SISO_BACKEND_SHA256=$(sha256sum \"$SISO_BACKEND\" | awk '{print $1}')\"\n  OBJECT_COUNT=0\n  if [ -d \"$OUT/obj\" ]; then\n    OBJECT_COUNT=\"$(find \"$OUT/obj\" -type f -name '*.o' | wc -l | tr -d ' ')\"\n  fi\n  echo \"COMPILED_OBJECT_COUNT=$OBJECT_COUNT\"\n  date -u +\"SAVED_AT=%Y-%m-%dT%H:%M:%SZ\"\n  du -sh \"$ROOT/brave-work\"\n  du -sh\
+              \ \"$OUT\"\n} > \"$ROOT/brave-work/.sandium/checkpoint-manifest.txt\"\necho \"CHECKPOINT_SAVE=PASS\"\ncat \"$ROOT/brave-work/.sandium/checkpoint-manifest.txt\"\n"
+        - run:
+            name: Capture final Siso checkpoint state before cache save
+            command: 'set -euo pipefail
+
+              export BRAVE_STAGE_INDEX="<< parameters.stage_index >>"
+
+              bash .circleci/scripts/capture-brave-siso-checkpoint.sh checkpoint-ready
+
+              '
+        - run:
+            name: SANDIUM-FULL-MODE - Create 8 parallel checkpoint shards
+            no_output_timeout: 45m
+            command: 'set -euo pipefail
+
+              export BRAVE_STAGE_INDEX="<< parameters.stage_index >>"
+
+              export SANDIUM_ARCHIVE_WORKERS=8
+
+              bash .circleci/scripts/archive-brave-workspace.sh archive
+
+              '
+        - save_cache:
+            name: Save FULL MODE parallel stage handoff shards
+            key: sandium-brave-handoff-v2-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-<< parameters.stage_index >>
+            paths:
+            - brave-workspace-checkpoint.shards
+            - brave-workspace-checkpoint.manifest.json
+    - run:
+        name: Final five-stage completion gate
+        command: "set -euo pipefail\nROOT=\"$CIRCLE_WORKING_DIRECTORY\"\nSTAGE=\"<< parameters.stage_index >>\"\nAPK_STATUS=\"$ROOT/brave-work/.sandium/apk-completion-status.txt\"\nif [ \"${CIRCLE_BRANCH:-}\" = \"feature/sandium-disable-13-brave-features\" ] || [ \"${CIRCLE_BRANCH:-}\" = \"feature/sandium-page-transition-full\" ] || [ \"${CIRCLE_BRANCH:-}\" = \"feature/sandium-filter-bootstrap-full\" ] || [ \"${CIRCLE_BRANCH:-}\" = \"feature/sandium-vanilla-welcome\" ]; then\n  MODE=\"full\"\nelse\n  MODE=\"<< pipeline.parameters.sandium_build_mode >>\"\nfi\nif [ \"$MODE\" = \"full\" ]; then\n  python3 \"$ROOT/.circleci/scripts/checkpoint-stage-receipt.py\" verify \\\n    --root \"$ROOT\" \\\n    --stage \"$STAGE\" \\\n    --workflow-id \"$CIRCLE_WORKFLOW_ID\"\nelif [ \"$MODE\" = \"fast\" ]; then\n  test ! -e \"$ROOT/brave-work/.sandium/workspace-archive-created-this-run\" || { echo \"FINAL_STAGE_GATE=FAIL FAST MODE unexpectedly created a workspace archive\" >&2; exit 1; }\nelse\n  echo\
+          \ \"FINAL_STAGE_GATE=FAIL unknown mode=$MODE\" >&2\n  exit 1\nfi\nif python3 \"$ROOT/.circleci/scripts/check-apk-completion-marker.py\" \"$APK_STATUS\"; then\n  if [ \"$MODE\" = \"full\" ]; then\n    grep -qx \"REFERENCE_READY=true\" \"$ROOT/brave-work/.sandium/checkpoint-manifest.txt\" || { echo \"FINAL_STAGE_GATE=FAIL APK passed but reference manifest is not ready\" >&2; exit 1; }\n    echo \"FINAL_STAGE_GATE=PASS FULL MODE APK validated; handoff archive saved; reference promotion follows.\"\n  else\n    echo \"FINAL_STAGE_GATE=PASS FAST MODE APK validated; full archive correctly skipped.\"\n  fi\n  exit 0\nfi\nif [ \"$STAGE\" -lt 5 ]; then\n  if [ \"$MODE\" = \"full\" ]; then\n    echo \"FINAL_STAGE_GATE=PASS FULL MODE handoff saved; next stage resumes from the native Ninja/Siso build state.\"\n  else\n    echo \"FINAL_STAGE_GATE=PASS FAST MODE; immutable reference restored and BuildBuddy remote action cache remains available.\"\n  fi\n  exit 0\nfi\necho \"FINAL_STAGE_GATE=FAIL\
+          \ five stages exhausted without a verified Brave APK.\" >&2\nexit 1\n"
+    environment:
+      SANDIUM_STAGE: << parameters.stage_index >>
+      SISO_LIMITS: local=8,remote=80
+    retention:
+      caches: 15d
+workflows:
+  sandium-full-mode:
+    when:
+      and:
+      - << pipeline.parameters.run_build >>
+      - not: << pipeline.parameters.run_maintenance >>
+    jobs:
+    - brave-android-staged-build:
+        name: SANDIUM-FULL-MODE-stage-1
+        stage_index: 1
+        filters:
+          branches:
+            only: experiment/native-status-api15
+    - brave-android-staged-build:
+        name: SANDIUM-FULL-MODE-stage-2
+        stage_index: 2
+        requires:
+        - SANDIUM-FULL-MODE-stage-1
+        filters:
+          branches:
+            only: experiment/native-status-api15
+    - brave-android-staged-build:
+        name: SANDIUM-FULL-MODE-stage-3
+        stage_index: 3
+        requires:
+        - SANDIUM-FULL-MODE-stage-2
+        filters:
+          branches:
+            only: experiment/native-status-api15
+    - brave-android-staged-build:
+        name: SANDIUM-FULL-MODE-stage-4
+        stage_index: 4
+        requires:
+        - SANDIUM-FULL-MODE-stage-3
+        filters:
+          branches:
+            only: experiment/native-status-api15
+    - brave-android-staged-build:
+        name: SANDIUM-FULL-MODE-stage-5
+        stage_index: 5
+        requires:
+        - SANDIUM-FULL-MODE-stage-4
+        filters:
+          branches:
+            only: experiment/native-status-api15

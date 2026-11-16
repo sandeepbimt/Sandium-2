@@ -60,13 +60,14 @@ def verify_full_wiring(repo):
             return ['brave-android-staged-build','renew-fixed-reference']
         # A separate reviewed fixture is permitted only for the isolated test
         # branch. Normal config and its reference-maintenance policy stay intact.
-        experiment = repo / '.circleci/translation-test'
-        if (experiment / 'config.sha256').is_file() and (experiment / 'config.yml').is_file():
-            test_expected = (experiment / 'config.sha256').read_text().strip()
-            if (re.fullmatch('[0-9a-f]{64}', test_expected) and digest == test_expected
-                    and text == (experiment / 'config.yml').read_text()):
-                verify_product_wrappers(repo)
-                return ['brave-android-staged-build']
+        for isolated in ('translation-test', 'native-status-test'):
+            experiment = repo / '.circleci' / isolated
+            if (experiment / 'config.sha256').is_file() and (experiment / 'config.yml').is_file():
+                test_expected = (experiment / 'config.sha256').read_text().strip()
+                if (re.fullmatch('[0-9a-f]{64}', test_expected) and digest == test_expected
+                        and text == (experiment / 'config.yml').read_text()):
+                    verify_product_wrappers(repo)
+                    return ['brave-android-staged-build']
         raise ValueError('Original Full configuration differs from reviewed wiring')
 
     section=re.search(r'^jobs:\s*\n(.*?)(?=^[A-Za-z][A-Za-z0-9_-]*:|\Z)',text,re.M|re.S)

@@ -128,13 +128,19 @@ final class SandiumWelcomeSetupView {
     }
 
     View createView() {
+        // Android 15 may enforce a transparent status bar. Its backing must be
+        // the same black as this screen, not the Activity theme's launch colour.
+        // Leave safe-inset/layout ownership with the first-run Activity.
+        mActivity.getWindow().setBackgroundDrawable(new ColorDrawable(BACKGROUND));
         mActivity.getWindow().setStatusBarColor(BACKGROUND);
         mActivity.getWindow().setNavigationBarColor(BACKGROUND);
-        mActivity.getWindow().getDecorView().setSystemUiVisibility(0);
+        View decor = mActivity.getWindow().getDecorView();
+        decor.setSystemUiVisibility(decor.getSystemUiVisibility()
+                & ~(View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
+                        | View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR));
         mRoot = new LinearLayout(mActivity);
         mRoot.setOrientation(LinearLayout.VERTICAL);
         mRoot.setBackgroundColor(BACKGROUND);
-        mRoot.setSystemUiVisibility(0);
 
         // Keep the existing content anchored at the top. The content only extends
         // downward when More options is opened; the ScrollView handles overflow

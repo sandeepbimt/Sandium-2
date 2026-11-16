@@ -7,6 +7,7 @@ import hashlib
 from pathlib import Path
 
 FILES = {
+ 'SystemBarColorHelper.java': 'ui/edge_to_edge/android/java/src/org/chromium/ui/edge_to_edge/SystemBarColorHelper.java',
  'TransitiveTopInsetProvider.java': 'chrome/browser/ui/android/edge_to_edge/java/src/org/chromium/chrome/browser/ui/edge_to_edge/TransitiveTopInsetProvider.java',
  'TopControlsStackerUnitTest.java': 'chrome/browser/browser_controls/android/java/src/org/chromium/chrome/browser/browser_controls/TopControlsStackerUnitTest.java',
  'TopControlsStacker.java': 'chrome/browser/browser_controls/android/java/src/org/chromium/chrome/browser/browser_controls/TopControlsStacker.java',
@@ -283,7 +284,114 @@ def apply_spacer(name, text):
         text = replace(text, old, new)
     return text
 
+
+NATIVE_SETTINGS_PROTECTION = """    // Native Settings already reserves its safe inset. This paint neither consumes
+    // nor adds one; its backing remains the screen colour requested by that activity.
+    private final Paint mSandiumNativeSettingsPaint = new Paint();
+    private int mSandiumNativeSettingsPaintHeight;
+
+    private boolean isSandiumNativeSettings() {
+        android.content.Context context = getContext();
+        while (context instanceof android.content.ContextWrapper
+                && !(context instanceof android.app.Activity)) {
+            android.content.Context base = ((android.content.ContextWrapper) context).getBaseContext();
+            if (base == context) break;
+            context = base;
+        }
+        return context instanceof android.app.Activity
+                // These Settings variants write icon tint directly after initialization.
+                // Keep their stock contrast until that lifecycle is explicitly supported.
+                && !org.chromium.base.DeviceInfo.isAutomotive()
+                && !org.chromium.ui.base.DeviceFormFactor.isNonMultiDisplayContextOnTablet(context)
+                && ("BraveSettingsActivity".equals(context.getClass().getSimpleName())
+                        || "SettingsActivity".equals(context.getClass().getSimpleName()));
+    }
+
+    boolean hasSandiumStatusProtection() {
+        return isSandiumNativeSettings() && mSandiumTopProtectionHeight == 0
+                && mStatusBarInsets.top > 0;
+    }
+
+    private void drawSandiumNativeSettingsProtection(Canvas canvas) {
+        if (!hasSandiumStatusProtection() || mStatusBarRect.isEmpty()) return;
+        int height = mStatusBarRect.height();
+        if (mSandiumNativeSettingsPaintHeight != height) {
+            mSandiumNativeSettingsPaintHeight = height;
+            mSandiumNativeSettingsPaint.setShader(new android.graphics.LinearGradient(
+                    0, 0, 0, height,
+                    new int[] {0xE6000000, 0x99000000, 0x00000000},
+                    new float[] {0f, 0.67f, 1f}, android.graphics.Shader.TileMode.CLAMP));
+        }
+        int saved = canvas.save();
+        canvas.translate(mStatusBarRect.left, mStatusBarRect.top);
+        canvas.drawRect(0, 0, mStatusBarRect.width(), height, mSandiumNativeSettingsPaint);
+        canvas.restoreToCount(saved);
+    }
+
+"""
+
+NATIVE_SETTINGS_COLOR_FORWARD = {
+    'SystemBarColorHelper.java': (
+        'public interface SystemBarColorHelper extends Destroyable {',
+        'public interface SystemBarColorHelper extends Destroyable {\n'
+        '    /** Whether this delegate actually paints status icon protection. */\n'
+        '    default boolean hasSandiumStatusProtection() { return false; }\n'),
+    'EdgeToEdgeSystemBarColorHelper.java': (
+        '                delegateHelper.setStatusBarColor(effectiveColor);',
+        '                if (mForceLightStatusBarColor) {\n'
+        '                    delegateHelper.setStatusBarColor(effectiveColor, true);\n'
+        '                } else {\n'
+        '                    delegateHelper.setStatusBarColor(effectiveColor);\n'
+        '                }'),
+    'EdgeToEdgeLayoutCoordinator.java': (
+        '        updateStatusBarIconColor(mView.getRootView(), mStatusBarColor);',
+        '        if (mForceLightStatusBarColor || hasSandiumStatusProtection()) {\n'
+        '            updateStatusBarWithLightIconColor(mView.getRootView());\n'
+        '        } else {\n'
+        '            updateStatusBarIconColor(mView.getRootView(), mStatusBarColor);\n'
+        '        }'),
+}
+
+NATIVE_SETTINGS_OWNER_HOOKS = {
+    'EdgeToEdgeSystemBarColorHelper.java': [(
+        '        if (mForceLightStatusBarColor || mSandiumScrollUnderStatusBar) {',
+        '        if (mForceLightStatusBarColor || mSandiumScrollUnderStatusBar\n'
+        '                || (delegateHelper != null && delegateHelper.hasSandiumStatusProtection())) {')],
+    'EdgeToEdgeLayoutCoordinator.java': [(
+        '    public void applyStatusBarColor() {',
+        '    public boolean hasSandiumStatusProtection() {\n'
+        '        return mView != null && mView.hasSandiumStatusProtection();\n'
+        '    }\n\n'
+        '    @Override\n'
+        '    public void applyStatusBarColor() {'), (
+        '        mView.setStatusBarInsets(statusBarInsets);',
+        '        mView.setStatusBarInsets(statusBarInsets);\n'
+        '        applyStatusBarColor(); // Protection/contrast follows the actual visible inset.')],
+}
+
+def undo_native_settings(name, text):
+    for old, new in reversed(NATIVE_SETTINGS_OWNER_HOOKS.get(name, [])):
+        text = text.replace(new, old)
+    if name in NATIVE_SETTINGS_COLOR_FORWARD:
+        old, new = NATIVE_SETTINGS_COLOR_FORWARD[name]
+        return text.replace(new, old)
+    if name != 'EdgeToEdgeBaseLayout.java': return text
+    return text.replace(NATIVE_SETTINGS_PROTECTION, '').replace(
+            '        drawSandiumNativeSettingsProtection(canvas);\n', '')
+
+def apply_native_settings(name, text):
+    if name in NATIVE_SETTINGS_COLOR_FORWARD:
+        text = replace(text, *NATIVE_SETTINGS_COLOR_FORWARD[name])
+        for old, new in NATIVE_SETTINGS_OWNER_HOOKS.get(name, []): text = replace(text, old, new)
+        return text
+    if name != 'EdgeToEdgeBaseLayout.java': return text
+    text = replace(text, '    int getSandiumTopProtectionHeightForTesting() {',
+                   NATIVE_SETTINGS_PROTECTION + '    int getSandiumTopProtectionHeightForTesting() {')
+    return replace(text, '        super.dispatchDraw(canvas);',
+                   '        super.dispatchDraw(canvas);\n        drawSandiumNativeSettingsProtection(canvas);')
+
 def transform(name,s):
+    s = undo_native_settings(name, s)
     s = undo_stable_viewport(name, s)
     s = undo_spacer(name, s)
     # Strip only this exact-version extension before the older whole-block idempotence anchors.
@@ -830,7 +938,7 @@ def transform(name,s):
                     + ",status=" + statusBarInsets.top + ",padding=" + overallInsets.top);
         }
         // Consume the insets since the root view already adjusted their paddings.""")
-    return apply_stable_viewport(name, apply_spacer(name, s))
+    return apply_native_settings(name, apply_stable_viewport(name, apply_spacer(name, s)))
 
 def apply(root, enabled=True):
     pending=[]

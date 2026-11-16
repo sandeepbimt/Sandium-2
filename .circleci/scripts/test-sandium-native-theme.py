@@ -70,7 +70,8 @@ class ThemeTests(unittest.TestCase):
     def test_settings_surface_migration(self):
         source = ('contentView.setBackgroundColor(SemanticColorUtils.getSettingsBackgroundColor(this));\n'
             '    private void onSettingsFragmentViewReady(Fragment fragment, View fragmentView) {\n'
-            '        View insetView = getInsetView(fragment, fragmentView);\n}')
+            '        View insetView = getInsetView(fragment, fragmentView);\n}'
+            '        super.initializeSystemBarColors(edgeToEdgeSystemBarColorHelper);')
         result = theme.settings_surface(source)
         self.assertEqual(result, theme.settings_surface(result))
         self.assertIn('BraveDynamicColors.isDynamicColorsEnabled()', result)
@@ -95,9 +96,11 @@ class ThemeTests(unittest.TestCase):
         self.assertLess(result.index('super.onCreate(savedInstanceState);'),
                         result.index('SANDIUM_SETTINGS_HEADER_SURFACE'))
         # Shared activity, not a main-page-only conditional. Same helper retains
-        # light/dynamic palette and no opaque status bar or geometry overrides.
+        # light/dynamic palette and no direct Window or geometry overrides.
         self.assertNotIn('isForMainSettings()', result)
-        self.assertNotIn('setStatusBarColor', result)
+        self.assertIn('edgeToEdgeSystemBarColorHelper.setStatusBarColor(sandiumSettingsBackground())', result)
+        self.assertNotIn('getWindow().setStatusBarColor', result)
+        self.assertNotIn('setSandiumScrollUnderStatusBar', result)
         self.assertNotIn('setTitleTextColor', result)
         self.assertIn('return SemanticColorUtils.getSettingsBackgroundColor(this);', result)
         self.assertEqual(result.count('setOnApplyWindowInsetsListener'), original.count('setOnApplyWindowInsetsListener'))

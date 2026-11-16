@@ -21,6 +21,47 @@ def baseline(name):
     return data.decode()
 
 class UnderlapPatchTests(unittest.TestCase):
+    def test_native_settings_gradient_is_paint_only_and_restorable(self):
+        name = 'EdgeToEdgeBaseLayout.java'
+        original = self.original(name)
+        result = patch.transform(name, original)
+        native = patch.NATIVE_SETTINGS_PROTECTION
+        for token in ['setPadding(', 'requestLayout(', 'setTranslationY(', 'setTopControlsHeight(']:
+            self.assertNotIn(token, native)
+        self.assertIn('mStatusBarRect.isEmpty()', native)
+        self.assertIn('mSandiumTopProtectionHeight == 0', native)
+        self.assertIn('BraveSettingsActivity', native)
+        self.assertIn('!org.chromium.base.DeviceInfo.isAutomotive()', native)
+        self.assertIn('!org.chromium.ui.base.DeviceFormFactor.isNonMultiDisplayContextOnTablet(context)', native)
+        self.assertIn('canvas.restoreToCount(saved)', native)
+        self.assertIn('0x00000000', native)
+        self.assertEqual(result, patch.transform(name, result))
+        self.assertEqual(result, patch.apply_native_settings(name,
+                         patch.undo_native_settings(name, result)))
+
+    def test_native_forced_light_icons_survive_delegate(self):
+        helper = patch.transform('EdgeToEdgeSystemBarColorHelper.java',
+                                 self.original('EdgeToEdgeSystemBarColorHelper.java'))
+        coordinator = patch.transform('EdgeToEdgeLayoutCoordinator.java',
+                                      self.original('EdgeToEdgeLayoutCoordinator.java'))
+        self.assertIn('delegateHelper.setStatusBarColor(effectiveColor, true);', helper)
+        self.assertIn('updateStatusBarWithLightIconColor(mView.getRootView());', coordinator)
+        # Normal native and web callers retain their existing nonforced colour path.
+        self.assertIn('delegateHelper.setStatusBarColor(effectiveColor);', helper)
+        self.assertIn('updateStatusBarIconColor(mView.getRootView(), mStatusBarColor);', coordinator)
+
+    def test_settings_contrast_is_derived_from_real_paint_owner(self):
+        interface = patch.transform('SystemBarColorHelper.java', self.original('SystemBarColorHelper.java'))
+        self.assertIn('default boolean hasSandiumStatusProtection() { return false; }', interface)
+        helper = patch.transform('EdgeToEdgeSystemBarColorHelper.java', self.original('EdgeToEdgeSystemBarColorHelper.java'))
+        self.assertIn('delegateHelper != null && delegateHelper.hasSandiumStatusProtection()', helper)
+        coordinator = patch.transform('EdgeToEdgeLayoutCoordinator.java', self.original('EdgeToEdgeLayoutCoordinator.java'))
+        self.assertIn('return mView != null && mView.hasSandiumStatusProtection()', coordinator)
+        self.assertIn('applyStatusBarColor(); // Protection/contrast follows the actual visible inset.', coordinator)
+        self.assertIn('mStatusBarInsets.top > 0', patch.NATIVE_SETTINGS_PROTECTION)
+        theme = (BASE.parent/'scripts/apply-sandium-native-theme.py').read_text()
+        self.assertNotIn('forceLightIconColor= */ true', theme)
+
     def original(self, name):
         return (BASE / 'fixtures/status-bar' / name).read_text()
 
@@ -46,7 +87,7 @@ class UnderlapPatchTests(unittest.TestCase):
         old = types.ModuleType('old_status'); exec(before, old.__dict__)
         for name in old.FILES:
             self.assertEqual(old.transform(name, self.original(name)),
-                             patch.undo_spacer(name, patch.undo_stable_viewport(name, patch.transform(name, self.original(name)))), name)
+                             patch.undo_native_settings(name, patch.undo_spacer(name, patch.undo_stable_viewport(name, patch.transform(name, self.original(name))))), name)
         creator = patch.transform('EdgeToEdgeControllerCreator.java',
                                   self.original('EdgeToEdgeControllerCreator.java'))
         self.assertNotIn('setInsets(', creator)
@@ -115,7 +156,7 @@ class UnderlapPatchTests(unittest.TestCase):
     def test_previous_gradient_checkpoint_migrates(self):
         name = "EdgeToEdgeBaseLayout.java"
         current = patch.transform(name, self.original(name))
-        previous = current.replace("0xE6000000", "0xB3000000")
+        previous = patch.undo_native_settings(name, current).replace("0xE6000000", "0xB3000000")
         self.assertEqual(current, patch.transform(name, previous))
 
     def test_bottom_controls_and_previous_checkpoint_migration(self):
@@ -194,7 +235,7 @@ class UnderlapPatchTests(unittest.TestCase):
                 current = patch.transform(name, old)
                 self.assertEqual(current, patch.transform(name, self.original(name)))
                 self.assertEqual(current, patch.transform(name, current))
-                self.assertEqual(old, patch.undo_stable_viewport(name, current))
+                self.assertEqual(old, patch.undo_native_settings(name, patch.undo_stable_viewport(name, current)))
 
     def test_rejects_drift_before_any_writes(self):
         with tempfile.TemporaryDirectory() as tmp:
