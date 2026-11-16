@@ -7,7 +7,7 @@ const EXCLUDED = new Set(['HTML', 'BODY', 'IFRAME', 'FRAME', 'CANVAS', 'VIDEO',
   'AUDIO', 'INPUT', 'TEXTAREA', 'SELECT', 'OPTION', 'SCRIPT', 'STYLE', 'LINK',
   'META', 'OBJECT', 'EMBED', 'BUTTON', 'FORM']);
 const HTML_NS = 'http://www.w3.org/1999/xhtml';
-const PROPERTIES = Object.freeze({foreground: 'color', background: 'background-color'});
+const PROPERTIES = Object.freeze({foreground: 'color', background: 'background-color', image: 'image-foreground'});
 function validToken(value) { return typeof value === 'string' && /^[a-z0-9-]{1,64}$/.test(value); }
 function fingerprint(element) {
   const id = element.getAttribute('id') || '';
@@ -61,7 +61,8 @@ export function validateRule(rule, doc) {
   if (!rule || !Object.hasOwn(PROPERTIES, rule.property) ||
       !Number.isInteger(rule.rgb) || rule.rgb < 0 || rule.rgb > 0xffffff)
     throw new Error('Invalid color rule');
-  if (!resolveTarget(rule.path, doc)) return null;
+  const target = resolveTarget(rule.path, doc);
+  if (!target || (rule.property === 'image' && target.localName !== 'img')) return null;
   return true;
 }
 // Only stable, unique-ID descriptors may be remembered. No text, source URLs,
@@ -81,8 +82,8 @@ export function matchRemembered(rule, doc) {
   if (!rule || !validToken(rule.tag) || typeof rule.id !== 'string' || !rule.id ||
       rule.id.length > 128 || typeof rule.role !== 'string' || rule.role.length > 64 ||
       !Array.isArray(rule.ancestors) || rule.ancestors.length > 23 ||
-      (rule.property!==0 && rule.property!==1) || !Number.isInteger(rule.rgb) ||
-      rule.rgb < 0 || rule.rgb > 0xffffff) return null;
+      (rule.property!==0 && rule.property!==1 && rule.property!==2) || !Number.isInteger(rule.rgb) ||
+      rule.rgb < 0 || rule.rgb > 0xffffff || (rule.property===2 && rule.tag!=='img')) return null;
   const tagged = doc.querySelectorAll('[id]');
   if (tagged.length > 4096) return null;
   const matches=Array.from(tagged).filter(node => node.getAttribute('id')===rule.id);
@@ -160,7 +161,7 @@ export function createCorrector(doc, bridge) {
       const restored=[];
       for (const rule of rules) {
         const node=matchRemembered(rule,doc);
-        if (node) restored.push({node,rule:{path:captureTarget(node,doc),property:rule.property===0?'foreground':'background',rgb:rule.rgb}});
+        if (node) restored.push({node,rule:{path:captureTarget(node,doc),property:rule.property===0?'foreground':rule.property===1?'background':'image',rgb:rule.rgb}});
       }
       update('restoreRememberedNodes',restored);
       saved=restored;

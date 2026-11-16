@@ -78,3 +78,22 @@ without disabling warnings or changing endpoint ownership/member cleanup order.
 The adjacent session, renderer and rule-store types already have out-of-line
 special members. Source guards and full overlay replay cover the declarations
 and definitions; only an authorized Chromium build can rerun its style plugin.
+
+### Explicit image artwork correction
+The browser-owned Element Color Correction chooser now offers Image artwork
+(property 2). This is opt-in per selected HTML img, including externally loaded
+SVG artwork. No automatic logo detection, recoloring, site special cases, or
+remote content fetching is added. It tints all nontransparent image pixels to
+the chosen RGB and preserves alpha; CSS background and dark-page policy remain
+unchanged. Thus letters and an emblem in one image recolor together. An opaque
+photo becomes a solid rectangle: preview is important. Inline SVG, canvas, CSS
+background images and existing excluded interactive/embedded targets remain
+unsupported. Existing exact-node lifetime/session checks and conservative
+unique-ID persistence remain: anonymous images are visit-only. Existing saved
+background corrections are not silently deleted.
+
+Validation for this extension: JS selector/rule/preview tests, Android chooser
+lifecycle commands with stubbed platform APIs, fail-closed/replay native and
+combined source composition, and extracted image-paint wrapper compile tests
+(including pinned ColorFilter declarations) pass. These are not a full Chromium
+compile or pixel/device test; APK compilation and device preview remain required.

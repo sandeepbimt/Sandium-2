@@ -11,6 +11,36 @@ def compose(root):
     edits={}
     def change(path,fn):
         target=root/path;edits[target]=fn(target.read_text())
+    # Non-inherited metadata scopes a manual tint to the selected IMG only.
+    change('third_party/blink/renderer/core/style/computed_style_extra_fields.json5',
+      lambda s:once(s, '  data: [\n    {', '''  data: [
+    {
+      name: "SandiumImageForeground",
+      field_template: "primitive",
+      type_name: "unsigned",
+      default_value: "0",
+      reset_on_new_style: true,
+      inherited: false,
+      invalidate: ["paint"],
+    },
+    {'''))
+    def image_paint(s):
+      s=once(s, '#include "third_party/blink/renderer/core/paint/image_painter.h"\n',
+        '#include "third_party/blink/renderer/core/paint/image_painter.h"\n#include "cc/paint/color_filter.h"\n')
+      s=once(s, '  context.DrawImage(\n', '''  // Explicit Element Color Correction only, never automatic logo detection.
+  // Isolate the image draw, not its CSS background/border or neighbouring content.
+  const unsigned image_foreground =
+      image_element ? layout_image_.StyleRef().SandiumImageForeground() : 0;
+  if (image_foreground) {
+    image_auto_dark_mode = ImageAutoDarkMode::Disabled();
+    context.BeginLayer(cc::ColorFilter::MakeBlend(
+        SkColor4f::FromColor(image_foreground), SkBlendMode::kSrcIn));
+  }
+  context.DrawImage(
+''')
+      return once(s, '      &image_animation);',
+        '      &image_animation);\n  if (image_foreground) context.EndLayer();')
+    change('third_party/blink/renderer/core/paint/image_painter.cc', image_paint)
     dom='third_party/blink/renderer/core/dom/'
     change(dom+'element.cc',lambda s:once(once(s,'#include "third_party/blink/renderer/core/dom/element.h"\n', '#include "third_party/blink/renderer/core/dom/element.h"\n'+INCLUDE),
        'void Element::RemovedFrom(ContainerNode& insertion_point) {',

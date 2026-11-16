@@ -27,7 +27,7 @@ SandiumElementColors& SandiumElementColors::From(Document& document) {
   return *value;
 }
 bool SandiumElementColors::Valid(int property, uint32_t rgb) {
-  return (property == 0 || property == 1) && rgb <= 0xffffff;
+  return (property == 0 || property == 1 || property == 2) && rgb <= 0xffffff;
 }
 bool SandiumElementColors::Eligible(const Element& element) const {
   const Document& document = element.GetDocument();
@@ -83,15 +83,18 @@ void SandiumElementColors::Prune() {
   }
 }
 bool SandiumElementColors::Preview(Element& element, int property, uint32_t rgb) {
-  if (!Valid(property, rgb) || !Eligible(element)) return false;
+  if (!Valid(property, rgb) || !Eligible(element) ||
+      (property == 2 && !element.HasTagName(html_names::kImgTag))) return false;
   CancelPreview();
   preview_ = MakeGarbageCollected<Entry>(&element);
-  (property == 0 ? preview_->foreground : preview_->background) = rgb;
+  (property == 0 ? preview_->foreground :
+      property == 1 ? preview_->background : preview_->image_foreground) = rgb;
   Invalidate(element);
   return true;
 }
 bool SandiumElementColors::Commit(Element& element, int property, uint32_t rgb) {
-  if (!Valid(property, rgb) || !Eligible(element)) return false;
+  if (!Valid(property, rgb) || !Eligible(element) ||
+      (property == 2 && !element.HasTagName(html_names::kImgTag))) return false;
   Prune();
   Entry* entry = nullptr;
   for (const auto& candidate : saved_) {
@@ -102,7 +105,8 @@ bool SandiumElementColors::Commit(Element& element, int property, uint32_t rgb) 
     entry = MakeGarbageCollected<Entry>(&element);
     saved_.push_back(entry);
   }
-  (property == 0 ? entry->foreground : entry->background) = rgb;
+  (property == 0 ? entry->foreground :
+      property == 1 ? entry->background : entry->image_foreground) = rgb;
   // Same renderer task: style cannot paint between the saved change and preview clear.
   CancelPreview();
   Invalidate(element);
@@ -135,6 +139,8 @@ void SandiumElementColors::ApplyEntry(const Entry& entry, ComputedStyleBuilder& 
     builder.SetInternalVisitedColor(color(*entry.foreground));
   }
   if (entry.background) builder.SetBackgroundColor(color(*entry.background));
+  if (entry.image_foreground)
+    builder.SetSandiumImageForeground(0xff000000u | *entry.image_foreground);
 }
 void SandiumElementColors::Apply(Element& element, ComputedStyleBuilder& builder) {
   bool has_override = preview_ && preview_->element == &element;
@@ -148,9 +154,17 @@ void SandiumElementColors::Apply(Element& element, ComputedStyleBuilder& builder
     return;
   }
   // This runs after the palette policy in the uncacheable per-element path.
-  builder.SetSandiumManualColorOverride(true);
-  builder.SetSandiumPaletteEnabled(false);
-  builder.SetColorSchemeForced(false);
+  bool has_surface_override = preview_ && preview_->element == &element &&
+      (preview_->foreground || preview_->background);
+  for (const auto& entry : saved_)
+    if (entry->element == &element)
+      has_surface_override |= entry->foreground.has_value() || entry->background.has_value();
+  // An image-only tint must not change the element/page background dark policy.
+  if (has_surface_override) {
+    builder.SetSandiumManualColorOverride(true);
+    builder.SetSandiumPaletteEnabled(false);
+    builder.SetColorSchemeForced(false);
+  }
   for (const auto& entry : saved_) if (entry->element == &element) ApplyEntry(*entry, builder);
   if (preview_ && preview_->element == &element) ApplyEntry(*preview_, builder);
 }

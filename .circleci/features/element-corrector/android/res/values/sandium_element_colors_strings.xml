@@ -2,9 +2,10 @@
 <resources>
  <string name="sandium_element_title">Correct element colors</string>
  <string name="sandium_element_select_hint">Tap the page element you want to correct.</string>
- <string name="sandium_element_choose_hint">Preview the color before saving. Some page elements cannot be selected.</string>
+ <string name="sandium_element_choose_hint">Preview before saving. Image artwork recolors the selected image, including its emblem, but keeps transparent areas. Opaque images become a solid color. Some elements cannot be selected.</string>
  <string name="sandium_element_foreground">Text</string>
  <string name="sandium_element_background">Background</string>
+ <string name="sandium_element_image">Image artwork</string>
  <string name="sandium_element_hex">Color: #RRGGBB</string>
  <string name="sandium_element_color">Color</string>
  <string name="sandium_element_preview">Preview</string>

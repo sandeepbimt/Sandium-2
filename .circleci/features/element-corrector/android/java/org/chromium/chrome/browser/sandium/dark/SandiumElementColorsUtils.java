@@ -20,6 +20,7 @@ import android.widget.LinearLayout;
 import android.widget.RadioButton;
 import android.widget.RadioGroup;
 import android.widget.TextView;
+import android.widget.ScrollView;
 import android.widget.Toast;
 
 import org.jni_zero.CalledByNative;
@@ -140,13 +141,16 @@ public final class SandiumElementColorsUtils {
             GradientDrawable background=new GradientDrawable();background.setColor(0xff1a1a1a);
             background.setCornerRadius(dp(16));body.setBackground(background);
             body.addView(label(R.string.sandium_element_choose_hint));
-            property=new RadioGroup(activity);property.setOrientation(RadioGroup.HORIZONTAL);
+            property=new RadioGroup(activity);property.setOrientation(RadioGroup.VERTICAL);
             RadioButton foreground=new RadioButton(activity);foreground.setId(View.generateViewId());
             foreground.setText(R.string.sandium_element_foreground);foreground.setTextColor(0xffeeeeee);
             RadioButton surface=new RadioButton(activity);surface.setId(View.generateViewId());
             surface.setText(R.string.sandium_element_background);surface.setTextColor(0xffeeeeee);
-            property.addView(foreground);property.addView(surface);property.check(surface.getId());
-            // Native property0 foreground,1 background. Only these typed constants cross JNI.
+            RadioButton image=new RadioButton(activity);image.setId(View.generateViewId());
+            image.setText(R.string.sandium_element_image);image.setTextColor(0xffeeeeee);
+            image.setTag(2);
+            property.addView(foreground);property.addView(surface);property.addView(image);property.check(surface.getId());
+            // Native property0 foreground,1 background,2 image artwork. Only these typed constants cross JNI.
             foreground.setTag(0);surface.setTag(1);body.addView(property);
             color=new EditText(activity);color.setSingleLine(true);color.setTextColor(0xffeeeeee);
             color.setHint(R.string.sandium_element_hex);color.setHintTextColor(0xffaaaaaa);
@@ -168,8 +172,9 @@ public final class SandiumElementColorsUtils {
             actions.addView(preview,new LinearLayout.LayoutParams(0,dp(48),1));
             actions.addView(save,new LinearLayout.LayoutParams(0,dp(48),1));body.addView(actions);
             body.addView(button(R.string.sandium_element_reset_site,()->confirmReset()));
+            ScrollView scroll=new ScrollView(activity);scroll.addView(body);
             dialog=new AlertDialog.Builder(activity).setTitle(R.string.sandium_element_title)
-                    .setView(body).setNegativeButton(R.string.sandium_element_cancel,(d,w)->close(true)).create();
+                    .setView(scroll).setNegativeButton(R.string.sandium_element_cancel,(d,w)->close(true)).create();
             dialog.setOnDismissListener(d->close(true));
             dialog.show();Window window=dialog.getWindow();
             if(window!=null)window.setGravity(Gravity.BOTTOM);
@@ -182,7 +187,7 @@ public final class SandiumElementColorsUtils {
             View selected=property.findViewById(property.getCheckedRadioButtonId());
             if(selected==null || !(selected.getTag() instanceof Integer))return;
             int mode=(Integer)selected.getTag();
-            if(mode!=0&&mode!=1)return;
+            if(mode!=0&&mode!=1&&mode!=2)return;
             if(!commit) {
                 if(!SandiumElementColorsUtilsJni.get().preview(tab,request,mode,rgb)) {
                     message(R.string.sandium_element_rejected);close(true);

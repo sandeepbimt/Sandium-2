@@ -58,7 +58,8 @@ bool ElementColorRuleStore::ValidRule(const base::DictValue& rule) {
       !BoundedText(rule.FindString("id"), 128, false) ||
       !BoundedText(rule.FindString("role"), 64, true)) return false;
   auto property = rule.FindInt("property"), rgb = rule.FindInt("rgb");
-  if (!property || (*property != 0 && *property != 1) || !rgb || *rgb < 0 || *rgb > 0xffffff) return false;
+  if (!property || (*property != 0 && *property != 1 && *property != 2) || !rgb || *rgb < 0 || *rgb > 0xffffff) return false;
+  if (*property == 2 && *rule.FindString("tag") != "img") return false;
   const auto* ancestors = rule.FindList("ancestors");
   if (!ancestors || ancestors->size() > 24) return false;
   for (const auto& item : *ancestors) {

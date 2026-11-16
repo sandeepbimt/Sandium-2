@@ -18,7 +18,7 @@ class Guards(unittest.TestCase):
   # Chromium d331de35 name_style_converter.py SHA256:
   # a1e3dd43238477fc04e68485b55e2001694cf9bef5eb41438cb1772f6f014783
   # make_names.py / name_utilities.tag_symbol_for_entry preserve HTML/IFrame.
-  expected=set("kAudioTag kBodyTag kButtonTag kCanvasTag kEmbedTag kFormTag kFrameTag kHTMLTag kIFrameTag kInputTag kLinkTag kMetaTag kObjectTag kOptionTag kScriptTag kSelectTag kStyleTag kTextareaTag kVideoTag".split())
+  expected=set("kImgTag kAudioTag kBodyTag kButtonTag kCanvasTag kEmbedTag kFormTag kFrameTag kHTMLTag kIFrameTag kInputTag kLinkTag kMetaTag kObjectTag kOptionTag kScriptTag kSelectTag kStyleTag kTextareaTag kVideoTag".split())
   text=(ROOT/'native/sandium_element_colors.cc').read_text()
   self.assertEqual(expected,set(re.findall(r'html_names::(k\w+Tag)',text)))
  def test_preview_document_guard(self):

@@ -40,6 +40,7 @@ class CORE_EXPORT SandiumElementColors final
     WeakMember<Element> element;
     std::optional<uint32_t> foreground;
     std::optional<uint32_t> background;
+    std::optional<uint32_t> image_foreground;
   };
   bool Eligible(const Element&) const;
   static bool Valid(int property, uint32_t rgb);

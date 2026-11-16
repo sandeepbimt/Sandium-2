@@ -119,3 +119,16 @@ test('native integer wire schema round trips without string-property mismatch',(
  assert.equal(matchRemembered(native,f.doc),f.header);
  assert.equal(matchRemembered({...native,property:'foreground'},f.doc),null);
 });
+test('image artwork is explicit and limited to img elements',()=>{
+ const f=fixture();const x=runtime(f);const h=x.engine.select(f.logo);
+ assert.equal(validateRule({path:captureTarget(f.logo,f.doc),property:'image',rgb:0xeeeeee},f.doc),true);
+ assert.equal(validateRule({...rule(f),property:'image'},f.doc),null);
+ assert.equal(x.calls.length,0); // Selection alone never changes colors.
+ x.engine.preview(h,'image',0xeeeeee);
+ assert.equal(x.calls.at(-1)[1][0].property,'image');
+ x.engine.cancelPreview();assert.deepEqual(x.calls.at(-1),['preview',[]]);
+ const remembered={...captureDescriptor(f.logo,f.doc),property:2,rgb:0xeeeeee};
+ assert.equal(matchRemembered(remembered,f.doc),f.logo);
+ assert.equal(matchRemembered({...captureDescriptor(f.header,f.doc),property:2,rgb:0},f.doc),null);
+ assert.equal(matchRemembered({...remembered,property:3},f.doc),null);
+});

@@ -15,7 +15,7 @@ class Composition(unittest.TestCase):
   path.write_text(text)
  def test_hooks_and_idempotence(self):
   edits=draft.compose(self.root)
-  self.assertEqual(len(edits),7)
+  self.assertEqual(len(edits),9)
   for path,data in edits.items():path.write_text(data)
   self.assertEqual(edits,draft.compose(self.root))
   s=(self.root/'third_party/blink/renderer/core/dom/element.cc').read_text()

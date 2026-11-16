@@ -23,9 +23,13 @@ public class ElementChooserTest {
   SandiumElementColorsUtils.start(a,t);long first=n.id;check(active().size()==1&&a.app.callbacks.size()==1);
   check(t.contents.observers==1);
   SandiumElementColorsUtils.onSelection(t,first);Object controller=active().get(t);check(AlertDialog.shown.size()==1);
+  check(AlertDialog.shown.get(0).body instanceof ScrollView);
   EditText color=(EditText)field(controller,"color");Button preview=(Button)field(controller,"preview");Button save=(Button)field(controller,"save");
   color.setText("url(x)");preview.performClick();check(n.previews==0&&color.error!=null);
   color.setText("#1A1A1A");preview.performClick();check(n.previews==1&&n.mode==1&&n.rgb==0x1a1a1a);
+  RadioGroup properties=(RadioGroup)field(controller,"property");
+  for(android.view.View v:properties.children)if(Integer.valueOf(2).equals(v.getTag()))properties.check(v.getId());
+  color.setText("#EEEEEE");preview.performClick();check(n.previews==2&&n.mode==2&&n.rgb==0xeeeeee);
   save.performClick();save.performClick();check(n.saves==1&&!save.enabled);
   SandiumElementColorsUtils.onSaveResult(t,first-1,0);check(active().size()==1);
   SandiumElementColorsUtils.onSaveResult(t,first,0);check(active().isEmpty()&&a.app.callbacks.isEmpty()&&t.contents.observers==0);
