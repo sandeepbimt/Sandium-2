@@ -106,6 +106,9 @@ jobs:
         keys:
         - sandium-bridge-base-v1-{{ checksum ".checkpoint-state/base.key" }}
     - run:
+        name: Extract verified Full base before downloading increments
+        command: python3 -u .circleci/bridge/full_driver.py restore-base
+    - run:
         name: Clear incoming payload 0
         command: rm -rf .checkpoint-incoming
     - restore_cache:
@@ -113,8 +116,8 @@ jobs:
         keys:
         - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-0.key" }}
     - run:
-        name: Verify and ingest required layer 0
-        command: python3 -u .circleci/bridge/full_driver.py ingest --slot 0
+        name: Verify, apply and release required layer 0
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 0
     - run:
         name: Clear incoming payload 1
         command: rm -rf .checkpoint-incoming
@@ -123,8 +126,8 @@ jobs:
         keys:
         - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-1.key" }}
     - run:
-        name: Verify and ingest required layer 1
-        command: python3 -u .circleci/bridge/full_driver.py ingest --slot 1
+        name: Verify, apply and release required layer 1
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 1
     - run:
         name: Clear incoming payload 2
         command: rm -rf .checkpoint-incoming
@@ -133,8 +136,8 @@ jobs:
         keys:
         - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-2.key" }}
     - run:
-        name: Verify and ingest required layer 2
-        command: python3 -u .circleci/bridge/full_driver.py ingest --slot 2
+        name: Verify, apply and release required layer 2
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 2
     - run:
         name: Clear incoming payload 3
         command: rm -rf .checkpoint-incoming
@@ -143,8 +146,8 @@ jobs:
         keys:
         - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-3.key" }}
     - run:
-        name: Verify and ingest required layer 3
-        command: python3 -u .circleci/bridge/full_driver.py ingest --slot 3
+        name: Verify, apply and release required layer 3
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 3
     - run:
         name: Clear incoming payload 4
         command: rm -rf .checkpoint-incoming
@@ -153,8 +156,8 @@ jobs:
         keys:
         - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-4.key" }}
     - run:
-        name: Verify and ingest required layer 4
-        command: python3 -u .circleci/bridge/full_driver.py ingest --slot 4
+        name: Verify, apply and release required layer 4
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 4
     - run:
         name: Clear incoming payload 5
         command: rm -rf .checkpoint-incoming
@@ -163,8 +166,8 @@ jobs:
         keys:
         - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-5.key" }}
     - run:
-        name: Verify and ingest required layer 5
-        command: python3 -u .circleci/bridge/full_driver.py ingest --slot 5
+        name: Verify, apply and release required layer 5
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 5
     - run:
         name: Clear incoming payload 6
         command: rm -rf .checkpoint-incoming
@@ -173,8 +176,8 @@ jobs:
         keys:
         - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-6.key" }}
     - run:
-        name: Verify and ingest required layer 6
-        command: python3 -u .circleci/bridge/full_driver.py ingest --slot 6
+        name: Verify, apply and release required layer 6
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 6
     - run:
         name: Clear incoming payload 7
         command: rm -rf .checkpoint-incoming
@@ -183,8 +186,8 @@ jobs:
         keys:
         - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-7.key" }}
     - run:
-        name: Verify and ingest required layer 7
-        command: python3 -u .circleci/bridge/full_driver.py ingest --slot 7
+        name: Verify, apply and release required layer 7
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 7
     - run:
         command: rm -rf .checkpoint-incoming
         name: Clear incoming payload 8
@@ -193,8 +196,8 @@ jobs:
         - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-8.key" }}
         name: Restore exact required layer 8
     - run:
-        command: python3 -u .circleci/bridge/full_driver.py ingest --slot 8
-        name: Verify and ingest required layer 8
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 8
+        name: Verify, apply and release required layer 8
     - run:
         command: rm -rf .checkpoint-incoming
         name: Clear incoming payload 9
@@ -203,8 +206,8 @@ jobs:
         - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-9.key" }}
         name: Restore exact required layer 9
     - run:
-        command: python3 -u .circleci/bridge/full_driver.py ingest --slot 9
-        name: Verify and ingest required layer 9
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 9
+        name: Verify, apply and release required layer 9
     - run:
         command: rm -rf .checkpoint-incoming
         name: Clear incoming payload 10
@@ -213,8 +216,8 @@ jobs:
         - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-10.key" }}
         name: Restore exact required layer 10
     - run:
-        command: python3 -u .circleci/bridge/full_driver.py ingest --slot 10
-        name: Verify and ingest required layer 10
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 10
+        name: Verify, apply and release required layer 10
     - run:
         command: rm -rf .checkpoint-incoming
         name: Clear incoming payload 11
@@ -223,8 +226,8 @@ jobs:
         - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-11.key" }}
         name: Restore exact required layer 11
     - run:
-        command: python3 -u .circleci/bridge/full_driver.py ingest --slot 11
-        name: Verify and ingest required layer 11
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 11
+        name: Verify, apply and release required layer 11
     - run:
         command: rm -rf .checkpoint-incoming
         name: Clear incoming payload 12
@@ -233,8 +236,8 @@ jobs:
         - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-12.key" }}
         name: Restore exact required layer 12
     - run:
-        command: python3 -u .circleci/bridge/full_driver.py ingest --slot 12
-        name: Verify and ingest required layer 12
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 12
+        name: Verify, apply and release required layer 12
     - run:
         command: rm -rf .checkpoint-incoming
         name: Clear incoming payload 13
@@ -243,8 +246,8 @@ jobs:
         - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-13.key" }}
         name: Restore exact required layer 13
     - run:
-        command: python3 -u .circleci/bridge/full_driver.py ingest --slot 13
-        name: Verify and ingest required layer 13
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 13
+        name: Verify, apply and release required layer 13
     - run:
         command: rm -rf .checkpoint-incoming
         name: Clear incoming payload 14
@@ -253,8 +256,8 @@ jobs:
         - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-14.key" }}
         name: Restore exact required layer 14
     - run:
-        command: python3 -u .circleci/bridge/full_driver.py ingest --slot 14
-        name: Verify and ingest required layer 14
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 14
+        name: Verify, apply and release required layer 14
     - run:
         command: rm -rf .checkpoint-incoming
         name: Clear incoming payload 15
@@ -263,11 +266,11 @@ jobs:
         - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-15.key" }}
         name: Restore exact required layer 15
     - run:
-        command: python3 -u .circleci/bridge/full_driver.py ingest --slot 15
-        name: Verify and ingest required layer 15
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 15
+        name: Verify, apply and release required layer 15
     - run:
-        name: Restore Full base with original eight workers, then accepted increments
-        command: python3 -u .circleci/bridge/full_driver.py restore
+        name: Verify complete sequential Full checkpoint restoration
+        command: python3 -u .circleci/bridge/full_driver.py restore-finish
         no_output_timeout: 35m
     - run:
         name: Inventory complete restored state before any preparation/build
@@ -539,6 +542,9 @@ jobs:
         keys:
         - sandium-bridge-base-v1-{{ checksum ".checkpoint-state/base.key" }}
     - run:
+        name: Extract verified Full base before downloading increments
+        command: python3 -u .circleci/bridge/full_driver.py restore-base
+    - run:
         name: Clear incoming payload 0
         command: rm -rf .checkpoint-incoming
     - restore_cache:
@@ -546,8 +552,8 @@ jobs:
         keys:
         - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-0.key" }}
     - run:
-        name: Verify and ingest required layer 0
-        command: python3 -u .circleci/bridge/full_driver.py ingest --slot 0
+        name: Verify, apply and release required layer 0
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 0
     - run:
         name: Clear incoming payload 1
         command: rm -rf .checkpoint-incoming
@@ -556,8 +562,8 @@ jobs:
         keys:
         - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-1.key" }}
     - run:
-        name: Verify and ingest required layer 1
-        command: python3 -u .circleci/bridge/full_driver.py ingest --slot 1
+        name: Verify, apply and release required layer 1
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 1
     - run:
         name: Clear incoming payload 2
         command: rm -rf .checkpoint-incoming
@@ -566,8 +572,8 @@ jobs:
         keys:
         - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-2.key" }}
     - run:
-        name: Verify and ingest required layer 2
-        command: python3 -u .circleci/bridge/full_driver.py ingest --slot 2
+        name: Verify, apply and release required layer 2
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 2
     - run:
         name: Clear incoming payload 3
         command: rm -rf .checkpoint-incoming
@@ -576,8 +582,8 @@ jobs:
         keys:
         - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-3.key" }}
     - run:
-        name: Verify and ingest required layer 3
-        command: python3 -u .circleci/bridge/full_driver.py ingest --slot 3
+        name: Verify, apply and release required layer 3
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 3
     - run:
         name: Clear incoming payload 4
         command: rm -rf .checkpoint-incoming
@@ -586,8 +592,8 @@ jobs:
         keys:
         - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-4.key" }}
     - run:
-        name: Verify and ingest required layer 4
-        command: python3 -u .circleci/bridge/full_driver.py ingest --slot 4
+        name: Verify, apply and release required layer 4
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 4
     - run:
         name: Clear incoming payload 5
         command: rm -rf .checkpoint-incoming
@@ -596,8 +602,8 @@ jobs:
         keys:
         - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-5.key" }}
     - run:
-        name: Verify and ingest required layer 5
-        command: python3 -u .circleci/bridge/full_driver.py ingest --slot 5
+        name: Verify, apply and release required layer 5
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 5
     - run:
         name: Clear incoming payload 6
         command: rm -rf .checkpoint-incoming
@@ -606,8 +612,8 @@ jobs:
         keys:
         - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-6.key" }}
     - run:
-        name: Verify and ingest required layer 6
-        command: python3 -u .circleci/bridge/full_driver.py ingest --slot 6
+        name: Verify, apply and release required layer 6
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 6
     - run:
         name: Clear incoming payload 7
         command: rm -rf .checkpoint-incoming
@@ -616,8 +622,8 @@ jobs:
         keys:
         - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-7.key" }}
     - run:
-        name: Verify and ingest required layer 7
-        command: python3 -u .circleci/bridge/full_driver.py ingest --slot 7
+        name: Verify, apply and release required layer 7
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 7
     - run:
         command: rm -rf .checkpoint-incoming
         name: Clear incoming payload 8
@@ -626,8 +632,8 @@ jobs:
         - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-8.key" }}
         name: Restore exact required layer 8
     - run:
-        command: python3 -u .circleci/bridge/full_driver.py ingest --slot 8
-        name: Verify and ingest required layer 8
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 8
+        name: Verify, apply and release required layer 8
     - run:
         command: rm -rf .checkpoint-incoming
         name: Clear incoming payload 9
@@ -636,8 +642,8 @@ jobs:
         - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-9.key" }}
         name: Restore exact required layer 9
     - run:
-        command: python3 -u .circleci/bridge/full_driver.py ingest --slot 9
-        name: Verify and ingest required layer 9
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 9
+        name: Verify, apply and release required layer 9
     - run:
         command: rm -rf .checkpoint-incoming
         name: Clear incoming payload 10
@@ -646,8 +652,8 @@ jobs:
         - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-10.key" }}
         name: Restore exact required layer 10
     - run:
-        command: python3 -u .circleci/bridge/full_driver.py ingest --slot 10
-        name: Verify and ingest required layer 10
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 10
+        name: Verify, apply and release required layer 10
     - run:
         command: rm -rf .checkpoint-incoming
         name: Clear incoming payload 11
@@ -656,8 +662,8 @@ jobs:
         - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-11.key" }}
         name: Restore exact required layer 11
     - run:
-        command: python3 -u .circleci/bridge/full_driver.py ingest --slot 11
-        name: Verify and ingest required layer 11
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 11
+        name: Verify, apply and release required layer 11
     - run:
         command: rm -rf .checkpoint-incoming
         name: Clear incoming payload 12
@@ -666,8 +672,8 @@ jobs:
         - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-12.key" }}
         name: Restore exact required layer 12
     - run:
-        command: python3 -u .circleci/bridge/full_driver.py ingest --slot 12
-        name: Verify and ingest required layer 12
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 12
+        name: Verify, apply and release required layer 12
     - run:
         command: rm -rf .checkpoint-incoming
         name: Clear incoming payload 13
@@ -676,8 +682,8 @@ jobs:
         - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-13.key" }}
         name: Restore exact required layer 13
     - run:
-        command: python3 -u .circleci/bridge/full_driver.py ingest --slot 13
-        name: Verify and ingest required layer 13
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 13
+        name: Verify, apply and release required layer 13
     - run:
         command: rm -rf .checkpoint-incoming
         name: Clear incoming payload 14
@@ -686,8 +692,8 @@ jobs:
         - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-14.key" }}
         name: Restore exact required layer 14
     - run:
-        command: python3 -u .circleci/bridge/full_driver.py ingest --slot 14
-        name: Verify and ingest required layer 14
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 14
+        name: Verify, apply and release required layer 14
     - run:
         command: rm -rf .checkpoint-incoming
         name: Clear incoming payload 15
@@ -696,11 +702,11 @@ jobs:
         - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-15.key" }}
         name: Restore exact required layer 15
     - run:
-        command: python3 -u .circleci/bridge/full_driver.py ingest --slot 15
-        name: Verify and ingest required layer 15
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 15
+        name: Verify, apply and release required layer 15
     - run:
-        name: Restore Full base with original eight workers, then accepted increments
-        command: python3 -u .circleci/bridge/full_driver.py restore
+        name: Verify complete sequential Full checkpoint restoration
+        command: python3 -u .circleci/bridge/full_driver.py restore-finish
         no_output_timeout: 35m
     - run:
         name: Inventory complete restored state before any preparation/build
@@ -957,6 +963,9 @@ jobs:
         keys:
         - sandium-bridge-base-v1-{{ checksum ".checkpoint-state/base.key" }}
     - run:
+        name: Extract verified Full base before downloading increments
+        command: python3 -u .circleci/bridge/full_driver.py restore-base
+    - run:
         name: Clear incoming payload 0
         command: rm -rf .checkpoint-incoming
     - restore_cache:
@@ -964,8 +973,8 @@ jobs:
         keys:
         - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-0.key" }}
     - run:
-        name: Verify and ingest required layer 0
-        command: python3 -u .circleci/bridge/full_driver.py ingest --slot 0
+        name: Verify, apply and release required layer 0
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 0
     - run:
         name: Clear incoming payload 1
         command: rm -rf .checkpoint-incoming
@@ -974,8 +983,8 @@ jobs:
         keys:
         - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-1.key" }}
     - run:
-        name: Verify and ingest required layer 1
-        command: python3 -u .circleci/bridge/full_driver.py ingest --slot 1
+        name: Verify, apply and release required layer 1
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 1
     - run:
         name: Clear incoming payload 2
         command: rm -rf .checkpoint-incoming
@@ -984,8 +993,8 @@ jobs:
         keys:
         - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-2.key" }}
     - run:
-        name: Verify and ingest required layer 2
-        command: python3 -u .circleci/bridge/full_driver.py ingest --slot 2
+        name: Verify, apply and release required layer 2
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 2
     - run:
         name: Clear incoming payload 3
         command: rm -rf .checkpoint-incoming
@@ -994,8 +1003,8 @@ jobs:
         keys:
         - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-3.key" }}
     - run:
-        name: Verify and ingest required layer 3
-        command: python3 -u .circleci/bridge/full_driver.py ingest --slot 3
+        name: Verify, apply and release required layer 3
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 3
     - run:
         name: Clear incoming payload 4
         command: rm -rf .checkpoint-incoming
@@ -1004,8 +1013,8 @@ jobs:
         keys:
         - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-4.key" }}
     - run:
-        name: Verify and ingest required layer 4
-        command: python3 -u .circleci/bridge/full_driver.py ingest --slot 4
+        name: Verify, apply and release required layer 4
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 4
     - run:
         name: Clear incoming payload 5
         command: rm -rf .checkpoint-incoming
@@ -1014,8 +1023,8 @@ jobs:
         keys:
         - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-5.key" }}
     - run:
-        name: Verify and ingest required layer 5
-        command: python3 -u .circleci/bridge/full_driver.py ingest --slot 5
+        name: Verify, apply and release required layer 5
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 5
     - run:
         name: Clear incoming payload 6
         command: rm -rf .checkpoint-incoming
@@ -1024,8 +1033,8 @@ jobs:
         keys:
         - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-6.key" }}
     - run:
-        name: Verify and ingest required layer 6
-        command: python3 -u .circleci/bridge/full_driver.py ingest --slot 6
+        name: Verify, apply and release required layer 6
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 6
     - run:
         name: Clear incoming payload 7
         command: rm -rf .checkpoint-incoming
@@ -1034,8 +1043,8 @@ jobs:
         keys:
         - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-7.key" }}
     - run:
-        name: Verify and ingest required layer 7
-        command: python3 -u .circleci/bridge/full_driver.py ingest --slot 7
+        name: Verify, apply and release required layer 7
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 7
     - run:
         command: rm -rf .checkpoint-incoming
         name: Clear incoming payload 8
@@ -1044,8 +1053,8 @@ jobs:
         - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-8.key" }}
         name: Restore exact required layer 8
     - run:
-        command: python3 -u .circleci/bridge/full_driver.py ingest --slot 8
-        name: Verify and ingest required layer 8
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 8
+        name: Verify, apply and release required layer 8
     - run:
         command: rm -rf .checkpoint-incoming
         name: Clear incoming payload 9
@@ -1054,8 +1063,8 @@ jobs:
         - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-9.key" }}
         name: Restore exact required layer 9
     - run:
-        command: python3 -u .circleci/bridge/full_driver.py ingest --slot 9
-        name: Verify and ingest required layer 9
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 9
+        name: Verify, apply and release required layer 9
     - run:
         command: rm -rf .checkpoint-incoming
         name: Clear incoming payload 10
@@ -1064,8 +1073,8 @@ jobs:
         - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-10.key" }}
         name: Restore exact required layer 10
     - run:
-        command: python3 -u .circleci/bridge/full_driver.py ingest --slot 10
-        name: Verify and ingest required layer 10
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 10
+        name: Verify, apply and release required layer 10
     - run:
         command: rm -rf .checkpoint-incoming
         name: Clear incoming payload 11
@@ -1074,8 +1083,8 @@ jobs:
         - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-11.key" }}
         name: Restore exact required layer 11
     - run:
-        command: python3 -u .circleci/bridge/full_driver.py ingest --slot 11
-        name: Verify and ingest required layer 11
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 11
+        name: Verify, apply and release required layer 11
     - run:
         command: rm -rf .checkpoint-incoming
         name: Clear incoming payload 12
@@ -1084,8 +1093,8 @@ jobs:
         - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-12.key" }}
         name: Restore exact required layer 12
     - run:
-        command: python3 -u .circleci/bridge/full_driver.py ingest --slot 12
-        name: Verify and ingest required layer 12
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 12
+        name: Verify, apply and release required layer 12
     - run:
         command: rm -rf .checkpoint-incoming
         name: Clear incoming payload 13
@@ -1094,8 +1103,8 @@ jobs:
         - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-13.key" }}
         name: Restore exact required layer 13
     - run:
-        command: python3 -u .circleci/bridge/full_driver.py ingest --slot 13
-        name: Verify and ingest required layer 13
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 13
+        name: Verify, apply and release required layer 13
     - run:
         command: rm -rf .checkpoint-incoming
         name: Clear incoming payload 14
@@ -1104,8 +1113,8 @@ jobs:
         - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-14.key" }}
         name: Restore exact required layer 14
     - run:
-        command: python3 -u .circleci/bridge/full_driver.py ingest --slot 14
-        name: Verify and ingest required layer 14
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 14
+        name: Verify, apply and release required layer 14
     - run:
         command: rm -rf .checkpoint-incoming
         name: Clear incoming payload 15
@@ -1114,11 +1123,11 @@ jobs:
         - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-15.key" }}
         name: Restore exact required layer 15
     - run:
-        command: python3 -u .circleci/bridge/full_driver.py ingest --slot 15
-        name: Verify and ingest required layer 15
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 15
+        name: Verify, apply and release required layer 15
     - run:
-        name: Restore Full base with original eight workers, then accepted increments
-        command: python3 -u .circleci/bridge/full_driver.py restore
+        name: Verify complete sequential Full checkpoint restoration
+        command: python3 -u .circleci/bridge/full_driver.py restore-finish
         no_output_timeout: 35m
     - run:
         name: Inventory complete restored state before any preparation/build
@@ -1375,6 +1384,9 @@ jobs:
         keys:
         - sandium-bridge-base-v1-{{ checksum ".checkpoint-state/base.key" }}
     - run:
+        name: Extract verified Full base before downloading increments
+        command: python3 -u .circleci/bridge/full_driver.py restore-base
+    - run:
         name: Clear incoming payload 0
         command: rm -rf .checkpoint-incoming
     - restore_cache:
@@ -1382,8 +1394,8 @@ jobs:
         keys:
         - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-0.key" }}
     - run:
-        name: Verify and ingest required layer 0
-        command: python3 -u .circleci/bridge/full_driver.py ingest --slot 0
+        name: Verify, apply and release required layer 0
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 0
     - run:
         name: Clear incoming payload 1
         command: rm -rf .checkpoint-incoming
@@ -1392,8 +1404,8 @@ jobs:
         keys:
         - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-1.key" }}
     - run:
-        name: Verify and ingest required layer 1
-        command: python3 -u .circleci/bridge/full_driver.py ingest --slot 1
+        name: Verify, apply and release required layer 1
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 1
     - run:
         name: Clear incoming payload 2
         command: rm -rf .checkpoint-incoming
@@ -1402,8 +1414,8 @@ jobs:
         keys:
         - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-2.key" }}
     - run:
-        name: Verify and ingest required layer 2
-        command: python3 -u .circleci/bridge/full_driver.py ingest --slot 2
+        name: Verify, apply and release required layer 2
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 2
     - run:
         name: Clear incoming payload 3
         command: rm -rf .checkpoint-incoming
@@ -1412,8 +1424,8 @@ jobs:
         keys:
         - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-3.key" }}
     - run:
-        name: Verify and ingest required layer 3
-        command: python3 -u .circleci/bridge/full_driver.py ingest --slot 3
+        name: Verify, apply and release required layer 3
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 3
     - run:
         name: Clear incoming payload 4
         command: rm -rf .checkpoint-incoming
@@ -1422,8 +1434,8 @@ jobs:
         keys:
         - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-4.key" }}
     - run:
-        name: Verify and ingest required layer 4
-        command: python3 -u .circleci/bridge/full_driver.py ingest --slot 4
+        name: Verify, apply and release required layer 4
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 4
     - run:
         name: Clear incoming payload 5
         command: rm -rf .checkpoint-incoming
@@ -1432,8 +1444,8 @@ jobs:
         keys:
         - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-5.key" }}
     - run:
-        name: Verify and ingest required layer 5
-        command: python3 -u .circleci/bridge/full_driver.py ingest --slot 5
+        name: Verify, apply and release required layer 5
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 5
     - run:
         name: Clear incoming payload 6
         command: rm -rf .checkpoint-incoming
@@ -1442,8 +1454,8 @@ jobs:
         keys:
         - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-6.key" }}
     - run:
-        name: Verify and ingest required layer 6
-        command: python3 -u .circleci/bridge/full_driver.py ingest --slot 6
+        name: Verify, apply and release required layer 6
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 6
     - run:
         name: Clear incoming payload 7
         command: rm -rf .checkpoint-incoming
@@ -1452,8 +1464,8 @@ jobs:
         keys:
         - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-7.key" }}
     - run:
-        name: Verify and ingest required layer 7
-        command: python3 -u .circleci/bridge/full_driver.py ingest --slot 7
+        name: Verify, apply and release required layer 7
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 7
     - run:
         command: rm -rf .checkpoint-incoming
         name: Clear incoming payload 8
@@ -1462,8 +1474,8 @@ jobs:
         - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-8.key" }}
         name: Restore exact required layer 8
     - run:
-        command: python3 -u .circleci/bridge/full_driver.py ingest --slot 8
-        name: Verify and ingest required layer 8
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 8
+        name: Verify, apply and release required layer 8
     - run:
         command: rm -rf .checkpoint-incoming
         name: Clear incoming payload 9
@@ -1472,8 +1484,8 @@ jobs:
         - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-9.key" }}
         name: Restore exact required layer 9
     - run:
-        command: python3 -u .circleci/bridge/full_driver.py ingest --slot 9
-        name: Verify and ingest required layer 9
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 9
+        name: Verify, apply and release required layer 9
     - run:
         command: rm -rf .checkpoint-incoming
         name: Clear incoming payload 10
@@ -1482,8 +1494,8 @@ jobs:
         - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-10.key" }}
         name: Restore exact required layer 10
     - run:
-        command: python3 -u .circleci/bridge/full_driver.py ingest --slot 10
-        name: Verify and ingest required layer 10
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 10
+        name: Verify, apply and release required layer 10
     - run:
         command: rm -rf .checkpoint-incoming
         name: Clear incoming payload 11
@@ -1492,8 +1504,8 @@ jobs:
         - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-11.key" }}
         name: Restore exact required layer 11
     - run:
-        command: python3 -u .circleci/bridge/full_driver.py ingest --slot 11
-        name: Verify and ingest required layer 11
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 11
+        name: Verify, apply and release required layer 11
     - run:
         command: rm -rf .checkpoint-incoming
         name: Clear incoming payload 12
@@ -1502,8 +1514,8 @@ jobs:
         - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-12.key" }}
         name: Restore exact required layer 12
     - run:
-        command: python3 -u .circleci/bridge/full_driver.py ingest --slot 12
-        name: Verify and ingest required layer 12
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 12
+        name: Verify, apply and release required layer 12
     - run:
         command: rm -rf .checkpoint-incoming
         name: Clear incoming payload 13
@@ -1512,8 +1524,8 @@ jobs:
         - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-13.key" }}
         name: Restore exact required layer 13
     - run:
-        command: python3 -u .circleci/bridge/full_driver.py ingest --slot 13
-        name: Verify and ingest required layer 13
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 13
+        name: Verify, apply and release required layer 13
     - run:
         command: rm -rf .checkpoint-incoming
         name: Clear incoming payload 14
@@ -1522,8 +1534,8 @@ jobs:
         - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-14.key" }}
         name: Restore exact required layer 14
     - run:
-        command: python3 -u .circleci/bridge/full_driver.py ingest --slot 14
-        name: Verify and ingest required layer 14
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 14
+        name: Verify, apply and release required layer 14
     - run:
         command: rm -rf .checkpoint-incoming
         name: Clear incoming payload 15
@@ -1532,11 +1544,11 @@ jobs:
         - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-15.key" }}
         name: Restore exact required layer 15
     - run:
-        command: python3 -u .circleci/bridge/full_driver.py ingest --slot 15
-        name: Verify and ingest required layer 15
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 15
+        name: Verify, apply and release required layer 15
     - run:
-        name: Restore Full base with original eight workers, then accepted increments
-        command: python3 -u .circleci/bridge/full_driver.py restore
+        name: Verify complete sequential Full checkpoint restoration
+        command: python3 -u .circleci/bridge/full_driver.py restore-finish
         no_output_timeout: 35m
     - run:
         name: Inventory complete restored state before any preparation/build
@@ -1793,6 +1805,9 @@ jobs:
         keys:
         - sandium-bridge-base-v1-{{ checksum ".checkpoint-state/base.key" }}
     - run:
+        name: Extract verified Full base before downloading increments
+        command: python3 -u .circleci/bridge/full_driver.py restore-base
+    - run:
         name: Clear incoming payload 0
         command: rm -rf .checkpoint-incoming
     - restore_cache:
@@ -1800,8 +1815,8 @@ jobs:
         keys:
         - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-0.key" }}
     - run:
-        name: Verify and ingest required layer 0
-        command: python3 -u .circleci/bridge/full_driver.py ingest --slot 0
+        name: Verify, apply and release required layer 0
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 0
     - run:
         name: Clear incoming payload 1
         command: rm -rf .checkpoint-incoming
@@ -1810,8 +1825,8 @@ jobs:
         keys:
         - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-1.key" }}
     - run:
-        name: Verify and ingest required layer 1
-        command: python3 -u .circleci/bridge/full_driver.py ingest --slot 1
+        name: Verify, apply and release required layer 1
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 1
     - run:
         name: Clear incoming payload 2
         command: rm -rf .checkpoint-incoming
@@ -1820,8 +1835,8 @@ jobs:
         keys:
         - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-2.key" }}
     - run:
-        name: Verify and ingest required layer 2
-        command: python3 -u .circleci/bridge/full_driver.py ingest --slot 2
+        name: Verify, apply and release required layer 2
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 2
     - run:
         name: Clear incoming payload 3
         command: rm -rf .checkpoint-incoming
@@ -1830,8 +1845,8 @@ jobs:
         keys:
         - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-3.key" }}
     - run:
-        name: Verify and ingest required layer 3
-        command: python3 -u .circleci/bridge/full_driver.py ingest --slot 3
+        name: Verify, apply and release required layer 3
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 3
     - run:
         name: Clear incoming payload 4
         command: rm -rf .checkpoint-incoming
@@ -1840,8 +1855,8 @@ jobs:
         keys:
         - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-4.key" }}
     - run:
-        name: Verify and ingest required layer 4
-        command: python3 -u .circleci/bridge/full_driver.py ingest --slot 4
+        name: Verify, apply and release required layer 4
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 4
     - run:
         name: Clear incoming payload 5
         command: rm -rf .checkpoint-incoming
@@ -1850,8 +1865,8 @@ jobs:
         keys:
         - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-5.key" }}
     - run:
-        name: Verify and ingest required layer 5
-        command: python3 -u .circleci/bridge/full_driver.py ingest --slot 5
+        name: Verify, apply and release required layer 5
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 5
     - run:
         name: Clear incoming payload 6
         command: rm -rf .checkpoint-incoming
@@ -1860,8 +1875,8 @@ jobs:
         keys:
         - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-6.key" }}
     - run:
-        name: Verify and ingest required layer 6
-        command: python3 -u .circleci/bridge/full_driver.py ingest --slot 6
+        name: Verify, apply and release required layer 6
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 6
     - run:
         name: Clear incoming payload 7
         command: rm -rf .checkpoint-incoming
@@ -1870,8 +1885,8 @@ jobs:
         keys:
         - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-7.key" }}
     - run:
-        name: Verify and ingest required layer 7
-        command: python3 -u .circleci/bridge/full_driver.py ingest --slot 7
+        name: Verify, apply and release required layer 7
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 7
     - run:
         command: rm -rf .checkpoint-incoming
         name: Clear incoming payload 8
@@ -1880,8 +1895,8 @@ jobs:
         - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-8.key" }}
         name: Restore exact required layer 8
     - run:
-        command: python3 -u .circleci/bridge/full_driver.py ingest --slot 8
-        name: Verify and ingest required layer 8
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 8
+        name: Verify, apply and release required layer 8
     - run:
         command: rm -rf .checkpoint-incoming
         name: Clear incoming payload 9
@@ -1890,8 +1905,8 @@ jobs:
         - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-9.key" }}
         name: Restore exact required layer 9
     - run:
-        command: python3 -u .circleci/bridge/full_driver.py ingest --slot 9
-        name: Verify and ingest required layer 9
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 9
+        name: Verify, apply and release required layer 9
     - run:
         command: rm -rf .checkpoint-incoming
         name: Clear incoming payload 10
@@ -1900,8 +1915,8 @@ jobs:
         - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-10.key" }}
         name: Restore exact required layer 10
     - run:
-        command: python3 -u .circleci/bridge/full_driver.py ingest --slot 10
-        name: Verify and ingest required layer 10
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 10
+        name: Verify, apply and release required layer 10
     - run:
         command: rm -rf .checkpoint-incoming
         name: Clear incoming payload 11
@@ -1910,8 +1925,8 @@ jobs:
         - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-11.key" }}
         name: Restore exact required layer 11
     - run:
-        command: python3 -u .circleci/bridge/full_driver.py ingest --slot 11
-        name: Verify and ingest required layer 11
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 11
+        name: Verify, apply and release required layer 11
     - run:
         command: rm -rf .checkpoint-incoming
         name: Clear incoming payload 12
@@ -1920,8 +1935,8 @@ jobs:
         - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-12.key" }}
         name: Restore exact required layer 12
     - run:
-        command: python3 -u .circleci/bridge/full_driver.py ingest --slot 12
-        name: Verify and ingest required layer 12
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 12
+        name: Verify, apply and release required layer 12
     - run:
         command: rm -rf .checkpoint-incoming
         name: Clear incoming payload 13
@@ -1930,8 +1945,8 @@ jobs:
         - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-13.key" }}
         name: Restore exact required layer 13
     - run:
-        command: python3 -u .circleci/bridge/full_driver.py ingest --slot 13
-        name: Verify and ingest required layer 13
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 13
+        name: Verify, apply and release required layer 13
     - run:
         command: rm -rf .checkpoint-incoming
         name: Clear incoming payload 14
@@ -1940,8 +1955,8 @@ jobs:
         - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-14.key" }}
         name: Restore exact required layer 14
     - run:
-        command: python3 -u .circleci/bridge/full_driver.py ingest --slot 14
-        name: Verify and ingest required layer 14
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 14
+        name: Verify, apply and release required layer 14
     - run:
         command: rm -rf .checkpoint-incoming
         name: Clear incoming payload 15
@@ -1950,11 +1965,11 @@ jobs:
         - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-15.key" }}
         name: Restore exact required layer 15
     - run:
-        command: python3 -u .circleci/bridge/full_driver.py ingest --slot 15
-        name: Verify and ingest required layer 15
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 15
+        name: Verify, apply and release required layer 15
     - run:
-        name: Restore Full base with original eight workers, then accepted increments
-        command: python3 -u .circleci/bridge/full_driver.py restore
+        name: Verify complete sequential Full checkpoint restoration
+        command: python3 -u .circleci/bridge/full_driver.py restore-finish
         no_output_timeout: 35m
     - run:
         name: Inventory complete restored state before any preparation/build

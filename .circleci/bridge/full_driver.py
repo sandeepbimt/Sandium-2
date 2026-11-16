@@ -68,6 +68,97 @@ def maintenance_check():
     if not (report['capacity_due'] or report['refresh_due']):d.c.halt()
 
 
+def restore_space(phase):
+    usage=shutil.disk_usage(d.ROOT);fs=os.statvfs(d.ROOT)
+    print('FULL_RESTORE_SPACE',dict(phase=phase,free_bytes=usage.free,
+        free_inodes=fs.f_favail),flush=True)
+
+
+def sequential_selection():
+    selected=d.c.read(d.STATE/'selected.json')
+    payload=d.valid(selected)
+    return selected,payload['plan']
+
+
+def restore_base():
+    """Ordinary Full only: unpack base before downloading ANY delta payload."""
+    selected,plan=sequential_selection()
+    state=d.STATE/'sequential-restore.json'
+    if state.exists() or (d.STATE/'restored-proof.json').exists():
+        raise ValueError('Sequential restore requires fresh job state')
+    if (d.ROOT/'brave-work').exists() or (d.ROOT/'brave-work').is_symlink():
+        raise ValueError('Sequential restore requires empty workspace')
+    if d.LAYERS.exists() and (d.LAYERS.is_symlink() or any(d.LAYERS.iterdir())):
+        raise ValueError('Base extraction must precede delta ingestion')
+    raw=(d.ROOT/d.MANIFEST).read_bytes()
+    if bridge.base_id(raw)!=plan['base']['id'] or bridge.digest(raw)!=plan['base']['manifest_sha256']:
+        raise ValueError('Wrong sequential base manifest')
+    manifest=json.loads(raw)
+    if len(manifest.get('shards',[]))!=8:raise ValueError('Expected eight base shards')
+    shards,_=cli.local_restore_inputs(d.ROOT,manifest,[])
+    progress=dict(receipt=selected['id'],head=plan['base']['id'],next_slot=0,busy=True)
+    d.c.save(state,progress)
+    restore_space('before-base')
+    cli.run_bounded([os.sys.executable,'-u',str(d.LEGACY),'restore','--root',str(d.ROOT)],d.operation_budget-10)
+    released=sum(cli.release_local_input(path) for path in shards)
+    print('FULL_LOCAL_BASE_INPUTS_RELEASED',dict(bytes=released),flush=True)
+    progress['busy']=False;d.c.save(state,progress)
+    restore_space('after-base')
+
+
+def sequential_progress():
+    selected,plan=sequential_selection()
+    state=d.c.read(d.STATE/'sequential-restore.json')
+    if state.get('receipt')!=selected['id'] or state.get('busy') is not False:
+        raise ValueError('Unbound or interrupted sequential restore; use fresh job')
+    slot=state.get('next_slot')
+    if type(slot) is not int or not 0<=slot<=len(plan['layers']):
+        raise ValueError('Invalid sequential restore cursor')
+    expected=plan['base']['id'] if slot==0 else plan['layers'][slot-1]['id']
+    if state.get('head')!=expected:raise ValueError('Sequential parent mismatch')
+    if (d.STATE/'restored-proof.json').exists():raise ValueError('Restore already finalized')
+    return selected,plan,state
+
+
+def restore_layer(slot):
+    selected,plan,state=sequential_progress()
+    if type(slot) is not int or not 0<=slot<16:raise ValueError('Invalid restore slot')
+    if slot>=len(plan['layers']):
+        if state['next_slot']!=len(plan['layers']):raise ValueError('Missing earlier layer')
+        return
+    if slot!=state['next_slot']:raise ValueError('Repeated or unordered restore slot')
+    record=plan['layers'][slot]
+    if record['parent']!=state['head']:raise ValueError('Wrong layer parent')
+    # Bind envelope and refuse symlink inputs before moving into the local cache.
+    if d.INCOMING.is_symlink():raise ValueError('Unsafe incoming cache directory')
+    incoming=d.INCOMING/'payload.zip'
+    if incoming.is_symlink() or not incoming.is_file():raise ValueError('Unsafe incoming delta')
+    if d.LAYERS.is_symlink():raise ValueError('Unsafe layer cache directory')
+    if d.LAYERS.exists() and any(d.LAYERS.iterdir()):raise ValueError('Unconsumed delta input')
+    state['busy']=True;d.c.save(d.STATE/'sequential-restore.json',state)
+    d.ingest(slot)
+    archive=d.LAYERS/f'{slot}.zip'
+    restore_space('before-layer-'+str(slot))
+    head=sparse_restore.apply_chain(d.ROOT/'brave-work',
+        [dict(record,archive=str(archive))],state['head'])
+    if head!=record['id']:raise ValueError('Unexpected applied head')
+    released=cli.release_local_input(archive)
+    state.update(head=head,next_slot=slot+1,busy=False)
+    d.c.save(d.STATE/'sequential-restore.json',state)
+    print('FULL_LOCAL_DELTA_INPUT_RELEASED',dict(slot=slot,bytes=released),flush=True)
+    restore_space('after-layer-'+str(slot))
+
+
+def restore_finish():
+    selected,plan,state=sequential_progress()
+    if state['next_slot']!=len(plan['layers']) or state['head']!=plan['head']:
+        raise ValueError('Incomplete sequential restore')
+    # This is the only phase allowed to certify the entire accepted chain.
+    cli.atomic(d.ROOT/'.bridge-restored.json',dict(head=plan['head'],base=plan['base']['manifest_sha256']))
+    d.c.save(d.STATE/'restored-proof.json',dict(receipt=selected['id'],head=plan['head']))
+    restore_space('complete')
+
+
 def capture():
     d.gate();selected=d.c.read(d.STATE/'selected.json');p=d.valid(selected);plan=p['plan']
     if len(plan['layers'])>=16:raise ValueError('Maintenance required: incremental slots exhausted')
@@ -244,13 +335,13 @@ def publish():
 if __name__=='__main__':
     parser=argparse.ArgumentParser();parser.add_argument('phase');parser.add_argument('--slot',type=int);a=parser.parse_args()
     started=d.c.read(d.STATE/'job-start.json')['epoch'] if (d.STATE/'job-start.json').exists() else time.time()
-    remaining=3300-(time.time()-started)-(300 if a.phase=='capture' else 600 if a.phase in ('restore','maintenance-capture') else 0)
+    remaining=3300-(time.time()-started)-(300 if a.phase=='capture' else 600 if a.phase in ('restore','restore-base','restore-layer','maintenance-capture') else 0)
     d.operation_budget=min(900 if a.phase=='capture' else 2700,remaining)
     if d.operation_budget<=0:raise ValueError('Insufficient job time for checkpoint operation')
     phases={'gate':d.gate,'seed-select':lambda:d.select(True),'select':d.select,'precheck-select':lambda:d.select(precheck=True),
-            'seed-capture':d.seed_capture,'ingest':lambda:d.ingest(a.slot),'restore':d.restore,'verify-restored':d.verify_restored,
+            'seed-capture':d.seed_capture,'ingest':lambda:d.ingest(a.slot),'restore':d.restore,'restore-base':restore_base,'restore-layer':lambda:restore_layer(a.slot),'restore-finish':restore_finish,'verify-restored':d.verify_restored,
             'begin':d.begin,'capture':capture,'publish':publish,'final':d.c.final_gate,
             'post-publish-eligibility':post_publish_eligibility,'optional-check':optional_check,'maintenance-check':maintenance_check,'maintenance-capture':maintenance_capture,
             'maintenance-clear-saved-local':maintenance_clear_saved_local,'maintenance-readback':maintenance_readback}
-    with d.Watchdog(d.operation_budget,stall_seconds=d.operation_budget if a.phase in ('restore','maintenance-capture','maintenance-readback','seed-capture') else 300):
+    with d.Watchdog(d.operation_budget,stall_seconds=d.operation_budget if a.phase in ('restore','restore-base','restore-layer','maintenance-capture','maintenance-readback','seed-capture') else 300):
         phases[a.phase]()

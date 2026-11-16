@@ -33,7 +33,7 @@ class FullWiring(unittest.TestCase):
    saves=[s['save_cache']['key'] for s in j['steps'] if isinstance(s,dict) and 'save_cache' in s]
    self.assertFalse(any(k.startswith('sandium-bridge-base-v1-') for k in saves))
    commands='\n'.join(s['run']['command'] for s in j['steps'] if isinstance(s,dict) and isinstance(s.get('run'),dict))
-   for slot in range(16):self.assertIn(f'ingest --slot {slot}',commands)
+   for slot in range(16):self.assertIn(f'restore-layer --slot {slot}',commands)
   m=cfg['jobs']['maintain-full-checkpoint']
   self.assertEqual(m['environment']['SANDIUM_STAGE'],'0')
   cmds='\n'.join(s['run']['command'] for s in m['steps'] if isinstance(s,dict) and isinstance(s.get('run'),dict))
@@ -61,6 +61,27 @@ class FullWiring(unittest.TestCase):
   self.assertIn('local=8,remote=80',s)
   self.assertIn('full_job_budget.py',s)
   self.assertNotIn('SANDIUM-FAST-MODE',s)
+ def test_sequential_restore_order_preserves_maintenance(self):
+  cfg=yaml.safe_load((ROOT/'.circleci/config.yml').read_text())
+  for n in range(1,6):
+   steps=cfg['jobs'][f'full-stage-{n}']['steps']
+   cmds=[s.get('run',{}).get('command','') if isinstance(s,dict) else '' for s in steps]
+   find=lambda exact:cmds.index('python3 -u .circleci/bridge/full_driver.py '+exact)
+   base=next(i for i,s in enumerate(steps) if isinstance(s,dict) and s.get('restore_cache',{}).get('name')=='Restore exact unchanged legacy base')
+   self.assertLess(base,find('restore-base'))
+   previous=find('restore-base')
+   for slot in range(16):
+    cache=next(i for i,s in enumerate(steps) if isinstance(s,dict) and s.get('restore_cache',{}).get('name')==f'Restore exact required layer {slot}')
+    apply=find(f'restore-layer --slot {slot}')
+    self.assertLess(previous,cache);self.assertLess(cache,apply)
+    previous=apply
+   self.assertLess(previous,find('restore-finish'))
+   self.assertLess(find('restore-finish'),find('begin'))
+   self.assertFalse(any('full_driver.py ingest' in c for c in cmds))
+  for name in ('maintain-full-checkpoint','optional-post-apk-refresh'):
+   cmds='\n'.join(s.get('run',{}).get('command','') for s in cfg['jobs'][name]['steps'] if isinstance(s,dict))
+   self.assertNotIn('restore-base',cmds);self.assertNotIn('restore-layer',cmds);self.assertNotIn('restore-finish',cmds)
+   self.assertIn('ingest --slot 0',cmds)
  def test_full_budget(self):
   import importlib.util
   spec=importlib.util.spec_from_file_location('full_budget',ROOT/'.circleci/checkpoint/full_job_budget.py')
