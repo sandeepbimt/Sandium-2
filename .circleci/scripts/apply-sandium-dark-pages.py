@@ -99,12 +99,20 @@ def appearance(text):
 ''')
 
 def welcome(text):
-    if 'SANDIUM_DARK_PAGES_WELCOME_V1' in text: return text
+    if 'SANDIUM_DARK_PAGES_WELCOME_V1' in text:
+        text = text.replace('mSandiumDarkPageSwitch = addSwitchRow(card, "☾", "Dark pages",',
+                            'mSandiumDarkPageSwitch = addRestartSwitchRow(card, "☾", "Dark pages",')
+        marker = '// The registered policy defaults are already enabled; do not overwrite saved choices.'
+        if '// Setup restart applies startup-only transition choices.' not in text:
+            text = once(text, marker, marker + "\n        // Setup restart applies startup-only transition choices.\n        mRequiresRestart = true;")
+        return text
     text=once(text,'''        // Brave feature overrides are read during native startup; relaunch after
         // completing first run so the selected Night Mode is actually active.
         BraveFeatureUtil.enableFeature(BraveFeatureList.ENABLE_FORCE_DARK, true, true);
         mRequiresRestart = true;''', '''        // SANDIUM_DARK_PAGES_WELCOME_V1: profile policy applies to webpage preferences.
-        // The registered policy defaults are already enabled; do not overwrite saved choices.''')
+        // The registered policy defaults are already enabled; do not overwrite saved choices.
+        // Setup restart applies startup-only transition choices.
+        mRequiresRestart = true;''')
     text=once(text, '        applyInitialPreferences();\n', '''        applyInitialPreferences();
         if (mSandiumDarkPageSwitch != null
                 && org.chromium.chrome.browser.night_mode.SandiumDarkPages.usable(mProfile)) {
@@ -121,7 +129,7 @@ def welcome(text):
                 true, checked -> {
                     BraveFeatureUtil.enableFeature(BraveFeatureList.ENABLE_FORCE_DARK, checked, true);
                     mRequiresRestart = true;
-                });''', '''        mSandiumDarkPageSwitch = addSwitchRow(card, "☾", "Dark pages",
+                });''', '''        mSandiumDarkPageSwitch = addRestartSwitchRow(card, "☾", "Dark pages",
                 "Use native dark rendering for websites",
                 true, checked -> {
                     if (mSandiumRestoringDarkPageSwitch) return;

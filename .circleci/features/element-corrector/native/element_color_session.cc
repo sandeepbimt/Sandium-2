@@ -21,7 +21,7 @@ namespace {
 bool ValidVisitRule(const base::DictValue& rule) {
   auto check=rule.Clone();
   const auto* id=check.FindString("id");
-  if (id && id->empty()) check.Set("id","visit-only");
+  if (id && id->empty() && !check.Find("locator")) check.Set("id","visit-only");
   return ElementColorRuleStore::ValidRule(check);
 }
 }
@@ -62,7 +62,7 @@ bool ElementColorSession::Begin(int64_t request_id) {
 bool ElementColorSession::OfferSelection(content::RenderFrameHost& sender,
     const base::UnguessableToken& token, uint64_t node, const base::DictValue& descriptor) {
   auto* frame = Current();
-  if (!frame || request_id_<=0 || frame != &sender || *session_ != token || !node || saving_ || descriptor.size()!=4)
+  if (!frame || request_id_<=0 || frame != &sender || *session_ != token || !node || saving_ || (descriptor.size()!=4 && descriptor.size()!=5))
     return false;
   auto check = descriptor.Clone(); check.Set("property",0); check.Set("rgb",0);
   if (!ValidVisitRule(check)) return false;

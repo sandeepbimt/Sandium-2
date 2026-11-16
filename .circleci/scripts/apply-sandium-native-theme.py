@@ -352,6 +352,20 @@ def settings_surface(source):
         if source.count(anchor) != 1 or source.count(old) != 1:
             raise ValueError('Pinned Settings surface anchors changed')
         source = source.replace(old, new, 1).replace(anchor, helper + anchor, 1)
+    # The base activity paints the shared AppBarLayout with its separate elevated
+    # surface. Match the preference root after super.onCreate() so main Settings,
+    # its search header and every sub-setting use one backing colour. Do not
+    # recolour the search field, cards, title, icons or mutate inset/scroll policy.
+    header = """contentView.setBackgroundColor(sandiumSettingsBackground());
+        // SANDIUM_SETTINGS_HEADER_SURFACE: shared by main and sub-settings.
+        View sandiumSettingsHeader = findViewById(R.id.app_bar_layout);
+        if (sandiumSettingsHeader != null) {
+            sandiumSettingsHeader.setBackgroundColor(sandiumSettingsBackground());
+        }"""
+    if 'SANDIUM_SETTINGS_HEADER_SURFACE' not in source:
+        if source.count(new) != 1:
+            raise ValueError('Pinned Settings header anchor changed')
+        source = source.replace(new, header, 1)
     old_fragment = '\n        View insetView = getInsetView(fragment, fragmentView);'
     new_fragment = """
         // Paint only the screen root, never preference cards, dialogs or web content.

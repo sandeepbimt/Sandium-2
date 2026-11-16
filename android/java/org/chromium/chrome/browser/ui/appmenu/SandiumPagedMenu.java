@@ -50,6 +50,7 @@ final class SandiumPagedMenu extends FrameLayout {
     private final LinkedHashMap<String, Entry> mCatalog = new LinkedHashMap<>();
     private SandiumMenuState mSaved;
     private SandiumMenuState mDraft;
+    private SandiumMenuState mPersisted;
     private int mPage;
     private int mRenderedScreen = -1;
     private int mRenderedPage = -1;
@@ -59,7 +60,6 @@ final class SandiumPagedMenu extends FrameLayout {
     private View mOutgoingPage;
     private android.animation.ValueAnimator mPageAnimator;
     private int mPageMotionGeneration;
-    private int mPageMinimumHeight;
     private android.animation.ValueAnimator mPanelAnimator;
     private android.animation.ValueAnimator mEntranceAnimator;
     private float mPanelAlpha = 1f;
@@ -121,6 +121,7 @@ final class SandiumPagedMenu extends FrameLayout {
         }
         mSaved = SandiumMenuState.load(context.getSharedPreferences(PREF, Context.MODE_PRIVATE)
                 .getString("layout", ""), mCatalog.keySet(), hidden);
+        mPersisted = mSaved.copy();
         render();
     }
 
@@ -285,6 +286,74 @@ final class SandiumPagedMenu extends FrameLayout {
         CharSequence title = entry.model.get(AppMenuItemProperties.TITLE);
         return title == null ? "" : title.toString();
     }
+    // Presentation-only short names; native titles remain the accessibility/action names.
+    private String tileTitle(String key, Entry entry) {
+        switch (key) {
+            case "new_incognito_tab_menu_id": case "new_incognito_window_menu_id": return s(R.string.sandium_menu_private_tab);
+            case "add_to_group_menu_id": return s(R.string.sandium_menu_group_tab);
+            case "reader_mode_menu_id": return s(R.string.sandium_menu_reader);
+            case "translate_id": return s(R.string.sandium_menu_translate);
+            case "universal_install": return s(R.string.sandium_menu_install);
+            case "brave_shred_id": return s(R.string.sandium_menu_shred);
+            case "sandium_add_home_shortcut": return s(R.string.sandium_menu_add_home);
+            case "forward_menu_id": return s(R.string.sandium_menu_forward);
+            case "bookmark_this_page_id": return "Bookmark this page".equals(title(entry))
+                    ? s(R.string.sandium_menu_bookmark) : title(entry); // Preserve Edit bookmark.
+            case "download_page_id": return s(R.string.sandium_menu_save_page);
+            case "home_menu_id": return s(R.string.sandium_menu_home);
+            case "reload_menu_id": return "Reload this page".equals(title(entry))
+                    ? s(R.string.sandium_menu_reload) : title(entry); // Preserve Stop loading.
+            default: return title(entry);
+        }
+    }
+    private int columns() { return getResources().getConfiguration().fontScale > 1.3f ? 2 : 4; }
+    private int labelHeight() {
+        TextView sample = text("", 12, mTextColor);
+        sample.setIncludeFontPadding(false);
+        return Math.max(dp(48) + sample.getLineHeight(), sample.getLineHeight() * 2);
+    }
+    private int tileHeight() { return dp(26 + 4 + 28 + 10) + labelHeight(); }
+    private TextView tileLabel(String value) {
+        TextView label = text(value, 12, mTextColor);
+        label.setIncludeFontPadding(false);
+        label.setGravity(Gravity.TOP | Gravity.CENTER_HORIZONTAL);
+        label.setMaxLines(2);
+        label.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        label.setImportantForAccessibility(IMPORTANT_FOR_ACCESSIBILITY_NO);
+        return label;
+    }
+    private LinearLayout tile() {
+        LinearLayout tile = column();
+        tile.setGravity(Gravity.TOP | Gravity.CENTER_HORIZONTAL);
+        tile.setPadding(dp(3), dp(28), dp(3), dp(10));
+        tile.setMinimumHeight(tileHeight());
+        bindPressFeedback(tile);
+        return tile;
+    }
+    private void addTileLabel(LinearLayout tile, View label) {
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(-1, labelHeight());
+        params.topMargin = dp(4);
+        tile.addView(label, params);
+    }
+    private Drawable allMenuIcon() {
+        return new Drawable() {
+            private final android.graphics.Paint paint = new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
+            private int alpha = 255;
+            @Override public void draw(android.graphics.Canvas canvas) {
+                paint.setColor(mTextColor); paint.setAlpha(alpha); paint.setStyle(android.graphics.Paint.Style.STROKE);
+                float unit = Math.min(getBounds().width(), getBounds().height()) / 26f;
+                paint.setStrokeWidth(1.7f * unit);
+                for (int row = 0; row < 3; row++) for (int col = 0; col < 3; col++) {
+                    float x = getBounds().left + (3 + col * 7) * unit;
+                    float y = getBounds().top + (3 + row * 7) * unit;
+                    canvas.drawRoundRect(x, y, x + 5 * unit, y + 5 * unit, unit, unit, paint);
+                }
+            }
+            @Override public void setAlpha(int value) { alpha = value; invalidateSelf(); }
+            @Override public void setColorFilter(android.graphics.ColorFilter filter) { paint.setColorFilter(filter); }
+            @Override public int getOpacity() { return android.graphics.PixelFormat.TRANSLUCENT; }
+        };
+    }
     private String s(int id, Object... args) { return getResources().getString(id, args); }
     private int dp(int n) { return Math.round(n * getResources().getDisplayMetrics().density); }
     private GradientDrawable shape(int color, int radius) {
@@ -322,7 +391,7 @@ final class SandiumPagedMenu extends FrameLayout {
     }
 
     private TextView button(String label, String description, Runnable click) {
-        TextView t = text(label, 16, mAccentColor); t.setMinHeight(dp(48));
+        TextView t = text(label, 12, mTextColor); t.setMinHeight(dp(48));
         bindPressFeedback(t);
         t.setTag("control:" + description); t.setContentDescription(description); t.setFocusable(true); t.setOnClickListener(v -> click.run());
         return t;
@@ -347,8 +416,37 @@ final class SandiumPagedMenu extends FrameLayout {
         row.addView(child, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
     }
 
+    // Completed edits are durable before the UI acknowledges them. Android apply() only
+    // queues disk I/O, which can be lost when Exit/process termination follows an edit.
+    // This bounded layout write is performed only on user edits, never during scrolling.
+    private boolean writeLayout(SandiumMenuState value) {
+        android.os.StrictMode.ThreadPolicy policy = android.os.StrictMode.allowThreadDiskWrites();
+        boolean saved;
+        try {
+            saved = getContext().getApplicationContext()
+                    .getSharedPreferences(PREF, Context.MODE_PRIVATE).edit()
+                    .putString("layout", value.serialize()).commit();
+        } finally {
+            android.os.StrictMode.setThreadPolicy(policy);
+        }
+        if (saved) mPersisted = value.copy();
+        else android.widget.Toast.makeText(getContext(), R.string.sandium_menu_save_failed,
+                android.widget.Toast.LENGTH_LONG).show();
+        return saved;
+    }
+
+    private void persistDraft() {
+        if (mDraft != null && !writeLayout(mDraft)) mDraft = mPersisted.copy();
+    }
+
+    private void finishEditing() {
+        if (mDraft == null) return;
+        // Also retry any prior failed write. Cancel, unlike Back/dismiss, restores mSaved.
+        if (writeLayout(mDraft)) { mSaved = mDraft; mDraft = null; }
+    }
+
     boolean handleBack() {
-        if (mDraft != null) { mDraft = null; render(); return true; }
+        if (mDraft != null) { finishEditing(); render(); return true; }
         if (mAllMenu && !mNativeVisible) { mAllMenu = false; render(); return true; }
         if (mNativeVisible) { if (mNativeReset != null) mNativeReset.run(); render(); return true; }
         return false;
@@ -357,15 +455,13 @@ final class SandiumPagedMenu extends FrameLayout {
     void setNativeReset(Runnable reset) { mNativeReset = reset; }
     void setResizeListener(Runnable resize) { mResize = resize; }
     int preferredHeight(int width, int available) {
-        if (mNativeVisible || mHeading == null || mBody == null) return Math.max(1, (int) (available * .88f));
-        int contentWidth = Math.max(1, width - dp(24));
-        int exactWidth = MeasureSpec.makeMeasureSpec(contentWidth, MeasureSpec.EXACTLY);
-        mHeading.measure(exactWidth, MeasureSpec.makeMeasureSpec(available, MeasureSpec.AT_MOST));
-        mBody.measure(exactWidth, MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED));
-        // Grow the sheet to fit this page; retain real scrolling when accessibility/font/window
-        // constraints make its intrinsic content taller than the usable display.
-        return Math.max(1, Math.min(available, dp(16) + mHeading.getMeasuredHeight() + mBody.getMeasuredHeight()));
+        // One sheet envelope for quick pages, directory, editor and native fallback.
+        // Only window/font configuration changes it, never current labels or action count.
+        int rows = (LIBRARY.length + columns() - 1) / columns()
+                + (PAGE_SIZE + columns() - 1) / columns();
+        return Math.max(1, Math.min(available, dp(16 + 48 + 36 + 48) + rows * tileHeight()));
     }
+
     private void finishPanelMotion() {
         if (mPanelAnimator != null) { mPanelAnimator.cancel(); mPanelAnimator = null; }
         mPanelAlpha = 1f;
@@ -443,10 +539,6 @@ final class SandiumPagedMenu extends FrameLayout {
     private void render() {
         // Fade only actual navigation, never network/model updates or drag reorders.
         int screen = mDraft != null ? 2 : mAllMenu ? 1 : 0;
-        if (screen != mRenderedScreen) mPageMinimumHeight = 0;
-        else if (mPageContent != null) {
-            mPageMinimumHeight = Math.max(mPageMinimumHeight, mPageContent.getHeight());
-        }
         int pageDirection = Integer.compare(mPage, mRenderedPage);
         boolean pageTransition = mRenderedScreen == screen && mRenderedPage >= 0
                 && mPage != mRenderedPage && !mNativeVisible && mDragging == null;
@@ -466,15 +558,16 @@ final class SandiumPagedMenu extends FrameLayout {
         panel.setAlpha(mPanelAlpha);
         if (transition) startPanelMotion();
         LinearLayout heading = row(); mHeading = heading;
+        heading.setMinimumHeight(dp(48));
         if (mDraft != null) {
-            weighted(heading, button(s(R.string.sandium_menu_cancel), s(R.string.sandium_menu_cancel_edits), () -> { mDraft = null; render(); }));
+            weighted(heading, button(s(R.string.sandium_menu_cancel), s(R.string.sandium_menu_cancel_edits), () -> {
+                if (writeLayout(mSaved)) { mDraft = null; render(); }
+            }));
             // A plain View with WRAP_CONTENT uses the parent's available height.
             // Keep this empty title slot bounded or the header consumes the editor body.
             heading.addView(new View(getContext()), new LinearLayout.LayoutParams(0, 1, 1));
             weighted(heading, button(s(R.string.sandium_menu_done), s(R.string.sandium_menu_save_edits), () -> {
-                mSaved = mDraft; mDraft = null;
-                getContext().getSharedPreferences(PREF, Context.MODE_PRIVATE).edit()
-                        .putString("layout", mSaved.serialize()).apply(); render();
+                finishEditing(); render();
             }));
         } else {
             // Only show a native escape hatch when an unrepresentable custom action exists.
@@ -483,19 +576,22 @@ final class SandiumPagedMenu extends FrameLayout {
                         s(R.string.sandium_menu_native_description),
                         () -> showNative(mUncataloguedNativeRow)));
             }
-            if (mAllMenu) {
-                heading.addView(button(s(R.string.sandium_menu_back_all),
-                        s(R.string.sandium_menu_back_description),
-                        () -> { mAllMenu = false; render(); }));
-                TextView title = text(s(R.string.sandium_menu_all), 18, mTextColor);
+            {
+                if (mAllMenu) {
+                    heading.addView(button(s(R.string.sandium_menu_back_all),
+                            s(R.string.sandium_menu_back_description),
+                            () -> { mAllMenu = false; render(); }), new LinearLayout.LayoutParams(dp(64), dp(48)));
+                } else {
+                    heading.addView(new View(getContext()), new LinearLayout.LayoutParams(dp(64), 1));
+                }
+                TextView title = text(s(mAllMenu ? R.string.sandium_menu_all : R.string.sandium_menu_title), 16, mTextColor);
                 title.setGravity(Gravity.CENTER);
-                heading.addView(title, new LinearLayout.LayoutParams(0, -2, 1));
+                heading.addView(title, new LinearLayout.LayoutParams(0, dp(48), 1));
                 TextView editAction = button(s(R.string.sandium_menu_edit),
                         s(R.string.sandium_menu_edit_description),
                         () -> { mDraft = mSaved.copy(); render(); });
                 editAction.setMinWidth(dp(64));
-                LinearLayout.LayoutParams editParams = new LinearLayout.LayoutParams(-2, -2);
-                editParams.setMarginEnd(dp(8));
+                LinearLayout.LayoutParams editParams = new LinearLayout.LayoutParams(dp(64), dp(48));
                 heading.addView(editAction, editParams);
             }
 
@@ -530,7 +626,7 @@ final class SandiumPagedMenu extends FrameLayout {
             FrameLayout viewport = new FrameLayout(getContext());
             viewport.setClipChildren(true); viewport.setClipToPadding(true);
             // A sparse final page must not pull the editor's available-actions region upward.
-            viewport.setMinimumHeight(mPageMinimumHeight);
+            viewport.setMinimumHeight(((PAGE_SIZE + columns() - 1) / columns()) * tileHeight());
             LinearLayout pageGrid = column();
             grid(pageGrid, visible.subList(mPage * PAGE_SIZE, Math.min(visible.size(), (mPage + 1) * PAGE_SIZE)), false);
             viewport.addView(pageGrid, new FrameLayout.LayoutParams(-1, -2));
@@ -585,7 +681,7 @@ final class SandiumPagedMenu extends FrameLayout {
                             if (mDraft == null || mDraft != editing) return;
                             List<String> defaults = new ArrayList<>(mCatalog.keySet());
                             for (String known : mDraft.knownKeys()) if (!defaults.contains(known)) defaults.add(known);
-                            mDraft = SandiumMenuState.reset(defaults, new HashSet<>()); mPage = 0; render();
+                            mDraft = SandiumMenuState.reset(defaults, new HashSet<>()); persistDraft(); mPage = 0; render();
                         }).show();
             }));
         }
@@ -601,16 +697,21 @@ final class SandiumPagedMenu extends FrameLayout {
     }
 
     private void grid(LinearLayout parent, List<String> keys, boolean available) {
-        int columns = getResources().getConfiguration().fontScale > 1.3f ? 2 : 4;
+        int columns = columns();
         LinearLayout line = null;
         for (int i = 0; i < keys.size(); i++) {
             if (i % columns == 0) { line = row(); parent.addView(line); }
             final String key = keys.get(i);
             if (ALL_MENU.equals(key)) {
-                TextView all = button("▦\n" + s(R.string.sandium_menu_all),
-                        s(R.string.sandium_menu_all_description),
-                        () -> { mAllMenu = true; render(); });
-                all.setMinimumHeight(dp(96));
+                LinearLayout all = tile();
+                ImageView icon = new ImageView(getContext());
+                icon.setImageDrawable(allMenuIcon());
+                icon.setImportantForAccessibility(IMPORTANT_FOR_ACCESSIBILITY_NO);
+                all.addView(icon, new LinearLayout.LayoutParams(dp(26), dp(26)));
+                addTileLabel(all, tileLabel(s(R.string.sandium_menu_all)));
+                all.setContentDescription(s(R.string.sandium_menu_all_description));
+                all.setFocusable(true);
+                all.setOnClickListener(v -> { mAllMenu = true; render(); });
                 all.setTag(ALL_MENU);
                 // Persist order like other tiles, but never offer removal.
                 if (mDraft != null) {
@@ -621,9 +722,7 @@ final class SandiumPagedMenu extends FrameLayout {
                 continue;
             }
             Entry entry = mCatalog.get(key);
-            LinearLayout tile = column(); tile.setGravity(Gravity.CENTER);
-            bindPressFeedback(tile);
-            tile.setPadding(dp(3), dp(mDraft != null && !library(key) ? 28 : 10), dp(3), dp(10)); tile.setMinimumHeight(dp(96));
+            LinearLayout tile = tile();
             ImageView icon = new ImageView(getContext());
             icon.setId(R.id.menu_item_icon);
             requestIcon(entry.model);
@@ -656,10 +755,11 @@ final class SandiumPagedMenu extends FrameLayout {
             if (icon.getDrawable() != null) icon.getDrawable().setLevel(level);
             if (library(key)) icon.setImageTintList(android.content.res.ColorStateList.valueOf(mAccentColor));
             icon.setImportantForAccessibility(IMPORTANT_FOR_ACCESSIBILITY_NO);
-            tile.addView(icon, new LinearLayout.LayoutParams(dp(26), dp(26)));
-            TextView label = text(title(entry), 12, mTextColor); label.setMaxLines(3);
-            label.setImportantForAccessibility(IMPORTANT_FOR_ACCESSIBILITY_NO);
-            tile.addView(label, new LinearLayout.LayoutParams(-1, -2));
+            // Exactly one icon slot, including the monogram fallback.
+            icon.setScaleType(ImageView.ScaleType.FIT_CENTER);
+            if (drawable != null) tile.addView(icon, new LinearLayout.LayoutParams(dp(26), dp(26)));
+            TextView label = tileLabel(tileTitle(key, entry));
+            addTileLabel(tile, label);
             tile.setTag("action:" + key); tile.setFocusable(true); tile.setContentDescription(title(entry));
             tile.setAlpha(enabled(entry.model) || mDraft != null ? 1 : .4f);
             FrameLayout editCell = null;
@@ -668,7 +768,7 @@ final class SandiumPagedMenu extends FrameLayout {
                 editCell.addView(tile, new FrameLayout.LayoutParams(-1, -2));
                 TextView editControl = button(available ? "+" : "−",
                         s(available ? R.string.sandium_menu_add_action : R.string.sandium_menu_remove_action, title(entry)),
-                        () -> { if (available) mDraft.show(key); else mDraft.hide(key); render(); });
+                        () -> { if (available) mDraft.show(key); else mDraft.hide(key); persistDraft(); render(); });
                 FrameLayout.LayoutParams editControlParams = new FrameLayout.LayoutParams(dp(48), dp(48), Gravity.TOP | Gravity.END);
                 editCell.addView(editControl, editControlParams);
                 tile.setOnClickListener(v -> editOptions(key));
@@ -695,7 +795,17 @@ final class SandiumPagedMenu extends FrameLayout {
                         AppMenuClickHandler handler = current.model.get(AppMenuItemProperties.CLICK_HANDLER);
                         if (handler != null) handler.onItemClick(liveAction, null);
                     });
-                    control.setEnabled(enabled(action)); tile.addView(control);
+                    control.setIncludeFontPadding(false);
+                    control.setSingleLine(true);
+                    control.setEllipsize(android.text.TextUtils.TruncateAt.END);
+                    control.setEnabled(enabled(action));
+                    tile.removeView(label);
+                    // Keep state in a separate line so a long/localized title cannot hide it.
+                    LinearLayout captionSlot = column();
+                    label.setSingleLine(true);
+                    captionSlot.addView(label, new LinearLayout.LayoutParams(-1, label.getLineHeight()));
+                    captionSlot.addView(control, new LinearLayout.LayoutParams(-1, dp(48)));
+                    addTileLabel(tile, captionSlot);
                 }
                 tile.setOnLongClickListener(v -> { mDraft = mSaved.copy(); render(); return true; });
                 if (mDraft != null) { disableTree(tile); tile.setAlpha(.45f); }
@@ -901,7 +1011,7 @@ final class SandiumPagedMenu extends FrameLayout {
                 if (which == 4 && !permanent) mDraft.hide(key);
                 else mDraft.move(key, index + new int[] {-1, 1, -PAGE_SIZE, PAGE_SIZE}[which], quickAvailable());
             }
-            render();
+            persistDraft(); render();
         }).show();
     }
     @Override public boolean dispatchDragEvent(DragEvent event) {
@@ -920,7 +1030,7 @@ final class SandiumPagedMenu extends FrameLayout {
                     View target = findViewWithTag(ALL_MENU.equals(key) ? ALL_MENU : "action:" + key);
                     if (dragHit(target, event.getX(), event.getY())) {
                         int destination = quickKeys().indexOf(key);
-                        mDraft.move(mDragging, destination, quickAvailable()); render();
+                        mDraft.move(mDragging, destination, quickAvailable()); persistDraft(); render();
                         return true;
                     }
                 }

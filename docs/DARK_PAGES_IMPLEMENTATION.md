@@ -101,3 +101,20 @@ not an unmodified upstream Chromium file.
    navigation, commit/back/BFCache, error/internal pages, already-dark websites,
    photos/video/SVG/canvas/challenges, text/selection/form contrast, manual header
    correction and page reload. No universal website compatibility claim.
+
+### Element-colour persistence correction (16 November 2026)
+
+Native dictionary serialization sorts object keys. Restore now compares typed
+identity fields rather than JSON object insertion order, so already saved unique-ID
+rules restore in a fresh document. Anonymous elements may also be remembered when
+there is a unique-ID ancestor and every child step has a single matching tag,
+role and bounded class set. No positional index, text, URL or selector is saved.
+Ambiguous/no-anchor targets remain explicitly visit-only; changed structure is
+not guessed. Previously visit-only choices need to be saved again.
+
+Normal-profile Save/Reset/Clear requests an immediate pending preference write
+(after the scoped update closes). Private profiles remain memory-only and exact
+origins remain isolated. The write request is asynchronous; it is not a promise
+against instant process kill or storage failure. Fresh-document JS tests include
+native sorted-key serialization and all three correction properties. Actual
+Android disk/relaunch verification remains a device-test requirement.

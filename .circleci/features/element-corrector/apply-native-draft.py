@@ -7,14 +7,7 @@ def once(s,old,new):
     if new in s:return s
     if s.count(old)!=1:raise ValueError('Pinned anchor mismatch: '+old[:80])
     return s.replace(old,new,1)
-def compose(root):
-    edits={}
-    def change(path,fn):
-        target=root/path;edits[target]=fn(target.read_text())
-    # Non-inherited metadata scopes a manual tint to the selected IMG only.
-    change('third_party/blink/renderer/core/style/computed_style_extra_fields.json5',
-      lambda s:once(s, '  data: [\n    {', '''  data: [
-    {
+IMAGE_FIELD_LEGACY = '''    {
       name: "SandiumImageForeground",
       field_template: "primitive",
       type_name: "unsigned",
@@ -22,8 +15,34 @@ def compose(root):
       reset_on_new_style: true,
       inherited: false,
       invalidate: ["paint"],
-    },
-    {'''))
+    },'''
+IMAGE_FIELD = '''    {
+      name: "SandiumImageForeground",
+      // Keep the rarely used tint out of the size-constrained root style.
+      field_group: "visual",
+      field_template: "primitive",
+      type_name: "unsigned",
+      default_value: "0",
+      reset_on_new_style: true,
+      inherited: false,
+      invalidate: ["paint"],
+    },'''
+def image_fields(source):
+    # Support both a clean pinned file and a previously composed checkpoint.
+    if 'name: "SandiumImageForeground"' in source:
+        if source.count('name: "SandiumImageForeground"') != 1:
+            raise ValueError('Duplicate image foreground style field')
+        if IMAGE_FIELD in source:return source
+        if IMAGE_FIELD_LEGACY not in source:
+            raise ValueError('Unknown image foreground style field')
+        return source.replace(IMAGE_FIELD_LEGACY, IMAGE_FIELD, 1)
+    return once(source, '  data: [\n    {', '  data: [\n'+IMAGE_FIELD+'\n    {')
+def compose(root):
+    edits={}
+    def change(path,fn):
+        target=root/path;edits[target]=fn(target.read_text())
+    # Non-inherited metadata scopes a manual tint to the selected IMG only.
+    change('third_party/blink/renderer/core/style/computed_style_extra_fields.json5', image_fields)
     def image_paint(s):
       s=once(s, '#include "third_party/blink/renderer/core/paint/image_painter.h"\n',
         '#include "third_party/blink/renderer/core/paint/image_painter.h"\n#include "cc/paint/color_filter.h"\n')

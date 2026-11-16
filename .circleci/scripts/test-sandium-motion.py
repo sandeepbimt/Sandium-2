@@ -44,8 +44,8 @@ class MotionTests(unittest.TestCase):
         self.assertNotIn('button("‹", s(R.string.sandium_menu_previous)', text)
         self.assertNotIn('button("›", s(R.string.sandium_menu_next)', text)
         self.assertIn('if (next == mPage) return;', text)
-        self.assertIn('viewport.setMinimumHeight(mPageMinimumHeight)', text)
-        self.assertIn('if (screen != mRenderedScreen) mPageMinimumHeight = 0;', text)
+        self.assertIn('viewport.setMinimumHeight(((PAGE_SIZE + columns() - 1) / columns()) * tileHeight())', text)
+        self.assertNotIn('mPageMinimumHeight', text)
     def test_popup_retains_native_lifecycle_and_low_end_guard(self):
         text = Path(__file__).with_name('apply-sandium-paged-menu.py').read_text()
         self.assertIn('popup.setAnimationStyle(0);', text)

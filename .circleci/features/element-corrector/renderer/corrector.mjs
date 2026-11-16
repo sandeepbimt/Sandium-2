@@ -65,34 +65,84 @@ export function validateRule(rule, doc) {
   if (!target || (rule.property === 'image' && target.localName !== 'img')) return null;
   return true;
 }
-// Only stable, unique-ID descriptors may be remembered. No text, source URLs,
-// CSS selectors or image bytes are captured. An exact match is still heuristic.
+// Remember unique IDs, or an unambiguous structural chain below a unique ID.
+// Never store text, source URLs, positional indices or executable selectors.
+function stableStep(node) {
+  const classes = (node.getAttribute('class') || '').trim().split(/\s+/).filter(Boolean).sort();
+  if (classes.length > 12 || classes.some(x => !/^[a-zA-Z_][a-zA-Z0-9_-]{0,63}$/.test(x)))
+    throw new Error('Unstable classes');
+  return {tag:node.localName, role:node.getAttribute('role') || '', classes};
+}
+function sameStepValue(a, b) {
+  return !!a && !!b && a.tag===b.tag && a.role===b.role &&
+    Array.isArray(a.classes) && Array.isArray(b.classes) && a.classes.length===b.classes.length &&
+    a.classes.every((value,index)=>value===b.classes[index]);
+}
+function sameStep(node, step) {
+  try { return sameStepValue(stableStep(node),step); } catch { return false; }
+}
+function sameAncestors(a,b) {
+  return a.length===b.length && a.every((part,index)=>
+    !!b[index] && part.tag===b[index].tag && part.id===b[index].id);
+}
+function sameLocator(a,b) {
+  if (!a || !b) return !a && !b;
+  return a.anchor===b.anchor && Array.isArray(b.steps) && a.steps.length===b.steps.length &&
+    a.steps.every((step,index)=>sameStepValue(step,b.steps[index]));
+}
+function uniqueId(doc, id) {
+  const nodes = doc.querySelectorAll('[id]');
+  if (nodes.length > 4096) throw new Error('Document limit');
+  const matches = Array.from(nodes).filter(node => node.getAttribute('id') === id);
+  if (matches.length !== 1) throw new Error('Ambiguous identity');
+  return matches[0];
+}
 export function captureDescriptor(element, doc) {
   const path = captureTarget(element, doc);
   const own = path.at(-1);
-  if (!own.id) throw new Error('Visit-only target');
-  const tagged = doc.querySelectorAll('[id]'); // Constant selector, never site input.
-  if (tagged.length > 4096) throw new Error('Document limit');
-  if (Array.from(tagged).filter(node => node.getAttribute('id') === own.id).length !== 1)
-    throw new Error('Ambiguous identity');
-  return {tag: own.tag, id: own.id, role: own.role,
-    ancestors: path.slice(0,-1).map(part => ({tag:part.tag,id:part.id}))};
+  const result = {tag:own.tag, id:own.id, role:own.role,
+    ancestors:path.slice(0,-1).map(part => ({tag:part.tag,id:part.id}))};
+  if (own.id) { uniqueId(doc, own.id); return result; }
+  const steps=[];
+  let cursor=element;
+  while (cursor && cursor !== doc.documentElement && !cursor.getAttribute('id')) {
+    const step=stableStep(cursor);
+    const siblings=Array.from(cursor.parentElement?.children || []).filter(n => sameStep(n,step));
+    if (siblings.length !== 1) throw new Error('Ambiguous child');
+    steps.unshift(step);cursor=cursor.parentElement;
+  }
+  const anchor=cursor?.getAttribute('id');
+  if (cursor === doc.documentElement || !anchor || anchor.length>128 || /[\x00-\x1f\x7f]/.test(anchor) || !steps.length)
+    throw new Error('Visit-only target');
+  uniqueId(doc,anchor);
+  result.locator={anchor,steps};
+  return result;
 }
 export function matchRemembered(rule, doc) {
-  if (!rule || !validToken(rule.tag) || typeof rule.id !== 'string' || !rule.id ||
+  if (!rule || !validToken(rule.tag) || typeof rule.id !== 'string' || (!rule.id && !rule.locator) ||
       rule.id.length > 128 || typeof rule.role !== 'string' || rule.role.length > 64 ||
       !Array.isArray(rule.ancestors) || rule.ancestors.length > 23 ||
       (rule.property!==0 && rule.property!==1 && rule.property!==2) || !Number.isInteger(rule.rgb) ||
       rule.rgb < 0 || rule.rgb > 0xffffff || (rule.property===2 && rule.tag!=='img')) return null;
-  const tagged = doc.querySelectorAll('[id]');
-  if (tagged.length > 4096) return null;
-  const matches=Array.from(tagged).filter(node => node.getAttribute('id')===rule.id);
-  if (matches.length!==1) return null;
   try {
-    const descriptor=captureDescriptor(matches[0],doc);
+    let target;
+    if (rule.id) target=uniqueId(doc,rule.id);
+    else {
+      const locator=rule.locator;
+      if (!locator || typeof locator.anchor!=='string' || !locator.anchor || locator.anchor.length>128 ||
+          !Array.isArray(locator.steps) || !locator.steps.length || locator.steps.length>23) return null;
+      target=uniqueId(doc,locator.anchor);
+      for (const step of locator.steps) {
+        const children=Array.from(target.children).filter(node=>sameStep(node,step));
+        if(children.length!==1)return null;
+        target=children[0];
+      }
+    }
+    const descriptor=captureDescriptor(target,doc);
     if (descriptor.tag!==rule.tag || descriptor.role!==rule.role ||
-        JSON.stringify(descriptor.ancestors)!==JSON.stringify(rule.ancestors)) return null;
-    return matches[0];
+        !sameAncestors(descriptor.ancestors,rule.ancestors) ||
+        !sameLocator(descriptor.locator,rule.locator)) return null;
+    return target;
   } catch { return null; }
 }
 /** Unenabled native contract: overrides MUST bind to the exact DOM node, not a

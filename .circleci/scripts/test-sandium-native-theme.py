@@ -38,8 +38,9 @@ class ThemeTests(unittest.TestCase):
     def test_welcome_checked_switch_contrast(self):
         self.assertGreaterEqual(contrast('#FFFFFF', '#198CFF'), 3)
         source = (Path(__file__).resolve().parents[2] / 'android/java/org/chromium/chrome/browser/firstrun/SandiumWelcomeSetupView.java').read_text()
-        self.assertIn('private static final int SUCCESS = Color.rgb(230, 244, 232)', source)
+        self.assertIn('private static final int SUCCESS = Color.rgb(70, 200, 120)', source)
         self.assertIn('Color.rgb(25, 140, 255)', source)
+        self.assertGreaterEqual(contrast('#46C878', '#1A1A1A'), 4.5)
     def test_settings_subpage_tokens_have_readable_day_and_night_pairs(self):
         for name in ['filter_title_color', 'filter_summary_color',
                      'bookmark_menu_text_color', 'brave_theme_hint_text',
@@ -65,7 +66,7 @@ class ThemeTests(unittest.TestCase):
             self.assertGreaterEqual(contrast(expected, colors['sandium_menu_surface_container']), 4.5)
         source = (root / 'android/java/org/chromium/chrome/browser/ui/appmenu/SandiumPagedMenu.java').read_text()
         self.assertIn('R.color.sandium_menu_accent', source)
-        self.assertIn('text(label, 16, mAccentColor)', source)
+        self.assertIn('text(label, 12, mTextColor)', source)
     def test_settings_surface_migration(self):
         source = ('contentView.setBackgroundColor(SemanticColorUtils.getSettingsBackgroundColor(this));\n'
             '    private void onSettingsFragmentViewReady(Fragment fragment, View fragmentView) {\n'
@@ -84,6 +85,23 @@ class ThemeTests(unittest.TestCase):
         self.assertEqual(result.count('fragmentView.setBackgroundColor(sandiumSettingsBackground())'), 1)
         # Destroyed-view callback must remain untouched.
         self.assertIn('                    View insetView = getInsetView(fragment, fragmentView);', result)
+    def test_settings_header_matches_shared_root_without_restyling_children(self):
+        original = (Path(__file__).resolve().parents[1] / 'tests/fixtures/motion/BraveSettingsActivity.java').read_text()
+        result = theme.settings_surface(original)
+        self.assertEqual(result, theme.settings_surface(result))
+        self.assertEqual(result.count('SANDIUM_SETTINGS_HEADER_SURFACE'), 1)
+        self.assertIn('findViewById(R.id.app_bar_layout)', result)
+        self.assertIn('sandiumSettingsHeader.setBackgroundColor(sandiumSettingsBackground());', result)
+        self.assertLess(result.index('super.onCreate(savedInstanceState);'),
+                        result.index('SANDIUM_SETTINGS_HEADER_SURFACE'))
+        # Shared activity, not a main-page-only conditional. Same helper retains
+        # light/dynamic palette and no opaque status bar or geometry overrides.
+        self.assertNotIn('isForMainSettings()', result)
+        self.assertNotIn('setStatusBarColor', result)
+        self.assertNotIn('setTitleTextColor', result)
+        self.assertIn('return SemanticColorUtils.getSettingsBackgroundColor(this);', result)
+        self.assertEqual(result.count('setOnApplyWindowInsetsListener'), original.count('setOnApplyWindowInsetsListener'))
+
     def test_oppo_group_contract(self):
         self.assertEqual(theme.BACKGROUND, '#000000')
         self.assertEqual(theme.CARD, '#1A1A1A')

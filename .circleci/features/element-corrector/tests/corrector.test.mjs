@@ -132,3 +132,51 @@ test('image artwork is explicit and limited to img elements',()=>{
  assert.equal(matchRemembered({...captureDescriptor(f.header,f.doc),property:2,rgb:0},f.doc),null);
  assert.equal(matchRemembered({...remembered,property:3},f.doc),null);
 });
+
+test('anonymous image text and background restore after fresh document restart',()=>{
+  const saved=fixture();const image=saved.el('img',saved.header,{class:'brand logo'});
+  const label=saved.el('span',saved.header,{class:'title'});
+  const rules=[{...captureDescriptor(image,saved.doc),property:2,rgb:0xffffff},
+    {...captureDescriptor(label,saved.doc),property:0,rgb:0xeeeeee},
+    {...captureDescriptor(label,saved.doc),property:1,rgb:0x111111}];
+  const disk=JSON.stringify(nativeDict(rules));
+  const reopened=fixture();const newImage=reopened.el('img',reopened.header,{class:'logo brand'});
+  const newLabel=reopened.el('span',reopened.header,{class:'title'});
+  const restored=JSON.parse(disk);
+  assert.equal(matchRemembered(restored[0],reopened.doc),newImage);
+  assert.equal(matchRemembered(restored[1],reopened.doc),newLabel);
+  const runtime2=runtime(reopened);assert.equal(runtime2.engine.restoreRemembered(restored),0);
+  assert.equal(runtime2.calls[0][1].length,3);
+});
+test('anonymous persistence rejects ambiguous and changed structure',()=>{
+  const f=fixture(), image=f.el('img',f.header,{class:'brand'});
+  const r={...captureDescriptor(image,f.doc),property:2,rgb:1};
+  f.el('img',f.header,{class:'brand'});
+  assert.equal(matchRemembered(r,f.doc),null);
+  assert.throws(()=>captureDescriptor(image,f.doc),/Ambiguous/);
+  const other=fixture();other.el('img',other.header,{class:'changed'});
+  assert.equal(matchRemembered(r,other.doc),null);
+  const missing=fixture();missing.header.getAttribute=()=>null;
+  assert.equal(matchRemembered(r,missing.doc),null);
+});
+test('malformed locator cannot broaden stored identity',()=>{
+  const f=fixture(), image=f.el('img',f.header,{class:'brand'});
+  const r={...captureDescriptor(image,f.doc),property:2,rgb:1};
+  for(const locator of [{anchor:'masthead',steps:[]},{anchor:'masthead',steps:[{}]},
+    {anchor:'masthead',steps:[{tag:'img',role:'',classes:[]}]}])
+    assert.equal(matchRemembered({...r,locator},f.doc),null);
+});
+
+// base::DictValue serializes object keys in lexicographic order, not insertion order.
+function nativeDict(value) {
+  if(Array.isArray(value))return value.map(nativeDict);
+  if(value && typeof value==='object')return Object.fromEntries(
+    Object.keys(value).sort().map(key=>[key,nativeDict(value[key])]));
+  return value;
+}
+test('native sorted-key persistence restores legacy unique-ID rules after restart',()=>{
+  const first=fixture();const rule={...captureDescriptor(first.logo,first.doc),property:2,rgb:123};
+  const disk=JSON.stringify(nativeDict(rule));
+  assert.notEqual(disk,JSON.stringify(rule));
+  const second=fixture();assert.equal(matchRemembered(JSON.parse(disk),second.doc),second.logo);
+});

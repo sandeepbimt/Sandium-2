@@ -30,3 +30,22 @@ does not perform an account action. Text wraps at large font scales; the logo
 is decorative for accessibility and the title is marked as a heading. Native
 setup controls and readiness gating remain unchanged. The existing branded
 resource and its packaging are reused, with no new image generation or assets.
+
+## 16 November welcome refinement
+Default content has reduced padding and concise summaries, with the primary action
+still outside the content scroller. Expanded More options can scroll without a
+visible scrollbar; collapse resets to the top. Large accessibility fonts or small
+landscape windows retain overflow access instead of clipping controls. Fit on the
+owner's actual phone remains a device-validation item.
+
+Readiness/download progress and successful checkmarks use green #46C878; native
+readiness gates are unchanged. The logo reuses an exact copy of the toolbar's
+balanced silhouette tracer, with a regression equality check, reduced-motion and
+visibility lifecycle handling. The existing logo asset is unchanged.
+
+Dark pages is a live profile policy, not intrinsically restart-dependent. Its hint
+truthfully says “Applied with setup restart”; startup-only transition preferences
+still use setup's restart. Start browsing exposes a separate green one-second
+pre-restart bar, explicitly labelled as restart feedback, not additional download
+progress. A lifecycle-owned handler dispatches restart independently of animation
+settings and is cancelled when the welcome view is destroyed.

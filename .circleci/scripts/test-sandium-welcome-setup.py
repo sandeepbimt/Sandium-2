@@ -93,7 +93,7 @@ required_view_markers = (
     "row.setPadding(dp(16), dp(12), dp(14), dp(2))",
     "selector.setBackground(outlinedRoundRect(CARD, PRIMARY, 28))",
     "parent.addView(mBlurRestartHint, matchWrap())",
-    "mBlurRestartHint.setPadding(dp(60), dp(10), dp(14), dp(8))",
+    "mBlurRestartHint.setPadding(dp(60), 0, dp(14), dp(4))",
     "mBlurRestartHint.setVisibility(View.VISIBLE)",
     "blurTitle.setSingleLine(true)",
     "new LinearLayout.LayoutParams(dp(92), dp(40))",
@@ -114,7 +114,7 @@ required_view_markers = (
     "drawable.setStroke(dp(1), strokeColor)",
     "new LinearLayout.LayoutParams(dp(92), dp(40))",
     "parent.addView(mBlurRestartHint, matchWrap())",
-    "mBlurRestartHint.setPadding(dp(60), dp(10), dp(14), dp(8))",
+    "mBlurRestartHint.setPadding(dp(60), 0, dp(14), dp(4))",
 )
 missing_view_markers = [marker for marker in required_view_markers if marker not in view_source]
 assert not missing_view_markers, "welcome view missing: " + ", ".join(missing_view_markers)
@@ -190,19 +190,19 @@ print("SANDIUM_WELCOME_DYNAMIC_COUNT_TEST=PASS count_cases=9 native_ready_requir
 # rule or resource was accepted and executed on every site.
 assert "All filter rules applied" not in view_source
 assert "loaded and active" not in view_source
-assert "Enabled lists downloaded; native engine reports ready" in view_source
-assert "Finalizing: Native engine reports ready" in view_source
+assert "Downloads and native engine ready" in view_source
+assert "Finalizing: Complete" in view_source
 
 # Profile-card header with Oppo theme and unchanged green readiness signal.
 assert 'text("Sandium", 24, TEXT, true)' in view_source
 assert 'private static final int BACKGROUND = Color.rgb(0, 0, 0);' in view_source
 assert 'private static final int CARD = Color.rgb(26, 26, 26);' in view_source
-assert 'private static final int SUCCESS = Color.rgb(230, 244, 232);' in view_source
+assert 'private static final int SUCCESS = Color.rgb(70, 200, 120);' in view_source
 assert 'private static final int PRIMARY = Color.rgb(25, 140, 255);' in view_source
 assert 'private static final int PRIMARY_TEXT = Color.rgb(8, 15, 24);' in view_source
 assert 'subtitle.setMaxLines(2)' not in view_source
-assert 'params.bottomMargin = dp(18);' in view_source
-assert 'logo.setImageResource(R.drawable.sandium_toolbar_mark);' in view_source
+assert 'params.bottomMargin = dp(8);' in view_source
+assert 'logo.setImageDrawable(mLogoTracer);' in view_source
 assert 'logo.setScaleType(ImageView.ScaleType.FIT_CENTER);' in view_source
 assert 'logo.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);' in view_source
 assert 'title.setAccessibilityHeading(true);' in view_source

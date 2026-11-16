@@ -41,6 +41,67 @@ def rebrand_messages(source):
     return MESSAGE.sub(message, source), changed, retained
 
 
+def rebrand_about_titles(source):
+    """Patch the consumed Chromium GRD, not only Brave's copy source.
+
+    Brave copies its canonical GRD before this final identity pass. Updating
+    core alone leaves the current build's Settings/About labels as Brave.
+    Keep copyright/legal messages untouched and reject ambiguous source drift.
+    """
+    for name in ('IDS_PREFS_ABOUT_CHROME', 'IDS_MENU_ABOUT_CHROME'):
+        pattern = re.compile(r'(<message\b(?=[^>]*\bname="' + name
+                             + r'")[^>]*>)(.*?)(</message>)', re.S)
+        matches = list(pattern.finditer(source))
+        if len(matches) != 1:
+            raise RuntimeError('expected one About title: ' + name)
+        match = matches[0]
+        body = match.group(2)
+        if body.strip() not in ('About Chrome', 'About Brave', 'About Sandium'):
+            raise RuntimeError('unrecognized About title: ' + name)
+        replacement = re.sub(r'About (?:Chrome|Brave|Sandium)', 'About Sandium', body)
+        source = source[:match.start(2)] + replacement + source[match.end(2):]
+    return source
+
+
+ABOUT_JAVA = 'chrome/android/java/src/org/chromium/chrome/browser/about_settings/AboutChromeSettings.java'
+LEGAL_JAVA = 'chrome/android/java/src/org/chromium/chrome/browser/about_settings/LegalInformationSettings.java'
+COPYRIGHT_BLOCK = """        Calendar calendar = CalendarFactory.get();
+        calendar.setTimeInMillis(System.currentTimeMillis());
+        int currentYear = calendar.get(Calendar.YEAR);
+        p.setSummary(getString(R.string.legal_information_summary, currentYear));"""
+COPYRIGHT_CLEARED = """        // Sandium: retain the Legal information link; show attribution inside it.
+        p.setSummary(null);"""
+LEGAL_ANCHOR = '        mPageTitle.set(getString(R.string.legal_information_title));'
+LEGAL_NOTICE = """
+        // SANDIUM_LEGAL_NOTICE: preserve the exact upstream copyright resource,
+        // year formatting and all existing license/terms links one tap away.
+        androidx.preference.Preference copyright =
+                new androidx.preference.Preference(requireContext());
+        copyright.setKey("sandium_copyright_notice");
+        copyright.setSelectable(false);
+        copyright.setOrder(-1);
+        java.util.Calendar calendar =
+                org.chromium.components.browser_ui.util.date.CalendarFactory.get();
+        calendar.setTimeInMillis(System.currentTimeMillis());
+        copyright.setTitle(getString(R.string.legal_information_summary,
+                calendar.get(java.util.Calendar.YEAR)));
+        getPreferenceScreen().addPreference(copyright);"""
+
+
+def relocate_copyright(about, legal):
+    if COPYRIGHT_CLEARED not in about:
+        if about.count(COPYRIGHT_BLOCK) != 1:
+            raise RuntimeError('About copyright summary anchor changed')
+        about = about.replace(COPYRIGHT_BLOCK, COPYRIGHT_CLEARED)
+        about = about.replace('import java.util.Calendar;\n', '')
+    if LEGAL_NOTICE not in legal:
+        if legal.count(LEGAL_ANCHOR) != 1:
+            raise RuntimeError('Legal information title anchor changed')
+        legal = legal.replace(LEGAL_ANCHOR, LEGAL_ANCHOR + LEGAL_NOTICE)
+    # No attribution string, license URL, or legal fragment route is removed.
+    return about, legal
+
+
 def mark_drawable(width, height):
     # Preserve the original drawable's intrinsic size. 12% vertical padding and
     # the source logo's 64:77 aspect ratio avoid stretching inside square hosts.
@@ -73,6 +134,17 @@ def apply(core):
         report['retained_service_or_legal_messages'][rel] = retained
         if rebrand_messages(new)[0] != new:
             raise RuntimeError('non-idempotent string transformation')
+    consumed = core.parent / 'chrome/browser/ui/android/strings/android_chrome_strings.grd'
+    old = consumed.read_text()
+    new = rebrand_about_titles(old)
+    if new != old:
+        consumed.write_text(new)
+    report['about_titles'] = ['IDS_PREFS_ABOUT_CHROME', 'IDS_MENU_ABOUT_CHROME']
+    about_path, legal_path = core.parent / ABOUT_JAVA, core.parent / LEGAL_JAVA
+    about, legal = relocate_copyright(about_path.read_text(), legal_path.read_text())
+    about_path.write_text(about)
+    legal_path.write_text(legal)
+    report['copyright_notice'] = 'relocated intact into Legal information'
     for rel, width, height in (
         ('android/java/brave-res/drawable/ic_brave_logo.xml', 162, 162),
         ('android/java/res/drawable/chrome_logo_on_circular_background.xml', 31, 31),

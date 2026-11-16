@@ -65,7 +65,7 @@ final class SandiumWelcomeSetupView {
     private static final int DISABLED_BUTTON_TEXT = Color.rgb(160, 160, 160);
     private static final int TEXT = Color.rgb(250, 250, 250);
     private static final int SECONDARY = Color.rgb(189, 189, 189);
-    private static final int SUCCESS = Color.rgb(230, 244, 232);
+    private static final int SUCCESS = Color.rgb(70, 200, 120);
     // Decorative category colors sampled from the owner's Oppo Settings reference.
     // These do not encode switch state, warnings or native protection readiness.
     private static final int ICON_GREEN = Color.rgb(2, 190, 18);
@@ -109,6 +109,16 @@ final class SandiumWelcomeSetupView {
     private boolean mRestartInProgress;
     private boolean mStartInvoked;
     private Switch mDarkenSwitch;
+    private ProgressBar mRestartProgress;
+    private ValueAnimator mRestartAnimator;
+    private SandiumShieldsTracer mLogoTracer;
+    private final Runnable mRestartRunnable = this::performRestart;
+
+    private void performRestart() {
+        if (mDestroyed || !mRestartInProgress) return;
+        mListener.onPrepareForRestart();
+        BraveRelaunchUtils.restart();
+    }
 
     SandiumWelcomeSetupView(Activity activity, Listener listener) {
         mActivity = activity;
@@ -129,13 +139,16 @@ final class SandiumWelcomeSetupView {
         // without vertically recentering or shifting the current screen.
         mScrollView = new ScrollView(mActivity);
         mScrollView.setFillViewport(true);
+        mScrollView.setVerticalScrollBarEnabled(false);
+        mScrollView.setHorizontalScrollBarEnabled(false);
+        mScrollView.setOverScrollMode(View.OVER_SCROLL_NEVER);
         mScrollView.setClipToPadding(false);
         mRoot.addView(mScrollView, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
 
         mContent = new LinearLayout(mActivity);
         mContent.setOrientation(LinearLayout.VERTICAL);
-        mContent.setPadding(dp(18), dp(18), dp(18), dp(12));
+        mContent.setPadding(dp(18), dp(6), dp(18), dp(4));
         mContent.setGravity(Gravity.TOP);
         mScrollView.addView(mContent, new ScrollView.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
@@ -146,9 +159,18 @@ final class SandiumWelcomeSetupView {
         buildMainSettingsCard();
 
         LinearLayout buttonContainer = new LinearLayout(mActivity);
+        buttonContainer.setOrientation(LinearLayout.VERTICAL);
         buttonContainer.setGravity(Gravity.CENTER);
         buttonContainer.setPadding(dp(18), dp(8), dp(18), dp(12));
         mRoot.addView(buttonContainer, matchWrap());
+
+        mRestartProgress = new ProgressBar(mActivity, null, android.R.attr.progressBarStyleHorizontal);
+        mRestartProgress.setMax(100);
+        mRestartProgress.setProgressTintList(ColorStateList.valueOf(SUCCESS));
+        mRestartProgress.setProgressBackgroundTintList(ColorStateList.valueOf(SEPARATOR));
+        mRestartProgress.setVisibility(View.GONE);
+        buttonContainer.addView(mRestartProgress, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(4)));
 
         mStartButton = new Button(mActivity);
         mStartButton.setText("Start browsing");
@@ -187,6 +209,9 @@ final class SandiumWelcomeSetupView {
 
     void destroy() {
         mDestroyed = true;
+        mHandler.removeCallbacks(mRestartRunnable);
+        if (mRestartAnimator != null) mRestartAnimator.cancel();
+        if (mLogoTracer != null) mLogoTracer.setEnabled(false);
         if (mContent != null) { mContent.animate().cancel(); mContent.setAlpha(1f); }
         if (mAdvancedOptions != null) {
             mAdvancedOptions.animate().cancel(); mAdvancedOptions.setAlpha(1f);
@@ -239,11 +264,13 @@ final class SandiumWelcomeSetupView {
         LinearLayout brand = new LinearLayout(mActivity);
         brand.setOrientation(LinearLayout.HORIZONTAL);
         brand.setGravity(Gravity.CENTER_VERTICAL);
-        brand.setPadding(dp(16), dp(18), dp(16), dp(18));
+        brand.setPadding(dp(16), dp(8), dp(16), dp(8));
         brand.setBackground(roundRect(CARD, 24));
 
         ImageView logo = new ImageView(mActivity);
-        logo.setImageResource(R.drawable.sandium_toolbar_mark);
+        mLogoTracer = new SandiumShieldsTracer(logo);
+        logo.setImageDrawable(mLogoTracer);
+        mLogoTracer.setEnabled(true);
         logo.setScaleType(ImageView.ScaleType.FIT_CENTER);
         logo.setPadding(dp(8), dp(8), dp(8), dp(8));
         logo.setBackground(roundRect(Color.rgb(36, 36, 36), 28));
@@ -262,10 +289,10 @@ final class SandiumWelcomeSetupView {
         TextView subtitle = text("Choose your browsing preferences.", 13, SECONDARY, false);
         subtitle.setPadding(0, dp(4), 0, 0);
         subtitle.setLineSpacing(0, 1f);
-        // Wrap naturally at large font scales; the existing page stays scrollable.
+        // Wrap naturally; extreme font scales retain accessibility overflow rather than clip.
         labels.addView(subtitle, matchWrap());
         LinearLayout.LayoutParams params = matchWrap();
-        params.bottomMargin = dp(18);
+        params.bottomMargin = dp(8);
         mContent.addView(brand, params);
     }
 
@@ -274,7 +301,7 @@ final class SandiumWelcomeSetupView {
         mContent.addView(card, matchWrap());
 
         addSwitchRow(card, "⬡", "Block trackers & ads",
-                "Prevents trackers & ads from loading and showing in webpages",
+                "Block ads and trackers",
                 true, checked -> setProtectionEnabled(checked));
         addSettingsDivider(card);
 
@@ -293,7 +320,7 @@ final class SandiumWelcomeSetupView {
         boolean darkenChecked = blurEnabled && ContextUtils.getAppSharedPreferences()
                 .getBoolean(PREF_DARKEN, true);
         mDarkenSwitch = addRestartSwitchRow(card, "◐", "Darken transition",
-                "Dim the outgoing page during the transition",
+                "Dim the outgoing page",
                 darkenChecked, checked -> {
                     if (!isBlurTransitionEnabled()) return;
                     ContextUtils.getAppSharedPreferences().edit()
@@ -318,6 +345,7 @@ final class SandiumWelcomeSetupView {
             mAdvancedOptions.animate().cancel(); mAdvancedOptions.setAlpha(1f);
             mAdvancedOptions.setVisibility(mExpanded ? View.VISIBLE : View.GONE);
             if (mExpanded) fadeIn(mAdvancedOptions);
+            else mScrollView.post(() -> mScrollView.scrollTo(0, 0));
             mMoreOptionsLabel.setText(mExpanded ? "Fewer options" : "More options");
             arrow.setText(mExpanded ? "⌄" : "›");
         });
@@ -353,7 +381,7 @@ final class SandiumWelcomeSetupView {
     private void buildFilterProgressCard() {
         LinearLayout card = card();
         LinearLayout.LayoutParams params = matchWrap();
-        params.setMargins(0, dp(4), 0, dp(14));
+        params.setMargins(0, 0, 0, dp(8));
         mContent.addView(card, params);
 
         LinearLayout heading = new LinearLayout(mActivity);
@@ -379,7 +407,7 @@ final class SandiumWelcomeSetupView {
         mProtectionTitle = text("Preparing ad-blocking protection...", 14, TEXT, false);
         labels.addView(mProtectionTitle, matchWrap());
         mProtectionSubtitle = text(
-                "Engine starts after all enabled filters have downloaded successfully",
+                "Waiting for downloads and native engine",
                 11.5f, SECONDARY, false);
         mProtectionSubtitle.setPadding(0, dp(4), 0, 0);
         labels.addView(mProtectionSubtitle, matchWrap());
@@ -392,7 +420,7 @@ final class SandiumWelcomeSetupView {
         mProgress = new ProgressBar(mActivity, null, android.R.attr.progressBarStyleHorizontal);
         mProgress.setMax(100);
         mProgress.setProgress(0);
-        mProgress.setProgressTintList(ColorStateList.valueOf(PRIMARY));
+        mProgress.setProgressTintList(ColorStateList.valueOf(SUCCESS));
         mProgress.setProgressBackgroundTintList(ColorStateList.valueOf(Color.rgb(62, 62, 62)));
         progressRow.addView(mProgress, new LinearLayout.LayoutParams(0, dp(5), 1f));
 
@@ -447,7 +475,7 @@ final class SandiumWelcomeSetupView {
         labels.addView(blurTitle, matchWrap());
 
         TextView summary = itemText(
-                "Choose how strongly the previous page blurs during navigation",
+                "Blur strength when navigating",
                 13, SECONDARY, false);
         summary.setPadding(0, dp(3), dp(4), 0);
         labels.addView(summary, matchWrap());
@@ -455,7 +483,7 @@ final class SandiumWelcomeSetupView {
         mBlurRestartHint = text("↻  Needs a quick restart to apply", 11, PRIMARY, false);
         mBlurRestartHint.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
         mBlurRestartHint.setLetterSpacing(0.01f);
-        mBlurRestartHint.setPadding(dp(60), dp(10), dp(14), dp(8));
+        mBlurRestartHint.setPadding(dp(60), 0, dp(14), dp(4));
         mBlurRestartHint.setVisibility(View.VISIBLE);
 
         LinearLayout selector = new LinearLayout(mActivity);
@@ -492,7 +520,7 @@ final class SandiumWelcomeSetupView {
             java.util.function.Consumer<Boolean> onChanged) {
         LinearLayout row = new LinearLayout(mActivity);
         row.setGravity(Gravity.CENTER_VERTICAL);
-        row.setPadding(dp(16), dp(9), dp(14), dp(9));
+        row.setPadding(dp(16), dp(5), dp(14), dp(5));
         parent.addView(row, matchWrap());
 
         TextView icon = text(glyph, 23, welcomeIconColor(glyph), false);
@@ -507,10 +535,12 @@ final class SandiumWelcomeSetupView {
         TextView detail = itemText(summary, 13, SECONDARY, false);
         detail.setPadding(0, dp(1), 0, 0);
         labels.addView(detail, matchWrap());
-        TextView restartHint = text("↻  Needs a quick restart to apply", 11, PRIMARY, false);
+        TextView restartHint = text("☾".equals(glyph)
+                ? "↻  Applied with setup restart" : "↻  Needs a quick restart to apply",
+                11, PRIMARY, false);
         restartHint.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
         restartHint.setLetterSpacing(0.01f);
-        restartHint.setPadding(dp(56), 0, dp(14), dp(8));
+        restartHint.setPadding(dp(56), 0, dp(14), dp(4));
         restartHint.setVisibility(showRestartHint && checked ? View.VISIBLE : View.GONE);
         if (showRestartHint) parent.addView(restartHint, matchWrap());
 
@@ -696,11 +726,23 @@ final class SandiumWelcomeSetupView {
         mStartButton.setText("Restarting");
         mStartButton.setTextColor(PRIMARY_TEXT);
 
-        // Readiness was already verified before enabling Start. Do not represent
-        // a cosmetic timer as additional setup work or hold restart behind animation.
-        // Mark first-run complete first; the native lifetime controller owns restart.
-        mListener.onPrepareForRestart();
-        BraveRelaunchUtils.restart();
+        // Explicit one-second pre-restart feedback, not download/setup progress.
+        // The handler owns dispatch so disabled animations cannot skip the restart.
+        mStartButton.setText("Restarting in a moment…");
+        mRestartProgress.setVisibility(View.VISIBLE);
+        mRestartProgress.setContentDescription("Preparing to restart Sandium");
+        if (ValueAnimator.areAnimatorsEnabled()) {
+            mRestartAnimator = ValueAnimator.ofInt(0, 100);
+            mRestartAnimator.setDuration(1000);
+            mRestartAnimator.setInterpolator(new LinearInterpolator());
+            mRestartAnimator.addUpdateListener(animation ->
+                    mRestartProgress.setProgress((Integer) animation.getAnimatedValue()));
+            mRestartAnimator.start();
+        } else {
+            mRestartProgress.setProgress(100);
+        }
+        for (Switch toggle : mSwitches) toggle.setEnabled(false);
+        mHandler.postDelayed(mRestartRunnable, 1000);
     }
 
     private void setProtectionEnabled(boolean enabled) {
@@ -790,9 +832,9 @@ final class SandiumWelcomeSetupView {
         boolean allFiltersReady = allEnabledFiltersDownloaded(downloaded, total);
         mCanStartBrowsing = canStartWithProtection(ready, downloaded, total);
         mEngineState.setText(mCanStartBrowsing
-                ? "✓   Ad blocker engine: Ready with " + total + " enabled filters"
+                ? "✓   Ad blocker engine: Ready"
                 : (allFiltersReady
-                    ? "○   Ad blocker engine: Activating with " + total + " enabled filters"
+                    ? "○   Ad blocker engine: Activating"
                     : "○   Ad blocker engine: Waiting for enabled filters"));
         mEngineState.setTextColor(mCanStartBrowsing ? SUCCESS : SECONDARY);
         mProtectionTitle.setText(mCanStartBrowsing
@@ -800,18 +842,18 @@ final class SandiumWelcomeSetupView {
                 : "Preparing ad-blocking protection...");
         mProtectionTitle.setTextColor(mCanStartBrowsing ? SUCCESS : TEXT);
         mProtectionSubtitle.setText(mCanStartBrowsing
-                ? "Enabled lists downloaded; native engine reports ready"
-                : "Engine starts after all enabled filters have downloaded successfully");
+                ? "Downloads and native engine ready"
+                : "Waiting for downloads and native engine");
         mProtectionSubtitle.setTextColor(mCanStartBrowsing ? SUCCESS : SECONDARY);
         mProtectionSpinner.setText(mCanStartBrowsing ? "✓" : "⟳");
         mProtectionSpinner.setTextColor(mCanStartBrowsing ? SUCCESS : PRIMARY);
         mProgress.setProgressTintList(ColorStateList.valueOf(
-                mCanStartBrowsing ? SUCCESS : PRIMARY));
+                SUCCESS));
         mPercent.setTextColor(mCanStartBrowsing ? SUCCESS : TEXT);
-        mFilterCount.setText("Filters: " + downloaded + " of " + total + " enabled filters loaded");
+        mFilterCount.setText((allFiltersReady ? "✓   " : "○   ") + "Filters: " + downloaded + " of " + total + " loaded");
         mFilterCount.setTextColor(allFiltersReady ? SUCCESS : SECONDARY);
         mFinalizing.setText(mCanStartBrowsing
-                ? "✓   Finalizing: Native engine reports ready"
+                ? "✓   Finalizing: Complete"
                 : (allFiltersReady
                     ? "○   Finalizing: Activating the native engine..."
                     : (total == 0
@@ -915,6 +957,170 @@ final class SandiumWelcomeSetupView {
     private LinearLayout.LayoutParams matchWrap() {
         return new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+    }
+
+    /** Balanced tracer, sampled from the verified 64 x 77 logo alpha silhouette. */
+    private static final class SandiumShieldsTracer extends android.graphics.drawable.Drawable
+            implements Runnable, View.OnAttachStateChangeListener,
+                    android.view.ViewTreeObserver.OnWindowFocusChangeListener,
+                    android.view.ViewTreeObserver.OnGlobalLayoutListener {
+        private final android.widget.ImageView mHost;
+        private final android.graphics.drawable.Drawable mMark;
+        private final android.graphics.Path mOutline = new android.graphics.Path();
+        private final android.graphics.Path mScaled = new android.graphics.Path();
+        private final android.graphics.Path mSegment = new android.graphics.Path();
+        private final android.graphics.PathMeasure mMeasure = new android.graphics.PathMeasure();
+        private final android.graphics.Paint mPaint =
+                new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
+        private final android.graphics.Matrix mMatrix = new android.graphics.Matrix();
+        private final float[] mImageMatrixValues = new float[9];
+        private boolean mEnabled;
+        private boolean mListening;
+        private int mAlpha = 255;
+        private final long mEpoch = android.os.SystemClock.uptimeMillis();
+
+        SandiumShieldsTracer(android.widget.ImageView host) {
+            mHost = host;
+            mMark = host.getContext().getDrawable(R.drawable.sandium_toolbar_mark).mutate();
+            mPaint.setStyle(android.graphics.Paint.Style.STROKE);
+            mPaint.setStrokeCap(android.graphics.Paint.Cap.ROUND);
+            mPaint.setStrokeJoin(android.graphics.Paint.Join.ROUND);
+            mPaint.setColor(0xFF46C878);
+            mPaint.setStrokeWidth(2.0f * host.getResources().getDisplayMetrics().density);
+            android.graphics.Path outline = mOutline;
+            outline.moveTo(44.50f, 0.40f);
+            outline.lineTo(49.50f, 0.04f);
+            outline.lineTo(54.50f, 2.15f);
+            outline.lineTo(59.87f, 7.50f);
+            outline.lineTo(62.04f, 11.50f);
+            outline.lineTo(61.69f, 12.50f);
+            outline.lineTo(28.11f, 29.50f);
+            outline.lineTo(29.50f, 30.11f);
+            outline.lineTo(32.50f, 28.27f);
+            outline.lineTo(34.50f, 28.42f);
+            outline.lineTo(57.50f, 35.99f);
+            outline.lineTo(62.64f, 41.50f);
+            outline.lineTo(63.66f, 46.50f);
+            outline.lineTo(62.65f, 51.50f);
+            outline.lineTo(59.76f, 55.50f);
+            outline.lineTo(56.50f, 57.85f);
+            outline.lineTo(20.50f, 75.81f);
+            outline.lineTo(15.50f, 76.93f);
+            outline.lineTo(10.50f, 75.80f);
+            outline.lineTo(4.95f, 71.50f);
+            outline.lineTo(0.96f, 64.50f);
+            outline.lineTo(30.52f, 49.50f);
+            outline.lineTo(29.50f, 48.40f);
+            outline.lineTo(8.50f, 41.70f);
+            outline.lineTo(4.84f, 39.50f);
+            outline.lineTo(2.04f, 36.50f);
+            outline.lineTo(0.03f, 31.50f);
+            outline.lineTo(1.36f, 24.50f);
+            outline.lineTo(6.50f, 18.99f);
+            outline.lineTo(44.50f, 0.40f);
+            outline.close();
+            host.addOnAttachStateChangeListener(this);
+            if (host.isAttachedToWindow()) onViewAttachedToWindow(host);
+        }
+
+        void setEnabled(boolean enabled) {
+            mEnabled = enabled;
+            refresh();
+        }
+
+        private boolean canAnimate() {
+            return mEnabled && mHost.isAttachedToWindow() && mHost.isShown()
+                    && mHost.hasWindowFocus() && isVisible()
+                    && android.animation.ValueAnimator.areAnimatorsEnabled();
+        }
+
+        private void refresh() {
+            unscheduleSelf(this);
+            invalidateSelf();
+            if (canAnimate()) scheduleSelf(this, android.os.SystemClock.uptimeMillis() + 33);
+        }
+
+        @Override
+        public void run() { refresh(); }
+
+        @Override
+        protected void onBoundsChange(android.graphics.Rect bounds) {
+            mMark.setBounds(bounds);
+            mMatrix.setRectToRect(new android.graphics.RectF(0, 0, 64, 77),
+                    new android.graphics.RectF(bounds), android.graphics.Matrix.ScaleToFit.FILL);
+            mOutline.transform(mMatrix, mScaled);
+            mMeasure.setPath(mScaled, true);
+        }
+
+        @Override
+        public void draw(android.graphics.Canvas canvas) {
+            mMark.draw(canvas);
+            if (!mEnabled) return;
+            // ImageView applies its own image matrix; compensate so the final
+            // stroke remains 2dp rather than 2 raster pixels.
+            mHost.getImageMatrix().getValues(mImageMatrixValues);
+            float scale = Math.abs(mImageMatrixValues[android.graphics.Matrix.MSCALE_X]);
+            mPaint.setStrokeWidth(2.0f * mHost.getResources().getDisplayMetrics().density
+                    / Math.max(0.01f, scale));
+            mPaint.setAlpha(mAlpha * 220 / 255);
+            float length = mMeasure.getLength();
+            float phase = android.animation.ValueAnimator.areAnimatorsEnabled()
+                    ? ((android.os.SystemClock.uptimeMillis() - mEpoch) % 3200L) / 3200.0f : 0.0f;
+            float start = length * phase;
+            float end = start + length * 0.35f;
+            mSegment.rewind();
+            mMeasure.getSegment(start, Math.min(end, length), mSegment, true);
+            if (end > length) mMeasure.getSegment(0, end - length, mSegment, true);
+            canvas.drawPath(mSegment, mPaint);
+        }
+
+        @Override
+        public boolean setVisible(boolean visible, boolean restart) {
+            boolean changed = super.setVisible(visible, restart);
+            refresh();
+            return changed;
+        }
+
+        @Override
+        public void setAlpha(int alpha) {
+            mAlpha = alpha;
+            mMark.setAlpha(alpha);
+            invalidateSelf();
+        }
+
+        @Override
+        public void setColorFilter(android.graphics.ColorFilter filter) {
+            // Keep the original logo and green accent independent of toolbar tint.
+        }
+
+        @Override
+        public int getOpacity() { return android.graphics.PixelFormat.TRANSLUCENT; }
+        @Override
+        public int getIntrinsicWidth() { return mMark.getIntrinsicWidth(); }
+        @Override
+        public int getIntrinsicHeight() { return mMark.getIntrinsicHeight(); }
+        @Override
+        public void onWindowFocusChanged(boolean focused) { refresh(); }
+        @Override
+        public void onGlobalLayout() { refresh(); }
+        @Override
+        public void onViewAttachedToWindow(View view) {
+            if (!mListening) {
+                view.getViewTreeObserver().addOnWindowFocusChangeListener(this);
+                view.getViewTreeObserver().addOnGlobalLayoutListener(this);
+                mListening = true;
+            }
+            refresh();
+        }
+        @Override
+        public void onViewDetachedFromWindow(View view) {
+            unscheduleSelf(this);
+            if (view.getViewTreeObserver().isAlive()) {
+                view.getViewTreeObserver().removeOnWindowFocusChangeListener(this);
+                view.getViewTreeObserver().removeOnGlobalLayoutListener(this);
+            }
+            mListening = false;
+        }
     }
 
     private static String capitalize(String value) {

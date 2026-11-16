@@ -15,6 +15,44 @@ m=load('apply-sandium-toolbar-refinements');a=load('apply-sandium-unified-addres
 FIX=ROOT/'tests/fixtures/toolbar-refinements';UFIX=ROOT/'tests/fixtures/unified-address'
 
 class Refinements(unittest.TestCase):
+    def test_address_height_only_changes_background_inset(self):
+        raw=(UFIX/'ToolbarPhone.java').read_text()
+        base=a.all_phone(a.bottom.phone(raw))
+        out=m.phone(base)
+        self.assertEqual(out,m.phone(out))
+        # Undo only the intended capsule paint adjustment and old duplicate-plus fix:
+        # every other byte of the composed ToolbarPhone must remain unchanged.
+        added="""
+        // SANDIUM_ADDRESS_HEIGHT_V1: +8dp capsule height, matching Quetta proportions.
+        // Focus can still expand farther if native/accessibility dimensions require it.
+        int sandiumExtraInset = Math.round(4 * getResources().getDisplayMetrics().density
+                * (1 - mUrlFocusChangeFraction));
+        verticalInset -= Math.min(Math.max(0, verticalInset), sandiumExtraInset);"""
+        restored=out.replace(added,'').replace(
+            'sandiumNewTab.setVisibility(GONE); // SANDIUM_TAB_DUAL_ACTION_V1: no duplicate + slot.',
+            'sandiumNewTab.setVisibility(sandiumCompactToolbar() ? GONE : VISIBLE);')
+        self.assertEqual(base,restored)
+
+    def test_address_height_focus_and_density_bounds(self):
+        for density in (1, 1.5, 2, 2.625, 3, 4):
+            rnd=lambda x: int(x+0.5)
+            margin=rnd(8*density)
+            for fraction in (0, .25, .5, .75, 1):
+                native=margin-int(8*density*fraction/2)
+                actual=native-min(max(0,native),rnd(4*density*(1-fraction)))
+                self.assertGreaterEqual(actual,0)
+                self.assertLessEqual(actual,native)
+                if fraction==0:
+                    self.assertEqual(2*(native-actual),2*rnd(4*density))
+                if fraction==1:
+                    self.assertEqual(actual,native)
+
+    def test_native_negative_focus_insets_are_preserved(self):
+        for native in (-8, -1, 0):
+            for extra in (0, 1, 4):
+                actual=native-min(max(0,native),extra)
+                self.assertEqual(native,actual)
+
     def test_tab_dispatch_and_transition_guard(self):
         out=m.coordinator((FIX/'ToggleTabStackButtonCoordinator.java').read_text())
         self.assertEqual(out,m.coordinator(out))
@@ -80,7 +118,8 @@ class Refinements(unittest.TestCase):
         self.assertNotIn('weighted(heading, new View(getContext()));',source)
         self.assertIn('new LinearLayout.LayoutParams(0, 1, 1)',source)
         self.assertIn('editAction.setMinWidth(dp(64))', source)
-        self.assertIn('editParams.setMarginEnd(dp(8))', source)
+        self.assertIn('editParams = new LinearLayout.LayoutParams(dp(64), dp(48))', source)
+        self.assertNotIn('editParams.setMarginEnd(dp(8))', source)
         self.assertIn('new LinearLayout.LayoutParams(dp(48), dp(48))',source)
         self.assertIn('if (pages == 2)',source)
         self.assertIn('markParams.setMarginEnd(dp(4))',source)

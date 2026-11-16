@@ -33,6 +33,41 @@ class BrandingTests(unittest.TestCase):
             source = f'<message name="IDS_BROWSER_COPY">{phrase}</message>'
             self.assertIn(phrase.replace('Brave', 'Sandium'), b.rebrand_messages(source)[0])
 
+    def test_about_titles_in_consumed_source_preserve_legal(self):
+        legal = '<message name="IDS_LEGAL_INFORMATION_SUMMARY">Copyright The Brave Authors</message>'
+        for brand in ('Chrome', 'Brave', 'Sandium'):
+            source = ''.join(f'<message name="{name}">About {brand}</message>'
+                             for name in ('IDS_PREFS_ABOUT_CHROME', 'IDS_MENU_ABOUT_CHROME')) + legal
+            out = b.rebrand_about_titles(source)
+            self.assertEqual(out.count('About Sandium'), 2)
+            self.assertIn(legal, out)
+            self.assertEqual(out, b.rebrand_about_titles(out))
+        for invalid in ('', source + source, source.replace('About Sandium', 'Other title')):
+            with self.assertRaises(RuntimeError):
+                b.rebrand_about_titles(invalid)
+
+    def test_copyright_relocated_not_deleted(self):
+        fixtures=Path(__file__).resolve().parents[2]/'tests/fixtures/about-branding'
+        original_about=(fixtures/'AboutChromeSettings.java').read_text()
+        original_legal=(fixtures/'LegalInformationSettings.java').read_text()
+        about, legal=b.relocate_copyright(original_about, original_legal)
+        self.assertIn('findPreference(PREF_LEGAL_INFORMATION)', about)
+        self.assertNotIn(b.COPYRIGHT_BLOCK, about)
+        self.assertIn(b.COPYRIGHT_CLEARED, about)
+        self.assertIn('R.xml.legal_information_preferences', legal)
+        self.assertIn('R.string.legal_information_summary', legal)
+        self.assertIn('calendar.get(java.util.Calendar.YEAR)', legal)
+        self.assertEqual((about, legal), b.relocate_copyright(about, legal))
+        with self.assertRaises(RuntimeError): b.relocate_copyright('changed', original_legal)
+        with self.assertRaises(RuntimeError): b.relocate_copyright(original_about, 'changed')
+
+    def test_reset_inventory_covers_new_inputs(self):
+        import json
+        recipe=json.loads((Path(__file__).resolve().parents[1]/'features/removal-recipe.json').read_text())
+        for key in ('chromium_restore','ui_only_chromium_restore'):
+            self.assertIn(b.ABOUT_JAVA, recipe[key])
+            self.assertIn(b.LEGAL_JAVA, recipe[key])
+
     def test_drawable_preserves_aspect_and_intrinsic_dimensions(self):
         root = ET.fromstring(b.mark_drawable(162,162))
         ns='{http://schemas.android.com/apk/res/android}'
@@ -43,7 +78,14 @@ class BrandingTests(unittest.TestCase):
 
     def test_full_fixture_idempotent(self):
         with tempfile.TemporaryDirectory() as directory:
-            core=Path(directory)
+            core=Path(directory) / 'brave'
+            consumed=core.parent/'chrome/browser/ui/android/strings/android_chrome_strings.grd'
+            consumed.parent.mkdir(parents=True, exist_ok=True)
+            consumed.write_text('<grit>'+''.join(f'<message name="{name}">About Brave</message>' for name in ('IDS_PREFS_ABOUT_CHROME','IDS_MENU_ABOUT_CHROME'))+'</grit>')
+            for rel, name in ((b.ABOUT_JAVA, 'AboutChromeSettings'), (b.LEGAL_JAVA, 'LegalInformationSettings')):
+                target=core.parent/rel
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_text((Path(__file__).resolve().parents[2]/'tests/fixtures/about-branding'/f'{name}.java').read_text())
             for rel in b.STRING_FILES:
                 p=core/rel;p.parent.mkdir(parents=True,exist_ok=True)
                 p.write_text('<grit><message name="IDS_BROWSER">Brave browser</message></grit>')
@@ -70,9 +112,9 @@ class BrandingTests(unittest.TestCase):
             self.assertIn('R.drawable.sandium_ntp_mark',j.read_text())
             self.assertIn('canvas.scale((float) size / intrinsicWidth',j.read_text())
             self.assertIn('"Sandium"',n.read_text())
-            first={str(p):p.read_bytes() for p in core.rglob('*') if p.is_file()}
+            first={str(p):p.read_bytes() for p in core.parent.rglob('*') if p.is_file()}
             b.apply(core)
-            self.assertEqual(first,{str(p):p.read_bytes() for p in core.rglob('*') if p.is_file()})
+            self.assertEqual(first,{str(p):p.read_bytes() for p in core.parent.rglob('*') if p.is_file()})
             self.assertIn('The Brave Authors', (core/'android/java/brave-res/drawable/ic_brave_logo.xml').read_text())
 
 
@@ -87,6 +129,13 @@ def verify_core(core):
     ui = importlib.util.module_from_spec(ui_spec)
     ui_spec.loader.exec_module(ui)
     ui.verify_ui_identity(core, core.parent, final=True)
+    consumed=(core.parent/'chrome/browser/ui/android/strings/android_chrome_strings.grd').read_text()
+    if b.rebrand_about_titles(consumed) != consumed:
+        raise RuntimeError('Unbranded consumed About titles')
+    about=(core.parent/b.ABOUT_JAVA).read_text()
+    legal=(core.parent/b.LEGAL_JAVA).read_text()
+    if (about, legal) != b.relocate_copyright(about, legal):
+        raise RuntimeError('Copyright relocation missing')
     for rel in b.STRING_FILES:
         content=(core/rel).read_text()
         if b.rebrand_messages(content)[0] != content:

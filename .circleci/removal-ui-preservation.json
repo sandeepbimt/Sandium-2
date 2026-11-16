@@ -4,23 +4,23 @@
     ".circleci/experimental-steps/product-overlay-29-0.sh": "9facc9a8733f405cddf4d845ca87677568dfe3a93d17431b81ec29f0b103cb0d",
     ".circleci/scripts/apply-sandium-bottom-toolbar.py": "ccdf6b99530a4505c5d42d0360f9f8efcba2ba432c6dc296fdc3e401686d2a4d",
     ".circleci/scripts/apply-sandium-chrome-theme.py": "13cfd73d17cd342cec9b1f3bf332f29be873a0b850cfb40942b7cd4660623ccf",
-    ".circleci/scripts/apply-sandium-native-theme.py": "3c393708d93302b8a2539e73d4e475142660ed69ec6efc9c5345572f7ce06f1e",
+    ".circleci/scripts/apply-sandium-native-theme.py": "bab09bccac54195e2d4c937de703f870632224b01b92373e9034c29beb3287f8",
     ".circleci/scripts/apply-sandium-paged-menu.py": "126eed2d8d2abd37a7df6033bb48eb8e8a8549d4ea90c7626adbbb60a9fafcfa",
     ".circleci/scripts/apply-sandium-scroll-status-bar.py": "e03c353c2b80cfa22969c26cce3ab9845b485fa5e36e476a133b7662bb6f69ae",
     ".circleci/scripts/apply-sandium-shields-popup.py": "eaca25aec6ba08e28775815c112f8446f87dd49630da98bd86ea78770f2c078d",
     ".circleci/scripts/test-sandium-bottom-toolbar.py": "40e3750bb0bdc4e97b9c13e306406fffbc65d5b146f1ba526748cdce8152bb24",
     ".circleci/scripts/test-sandium-chrome-theme.py": "d9443c1ab2e17e2319b2df23af0e61ef2fd70b030450175a39eac53a8a4f3958",
-    ".circleci/scripts/test-sandium-motion.py": "08cc78b118e6bbca0b72719d1d2f1b016f64733380df036384a8af881daccf88",
-    ".circleci/scripts/test-sandium-native-theme.py": "aa5333b34f41c9600b9ea74c252a9d77e00a62c7fb1ff8bcf86c6312f89093f6",
+    ".circleci/scripts/test-sandium-motion.py": "988a797186b55c2295a3e9520cec5aa5b7215f69474ffcf6ac981344027564fc",
+    ".circleci/scripts/test-sandium-native-theme.py": "54f1082d5143359335f061b1a8753dd98eaebfb5a437c6a4cd9287d2658113ee",
     ".circleci/scripts/test-sandium-paged-menu.py": "6c397cb398f02a0564bb462b1e110fb1e9a943df00e137de33db5ed1c1d0059a",
     ".circleci/scripts/test-sandium-shields-popup.py": "49ea362d9b0322c77f02356d457bbc3efed8053ca878d261468ca614f3049de0",
-    "android/java/org/chromium/chrome/browser/firstrun/SandiumWelcomeSetupView.java": "5187dd648b015499efbb9e338d7dc0b24ca06331daad1cd1f03900bee188cb1a",
+    "android/java/org/chromium/chrome/browser/firstrun/SandiumWelcomeSetupView.java": "af107d75d31a7e17510416119c23ef7e6dc264a18a86faea1cedf09567a6aa59",
     "android/java/org/chromium/chrome/browser/ui/appmenu/SandiumMenuMetadata.java": "73c796d7c1c623bfa2d5246e68b7a5763a76bf78eec225d0722f60f171d24be2",
-    "android/java/org/chromium/chrome/browser/ui/appmenu/SandiumMenuState.java": "64b707978412cca96095221e68d14764b15a2da241a1e7698de1f375c77b652f",
-    "android/java/org/chromium/chrome/browser/ui/appmenu/SandiumPagedMenu.java": "c12940f04f8ea5f5c370ac0ba5b175045772f6ddd88276e9a96aed2f97bf0106",
+    "android/java/org/chromium/chrome/browser/ui/appmenu/SandiumMenuState.java": "f6d9b8a220867bd9eb1cdf7b188afe3640d1a218f4dbce651a9b7e161c5a7983",
+    "android/java/org/chromium/chrome/browser/ui/appmenu/SandiumPagedMenu.java": "2a814c5cfa3e63c08d32f563f69d1b253cb3dc5d7495e400f69881e5064a74d5",
     "android/java/res/values-night/sandium_menu_colors.xml": "f27fa7dfce1f671ff7029c2a6b29b8c0afa30a029bf93520dbbaf0b4989310a7",
     "android/java/res/values/sandium_menu_colors.xml": "3c9efcdaf512005133b0c56c7b2376d6890225b72a7e6257a7cad54d8675efde",
-    "android/java/res/values/sandium_menu_strings.xml": "3319581c963c8a237d5b1f0394d84aeb870979be9828c0370983abd63e1de65f"
+    "android/java/res/values/sandium_menu_strings.xml": "935d77d7f8e105e9d7c6a2e11ab48b653044ccd9bae09c634791edfbbb9384a3"
   },
   "approved_ui_updates": [
     {
@@ -325,6 +325,58 @@
           "current_sha256": "e03c353c2b80cfa22969c26cce3ab9845b485fa5e36e476a133b7662bb6f69ae"
         }
       }
+    },
+    {
+      "reason": "Nov16 user-requested fixed menu dimensions, aligned icons and neutral uniform labels; native actions and frozen UI scope preserved",
+      "changes": {
+        ".circleci/scripts/test-sandium-motion.py": {
+          "previous_sha256": "08cc78b118e6bbca0b72719d1d2f1b016f64733380df036384a8af881daccf88",
+          "current_sha256": "988a797186b55c2295a3e9520cec5aa5b7215f69474ffcf6ac981344027564fc"
+        },
+        ".circleci/scripts/test-sandium-native-theme.py": {
+          "previous_sha256": "aa5333b34f41c9600b9ea74c252a9d77e00a62c7fb1ff8bcf86c6312f89093f6",
+          "current_sha256": "9f99e56b38f9230830162f72583bc7dd95538a42dc11b9ab1eb0a5531951be81"
+        },
+        "android/java/org/chromium/chrome/browser/ui/appmenu/SandiumPagedMenu.java": {
+          "previous_sha256": "c12940f04f8ea5f5c370ac0ba5b175045772f6ddd88276e9a96aed2f97bf0106",
+          "current_sha256": "c2a5f766b236f1e852af79300247ae2022b4df7fdda527c9bca0c0f9b37859e1"
+        },
+        "android/java/res/values/sandium_menu_strings.xml": {
+          "previous_sha256": "3319581c963c8a237d5b1f0394d84aeb870979be9828c0370983abd63e1de65f",
+          "current_sha256": "0c99c033c63886596afbd4aba09c8fe41b6b02cb0f54ec3db4f320a0465bbb1b"
+        }
+      }
+    },
+    {
+      "reason": "Nov16 user-reported menu customization loss on browser close: durable completed edits, explicit Cancel rollback, save failure feedback",
+      "changes": {
+        "android/java/org/chromium/chrome/browser/ui/appmenu/SandiumMenuState.java": {
+          "previous_sha256": "64b707978412cca96095221e68d14764b15a2da241a1e7698de1f375c77b652f",
+          "current_sha256": "f6d9b8a220867bd9eb1cdf7b188afe3640d1a218f4dbce651a9b7e161c5a7983"
+        },
+        "android/java/org/chromium/chrome/browser/ui/appmenu/SandiumPagedMenu.java": {
+          "previous_sha256": "c2a5f766b236f1e852af79300247ae2022b4df7fdda527c9bca0c0f9b37859e1",
+          "current_sha256": "2a814c5cfa3e63c08d32f563f69d1b253cb3dc5d7495e400f69881e5064a74d5"
+        },
+        "android/java/res/values/sandium_menu_strings.xml": {
+          "previous_sha256": "0c99c033c63886596afbd4aba09c8fe41b6b02cb0f54ec3db4f320a0465bbb1b",
+          "current_sha256": "935d77d7f8e105e9d7c6a2e11ab48b653044ccd9bae09c634791edfbbb9384a3"
+        }
+      }
+    },
+    {
+      "reason": "Nov16 explicit request: shared Settings and all sub-setting title backing matches section background, preserving light and dynamic themes",
+      "changes": {
+        ".circleci/scripts/apply-sandium-native-theme.py": {
+          "previous_sha256": "3c393708d93302b8a2539e73d4e475142660ed69ec6efc9c5345572f7ce06f1e",
+          "current_sha256": "bab09bccac54195e2d4c937de703f870632224b01b92373e9034c29beb3287f8"
+        },
+        ".circleci/scripts/test-sandium-native-theme.py": {
+          "previous_sha256": "9f99e56b38f9230830162f72583bc7dd95538a42dc11b9ab1eb0a5531951be81",
+          "current_sha256": "022e5772aaba8e77020f9fc685b8cab6080088e7afc940fa9770524de7183250"
+        }
+      }
     }
-  ]
+  ],
+  "welcome_nov16": "Owner requested compact welcome, hidden scrollbars, green progress/checks, toolbar tracer and one-second restart feedback; lifecycle/copy constraints preserved."
 }

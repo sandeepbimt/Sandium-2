@@ -467,7 +467,9 @@
     "content/browser/renderer_host/navigation_entry_impl.cc",
     "content/browser/renderer_host/navigation_controller_impl.cc",
     "third_party/blink/renderer/core/frame/local_frame_view.cc",
-    "third_party/blink/renderer/core/paint/image_painter.cc"
+    "third_party/blink/renderer/core/paint/image_painter.cc",
+    "chrome/android/java/src/org/chromium/chrome/browser/about_settings/AboutChromeSettings.java",
+    "chrome/android/java/src/org/chromium/chrome/browser/about_settings/LegalInformationSettings.java"
   ],
   "generated_overwrite": [
     "components/minidump_uploader/android/java/src/org/chromium/components/minidump_uploader/MinidumpUploader.java",
@@ -761,6 +763,8 @@
     "content/browser/renderer_host/navigation_entry_impl.cc",
     "content/browser/renderer_host/navigation_controller_impl.cc",
     "third_party/blink/renderer/core/frame/local_frame_view.cc",
-    "third_party/blink/renderer/core/paint/image_painter.cc"
+    "third_party/blink/renderer/core/paint/image_painter.cc",
+    "chrome/android/java/src/org/chromium/chrome/browser/about_settings/AboutChromeSettings.java",
+    "chrome/android/java/src/org/chromium/chrome/browser/about_settings/LegalInformationSettings.java"
   ]
 }

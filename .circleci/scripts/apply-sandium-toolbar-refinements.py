@@ -23,8 +23,19 @@ DIMENS = 'chrome/browser/ui/android/omnibox/java/res/values/dimens.xml'
 def phone(s):
     # Keep the existing new-tab action alive as a private dispatch target, but no
     # longer expose a second + or reserve any width for it in any window/font state.
-    return once(s, 'sandiumNewTab.setVisibility(sandiumCompactToolbar() ? GONE : VISIBLE);',
+    s = once(s, 'sandiumNewTab.setVisibility(sandiumCompactToolbar() ? GONE : VISIBLE);',
                 'sandiumNewTab.setVisibility(GONE); // SANDIUM_TAB_DUAL_ACTION_V1: no duplicate + slot.')
+    # Only enlarge the painted capsule within its existing toolbar. Keep viewport,
+    # URL/icon positions, hit targets, focus/IME layout and horizontal geometry intact.
+    return once(s,
+        '        int verticalInset = mLocationBarBackgroundVerticalInset - calculateOnFocusHeightIncrease();',
+        '''        int verticalInset = mLocationBarBackgroundVerticalInset - calculateOnFocusHeightIncrease();
+        // SANDIUM_ADDRESS_HEIGHT_V1: +8dp capsule height, matching Quetta proportions.
+        // Focus can still expand farther if native/accessibility dimensions require it.
+        int sandiumExtraInset = Math.round(4 * getResources().getDisplayMetrics().density
+                * (1 - mUrlFocusChangeFraction));
+        verticalInset -= Math.min(Math.max(0, verticalInset), sandiumExtraInset);''')
+
 
 
 def layout(s):

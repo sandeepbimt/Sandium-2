@@ -32,5 +32,5 @@ class CrossPageDrag(unittest.TestCase):
  def test_directory_uses_saved_order_and_same_storage(self):
   self.assertIn('for (String key : mSaved.knownKeys()) if (available.contains(key)) directory.add(key)',S)
   self.assertIn('.getString("layout", ""), mCatalog.keySet(), hidden)',S)
-  self.assertIn('.putString("layout", mSaved.serialize()).apply()',S)
+  self.assertIn('.putString("layout", value.serialize()).commit()',S)
 if __name__=='__main__':unittest.main()

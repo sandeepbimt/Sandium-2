@@ -10,7 +10,7 @@ import java.util.Set;
 
 /** User ordering only. Callers must supply the live policy-filtered catalog before rendering.
  * Missing/temporarily unavailable entries survive persistence, but never become executable here.
- * Edit a copy and publish it only on Done; dismissing the editor discards that copy.
+ * The UI durably saves each completed edit; explicit Cancel restores its entry snapshot.
  */
 public final class SandiumMenuState {
     private static final String VERSION = "sandium-menu-v1";

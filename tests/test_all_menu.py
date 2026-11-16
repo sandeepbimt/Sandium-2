@@ -31,6 +31,6 @@ class AllMenu(unittest.TestCase):
  def test_live_actions_and_geometry_retained(self):
   self.assertIn('setBackground(shape(mPanelColor, 16))',S)
   self.assertIn('if (current == null || !enabled(current.model)) return',S)
-  self.assertIn('all.setMinimumHeight(dp(96))',S)
+  self.assertIn('LinearLayout all = tile()',S)
   self.assertIn('ValueAnimator.areAnimatorsEnabled()',S)
 if __name__=='__main__':unittest.main()

@@ -31,7 +31,9 @@ bool Tag(const std::string* text) {
 }
 bool SameTarget(const base::DictValue& a, const base::DictValue& b) {
   return a.FindString("id") && b.FindString("id") &&
-      *a.FindString("id") == *b.FindString("id") && a.FindInt("property") == b.FindInt("property");
+      *a.FindString("id") == *b.FindString("id") && a.FindInt("property") == b.FindInt("property") &&
+      ((!a.Find("locator") && !b.Find("locator")) ||
+       (a.Find("locator") && b.Find("locator") && *a.Find("locator") == *b.Find("locator")));
 }
 }  // namespace
 ElementColorRuleStore& ElementColorRuleStore::ForProfile(Profile& profile) {
@@ -54,9 +56,30 @@ bool ElementColorRuleStore::EligibleOrigin(const url::Origin& origin) {
 }
 bool ElementColorRuleStore::ValidRule(const base::DictValue& rule) {
   // No CSS/JS, URLs, text content, or arbitrary nested data is accepted.
-  if (rule.size() != 6 || !Tag(rule.FindString("tag")) ||
-      !BoundedText(rule.FindString("id"), 128, false) ||
+  const auto* locator = rule.FindDict("locator");
+  if (rule.size() != (locator ? 7u : 6u) || !Tag(rule.FindString("tag")) ||
+      !BoundedText(rule.FindString("id"), 128, locator != nullptr) ||
       !BoundedText(rule.FindString("role"), 64, true)) return false;
+  if (locator) {
+    if (!rule.FindString("id")->empty() || locator->size() != 2 ||
+        !BoundedText(locator->FindString("anchor"),128,false)) return false;
+    const auto* steps=locator->FindList("steps");
+    if (!steps || steps->empty() || steps->size()>23) return false;
+    for (const auto& item : *steps) {
+      const auto* step=item.GetIfDict();
+      if (!step || step->size()!=3 || !Tag(step->FindString("tag")) ||
+          !BoundedText(step->FindString("role"),64,true)) return false;
+      const auto* classes=step->FindList("classes");
+      if (!classes || classes->size()>12) return false;
+      for (const auto& token : *classes) {
+        const auto* text=token.GetIfString();
+        if (!BoundedText(text,64,false)) return false;
+        for (unsigned char ch : *text)
+          if (!((ch>='a' && ch<='z') || (ch>='A' && ch<='Z') ||
+                (ch>='0' && ch<='9') || ch=='_' || ch=='-')) return false;
+      }
+    }
+  }
   auto property = rule.FindInt("property"), rgb = rule.FindInt("rgb");
   if (!property || (*property != 0 && *property != 1 && *property != 2) || !rgb || *rgb < 0 || *rgb > 0xffffff) return false;
   if (*property == 2 && *rule.FindString("tag") != "img") return false;
@@ -99,19 +122,23 @@ bool ElementColorRuleStore::Save(const url::Origin& origin, const base::DictValu
     memory_.insert_or_assign(key,std::move(result));
   } else {
     if (!prefs_->GetDict(kPref).contains(key) && prefs_->GetDict(kPref).size() >= kSites) return false;
-    ScopedDictPrefUpdate update(prefs_,kPref);
-    update->Set(key,std::move(result));
+    { ScopedDictPrefUpdate update(prefs_,kPref);
+      update->Set(key,std::move(result)); }
+    prefs_->CommitPendingWrite();
   }
   return true;
 }
 bool ElementColorRuleStore::Reset(const url::Origin& origin) {
   if (!EligibleOrigin(origin) || (!private_ && !prefs_)) return false;
   if (private_) memory_.erase(origin.Serialize());
-  else { ScopedDictPrefUpdate update(prefs_,kPref); update->Remove(origin.Serialize()); }
+  else {
+    { ScopedDictPrefUpdate update(prefs_,kPref); update->Remove(origin.Serialize()); }
+    prefs_->CommitPendingWrite();
+  }
   return true;
 }
 void ElementColorRuleStore::Clear() {
   if (private_) memory_.clear();
-  else if (prefs_) prefs_->ClearPref(kPref);
+  else if (prefs_) { prefs_->ClearPref(kPref); prefs_->CommitPendingWrite(); }
 }
 }  // namespace sandium

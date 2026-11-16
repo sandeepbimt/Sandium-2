@@ -243,7 +243,7 @@ def apply(core: Path, src: Path, repo_root: Path) -> None:
         "mBlurRestartHint.setVisibility(View.VISIBLE)",
         "selector.setBackground(outlinedRoundRect(CARD, PRIMARY, 28))",
         "parent.addView(mBlurRestartHint, matchWrap())",
-        "mBlurRestartHint.setPadding(dp(60), dp(10), dp(14), dp(8))",
+        "mBlurRestartHint.setPadding(dp(60), 0, dp(14), dp(4))",
         "row.setPadding(dp(16), dp(12), dp(14), dp(2))",
         "mBlurRestartHint.setVisibility(View.VISIBLE)",
         "blurTitle.setSingleLine(true)",

@@ -2,12 +2,12 @@ from pathlib import Path
 import unittest, importlib.util
 ROOT=Path(__file__).resolve().parents[1]
 class MenuFit(unittest.TestCase):
- def test_bounded_empty_cells_and_intrinsic_sheet(self):
+ def test_bounded_empty_cells_and_stable_sheet(self):
   s=(ROOT/'android/java/org/chromium/chrome/browser/ui/appmenu/SandiumPagedMenu.java').read_text()
   self.assertNotIn('weighted(line, new View',s)
   self.assertIn('int preferredHeight(int width, int available)',s)
-  self.assertIn('mBody.measure(exactWidth, MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED))',s)
-  self.assertIn('Math.min(available, dp(16)',s)
+  self.assertNotIn('mBody.measure(exactWidth',s)
+  self.assertIn('Math.min(available, dp(16 + 48 + 36 + 48)',s)
   self.assertIn('new LinearLayout.LayoutParams(0, 1, 1)',s)
  def test_editor_overlay_keeps_target_and_native_dispatch(self):
   s=(ROOT/'android/java/org/chromium/chrome/browser/ui/appmenu/SandiumPagedMenu.java').read_text()
