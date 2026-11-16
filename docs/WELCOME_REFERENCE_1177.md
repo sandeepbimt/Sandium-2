@@ -60,3 +60,11 @@ Expanding More options removes these weights and uses natural scrollable height;
 collapsing restores viewport fill and scroll-to-top. Logo/progress/button behavior,
 font sizes and the large-font overflow fallback are unchanged. Actual device
 layout remains a required follow-up check.
+
+## Dark Pages hint removal after #1225
+Per owner request, Dark Pages now uses the ordinary switch-row presentation
+without a restart hint. Startup-only transition rows retain their restart notices.
+The existing available-space distribution absorbs the removed line; no blank
+placeholder is retained. Dark-page policy, startup restart and all other controls
+are unchanged. Both fresh composition and an already-composed Dark Pages row
+upgrade to the no-hint presentation.

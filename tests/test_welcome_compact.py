@@ -13,12 +13,16 @@ class WelcomeCompact(unittest.TestCase):
  def test_dark_policy_fresh_and_upgrade(self):
   patch=runpy.run_path(str(ROOT/'.circleci/scripts/apply-sandium-dark-pages.py'))['welcome']
   s=patch(VIEW.read_text())
-  self.assertIn('mSandiumDarkPageSwitch = addRestartSwitchRow',s)
-  self.assertIn('Applied with setup restart',s)
+  self.assertIn('mSandiumDarkPageSwitch = addSwitchRow',s)
+  self.assertNotIn('mSandiumDarkPageSwitch = addRestartSwitchRow',s)
+  self.assertNotIn('Applied with setup restart',s)
+  self.assertIn('addRestartSwitchRow(card, "◐", "Darken transition"',s)
+  self.assertIn('Needs a quick restart to apply',s)
   self.assertIn('mRequiresRestart = true;',s)
   self.assertEqual(s,patch(s))
-  old=s.replace('// Setup restart applies startup-only transition choices.\n        mRequiresRestart = true;','').replace('mSandiumDarkPageSwitch = addRestartSwitchRow','mSandiumDarkPageSwitch = addSwitchRow')
-  self.assertIn('mSandiumDarkPageSwitch = addRestartSwitchRow',patch(old))
+  old=s.replace('// Setup restart applies startup-only transition choices.\n        mRequiresRestart = true;','').replace('mSandiumDarkPageSwitch = addSwitchRow','mSandiumDarkPageSwitch = addRestartSwitchRow')
+  self.assertIn('mSandiumDarkPageSwitch = addSwitchRow',patch(old))
+  self.assertNotIn('mSandiumDarkPageSwitch = addRestartSwitchRow',patch(old))
  def test_spare_height_belongs_to_complete_settings_groups(self):
   s=VIEW.read_text()
   build=s.split('private void buildMainSettingsCard()',1)[1].split('private void buildFilterProgressCard()',1)[0]

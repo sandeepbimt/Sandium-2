@@ -573,9 +573,7 @@ final class SandiumWelcomeSetupView {
         TextView detail = itemText(summary, 13, SECONDARY, false);
         detail.setPadding(0, dp(1), 0, 0);
         labels.addView(detail, matchWrap());
-        TextView restartHint = text("☾".equals(glyph)
-                ? "↻  Applied with setup restart" : "↻  Needs a quick restart to apply",
-                11, PRIMARY, false);
+        TextView restartHint = text("↻  Needs a quick restart to apply", 11, PRIMARY, false);
         restartHint.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
         restartHint.setLetterSpacing(0.01f);
         restartHint.setPadding(dp(56), 0, dp(14), dp(4));

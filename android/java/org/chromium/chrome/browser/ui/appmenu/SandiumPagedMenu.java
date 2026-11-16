@@ -39,6 +39,7 @@ import java.util.Set;
 final class SandiumPagedMenu extends FrameLayout {
     private final SandiumMenuPreferences mPreferences;
     private static final int PAGE_SIZE = 8;
+    private static final int EDITOR_AVAILABLE_ROWS = 4;
     private static final String ALL_MENU = "sandium:all-menu";
     private boolean mAllMenu;
     private final int mGroupColor, mPanelColor, mTextColor, mSecondaryTextColor, mDividerColor, mAccentColor;
@@ -325,14 +326,15 @@ final class SandiumPagedMenu extends FrameLayout {
     }
     private LinearLayout tile() {
         LinearLayout tile = column();
-        tile.setGravity(Gravity.TOP | Gravity.CENTER_HORIZONTAL);
+        tile.setGravity(Gravity.CENTER);
         tile.setPadding(dp(3), dp(4), dp(3), dp(4));
+        // Keep the row envelope stable; center the actual one/two-line stack within it.
         tile.setMinimumHeight(tileHeight());
         bindPressFeedback(tile);
         return tile;
     }
     private void addTileLabel(LinearLayout tile, View label) {
-        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(-1, labelHeight());
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(-1, ViewGroup.LayoutParams.WRAP_CONTENT);
         params.topMargin = dp(2);
         tile.addView(label, params);
     }
@@ -452,10 +454,16 @@ final class SandiumPagedMenu extends FrameLayout {
         // Only window/font configuration changes it, never current labels or action count.
         int rows = (LIBRARY.length + columns() - 1) / columns()
                 + (PAGE_SIZE + columns() - 1) / columns();
-        // Editor omits the immutable library row and fits one available-action row.
-        // Keep its bounded extra header space independent of the live catalog too.
-        int editorExtra = mDraft != null ? dp(48) : 0;
-        return Math.max(1, Math.min(available, dp(16 + 48 + 24 + 48) + rows * tileHeight() + editorExtra));
+        if (mDraft != null) {
+            // Editor reserves a complete quick page plus four available-action rows.
+            // Grow the editor, not the regular menu, and never shrink fonts/touch targets
+            // to force an impossible fit in a small/landscape/accessibility viewport.
+            int quickRows = (PAGE_SIZE + columns() - 1) / columns();
+            int editorHeight = dp(8 + 48 + 24 + 48 + 24 + 24)
+                    + (quickRows + EDITOR_AVAILABLE_ROWS) * tileHeight();
+            return Math.max(1, Math.min(available, editorHeight));
+        }
+        return Math.max(1, Math.min(available, dp(8 + 48 + 24 + 48) + rows * tileHeight()));
     }
 
     private void finishPanelMotion() {
@@ -546,7 +554,7 @@ final class SandiumPagedMenu extends FrameLayout {
         mRenderedScreen = screen; mRenderedPage = mPage;
         clearPendingNativeAction();
         removeAllViews(); mNativeVisible = false;
-        LinearLayout panel = column(); panel.setPadding(dp(12), dp(8), dp(12), dp(8));
+        LinearLayout panel = column(); panel.setPadding(dp(12), 0, dp(12), dp(8));
         addView(panel, new LayoutParams(-1, -1));
         // The sheet background stays opaque. Model refresh replaces only the
         // content target; the current animator/progress continues uninterrupted.
@@ -555,6 +563,8 @@ final class SandiumPagedMenu extends FrameLayout {
         if (transition) startPanelMotion();
         LinearLayout heading = row(); mHeading = heading;
         heading.setMinimumHeight(dp(48));
+        heading.setGravity(Gravity.CENTER_VERTICAL);
+        heading.setBaselineAligned(false);
         if (mDraft != null) {
             weighted(heading, button(s(R.string.sandium_menu_cancel), s(R.string.sandium_menu_cancel_edits), () -> {
                 if (writeLayout(mSaved)) { mDraft = null; render(); }
@@ -583,6 +593,7 @@ final class SandiumPagedMenu extends FrameLayout {
                 }
                 TextView title = text(s(mAllMenu ? R.string.sandium_menu_all : R.string.sandium_menu_title), 16, mTextColor);
                 title.setGravity(Gravity.CENTER);
+                title.setIncludeFontPadding(false);
                 heading.addView(title, new LinearLayout.LayoutParams(0, dp(48), 1));
                 TextView editAction = button(s(R.string.sandium_menu_edit),
                         s(R.string.sandium_menu_edit_description),
@@ -592,6 +603,14 @@ final class SandiumPagedMenu extends FrameLayout {
                 heading.addView(editAction, editParams);
             }
 
+        }
+        // Center the visible glyphs, not font-leading or horizontal baseline alignment.
+        for (int i = 0; i < heading.getChildCount(); i++) {
+            View child = heading.getChildAt(i);
+            if (child instanceof TextView) {
+                ((TextView) child).setIncludeFontPadding(false);
+                ((TextView) child).setGravity(Gravity.CENTER);
+            }
         }
         panel.addView(heading);
         if (mResize != null && mDragging == null) post(mResize);
@@ -689,7 +708,10 @@ final class SandiumPagedMenu extends FrameLayout {
             LinearLayout availableGroup = group(body);
             TextView availableTitle = text(s(R.string.sandium_menu_available), 12, mSecondaryTextColor);
             availableTitle.setMinHeight(dp(24)); availableGroup.addView(availableTitle);
-            grid(availableGroup, mDraft.hiddenKeys(editableKeys()), true);
+            LinearLayout availableGrid = column();
+            availableGrid.setMinimumHeight(EDITOR_AVAILABLE_ROWS * tileHeight());
+            grid(availableGrid, mDraft.hiddenKeys(editableKeys()), true);
+            availableGroup.addView(availableGrid);
         }
     }
 

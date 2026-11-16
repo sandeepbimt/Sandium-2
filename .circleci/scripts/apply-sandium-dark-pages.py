@@ -106,8 +106,8 @@ def appearance(text):
 
 def welcome(text):
     if 'SANDIUM_DARK_PAGES_WELCOME_V1' in text:
-        text = text.replace('mSandiumDarkPageSwitch = addSwitchRow(card, "☾", "Dark pages",',
-                            'mSandiumDarkPageSwitch = addRestartSwitchRow(card, "☾", "Dark pages",')
+        text = text.replace('mSandiumDarkPageSwitch = addRestartSwitchRow(card, "☾", "Dark pages",',
+                            'mSandiumDarkPageSwitch = addSwitchRow(card, "☾", "Dark pages",')
         marker = '// The registered policy defaults are already enabled; do not overwrite saved choices.'
         if '// Setup restart applies startup-only transition choices.' not in text:
             text = once(text, marker, marker + "\n        // Setup restart applies startup-only transition choices.\n        mRequiresRestart = true;")
@@ -135,7 +135,7 @@ def welcome(text):
                 true, checked -> {
                     BraveFeatureUtil.enableFeature(BraveFeatureList.ENABLE_FORCE_DARK, checked, true);
                     mRequiresRestart = true;
-                });''', '''        mSandiumDarkPageSwitch = addRestartSwitchRow(card, "☾", "Dark pages",
+                });''', '''        mSandiumDarkPageSwitch = addSwitchRow(card, "☾", "Dark pages",
                 "Use native dark rendering for websites",
                 true, checked -> {
                     if (mSandiumRestoringDarkPageSwitch) return;

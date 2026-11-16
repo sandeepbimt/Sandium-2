@@ -7,7 +7,7 @@ class MenuFit(unittest.TestCase):
   self.assertNotIn('weighted(line, new View',s)
   self.assertIn('int preferredHeight(int width, int available)',s)
   self.assertNotIn('mBody.measure(exactWidth',s)
-  self.assertIn('Math.min(available, dp(16 + 48 + 24 + 48)',s)
+  self.assertIn('Math.min(available, dp(8 + 48 + 24 + 48)',s)
   self.assertIn('new LinearLayout.LayoutParams(0, 1, 1)',s)
  def test_editor_tile_keeps_target_and_native_dispatch(self):
   s=(ROOT/'android/java/org/chromium/chrome/browser/ui/appmenu/SandiumPagedMenu.java').read_text()
