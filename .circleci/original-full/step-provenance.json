@@ -1,0 +1,221 @@
+[
+  {
+    "baseline_index": 0,
+    "candidate_index": 0,
+    "status": "byte-identical task object"
+  },
+  {
+    "baseline_index": 1,
+    "candidate_index": 1,
+    "status": "byte-identical task object"
+  },
+  {
+    "baseline_index": 2,
+    "candidate_index": 2,
+    "status": "byte-identical task object"
+  },
+  {
+    "baseline_index": 3,
+    "candidate_index": 3,
+    "status": "byte-identical task object"
+  },
+  {
+    "baseline_index": 4,
+    "candidate_index": 4,
+    "status": "byte-identical task object"
+  },
+  {
+    "baseline_index": 5,
+    "candidate_index": 5,
+    "status": "byte-identical task object"
+  },
+  {
+    "baseline_index": 6,
+    "candidate_index": 6,
+    "status": "byte-identical task object"
+  },
+  {
+    "baseline_index": 7,
+    "candidate_index": 7,
+    "status": "byte-identical task object"
+  },
+  {
+    "baseline_index": 8,
+    "candidate_index": 8,
+    "status": "approved fixed-reference metadata and exact cache selection"
+  },
+  {
+    "baseline_index": 9,
+    "candidate_index": 9,
+    "status": "byte-identical task object"
+  },
+  {
+    "baseline_index": 10,
+    "candidate_index": 10,
+    "status": "byte-identical task object"
+  },
+  {
+    "baseline_index": 11,
+    "candidate_index": 11,
+    "status": "byte-identical task object"
+  },
+  {
+    "baseline_index": 12,
+    "candidate_index": 12,
+    "status": "byte-identical task object"
+  },
+  {
+    "baseline_index": 13,
+    "candidate_index": 13,
+    "status": "byte-identical task object"
+  },
+  {
+    "baseline_index": 14,
+    "candidate_index": 14,
+    "status": "byte-identical task object"
+  },
+  {
+    "baseline_index": 15,
+    "candidate_index": 15,
+    "status": "byte-identical task object"
+  },
+  {
+    "baseline_index": 16,
+    "candidate_index": 16,
+    "status": "byte-identical task object"
+  },
+  {
+    "baseline_index": 17,
+    "candidate_index": 17,
+    "status": "byte-identical task object"
+  },
+  {
+    "baseline_index": 18,
+    "candidate_index": 18,
+    "status": "byte-identical task object"
+  },
+  {
+    "baseline_index": 19,
+    "candidate_index": 19,
+    "status": "byte-identical task object"
+  },
+  {
+    "baseline_index": 20,
+    "candidate_index": 20,
+    "status": "byte-identical task object"
+  },
+  {
+    "baseline_index": null,
+    "exception": "fixed-reference postrestore source identity and metadata only"
+  },
+  {
+    "baseline_index": 21,
+    "candidate_index": 22,
+    "status": "approved incomplete handoff validation"
+  },
+  {
+    "baseline_index": 22,
+    "candidate_index": 23,
+    "status": "byte-identical task object"
+  },
+  {
+    "baseline_index": null,
+    "exception": "current Sandium product overlays",
+    "name": "Apply and verify Sandium branding refresh"
+  },
+  {
+    "baseline_index": null,
+    "exception": "current Sandium product overlays",
+    "name": "Apply Sandium first-launch native filter bootstrap"
+  },
+  {
+    "baseline_index": null,
+    "exception": "current Sandium product overlays",
+    "name": "Apply Sandium native page-transition controls and Appearance icons"
+  },
+  {
+    "baseline_index": null,
+    "exception": "current Sandium product overlays",
+    "name": "Apply Sandium welcome setup and first-successful-list adblock activation"
+  },
+  {
+    "baseline_index": null,
+    "exception": "current Sandium product overlays",
+    "name": "Apply Sandium two-state Shields controls and verify filter retirement"
+  },
+  {
+    "baseline_index": null,
+    "exception": "current Sandium product overlays",
+    "name": "Apply and verify Sandium UI pruning and preference defaults"
+  },
+  {
+    "baseline_index": null,
+    "exception": "current Sandium product overlays",
+    "name": "Compile-exclude and audit all thirteen Sandium removal groups"
+  },
+  {
+    "baseline_index": 28,
+    "candidate_index": 31,
+    "status": "byte-identical task object"
+  },
+  {
+    "baseline_index": 29,
+    "candidate_index": 32,
+    "status": "byte-identical task object"
+  },
+  {
+    "baseline_index": 30,
+    "candidate_index": 33,
+    "status": "byte-identical task object"
+  },
+  {
+    "baseline_index": 31,
+    "candidate_index": 34,
+    "status": "byte-identical task object"
+  },
+  {
+    "baseline_index": 32,
+    "candidate_index": 35,
+    "status": "byte-identical task object"
+  },
+  {
+    "baseline_index": 33,
+    "candidate_index": 36,
+    "status": "byte-identical task object"
+  },
+  {
+    "baseline_index": 34,
+    "candidate_index": 37,
+    "status": "byte-identical task object"
+  },
+  {
+    "baseline_index": 35,
+    "candidate_index": 38,
+    "status": "current APK binary/product validation"
+  },
+  {
+    "baseline_index": 36,
+    "candidate_index": 39,
+    "status": "byte-identical task object"
+  },
+  {
+    "baseline_index": 37,
+    "candidate_index": 40,
+    "status": "byte-identical task object"
+  },
+  {
+    "baseline_index": 38,
+    "candidate_index": 41,
+    "status": "byte-identical task object"
+  },
+  {
+    "baseline_index": 39,
+    "candidate_index": 42,
+    "status": "approved hashed handoff workflow binding"
+  },
+  {
+    "baseline_index": 40,
+    "candidate_index": 43,
+    "status": "byte-identical task object"
+  }
+]

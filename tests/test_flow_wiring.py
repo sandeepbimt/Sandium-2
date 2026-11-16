@@ -14,6 +14,8 @@ class FullOverlayWiring(unittest.TestCase):
         root=Path(temporary.name);(root/'.circleci/scripts').mkdir(parents=True)
         shutil.copytree(ROOT/'.circleci/experimental-steps',root/'.circleci/experimental-steps')
         shutil.copy2(ROOT/'.circleci/config.yml',root/'.circleci/config.yml')
+        (root/'.circleci/original-full').mkdir(parents=True)
+        shutil.copy2(ROOT/'.circleci/original-full/config.sha256',root/'.circleci/original-full/config.sha256')
         for names in REQUIRED.values():
             for name in names:
                 target=root/('.circleci/tests' if name == 'test_status_underlap_patch.py' else '.circleci/scripts')/name

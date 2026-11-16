@@ -10,7 +10,14 @@ OUT="$SRC/out/android_Release_arm64"
 fail() { echo "SANDIUM_REFERENCE_GATE=FAIL $*" >&2; exit 1; }
 [ -d "$SHARDS" ] || fail "restored parallel reference shard directory is missing"
 [ -s "$MANIFEST" ] || fail "restored parallel reference manifest is missing"
-python3 - "$MANIFEST" <<'PY'
+# Stage 1 keeps the strict APK-ready reference contract. Only explicit later-stage
+# handoffs may be incomplete; provenance is embedded in the hashed manifest.
+if [ "$#" -ne 0 ]; then
+  [ "$#" -eq 4 ] && [ "$1" = "--handoff" ] || fail "invalid handoff arguments"
+  case "$2" in 2|3|4|5) ;; *) fail "handoff consumer stage must be 2..5" ;; esac
+  [ -n "$3" ] && [ -n "$4" ] || fail "handoff provenance missing"
+fi
+python3 - "$MANIFEST" "$@" <<'PY'
 import json
 import sys
 from pathlib import Path
@@ -28,6 +35,21 @@ required = {
     "TARGET": "android-arm64",
     "BUILD_TYPE": "Release",
 }
+if len(sys.argv) > 2:
+    if len(sys.argv) != 6 or sys.argv[2] != "--handoff" or sys.argv[3] not in ("2", "3", "4", "5"):
+        raise SystemExit("SANDIUM_REFERENCE_GATE=FAIL invalid handoff invocation")
+    stage, workflow, revision = int(sys.argv[3]), sys.argv[4], sys.argv[5]
+    if not workflow or not revision:
+        raise SystemExit("SANDIUM_REFERENCE_GATE=FAIL missing handoff provenance")
+    expected = {"STAGE": str(stage - 1), "WORKFLOW_ID": workflow,
+                "REFERENCE_SOURCE_REVISION": revision}
+    if any(checkpoint.get(key) != value for key, value in expected.items()):
+        raise SystemExit("SANDIUM_REFERENCE_GATE=FAIL prior handoff provenance mismatch")
+    ready = checkpoint.get("APK_VALIDATED")
+    if ready not in ("true", "false") or checkpoint.get("REFERENCE_READY") != ready:
+        raise SystemExit("SANDIUM_REFERENCE_GATE=FAIL inconsistent handoff readiness")
+    required.pop("APK_VALIDATED")
+    required.pop("REFERENCE_READY")
 for key, value in required.items():
     if checkpoint.get(key) != value:
         raise SystemExit("SANDIUM_REFERENCE_GATE=FAIL checkpoint manifest %s=%r expected=%r" %

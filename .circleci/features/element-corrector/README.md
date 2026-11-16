@@ -60,3 +60,12 @@ Review corrections: preview now rejects adopted nodes from another document; cle
 Manual paint integration now requires renderer commit 5e4c4bb contract. Native composition fails if the final ApplySandiumPaintPolicy anchor is absent; manual override applies immediately afterward and sets inherited SandiumManualColorOverride, clears palette enable and native forced-dark. The renderer honors that flag by disabling both palette and stock automatic filtering for the manually corrected subtree. Exact combined-source/device validation remains mandatory. Component transform tests use a synthetic prerequisite anchor and do not claim full renderer composition success.
 
 Session shutdown now invalidates lifetime callbacks before cancellation and rejects new Begin calls during destruction. Navigation restore has a lifetime/generation guard around synchronous cancellation callbacks. BFCache/prerender activation now explicitly re-invokes the one-shot restoration path because DOMContentLoaded need not fire on activation; this is a source implementation requiring actual lifecycle tests, not a verified device outcome.
+
+### #1201 strict descriptor JSON options
+The pinned JSONReader API requires an explicit options argument. The sole
+manual-corrector ReadDict call now uses JSON_PARSE_RFC, matching the picker's
+JSON.stringify payload and rejecting comments, nonstandard escapes and invalid
+Unicode rather than enabling Chromium-extension parsing. The existing parser
+depth default and post-parse validation remain unchanged. A compile regression
+uses the actual pinned json_reader.h and the extracted production call, with an
+old-syntax negative control; dependencies are stubbed, not a full native build.

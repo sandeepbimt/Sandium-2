@@ -1,0 +1,2711 @@
+# Full-only: fc220e7f build baseline; incremental saves, optional post-APK and scheduled verified refresh.
+version: 2.1
+parameters:
+  run_build:
+    type: boolean
+    default: false
+  publication_reviewed:
+    type: boolean
+    default: true
+  allow_seed_import:
+    type: boolean
+    default: false
+  checkpoint_namespace:
+    type: string
+    default: sandium-exp-single-v1-bridge-backpreview01
+  run_maintenance:
+    type: boolean
+    default: false
+jobs:
+  initialize-full-checkpoint:
+    machine:
+      image: ubuntu-2404:current
+    resource_class: large
+    retention:
+      caches: 15d
+    environment:
+      SANDIUM_STAGE: '0'
+      SANDIUM_PIPELINE_NUMBER: << pipeline.number >>
+      SANDIUM_EXPERIMENT_SCOPE: << pipeline.parameters.checkpoint_namespace >>
+      SANDIUM_EXPERIMENT_REVIEWED: << pipeline.parameters.publication_reviewed >>
+      SANDIUM_ALLOW_SEED_IMPORT: << pipeline.parameters.allow_seed_import >>
+      SISO_LIMITS: local=8,remote=80
+    steps:
+    - checkout
+    - run:
+        name: Require authorized checkpoint scope
+        command: |
+          python3 .circleci/scripts/verify-back-preview-scope.py
+          python3 -u .circleci/bridge/full_driver.py gate
+          python3 tests/test_browser_crash_regressions.py
+          python3 tests/test_settings_origin_crash.py
+    - run:
+        name: Ensure legacy shard extraction tools on each fresh machine
+        command: bash .circleci/scripts/ensure-flow-tools.sh --with-test-tools
+    - restore_cache:
+        name: Restore latest accepted experimental head only
+        keys:
+        - sandium-experimental-head-v1-{{ checksum ".checkpoint-state/scope-key" }}-
+    - run:
+        name: Select exact checkpoint and honor verified APK completion
+        command: python3 -u .circleci/bridge/full_driver.py seed-select
+    - run:
+        name: Prove empty isolated target before frozen source import
+        command: python3 -u .circleci/bridge/fork_back_preview.py prepare
+    - restore_cache:
+        name: Read only exact verified 1166 receipt; never latest-prefix fallback
+        keys:
+        - sandium-experimental-head-v1-UHElyZWl7v4t+BDNIuwsl8ERHc8_YdW6aI8Kz55sxTY=-Kii3RVq+Ku7mFo7d3L6X2KAZuhk9feAAx1hdflFR_d4=
+    - run:
+        name: Validate frozen source and prepare isolated metadata seed
+        command: python3 -u .circleci/bridge/fork_back_preview.py import
+    - store_artifacts:
+        path: .checkpoint-state/back-seed-report.json
+        destination: back-preview-seed
+    - run:
+        name: Publish validated isolated metadata seed
+        command: python3 -u .circleci/bridge/full_driver.py publish
+    - save_cache:
+        name: Save isolated seed receipt; payload verification occurs at normal restore
+        key: sandium-experimental-head-v1-{{ checksum ".checkpoint-state/scope-key" }}-{{ checksum ".checkpoint-head/receipt.json"
+          }}
+        paths:
+        - .checkpoint-head/receipt.json
+  full-stage-1:
+    machine:
+      image: ubuntu-2404:current
+    resource_class: large
+    retention:
+      caches: 15d
+    environment:
+      SANDIUM_STAGE: '1'
+      SANDIUM_PIPELINE_NUMBER: << pipeline.number >>
+      SANDIUM_EXPERIMENT_SCOPE: << pipeline.parameters.checkpoint_namespace >>
+      SANDIUM_EXPERIMENT_REVIEWED: << pipeline.parameters.publication_reviewed >>
+      SANDIUM_ALLOW_SEED_IMPORT: << pipeline.parameters.allow_seed_import >>
+      SISO_LIMITS: local=8,remote=80
+    steps:
+    - checkout
+    - run:
+        name: Require authorized checkpoint scope
+        command: |
+          python3 .circleci/scripts/verify-back-preview-scope.py
+          python3 -u .circleci/bridge/full_driver.py gate
+    - run:
+        name: Ensure legacy shard extraction tools on each fresh machine
+        command: bash .circleci/scripts/ensure-flow-tools.sh
+    - restore_cache:
+        name: Restore latest accepted experimental head only
+        keys:
+        - sandium-experimental-head-v1-{{ checksum ".checkpoint-state/scope-key" }}-
+    - run:
+        name: Select exact checkpoint and honor verified APK completion
+        command: python3 -u .circleci/bridge/full_driver.py select
+    - restore_cache:
+        name: Restore exact unchanged legacy base
+        keys:
+        - sandium-bridge-base-v1-{{ checksum ".checkpoint-state/base.key" }}
+    - run:
+        name: Extract verified Full base before downloading increments
+        command: python3 -u .circleci/bridge/full_driver.py restore-base
+    - run:
+        name: Clear incoming payload 0
+        command: rm -rf .checkpoint-incoming
+    - restore_cache:
+        name: Restore exact required layer 0
+        keys:
+        - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-0.key" }}
+    - run:
+        name: Verify, apply and release required layer 0
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 0
+    - run:
+        name: Clear incoming payload 1
+        command: rm -rf .checkpoint-incoming
+    - restore_cache:
+        name: Restore exact required layer 1
+        keys:
+        - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-1.key" }}
+    - run:
+        name: Verify, apply and release required layer 1
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 1
+    - run:
+        name: Clear incoming payload 2
+        command: rm -rf .checkpoint-incoming
+    - restore_cache:
+        name: Restore exact required layer 2
+        keys:
+        - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-2.key" }}
+    - run:
+        name: Verify, apply and release required layer 2
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 2
+    - run:
+        name: Clear incoming payload 3
+        command: rm -rf .checkpoint-incoming
+    - restore_cache:
+        name: Restore exact required layer 3
+        keys:
+        - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-3.key" }}
+    - run:
+        name: Verify, apply and release required layer 3
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 3
+    - run:
+        name: Clear incoming payload 4
+        command: rm -rf .checkpoint-incoming
+    - restore_cache:
+        name: Restore exact required layer 4
+        keys:
+        - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-4.key" }}
+    - run:
+        name: Verify, apply and release required layer 4
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 4
+    - run:
+        name: Clear incoming payload 5
+        command: rm -rf .checkpoint-incoming
+    - restore_cache:
+        name: Restore exact required layer 5
+        keys:
+        - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-5.key" }}
+    - run:
+        name: Verify, apply and release required layer 5
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 5
+    - run:
+        name: Clear incoming payload 6
+        command: rm -rf .checkpoint-incoming
+    - restore_cache:
+        name: Restore exact required layer 6
+        keys:
+        - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-6.key" }}
+    - run:
+        name: Verify, apply and release required layer 6
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 6
+    - run:
+        name: Clear incoming payload 7
+        command: rm -rf .checkpoint-incoming
+    - restore_cache:
+        name: Restore exact required layer 7
+        keys:
+        - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-7.key" }}
+    - run:
+        name: Verify, apply and release required layer 7
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 7
+    - run:
+        command: rm -rf .checkpoint-incoming
+        name: Clear incoming payload 8
+    - restore_cache:
+        keys:
+        - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-8.key" }}
+        name: Restore exact required layer 8
+    - run:
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 8
+        name: Verify, apply and release required layer 8
+    - run:
+        command: rm -rf .checkpoint-incoming
+        name: Clear incoming payload 9
+    - restore_cache:
+        keys:
+        - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-9.key" }}
+        name: Restore exact required layer 9
+    - run:
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 9
+        name: Verify, apply and release required layer 9
+    - run:
+        command: rm -rf .checkpoint-incoming
+        name: Clear incoming payload 10
+    - restore_cache:
+        keys:
+        - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-10.key" }}
+        name: Restore exact required layer 10
+    - run:
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 10
+        name: Verify, apply and release required layer 10
+    - run:
+        command: rm -rf .checkpoint-incoming
+        name: Clear incoming payload 11
+    - restore_cache:
+        keys:
+        - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-11.key" }}
+        name: Restore exact required layer 11
+    - run:
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 11
+        name: Verify, apply and release required layer 11
+    - run:
+        command: rm -rf .checkpoint-incoming
+        name: Clear incoming payload 12
+    - restore_cache:
+        keys:
+        - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-12.key" }}
+        name: Restore exact required layer 12
+    - run:
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 12
+        name: Verify, apply and release required layer 12
+    - run:
+        command: rm -rf .checkpoint-incoming
+        name: Clear incoming payload 13
+    - restore_cache:
+        keys:
+        - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-13.key" }}
+        name: Restore exact required layer 13
+    - run:
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 13
+        name: Verify, apply and release required layer 13
+    - run:
+        command: rm -rf .checkpoint-incoming
+        name: Clear incoming payload 14
+    - restore_cache:
+        keys:
+        - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-14.key" }}
+        name: Restore exact required layer 14
+    - run:
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 14
+        name: Verify, apply and release required layer 14
+    - run:
+        command: rm -rf .checkpoint-incoming
+        name: Clear incoming payload 15
+    - restore_cache:
+        keys:
+        - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-15.key" }}
+        name: Restore exact required layer 15
+    - run:
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 15
+        name: Verify, apply and release required layer 15
+    - run:
+        name: Verify complete sequential Full checkpoint restoration
+        command: python3 -u .circleci/bridge/full_driver.py restore-finish
+        no_output_timeout: 35m
+    - run:
+        name: Inventory complete restored state before any preparation/build
+        command: python3 -u .circleci/bridge/full_driver.py begin
+    - run:
+        name: Configure Siso BuildBuddy API-key credential helper
+        command: |
+          # Siso requires an explicit credential helper in non-Google CI.
+          # Never enable xtrace here: BUILDBUDDY_API_KEY is a secret.
+          set -eu
+          if [ -z "$(printenv BUILDBUDDY_API_KEY 2>/dev/null || true)" ]; then
+            echo "MISSING_REQUIRED_SECRET=BUILDBUDDY_API_KEY" >&2
+            echo "Set BUILDBUDDY_API_KEY in CircleCI project environment variables." >&2
+            exit 1
+          fi
+          HELPER=/tmp/sandium-buildbuddy-credential-helper.py
+          printf '%s\n' \
+            '#!/usr/bin/env python3' \
+            'import json' \
+            'import os' \
+            'import sys' \
+            '' \
+            'if len(sys.argv) < 2 or sys.argv[1] != "get":' \
+            '    raise SystemExit(1)' \
+            'sys.stdin.read()' \
+            'key = os.environ["BUILDBUDDY_API_KEY"]' \
+            'print(json.dumps({"headers": {"x-buildbuddy-api-key": [key]}}))' \
+            > "$HELPER"
+          chmod 700 "$HELPER"
+          echo 'export SISO_CREDENTIAL_HELPER=/tmp/sandium-buildbuddy-credential-helper.py' >> "$BASH_ENV"
+          # Brave v1.98.62 installs depot_tools at vendor/depot_tools relative to src/brave.
+          # Keep this separate from the Afterbird sibling checkout layout.
+          echo 'export PATH="$CIRCLE_WORKING_DIRECTORY/brave-work/src/brave/vendor/depot_tools:$PATH"' >> "$BASH_ENV"
+          echo 'export DEPOT_TOOLS_UPDATE=0' >> "$BASH_ENV"
+          echo 'export SISO_LIMITS=local=8,remote=80' >> "$BASH_ENV"
+          echo "SISO_CREDENTIAL_HELPER=CONFIGURED (secret value not printed)"
+    - restore_cache:
+        keys:
+        - sandium-brave-node-v1-24.16.0
+    - restore_cache:
+        name: Restore Ubuntu Android build-dependency package cache
+        keys:
+        - sandium-brave-apt-v1-ubuntu2404-
+    - run:
+        name: Validate pinned complete Full checkpoint
+        command: bash .circleci/scripts/verify-flow-state.sh
+    - run:
+        name: Check current source feature composition
+        command: |
+          python3 tests/test_composition.py
+    - run:
+        name: Prepare pinned Brave Android source
+        no_output_timeout: 45m
+        command: |
+          set -euo pipefail
+          export BRAVE_STAGE_INDEX="${SANDIUM_STAGE}"
+          bash .circleci/scripts/prepare-brave-source.sh
+    - run:
+        name: Apply and verify Sandium branding refresh
+        command: bash .circleci/experimental-steps/product-overlay-24-0.sh
+    - run:
+        name: Apply Sandium first-launch native filter bootstrap
+        command: bash .circleci/experimental-steps/product-overlay-25-0.sh
+    - run:
+        name: Apply Sandium native page-transition controls and Appearance icons
+        command: bash .circleci/experimental-steps/product-overlay-26-0.sh
+    - run:
+        name: Apply Sandium welcome setup and first-successful-list adblock activation
+        command: bash .circleci/experimental-steps/product-overlay-27-0.sh
+    - run:
+        name: Apply Sandium two-state Shields controls and verify filter retirement
+        command: bash .circleci/experimental-steps/product-overlay-28-0.sh
+    - run:
+        name: Apply and verify Sandium UI pruning and preference defaults
+        command: bash .circleci/experimental-steps/product-overlay-29-0.sh
+    - run:
+        name: Compile-exclude and audit all thirteen Sandium removal groups
+        command: bash .circleci/experimental-steps/product-overlay-30-0.sh
+    - run:
+        name: Validate build graph and remote-execution settings
+        command: bash .circleci/experimental-steps/graph-validation.sh
+    - run:
+        name: Verify restored Brave APK before scheduling build work
+        command: bash .circleci/experimental-steps/restored-apk-validation.sh
+    - run:
+        name: Verify BuildBuddy remote worker before Android compilation
+        command: bash .circleci/experimental-steps/remote-smoke.sh
+        no_output_timeout: 15m
+    - run:
+        name: Build bounded Brave Android APK slice (fc220e7f Full baseline)
+        command: bash .circleci/experimental-steps/full-bounded-build.sh
+        no_output_timeout: 50m
+    - run:
+        name: Copy new APK immediately as explicitly unverified diagnostic output
+        command: bash .circleci/experimental-steps/export-raw-apk.sh
+        when: always
+    - store_artifacts:
+        path: brave-apk-raw
+        destination: unverified-raw-apk
+    - run:
+        name: Export APK status and artifacts
+        command: bash .circleci/experimental-steps/export-apk.sh
+    - store_artifacts:
+        path: brave-apk
+        destination: brave-apk
+    - &id001
+      run:
+        name: Record APK completion marker
+        when: always
+        command: |
+          set -euo pipefail
+          ROOT="$CIRCLE_WORKING_DIRECTORY"
+          mkdir -p "$ROOT/brave-work/.sandium"
+          STATUS="$ROOT/brave-apk/status.txt"
+          MARKER="$ROOT/brave-work/.sandium/apk-completion-status.txt"
+          if [ -s "$STATUS" ]; then
+            cp "$STATUS" "$MARKER"
+          else
+            printf 'BUILD_FINISHED=false\nAPK_ARCHIVE_VALID=false\nAPK_SIGNATURE_VALID=not_yet_built\nAPK_PACKAGE_ID_VALID=false\nAPK_BRANDING_VALID=false\n' > "$MARKER"
+          fi
+          echo "BRAVE_APK_COMPLETION_MARKER=$(grep -qx 'BUILD_FINISHED=true' "$MARKER" && echo VERIFIED || echo INCOMPLETE)"
+    - run:
+        name: Validate Brave checkpoint before saving
+        command: |
+          set -euo pipefail
+          ROOT="$CIRCLE_WORKING_DIRECTORY"
+          SRC="$ROOT/brave-work/src"
+          CORE="$SRC/brave"
+          OUT="$SRC/out/android_Release_arm64"
+          test -e "$SRC/.git" || { echo "CHECKPOINT_SAVE=REFUSED missing Chromium Git checkout" >&2; exit 1; }
+          test -e "$CORE/.git" || { echo "CHECKPOINT_SAVE=REFUSED missing Brave Git checkout" >&2; exit 1; }
+          test -s "$ROOT/brave-work/.gclient" || { echo "CHECKPOINT_SAVE=REFUSED missing .gclient" >&2; exit 1; }
+          PYTHON_REMOTE_WRAPPER="$SRC/buildtools/reclient_cfgs/python/python_remote_wrapper"
+          test -x "$PYTHON_REMOTE_WRAPPER" || { echo "CHECKPOINT_SAVE=REFUSED Brave Python remote wrapper is not executable" >&2; exit 1; }
+          test -s "$OUT/build.ninja" || { echo "CHECKPOINT_SAVE=REFUSED missing build.ninja" >&2; exit 1; }
+          test -s "$OUT/args.gn" || { echo "CHECKPOINT_SAVE=REFUSED missing args.gn" >&2; exit 1; }
+          ARGS_GENERATED="$OUT/args_generated.gni"
+          SISO_ENV="$SRC/build/config/siso/.sisoenv"
+          SISO_RC="$SRC/build/config/siso/.sisorc"
+          SISO_BACKEND="$SRC/build/config/siso/backend_config/backend.star"
+          test -s "$ARGS_GENERATED" || { echo "CHECKPOINT_SAVE=REFUSED missing args_generated.gni" >&2; exit 1; }
+          grep -F 'args_generated.gni' "$OUT/args.gn" >/dev/null || { echo "CHECKPOINT_SAVE=REFUSED args.gn import missing" >&2; exit 1; }
+          grep -Fx 'use_remoteexec=true' "$ARGS_GENERATED" >/dev/null || { echo "CHECKPOINT_SAVE=REFUSED generated use_remoteexec missing" >&2; exit 1; }
+          grep -Fx 'use_siso=true' "$ARGS_GENERATED" >/dev/null || { echo "CHECKPOINT_SAVE=REFUSED generated use_siso missing" >&2; exit 1; }
+          grep -Fx 'use_reclient=false' "$ARGS_GENERATED" >/dev/null || { echo "CHECKPOINT_SAVE=REFUSED generated use_reclient missing" >&2; exit 1; }
+          test -s "$SISO_ENV" && test -s "$SISO_RC" && test -s "$SISO_BACKEND" || { echo "CHECKPOINT_SAVE=REFUSED Siso configuration incomplete" >&2; exit 1; }
+          SISO_BRAVE_CONFIG="$SRC/build/config/siso/brave_siso_config.star"
+          test -s "$SISO_BRAVE_CONFIG" || { echo "CHECKPOINT_SAVE=REFUSED missing Brave Siso configuration" >&2; exit 1; }
+          grep -Fq 'rule["canonicalize_dir"] = True' "$SISO_BRAVE_CONFIG" || { echo "CHECKPOINT_SAVE=REFUSED Siso canonical workdir must remain enabled" >&2; exit 1; }
+          grep -Fq '"./args.gn"' "$SISO_BRAVE_CONFIG" || { echo "CHECKPOINT_SAVE=REFUSED Siso remote rules lack explicit ./args.gn workdir anchor" >&2; exit 1; }
+          bash "$ROOT/.circleci/scripts/verify-clang-diagnostics-gn.sh"
+          echo "CHECKPOINT_CLANG_DIAGNOSTIC_PATH_GATE=PASS"
+          grep -Fx "SISO_CREDENTIAL_HELPER=/tmp/sandium-buildbuddy-credential-helper.py" "$SISO_ENV" >/dev/null || { echo "CHECKPOINT_SAVE=REFUSED Siso credential helper not configured" >&2; exit 1; }
+          for REQUIRED_SISO_FLAG in \
+            '-reapi_keep_exec_stream' \
+            '-fs_min_flush_timeout 300s' \
+            '-reapi_byte_stream_read_threshold 1024' \
+            '-config googlechrome,remote-link' \
+            '-re_cache_enable_write=true'; do
+            grep -Fq -- "$REQUIRED_SISO_FLAG" "$SISO_RC" || {
+              echo "CHECKPOINT_SAVE=REFUSED missing Siso flag: $REQUIRED_SISO_FLAG" >&2
+              exit 1
+            }
+          done
+          test -x /tmp/sandium-buildbuddy-credential-helper.py || { echo "CHECKPOINT_SAVE=REFUSED credential helper not executable" >&2; exit 1; }
+          CHROMIUM_SHA="$(git -C "$SRC" rev-parse HEAD)"
+          BRAVE_TAG="$(git -C "$CORE" describe --tags --exact-match 2>/dev/null || true)"
+          test "$CHROMIUM_SHA" = "d331de35ca8ab1358c7a17e4bd41627d55eaef51" || { echo "CHECKPOINT_SAVE=REFUSED Chromium SHA mismatch: $CHROMIUM_SHA" >&2; exit 1; }
+          test "$BRAVE_TAG" = "v1.98.62" || { echo "CHECKPOINT_SAVE=REFUSED Brave tag mismatch: $BRAVE_TAG" >&2; exit 1; }
+          mkdir -p "$ROOT/brave-work/.sandium"
+          APK_VALIDATED=false
+          APK_MARKER="$ROOT/brave-work/.sandium/apk-completion-status.txt"
+          if python3 "$ROOT/.circleci/scripts/check-apk-completion-marker.py" "$APK_MARKER"; then
+            APK_VALIDATED=true
+          fi
+          {
+            echo "CHECKPOINT_VALID=true"
+            echo "REFERENCE_MODE=reference"
+            echo "APK_VALIDATED=$APK_VALIDATED"
+            echo "REFERENCE_READY=$APK_VALIDATED"
+            echo "REFERENCE_SOURCE_REVISION=${CIRCLE_SHA1}"
+            echo "BRAVE_CORE_TAG=$BRAVE_TAG"
+            echo "CHROMIUM_SHA=$CHROMIUM_SHA"
+            echo "TARGET=android-arm64"
+            echo "BUILD_TYPE=Release"
+            echo "STAGE=${SANDIUM_STAGE}"
+            echo "ARGS_GENERATED_SHA256=$(sha256sum "$ARGS_GENERATED" | awk '{print $1}')"
+            echo "SISO_ENV_SHA256=$(sha256sum "$SISO_ENV" | awk '{print $1}')"
+            echo "SISO_RC_SHA256=$(sha256sum "$SISO_RC" | awk '{print $1}')"
+            echo "SISO_BACKEND_SHA256=$(sha256sum "$SISO_BACKEND" | awk '{print $1}')"
+            OBJECT_COUNT=0
+            if [ -d "$OUT/obj" ]; then
+              OBJECT_COUNT="$(find "$OUT/obj" -type f -name '*.o' | wc -l | tr -d ' ')"
+            fi
+            echo "COMPILED_OBJECT_COUNT=$OBJECT_COUNT"
+            date -u +"SAVED_AT=%Y-%m-%dT%H:%M:%SZ"
+            du -sh "$ROOT/brave-work"
+            du -sh "$OUT"
+          } > "$ROOT/brave-work/.sandium/checkpoint-manifest.txt"
+          echo "CHECKPOINT_SAVE=PASS"
+          cat "$ROOT/brave-work/.sandium/checkpoint-manifest.txt"
+    - run:
+        name: Capture final Siso checkpoint state before cache save
+        command: |
+          set -euo pipefail
+          export BRAVE_STAGE_INDEX="${SANDIUM_STAGE}"
+          bash .circleci/scripts/capture-brave-siso-checkpoint.sh checkpoint-ready
+    - run:
+        name: Capture new state and export only incremental payload
+        command: python3 -u .circleci/bridge/full_driver.py capture
+    - save_cache:
+        name: Save only new immutable checkpoint payload
+        key: sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/outgoing.key" }}
+        paths:
+        - .checkpoint-incoming
+    - run:
+        name: Prepare experimental head after payload save
+        command: python3 -u .circleci/bridge/full_driver.py publish
+    - save_cache:
+        name: Publish complete checkpoint receipt only after payload save
+        key: sandium-experimental-head-v1-{{ checksum ".checkpoint-state/scope-key" }}-{{ checksum ".checkpoint-head/receipt.json"
+          }}
+        paths:
+        - .checkpoint-head/receipt.json
+    - run:
+        name: Require honest completion or resumable stage
+        command: python3 -u .circleci/bridge/full_driver.py final
+    - run:
+        name: Decide optional refresh only after incremental checkpoint publication
+        command: python3 -u .circleci/bridge/full_driver.py post-publish-eligibility
+    - save_cache:
+        name: Save exact post-publication refresh decision for this workflow
+        key: sandium-full-refresh-request-v1-{{ checksum ".checkpoint-state/scope-key" }}-{{ .Environment.CIRCLE_WORKFLOW_ID
+          }}-{{ .Revision }}-stage-1
+        paths:
+        - .checkpoint-state/optional-refresh-request.json
+  full-stage-2:
+    machine:
+      image: ubuntu-2404:current
+    resource_class: large
+    retention:
+      caches: 15d
+    environment:
+      SANDIUM_STAGE: '2'
+      SANDIUM_PIPELINE_NUMBER: << pipeline.number >>
+      SANDIUM_EXPERIMENT_SCOPE: << pipeline.parameters.checkpoint_namespace >>
+      SANDIUM_EXPERIMENT_REVIEWED: << pipeline.parameters.publication_reviewed >>
+      SANDIUM_ALLOW_SEED_IMPORT: << pipeline.parameters.allow_seed_import >>
+      SISO_LIMITS: local=8,remote=80
+    steps:
+    - checkout
+    - run:
+        name: Require authorized checkpoint scope
+        command: |
+          python3 .circleci/scripts/verify-back-preview-scope.py
+          python3 -u .circleci/bridge/full_driver.py gate
+    - run:
+        name: Ensure legacy shard extraction tools on each fresh machine
+        command: bash .circleci/scripts/ensure-flow-tools.sh
+    - restore_cache:
+        name: Restore latest accepted experimental head only
+        keys:
+        - sandium-experimental-head-v1-{{ checksum ".checkpoint-state/scope-key" }}-
+    - run:
+        name: Select exact checkpoint and honor verified APK completion
+        command: python3 -u .circleci/bridge/full_driver.py select
+    - restore_cache:
+        name: Restore exact unchanged legacy base
+        keys:
+        - sandium-bridge-base-v1-{{ checksum ".checkpoint-state/base.key" }}
+    - run:
+        name: Extract verified Full base before downloading increments
+        command: python3 -u .circleci/bridge/full_driver.py restore-base
+    - run:
+        name: Clear incoming payload 0
+        command: rm -rf .checkpoint-incoming
+    - restore_cache:
+        name: Restore exact required layer 0
+        keys:
+        - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-0.key" }}
+    - run:
+        name: Verify, apply and release required layer 0
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 0
+    - run:
+        name: Clear incoming payload 1
+        command: rm -rf .checkpoint-incoming
+    - restore_cache:
+        name: Restore exact required layer 1
+        keys:
+        - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-1.key" }}
+    - run:
+        name: Verify, apply and release required layer 1
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 1
+    - run:
+        name: Clear incoming payload 2
+        command: rm -rf .checkpoint-incoming
+    - restore_cache:
+        name: Restore exact required layer 2
+        keys:
+        - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-2.key" }}
+    - run:
+        name: Verify, apply and release required layer 2
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 2
+    - run:
+        name: Clear incoming payload 3
+        command: rm -rf .checkpoint-incoming
+    - restore_cache:
+        name: Restore exact required layer 3
+        keys:
+        - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-3.key" }}
+    - run:
+        name: Verify, apply and release required layer 3
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 3
+    - run:
+        name: Clear incoming payload 4
+        command: rm -rf .checkpoint-incoming
+    - restore_cache:
+        name: Restore exact required layer 4
+        keys:
+        - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-4.key" }}
+    - run:
+        name: Verify, apply and release required layer 4
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 4
+    - run:
+        name: Clear incoming payload 5
+        command: rm -rf .checkpoint-incoming
+    - restore_cache:
+        name: Restore exact required layer 5
+        keys:
+        - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-5.key" }}
+    - run:
+        name: Verify, apply and release required layer 5
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 5
+    - run:
+        name: Clear incoming payload 6
+        command: rm -rf .checkpoint-incoming
+    - restore_cache:
+        name: Restore exact required layer 6
+        keys:
+        - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-6.key" }}
+    - run:
+        name: Verify, apply and release required layer 6
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 6
+    - run:
+        name: Clear incoming payload 7
+        command: rm -rf .checkpoint-incoming
+    - restore_cache:
+        name: Restore exact required layer 7
+        keys:
+        - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-7.key" }}
+    - run:
+        name: Verify, apply and release required layer 7
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 7
+    - run:
+        command: rm -rf .checkpoint-incoming
+        name: Clear incoming payload 8
+    - restore_cache:
+        keys:
+        - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-8.key" }}
+        name: Restore exact required layer 8
+    - run:
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 8
+        name: Verify, apply and release required layer 8
+    - run:
+        command: rm -rf .checkpoint-incoming
+        name: Clear incoming payload 9
+    - restore_cache:
+        keys:
+        - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-9.key" }}
+        name: Restore exact required layer 9
+    - run:
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 9
+        name: Verify, apply and release required layer 9
+    - run:
+        command: rm -rf .checkpoint-incoming
+        name: Clear incoming payload 10
+    - restore_cache:
+        keys:
+        - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-10.key" }}
+        name: Restore exact required layer 10
+    - run:
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 10
+        name: Verify, apply and release required layer 10
+    - run:
+        command: rm -rf .checkpoint-incoming
+        name: Clear incoming payload 11
+    - restore_cache:
+        keys:
+        - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-11.key" }}
+        name: Restore exact required layer 11
+    - run:
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 11
+        name: Verify, apply and release required layer 11
+    - run:
+        command: rm -rf .checkpoint-incoming
+        name: Clear incoming payload 12
+    - restore_cache:
+        keys:
+        - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-12.key" }}
+        name: Restore exact required layer 12
+    - run:
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 12
+        name: Verify, apply and release required layer 12
+    - run:
+        command: rm -rf .checkpoint-incoming
+        name: Clear incoming payload 13
+    - restore_cache:
+        keys:
+        - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-13.key" }}
+        name: Restore exact required layer 13
+    - run:
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 13
+        name: Verify, apply and release required layer 13
+    - run:
+        command: rm -rf .checkpoint-incoming
+        name: Clear incoming payload 14
+    - restore_cache:
+        keys:
+        - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-14.key" }}
+        name: Restore exact required layer 14
+    - run:
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 14
+        name: Verify, apply and release required layer 14
+    - run:
+        command: rm -rf .checkpoint-incoming
+        name: Clear incoming payload 15
+    - restore_cache:
+        keys:
+        - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-15.key" }}
+        name: Restore exact required layer 15
+    - run:
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 15
+        name: Verify, apply and release required layer 15
+    - run:
+        name: Verify complete sequential Full checkpoint restoration
+        command: python3 -u .circleci/bridge/full_driver.py restore-finish
+        no_output_timeout: 35m
+    - run:
+        name: Inventory complete restored state before any preparation/build
+        command: python3 -u .circleci/bridge/full_driver.py begin
+    - run:
+        name: Configure Siso BuildBuddy API-key credential helper
+        command: |
+          # Siso requires an explicit credential helper in non-Google CI.
+          # Never enable xtrace here: BUILDBUDDY_API_KEY is a secret.
+          set -eu
+          if [ -z "$(printenv BUILDBUDDY_API_KEY 2>/dev/null || true)" ]; then
+            echo "MISSING_REQUIRED_SECRET=BUILDBUDDY_API_KEY" >&2
+            echo "Set BUILDBUDDY_API_KEY in CircleCI project environment variables." >&2
+            exit 1
+          fi
+          HELPER=/tmp/sandium-buildbuddy-credential-helper.py
+          printf '%s\n' \
+            '#!/usr/bin/env python3' \
+            'import json' \
+            'import os' \
+            'import sys' \
+            '' \
+            'if len(sys.argv) < 2 or sys.argv[1] != "get":' \
+            '    raise SystemExit(1)' \
+            'sys.stdin.read()' \
+            'key = os.environ["BUILDBUDDY_API_KEY"]' \
+            'print(json.dumps({"headers": {"x-buildbuddy-api-key": [key]}}))' \
+            > "$HELPER"
+          chmod 700 "$HELPER"
+          echo 'export SISO_CREDENTIAL_HELPER=/tmp/sandium-buildbuddy-credential-helper.py' >> "$BASH_ENV"
+          # Brave v1.98.62 installs depot_tools at vendor/depot_tools relative to src/brave.
+          # Keep this separate from the Afterbird sibling checkout layout.
+          echo 'export PATH="$CIRCLE_WORKING_DIRECTORY/brave-work/src/brave/vendor/depot_tools:$PATH"' >> "$BASH_ENV"
+          echo 'export DEPOT_TOOLS_UPDATE=0' >> "$BASH_ENV"
+          echo 'export SISO_LIMITS=local=8,remote=80' >> "$BASH_ENV"
+          echo "SISO_CREDENTIAL_HELPER=CONFIGURED (secret value not printed)"
+    - restore_cache:
+        keys:
+        - sandium-brave-node-v1-24.16.0
+    - restore_cache:
+        name: Restore Ubuntu Android build-dependency package cache
+        keys:
+        - sandium-brave-apt-v1-ubuntu2404-
+    - run:
+        name: Validate pinned complete Full checkpoint
+        command: bash .circleci/scripts/verify-flow-state.sh
+    - run:
+        name: Check current source feature composition
+        command: |
+          python3 tests/test_composition.py
+    - run:
+        name: Prepare pinned Brave Android source
+        no_output_timeout: 45m
+        command: |
+          set -euo pipefail
+          export BRAVE_STAGE_INDEX="${SANDIUM_STAGE}"
+          bash .circleci/scripts/prepare-brave-source.sh
+    - run:
+        name: Apply and verify Sandium branding refresh
+        command: bash .circleci/experimental-steps/product-overlay-24-0.sh
+    - run:
+        name: Apply Sandium first-launch native filter bootstrap
+        command: bash .circleci/experimental-steps/product-overlay-25-0.sh
+    - run:
+        name: Apply Sandium native page-transition controls and Appearance icons
+        command: bash .circleci/experimental-steps/product-overlay-26-0.sh
+    - run:
+        name: Apply Sandium welcome setup and first-successful-list adblock activation
+        command: bash .circleci/experimental-steps/product-overlay-27-0.sh
+    - run:
+        name: Apply Sandium two-state Shields controls and verify filter retirement
+        command: bash .circleci/experimental-steps/product-overlay-28-0.sh
+    - run:
+        name: Apply and verify Sandium UI pruning and preference defaults
+        command: bash .circleci/experimental-steps/product-overlay-29-0.sh
+    - run:
+        name: Compile-exclude and audit all thirteen Sandium removal groups
+        command: bash .circleci/experimental-steps/product-overlay-30-0.sh
+    - run:
+        name: Validate build graph and remote-execution settings
+        command: bash .circleci/experimental-steps/graph-validation.sh
+    - run:
+        name: Verify restored Brave APK before scheduling build work
+        command: bash .circleci/experimental-steps/restored-apk-validation.sh
+    - run:
+        name: Verify BuildBuddy remote worker before Android compilation
+        command: bash .circleci/experimental-steps/remote-smoke.sh
+        no_output_timeout: 15m
+    - run:
+        name: Build bounded Brave Android APK slice (fc220e7f Full baseline)
+        command: bash .circleci/experimental-steps/full-bounded-build.sh
+        no_output_timeout: 50m
+    - run:
+        name: Copy new APK immediately as explicitly unverified diagnostic output
+        command: bash .circleci/experimental-steps/export-raw-apk.sh
+        when: always
+    - store_artifacts:
+        path: brave-apk-raw
+        destination: unverified-raw-apk
+    - run:
+        name: Export APK status and artifacts
+        command: bash .circleci/experimental-steps/export-apk.sh
+    - store_artifacts:
+        path: brave-apk
+        destination: brave-apk
+    - *id001
+    - run:
+        name: Validate Brave checkpoint before saving
+        command: |
+          set -euo pipefail
+          ROOT="$CIRCLE_WORKING_DIRECTORY"
+          SRC="$ROOT/brave-work/src"
+          CORE="$SRC/brave"
+          OUT="$SRC/out/android_Release_arm64"
+          test -e "$SRC/.git" || { echo "CHECKPOINT_SAVE=REFUSED missing Chromium Git checkout" >&2; exit 1; }
+          test -e "$CORE/.git" || { echo "CHECKPOINT_SAVE=REFUSED missing Brave Git checkout" >&2; exit 1; }
+          test -s "$ROOT/brave-work/.gclient" || { echo "CHECKPOINT_SAVE=REFUSED missing .gclient" >&2; exit 1; }
+          PYTHON_REMOTE_WRAPPER="$SRC/buildtools/reclient_cfgs/python/python_remote_wrapper"
+          test -x "$PYTHON_REMOTE_WRAPPER" || { echo "CHECKPOINT_SAVE=REFUSED Brave Python remote wrapper is not executable" >&2; exit 1; }
+          test -s "$OUT/build.ninja" || { echo "CHECKPOINT_SAVE=REFUSED missing build.ninja" >&2; exit 1; }
+          test -s "$OUT/args.gn" || { echo "CHECKPOINT_SAVE=REFUSED missing args.gn" >&2; exit 1; }
+          ARGS_GENERATED="$OUT/args_generated.gni"
+          SISO_ENV="$SRC/build/config/siso/.sisoenv"
+          SISO_RC="$SRC/build/config/siso/.sisorc"
+          SISO_BACKEND="$SRC/build/config/siso/backend_config/backend.star"
+          test -s "$ARGS_GENERATED" || { echo "CHECKPOINT_SAVE=REFUSED missing args_generated.gni" >&2; exit 1; }
+          grep -F 'args_generated.gni' "$OUT/args.gn" >/dev/null || { echo "CHECKPOINT_SAVE=REFUSED args.gn import missing" >&2; exit 1; }
+          grep -Fx 'use_remoteexec=true' "$ARGS_GENERATED" >/dev/null || { echo "CHECKPOINT_SAVE=REFUSED generated use_remoteexec missing" >&2; exit 1; }
+          grep -Fx 'use_siso=true' "$ARGS_GENERATED" >/dev/null || { echo "CHECKPOINT_SAVE=REFUSED generated use_siso missing" >&2; exit 1; }
+          grep -Fx 'use_reclient=false' "$ARGS_GENERATED" >/dev/null || { echo "CHECKPOINT_SAVE=REFUSED generated use_reclient missing" >&2; exit 1; }
+          test -s "$SISO_ENV" && test -s "$SISO_RC" && test -s "$SISO_BACKEND" || { echo "CHECKPOINT_SAVE=REFUSED Siso configuration incomplete" >&2; exit 1; }
+          SISO_BRAVE_CONFIG="$SRC/build/config/siso/brave_siso_config.star"
+          test -s "$SISO_BRAVE_CONFIG" || { echo "CHECKPOINT_SAVE=REFUSED missing Brave Siso configuration" >&2; exit 1; }
+          grep -Fq 'rule["canonicalize_dir"] = True' "$SISO_BRAVE_CONFIG" || { echo "CHECKPOINT_SAVE=REFUSED Siso canonical workdir must remain enabled" >&2; exit 1; }
+          grep -Fq '"./args.gn"' "$SISO_BRAVE_CONFIG" || { echo "CHECKPOINT_SAVE=REFUSED Siso remote rules lack explicit ./args.gn workdir anchor" >&2; exit 1; }
+          bash "$ROOT/.circleci/scripts/verify-clang-diagnostics-gn.sh"
+          echo "CHECKPOINT_CLANG_DIAGNOSTIC_PATH_GATE=PASS"
+          grep -Fx "SISO_CREDENTIAL_HELPER=/tmp/sandium-buildbuddy-credential-helper.py" "$SISO_ENV" >/dev/null || { echo "CHECKPOINT_SAVE=REFUSED Siso credential helper not configured" >&2; exit 1; }
+          for REQUIRED_SISO_FLAG in \
+            '-reapi_keep_exec_stream' \
+            '-fs_min_flush_timeout 300s' \
+            '-reapi_byte_stream_read_threshold 1024' \
+            '-config googlechrome,remote-link' \
+            '-re_cache_enable_write=true'; do
+            grep -Fq -- "$REQUIRED_SISO_FLAG" "$SISO_RC" || {
+              echo "CHECKPOINT_SAVE=REFUSED missing Siso flag: $REQUIRED_SISO_FLAG" >&2
+              exit 1
+            }
+          done
+          test -x /tmp/sandium-buildbuddy-credential-helper.py || { echo "CHECKPOINT_SAVE=REFUSED credential helper not executable" >&2; exit 1; }
+          CHROMIUM_SHA="$(git -C "$SRC" rev-parse HEAD)"
+          BRAVE_TAG="$(git -C "$CORE" describe --tags --exact-match 2>/dev/null || true)"
+          test "$CHROMIUM_SHA" = "d331de35ca8ab1358c7a17e4bd41627d55eaef51" || { echo "CHECKPOINT_SAVE=REFUSED Chromium SHA mismatch: $CHROMIUM_SHA" >&2; exit 1; }
+          test "$BRAVE_TAG" = "v1.98.62" || { echo "CHECKPOINT_SAVE=REFUSED Brave tag mismatch: $BRAVE_TAG" >&2; exit 1; }
+          mkdir -p "$ROOT/brave-work/.sandium"
+          APK_VALIDATED=false
+          APK_MARKER="$ROOT/brave-work/.sandium/apk-completion-status.txt"
+          if python3 "$ROOT/.circleci/scripts/check-apk-completion-marker.py" "$APK_MARKER"; then
+            APK_VALIDATED=true
+          fi
+          {
+            echo "CHECKPOINT_VALID=true"
+            echo "REFERENCE_MODE=reference"
+            echo "APK_VALIDATED=$APK_VALIDATED"
+            echo "REFERENCE_READY=$APK_VALIDATED"
+            echo "REFERENCE_SOURCE_REVISION=${CIRCLE_SHA1}"
+            echo "BRAVE_CORE_TAG=$BRAVE_TAG"
+            echo "CHROMIUM_SHA=$CHROMIUM_SHA"
+            echo "TARGET=android-arm64"
+            echo "BUILD_TYPE=Release"
+            echo "STAGE=${SANDIUM_STAGE}"
+            echo "ARGS_GENERATED_SHA256=$(sha256sum "$ARGS_GENERATED" | awk '{print $1}')"
+            echo "SISO_ENV_SHA256=$(sha256sum "$SISO_ENV" | awk '{print $1}')"
+            echo "SISO_RC_SHA256=$(sha256sum "$SISO_RC" | awk '{print $1}')"
+            echo "SISO_BACKEND_SHA256=$(sha256sum "$SISO_BACKEND" | awk '{print $1}')"
+            OBJECT_COUNT=0
+            if [ -d "$OUT/obj" ]; then
+              OBJECT_COUNT="$(find "$OUT/obj" -type f -name '*.o' | wc -l | tr -d ' ')"
+            fi
+            echo "COMPILED_OBJECT_COUNT=$OBJECT_COUNT"
+            date -u +"SAVED_AT=%Y-%m-%dT%H:%M:%SZ"
+            du -sh "$ROOT/brave-work"
+            du -sh "$OUT"
+          } > "$ROOT/brave-work/.sandium/checkpoint-manifest.txt"
+          echo "CHECKPOINT_SAVE=PASS"
+          cat "$ROOT/brave-work/.sandium/checkpoint-manifest.txt"
+    - run:
+        name: Capture final Siso checkpoint state before cache save
+        command: |
+          set -euo pipefail
+          export BRAVE_STAGE_INDEX="${SANDIUM_STAGE}"
+          bash .circleci/scripts/capture-brave-siso-checkpoint.sh checkpoint-ready
+    - run:
+        name: Capture new state and export only incremental payload
+        command: python3 -u .circleci/bridge/full_driver.py capture
+    - save_cache:
+        name: Save only new immutable checkpoint payload
+        key: sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/outgoing.key" }}
+        paths:
+        - .checkpoint-incoming
+    - run:
+        name: Prepare experimental head after payload save
+        command: python3 -u .circleci/bridge/full_driver.py publish
+    - save_cache:
+        name: Publish complete checkpoint receipt only after payload save
+        key: sandium-experimental-head-v1-{{ checksum ".checkpoint-state/scope-key" }}-{{ checksum ".checkpoint-head/receipt.json"
+          }}
+        paths:
+        - .checkpoint-head/receipt.json
+    - run:
+        name: Require honest completion or resumable stage
+        command: python3 -u .circleci/bridge/full_driver.py final
+    - run:
+        name: Decide optional refresh only after incremental checkpoint publication
+        command: python3 -u .circleci/bridge/full_driver.py post-publish-eligibility
+    - save_cache:
+        name: Save exact post-publication refresh decision for this workflow
+        key: sandium-full-refresh-request-v1-{{ checksum ".checkpoint-state/scope-key" }}-{{ .Environment.CIRCLE_WORKFLOW_ID
+          }}-{{ .Revision }}-stage-2
+        paths:
+        - .checkpoint-state/optional-refresh-request.json
+  full-stage-3:
+    machine:
+      image: ubuntu-2404:current
+    resource_class: large
+    retention:
+      caches: 15d
+    environment:
+      SANDIUM_STAGE: '3'
+      SANDIUM_PIPELINE_NUMBER: << pipeline.number >>
+      SANDIUM_EXPERIMENT_SCOPE: << pipeline.parameters.checkpoint_namespace >>
+      SANDIUM_EXPERIMENT_REVIEWED: << pipeline.parameters.publication_reviewed >>
+      SANDIUM_ALLOW_SEED_IMPORT: << pipeline.parameters.allow_seed_import >>
+      SISO_LIMITS: local=8,remote=80
+    steps:
+    - checkout
+    - run:
+        name: Require authorized checkpoint scope
+        command: |
+          python3 .circleci/scripts/verify-back-preview-scope.py
+          python3 -u .circleci/bridge/full_driver.py gate
+    - run:
+        name: Ensure legacy shard extraction tools on each fresh machine
+        command: bash .circleci/scripts/ensure-flow-tools.sh
+    - restore_cache:
+        name: Restore latest accepted experimental head only
+        keys:
+        - sandium-experimental-head-v1-{{ checksum ".checkpoint-state/scope-key" }}-
+    - run:
+        name: Select exact checkpoint and honor verified APK completion
+        command: python3 -u .circleci/bridge/full_driver.py select
+    - restore_cache:
+        name: Restore exact unchanged legacy base
+        keys:
+        - sandium-bridge-base-v1-{{ checksum ".checkpoint-state/base.key" }}
+    - run:
+        name: Extract verified Full base before downloading increments
+        command: python3 -u .circleci/bridge/full_driver.py restore-base
+    - run:
+        name: Clear incoming payload 0
+        command: rm -rf .checkpoint-incoming
+    - restore_cache:
+        name: Restore exact required layer 0
+        keys:
+        - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-0.key" }}
+    - run:
+        name: Verify, apply and release required layer 0
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 0
+    - run:
+        name: Clear incoming payload 1
+        command: rm -rf .checkpoint-incoming
+    - restore_cache:
+        name: Restore exact required layer 1
+        keys:
+        - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-1.key" }}
+    - run:
+        name: Verify, apply and release required layer 1
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 1
+    - run:
+        name: Clear incoming payload 2
+        command: rm -rf .checkpoint-incoming
+    - restore_cache:
+        name: Restore exact required layer 2
+        keys:
+        - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-2.key" }}
+    - run:
+        name: Verify, apply and release required layer 2
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 2
+    - run:
+        name: Clear incoming payload 3
+        command: rm -rf .checkpoint-incoming
+    - restore_cache:
+        name: Restore exact required layer 3
+        keys:
+        - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-3.key" }}
+    - run:
+        name: Verify, apply and release required layer 3
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 3
+    - run:
+        name: Clear incoming payload 4
+        command: rm -rf .checkpoint-incoming
+    - restore_cache:
+        name: Restore exact required layer 4
+        keys:
+        - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-4.key" }}
+    - run:
+        name: Verify, apply and release required layer 4
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 4
+    - run:
+        name: Clear incoming payload 5
+        command: rm -rf .checkpoint-incoming
+    - restore_cache:
+        name: Restore exact required layer 5
+        keys:
+        - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-5.key" }}
+    - run:
+        name: Verify, apply and release required layer 5
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 5
+    - run:
+        name: Clear incoming payload 6
+        command: rm -rf .checkpoint-incoming
+    - restore_cache:
+        name: Restore exact required layer 6
+        keys:
+        - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-6.key" }}
+    - run:
+        name: Verify, apply and release required layer 6
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 6
+    - run:
+        name: Clear incoming payload 7
+        command: rm -rf .checkpoint-incoming
+    - restore_cache:
+        name: Restore exact required layer 7
+        keys:
+        - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-7.key" }}
+    - run:
+        name: Verify, apply and release required layer 7
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 7
+    - run:
+        command: rm -rf .checkpoint-incoming
+        name: Clear incoming payload 8
+    - restore_cache:
+        keys:
+        - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-8.key" }}
+        name: Restore exact required layer 8
+    - run:
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 8
+        name: Verify, apply and release required layer 8
+    - run:
+        command: rm -rf .checkpoint-incoming
+        name: Clear incoming payload 9
+    - restore_cache:
+        keys:
+        - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-9.key" }}
+        name: Restore exact required layer 9
+    - run:
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 9
+        name: Verify, apply and release required layer 9
+    - run:
+        command: rm -rf .checkpoint-incoming
+        name: Clear incoming payload 10
+    - restore_cache:
+        keys:
+        - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-10.key" }}
+        name: Restore exact required layer 10
+    - run:
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 10
+        name: Verify, apply and release required layer 10
+    - run:
+        command: rm -rf .checkpoint-incoming
+        name: Clear incoming payload 11
+    - restore_cache:
+        keys:
+        - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-11.key" }}
+        name: Restore exact required layer 11
+    - run:
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 11
+        name: Verify, apply and release required layer 11
+    - run:
+        command: rm -rf .checkpoint-incoming
+        name: Clear incoming payload 12
+    - restore_cache:
+        keys:
+        - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-12.key" }}
+        name: Restore exact required layer 12
+    - run:
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 12
+        name: Verify, apply and release required layer 12
+    - run:
+        command: rm -rf .checkpoint-incoming
+        name: Clear incoming payload 13
+    - restore_cache:
+        keys:
+        - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-13.key" }}
+        name: Restore exact required layer 13
+    - run:
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 13
+        name: Verify, apply and release required layer 13
+    - run:
+        command: rm -rf .checkpoint-incoming
+        name: Clear incoming payload 14
+    - restore_cache:
+        keys:
+        - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-14.key" }}
+        name: Restore exact required layer 14
+    - run:
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 14
+        name: Verify, apply and release required layer 14
+    - run:
+        command: rm -rf .checkpoint-incoming
+        name: Clear incoming payload 15
+    - restore_cache:
+        keys:
+        - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-15.key" }}
+        name: Restore exact required layer 15
+    - run:
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 15
+        name: Verify, apply and release required layer 15
+    - run:
+        name: Verify complete sequential Full checkpoint restoration
+        command: python3 -u .circleci/bridge/full_driver.py restore-finish
+        no_output_timeout: 35m
+    - run:
+        name: Inventory complete restored state before any preparation/build
+        command: python3 -u .circleci/bridge/full_driver.py begin
+    - run:
+        name: Configure Siso BuildBuddy API-key credential helper
+        command: |
+          # Siso requires an explicit credential helper in non-Google CI.
+          # Never enable xtrace here: BUILDBUDDY_API_KEY is a secret.
+          set -eu
+          if [ -z "$(printenv BUILDBUDDY_API_KEY 2>/dev/null || true)" ]; then
+            echo "MISSING_REQUIRED_SECRET=BUILDBUDDY_API_KEY" >&2
+            echo "Set BUILDBUDDY_API_KEY in CircleCI project environment variables." >&2
+            exit 1
+          fi
+          HELPER=/tmp/sandium-buildbuddy-credential-helper.py
+          printf '%s\n' \
+            '#!/usr/bin/env python3' \
+            'import json' \
+            'import os' \
+            'import sys' \
+            '' \
+            'if len(sys.argv) < 2 or sys.argv[1] != "get":' \
+            '    raise SystemExit(1)' \
+            'sys.stdin.read()' \
+            'key = os.environ["BUILDBUDDY_API_KEY"]' \
+            'print(json.dumps({"headers": {"x-buildbuddy-api-key": [key]}}))' \
+            > "$HELPER"
+          chmod 700 "$HELPER"
+          echo 'export SISO_CREDENTIAL_HELPER=/tmp/sandium-buildbuddy-credential-helper.py' >> "$BASH_ENV"
+          # Brave v1.98.62 installs depot_tools at vendor/depot_tools relative to src/brave.
+          # Keep this separate from the Afterbird sibling checkout layout.
+          echo 'export PATH="$CIRCLE_WORKING_DIRECTORY/brave-work/src/brave/vendor/depot_tools:$PATH"' >> "$BASH_ENV"
+          echo 'export DEPOT_TOOLS_UPDATE=0' >> "$BASH_ENV"
+          echo 'export SISO_LIMITS=local=8,remote=80' >> "$BASH_ENV"
+          echo "SISO_CREDENTIAL_HELPER=CONFIGURED (secret value not printed)"
+    - restore_cache:
+        keys:
+        - sandium-brave-node-v1-24.16.0
+    - restore_cache:
+        name: Restore Ubuntu Android build-dependency package cache
+        keys:
+        - sandium-brave-apt-v1-ubuntu2404-
+    - run:
+        name: Validate pinned complete Full checkpoint
+        command: bash .circleci/scripts/verify-flow-state.sh
+    - run:
+        name: Check current source feature composition
+        command: |
+          python3 tests/test_composition.py
+    - run:
+        name: Prepare pinned Brave Android source
+        no_output_timeout: 45m
+        command: |
+          set -euo pipefail
+          export BRAVE_STAGE_INDEX="${SANDIUM_STAGE}"
+          bash .circleci/scripts/prepare-brave-source.sh
+    - run:
+        name: Apply and verify Sandium branding refresh
+        command: bash .circleci/experimental-steps/product-overlay-24-0.sh
+    - run:
+        name: Apply Sandium first-launch native filter bootstrap
+        command: bash .circleci/experimental-steps/product-overlay-25-0.sh
+    - run:
+        name: Apply Sandium native page-transition controls and Appearance icons
+        command: bash .circleci/experimental-steps/product-overlay-26-0.sh
+    - run:
+        name: Apply Sandium welcome setup and first-successful-list adblock activation
+        command: bash .circleci/experimental-steps/product-overlay-27-0.sh
+    - run:
+        name: Apply Sandium two-state Shields controls and verify filter retirement
+        command: bash .circleci/experimental-steps/product-overlay-28-0.sh
+    - run:
+        name: Apply and verify Sandium UI pruning and preference defaults
+        command: bash .circleci/experimental-steps/product-overlay-29-0.sh
+    - run:
+        name: Compile-exclude and audit all thirteen Sandium removal groups
+        command: bash .circleci/experimental-steps/product-overlay-30-0.sh
+    - run:
+        name: Validate build graph and remote-execution settings
+        command: bash .circleci/experimental-steps/graph-validation.sh
+    - run:
+        name: Verify restored Brave APK before scheduling build work
+        command: bash .circleci/experimental-steps/restored-apk-validation.sh
+    - run:
+        name: Verify BuildBuddy remote worker before Android compilation
+        command: bash .circleci/experimental-steps/remote-smoke.sh
+        no_output_timeout: 15m
+    - run:
+        name: Build bounded Brave Android APK slice (fc220e7f Full baseline)
+        command: bash .circleci/experimental-steps/full-bounded-build.sh
+        no_output_timeout: 50m
+    - run:
+        name: Copy new APK immediately as explicitly unverified diagnostic output
+        command: bash .circleci/experimental-steps/export-raw-apk.sh
+        when: always
+    - store_artifacts:
+        path: brave-apk-raw
+        destination: unverified-raw-apk
+    - run:
+        name: Export APK status and artifacts
+        command: bash .circleci/experimental-steps/export-apk.sh
+    - store_artifacts:
+        path: brave-apk
+        destination: brave-apk
+    - *id001
+    - run:
+        name: Validate Brave checkpoint before saving
+        command: |
+          set -euo pipefail
+          ROOT="$CIRCLE_WORKING_DIRECTORY"
+          SRC="$ROOT/brave-work/src"
+          CORE="$SRC/brave"
+          OUT="$SRC/out/android_Release_arm64"
+          test -e "$SRC/.git" || { echo "CHECKPOINT_SAVE=REFUSED missing Chromium Git checkout" >&2; exit 1; }
+          test -e "$CORE/.git" || { echo "CHECKPOINT_SAVE=REFUSED missing Brave Git checkout" >&2; exit 1; }
+          test -s "$ROOT/brave-work/.gclient" || { echo "CHECKPOINT_SAVE=REFUSED missing .gclient" >&2; exit 1; }
+          PYTHON_REMOTE_WRAPPER="$SRC/buildtools/reclient_cfgs/python/python_remote_wrapper"
+          test -x "$PYTHON_REMOTE_WRAPPER" || { echo "CHECKPOINT_SAVE=REFUSED Brave Python remote wrapper is not executable" >&2; exit 1; }
+          test -s "$OUT/build.ninja" || { echo "CHECKPOINT_SAVE=REFUSED missing build.ninja" >&2; exit 1; }
+          test -s "$OUT/args.gn" || { echo "CHECKPOINT_SAVE=REFUSED missing args.gn" >&2; exit 1; }
+          ARGS_GENERATED="$OUT/args_generated.gni"
+          SISO_ENV="$SRC/build/config/siso/.sisoenv"
+          SISO_RC="$SRC/build/config/siso/.sisorc"
+          SISO_BACKEND="$SRC/build/config/siso/backend_config/backend.star"
+          test -s "$ARGS_GENERATED" || { echo "CHECKPOINT_SAVE=REFUSED missing args_generated.gni" >&2; exit 1; }
+          grep -F 'args_generated.gni' "$OUT/args.gn" >/dev/null || { echo "CHECKPOINT_SAVE=REFUSED args.gn import missing" >&2; exit 1; }
+          grep -Fx 'use_remoteexec=true' "$ARGS_GENERATED" >/dev/null || { echo "CHECKPOINT_SAVE=REFUSED generated use_remoteexec missing" >&2; exit 1; }
+          grep -Fx 'use_siso=true' "$ARGS_GENERATED" >/dev/null || { echo "CHECKPOINT_SAVE=REFUSED generated use_siso missing" >&2; exit 1; }
+          grep -Fx 'use_reclient=false' "$ARGS_GENERATED" >/dev/null || { echo "CHECKPOINT_SAVE=REFUSED generated use_reclient missing" >&2; exit 1; }
+          test -s "$SISO_ENV" && test -s "$SISO_RC" && test -s "$SISO_BACKEND" || { echo "CHECKPOINT_SAVE=REFUSED Siso configuration incomplete" >&2; exit 1; }
+          SISO_BRAVE_CONFIG="$SRC/build/config/siso/brave_siso_config.star"
+          test -s "$SISO_BRAVE_CONFIG" || { echo "CHECKPOINT_SAVE=REFUSED missing Brave Siso configuration" >&2; exit 1; }
+          grep -Fq 'rule["canonicalize_dir"] = True' "$SISO_BRAVE_CONFIG" || { echo "CHECKPOINT_SAVE=REFUSED Siso canonical workdir must remain enabled" >&2; exit 1; }
+          grep -Fq '"./args.gn"' "$SISO_BRAVE_CONFIG" || { echo "CHECKPOINT_SAVE=REFUSED Siso remote rules lack explicit ./args.gn workdir anchor" >&2; exit 1; }
+          bash "$ROOT/.circleci/scripts/verify-clang-diagnostics-gn.sh"
+          echo "CHECKPOINT_CLANG_DIAGNOSTIC_PATH_GATE=PASS"
+          grep -Fx "SISO_CREDENTIAL_HELPER=/tmp/sandium-buildbuddy-credential-helper.py" "$SISO_ENV" >/dev/null || { echo "CHECKPOINT_SAVE=REFUSED Siso credential helper not configured" >&2; exit 1; }
+          for REQUIRED_SISO_FLAG in \
+            '-reapi_keep_exec_stream' \
+            '-fs_min_flush_timeout 300s' \
+            '-reapi_byte_stream_read_threshold 1024' \
+            '-config googlechrome,remote-link' \
+            '-re_cache_enable_write=true'; do
+            grep -Fq -- "$REQUIRED_SISO_FLAG" "$SISO_RC" || {
+              echo "CHECKPOINT_SAVE=REFUSED missing Siso flag: $REQUIRED_SISO_FLAG" >&2
+              exit 1
+            }
+          done
+          test -x /tmp/sandium-buildbuddy-credential-helper.py || { echo "CHECKPOINT_SAVE=REFUSED credential helper not executable" >&2; exit 1; }
+          CHROMIUM_SHA="$(git -C "$SRC" rev-parse HEAD)"
+          BRAVE_TAG="$(git -C "$CORE" describe --tags --exact-match 2>/dev/null || true)"
+          test "$CHROMIUM_SHA" = "d331de35ca8ab1358c7a17e4bd41627d55eaef51" || { echo "CHECKPOINT_SAVE=REFUSED Chromium SHA mismatch: $CHROMIUM_SHA" >&2; exit 1; }
+          test "$BRAVE_TAG" = "v1.98.62" || { echo "CHECKPOINT_SAVE=REFUSED Brave tag mismatch: $BRAVE_TAG" >&2; exit 1; }
+          mkdir -p "$ROOT/brave-work/.sandium"
+          APK_VALIDATED=false
+          APK_MARKER="$ROOT/brave-work/.sandium/apk-completion-status.txt"
+          if python3 "$ROOT/.circleci/scripts/check-apk-completion-marker.py" "$APK_MARKER"; then
+            APK_VALIDATED=true
+          fi
+          {
+            echo "CHECKPOINT_VALID=true"
+            echo "REFERENCE_MODE=reference"
+            echo "APK_VALIDATED=$APK_VALIDATED"
+            echo "REFERENCE_READY=$APK_VALIDATED"
+            echo "REFERENCE_SOURCE_REVISION=${CIRCLE_SHA1}"
+            echo "BRAVE_CORE_TAG=$BRAVE_TAG"
+            echo "CHROMIUM_SHA=$CHROMIUM_SHA"
+            echo "TARGET=android-arm64"
+            echo "BUILD_TYPE=Release"
+            echo "STAGE=${SANDIUM_STAGE}"
+            echo "ARGS_GENERATED_SHA256=$(sha256sum "$ARGS_GENERATED" | awk '{print $1}')"
+            echo "SISO_ENV_SHA256=$(sha256sum "$SISO_ENV" | awk '{print $1}')"
+            echo "SISO_RC_SHA256=$(sha256sum "$SISO_RC" | awk '{print $1}')"
+            echo "SISO_BACKEND_SHA256=$(sha256sum "$SISO_BACKEND" | awk '{print $1}')"
+            OBJECT_COUNT=0
+            if [ -d "$OUT/obj" ]; then
+              OBJECT_COUNT="$(find "$OUT/obj" -type f -name '*.o' | wc -l | tr -d ' ')"
+            fi
+            echo "COMPILED_OBJECT_COUNT=$OBJECT_COUNT"
+            date -u +"SAVED_AT=%Y-%m-%dT%H:%M:%SZ"
+            du -sh "$ROOT/brave-work"
+            du -sh "$OUT"
+          } > "$ROOT/brave-work/.sandium/checkpoint-manifest.txt"
+          echo "CHECKPOINT_SAVE=PASS"
+          cat "$ROOT/brave-work/.sandium/checkpoint-manifest.txt"
+    - run:
+        name: Capture final Siso checkpoint state before cache save
+        command: |
+          set -euo pipefail
+          export BRAVE_STAGE_INDEX="${SANDIUM_STAGE}"
+          bash .circleci/scripts/capture-brave-siso-checkpoint.sh checkpoint-ready
+    - run:
+        name: Capture new state and export only incremental payload
+        command: python3 -u .circleci/bridge/full_driver.py capture
+    - save_cache:
+        name: Save only new immutable checkpoint payload
+        key: sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/outgoing.key" }}
+        paths:
+        - .checkpoint-incoming
+    - run:
+        name: Prepare experimental head after payload save
+        command: python3 -u .circleci/bridge/full_driver.py publish
+    - save_cache:
+        name: Publish complete checkpoint receipt only after payload save
+        key: sandium-experimental-head-v1-{{ checksum ".checkpoint-state/scope-key" }}-{{ checksum ".checkpoint-head/receipt.json"
+          }}
+        paths:
+        - .checkpoint-head/receipt.json
+    - run:
+        name: Require honest completion or resumable stage
+        command: python3 -u .circleci/bridge/full_driver.py final
+    - run:
+        name: Decide optional refresh only after incremental checkpoint publication
+        command: python3 -u .circleci/bridge/full_driver.py post-publish-eligibility
+    - save_cache:
+        name: Save exact post-publication refresh decision for this workflow
+        key: sandium-full-refresh-request-v1-{{ checksum ".checkpoint-state/scope-key" }}-{{ .Environment.CIRCLE_WORKFLOW_ID
+          }}-{{ .Revision }}-stage-3
+        paths:
+        - .checkpoint-state/optional-refresh-request.json
+  full-stage-4:
+    machine:
+      image: ubuntu-2404:current
+    resource_class: large
+    retention:
+      caches: 15d
+    environment:
+      SANDIUM_STAGE: '4'
+      SANDIUM_PIPELINE_NUMBER: << pipeline.number >>
+      SANDIUM_EXPERIMENT_SCOPE: << pipeline.parameters.checkpoint_namespace >>
+      SANDIUM_EXPERIMENT_REVIEWED: << pipeline.parameters.publication_reviewed >>
+      SANDIUM_ALLOW_SEED_IMPORT: << pipeline.parameters.allow_seed_import >>
+      SISO_LIMITS: local=8,remote=80
+    steps:
+    - checkout
+    - run:
+        name: Require authorized checkpoint scope
+        command: |
+          python3 .circleci/scripts/verify-back-preview-scope.py
+          python3 -u .circleci/bridge/full_driver.py gate
+    - run:
+        name: Ensure legacy shard extraction tools on each fresh machine
+        command: bash .circleci/scripts/ensure-flow-tools.sh
+    - restore_cache:
+        name: Restore latest accepted experimental head only
+        keys:
+        - sandium-experimental-head-v1-{{ checksum ".checkpoint-state/scope-key" }}-
+    - run:
+        name: Select exact checkpoint and honor verified APK completion
+        command: python3 -u .circleci/bridge/full_driver.py select
+    - restore_cache:
+        name: Restore exact unchanged legacy base
+        keys:
+        - sandium-bridge-base-v1-{{ checksum ".checkpoint-state/base.key" }}
+    - run:
+        name: Extract verified Full base before downloading increments
+        command: python3 -u .circleci/bridge/full_driver.py restore-base
+    - run:
+        name: Clear incoming payload 0
+        command: rm -rf .checkpoint-incoming
+    - restore_cache:
+        name: Restore exact required layer 0
+        keys:
+        - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-0.key" }}
+    - run:
+        name: Verify, apply and release required layer 0
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 0
+    - run:
+        name: Clear incoming payload 1
+        command: rm -rf .checkpoint-incoming
+    - restore_cache:
+        name: Restore exact required layer 1
+        keys:
+        - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-1.key" }}
+    - run:
+        name: Verify, apply and release required layer 1
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 1
+    - run:
+        name: Clear incoming payload 2
+        command: rm -rf .checkpoint-incoming
+    - restore_cache:
+        name: Restore exact required layer 2
+        keys:
+        - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-2.key" }}
+    - run:
+        name: Verify, apply and release required layer 2
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 2
+    - run:
+        name: Clear incoming payload 3
+        command: rm -rf .checkpoint-incoming
+    - restore_cache:
+        name: Restore exact required layer 3
+        keys:
+        - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-3.key" }}
+    - run:
+        name: Verify, apply and release required layer 3
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 3
+    - run:
+        name: Clear incoming payload 4
+        command: rm -rf .checkpoint-incoming
+    - restore_cache:
+        name: Restore exact required layer 4
+        keys:
+        - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-4.key" }}
+    - run:
+        name: Verify, apply and release required layer 4
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 4
+    - run:
+        name: Clear incoming payload 5
+        command: rm -rf .checkpoint-incoming
+    - restore_cache:
+        name: Restore exact required layer 5
+        keys:
+        - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-5.key" }}
+    - run:
+        name: Verify, apply and release required layer 5
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 5
+    - run:
+        name: Clear incoming payload 6
+        command: rm -rf .checkpoint-incoming
+    - restore_cache:
+        name: Restore exact required layer 6
+        keys:
+        - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-6.key" }}
+    - run:
+        name: Verify, apply and release required layer 6
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 6
+    - run:
+        name: Clear incoming payload 7
+        command: rm -rf .checkpoint-incoming
+    - restore_cache:
+        name: Restore exact required layer 7
+        keys:
+        - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-7.key" }}
+    - run:
+        name: Verify, apply and release required layer 7
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 7
+    - run:
+        command: rm -rf .checkpoint-incoming
+        name: Clear incoming payload 8
+    - restore_cache:
+        keys:
+        - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-8.key" }}
+        name: Restore exact required layer 8
+    - run:
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 8
+        name: Verify, apply and release required layer 8
+    - run:
+        command: rm -rf .checkpoint-incoming
+        name: Clear incoming payload 9
+    - restore_cache:
+        keys:
+        - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-9.key" }}
+        name: Restore exact required layer 9
+    - run:
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 9
+        name: Verify, apply and release required layer 9
+    - run:
+        command: rm -rf .checkpoint-incoming
+        name: Clear incoming payload 10
+    - restore_cache:
+        keys:
+        - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-10.key" }}
+        name: Restore exact required layer 10
+    - run:
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 10
+        name: Verify, apply and release required layer 10
+    - run:
+        command: rm -rf .checkpoint-incoming
+        name: Clear incoming payload 11
+    - restore_cache:
+        keys:
+        - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-11.key" }}
+        name: Restore exact required layer 11
+    - run:
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 11
+        name: Verify, apply and release required layer 11
+    - run:
+        command: rm -rf .checkpoint-incoming
+        name: Clear incoming payload 12
+    - restore_cache:
+        keys:
+        - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-12.key" }}
+        name: Restore exact required layer 12
+    - run:
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 12
+        name: Verify, apply and release required layer 12
+    - run:
+        command: rm -rf .checkpoint-incoming
+        name: Clear incoming payload 13
+    - restore_cache:
+        keys:
+        - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-13.key" }}
+        name: Restore exact required layer 13
+    - run:
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 13
+        name: Verify, apply and release required layer 13
+    - run:
+        command: rm -rf .checkpoint-incoming
+        name: Clear incoming payload 14
+    - restore_cache:
+        keys:
+        - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-14.key" }}
+        name: Restore exact required layer 14
+    - run:
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 14
+        name: Verify, apply and release required layer 14
+    - run:
+        command: rm -rf .checkpoint-incoming
+        name: Clear incoming payload 15
+    - restore_cache:
+        keys:
+        - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-15.key" }}
+        name: Restore exact required layer 15
+    - run:
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 15
+        name: Verify, apply and release required layer 15
+    - run:
+        name: Verify complete sequential Full checkpoint restoration
+        command: python3 -u .circleci/bridge/full_driver.py restore-finish
+        no_output_timeout: 35m
+    - run:
+        name: Inventory complete restored state before any preparation/build
+        command: python3 -u .circleci/bridge/full_driver.py begin
+    - run:
+        name: Configure Siso BuildBuddy API-key credential helper
+        command: |
+          # Siso requires an explicit credential helper in non-Google CI.
+          # Never enable xtrace here: BUILDBUDDY_API_KEY is a secret.
+          set -eu
+          if [ -z "$(printenv BUILDBUDDY_API_KEY 2>/dev/null || true)" ]; then
+            echo "MISSING_REQUIRED_SECRET=BUILDBUDDY_API_KEY" >&2
+            echo "Set BUILDBUDDY_API_KEY in CircleCI project environment variables." >&2
+            exit 1
+          fi
+          HELPER=/tmp/sandium-buildbuddy-credential-helper.py
+          printf '%s\n' \
+            '#!/usr/bin/env python3' \
+            'import json' \
+            'import os' \
+            'import sys' \
+            '' \
+            'if len(sys.argv) < 2 or sys.argv[1] != "get":' \
+            '    raise SystemExit(1)' \
+            'sys.stdin.read()' \
+            'key = os.environ["BUILDBUDDY_API_KEY"]' \
+            'print(json.dumps({"headers": {"x-buildbuddy-api-key": [key]}}))' \
+            > "$HELPER"
+          chmod 700 "$HELPER"
+          echo 'export SISO_CREDENTIAL_HELPER=/tmp/sandium-buildbuddy-credential-helper.py' >> "$BASH_ENV"
+          # Brave v1.98.62 installs depot_tools at vendor/depot_tools relative to src/brave.
+          # Keep this separate from the Afterbird sibling checkout layout.
+          echo 'export PATH="$CIRCLE_WORKING_DIRECTORY/brave-work/src/brave/vendor/depot_tools:$PATH"' >> "$BASH_ENV"
+          echo 'export DEPOT_TOOLS_UPDATE=0' >> "$BASH_ENV"
+          echo 'export SISO_LIMITS=local=8,remote=80' >> "$BASH_ENV"
+          echo "SISO_CREDENTIAL_HELPER=CONFIGURED (secret value not printed)"
+    - restore_cache:
+        keys:
+        - sandium-brave-node-v1-24.16.0
+    - restore_cache:
+        name: Restore Ubuntu Android build-dependency package cache
+        keys:
+        - sandium-brave-apt-v1-ubuntu2404-
+    - run:
+        name: Validate pinned complete Full checkpoint
+        command: bash .circleci/scripts/verify-flow-state.sh
+    - run:
+        name: Check current source feature composition
+        command: |
+          python3 tests/test_composition.py
+    - run:
+        name: Prepare pinned Brave Android source
+        no_output_timeout: 45m
+        command: |
+          set -euo pipefail
+          export BRAVE_STAGE_INDEX="${SANDIUM_STAGE}"
+          bash .circleci/scripts/prepare-brave-source.sh
+    - run:
+        name: Apply and verify Sandium branding refresh
+        command: bash .circleci/experimental-steps/product-overlay-24-0.sh
+    - run:
+        name: Apply Sandium first-launch native filter bootstrap
+        command: bash .circleci/experimental-steps/product-overlay-25-0.sh
+    - run:
+        name: Apply Sandium native page-transition controls and Appearance icons
+        command: bash .circleci/experimental-steps/product-overlay-26-0.sh
+    - run:
+        name: Apply Sandium welcome setup and first-successful-list adblock activation
+        command: bash .circleci/experimental-steps/product-overlay-27-0.sh
+    - run:
+        name: Apply Sandium two-state Shields controls and verify filter retirement
+        command: bash .circleci/experimental-steps/product-overlay-28-0.sh
+    - run:
+        name: Apply and verify Sandium UI pruning and preference defaults
+        command: bash .circleci/experimental-steps/product-overlay-29-0.sh
+    - run:
+        name: Compile-exclude and audit all thirteen Sandium removal groups
+        command: bash .circleci/experimental-steps/product-overlay-30-0.sh
+    - run:
+        name: Validate build graph and remote-execution settings
+        command: bash .circleci/experimental-steps/graph-validation.sh
+    - run:
+        name: Verify restored Brave APK before scheduling build work
+        command: bash .circleci/experimental-steps/restored-apk-validation.sh
+    - run:
+        name: Verify BuildBuddy remote worker before Android compilation
+        command: bash .circleci/experimental-steps/remote-smoke.sh
+        no_output_timeout: 15m
+    - run:
+        name: Build bounded Brave Android APK slice (fc220e7f Full baseline)
+        command: bash .circleci/experimental-steps/full-bounded-build.sh
+        no_output_timeout: 50m
+    - run:
+        name: Copy new APK immediately as explicitly unverified diagnostic output
+        command: bash .circleci/experimental-steps/export-raw-apk.sh
+        when: always
+    - store_artifacts:
+        path: brave-apk-raw
+        destination: unverified-raw-apk
+    - run:
+        name: Export APK status and artifacts
+        command: bash .circleci/experimental-steps/export-apk.sh
+    - store_artifacts:
+        path: brave-apk
+        destination: brave-apk
+    - *id001
+    - run:
+        name: Validate Brave checkpoint before saving
+        command: |
+          set -euo pipefail
+          ROOT="$CIRCLE_WORKING_DIRECTORY"
+          SRC="$ROOT/brave-work/src"
+          CORE="$SRC/brave"
+          OUT="$SRC/out/android_Release_arm64"
+          test -e "$SRC/.git" || { echo "CHECKPOINT_SAVE=REFUSED missing Chromium Git checkout" >&2; exit 1; }
+          test -e "$CORE/.git" || { echo "CHECKPOINT_SAVE=REFUSED missing Brave Git checkout" >&2; exit 1; }
+          test -s "$ROOT/brave-work/.gclient" || { echo "CHECKPOINT_SAVE=REFUSED missing .gclient" >&2; exit 1; }
+          PYTHON_REMOTE_WRAPPER="$SRC/buildtools/reclient_cfgs/python/python_remote_wrapper"
+          test -x "$PYTHON_REMOTE_WRAPPER" || { echo "CHECKPOINT_SAVE=REFUSED Brave Python remote wrapper is not executable" >&2; exit 1; }
+          test -s "$OUT/build.ninja" || { echo "CHECKPOINT_SAVE=REFUSED missing build.ninja" >&2; exit 1; }
+          test -s "$OUT/args.gn" || { echo "CHECKPOINT_SAVE=REFUSED missing args.gn" >&2; exit 1; }
+          ARGS_GENERATED="$OUT/args_generated.gni"
+          SISO_ENV="$SRC/build/config/siso/.sisoenv"
+          SISO_RC="$SRC/build/config/siso/.sisorc"
+          SISO_BACKEND="$SRC/build/config/siso/backend_config/backend.star"
+          test -s "$ARGS_GENERATED" || { echo "CHECKPOINT_SAVE=REFUSED missing args_generated.gni" >&2; exit 1; }
+          grep -F 'args_generated.gni' "$OUT/args.gn" >/dev/null || { echo "CHECKPOINT_SAVE=REFUSED args.gn import missing" >&2; exit 1; }
+          grep -Fx 'use_remoteexec=true' "$ARGS_GENERATED" >/dev/null || { echo "CHECKPOINT_SAVE=REFUSED generated use_remoteexec missing" >&2; exit 1; }
+          grep -Fx 'use_siso=true' "$ARGS_GENERATED" >/dev/null || { echo "CHECKPOINT_SAVE=REFUSED generated use_siso missing" >&2; exit 1; }
+          grep -Fx 'use_reclient=false' "$ARGS_GENERATED" >/dev/null || { echo "CHECKPOINT_SAVE=REFUSED generated use_reclient missing" >&2; exit 1; }
+          test -s "$SISO_ENV" && test -s "$SISO_RC" && test -s "$SISO_BACKEND" || { echo "CHECKPOINT_SAVE=REFUSED Siso configuration incomplete" >&2; exit 1; }
+          SISO_BRAVE_CONFIG="$SRC/build/config/siso/brave_siso_config.star"
+          test -s "$SISO_BRAVE_CONFIG" || { echo "CHECKPOINT_SAVE=REFUSED missing Brave Siso configuration" >&2; exit 1; }
+          grep -Fq 'rule["canonicalize_dir"] = True' "$SISO_BRAVE_CONFIG" || { echo "CHECKPOINT_SAVE=REFUSED Siso canonical workdir must remain enabled" >&2; exit 1; }
+          grep -Fq '"./args.gn"' "$SISO_BRAVE_CONFIG" || { echo "CHECKPOINT_SAVE=REFUSED Siso remote rules lack explicit ./args.gn workdir anchor" >&2; exit 1; }
+          bash "$ROOT/.circleci/scripts/verify-clang-diagnostics-gn.sh"
+          echo "CHECKPOINT_CLANG_DIAGNOSTIC_PATH_GATE=PASS"
+          grep -Fx "SISO_CREDENTIAL_HELPER=/tmp/sandium-buildbuddy-credential-helper.py" "$SISO_ENV" >/dev/null || { echo "CHECKPOINT_SAVE=REFUSED Siso credential helper not configured" >&2; exit 1; }
+          for REQUIRED_SISO_FLAG in \
+            '-reapi_keep_exec_stream' \
+            '-fs_min_flush_timeout 300s' \
+            '-reapi_byte_stream_read_threshold 1024' \
+            '-config googlechrome,remote-link' \
+            '-re_cache_enable_write=true'; do
+            grep -Fq -- "$REQUIRED_SISO_FLAG" "$SISO_RC" || {
+              echo "CHECKPOINT_SAVE=REFUSED missing Siso flag: $REQUIRED_SISO_FLAG" >&2
+              exit 1
+            }
+          done
+          test -x /tmp/sandium-buildbuddy-credential-helper.py || { echo "CHECKPOINT_SAVE=REFUSED credential helper not executable" >&2; exit 1; }
+          CHROMIUM_SHA="$(git -C "$SRC" rev-parse HEAD)"
+          BRAVE_TAG="$(git -C "$CORE" describe --tags --exact-match 2>/dev/null || true)"
+          test "$CHROMIUM_SHA" = "d331de35ca8ab1358c7a17e4bd41627d55eaef51" || { echo "CHECKPOINT_SAVE=REFUSED Chromium SHA mismatch: $CHROMIUM_SHA" >&2; exit 1; }
+          test "$BRAVE_TAG" = "v1.98.62" || { echo "CHECKPOINT_SAVE=REFUSED Brave tag mismatch: $BRAVE_TAG" >&2; exit 1; }
+          mkdir -p "$ROOT/brave-work/.sandium"
+          APK_VALIDATED=false
+          APK_MARKER="$ROOT/brave-work/.sandium/apk-completion-status.txt"
+          if python3 "$ROOT/.circleci/scripts/check-apk-completion-marker.py" "$APK_MARKER"; then
+            APK_VALIDATED=true
+          fi
+          {
+            echo "CHECKPOINT_VALID=true"
+            echo "REFERENCE_MODE=reference"
+            echo "APK_VALIDATED=$APK_VALIDATED"
+            echo "REFERENCE_READY=$APK_VALIDATED"
+            echo "REFERENCE_SOURCE_REVISION=${CIRCLE_SHA1}"
+            echo "BRAVE_CORE_TAG=$BRAVE_TAG"
+            echo "CHROMIUM_SHA=$CHROMIUM_SHA"
+            echo "TARGET=android-arm64"
+            echo "BUILD_TYPE=Release"
+            echo "STAGE=${SANDIUM_STAGE}"
+            echo "ARGS_GENERATED_SHA256=$(sha256sum "$ARGS_GENERATED" | awk '{print $1}')"
+            echo "SISO_ENV_SHA256=$(sha256sum "$SISO_ENV" | awk '{print $1}')"
+            echo "SISO_RC_SHA256=$(sha256sum "$SISO_RC" | awk '{print $1}')"
+            echo "SISO_BACKEND_SHA256=$(sha256sum "$SISO_BACKEND" | awk '{print $1}')"
+            OBJECT_COUNT=0
+            if [ -d "$OUT/obj" ]; then
+              OBJECT_COUNT="$(find "$OUT/obj" -type f -name '*.o' | wc -l | tr -d ' ')"
+            fi
+            echo "COMPILED_OBJECT_COUNT=$OBJECT_COUNT"
+            date -u +"SAVED_AT=%Y-%m-%dT%H:%M:%SZ"
+            du -sh "$ROOT/brave-work"
+            du -sh "$OUT"
+          } > "$ROOT/brave-work/.sandium/checkpoint-manifest.txt"
+          echo "CHECKPOINT_SAVE=PASS"
+          cat "$ROOT/brave-work/.sandium/checkpoint-manifest.txt"
+    - run:
+        name: Capture final Siso checkpoint state before cache save
+        command: |
+          set -euo pipefail
+          export BRAVE_STAGE_INDEX="${SANDIUM_STAGE}"
+          bash .circleci/scripts/capture-brave-siso-checkpoint.sh checkpoint-ready
+    - run:
+        name: Capture new state and export only incremental payload
+        command: python3 -u .circleci/bridge/full_driver.py capture
+    - save_cache:
+        name: Save only new immutable checkpoint payload
+        key: sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/outgoing.key" }}
+        paths:
+        - .checkpoint-incoming
+    - run:
+        name: Prepare experimental head after payload save
+        command: python3 -u .circleci/bridge/full_driver.py publish
+    - save_cache:
+        name: Publish complete checkpoint receipt only after payload save
+        key: sandium-experimental-head-v1-{{ checksum ".checkpoint-state/scope-key" }}-{{ checksum ".checkpoint-head/receipt.json"
+          }}
+        paths:
+        - .checkpoint-head/receipt.json
+    - run:
+        name: Require honest completion or resumable stage
+        command: python3 -u .circleci/bridge/full_driver.py final
+    - run:
+        name: Decide optional refresh only after incremental checkpoint publication
+        command: python3 -u .circleci/bridge/full_driver.py post-publish-eligibility
+    - save_cache:
+        name: Save exact post-publication refresh decision for this workflow
+        key: sandium-full-refresh-request-v1-{{ checksum ".checkpoint-state/scope-key" }}-{{ .Environment.CIRCLE_WORKFLOW_ID
+          }}-{{ .Revision }}-stage-4
+        paths:
+        - .checkpoint-state/optional-refresh-request.json
+  full-stage-5:
+    machine:
+      image: ubuntu-2404:current
+    resource_class: large
+    retention:
+      caches: 15d
+    environment:
+      SANDIUM_STAGE: '5'
+      SANDIUM_PIPELINE_NUMBER: << pipeline.number >>
+      SANDIUM_EXPERIMENT_SCOPE: << pipeline.parameters.checkpoint_namespace >>
+      SANDIUM_EXPERIMENT_REVIEWED: << pipeline.parameters.publication_reviewed >>
+      SANDIUM_ALLOW_SEED_IMPORT: << pipeline.parameters.allow_seed_import >>
+      SISO_LIMITS: local=8,remote=80
+    steps:
+    - checkout
+    - run:
+        name: Require authorized checkpoint scope
+        command: |
+          python3 .circleci/scripts/verify-back-preview-scope.py
+          python3 -u .circleci/bridge/full_driver.py gate
+    - run:
+        name: Ensure legacy shard extraction tools on each fresh machine
+        command: bash .circleci/scripts/ensure-flow-tools.sh
+    - restore_cache:
+        name: Restore latest accepted experimental head only
+        keys:
+        - sandium-experimental-head-v1-{{ checksum ".checkpoint-state/scope-key" }}-
+    - run:
+        name: Select exact checkpoint and honor verified APK completion
+        command: python3 -u .circleci/bridge/full_driver.py select
+    - restore_cache:
+        name: Restore exact unchanged legacy base
+        keys:
+        - sandium-bridge-base-v1-{{ checksum ".checkpoint-state/base.key" }}
+    - run:
+        name: Extract verified Full base before downloading increments
+        command: python3 -u .circleci/bridge/full_driver.py restore-base
+    - run:
+        name: Clear incoming payload 0
+        command: rm -rf .checkpoint-incoming
+    - restore_cache:
+        name: Restore exact required layer 0
+        keys:
+        - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-0.key" }}
+    - run:
+        name: Verify, apply and release required layer 0
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 0
+    - run:
+        name: Clear incoming payload 1
+        command: rm -rf .checkpoint-incoming
+    - restore_cache:
+        name: Restore exact required layer 1
+        keys:
+        - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-1.key" }}
+    - run:
+        name: Verify, apply and release required layer 1
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 1
+    - run:
+        name: Clear incoming payload 2
+        command: rm -rf .checkpoint-incoming
+    - restore_cache:
+        name: Restore exact required layer 2
+        keys:
+        - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-2.key" }}
+    - run:
+        name: Verify, apply and release required layer 2
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 2
+    - run:
+        name: Clear incoming payload 3
+        command: rm -rf .checkpoint-incoming
+    - restore_cache:
+        name: Restore exact required layer 3
+        keys:
+        - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-3.key" }}
+    - run:
+        name: Verify, apply and release required layer 3
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 3
+    - run:
+        name: Clear incoming payload 4
+        command: rm -rf .checkpoint-incoming
+    - restore_cache:
+        name: Restore exact required layer 4
+        keys:
+        - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-4.key" }}
+    - run:
+        name: Verify, apply and release required layer 4
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 4
+    - run:
+        name: Clear incoming payload 5
+        command: rm -rf .checkpoint-incoming
+    - restore_cache:
+        name: Restore exact required layer 5
+        keys:
+        - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-5.key" }}
+    - run:
+        name: Verify, apply and release required layer 5
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 5
+    - run:
+        name: Clear incoming payload 6
+        command: rm -rf .checkpoint-incoming
+    - restore_cache:
+        name: Restore exact required layer 6
+        keys:
+        - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-6.key" }}
+    - run:
+        name: Verify, apply and release required layer 6
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 6
+    - run:
+        name: Clear incoming payload 7
+        command: rm -rf .checkpoint-incoming
+    - restore_cache:
+        name: Restore exact required layer 7
+        keys:
+        - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-7.key" }}
+    - run:
+        name: Verify, apply and release required layer 7
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 7
+    - run:
+        command: rm -rf .checkpoint-incoming
+        name: Clear incoming payload 8
+    - restore_cache:
+        keys:
+        - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-8.key" }}
+        name: Restore exact required layer 8
+    - run:
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 8
+        name: Verify, apply and release required layer 8
+    - run:
+        command: rm -rf .checkpoint-incoming
+        name: Clear incoming payload 9
+    - restore_cache:
+        keys:
+        - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-9.key" }}
+        name: Restore exact required layer 9
+    - run:
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 9
+        name: Verify, apply and release required layer 9
+    - run:
+        command: rm -rf .checkpoint-incoming
+        name: Clear incoming payload 10
+    - restore_cache:
+        keys:
+        - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-10.key" }}
+        name: Restore exact required layer 10
+    - run:
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 10
+        name: Verify, apply and release required layer 10
+    - run:
+        command: rm -rf .checkpoint-incoming
+        name: Clear incoming payload 11
+    - restore_cache:
+        keys:
+        - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-11.key" }}
+        name: Restore exact required layer 11
+    - run:
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 11
+        name: Verify, apply and release required layer 11
+    - run:
+        command: rm -rf .checkpoint-incoming
+        name: Clear incoming payload 12
+    - restore_cache:
+        keys:
+        - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-12.key" }}
+        name: Restore exact required layer 12
+    - run:
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 12
+        name: Verify, apply and release required layer 12
+    - run:
+        command: rm -rf .checkpoint-incoming
+        name: Clear incoming payload 13
+    - restore_cache:
+        keys:
+        - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-13.key" }}
+        name: Restore exact required layer 13
+    - run:
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 13
+        name: Verify, apply and release required layer 13
+    - run:
+        command: rm -rf .checkpoint-incoming
+        name: Clear incoming payload 14
+    - restore_cache:
+        keys:
+        - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-14.key" }}
+        name: Restore exact required layer 14
+    - run:
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 14
+        name: Verify, apply and release required layer 14
+    - run:
+        command: rm -rf .checkpoint-incoming
+        name: Clear incoming payload 15
+    - restore_cache:
+        keys:
+        - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-15.key" }}
+        name: Restore exact required layer 15
+    - run:
+        command: python3 -u .circleci/bridge/full_driver.py restore-layer --slot 15
+        name: Verify, apply and release required layer 15
+    - run:
+        name: Verify complete sequential Full checkpoint restoration
+        command: python3 -u .circleci/bridge/full_driver.py restore-finish
+        no_output_timeout: 35m
+    - run:
+        name: Inventory complete restored state before any preparation/build
+        command: python3 -u .circleci/bridge/full_driver.py begin
+    - run:
+        name: Configure Siso BuildBuddy API-key credential helper
+        command: |
+          # Siso requires an explicit credential helper in non-Google CI.
+          # Never enable xtrace here: BUILDBUDDY_API_KEY is a secret.
+          set -eu
+          if [ -z "$(printenv BUILDBUDDY_API_KEY 2>/dev/null || true)" ]; then
+            echo "MISSING_REQUIRED_SECRET=BUILDBUDDY_API_KEY" >&2
+            echo "Set BUILDBUDDY_API_KEY in CircleCI project environment variables." >&2
+            exit 1
+          fi
+          HELPER=/tmp/sandium-buildbuddy-credential-helper.py
+          printf '%s\n' \
+            '#!/usr/bin/env python3' \
+            'import json' \
+            'import os' \
+            'import sys' \
+            '' \
+            'if len(sys.argv) < 2 or sys.argv[1] != "get":' \
+            '    raise SystemExit(1)' \
+            'sys.stdin.read()' \
+            'key = os.environ["BUILDBUDDY_API_KEY"]' \
+            'print(json.dumps({"headers": {"x-buildbuddy-api-key": [key]}}))' \
+            > "$HELPER"
+          chmod 700 "$HELPER"
+          echo 'export SISO_CREDENTIAL_HELPER=/tmp/sandium-buildbuddy-credential-helper.py' >> "$BASH_ENV"
+          # Brave v1.98.62 installs depot_tools at vendor/depot_tools relative to src/brave.
+          # Keep this separate from the Afterbird sibling checkout layout.
+          echo 'export PATH="$CIRCLE_WORKING_DIRECTORY/brave-work/src/brave/vendor/depot_tools:$PATH"' >> "$BASH_ENV"
+          echo 'export DEPOT_TOOLS_UPDATE=0' >> "$BASH_ENV"
+          echo 'export SISO_LIMITS=local=8,remote=80' >> "$BASH_ENV"
+          echo "SISO_CREDENTIAL_HELPER=CONFIGURED (secret value not printed)"
+    - restore_cache:
+        keys:
+        - sandium-brave-node-v1-24.16.0
+    - restore_cache:
+        name: Restore Ubuntu Android build-dependency package cache
+        keys:
+        - sandium-brave-apt-v1-ubuntu2404-
+    - run:
+        name: Validate pinned complete Full checkpoint
+        command: bash .circleci/scripts/verify-flow-state.sh
+    - run:
+        name: Check current source feature composition
+        command: |
+          python3 tests/test_composition.py
+    - run:
+        name: Prepare pinned Brave Android source
+        no_output_timeout: 45m
+        command: |
+          set -euo pipefail
+          export BRAVE_STAGE_INDEX="${SANDIUM_STAGE}"
+          bash .circleci/scripts/prepare-brave-source.sh
+    - run:
+        name: Apply and verify Sandium branding refresh
+        command: bash .circleci/experimental-steps/product-overlay-24-0.sh
+    - run:
+        name: Apply Sandium first-launch native filter bootstrap
+        command: bash .circleci/experimental-steps/product-overlay-25-0.sh
+    - run:
+        name: Apply Sandium native page-transition controls and Appearance icons
+        command: bash .circleci/experimental-steps/product-overlay-26-0.sh
+    - run:
+        name: Apply Sandium welcome setup and first-successful-list adblock activation
+        command: bash .circleci/experimental-steps/product-overlay-27-0.sh
+    - run:
+        name: Apply Sandium two-state Shields controls and verify filter retirement
+        command: bash .circleci/experimental-steps/product-overlay-28-0.sh
+    - run:
+        name: Apply and verify Sandium UI pruning and preference defaults
+        command: bash .circleci/experimental-steps/product-overlay-29-0.sh
+    - run:
+        name: Compile-exclude and audit all thirteen Sandium removal groups
+        command: bash .circleci/experimental-steps/product-overlay-30-0.sh
+    - run:
+        name: Validate build graph and remote-execution settings
+        command: bash .circleci/experimental-steps/graph-validation.sh
+    - run:
+        name: Verify restored Brave APK before scheduling build work
+        command: bash .circleci/experimental-steps/restored-apk-validation.sh
+    - run:
+        name: Verify BuildBuddy remote worker before Android compilation
+        command: bash .circleci/experimental-steps/remote-smoke.sh
+        no_output_timeout: 15m
+    - run:
+        name: Build bounded Brave Android APK slice (fc220e7f Full baseline)
+        command: bash .circleci/experimental-steps/full-bounded-build.sh
+        no_output_timeout: 50m
+    - run:
+        name: Copy new APK immediately as explicitly unverified diagnostic output
+        command: bash .circleci/experimental-steps/export-raw-apk.sh
+        when: always
+    - store_artifacts:
+        path: brave-apk-raw
+        destination: unverified-raw-apk
+    - run:
+        name: Export APK status and artifacts
+        command: bash .circleci/experimental-steps/export-apk.sh
+    - store_artifacts:
+        path: brave-apk
+        destination: brave-apk
+    - *id001
+    - run:
+        name: Validate Brave checkpoint before saving
+        command: |
+          set -euo pipefail
+          ROOT="$CIRCLE_WORKING_DIRECTORY"
+          SRC="$ROOT/brave-work/src"
+          CORE="$SRC/brave"
+          OUT="$SRC/out/android_Release_arm64"
+          test -e "$SRC/.git" || { echo "CHECKPOINT_SAVE=REFUSED missing Chromium Git checkout" >&2; exit 1; }
+          test -e "$CORE/.git" || { echo "CHECKPOINT_SAVE=REFUSED missing Brave Git checkout" >&2; exit 1; }
+          test -s "$ROOT/brave-work/.gclient" || { echo "CHECKPOINT_SAVE=REFUSED missing .gclient" >&2; exit 1; }
+          PYTHON_REMOTE_WRAPPER="$SRC/buildtools/reclient_cfgs/python/python_remote_wrapper"
+          test -x "$PYTHON_REMOTE_WRAPPER" || { echo "CHECKPOINT_SAVE=REFUSED Brave Python remote wrapper is not executable" >&2; exit 1; }
+          test -s "$OUT/build.ninja" || { echo "CHECKPOINT_SAVE=REFUSED missing build.ninja" >&2; exit 1; }
+          test -s "$OUT/args.gn" || { echo "CHECKPOINT_SAVE=REFUSED missing args.gn" >&2; exit 1; }
+          ARGS_GENERATED="$OUT/args_generated.gni"
+          SISO_ENV="$SRC/build/config/siso/.sisoenv"
+          SISO_RC="$SRC/build/config/siso/.sisorc"
+          SISO_BACKEND="$SRC/build/config/siso/backend_config/backend.star"
+          test -s "$ARGS_GENERATED" || { echo "CHECKPOINT_SAVE=REFUSED missing args_generated.gni" >&2; exit 1; }
+          grep -F 'args_generated.gni' "$OUT/args.gn" >/dev/null || { echo "CHECKPOINT_SAVE=REFUSED args.gn import missing" >&2; exit 1; }
+          grep -Fx 'use_remoteexec=true' "$ARGS_GENERATED" >/dev/null || { echo "CHECKPOINT_SAVE=REFUSED generated use_remoteexec missing" >&2; exit 1; }
+          grep -Fx 'use_siso=true' "$ARGS_GENERATED" >/dev/null || { echo "CHECKPOINT_SAVE=REFUSED generated use_siso missing" >&2; exit 1; }
+          grep -Fx 'use_reclient=false' "$ARGS_GENERATED" >/dev/null || { echo "CHECKPOINT_SAVE=REFUSED generated use_reclient missing" >&2; exit 1; }
+          test -s "$SISO_ENV" && test -s "$SISO_RC" && test -s "$SISO_BACKEND" || { echo "CHECKPOINT_SAVE=REFUSED Siso configuration incomplete" >&2; exit 1; }
+          SISO_BRAVE_CONFIG="$SRC/build/config/siso/brave_siso_config.star"
+          test -s "$SISO_BRAVE_CONFIG" || { echo "CHECKPOINT_SAVE=REFUSED missing Brave Siso configuration" >&2; exit 1; }
+          grep -Fq 'rule["canonicalize_dir"] = True' "$SISO_BRAVE_CONFIG" || { echo "CHECKPOINT_SAVE=REFUSED Siso canonical workdir must remain enabled" >&2; exit 1; }
+          grep -Fq '"./args.gn"' "$SISO_BRAVE_CONFIG" || { echo "CHECKPOINT_SAVE=REFUSED Siso remote rules lack explicit ./args.gn workdir anchor" >&2; exit 1; }
+          bash "$ROOT/.circleci/scripts/verify-clang-diagnostics-gn.sh"
+          echo "CHECKPOINT_CLANG_DIAGNOSTIC_PATH_GATE=PASS"
+          grep -Fx "SISO_CREDENTIAL_HELPER=/tmp/sandium-buildbuddy-credential-helper.py" "$SISO_ENV" >/dev/null || { echo "CHECKPOINT_SAVE=REFUSED Siso credential helper not configured" >&2; exit 1; }
+          for REQUIRED_SISO_FLAG in \
+            '-reapi_keep_exec_stream' \
+            '-fs_min_flush_timeout 300s' \
+            '-reapi_byte_stream_read_threshold 1024' \
+            '-config googlechrome,remote-link' \
+            '-re_cache_enable_write=true'; do
+            grep -Fq -- "$REQUIRED_SISO_FLAG" "$SISO_RC" || {
+              echo "CHECKPOINT_SAVE=REFUSED missing Siso flag: $REQUIRED_SISO_FLAG" >&2
+              exit 1
+            }
+          done
+          test -x /tmp/sandium-buildbuddy-credential-helper.py || { echo "CHECKPOINT_SAVE=REFUSED credential helper not executable" >&2; exit 1; }
+          CHROMIUM_SHA="$(git -C "$SRC" rev-parse HEAD)"
+          BRAVE_TAG="$(git -C "$CORE" describe --tags --exact-match 2>/dev/null || true)"
+          test "$CHROMIUM_SHA" = "d331de35ca8ab1358c7a17e4bd41627d55eaef51" || { echo "CHECKPOINT_SAVE=REFUSED Chromium SHA mismatch: $CHROMIUM_SHA" >&2; exit 1; }
+          test "$BRAVE_TAG" = "v1.98.62" || { echo "CHECKPOINT_SAVE=REFUSED Brave tag mismatch: $BRAVE_TAG" >&2; exit 1; }
+          mkdir -p "$ROOT/brave-work/.sandium"
+          APK_VALIDATED=false
+          APK_MARKER="$ROOT/brave-work/.sandium/apk-completion-status.txt"
+          if python3 "$ROOT/.circleci/scripts/check-apk-completion-marker.py" "$APK_MARKER"; then
+            APK_VALIDATED=true
+          fi
+          {
+            echo "CHECKPOINT_VALID=true"
+            echo "REFERENCE_MODE=reference"
+            echo "APK_VALIDATED=$APK_VALIDATED"
+            echo "REFERENCE_READY=$APK_VALIDATED"
+            echo "REFERENCE_SOURCE_REVISION=${CIRCLE_SHA1}"
+            echo "BRAVE_CORE_TAG=$BRAVE_TAG"
+            echo "CHROMIUM_SHA=$CHROMIUM_SHA"
+            echo "TARGET=android-arm64"
+            echo "BUILD_TYPE=Release"
+            echo "STAGE=${SANDIUM_STAGE}"
+            echo "ARGS_GENERATED_SHA256=$(sha256sum "$ARGS_GENERATED" | awk '{print $1}')"
+            echo "SISO_ENV_SHA256=$(sha256sum "$SISO_ENV" | awk '{print $1}')"
+            echo "SISO_RC_SHA256=$(sha256sum "$SISO_RC" | awk '{print $1}')"
+            echo "SISO_BACKEND_SHA256=$(sha256sum "$SISO_BACKEND" | awk '{print $1}')"
+            OBJECT_COUNT=0
+            if [ -d "$OUT/obj" ]; then
+              OBJECT_COUNT="$(find "$OUT/obj" -type f -name '*.o' | wc -l | tr -d ' ')"
+            fi
+            echo "COMPILED_OBJECT_COUNT=$OBJECT_COUNT"
+            date -u +"SAVED_AT=%Y-%m-%dT%H:%M:%SZ"
+            du -sh "$ROOT/brave-work"
+            du -sh "$OUT"
+          } > "$ROOT/brave-work/.sandium/checkpoint-manifest.txt"
+          echo "CHECKPOINT_SAVE=PASS"
+          cat "$ROOT/brave-work/.sandium/checkpoint-manifest.txt"
+    - run:
+        name: Capture final Siso checkpoint state before cache save
+        command: |
+          set -euo pipefail
+          export BRAVE_STAGE_INDEX="${SANDIUM_STAGE}"
+          bash .circleci/scripts/capture-brave-siso-checkpoint.sh checkpoint-ready
+    - run:
+        name: Capture new state and export only incremental payload
+        command: python3 -u .circleci/bridge/full_driver.py capture
+    - save_cache:
+        name: Save only new immutable checkpoint payload
+        key: sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/outgoing.key" }}
+        paths:
+        - .checkpoint-incoming
+    - run:
+        name: Prepare experimental head after payload save
+        command: python3 -u .circleci/bridge/full_driver.py publish
+    - save_cache:
+        name: Publish complete checkpoint receipt only after payload save
+        key: sandium-experimental-head-v1-{{ checksum ".checkpoint-state/scope-key" }}-{{ checksum ".checkpoint-head/receipt.json"
+          }}
+        paths:
+        - .checkpoint-head/receipt.json
+    - run:
+        name: Require honest completion or resumable stage
+        command: python3 -u .circleci/bridge/full_driver.py final
+    - run:
+        name: Decide optional refresh only after incremental checkpoint publication
+        command: python3 -u .circleci/bridge/full_driver.py post-publish-eligibility
+    - save_cache:
+        name: Save exact post-publication refresh decision for this workflow
+        key: sandium-full-refresh-request-v1-{{ checksum ".checkpoint-state/scope-key" }}-{{ .Environment.CIRCLE_WORKFLOW_ID
+          }}-{{ .Revision }}-stage-5
+        paths:
+        - .checkpoint-state/optional-refresh-request.json
+  maintain-full-checkpoint:
+    machine:
+      image: ubuntu-2404:current
+    resource_class: large
+    retention:
+      caches: 15d
+    environment:
+      SANDIUM_STAGE: '0'
+      SANDIUM_PIPELINE_NUMBER: << pipeline.number >>
+      SANDIUM_EXPERIMENT_SCOPE: << pipeline.parameters.checkpoint_namespace >>
+      SANDIUM_EXPERIMENT_REVIEWED: << pipeline.parameters.publication_reviewed >>
+      SANDIUM_ALLOW_SEED_IMPORT: << pipeline.parameters.allow_seed_import >>
+      SISO_LIMITS: local=8,remote=80
+    steps:
+    - checkout
+    - run:
+        name: Require authorized checkpoint scope
+        command: |
+          python3 .circleci/scripts/verify-back-preview-scope.py
+          python3 -u .circleci/bridge/full_driver.py gate
+    - run:
+        name: Ensure legacy shard extraction tools on each fresh machine
+        command: bash .circleci/scripts/ensure-flow-tools.sh
+    - restore_cache:
+        name: Restore latest accepted experimental head only
+        keys:
+        - sandium-experimental-head-v1-{{ checksum ".checkpoint-state/scope-key" }}-
+    - run:
+        name: Check earliest checkpoint expiry and available increment slots
+        command: python3 -u .circleci/bridge/full_driver.py maintenance-check
+    - restore_cache:
+        name: Restore exact unchanged legacy base
+        keys:
+        - sandium-bridge-base-v1-{{ checksum ".checkpoint-state/base.key" }}
+    - run:
+        name: Clear incoming payload 0
+        command: rm -rf .checkpoint-incoming
+    - restore_cache:
+        name: Restore exact required layer 0
+        keys:
+        - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-0.key" }}
+    - run:
+        name: Verify and ingest required layer 0
+        command: python3 -u .circleci/bridge/full_driver.py ingest --slot 0
+    - run:
+        name: Clear incoming payload 1
+        command: rm -rf .checkpoint-incoming
+    - restore_cache:
+        name: Restore exact required layer 1
+        keys:
+        - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-1.key" }}
+    - run:
+        name: Verify and ingest required layer 1
+        command: python3 -u .circleci/bridge/full_driver.py ingest --slot 1
+    - run:
+        name: Clear incoming payload 2
+        command: rm -rf .checkpoint-incoming
+    - restore_cache:
+        name: Restore exact required layer 2
+        keys:
+        - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-2.key" }}
+    - run:
+        name: Verify and ingest required layer 2
+        command: python3 -u .circleci/bridge/full_driver.py ingest --slot 2
+    - run:
+        name: Clear incoming payload 3
+        command: rm -rf .checkpoint-incoming
+    - restore_cache:
+        name: Restore exact required layer 3
+        keys:
+        - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-3.key" }}
+    - run:
+        name: Verify and ingest required layer 3
+        command: python3 -u .circleci/bridge/full_driver.py ingest --slot 3
+    - run:
+        name: Clear incoming payload 4
+        command: rm -rf .checkpoint-incoming
+    - restore_cache:
+        name: Restore exact required layer 4
+        keys:
+        - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-4.key" }}
+    - run:
+        name: Verify and ingest required layer 4
+        command: python3 -u .circleci/bridge/full_driver.py ingest --slot 4
+    - run:
+        name: Clear incoming payload 5
+        command: rm -rf .checkpoint-incoming
+    - restore_cache:
+        name: Restore exact required layer 5
+        keys:
+        - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-5.key" }}
+    - run:
+        name: Verify and ingest required layer 5
+        command: python3 -u .circleci/bridge/full_driver.py ingest --slot 5
+    - run:
+        name: Clear incoming payload 6
+        command: rm -rf .checkpoint-incoming
+    - restore_cache:
+        name: Restore exact required layer 6
+        keys:
+        - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-6.key" }}
+    - run:
+        name: Verify and ingest required layer 6
+        command: python3 -u .circleci/bridge/full_driver.py ingest --slot 6
+    - run:
+        name: Clear incoming payload 7
+        command: rm -rf .checkpoint-incoming
+    - restore_cache:
+        name: Restore exact required layer 7
+        keys:
+        - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-7.key" }}
+    - run:
+        name: Verify and ingest required layer 7
+        command: python3 -u .circleci/bridge/full_driver.py ingest --slot 7
+    - run:
+        command: rm -rf .checkpoint-incoming
+        name: Clear incoming payload 8
+    - restore_cache:
+        keys:
+        - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-8.key" }}
+        name: Restore exact required layer 8
+    - run:
+        command: python3 -u .circleci/bridge/full_driver.py ingest --slot 8
+        name: Verify and ingest required layer 8
+    - run:
+        command: rm -rf .checkpoint-incoming
+        name: Clear incoming payload 9
+    - restore_cache:
+        keys:
+        - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-9.key" }}
+        name: Restore exact required layer 9
+    - run:
+        command: python3 -u .circleci/bridge/full_driver.py ingest --slot 9
+        name: Verify and ingest required layer 9
+    - run:
+        command: rm -rf .checkpoint-incoming
+        name: Clear incoming payload 10
+    - restore_cache:
+        keys:
+        - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-10.key" }}
+        name: Restore exact required layer 10
+    - run:
+        command: python3 -u .circleci/bridge/full_driver.py ingest --slot 10
+        name: Verify and ingest required layer 10
+    - run:
+        command: rm -rf .checkpoint-incoming
+        name: Clear incoming payload 11
+    - restore_cache:
+        keys:
+        - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-11.key" }}
+        name: Restore exact required layer 11
+    - run:
+        command: python3 -u .circleci/bridge/full_driver.py ingest --slot 11
+        name: Verify and ingest required layer 11
+    - run:
+        command: rm -rf .checkpoint-incoming
+        name: Clear incoming payload 12
+    - restore_cache:
+        keys:
+        - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-12.key" }}
+        name: Restore exact required layer 12
+    - run:
+        command: python3 -u .circleci/bridge/full_driver.py ingest --slot 12
+        name: Verify and ingest required layer 12
+    - run:
+        command: rm -rf .checkpoint-incoming
+        name: Clear incoming payload 13
+    - restore_cache:
+        keys:
+        - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-13.key" }}
+        name: Restore exact required layer 13
+    - run:
+        command: python3 -u .circleci/bridge/full_driver.py ingest --slot 13
+        name: Verify and ingest required layer 13
+    - run:
+        command: rm -rf .checkpoint-incoming
+        name: Clear incoming payload 14
+    - restore_cache:
+        keys:
+        - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-14.key" }}
+        name: Restore exact required layer 14
+    - run:
+        command: python3 -u .circleci/bridge/full_driver.py ingest --slot 14
+        name: Verify and ingest required layer 14
+    - run:
+        command: rm -rf .checkpoint-incoming
+        name: Clear incoming payload 15
+    - restore_cache:
+        keys:
+        - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-15.key" }}
+        name: Restore exact required layer 15
+    - run:
+        command: python3 -u .circleci/bridge/full_driver.py ingest --slot 15
+        name: Verify and ingest required layer 15
+    - run:
+        name: Refresh complete checkpoint only when due; verify before publication
+        command: python3 -u .circleci/bridge/full_driver.py maintenance-capture
+        no_output_timeout: 45m
+    - save_cache:
+        name: Save only new immutable checkpoint payload
+        key: sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/outgoing.key" }}
+        paths:
+        - .checkpoint-incoming
+    - save_cache:
+        name: Save verified unchanged base under a fresh maintenance cache key
+        key: sandium-bridge-base-v1-{{ checksum ".checkpoint-state/base.key" }}
+        paths:
+        - brave-workspace-checkpoint.shards
+        - brave-workspace-checkpoint.manifest.json
+    - run:
+        name: Remove local saved transport copies before remote readback
+        command: python3 -u .circleci/bridge/full_driver.py maintenance-clear-saved-local
+    - restore_cache:
+        name: Read back exact newly saved maintenance increment
+        keys:
+        - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/outgoing.key" }}
+    - restore_cache:
+        name: Read back exact newly saved maintenance base
+        keys:
+        - sandium-bridge-base-v1-{{ checksum ".checkpoint-state/base.key" }}
+    - run:
+        name: Verify downloaded replacement checkpoint before accepting its receipt
+        command: python3 -u .circleci/bridge/full_driver.py maintenance-readback
+        no_output_timeout: 15m
+    - run:
+        name: Prepare experimental head after payload save
+        command: python3 -u .circleci/bridge/full_driver.py publish
+    - save_cache:
+        name: Publish complete checkpoint receipt only after payload save
+        key: sandium-experimental-head-v1-{{ checksum ".checkpoint-state/scope-key" }}-{{ checksum ".checkpoint-head/receipt.json"
+          }}
+        paths:
+        - .checkpoint-head/receipt.json
+        - .checkpoint-head/previous-receipt.json
+    - store_artifacts:
+        path: .checkpoint-state/maintenance-report.json
+        destination: checkpoint-maintenance
+  optional-post-apk-refresh:
+    machine:
+      image: ubuntu-2404:current
+    resource_class: large
+    retention:
+      caches: 15d
+    environment:
+      SANDIUM_STAGE: '6'
+      SANDIUM_PIPELINE_NUMBER: << pipeline.number >>
+      SANDIUM_EXPERIMENT_SCOPE: << pipeline.parameters.checkpoint_namespace >>
+      SANDIUM_EXPERIMENT_REVIEWED: << pipeline.parameters.publication_reviewed >>
+      SANDIUM_ALLOW_SEED_IMPORT: << pipeline.parameters.allow_seed_import >>
+      SISO_LIMITS: local=8,remote=80
+    steps:
+    - checkout
+    - run:
+        name: Require authorized checkpoint scope
+        command: |
+          python3 .circleci/scripts/verify-back-preview-scope.py
+          python3 -u .circleci/bridge/full_driver.py gate
+    - run:
+        name: Ensure legacy shard extraction tools on each fresh machine
+        command: bash .circleci/scripts/ensure-flow-tools.sh
+    - restore_cache:
+        name: Restore latest accepted experimental head only
+        keys:
+        - sandium-experimental-head-v1-{{ checksum ".checkpoint-state/scope-key" }}-
+    - restore_cache:
+        name: Restore post-publication refresh decision from this exact workflow and revision
+        keys:
+        - sandium-full-refresh-request-v1-{{ checksum ".checkpoint-state/scope-key" }}-{{ .Environment.CIRCLE_WORKFLOW_ID
+          }}-{{ .Revision }}-
+    - run:
+        name: Refresh after APK only when its successful stage had more than twenty minutes remaining
+        command: python3 -u .circleci/bridge/full_driver.py optional-check
+    - restore_cache:
+        name: Restore exact unchanged legacy base
+        keys:
+        - sandium-bridge-base-v1-{{ checksum ".checkpoint-state/base.key" }}
+    - run:
+        name: Clear incoming payload 0
+        command: rm -rf .checkpoint-incoming
+    - restore_cache:
+        name: Restore exact required layer 0
+        keys:
+        - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-0.key" }}
+    - run:
+        name: Verify and ingest required layer 0
+        command: python3 -u .circleci/bridge/full_driver.py ingest --slot 0
+    - run:
+        name: Clear incoming payload 1
+        command: rm -rf .checkpoint-incoming
+    - restore_cache:
+        name: Restore exact required layer 1
+        keys:
+        - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-1.key" }}
+    - run:
+        name: Verify and ingest required layer 1
+        command: python3 -u .circleci/bridge/full_driver.py ingest --slot 1
+    - run:
+        name: Clear incoming payload 2
+        command: rm -rf .checkpoint-incoming
+    - restore_cache:
+        name: Restore exact required layer 2
+        keys:
+        - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-2.key" }}
+    - run:
+        name: Verify and ingest required layer 2
+        command: python3 -u .circleci/bridge/full_driver.py ingest --slot 2
+    - run:
+        name: Clear incoming payload 3
+        command: rm -rf .checkpoint-incoming
+    - restore_cache:
+        name: Restore exact required layer 3
+        keys:
+        - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-3.key" }}
+    - run:
+        name: Verify and ingest required layer 3
+        command: python3 -u .circleci/bridge/full_driver.py ingest --slot 3
+    - run:
+        name: Clear incoming payload 4
+        command: rm -rf .checkpoint-incoming
+    - restore_cache:
+        name: Restore exact required layer 4
+        keys:
+        - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-4.key" }}
+    - run:
+        name: Verify and ingest required layer 4
+        command: python3 -u .circleci/bridge/full_driver.py ingest --slot 4
+    - run:
+        name: Clear incoming payload 5
+        command: rm -rf .checkpoint-incoming
+    - restore_cache:
+        name: Restore exact required layer 5
+        keys:
+        - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-5.key" }}
+    - run:
+        name: Verify and ingest required layer 5
+        command: python3 -u .circleci/bridge/full_driver.py ingest --slot 5
+    - run:
+        name: Clear incoming payload 6
+        command: rm -rf .checkpoint-incoming
+    - restore_cache:
+        name: Restore exact required layer 6
+        keys:
+        - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-6.key" }}
+    - run:
+        name: Verify and ingest required layer 6
+        command: python3 -u .circleci/bridge/full_driver.py ingest --slot 6
+    - run:
+        name: Clear incoming payload 7
+        command: rm -rf .checkpoint-incoming
+    - restore_cache:
+        name: Restore exact required layer 7
+        keys:
+        - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-7.key" }}
+    - run:
+        name: Verify and ingest required layer 7
+        command: python3 -u .circleci/bridge/full_driver.py ingest --slot 7
+    - run:
+        command: rm -rf .checkpoint-incoming
+        name: Clear incoming payload 8
+    - restore_cache:
+        keys:
+        - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-8.key" }}
+        name: Restore exact required layer 8
+    - run:
+        command: python3 -u .circleci/bridge/full_driver.py ingest --slot 8
+        name: Verify and ingest required layer 8
+    - run:
+        command: rm -rf .checkpoint-incoming
+        name: Clear incoming payload 9
+    - restore_cache:
+        keys:
+        - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-9.key" }}
+        name: Restore exact required layer 9
+    - run:
+        command: python3 -u .circleci/bridge/full_driver.py ingest --slot 9
+        name: Verify and ingest required layer 9
+    - run:
+        command: rm -rf .checkpoint-incoming
+        name: Clear incoming payload 10
+    - restore_cache:
+        keys:
+        - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-10.key" }}
+        name: Restore exact required layer 10
+    - run:
+        command: python3 -u .circleci/bridge/full_driver.py ingest --slot 10
+        name: Verify and ingest required layer 10
+    - run:
+        command: rm -rf .checkpoint-incoming
+        name: Clear incoming payload 11
+    - restore_cache:
+        keys:
+        - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-11.key" }}
+        name: Restore exact required layer 11
+    - run:
+        command: python3 -u .circleci/bridge/full_driver.py ingest --slot 11
+        name: Verify and ingest required layer 11
+    - run:
+        command: rm -rf .checkpoint-incoming
+        name: Clear incoming payload 12
+    - restore_cache:
+        keys:
+        - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-12.key" }}
+        name: Restore exact required layer 12
+    - run:
+        command: python3 -u .circleci/bridge/full_driver.py ingest --slot 12
+        name: Verify and ingest required layer 12
+    - run:
+        command: rm -rf .checkpoint-incoming
+        name: Clear incoming payload 13
+    - restore_cache:
+        keys:
+        - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-13.key" }}
+        name: Restore exact required layer 13
+    - run:
+        command: python3 -u .circleci/bridge/full_driver.py ingest --slot 13
+        name: Verify and ingest required layer 13
+    - run:
+        command: rm -rf .checkpoint-incoming
+        name: Clear incoming payload 14
+    - restore_cache:
+        keys:
+        - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-14.key" }}
+        name: Restore exact required layer 14
+    - run:
+        command: python3 -u .circleci/bridge/full_driver.py ingest --slot 14
+        name: Verify and ingest required layer 14
+    - run:
+        command: rm -rf .checkpoint-incoming
+        name: Clear incoming payload 15
+    - restore_cache:
+        keys:
+        - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/slot-15.key" }}
+        name: Restore exact required layer 15
+    - run:
+        command: python3 -u .circleci/bridge/full_driver.py ingest --slot 15
+        name: Verify and ingest required layer 15
+    - run:
+        name: Refresh complete checkpoint only when due; verify before publication
+        command: python3 -u .circleci/bridge/full_driver.py maintenance-capture
+        no_output_timeout: 45m
+    - save_cache:
+        name: Save only new immutable checkpoint payload
+        key: sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/outgoing.key" }}
+        paths:
+        - .checkpoint-incoming
+    - save_cache:
+        name: Save verified unchanged base under a fresh maintenance cache key
+        key: sandium-bridge-base-v1-{{ checksum ".checkpoint-state/base.key" }}
+        paths:
+        - brave-workspace-checkpoint.shards
+        - brave-workspace-checkpoint.manifest.json
+    - run:
+        name: Remove local saved transport copies before remote readback
+        command: python3 -u .circleci/bridge/full_driver.py maintenance-clear-saved-local
+    - restore_cache:
+        name: Read back exact newly saved maintenance increment
+        keys:
+        - sandium-bridge-delta-v1-{{ checksum ".checkpoint-state/outgoing.key" }}
+    - restore_cache:
+        name: Read back exact newly saved maintenance base
+        keys:
+        - sandium-bridge-base-v1-{{ checksum ".checkpoint-state/base.key" }}
+    - run:
+        name: Verify downloaded replacement checkpoint before accepting its receipt
+        command: python3 -u .circleci/bridge/full_driver.py maintenance-readback
+        no_output_timeout: 15m
+    - run:
+        name: Prepare experimental head after payload save
+        command: python3 -u .circleci/bridge/full_driver.py publish
+    - save_cache:
+        name: Publish complete checkpoint receipt only after payload save
+        key: sandium-experimental-head-v1-{{ checksum ".checkpoint-state/scope-key" }}-{{ checksum ".checkpoint-head/receipt.json"
+          }}
+        paths:
+        - .checkpoint-head/receipt.json
+        - .checkpoint-head/previous-receipt.json
+    - store_artifacts:
+        path: .checkpoint-state/maintenance-report.json
+        destination: checkpoint-maintenance
+job-groups:
+  sandium-full-chain:
+    jobs:
+    - initialize-full-checkpoint
+    - maintain-full-checkpoint:
+        requires:
+        - initialize-full-checkpoint
+    - full-stage-1:
+        requires:
+        - maintain-full-checkpoint
+    - full-stage-2:
+        requires:
+        - full-stage-1
+    - full-stage-3:
+        requires:
+        - full-stage-2
+    - full-stage-4:
+        requires:
+        - full-stage-3
+    - full-stage-5:
+        requires:
+        - full-stage-4
+    - optional-post-apk-refresh:
+        requires:
+        - full-stage-5
+workflows:
+  sandium-full:
+    when:
+      and:
+      - << pipeline.parameters.run_build >>
+      - not: << pipeline.parameters.run_maintenance >>
+    jobs:
+    - sandium-full-chain:
+        serial-group: << pipeline.project.slug >>/sandium-single-experiment
+  sandium-checkpoint-maintenance:
+    when: << pipeline.parameters.run_maintenance >>
+    jobs:
+    - maintain-full-checkpoint:
+        serial-group: << pipeline.project.slug >>/sandium-single-experiment

@@ -49,6 +49,16 @@ def shell_invocations(path):
 
 def verify_full_wiring(repo):
     repo=Path(repo);text=(repo/'.circleci/config.yml').read_text()
+    if re.search(r'^  brave-android-staged-build:',text,re.M):
+        # Original Full has one parameterized job. Accept only the independently
+        # reviewed exact config, then retain every product invocation/argument gate.
+        import hashlib
+        expected=(repo/'.circleci/original-full/config.sha256').read_text().strip()
+        if not re.fullmatch('[0-9a-f]{64}',expected) or hashlib.sha256(text.encode()).hexdigest()!=expected:
+            raise ValueError('Original Full configuration differs from reviewed wiring')
+        verify_product_wrappers(repo)
+        return ['brave-android-staged-build','renew-fixed-reference']
+
     section=re.search(r'^jobs:\s*\n(.*?)(?=^[A-Za-z][A-Za-z0-9_-]*:|\Z)',text,re.M|re.S)
     if not section:raise ValueError('Missing jobs section')
     chunks=re.split(r'^  ([A-Za-z0-9_-]+):\s*\n',section.group(1),flags=re.M)
@@ -73,6 +83,12 @@ def verify_full_wiring(repo):
         if positions!=sorted(positions):raise ValueError(f'{name}: overlay/UI/graph/build order is wrong')
         prepare=[i for i,b in enumerate(blocks) if 'bash .circleci/scripts/prepare-brave-source.sh' in b]
         if len(prepare)!=1 or prepare[0]>=positions[0]:raise ValueError(f'{name}: preparation must precede overlays')
+    verify_product_wrappers(repo)
+    return list(jobs)
+
+
+def verify_product_wrappers(repo):
+    repo=Path(repo)
     for wrapper,expected in REQUIRED.items():
         invocations=shell_invocations(repo/'.circleci/experimental-steps'/wrapper)
         names=[name for name,args in invocations]
@@ -134,4 +150,3 @@ def verify_full_wiring(repo):
                     raise ValueError('UI links require restored core and source')
             if invocations[40][1] != ['$SRC','$CORE'] or invocations[41][1]:
                 raise ValueError('Oppo toggles require restored source/core and contract')
-    return list(jobs)

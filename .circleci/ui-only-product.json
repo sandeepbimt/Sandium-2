@@ -37,7 +37,7 @@
     ".circleci/scripts/apply-sandium-bottom-toolbar.py": "ccdf6b99530a4505c5d42d0360f9f8efcba2ba432c6dc296fdc3e401686d2a4d",
     ".circleci/scripts/test-sandium-bottom-toolbar.py": "40e3750bb0bdc4e97b9c13e306406fffbc65d5b146f1ba526748cdce8152bb24",
     ".circleci/scripts/apply-sandium-paged-menu.py": "4283569e4b096587ca1bdb0ccb40ee94a6b39e38510308e06874e03fa4f53675",
-    ".circleci/scripts/flow_wiring.py": "c6b0c7fec3638f0664ddcbde0406bdd4606abfea62e6acc322b554e1d28fdab3",
+    ".circleci/scripts/flow_wiring.py": "f78e1acafffd257b242f5667070cc489de533724238344c9afd0bcd75e26399d",
     "android/java/org/chromium/chrome/browser/ui/appmenu/SandiumMenuState.java": "64b707978412cca96095221e68d14764b15a2da241a1e7698de1f375c77b652f",
     "android/java/org/chromium/chrome/browser/ui/appmenu/SandiumPagedMenu.java": "51d40f26ad6e5584cd176dae726fc3da294fc0b6e85088feb2e9855354706957",
     "android/java/org/chromium/chrome/browser/ui/appmenu/SandiumMenuMetadata.java": "73c796d7c1c623bfa2d5246e68b7a5763a76bf78eec225d0722f60f171d24be2",
@@ -91,8 +91,8 @@
     },
     ".circleci/scripts/flow_wiring.py": {
       "baseline_sha256": "2bcee7ec874ea013c1e501d95c97364de8349644d8783d47e194ff6d62961564",
-      "accepted_sha256": "c6b0c7fec3638f0664ddcbde0406bdd4606abfea62e6acc322b554e1d28fdab3",
-      "reason": "Integrate independently reviewed native icon semantics and bounded reduced-motion-aware content fades; preserve all Full pipeline and APK gates."
+      "accepted_sha256": "f78e1acafffd257b242f5667070cc489de533724238344c9afd0bcd75e26399d",
+      "reason": "Recognize exact pinned original Full configuration while retaining every existing product wrapper sequence and argument gate."
     },
     "android/java/org/chromium/chrome/browser/ui/appmenu/SandiumMenuState.java": {
       "baseline_sha256": null,

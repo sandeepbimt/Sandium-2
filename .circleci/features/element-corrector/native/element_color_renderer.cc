@@ -73,7 +73,7 @@ void ElementColorRenderer::Select(v8::Isolate* isolate,v8::Local<v8::Value> valu
   if (!session_ || !Current(*session_) || nodes_.size()>=64 || descriptor.size()>8192) return;
   auto node=blink::WebElement::FromV8Value(isolate,value);
   if (node.IsNull() || !node.IsConnected() || node.GetDocument()!=document_) return;
-  auto parsed=base::JSONReader::ReadDict(descriptor);
+  auto parsed=base::JSONReader::ReadDict(descriptor, base::JSON_PARSE_RFC);
   if (!parsed) return;
   const uint64_t id=++next_;nodes_.emplace(id,node);descriptors_.emplace(id,parsed->Clone());
   browser_->OfferElementColorSelection(*session_,id,std::move(*parsed),base::BindOnce([](bool){}));
