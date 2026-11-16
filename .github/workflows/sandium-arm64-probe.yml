@@ -1,0 +1,49 @@
+name: Sandium ARM64 runner capability probe
+on:
+  push:
+    branches: [experiment/android15-smoke]
+    paths: [.github/workflows/sandium-arm64-probe.yml]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  arm64:
+    if: github.repository_visibility == 'public'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 5
+    steps:
+      - name: Inspect existing ARM64 virtualization and Android tools (read-only)
+        shell: bash
+        run: |
+          set -u
+          uname -a
+          id
+          lscpu
+          ls -l /dev/kvm || true
+          python3 - <<'PY'
+          import os,fcntl
+          try:
+              fd=os.open('/dev/kvm',os.O_RDWR)
+              print('KVM_OPEN=SUCCESS')
+              print('KVM_API_VERSION='+str(fcntl.ioctl(fd,0xAE00,0)))
+              os.close(fd)
+          except OSError as e:
+              print('KVM_OPEN=FAILED: '+str(e))
+          PY
+          grep -E '^kvm' /proc/modules || true
+          echo "ANDROID_HOME=${ANDROID_HOME:-unset}"
+          echo "ANDROID_SDK_ROOT=${ANDROID_SDK_ROOT:-unset}"
+          command -v emulator || true
+          command -v adb || true
+          command -v qemu-system-aarch64 || true
+          for sdk in "${ANDROID_HOME:-/nonexistent}" "${ANDROID_SDK_ROOT:-/nonexistent}" /usr/local/lib/android/sdk /opt/android-sdk; do
+            if [ -d "$sdk" ]; then
+              find "$sdk" -maxdepth 4 -type f -name emulator -o -name source.properties | head -25
+              if [ -x "$sdk/emulator/emulator" ]; then
+                file "$sdk/emulator/emulator"
+                "$sdk/emulator/emulator" -version || true
+                "$sdk/emulator/emulator" -accel-check || true
+              fi
+            fi
+          done
+          printf 'Read-only public standard ARM64 runner probe. No permission changes, packages, emulator boot, paid resources, artifacts or caches.\n' >> "$GITHUB_STEP_SUMMARY"
