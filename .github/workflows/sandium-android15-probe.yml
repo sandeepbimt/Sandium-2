@@ -133,7 +133,13 @@ jobs:
           def wait_ready():
               deadline=time.time()+240
               while time.time()<deadline:
-                  ns=nodes(); start=match('Start browsing',ns)
+                  ns=nodes()
+                  launcher_anr=match("Pixel Launcher isn't responding",ns)
+                  if launcher_anr is not None:
+                      close=match('Close app',ns)
+                      if close is not None:
+                          print('RECOVERY closing observed Pixel Launcher ANR dialog only',flush=True);click(close);time.sleep(3);continue
+                  start=match('Start browsing',ns)
                   if start is not None and start.get('enabled')=='true':
                       evidence('welcome_ready');click(start);time.sleep(12);evidence('after_start');return
                   print('ONBOARDING',[(n.get('text'),n.get('enabled')) for n in ns if n.get('text')],flush=True)
