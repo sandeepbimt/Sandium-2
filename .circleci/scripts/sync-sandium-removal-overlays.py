@@ -28,6 +28,8 @@ COPIED_ROOTS = (
 UI_OWNED_COPIED = {
     'android/java/res/values/brave_colors.xml',
     'android/java/res/values-night/brave_colors.xml',
+    # Final browser-branding edits the Developer options hint in this copy.
+    'android/java/res/xml/developer_preferences.xml',
 }
 FORBIDDEN = (
     b'@drawable/product_vpn_layer_list', b'@drawable/ic_news_settings',
@@ -54,7 +56,8 @@ def apply(core, src, manifest=None):
     copied = {p for p in manifest['core_restore'] if p.startswith(COPIED_ROOTS)}
     declared_ui = set(manifest.get('ui_only_core_restore', [])) & copied
     if not declared_ui <= UI_OWNED_COPIED:
-        raise ValueError('Unreviewed UI-owned copied resource')
+        raise ValueError('Unreviewed UI-owned copied resource: '
+                         + repr(sorted(declared_ui - UI_OWNED_COPIED)))
     copied -= declared_ui
     if copied != set(MAPPINGS):
         raise ValueError('Review removal overlay mappings: ' + repr(sorted(copied ^ set(MAPPINGS))))
