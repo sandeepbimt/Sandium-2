@@ -11,6 +11,9 @@ ROOT = Path(__file__).resolve().parents[2]
 spec = importlib.util.spec_from_file_location('status', ROOT / '.circleci/scripts/apply-sandium-scroll-status-bar.py')
 status = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(status)
+geometry_spec = importlib.util.spec_from_file_location('status_geometry', ROOT / '.circleci/scripts/trace-sandium-back-geometry.py')
+geometry = importlib.util.module_from_spec(geometry_spec)
+geometry_spec.loader.exec_module(geometry)
 GATE_OFF = 'private static final boolean SANDIUM_NATIVE_STATUS_CANDIDATE = false;'
 GATE_ON = 'private static final boolean SANDIUM_NATIVE_STATUS_CANDIDATE = true;'
 SCREEN_OFF = 'private static final boolean SANDIUM_NATIVE_SCREEN_TEST_CANDIDATE = false;'
@@ -53,7 +56,16 @@ def plan(src, core, enabled=False, native_screens=False):
         path = src / rel
         old = path.read_text()
         normalized = old.replace(GATE_ON, GATE_OFF).replace(SCREEN_ON, SCREEN_OFF)
-        base = status.transform(name, patch.undo_chromium(name, normalized))
+        # Step30 instruments the status method after the ordinary overlay. Its
+        # exact known trace must be temporarily reversed before whole-block replay.
+        # Reject unknown/duplicate trace payloads; restore diagnostics afterward.
+        traced = name == 'EdgeToEdgeControllerImpl.java' and 'SandiumUnderlapReapply' in normalized
+        normalized = patch.undo_chromium(name, normalized)
+        if traced:
+            normalized = geometry.reset(normalized)
+        base = status.transform(name, normalized)
+        if traced:
+            base = geometry.transform(base)
         new = patch.chromium(name, base)
         if name == 'EdgeToEdgeUtils.java':
             if new.count(GATE_OFF) != 1:

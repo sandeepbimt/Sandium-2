@@ -8,12 +8,12 @@
   "files": {
     "experiments/native-status/README.md": "540bb5d02dd506de3c38eb6160ab6cd343880d4fec32c8caa95694f1e54aa072",
     "experiments/native-status/cleanup.py": "ec253bac32b5932452ee61a13454524a8c177cbfc3453941f6e9249009a1c82a",
-    "experiments/native-status/test_prepare.py": "a1940b16c8dff08f1f86c3c919887d52e8065ec5a3508054e6f0094e4c0854eb",
+    "experiments/native-status/test_prepare.py": "a4069e56e544067767d7f1fcad17f3edd3c4a55aa9e6be9c2f00fc1c3b64a36f",
     "experiments/native-status/test_secondary.py": "978c9c632d808aad49d344a52880fffd24cc6293984b95004327b035b6b42c5e",
     "experiments/native-status/test_welcome_backing.py": "da7e9ea7833160918c48f80ac7de4f594c6cf5ca5cabdeb036043703251a2459",
     "experiments/native-status/patch.py": "e626b77a945c01f5c76d7b9d40338b9862072a01cae24be5d7fe47d4399baac6",
     "experiments/native-status/test_patch.py": "c0122b9b26bcc99e56cee0dda9ec86db3cdcfd44eeba84c22e4d9918616b3892",
-    "experiments/native-status/prepare.py": "965f78d94bc2ff10d54e525c6fae3e1e02e3a38693872e430c6b921786a8d123",
+    "experiments/native-status/prepare.py": "d5a7957eb6348764df70da7091969144e55b80acfec5cc16bdb774b2cc93d654",
     "experiments/native-status/secondary.py": "ce3f36aa82303fc13968f8c3286f99c8f45ca912257100ce227487b3487e5965",
     "experiments/native-status/fixtures/BraveNewTabPage.java": "22cdb808f8db0088fec2f54cf575839ffd2824f4d2ca1d4e2a129ccb06752ac1",
     "experiments/native-status/fixtures/edge_to_edge_internal_BUILD.gn": "95f04684d1a3e9760947315c6617d81a3687ae85ae2a88ee537db3dba87daef7",
@@ -40,5 +40,6 @@
     "native_secondary_screens": true
   },
   "guard_commit": "30401e8ec4eccf3e10e06004350372e9e940cba9",
-  "guard_remote": "47332e53e5067634a3defbdb1a82e164eb68b1ec"
+  "guard_remote": "47332e53e5067634a3defbdb1a82e164eb68b1ec",
+  "composition_fix": "Replay exact production geometry instrumentation between ordinary status and native candidate transformations; preserve fail-closed drift checks."
 }

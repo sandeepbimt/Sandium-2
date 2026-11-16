@@ -49,6 +49,32 @@ class PrepareTests(unittest.TestCase):
             self.assertIn(prepare.GATE_OFF,utils)
             self.assertNotIn(prepare.GATE_ON,utils)
 
+    def test_production_geometry_trace_survives_native_prepare_and_checkpoint(self):
+        with tempfile.TemporaryDirectory() as d:
+            src,core=self.fixture(Path(d))
+            # Production step29 status -> step30 geometry trace -> candidate.
+            for name,rel in prepare.status.FILES.items():
+                path=src/rel;path.write_text(prepare.status.transform(name,path.read_text()))
+            path=src/prepare.geometry.PATH
+            path.write_text(prepare.geometry.transform(path.read_text()))
+            traced_base=path.read_text()
+            planned=prepare.plan(src,core,True,True)
+            for target,old,new in planned:target.write_text(new)
+            candidate=path.read_text()
+            self.assertEqual(candidate.count('private void refreshSandiumUnderlap()'),1)
+            self.assertEqual(candidate.count('SandiumUnderlapReapply'),1)
+            self.assertTrue(all(old==new for target,old,new in prepare.plan(src,core,True,True)))
+            for target,old,new in cleanup.plan(src,core):target.write_text(new)
+            self.assertEqual(path.read_text(),traced_base)
+            for target,old,new in prepare.plan(src,core,True,True):target.write_text(new)
+            self.assertEqual(path.read_text(),candidate)
+            # A trace not produced by our exact patch must still fail closed.
+            path.write_text(candidate.replace('"current="','"drift="'))
+            before={p:p.read_bytes() for p in Path(d).rglob('*.java')}
+            with self.assertRaisesRegex(RuntimeError,'Unrecognized back geometry'):
+                prepare.plan(src,core,True,True)
+            self.assertTrue(all(p.read_bytes()==data for p,data in before.items()))
+
     def test_native_java_theme_dependency_is_on_implementation_only(self):
         original=(HERE/'fixtures/edge_to_edge_internal_BUILD.gn').read_text()
         result=prepare.native_build_config(original)
