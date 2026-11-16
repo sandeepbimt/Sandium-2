@@ -43,8 +43,10 @@ jobs:
           curl --fail --location --retry 2 --max-time 180 -o Sandium.apk 'https://output.circle-artifacts.com/output/job/3c0661b0-0a6a-40b2-97f3-553080d3b902/artifacts/0/brave-apk/Sandium-Brave-test.apk'
           echo 'd33297048c49b65c2f4b797651e6708f7f101ef7e30f9fb90af3091b31459de5  Sandium.apk' | sha256sum --check
           unzip -l Sandium.apk | grep 'lib/' | head -15 || true
+          export ANDROID_AVD_HOME="$RUNNER_TEMP/avd"
+          mkdir -p "$ANDROID_AVD_HOME"
           echo no | "$ANDROID_HOME/cmdline-tools/latest/bin/avdmanager" create avd --force --name sandium15 --package 'system-images;android-35;google_apis;x86_64'
-          cat >> "$HOME/.android/avd/sandium15.avd/config.ini" <<'CONFIG'
+          cat >> "$ANDROID_AVD_HOME/sandium15.avd/config.ini" <<'CONFIG'
           hw.lcd.width=720
           hw.lcd.height=1600
           hw.lcd.density=280
