@@ -1,0 +1,45 @@
+name: Sandium Android 15 capability probe
+on:
+  push:
+    branches: [experiment/android15-smoke]
+    paths: [.github/workflows/sandium-android15-probe.yml]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: sandium-android15-probe
+  cancel-in-progress: false
+jobs:
+  probe:
+    if: github.repository_visibility == 'public'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Inspect existing acceleration access without changing permissions
+        shell: bash
+        run: |
+          set -u
+          echo "This is a standard public-repository runner; no artifacts or caches are uploaded."
+          uname -a
+          id
+          lscpu | grep -E 'Architecture|CPU\(s\)|Virtualization|Hypervisor' || true
+          ls -l /dev/kvm || true
+          python3 - <<'PY'
+          import os, fcntl
+          try:
+              fd = os.open('/dev/kvm', os.O_RDWR)
+              print('KVM_OPEN=SUCCESS')
+              print('KVM_API_VERSION=' + str(fcntl.ioctl(fd, 0xAE00, 0)))
+              os.close(fd)
+          except OSError as error:
+              print('KVM_OPEN=FAILED: ' + str(error))
+          PY
+          echo "ANDROID_HOME=${ANDROID_HOME:-unset}"
+          if [ -x "${ANDROID_HOME:-/none}/emulator/emulator" ]; then
+            "$ANDROID_HOME/emulator/emulator" -version | head -8
+            "$ANDROID_HOME/emulator/emulator" -accel-check || true
+          fi
+          if [ -d "${ANDROID_HOME:-/none}/system-images" ]; then
+            find "$ANDROID_HOME/system-images" -name source.properties -maxdepth 5 -print
+          fi
+          printf 'Read-only Android capability probe completed. No emulator, permission change, APK install, or paid resource was used.\n' >> "$GITHUB_STEP_SUMMARY"
