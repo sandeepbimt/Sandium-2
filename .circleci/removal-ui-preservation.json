@@ -6,7 +6,7 @@
     ".circleci/scripts/apply-sandium-chrome-theme.py": "13cfd73d17cd342cec9b1f3bf332f29be873a0b850cfb40942b7cd4660623ccf",
     ".circleci/scripts/apply-sandium-native-theme.py": "3c393708d93302b8a2539e73d4e475142660ed69ec6efc9c5345572f7ce06f1e",
     ".circleci/scripts/apply-sandium-paged-menu.py": "126eed2d8d2abd37a7df6033bb48eb8e8a8549d4ea90c7626adbbb60a9fafcfa",
-    ".circleci/scripts/apply-sandium-scroll-status-bar.py": "a81b3f5c332d3cfb747c977b96a0dea0389e5b13b6e81d2dbbe691d99c364b9a",
+    ".circleci/scripts/apply-sandium-scroll-status-bar.py": "e03c353c2b80cfa22969c26cce3ab9845b485fa5e36e476a133b7662bb6f69ae",
     ".circleci/scripts/apply-sandium-shields-popup.py": "eaca25aec6ba08e28775815c112f8446f87dd49630da98bd86ea78770f2c078d",
     ".circleci/scripts/test-sandium-bottom-toolbar.py": "40e3750bb0bdc4e97b9c13e306406fffbc65d5b146f1ba526748cdce8152bb24",
     ".circleci/scripts/test-sandium-chrome-theme.py": "d9443c1ab2e17e2319b2df23af0e61ef2fd70b030450175a39eac53a8a4f3958",
@@ -313,6 +313,16 @@
         "android/java/org/chromium/chrome/browser/ui/appmenu/SandiumPagedMenu.java": {
           "previous_sha256": "e75cb53ac883c5c41bfa231c213de66f917c909e2978cb51f17ee07894fd226b",
           "current_sha256": "c12940f04f8ea5f5c370ac0ba5b175045772f6ddd88276e9a96aed2f97bf0106"
+        }
+      }
+    },
+    {
+      "date": "2026-11-16",
+      "reason": "Owner requested fixes for menu/page shaking and status transparency; stabilize bottom-toolbar underlap against transient controls locks while preserving header reservation and safety exclusions. Device coverage remains unverified.",
+      "files": {
+        ".circleci/scripts/apply-sandium-scroll-status-bar.py": {
+          "previous_sha256": "a81b3f5c332d3cfb747c977b96a0dea0389e5b13b6e81d2dbbe691d99c364b9a",
+          "current_sha256": "e03c353c2b80cfa22969c26cce3ab9845b485fa5e36e476a133b7662bb6f69ae"
         }
       }
     }

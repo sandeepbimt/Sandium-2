@@ -46,7 +46,7 @@ class UnderlapPatchTests(unittest.TestCase):
         old = types.ModuleType('old_status'); exec(before, old.__dict__)
         for name in old.FILES:
             self.assertEqual(old.transform(name, self.original(name)),
-                             patch.undo_spacer(name, patch.transform(name, self.original(name))), name)
+                             patch.undo_spacer(name, patch.undo_stable_viewport(name, patch.transform(name, self.original(name)))), name)
         creator = patch.transform('EdgeToEdgeControllerCreator.java',
                                   self.original('EdgeToEdgeControllerCreator.java'))
         self.assertNotIn('setInsets(', creator)
@@ -57,8 +57,8 @@ class UnderlapPatchTests(unittest.TestCase):
     def test_spacer_uses_native_sizing_not_scroll_padding_or_dom(self):
         text = patch.transform('EdgeToEdgeControllerImpl.java',
                                self.original('EdgeToEdgeControllerImpl.java'))
-        self.assertIn('controls.getTopControlsHeight() == controls.getSandiumStatusSpacerHeight()', text)
-        self.assertIn('controls.getTopControlsMinHeight() == 0', text)
+        self.assertIn('controls.getTopControlsHeight() == spacer', text)
+        self.assertIn('controls.getTopControlsMinHeight() <= spacer', text)
         self.assertIn('wasSandiumUnderlap || mCurrentTab != null', text)
         for forbidden in ['evaluateJavaScript', 'setTranslationY(', 'getScrollY(', 'scrollTo(', 'setTopControlsHeight(']:
             self.assertNotIn(forbidden, text)
@@ -66,7 +66,7 @@ class UnderlapPatchTests(unittest.TestCase):
         exec(baseline('9ba8861'), old.__dict__)
         self.assertEqual(old.transform('EdgeToEdgeControllerImpl.java',
                                        self.original('EdgeToEdgeControllerImpl.java')),
-                         patch.undo_spacer('EdgeToEdgeControllerImpl.java', text))
+                         patch.undo_spacer('EdgeToEdgeControllerImpl.java', patch.undo_stable_viewport('EdgeToEdgeControllerImpl.java', text)))
 
     def test_transitive_provider_forwards_explicit_web_activation(self):
         name = 'TransitiveTopInsetProvider.java'
@@ -130,7 +130,7 @@ class UnderlapPatchTests(unittest.TestCase):
             self.assertEqual(current, patch.transform(name, self.original(name)), name)
         controller = patch.transform('EdgeToEdgeControllerImpl.java', self.original('EdgeToEdgeControllerImpl.java'))
         self.assertIn('ControlsPosition.BOTTOM', controller)
-        self.assertIn('controls.getTopControlsHeight() == controls.getSandiumStatusSpacerHeight()', controller)
+        self.assertIn('controls.getTopControlsHeight() == spacer', controller)
         self.assertIn('controls.getBottomControlsHeight() > 0', controller)
         self.assertIn('public void onTopControlsHeightChanged(int topControlsHeight, int topControlsMinHeight) {\n        refreshSandiumUnderlap();', controller)
         self.assertIn('mBottomControlsHeight = bottomControlsHeight;\n        refreshSandiumUnderlap();', controller)
@@ -158,7 +158,7 @@ class UnderlapPatchTests(unittest.TestCase):
         text = patch.transform('EdgeToEdgeControllerImpl.java', self.original('EdgeToEdgeControllerImpl.java'))
         self.assertIn('public void onAndroidControlsVisibilityChanged(int visibility)', text)
         self.assertIn('public void onOffsetTagsInfoChanged(', text)
-        self.assertIn('if (controls.isVisibilityForced()', text)
+        self.assertIn('&& !controls.isVisibilityForced()', text)
         trace = text[text.index('    private void traceSandiumStatusEligibility'):text.index('    private void refreshSandiumUnderlap')]
         self.assertIn('if (!org.chromium.base.TraceEvent.enabled()) return;', trace)
         for private_data in ['getUrl(', 'getTitle(', 'getLastCommittedUrl(', 'evaluateJavaScript']:
@@ -167,6 +167,34 @@ class UnderlapPatchTests(unittest.TestCase):
         self.assertIn('SandiumStatusPaintGeometry', layout)
         self.assertIn('protection=', layout)
         self.assertIn('padding=', layout)
+
+    def test_bottom_menu_lock_never_reowns_window_insets(self):
+        name = 'EdgeToEdgeControllerImpl.java'
+        text = patch.transform(name, self.original(name))
+        method = text[text.index('static boolean isSandiumPageAndControlsSupported'):
+                      text.index('private boolean shouldSandiumUnderlap')]
+        bottom = method[method.index('int spacer ='):]
+        self.assertNotIn('isVisibilityForced', bottom)
+        self.assertIn('getTopControlsHeight() == spacer', bottom)
+        self.assertIn('getTopControlsMinHeight() <= spacer', bottom)
+        self.assertIn('getTopControlsMinHeightOffset() <= spacer', bottom)
+        self.assertIn('getBottomControlsHeight() > 0', bottom)
+        # Authored native test exercises true/false lock cycles, extra layers and keyboard restore.
+        native = patch.transform('EdgeToEdgeControllerTest.java', self.original('EdgeToEdgeControllerTest.java'))
+        self.assertIn('new boolean[] {true, false, true, false}', native)
+        self.assertIn('thenReturn(TOP_INSET + 1)', native)
+        self.assertIn('SYSTEM_BARS_WINDOW_INSETS_WITH_KEYBOARD', native)
+
+    def test_header_safe_checkpoint_migration(self):
+        previous = types.ModuleType('previous_header')
+        exec(baseline('header_safe_1209'), previous.__dict__)
+        for name in patch.FILES:
+            with self.subTest(name=name):
+                old = previous.transform(name, self.original(name))
+                current = patch.transform(name, old)
+                self.assertEqual(current, patch.transform(name, self.original(name)))
+                self.assertEqual(current, patch.transform(name, current))
+                self.assertEqual(old, patch.undo_stable_viewport(name, current))
 
     def test_rejects_drift_before_any_writes(self):
         with tempfile.TemporaryDirectory() as tmp:

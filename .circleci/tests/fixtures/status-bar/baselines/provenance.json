@@ -13,5 +13,9 @@
     "source_commit": "d6b31ba6165ab4afccdaef815236302c906c2805",
     "source_path": ".circleci/scripts/apply-sandium-scroll-status-bar.py",
     "sha256": "a6c017203aecc5abc605a5aad12653db7dddb176a65f30b101dfa54dfc175c1c"
+  },
+  "header_safe_1209": {
+    "sha256": "a81b3f5c332d3cfb747c977b96a0dea0389e5b13b6e81d2dbbe691d99c364b9a",
+    "source": "sandeepbimt/Sandium-2 commit 5cea4c90c8c3f738076fc5d89fbe5685412392a5; unchanged status script in 23eb845"
   }
 }

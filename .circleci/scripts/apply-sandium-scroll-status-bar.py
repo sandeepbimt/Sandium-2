@@ -189,6 +189,88 @@ SPACER_PATCHES['EdgeToEdgeControllerImpl.java'].extend([
      '    public void destroy() {\n        mSandiumStatusDestroyed = true;\n        if (mSandiumScrollUnderStatusBar) {'),
 ])
 
+# Reversible upgrade over the header-safe checkpoint. Underlap is window geometry,
+# not a proxy for the transient controls lock used by menus and navigation.
+STABLE_VIEWPORT_PATCHES = {
+    'EdgeToEdgeControllerImpl.java': [(
+        '''        if (controls.isVisibilityForced() || controls.getTopControlsMinHeightOffset() != 0) {
+            return false;
+        }
+        if (controls.getControlsPosition() == BrowserControlsStateProvider.ControlsPosition.TOP) {
+            return controls.getTopControlsHeight() > 0;
+        }
+        // Native bottom placement removes the entire top toolbar. Decline transitional
+        // or extra top-layer geometry rather than allowing content under native controls.
+        return controls.getControlsPosition() == BrowserControlsStateProvider.ControlsPosition.BOTTOM
+                && controls.getTopControlsHeight() == controls.getSandiumStatusSpacerHeight()
+                && controls.getTopControlsMinHeight() == 0
+                && controls.getBottomControlsHeight() > 0;''',
+        '''        if (controls.getControlsPosition() == BrowserControlsStateProvider.ControlsPosition.TOP) {
+            return controls.getTopControlsHeight() > 0
+                    && !controls.isVisibilityForced()
+                    && controls.getTopControlsMinHeightOffset() == 0;
+        }
+        // With the toolbar at the bottom, a menu/navigation lock can pin our own
+        // scroll-away spacer. That does not introduce a real top UI layer and must
+        // NOT switch root padding, CSS safe area and spacer ownership mid-frame.
+        // Extra top controls still decline underlap. Never infer ownership by size
+        // alone: the stacker publishes the explicit Sandium layer height first.
+        int spacer = controls.getSandiumStatusSpacerHeight();
+        return controls.getControlsPosition() == BrowserControlsStateProvider.ControlsPosition.BOTTOM
+                && controls.getTopControlsHeight() == spacer
+                && controls.getTopControlsMinHeight() <= spacer
+                && controls.getTopControlsMinHeightOffset() <= spacer
+                && controls.getBottomControlsHeight() > 0;'''),
+        ('                + ",topHeight=" + (controls == null ? -1 : controls.getTopControlsHeight())',
+         '                + ",topHeight=" + (controls == null ? -1 : controls.getTopControlsHeight())\n'
+         '                + ",spacer=" + (controls == null ? -1 : controls.getSandiumStatusSpacerHeight())\n'
+         '                + ",topMinHeight=" + (controls == null ? -1 : controls.getTopControlsMinHeight())\n'
+         '                + ",topOffset=" + (controls == null ? -1 : controls.getTopControlOffset())\n'
+         '                + ",contentOffset=" + (controls == null ? -1 : controls.getContentOffset())'),
+    ],
+    'EdgeToEdgeControllerTest.java': [(
+        '        var keyboard = mEdgeToEdgeControllerImpl.handleWindowInsets(',
+        '''        // Overlay/menu locks pin only the owned spacer; the root must stay edge-to-edge.
+        when(mBrowserControlsStateProvider.getControlsPosition())
+                .thenReturn(BrowserControlsStateProvider.ControlsPosition.BOTTOM);
+        when(mBrowserControlsStateProvider.getBottomControlsHeight()).thenReturn(100);
+        when(mBrowserControlsStateProvider.getSandiumStatusSpacerHeight()).thenReturn(TOP_INSET);
+        when(mBrowserControlsStateProvider.getTopControlsHeight()).thenReturn(TOP_INSET);
+        for (boolean forced : new boolean[] {true, false, true, false}) {
+            when(mBrowserControlsStateProvider.isVisibilityForced()).thenReturn(forced);
+            when(mBrowserControlsStateProvider.getTopControlsMinHeight())
+                    .thenReturn(forced ? TOP_INSET : 0);
+            when(mBrowserControlsStateProvider.getTopControlsMinHeightOffset())
+                    .thenReturn(forced ? TOP_INSET : 0);
+            var menu = mEdgeToEdgeControllerImpl.handleWindowInsets(
+                    mViewMock, SYSTEM_BARS_WINDOW_INSETS);
+            assertTrue(mEdgeToEdgeControllerImpl.isDrawingToTopEdge());
+            assertEquals(Insets.NONE, menu.getInsets(WindowInsetsCompat.Type.statusBars()));
+        }
+        // A real extra top layer must still reject the bottom-toolbar path.
+        when(mBrowserControlsStateProvider.getTopControlsHeight()).thenReturn(TOP_INSET + 1);
+        assertFalse(EdgeToEdgeControllerImpl.isSandiumPageAndControlsSupported(
+                mTab, mBrowserControlsStateProvider));
+        when(mBrowserControlsStateProvider.getTopControlsHeight()).thenReturn(TOP_INSET);
+
+        var keyboard = mEdgeToEdgeControllerImpl.handleWindowInsets('''),
+    ],
+
+}
+
+def undo_stable_viewport(name, text):
+    for old, new in reversed(STABLE_VIEWPORT_PATCHES.get(name, [])):
+        if new in text:
+            if text.count(new) != 1:
+                raise RuntimeError('Duplicate stable viewport anchor')
+            text = text.replace(new, old, 1)
+    return text
+
+def apply_stable_viewport(name, text):
+    for old, new in STABLE_VIEWPORT_PATCHES.get(name, []):
+        text = replace(text, old, new)
+    return text
+
 def undo_spacer(name, text):
     for old, new in reversed(SPACER_PATCHES.get(name, [])):
         if new in text:
@@ -202,6 +284,7 @@ def apply_spacer(name, text):
     return text
 
 def transform(name,s):
+    s = undo_stable_viewport(name, s)
     s = undo_spacer(name, s)
     # Strip only this exact-version extension before the older whole-block idempotence anchors.
     if name == 'EdgeToEdgeControllerImpl.java' and '    // Constraint/visibility changes do not necessarily move browser controls.' in s:
@@ -747,7 +830,7 @@ def transform(name,s):
                     + ",status=" + statusBarInsets.top + ",padding=" + overallInsets.top);
         }
         // Consume the insets since the root view already adjusted their paddings.""")
-    return apply_spacer(name, s)
+    return apply_stable_viewport(name, apply_spacer(name, s))
 
 def apply(root, enabled=True):
     pending=[]

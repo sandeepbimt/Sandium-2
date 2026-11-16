@@ -98,3 +98,46 @@ visual checks remain outstanding. Capture a trace while reproducing the strip:
 window layer rather than permission to remove safety gates. Verify white/image
 pages retain readable icons, then keyboard, back navigation, rotation, fullscreen,
 tabs and Settings. Reject a change that introduces page position jumps.
+
+## November 16: stable bottom-toolbar inset ownership
+
+The APK recordings show a whole-page down/up jump on menu opening and an inverse
+jump on dismissal, while the bottom toolbar remains anchored. They also show a
+white-backed gradient over dark article content after scrolling. These are
+observations, not proof that every website content shift shares one cause.
+
+The prior underlap predicate rejected all forced controls and every nonzero top
+minimum. With a bottom toolbar, the only top layer can be Sandium's own spacer.
+Menu/navigation controls locks are transient, and disabling top-control scrolling
+can pin that spacer. Rejecting its own state exchanges native spacer ownership
+for root padding, potentially while controls/insets callbacks are in progress.
+
+The new predicate keeps bottom-toolbar underlap eligible across those locks only
+when the aggregate top height is precisely the explicitly owned spacer height
+and minimum height/offset do not exceed that ownership. Real extra top controls
+still reject underlap. Top-toolbar, native/error/incognito pages, IME, fullscreen,
+layout transitions, cutout and window-configuration exclusions are unchanged.
+The spacer and initial header clearance stay present; no DOM mutation, scroll
+compensation, per-frame Android translation, or opaque masking is introduced.
+
+The gradient and physical/CSS safe-area metadata are deliberately unchanged.
+An initially considered removal of the synthetic CSS safe-area top was rejected
+in review: it could regress author fixed/sticky headers, and metadata does not
+prove automatic page padding. Trace-only eligibility output now includes owned
+spacer, actual top minimum, top offset and content offset so residual white-strip
+coverage can be separated from root inset changes on-device.
+
+Validation: 21 pinned source/migration/idempotence tests pass, including migration
+from the exact header-safe #1209 script and repeated back-trace composition.
+The generated Android test now cycles forced-controls true/false while the owned
+spacer is pinned/unpinned, checks root top-inset consumption stays unchanged,
+rejects extra top geometry, and then exercises keyboard restoration. It is
+AUTHORED, NOT EXECUTED locally; no Android SDK/compiler is present.
+
+This fixes a specific eligibility defect and is a candidate for the observed
+menu/navigation instability and status coverage failure. It is not yet proof of
+visual resolution on the Oppo device. Test menu open/close repeatedly at origin
+and mid-scroll, forward/back, slow loading, top/hidden/revealed controls, white and
+image pages, keyboard, tabs, rotation and fullscreen. Website-controlled late
+image/ad/font layout changes are not disabled or force-corrected; the recording's
+independent Hindu hero shift remains a separate investigation.
