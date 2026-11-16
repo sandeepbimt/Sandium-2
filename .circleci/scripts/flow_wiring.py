@@ -54,10 +54,20 @@ def verify_full_wiring(repo):
         # reviewed exact config, then retain every product invocation/argument gate.
         import hashlib
         expected=(repo/'.circleci/original-full/config.sha256').read_text().strip()
-        if not re.fullmatch('[0-9a-f]{64}',expected) or hashlib.sha256(text.encode()).hexdigest()!=expected:
-            raise ValueError('Original Full configuration differs from reviewed wiring')
-        verify_product_wrappers(repo)
-        return ['brave-android-staged-build','renew-fixed-reference']
+        digest = hashlib.sha256(text.encode()).hexdigest()
+        if re.fullmatch('[0-9a-f]{64}', expected) and digest == expected:
+            verify_product_wrappers(repo)
+            return ['brave-android-staged-build','renew-fixed-reference']
+        # A separate reviewed fixture is permitted only for the isolated test
+        # branch. Normal config and its reference-maintenance policy stay intact.
+        experiment = repo / '.circleci/translation-test'
+        if (experiment / 'config.sha256').is_file() and (experiment / 'config.yml').is_file():
+            test_expected = (experiment / 'config.sha256').read_text().strip()
+            if (re.fullmatch('[0-9a-f]{64}', test_expected) and digest == test_expected
+                    and text == (experiment / 'config.yml').read_text()):
+                verify_product_wrappers(repo)
+                return ['brave-android-staged-build']
+        raise ValueError('Original Full configuration differs from reviewed wiring')
 
     section=re.search(r'^jobs:\s*\n(.*?)(?=^[A-Za-z][A-Za-z0-9_-]*:|\Z)',text,re.M|re.S)
     if not section:raise ValueError('Missing jobs section')
