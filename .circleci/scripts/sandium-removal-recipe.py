@@ -17,6 +17,12 @@ def load(path=MANIFEST):
  for target,patch in m.get('chromium_restore_patches',{}).items():
   if target not in m['chromium_restore'] or not patch.startswith('patches/') or '..' in Path(patch).parts:
    raise ValueError('Invalid pinned Chromium patch replay mapping')
+ # Every dark/manual patch input must survive the production reset and the
+ # disposable full composition tree, not only the standalone feature fixtures.
+ dark=json.loads((ROOT/'.circleci/features/dark-pages/integration-plan.json').read_text())
+ for key in ('chromium_restore','core_restore','generated_overwrite'):
+  missing=set(dark[key])-set(m[key])
+  if missing:raise ValueError('Dark input absent from removal '+key+': '+', '.join(sorted(missing)))
  return m
 
 def restore_payload(m, core_reader, chromium_reader, core_only=False):

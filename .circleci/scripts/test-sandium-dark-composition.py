@@ -13,6 +13,26 @@ element_ui=load('element_ui',ROOT/'.circleci/features/element-corrector/android/
 manual=[load('manual_'+kind,ROOT/'.circleci/features/element-corrector'/('apply-'+kind+'-draft.py')) for kind in ['native','browser','transport']]
 combined=load('combined',ROOT/'.circleci/scripts/apply-sandium-dark-combined.py')
 class Composition(unittest.TestCase):
+ def test_removal_reset_contains_every_dark_input(self):
+  recipe=load('dark_reset_recipe',ROOT/'.circleci/scripts/sandium-removal-recipe.py')
+  manifest=recipe.load()
+  dark=json.loads((ROOT/'.circleci/features/dark-pages/integration-plan.json').read_text())
+  for key in ('chromium_restore','core_restore','generated_overwrite'):
+   self.assertTrue(set(dark[key]).issubset(manifest[key]))
+  for path in ('third_party/blink/renderer/core/frame/local_frame_view.cc',
+               'third_party/blink/renderer/core/paint/image_painter.cc'):
+   self.assertIn(path,manifest['ui_only_chromium_restore'])
+  with tempfile.TemporaryDirectory() as t:
+   invalid=Path(t)/'recipe.json'
+   for key in ('chromium_restore','core_restore','generated_overwrite'):
+    # Every declared input is checked, including future renderer additions.
+    for path in dark[key]:
+     broken=json.loads(json.dumps(manifest))
+     broken[key].remove(path)
+     if key == "chromium_restore":broken.get("chromium_restore_patches",{}).pop(path,None)
+     invalid.write_text(json.dumps(broken))
+     with self.assertRaisesRegex(ValueError,'Dark input absent from removal '+key):
+      recipe.load(invalid)
  def test_clean_compose_replay_and_contract(self):
   with tempfile.TemporaryDirectory() as t:
    src=Path(t)

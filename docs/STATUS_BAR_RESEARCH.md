@@ -181,3 +181,18 @@ alpha, single native transform, disabled/manual/forced/print/null, legacy,
 fullscreen and XR cases. All existing renderer native fake-API harnesses pass.
 Independent source review verified native filter settings and the callback chain.
 No Android SDK/Blink compilation or Oppo device test was available locally.
+
+### #1214 composition preflight correction
+
+The first backing-color candidate failed before native compilation: the
+thirteen-group disposable composition reset omitted local_frame_view.cc even
+though the dark feature inventory declared it. Its standalone feature tests
+therefore passed while the production composition failed with FileNotFoundError.
+The successor artwork patch also added image_painter.cc and needed the same
+reset registration. Both are now in the canonical Chromium reset and UI reset
+inventories. Recipe loading now rejects any missing dark/manual restore or
+new-file output before reset/build work. Regression tests remove each declared
+feature input in turn and verify rejection, including these two new sources.
+No native feature, APK exit condition, failure handling or time-slice change.
+Local composition and renderer tests pass; the full pinned thirteen-group
+composition and native build must still run in CI.
