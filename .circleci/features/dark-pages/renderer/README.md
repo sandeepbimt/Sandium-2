@@ -299,3 +299,27 @@ outputs to verify root-storage identity, generated setters/group equality and
 compile their actual bitfield declarations. This is stronger than a hand-written
 layout model but is NOT a full Chromium/Android compile: the actual unchanged
 ComputedStyle assertion still requires the next authorized native build.
+
+## #1191 positional Mojo constructor correction
+Adding sandium_dark_page_flags as the first CommitNavigationParams field changes
+its generated all-fields constructor. Four pinned callers still passed the old
+66 Android arguments. They now supply explicit first value-1 (unmanaged until the
+existing commit-time policy resolves it), retaining all existing arguments/order:
+navigation_entry_impl.cc (1), navigation_controller_impl.cc (1), navigation_request.cc (2).
+No Mojo generator, generated header or argument validation is weakened.
+
+New exact-pin fixtures/SHA and full/UI restore inventories cover entry/controller;
+controller also replays its existing pinned Brave patch. The entry file has no
+Brave patch. Regression test evaluates Android-only argument branches and asserts
+66→67 arguments, original argument sequence unchanged, first value-1 and
+idempotent patching. The full renderer local suite passes; this is not a real
+Chromium compilation and cannot claim the complete build now succeeds.
+
+Independent exact-pin source audit covered content/common, content/public/common,
+content/renderer, content/test, content/browser/renderer_host, blink/common/navigation,
+and Brave chromium_src: only these4 positional CommitNavigationParams::New calls
+were found. Blink's CreateCommitNavigationParams helper uses zero-argument New;
+PageRestoreParams and PrerenderPageActivationParams callers use zero-argument New,
+so generated defaults remain valid. No direct positional construction was found
+in that audited scope. This scope is explicit, not a claim to search every
+third-party Chromium file.

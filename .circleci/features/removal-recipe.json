@@ -463,7 +463,9 @@
     "third_party/blink/renderer/core/paint/view_painter.cc",
     "third_party/blink/renderer/core/style/computed_style_extra_fields.json5",
     "third_party/blink/renderer/platform/graphics/graphics_context.cc",
-    "third_party/blink/renderer/platform/graphics/graphics_context.h"
+    "third_party/blink/renderer/platform/graphics/graphics_context.h",
+    "content/browser/renderer_host/navigation_entry_impl.cc",
+    "content/browser/renderer_host/navigation_controller_impl.cc"
   ],
   "generated_overwrite": [
     "components/minidump_uploader/android/java/src/org/chromium/components/minidump_uploader/MinidumpUploader.java",
@@ -626,7 +628,8 @@
     "content/browser/renderer_host/navigation_request.cc": "patches/content-browser-renderer_host-navigation_request.cc.patch",
     "content/public/browser/content_browser_client.h": "patches/content-public-browser-content_browser_client.h.patch",
     "content/renderer/render_frame_impl.cc": "patches/content-renderer-render_frame_impl.cc.patch",
-    "third_party/blink/renderer/core/BUILD.gn": "patches/third_party-blink-renderer-core-BUILD.gn.patch"
+    "third_party/blink/renderer/core/BUILD.gn": "patches/third_party-blink-renderer-core-BUILD.gn.patch",
+    "content/browser/renderer_host/navigation_controller_impl.cc": "patches/content-browser-renderer_host-navigation_controller_impl.cc.patch"
   },
   "ui_baseline": "50545b503d3429ee1a1dad86317147e87d4b556b",
   "ui_reset_note": "Reset pinned upstream inputs only; replay exact pinned Brave patches for declared Chromium paths before UI overlays. Sandium-created classes/resources are retained and recopied by their owning overlays.",
@@ -752,6 +755,8 @@
     "third_party/blink/renderer/core/paint/view_painter.cc",
     "third_party/blink/renderer/core/style/computed_style_extra_fields.json5",
     "third_party/blink/renderer/platform/graphics/graphics_context.cc",
-    "third_party/blink/renderer/platform/graphics/graphics_context.h"
+    "third_party/blink/renderer/platform/graphics/graphics_context.h",
+    "content/browser/renderer_host/navigation_entry_impl.cc",
+    "content/browser/renderer_host/navigation_controller_impl.cc"
   ]
 }

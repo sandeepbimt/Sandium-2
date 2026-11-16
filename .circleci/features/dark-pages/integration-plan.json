@@ -58,7 +58,9 @@
     "third_party/blink/renderer/core/paint/view_painter.cc",
     "third_party/blink/renderer/core/style/computed_style_extra_fields.json5",
     "third_party/blink/renderer/platform/graphics/graphics_context.cc",
-    "third_party/blink/renderer/platform/graphics/graphics_context.h"
+    "third_party/blink/renderer/platform/graphics/graphics_context.h",
+    "content/browser/renderer_host/navigation_entry_impl.cc",
+    "content/browser/renderer_host/navigation_controller_impl.cc"
   ],
   "generated_overwrite": [
     "brave/android/java/brave-res/values/sandium_dark_pages_strings.xml",

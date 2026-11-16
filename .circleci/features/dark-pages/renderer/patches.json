@@ -292,5 +292,23 @@
     "old": " private:\n  static void AdjustStyleForSvgElement(",
     "new": " private:\n  static void ApplySandiumPaintPolicy(ComputedStyleBuilder& builder,\n                                     Element& element,\n                                     const Element* actual_element,\n                                     const ComputedStyle* parent_style);\n  static void AdjustStyleForSvgElement(",
     "count": 1
+  },
+  {
+    "path": "content/browser/renderer_host/navigation_entry_impl.cc",
+    "old": "blink::mojom::CommitNavigationParams::New(\n          url::Origin(),",
+    "new": "blink::mojom::CommitNavigationParams::New(\n          /*sandium_dark_page_flags=*/-1, url::Origin(),",
+    "count": 1
+  },
+  {
+    "path": "content/browser/renderer_host/navigation_controller_impl.cc",
+    "old": "blink::mojom::CommitNavigationParams::New(\n          url::Origin(),",
+    "new": "blink::mojom::CommitNavigationParams::New(\n          /*sandium_dark_page_flags=*/-1, url::Origin(),",
+    "count": 1
+  },
+  {
+    "path": "content/browser/renderer_host/navigation_request.cc",
+    "old": "blink::mojom::CommitNavigationParams::New(\n          url::Origin(),",
+    "new": "blink::mojom::CommitNavigationParams::New(\n          /*sandium_dark_page_flags=*/-1, url::Origin(),",
+    "count": 2
   }
 ]
