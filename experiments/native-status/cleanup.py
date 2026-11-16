@@ -12,6 +12,7 @@ MARKERS = {
 }
 
 def undo_brave(transform, source):
+    source = patch.normalize_nullable_checkpoint(source)
     operations=[]
     patch._recorded_operations=operations
     try:

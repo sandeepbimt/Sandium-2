@@ -7,11 +7,11 @@
   "chromium": "d331de35ca8ab1358c7a17e4bd41627d55eaef51",
   "files": {
     "experiments/native-status/README.md": "540bb5d02dd506de3c38eb6160ab6cd343880d4fec32c8caa95694f1e54aa072",
-    "experiments/native-status/cleanup.py": "ec253bac32b5932452ee61a13454524a8c177cbfc3453941f6e9249009a1c82a",
+    "experiments/native-status/cleanup.py": "5d434f557ea0e2abc828b6a30a6794bc02d8a6ae416fc96a89d7cccf0afc045e",
     "experiments/native-status/test_prepare.py": "a4069e56e544067767d7f1fcad17f3edd3c4a55aa9e6be9c2f00fc1c3b64a36f",
     "experiments/native-status/test_secondary.py": "978c9c632d808aad49d344a52880fffd24cc6293984b95004327b035b6b42c5e",
     "experiments/native-status/test_welcome_backing.py": "da7e9ea7833160918c48f80ac7de4f594c6cf5ca5cabdeb036043703251a2459",
-    "experiments/native-status/patch.py": "e626b77a945c01f5c76d7b9d40338b9862072a01cae24be5d7fe47d4399baac6",
+    "experiments/native-status/patch.py": "f925c55830303f459970e23c9696532408b527be2dd8120593ac7434265f5044",
     "experiments/native-status/test_patch.py": "c0122b9b26bcc99e56cee0dda9ec86db3cdcfd44eeba84c22e4d9918616b3892",
     "experiments/native-status/prepare.py": "d5a7957eb6348764df70da7091969144e55b80acfec5cc16bdb774b2cc93d654",
     "experiments/native-status/secondary.py": "ce3f36aa82303fc13968f8c3286f99c8f45ca912257100ce227487b3487e5965",
@@ -33,7 +33,8 @@
     ".circleci/scripts/apply-sandium-translation-guard.py": "c755d21c321d6afbed3accc72626d597187f352c4a8b14ab03fba0643c81b594",
     ".circleci/scripts/apply-sandium-native-theme.py": "c63eefddc4ba6a167850e2f358c3383427f12c8094e79e8631be269bd6159931",
     ".circleci/scripts/apply-sandium-scroll-status-bar.py": "a674e1e98a78e319032ef4fc186a106952aa7d55c7f89fb0b29d3890fed1ba4d",
-    ".circleci/config.yml": "30fd55f0943514dae15d8386a969b7ba8ee26d145c15bcc475eb66d4231be7ea"
+    ".circleci/config.yml": "30fd55f0943514dae15d8386a969b7ba8ee26d145c15bcc475eb66d4231be7ea",
+    "experiments/native-status/test_nullable_java.py": "644611d28d58cffbcc9ccc801bc8f8275cb71deba70b7010a2511f9f0222e329"
   },
   "test_gates": {
     "native_status": true,

@@ -2,6 +2,23 @@
 """Unwired native wallpaper status-underlay candidate; never enabled by shipping CI."""
 _recorded_operations = None
 
+
+def normalize_nullable_checkpoint(source):
+    """Migrate only exact generated pre-javac declarations from the failed build."""
+    for old, new in (
+        ('private @Nullable android.view.View mSandiumLegacyProtectionHost;',
+         'private android.view.@Nullable View mSandiumLegacyProtectionHost;'),
+        ('private @Nullable android.view.View mSandiumStatusProtectionHost;',
+         'private android.view.@Nullable View mSandiumStatusProtectionHost;'),
+        ('public void setColorFilter(@Nullable android.graphics.ColorFilter filter)',
+         'public void setColorFilter(android.graphics.@Nullable ColorFilter filter)'),
+    ):
+        if old in source:
+            if source.count(old) != 1 or new in source:
+                raise ValueError('Ambiguous nullable native status checkpoint')
+            source = source.replace(old, new, 1)
+    return source
+
 def once(s, old, new):
     if _recorded_operations is not None: _recorded_operations.append((old, new))
     if new in s: return s
@@ -231,7 +248,7 @@ def chromium(name, s):
     if name == 'EdgeToEdgeControllerImpl.java':
         s = once(s, '    private boolean mSandiumScrollUnderStatusBar;', '''    private boolean mSandiumScrollUnderStatusBar;
     private boolean mSandiumNativeStatusProtection;
-    private @Nullable android.view.View mSandiumLegacyProtectionHost;
+    private android.view.@Nullable View mSandiumLegacyProtectionHost;
     private @Nullable SandiumLegacyNativeProtection mSandiumLegacyProtection;
 
     private final class SandiumLegacyNativeProtection extends android.graphics.drawable.Drawable {
@@ -265,7 +282,7 @@ def chromium(name, s):
         @Override
         public void setAlpha(int alpha) { mProtection.setAlpha(alpha); invalidateSelf(); }
         @Override
-        public void setColorFilter(@Nullable android.graphics.ColorFilter filter) {
+        public void setColorFilter(android.graphics.@Nullable ColorFilter filter) {
             mProtection.setColorFilter(filter); invalidateSelf();
         }
         @Override
@@ -352,6 +369,7 @@ NATIVE_MARKERS = {
 
 def undo_chromium(name, source):
     """Exact checkpoint reversal before replaying the shipping status patch."""
+    source = normalize_nullable_checkpoint(source)
     if name not in NATIVE_MARKERS or NATIVE_MARKERS[name] not in source: return source
     global _recorded_operations
     operations = []
@@ -368,8 +386,9 @@ def undo_chromium(name, source):
 
 
 def settings_activity(s):
+    s = normalize_nullable_checkpoint(s)
     """Legacy Settings status-only paint; retain its existing bottom/IME owner."""
-    s = once(s, '    @Override\n    protected boolean shouldDrawEdgeToEdgeOnCreate() {', '''    private @Nullable android.view.View mSandiumStatusProtectionHost;
+    s = once(s, '    @Override\n    protected boolean shouldDrawEdgeToEdgeOnCreate() {', '''    private android.view.@Nullable View mSandiumStatusProtectionHost;
     private @Nullable SandiumSettingsStatusProtection mSandiumStatusProtection;
 
     private final android.view.ViewTreeObserver.OnPreDrawListener mSandiumStatusBeforeDraw =
@@ -427,7 +446,7 @@ def settings_activity(s):
         @Override
         public void setAlpha(int alpha) { mProtection.setAlpha(alpha); invalidateSelf(); }
         @Override
-        public void setColorFilter(@Nullable android.graphics.ColorFilter filter) {
+        public void setColorFilter(android.graphics.@Nullable ColorFilter filter) {
             mProtection.setColorFilter(filter); invalidateSelf();
         }
         @Override
