@@ -142,7 +142,10 @@ class Refinements(unittest.TestCase):
                       'LinearLayout availableGroup = group(body)',
                       'grid(libraryGroup, libraryKeys, false)',
                       'actionsGroup.addView(viewport)', 'actionsGroup.addView(pagerScroll)',
-                      'grid(availableGroup, mDraft.hiddenKeys(editableKeys()), true)',
+                      'LinearLayout availableGrid = column()',
+                      'availableGrid.setMinimumHeight(EDITOR_AVAILABLE_ROWS * tileHeight())',
+                      'grid(availableGrid, mDraft.hiddenKeys(editableKeys()), true)',
+                      'availableGroup.addView(availableGrid)',
                       'group.setBackground(shape(mGroupColor, 12))'):
             self.assertIn(token, source)
         for folder,expected in [('values','#FFFFFF'),('values-night','#1A1A1A')]:
