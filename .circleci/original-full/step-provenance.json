@@ -209,13 +209,17 @@
     "status": "user-approved no marker save after failed build"
   },
   {
+    "baseline_index": null,
+    "exception": "user-approved verified APK publication skips archive; only unfinished attested slices retain handoff"
+  },
+  {
     "baseline_index": 39,
-    "candidate_index": 42,
+    "candidate_index": 43,
     "status": "approved hashed handoff workflow binding"
   },
   {
     "baseline_index": 40,
-    "candidate_index": 43,
+    "candidate_index": 44,
     "status": "byte-identical task object"
   }
 ]

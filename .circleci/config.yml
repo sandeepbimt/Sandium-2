@@ -766,6 +766,17 @@ jobs:
         paths:
         - brave-work/.sandium/apk-completion-status.txt
         when: on_success
+    - run:
+        name: Skip large handoff after verified APK publication
+        command: "set -euo pipefail\nROOT=\"$CIRCLE_WORKING_DIRECTORY\"\nSTATUS_DIR=\"$ROOT/brave-work/.sandium\"\nAPK_STATUS=\"\
+          $STATUS_DIR/apk-completion-status.txt\"\nif python3 \"$ROOT/.circleci/scripts/check-apk-completion-marker.py\" \"\
+          $APK_STATUS\" && grep -qx 'APK_REMOVALS_VALID=true' \"$APK_STATUS\"; then\n  echo \"FINAL_STAGE_GATE=PASS APK validated\
+          \ and artifacts published; large handoff archive skipped.\"\n  circleci-agent step halt\n  exit 0\nfi\nBUILD_STATUS=\"\
+          $STATUS_DIR/build-stage-status.txt\"\nif grep -qx 'BUILD_REASON=TIME_SLICE_COMPLETE' \"$BUILD_STATUS\" && grep -qx\
+          \ 'BUILD_TIME_SLICE_EXPIRED=true' \"$BUILD_STATUS\" && grep -qx 'BUILD_HANDOFF_ALLOWED=true' \"$BUILD_STATUS\";\
+          \ then\n  echo \"CHECKPOINT_HANDOFF=REQUIRED unfinished attested time-slice; preserving native build state.\"\n\
+          \  exit 0\nfi\necho \"FINAL_STAGE_GATE=FAIL APK validation incomplete without an attested time-slice; refusing archive.\"\
+          \ >&2\nexit 1\n"
     - when:
         condition:
           or:

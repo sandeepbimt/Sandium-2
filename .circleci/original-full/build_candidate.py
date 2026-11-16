@@ -49,6 +49,29 @@ for i,step in enumerate(old):
 
  else:kind='byte-identical task object'
  mapping.append({'baseline_index':i,'candidate_index':len(out),'status':kind});out.append(step)
+ if i==38:
+  # Publication and the small workflow/revision-scoped marker must finish before
+  # halting the job. No large checkpoint validation, archive or save is needed
+  # after a verified APK; only attested unfinished slices need a handoff.
+  assert 'save_cache' in step and 'apk-complete' in step['save_cache']['key']
+  out.append({'run':{'name':'Skip large handoff after verified APK publication','command':'''set -euo pipefail
+ROOT="$CIRCLE_WORKING_DIRECTORY"
+STATUS_DIR="$ROOT/brave-work/.sandium"
+APK_STATUS="$STATUS_DIR/apk-completion-status.txt"
+if python3 "$ROOT/.circleci/scripts/check-apk-completion-marker.py" "$APK_STATUS" && grep -qx 'APK_REMOVALS_VALID=true' "$APK_STATUS"; then
+  echo "FINAL_STAGE_GATE=PASS APK validated and artifacts published; large handoff archive skipped."
+  circleci-agent step halt
+  exit 0
+fi
+BUILD_STATUS="$STATUS_DIR/build-stage-status.txt"
+if grep -qx 'BUILD_REASON=TIME_SLICE_COMPLETE' "$BUILD_STATUS" && grep -qx 'BUILD_TIME_SLICE_EXPIRED=true' "$BUILD_STATUS" && grep -qx 'BUILD_HANDOFF_ALLOWED=true' "$BUILD_STATUS"; then
+  echo "CHECKPOINT_HANDOFF=REQUIRED unfinished attested time-slice; preserving native build state."
+  exit 0
+fi
+echo "FINAL_STAGE_GATE=FAIL APK validation incomplete without an attested time-slice; refusing archive." >&2
+exit 1
+'''}})
+  mapping.append({'baseline_index':None,'exception':'user-approved verified APK publication skips archive; only unfinished attested slices retain handoff'})
  if i==20:
   out.append({'when':{'condition':{'equal':[1,'<< parameters.stage_index >>']},'steps':[
    {'run':{'name':'Verify restored fixed-reference source pins and accept bootstrap metadata','command':'python3 .circleci/original-full/fixed_reference.py postrestore --root "$CIRCLE_WORKING_DIRECTORY" --legacy-script .circleci/scripts/sandium-checkpoint-shards.py'}},
