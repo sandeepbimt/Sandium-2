@@ -122,7 +122,7 @@ def welcome(text):
                     BraveFeatureUtil.enableFeature(BraveFeatureList.ENABLE_FORCE_DARK, checked, true);
                     mRequiresRestart = true;
                 });''', '''        mSandiumDarkPageSwitch = addSwitchRow(card, "☾", "Dark pages",
-                "Use Sandium dark theme for websites",
+                "Use native dark rendering for websites",
                 true, checked -> {
                     if (mSandiumRestoringDarkPageSwitch) return;
                     if (!org.chromium.chrome.browser.night_mode.SandiumDarkPages.trySetGlobal(

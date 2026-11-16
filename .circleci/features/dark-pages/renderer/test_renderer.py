@@ -55,9 +55,9 @@ class RendererPatchTest(unittest.TestCase):
         helper = text[start:text.index('void StyleAdjuster::RunUncacheableStyleAdjustment(', start)]
         for forbidden in ['SetColor(', 'SetBackgroundColor(', 'SetInternalVisitedColor(']:
             self.assertNotIn(forbidden, helper)
-        self.assertIn('builder.StyleType() == kPseudoIdNone', helper)
-        self.assertIn('actual_element == element.GetDocument().documentElement()', helper)
-        self.assertIn('parent_style->SandiumPaletteEnabled()', helper)
+        self.assertIn('builder.SetSandiumPaletteEnabled(true)', helper)
+        self.assertNotIn('AnyLayerHasImage()', helper)
+        self.assertNotIn('IsSVGElement()', helper)
         self.assertNotIn('!background.GetColor().IsOpaque()', helper)
         self.assertNotIn('builder.Filter().Operations()', helper)
         self.assertIn('builder.SetColorSchemeForced(false)', helper)

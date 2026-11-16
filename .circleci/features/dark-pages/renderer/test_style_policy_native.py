@@ -26,9 +26,9 @@ int main(){
  ComputedStyleBuilder b;StyleAdjuster::ApplySandiumPaintPolicy(b,root,&root,nullptr);assert(b.palette&&!b.stock);
  b={};StyleAdjuster::ApplySandiumPaintPolicy(b,child,&child,&parent);assert(b.palette&&!b.stock);
  b={};StyleAdjuster::ApplySandiumPaintPolicy(b,child,nullptr,&parent);assert(b.palette&&!b.stock);
- b={};b.layer.image=true;StyleAdjuster::ApplySandiumPaintPolicy(b,child,&child,&parent);assert(!b.palette&&!b.stock);
- b={};child.svg=true;StyleAdjuster::ApplySandiumPaintPolicy(b,child,&child,&parent);assert(!b.palette&&!b.stock);child.svg=false;
- b={};b.pseudo=kPseudoIdBefore;ComputedStyle excluded{false};StyleAdjuster::ApplySandiumPaintPolicy(b,root,&root,&excluded);assert(!b.palette);
+ b={};b.layer.image=true;StyleAdjuster::ApplySandiumPaintPolicy(b,child,&child,&parent);assert(b.palette&&!b.stock);
+ b={};child.svg=true;StyleAdjuster::ApplySandiumPaintPolicy(b,child,&child,&parent);assert(b.palette&&!b.stock);child.svg=false;
+ b={};b.pseudo=kPseudoIdBefore;ComputedStyle excluded{false};StyleAdjuster::ApplySandiumPaintPolicy(b,root,&root,&excluded);assert(b.palette);
  b={};settings.flags=0;StyleAdjuster::ApplySandiumPaintPolicy(b,root,&root,nullptr);assert(!b.palette&&!b.stock);
  b={};settings.flags=-1;StyleAdjuster::ApplySandiumPaintPolicy(b,root,&root,nullptr);assert(!b.palette&&b.stock);
  b={};b.manual=true;StyleAdjuster::ApplySandiumPaintPolicy(b,root,&root,nullptr);assert(!b.palette&&!b.stock);

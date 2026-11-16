@@ -2,7 +2,7 @@
 <resources>
     <string name="sandium_dark_pages_title">Dark pages</string>
     <string name="sandium_dark_pages_global">Dark page defaults</string>
-    <string name="sandium_dark_pages_enabled">Use Sandium dark theme</string>
+    <string name="sandium_dark_pages_enabled">Use native dark rendering</string>
     <string name="sandium_dark_pages_follow">Follow global setting</string>
     <string name="sandium_dark_pages_on">On</string>
     <string name="sandium_dark_pages_off">Off</string>

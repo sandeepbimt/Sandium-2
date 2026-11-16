@@ -1,3 +1,39 @@
+# Native dark rendering revision (16 November 2026)
+
+This section supersedes historical palette implementation notes below.
+The owner requested native Brave/Chromium dark rendering to improve separation
+of webpage elements, applied across websites rather than a Google-specific rule.
+
+The existing origin/profile policy, global default ON, explicit site OFF,
+private isolation, navigation/activation transport and manual corrections remain.
+For eligible HTTP(S) pages with the policy ON, every normal style receives a
+paint eligibility marker, including author-dark and `color-scheme: only light`
+content. The historical `SandiumPaletteEnabled` field name is retained to avoid
+unnecessary transport/packing churn, but no custom palette renderer remains.
+`GraphicsContext` is restored to the exact upstream pin: Chromium's native
+`DarkModeFilter` performs the transform. Native brightness classification preserves
+already-dark backgrounds/light text instead of blindly reinverting them.
+
+No CSS colors, preferred color scheme, layout, viewport or scroll offsets are
+rewritten. Raster image helper pixels, explicit manual colors, forced-colors
+accessibility and printing remain protected. This is the native color engine
+with Sandium application policy, not byte-identical vanilla Brave behavior.
+
+Limits: native shader/gradient handling may leave authored light regions; SVG,
+canvas, video and images are not a universal recoloring promise. The status-bar
+white strip/menu geometry jump is separate and unchanged. Existing explicit
+site OFF remains OFF; normal pages follow the global default. No site-specific
+rules or double application were added.
+
+Validation: exact-pin patch application/replay/atomic failure, native-route
+byte-identity checks, extracted policy and paint wrapper fake-API C++ tests,
+and full dark/manual composition. These do not establish Android compilation
+or on-device visual success. Device checks must compare light/author-dark,
+search fields/cards, gradients, images/SVG, manual correction, site/global OFF,
+back/forward, private mode, keyboard, printing and accessibility.
+
+---
+
 # Experimental Dark Pages renderer transport
 
 **Not integrated into the build. Not a completed Dark Pages feature.**
