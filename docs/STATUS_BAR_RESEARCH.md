@@ -141,3 +141,43 @@ and mid-scroll, forward/back, slow loading, top/hidden/revealed controls, white 
 image pages, keyboard, tabs, rotation and fullscreen. Website-controlled late
 image/ad/font layout changes are not disabled or force-corrected; the recording's
 independent Hindu hero shift remains a separate investigation.
+
+## November 16: native-dark compositor background parity
+
+The #1212 recording (155882.mp4) shows a bright status-area fade when browser
+controls are visible, but real article pixels under the icons when the controls
+scroll away. The native spacer must remain to protect initial page headers.
+
+Pinned Chromium exposes the actual mismatch: StaticLayout places content below
+its controls offset and sends ThemeUtils.getBackgroundColor(tab) as the scene
+background. TabWebContentsObserver forwards WebContents background notifications;
+WebViewImpl::BackgroundColor calls LocalFrameView::DocumentBackgroundColor.
+That last method only transformed ColorSchemeForced backgrounds. Sandium's
+native-dark policy deliberately clears that flag and uses SandiumPaletteEnabled
+for painting, leaving the reported backing color untransformed (often white).
+
+The correction makes DocumentBackgroundColor follow the same native filter for
+eligible Sandium canvas backgrounds. It uses the real document root policy for
+the synthesized LayoutView, the actual backdrop/source for fullscreen, and
+blends transparent root color with the base before applying the filter once.
+Manual colors, forced-colors, printing, managed OFF and upstream/unmanaged
+behavior retain their existing paths. CSS values and BaseBackgroundColor remain
+unchanged, so the page is not double-darkened. Existing background notifications
+refresh the browser scene color; there is no added polling or JS.
+
+No spacer/offset/safe-area, eligibility, gradient, status opacity or pipeline
+behavior changes. This repairs color metadata behind content, not an opaque
+status overlay. It is a strong source-backed candidate, not device verification.
+A single reported canvas color cannot reproduce arbitrary images, gradients,
+separate compositing groups or CSS effects. Check light/author-dark pages,
+transparent root/body backgrounds, images, manual/OFF toggles and navigation;
+then show/hide controls repeatedly, menu, keyboard, rotation and fullscreen.
+
+Validation for this revision: pinned renderer transform/replay/hash/atomic-failure
+suite passes (11 tests); full dark/manual source composition passes (2 tests);
+status-inset transformation tests remain green (21). The new extracted actual
+DocumentBackgroundColor C++ fake-API harness passes root/transparent/partial
+alpha, single native transform, disabled/manual/forced/print/null, legacy,
+fullscreen and XR cases. All existing renderer native fake-API harnesses pass.
+Independent source review verified native filter settings and the callback chain.
+No Android SDK/Blink compilation or Oppo device test was available locally.

@@ -280,5 +280,11 @@
     "old": "blink::mojom::CommitNavigationParams::New(\n          url::Origin(),",
     "new": "blink::mojom::CommitNavigationParams::New(\n          /*sandium_dark_page_flags=*/-1, url::Origin(),",
     "count": 2
+  },
+  {
+    "path": "third_party/blink/renderer/core/frame/local_frame_view.cc",
+    "old": "  Color doc_bg =\n      background_source->ResolveColor(GetCSSPropertyBackgroundColor());\n  if (background_source->StyleRef().ColorSchemeForced()) {",
+    "new": "  Color doc_bg =\n      background_source->ResolveColor(GetCSSPropertyBackgroundColor());\n  // The compositor also uses this color behind scroll-away browser controls.\n  // Match ViewPainter's native dark paint policy, not the untransformed CSS\n  // color. LayoutView's synthetic style does not carry the root policy bit.\n  const Document* document = frame_->GetDocument();\n  const LayoutObject* policy_source = background_source;\n  if (background_source == GetLayoutView() && document &&\n      document->documentElement()) {\n    policy_source = document->documentElement()->GetLayoutObject();\n  }\n  if (document && !document->Printing() && policy_source &&\n      policy_source->StyleRef().SandiumPaletteEnabled() &&\n      !policy_source->StyleRef().SandiumManualColorOverride() &&\n      !policy_source->StyleRef().InForcedColorsMode()) {\n    // Transform once, after compositing a transparent document over its base,\n    // just like the ordinary canvas background fill. Do not mutate CSS or\n    // BaseBackgroundColor: those are inputs to the real page paint.\n    Color painted_background = blend_with_base ? result.Blend(doc_bg) : doc_bg;\n    return Color::FromSkColor4f(EnsureDarkModeFilter().InvertColorIfNeeded(\n        painted_background.toSkColor4f(),\n        DarkModeFilter::ElementRole::kBackground));\n  }\n  if (background_source->StyleRef().ColorSchemeForced()) {",
+    "count": 1
   }
 ]

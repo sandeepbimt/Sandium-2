@@ -33,5 +33,6 @@
   "third_party/blink/renderer/core/paint/view_painter.cc": "ef647e9b6cf23c8fa002fa9b97312f5037e0b07f1741b9cb874717eee5ba7d41",
   "third_party/blink/renderer/core/style/computed_style_extra_fields.json5": "d9db22700dd4b616b4f241ddc778d1069c3c7b43bbca1b002b5511176e916363",
   "third_party/blink/renderer/platform/graphics/graphics_context.cc": "718aec91319dbc7dfb7b278d734a12a9473ce5b0974b430960d2164e75d71e84",
-  "third_party/blink/renderer/platform/graphics/graphics_context.h": "3bcb83b5a9452d5943800548cb6122ed6c27017fe2cbae18e298831dd5308e3b"
+  "third_party/blink/renderer/platform/graphics/graphics_context.h": "3bcb83b5a9452d5943800548cb6122ed6c27017fe2cbae18e298831dd5308e3b",
+  "third_party/blink/renderer/core/frame/local_frame_view.cc": "f43bd7fa49d6b7ca1729d5e2df7ea08864a87a913fd4ad60bec26c96d74110fe"
 }

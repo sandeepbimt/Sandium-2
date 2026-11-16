@@ -20,8 +20,9 @@ accessibility and printing remain protected. This is the native color engine
 with Sandium application policy, not byte-identical vanilla Brave behavior.
 
 Limits: native shader/gradient handling may leave authored light regions; SVG,
-canvas, video and images are not a universal recoloring promise. The status-bar
-white strip/menu geometry jump is separate and unchanged. Existing explicit
+canvas, video and images are not a universal recoloring promise. The compositor canvas background now reports the same native-dark color
+as ordinary canvas paint, avoiding raw white backing behind scroll-away
+controls. Viewport geometry is unchanged; device validation remains required. Existing explicit
 site OFF remains OFF; normal pages follow the global default. No site-specific
 rules or double application were added.
 
