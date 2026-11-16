@@ -56,7 +56,7 @@ jobs:
           "$ANDROID_HOME/emulator/emulator" -avd sandium15 -no-window -no-audio -no-snapshot -no-boot-anim -gpu swiftshader -accel on > emulator.log 2>&1 &
           echo $! > emulator.pid
           adb start-server
-          timeout 480 bash -c 'until adb shell getprop sys.boot_completed 2>/dev/null | tr -d "\r" | grep -qx 1; do sleep 4; done'
+          timeout 480 bash -c 'until adb shell getprop sys.boot_completed 2>/dev/null | tr -d "\r" | grep -qx 1; do kill -0 "$(cat emulator.pid)" || { tail -80 emulator.log; exit 1; }; sleep 4; done'
           adb shell getprop ro.build.version.release
           adb shell getprop ro.build.version.sdk
           adb shell getprop ro.product.cpu.abilist
@@ -71,15 +71,24 @@ jobs:
           adb uninstall com.brave.browser_default || true
           adb install --no-streaming Sandium.apk
           adb shell dumpsys package com.brave.browser_default | grep -E 'versionName|versionCode|primaryCpuAbi|targetSdk|enableOnBackInvokedCallback'
-          adb shell monkey -p com.brave.browser_default -c android.intent.category.LAUNCHER 1
-          sleep 35
-          adb shell uiautomator dump /sdcard/ui.xml
-          adb shell cat /sdcard/ui.xml
-          adb exec-out screencap -p > launch.png
-          echo SCREENSHOT_LAUNCH_BEGIN
-          base64 -w 0 launch.png; echo
-          echo SCREENSHOT_LAUNCH_END
-          echo 'Android15 boot, exact APK installation and initial launch completed. No performance conclusions yet.' >> "$GITHUB_STEP_SUMMARY"
+          adb shell getconf PAGE_SIZE
+          adb shell getprop ro.build.fingerprint
+          adb shell getprop ro.dalvik.vm.isa.arm64
+          for ROUND in 1 2 3; do
+            echo "LAUNCH_ROUND=$ROUND"
+            adb shell am force-stop com.brave.browser_default
+            adb shell monkey -p com.brave.browser_default -c android.intent.category.LAUNCHER 1
+            sleep 12
+            adb shell pidof com.brave.browser_default || true
+            adb shell dumpsys activity activities | grep -E 'mResumedActivity|topResumedActivity' || true
+            adb logcat -b crash -d -v threadtime
+          done
+          adb shell dumpsys activity exit-info com.brave.browser_default
+          adb logcat -d -v threadtime | grep -E 'DEBUG|libndk_translation|browser_default|cr_LibraryLoader|linker' | tail -350 || true
+          # A boot/install pass is not a successful application launch.
+          adb shell pidof com.brave.browser_default
+          adb shell dumpsys activity activities | grep -E 'topResumedActivity=.*com.brave.browser_default'
+          echo 'Android15 exact APK stayed alive across three launches.' >> "$GITHUB_STEP_SUMMARY"
       - name: Bounded diagnostic evidence and cleanup (no artifact storage)
         if: always()
         shell: bash
