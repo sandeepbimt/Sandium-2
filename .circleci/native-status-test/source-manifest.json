@@ -30,7 +30,7 @@
     ".circleci/native-status-test/config.sha256": "b63afa87d3dfb35dc39b46de1425d65dac624e18871758c6b5fc0624df1572b6",
     ".circleci/native-status-test/config.yml": "30fd55f0943514dae15d8386a969b7ba8ee26d145c15bcc475eb66d4231be7ea",
     ".circleci/native-status-test/build_config.py": "eda0ae385f5fa7cf143646eeb3eb2f01eafff65fc3db8f55099780dcb9c29211",
-    ".circleci/scripts/apply-sandium-translation-guard.py": "b6aa1f56838ad3b3943a3c495ef6dba9168befca3ac9c502c2b2d62807df3b19",
+    ".circleci/scripts/apply-sandium-translation-guard.py": "c755d21c321d6afbed3accc72626d597187f352c4a8b14ab03fba0643c81b594",
     ".circleci/scripts/apply-sandium-native-theme.py": "c63eefddc4ba6a167850e2f358c3383427f12c8094e79e8631be269bd6159931",
     ".circleci/scripts/apply-sandium-scroll-status-bar.py": "a674e1e98a78e319032ef4fc186a106952aa7d55c7f89fb0b29d3890fed1ba4d",
     ".circleci/config.yml": "30fd55f0943514dae15d8386a969b7ba8ee26d145c15bcc475eb66d4231be7ea"
@@ -41,5 +41,6 @@
   },
   "guard_commit": "30401e8ec4eccf3e10e06004350372e9e940cba9",
   "guard_remote": "47332e53e5067634a3defbdb1a82e164eb68b1ec",
-  "composition_fix": "Replay exact production geometry instrumentation between ordinary status and native candidate transformations; preserve fail-closed drift checks."
+  "composition_fix": "Replay exact production geometry instrumentation between ordinary status and native candidate transformations; preserve fail-closed drift checks.",
+  "guard_parser_fix": "Replace unsafe sscanf with string_view/from_chars bounded parsing; preserve exact old-checkpoint migration and fail-closed unknown inputs."
 }

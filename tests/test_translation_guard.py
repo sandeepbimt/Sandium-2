@@ -20,6 +20,16 @@ class TranslationGuardTests(unittest.TestCase):
         self.assertNotIn('ro.product.cpu',out)
         self.assertIn('void UnhookJniFindClassForTesting',out)
 
+    def test_previous_checkpoint_migrates_exactly_to_safe_parser(self):
+        src=(ROOT/'tests/fixtures/translation-guard/jni_android.cc').read_text()
+        current=guard.transform(src)
+        previous=current.replace(guard.HELPER,guard.PREVIOUS_MAPPED_HELPER).replace('#include <charconv>\n#include <string_view>\n','')
+        self.assertEqual(guard.transform(previous),current)
+        self.assertNotIn('sscanf',current)
+        self.assertNotIn('UNSAFE_BUFFERS',current)
+        with self.assertRaises(ValueError):
+            guard.transform(previous.replace('%lx-%lx','%lx:%lx'))
+
     def test_unknown_source_and_partial_guard_rejected(self):
         with self.assertRaises(ValueError):guard.transform('unrecognized')
         with self.assertRaises(ValueError):guard.transform(guard.MARKER)
@@ -96,6 +106,12 @@ bool mapped(std::array<unsigned char,20>& h, unsigned long inode=9,
 int main() {
  std::array<unsigned char,20> h{};
  h[0]=0x7f; h[1]='E'; h[2]='L'; h[3]='F'; h[4]=2; h[5]=1; h[6]=1; h[18]=62;
+ unsigned long begin=0,end=0,offset=0,inode=0; unsigned int major=0,minor=0;
+ std::string_view permissions;
+ auto parse=[&](std::string_view line) { return SandiumParseMapLine(line,begin,end,permissions,offset,major,minor,inode); };
+ assert(parse("1000-2000 r-xp 0000 00:ff 123 /with spaces.so"));
+ assert(begin==0x1000 && end==0x2000 && offset==0 && major==0 && minor==255 && inode==123 && permissions=="r-xp");
+ for (auto bad : {"", "1000-2000 r-xp", "2000-1000 r-xp 0 1:2 9", "1000-2000 r-xp 0 1:2 -9", "1000-2000 r-xp 0 1:2 9junk", "1000-2000 r-xp 0 1:2 99999999999999999999999999", "1000-2000 r-xp 0 fffffffffffffffff:2 9", "1000-2000 r-xp xyz 1:2 9", "1000-2000 r-xp 0 1:2:3 9"}) assert(!parse(bad));
  assert(SandiumIsX64ProcessElf(h));
  assert(mapped(h));
  assert(!mapped(h,10)); assert(!mapped(h,9,3));
@@ -114,7 +130,7 @@ int main() {
 }
 '''
         with tempfile.TemporaryDirectory() as td:
-            p=Path(td)/'guard.cc';p.write_text('#include <array>\n#include <cstdio>\n#include <cstring>\n#include <cstdint>\nstruct JNINativeInterface { void (*FindClass)(); }; struct JNIEnv { const JNINativeInterface* functions; };\n'+guard.HELPER+main)
+            p=Path(td)/'guard.cc';p.write_text('#include <array>\n#include <cstdio>\n#include <cstring>\n#include <cstdint>\n#include <charconv>\n#include <string_view>\nstruct JNINativeInterface { void (*FindClass)(); }; struct JNIEnv { const JNINativeInterface* functions; };\n'+guard.HELPER+main)
             for flags in ([],['-DARCH_CPU_ARM64']):
                 subprocess.run([compiler,'-std=c++17','-Wall','-Wextra','-Werror',*flags,str(p),'-o',str(p.with_suffix(''))],check=True)
                 subprocess.run([str(p.with_suffix(''))],check=True)

@@ -37,7 +37,7 @@ bool SandiumIsArm64LibraryInX64Process() {
 }
 
 '''
-HELPER = '''// SANDIUM_TRANSLATION_ONLY_JNI_GUARD
+PREVIOUS_MAPPED_HELPER = r'''// SANDIUM_TRANSLATION_ONLY_JNI_GUARD
 // The native bridge rewrites /proc/self/exe and guest dladdr cannot resolve
 // host libart. Inspect the original JNI target's mapped ELF, not ABI properties.
 [[maybe_unused]] bool SandiumIsX64ProcessElf(const std::array<unsigned char, 20>& header) {
@@ -91,6 +91,100 @@ bool SandiumIsArm64LibraryInX64Process([[maybe_unused]] JNIEnv* env) {
 }
 
 '''
+HELPER = r'''// SANDIUM_TRANSLATION_ONLY_JNI_GUARD
+// The native bridge rewrites /proc/self/exe and guest dladdr cannot resolve
+// host libart. Inspect the original JNI target's mapped ELF, not ABI properties.
+[[maybe_unused]] bool SandiumIsX64ProcessElf(const std::array<unsigned char, 20>& header) {
+  return header[0] == 0x7f && header[1] == 'E' && header[2] == 'L' &&
+         header[3] == 'F' && header[4] == 2 && header[5] == 1 &&
+         header[6] == 1 && header[18] == 62 && header[19] == 0;
+}
+
+template <typename T>
+bool SandiumParseMapNumber(std::string_view token, T& value, int base) {
+  if (token.empty()) return false;
+  // Empty suffix supplies the checked one-past pointer without raw arithmetic
+  // or assuming libc++ string_view iterators are unwrapped pointers.
+  const char* end = token.substr(token.size()).data();
+  auto result = std::from_chars(token.data(), end, value, base);
+  return result.ec == std::errc{} && result.ptr == end;
+}
+
+bool SandiumParseMapLine(std::string_view line, unsigned long& begin,
+                        unsigned long& end, std::string_view& permissions,
+                        unsigned long& offset, unsigned int& major,
+                        unsigned int& minor, unsigned long& inode) {
+  auto next = [&line]() {
+    const auto start = line.find_first_not_of(" \t\r\n");
+    if (start == std::string_view::npos) { line = {}; return line; }
+    line.remove_prefix(start);
+    const auto stop = line.find_first_of(" \t\r\n");
+    const auto token = line.substr(0, stop);
+    line.remove_prefix(token.size());
+    return token;
+  };
+  const auto range = next();
+  permissions = next();
+  const auto file_offset = next();
+  const auto device = next();
+  const auto file_inode = next();
+  const auto dash = range.find('-');
+  const auto colon = device.find(':');
+  if (dash == std::string_view::npos || colon == std::string_view::npos ||
+      permissions.size() != 4) return false;
+  return SandiumParseMapNumber(range.substr(0, dash), begin, 16) &&
+         SandiumParseMapNumber(range.substr(dash + 1), end, 16) &&
+         begin < end &&
+         SandiumParseMapNumber(file_offset, offset, 16) &&
+         SandiumParseMapNumber(device.substr(0, colon), major, 16) &&
+         SandiumParseMapNumber(device.substr(colon + 1), minor, 16) &&
+         SandiumParseMapNumber(file_inode, inode, 10);
+}
+
+[[maybe_unused]] bool SandiumJniTargetIsMappedX64(FILE* maps, uintptr_t target) {
+  char line[2048];
+  unsigned long begin = 0, end = 0, offset = 0, inode = 0;
+  unsigned int major = 0, minor = 0;
+  std::string_view permissions;
+  unsigned long owner_inode = 0;
+  unsigned int owner_major = 0, owner_minor = 0;
+  while (std::fgets(line, sizeof(line), maps)) {
+    if (!SandiumParseMapLine(line, begin, end, permissions, offset, major, minor, inode)) continue;
+    if (target >= begin && target < end && inode != 0) {
+      owner_inode = inode; owner_major = major; owner_minor = minor;
+      break;
+    }
+  }
+  if (!owner_inode) return false;
+  std::rewind(maps);
+  while (std::fgets(line, sizeof(line), maps)) {
+    if (!SandiumParseMapLine(line, begin, end, permissions, offset, major, minor, inode)) continue;
+    if (inode != owner_inode || major != owner_major || minor != owner_minor ||
+        offset != 0 || permissions[0] != 'r' || end < begin || end - begin < 20)
+      continue;
+    std::array<unsigned char, 20> header{};
+    std::memcpy(header.data(), reinterpret_cast<const void*>(begin), header.size());
+    return SandiumIsX64ProcessElf(header);
+  }
+  return false;
+}
+
+bool SandiumIsArm64LibraryInX64Process([[maybe_unused]] JNIEnv* env) {
+#if defined(ARCH_CPU_ARM64)
+  if (!env || !env->functions || !env->functions->FindClass) return false;
+  FILE* maps = std::fopen("/proc/self/maps", "r");
+  if (!maps) return false;
+  const bool host_x64 = SandiumJniTargetIsMappedX64(
+      maps, reinterpret_cast<uintptr_t>(env->functions->FindClass));
+  std::fclose(maps);
+  return host_x64;
+#else
+  return false;
+#endif
+}
+
+'''
+
 OLD = '    HookJniFindClass(env);'
 NEW = '''    if (!SandiumIsArm64LibraryInX64Process()) {
       HookJniFindClass(env);
@@ -107,6 +201,11 @@ FUNCTION_NEW = FUNCTION_OLD + '''  // Guard every caller, including Cardboard in
 '''
 
 def transform(source):
+    if PREVIOUS_MAPPED_HELPER in source:
+        if source.count(PREVIOUS_MAPPED_HELPER) != 1 or source.count(FUNCTION_NEW) != 1:
+            raise ValueError('Unexpected previous mapped-host guard')
+        source = source.replace(PREVIOUS_MAPPED_HELPER, HELPER)
+        source = source.replace('#include <cstring>\n', '#include <cstring>\n#include <charconv>\n#include <string_view>\n')
     if MARKER in source:
         if source.count(HELPER) != 1 or source.count(FUNCTION_NEW) != 1:
             raise ValueError('Partial or unexpected function-level translation guard')
@@ -116,7 +215,7 @@ def transform(source):
     anchor = 'namespace {\n'
     if source.count(anchor) != 1:
         raise ValueError('Pinned namespace anchor changed')
-    return source.replace('#include <stddef.h>\n', '#include <stddef.h>\n#include <array>\n#include <cstdio>\n#include <cstdint>\n#include <cstring>\n').replace(
+    return source.replace('#include <stddef.h>\n', '#include <stddef.h>\n#include <array>\n#include <cstdio>\n#include <cstdint>\n#include <cstring>\n#include <charconv>\n#include <string_view>\n').replace(
         anchor, anchor+'\n'+HELPER).replace(FUNCTION_OLD, FUNCTION_NEW)
 
 def restore_legacy(source):
