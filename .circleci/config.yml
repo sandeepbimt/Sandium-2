@@ -703,16 +703,14 @@ jobs:
           \nif [ \"$BUILD_MODE\" = \"full\" ]; then\n  echo \"SANDIUM_CI_NAME=SANDIUM-FULL-MODE\"\nelse\n  echo \"SANDIUM_CI_NAME=SANDIUM-FAST-MODE\"\
           \nfi\nBUILD_BUDGET_ATTESTED=false\nrun_budget() {\n  local duration=\"$1\"; shift\n  local marker=\"$STATUS_DIR/build-budget-result.json\"\
           \n  rm -f \"$marker\"\n  BUILD_BUDGET_ATTESTED=false\n  local rc=0\n  python3 \"$ROOT/.circleci/original-full/run_budget.py\"\
-          \ --seconds \"${duration%s}\" --marker \"$marker\" -- \"$@\" || rc=$?\n  if [ \"$rc\" -eq 124 ] && python3 - \"\
-          $marker\" <<'PYATTEST'\nimport json,sys\ntry: d=json.load(open(sys.argv[1]))\nexcept (OSError,ValueError): sys.exit(1)\n\
-          sys.exit(0 if d == {'budget_expired': True, 'exit_code': 124} else 1)\nPYATTEST\n  then BUILD_BUDGET_ATTESTED=true;\
-          \ fi\n  return \"$rc\"\n}\necho \"BRAVE_BUILD_SLICE_BUDGET_SECONDS=$STAGE_BUILD_BUDGET_SECONDS metrics=$METRICS_FILE\"\
-          \nrun_budget \"${STAGE_BUILD_BUDGET_SECONDS}s\" autoninja -strict_remote -metrics_json \"$METRICS_FILE\" -C \"$OUT\"\
-          \ -j80 brave || BUILD_RC=$?\nINITIAL_BUILD_RC=\"$BUILD_RC\"\nwhile [ \"$BUILD_RC\" -ne 0 ] && [ \"$BUILD_RC\" -ne\
-          \ 124 ] && [ \"$BUILD_RC\" -ne 130 ] \\\n  && [ \"$CAS_RECOVERY_COUNT\" -lt 2 ] \\\n  && [ -s \"$OUT/siso_output\"\
-          \ ] \\\n  && grep -Eq 'rpc error: code = FailedPrecondition desc = download inputs: could not (fetch inputs|get\
-          \ input tree): Digest hash:.*not found' \"$OUT/siso_output\"; do\n  CAS_RECOVERY_COUNT=$((CAS_RECOVERY_COUNT + 1))\n\
-          \  echo \"BRAVE_CAS_LOCAL_RECOVERY_ATTEMPT=$CAS_RECOVERY_COUNT\"\n  LOCAL_RECOVERY_METRICS_FILE=\"${METRICS_PREFIX}${CAS_RECOVERY_COUNT}-local-recovery.jsonl\"\
+          \ --seconds \"${duration%s}\" --marker \"$marker\" -- \"$@\" || rc=$?\n  if [ \"$rc\" -eq 124 ] && python3 \"$ROOT/.circleci/original-full/run_budget.py\"\
+          \ --check-expired --marker \"$marker\"\n  then BUILD_BUDGET_ATTESTED=true; fi\n  return \"$rc\"\n}\necho \"BRAVE_BUILD_SLICE_BUDGET_SECONDS=$STAGE_BUILD_BUDGET_SECONDS\
+          \ metrics=$METRICS_FILE\"\nrun_budget \"${STAGE_BUILD_BUDGET_SECONDS}s\" autoninja -strict_remote -metrics_json\
+          \ \"$METRICS_FILE\" -C \"$OUT\" -j80 brave || BUILD_RC=$?\nINITIAL_BUILD_RC=\"$BUILD_RC\"\nwhile [ \"$BUILD_RC\"\
+          \ -ne 0 ] && [ \"$BUILD_RC\" -ne 124 ] && [ \"$BUILD_RC\" -ne 130 ] \\\n  && [ \"$CAS_RECOVERY_COUNT\" -lt 2 ] \\\
+          \n  && [ -s \"$OUT/siso_output\" ] \\\n  && grep -Eq 'rpc error: code = FailedPrecondition desc = download inputs:\
+          \ could not (fetch inputs|get input tree): Digest hash:.*not found' \"$OUT/siso_output\"; do\n  CAS_RECOVERY_COUNT=$((CAS_RECOVERY_COUNT\
+          \ + 1))\n  echo \"BRAVE_CAS_LOCAL_RECOVERY_ATTEMPT=$CAS_RECOVERY_COUNT\"\n  LOCAL_RECOVERY_METRICS_FILE=\"${METRICS_PREFIX}${CAS_RECOVERY_COUNT}-local-recovery.jsonl\"\
           \n  REMAINING_STAGE_SECONDS=$((STAGE_BUILD_DEADLINE - SECONDS))\n  if [ \"$REMAINING_STAGE_SECONDS\" -le 0 ]; then\n\
           \    echo \"BRAVE_BUILD_RESUME=FAIL budget exhausted with unresolved action failure.\"\n    break\n  fi\n  if run_budget\
           \ \"${REMAINING_STAGE_SECONDS}s\" bash \"$ROOT/.circleci/scripts/recover-siso-missing-cas-inputs.sh\" \"$OUT\" \"\

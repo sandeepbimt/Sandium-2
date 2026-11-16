@@ -38,7 +38,12 @@ def run(seconds, marker, command, grace=60):
     return rc if rc>=0 else 128-rc
 
 if __name__=='__main__':
-    p=argparse.ArgumentParser();p.add_argument('--seconds',type=float,required=True);p.add_argument('--marker',type=pathlib.Path,required=True);p.add_argument('command',nargs=argparse.REMAINDER)
+    p=argparse.ArgumentParser();p.add_argument('--check-expired',action='store_true');p.add_argument('--seconds',type=float);p.add_argument('--marker',type=pathlib.Path,required=True);p.add_argument('command',nargs=argparse.REMAINDER)
     a=p.parse_args(); command=a.command[1:] if a.command[:1]==['--'] else a.command
-    if a.seconds<=0 or not command:p.error('positive budget and command required')
+    if a.check_expired:
+        if a.seconds is not None or command:p.error('check-expired accepts only marker')
+        try: record=json.loads(a.marker.read_text())
+        except (OSError,ValueError): raise SystemExit(1)
+        raise SystemExit(0 if record == {'budget_expired': True, 'exit_code': 124} else 1)
+    if a.seconds is None or a.seconds<=0 or not command:p.error('positive budget and command required')
     raise SystemExit(run(a.seconds,a.marker,command))

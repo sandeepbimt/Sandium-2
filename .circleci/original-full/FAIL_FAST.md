@@ -25,3 +25,14 @@ Tests execute the actual generated build body with stub preflight dependencies,
 including real short deadline expiry, spontaneous failure/signals, child124,
 stale timeout marker rejection and supervisor cancellation. This is not a live
 CircleCI/native Android compile or service-level cancellation test.
+
+## Configuration parser correction after #1205
+
+The original shell attestation heredoc used an unescaped `<<` token, which
+CircleCI treated as the start of a configuration expression. #1205 therefore
+failed configuration processing before any job ran. Marker validation now
+uses the same external supervisor helper's read-only `--check-expired` mode;
+no shell heredoc is inserted. A regression scans the serialized active and
+candidate YAML for only the five supported expression names and bounded token
+length, alongside the existing executable failure/timeout/CAS tests. This is
+a local syntax-contract check, not an actual CircleCI service validation.

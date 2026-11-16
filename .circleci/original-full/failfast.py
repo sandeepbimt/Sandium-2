@@ -11,12 +11,7 @@ run_budget() {
   BUILD_BUDGET_ATTESTED=false
   local rc=0
   python3 "$ROOT/.circleci/original-full/run_budget.py" --seconds "${duration%s}" --marker "$marker" -- "$@" || rc=$?
-  if [ "$rc" -eq 124 ] && python3 - "$marker" <<'PYATTEST'
-import json,sys
-try: d=json.load(open(sys.argv[1]))
-except (OSError,ValueError): sys.exit(1)
-sys.exit(0 if d == {'budget_expired': True, 'exit_code': 124} else 1)
-PYATTEST
+  if [ "$rc" -eq 124 ] && python3 "$ROOT/.circleci/original-full/run_budget.py" --check-expired --marker "$marker"
   then BUILD_BUDGET_ATTESTED=true; fi
   return "$rc"
 }

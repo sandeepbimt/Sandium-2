@@ -1,4 +1,4 @@
-import json,os,pathlib,subprocess,tempfile,unittest,yaml,time,signal,sys,shlex
+import json,os,pathlib,subprocess,tempfile,unittest,yaml,time,signal,sys,shlex,re
 ROOT=pathlib.Path(__file__).resolve().parents[2]
 class FailFast(unittest.TestCase):
  def run_case(self,body, budget=3, audit_delay=0, recovery=None, recovery_return_delay=0):
@@ -90,6 +90,36 @@ rm -f "$OUT/siso_output"
      time.sleep(.01)
     else:self.fail('descendant still running after supervisor returned')
     self.assertEqual(marker.exists(),not cancellation)
+ def test_serialized_circleci_expression_tokens(self):
+  allowed={'parameters.stage_index','pipeline.git.branch','pipeline.parameters.run_build','pipeline.parameters.run_maintenance','pipeline.parameters.sandium_build_mode'}
+  for name in ('config.yml','original-full/candidate.yml'):
+   serialized=(ROOT/'.circleci'/name).read_text()
+   matches=list(re.finditer(r'<<([\s\S]*?)>>',serialized))
+   self.assertEqual(serialized.count('<<'),len(matches))
+   for match in matches:
+    self.assertLess(len(match.group(1)),2048)
+    self.assertIn(re.sub(r'\\\n[ ]*\\?', '', match.group(1)).strip(),allowed)
+   self.assertNotIn("<<'PYATTEST'",serialized)
+   def scalars(value):
+    if isinstance(value,str):yield value
+    elif isinstance(value,dict):
+     for k,v in value.items():yield from scalars(k);yield from scalars(v)
+    elif isinstance(value,list):
+     for item in value:yield from scalars(item)
+   for scalar in scalars(yaml.safe_load(serialized)):
+    tokens=list(re.finditer(r'<<([\s\S]*?)>>',scalar))
+    self.assertEqual(scalar.count('<<'),len(tokens),scalar[:200])
+    for token in tokens:
+     self.assertLess(len(token.group(1)),2048)
+     self.assertIn(token.group(1).strip(),allowed)
+
+ def test_external_marker_check(self):
+  with tempfile.TemporaryDirectory() as tmp:
+   marker=pathlib.Path(tmp)/'marker'
+   command=[sys.executable,str(ROOT/'.circleci/original-full/run_budget.py'),'--check-expired','--marker',str(marker)]
+   self.assertNotEqual(subprocess.run(command).returncode,0)
+   for text,expected in [('not json',1),('{}',1),('{"budget_expired":false,"exit_code":124}',1),('{"budget_expired":true,"exit_code":1}',1),('{"budget_expired":true,"exit_code":124}',0)]:
+    marker.write_text(text);self.assertEqual(subprocess.run(command).returncode,expected)
  def test_post_build_no_always_save(self):
   cfg=yaml.safe_load((ROOT/'.circleci/config.yml').read_text())
   def walk(steps):
