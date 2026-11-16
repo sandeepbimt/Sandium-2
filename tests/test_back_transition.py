@@ -29,7 +29,7 @@ class BackTransition(unittest.TestCase):
         result=m.plan(self.root)
         for p,s in result.items():
             if p.name=='back_forward_transition_animator.cc':
-                for region in ['void BackForwardTransitionAnimator::SetupForScreenshotPreview(', 'void BackForwardTransitionAnimator::OnGestureProgressed(']:
+                for region in ['void BackForwardTransitionAnimator::OnGestureProgressed(']:
                     orig=p.read_text();start=orig.index(region);end=orig.index('\n}\n',start)+3
                     self.assertIn(orig[start:end],s)
                 self.assertIn('ResetTransformForLayer(screenshot_layer_.get());',s)

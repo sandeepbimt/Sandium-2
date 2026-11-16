@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Pinned, fail-closed destination-aware back preview and trace diagnostics.
 
-Does not change BFCache, screenshot eligibility, insets or animation timing.
+Keeps BFCache and screenshot safety guards; captures native pages independently
+of renderer surfaces and blurs only the current visible page on cache misses.
 """
 from pathlib import Path
 import subprocess
@@ -11,14 +12,238 @@ CHROMIUM_SHA = "d331de35ca8ab1358c7a17e4bd41627d55eaef51"
 BRAVE_SHA = "44a84b1f89d9a35287289d6a3d493e362f5a5123"
 CHANGES = [
     (
-        "cc/slim/layer_tree_impl.cc",
-        "    // Apply new pass's occlusion to parent pass.\n    if (transform_new_pass_to_parent_target.Preserves2dAxisAlignment()) {",
-        '    // Children draw at opacity 1 inside this pass, but their occlusion may\n    // hide parent content only when the composed pass is fully opaque.\n    // Preserve rear content during translucent screenshot crossfades.\n    if (parent_opacity * layer.opacity() == 1.0f &&\n        transform_new_pass_to_parent_target.Preserves2dAxisAlignment()) {'
+        'content/browser/renderer_host/navigation_transitions/navigation_transition_utils.cc',
+'''  if (!rwhv->IsSurfaceAvailableForCopy()) {
+    // See https://crbug.com/368289857: If we hide the WebContents after a
+    // same-RFH navigation starts, we invalidate the `viz::LocalSurfaceID`
+    // and the browser UI will not be embedding a new ID when the navigation
+    // finishes (`WebContentsImpl::DidNavigateMainFramePreCommit()` and
+    // `RenderWidgetHostViewAndroid::DidNavigate()`). We won't be able to
+    // screenshot the page if we navigate the WebContents again before the UI
+    // embeds
+    InvokeTestCallbackForNoScreenshot(navigation_request);
+    last_committed_entry->navigation_transition_data()
+        .set_cache_hit_or_miss_reason(
+            CacheHitOrMissReason::kBrowserNotEmbeddingValidSurfaceId);
+    return false;
+  }
+
+  // https://crbug.com/369356401: It's possible to issue two CopyOutputRequests
+  // against the last committed entry. Bump the `copy_output_request_sequence()`
+  // to prevent double-caching the screenshot.
+  last_committed_entry->navigation_transition_data()
+      .increment_copy_output_request_sequence();
+  int request_sequence = last_committed_entry->navigation_transition_data()
+                             .copy_output_request_sequence();
+  bool copied_via_delegate;
+  if (EnableNativePageScreenshotIntoHardwareBuffer()) {
+    copied_via_delegate =
+        navigation_request.GetDelegate()->MaybeCopyContentAreaAsHardwareBuffer(
+            base::BindOnce(
+                &CacheScreenshotHardwareBufferImpl,
+                navigation_controller.GetWeakPtr(),
+                navigation_request.GetWeakPtr(),
+                last_committed_entry->navigation_transition_data().unique_id(),
+                request_sequence,
+                SupportsETC1NonPowerOfTwo(navigation_request)));
+  } else {
+    copied_via_delegate =
+        navigation_request.GetDelegate()->MaybeCopyContentAreaAsBitmap(
+            base::BindOnce(
+                &CacheScreenshotImpl, navigation_controller.GetWeakPtr(),
+                navigation_request.GetWeakPtr(),
+                last_committed_entry->navigation_transition_data().unique_id(),
+                /*is_copied_from_embedder=*/true, request_sequence,
+                SupportsETC1NonPowerOfTwo(navigation_request)));
+  }
+
+  if (!copied_via_delegate && only_use_embedder_screenshot) {
+    InvokeTestCallbackForNoScreenshot(navigation_request);
+  }
+
+  if (copied_via_delegate || only_use_embedder_screenshot) {
+    return false;
+  }
+
+''',
+'''  // https://crbug.com/369356401: It's possible to issue two CopyOutputRequests
+  // against the last committed entry. Bump the `copy_output_request_sequence()`
+  // to prevent double-caching the screenshot.
+  last_committed_entry->navigation_transition_data()
+      .increment_copy_output_request_sequence();
+  int request_sequence = last_committed_entry->navigation_transition_data()
+                             .copy_output_request_sequence();
+  bool copied_via_delegate;
+  if (EnableNativePageScreenshotIntoHardwareBuffer()) {
+    copied_via_delegate =
+        navigation_request.GetDelegate()->MaybeCopyContentAreaAsHardwareBuffer(
+            base::BindOnce(
+                &CacheScreenshotHardwareBufferImpl,
+                navigation_controller.GetWeakPtr(),
+                navigation_request.GetWeakPtr(),
+                last_committed_entry->navigation_transition_data().unique_id(),
+                request_sequence,
+                SupportsETC1NonPowerOfTwo(navigation_request)));
+  } else {
+    copied_via_delegate =
+        navigation_request.GetDelegate()->MaybeCopyContentAreaAsBitmap(
+            base::BindOnce(
+                &CacheScreenshotImpl, navigation_controller.GetWeakPtr(),
+                navigation_request.GetWeakPtr(),
+                last_committed_entry->navigation_transition_data().unique_id(),
+                /*is_copied_from_embedder=*/true, request_sequence,
+                SupportsETC1NonPowerOfTwo(navigation_request)));
+  }
+
+  if (!copied_via_delegate && only_use_embedder_screenshot) {
+    InvokeTestCallbackForNoScreenshot(navigation_request);
+  }
+
+  if (copied_via_delegate || only_use_embedder_screenshot) {
+    return false;
+  }
+
+  // Sandium: a native page is drawn by Android, not the renderer surface.
+  // Test renderer copy eligibility only after the embedder had its chance.
+  if (!rwhv->IsSurfaceAvailableForCopy()) {
+    // See https://crbug.com/368289857: If we hide the WebContents after a
+    // same-RFH navigation starts, we invalidate the `viz::LocalSurfaceID`
+    // and the browser UI will not be embedding a new ID when the navigation
+    // finishes (`WebContentsImpl::DidNavigateMainFramePreCommit()` and
+    // `RenderWidgetHostViewAndroid::DidNavigate()`). We won't be able to
+    // screenshot the page if we navigate the WebContents again before the UI
+    // embeds
+    InvokeTestCallbackForNoScreenshot(navigation_request);
+    last_committed_entry->navigation_transition_data()
+        .set_cache_hit_or_miss_reason(
+            CacheHitOrMissReason::kBrowserNotEmbeddingValidSurfaceId);
+    return false;
+  }
+
+'''
+    ),
+    (
+        'content/browser/navigation_transitions/back_forward_transition_animation_manager_android.cc',
+'''  CHECK(animator_factory_);''',
+'''  // Sandium: prefer the real destination snapshot. If it is unavailable,
+  // animate a transient blurred copy of this tab's currently visible page.
+  // Never substitute another history entry or retain the blur in the cache.
+  auto* screenshot = static_cast<NavigationEntryScreenshot*>(
+      destination_entry->GetUserData(NavigationEntryScreenshot::kUserDataKey));
+  const bool sandium_has_preview =
+      screenshot && screenshot->IsValid() &&
+      screenshot->dimensions_without_compression() ==
+          web_contents_view_android_->GetNativeView()->GetPhysicalBackingSize();
+  auto sandium_embedder_content = MaybeCopyContentAreaAsBitmapSync();
+  const auto sandium_size =
+      web_contents_view_android_->GetNativeView()->GetPhysicalBackingSize();
+  if (!sandium_has_preview &&
+      (sandium_embedder_content.width() != sandium_size.width() ||
+       sandium_embedder_content.height() != sandium_size.height())) {
+    sandium_embedder_content.reset();
+  }
+  auto* sandium_view = static_cast<RenderWidgetHostViewAndroid*>(
+      web_contents_view_android_->web_contents()->GetRenderWidgetHostView());
+  const bool sandium_can_blur_current =
+      !sandium_embedder_content.empty() ||
+      (web_contents_view_android_->web_contents()->GetLastCommittedURL()
+           .SchemeIsHTTPOrHTTPS() &&
+       sandium_view && sandium_view->IsShowing() &&
+       sandium_view->GetSurfaceLayer() &&
+       sandium_view->GetSurfaceLayer()->surface_id().is_valid());
+  TRACE_EVENT("navigation", "SandiumBackSnapshotAvailable",
+              "available", sandium_has_preview,
+              "blur_current", !sandium_has_preview && sandium_can_blur_current);
+  if (!sandium_has_preview && !sandium_can_blur_current) {
+    // No current pixels (for example a destroyed renderer): normal history
+    // navigation is safer than a blank or wrong-document synthetic preview.
+    return;
+  }
+
+  CHECK(animator_factory_);'''
+    ),
+    (
+        'content/browser/navigation_transitions/back_forward_transition_animation_manager_android.cc',
+'''#include "content/browser/navigation_transitions/back_forward_transition_animator.h"''',
+'''#include "content/browser/navigation_transitions/back_forward_transition_animator.h"
+#include "content/browser/renderer_host/render_widget_host_view_android.h"
+#include "cc/slim/surface_layer.h"'''
+    ),
+    (
+        'content/browser/navigation_transitions/back_forward_transition_animation_manager_android.cc',
+'''      MaybeCopyContentAreaAsBitmapSync(), this);''',
+'''      std::move(sandium_embedder_content), this);'''
     ),
     (
         'content/browser/navigation_transitions/back_forward_transition_animator.cc',
-        '  CHECK(new_render_widget_host_);\n  CHECK_NE(primary_main_frame_navigation_entry_item_sequence_number_',
-        '''  CHECK(new_render_widget_host_);
+'''    auto screenshot_layer = cc::slim::SolidColorLayer::Create();
+    screenshot_layer->SetBackgroundColor(
+        fallback_ux_->color_config.background_color);
+    screenshot_layer_ = std::move(screenshot_layer);''',
+'''    // Sandium: this is explicitly the outgoing page, not a fabricated
+    // destination screenshot. Its lifetime is this animation only.
+    auto blur_container = cc::slim::Layer::Create();
+    blur_container->SetMasksToBounds(true);
+    scoped_refptr<cc::slim::Layer> blur_content;
+    if (!embedder_content.empty()) {
+      auto native_content = cc::slim::UIResourceLayer::Create();
+      native_content->SetBitmap(embedder_content);
+      native_content->SetPosition(gfx::PointF(
+          0.f, -animation_manager_->web_contents_view_android()->GetTopControlsHeight()));
+      native_content->SetBounds(animation_manager_->web_contents_view_android()
+                                   ->GetNativeView()->GetPhysicalBackingSize());
+      blur_content = std::move(native_content);
+    } else {
+      auto* view = static_cast<RenderWidgetHostViewAndroid*>(
+          animation_manager_->web_contents_view_android()
+              ->web_contents()->GetRenderWidgetHostView());
+      CHECK(view);
+      CHECK(view->IsShowing());
+      const auto* current_surface = view->GetSurfaceLayer();
+      CHECK(current_surface);
+      CHECK(current_surface->surface_id().is_valid());
+      auto surface = cc::slim::SurfaceLayer::Create();
+      // A zero deadline reuses already displayed textures. Holding this
+      // surface reference prevents reclamation during the transition.
+      surface->SetSurfaceId(current_surface->surface_id(),
+                           cc::DeadlinePolicy::UseSpecifiedDeadline(0));
+      surface->SetPosition(current_surface->position());
+      surface->SetBounds(current_surface->bounds());
+      surface->SetTransform(current_surface->transform());
+      blur_content = std::move(surface);
+    }
+    blur_content->SetIsDrawable(true);
+    blur_content->SetFilters({cc::slim::Filter::CreateBlur(
+        DipToPx(10), SkTileMode::kClamp)});
+    blur_container->AddChild(std::move(blur_content));
+    screenshot_layer_ = std::move(blur_container);'''
+    ),
+    (
+        'content/browser/navigation_transitions/back_forward_transition_animator.cc',
+'''  bool should_draw_rrect = fallback_ux_ && !favicon_bitmap.drawsNothing();''',
+'''  // Sandium: outgoing blur has no destination favicon or browser logo.
+  bool should_draw_rrect = false;'''
+    ),
+    (
+        'chrome/android/java/src/org/chromium/chrome/browser/tab/TabWebContentsDelegateAndroidImpl.java',
+'''Drawable drawable = ApiCompatibilityUtils.getDrawable(res, R.drawable.chromelogo16);''',
+'''Drawable drawable = ApiCompatibilityUtils.getDrawable(res, R.drawable.sandium_toolbar_mark);'''
+    ),
+    (
+        'cc/slim/layer_tree_impl.cc',
+'''    // Apply new pass's occlusion to parent pass.
+    if (transform_new_pass_to_parent_target.Preserves2dAxisAlignment()) {''',
+'''    // Children draw at opacity 1 inside this pass, but their occlusion may
+    // hide parent content only when the composed pass is fully opaque.
+    // Preserve rear content during translucent screenshot crossfades.
+    if (parent_opacity * layer.opacity() == 1.0f &&
+        transform_new_pass_to_parent_target.Preserves2dAxisAlignment()) {'''
+    ),
+    (
+        'content/browser/navigation_transitions/back_forward_transition_animator.cc',
+'''  CHECK(new_render_widget_host_);
+  CHECK_NE(primary_main_frame_navigation_entry_item_sequence_number_''',
+'''  CHECK(new_render_widget_host_);
   const auto& sandium_metadata = new_render_widget_host_->render_frame_metadata_provider()
                                      ->LastRenderFrameMetadata();
   TRACE_EVENT("navigation", "SandiumBackActivatedGeometry",
@@ -40,8 +265,9 @@ CHANGES = [
     ),
     (
         'content/browser/renderer_host/navigation_transitions/navigation_transition_utils.cc',
-        '#include "content/browser/renderer_host/navigation_request.h"',
-        '#include "content/browser/renderer_host/navigation_request.h"\n#include "content/browser/renderer_host/page_impl.h"'
+'''#include "content/browser/renderer_host/navigation_request.h"''',
+'''#include "content/browser/renderer_host/navigation_request.h"
+#include "content/browser/renderer_host/page_impl.h"'''
     ),
     (
         'content/browser/renderer_host/navigation_transitions/navigation_transition_data.h',
