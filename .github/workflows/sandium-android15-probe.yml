@@ -13,7 +13,7 @@ jobs:
   android15:
     if: github.repository_visibility == 'public'
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 35
     steps:
       - name: Enable owner-approved scoped KVM access and install official Android SDK packages
         shell: bash
@@ -40,8 +40,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          curl --fail --location --retry 2 --max-time 180 -o Sandium.apk 'https://output.circle-artifacts.com/output/job/a61031d0-7df0-4f68-8662-6c7da64ca68a/artifacts/0/sandium-arm-translation-test-only/brave-apk/Sandium-Brave-test.apk'
-          echo '35f4ad516b3a82f709494add76bff1df7beb8e87439a9a82f7cbcd6fa6cf6737  Sandium.apk' | sha256sum --check
+          curl --fail --location --retry 2 --max-time 180 -o Sandium.apk 'https://output.circle-artifacts.com/output/job/02d78f78-aa76-418b-936f-a64b73a3f74b/artifacts/0/sandium-native-status-test-only/brave-apk/Sandium-Brave-test.apk'
+          echo '5ea15e75e2dcc35e36438b2829cff88b51fe7eeef660469e9065aa6bd57a8f5d  Sandium.apk' | sha256sum --check
           unzip -l Sandium.apk | grep 'lib/' | head -15 || true
           export ANDROID_AVD_HOME="$RUNNER_TEMP/avd"
           mkdir -p "$ANDROID_AVD_HOME"
@@ -74,66 +74,241 @@ jobs:
           adb shell getconf PAGE_SIZE
           adb shell getprop ro.build.fingerprint
           adb shell getprop ro.dalvik.vm.isa.arm64
-      - name: Minimal ARM64 JNI mapped host ELF probe
+          for ROUND in 1 2 3; do
+            echo "LAUNCH_ROUND=$ROUND"
+            adb shell am force-stop com.brave.browser_default
+            adb shell monkey -p com.brave.browser_default -c android.intent.category.LAUNCHER 1
+            sleep 12
+            adb shell pidof com.brave.browser_default || true
+            adb shell dumpsys activity activities | grep -E 'mResumedActivity|topResumedActivity' || true
+            adb logcat -b crash -d -v threadtime
+          done
+          adb shell dumpsys activity exit-info com.brave.browser_default
+          adb logcat -d -v threadtime | grep -E 'DEBUG|libndk_translation|browser_default|cr_LibraryLoader|linker' | tail -350 || true
+          # A boot/install pass is not a successful application launch.
+          adb shell pidof com.brave.browser_default
+          adb shell dumpsys activity activities | grep -E 'topResumedActivity=.*com.brave.browser_default'
+          echo 'Android15 exact APK stayed alive across three launches.' >> "$GITHUB_STEP_SUMMARY"
+      - name: Corrected guard functional navigation evidence (not phone performance)
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p probe/src/org/sandium/probe probe/classes probe/lib/arm64-v8a
-          cat > probe/src/org/sandium/probe/Main.java <<'JAVA'
-          package org.sandium.probe;
-          public class Main extends android.app.Activity {
-           static {System.loadLibrary("probe");}
-           public static native String inspect();
-           public void onCreate(android.os.Bundle b){super.onCreate(b);String result=inspect();android.util.Log.i("SandiumBridgeProbe",result);android.widget.TextView t=new android.widget.TextView(this);t.setText(result);setContentView(t);}
-          }
-          JAVA
-          cat > probe/AndroidManifest.xml <<'XML'
-          <manifest xmlns:android="http://schemas.android.com/apk/res/android" package="org.sandium.probe"><uses-sdk android:minSdkVersion="29" android:targetSdkVersion="35"/><application android:label="Sandium bridge probe" android:extractNativeLibs="true"><activity android:name=".Main" android:exported="true"><intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter></activity></application></manifest>
-          XML
-          cat > probe/probe.c <<'C'
-          #include <jni.h>
-          #include <dlfcn.h>
-          #include <android/log.h>
-          #include <stdio.h>
-          #include <unistd.h>
-          #include <errno.h>
-          #include <string.h>
-          JNIEXPORT jstring JNICALL Java_org_sandium_probe_Main_inspect(JNIEnv*e,jclass c){
-           Dl_info info={0};void*target=(void*)(*e)->FindClass;int found=dladdr(target,&info);
-           unsigned char *base=(unsigned char*)info.dli_fbase;
-           __android_log_print(ANDROID_LOG_INFO,"SandiumBridgeProbe","JNI target=%p dladdr=%d path=%s base=%p ELFmachine=%u magic=%02x%02x%02x%02x",target,found,info.dli_fname?info.dli_fname:"null",base,found&&base?base[18]+256*base[19]:0,found&&base?base[0]:0,found&&base?base[1]:0,found&&base?base[2]:0,found&&base?base[3]:0);
-           FILE*maps=fopen("/proc/self/maps","r");char line[1024];if(maps){while(fgets(line,sizeof(line),maps)){unsigned long lo=0,hi=0;if(sscanf(line,"%lx-%lx",&lo,&hi)==2&&((unsigned long)target>=lo&&(unsigned long)target<hi))__android_log_print(ANDROID_LOG_INFO,"SandiumBridgeProbe","TARGET_MAP %s",line);}fclose(maps);}
-           FILE*maps2=fopen("/proc/self/maps","r");if(maps2){while(fgets(line,sizeof(line),maps2)){unsigned long lo=0,hi=0,off=1;char perms[8]={0};if(strstr(line,"/libart.so")){__android_log_print(ANDROID_LOG_INFO,"SandiumBridgeProbe","LIBART_MAP %s",line);if(sscanf(line,"%lx-%lx %7s %lx",&lo,&hi,perms,&off)==4&&off==0&&perms[0]=='r'&&hi-lo>=20){unsigned char*h=(unsigned char*)lo;__android_log_print(ANDROID_LOG_INFO,"SandiumBridgeProbe","LIBART_MEMORY_HEADER base=%p magic=%02x%02x%02x%02x class=%u endian=%u machine=%u",h,h[0],h[1],h[2],h[3],h[4],h[5],h[18]+256*h[19]);}}}fclose(maps2);}
-           FILE*af=fopen("/apex/com.android.art/lib64/libart.so","rb");if(af){unsigned char ah[20]={0};size_t ar=fread(ah,1,20,af);fclose(af);__android_log_print(ANDROID_LOG_INFO,"SandiumBridgeProbe","LIBART_FILE_HEADER bytes=%lu machine=%u",(unsigned long)ar,ah[18]+256*ah[19]);}
-           unsigned char h[20]={0};char link[512]={0};char out[2048];
-           ssize_t n=readlink("/proc/self/exe",link,sizeof(link)-1);int le=errno;
-           FILE*f=fopen("/proc/self/exe","rb");int oe=errno;size_t r=f?fread(h,1,20,f):0;int re=errno;if(f)fclose(f);
-           snprintf(out,sizeof(out),"compiled_arm64=%d link=%s readlink_n=%ld errno=%d fopen_ok=%d fopen_errno=%d read_n=%lu read_errno=%d ELF=%02x%02x%02x%02x class=%u endian=%u machine=%u guard_would_skip=%d",
-          #ifdef __aarch64__
-           1,
-          #else
-           0,
-          #endif
-           link,(long)n,le,f!=NULL,oe,(unsigned long)r,re,h[0],h[1],h[2],h[3],h[4],h[5],h[18]+256*h[19],r==20&&h[0]==127&&h[1]=='E'&&h[2]=='L'&&h[3]=='F'&&h[4]==2&&h[5]==1&&h[18]==62&&h[19]==0);
-           return (*e)->NewStringUTF(e,out);
-          }
-          C
-          BT=$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)
-          NDK=$(find "$ANDROID_HOME/ndk" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)
-          JAR=$(find "$ANDROID_HOME/platforms" -name android.jar | sort -V | tail -1)
-          echo "BT=$BT NDK=$NDK JAR=$JAR"
-          "$NDK/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android29-clang" -shared -fPIC -O0 probe/probe.c -ldl -llog -o probe/lib/arm64-v8a/libprobe.so
-          javac -source 8 -target 8 -bootclasspath "$JAR" -d probe/classes probe/src/org/sandium/probe/Main.java
-          "$BT/d8" --lib "$JAR" --output probe probe/classes/org/sandium/probe/Main.class
-          "$BT/aapt" package -f -M probe/AndroidManifest.xml -I "$JAR" -F probe/unsigned.apk
-          (cd probe && zip -q unsigned.apk classes.dex lib/arm64-v8a/libprobe.so)
-          keytool -genkeypair -keystore probe/key.jks -storepass android -keypass android -alias test -dname 'CN=Disposable emulator diagnostic' -keyalg RSA -validity 2
-          "$BT/apksigner" sign --ks probe/key.jks --ks-pass pass:android --key-pass pass:android --out probe/probe.apk probe/unsigned.apk
-          adb install probe/probe.apk
-          adb shell am start -W -n org.sandium.probe/.Main
-          sleep 5
-          adb logcat -d -s SandiumBridgeProbe:I AndroidRuntime:E
-          adb shell pidof org.sandium.probe
+          cat > test_navigation.py <<'PYFILE'
+          """Isolated APK UI test driver. No account, no phone, no private browsing data."""
+          import subprocess as sp, time, re, json, base64, xml.etree.ElementTree as ET
+          from pathlib import Path
+          PKG='com.brave.browser_default'
+          def adb(*args,timeout=30,check=True):
+              return sp.run(['adb',*args],capture_output=True,text=True,timeout=timeout,check=check).stdout
+          
+          def nodes():
+              adb('shell','uiautomator','dump','/sdcard/ui.xml')
+              s=adb('shell','cat','/sdcard/ui.xml')
+              return ET.fromstring(s).findall('.//node')
+          
+          def center(n):
+              x,y,x2,y2=map(int,re.findall(r'\d+',n.attrib['bounds']))
+              return ((x+x2)//2,(y+y2)//2)
+          
+          def click(n):
+              x,y=center(n); adb('shell','input','tap',str(x),str(y))
+          
+          def match(label,ns=None):
+              for n in nodes() if ns is None else ns:
+                  if label.lower() in (n.get('text','')+' '+n.get('content-desc','')).lower(): return n
+              return None
+          
+          def evidence(label):
+              print('CASE',label,time.time(),flush=True)
+              ns=nodes()
+              print('UI',json.dumps([n.attrib for n in ns]),flush=True)
+              print('WINDOW_GEOMETRY',label,adb('shell','dumpsys','window','windows'),flush=True)
+              data=sp.check_output(['adb','exec-out','screencap','-p'])
+              Path(label+'.png').write_bytes(data)
+              print('PNG_BEGIN '+label,flush=True)
+              print(base64.b64encode(data).decode(),flush=True)
+              print('PNG_END '+label,flush=True)
+              return ns
+          
+          def wait_ready():
+              deadline=time.time()+240
+              while time.time()<deadline:
+                  ns=nodes(); start=match('Start browsing',ns)
+                  if start is not None and start.get('enabled')=='true':
+                      evidence('welcome_ready');click(start);time.sleep(12);evidence('after_start');return
+                  print('ONBOARDING',[(n.get('text'),n.get('enabled')) for n in ns if n.get('text')],flush=True)
+                  time.sleep(10)
+              evidence('onboarding_timeout');raise RuntimeError('Start browsing did not become enabled; no bypass used')
+          
+          
+          def resource(suffix,ns=None):
+              for n in nodes() if ns is None else ns:
+                  if n.get('resource-id','').endswith('/'+suffix): return n
+              return None
+          
+          def type_url(url):
+              ns=nodes()
+              n=resource('url_bar',ns)
+              if n is None:n=resource('search_box_text',ns)
+              if n is None:n=match('Search or type',ns)
+              if n is None:raise RuntimeError('No observed address/search bar to type URL')
+              click(n);time.sleep(1)
+              adb('shell','input','keycombination','113','29')
+              adb('shell','input','text',url)
+              adb('shell','input','keyevent','66')
+              time.sleep(5)
+          
+          def gesture(cancel=False):
+              # Real edge touch sequence, not KEYCODE_BACK. Keep app animation scales unchanged.
+              adb('shell','input','touchscreen','motionevent','DOWN','1','800')
+              for x in [20,50,100,160,220]:
+                  adb('shell','input','touchscreen','motionevent','MOVE',str(x),'800');time.sleep(.05)
+              if cancel:
+                  for x in [180,100,40,3]:
+                      adb('shell','input','touchscreen','motionevent','MOVE',str(x),'800');time.sleep(.1)
+                  time.sleep(.3)
+                  adb('shell','input','touchscreen','motionevent','UP','3','800')
+              else:
+                  adb('shell','input','touchscreen','motionevent','MOVE','400','800')
+                  adb('shell','input','touchscreen','motionevent','UP','420','800')
+              time.sleep(2)
+          
+          def film(label,action):
+              p=sp.Popen(['adb','shell','screenrecord','--bit-rate','300000','--time-limit','12','/sdcard/'+label+'.mp4'],stdout=sp.DEVNULL,stderr=sp.PIPE)
+              time.sleep(1)
+              try:action();time.sleep(1)
+              finally:
+                  adb('shell','pkill','-INT','screenrecord',check=False)
+                  try:p.wait(timeout=5)
+                  except sp.TimeoutExpired:p.terminate()
+              data=sp.check_output(['adb','exec-out','cat','/sdcard/'+label+'.mp4'])
+              print('VIDEO_BEGIN '+label,flush=True);print(base64.b64encode(data).decode(),flush=True);print('VIDEO_END '+label,flush=True)
+          
+          def expect(text):
+              if match(text) is None:
+                  evidence('unexpected_'+text)
+                  raise RuntimeError('Expected visible page label '+text)
+          
+          def forward():
+              ns=nodes();n=match('Forward',ns)
+              if n is None:
+                  menu=resource('menu_button',ns)
+                  if menu is None:menu=match('More options',ns)
+                  if menu is None:raise RuntimeError('Menu control not found for Forward')
+                  click(menu);time.sleep(1);n=match('Forward')
+              if n is None:raise RuntimeError('Forward control not exposed in observed menu')
+              click(n);time.sleep(3)
+          
+          def home():
+              n=resource('home_button')
+              if n is None:n=match('Homepage')
+              if n is None:n=match('Home')
+              if n is None:raise RuntimeError('Homepage control not exposed in observed UI')
+              click(n);time.sleep(3)
+          
+          
+          def navigation_matrix():
+              for round in range(1,4):
+                  print('NAV_ROUND',round,flush=True)
+                  if round!=2:  # rounds1/3 process cold; round2 warm, retain site cache in all.
+                      adb('shell','am','force-stop',PKG)
+                      adb('shell','monkey','-p',PKG,'-c','android.intent.category.LAUNCHER','1');time.sleep(6)
+                  home();evidence('r%d_ntp_baseline'%round)
+                  film('r%d_ntp_url'%round,lambda:type_url('http://127.0.0.1:8765/a'));expect('PAGE_A')
+                  evidence('r%d_url_geometry'%round)
+                  film('r%d_url_ntp_back'%round,lambda:gesture(False))
+                  evidence('r%d_ntp_back_geometry'%round)
+                  type_url('http://127.0.0.1:8765/a');expect('PAGE_A')
+                  link=match('Go to PAGE_B')
+                  if link is None:raise RuntimeError('Test link not visible')
+                  click(link);time.sleep(4);expect('PAGE_B')
+                  film('r%d_cancel'%round,lambda:gesture(True));expect('PAGE_B')
+                  film('r%d_back'%round,lambda:gesture(False));expect('PAGE_A')
+                  evidence('r%d_restored_a'%round)
+                  forward();expect('PAGE_B')
+                  adb('shell','input','swipe','360','1300','360','400','500');time.sleep(2)
+                  film('r%d_hiddenbar_back'%round,lambda:gesture(False));expect('PAGE_A')
+                  home();evidence('r%d_home'%round)
+          
+          if __name__=='__main__':
+              wait_ready()
+              navigation_matrix()
+          
+          def menu_scene(label):
+              home()
+              ns=nodes()
+              menu=resource('menu_button',ns)
+              if menu is None:menu=match('More options',ns)
+              if menu is None:raise RuntimeError('No observed menu control for '+label)
+              click(menu);time.sleep(1)
+              ns=nodes(); target=None
+              for n in ns:
+                  if label.lower() in [n.get('text','').lower(),n.get('content-desc','').lower()]:target=n;break
+              if target is None:
+                  more=match('All Menu',ns)
+                  if more is not None:
+                      click(more);time.sleep(1);target=match(label)
+              if target is None:
+                  evidence('missing_scene_'+label);adb('shell','input','keyevent','4');raise RuntimeError('Native menu destination absent: '+label)
+              film('open_'+label,lambda:click(target));evidence('scene_'+label)
+              adb('shell','input','keyevent','4');time.sleep(2)
+          PYFILE
+          cat > serve_test.py <<'PYFILE'
+          from http.server import BaseHTTPRequestHandler,HTTPServer
+          from urllib.parse import urlparse
+          import time
+          class Handler(BaseHTTPRequestHandler):
+           def do_GET(self):
+            path=urlparse(self.path).path
+            if path=='/event':
+             print('BROWSER_EVENT',time.time(),self.path,flush=True);self.send_response(204);self.end_headers();return
+            page='B' if path=='/b' else 'A';other='A' if page=='B' else 'B'
+            body=f'''<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>PAGE_{page}</title><style>body{{margin:0;background:#{'162432' if page=='A' else '263b24'};color:#eee;font:24px sans-serif}}main{{padding:24px}}a{{display:block;padding:20px;background:#244f67;color:#fff;border-radius:12px}}section{{height:1900px;background:linear-gradient(#314253,#202b38)}}</style></head><body><main><h1>PAGE_{page}</h1><a href="/{other.lower()}">Go to PAGE_{other}</a><p>Stable controlled navigation fixture.</p><section>Scrollable content</section><p>End PAGE_{page}</p></main><script>const report=(name,extra='')=>fetch('/event?page={page}&event='+name+'&extra='+extra,{{keepalive:true}});report('script');const geometry=()=>report('viewport',encodeURIComponent(JSON.stringify({{h:innerHeight,w:innerWidth,y:scrollY,vh:visualViewport?.height,vy:visualViewport?.offsetTop}})));addEventListener('resize',geometry);visualViewport?.addEventListener('resize',geometry);geometry();addEventListener('pageshow',e=>report('pageshow',e.persisted));addEventListener('pagehide',e=>report('pagehide',e.persisted));</script></body></html>'''.encode()
+            self.send_response(200);self.send_header('Content-Type','text/html');self.send_header('Cache-Control','max-age=3600');self.send_header('Content-Length',str(len(body)));self.end_headers();self.wfile.write(body)
+          HTTPServer(('127.0.0.1',8765),Handler).serve_forever()
+          PYFILE
+          cat > run_matrix.py <<'PYFILE'
+          import test_navigation as t
+          import time,json,traceback,subprocess as sp
+          results=[]
+          def case(name,fn):
+           start=time.monotonic()
+           try:
+            fn();alive=t.adb('shell','pidof',t.PKG).strip()
+            if not alive:raise RuntimeError('Application not alive')
+            results.append({'case':name,'status':'executed; inspect evidence for visual verdict','seconds':round(time.monotonic()-start,2)})
+           except Exception as e:results.append({'case':name,'status':'blocked/failed','error':str(e)})
+           print('RESULT',json.dumps(results[-1]),flush=True)
+          def public(url,cold):
+           if cold:
+            t.adb('shell','am','force-stop',t.PKG);t.adb('shell','monkey','-p',t.PKG,'-c','android.intent.category.LAUNCHER','1');time.sleep(5)
+           t.type_url(url);time.sleep(6)
+           ns=t.nodes();print('PAGE_STATE',url, json.dumps([{'text':n.get('text'),'id':n.get('resource-id')} for n in ns if n.get('text')][:50]),flush=True)
+           t.gesture(True);t.gesture(False)
+          def external():
+           print('VIEW_RESOLVER_BEFORE',t.adb('shell','cmd','package','resolve-activity','--brief','-a','android.intent.action.VIEW','-d','https://www.wikipedia.org/'),flush=True)
+           print('IMPLICIT_VIEW',t.adb('shell','am','start','-W','-a','android.intent.action.VIEW','-d','https://www.wikipedia.org/'),flush=True)
+           time.sleep(5);t.evidence('external_view')
+           resumed=t.adb('shell','dumpsys','activity','activities')
+           print('VIEW_RESUMED',[line for line in resumed.splitlines() if 'ResumedActivity' in line],flush=True)
+           if not any(t.PKG in line for line in resumed.splitlines() if 'ResumedActivity' in line):raise RuntimeError('Implicit VIEW did not foreground Sandium; chooser/default handoff needs review')
+          case('onboarding',t.wait_ready)
+          if results[-1]['status'].startswith('executed'):
+           case('controlled_three_round_navigation',t.navigation_matrix)
+           for label in ['Settings','Bookmarks','History']:
+            case('native_'+label,lambda l=label:t.menu_scene(l))
+           for url in ['https://www.bhaskar.com/','https://www.thehindu.com/','https://en.wikipedia.org/wiki/India','https://www.youtube.com/','https://timesofindia.indiatimes.com/']:
+            for cold in [True,False]:case(('process_cold' if cold else 'warm')+' '+url,lambda u=url,c=cold:public(u,c))
+           case('implicit_external_VIEW',external)
+           case('google_search',lambda:t.type_url('https://www.google.com/search?q=India%20news'))
+           t.evidence('google_results')
+           print('Adult-content case not run; ad-heavy public and controlled fixtures cover technical navigation only.',flush=True)
+          print('FINAL_RESULTS',json.dumps(results),flush=True)
+          if any(x['status']=='blocked/failed' for x in results):raise SystemExit(1)
+          PYFILE
+          python -u serve_test.py > fixture.log 2>&1 &
+          adb reverse tcp:8765 tcp:8765
+          python -u run_matrix.py
       - name: Bounded diagnostic evidence and cleanup (no artifact storage)
         if: always()
         shell: bash
@@ -146,3 +321,4 @@ jobs:
           adb shell dumpsys activity exit-info com.brave.browser_default || true
           adb emu kill || true
           if [ -f emulator.pid ]; then kill "$(cat emulator.pid)" 2>/dev/null || true; fi
+
