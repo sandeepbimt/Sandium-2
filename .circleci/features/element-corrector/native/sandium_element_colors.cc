@@ -44,7 +44,7 @@ bool SandiumElementColors::Eligible(const Element& element) const {
     if (child.GetShadowRoot() || IsEditable(child) ||
         child.HasTagName(html_names::kFormTag) || child.HasTagName(html_names::kButtonTag) ||
         child.HasTagName(html_names::kInputTag) || child.HasTagName(html_names::kTextareaTag) ||
-        child.HasTagName(html_names::kSelectTag) || child.HasTagName(html_names::kIframeTag) ||
+        child.HasTagName(html_names::kSelectTag) || child.HasTagName(html_names::kIFrameTag) ||
         child.HasTagName(html_names::kObjectTag) || child.HasTagName(html_names::kEmbedTag)) return false;
   }
   // Ancestor check protects controls nested within form/button/editable containers.
@@ -54,9 +54,9 @@ bool SandiumElementColors::Eligible(const Element& element) const {
     if (cursor->HasTagName(html_names::kFormTag) ||
         cursor->HasTagName(html_names::kButtonTag) || IsEditable(*cursor)) return false;
   }
-  return !element.HasTagName(html_names::kHtmlTag) &&
+  return !element.HasTagName(html_names::kHTMLTag) &&
       !element.HasTagName(html_names::kBodyTag) &&
-      !element.HasTagName(html_names::kIframeTag) &&
+      !element.HasTagName(html_names::kIFrameTag) &&
       !element.HasTagName(html_names::kFrameTag) &&
       !element.HasTagName(html_names::kInputTag) &&
       !element.HasTagName(html_names::kTextareaTag) &&
