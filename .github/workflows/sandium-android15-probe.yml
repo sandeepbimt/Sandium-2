@@ -74,7 +74,7 @@ jobs:
           adb shell getconf PAGE_SIZE
           adb shell getprop ro.build.fingerprint
           adb shell getprop ro.dalvik.vm.isa.arm64
-      - name: Minimal ARM64 JNI target ISA probe
+      - name: Minimal ARM64 JNI mapped host ELF probe
         shell: bash
         run: |
           set -euo pipefail
@@ -103,6 +103,8 @@ jobs:
            unsigned char *base=(unsigned char*)info.dli_fbase;
            __android_log_print(ANDROID_LOG_INFO,"SandiumBridgeProbe","JNI target=%p dladdr=%d path=%s base=%p ELFmachine=%u magic=%02x%02x%02x%02x",target,found,info.dli_fname?info.dli_fname:"null",base,found&&base?base[18]+256*base[19]:0,found&&base?base[0]:0,found&&base?base[1]:0,found&&base?base[2]:0,found&&base?base[3]:0);
            FILE*maps=fopen("/proc/self/maps","r");char line[1024];if(maps){while(fgets(line,sizeof(line),maps)){unsigned long lo=0,hi=0;if(sscanf(line,"%lx-%lx",&lo,&hi)==2&&((unsigned long)target>=lo&&(unsigned long)target<hi))__android_log_print(ANDROID_LOG_INFO,"SandiumBridgeProbe","TARGET_MAP %s",line);}fclose(maps);}
+           FILE*maps2=fopen("/proc/self/maps","r");if(maps2){while(fgets(line,sizeof(line),maps2)){unsigned long lo=0,hi=0,off=1;char perms[8]={0};if(strstr(line,"/libart.so")){__android_log_print(ANDROID_LOG_INFO,"SandiumBridgeProbe","LIBART_MAP %s",line);if(sscanf(line,"%lx-%lx %7s %lx",&lo,&hi,perms,&off)==4&&off==0&&perms[0]=='r'&&hi-lo>=20){unsigned char*h=(unsigned char*)lo;__android_log_print(ANDROID_LOG_INFO,"SandiumBridgeProbe","LIBART_MEMORY_HEADER base=%p magic=%02x%02x%02x%02x class=%u endian=%u machine=%u",h,h[0],h[1],h[2],h[3],h[4],h[5],h[18]+256*h[19]);}}}fclose(maps2);}
+           FILE*af=fopen("/apex/com.android.art/lib64/libart.so","rb");if(af){unsigned char ah[20]={0};size_t ar=fread(ah,1,20,af);fclose(af);__android_log_print(ANDROID_LOG_INFO,"SandiumBridgeProbe","LIBART_FILE_HEADER bytes=%lu machine=%u",(unsigned long)ar,ah[18]+256*ah[19]);}
            unsigned char h[20]={0};char link[512]={0};char out[2048];
            ssize_t n=readlink("/proc/self/exe",link,sizeof(link)-1);int le=errno;
            FILE*f=fopen("/proc/self/exe","rb");int oe=errno;size_t r=f?fread(h,1,20,f):0;int re=errno;if(f)fclose(f);
