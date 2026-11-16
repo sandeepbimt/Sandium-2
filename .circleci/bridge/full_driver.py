@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Full-mode checkpoint transport. Refresh/compaction is maintenance-only."""
 import argparse
+import functools
 import copy
 import datetime
 import json
@@ -16,6 +17,9 @@ import sparse_restore
 import driver as d
 bridge.apply_chain = sparse_restore.apply_chain
 cli.apply_chain = sparse_restore.apply_chain
+# Ordinary Full capture never consumes old compressed inputs; generic bridge
+# capture/maintenance can, so their restore defaults must retain those files.
+d.restore_chain = functools.partial(cli.restore_chain, release_verified_inputs=True)
 d.MAX_LAYERS=16;d.SLOT_COUNT=16;cli.MAX_LAYERS=16
 
 

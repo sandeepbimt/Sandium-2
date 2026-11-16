@@ -35,7 +35,39 @@ def run_bounded(command, timeout=1700):
 
 MAX_LAYERS=7
 
-def restore_chain(root, plan, legacy_script, timeout=1700):
+def local_restore_inputs(root, manifest, layers):
+    """Exact disposable cache files only; never recurse or remove metadata."""
+    root = Path(root).absolute()
+    if root.is_symlink():raise ValueError('Real job root required for local cleanup')
+    shard_dir = root/'brave-workspace-checkpoint.shards'
+    layer_dir = root/'.bridge-layers'
+    paths = []
+    for item in manifest['shards']:
+        name = item['name']
+        if not isinstance(name, str) or Path(name).name != name or name in ('', '.', '..'):
+            raise ValueError('Unsafe local shard cleanup name')
+        paths.append(shard_dir/name)
+    for i, layer in enumerate(layers):
+        path = Path(layer['archive']).absolute()
+        if path != layer_dir/f'{i}.zip':
+            raise ValueError('Local delta cleanup requires exact job cache path')
+        paths.append(path)
+    if len(set(paths)) != len(paths):raise ValueError('Duplicate local cleanup path')
+    for path in paths:
+        if path.parent.is_symlink() or path.is_symlink() or not path.is_file():
+            raise ValueError('Unsafe local restore input: '+str(path))
+    return paths[:len(manifest['shards'])], paths[len(manifest['shards']):]
+
+
+def release_local_input(path):
+    if path.parent.is_symlink() or path.is_symlink() or not path.is_file():
+        raise ValueError('Unsafe local restore release: '+str(path))
+    size=path.stat().st_size
+    path.unlink()
+    return size
+
+
+def restore_chain(root, plan, legacy_script, timeout=1700, release_verified_inputs=False):
     root=Path(root)
     if (root/'brave-work').exists() or (root/'brave-work').is_symlink():raise ValueError('Restore requires empty/disposable job tree')
     if len(plan['layers'])>MAX_LAYERS:raise ValueError(f'Checkpoint plan exceeds {MAX_LAYERS} incremental slots')
@@ -43,10 +75,22 @@ def restore_chain(root, plan, legacy_script, timeout=1700):
     if digest(raw)!=plan['base_manifest_sha256']:raise ValueError('Wrong original base manifest')
     manifest=json.loads(raw)
     if len(manifest.get('shards',[]))!=8:raise ValueError('Expected original eight-shard base')
+    cleanup = local_restore_inputs(root, manifest, plan['layers']) if release_verified_inputs else None
     # Original restore verifies every compressed shard hash before extraction.
     run_bounded([sys.executable,'-u',str(legacy_script),'restore','--root',str(root)],timeout)
     head=base_id(raw)
-    head=apply_chain(root/'brave-work',plan['layers'],head)
+    if cleanup is None:
+        head=apply_chain(root/'brave-work',plan['layers'],head)
+    else:
+        # Only ordinary Full jobs opt in. Legacy restore has finished verifying
+        # and extracting ALL shards; remote caches and their manifest stay intact.
+        released=sum(release_local_input(path) for path in cleanup[0])
+        print('FULL_LOCAL_BASE_INPUTS_RELEASED',dict(bytes=released),flush=True)
+        for layer,path in zip(plan['layers'],cleanup[1]):
+            head=apply_chain(root/'brave-work',[layer],head)
+            if head!=layer['id']:raise ValueError('Unexpected applied delta head; retain input')
+            released=release_local_input(path)
+            print('FULL_LOCAL_DELTA_INPUT_RELEASED',dict(bytes=released),flush=True)
     if head!=plan['head']:raise ValueError('Incomplete chain')
     atomic(root/'.bridge-restored.json',dict(head=head,base=plan['base_manifest_sha256']))
     return head
