@@ -561,6 +561,7 @@ CORE_DIR="$SRC_DIR/brave"
 # Unconditional in every continuation stage; stage 1 also retires before GN.
 if [ "${SANDIUM_REMOVAL_RESET_DONE:-false}" != true ]; then
   python3 "$ROOT/.circleci/scripts/sandium-removal-recipe.py" --core "$CORE_DIR" --src "$SRC_DIR" --out "$SRC_DIR/out/android_Release_arm64" --phase reset
+  python3 "$ROOT/.circleci/scripts/apply-sandium-full-overlays.py" --core "$CORE_DIR" --src "$SRC_DIR" --reset-owned-only
 fi
 python3 "$ROOT/.circleci/scripts/verify-sandium-vanilla-brave.py" --core "$CORE_DIR" --src "$SRC_DIR" --out "$SRC_DIR/out/android_Release_arm64" --phase retire-reader
 EXPECTED_BRAVE_CORE_SHA="44a84b1f89d9a35287289d6a3d493e362f5a5123"

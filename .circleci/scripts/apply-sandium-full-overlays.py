@@ -238,16 +238,51 @@ def transform_ai_chat_android_header(source):
         raise RuntimeError("SANDIUM_AI_CHAT_ANDROID_HEADER: member anchor changed")
     return source.replace(AI_ANDROID_HEADER_OLD_FIELDS, AI_ANDROID_HEADER_NEW_FIELDS, 1)
 
+def replay_stats_default(core):
+    stats = core / "browser/brave_local_state_prefs.cc"
+    replace_exact(
+        stats,
+        "  registry->RegisterBooleanPref(kStatsReportingEnabled, true);",
+        BEGIN + "\n"
+        "  // Sandium ships without Brave Origin statistics reporting.\n"
+        "  registry->RegisterBooleanPref(kStatsReportingEnabled, false);\n" + END,
+        "SANDIUM_STATS_REPORTING_DEFAULT",
+    )
+
+
+def replay_origin_entry(core):
+    # Remove the Origin purchase entry; do not alter any entitlement checks.
+    main_prefs = core / "android/java/brave-res/xml/brave_main_preferences.xml"
+    old_origin_row = (
+        '    <org.chromium.components.browser_ui.settings.ChromeBasePreference\n'
+        '        android:key="brave_origin"\n'
+        '        android:order="14"\n'
+        '        android:icon="@drawable/ic_product_origin"\n'
+        '        android:title="@string/menu_origin"/>\n'
+    )
+    replace_exact(main_prefs, old_origin_row, "    <!-- SANDIUM_ORIGIN_ENTRY_REMOVED -->\n", "SANDIUM_REMOVE_ORIGIN_ENTRY")
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--core", required=True, type=Path)
     parser.add_argument("--src", required=True, type=Path)
+    parser.add_argument("--reset-owned-only", action="store_true",
+                        help="Replay only Full-owned paths restored by continuation reset")
     args = parser.parse_args()
     core, src = args.core.resolve(), args.src.resolve()
     if git_sha(core) != BRAVE_SHA or git_sha(src) != CHROMIUM_SHA:
         raise RuntimeError(
             f"pin mismatch: brave={git_sha(core)} chromium={git_sha(src)}"
         )
+
+    if args.reset_owned_only:
+        # Other Full outputs can already contain later removal transformations.
+        # Never replay/reset them merely to reconstruct these shared inputs.
+        replay_stats_default(core)
+        replay_origin_entry(core)
+        print("SANDIUM_FULL_RESET_OWNED_REPLAY=PASS")
+        return
 
     # Origin's two analytics controls map to P3A and statistics reporting.
     p3a = core / "components/p3a/p3a_service.cc"
@@ -268,15 +303,7 @@ def main():
         "  local_state_->SetBoolean(kP3AEnabled, false);",
         "SANDIUM_P3A_RUNTIME",
     )
-    stats = core / "browser/brave_local_state_prefs.cc"
-    replace_exact(
-        stats,
-        "  registry->RegisterBooleanPref(kStatsReportingEnabled, true);",
-        BEGIN + "\n"
-        "  // Sandium ships without Brave Origin statistics reporting.\n"
-        "  registry->RegisterBooleanPref(kStatsReportingEnabled, false);\n" + END,
-        "SANDIUM_STATS_REPORTING_DEFAULT",
-    )
+    replay_stats_default(core)
 
     stats_updater = core / "browser/brave_stats/brave_stats_updater.cc"
     replace_exact(
@@ -464,16 +491,7 @@ def main():
         raise RuntimeError("SANDIUM_EMAIL_ALIASES: pinned Android default changed; inspect before proceeding")
     print("SANDIUM_EMAIL_ALIASES=DISABLED_BY_ANDROID_BUILD_DEFAULT")
 
-    # Remove the Origin purchase entry; do not alter any entitlement checks.
-    main_prefs = core / "android/java/brave-res/xml/brave_main_preferences.xml"
-    old_origin_row = (
-        '    <org.chromium.components.browser_ui.settings.ChromeBasePreference\n'
-        '        android:key="brave_origin"\n'
-        '        android:order="14"\n'
-        '        android:icon="@drawable/ic_product_origin"\n'
-        '        android:title="@string/menu_origin"/>\n'
-    )
-    replace_exact(main_prefs, old_origin_row, "    <!-- SANDIUM_ORIGIN_ENTRY_REMOVED -->\n", "SANDIUM_REMOVE_ORIGIN_ENTRY")
+    replay_origin_entry(core)
 
     print("SANDIUM_FULL_OVERLAYS=PASS")
     

@@ -79,6 +79,11 @@ class RetiredTypography(unittest.TestCase):
         continuation=source[start:end]
         output=subprocess.check_output(['bash','-c','set -eu\nROOT=/repo; MINIMAL_VANILLA_BUILD=false\npython3() { printf "CALL %s\\n" "$*"; }\n'+continuation],text=True)
         self.assertIn('--phase retire-reader',output)
+        self.assertLess(output.index('--phase reset'),output.index('--reset-owned-only'))
+        self.assertIn('apply-sandium-full-overlays.py',output)
+        # Stage1 already applied Full overlays before GN; do not replay twice.
+        output=subprocess.check_output(['bash','-c','set -eu\nROOT=/repo; SANDIUM_REMOVAL_RESET_DONE=true\npython3() { printf "CALL %s\\n" "$*"; }\n'+continuation],text=True)
+        self.assertNotIn('--reset-owned-only',output)
     def test_restored_checkpoint_removes_all_reader_code_and_resource(self):
         originals={p:(self.core/p).read_bytes() for p in (BUILD,TOOLBAR)}
         p=self.core/BUILD;p.write_text(p.read_text()+'\n"java/brave-res/raw/sandium_reader_typography.js",\n')
@@ -119,5 +124,41 @@ class RetiredTypography(unittest.TestCase):
         for name in ('test_browser_crash_regressions.py','test_settings_origin_crash.py'):
             self.assertLess(text.index(name),text.index('    - restore_cache:'))
             self.assertIn(name,(ROOT/'.github/workflows/sandium-pipeline-self-test.yml').read_text())
+
+class FullContinuationReplay(unittest.TestCase):
+    def test_stage_reset_replay_is_scoped_idempotent_and_preserves_guard(self):
+        import json
+        from unittest import mock
+        spec=importlib.util.spec_from_file_location('full',SCRIPTS/'apply-sandium-full-overlays.py')
+        full=importlib.util.module_from_spec(spec);spec.loader.exec_module(full)
+        inputs={
+            'android/java/brave-res/xml/brave_main_preferences.xml': ROOT/'tests/fixtures/wallet-removal/android/java/brave-res/xml/brave_main_preferences.xml',
+            'browser/brave_local_state_prefs.cc':ROOT/'.circleci/tests/fixtures/reporting-pinned/brave/browser/brave_local_state_prefs.cc',
+        }
+        manifest=json.loads((ROOT/'.circleci/features/removal-recipe.json').read_text())
+        self.assertTrue(set(inputs).issubset(manifest['core_restore']))
+        with tempfile.TemporaryDirectory() as td:
+            src=Path(td);core=src/'brave'
+            def reset():
+                for path,fixture in inputs.items():
+                    p=core/path;p.parent.mkdir(parents=True,exist_ok=True);p.write_bytes(fixture.read_bytes())
+            reset()
+            # Real stage1 patch functions, followed by checkpoint restore/reset.
+            full.replay_origin_entry(core);full.replay_stats_default(core)
+            expected={p:(core/p).read_bytes() for p in inputs}
+            guard=src/'base/android/library_loader/library_loader_hooks.cc'
+            guard.parent.mkdir(parents=True);guard.write_text('// checkpoint translation guard retained\n')
+            unrelated=core/'components/p3a/p3a_service.cc'
+            unrelated.parent.mkdir(parents=True);unrelated.write_text('// later removal transformation retained\n')
+            retained={p:p.read_bytes() for p in (guard,unrelated)}
+            for _ in range(3):
+                reset()
+                self.assertIn('android:key="brave_origin"',(core/next(iter(inputs))).read_text())
+                with mock.patch.object(full,'git_sha',side_effect=lambda p:full.BRAVE_SHA if p==core else full.CHROMIUM_SHA),mock.patch('sys.argv',['overlay','--core',str(core),'--src',str(src),'--reset-owned-only']):
+                    full.main();full.main()
+                for p,data in expected.items():self.assertEqual((core/p).read_bytes(),data)
+                for p,data in retained.items():self.assertEqual(p.read_bytes(),data)
+            with mock.patch.object(full,'git_sha',return_value='wrong'),mock.patch('sys.argv',['overlay','--core',str(core),'--src',str(src),'--reset-owned-only']):
+                with self.assertRaisesRegex(RuntimeError,'pin mismatch'):full.main()
 
 if __name__=='__main__':unittest.main()
