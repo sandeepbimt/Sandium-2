@@ -27,8 +27,14 @@ public class SandiumDiagnosticsPreferences extends BravePreferenceFragment {
             ObservableSuppliers.createMonotonic();
     private final Handler mMain = new Handler(Looper.getMainLooper());
     private final ExecutorService mFiles = Executors.newSingleThreadExecutor();
-    private Preference mStatus, mStart, mStop, mExport, mClear, mMark;
-    private boolean mBusy, mDestroyed;
+    private Preference mStatus;
+    private Preference mStart;
+    private Preference mStop;
+    private Preference mExport;
+    private Preference mClear;
+    private Preference mMark;
+    private boolean mBusy;
+    private boolean mDestroyed;
     // Never persisted into saved instance state or preferences.
     private String mPendingExport;
     private final Runnable mRefresh = new Runnable() {

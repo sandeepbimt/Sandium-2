@@ -41,7 +41,7 @@ if [ "$FAIL" = "$name" ]; then exit 19; fi
             with self.subTest(stage=stage):
                 result, calls = self.run_fragment(stage)
                 self.assertEqual(result.returncode, 0, result.stderr)
-                self.assertEqual(calls, ['sandium-removal-recipe.py', 'verify-sandium-vanilla-brave.py',
+                self.assertEqual(calls, ['sandium-removal-recipe.py', 'source.py', 'verify-sandium-vanilla-brave.py',
                     'apply-sandium-full-overlays.py', 'apply-sandium-fast-morphe.py'])
 
     def test_stage_one_does_not_reset_or_duplicate_completed_overlays(self):
@@ -50,7 +50,7 @@ if [ "$FAIL" = "$name" ]; then exit 19; fi
         self.assertEqual(calls, ['verify-sandium-vanilla-brave.py'])
 
     def test_reset_or_overlay_failure_stops_remaining_work(self):
-        for failed in ['sandium-removal-recipe.py', 'verify-sandium-vanilla-brave.py', 'apply-sandium-full-overlays.py']:
+        for failed in ['sandium-removal-recipe.py', 'source.py', 'verify-sandium-vanilla-brave.py', 'apply-sandium-full-overlays.py']:
             result, calls = self.run_fragment(2, failed)
             self.assertEqual(result.returncode, 19)
             self.assertEqual(calls[-1], failed)

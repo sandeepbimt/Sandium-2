@@ -73,7 +73,9 @@ public final class SandiumPageTextUi {
         preview.run();
         ScrollView scroll = new ScrollView(c); scroll.addView(body);
         AlertDialog dialog = new AlertDialog.Builder(c).setTitle("Webpage text")
-                .setView(scroll, 0, 0, 0, 0).setNegativeButton("Cancel", null).setPositiveButton("Save", null).create();
+                .setNegativeButton("Cancel", null).setPositiveButton("Save", null).create();
+        // The spacing overload belongs to AlertDialog, not AlertDialog.Builder.
+        dialog.setView(scroll, 0, 0, 0, 0);
         dialog.setOnShowListener(ignored -> {
             View.OnClickListener save = button -> {
                 if (!SandiumPageText.usable(profile)) {
