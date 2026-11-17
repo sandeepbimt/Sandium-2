@@ -68,6 +68,18 @@ def verify_full_wiring(repo):
                         and text == (experiment / 'config.yml').read_text()):
                     verify_product_wrappers(repo)
                     return ['brave-android-staged-build']
+        # Native x64 is a deterministic architecture-only derivation, not a
+        # second production policy. Verify every source/output hash AND derive
+        # the complete config/scripts before retaining all original UI gates.
+        experiment = repo / '.circleci/x64-test'
+        if (experiment / 'config.yml').is_file() and text == (experiment / 'config.yml').read_text():
+            import importlib.util
+            spec = importlib.util.spec_from_file_location('x64_verify_generated', repo / 'experiments/x64-test/verify_generated.py')
+            validator = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(validator)
+            validator.verify(repo, full=True)
+            verify_product_wrappers(repo)
+            return ['brave-android-staged-build']
         raise ValueError('Original Full configuration differs from reviewed wiring')
 
     section=re.search(r'^jobs:\s*\n(.*?)(?=^[A-Za-z][A-Za-z0-9_-]*:|\Z)',text,re.M|re.S)

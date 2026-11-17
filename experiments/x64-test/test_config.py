@@ -6,6 +6,21 @@ from verify_generated import verify
 class Config(unittest.TestCase):
  def setUp(self):self.cfg=derive(yaml.safe_load((ROOT/'.circleci/native-status-test/config.yml').read_text()))
  def test_reproducible(self):verify()
+ def test_actual_full_wiring_gate(self):
+  import importlib.util
+  spec=importlib.util.spec_from_file_location('flow_wiring',ROOT/'.circleci/scripts/flow_wiring.py')
+  mod=importlib.util.module_from_spec(spec);spec.loader.exec_module(mod)
+  self.assertEqual(mod.verify_full_wiring(ROOT),['brave-android-staged-build'])
+ def test_full_wiring_rejects_active_config_drift(self):
+  import importlib.util,shutil
+  spec=importlib.util.spec_from_file_location('flow_wiring',ROOT/'.circleci/scripts/flow_wiring.py')
+  mod=importlib.util.module_from_spec(spec);spec.loader.exec_module(mod)
+  with tempfile.TemporaryDirectory() as d:
+   root=Path(d)
+   for p in ['.circleci/config.yml','.circleci/original-full/config.sha256','.circleci/x64-test/config.yml']:
+    (root/p).parent.mkdir(parents=True,exist_ok=True);shutil.copyfile(ROOT/p,root/p)
+   with (root/'.circleci/config.yml').open('a') as f:f.write('\n# unauthorized drift\n')
+   with self.assertRaises(ValueError):mod.verify_full_wiring(root)
  def test_ci_validator_without_site_packages(self):
   subprocess.run(['python3','-S',str(ROOT/'experiments/x64-test/verify_generated.py')],check=True)
  def test_ci_validator_rejects_drift(self):
