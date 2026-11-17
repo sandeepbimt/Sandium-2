@@ -24,8 +24,21 @@ class Value {
 };
 class ListValue:public std::vector<Value>{public:void Append(Value v){push_back(std::move(v));}ListValue Clone()const{ListValue v;for(auto& x:*this)v.Append(x.Clone());return v;}};
 class DictValue:public std::map<std::string,Value>{public:
+ using Storage=std::map<std::string,Value>;
+ // Chromium DictValue dereferences to a temporary pair of references.
+ template<class Iter,class T> struct ProxyIterator {
+   Iter iterator;
+   using reference=std::pair<const std::string&,T&>;
+   reference operator*()const{return {iterator->first,iterator->second};}
+   ProxyIterator& operator++(){++iterator;return *this;}
+   bool operator!=(const ProxyIterator& other)const{return iterator!=other.iterator;}
+ };
+ auto begin(){return ProxyIterator<Storage::iterator,Value>{Storage::begin()};}
+ auto end(){return ProxyIterator<Storage::iterator,Value>{Storage::end()};}
+ auto begin()const{return ProxyIterator<Storage::const_iterator,const Value>{Storage::begin()};}
+ auto end()const{return ProxyIterator<Storage::const_iterator,const Value>{Storage::end()};}
  void Set(const std::string& k,Value v){insert_or_assign(k,std::move(v));}
- const Value* Find(const std::string& k)const{auto it=find(k);return it==end()?nullptr:&it->second;}
+ const Value* Find(const std::string& k)const{auto it=find(k);return it==Storage::end()?nullptr:&it->second;}
  const DictValue* FindDict(const std::string& k)const{auto* v=Find(k);return v?v->GetIfDict():nullptr;}
  const ListValue* FindList(const std::string& k)const{auto* v=Find(k);return v?v->GetIfList():nullptr;}
  ListValue* FindList(const std::string& k){return const_cast<ListValue*>(std::as_const(*this).FindList(k));}
@@ -33,7 +46,7 @@ class DictValue:public std::map<std::string,Value>{public:
  std::optional<int> FindInt(const std::string& k)const{auto* v=Find(k);if(v)if(auto* n=std::get_if<int>(&v->data))return *n;return {};}
  bool FindBool(const std::string& k)const{return std::get<bool>(Find(k)->data);}
  void Remove(const std::string& k){erase(k);}
- DictValue Clone()const{DictValue v;for(auto& [k,x]:*this)v.Set(k,x.Clone());return v;}
+ DictValue Clone()const{DictValue v;for(auto [k,x]:*this)v.Set(k,x.Clone());return v;}
 };
 Value::Value(DictValue v):data(std::make_shared<DictValue>(std::move(v))){}
 Value::Value(ListValue v):data(std::make_shared<ListValue>(std::move(v))){}
@@ -46,7 +59,7 @@ class SupportsUserData{public:class Data{public:virtual ~Data()=default;};};
 std::map<std::string,DictValue> inputs;
 constexpr int JSON_PARSE_RFC=0;
 class JSONReader{public:static std::optional<DictValue> ReadDict(const std::string& s,int){auto it=inputs.find(s);if(it==inputs.end())return {};return it->second.Clone();}};
-std::string dump(const Value& v){if(auto* d=v.GetIfDict()){std::string s="{";for(auto& [k,x]:*d)s+=k+dump(x);return s+"}";}if(auto* l=v.GetIfList()){std::string s="[";for(auto& x:*l)s+=dump(x);return s+"]";}if(auto* s=v.GetIfString())return *s;if(auto* i=std::get_if<int>(&v.data))return std::to_string(*i);return std::get<bool>(v.data)?"true":"false";}
+std::string dump(const Value& v){if(auto* d=v.GetIfDict()){std::string s="{";for(auto [k,x]:*d)s+=k+dump(x);return s+"}";}if(auto* l=v.GetIfList()){std::string s="[";for(auto& x:*l)s+=dump(x);return s+"]";}if(auto* s=v.GetIfString())return *s;if(auto* i=std::get_if<int>(&v.data))return std::to_string(*i);return std::get<bool>(v.data)?"true":"false";}
 std::optional<std::string> WriteJson(const DictValue& v){return dump(Value(v));}
 }
 class GURL{public:std::string s;explicit GURL(std::string v):s(std::move(v)){}bool SchemeIsHTTPOrHTTPS()const{return s.starts_with("https://")||s.starts_with("http://");}};
