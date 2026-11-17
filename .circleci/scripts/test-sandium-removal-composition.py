@@ -56,7 +56,7 @@ for path in json.loads((root/'.circleci/features/dark-pages/integration-plan.jso
 # Exact raw Chromium inputs for homepage reset; Brave NewTabPage patch is replayed
 # by restore_payload, not baked into these fixtures.
 for path in m['chromium_restore']:
- for folder in ['tests/fixtures/homepage-backing', 'tests/fixtures/homepage-surround']:
+ for folder in ['tests/fixtures/homepage-backing', 'tests/fixtures/homepage-surround', 'tests/fixtures/capture-coherence']:
   candidate=root/folder/P(path).name
   if candidate.is_file():fixture_map.setdefault(path,candidate)
 
@@ -165,14 +165,18 @@ with tempfile.TemporaryDirectory() as temporary:
   combined=load('apply-sandium-homepage-combined')
   for path,text in combined.compose(src).items():write(path,text.encode())
   assert all(path.read_text()==text for path,text in combined.compose(src).items())
+ def capture_ui():
+  capture=load('apply-sandium-capture-coherence')
+  for path,text in capture.plan(src).items():write(path,text.encode())
+  assert all(path.read_text()==text for path,text in capture.plan(src).items())
  def snapshot():return {str(p.relative_to(src)):p.read_bytes() for p in src.rglob('*') if p.is_file()}
- ui();removal();home.apply(src,root);home.apply(src,root,True);video_ui();dark_ui();homepage_ui();preserved_ui();before=snapshot()
+ ui();removal();home.apply(src,root);home.apply(src,root,True);video_ui();dark_ui();homepage_ui();capture_ui();preserved_ui();before=snapshot()
  if a.gn:
   for path in sorted(p for p in src.rglob('*') if p.suffix in ('.gn','.gni')):
    subprocess.run([str(a.gn.resolve()),'format','--dump-tree=json',str(path)],stdout=subprocess.DEVNULL,check=True)
- reset();ui();removal();home.apply(src,root);home.apply(src,root,True);video_ui();dark_ui();homepage_ui();preserved_ui()
+ reset();ui();removal();home.apply(src,root);home.apply(src,root,True);video_ui();dark_ui();homepage_ui();capture_ui();preserved_ui()
  if before!=snapshot():raise RuntimeError('UI/removal reset+replay changed output')
- reset();ui();removal(m['steps'][:4]);reset();ui();removal();home.apply(src,root);home.apply(src,root,True);video_ui();dark_ui();homepage_ui();preserved_ui()
+ reset();ui();removal(m['steps'][:4]);reset();ui();removal();home.apply(src,root);home.apply(src,root,True);video_ui();dark_ui();homepage_ui();capture_ui();preserved_ui()
  if before!=snapshot():raise RuntimeError('UI/removal partial-failure recovery changed output')
  # Verify production staging fails before returning any write set on bad patches.
  def bad_reader(path):return b'not a patch' if path in m['chromium_restore_patches'].values() else core_blob(path)

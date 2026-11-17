@@ -17,7 +17,7 @@ def replace_exact(path, old, new, label):
     if not path.is_file():
         raise RuntimeError(f"{label}: missing {path}")
     source = path.read_text(encoding="utf-8")
-    if source.count(new) == 1 and old not in source:
+    if source.count(new) == 1 and old not in source.replace(new, "", 1):
         print(f"{label}=ALREADY_APPLIED")
         return
     if source.count(old) != 1:

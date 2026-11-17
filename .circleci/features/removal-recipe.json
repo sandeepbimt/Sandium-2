@@ -369,7 +369,15 @@
     "components/cosmetic_filters/renderer/cosmetic_filters_js_handler.h",
     "android/java/res/xml/developer_preferences.xml",
     "android/feed/core/java/src/org/chromium/chrome/browser/feed/BraveFeedSurfaceCoordinator.java",
-    "android/java/org/chromium/chrome/browser/ntp/BraveNewTabPage.java"
+    "android/java/org/chromium/chrome/browser/ntp/BraveNewTabPage.java",
+    "android/android_browser_tests.gni",
+    "browser/brave_stats/brave_stats_updater.cc",
+    "browser/playlist/playlist_service_factory.cc",
+    "browser/ui/webui/brave_rewards/rewards_page_handler.cc",
+    "components/email_aliases/buildflags/buildflags.gni",
+    "components/p3a/p3a_service.cc",
+    "components/playlist/core/browser/utils.cc",
+    "components/web_discovery/buildflags/buildflags.gni"
   ],
   "chromium_restore": [
     "chrome/android/chrome_public_apk_tmpl.gni",
@@ -480,7 +488,9 @@
     "chrome/android/feed/core/java/src/org/chromium/chrome/browser/feed/FeedSurfaceCoordinator.java",
     "chrome/android/java/src/org/chromium/chrome/browser/ntp/NewTabPage.java",
     "chrome/browser/ui/android/native_page/java/src/org/chromium/chrome/browser/ui/native_page/NativePage.java",
-    "chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/TopToolbarOverlayMediator.java"
+    "chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/TopToolbarOverlayMediator.java",
+    "chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/PhoneCaptureStateToken.java",
+    "chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/ToolbarControlContainer.java"
   ],
   "generated_overwrite": [
     "components/minidump_uploader/android/java/src/org/chromium/components/minidump_uploader/MinidumpUploader.java",

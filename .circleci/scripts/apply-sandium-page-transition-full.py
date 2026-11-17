@@ -414,7 +414,7 @@ def transform_transition_cc(source: str) -> str:
         "    background_color = SkColor4f::FromColor(*theme_color);\n"
         "  }\n"
     )
-    fallback_new = (
+    fallback_legacy = (
         "  SkColor4f background_color = SkColors::kWhite;\n"
         "  if (base::FeatureList::IsEnabled(\n"
         "          blink::features::kForceWebContentsDarkMode)) {\n"
@@ -423,7 +423,43 @@ def transform_transition_cc(source: str) -> str:
         "    background_color = SkColor4f::FromColor(*theme_color);\n"
         "  }\n"
     )
-    source = replace_once_or_done(source, fallback_old, fallback_new, "Night Mode-aware transition fallback")
+    fallback_new = """  // SANDIUM_DESTINATION_FALLBACK_V1: ReadyToCommit has the final target.
+  // Never borrow the outgoing document's theme for an explicitly managed page.
+  const auto origin_to_commit = navigation_handle->GetOriginToCommit();
+  const bool managed_destination =
+      navigation_handle->GetURL().SchemeIsHTTPOrHTTPS() &&
+      !navigation_handle->IsErrorPage() && !navigation_handle->IsPdf() &&
+      !NavigationRequest::From(navigation_handle)->commit_params().is_view_source &&
+      origin_to_commit.has_value() && !origin_to_commit->opaque();
+  const int sandium_dark_policy = managed_destination
+      ? GetContentClient()->browser()->GetSandiumDarkPageFlagsForNavigation(
+            web_contents(), navigation_handle->GetURL())
+      : -1;
+  SkColor4f background_color = SkColors::kWhite;
+  if (sandium_dark_policy == 1) {
+    background_color = SkColors::kBlack;
+  } else if (sandium_dark_policy < 0) {
+    // Preserve the existing fallback for unmanaged/native/error documents.
+    if (base::FeatureList::IsEnabled(
+            blink::features::kForceWebContentsDarkMode)) {
+      background_color = SkColors::kBlack;
+    } else if (auto theme_color = delegate->GetThemeColor()) {
+      background_color = SkColor4f::FromColor(*theme_color);
+    }
+  }
+"""
+    if fallback_legacy in source:
+        source = source.replace(fallback_legacy, fallback_old, 1)
+    source = replace_once_or_done(source, fallback_old, fallback_new, "Destination-policy transition fallback")
+    source = replace_once_or_done(
+        source,
+        '#include "third_party/blink/public/common/features.h"\n',
+        '#include "third_party/blink/public/common/features.h"\n'
+        '#include "content/public/common/content_client.h"\n'
+        '#include "content/public/browser/content_browser_client.h"\n'
+        '#include "content/browser/renderer_host/navigation_request.h"\n',
+        "Destination-policy transition includes",
+    )
     dark_layer_block = (
         "  if (features::kAndroidNavigationAnimationDarken.Get()) {\n"
         "    darken_layer_ = cc::slim::SolidColorLayer::Create();\n"
@@ -642,7 +678,7 @@ def main() -> None:
     print("SANDIUM_TRANSITION_MEDIUM=hold:450ms,fade:225ms (+50%)")
     print("SANDIUM_TRANSITION_HIGH=hold:675ms,fade:300ms (+50%)")
     print("SANDIUM_TRANSITION_DARKEN=default:false; persisted; native compositor layer")
-    print("SANDIUM_TRANSITION_NIGHT_MODE_FALLBACK=blink::features::kForceWebContentsDarkMode -> black")
+    print("SANDIUM_TRANSITION_NIGHT_MODE_FALLBACK=final-document-policy (unmanaged preserves native/global fallback)")
     print("SANDIUM_TRANSITION_APPEARANCE_ICON=ic_appearance")
     print("SANDIUM_TRANSITION_ADBLOCK=UNTOUCHED")
     print("SANDIUM_TRANSITION_FULL_OVERLAY=PASS")
