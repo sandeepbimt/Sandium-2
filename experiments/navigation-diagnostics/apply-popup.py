@@ -34,7 +34,11 @@ PROBE='''
         sandium_popup_start.since_origin().InMicroseconds(),
         {sandium_popup_token, params->started_with_transient_activation ? 1. : 0.,
          static_cast<double>(params->disposition)});
-    sandium_popup_end.emplace(base::BindOnce([&]() { sandium_record_popup(-1., 1., false); }));
+    // Chromium BindOnce requires a stateless functor. The scoped runner is
+    // destroyed before the earlier-declared local recorder and its references.
+    sandium_popup_end.emplace(base::BindOnce(
+        [](decltype(sandium_record_popup)* record) { (*record)(-1., 1., false); },
+        base::Unretained(&sandium_record_popup)));
   }
 '''
 def transform(s):
