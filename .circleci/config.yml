@@ -604,6 +604,12 @@ jobs:
         paths:
         - node-runtime
     - run:
+        name: Verify EXT0 runtime-off and phone UI source boundaries after overlays
+        command: |
+          set -euo pipefail
+          python3 experiments/ubo-runtime/test_runtime_off.py
+          python3 experiments/ubo-runtime/verify_runtime_off.py --core "$CIRCLE_WORKING_DIRECTORY/brave-work/src/brave" --src "$CIRCLE_WORKING_DIRECTORY/brave-work/src"
+    - run:
         name: Validate build graph and remote-execution settings
         command: "set -euo pipefail\nROOT=\"$CIRCLE_WORKING_DIRECTORY\"\nOUT=\"$ROOT/brave-work/src/out/android_Release_arm64\"\
           \nSISO_ENV=\"$ROOT/brave-work/src/build/config/siso/.sisoenv\"\nSISO_RC=\"$ROOT/brave-work/src/build/config/siso/.sisorc\"\

@@ -9,6 +9,7 @@ the approved welcome/filter/transition overlays have not modified those paths.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import re
 import subprocess
 from pathlib import Path
@@ -165,9 +166,21 @@ def clean_gn_args(out: Path) -> None:
             )
     print("SANDIUM_VANILLA_GN_GATE=PASS explicit AI_CHAT/WALLET/NEWS overrides absent")
 
+def is_exact_ext0_dependency(repo: Path, path: str, label: str) -> bool:
+    # Only this reviewed, hash-bound Android extension linkage change is allowed.
+    # All other upstream feature modifications still fail closed.
+    if label != "brave-core" or path != "browser/brave_wallet/BUILD.gn":
+        return False
+    patch = Path(__file__).resolve().parents[2] / "experiments/ubo-runtime/brave-android-extensions.patch"
+    target = repo / path
+    return (patch.is_file() and target.is_file() and not target.is_symlink()
+            and hashlib.sha256(patch.read_bytes()).hexdigest() == "38d5e39840304f66e29ddef7fd09bea11bc0a31bc2eae47bb576c51d33b26fc4"
+            and hashlib.sha256(target.read_bytes()).hexdigest() == "679a300f76d73908b8c2a38ec2bb87664408976c956b6e8507e1ec4688259d89")
+
 def verify_repo_clean(repo: Path, prefixes: tuple[str, ...], label: str) -> None:
     tracked = tracked_matching(repo, prefixes)
     changed = run_git(repo, "diff", "--name-only", "HEAD", "--", *tracked).splitlines() if tracked else []
+    changed = [path for path in changed if not is_exact_ext0_dependency(repo, path, label)]
     untracked = untracked_matching(repo, prefixes)
     if changed or untracked:
         raise SystemExit(

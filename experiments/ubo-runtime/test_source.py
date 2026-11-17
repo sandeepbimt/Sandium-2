@@ -26,6 +26,16 @@ class Tests(unittest.TestCase):
     on=m.plan(core,src,True);off=m.plan(core,src,False)
     m.execute(core,src,True);m.execute(core,src,True)
     self.assertTrue(all(p.read_bytes()==b for p,b in on.items()))
+    import runpy
+    gate=runpy.run_path(str(ROOT.parents[1]/'.circleci/scripts/verify-sandium-vanilla-brave.py'))['is_exact_ext0_dependency']
+    wallet=core/'browser/brave_wallet/BUILD.gn'
+    self.assertTrue(gate(core,'browser/brave_wallet/BUILD.gn','brave-core'))
+    self.assertFalse(gate(core,'browser/brave_wallet/BUILD.gn','chromium'))
+    self.assertFalse(gate(core,'browser/brave_wallet/other.cc','brave-core'))
+    good=wallet.read_bytes();wallet.write_bytes(good+b'\n# unreviewed')
+    self.assertFalse(gate(core,'browser/brave_wallet/BUILD.gn','brave-core'))
+    wallet.write_bytes(good)
+
     m.execute(core,src,False);m.execute(core,src,False)
     self.assertTrue(all((not p.exists()) if b is None else p.read_bytes()==b for p,b in off.items()))
     new=next(p for p,b in off.items() if b is None);new.parent.mkdir(parents=True,exist_ok=True);new.write_text('user data')
