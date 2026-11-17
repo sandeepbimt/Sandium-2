@@ -14,6 +14,14 @@ class Lifecycle(unittest.TestCase):
   stage=names.index('Stage pinned full uBO payload and private bridge with activation disabled')
   compile_=names.index('Verify exact EXT0 compile inputs and generated extension buildflag')
   self.assertLess(gate,stage);self.assertLess(stage,compile_)
+ def test_preflight_scripts_are_separate_shell_commands(self):
+  raw=(ROOT/'.circleci/config.yml').read_text()
+  command=yaml.safe_load(raw)['jobs']['brave-android-staged-build']['steps'][1]['run']['command']
+  lines=command.splitlines()
+  self.assertIn('/tmp/sandium-ext0-preflight/bin/python experiments/ubo-runtime/test_ci_isolation.py',lines)
+  self.assertIn('/tmp/sandium-ext0-preflight/bin/python .circleci/tests/test_ubo_runtime_lifecycle.py',lines)
+  for line in lines:
+   self.assertLessEqual(line.count('/bin/python'),1)
  def test_reset_reverse_before_existing_resets(self):
   s=(ROOT/'.circleci/scripts/prepare-brave-source.sh').read_text()
   bridge=s.index('ubo-runtime/shields_bridge/apply.py')

@@ -33,3 +33,31 @@ await assert.rejects(wrong.getSettings('https://example.test'));
 globalThis.chrome = {runtime:{lastError:{message:'denied'}}};
 await assert.rejects(startSandiumBridge(api), /denied/);
 console.log('PASS bridge adapter: absent/rejected/version/error paths; no native runtime proof');
+// Real adapter change path: a native generation event must reconcile and re-ACK
+// rather than leaving the next navigation permanently waiting on stale state.
+delete globalThis.chrome;
+let generation=1;
+let stored='';
+let reloads=0;
+let observed;
+const acks=[];
+const updates={
+ onSettingsChanged:{addListener(f){observed=f;},removeListener(){}},
+ getSettingsSnapshot(cb){cb({protocol:1,engineCutover:false,generation,shields:[],ads:[],cosmetic:[],customFilters:`example.test##.ad${generation}`,customFiltersSha256:`digest${generation}`});},
+ acknowledgeSettings(g,d,cb){acks.push([g,d]);cb(true);},
+ reportReady(p,s,cb){cb(true);},
+};
+const engine={
+ userFiltersPath:'user-filters',selectedFilterLists:['user-filters'],
+ async loadUserFilters(){return {content:stored};},async saveUserFilters(s){stored=s;},
+ async saveSelectedFilterLists(){},async loadFilterLists(){reloads++;},
+};
+const live=await startSandiumBridge(updates,engine);
+await live.reportListenersReady();
+generation=2;observed(2);
+await new Promise(resolve=>setTimeout(resolve,10));
+assert.equal(reloads,2);
+assert.equal(stored,'example.test##.ad2');
+assert.deepEqual(acks,[[1,'digest1'],[2,'digest2']]);
+live.dispose();
+console.log('Live generation reconcile/ACK PASS');

@@ -34,3 +34,16 @@ Tests cover exact-source overlay application/reset, both dispatch recipients,
 identity restrictions and grouped renderer preservation. Native compilation,
 startup coordination, network filtering, cosmetics, and real-device Shields
 parity remain separate unpassed gates. This layer does not select an engine.
+
+## Policy semantics and counters
+
+Sandium's two-state Shields overlay (`apply-sandium-shields-two-state.py`)
+changes the native cosmetic default to BLOCK and migrates legacy standard/default
+to BLOCK: public On is aggressive and Off is allow. This adapter preserves that
+public control, not exact Brave standard-mode first-party/procedural heuristics
+for hidden or externally injected legacy values. Cosmetic policy is independent
+of network Ads policy, matching native IsCosmeticFilteringEnabled.
+
+`pageEpoch` is the committed NavigationEntry unique ID for framed subresources;
+main navigations and frameless workers use zero and must not contribute counters
+to the previous page. This is a stale-counter guard, not a navigation identifier.

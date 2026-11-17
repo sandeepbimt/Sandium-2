@@ -58,7 +58,7 @@ source_set("sandium_ubo_bridge") {
     "//brave/components/sandium_ubo:identity",
     "//brave/components/sandium_ubo_routing",
     "//chrome/browser:browser_process",
-    "//components/sessions/content",
+    "//components/sessions",
     "//brave/components/brave_shields/core/common",
     "//chrome/browser/content_settings:content_settings_factory",
     "//chrome/browser/profiles:profile",
@@ -179,10 +179,31 @@ def patch_filter_policy(bundle):
     p.write_text(text)
     (bundle/'js/sandium-policy.js').write_bytes((ROOT/'sandium-policy.js').read_bytes())
 
+def patch_popup_policy(bundle):
+    p=bundle/'js/tab.js';text=p.read_text()
+    text=replace_once(text,"import µb from './background.js';", "import µb from './background.js';\nimport { allowsPopup as sandiumAllowsPopup } from './sandium-policy.js';")
+    anchor='            const result = onPopupUpdated(tabId, candidate.opener);'
+    replacement="""            const openerContext = µb.tabContextManager.lookup(candidate.opener.tabId);
+            const targetContext = µb.tabContextManager.lookup(tabId);
+            const openerURL = openerContext?.rawURL;
+            const targetURL = targetContext?.rawURL;
+            const allowed = await sandiumAllowsPopup(candidate.opener,
+                { tabId, url: targetURL });
+            // A tab can navigate/close while the native permission reply is in
+            // flight. Never close a new document using a stale popup decision.
+            if (!allowed || popupCandidates.get(tabId) !== candidate ||
+                µb.tabContextManager.lookup(candidate.opener.tabId)?.rawURL !== openerURL ||
+                µb.tabContextManager.lookup(tabId)?.rawURL !== targetURL) {
+                continue;
+            }
+            const result = onPopupUpdated(tabId, candidate.opener);"""
+    text=replace_once(text,anchor,replacement);p.write_text(text)
+
 def patch_installed_bundle(core):
     root=core/'components/sandium_ubo'
     patch_background(root/'sandium_ubo')
     patch_filter_policy(root/'sandium_ubo')
+    patch_popup_policy(root/'sandium_ubo')
     grd=root/'resources.grd';text=grd.read_text()
     line='      <include name="IDR_SANDIUM_UBO_BRIDGE" file="sandium_ubo/js/sandium-bridge.js" type="BINDATA" />\n'
     text=replace_once(text,'  </includes></release>',line+'  </includes></release>')
@@ -244,7 +265,7 @@ def apply(core,include_bundle=True):
             # untouched assets as well as this overlay's adapter and start hook.
             shutil.copytree(root,dest)
             patch_installed_bundle(staged)
-            changed=['sandium_ubo/js/vapi-background.js','sandium_ubo/js/traffic.js','sandium_ubo/js/messaging.js','sandium_ubo/js/vapi-scripting.js','sandium_ubo/js/sandium-policy.js','sandium_ubo/js/start.js','sandium_ubo/js/sandium-user-filters.js','sandium_ubo/js/sandium-bridge.js','resources.grd','resource_map.h']
+            changed=['sandium_ubo/js/tab.js','sandium_ubo/js/vapi-background.js','sandium_ubo/js/traffic.js','sandium_ubo/js/messaging.js','sandium_ubo/js/vapi-scripting.js','sandium_ubo/js/sandium-policy.js','sandium_ubo/js/start.js','sandium_ubo/js/sandium-user-filters.js','sandium_ubo/js/sandium-bridge.js','resources.grd','resource_map.h']
             if (root/'disk_resources.h').exists():
                 helper=ROOT.parent/'loader/apply.py'
                 spec=importlib.util.spec_from_file_location('sandium_loader_inventory',helper)

@@ -65,6 +65,38 @@ class BridgeTests(unittest.TestCase):
    c=Path(d);(c/'js').mkdir();(c/'manifest.json').write_text(json.dumps({'version':'1.76.4','manifest_version':2}))
    (c/'js/start.js').write_text('    µb.readyToFilter = true;\n    webRequest.start();\n    await initializeTabs();\n')
    with self.assertRaisesRegex(ValueError,'ordering'):m.patch_background(c)
+ def test_actual_popup_path_native_gate_and_stale_candidate(self):
+  archive=Path('/tmp/ubo-prepared-1764.zip')
+  if not archive.exists(): self.skipTest('pinned uBO fixture unavailable')
+  with tempfile.TemporaryDirectory() as d:
+   root=Path(d);(root/'js').mkdir()
+   with zipfile.ZipFile(archive) as z: source=z.read('js/tab.js').decode()
+   (root/'js/tab.js').write_text(source)
+   m.patch_popup_policy(root);patched=(root/'js/tab.js').read_text()
+   m.patch_popup_policy(root);self.assertEqual(patched,(root/'js/tab.js').read_text())
+   start=patched.index('    const popupCandidateTest = async function(')
+   end=patched.index('\n    };',start)+7
+   fn=patched[start:end]
+   harness="""
+const assert=require('node:assert/strict');
+let allowed=true,closed=0,mutate=()=>{};
+const candidate={opener:{tabId:1},destroy(){},launchSelfDestruction(){}};
+const popupCandidates=new Map([[2,candidate]]);
+const contexts=new Map([[1,{rawURL:'https://opener.test/'}],[2,{rawURL:'https://target.test/'}]]);
+const µb={tabContextManager:{lookup(id){return contexts.get(id);}}};
+const sandiumAllowsPopup=async()=>{mutate();return allowed;};
+const onPopupUpdated=()=>{closed++;return true;};
+"""+fn+"""
+(async()=>{
+await popupCandidateTest(2);assert.equal(closed,1);
+allowed=false;await popupCandidateTest(2);assert.equal(closed,1);
+allowed=true;mutate=()=>{contexts.get(2).rawURL='https://new.test/';};
+await popupCandidateTest(2);assert.equal(closed,1);
+mutate=()=>{popupCandidates.delete(2);};
+await popupCandidateTest(2);assert.equal(closed,1);
+})().catch(e=>{console.error(e);process.exitCode=1;});
+"""
+   subprocess.run(['node','-e',harness],check=True)
  def test_schema_exact_functions(self):
   s=json.loads((ROOT/'sandium_ubo.json').read_text())[0]
   self.assertEqual([f['name'] for f in s['functions']],['getSettings','reportReady','getSettingsSnapshot','acknowledgeSettings','getTabPolicy'])

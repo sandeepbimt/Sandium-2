@@ -25,6 +25,7 @@ void BraveExtensionsAPIClient::AugmentWebRequestEventForExtension(
   // Other requests use their real top-frame origin. Worker requests without
   // a frame fall back to their native initiator, like BraveRequestInfo.
   GURL first_party;
+  int page_epoch = 0;
   const char* source = "default";
   if (request.web_request_type == WebRequestResourceType::MAIN_FRAME) {
     first_party = url::Origin::Create(request.url).GetURL();
@@ -35,6 +36,10 @@ void BraveExtensionsAPIClient::AugmentWebRequestEventForExtension(
     if (frame && frame->GetOutermostMainFrame()) {
       first_party = frame->GetOutermostMainFrame()->GetLastCommittedOrigin().GetURL();
       if (!first_party.is_empty()) source = "top-frame";
+      if (auto* contents = content::WebContents::FromRenderFrameHost(frame)) {
+        if (auto* entry = contents->GetController().GetLastCommittedEntry())
+          page_epoch = entry->GetUniqueID();
+      }
     }
     if (first_party.is_empty() && request.initiator &&
         !request.initiator->opaque()) {
@@ -49,6 +54,9 @@ void BraveExtensionsAPIClient::AugmentWebRequestEventForExtension(
   // as frameless Brave requests; never guess a hostname from an ad URL.
   base::DictValue policy;
   policy.Set("protocol", 1);
+  // Zero for main-frame navigations and frameless requests: do not attribute
+  // their blocked counters to the previous committed document.
+  policy.Set("pageEpoch", page_epoch);
   policy.Set("generation", static_cast<double>(sandium_ubo::SelectedOwnerGeneration(context)));
   policy.Set("engineOwned", sandium_ubo::IsUboOwnerChosen(context));
   policy.Set("shieldsEnabled", brave_shields::IsBraveShieldsEnabled(map, first_party));

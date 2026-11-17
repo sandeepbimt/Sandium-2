@@ -16,7 +16,24 @@ export async function allowsTab(tabId, frameId, expectedUrl, cosmetic = false,
             resolve(result);
         });
     });
-    if ( !allowsNetwork({ sandiumShields: policy }) ) return false;
-    return !cosmetic || policy.cosmeticControl === 'block' ||
-        policy.cosmeticControl === 'block_third_party';
+    if ( !cosmetic ) return allowsNetwork({ sandiumShields: policy });
+    // Native IsCosmeticFilteringEnabled is independent of BRAVE_ADS.
+    // Do not let disabling network ads silently disable user cosmetic rules.
+    return policy?.protocol === 1 && policy.engineOwned === true &&
+        policy.shieldsEnabled === true &&
+        (policy.cosmeticControl === 'block' ||
+         policy.cosmeticControl === 'block_third_party' ||
+         policy.cosmeticControl === 'default');
+}
+
+// Popup tab removal is a separate uBO path, not a webRequest response. Both
+// opener and target must still be real, authorized documents. Caller rechecks
+// its candidate identity and tab URLs after this asynchronous permission check.
+export async function allowsPopup(opener, target, api = globalThis.chrome?.sandiumUbo) {
+    if (!opener || !target) return false;
+    const allowed = await Promise.all([
+        allowsTab(opener.tabId, opener.frameId, opener.frameURL, false, api),
+        allowsTab(target.tabId, 0, target.url, false, api),
+    ]);
+    return allowed.every(Boolean);
 }

@@ -73,8 +73,7 @@ class AddressProgress(unittest.TestCase):
   import re,subprocess,tempfile,shutil
   s=m.token(self.composed(m.BAR+'top/PhoneCaptureStateToken.java'))
   s=re.sub(r'^package .*;\n|^import .*;\n','',s,flags=re.M);s=re.sub(r'@\w+','',s)
-  constants=sorted(set(re.findall(r'ToolbarSnapshotDifference\.(\w+)',s)))
-  pre='import java.util.Objects;\nclass ColorStateList {int getDefaultColor(){return 0;}}\nclass ButtonData {}\nclass VisibleUrlText {static boolean isVisuallyEquivalent(VisibleUrlText a,VisibleUrlText b){return true;}}\nclass ToolbarSnapshotDifference {'+''.join('static final int '+c+'='+str(i)+';' for i,c in enumerate(constants))+'}\n'
+  pre='package org.chromium.chrome.browser.toolbar.top;\nimport java.util.Objects;\nclass ColorStateList {int getDefaultColor(){return 0;}}\nclass ButtonData {}\nclass VisibleUrlText {static boolean isVisuallyEquivalent(VisibleUrlText a,VisibleUrlText b){return true;}}\n'
   test='''
 class ProgressHarness {
  static PhoneCaptureStateToken make(float progress,int alpha){
@@ -84,6 +83,8 @@ class ProgressHarness {
   if ((PhoneCaptureStateToken.getAnyDifference(a,b)==ToolbarSnapshotDifference.NONE)!=same)throw new AssertionError();
  }
  public static void main(String[] args){
+  if(PhoneCaptureStateToken.getAnyDifference(make(.2f,255),make(.5f,255))!=ToolbarSnapshotDifference.PROGRESS)throw new AssertionError();
+  if(PhoneCaptureStateToken.getAnyDifference(make(.5f,255),make(.5f,128))!=ToolbarSnapshotDifference.PROGRESS)throw new AssertionError();
   same(make(.2f,255),make(.5f,255),false);
   same(make(.5f,255),make(.5f,255),true);
   same(make(1,255),make(1,128),false);
@@ -96,9 +97,19 @@ class ProgressHarness {
 '''
   with tempfile.TemporaryDirectory() as d:
    p=pathlib.Path(d)/'ProgressHarness.java';p.write_text(pre+s+test)
+   annotation=pathlib.Path(d)/'ToolbarSnapshotDifference.java'
+   annotation.write_text(self.source('ToolbarSnapshotDifference.java'))
+   intdef=pathlib.Path(d)/'IntDef.java';intdef.write_text('package androidx.annotation; public @interface IntDef {long[] value() default {};}')
+   nullmarked=pathlib.Path(d)/'NullMarked.java';nullmarked.write_text('package org.chromium.build.annotations; public @interface NullMarked {}')
    cmd=['javac'] if shutil.which('javac') else ['java','-m','jdk.compiler/com.sun.tools.javac.Main']
-   r=subprocess.run(cmd+[str(p)],capture_output=True,text=True);self.assertEqual(r.returncode,0,r.stderr)
-   r=subprocess.run(['java','-cp',d,'ProgressHarness'],capture_output=True,text=True);self.assertEqual(r.returncode,0,r.stderr)
+   r=subprocess.run(cmd+['-d',d,str(p),str(annotation),str(intdef),str(nullmarked)],capture_output=True,text=True);self.assertEqual(r.returncode,0,r.stderr)
+   r=subprocess.run(['java','-cp',d,'org.chromium.chrome.browser.toolbar.top.ProgressHarness'],capture_output=True,text=True);self.assertEqual(r.returncode,0,r.stderr)
+   # The #1317 failure must be caught: never synthesize constants from the code under test.
+   self.assertIn('ToolbarSnapshotDifference.PROGRESS', s)
+   p.write_text(pre+s.replace('ToolbarSnapshotDifference.PROGRESS','ToolbarSnapshotDifference.UNKNOWN')+test)
+   r=subprocess.run(cmd+['-d',d,str(p),str(annotation),str(intdef),str(nullmarked)],capture_output=True,text=True)
+   self.assertNotEqual(r.returncode,0)
+   self.assertIn('UNKNOWN',r.stderr)
  def test_composes_with_actual_phone_owners(self):
   bottom=load('apply-sandium-bottom-toolbar');unified=load('apply-sandium-unified-address');refine=load('apply-sandium-toolbar-refinements');home=load('apply-sandium-homepage-surround')
   raw=self.source(m.BAR+'top/ToolbarPhone.java');out=bottom.phone(raw)
