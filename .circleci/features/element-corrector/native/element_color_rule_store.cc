@@ -35,7 +35,7 @@ bool Tag(const std::string* text) {
 constexpr size_t kBackupBytes = 8 * 1024 * 1024;
 bool ValidRuleset(const base::DictValue& sites) {
   if (sites.size() > kSites) return false;
-  for (const auto& [key, value] : sites) {
+  for (const auto [key, value] : sites) {
     const auto origin = url::Origin::Create(GURL(key));
     // Canonical origins only: reject credentials, paths, query, fragments and
     // aliases so an imported rule cannot silently move to a different scope.
@@ -182,7 +182,7 @@ base::DictValue ElementColorRuleStore::ImportRules(const std::string& json,
     return ImportResult(false,0,0,0,"Existing rules need repair; nothing was changed.");
   auto merged = current.Clone();
   int added = 0, conflicts = 0, duplicates = 0;
-  for (const auto& [origin, value] : *incoming) {
+  for (const auto [origin, value] : *incoming) {
     const auto& rules = value.GetList();
     if (rules.empty()) continue;
     auto* target = merged.FindList(origin);
