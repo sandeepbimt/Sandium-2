@@ -29,32 +29,46 @@ cp -a "$FAILED_COMMANDS" "$DIAGNOSTICS/siso_failed_commands.missing-cas-$STAMP.s
 
 TARGETS_FILE="$(mktemp)"
 trap 'rm -f "$TARGETS_FILE"' EXIT
-python3 - "$LOG" > "$TARGETS_FILE" <<'PY'
+python3 - "$LOG" "$OUT" > "$TARGETS_FILE" <<'PY'
 import re
 import sys
-from pathlib import PurePosixPath
+from pathlib import Path
 
-log_path = sys.argv[1]
+log_path, out_dir = sys.argv[1:]
 outputs = []
-with open(log_path, encoding="utf-8", errors="replace") as stream:
-    for line in stream:
-        if not line.startswith("FAILED: "):
-            continue
-        match = re.search(r'"(\./[^"\s]+)"', line)
-        if not match:
-            raise SystemExit("BRAVE_CAS_LOCAL_RECOVERY=FAIL could not parse a FAILED output: " + line.rstrip())
-        target = match.group(1)[2:]
-        parts = PurePosixPath(target).parts
-        if (not target.startswith("obj/") or not target.endswith(".o")
-                or target.startswith("/") or ".." in parts):
-            raise SystemExit("BRAVE_CAS_LOCAL_RECOVERY=FAIL refusing non-object or unsafe failed target: " + target)
-        outputs.append(target)
+text = Path(log_path).read_text(encoding="utf-8", errors="replace")
+# Terminal formatting is not part of the Siso failure record.
+text = re.sub(r"\x1b\[[0-?]*[ -/]*[@-~]", "", text)
+records = re.split(r"(?m)^FAILED: ", text)[1:]
+signature = r'rpc error: code = FailedPrecondition desc = download inputs: could not (fetch inputs|get input tree): Digest hash:.*not found'
+for record in records:
+    header = record.splitlines()[0]
+    match = re.search(r'"(\./[^"\s]+)"', header)
+    if not match:
+        raise SystemExit("BRAVE_CAS_LOCAL_RECOVERY=FAIL could not parse a FAILED output: " + header)
+    target = match.group(1)[2:]
+    parts = target.split("/")
+    if (not re.fullmatch(r"obj/[A-Za-z0-9_.+/-]+", target)
+            or any(part in ("", ".", "..") for part in parts)
+            or not (Path(out_dir) / target).resolve().is_relative_to(Path(out_dir))):
+        raise SystemExit("BRAVE_CAS_LOCAL_RECOVERY=FAIL unsafe failed target: " + target)
+    # Each failed action must itself report missing remote input. A compiler error
+    # alongside an unrelated CAS failure must not receive infrastructure recovery.
+    if not re.search(r"(?m)^err: [^\n]*" + signature, record):
+        raise SystemExit("BRAVE_CAS_LOCAL_RECOVERY=FAIL failed action is not missing-CAS: " + target)
+    object_output = target.endswith(".o")
+    java_output = (target.endswith(".javac.jar")
+                   and re.search(r' ACTION //[^\s]+:([^\s:]+)__compile_java\(', header)
+                   and re.search(r'(?m)^siso_rule: android/compile_java\s*$', record))
+    if not (object_output or java_output):
+        raise SystemExit("BRAVE_CAS_LOCAL_RECOVERY=FAIL refusing unsupported failed target: " + target)
+    outputs.append(target)
 
 unique = list(dict.fromkeys(outputs))
 if not unique:
-    raise SystemExit("BRAVE_CAS_LOCAL_RECOVERY=FAIL no failed object outputs found")
+    raise SystemExit("BRAVE_CAS_LOCAL_RECOVERY=FAIL no supported failed outputs found")
 if len(unique) > 50:
-    raise SystemExit("BRAVE_CAS_LOCAL_RECOVERY=FAIL refusing recovery of more than 50 object outputs: %d" % len(unique))
+    raise SystemExit("BRAVE_CAS_LOCAL_RECOVERY=FAIL refusing recovery of more than 50 outputs: %d" % len(unique))
 for target in unique:
     print(target)
 PY
@@ -73,7 +87,7 @@ command -v autoninja >/dev/null 2>&1 || {
 }
 
 # Siso treats REAPI FailedPrecondition as non-fallback. Rebuild only those
-# failed object outputs locally, then the caller resumes the strict-remote
+# failed object or verified Java compile outputs locally, then the caller resumes the strict-remote
 # full target build. This avoids changing the normal remote execution policy.
 export SISO_LIMITS="local=8"
 timeout --signal=INT --kill-after=30s 600s \
