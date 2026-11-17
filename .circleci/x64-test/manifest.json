@@ -1,0 +1,30 @@
+{
+  "inputs": {
+    ".circleci/experimental-steps/export-apk.sh": "b158409bd629c966d0abaf16ecf7e0dff47d72d1562ded6373065d6091027478",
+    ".circleci/experimental-steps/product-overlay-27-0.sh": "3a5cfca45fedd4c08b15de59daac9d9269d3b7e7c8e92ffd114594f4136c9683",
+    ".circleci/experimental-steps/product-overlay-30-0.sh": "d8a1c53d25db3d9667ed4552bede03e10e17f0fb28696da288520b98416ef2aa",
+    ".circleci/native-status-test/config.yml": "30fd55f0943514dae15d8386a969b7ba8ee26d145c15bcc475eb66d4231be7ea",
+    ".circleci/scripts/archive-brave-workspace.sh": "2ff7f3fd299ca806c1c5862840b048933408ba283a1fc593af40f0d6ec49601a",
+    ".circleci/scripts/capture-brave-siso-checkpoint.sh": "f2086724e72bbc4f3a74481d9e3ca8bd4af41b5b435af76ce03fbae16c004b80",
+    ".circleci/scripts/precheck-graph.py": "5ee872beaf2b9e0636451fc9b3a8a57ce67115ac562e146297111a0364194f4f",
+    ".circleci/scripts/prepare-brave-source.sh": "b1e308c4c66d68f589de419db952b32df7176234efa954562ee53e0931681ad9",
+    ".circleci/scripts/sandium-checkpoint-shards.py": "3b1baee1308f62ca7fd01917175674f663694ebfc2a800e44ed230fd0339fe6a",
+    ".circleci/scripts/verify-brave-reference.sh": "2424119dc648f62617af6dbc69084c9559f09d3b4c9d9b79e472f99941fda550",
+    ".circleci/scripts/verify-brave-remote-smoke.sh": "480077693507a322f026eb954f56391d477b7c0db58369ca48daf052acc6cbbc",
+    ".circleci/scripts/verify-clang-diagnostics-gn.sh": "1fbd425017133ae418cc36827d5d2b596e9dcfed53825dfb3d8acf8c8d15ea03"
+  },
+  "outputs": {
+    ".circleci/x64-test/archive-brave-workspace.sh": "397cd82df1149c30e3d34272b1082d758f610776af613956964cced5991abd4e",
+    ".circleci/x64-test/capture-brave-siso-checkpoint.sh": "5691ce1edd79c9c46ea0c20b9e93fc494dba2fed699543dd57f342224795221e",
+    ".circleci/x64-test/config.yml": "b5c38b9ba20c062cd93e8afe1f7b16170b772def2b56df3c9512b29dd06feb64",
+    ".circleci/x64-test/export-apk.sh": "602c0045521c0e592867b95c85cb654784d4f07ead39602baeeb6e51ee57592e",
+    ".circleci/x64-test/precheck-graph.py": "8520b5666e8e915645161ff55d47901e33cde1ea869aaf12925e1cf4231a044b",
+    ".circleci/x64-test/prepare-brave-source.sh": "2d9709adb722207f8b7f929621dac8e7995ea329dc2e3152e012149f560ac684",
+    ".circleci/x64-test/product-overlay-27-0.sh": "c2e1f16a0ba676a30a17661959070c63de8b0ec135695876cb11b18143852684",
+    ".circleci/x64-test/product-overlay-30-0.sh": "26c67d01d84d02917c09d1fba6ae5c515fd59d8404c25c5d6a29c0432d04fa3b",
+    ".circleci/x64-test/sandium-checkpoint-shards.py": "6e6a09731408940abab8f1e75101aeef22ec1f73ea0689b6e2922c672d6d8c80",
+    ".circleci/x64-test/verify-brave-reference.sh": "3e7619393984f7702da5176f8816f15cc8c32e508e890570ef93c1355d70d777",
+    ".circleci/x64-test/verify-brave-remote-smoke.sh": "c45fc32d0415cd02dc7df8c4035089ed8cf7a050037554051fdaa64e72b4de70",
+    ".circleci/x64-test/verify-clang-diagnostics-gn.sh": "ee21b3ebed9ffe1286ff93949b1e5242439433fcaf753a0bcd07e7f084c1fbb4"
+  }
+}
