@@ -1,0 +1,1 @@
+PyYAML 6.0.3 pure-Python sources, vendored from the installed official PyPI distribution. MIT license in LICENSE-PyYAML. Used only for isolated build configuration tests/generation; no native extension, network installation, or runtime APK dependency.

@@ -1,7 +1,7 @@
 import hashlib,re,subprocess,tempfile,unittest
 from pathlib import Path
-import yaml
 from build_config import ROOT,BRANCH,PATHS,arch,derive,scripts,walk
+import yaml
 from verify_generated import verify
 class Config(unittest.TestCase):
  def setUp(self):self.cfg=derive(yaml.safe_load((ROOT/'.circleci/native-status-test/config.yml').read_text()))
