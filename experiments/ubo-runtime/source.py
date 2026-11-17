@@ -10,7 +10,7 @@ import tempfile
 ROOT = Path(__file__).parent
 CORE_PIN = '44a84b1f89d9a35287289d6a3d493e362f5a5123'
 CHROMIUM_PIN = 'd331de35ca8ab1358c7a17e4bd41627d55eaef51'
-PATCH_SHA = '38d5e39840304f66e29ddef7fd09bea11bc0a31bc2eae47bb576c51d33b26fc4'
+PATCH_SHA = 'aaa98373cb6614700aac99fed04806987028bbeb67b165e73a5e9be4f3bf72b4'
 
 def git(repo, *args, optional=False):
     r = subprocess.run(['git', '-C', str(repo), *args], capture_output=True)

@@ -26,6 +26,10 @@ class Tests(unittest.TestCase):
     on=m.plan(core,src,True);off=m.plan(core,src,False)
     m.execute(core,src,True);m.execute(core,src,True)
     self.assertTrue(all(p.read_bytes()==b for p,b in on.items()))
+    enum_build=(src/"extensions/browser/BUILD.gn").read_text()
+    self.assertEqual(enum_build.count("if (is_android && enable_extensions_core) {"),2)
+    self.assertIn('java_cpp_enum("extension_action_enums")',enum_build)
+    self.assertNotIn("if (enable_desktop_android_extensions)",enum_build)
     import runpy
     gate=runpy.run_path(str(ROOT.parents[1]/'.circleci/scripts/verify-sandium-vanilla-brave.py'))['is_exact_ext0_dependency']
     wallet=core/'browser/brave_wallet/BUILD.gn'

@@ -2355,6 +2355,33 @@ index 0000000000..469bc5c772
 +   schema_sources_ += [ "mdns.idl" ]
 + }
 + 
+diff --git a/patches/extensions-browser-BUILD.gn.patch b/patches/extensions-browser-BUILD.gn.patch
+new file mode 100644
+index 0000000000..7d248c85c4
+--- /dev/null
++++ b/patches/extensions-browser-BUILD.gn.patch
+@@ -0,0 +1,21 @@
++diff --git a/extensions/browser/BUILD.gn b/extensions/browser/BUILD.gn
++--- a/extensions/browser/BUILD.gn
+++++ b/extensions/browser/BUILD.gn
++@@ -10,7 +10,7 @@
++ import("//testing/libfuzzer/fuzzer_test.gni")
++ import("//third_party/protobuf/proto_library.gni")
++ 
++-if (enable_desktop_android_extensions) {
+++if (is_android && enable_extensions_core) {
++   import("//build/config/android/rules.gni")
++ }
++ 
++@@ -1323,7 +1323,7 @@
++   configs += [ "//build/config/compiler:no_exit_time_destructors" ]
++ }
++ 
++-if (enable_desktop_android_extensions) {
+++if (is_android && enable_extensions_core) {
++   java_cpp_enum("extension_action_enums") {
++     sources = [ "extension_action.h" ]
++   }
 diff --git a/patches/ui-webui-resources-cr_elements-BUILD.gn.patch b/patches/ui-webui-resources-cr_elements-BUILD.gn.patch
 index c75aa71e4a..9a02a5f3ef 100644
 --- a/patches/ui-webui-resources-cr_elements-BUILD.gn.patch
@@ -2620,6 +2647,22 @@ index 0000000000..d6f3660e28
 +        "mdns\.idl" \])'
 +      replace:
 +        'if (enable_service_discovery && (!is_android || is_desktop_android))\1'
+diff --git a/rewrite/extensions/browser/BUILD.gn.yaml b/rewrite/extensions/browser/BUILD.gn.yaml
+new file mode 100644
+index 0000000000..0958c005e6
+--- /dev/null
++++ b/rewrite/extensions/browser/BUILD.gn.yaml
+@@ -0,0 +1,10 @@
++# Copyright (c) 2026 The Brave Authors. All rights reserved.
++# This Source Code Form is subject to the terms of the Mozilla Public
++# License, v. 2.0. If a copy of the MPL was not distributed with this file,
++# You can obtain one at https://mozilla.org/MPL/2.0/.
++
++substitutions:
++  - description: Build Android extension action enums on mobile with extensions core.
++    regex:
++      re_pattern: 'if \(enable_desktop_android_extensions\) \{'
++      replace: 'if (is_android && enable_extensions_core) {'
 diff --git a/rewrite/ui/webui/resources/cr_elements/BUILD.gn.yaml b/rewrite/ui/webui/resources/cr_elements/BUILD.gn.yaml
 index ec7f48a511..f5d35e6bbb 100644
 --- a/rewrite/ui/webui/resources/cr_elements/BUILD.gn.yaml

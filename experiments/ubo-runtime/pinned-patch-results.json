@@ -64,5 +64,11 @@
     "path": "ui/webui/resources/cr_elements/BUILD.gn",
     "pass": true,
     "error": ""
+  },
+  {
+    "patch": "extensions-browser-BUILD.gn.patch",
+    "path": "extensions/browser/BUILD.gn",
+    "pass": true,
+    "error": ""
   }
 ]

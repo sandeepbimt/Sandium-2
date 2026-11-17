@@ -6,7 +6,7 @@ from pathlib import Path
 import subprocess
 
 PIN = "44a84b1f89d9a35287289d6a3d493e362f5a5123"
-SHA = "38d5e39840304f66e29ddef7fd09bea11bc0a31bc2eae47bb576c51d33b26fc4"
+SHA = "aaa98373cb6614700aac99fed04806987028bbeb67b165e73a5e9be4f3bf72b4"
 
 def preflight(core: Path, patch: Path):
     if hashlib.sha256(patch.read_bytes()).hexdigest() != SHA:

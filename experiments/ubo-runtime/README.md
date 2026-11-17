@@ -12,7 +12,7 @@ No shipping pipeline invokes it. Brave blocking remains enabled and #1292 is unc
 * Upstream five-commit patch SHA256:
   `5e6fb6d65abd7093e004df3e0faf59fc5e5bebb3f54b87a1ca2cac450091f787`.
 * Adapted patch SHA256:
-  `38d5e39840304f66e29ddef7fd09bea11bc0a31bc2eae47bb576c51d33b26fc4`.
+  `aaa98373cb6614700aac99fed04806987028bbeb67b165e73a5e9be4f3bf72b4`.
 
 ## Port decisions
 
@@ -94,3 +94,11 @@ subscriptions and site choices, test enable/disable, upgrade, restart, rollback
 and backup restoration with exact membership/order/text comparisons. No real
 user profile may be cleared for these tests. Android infrastructure tracking:
 https://github.com/brave/brave-browser/issues/59354 .
+
+## Pinned Chromium enum dependency
+
+Run #1301 reached the extension-enabled GN graph and exposed a pinned-version
+guard mismatch: mobile extension UI needs `extension_action_enums`, but Chromium
+156 defined that Java enum target and Android rules import only for desktop
+Android. The isolated backport enables both on Android with extensions core,
+matching the consumer. Native graph and APK proof are still pending.

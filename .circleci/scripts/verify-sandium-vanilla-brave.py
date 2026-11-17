@@ -174,7 +174,7 @@ def is_exact_ext0_dependency(repo: Path, path: str, label: str) -> bool:
     patch = Path(__file__).resolve().parents[2] / "experiments/ubo-runtime/brave-android-extensions.patch"
     target = repo / path
     return (patch.is_file() and target.is_file() and not target.is_symlink()
-            and hashlib.sha256(patch.read_bytes()).hexdigest() == "38d5e39840304f66e29ddef7fd09bea11bc0a31bc2eae47bb576c51d33b26fc4"
+            and hashlib.sha256(patch.read_bytes()).hexdigest() == "aaa98373cb6614700aac99fed04806987028bbeb67b165e73a5e9be4f3bf72b4"
             and hashlib.sha256(target.read_bytes()).hexdigest() == "679a300f76d73908b8c2a38ec2bb87664408976c956b6e8507e1ec4688259d89")
 
 def verify_repo_clean(repo: Path, prefixes: tuple[str, ...], label: str) -> None:
