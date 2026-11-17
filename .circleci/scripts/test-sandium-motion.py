@@ -38,7 +38,10 @@ class MotionTests(unittest.TestCase):
         self.assertIn('IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS', text)
         self.assertIn('finishPanelMotion(); finishPageMotion();', text)
         self.assertIn('mNativeVisible || mDragging != null', text)
-        self.assertIn('mSwipeEligible && Math.abs', text)
+        self.assertIn('mPageSwipe.move(event.getX(), event.getY(),', text)
+        self.assertIn('android.view.ViewConfiguration.get(getContext()).getScaledTouchSlop()', text)
+        self.assertIn('mSwipeVelocity.computeCurrentVelocity(1000, config.getScaledMaximumFlingVelocity())', text)
+        self.assertIn('if (!mPageSwipe.eligible) return super.onTouchEvent(event);', text)
         self.assertIn('new LinearLayout.LayoutParams(dp(28), dp(32))', text)
         self.assertIn('pager.setContentDescription(s(R.string.sandium_menu_page_description', text)
         self.assertNotIn('button("‹", s(R.string.sandium_menu_previous)', text)
@@ -58,7 +61,10 @@ class MotionTests(unittest.TestCase):
         self.assertIn('!android.animation.ValueAnimator.areAnimatorsEnabled()', view)
         self.assertIn('mEntranceAnimator.setDuration(100)', view)
         self.assertIn('if (mEntranceAnimator == animation)', view)
-        self.assertIn('onDetachedFromWindow() {\n        finishEntranceMotion();', view)
+        detach = view.split('onDetachedFromWindow() {', 1)[1].split('\n    }', 1)[0]
+        for cleanup in ('clearPageSwipe();', 'finishEntranceMotion();', 'finishPanelMotion(); finishPageMotion();'):
+            self.assertIn(cleanup, detach)
+            self.assertLess(detach.index(cleanup), detach.index('super.onDetachedFromWindow();'))
     def test_welcome_reduced_motion_and_destroy(self):
         text = (ROOT / 'android/java/org/chromium/chrome/browser/firstrun/SandiumWelcomeSetupView.java').read_text()
         self.assertIn('if (!ValueAnimator.areAnimatorsEnabled()) return;', text)

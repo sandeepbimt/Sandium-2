@@ -10,7 +10,7 @@
     ".circleci/scripts/apply-sandium-shields-popup.py": "eaca25aec6ba08e28775815c112f8446f87dd49630da98bd86ea78770f2c078d",
     ".circleci/scripts/test-sandium-bottom-toolbar.py": "40e3750bb0bdc4e97b9c13e306406fffbc65d5b146f1ba526748cdce8152bb24",
     ".circleci/scripts/test-sandium-chrome-theme.py": "d9443c1ab2e17e2319b2df23af0e61ef2fd70b030450175a39eac53a8a4f3958",
-    ".circleci/scripts/test-sandium-motion.py": "0722865aba4bdf0a78e5c693eb7c93b205806a7e925ac390e6a02bade8aa806b",
+    ".circleci/scripts/test-sandium-motion.py": "f548a6e41de9eb4890f722e4dea02f0f2f4b80ff927de94aa97bc8055378ae64",
     ".circleci/scripts/test-sandium-native-theme.py": "df0c2baa1273ec3cf4110f6f2a2eb9054aef7fe2a7032ac445f5b16a28031e6e",
     ".circleci/scripts/test-sandium-paged-menu.py": "6c397cb398f02a0564bb462b1e110fb1e9a943df00e137de33db5ed1c1d0059a",
     ".circleci/scripts/test-sandium-shields-popup.py": "49ea362d9b0322c77f02356d457bbc3efed8053ca878d261468ca614f3049de0",
@@ -479,6 +479,15 @@
         ".circleci/experimental-steps/product-overlay-29-0.sh": {
           "previous_sha256": "3f1158eb1d90f4cebe3039c5d3b5fd8af79a4ac3c8f432a57dfe556b514ab33d",
           "current_sha256": "8442a9f538ebafab511567c56645ef35aef1acc413dbdbb1486a21e50d1bd0ec"
+        }
+      }
+    },
+    {
+      "reason": "#1292 CI correction: preserve reviewed swipe behavior while updating stale motion assertions and explicit detach cleanup contracts; no app source changes",
+      "changes": {
+        ".circleci/scripts/test-sandium-motion.py": {
+          "previous_sha256": "0722865aba4bdf0a78e5c693eb7c93b205806a7e925ac390e6a02bade8aa806b",
+          "current_sha256": "f548a6e41de9eb4890f722e4dea02f0f2f4b80ff927de94aa97bc8055378ae64"
         }
       }
     }
