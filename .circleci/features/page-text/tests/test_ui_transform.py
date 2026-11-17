@@ -61,12 +61,22 @@ class TransformTests(unittest.TestCase):
   self.assertIn('sampleBackground.setCornerRadius(',ui)
   self.assertIn('body.setPadding(pad, pad / 2, pad, 0)',ui)
   self.assertIn('sampleParams.setMargins(0, pad / 2, 0, 0)',ui)
-  self.assertIn('.setView(scroll, 0, 0, 0, 0)',ui)
+  self.assertIn('dialog.setView(scroll, 0, 0, 0, 0);',ui)
+  self.assertNotIn('.setView(scroll, 0, 0, 0, 0).setNegativeButton',ui)
   self.assertIn('sampleBackground.setColor(Color.rgb(24, 26, 29))',ui)
   self.assertNotIn('Native adjustment',ui)
   self.assertNotIn('Website fonts may differ',ui)
   self.assertNotIn('Replaces the website',ui)
   self.assertIn('Saved. Applies on next page load.',ui)
+ def test_framework_spacing_overload_is_public_on_dialog_only(self):
+  # Official AOSP framework source, android-16.0.0_r1; API visibility matters:
+  # Builder has a hidden overload that is absent from the compile SDK stubs.
+  source=(Path(__file__).parent/'fixtures/AlertDialog-android-16.0.0_r1.java').read_text()
+  instance=source.index('public void setView(View view, int viewSpacingLeft')
+  builder=source.index('public Builder setView(View view, int viewSpacingLeft')
+  self.assertNotIn('@hide',source[source.rfind('/**',0,instance):instance])
+  self.assertIn('@hide',source[source.rfind('/**',0,builder):builder])
+  self.assertIn('mAlert.setView(view, viewSpacingLeft, viewSpacingTop, viewSpacingRight, viewSpacingBottom);',source[instance:instance+350])
  def test_no_document_mutation_from_save_or_slider(self):
   base=ROOT/'.circleci/features/page-text/java/org/chromium/chrome/browser/sandium/text'
   ui=(base/'SandiumPageTextUi.java').read_text();adapter=(base/'SandiumPageText.java').read_text()
