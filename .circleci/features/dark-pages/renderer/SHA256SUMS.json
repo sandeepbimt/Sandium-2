@@ -26,13 +26,16 @@
   "third_party/blink/renderer/core/exported/web_settings_impl.cc": "297be52fd4030ceb0942ed66bff74c7eee21e29d6dfc93c0608d576493181833",
   "third_party/blink/renderer/core/exported/web_settings_impl.h": "2417df2ad778db1a1f1282df5c817ec05111c27a73874c66df66a775c8c1615e",
   "third_party/blink/renderer/core/exported/web_view_impl.cc": "908c834c6db510e9d7c72383b7930236e86819f04d1c8ced0107ed8e940fa034",
+  "third_party/blink/renderer/core/frame/local_frame_view.cc": "f43bd7fa49d6b7ca1729d5e2df7ea08864a87a913fd4ad60bec26c96d74110fe",
   "third_party/blink/renderer/core/frame/settings.json5": "49660173c8ef3b48ef03dfb0ecc58104426aaf1cf4e9ed475ca4ed26c4216131",
   "third_party/blink/renderer/core/loader/frame_loader.cc": "077c60a1bc2a08a7a3b8ea95abdac10ec2496387faf644cf77a510f45c317cc2",
+  "third_party/blink/renderer/core/paint/box_painter_base.cc": "8f7d3b6c6cc34a994a7c40bbbab442e3c934feac9e3c5b4cfa5d0d6f91aa257f",
   "third_party/blink/renderer/core/paint/paint_auto_dark_mode.cc": "a0ff12f497135a915f74ba085b4750719dab3e39de30c88dc39b61bb7c0f674e",
   "third_party/blink/renderer/core/paint/paint_auto_dark_mode.h": "5986114e062f8f739615cb4584e85f7aca9a89e87026d8294b8af7b6ded656d5",
   "third_party/blink/renderer/core/paint/view_painter.cc": "ef647e9b6cf23c8fa002fa9b97312f5037e0b07f1741b9cb874717eee5ba7d41",
   "third_party/blink/renderer/core/style/computed_style_extra_fields.json5": "d9db22700dd4b616b4f241ddc778d1069c3c7b43bbca1b002b5511176e916363",
+  "third_party/blink/renderer/platform/graphics/gradient_generated_image.h": "c2b4117625a8f18ce7ebe10616848db3e95ae12b153fd1e43023298a426851ba",
   "third_party/blink/renderer/platform/graphics/graphics_context.cc": "718aec91319dbc7dfb7b278d734a12a9473ce5b0974b430960d2164e75d71e84",
   "third_party/blink/renderer/platform/graphics/graphics_context.h": "3bcb83b5a9452d5943800548cb6122ed6c27017fe2cbae18e298831dd5308e3b",
-  "third_party/blink/renderer/core/frame/local_frame_view.cc": "f43bd7fa49d6b7ca1729d5e2df7ea08864a87a913fd4ad60bec26c96d74110fe"
+  "third_party/blink/renderer/platform/graphics/image.h": "8e3adadcbe6e55931cbf80d2f85bb4551d5f24e79c72c2d09868ff15698b12d6"
 }

@@ -16,7 +16,7 @@ class BackControls(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
-        for relative, _, _ in m.CHANGES:
+        for relative, _, _ in m.LEGACY_GESTURE_CHANGES + m.CHANGES:
             path = self.root / relative
             path.parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(ROOT / 'tests/fixtures/back-controls' / path.name, path)
@@ -27,7 +27,7 @@ class BackControls(unittest.TestCase):
             path.write_text(text)
         self.assertEqual(first, m.plan(self.root))
 
-    def test_only_gesture_reveal_changed(self):
+    def test_upstream_gesture_flow_preserved(self):
         result = m.plan(self.root)
         for path, new in result.items():
             expected = path.read_text()
@@ -37,8 +37,8 @@ class BackControls(unittest.TestCase):
             self.assertEqual(expected, new)
         toolbar = result[self.root / (m.PREFIX + 'toolbar/ToolbarManager.java')]
         nav = result[self.root / (m.PREFIX + 'gesturenav/NavigationHandler.java')]
-        self.assertNotIn('Always force to show the top control', toolbar + nav)
-        self.assertNotIn('TabBrowserControlsConstraintsHelper', nav)
+        self.assertEqual((toolbar + nav).count('Always force to show the top control'), 2)
+        self.assertIn('TabBrowserControlsConstraintsHelper', nav)
         self.assertIn('mHandler.onBackStarted(', toolbar)
         self.assertIn('mTabOnBackGestureHandler.onBackCancelled(false);', nav)
         self.assertIn('mTabOnBackGestureHandler.onBackInvoked(false);', nav)
@@ -47,7 +47,7 @@ class BackControls(unittest.TestCase):
         self.assertIn('TabBrowserControlsConstraintsHelper\n', toolbar)
 
     def test_corrupt_anchor_fails_without_writes(self):
-        path = self.root / m.CHANGES[1][0]
+        path = self.root / m.LEGACY_GESTURE_CHANGES[1][0]
         path.write_text(path.read_text().replace('mTab, BrowserControlsState.SHOWN', 'otherTab, BrowserControlsState.SHOWN'))
         before = {p:p.read_bytes() for p in self.root.rglob('*.java')}
         with self.assertRaises(RuntimeError):
@@ -55,10 +55,35 @@ class BackControls(unittest.TestCase):
         self.assertEqual(before, {p:p.read_bytes() for p in before})
 
     def test_duplicate_anchor_rejected(self):
-        path = self.root / m.CHANGES[0][0]
-        path.write_text(path.read_text() + m.CHANGES[0][1])
+        path = self.root / m.LEGACY_GESTURE_CHANGES[0][0]
+        path.write_text(path.read_text() + m.LEGACY_GESTURE_CHANGES[0][1])
         with self.assertRaises(RuntimeError):
             m.plan(self.root)
+
+    def test_reused_legacy_tree_restores_exact_original(self):
+        originals = {}
+        for relative, upstream, legacy in m.LEGACY_GESTURE_CHANGES:
+            path = self.root / relative
+            originals.setdefault(path, path.read_text())
+            path.write_text(path.read_text().replace(upstream, legacy, 1))
+        result = m.plan(self.root)
+        for path, original in originals.items():
+            self.assertEqual(original, result[path])
+        for path, text in result.items():
+            path.write_text(text)
+        self.assertEqual(result, m.plan(self.root))
+
+    def test_reveal_precedes_handler_and_stays_transition_gated(self):
+        result = m.plan(self.root)
+        for relative, upstream, legacy in m.LEGACY_GESTURE_CHANGES[:2]:
+            text = result[self.root / relative]
+            pos = text.index(upstream)
+            handler = ('mHandler.onBackStarted(' if 'ToolbarManager' in relative
+                       else 'mTabOnBackGestureHandler.onBackStarted(')
+            self.assertGreater(text.index(handler, pos), pos)
+            self.assertIn('/* animate= */ true', upstream)
+        nav = result[self.root / m.LEGACY_GESTURE_CHANGES[1][0]]
+        self.assertIn('TabOnBackGestureHandler.shouldAnimateNavigationTransition(', nav)
 
     def test_full_wiring(self):
         spec = importlib.util.spec_from_file_location('wiring', ROOT / '.circleci/scripts/flow_wiring.py')

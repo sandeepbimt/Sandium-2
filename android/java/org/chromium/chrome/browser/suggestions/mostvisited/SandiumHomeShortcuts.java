@@ -18,6 +18,7 @@ import org.chromium.chrome.browser.suggestions.SiteSuggestion;
 import org.chromium.chrome.browser.suggestions.tile.TileSource;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.components.favicon.LargeIconBridge;
+import org.chromium.components.embedder_support.util.UrlUtilities;
 import org.chromium.url.GURL;
 import java.util.ArrayList;
 import java.util.List;
@@ -55,8 +56,8 @@ public final class SandiumHomeShortcuts extends LinearLayout {
         super(context);
         mProfile = profile; mOpen = open;
         setOrientation(VERTICAL);
-        mText = Color.WHITE; // Shortcut labels sit on the dark translucent surface in either theme.
-        mPanel = 0xcc1a1a1a; // Preserve wallpaper through the rounded shortcut group.
+        mText = Color.WHITE; // Subtle text shadows retain contrast against the wallpaper.
+        mPanel = 0xff1a1a1a; // Delete glyph only; no group backing is drawn.
         mAccent = color(android.R.attr.colorAccent, 0xff198cff);
         setPadding(dp(8), dp(4), dp(8), dp(4));
         setBackground(shape(Color.TRANSPARENT, 16));
@@ -141,6 +142,13 @@ public final class SandiumHomeShortcuts extends LinearLayout {
         setBackground(shape(Color.TRANSPARENT, 16));
         int scroll = mScroll == null ? 0 : mScroll.getScrollY();
         stopWiggles(); mEditTiles.clear(); mGeneration++; removeAllViews();
+        if (mSites.isEmpty()) {
+            // No empty Add card or invisible reserved panel. Add remains in the page menu.
+            mScroll = null; mEditing = false; mExpanded = false; mBack.setEnabled(false);
+            setPadding(0, 0, 0, 0);
+            return;
+        }
+        setPadding(dp(8), dp(4), dp(8), dp(4));
         if (mEditing) {
             FrameLayout header = new FrameLayout(getContext());
             TextView done = button(getResources().getString(R.string.sandium_home_done), () -> {
@@ -151,7 +159,7 @@ public final class SandiumHomeShortcuts extends LinearLayout {
         }
         mScroll = new ScrollView(getContext()); mScroll.setFillViewport(false);
         mScroll.setClipToPadding(false);
-        mScroll.setBackground(shape(mPanel, 16));
+        mScroll.setBackground(null); // Wallpaper is visible between every shortcut.
         mScroll.setClipToOutline(true);
         mScroll.setVerticalScrollBarEnabled(mExpanded);
         mScroll.setScrollbarFadingEnabled(false);
@@ -163,41 +171,35 @@ public final class SandiumHomeShortcuts extends LinearLayout {
         GridLayout grid = new GridLayout(getContext()); grid.setColumnCount(5);
         int count = mExpanded ? mSites.size() : Math.min(20, mSites.size());
         int rows = Math.max(1, (count + 4) / 5); grid.setRowCount(rows);
+        int firstRowCount = count - (rows - 1) * 5;
+        // Native order is newest first. The partial row is the TOP row, not bottom.
+        // [6] sits above [5,4,3,2,1]; later insertions fill that top row from the left.
         for (int i = 0; i < count; i++) {
             SiteSuggestion site = mSites.get(i);
             View tile = tile(site, i);
-            GridLayout.LayoutParams lp = new GridLayout.LayoutParams(GridLayout.spec(i / 5), GridLayout.spec(i % 5, 1f));
+            int row = i < firstRowCount ? 0 : 1 + (i - firstRowCount) / 5;
+            int column = i < firstRowCount ? i : (i - firstRowCount) % 5;
+            GridLayout.LayoutParams lp = new GridLayout.LayoutParams(GridLayout.spec(row), GridLayout.spec(column, 1f));
             lp.width = 0; lp.height = dp(76); grid.addView(tile, lp);
         }
-        // Establish all five equal columns even when only one shortcut exists.
-        // Empty slots are neither focusable nor accessibility items.
-        for (int i = count; count > 0 && i < rows * 5; i++) {
+        // Complete only the partial TOP row; placeholders cannot receive focus or touch.
+        for (int column = firstRowCount; column < 5; column++) {
             View slot = new View(getContext());
             slot.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
-            GridLayout.LayoutParams lp = new GridLayout.LayoutParams(GridLayout.spec(i / 5), GridLayout.spec(i % 5, 1f));
+            GridLayout.LayoutParams lp = new GridLayout.LayoutParams(GridLayout.spec(0), GridLayout.spec(column, 1f));
             lp.width = 0; lp.height = dp(76); grid.addView(slot, lp);
-        }
-        if (count == 0) {
-            TextView empty = button(getResources().getString(R.string.sandium_home_add),this::addDialog);
-            GridLayout.LayoutParams emptyParams = new GridLayout.LayoutParams(GridLayout.spec(0),GridLayout.spec(0,5));
-            emptyParams.width = -1; emptyParams.height = dp(76); grid.addView(empty,emptyParams);
         }
         mScroll.addView(grid);
         int parentHeight = getParent() instanceof View ? ((View)getParent()).getHeight() : 0;
         if (parentHeight == 0) parentHeight = getResources().getDisplayMetrics().heightPixels;
-        int footerHeight = mSites.size() > 20 ? 48 : 0;
+        // Always reserve the same 48dp footer, so revealing the expand control does
+        // not lift the bottom row. With the 16dp outer gap this matches the low anchor.
+        int footerHeight = 48;
         int headerHeight = mEditing ? 48 : 0;
-        // Keep slot 20 (upper-left) stable as rows fill toward slot 1 (lower-right).
-        // Only populated rows have a panel; the reserved empty area stays transparent.
-        int available = Math.max(dp(76), parentHeight - dp(8 + 16 + 8 + footerHeight + headerHeight));
-        int reservedHeight = Math.min(available, dp((mExpanded ? 5 : 4) * 76));
-        int height = Math.min(reservedHeight, dp(rows * 76));
+        int available = Math.max(dp(76), parentHeight - dp(16 + 8 + footerHeight + headerHeight));
+        int maxHeight = Math.min(available, dp((mExpanded ? 5 : 4) * 76));
+        int height = Math.min(maxHeight, dp(rows * 76));
         addView(mScroll, new LinearLayout.LayoutParams(-1, height));
-        if (height < reservedHeight) {
-            View space = new View(getContext());
-            space.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
-            addView(space, new LinearLayout.LayoutParams(-1, reservedHeight - height));
-        }
         if (mSites.size() > 20) {
             FrameLayout footer = new FrameLayout(getContext());
             View arrow = new ChevronButton(getContext());
@@ -206,6 +208,10 @@ public final class SandiumHomeShortcuts extends LinearLayout {
             arrow.setOnClickListener(v -> { mExpanded = !mExpanded; render(); });
             footer.addView(arrow,new FrameLayout.LayoutParams(dp(48),dp(48),Gravity.CENTER));
             addView(footer,new LinearLayout.LayoutParams(-1,dp(48)));
+        } else {
+            View footer = new View(getContext());
+            footer.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+            addView(footer, new LinearLayout.LayoutParams(-1, dp(48)));
         }
         final ScrollView renderedScroll = mScroll;
         renderedScroll.post(() -> { if (mScroll == renderedScroll && isAttachedToWindow()) { renderedScroll.scrollTo(0, scroll); updateWiggles(); } });
@@ -257,15 +263,22 @@ public final class SandiumHomeShortcuts extends LinearLayout {
         frost.setStroke(dp(1), 0x26ffffff);
         iconBox.setBackground(frost);
         iconBox.setClipToOutline(true);
+        iconBox.setElevation(dp(2));
+        if (android.os.Build.VERSION.SDK_INT >= 28) {
+            iconBox.setOutlineAmbientShadowColor(0x38000000);
+            iconBox.setOutlineSpotShadowColor(0x38000000);
+        }
         iconBox.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
-        TextView letter = text(site.title.isEmpty() ? "•" : site.title.substring(0, 1).toUpperCase(java.util.Locale.ROOT), 23);
+        String label = shortcutLabel(site.title, site.url);
+        TextView letter = text(label.isEmpty() ? "•" : label.substring(0, label.offsetByCodePoints(0, 1)).toUpperCase(java.util.Locale.ROOT), 23);
         iconBox.addView(letter, new FrameLayout.LayoutParams(-1, -1));
         ImageView icon = new ImageView(getContext()); icon.setPadding(dp(6),dp(6),dp(6),dp(6));
         icon.setScaleType(ImageView.ScaleType.FIT_CENTER);
         icon.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
         iconBox.addView(icon, new FrameLayout.LayoutParams(-1, -1));
         content.addView(iconBox, new LinearLayout.LayoutParams(dp(44), dp(44)));
-        TextView title = text(site.title.isEmpty() ? site.url.getHost() : site.title, 11);
+        TextView title = text(label, 11);
+        title.setShadowLayer(dp(2), 0, dp(1), 0x80000000);
         title.setMaxLines(2); title.setEllipsize(android.text.TextUtils.TruncateAt.END);
         content.addView(title, new LinearLayout.LayoutParams(-1, dp(28)));
         box.addView(content, new FrameLayout.LayoutParams(-1,-1));
@@ -341,15 +354,63 @@ public final class SandiumHomeShortcuts extends LinearLayout {
     private void editDialog(SiteSuggestion site, int index) {
         if (mDialog != null && mDialog.isShowing()) return;
         mDialog = new AlertDialog.Builder(getContext()).setTitle(site.title)
-                .setItems(new String[]{getResources().getString(R.string.sandium_home_move_before),
+                .setItems(new String[]{getResources().getString(R.string.sandium_home_rename),
+                        getResources().getString(R.string.sandium_home_move_before),
                         getResources().getString(R.string.sandium_home_move_after),
                         getResources().getString(R.string.sandium_home_remove)}, (d,which) -> {
                     if (mBridge == null || indexForUrl(site.url) < 0) return;
-                    if (which == 2) mBridge.deleteCustomLink(site.url);
-                    else mBridge.reorderCustomLink(site.url, Math.max(0,Math.min(mSites.size()-1,indexForUrl(site.url)+(which==0?-1:1))));
+                    if (which == 0) {
+                        d.dismiss();
+                        post(() -> { if (isAttachedToWindow() && isShown()) renameDialog(site); });
+                    } else if (which == 3) mBridge.deleteCustomLink(site.url);
+                    else mBridge.reorderCustomLink(site.url, Math.max(0,Math.min(mSites.size()-1,indexForUrl(site.url)+(which==1?-1:1))));
                 }).create();
         mDialog.setOnDismissListener(d -> mDialog = null);
         mDialog.show();
+    }
+    private void renameDialog(SiteSuggestion site) {
+        if (mDialog != null && mDialog.isShowing()) return;
+        EditText name = new EditText(getContext());
+        name.setSingleLine(true);
+        name.setInputType(android.text.InputType.TYPE_CLASS_TEXT
+                | android.text.InputType.TYPE_TEXT_FLAG_CAP_SENTENCES);
+        name.setHint(R.string.sandium_home_name);
+        name.setContentDescription(getResources().getString(R.string.sandium_home_name));
+        name.setText(shortcutLabel(site.title, site.url));
+        name.selectAll();
+        LinearLayout form = new LinearLayout(getContext());
+        form.setPadding(dp(20), 0, dp(20), 0);
+        form.addView(name, new LinearLayout.LayoutParams(-1, -2));
+        AlertDialog dialog = new AlertDialog.Builder(getContext())
+                .setTitle(R.string.sandium_home_rename).setView(form)
+                .setNegativeButton(R.string.sandium_home_cancel, null)
+                .setPositiveButton(R.string.sandium_home_rename_save, null).create();
+        mDialog = dialog;
+        dialog.setOnDismissListener(d -> { if (mDialog == dialog) mDialog = null; });
+        dialog.setOnShowListener(d -> {
+            name.requestFocus();
+            dialog.getWindow().setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_VISIBLE);
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
+                String title = name.getText().toString().trim();
+                if (title.isEmpty() || title.codePoints().allMatch(c -> Character.isWhitespace(c) || Character.isSpaceChar(c))) {
+                    name.setError(getResources().getString(R.string.sandium_home_name_required));
+                    return;
+                }
+                // Do not resurrect a link removed while this dialog was open. Assign uses
+                // the existing URL as both key and value: native UpdateLink preserves order.
+                if (mBridge == null || indexForUrl(site.url) < 0 || !mBridge.hasCustomLink(site.url)) {
+                    name.setError(getResources().getString(R.string.sandium_home_rename_failed));
+                    return;
+                }
+                if (!mBridge.assignCustomLink(site.url, title, site.url)) {
+                    name.setError(getResources().getString(R.string.sandium_home_rename_failed));
+                    return;
+                }
+                dialog.dismiss();
+                Toast.makeText(getContext(), R.string.sandium_home_renamed, Toast.LENGTH_SHORT).show();
+            });
+        });
+        dialog.show();
     }
     private static boolean safe(GURL url) {
         return url != null && url.isValid() && ("https".equals(url.getScheme()) || "http".equals(url.getScheme()));
@@ -370,15 +431,29 @@ public final class SandiumHomeShortcuts extends LinearLayout {
             else address.setError(getResources().getString(R.string.sandium_home_limit));
         })); dialog.show();
     }
+    private static String shortcutLabel(String savedTitle, GURL url) {
+        // Existing/custom titles have no provenance flag: never guess and overwrite them.
+        if (savedTitle != null && !savedTitle.trim().isEmpty()) return savedTitle;
+        String host = url.getHost();
+        // Chromium's PSL handles co.uk/co.in and private hosting registries, not a
+        // guessed last-two-label suffix. Keep canonical ASCII IDNs to avoid spoofing.
+        String domain = UrlUtilities.getDomainAndRegistry(url.getSpec(), true);
+        if (domain == null || domain.isEmpty()) return host; // IP, localhost or intranet.
+        int dot = domain.indexOf('.');
+        String name = dot < 0 ? domain : domain.substring(0, dot);
+        if (name.isEmpty() || name.startsWith("xn--")) return name.isEmpty() ? host : name;
+        int first = name.offsetByCodePoints(0, 1);
+        return name.substring(0, first).toUpperCase(java.util.Locale.ROOT) + name.substring(first);
+    }
     private static boolean addNewest(MostVisitedSitesBridge bridge, String title, GURL url) {
         // Native indexed insertion persists the final order in a single mutation.
         // No intermediate append state or second reorder can be lost on shutdown.
-        return bridge.addCustomLink(title, url, 0);
+        return bridge.addCustomLink(shortcutLabel(title, url), url, 0);
     }
     public static boolean addCurrent(Tab tab) {
         if (tab == null || tab.isIncognito() || !safe(tab.getUrl())) return false;
         MostVisitedSitesBridge bridge = new MostVisitedSitesBridge(tab.getProfile(), true);
-        try { return addNewest(bridge, tab.getTitle(), tab.getUrl()); }
+        try { return addNewest(bridge, "", tab.getUrl()); }
         finally { bridge.destroy(); }
     }
 }

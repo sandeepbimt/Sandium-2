@@ -8,6 +8,8 @@ HERE=Path(__file__).resolve().parent
 PACKAGE='org/chromium/chrome/browser/sandium/dark/SandiumElementColorsUtils.java'
 HANDLER='android/java/org/chromium/chrome/browser/shields/BraveUnifiedPanelHandler.java'
 LAYOUT='android/java/brave-res/layout/brave_shields_tab_content.xml'
+PRIVACY_XML='android/java/brave-res/xml/brave_privacy_preferences.xml'
+PRIVACY_JAVA='android/java/org/chromium/chrome/browser/privacy/settings/BravePrivacySettings.java'
 A='{http://schemas.android.com/apk/res/android}'
 ET.register_namespace('android',A[1:-1]);ET.register_namespace('app','http://schemas.android.com/apk/res-auto');ET.register_namespace('tools','http://schemas.android.com/tools')
 def insert(text,anchor,entry):
@@ -71,14 +73,38 @@ def regroup(text):
  controls.append(card(privacy));controls.append(card(data))
  ET.indent(root,space='    ')
  return text[:text.index('<LinearLayout')]+ET.tostring(root,encoding='unicode')+'\n'
+def blocking_settings_xml(text):
+ if 'android:key="sandium_saved_blocking_rules"' in text:return text
+ anchor='            android:summary="@string/content_filtering_summary" />'
+ return insert(text,anchor,'''
+        <org.chromium.components.browser_ui.settings.ChromeBasePreference
+            android:fragment="org.chromium.chrome.browser.sandium.dark.SandiumBlockingRulesPreferences"
+            android:key="sandium_saved_blocking_rules"
+            android:title="Custom blocking rules"
+            android:summary="View, download and restore custom ad and element-blocking rules" />''')
+def blocking_settings_java(text):
+ text=insert(text,'        PREF_CONTENT_FILTERING,\n','        "sandium_saved_blocking_rules",\n')
+ return insert(text,'        SettingsUtils.addPreferencesFromResource(this, R.xml.brave_privacy_preferences);\n','''        // Use a class reference as well as XML so release shrinking retains the entry point.
+        androidx.preference.Preference customBlockingRules = findPreference("sandium_saved_blocking_rules");
+        if (customBlockingRules != null) {
+            customBlockingRules.setFragment(
+                    org.chromium.chrome.browser.sandium.dark.SandiumBlockingRulesPreferences.class.getName());
+        }
+''')
 def plan(core):
  gni=core/'android/brave_java_sources.gni';build=core/'android/BUILD.gn';jni=core/'build/android/config.gni'
- return {core/HANDLER:handler((core/HANDLER).read_text()),core/LAYOUT:layout((core/LAYOUT).read_text()),
+ outputs={core/PRIVACY_XML:blocking_settings_xml((core/PRIVACY_XML).read_text()),
+ core/PRIVACY_JAVA:blocking_settings_java((core/PRIVACY_JAVA).read_text()),core/HANDLER:handler((core/HANDLER).read_text()),core/LAYOUT:layout((core/LAYOUT).read_text()),
  core/'android/java'/PACKAGE:(HERE/'java'/PACKAGE).read_text(),
  core/'android/java/brave-res/values/sandium_element_colors_strings.xml':(HERE/'res/values/sandium_element_colors_strings.xml').read_text(),
  jni:insert(jni.read_text(),'brave_jni_headers_sources = [\n','  "//brave/android/java/'+PACKAGE+'",\n'),
  gni:insert(gni.read_text(),'brave_java_sources = [\n','  "../../brave/android/java/'+PACKAGE+'",\n'),
  build:insert(build.read_text(),'    "java/brave-res/values/brave_ids.xml",\n','    "java/brave-res/values/sandium_element_colors_strings.xml",\n')}
+ for name in ('SandiumRuleBackup.java', 'SandiumRulesPreferences.java', 'SandiumBlockingRulesPreferences.java'):
+  relative='org/chromium/chrome/browser/sandium/dark/'+name
+  outputs[core/'android/java'/relative]=(HERE/'java'/relative).read_text()
+  outputs[gni]=insert(outputs[gni],'brave_java_sources = [\n','  "../../brave/android/java/'+relative+'",\n')
+ return outputs
 def apply(core):
  outputs=plan(core)
  for path,text in outputs.items():path.parent.mkdir(parents=True,exist_ok=True);path.write_text(text)

@@ -178,6 +178,60 @@ LEGAL_NOTICE = """
         getPreferenceScreen().addPreference(copyright);"""
 
 
+ABOUT_FOOTER_ANCHOR = "    @Override\n    public MonotonicObservableSupplier<String> getPageTitle()"
+ABOUT_FOOTER = """    // SANDIUM_LEGAL_FOOTER: small visible text, full accessible one-tap target.
+    @Override
+    public android.view.View onCreateView(android.view.LayoutInflater inflater,
+            @Nullable android.view.ViewGroup container, @Nullable Bundle savedInstanceState) {
+        android.view.View preferences = super.onCreateView(inflater, container, savedInstanceState);
+        assumeNonNull(preferences);
+        android.content.Context context = requireContext();
+        float density = context.getResources().getDisplayMetrics().density;
+        android.widget.LinearLayout root = new android.widget.LinearLayout(context);
+        root.setOrientation(android.widget.LinearLayout.VERTICAL);
+        root.addView(preferences, new android.widget.LinearLayout.LayoutParams(
+                android.view.ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
+        android.widget.TextView legal = new android.widget.TextView(context);
+        legal.setText(R.string.legal_information_title);
+        legal.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 12);
+        android.content.res.TypedArray colors = context.obtainStyledAttributes(
+                new int[] {android.R.attr.textColorSecondary,
+                        android.R.attr.selectableItemBackground});
+        try {
+            android.content.res.ColorStateList secondary = colors.getColorStateList(0);
+            if (secondary != null) legal.setTextColor(secondary);
+            legal.setBackgroundResource(colors.getResourceId(1, 0));
+        } finally {
+            colors.recycle();
+        }
+        legal.setGravity(android.view.Gravity.CENTER);
+        legal.setMinHeight(Math.round(48 * density));
+        legal.setPadding(Math.round(16 * density), Math.round(8 * density),
+                Math.round(16 * density), Math.round(8 * density));
+        legal.setFocusable(true);
+        legal.setOnClickListener(v ->
+                org.chromium.chrome.browser.settings.SettingsNavigationFactory
+                        .createSettingsNavigation(context)
+                        .startSettings(context, LegalInformationSettings.class));
+        root.addView(legal, new android.widget.LinearLayout.LayoutParams(
+                android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                android.view.ViewGroup.LayoutParams.WRAP_CONTENT));
+        return root;
+    }
+
+"""
+
+
+def compact_legal_footer(about):
+    if '// SANDIUM_LEGAL_FOOTER:' in about:
+        return about
+    if about.count(COPYRIGHT_CLEARED) != 1 or about.count(ABOUT_FOOTER_ANCHOR) != 1:
+        raise RuntimeError('About legal footer anchors changed')
+    about = about.replace(COPYRIGHT_CLEARED, COPYRIGHT_CLEARED +
+                          '\n        p.setVisible(false); // Replaced by the bottom one-tap link.')
+    return about.replace(ABOUT_FOOTER_ANCHOR, ABOUT_FOOTER + ABOUT_FOOTER_ANCHOR)
+
+
 def relocate_copyright(about, legal):
     if COPYRIGHT_CLEARED not in about:
         if about.count(COPYRIGHT_BLOCK) != 1:
@@ -235,6 +289,7 @@ def apply(core):
     report['about_titles'] = ['IDS_PREFS_ABOUT_CHROME', 'IDS_MENU_ABOUT_CHROME']
     about_path, legal_path = core.parent / ABOUT_JAVA, core.parent / LEGAL_JAVA
     about, legal = relocate_copyright(about_path.read_text(), legal_path.read_text())
+    about = compact_legal_footer(about)
     about_path.write_text(about)
     legal_path.write_text(legal)
     report['copyright_notice'] = 'relocated intact into Legal information'

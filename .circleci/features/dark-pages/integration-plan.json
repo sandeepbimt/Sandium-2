@@ -18,7 +18,9 @@
     "components/cosmetic_filters/common/cosmetic_filters.mojom",
     "components/cosmetic_filters/renderer/BUILD.gn",
     "components/cosmetic_filters/renderer/cosmetic_filters_js_handler.cc",
-    "components/cosmetic_filters/renderer/cosmetic_filters_js_handler.h"
+    "components/cosmetic_filters/renderer/cosmetic_filters_js_handler.h",
+    "android/java/brave-res/xml/brave_privacy_preferences.xml",
+    "android/java/org/chromium/chrome/browser/privacy/settings/BravePrivacySettings.java"
   ],
   "chromium_restore": [
     "chrome/browser/android/web_contents_theme_client.cc",
@@ -56,13 +58,16 @@
     "third_party/blink/renderer/core/frame/local_frame_view.cc",
     "third_party/blink/renderer/core/frame/settings.json5",
     "third_party/blink/renderer/core/loader/frame_loader.cc",
+    "third_party/blink/renderer/core/paint/box_painter_base.cc",
     "third_party/blink/renderer/core/paint/image_painter.cc",
     "third_party/blink/renderer/core/paint/paint_auto_dark_mode.cc",
     "third_party/blink/renderer/core/paint/paint_auto_dark_mode.h",
     "third_party/blink/renderer/core/paint/view_painter.cc",
     "third_party/blink/renderer/core/style/computed_style_extra_fields.json5",
+    "third_party/blink/renderer/platform/graphics/gradient_generated_image.h",
     "third_party/blink/renderer/platform/graphics/graphics_context.cc",
-    "third_party/blink/renderer/platform/graphics/graphics_context.h"
+    "third_party/blink/renderer/platform/graphics/graphics_context.h",
+    "third_party/blink/renderer/platform/graphics/image.h"
   ],
   "generated_overwrite": [
     "brave/android/java/brave-res/values/sandium_dark_pages_strings.xml",
@@ -84,7 +89,10 @@
     "chrome/browser/ui/android/night_mode/java/src/org/chromium/chrome/browser/night_mode/SandiumDarkPages.java",
     "chrome/browser/ui/android/night_mode/java/src/org/chromium/chrome/browser/sandium/dark/DarkPagePolicy.java",
     "third_party/blink/renderer/core/dom/sandium_element_colors.cc",
-    "third_party/blink/renderer/core/dom/sandium_element_colors.h"
+    "third_party/blink/renderer/core/dom/sandium_element_colors.h",
+    "brave/android/java/org/chromium/chrome/browser/sandium/dark/SandiumRuleBackup.java",
+    "brave/android/java/org/chromium/chrome/browser/sandium/dark/SandiumRulesPreferences.java",
+    "brave/android/java/org/chromium/chrome/browser/sandium/dark/SandiumBlockingRulesPreferences.java"
   ],
   "apply_order": [
     "existing welcome, grouped popup, removals, full Oppo UI composition",

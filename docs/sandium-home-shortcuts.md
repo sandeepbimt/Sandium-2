@@ -127,3 +127,64 @@ retrieval paths. This is not an Android process-restart/disk-flush test. Normal
 close/reopen should retain order through Chromium profile preferences; abrupt
 power loss before Chromium flushes pending pref writes is not guaranteed.
 App-data clearing/uninstall and synchronized changes are distinct cases.
+
+
+## November 16 bottom-anchored shortcut revision (supersedes earlier reserved rows)
+
+The circled screenshot anchor is below the former empty Add card, near the
+bottom toolbar. The populated grid now grows upward from a stable low baseline
+(16dp outer gap + 48dp reserved footer; footer is transparent except for the
+expand button when needed). There is no four-row transparent spacer below
+the populated grid. Empty lists render no Add card, panel or footer. Add to
+Sandium home remains available in the page menu.
+
+The persisted newest-first list is unchanged. The partial row is at the top:
+1 gives [1]; 3 gives [3,2,1]; 6 gives [6] above [5,4,3,2,1]. New entries push
+earlier entries right within the growing row, and create new rows above full
+rows. Columns remain equal width with non-accessible empty placeholders.
+Manual reorder uses the same native list indices and does not trigger a migration.
+The collapsed view retains the existing latest 20 limit; expanded mode exposes
+all saved entries in the existing scrollable viewport.
+
+Validation: pinned patch application/idempotence/drift contracts and layout
+arithmetic regressions. No Android build, device pixel/gesture test, or CI run
+was performed for this revision. Confirm exact baseline on the device, especially
+landscape, insets, expanded scrolling and font scaling.
+
+
+### November 16 transparent group and site-name defaults
+The group background is now absent even when populated. Existing individual
+frosted icon squares remain, with 2dp subtle shadows; labels have a small dark
+shadow. New page-menu additions save a short site name from Chromium's native
+public-suffix-aware domain lookup (including private registries): Facebook for
+m.facebook.com, Bhaskar for www.bhaskar.com, and Example for www.example.co.uk.
+IP addresses, localhost/intranet hosts and canonical ASCII IDNs are not
+misleadingly reduced to a numeric prefix or Unicode lookalike.
+
+Explicit nonempty names from the add form and all existing saved names remain
+unchanged. The native store has no auto-title/custom-title provenance field,
+so existing verbose page titles cannot safely be distinguished from intentional
+user names. There is no destructive title migration or new preference database.
+New default labels persist through the same native custom-link insertion.
+
+Only source-contract/geometry checks have run here; no runtime PSL, process
+restart, shadow rendering or TalkBack tests. Existing rename/custom names remain
+authoritative when delivered by the native store. No new rename UI is introduced.
+
+### Rename existing shortcuts
+Supersedes the previous statement that no rename UI is introduced. Enter shortcut
+editing by long-press, then tap a tile to open Rename / Move earlier / Move later /
+Remove. Rename provides a focused, labeled single-line field prefilled with the
+current name, Save and Cancel. Empty/Unicode-space-only names are rejected.
+The dialog remains open on a failed save. Cancel never calls a write method.
+Save validates the link still exists and calls native assignCustomLink with
+identical key and destination URLs; no delete/re-add or reorder is performed.
+Success is announced with a toast. Native updates store the title in the existing
+profile custom-link preferences, which supply it when the browser reopens.
+
+Executed test-sandium-home-rename.py verifies official-source blob hashes and
+compiles the exact pinned UpdateLink body in a C++17 host harness. It checks
+URL/order preservation, one save, reconstructed stored title and refusal for
+missing/invalid targets. Dialog accessibility/Save/Cancel guards are source
+contracts. Real Android keyboard, TalkBack, process-restart and disk-flush tests
+are still required; this is not a claim of device validation.

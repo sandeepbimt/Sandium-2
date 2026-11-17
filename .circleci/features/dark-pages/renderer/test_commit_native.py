@@ -8,6 +8,7 @@ patch=next(p for p in json.loads((here/'patches.json').read_text()) if p['path']
 block=patch['new'][patch['new'].index('  if (commit_reason'):patch['new'].index('  tls_version_warning_origins_.clear();')]
 stub=r'''
 #include <cassert>
+#define TRACE_EVENT1(...) ((void)0)
 enum class CommitReason {kRegular,kXSLT,kJavaScript};
 struct Settings {int custom=-1;bool force=true;int writes=0;void SetSandiumDarkPageFlagsForCommit(int f){custom=f;++writes;}void SetForceDarkModeEnabled(bool f){force=f;}};
 struct Frame {bool main=true;Settings settings;bool IsOutermostMainFrame(){return main;}Settings* GetSettings(){return &settings;}};

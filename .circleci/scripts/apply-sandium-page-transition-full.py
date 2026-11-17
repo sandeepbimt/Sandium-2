@@ -550,7 +550,10 @@ def transform_transition_cc(source: str) -> str:
 def transform_transition_h(source: str) -> str:
     old = "  scoped_refptr<cc::slim::SurfaceLayer> blur_layer_;\n"
     new = old + "  scoped_refptr<cc::slim::SolidColorLayer> darken_layer_;\n"
-    source = replace_once_or_done(source, old, new, "Declare Darken compositor layer")
+    if "  scoped_refptr<cc::slim::Layer> blur_layer_;" not in source:
+        source = replace_once_or_done(source, old, new, "Declare Darken compositor layer")
+    elif source.count("  scoped_refptr<cc::slim::SolidColorLayer> darken_layer_;") != 1:
+        raise RuntimeError("Native blur layer lacks Darken companion")
     old_opacity = "  float initial_blur_opacity_ = 0.0f;\n"
     new_opacity = old_opacity + "  float initial_darken_opacity_ = 0.0f;\n"
     source = replace_once_or_done(source, old_opacity, new_opacity, "Declare Darken opacity state")
@@ -629,8 +632,12 @@ def main() -> None:
     write_transform(core / APPEARANCE_TEST, transform_appearance_test, "SANDIUM_TRANSITION_DARKEN_TEST")
     write_transform(root / FEATURES_CC, transform_features_cc, "SANDIUM_TRANSITION_FEATURE_PARAM_CC")
     write_transform(root / FEATURES_H, transform_features_h, "SANDIUM_TRANSITION_FEATURE_PARAM_H")
-    write_transform(root / TRANSITION_CC, transform_transition_cc, "SANDIUM_TRANSITION_NATIVE_CC")
-    write_transform(root / TRANSITION_H, transform_transition_h, "SANDIUM_TRANSITION_NATIVE_H")
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("native_blur", Path(__file__).with_name("sandium-native-blur-source.py"))
+    native = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(native)
+    write_transform(root / TRANSITION_CC, lambda s: native.implementation(transform_transition_cc(s)), "SANDIUM_TRANSITION_NATIVE_CC")
+    write_transform(root / TRANSITION_H, lambda s: native.header(transform_transition_h(s)), "SANDIUM_TRANSITION_NATIVE_H")
 
     print("SANDIUM_TRANSITION_MEDIUM=hold:450ms,fade:225ms (+50%)")
     print("SANDIUM_TRANSITION_HIGH=hold:675ms,fade:300ms (+50%)")

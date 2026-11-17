@@ -11,6 +11,7 @@ pr=next(p['new'] for p in patches if p['old'].startswith('  TRACE_EVENT0("naviga
 pr=pr[pr.index('  const int sandium_policy'):pr.index('  // From here')]
 src=r'''
 #include <cassert>
+#define TRACE_EVENT1(...) ((void)0)
 struct Settings {int flag=-1,invalidations=0;bool native_force=true;int native_scheme=17;void SetSandiumDarkPageFlags(int p){if(flag!=p){flag=p;++invalidations;}}};
 struct Page {Settings s;Settings& GetSettings(){return s;}};
 struct Params {int sandium_dark_page_flags=-1;};

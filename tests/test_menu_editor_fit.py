@@ -10,7 +10,7 @@ class EditorFit(unittest.TestCase):
   self.assertIn('grid(availableGrid, mDraft.hiddenKeys(editableKeys()), true)',S)
   self.assertIn('(quickRows + EDITOR_AVAILABLE_ROWS) * tileHeight()',S)
  def test_regular_envelope_and_physical_limit_preserved(self):
-  self.assertIn('Math.min(available, dp(8 + 48 + 24 + 48) + rows * tileHeight())',S)
+  self.assertIn('Math.min(available, dp(8 + 48 + 24) + pagerHeight() + rows * tileHeight())',S)
   self.assertIn('Math.min(available, editorHeight)',S)
   self.assertIn('ScrollView scroll = new ScrollView',S)
   self.assertIn('Math.max(dp(48), dp(26 + 2 + 4 + 4) + labelHeight())',S)
@@ -18,8 +18,8 @@ class EditorFit(unittest.TestCase):
   for columns,line in [(4,14),(4,18),(2,28),(2,36)]:
    tile=max(48,26+2+4+4+2*line)
    quick_rows=(8+columns-1)//columns
-   needed=8+48+24+48+24+24+(quick_rows+4)*tile
-   body=(24+quick_rows*tile+48+12)+(24+4*tile+12)
+   needed=8+48+24+32+24+24+(quick_rows+4)*tile
+   body=(24+quick_rows*tile+32+12)+(24+4*tile+12)
    self.assertEqual(needed,8+48+body)
    self.assertGreaterEqual(tile,48)
    for available in [300,600,1000]:

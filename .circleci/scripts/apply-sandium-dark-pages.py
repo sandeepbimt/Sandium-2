@@ -91,7 +91,8 @@ def appearance(text):
                         android.widget.Toast.LENGTH_SHORT).show();
                 return false;
             }''')
-    return once(text,anchor,anchor+'''
+    # Remove the previous duplicate global-policy dialog on cached build trees too.
+    old = '''
         androidx.preference.Preference darkPages = new androidx.preference.Preference(requireContext());
         darkPages.setKey("sandium_dark_pages");
         darkPages.setTitle(R.string.sandium_dark_pages_global);
@@ -102,6 +103,25 @@ def appearance(text):
             return true;
         });
         getPreferenceScreen().addPreference(darkPages);
+'''
+    text = text.replace(old, '')
+    # Migrate the previous mixed manager on cached source trees.
+    text = text.replace('''\n        // SANDIUM_SAVED_RULES_V1: Night Mode already owns the same global policy.
+        androidx.preference.Preference savedRules = new androidx.preference.Preference(requireContext());
+        savedRules.setKey("sandium_saved_rules");
+        savedRules.setTitle("Saved rules");
+        savedRules.setSummary("View, download and restore color corrections and custom ad rules");
+        savedRules.setFragment(org.chromium.chrome.browser.sandium.dark.SandiumRulesPreferences.class.getName());
+        getPreferenceScreen().addPreference(savedRules);
+''', '')
+    return once(text,anchor,anchor+'''
+        // SANDIUM_SAVED_COLOR_RULES_V2: Night Mode already owns the same global policy.
+        androidx.preference.Preference savedRules = new androidx.preference.Preference(requireContext());
+        savedRules.setKey("sandium_saved_color_rules");
+        savedRules.setTitle("Element color corrections");
+        savedRules.setSummary("View, download and restore your saved color corrections");
+        savedRules.setFragment(org.chromium.chrome.browser.sandium.dark.SandiumRulesPreferences.class.getName());
+        getPreferenceScreen().addPreference(savedRules);
 ''')
 
 def welcome(text):

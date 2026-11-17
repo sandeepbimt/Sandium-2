@@ -1,0 +1,92 @@
+[
+  {
+    "path": "chrome/android/java/src/org/chromium/chrome/browser/feed/FeedSurfaceCoordinator.java",
+    "old": "    private final FrameLayout mRootView;",
+    "new": "    private final FrameLayout mRootView;\n    // Sandium: homepage-only backing; other feed surfaces keep their original root.\n    private @Nullable FrameLayout mSandiumWallpaperRoot;\n    private @Nullable android.widget.ImageView mSandiumWallpaper;\n    private boolean mSandiumWallpaperAllowed;\n    private boolean mSandiumWallpaperAttached;\n    private boolean mSandiumWallpaperReady;\n    private boolean mSandiumWallpaperPaintReady;\n    private boolean mSandiumWallpaperDirty;\n    private final java.util.ArrayList<Runnable> mSandiumWallpaperObservers = new java.util.ArrayList<>();\n    private @Nullable android.graphics.drawable.Drawable mSandiumRootBackground;\n    private @Nullable android.graphics.drawable.Drawable mSandiumRecyclerBackground;\n    private @Nullable android.graphics.drawable.Drawable mSandiumHeaderBackground;\n    private @Nullable Integer mSandiumToolbarWallpaperPaintColor;\n"
+  },
+  {
+    "path": "chrome/android/java/src/org/chromium/chrome/browser/feed/FeedSurfaceCoordinator.java",
+    "old": "    @Override\n    public View getView() {\n        return mRootView;\n    }",
+    "new": "    public void initializeSandiumWallpaperBacking(android.widget.ImageView wallpaper) {\n        if (mSandiumWallpaperRoot != null) throw new IllegalStateException(\"Backing already initialized\");\n        if (mRootView.getParent() != null) throw new IllegalStateException(\"Backing must precede attachment\");\n        mSandiumRootBackground = mRootView.getBackground();\n        mSandiumRecyclerBackground = mRecyclerView.getBackground();\n        if (mNtpHeader != null) mSandiumHeaderBackground = mNtpHeader.getBackground();\n        FrameLayout outer = new FrameLayout(mActivity);\n        outer.setBackgroundColor(mDefaultBackgroundColor);\n        outer.setClipChildren(true);\n        mSandiumWallpaperRoot = outer;\n        mSandiumWallpaper = wallpaper;\n        org.chromium.ui.UiUtils.removeViewFromParent(wallpaper);\n        wallpaper.setClickable(false);\n        wallpaper.setFocusable(false);\n        outer.addView(wallpaper, new FrameLayout.LayoutParams(-1, -1));\n        outer.addView(mRootView, new FrameLayout.LayoutParams(-1, -1));\n        outer.addOnLayoutChangeListener((v,l,t,r,b,ol,ot,or,ob) -> {\n            if (r-l != or-ol || b-t != ob-ot) {\n                mSandiumWallpaperDirty = true;\n                refreshSandiumWallpaperBacking();\n            }\n        });\n        outer.addOnAttachStateChangeListener(new View.OnAttachStateChangeListener() {\n            @Override public void onViewAttachedToWindow(View view) { mSandiumWallpaperAttached = true; refreshSandiumWallpaperBacking(); }\n            @Override public void onViewDetachedFromWindow(View view) { mSandiumWallpaperAttached = false; refreshSandiumWallpaperBacking(); }\n        });\n        refreshSandiumWallpaperBacking();\n    }\n\n    public @Nullable Integer getSandiumToolbarWallpaperPaintColor() { return mSandiumToolbarWallpaperPaintColor; }\n    public void setSandiumToolbarWallpaperPaintColor(@Nullable Integer color) {\n        if (java.util.Objects.equals(mSandiumToolbarWallpaperPaintColor, color)) return;\n        mSandiumToolbarWallpaperPaintColor = color;\n        for (Runnable observer : new java.util.ArrayList<>(mSandiumWallpaperObservers)) observer.run();\n    }\n    public View getSandiumForegroundView() { return mRootView; }\n    public boolean hasSandiumWallpaperRoot() { return mSandiumWallpaperRoot != null; }\n    public boolean isSandiumWallpaperBackingReady() { return mSandiumWallpaperReady; }\n    protected boolean isSandiumWallpaperPaintReady() { return mSandiumWallpaperPaintReady; }\n    public void addSandiumWallpaperBackingObserver(Runnable observer) {\n        if (!mSandiumWallpaperObservers.contains(observer)) mSandiumWallpaperObservers.add(observer);\n    }\n    public void removeSandiumWallpaperBackingObserver(Runnable observer) {\n        mSandiumWallpaperObservers.remove(observer);\n    }\n    public void setSandiumWallpaperAllowed(boolean allowed) {\n        mSandiumWallpaperAllowed = allowed;\n        refreshSandiumWallpaperBacking();\n    }\n    public void onSandiumWallpaperBitmapChanged() {\n        mSandiumWallpaperDirty = true;\n        boolean wasReady = mSandiumWallpaperReady;\n        refreshSandiumWallpaperBacking();\n        if (wasReady == mSandiumWallpaperReady) {\n            for (Runnable observer : new java.util.ArrayList<>(mSandiumWallpaperObservers)) observer.run();\n        }\n    }\n    protected void onSandiumWallpaperReadinessChanged(boolean ready) {}\n\n    private void refreshSandiumWallpaperBacking() {\n        FrameLayout outer = mSandiumWallpaperRoot;\n        android.widget.ImageView wallpaper = mSandiumWallpaper;\n        if (outer == null || wallpaper == null) return;\n        android.graphics.drawable.Drawable drawable = wallpaper.getDrawable();\n        boolean paintReady = mSandiumWallpaperAllowed\n                && outer.getWidth() > 0 && outer.getHeight() > 0 && drawable != null\n                && drawable.getIntrinsicWidth() == outer.getWidth()\n                && drawable.getIntrinsicHeight() == outer.getHeight();\n        boolean ready = paintReady && mSandiumWallpaperAttached;\n        wallpaper.setVisibility(mSandiumWallpaperAllowed ? View.VISIBLE : View.INVISIBLE);\n        if (ready == mSandiumWallpaperReady && paintReady == mSandiumWallpaperPaintReady) return;\n        mSandiumWallpaperReady = ready;\n        mSandiumWallpaperPaintReady = paintReady;\n        mSandiumWallpaperDirty = true;\n        mRootView.setBackground(paintReady ? null : mSandiumRootBackground);\n        mRecyclerView.setBackground(paintReady ? null : mSandiumRecyclerBackground);\n        if (mNtpHeader != null) mNtpHeader.setBackground(paintReady ? null : mSandiumHeaderBackground);\n        onSandiumWallpaperReadinessChanged(paintReady);\n        outer.invalidate();\n        for (Runnable observer : new java.util.ArrayList<>(mSandiumWallpaperObservers)) observer.run();\n    }\n\n    @Override\n    public View getView() {\n        return mSandiumWallpaperRoot != null ? mSandiumWallpaperRoot : mRootView;\n    }"
+  },
+  {
+    "path": "chrome/android/java/src/org/chromium/chrome/browser/feed/FeedSurfaceCoordinator.java",
+    "old": "        return mMediator.shouldCaptureThumbnail();",
+    "new": "        return mSandiumWallpaperDirty || mMediator.shouldCaptureThumbnail();"
+  },
+  {
+    "path": "chrome/android/java/src/org/chromium/chrome/browser/feed/FeedSurfaceCoordinator.java",
+    "old": "        ViewUtils.captureBitmap(mRootView, canvas);",
+    "new": "        ViewUtils.captureBitmap(getView(), canvas);\n        mSandiumWallpaperDirty = false;"
+  },
+  {
+    "path": "chrome/android/java/src/org/chromium/chrome/browser/feed/FeedSurfaceCoordinator.java",
+    "old": "        // Untracks first to stop global interactions immediately.",
+    "new": "        setSandiumWallpaperAllowed(false);\n        mSandiumWallpaperObservers.clear();\n        // Untracks first to stop global interactions immediately."
+  },
+  {
+    "path": "chrome/android/java/src/org/chromium/chrome/browser/ntp/NewTabPage.java",
+    "old": "        View view = getView();\n        ViewGroup.MarginLayoutParams layoutParams =",
+    "new": "        View view = getView();\n        if (mFeedSurfaceProvider instanceof FeedSurfaceCoordinator\n                && ((FeedSurfaceCoordinator) mFeedSurfaceProvider).hasSandiumWallpaperRoot()) {\n            view = ((FeedSurfaceCoordinator) mFeedSurfaceProvider).getSandiumForegroundView();\n        }\n        ViewGroup.MarginLayoutParams layoutParams ="
+  },
+  {
+    "path": "chrome/android/java/src/org/chromium/chrome/browser/ntp/NewTabPage.java",
+    "old": "    @Override\n    public View getView() {",
+    "new": "    @Override\n    public @Nullable Integer getSandiumToolbarWallpaperPaintColor() {\n        return mFeedSurfaceProvider instanceof FeedSurfaceCoordinator\n                ? ((FeedSurfaceCoordinator) mFeedSurfaceProvider).getSandiumToolbarWallpaperPaintColor() : null;\n    }\n    @Override\n    public void setSandiumToolbarWallpaperPaintColor(@Nullable Integer color) {\n        if (mFeedSurfaceProvider instanceof FeedSurfaceCoordinator)\n            ((FeedSurfaceCoordinator) mFeedSurfaceProvider).setSandiumToolbarWallpaperPaintColor(color);\n    }\n    @Override\n    public boolean hasSandiumToolbarWallpaperBacking() {\n        return mFeedSurfaceProvider instanceof FeedSurfaceCoordinator\n                && ((FeedSurfaceCoordinator) mFeedSurfaceProvider).isSandiumWallpaperBackingReady();\n    }\n    @Override\n    public void addSandiumWallpaperBackingObserver(Runnable observer) {\n        if (mFeedSurfaceProvider instanceof FeedSurfaceCoordinator)\n            ((FeedSurfaceCoordinator) mFeedSurfaceProvider).addSandiumWallpaperBackingObserver(observer);\n    }\n    @Override\n    public void removeSandiumWallpaperBackingObserver(Runnable observer) {\n        if (mFeedSurfaceProvider instanceof FeedSurfaceCoordinator)\n            ((FeedSurfaceCoordinator) mFeedSurfaceProvider).removeSandiumWallpaperBackingObserver(observer);\n    }\n\n    @Override\n    public View getView() {"
+  },
+  {
+    "path": "chrome/browser/ui/android/native_page/java/src/org/chromium/chrome/browser/ui/native_page/NativePage.java",
+    "old": "public interface NativePage {",
+    "new": "public interface NativePage {\n    default boolean hasSandiumToolbarWallpaperBacking() { return false; }\n    default void addSandiumWallpaperBackingObserver(Runnable observer) {}\n    default void removeSandiumWallpaperBackingObserver(Runnable observer) {}\n    default @Nullable Integer getSandiumToolbarWallpaperPaintColor() { return null; }\n    default void setSandiumToolbarWallpaperPaintColor(@Nullable Integer color) {}\n"
+  },
+  {
+    "path": "brave/android/java/org/chromium/chrome/browser/ntp/BraveNewTabPage.java",
+    "old": "        mFeedSurfaceProvider = feedSurfaceCoordinator;",
+    "new": "        if (!org.chromium.ui.base.DeviceFormFactor.isNonMultiDisplayContextOnTablet(activity)\n                && !profile.isOffTheRecord()\n                && mNewTabPageLayout instanceof BraveNewTabPageLayout) {\n            ((BraveNewTabPageLayout) mNewTabPageLayout).attachSandiumWallpaperBacking(feedSurfaceCoordinator);\n        }\n        mFeedSurfaceProvider = feedSurfaceCoordinator;"
+  },
+  {
+    "path": "brave/android/java/org/chromium/chrome/browser/feed/BraveFeedSurfaceCoordinator.java",
+    "old": "    public void createFrameLayoutForPolicy() {",
+    "new": "    @Override\n    protected void onSandiumWallpaperReadinessChanged(boolean ready) {\n        if (mFrameLayoutForPolicy != null) {\n            mFrameLayoutForPolicy.setBackgroundColor(ready ? android.graphics.Color.TRANSPARENT\n                    : mActivity.getColor(R.color.default_bg_color_baseline));\n        }\n    }\n\n    public void createFrameLayoutForPolicy() {"
+  },
+  {
+    "path": "brave/android/java/org/chromium/chrome/browser/feed/BraveFeedSurfaceCoordinator.java",
+    "old": "        mRootView.addView(mFrameLayoutForPolicy);",
+    "new": "        mRootView.addView(mFrameLayoutForPolicy);\n        onSandiumWallpaperReadinessChanged(isSandiumWallpaperPaintReady());"
+  },
+  {
+    "path": "brave/android/java/org/chromium/chrome/browser/ntp/BraveNewTabPageLayout.java",
+    "old": "    private @Nullable ImageView mBgImageView;",
+    "new": "    private @Nullable ImageView mBgImageView;\n    private @Nullable org.chromium.chrome.browser.feed.FeedSurfaceCoordinator mSandiumWallpaperCoordinator;\n    private @Nullable org.chromium.components.prefs.PrefChangeRegistrar mSandiumWallpaperPrefObserver;\n\n    public void attachSandiumWallpaperBacking(org.chromium.chrome.browser.feed.FeedSurfaceCoordinator coordinator) {\n        mBgImageView = findViewById(R.id.bg_image_view);\n        if (mBgImageView == null || mProfile == null) return;\n        mSandiumWallpaperCoordinator = coordinator;\n        coordinator.initializeSandiumWallpaperBacking(mBgImageView);\n        mSandiumWallpaperPrefObserver = new org.chromium.components.prefs.PrefChangeRegistrar(\n                UserPrefs.get(mProfile));\n        mSandiumWallpaperPrefObserver.addObserver(BravePref.NEW_TAB_PAGE_SHOW_BACKGROUND_IMAGE,\n                () -> maybeShowNTPImage());\n        maybeShowNTPImage();\n    }\n"
+  },
+  {
+    "path": "brave/android/java/org/chromium/chrome/browser/ntp/BraveNewTabPageLayout.java",
+    "old": "    private void maybeShowNTPImage() {",
+    "new": "    public void releaseSandiumWallpaperBacking() {\n        if (mSandiumWallpaperPrefObserver != null) {\n            mSandiumWallpaperPrefObserver.destroy();\n            mSandiumWallpaperPrefObserver = null;\n        }\n        if (mSandiumWallpaperCoordinator != null) mSandiumWallpaperCoordinator.setSandiumWallpaperAllowed(false);\n        mSandiumWallpaperCoordinator = null;\n    }\n\n    private void maybeShowNTPImage() {\n        if (mSandiumWallpaperCoordinator != null) {\n            mSandiumWallpaperCoordinator.setSandiumWallpaperAllowed(\n                    mProfile != null && UserPrefs.get(mProfile)\n                            .getBoolean(BravePref.NEW_TAB_PAGE_SHOW_BACKGROUND_IMAGE)\n                    && mSponsoredTab != null && NTPImageUtil.shouldEnableNTPFeature()\n                    && mNtpImageGlobal != null\n                    && !(mNtpImageGlobal instanceof Wallpaper\n                            && ((Wallpaper) mNtpImageGlobal).isRichMedia()));\n        }\n"
+  },
+  {
+    "path": "brave/android/java/org/chromium/chrome/browser/ntp/BraveNewTabPageLayout.java",
+    "old": "        mBgImageView = (ImageView) findViewById(R.id.bg_image_view);",
+    "new": "        if (mBgImageView == null) mBgImageView = (ImageView) findViewById(R.id.bg_image_view);"
+  },
+  {
+    "path": "brave/android/java/org/chromium/chrome/browser/ntp/BraveNewTabPageLayout.java",
+    "old": "                        mBgImageView.setImageBitmap(bgWallpaper);",
+    "new": "                        mBgImageView.setImageBitmap(bgWallpaper);\n                        if (mSandiumWallpaperCoordinator != null) {\n                            mSandiumWallpaperCoordinator.onSandiumWallpaperBitmapChanged();\n                        }"
+  },
+  {
+    "path": "brave/android/java/org/chromium/chrome/browser/ntp/BraveNewTabPage.java",
+    "old": "    public void updateSearchProvider() {",
+    "new": "    @Override\n    public void destroy() {\n        if (mNewTabPageLayout instanceof BraveNewTabPageLayout) {\n            ((BraveNewTabPageLayout) mNewTabPageLayout).releaseSandiumWallpaperBacking();\n        }\n        super.destroy();\n    }\n\n    public void updateSearchProvider() {"
+  },
+  {
+    "path": "chrome/android/java/src/org/chromium/chrome/browser/ntp/NewTabPage.java",
+    "old": "            mLastTouchPosition.y = Math.round(ev.getY());",
+    "new": "            mLastTouchPosition.y = Math.round(ev.getY());\n            if (mFeedSurfaceProvider instanceof FeedSurfaceCoordinator\n                    && ((FeedSurfaceCoordinator) mFeedSurfaceProvider).hasSandiumWallpaperRoot()) {\n                View foreground = ((FeedSurfaceCoordinator) mFeedSurfaceProvider).getSandiumForegroundView();\n                mLastTouchPosition.offset(foreground.getLeft(), foreground.getTop());\n            }"
+  },
+  {
+    "path": "chrome/android/java/src/org/chromium/chrome/browser/feed/FeedSurfaceCoordinator.java",
+    "old": "                mNtpHeader.setBackgroundColor(mDefaultBackgroundColor);\n            }\n        }\n    }\n\n    void updateNtpHeaderMargins()",
+    "new": "                mNtpHeader.setBackgroundColor(mDefaultBackgroundColor);\n            }\n        }\n        if (mSandiumWallpaperRoot != null) {\n            mSandiumRecyclerBackground = mRecyclerView.getBackground();\n            if (mNtpHeader != null) mSandiumHeaderBackground = mNtpHeader.getBackground();\n            if (mSandiumWallpaperPaintReady) {\n                mRecyclerView.setBackground(null);\n                if (mNtpHeader != null) mNtpHeader.setBackground(null);\n            }\n            mSandiumWallpaperDirty = true;\n        }\n    }\n\n    void updateNtpHeaderMargins()"
+  }
+]

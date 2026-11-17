@@ -11,15 +11,15 @@ class MenuCompact(unittest.TestCase):
   old_tile=26+4+28+10+max(48+line,2*line)
   new_tile=max(48,26+2+4+4+2*line)
   old=16+48+36+48+3*old_tile
-  new=8+48+24+48+3*new_tile
-  self.assertAlmostEqual(new/old,.60,delta=.02)
-  editor_body=(2*new_tile+24+48+12)+(24+4*new_tile+12)
-  self.assertEqual(editor_body+8+48,560)
-  self.assertIn('dp(8 + 48 + 24 + 48) + rows * tileHeight()',S)
+  new=8+48+24+32+3*new_tile
+  self.assertAlmostEqual(new/old,.565,delta=.02)
+  editor_body=(2*new_tile+24+32+12)+(24+4*new_tile+12)
+  self.assertEqual(editor_body+8+48,544)
+  self.assertIn('dp(8 + 48 + 24) + pagerHeight() + rows * tileHeight()',S)
   self.assertIn('(quickRows + EDITOR_AVAILABLE_ROWS) * tileHeight()',S)
  def test_compact_pager_has_single_accessible_control(self):
   self.assertIn('new FrameLayout.LayoutParams(dp(20), dp(3), Gravity.CENTER)',S)
-  self.assertIn('new LinearLayout.LayoutParams(dp(28), dp(48))',S)
+  self.assertIn('new LinearLayout.LayoutParams(dp(28), dp(32))',S)
   self.assertNotIn('if (pages == 2)',S)
   for x in ('ACTION_SCROLL_FORWARD','ACTION_SCROLL_BACKWARD','KEYCODE_DPAD_LEFT','KEYCODE_DPAD_RIGHT','RangeInfo.obtain'):
    self.assertIn(x,S)

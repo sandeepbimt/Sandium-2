@@ -39,7 +39,7 @@ class MotionTests(unittest.TestCase):
         self.assertIn('finishPanelMotion(); finishPageMotion();', text)
         self.assertIn('mNativeVisible || mDragging != null', text)
         self.assertIn('mSwipeEligible && Math.abs', text)
-        self.assertIn('new LinearLayout.LayoutParams(dp(28), dp(48))', text)
+        self.assertIn('new LinearLayout.LayoutParams(dp(28), dp(32))', text)
         self.assertIn('pager.setContentDescription(s(R.string.sandium_menu_page_description', text)
         self.assertNotIn('button("‹", s(R.string.sandium_menu_previous)', text)
         self.assertNotIn('button("›", s(R.string.sandium_menu_next)', text)

@@ -3,6 +3,9 @@
 #include "components/prefs/pref_registry_simple.h"
 #include "chrome/browser/profiles/profile.h"
 #include "base/supports_user_data.h"
+#include "base/json/json_reader.h"
+#include "base/json/json_writer.h"
+#include "url/gurl.h"
 #include <memory>
 #include "components/prefs/pref_service.h"
 #include "components/prefs/scoped_user_pref_update.h"
@@ -28,6 +31,34 @@ bool Tag(const std::string* text) {
   for (unsigned char ch : *text)
     if (!((ch >= 'a' && ch <= 'z') || (ch >= '0' && ch <= '9') || ch == '-')) return false;
   return true;
+}
+constexpr size_t kBackupBytes = 8 * 1024 * 1024;
+bool ValidRuleset(const base::DictValue& sites) {
+  if (sites.size() > kSites) return false;
+  for (const auto& [key, value] : sites) {
+    const auto origin = url::Origin::Create(GURL(key));
+    // Canonical origins only: reject credentials, paths, query, fragments and
+    // aliases so an imported rule cannot silently move to a different scope.
+    if (origin.opaque() || !origin.GetURL().SchemeIsHTTPOrHTTPS() ||
+        origin.Serialize() != key) return false;
+    const auto* rules = value.GetIfList();
+    if (!rules || rules->size() > kRules) return false;
+    for (const auto& item : *rules) {
+      const auto* rule = item.GetIfDict();
+      if (!rule || !ElementColorRuleStore::ValidRule(*rule)) return false;
+    }
+  }
+  return true;
+}
+base::DictValue ImportResult(bool ok, int added, int conflicts, int duplicates,
+                             const std::string& error) {
+  base::DictValue result;
+  result.Set("ok", ok);
+  result.Set("added", added);
+  result.Set("conflicts", conflicts);
+  result.Set("duplicates", duplicates);
+  result.Set("error", error);
+  return result;
 }
 bool SameTarget(const base::DictValue& a, const base::DictValue& b) {
   return a.FindString("id") && b.FindString("id") &&
@@ -128,6 +159,63 @@ bool ElementColorRuleStore::Save(const url::Origin& origin, const base::DictValu
     prefs_->CommitPendingWrite();
   }
   return true;
+}
+std::string ElementColorRuleStore::ExportRules() const {
+  if (private_ || !prefs_) return {};
+  const auto& sites = prefs_->GetDict(kPref);
+  // Never silently omit corrupt/unknown records from a backup.
+  if (!ValidRuleset(sites)) return {};
+  auto json = base::WriteJson(sites);
+  return json && json->size() <= kBackupBytes ? *json : std::string();
+}
+base::DictValue ElementColorRuleStore::ImportRules(const std::string& json,
+                                                   bool apply) {
+  if (private_ || !prefs_)
+    return ImportResult(false,0,0,0,"Available only in a regular profile.");
+  if (json.empty() || json.size() > kBackupBytes)
+    return ImportResult(false,0,0,0,"Backup is empty or exceeds 8 MiB.");
+  auto incoming = base::JSONReader::ReadDict(json, base::JSON_PARSE_RFC);
+  if (!incoming || !ValidRuleset(*incoming))
+    return ImportResult(false,0,0,0,"Invalid dark colour rules backup.");
+  const auto& current = prefs_->GetDict(kPref);
+  if (!ValidRuleset(current))
+    return ImportResult(false,0,0,0,"Existing rules need repair; nothing was changed.");
+  auto merged = current.Clone();
+  int added = 0, conflicts = 0, duplicates = 0;
+  for (const auto& [origin, value] : *incoming) {
+    const auto& rules = value.GetList();
+    if (rules.empty()) continue;
+    auto* target = merged.FindList(origin);
+    if (!target) {
+      if (merged.size() >= kSites)
+        return ImportResult(false,0,0,0,"Site limit exceeded; nothing was changed.");
+      merged.Set(origin,base::ListValue());
+      target = merged.FindList(origin);
+    }
+    for (const auto& item : rules) {
+      bool exists = false;
+      for (const auto& saved : *target) {
+        if (!SameTarget(saved.GetDict(),item.GetDict())) continue;
+        exists = true;
+        if (saved == item) ++duplicates; else ++conflicts;
+        break;
+      }
+      if (exists) continue;
+      if (target->size() >= kRules)
+        return ImportResult(false,0,0,0,"Rule limit exceeded; nothing was changed.");
+      target->Append(item.Clone());
+      ++added;
+    }
+  }
+  auto encoded = base::WriteJson(merged);
+  if (!encoded || encoded->size() > kBackupBytes)
+    return ImportResult(false,0,0,0,"Merged backup exceeds 8 MiB; nothing was changed.");
+  if (apply && added > 0) {
+    // One transaction, never Save() in a loop: failures leave all prefs intact.
+    prefs_->SetDict(kPref,std::move(merged));
+    prefs_->CommitPendingWrite();
+  }
+  return ImportResult(true,added,conflicts,duplicates,"");
 }
 bool ElementColorRuleStore::Reset(const url::Origin& origin) {
   if (!EligibleOrigin(origin) || (!private_ && !prefs_)) return false;

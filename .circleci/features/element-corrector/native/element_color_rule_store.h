@@ -22,6 +22,11 @@ class ElementColorRuleStore {
   bool Save(const url::Origin&, const base::DictValue&);
   bool Reset(const url::Origin&);
   void Clear();
+  // Normal profiles only. Empty export denotes failure, not an empty ruleset.
+  // Merge validates the entire input/projected store before a single pref write.
+  // Existing target/property rules win conflicts; dry runs never mutate storage.
+  std::string ExportRules() const;
+  base::DictValue ImportRules(const std::string& json, bool apply);
   static bool ValidRule(const base::DictValue&);
  private:
   static bool EligibleOrigin(const url::Origin&);

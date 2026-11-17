@@ -26,6 +26,8 @@ import android.widget.Toast;
 import org.jni_zero.CalledByNative;
 import org.jni_zero.JNINamespace;
 import org.jni_zero.NativeMethods;
+import org.jni_zero.JniType;
+import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.base.ThreadUtils;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.tab.Tab;
@@ -229,7 +231,24 @@ public final class SandiumElementColorsUtils {
         @Override public void onActivityPaused(Activity owner){}
         @Override public void onActivitySaveInstanceState(Activity owner,Bundle state){}
     }
+    /** UI-thread, normal-profile-only backup bridge. Restored rules apply on next navigation. */
+    public static boolean appendAdRules(Profile profile,String rules) {
+        ThreadUtils.assertOnUiThread();
+        return SandiumElementColorsUtilsJni.get().appendAdRules(profile,rules);
+    }
+    public static String exportRules(Profile profile) {
+        ThreadUtils.assertOnUiThread();
+        return SandiumElementColorsUtilsJni.get().exportRules(profile);
+    }
+    public static String importRules(Profile profile,String json,boolean apply) {
+        ThreadUtils.assertOnUiThread();
+        return SandiumElementColorsUtilsJni.get().importRules(profile,json,apply);
+    }
     @NativeMethods interface Natives {
+        boolean appendAdRules(Profile profile,@JniType("std::string") String rules);
+        @JniType("std::string") String exportRules(Profile profile);
+        @JniType("std::string") String importRules(Profile profile,
+                @JniType("std::string") String json,boolean apply);
         boolean start(Tab tab,long requestId);
         boolean preview(Tab tab,long requestId,int property,int rgb);
         void save(Tab tab,long requestId,int property,int rgb);

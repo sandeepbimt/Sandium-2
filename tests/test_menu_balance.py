@@ -6,7 +6,7 @@ S=(ROOT/'android/java/org/chromium/chrome/browser/ui/appmenu/SandiumPagedMenu.ja
 class MenuBalance(unittest.TestCase):
  def test_remove_only_header_top_space_and_keep_touch_floor(self):
   self.assertIn('panel.setPadding(dp(12), 0, dp(12), dp(8))',S)
-  self.assertIn('dp(8 + 48 + 24 + 48) + rows * tileHeight()',S)
+  self.assertIn('dp(8 + 48 + 24) + pagerHeight() + rows * tileHeight()',S)
   self.assertIn('heading.setMinimumHeight(dp(48))',S)
   self.assertIn('heading.setBaselineAligned(false)',S)
   self.assertIn('heading.setGravity(Gravity.CENTER_VERTICAL)',S)

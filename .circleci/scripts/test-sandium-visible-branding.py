@@ -62,6 +62,24 @@ class BrandingTests(unittest.TestCase):
         with self.assertRaises(RuntimeError): b.relocate_copyright('changed', original_legal)
         with self.assertRaises(RuntimeError): b.relocate_copyright(original_about, 'changed')
 
+    def test_legal_footer_is_small_accessible_and_idempotent(self):
+        fixtures=Path(__file__).resolve().parents[2]/'tests/fixtures/about-branding'
+        about, _=b.relocate_copyright((fixtures/'AboutChromeSettings.java').read_text(),
+                                     (fixtures/'LegalInformationSettings.java').read_text())
+        out=b.compact_legal_footer(about)
+        self.assertIn('p.setVisible(false)', out)
+        self.assertIn('COMPLEX_UNIT_SP, 12', out)
+        self.assertIn('android.R.attr.textColorSecondary', out)
+        self.assertIn('setMinHeight(Math.round(48 * density))', out)
+        self.assertIn('setFocusable(true)', out)
+        self.assertIn('setOnClickListener', out)
+        self.assertIn('.startSettings(context, LegalInformationSettings.class)', out)
+        self.assertIn('LayoutParams.MATCH_PARENT, 0, 1f', out)
+        self.assertLess(out.index('root.addView(preferences'), out.index('root.addView(legal'))
+        self.assertNotIn('Color.WHITE', out)
+        self.assertEqual(out,b.compact_legal_footer(out))
+        with self.assertRaises(RuntimeError): b.compact_legal_footer('changed')
+
     def test_reset_inventory_covers_new_inputs(self):
         import json
         recipe=json.loads((Path(__file__).resolve().parents[1]/'features/removal-recipe.json').read_text())
@@ -241,6 +259,8 @@ def verify_core(core):
     legal=(core.parent/b.LEGAL_JAVA).read_text()
     if (about, legal) != b.relocate_copyright(about, legal):
         raise RuntimeError('Copyright relocation missing')
+    if b.compact_legal_footer(about) != about:
+        raise RuntimeError('Compact legal footer missing')
     for rel in b.STRING_FILES:
         content=(core/rel).read_text()
         if b.rebrand_messages(content)[0] != content:

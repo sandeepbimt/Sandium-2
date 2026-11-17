@@ -17,4 +17,9 @@
     <string name="sandium_home_move_after">Move later</string>
     <string name="sandium_home_remove">Remove</string>
     <string name="sandium_home_remove_named">Remove %1$s</string>
+    <string name="sandium_home_rename">Rename</string>
+    <string name="sandium_home_rename_save">Save</string>
+    <string name="sandium_home_name_required">Enter a name</string>
+    <string name="sandium_home_rename_failed">Could not rename this shortcut. It may have been removed.</string>
+    <string name="sandium_home_renamed">Shortcut renamed</string>
 </resources>

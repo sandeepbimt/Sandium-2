@@ -19,7 +19,8 @@ class CrossPageDrag(unittest.TestCase):
   self.assertIn('case DragEvent.ACTION_DRAG_EXITED:',S)
   self.assertIn('cancelDragPage(); mDragging = null;',S)
  def test_popup_origin_consistency(self):
-  self.assertNotIn('getLocationOnScreen',S)
+  drag=S[S.index('private boolean dragHit'):S.index('private void hoverDragPage')]
+  self.assertNotIn('getLocationOnScreen',drag)
   self.assertIn('origin.x + (int) x',S)
   # Popup screen origin is irrelevant: both bounds and event are mapped to root.
   for popup_screen_y in [0,400,900]:

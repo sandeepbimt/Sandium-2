@@ -12,6 +12,6 @@ body=m.handler('        setupAdvancedOptionsListeners();\n')
 source='import android.content.Context;\nimport android.view.View;\nimport org.chromium.chrome.browser.tab.Tab;\nclass ShieldListenerCompile {\n Context mContext; Tab mCurrentTab; View popupView;\n static class R {static class id {static final int sandium_element_colors_button=1;}}\n void hide(){} void setupAdvancedOptionsListeners(){}\n void setupViews(){\n  Context context=mContext;\n' + body + "\n }\n}\n"
 (out/'ShieldListenerCompile.java').write_text(source)
 PYGEN
-mapfile -t sources < <(find "$root/java" "$root/tests/stubs" -name '*.java' -print)
-"$java_bin" com.sun.tools.javac.Main -d "$out" "${sources[@]}" "$root/tests/ElementChooserTest.java" "$out/ShieldListenerCompile.java"
+mapfile -t sources < <(find "$root/tests/stubs" -name '*.java' -print)
+"$java_bin" com.sun.tools.javac.Main -d "$out" "${sources[@]}" "$root/java/org/chromium/chrome/browser/sandium/dark/SandiumElementColorsUtils.java" "$root/tests/ElementChooserTest.java" "$out/ShieldListenerCompile.java"
 "$java_bin" -cp "$out" org.chromium.chrome.browser.sandium.dark.ElementChooserTest

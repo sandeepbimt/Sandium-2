@@ -382,6 +382,15 @@ def settings_surface(source):
         if source.count(anchor) != 1:
             raise ValueError('Pinned Settings group anchor changed')
         source = source.replace(anchor, SETTINGS_GROUPS + anchor, 1)
+    # Native Settings keeps its inset/content geometry. Route the resolved header
+    # colour through the existing system-bar owner, which paints the E2E backing
+    # and selects icons; never set a second Window colour or enable web underlap.
+    status_anchor = '        super.initializeSystemBarColors(edgeToEdgeSystemBarColorHelper);'
+    status = status_anchor + "\n\n        // SANDIUM_SETTINGS_STATUS_SURFACE: same top RGB, no elevated grey strip.\n        edgeToEdgeSystemBarColorHelper.setStatusBarColor(sandiumSettingsBackground());"
+    if 'SANDIUM_SETTINGS_STATUS_SURFACE' not in source:
+        if source.count(status_anchor) != 1:
+            raise ValueError('Pinned Settings status surface anchor changed')
+        source = source.replace(status_anchor, status, 1)
     return source
 
 def apply(root):

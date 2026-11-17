@@ -10,7 +10,7 @@ import shlex
 
 ORDER = [f'product-overlay-{i}-0.sh' for i in range(24,31)] + ['graph-validation.sh','remote-smoke.sh','full-bounded-build.sh']
 REQUIRED = {
- 'product-overlay-30-0.sh': ['test-sandium-removal-composition.py','trace-sandium-back-geometry.py','sandium-removal-recipe.py','apply-sandium-home-shortcuts.py','apply-sandium-home-shortcuts.py','apply-sandium-video-gestures.py','apply-sandium-video-gestures.py','apply-sandium-dark-combined.py','apply-sandium-dark-combined.py','test-sandium-dark-composition.py','precheck-graph.py','removal-evidence.py'],
+ 'product-overlay-30-0.sh': ['test-sandium-removal-composition.py','trace-sandium-back-geometry.py','sandium-removal-recipe.py','apply-sandium-home-shortcuts.py','apply-sandium-home-shortcuts.py','apply-sandium-video-gestures.py','apply-sandium-video-gestures.py','apply-sandium-dark-combined.py','apply-sandium-dark-combined.py','test-sandium-dark-composition.py','apply-sandium-homepage-combined.py','apply-sandium-homepage-combined.py','precheck-graph.py','removal-evidence.py'],
  'product-overlay-24-0.sh': ['apply-sandium-branding.sh'],
  'product-overlay-25-0.sh': ['apply-sandium-adblock-engine-race.py','apply-sandium-filter-subscriptions.py','apply-sandium-filter-bootstrap.py'],
  'product-overlay-26-0.sh': ['apply-sandium-page-transition-full.py','apply-sandium-back-transition.py','apply-sandium-back-controls.py','trace-sandium-back-geometry.py'],
@@ -103,6 +103,8 @@ def verify_product_wrappers(repo):
                 raise ValueError('Fullscreen controls require actual-tree verification')
             if invocations[7][1] != ['$SRC','--repo','$ROOT'] or invocations[8][1] != ['$SRC','--repo','$ROOT','--verify-only'] or invocations[9][1]:
                 raise ValueError('Dark Pages require pinned combined application, readback and composition tests')
+            if invocations[10][1] != ['$SRC'] or invocations[11][1] != ['$SRC','--verify-only']:
+                raise ValueError('Homepage backing and paint require combined apply and readback')
         if wrapper=='product-overlay-30-0.sh' and invocations[-2][1] != ['--audits-only']:raise ValueError('Aggregated audits must not repeat preparation')
         if wrapper=='product-overlay-26-0.sh' and invocations[-1][1] != ['$CIRCLE_WORKING_DIRECTORY/brave-work/src','--reset']:raise ValueError('Geometry trace must reset before status overlay')
         if wrapper=='product-overlay-25-0.sh' and '--reset-shared' not in invocations[0][1]:raise ValueError('Shared reset must precede feature consumers')

@@ -11,6 +11,9 @@ public class ElementChooserTest {
  static Object field(Object o,String name)throws Exception{Field f=o.getClass().getDeclaredField(name);f.setAccessible(true);return f.get(o);}
  static Map<Tab,Object> active()throws Exception{Field f=SandiumElementColorsUtils.class.getDeclaredField("ACTIVE");f.setAccessible(true);return (Map<Tab,Object>)f.get(null);}
  static class Native implements SandiumElementColorsUtils.Natives {
+  public boolean appendAdRules(org.chromium.chrome.browser.profiles.Profile p,String rules){return true;}
+  public String exportRules(org.chromium.chrome.browser.profiles.Profile p){return "{}";}
+  public String importRules(org.chromium.chrome.browser.profiles.Profile p,String json,boolean apply){return "{\"ok\":true}";}
   long id;Tab tab;int starts,previews,saves,cancels,resets,mode,rgb;boolean allowed=true;
   public boolean start(Tab t,long r){tab=t;id=r;starts++;return allowed;}
   public boolean preview(Tab t,long r,int p,int c){check(r==id);previews++;mode=p;rgb=c;return allowed;}
@@ -19,7 +22,9 @@ public class ElementChooserTest {
   public void resetSite(Tab t,long r){check(r==id);resets++;}
  }
  public static void main(String[] args)throws Exception{
-  Native n=new Native();SandiumElementColorsUtilsJni.instance=n;Activity a=new Activity();Tab t=new Tab();
+  Native n=new Native();SandiumElementColorsUtilsJni.instance=n;
+  check(SandiumElementColorsUtils.exportRules(new org.chromium.chrome.browser.profiles.Profile()).equals("{}"));
+  check(SandiumElementColorsUtils.importRules(new org.chromium.chrome.browser.profiles.Profile(),"{}",false).equals("{\"ok\":true}"));Activity a=new Activity();Tab t=new Tab();
   SandiumElementColorsUtils.start(a,t);long first=n.id;check(active().size()==1&&a.app.callbacks.size()==1);
   check(t.contents.observers==1);
   SandiumElementColorsUtils.onSelection(t,first);Object controller=active().get(t);check(AlertDialog.shown.size()==1);

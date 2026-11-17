@@ -89,6 +89,10 @@ final class SandiumPagedMenu extends FrameLayout {
     private PendingNativeAction mPendingNativeAction;
     private int mDragPageTarget = -1;
     private Runnable mDragPageTask;
+    private final List<View> mPagerTargets = new ArrayList<>();
+    private android.view.TouchDelegate mPagerTouchDelegate;
+    private MotionEvent mPagerDelegateDown;
+    private boolean mPagerSequenceOwned;
     private ScrollView mScroll;
     private LinearLayout mHeading, mBody;
 
@@ -187,6 +191,7 @@ final class SandiumPagedMenu extends FrameLayout {
     }
     @Override protected void onDetachedFromWindow() {
         finishEntranceMotion();
+        mPagerTargets.clear(); clearPagerTouchDelegate(); mPagerSequenceOwned = false;
         cancelDragPage(); mDragging = null;
         for (PropertyModel model : mObserved) model.removeObserver(mObserver);
         mObserved.clear(); mRequestedIcons.clear(); removeCallbacks(mRefreshTask); mRefreshPending = false;
@@ -449,6 +454,7 @@ final class SandiumPagedMenu extends FrameLayout {
     void setNativeDrillDown(java.util.function.BooleanSupplier supplier) { mNativeDrillDown = supplier; }
     void setNativeReset(Runnable reset) { mNativeReset = reset; }
     void setResizeListener(Runnable resize) { mResize = resize; }
+    private int pagerHeight() { return quickPageCount() > 1 ? dp(32) : 0; }
     int preferredHeight(int width, int available) {
         // One sheet envelope for quick pages, directory, editor and native fallback.
         // Only window/font configuration changes it, never current labels or action count.
@@ -459,11 +465,11 @@ final class SandiumPagedMenu extends FrameLayout {
             // Grow the editor, not the regular menu, and never shrink fonts/touch targets
             // to force an impossible fit in a small/landscape/accessibility viewport.
             int quickRows = (PAGE_SIZE + columns() - 1) / columns();
-            int editorHeight = dp(8 + 48 + 24 + 48 + 24 + 24)
+            int editorHeight = dp(8 + 48 + 24 + 24 + 24) + pagerHeight()
                     + (quickRows + EDITOR_AVAILABLE_ROWS) * tileHeight();
             return Math.max(1, Math.min(available, editorHeight));
         }
-        return Math.max(1, Math.min(available, dp(8 + 48 + 24 + 48) + rows * tileHeight()));
+        return Math.max(1, Math.min(available, dp(8 + 48 + 24) + pagerHeight() + rows * tileHeight()));
     }
 
     private void finishPanelMotion() {
@@ -553,6 +559,7 @@ final class SandiumPagedMenu extends FrameLayout {
                 && (screen != mRenderedScreen || mNativeVisible);
         mRenderedScreen = screen; mRenderedPage = mPage;
         clearPendingNativeAction();
+        mPagerTargets.clear(); clearPagerTouchDelegate();
         removeAllViews(); mNativeVisible = false;
         LinearLayout panel = column(); panel.setPadding(dp(12), 0, dp(12), dp(8));
         addView(panel, new LayoutParams(-1, -1));
@@ -651,58 +658,68 @@ final class SandiumPagedMenu extends FrameLayout {
             actionsGroup.addView(viewport);
             mPageViewport = viewport; mPageContent = pageGrid;
             if (pageTransition) slidePage(oldPage, pageDirection);
-            LinearLayout pager = row(); pager.setGravity(Gravity.CENTER);
-            // Compact decorative marks inside one accessible 48dp-high pager.
-            // The widget exposes range/scroll actions; small marks are not tiny TalkBack buttons.
-            pager.setFocusable(true);
-            pager.setImportantForAccessibility(IMPORTANT_FOR_ACCESSIBILITY_YES);
-            pager.setTag("pager");
-            pager.setContentDescription(s(R.string.sandium_menu_page_description, mPage + 1, pages));
-            pager.setMinimumWidth(dp(48));
-            pager.setAccessibilityDelegate(new View.AccessibilityDelegate() {
-                @Override public void onInitializeAccessibilityNodeInfo(View host, AccessibilityNodeInfo info) {
-                    super.onInitializeAccessibilityNodeInfo(host, info);
-                    info.setClassName("android.widget.SeekBar");
-                    info.setRangeInfo(AccessibilityNodeInfo.RangeInfo.obtain(
-                            AccessibilityNodeInfo.RangeInfo.RANGE_TYPE_INT, 0, pages - 1, mPage));
-                    info.setScrollable(pages > 1);
-                    if (mPage > 0) info.addAction(AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD);
-                    if (mPage + 1 < pages) info.addAction(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD);
+            if (pages > 1) {
+                LinearLayout pager = row(); pager.setGravity(Gravity.CENTER);
+                // 32dp visual band + 16dp downward touch extension in existing whitespace.
+                // No extension into the action row above; preserve direct tap and range actions.
+                pager.setFocusable(true);
+                pager.setImportantForAccessibility(IMPORTANT_FOR_ACCESSIBILITY_YES);
+                pager.setTag("pager");
+                pager.setContentDescription(s(R.string.sandium_menu_page_description, mPage + 1, pages));
+                pager.setMinimumWidth(dp(48));
+                pager.setAccessibilityDelegate(new View.AccessibilityDelegate() {
+                    @Override public void onInitializeAccessibilityNodeInfo(View host, AccessibilityNodeInfo info) {
+                        super.onInitializeAccessibilityNodeInfo(host, info);
+                        info.setClassName("android.widget.SeekBar");
+                        android.graphics.Rect bounds = new android.graphics.Rect();
+                        info.getBoundsInScreen(bounds);
+                        int[] panelOrigin = new int[2];
+                        SandiumPagedMenu.this.getLocationOnScreen(panelOrigin);
+                        bounds.bottom = Math.min(panelOrigin[1] + SandiumPagedMenu.this.getHeight(),
+                                bounds.bottom + dp(16));
+                        info.setBoundsInScreen(bounds);
+                        info.setRangeInfo(AccessibilityNodeInfo.RangeInfo.obtain(
+                                AccessibilityNodeInfo.RangeInfo.RANGE_TYPE_INT, 0, pages - 1, mPage));
+                        info.setScrollable(pages > 1);
+                        if (mPage > 0) info.addAction(AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD);
+                        if (mPage + 1 < pages) info.addAction(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD);
+                    }
+                    @Override public boolean performAccessibilityAction(View host, int action, android.os.Bundle args) {
+                        if (action == AccessibilityNodeInfo.ACTION_SCROLL_FORWARD && mPage + 1 < pages) { page(1); return true; }
+                        if (action == AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD && mPage > 0) { page(-1); return true; }
+                        return super.performAccessibilityAction(host, action, args);
+                    }
+                });
+                pager.setOnKeyListener((v, code, event) -> {
+                    if (event.getAction() != android.view.KeyEvent.ACTION_DOWN) return false;
+                    int direction = code == android.view.KeyEvent.KEYCODE_DPAD_LEFT ? -1
+                            : code == android.view.KeyEvent.KEYCODE_DPAD_RIGHT ? 1 : 0;
+                    if (direction == 0) return false;
+                    if (getLayoutDirection() == LAYOUT_DIRECTION_RTL) direction = -direction;
+                    page(direction); return true;
+                });
+                for (int i = 0; i < pages; i++) {
+                    final int destination = i;
+                    FrameLayout target = new FrameLayout(getContext());
+                    target.setClickable(true);
+                    target.setImportantForAccessibility(IMPORTANT_FOR_ACCESSIBILITY_NO);
+                    bindPressFeedback(target);
+                    target.setTag("page:" + i);
+                    target.setSelected(i == mPage);
+                    target.setOnClickListener(v -> page(destination - mPage));
+                    View mark = new View(getContext());
+                    mark.setBackground(shape(i == mPage ? mAccentColor : mDividerColor, 2));
+                    mark.setImportantForAccessibility(IMPORTANT_FOR_ACCESSIBILITY_NO);
+                    target.addView(mark, new FrameLayout.LayoutParams(dp(20), dp(3), Gravity.CENTER));
+                    pager.addView(target, new LinearLayout.LayoutParams(dp(28), dp(32)));
+                    mPagerTargets.add(target);
                 }
-                @Override public boolean performAccessibilityAction(View host, int action, android.os.Bundle args) {
-                    if (action == AccessibilityNodeInfo.ACTION_SCROLL_FORWARD && mPage + 1 < pages) { page(1); return true; }
-                    if (action == AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD && mPage > 0) { page(-1); return true; }
-                    return super.performAccessibilityAction(host, action, args);
-                }
-            });
-            pager.setOnKeyListener((v, code, event) -> {
-                if (event.getAction() != android.view.KeyEvent.ACTION_DOWN) return false;
-                int direction = code == android.view.KeyEvent.KEYCODE_DPAD_LEFT ? -1
-                        : code == android.view.KeyEvent.KEYCODE_DPAD_RIGHT ? 1 : 0;
-                if (direction == 0) return false;
-                if (getLayoutDirection() == LAYOUT_DIRECTION_RTL) direction = -direction;
-                page(direction); return true;
-            });
-            for (int i = 0; i < pages; i++) {
-                final int destination = i;
-                FrameLayout target = new FrameLayout(getContext());
-                target.setClickable(true);
-                target.setImportantForAccessibility(IMPORTANT_FOR_ACCESSIBILITY_NO);
-                bindPressFeedback(target);
-                target.setTag("page:" + i);
-                target.setSelected(i == mPage);
-                target.setOnClickListener(v -> page(destination - mPage));
-                View mark = new View(getContext());
-                mark.setBackground(shape(i == mPage ? mAccentColor : mDividerColor, 2));
-                mark.setImportantForAccessibility(IMPORTANT_FOR_ACCESSIBILITY_NO);
-                target.addView(mark, new FrameLayout.LayoutParams(dp(20), dp(3), Gravity.CENTER));
-                pager.addView(target, new LinearLayout.LayoutParams(dp(28), dp(48)));
+                // Horizontal scrolling keeps every page selector accessible for large customized menus.
+                android.widget.HorizontalScrollView pagerScroll = new android.widget.HorizontalScrollView(getContext());
+                pagerScroll.setHorizontalScrollBarEnabled(false); pagerScroll.setFillViewport(true);
+                pagerScroll.addView(pager);
+                actionsGroup.addView(pagerScroll);
             }
-            // Horizontal scrolling keeps every page selector accessible for large customized menus.
-            android.widget.HorizontalScrollView pagerScroll = new android.widget.HorizontalScrollView(getContext());
-            pagerScroll.setHorizontalScrollBarEnabled(false); pagerScroll.setFillViewport(true);
-            pagerScroll.addView(pager);
-            actionsGroup.addView(pagerScroll);
         }
         if (mDraft != null) {
             LinearLayout availableGroup = group(body);
@@ -952,6 +969,7 @@ final class SandiumPagedMenu extends FrameLayout {
         finishPanelMotion(); finishPageMotion(); mMotionPanel = null;
         clearPendingNativeAction();
         mNativeVisible = true;
+        mPagerTargets.clear(); clearPagerTouchDelegate();
         if (mNativeReset != null) mNativeReset.run();
         removeAllViews();
         if (mNative.getParent() instanceof ViewGroup) ((ViewGroup) mNative.getParent()).removeView(mNative);
@@ -1091,6 +1109,79 @@ final class SandiumPagedMenu extends FrameLayout {
         }
         return true;
     }
+    /** Extend taps into safe footer/section-heading whitespace, never adjacent action tiles. */
+    private android.view.TouchDelegate pagerTouchExtension() {
+        List<android.view.TouchDelegate> delegates = new ArrayList<>();
+        for (View target : mPagerTargets) {
+            android.graphics.Rect bounds = new android.graphics.Rect();
+            if (!target.isShown() || !target.getLocalVisibleRect(bounds)
+                    || bounds.height() < dp(32)) continue;
+            offsetDescendantRectToMyCoords(target, bounds);
+            bounds.top = bounds.bottom;
+            bounds.bottom += dp(16);
+            if (bounds.intersect(0, 0, getWidth(), getHeight())) {
+                delegates.add(new android.view.TouchDelegate(bounds, target));
+            }
+        }
+        if (delegates.isEmpty()) return null;
+        return new android.view.TouchDelegate(new android.graphics.Rect(), this) {
+            @Override public boolean onTouchEvent(MotionEvent event) {
+                for (android.view.TouchDelegate delegate : delegates) {
+                    MotionEvent copy = MotionEvent.obtain(event);
+                    boolean handled = delegate.onTouchEvent(copy); copy.recycle();
+                    if (handled) return true;
+                }
+                return false;
+            }
+        };
+    }
+    private void clearPagerTouchDelegate() { clearPagerTouchDelegate(true); }
+    private void clearPagerTouchDelegate(boolean cancelTarget) {
+        if (cancelTarget && mPagerTouchDelegate != null && mPagerDelegateDown != null) {
+            MotionEvent cancel = MotionEvent.obtain(mPagerDelegateDown);
+            cancel.setAction(MotionEvent.ACTION_CANCEL);
+            mPagerTouchDelegate.onTouchEvent(cancel); cancel.recycle();
+        }
+        mPagerTouchDelegate = null;
+        if (mPagerDelegateDown != null) { mPagerDelegateDown.recycle(); mPagerDelegateDown = null; }
+        // A render may remove the target mid-press; keep ownership until the terminal
+        // event so MOVE/UP cannot reach new controls without a matching DOWN.
+    }
+    @Override public boolean dispatchTouchEvent(MotionEvent event) {
+        // Resolve current bounds on every new touch, including after editor scrolling.
+        int action = event.getActionMasked();
+        if (action == MotionEvent.ACTION_DOWN) {
+            clearPagerTouchDelegate(); mPagerSequenceOwned = false;
+            mPagerTouchDelegate = pagerTouchExtension();
+        }
+        if ((action == MotionEvent.ACTION_MOVE || action == MotionEvent.ACTION_POINTER_DOWN
+                || action == MotionEvent.ACTION_POINTER_UP)
+                && mPagerTouchDelegate != null && mPagerDelegateDown != null) {
+            int slop = android.view.ViewConfiguration.get(getContext()).getScaledTouchSlop();
+            if (action != MotionEvent.ACTION_MOVE
+                    || Math.abs(event.getX() - mPagerDelegateDown.getX()) > slop
+                    || Math.abs(event.getY() - mPagerDelegateDown.getY()) > slop) {
+                // A footer drag is still a scroll gesture, not a captive button press.
+                MotionEvent cancel = MotionEvent.obtain(event); cancel.setAction(MotionEvent.ACTION_CANCEL);
+                mPagerTouchDelegate.onTouchEvent(cancel); cancel.recycle();
+                MotionEvent down = mPagerDelegateDown; mPagerDelegateDown = null;
+                clearPagerTouchDelegate(); mPagerSequenceOwned = false;
+                super.dispatchTouchEvent(down); down.recycle();
+                return super.dispatchTouchEvent(event);
+            }
+        }
+        boolean owned = mPagerSequenceOwned;
+        boolean delegated = mPagerTouchDelegate != null && mPagerTouchDelegate.onTouchEvent(event);
+        if (action == MotionEvent.ACTION_DOWN && delegated) {
+            mPagerDelegateDown = MotionEvent.obtain(event); mPagerSequenceOwned = true;
+        }
+        if ((action == MotionEvent.ACTION_DOWN && !delegated)
+                || action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL) {
+            clearPagerTouchDelegate(false); mPagerSequenceOwned = false;
+        }
+        return owned || delegated || super.dispatchTouchEvent(event);
+    }
+
     @Override public boolean dispatchKeyEvent(android.view.KeyEvent event) {
         if (event.getAction() == android.view.KeyEvent.ACTION_DOWN) clearPendingNativeAction();
         return super.dispatchKeyEvent(event);

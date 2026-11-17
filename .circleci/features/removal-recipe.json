@@ -367,7 +367,9 @@
     "components/cosmetic_filters/renderer/BUILD.gn",
     "components/cosmetic_filters/renderer/cosmetic_filters_js_handler.cc",
     "components/cosmetic_filters/renderer/cosmetic_filters_js_handler.h",
-    "android/java/res/xml/developer_preferences.xml"
+    "android/java/res/xml/developer_preferences.xml",
+    "android/java/org/chromium/chrome/browser/feed/BraveFeedSurfaceCoordinator.java",
+    "android/java/org/chromium/chrome/browser/ntp/BraveNewTabPage.java"
   ],
   "chromium_restore": [
     "chrome/android/chrome_public_apk_tmpl.gni",
@@ -471,7 +473,14 @@
     "third_party/blink/renderer/core/paint/image_painter.cc",
     "chrome/android/java/src/org/chromium/chrome/browser/about_settings/AboutChromeSettings.java",
     "chrome/android/java/src/org/chromium/chrome/browser/about_settings/LegalInformationSettings.java",
-    "chrome/android/java/res/xml/developer_preferences.xml"
+    "chrome/android/java/res/xml/developer_preferences.xml",
+    "third_party/blink/renderer/core/paint/box_painter_base.cc",
+    "third_party/blink/renderer/platform/graphics/gradient_generated_image.h",
+    "third_party/blink/renderer/platform/graphics/image.h",
+    "chrome/android/java/src/org/chromium/chrome/browser/feed/FeedSurfaceCoordinator.java",
+    "chrome/android/java/src/org/chromium/chrome/browser/ntp/NewTabPage.java",
+    "chrome/browser/ui/android/native_page/java/src/org/chromium/chrome/browser/ui/native_page/NativePage.java",
+    "chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/TopToolbarOverlayMediator.java"
   ],
   "generated_overwrite": [
     "components/minidump_uploader/android/java/src/org/chromium/components/minidump_uploader/MinidumpUploader.java",
@@ -497,7 +506,10 @@
     "chrome/browser/ui/android/night_mode/java/src/org/chromium/chrome/browser/night_mode/SandiumDarkPages.java",
     "chrome/browser/ui/android/night_mode/java/src/org/chromium/chrome/browser/sandium/dark/DarkPagePolicy.java",
     "third_party/blink/renderer/core/dom/sandium_element_colors.cc",
-    "third_party/blink/renderer/core/dom/sandium_element_colors.h"
+    "third_party/blink/renderer/core/dom/sandium_element_colors.h",
+    "brave/android/java/org/chromium/chrome/browser/sandium/dark/SandiumRuleBackup.java",
+    "brave/android/java/org/chromium/chrome/browser/sandium/dark/SandiumRulesPreferences.java",
+    "brave/android/java/org/chromium/chrome/browser/sandium/dark/SandiumBlockingRulesPreferences.java"
   ],
   "steps": [
     {
@@ -635,7 +647,8 @@
     "content/public/browser/content_browser_client.h": "patches/content-public-browser-content_browser_client.h.patch",
     "content/renderer/render_frame_impl.cc": "patches/content-renderer-render_frame_impl.cc.patch",
     "third_party/blink/renderer/core/BUILD.gn": "patches/third_party-blink-renderer-core-BUILD.gn.patch",
-    "content/browser/renderer_host/navigation_controller_impl.cc": "patches/content-browser-renderer_host-navigation_controller_impl.cc.patch"
+    "content/browser/renderer_host/navigation_controller_impl.cc": "patches/content-browser-renderer_host-navigation_controller_impl.cc.patch",
+    "chrome/android/java/src/org/chromium/chrome/browser/ntp/NewTabPage.java": "patches/chrome-android-java-src-org-chromium-chrome-browser-ntp-NewTabPage.java.patch"
   },
   "ui_baseline": "50545b503d3429ee1a1dad86317147e87d4b556b",
   "ui_reset_note": "Reset pinned upstream inputs only; replay exact pinned Brave patches for declared Chromium paths before UI overlays. Sandium-created classes/resources are retained and recopied by their owning overlays.",

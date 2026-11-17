@@ -15,6 +15,47 @@ m=load('apply-sandium-toolbar-refinements');a=load('apply-sandium-unified-addres
 FIX=ROOT/'tests/fixtures/toolbar-refinements';UFIX=ROOT/'tests/fixtures/unified-address'
 
 class Refinements(unittest.TestCase):
+    def test_shade_dependency_scoped_and_idempotent(self):
+        raw=(FIX/'BUILD.gn').read_text()
+        out=m.build(raw)
+        self.assertEqual(out,m.build(out))
+        dep='    "//brave/browser/ui/android/theme:dynamic_colors_java",\n'
+        self.assertEqual(out.count(dep),1)
+        self.assertEqual(out.replace(dep,''),raw)
+        core=out.split('android_library("core_java") {',1)[1].split('\n}\n',1)[0]
+        self.assertIn('  deps = [\n'+dep,core)
+        self.assertIn((ROOT/m.bottom.BASE/'BUILD.gn',m.build),m.transformations(ROOT))
+        # Brave's existing source hook leaves the scoped dep transformation intact.
+        anchor='    \"java/src/org/chromium/chrome/browser/toolbar/top/tab_strip/TabStripTransitionCoordinator.java\",\n  ]'
+        patched=raw.replace(anchor,anchor+'\n  sources += brave_browser_ui_android_toolbar_sources')
+        self.assertNotEqual(patched,raw)
+        self.assertEqual(m.build(patched).replace(dep,''),patched)
+
+    def test_capsule_color_scoped_and_idempotent(self):
+        raw=(UFIX/'ToolbarPhone.java').read_text()
+        out=m.capsule_color(raw)
+        self.assertEqual(out,m.capsule_color(out))
+        for gate in ('color != 0xFF1A1A1A', 'isIncognitoBranded()',
+                     'BraveDynamicColors.isDynamicColorsEnabled()', 'UI_MODE_NIGHT_YES',
+                     '"ChromeTabbedActivity".equals', '? 0xFF292929 : color'):
+            self.assertIn(gate,out)
+        # Color is resolved before native interpolation, not rounded/replaced in each frame.
+        start='    private void updateModernLocationBarColor(@ColorInt int color) {'
+        end='    private void updateModernLocationBarCorners()'
+        self.assertEqual(raw[raw.index(start):raw.index(end)],out[out.index(start):out.index(end)])
+        self.assertIn('return sandiumAddressCapsuleColor(ThemeUtils.',out)
+        self.assertIn('mCurrentLocationBarColor = sandiumAddressCapsuleColor(mLocationBarBackgroundColorForNtp);',out)
+        self.assertIn('ContextCompat.getColor(getContext(), R.color.toolbar_text_box_bg_color)))',out)
+
+    def test_shade_is_in_actual_phone_transform(self):
+        raw=(UFIX/'ToolbarPhone.java').read_text()
+        composed=a.all_phone(a.bottom.phone(raw))
+        out=m.all_phone(composed)
+        self.assertEqual(out,m.all_phone(out))
+        self.assertIn('SANDIUM_ADDRESS_HEIGHT_V1',out)
+        self.assertIn('SANDIUM_ADDRESS_SHADE_V1',out)
+        self.assertEqual(m.transformations(ROOT)[0][1],m.all_phone)
+
     def test_address_height_only_changes_background_inset(self):
         raw=(UFIX/'ToolbarPhone.java').read_text()
         base=a.all_phone(a.bottom.phone(raw))
@@ -120,7 +161,7 @@ class Refinements(unittest.TestCase):
         self.assertIn('editAction.setMinWidth(dp(64))', source)
         self.assertIn('editParams = new LinearLayout.LayoutParams(dp(64), dp(48))', source)
         self.assertNotIn('editParams.setMarginEnd(dp(8))', source)
-        self.assertIn('new LinearLayout.LayoutParams(dp(28), dp(48))',source)
+        self.assertIn('new LinearLayout.LayoutParams(dp(28), dp(32))',source)
         self.assertIn('new FrameLayout.LayoutParams(dp(20), dp(3), Gravity.CENTER)',source)
         self.assertNotIn('if (pages == 2)',source)
         self.assertIn('pager.setContentDescription',source)
@@ -153,7 +194,7 @@ class Refinements(unittest.TestCase):
             self.assertEqual(colors['sandium_menu_group_surface'], expected)
 
     def test_fail_closed(self):
-        for f in (m.phone,m.layout,m.page_info,m.dimens,m.coordinator,m.button,m.strings):
+        for f in (m.build,m.phone,m.layout,m.page_info,m.dimens,m.coordinator,m.button,m.strings):
             with self.subTest(transform=f.__name__):
                 with self.assertRaises(ValueError):f('unrecognized source')
 

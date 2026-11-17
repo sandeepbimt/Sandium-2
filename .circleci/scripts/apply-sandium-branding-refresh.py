@@ -16,7 +16,7 @@ EXPECTED_CHROMIUM_SHA = "d331de35ca8ab1358c7a17e4bd41627d55eaef51"
 ASSETS = {
     "icon.webp": "dbddd3838a9995ead3ef456a8ab964b7142e4c255232f1e27daf57572a73b3fe",
     "logo-mark.webp": "1f2f20b55c3a1d1ccdcaed4024eb88b31e9b763d5d63b73b68727f1247b127c2",
-    "wallpaper.webp": "6f4e5c7ca70a0b0c69ab27874b7a878a9c8a98de34fee706b24a06f8af5ed842",
+    "wallpaper.webp": "601e01315df64a7d4bda32c43078add6cb923e49e02dc8caa83ef06d6afe8134",
 }
 
 def read(path: Path) -> str:
@@ -406,6 +406,14 @@ def replace_toolbar_method(core: Path) -> None:
     else:
         write(path, source[:begin] + replacement + source[finish:], "toolbar-shields-mark")
 
+def refresh_wallpaper_focal_point(path: Path) -> None:
+    """Refresh only bundled-resource geometry on an older branded checkpoint."""
+    source = read(path)
+    old = "R.drawable.sandium_wallpaper, 270, 480"
+    if old in source:
+        write(path, source.replace(old, "R.drawable.sandium_wallpaper, 409, 960"),
+              "selected-wallpaper-focal-point")
+
 def apply(args: argparse.Namespace) -> None:
     core = args.core.resolve()
     src = args.src.resolve()
@@ -504,6 +512,7 @@ def apply(args: argparse.Namespace) -> None:
     strings = core / "browser/ui/android/strings/android_brave_strings.grd"
 
     sponsored = core / "android/java/org/chromium/chrome/browser/ntp_background_images/util/SponsoredContentUtil.java"
+    refresh_wallpaper_focal_point(sponsored)
     remove_once(
         sponsored,
         "import org.chromium.chrome.browser.ntp_background_images.model.ImageCredit;",
@@ -524,12 +533,13 @@ def apply(args: argparse.Namespace) -> None:
 """,
         """    private static final List<BackgroundImage> sBackgroundImages =
             new ArrayList<BackgroundImage>(
-                    Arrays.asList(new BackgroundImage(R.drawable.sandium_wallpaper, 270, 480)));
+                    Arrays.asList(new BackgroundImage(R.drawable.sandium_wallpaper, 409, 960)));
 """,
         "ntp-default-wallpaper",
     )
 
     bridge = core / "android/java/org/chromium/chrome/browser/ntp_background_images/NTPBackgroundImagesBridge.java"
+    refresh_wallpaper_focal_point(bridge)
     bridge_source = read(bridge)
     if "import org.chromium.base.ContextUtils;" not in bridge_source:
         bridge_source = bridge_source.replace(
@@ -558,7 +568,7 @@ def apply(args: argparse.Namespace) -> None:
     }
 """,
         """    public static BackgroundImage createWallpaper(String imagePath, String author, String link) {
-        return new BackgroundImage(R.drawable.sandium_wallpaper, 270, 480);
+        return new BackgroundImage(R.drawable.sandium_wallpaper, 409, 960);
     }
 """,
         "normal-wallpaper-callback",

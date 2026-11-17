@@ -1,0 +1,20 @@
+<!doctype html>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sandium CSS gradient and shadow regression</title>
+<style>
+body{font:16px system-ui;margin:24px;background:white;color:#202124}
+section{margin:24px 0;padding:16px;border:1px solid #dadce0}
+input{background:white;color:#202124;border:1px solid #dadce0;padding:12px;max-width:65%}
+.search{position:relative;padding:20px;border-radius:36px;box-shadow:0 1px 6px #dadce0}
+.fade{position:absolute;right:35%;top:22px;width:40px;height:36px;background:linear-gradient(90deg,transparent,white)}
+.divider{margin:24px -16px;height:8px;background:#f1f3f4;box-shadow:0 -1px 0 #dadce0,0 1px 0 #dadce0}
+.tiled{height:64px;background:repeating-linear-gradient(90deg,#fff 0 10px,#ddd 10px 20px);background-size:40px 64px}
+.rounded{height:64px;border-radius:24px;background:linear-gradient(90deg,#fff,#ddd)}
+.author-dark{color-scheme:dark;background:#202124;color:#e8eaed}
+.author-dark .rounded{background:linear-gradient(90deg,#202124,#303134)}
+</style>
+<h1>CSS gradients, shadows and artwork</h1>
+<p>Test Dark Pages ON, OFF, then saved manual correction ON/OFF and reload. Compare geometry unchanged; bitmap/SVG pixels stay unchanged. This is not a Google-specific fixture.</p>
+<section><div class="search"><input value="Sample query"><span class="fade"></span> × 🎤</div><div class="divider"></div><p>Separator with two shadow strokes</p><div class="tiled"></div><div class="rounded"></div></section>
+<section class="author-dark">Author-dark controls<div class="rounded"></div><input value="Editable field"></section>
+<section><svg width="180" height="60" xmlns="http://www.w3.org/2000/svg"><rect width="180" height="60" fill="#2468ab"/><text x="12" y="38" fill="white">Artwork remains</text></svg><img alt="Bitmap remains" width="60" height="60" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a6yoAAAAASUVORK5CYII="></section>

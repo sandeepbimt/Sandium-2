@@ -7,5 +7,7 @@
   "brave/android/java/brave-res/layout/brave_shields_tab_content.xml": "17ae4c5cb5627276c012df9990caececb0be142f6cccc0b0ea2075d6d8c5833c",
   "brave/android/brave_java_sources.gni": "59e58d22a5c01f934f116e28bfee6c7731d8f12679723fdc98cdbbe019756484",
   "brave/android/BUILD.gn": "c84a6d7bd61bd35d3a936a61a9a519e53085bcaefdbd6fec579422ce765b05f4",
-  "brave/android/java/org/chromium/chrome/browser/firstrun/SandiumWelcomeSetupView.java": "48b7dcd35b27c2e49871394547e757f14f3812c65c1fe61e13384cbb0cff44da"
+  "brave/android/java/org/chromium/chrome/browser/firstrun/SandiumWelcomeSetupView.java": "48b7dcd35b27c2e49871394547e757f14f3812c65c1fe61e13384cbb0cff44da",
+  "brave/android/java/brave-res/xml/brave_privacy_preferences.xml": "4f695978df005da4f2e32d290abb82f34e09ccf865501cf55223de6b216879eb",
+  "brave/android/java/org/chromium/chrome/browser/privacy/settings/BravePrivacySettings.java": "7bb2b4d3783f56f1cdfe428cb48f3357ddefdfdce568546b652da82d4d105fee"
 }

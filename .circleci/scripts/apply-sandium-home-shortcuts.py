@@ -50,7 +50,7 @@ def layout(t):
             int densityMargin = Math.round(16 * getResources().getDisplayMetrics().density);
             shortcutsParams.leftMargin = densityMargin;
             shortcutsParams.rightMargin = densityMargin;
-            shortcutsParams.bottomMargin = Math.round(8 * getResources().getDisplayMetrics().density);
+            shortcutsParams.bottomMargin = Math.round(16 * getResources().getDisplayMetrics().density);
             mSandiumShortcuts.setVisibility(NtpUtil.shouldDisplayTopSites() ? View.VISIBLE : View.GONE);
             addView(mSandiumShortcuts, shortcutsParams);
         }''')

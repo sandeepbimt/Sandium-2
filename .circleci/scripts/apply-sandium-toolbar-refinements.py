@@ -38,6 +38,74 @@ def phone(s):
 
 
 
+def capsule_color(s):
+    # Paint only the normal browser's baseline dark capsule, never shared surface
+    # resources or custom-tab/private/dynamic theme colors.
+    anchor = '    private void updateModernLocationBarColor(@ColorInt int color) {'
+    helper = """    // SANDIUM_ADDRESS_SHADE_V1: approved lighter capsule; all other surfaces unchanged.
+    private int sandiumAddressCapsuleColor(int color) {
+        if (color != 0xFF1A1A1A || isIncognitoBranded()
+                || org.chromium.chrome.browser.theme.BraveDynamicColors.isDynamicColorsEnabled()) {
+            return color;
+        }
+        boolean night = (getResources().getConfiguration().uiMode
+                & android.content.res.Configuration.UI_MODE_NIGHT_MASK)
+                == android.content.res.Configuration.UI_MODE_NIGHT_YES;
+        android.content.Context context = getContext();
+        while (context instanceof android.content.ContextWrapper
+                && !(context instanceof android.app.Activity)) {
+            android.content.Context base = ((android.content.ContextWrapper) context).getBaseContext();
+            if (base == context) break;
+            context = base;
+        }
+        return night && "ChromeTabbedActivity".equals(context.getClass().getSimpleName())
+                ? 0xFF292929 : color;
+    }
+
+"""
+    s = once(s, anchor, helper + anchor)
+    s = once(s,
+        '        mLocationBarBackground = createModernLocationBarBackground(getContext());',
+        """        mLocationBarBackground = createModernLocationBarBackground(getContext());
+        mLocationBarBackground.setBackgroundColor(sandiumAddressCapsuleColor(
+                ContextCompat.getColor(getContext(), R.color.toolbar_text_box_bg_color)));""")
+    s = once(s,
+        '        mLocationBarBackground.setBackgroundColor(mLocationBarBackgroundColorForNtp);\n'
+        '        mCurrentLocationBarColor = mLocationBarBackgroundColorForNtp;',
+        """        mCurrentLocationBarColor = sandiumAddressCapsuleColor(mLocationBarBackgroundColorForNtp);
+        mLocationBarBackground.setBackgroundColor(mCurrentLocationBarColor);""")
+    s = once(s,
+        '            return mLocationBarBackgroundColorForNtp;',
+        '            return sandiumAddressCapsuleColor(mLocationBarBackgroundColorForNtp);')
+    s = once(s,
+        '        return ThemeUtils.getTextBoxColorForToolbarBackgroundInNonNativePage(\n'
+        '                getContext(), toolbarColor, isIncognitoBranded(), /* isCustomTab= */ false);',
+        '        return sandiumAddressCapsuleColor(ThemeUtils.getTextBoxColorForToolbarBackgroundInNonNativePage(\n'
+        '                getContext(), toolbarColor, isIncognitoBranded(), /* isCustomTab= */ false));')
+    return s
+
+
+def build(s):
+    # ToolbarPhone belongs to core_java, not chrome/android:chrome_java.
+    # A dependency on the latter cannot supply this target's compile classpath.
+    start = 'android_library("core_java") {'
+    if s.count(start) != 1:
+        raise ValueError('Toolbar core_java target mismatch')
+    head, body = s.split(start, 1)
+    end = body.find('\n}\n')
+    if end < 0:
+        raise ValueError('Toolbar core_java target end mismatch')
+    target, tail = body[:end], body[end:]
+    target = once(target, '  deps = [\n',
+                  '  deps = [\n'
+                  '    "//brave/browser/ui/android/theme:dynamic_colors_java",\n')
+    return head + start + target + tail
+
+
+def all_phone(s):
+    return capsule_color(phone(s))
+
+
 def layout(s):
     return once(s, 'android:id="@+id/sandium_new_tab"\n',
                 'android:id="@+id/sandium_new_tab"\n            android:visibility="gone"\n            android:importantForAccessibility="noHideDescendants"\n')
@@ -169,8 +237,9 @@ def strings(s):
 
 
 def transformations(src):
-    return [(src / bottom.PHONE, phone),
+    return [(src / bottom.PHONE, all_phone),
             (src / bottom.BASE / 'java/res/layout/toolbar_phone.xml', layout),
+            (src / bottom.BASE / 'BUILD.gn', build),
             (src / UTIL, page_info), (src / DIMENS, dimens),
             (src / TOP / 'ToggleTabStackButtonCoordinator.java', coordinator),
             (src / TOP / 'ToggleTabStackButton.java', button),

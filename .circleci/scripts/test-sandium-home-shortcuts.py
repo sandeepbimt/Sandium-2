@@ -59,13 +59,17 @@ assert set(re.findall(r'R.string.(sandium_\w+)',java))<=names
 print('PASS: pinned transformations, idempotence, drift, resource and source contracts; Android compile/device not run')
 
 # Numbered layout: newest upper-left (20), oldest reaches lower-right (1).
-assert 'return bridge.addCustomLink(title, url, 0)' in java
+assert 'return bridge.addCustomLink(shortcutLabel(title, url), url, 0)' in java
 assert java.count('addNewest(') == 3
 assert 'Collections.reverse' not in java
 assert 'mExpanded ? 5 : 4' in java
-assert 'reservedHeight - height' in java
-assert 'mScroll.setBackground(shape(mPanel, 16))' in java
-assert 'count > 0 && i < rows * 5' in java
+assert 'reservedHeight - height' not in java
+assert 'if (mSites.isEmpty())' in java
+assert 'mScroll = null; mEditing = false; mExpanded = false;' in java
+assert 'int footerHeight = 48;' in java
+assert 'firstRowCount = count - (rows - 1) * 5' in java
+assert 'mScroll.setBackground(null)' in java
+assert 'column = firstRowCount; column < 5' in java
 for count in [1, 2, 5, 6, 19, 20, 21, 25, 26, 200]:
     saved = []
     for n in range(1, count + 1): saved.insert(0, n)
@@ -75,7 +79,15 @@ for count in [1, 2, 5, 6, 19, 20, 21, 25, 26, 200]:
     rows = (shown + 4) // 5
     assert 1 <= rows <= 4
     panel = min(4 * 76, rows * 76)
-    assert panel + (4 * 76 - panel) == 304
+    # Panel only occupies populated rows; its bottom stays at the same anchor.
+    first = shown - (rows - 1) * 5
+    cells = [(0, i) if i < first else (1 + (i - first) // 5, (i - first) % 5)
+             for i in range(shown)]
+    assert len(set(cells)) == shown
+    assert cells[0] == (0, 0)
+    assert cells[-1] == (rows - 1, min(5, shown) - 1)
+    assert all(0 <= row < rows and 0 <= col < 5 for row, col in cells)
+    assert panel == rows * 76
     expanded_panel = min(5 * 76, ((count + 4) // 5) * 76)
     assert expanded_panel <= 380
 # Manual order remains authoritative; next addition prepends without reversing it.
@@ -95,3 +107,52 @@ assert 'icon.setPadding(dp(6),dp(6),dp(6),dp(6))' in java
 assert 'content.addView(iconBox, new LinearLayout.LayoutParams(dp(44), dp(44)))' in java
 assert 'RenderEffect' not in java and 'setColorFilter' not in java
 print('PASS: uniform frosted icon bounds, aspect-preserving content and no runtime blur/tint')
+
+# Regression examples use persisted newest-first order without mutating it.
+def displayed(n):
+    rows = (n + 4) // 5
+    first = n - (rows - 1) * 5
+    data = list(range(n, 0, -1))
+    return [data[:first]] + [data[i:i+5] for i in range(first, n, 5)]
+assert displayed(1) == [[1]]
+assert displayed(3) == [[3,2,1]]
+assert displayed(6) == [[6], [5,4,3,2,1]]
+assert displayed(7) == [[7,6], [5,4,3,2,1]]
+assert displayed(11) == [[11], [10,9,8,7,6], [5,4,3,2,1]]
+assert displayed(20)[-1] == [5,4,3,2,1]
+assert 'shortcutsParams.bottomMargin = Math.round(16 *' in m.layout((audit/layout_path).read_text())
+print('PASS: bottom-anchored row growth, empty-card removal, stable footer and partial top row')
+
+assert 'iconBox.setElevation(dp(2))' in java
+assert 'title.setShadowLayer(dp(2), 0, dp(1), 0x80000000)' in java
+assert 'UrlUtilities.getDomainAndRegistry(url.getSpec(), true)' in java
+assert 'if (savedTitle != null && !savedTitle.trim().isEmpty()) return savedTitle;' in java
+assert 'addNewest(bridge, "", tab.getUrl())' in java
+assert 'addNewest(bridge, tab.getTitle()' not in java
+print('PASS: transparent group, subtle shadows, PSL site defaults and preservation of saved/custom labels')
+
+# Contract model with explicit expected native PSL outputs, NOT a replacement PSL.
+def label(saved, host, registrable):
+    if saved is not None and saved.strip(): return saved
+    if not registrable: return host
+    name = registrable.split('.')[0]
+    return name if name.startswith('xn--') else name[:1].upper() + name[1:]
+for host, domain, expected in [
+    ('m.facebook.com', 'facebook.com', 'Facebook'),
+    ('www.bhaskar.com', 'bhaskar.com', 'Bhaskar'),
+    ('www.example.co.uk', 'example.co.uk', 'Example'),
+    ('m.example.co.in', 'example.co.in', 'Example'),
+    ('alice.blogspot.com', 'alice.blogspot.com', 'Alice'),
+    ('127.0.0.1', '', '127.0.0.1'),
+    ('[::1]', '', '[::1]'),
+    ('localhost', '', 'localhost'),
+    ('intranet', '', 'intranet'),
+    ('xn--bcher-kva.de', 'xn--bcher-kva.de', 'xn--bcher-kva'),
+]:
+    assert label('', host, domain) == expected
+    saved = label('', host, domain)
+    assert label(saved, host, domain) == saved  # saved/reloaded name unchanged
+    assert label('My chosen name', host, domain) == 'My chosen name'
+    assert label('Renamed later', host, domain) == 'Renamed later'
+assert label('Facebook - login', 'm.facebook.com', 'facebook.com') == 'Facebook - login'
+print('PASS: label contract models for suffix/host edge cases, saved defaults and explicit rename preservation')

@@ -43,7 +43,7 @@ class RendererPatchTest(unittest.TestCase):
         self.assertIn('frame->GetSiteInstance() != &main_frame_site', helper)
         self.assertIn('frame->IsErrorDocument()', helper)
         self.assertIn('frame->GetLastCommittedOrigin().opaque()', helper)
-        self.assertLess(helper.index('prefs->sandium_dark_page_flags = -1'), helper.index('if (!client'))
+        self.assertLess(helper.index('prefs->sandium_dark_page_flags = -2'), helper.index('if (!client'))
         self.assertIn('client->SandiumDarkPageFlags(frame->GetLastCommittedURL())', helper)
         self.assertNotIn('prefs->force_dark_mode_enabled =', helper)
         self.assertNotIn('preferred_color_scheme =', helper)

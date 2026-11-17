@@ -21,6 +21,10 @@ python3 .circleci/scripts/apply-sandium-dark-combined.py "$SRC" --repo "$ROOT"
 python3 .circleci/scripts/apply-sandium-dark-combined.py "$SRC" --repo "$ROOT" --verify-only
 python3 .circleci/scripts/test-sandium-dark-composition.py
 
+# Native homepage only: backing and matching paint after all prior UI owners.
+python3 .circleci/scripts/apply-sandium-homepage-combined.py "$SRC"
+python3 .circleci/scripts/apply-sandium-homepage-combined.py "$SRC" --verify-only
+
 # Run every independent audit before failing, so one build reports all graph defects.
 python3 .circleci/scripts/precheck-graph.py --audits-only
 python3 .circleci/scripts/removal-evidence.py capture --root "$ROOT"
