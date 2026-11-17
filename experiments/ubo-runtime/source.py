@@ -10,6 +10,8 @@ import tempfile
 ROOT = Path(__file__).parent
 CORE_PIN = '44a84b1f89d9a35287289d6a3d493e362f5a5123'
 CHROMIUM_PIN = 'd331de35ca8ab1358c7a17e4bd41627d55eaef51'
+RENAMED_SETTINGS = 'android/java/brave-res/drawable/ic_settings.xml'
+RENAMED_SETTINGS_SHA = '54ddff249b581c4632e080404d692d754b3041e13c1b616717a9b2a871b7e4a7'
 PATCH_SHA = 'aaa98373cb6614700aac99fed04806987028bbeb67b165e73a5e9be4f3bf72b4'
 
 def git(repo, *args, optional=False):
@@ -73,10 +75,22 @@ def plan(core,src,enabled):
         p=core/name
         if old is None and p.exists() and p.read_bytes()!=candidate[name]:
             raise ValueError('Unowned new-path collision: '+name)
+    retire_renamed_settings(core,enabled,payload)
     for p in payload:
         if p.is_symlink() or any(q.is_symlink() for q in p.parents if q not in (core.parent,src.parent)):
             raise ValueError('Symlink target refused')
     return payload
+
+def retire_renamed_settings(core,enabled,payload):
+    # The port renames this resource; retire its exact pinned old name too.
+    # Otherwise Android resource inventory rejects the unlisted old drawable.
+    old_settings=blob(core,CORE_PIN,RENAMED_SETTINGS)
+    if old_settings is None or hashlib.sha256(old_settings).hexdigest()!=RENAMED_SETTINGS_SHA:
+        raise ValueError('Unexpected pinned settings drawable')
+    old_path=core/RENAMED_SETTINGS
+    if old_path.exists() and old_path.read_bytes()!=old_settings:
+        raise ValueError('Unowned settings drawable modification')
+    payload[old_path]=None if enabled else old_settings
 
 def execute(core,src,enabled):
     payload=plan(core,src,enabled)

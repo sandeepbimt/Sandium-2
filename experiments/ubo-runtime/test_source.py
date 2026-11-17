@@ -25,7 +25,7 @@ class Tests(unittest.TestCase):
    with patch.object(m,'git_original',m.git,create=True),patch.object(m,'git',git):
     on=m.plan(core,src,True);off=m.plan(core,src,False)
     m.execute(core,src,True);m.execute(core,src,True)
-    self.assertTrue(all(p.read_bytes()==b for p,b in on.items()))
+    self.assertTrue(all((not p.exists()) if b is None else p.read_bytes()==b for p,b in on.items()))
     enum_build=(src/"extensions/browser/BUILD.gn").read_text()
     self.assertEqual(enum_build.count("if (is_android && enable_extensions_core) {"),2)
     self.assertIn('java_cpp_enum("extension_action_enums")',enum_build)
@@ -45,6 +45,16 @@ class Tests(unittest.TestCase):
     new=next(p for p,b in off.items() if b is None);new.parent.mkdir(parents=True,exist_ok=True);new.write_text('user data')
     with self.assertRaisesRegex(ValueError,'collision'):m.plan(core,src,False)
     self.assertEqual(new.read_text(),'user data')
+ def test_settings_rename_retired_and_restored(self):
+  with tempfile.TemporaryDirectory() as td:
+   core=Path(td);p=core/m.RENAMED_SETTINGS;p.parent.mkdir(parents=True)
+   original=subprocess.check_output(['git','-C',str(CORE),'show',m.CORE_PIN+':'+m.RENAMED_SETTINGS])
+   with patch.object(m,'blob',return_value=original):
+    p.write_bytes(original);on={};m.retire_renamed_settings(core,True,on)
+    self.assertIsNone(on[p]);p.unlink()
+    off={};m.retire_renamed_settings(core,False,off);self.assertEqual(off[p],original)
+    p.write_bytes(b'unowned')
+    with self.assertRaisesRegex(ValueError,'Unowned'):m.retire_renamed_settings(core,True,{})
  def test_paths(self):
   for p in ('../other','/absolute','foo/../../bar'):
    with self.assertRaises(ValueError):m.safe(p)
