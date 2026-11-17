@@ -2,6 +2,7 @@
 import importlib.util
 from pathlib import Path
 import unittest
+import re, shutil, subprocess, tempfile
 ROOT=Path(__file__).resolve().parents[1]
 def load(name):
  s=importlib.util.spec_from_file_location(name,ROOT/'.circleci/scripts'/(name+'.py'));m=importlib.util.module_from_spec(s);s.loader.exec_module(m);return m
@@ -46,6 +47,37 @@ class NativeBlurSource(unittest.TestCase):
   self.assertLess(ready.index('!navigation_handle->GetURL().SchemeIsHTTPOrHTTPS() || navigation_handle->IsPdf()'),capture)
   self.assertIn('SandiumOrdinaryBlurState',cc)
   self.assertIn('SandiumOrdinaryBlurExit',cc)
+ def test_virtual_defaults_are_out_of_line_and_migrate_old_checkpoint(self):
+  h=native.header(full.transform_transition_h(self.h))
+  cc=native.implementation(full.transform_transition_cc(self.cc))
+  for ret,name,body in [('SkBitmap','MaybeCopyNativeContent','return SkBitmap();'),('int','GetTopControlsHeight','return 0;')]:
+   declaration=f'virtual {ret} {name}();'
+   self.assertEqual(h.count(declaration),1)
+   self.assertNotRegex(h,rf'virtual\s+{ret}\s+{name}\(\)\s*\{{')
+   definition=f'{ret} BlurTransitionAnimationManager::WebContentsViewAndroidDelegate::\n    {name}() {{\n  {body}\n}}'
+   self.assertEqual(cc.count(definition),1)
+   h=h.replace(declaration,f'virtual {ret} {name}() {{ {body} }}',1)
+  expected=native.header(full.transform_transition_h(self.h))
+  self.assertEqual(expected,native.header(h))
+
+ @unittest.skipUnless(shutil.which('g++') or shutil.which('clang++'),'C++ compiler unavailable')
+ def test_exact_default_declarations_link_and_dispatch(self):
+  h=native.header(full.transform_transition_h(self.h))
+  cc=native.implementation(full.transform_transition_cc(self.cc))
+  declarations='\n'.join(re.findall(r'    virtual (?:SkBitmap MaybeCopyNativeContent|int GetTopControlsHeight)\(\);',h))
+  definitions=[]
+  for name in ['MaybeCopyNativeContent','GetTopControlsHeight']:
+   pattern=r'(?:SkBitmap|int) BlurTransitionAnimationManager::WebContentsViewAndroidDelegate::\n    '+name+r'\(\) \{[^}]+\}'
+   definitions.append(re.search(pattern,cc).group())
+  with tempfile.TemporaryDirectory() as directory:
+   root=Path(directory)
+   (root/'delegate.h').write_text('#pragma once\nnamespace content { struct SkBitmap { bool empty() const { return true; } }; class BlurTransitionAnimationManager { public: class WebContentsViewAndroidDelegate { public: virtual ~WebContentsViewAndroidDelegate() = default;\n'+declarations+'\n}; }; }\n')
+   (root/'delegate.cc').write_text('#include "delegate.h"\nnamespace content {\n'+'\n'.join(definitions)+'\n}\n')
+   (root/'main.cc').write_text('#include "delegate.h"\nint main() { using Delegate = content::BlurTransitionAnimationManager::WebContentsViewAndroidDelegate; Delegate d; if (!d.MaybeCopyNativeContent().empty() || d.GetTopControlsHeight() != 0) return 1; struct Override : Delegate { int GetTopControlsHeight() override { return 7; } }; Override o; Delegate& b = o; return b.GetTopControlsHeight() == 7 ? 0 : 2; }')
+   compiler=shutil.which('g++') or shutil.which('clang++')
+   subprocess.run([compiler,'-std=c++20','-Wall','-Wextra','-Werror',str(root/'delegate.cc'),str(root/'main.cc'),'-o',str(root/'probe')],check=True)
+   subprocess.run([str(root/'probe')],check=True)
+
  def test_malformed_anchor_rejected(self):
   with self.assertRaises(ValueError): native.implementation(self.cc.replace('return web_contents_->GetThemeColor();','return {};'))
 if __name__=='__main__':unittest.main()

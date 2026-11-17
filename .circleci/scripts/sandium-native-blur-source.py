@@ -5,15 +5,39 @@ def replace(source, old, new):
     return source.replace(old,new,1)
 
 def header(source):
+    # Migrate checkpoints produced by the prior inline-default version as well
+    # as fresh pinned headers. Chromium forbids non-empty inline virtual bodies
+    # in this header; defaults belong in the implementation translation unit.
+    for old, new in [
+        ('    virtual SkBitmap MaybeCopyNativeContent() { return SkBitmap(); }',
+         '    virtual SkBitmap MaybeCopyNativeContent();'),
+        ('    virtual int GetTopControlsHeight() { return 0; }',
+         '    virtual int GetTopControlsHeight();'),
+    ]:
+        if old in source:
+            source = replace(source, old, new)
     source=replace(source,'#include "cc/slim/surface_layer.h"','#include "cc/slim/surface_layer.h"\n#include "cc/slim/layer.h"\n#include "third_party/skia/include/core/SkBitmap.h"')
     source=replace(source,'    virtual std::optional<SkColor> GetThemeColor() = 0;', '''    virtual std::optional<SkColor> GetThemeColor() = 0;
     // Defaults keep non-native test/delegate implementations source compatible.
-    virtual SkBitmap MaybeCopyNativeContent() { return SkBitmap(); }
-    virtual int GetTopControlsHeight() { return 0; }''')
+    virtual SkBitmap MaybeCopyNativeContent();
+    virtual int GetTopControlsHeight();''')
     source=replace(source,'  scoped_refptr<cc::slim::SurfaceLayer> blur_layer_;','  scoped_refptr<cc::slim::Layer> blur_layer_;')
     return source
 
 def implementation(source):
+    source=replace(source, '}  // namespace\n\n// static', '''}  // namespace
+
+SkBitmap BlurTransitionAnimationManager::WebContentsViewAndroidDelegate::
+    MaybeCopyNativeContent() {
+  return SkBitmap();
+}
+
+int BlurTransitionAnimationManager::WebContentsViewAndroidDelegate::
+    GetTopControlsHeight() {
+  return 0;
+}
+
+// static''')
     source=replace(source,'#include "cc/slim/surface_layer.h"','#include "cc/slim/surface_layer.h"\n#include "cc/slim/ui_resource_layer.h"\n#include "content/public/browser/web_contents_delegate.h"\n#include "base/trace_event/trace_event.h"')
     source=replace(source,'''    return web_contents_->GetThemeColor();
   }
