@@ -1,0 +1,2789 @@
+diff --git a/android/BUILD.gn b/android/BUILD.gn
+index ad04149717..4f001b8d05 100644
+--- a/android/BUILD.gn
++++ b/android/BUILD.gn
+@@ -189,6 +189,7 @@ android_resources("java_resources") {
+     "java/brave-res/drawable/blue_rounded_notification_bg.xml",
+     "java/brave-res/drawable/bookmark_menu_bg.xml",
+     "java/brave-res/drawable/brave_checkbox.xml",
++    "java/brave-res/drawable/brave_ic_settings.xml",
+     "java/brave-res/drawable/brave_icon_search.xml",
+     "java/brave-res/drawable/brave_menu_new_private_tab.xml",
+     "java/brave-res/drawable/brave_new_group_tab.xml",
+@@ -337,7 +338,6 @@ android_resources("java_resources") {
+     "java/brave-res/drawable/ic_popular_sources.xml",
+     "java/brave-res/drawable/ic_rocket.xml",
+     "java/brave-res/drawable/ic_search_21dp.xml",
+-    "java/brave-res/drawable/ic_settings.xml",
+     "java/brave-res/drawable/ic_settings_dapps.xml",
+     "java/brave-res/drawable/ic_shield_done_filled.xml",
+     "java/brave-res/drawable/ic_sol_asset_icon.xml",
+diff --git a/android/android_browser_tests.gni b/android/android_browser_tests.gni
+index f13a127ad2..b10f180b4f 100644
+--- a/android/android_browser_tests.gni
++++ b/android/android_browser_tests.gni
+@@ -6,6 +6,7 @@
+ import("//brave/components/brave_ads/buildflags/buildflags.gni")
+ import("//brave/components/brave_rewards/core/buildflags/buildflags.gni")
+ import("//brave/components/brave_wallet/common/buildflags/buildflags.gni")
++import("//extensions/buildflags/buildflags.gni")
+ 
+ # Tests that do not run on Android
+ android_test_exception_sources = [
+@@ -154,3 +155,11 @@ if (enable_brave_wallet) {
+     "//brave/components/brave_wallet/browser:test_support",
+   ]
+ }
++
++if (enable_extensions_core && !is_desktop_android) {
++  android_only_test_sources += [ "//brave/browser/extensions/android/brave_extension_management_browsertest.cc" ]
++  android_only_test_deps += [
++    "//chrome/browser/extensions:test_support",
++    "//extensions/browser",
++  ]
++}
+diff --git a/android/java/brave-res/drawable/brave_ic_settings.xml b/android/java/brave-res/drawable/brave_ic_settings.xml
+new file mode 100644
+index 0000000000..7d87c18d32
+--- /dev/null
++++ b/android/java/brave-res/drawable/brave_ic_settings.xml
+@@ -0,0 +1,4 @@
++<vector android:height="20dp" android:viewportHeight="21"
++    android:viewportWidth="21" android:width="20dp" xmlns:android="http://schemas.android.com/apk/res/android">
++    <path android:fillColor="@color/schemes_on_surface_variant" android:fillType="evenOdd" android:pathData="M10.6239,18.238C10.5407,18.238 10.457,18.2365 10.3727,18.2336L9.2307,19.9733C8.9364,20.4219 8.3794,20.6353 7.862,20.4861C6.2913,20.0393 4.8621,19.2189 3.691,18.1008C3.2986,17.725 3.2057,17.1349 3.4517,16.6546L4.4009,14.8019C4.3148,14.6649 4.2335,14.5255 4.1571,14.3838L2.0591,14.2726C1.5229,14.2469 1.0584,13.8765 0.9248,13.3517C0.7264,12.5647 0.6239,11.7637 0.6239,10.9567C0.6239,10.1497 0.7264,9.3487 0.9252,8.5599C1.0584,8.0369 1.5229,7.6665 2.0551,7.641L4.1571,7.5296C4.2335,7.3879 4.3148,7.2485 4.4009,7.1115L3.4517,5.2587C3.2057,4.7785 3.2986,4.1884 3.6919,3.8118C4.8621,2.6945 6.2913,1.8741 7.8593,1.4281C8.3794,1.2781 8.9364,1.4915 9.2307,1.94L10.3727,3.6798C10.457,3.6769 10.5407,3.6754 10.6239,3.6754C10.7071,3.6754 10.7908,3.6769 10.8751,3.6798L12.0171,1.9401C12.3115,1.4915 12.8682,1.2785 13.3868,1.4273C14.9567,1.8742 16.3859,2.6947 17.5568,3.8126C17.9487,4.188 18.0407,4.7766 17.7961,5.2588L16.8468,7.1117C16.9326,7.2484 17.0138,7.3877 17.0904,7.5296L19.1888,7.6408C19.7242,7.6666 20.1894,8.037 20.323,8.5617C20.5214,9.3487 20.6239,10.1497 20.6239,10.9567C20.6239,11.7637 20.5214,12.5647 20.3226,13.3535C20.1894,13.8764 19.7242,14.2469 19.1927,14.2724L17.0904,14.3838C17.0138,14.5257 16.9326,14.665 16.8468,14.8017L17.7975,16.6574C18.0407,17.1368 17.9487,17.7254 17.5559,18.1017C16.3859,19.2187 14.9567,20.0392 13.3885,20.4856C12.8682,20.6349 12.3115,20.4219 12.0171,19.9734L10.8751,18.2336C10.7908,18.2365 10.7071,18.238 10.6239,18.238ZM8.0553,18.9078L9.3128,16.9921C9.4722,16.7494 9.7526,16.6146 10.0417,16.6419C10.2424,16.6609 10.4363,16.6707 10.6239,16.6707C10.8115,16.6707 11.0054,16.6609 11.2061,16.6419C11.4952,16.6146 11.7757,16.7494 11.935,16.9921L13.1927,18.9081C14.3426,18.5445 15.3961,17.9411 16.2851,17.1426L15.241,15.1048C15.1066,14.8424 15.1308,14.5268 15.3037,14.2879C15.5289,13.9768 15.7215,13.6469 15.8798,13.3001C16.0009,13.0345 16.2597,12.8583 16.5512,12.8429L18.8619,12.7204C18.9906,12.1375 19.0566,11.5484 19.0566,10.9567C19.0566,10.3647 18.9905,9.7751 18.862,9.193L16.5512,9.0705C16.2597,9.0551 16.0009,8.8789 15.8798,8.6133C15.7215,8.2665 15.5289,7.9366 15.3037,7.6255C15.1308,7.3867 15.1066,7.071 15.241,6.8086L16.2851,4.7708C15.3958,3.9723 14.343,3.3693 13.1926,3.0054L11.935,4.9213C11.7757,5.164 11.4952,5.2988 11.2061,5.2715C11.0054,5.2525 10.8115,5.2427 10.6239,5.2427C10.4363,5.2427 10.2424,5.2525 10.0417,5.2715C9.7526,5.2988 9.4722,5.164 9.3128,4.9213L8.0553,3.0055C6.9051,3.3691 5.8517,3.9723 4.9627,4.7708L6.0068,6.8086C6.1413,7.071 6.117,7.3867 5.9441,7.6255C5.7173,7.9387 5.5247,8.2684 5.3686,8.612C5.2477,8.8783 4.9886,9.0551 4.6966,9.0705L2.3859,9.193C2.2572,9.7759 2.1912,10.365 2.1912,10.9567C2.1912,11.5488 2.2573,12.1383 2.3858,12.7204L4.6966,12.8429C4.9886,12.8583 5.2477,13.0351 5.3686,13.3014C5.5247,13.645 5.7173,13.9747 5.9441,14.2879C6.117,14.5268 6.1413,14.8424 6.0068,15.1048L4.9627,17.1426C5.8517,17.9409 6.9042,18.5437 8.0553,18.9078ZM6.98,10.9567C6.98,8.9442 8.6114,7.3128 10.6239,7.3128C12.6364,7.3128 14.2678,8.9442 14.2678,10.9567C14.2678,12.9692 12.6364,14.6006 10.6239,14.6006C8.6114,14.6006 6.98,12.9692 6.98,10.9567ZM8.5473,10.9567C8.5473,12.1036 9.477,13.0333 10.6239,13.0333C11.7708,13.0333 12.7005,12.1036 12.7005,10.9567C12.7005,9.8098 11.7708,8.8801 10.6239,8.8801C9.477,8.8801 8.5473,9.8098 8.5473,10.9567Z"/>
++</vector>
+diff --git a/android/java/org/chromium/base/BraveFeatureList.java b/android/java/org/chromium/base/BraveFeatureList.java
+index 6c276caa4c..fd102c9504 100644
+--- a/android/java/org/chromium/base/BraveFeatureList.java
++++ b/android/java/org/chromium/base/BraveFeatureList.java
+@@ -48,4 +48,5 @@ public abstract class BraveFeatureList {
+     public static final String BRAVE_CUSTOM_SEARCH_ENGINES = "BraveCustomSearchEngines";
+     public static final String BRAVE_SYNC_AI_CHAT = "BraveSyncAIChat";
+     public static final String BRAVE_ANDROID_TAB_GROUPS_SETTINGS = "BraveAndroidTabGroupsSettings";
++    public static final String BRAVE_ANDROID_EXTENSIONS = "BraveAndroidExtensions";
+ }
+diff --git a/android/java/org/chromium/chrome/browser/app/BraveActivity.java b/android/java/org/chromium/chrome/browser/app/BraveActivity.java
+index 7bdc56e33a..30bcb4e90f 100644
+--- a/android/java/org/chromium/chrome/browser/app/BraveActivity.java
++++ b/android/java/org/chromium/chrome/browser/app/BraveActivity.java
+@@ -208,6 +208,10 @@ import org.chromium.chrome.browser.toolbar.bottom.BottomToolbarConfiguration;
+ import org.chromium.chrome.browser.toolbar.top.BraveToolbarLayoutImpl;
+ import org.chromium.chrome.browser.ui.RootUiCoordinator;
+ import org.chromium.chrome.browser.ui.appmenu.AppMenuPropertiesDelegate;
++import org.chromium.chrome.browser.ui.browser_window.ChromeAndroidTask;
++import org.chromium.chrome.browser.ui.browser_window.ChromeAndroidTaskFeatureKey;
++import org.chromium.chrome.browser.ui.extensions.windowing.ExtensionWindowControllerBridge;
++import org.chromium.chrome.browser.ui.extensions.windowing.ExtensionWindowControllerBridgeFactory;
+ import org.chromium.chrome.browser.ui.messages.snackbar.Snackbar;
+ import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager;
+ import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager.SnackbarController;
+@@ -245,6 +249,7 @@ import org.chromium.content_public.browser.WebContents;
+ import org.chromium.misc_metrics.mojom.MiscAndroidMetrics;
+ import org.chromium.mojo.bindings.ConnectionErrorHandler;
+ import org.chromium.mojo.system.MojoException;
++import org.chromium.ui.base.ActivityWindowAndroid;
+ import org.chromium.ui.widget.Toast;
+ import org.chromium.url.GURL;
+ 
+@@ -1206,6 +1211,22 @@ public abstract class BraveActivity extends ChromeActivity
+         setForegroundSessionEndsTriggered();
+     }
+ 
++    // Upstream binds the bridge to the current model's profile. When recreated in incognito that
++    // is the incognito browser window, which closing the incognito tabs destroys under the bridge.
++    // The regular window lives as long as the activity.
++    @Override
++    protected void addWindowingFeatures(
++            ChromeAndroidTask chromeAndroidTask,
++            Profile profile,
++            ActivityWindowAndroid activityWindowAndroid) {
++        chromeAndroidTask.addFeature(
++                new ChromeAndroidTaskFeatureKey(
++                        ExtensionWindowControllerBridge.class,
++                        getTabModelSelector().getModel(/* incognito= */ false).getProfile(),
++                        activityWindowAndroid),
++                ExtensionWindowControllerBridgeFactory::create);
++    }
++
+     @Override
+     protected void initializeStartupMetrics() {
+         super.initializeStartupMetrics();
+diff --git a/android/java/org/chromium/chrome/browser/tabbed_mode/BraveTabbedAppMenuPropertiesDelegate.java b/android/java/org/chromium/chrome/browser/tabbed_mode/BraveTabbedAppMenuPropertiesDelegate.java
+index 50c26d6dad..32bdf2f255 100644
+--- a/android/java/org/chromium/chrome/browser/tabbed_mode/BraveTabbedAppMenuPropertiesDelegate.java
++++ b/android/java/org/chromium/chrome/browser/tabbed_mode/BraveTabbedAppMenuPropertiesDelegate.java
+@@ -488,7 +488,8 @@ public class BraveTabbedAppMenuPropertiesDelegate extends TabbedAppMenuPropertie
+             } else if (itemId == R.id.preferences_id) {
+                 item.model.set(
+                         AppMenuItemProperties.ICON,
+-                        AppCompatResources.getDrawable(mBraveContext, R.drawable.ic_settings));
++                        AppCompatResources.getDrawable(
++                                mBraveContext, R.drawable.brave_ic_settings));
+             } else if (itemId == R.id.download_page_id) {
+                 item.model.set(
+                         AppMenuItemProperties.ICON,
+diff --git a/android/javatests/org/chromium/chrome/browser/app/BraveActivityWindowingFeaturesTest.java b/android/javatests/org/chromium/chrome/browser/app/BraveActivityWindowingFeaturesTest.java
+new file mode 100644
+index 0000000000..bec1d5d695
+--- /dev/null
++++ b/android/javatests/org/chromium/chrome/browser/app/BraveActivityWindowingFeaturesTest.java
+@@ -0,0 +1,138 @@
++// Copyright (c) 2026 The Brave Authors. All rights reserved.
++// This Source Code Form is subject to the terms of the Mozilla Public
++// License, v. 2.0. If a copy of the MPL was not distributed with this file,
++// You can obtain one at https://mozilla.org/MPL/2.0/.
++
++package org.chromium.chrome.browser.app;
++
++import static org.hamcrest.Matchers.notNullValue;
++import static org.junit.Assert.assertEquals;
++import static org.junit.Assert.assertNotNull;
++import static org.junit.Assert.assertNull;
++import static org.junit.Assert.assertTrue;
++
++import androidx.test.filters.MediumTest;
++
++import org.junit.Before;
++import org.junit.Rule;
++import org.junit.Test;
++import org.junit.runner.RunWith;
++
++import org.chromium.base.BraveFeatureList;
++import org.chromium.base.ThreadUtils;
++import org.chromium.base.test.util.ApplicationTestUtils;
++import org.chromium.base.test.util.CommandLineFlags;
++import org.chromium.base.test.util.Criteria;
++import org.chromium.base.test.util.CriteriaHelper;
++import org.chromium.base.test.util.DoNotBatch;
++import org.chromium.base.test.util.Features.DisableFeatures;
++import org.chromium.base.test.util.Features.EnableFeatures;
++import org.chromium.chrome.browser.ChromeTabbedActivity;
++import org.chromium.chrome.browser.flags.ChromeFeatureList;
++import org.chromium.chrome.browser.flags.ChromeSwitches;
++import org.chromium.chrome.browser.profiles.Profile;
++import org.chromium.chrome.browser.tab.Tab;
++import org.chromium.chrome.browser.tabmodel.IncognitoTabHostUtils;
++import org.chromium.chrome.browser.ui.browser_window.ChromeAndroidTask;
++import org.chromium.chrome.browser.ui.browser_window.ChromeAndroidTaskFeature;
++import org.chromium.chrome.browser.ui.browser_window.ChromeAndroidTaskFeatureKey;
++import org.chromium.chrome.browser.ui.browser_window.ChromeAndroidTaskTrackerFactory;
++import org.chromium.chrome.browser.ui.extensions.windowing.ExtensionWindowControllerBridge;
++import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
++import org.chromium.chrome.test.ChromeTabbedActivityTestRule;
++
++/** Tests the extension window bridge registration in {@link BraveActivity}. */
++@RunWith(ChromeJUnit4ClassRunner.class)
++@CommandLineFlags.Add({ChromeSwitches.DISABLE_FIRST_RUN_EXPERIENCE})
++@EnableFeatures(BraveFeatureList.BRAVE_ANDROID_EXTENSIONS)
++@DisableFeatures(ChromeFeatureList.ANDROID_OPEN_INCOGNITO_AS_WINDOW)
++@DoNotBatch(reason = "Recreates ChromeTabbedActivity.")
++public class BraveActivityWindowingFeaturesTest {
++    @Rule
++    public final ChromeTabbedActivityTestRule mActivityTestRule =
++            new ChromeTabbedActivityTestRule();
++
++    @Before
++    public void setUp() {
++        mActivityTestRule.startMainActivityOnBlankPage();
++    }
++
++    @Test
++    @MediumTest
++    public void testBridgeUsesRegularProfile() {
++        Tab incognitoTab = mActivityTestRule.newIncognitoTabFromMenu();
++        assertTrue(incognitoTab.isIncognito());
++        Profile incognitoProfile = incognitoTab.getProfile();
++
++        ThreadUtils.runOnUiThreadBlocking(
++                () -> {
++                    ChromeAndroidTask task = getChromeAndroidTask();
++                    assertNotNull(getBridge(task, getRegularProfile()));
++                    assertNull(getBridge(task, incognitoProfile));
++                    assertEquals(1, countBridges(task));
++                });
++    }
++
++    @Test
++    @MediumTest
++    public void testBridgeSurvivesClosingIncognitoTabsAfterRecreate() {
++        assertTrue(mActivityTestRule.newIncognitoTabFromMenu().isIncognito());
++
++        ChromeTabbedActivity recreatedActivity =
++                ApplicationTestUtils.recreateActivity(mActivityTestRule.getActivity());
++        mActivityTestRule.setActivity(recreatedActivity);
++        CriteriaHelper.pollUiThread(() -> mActivityTestRule.getActivityTab() != null);
++        CriteriaHelper.pollUiThread(
++                () ->
++                        Criteria.checkThat(
++                                getBridge(getChromeAndroidTask(), getRegularProfile()),
++                                notNullValue()));
++
++        // Destroys the incognito browser window.
++        ThreadUtils.runOnUiThreadBlocking(IncognitoTabHostUtils::closeAllIncognitoTabs);
++        CriteriaHelper.pollUiThread(
++                () -> !mActivityTestRule.getActivity().getTabModelSelector().isIncognitoSelected());
++
++        ThreadUtils.runOnUiThreadBlocking(
++                () -> {
++                    ChromeAndroidTask task = getChromeAndroidTask();
++                    assertNotNull(getBridge(task, getRegularProfile()));
++                    assertEquals(1, countBridges(task));
++                });
++        assertNotNull(mActivityTestRule.getActivityTab());
++    }
++
++    private ChromeAndroidTask getChromeAndroidTask() {
++        ChromeAndroidTask task =
++                ChromeAndroidTaskTrackerFactory.getInstance()
++                        .get(mActivityTestRule.getActivity().getTaskId());
++        assertNotNull(task);
++        return task;
++    }
++
++    private Profile getRegularProfile() {
++        return mActivityTestRule
++                .getActivity()
++                .getTabModelSelector()
++                .getModel(/* incognito= */ false)
++                .getProfile();
++    }
++
++    private ChromeAndroidTaskFeature getBridge(ChromeAndroidTask task, Profile profile) {
++        return task.getFeatureForTesting(
++                new ChromeAndroidTaskFeatureKey(
++                        ExtensionWindowControllerBridge.class,
++                        profile,
++                        mActivityTestRule.getActivity().getWindowAndroid()));
++    }
++
++    private static int countBridges(ChromeAndroidTask task) {
++        int count = 0;
++        for (ChromeAndroidTaskFeature feature : task.getAllFeaturesForTesting()) {
++            if (feature instanceof ExtensionWindowControllerBridge) {
++                count++;
++            }
++        }
++        return count;
++    }
++}
+diff --git a/android/junit/src/org/chromium/chrome/browser/tabbed_mode/BraveTabbedAppMenuPropertiesDelegateUnitTest.java b/android/junit/src/org/chromium/chrome/browser/tabbed_mode/BraveTabbedAppMenuPropertiesDelegateUnitTest.java
+index ad97f1805e..460e0380dd 100644
+--- a/android/junit/src/org/chromium/chrome/browser/tabbed_mode/BraveTabbedAppMenuPropertiesDelegateUnitTest.java
++++ b/android/junit/src/org/chromium/chrome/browser/tabbed_mode/BraveTabbedAppMenuPropertiesDelegateUnitTest.java
+@@ -124,6 +124,7 @@ import java.util.List;
+ /** Unit tests for {@link BraveTabbedAppMenuPropertiesDelegate}. */
+ @RunWith(BaseRobolectricTestRunner.class)
+ @DisableFeatures({
++    BraveFeatureList.BRAVE_ANDROID_EXTENSIONS,
+     BraveFeatureList.BRAVE_PLAYLIST,
+     ChromeFeatureList.ANDROID_PAGE_INFO_AS_APP_MENU_ITEM,
+     ChromeFeatureList.FEED_AUDIO_OVERVIEWS,
+diff --git a/browser/about_flags.cc b/browser/about_flags.cc
+index e8532e8c23..5cab641669 100644
+--- a/browser/about_flags.cc
++++ b/browser/about_flags.cc
+@@ -565,6 +565,14 @@ const char* const kBraveSyncImplLink[1] = {"https://github.com/brave/go-sync"};
+       kOsAndroid,                                                    \
+       FEATURE_VALUE_TYPE(features::kBraveAndroidTabGroupsSettings),  \
+   })
++#define BRAVE_ANDROID_EXTENSIONS                               \
++  EXPAND_FEATURE_ENTRIES({                                     \
++      "brave-android-extensions",                              \
++      "Brave extension support",                               \
++      "Enable browser extension support. Requires a restart.", \
++      kOsAndroid,                                              \
++      FEATURE_VALUE_TYPE(features::kBraveAndroidExtensions),   \
++  })
+ #else
+ #define BRAVE_BACKGROUND_VIDEO_PLAYBACK_ANDROID
+ #define BRAVE_YOUTUBE_FULLSCREEN_SETTINGS_WORKAROUND_ANDROID
+@@ -572,6 +580,7 @@ const char* const kBraveSyncImplLink[1] = {"https://github.com/brave/go-sync"};
+ #define BRAVE_SAFE_BROWSING_ANDROID
+ #define BRAVE_CUSTOM_SEARCH_ENGINES
+ #define BRAVE_ANDROID_TAB_GROUPS_SETTINGS
++#define BRAVE_ANDROID_EXTENSIONS
+ #endif  // BUILDFLAG(IS_ANDROID)
+ 
+ #if !BUILDFLAG(IS_ANDROID)
+@@ -1677,6 +1686,7 @@ constexpr flags_ui::FeatureEntry::Choice kVerticalTabMigrationChoices[] = {
+   BRAVE_YOUTUBE_FULLSCREEN_VIDEO_FIT_WORKAROUND_ANDROID                        \
+   BRAVE_SAFE_BROWSING_ANDROID                                                  \
+   BRAVE_ANDROID_TAB_GROUPS_SETTINGS                                            \
++  BRAVE_ANDROID_EXTENSIONS                                                     \
+   BRAVE_CUSTOM_PROFILE_IMAGE_FEATURE_ENTRY                                     \
+   BRAVE_CUSTOM_SEARCH_ENGINES                                                  \
+   BRAVE_CHANGE_ACTIVE_TAB_ON_SCROLL_EVENT_FEATURE_ENTRIES                      \
+diff --git a/browser/brave_browser_features.cc b/browser/brave_browser_features.cc
+index af14bfb472..7b610d5b46 100644
+--- a/browser/brave_browser_features.cc
++++ b/browser/brave_browser_features.cc
+@@ -81,6 +81,9 @@ BASE_FEATURE(kBraveCustomSearchEngines, base::FEATURE_ENABLED_BY_DEFAULT);
+ 
+ // Expose Brave's replacement "Tabs and tab groups" settings screen on Android.
+ BASE_FEATURE(kBraveAndroidTabGroupsSettings, base::FEATURE_DISABLED_BY_DEFAULT);
++
++// Enable browser extensions on Android.
++BASE_FEATURE(kBraveAndroidExtensions, base::FEATURE_DISABLED_BY_DEFAULT);
+ #endif  // BUILDFLAG(IS_ANDROID)
+ 
+ // The variant of the "day zero" experiment. i.e. A, B, C, D, etc.
+diff --git a/browser/brave_browser_features.h b/browser/brave_browser_features.h
+index 69328fa0b5..8788877418 100644
+--- a/browser/brave_browser_features.h
++++ b/browser/brave_browser_features.h
+@@ -31,6 +31,7 @@ BASE_DECLARE_FEATURE(kBraveAndroidDynamicColorsByDefault);
+ BASE_DECLARE_FEATURE(kBraveFreshNtpAfterIdleExperiment);
+ BASE_DECLARE_FEATURE(kBraveCustomSearchEngines);
+ BASE_DECLARE_FEATURE(kBraveAndroidTabGroupsSettings);
++BASE_DECLARE_FEATURE(kBraveAndroidExtensions);
+ #endif  // BUILDFLAG(IS_ANDROID)
+ 
+ extern const base::FeatureParam<std::string> kBraveDayZeroExperimentVariant;
+diff --git a/browser/brave_wallet/BUILD.gn b/browser/brave_wallet/BUILD.gn
+index 9cd3933406..e1717d5a46 100644
+--- a/browser/brave_wallet/BUILD.gn
++++ b/browser/brave_wallet/BUILD.gn
+@@ -114,7 +114,7 @@ source_set("external_wallets_importer") {
+     "//brave/third_party/argon2",
+     "//components/value_store",
+   ]
+-  if (enable_extensions) {
++  if (enable_extensions_core) {
+     deps += [
+       "//extensions/browser",
+       "//extensions/common",
+diff --git a/browser/browser_context_keyed_service_factories.cc b/browser/browser_context_keyed_service_factories.cc
+index a5f25436d4..585fb176cb 100644
+--- a/browser/browser_context_keyed_service_factories.cc
++++ b/browser/browser_context_keyed_service_factories.cc
+@@ -100,7 +100,7 @@
+ #include "brave/browser/web_discovery/web_discovery_service_factory.h"
+ #endif
+ 
+-#if BUILDFLAG(ENABLE_EXTENSIONS)
++#if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
+ #include "brave/browser/extensions/manifest_v2/brave_extensions_manifest_v2_migrator.h"
+ #endif
+ 
+@@ -250,7 +250,7 @@ void EnsureBrowserContextKeyedServiceFactoriesBuilt() {
+   }
+ #endif
+ 
+-#if BUILDFLAG(ENABLE_EXTENSIONS)
++#if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
+   extensions_mv2::ExtensionsManifestV2MigratorFactory::GetInstance();
+ #endif
+   BraveShieldsSettingsServiceFactory::GetInstance();
+diff --git a/browser/extensions/BUILD.gn b/browser/extensions/BUILD.gn
+index ba3760c1f8..0c1cc79764 100644
+--- a/browser/extensions/BUILD.gn
++++ b/browser/extensions/BUILD.gn
+@@ -22,72 +22,17 @@ import("//brave/components/web_discovery/buildflags/buildflags.gni")
+ import("//build/config/features.gni")
+ import("//build/config/ui.gni")
+ import("//components/gcm_driver/config.gni")
++import("//extensions/buildflags/buildflags.gni")
+ 
+-assert(toolkit_views)
++assert(enable_extensions_core)
+ 
+-source_set("component_loader") {
+-  sources = [
+-    "brave_component_loader.cc",
+-    "brave_component_loader.h",
+-  ]
+-
+-  deps = [
+-    "//base",
+-    "//brave/components/brave_extension:static_resources",
+-    "//chrome/browser/extensions",
+-    "//chrome/browser/profiles:profile",
+-    "//components/prefs",
+-    "//extensions/browser",
+-    "//extensions/common",
+-    "//ui/base",
+-  ]
+-
+-  if (enable_web_discovery_native) {
+-    deps += [ "//brave/components/web_discovery/common" ]
+-  }
+-}
+-
+-# This is split out from extensions and the rest of brave_prefs_util because it
+-# has circular dependencies on //chrome/browser.
+-# https://github.com/brave/brave-browser/issues/41418
+-source_set("brave_prefs_util_impl") {
+-  visibility = [
+-    ":*",
+-    "//brave/browser:core",
+-  ]
+-  sources = [ "api/settings_private/brave_prefs_util_impl.cc" ]
+-
+-  deps = [
+-    "//brave/components/brave_shields/core/browser",
+-    "//chrome/browser:browser_public_dependencies",
+-    "//chrome/browser/content_settings:content_settings_factory",
+-    "//chrome/browser/profiles:profile",
+-    "//chrome/common/extensions/api",
+-    "//components/content_settings/core/browser:cookie_settings",
+-    "//components/content_settings/core/common",
+-    "//content/public/browser",
+-    "//url",
+-  ]
+-}
+-
+-source_set("extensions") {
++# Brave extension behaviour shared by desktop and Android.
++source_set("core") {
+   sources = [
+     "api/brave_extensions_api_client.cc",
+     "api/brave_extensions_api_client.h",
+-    "api/brave_theme_api.cc",
+-    "api/brave_theme_api.h",
+     "api/identity/brave_web_auth_flow.cc",
+     "api/identity/brave_web_auth_flow.h",
+-    "api/settings_private/brave_prefs_util.cc",
+-    "api/settings_private/brave_prefs_util.h",
+-    "brave_extension_management.cc",
+-    "brave_extension_management.h",
+-    "brave_extension_provider.cc",
+-    "brave_extension_provider.h",
+-    "brave_extensions_browser_api_provider.cc",
+-    "brave_extensions_browser_api_provider.h",
+-    "brave_extensions_browser_client_impl.cc",
+-    "brave_extensions_browser_client_impl.h",
+     "updater/brave_update_client_config.cc",
+     "updater/brave_update_client_config.h",
+     "updater/features.cc",
+@@ -95,189 +40,270 @@ source_set("extensions") {
+   ]
+ 
+   deps = [
+-    ":brave_prefs_util_impl",
+-    ":resources",
+-    "//brave/app:brave_generated_resources_grit",
+-    "//brave/browser:browser_process",
+-    "//brave/browser/brave_search",
+-    "//brave/browser/component_updater",
+-    "//brave/browser/extensions/api:generated_api_registration",
+-    "//brave/browser/ui:brave_tab_prefs",
+-    "//brave/common",
+-    "//brave/common/extensions/api",
+-    "//brave/components/ai_chat/core/common/buildflags",
+-    "//brave/components/brave_ads/buildflags",
+-    "//brave/components/brave_extension:static_resources",
+-    "//brave/components/brave_news/common/buildflags",
+-    "//brave/components/brave_rewards/core",
+-    "//brave/components/brave_search/browser",
+-    "//brave/components/brave_shields/core/common",
+-    "//brave/components/brave_talk/buildflags",
+-    "//brave/components/brave_vpn/common/buildflags",
+-    "//brave/components/brave_wallet/common/buildflags",
+-    "//brave/components/brave_wayback_machine/buildflags",
+-    "//brave/components/constants",
+-    "//brave/components/containers/buildflags",
+-    "//brave/components/de_amp/common",
+-    "//brave/components/debounce/core/common",
+-    "//brave/components/email_aliases/buildflags",
+-    "//brave/components/local_ai/buildflags",
+-    "//brave/components/ntp_background_images/common",
+-    "//brave/components/request_otr/common",
+-    "//brave/components/sidebar/browser",
+-    "//brave/components/speedreader/common/buildflags",
+-    "//brave/components/tor/buildflags",
+-    "//brave/components/traffic_control/buildflags",
+-    "//brave/components/web_discovery/buildflags",
+-    "//brave/components/webcompat_reporter/common",
+-    "//chrome/browser:browser_process",
+-    "//chrome/browser:browser_public_dependencies",
+     "//chrome/browser/extensions",
+-    "//chrome/browser/extensions:chrome_extensions_browser_client",
+     "//chrome/browser/profiles:profile",
+-    "//chrome/browser/ui",
+-    "//chrome/browser/ui/browser_window",
+-    "//chrome/common",
+-    "//components/browsing_data/core",
+-    "//components/gcm_driver:gcm_buildflags",
+-    "//components/history/core/common",
+-    "//components/prefs",
+     "//components/update_client:network_impl",
+-    "//components/user_prefs",
+     "//content/public/browser",
++    "//extensions/common",
++    "//google_apis",
++    "//url",
+   ]
+ 
+   public_deps = [
+-    ":component_loader",
+     "//base",
+     "//extensions/browser",
+   ]
++}
+ 
+-  if (use_gcm_from_platform) {
+-    deps += [ "//components/gcm_driver" ]
+-  }
+-
+-  if (enable_brave_ads) {
+-    deps += [ "//brave/components/brave_ads/core/public:headers" ]
+-  }
+-
+-  if (enable_brave_wayback_machine) {
+-    deps += [ "//brave/components/brave_wayback_machine" ]
+-  }
+-
+-  if (enable_speedreader) {
+-    deps += [ "//brave/components/speedreader" ]
+-  }
+-
+-  if (enable_ai_chat) {
+-    deps += [ "//brave/components/ai_chat/core/common" ]
+-  }
+-
+-  if (enable_local_ai) {
+-    deps += [ "//brave/components/local_ai/core" ]
+-  }
++# The rest is desktop-only.
++if (toolkit_views) {
++  source_set("component_loader") {
++    sources = [
++      "brave_component_loader.cc",
++      "brave_component_loader.h",
++    ]
+ 
+-  if (enable_brave_news) {
+-    deps += [ "//brave/components/brave_news/common" ]
+-  }
++    deps = [
++      "//base",
++      "//brave/components/brave_extension:static_resources",
++      "//chrome/browser/extensions",
++      "//chrome/browser/profiles:profile",
++      "//components/prefs",
++      "//extensions/browser",
++      "//extensions/common",
++      "//ui/base",
++    ]
+ 
+-  if (enable_brave_vpn) {
+-    deps += [ "//brave/components/brave_vpn/common" ]
++    if (enable_web_discovery_native) {
++      deps += [ "//brave/components/web_discovery/common" ]
++    }
+   }
+ 
+-  if (enable_tor) {
+-    deps += [
+-      "//brave/browser/tor",
+-      "//brave/components/tor",
+-      "//brave/components/tor:pref_names",
++  # This is split out from extensions and the rest of brave_prefs_util because
++  # it has circular dependencies on //chrome/browser.
++  # https://github.com/brave/brave-browser/issues/41418
++  source_set("brave_prefs_util_impl") {
++    visibility = [
++      ":*",
++      "//brave/browser:core",
+     ]
+-  }
+-
+-  if (enable_web_discovery) {
+-    sources += [
+-      "api/web_discovery_api.cc",
+-      "api/web_discovery_api.h",
++    sources = [ "api/settings_private/brave_prefs_util_impl.cc" ]
++
++    deps = [
++      "//brave/components/brave_shields/core/browser",
++      "//chrome/browser:browser_public_dependencies",
++      "//chrome/browser/content_settings:content_settings_factory",
++      "//chrome/browser/profiles:profile",
++      "//chrome/common/extensions/api",
++      "//components/content_settings/core/browser:cookie_settings",
++      "//components/content_settings/core/common",
++      "//content/public/browser",
++      "//url",
+     ]
+   }
+ 
+-  if (enable_web_discovery_native) {
+-    deps += [ "//brave/components/web_discovery/common" ]
+-  }
+-
+-  if (is_win) {
+-    deps += [ "//brave/components/windows_recall" ]
+-  }
++  source_set("extensions") {
++    sources = [
++      "api/brave_theme_api.cc",
++      "api/brave_theme_api.h",
++      "api/settings_private/brave_prefs_util.cc",
++      "api/settings_private/brave_prefs_util.h",
++      "brave_extension_management.cc",
++      "brave_extension_management.h",
++      "brave_extension_provider.cc",
++      "brave_extension_provider.h",
++      "brave_extensions_browser_api_provider.cc",
++      "brave_extensions_browser_api_provider.h",
++      "brave_extensions_browser_client_impl.cc",
++      "brave_extensions_browser_client_impl.h",
++    ]
+ 
+-  if (enable_brave_wallet) {
+-    deps += [
+-      "//brave/components/brave_wallet/browser",
+-      "//brave/components/brave_wallet/browser:pref_names",
+-      "//brave/components/brave_wallet/browser:utils",
+-      "//brave/components/brave_wallet/common",
+-      "//brave/components/decentralized_dns/core",
++    deps = [
++      ":brave_prefs_util_impl",
++      ":resources",
++      "//brave/app:brave_generated_resources_grit",
++      "//brave/browser:browser_process",
++      "//brave/browser/brave_search",
++      "//brave/browser/component_updater",
++      "//brave/browser/extensions/api:generated_api_registration",
++      "//brave/browser/ui:brave_tab_prefs",
++      "//brave/common",
++      "//brave/common/extensions/api",
++      "//brave/components/ai_chat/core/common/buildflags",
++      "//brave/components/brave_ads/buildflags",
++      "//brave/components/brave_extension:static_resources",
++      "//brave/components/brave_news/common/buildflags",
++      "//brave/components/brave_rewards/core",
++      "//brave/components/brave_search/browser",
++      "//brave/components/brave_shields/core/common",
++      "//brave/components/brave_talk/buildflags",
++      "//brave/components/brave_vpn/common/buildflags",
++      "//brave/components/brave_wallet/common/buildflags",
++      "//brave/components/brave_wayback_machine/buildflags",
++      "//brave/components/constants",
++      "//brave/components/containers/buildflags",
++      "//brave/components/de_amp/common",
++      "//brave/components/debounce/core/common",
++      "//brave/components/email_aliases/buildflags",
++      "//brave/components/local_ai/buildflags",
++      "//brave/components/ntp_background_images/common",
++      "//brave/components/request_otr/common",
++      "//brave/components/sidebar/browser",
++      "//brave/components/speedreader/common/buildflags",
++      "//brave/components/tor/buildflags",
++      "//brave/components/traffic_control/buildflags",
++      "//brave/components/web_discovery/buildflags",
++      "//brave/components/webcompat_reporter/common",
++      "//chrome/browser:browser_process",
++      "//chrome/browser:browser_public_dependencies",
++      "//chrome/browser/extensions",
++      "//chrome/browser/extensions:chrome_extensions_browser_client",
++      "//chrome/browser/profiles:profile",
++      "//chrome/browser/ui",
++      "//chrome/browser/ui/browser_window",
++      "//chrome/common",
++      "//components/browsing_data/core",
++      "//components/gcm_driver:gcm_buildflags",
++      "//components/history/core/common",
++      "//components/prefs",
++      "//components/update_client:network_impl",
++      "//components/user_prefs",
++      "//content/public/browser",
+     ]
+-  }
+ 
+-  if (enable_brave_talk) {
+-    sources += [
+-      "api/brave_talk_api.cc",
+-      "api/brave_talk_api.h",
++    public_deps = [
++      ":component_loader",
++      ":core",
++      "//base",
++      "//extensions/browser",
+     ]
+-    deps += [ "//brave/components/brave_talk" ]
+-  }
+ 
+-  if (enable_playlist) {
+-    deps += [ "//brave/components/playlist/core/common" ]
++    if (use_gcm_from_platform) {
++      deps += [ "//components/gcm_driver" ]
++    }
++
++    if (enable_brave_ads) {
++      deps += [ "//brave/components/brave_ads/core/public:headers" ]
++    }
++
++    if (enable_brave_wayback_machine) {
++      deps += [ "//brave/components/brave_wayback_machine" ]
++    }
++
++    if (enable_speedreader) {
++      deps += [ "//brave/components/speedreader" ]
++    }
++
++    if (enable_ai_chat) {
++      deps += [ "//brave/components/ai_chat/core/common" ]
++    }
++
++    if (enable_local_ai) {
++      deps += [ "//brave/components/local_ai/core" ]
++    }
++
++    if (enable_brave_news) {
++      deps += [ "//brave/components/brave_news/common" ]
++    }
++
++    if (enable_brave_vpn) {
++      deps += [ "//brave/components/brave_vpn/common" ]
++    }
++
++    if (enable_tor) {
++      deps += [
++        "//brave/browser/tor",
++        "//brave/components/tor",
++        "//brave/components/tor:pref_names",
++      ]
++    }
++
++    if (enable_web_discovery) {
++      sources += [
++        "api/web_discovery_api.cc",
++        "api/web_discovery_api.h",
++      ]
++    }
++
++    if (enable_web_discovery_native) {
++      deps += [ "//brave/components/web_discovery/common" ]
++    }
++
++    if (is_win) {
++      deps += [ "//brave/components/windows_recall" ]
++    }
++
++    if (enable_brave_wallet) {
++      deps += [
++        "//brave/components/brave_wallet/browser",
++        "//brave/components/brave_wallet/browser:pref_names",
++        "//brave/components/brave_wallet/browser:utils",
++        "//brave/components/brave_wallet/common",
++        "//brave/components/decentralized_dns/core",
++      ]
++    }
++
++    if (enable_brave_talk) {
++      sources += [
++        "api/brave_talk_api.cc",
++        "api/brave_talk_api.h",
++      ]
++      deps += [ "//brave/components/brave_talk" ]
++    }
++
++    if (enable_playlist) {
++      deps += [ "//brave/components/playlist/core/common" ]
++    }
++
++    if (enable_psst) {
++      deps += [ "//brave/components/psst/core/browser" ]
++    }
++
++    if (enable_email_aliases) {
++      deps += [ "//brave/components/email_aliases:pref_names" ]
++    }
++
++    if (enable_containers) {
++      deps += [ "//brave/components/containers/core/browser" ]
++    }
++
++    if (enable_traffic_control) {
++      deps += [ "//brave/components/traffic_control/core/browser" ]
++    }
++
++    allow_circular_includes_from = [ ":brave_prefs_util_impl" ]
+   }
+ 
+-  if (enable_psst) {
+-    deps += [ "//brave/components/psst/core/browser" ]
++  group("resources") {
++    deps = [
++      "//brave/components/brave_extension:generated_resources",
++      "//brave/components/brave_extension:static_resources",
++    ]
+   }
+ 
+-  if (enable_email_aliases) {
+-    deps += [ "//brave/components/email_aliases:pref_names" ]
+-  }
++  source_set("test_support") {
++    testonly = true
+ 
+-  if (enable_containers) {
+-    deps += [ "//brave/components/containers/core/browser" ]
+-  }
++    sources = [
++      "brave_base_local_data_files_browsertest.cc",
++      "brave_base_local_data_files_browsertest.h",
++      "brave_extension_functional_test.cc",
++      "brave_extension_functional_test.h",
++    ]
+ 
+-  if (enable_traffic_control) {
+-    deps += [ "//brave/components/traffic_control/core/browser" ]
++    deps = [
++      "//base",
++      "//base/test:test_support",
++      "//brave/browser",
++      "//brave/components/brave_component_updater/browser",
++      "//brave/components/constants",
++      "//chrome/browser/extensions",
++      "//chrome/test:test_support",
++      "//content/public/browser",
++      "//content/test:test_support",
++      "//extensions/browser:crx_installer",
++      "//net",
++      "//net:test_support",
++    ]
+   }
+-
+-  allow_circular_includes_from = [ ":brave_prefs_util_impl" ]
+-}
+-
+-group("resources") {
+-  deps = [
+-    "//brave/components/brave_extension:generated_resources",
+-    "//brave/components/brave_extension:static_resources",
+-  ]
+-}
+-
+-source_set("test_support") {
+-  testonly = true
+-
+-  sources = [
+-    "brave_base_local_data_files_browsertest.cc",
+-    "brave_base_local_data_files_browsertest.h",
+-    "brave_extension_functional_test.cc",
+-    "brave_extension_functional_test.h",
+-  ]
+-
+-  deps = [
+-    "//base",
+-    "//base/test:test_support",
+-    "//brave/browser",
+-    "//brave/components/brave_component_updater/browser",
+-    "//brave/components/constants",
+-    "//chrome/browser/extensions",
+-    "//chrome/test:test_support",
+-    "//content/public/browser",
+-    "//content/test:test_support",
+-    "//extensions/browser:crx_installer",
+-    "//net",
+-    "//net:test_support",
+-  ]
+ }
+diff --git a/browser/extensions/DEPS b/browser/extensions/DEPS
+index f0b9bbd4bb..7f95e76f8f 100644
+--- a/browser/extensions/DEPS
++++ b/browser/extensions/DEPS
+@@ -1,6 +1,7 @@
+ include_rules = [
+   "+brave/components/brave_extension/grit",
+   "+brave/components/update_client/buildflags.h",
++  "+extensions/strings/grit/extensions_strings.h",
+ ]
+ 
+ specific_include_rules = {
+diff --git a/browser/extensions/android/BUILD.gn b/browser/extensions/android/BUILD.gn
+new file mode 100644
+index 0000000000..c4ad13aa8e
+--- /dev/null
++++ b/browser/extensions/android/BUILD.gn
+@@ -0,0 +1,14 @@
++# Copyright (c) 2026 The Brave Authors. All rights reserved.
++# This Source Code Form is subject to the terms of the Mozilla Public
++# License, v. 2.0. If a copy of the MPL was not distributed with this file,
++# You can obtain one at https://mozilla.org/MPL/2.0/.
++
++import("//extensions/buildflags/buildflags.gni")
++
++assert(is_android && !is_desktop_android && enable_extensions_core)
++
++source_set("side_panel_stub") {
++  visibility = [ "//chrome/browser/ui" ]
++  sources = [ "extension_side_panel_coordinator_stub.cc" ]
++  deps = [ "//chrome/browser/ui/extensions" ]
++}
+diff --git a/browser/extensions/android/brave_extension_management.cc b/browser/extensions/android/brave_extension_management.cc
+new file mode 100644
+index 0000000000..edbbec73d2
+--- /dev/null
++++ b/browser/extensions/android/brave_extension_management.cc
+@@ -0,0 +1,102 @@
++/* Copyright (c) 2026 The Brave Authors. All rights reserved.
++ * This Source Code Form is subject to the terms of the Mozilla Public
++ * License, v. 2.0. If a copy of the MPL was not distributed with this file,
++ * You can obtain one at https://mozilla.org/MPL/2.0/. */
++
++#include "brave/browser/extensions/android/brave_extension_management.h"
++
++#include <memory>
++#include <string>
++
++#include "base/feature_list.h"
++#include "base/notreached.h"
++#include "base/strings/utf_string_conversions.h"
++#include "build/android_buildflags.h"
++#include "extensions/browser/disable_reason.h"
++#include "extensions/browser/management_policy.h"
++#include "extensions/common/extension.h"
++#include "extensions/common/manifest.h"
++#include "extensions/strings/grit/extensions_strings.h"
++#include "ui/base/l10n/l10n_util.h"
++
++#if !BUILDFLAG(IS_DESKTOP_ANDROID)
++#include "brave/browser/brave_browser_features.h"
++#include "chrome/browser/flags/android/chrome_feature_list.h"
++#include "content/public/common/content_features.h"
++#endif  // !BUILDFLAG(IS_DESKTOP_ANDROID)
++
++namespace extensions {
++
++namespace {
++
++class AndroidExtensionsPolicyProvider : public ManagementPolicy::Provider {
++ public:
++  AndroidExtensionsPolicyProvider() = default;
++  ~AndroidExtensionsPolicyProvider() override = default;
++
++  std::string GetDebugPolicyProviderName() const override {
++#if defined(NDEBUG)
++    NOTREACHED();
++#else
++    return "Brave Android Extensions Provider";
++#endif  // defined(NDEBUG)
++  }
++
++  bool UserMayLoad(const Extension* extension,
++                   std::u16string* error) const override {
++    if (IsAllowed(*extension)) {
++      return true;
++    }
++    if (error) {
++      *error = l10n_util::GetStringFUTF16(
++          IDS_EXTENSION_CANT_INSTALL_POLICY_BLOCKED,
++          base::UTF8ToUTF16(extension->name()),
++          base::UTF8ToUTF16(extension->id()), std::u16string());
++    }
++    return false;
++  }
++
++  // Keeps installed extensions on disk, so they come back once allowed.
++  bool MustRemainDisabled(
++      const Extension* extension,
++      disable_reason::DisableReason* reason) const override {
++    if (IsAllowed(*extension)) {
++      return false;
++    }
++    if (reason) {
++      *reason = disable_reason::DISABLE_BLOCKED_BY_POLICY;
++    }
++    return true;
++  }
++
++ private:
++  static bool IsAllowed(const Extension& extension) {
++    return AreAndroidExtensionsAllowed() ||
++           Manifest::IsComponentLocation(extension.location());
++  }
++};
++
++}  // namespace
++
++bool AreAndroidExtensionsAllowed() {
++#if BUILDFLAG(IS_DESKTOP_ANDROID)
++  return true;
++#else
++  // Mirrors ChromeBrowserFieldTrials::RegisterFeatureOverrides: the tabs API
++  // CHECKs that every tab has WebContents, which kLoadAllTabsAtStartup
++  // provides.
++  return base::FeatureList::IsEnabled(features::kBraveAndroidExtensions) &&
++         base::FeatureList::IsEnabled(features::kWebContentsDiscard) &&
++         base::FeatureList::IsEnabled(features::kLazyBrowserInterfaceBroker) &&
++         base::FeatureList::IsEnabled(chrome::android::kLoadAllTabsAtStartup);
++#endif  // BUILDFLAG(IS_DESKTOP_ANDROID)
++}
++
++BraveExtensionManagement::BraveExtensionManagement(Profile* profile)
++    : ExtensionManagement(profile) {
++  providers_.push_back(std::make_unique<AndroidExtensionsPolicyProvider>());
++}
++
++BraveExtensionManagement::~BraveExtensionManagement() = default;
++
++}  // namespace extensions
+diff --git a/browser/extensions/android/brave_extension_management.h b/browser/extensions/android/brave_extension_management.h
+new file mode 100644
+index 0000000000..03c5205258
+--- /dev/null
++++ b/browser/extensions/android/brave_extension_management.h
+@@ -0,0 +1,28 @@
++/* Copyright (c) 2026 The Brave Authors. All rights reserved.
++ * This Source Code Form is subject to the terms of the Mozilla Public
++ * License, v. 2.0. If a copy of the MPL was not distributed with this file,
++ * You can obtain one at https://mozilla.org/MPL/2.0/. */
++
++#ifndef BRAVE_BROWSER_EXTENSIONS_ANDROID_BRAVE_EXTENSION_MANAGEMENT_H_
++#define BRAVE_BROWSER_EXTENSIONS_ANDROID_BRAVE_EXTENSION_MANAGEMENT_H_
++
++#include "chrome/browser/extensions/extension_management.h"
++
++class Profile;
++
++namespace extensions {
++
++// Whether non-component extensions may be installed and run.
++bool AreAndroidExtensionsAllowed();
++
++class BraveExtensionManagement : public ExtensionManagement {
++ public:
++  explicit BraveExtensionManagement(Profile* profile);
++  BraveExtensionManagement(const BraveExtensionManagement&) = delete;
++  BraveExtensionManagement& operator=(const BraveExtensionManagement&) = delete;
++  ~BraveExtensionManagement() override;
++};
++
++}  // namespace extensions
++
++#endif  // BRAVE_BROWSER_EXTENSIONS_ANDROID_BRAVE_EXTENSION_MANAGEMENT_H_
+diff --git a/browser/extensions/android/brave_extension_management_browsertest.cc b/browser/extensions/android/brave_extension_management_browsertest.cc
+new file mode 100644
+index 0000000000..f2bb64ccc1
+--- /dev/null
++++ b/browser/extensions/android/brave_extension_management_browsertest.cc
+@@ -0,0 +1,97 @@
++/* Copyright (c) 2026 The Brave Authors. All rights reserved.
++ * This Source Code Form is subject to the terms of the Mozilla Public
++ * License, v. 2.0. If a copy of the MPL was not distributed with this file,
++ * You can obtain one at https://mozilla.org/MPL/2.0/. */
++
++#include "brave/browser/extensions/android/brave_extension_management.h"
++
++#include "base/files/file_path.h"
++#include "base/path_service.h"
++#include "base/test/scoped_feature_list.h"
++#include "base/threading/thread_restrictions.h"
++#include "brave/browser/brave_browser_features.h"
++#include "brave/components/constants/brave_paths.h"
++#include "chrome/browser/extensions/chrome_test_extension_loader.h"
++#include "chrome/browser/extensions/extension_browsertest.h"
++#include "chrome/browser/flags/android/chrome_feature_list.h"
++#include "content/public/common/content_features.h"
++#include "content/public/test/browser_test.h"
++#include "extensions/browser/extension_registry.h"
++#include "extensions/common/extension.h"
++
++namespace extensions {
++
++namespace {
++
++base::FilePath GetTestExtensionPath() {
++  base::ScopedAllowBlockingForTesting allow_blocking;
++  return base::PathService::CheckedGet(brave::DIR_TEST_DATA)
++      .AppendASCII("extensions")
++      .AppendASCII("trivial_extension");
++}
++
++}  // namespace
++
++// Only the Brave flag is enabled; the companion features must come from the
++// startup overrides.
++class BraveExtensionManagementAndroidEnabledBrowserTest
++    : public ExtensionBrowserTest {
++ public:
++  BraveExtensionManagementAndroidEnabledBrowserTest() {
++    feature_list_.InitAndEnableFeature(features::kBraveAndroidExtensions);
++  }
++
++ private:
++  base::test::ScopedFeatureList feature_list_;
++};
++
++IN_PROC_BROWSER_TEST_F(BraveExtensionManagementAndroidEnabledBrowserTest,
++                       StartupOverridesEnableCompanionFeatures) {
++  EXPECT_TRUE(base::FeatureList::IsEnabled(features::kWebContentsDiscard));
++  EXPECT_TRUE(
++      base::FeatureList::IsEnabled(features::kLazyBrowserInterfaceBroker));
++  EXPECT_TRUE(
++      base::FeatureList::IsEnabled(chrome::android::kLoadAllTabsAtStartup));
++  EXPECT_TRUE(AreAndroidExtensionsAllowed());
++}
++
++IN_PROC_BROWSER_TEST_F(BraveExtensionManagementAndroidEnabledBrowserTest,
++                       LoadsUnpackedExtension) {
++  const Extension* extension = LoadExtension(GetTestExtensionPath());
++  ASSERT_TRUE(extension);
++  EXPECT_TRUE(ExtensionRegistry::Get(profile())->enabled_extensions().Contains(
++      extension->id()));
++}
++
++class BraveExtensionManagementAndroidDisabledBrowserTest
++    : public ExtensionBrowserTest {
++ public:
++  BraveExtensionManagementAndroidDisabledBrowserTest() {
++    feature_list_.InitAndDisableFeature(features::kBraveAndroidExtensions);
++  }
++
++ private:
++  base::test::ScopedFeatureList feature_list_;
++};
++
++IN_PROC_BROWSER_TEST_F(BraveExtensionManagementAndroidDisabledBrowserTest,
++                       NotAllowed) {
++  EXPECT_FALSE(AreAndroidExtensionsAllowed());
++}
++
++IN_PROC_BROWSER_TEST_F(BraveExtensionManagementAndroidDisabledBrowserTest,
++                       UnpackedExtensionInstallIsBlocked) {
++  ChromeTestExtensionLoader loader(profile());
++  loader.set_should_fail(true);
++  EXPECT_FALSE(loader.LoadExtension(GetTestExtensionPath()));
++}
++
++IN_PROC_BROWSER_TEST_F(BraveExtensionManagementAndroidDisabledBrowserTest,
++                       ComponentExtensionStillLoads) {
++  const Extension* extension = LoadExtensionAsComponent(GetTestExtensionPath());
++  ASSERT_TRUE(extension);
++  EXPECT_TRUE(ExtensionRegistry::Get(profile())->enabled_extensions().Contains(
++      extension->id()));
++}
++
++}  // namespace extensions
+diff --git a/browser/extensions/android/brave_extension_management_unittest.cc b/browser/extensions/android/brave_extension_management_unittest.cc
+new file mode 100644
+index 0000000000..e59de29750
+--- /dev/null
++++ b/browser/extensions/android/brave_extension_management_unittest.cc
+@@ -0,0 +1,129 @@
++/* Copyright (c) 2026 The Brave Authors. All rights reserved.
++ * This Source Code Form is subject to the terms of the Mozilla Public
++ * License, v. 2.0. If a copy of the MPL was not distributed with this file,
++ * You can obtain one at https://mozilla.org/MPL/2.0/. */
++
++#include "brave/browser/extensions/android/brave_extension_management.h"
++
++#include <memory>
++#include <string>
++#include <vector>
++
++#include "base/memory/scoped_refptr.h"
++#include "base/test/scoped_feature_list.h"
++#include "brave/browser/brave_browser_features.h"
++#include "chrome/browser/flags/android/chrome_feature_list.h"
++#include "chrome/test/base/testing_profile.h"
++#include "content/public/common/content_features.h"
++#include "content/public/test/browser_task_environment.h"
++#include "extensions/browser/disable_reason.h"
++#include "extensions/browser/management_policy.h"
++#include "extensions/common/extension.h"
++#include "extensions/common/extension_builder.h"
++#include "extensions/common/mojom/manifest.mojom-shared.h"
++#include "testing/gtest/include/gtest/gtest.h"
++
++namespace extensions {
++
++namespace {
++
++scoped_refptr<const Extension> BuildExtension(
++    mojom::ManifestLocation location) {
++  return ExtensionBuilder("test").SetLocation(location).Build();
++}
++
++}  // namespace
++
++class BraveExtensionManagementAndroidTestBase : public testing::Test {
++ protected:
++  BraveExtensionManagementAndroidTestBase(
++      const std::vector<base::test::FeatureRef>& enabled,
++      const std::vector<base::test::FeatureRef>& disabled) {
++    feature_list_.InitWithFeatures(enabled, disabled);
++  }
++
++  const ManagementPolicy::Provider& provider() {
++    if (!management_) {
++      management_ = std::make_unique<BraveExtensionManagement>(&profile_);
++    }
++    return *management_->GetProviders().back();
++  }
++
++  bool UserMayLoad(mojom::ManifestLocation location) {
++    std::u16string error;
++    bool allowed =
++        provider().UserMayLoad(BuildExtension(location).get(), &error);
++    // Install checks require an error for every rejection.
++    EXPECT_EQ(allowed, error.empty());
++    return allowed;
++  }
++
++ private:
++  base::test::ScopedFeatureList feature_list_;
++  content::BrowserTaskEnvironment task_environment_;
++  TestingProfile profile_;
++  std::unique_ptr<BraveExtensionManagement> management_;
++};
++
++class BraveExtensionManagementAndroidDisabledTest
++    : public BraveExtensionManagementAndroidTestBase {
++ protected:
++  BraveExtensionManagementAndroidDisabledTest()
++      : BraveExtensionManagementAndroidTestBase(
++            {},
++            {features::kBraveAndroidExtensions}) {}
++};
++
++TEST_F(BraveExtensionManagementAndroidDisabledTest, BlocksExtensions) {
++  EXPECT_FALSE(AreAndroidExtensionsAllowed());
++  EXPECT_FALSE(UserMayLoad(mojom::ManifestLocation::kInternal));
++  EXPECT_FALSE(UserMayLoad(mojom::ManifestLocation::kUnpacked));
++
++  auto extension = BuildExtension(mojom::ManifestLocation::kInternal);
++  disable_reason::DisableReason reason = disable_reason::DISABLE_NONE;
++  EXPECT_TRUE(provider().MustRemainDisabled(extension.get(), &reason));
++  EXPECT_EQ(disable_reason::DISABLE_BLOCKED_BY_POLICY, reason);
++}
++
++TEST_F(BraveExtensionManagementAndroidDisabledTest, AllowsComponents) {
++  EXPECT_TRUE(UserMayLoad(mojom::ManifestLocation::kComponent));
++
++  auto extension = BuildExtension(mojom::ManifestLocation::kComponent);
++  EXPECT_FALSE(provider().MustRemainDisabled(extension.get(), nullptr));
++}
++
++class BraveExtensionManagementAndroidNoLoadAllTabsTest
++    : public BraveExtensionManagementAndroidTestBase {
++ protected:
++  BraveExtensionManagementAndroidNoLoadAllTabsTest()
++      : BraveExtensionManagementAndroidTestBase(
++            {features::kBraveAndroidExtensions},
++            {chrome::android::kLoadAllTabsAtStartup}) {}
++};
++
++TEST_F(BraveExtensionManagementAndroidNoLoadAllTabsTest, BlocksExtensions) {
++  EXPECT_FALSE(AreAndroidExtensionsAllowed());
++  EXPECT_FALSE(UserMayLoad(mojom::ManifestLocation::kInternal));
++}
++
++class BraveExtensionManagementAndroidEnabledTest
++    : public BraveExtensionManagementAndroidTestBase {
++ protected:
++  BraveExtensionManagementAndroidEnabledTest()
++      : BraveExtensionManagementAndroidTestBase(
++            {features::kBraveAndroidExtensions, features::kWebContentsDiscard,
++             features::kLazyBrowserInterfaceBroker,
++             chrome::android::kLoadAllTabsAtStartup},
++            {}) {}
++};
++
++TEST_F(BraveExtensionManagementAndroidEnabledTest, AllowsExtensions) {
++  EXPECT_TRUE(AreAndroidExtensionsAllowed());
++  EXPECT_TRUE(UserMayLoad(mojom::ManifestLocation::kInternal));
++  EXPECT_TRUE(UserMayLoad(mojom::ManifestLocation::kUnpacked));
++
++  auto extension = BuildExtension(mojom::ManifestLocation::kInternal);
++  EXPECT_FALSE(provider().MustRemainDisabled(extension.get(), nullptr));
++}
++
++}  // namespace extensions
+diff --git a/browser/extensions/android/extension_side_panel_coordinator_stub.cc b/browser/extensions/android/extension_side_panel_coordinator_stub.cc
+new file mode 100644
+index 0000000000..f20aa6d08c
+--- /dev/null
++++ b/browser/extensions/android/extension_side_panel_coordinator_stub.cc
+@@ -0,0 +1,19 @@
++// Copyright (c) 2026 The Brave Authors. All rights reserved.
++// This Source Code Form is subject to the terms of the Mozilla Public
++// License, v. 2.0. If a copy of the MPL was not distributed with this file,
++// You can obtain one at https://mozilla.org/MPL/2.0/.
++
++#include "chrome/browser/ui/extensions/extension_side_panel_coordinator.h"
++
++namespace extensions {
++
++// The extension side panel UI is desktop Android only; the coordinator
++// supports running without a delegate.
++// static
++std::unique_ptr<ExtensionSidePanelCoordinator::Delegate>
++ExtensionSidePanelCoordinator::CreateDelegate(
++    ExtensionSidePanelCoordinator* coordinator) {
++  return nullptr;
++}
++
++}  // namespace extensions
+diff --git a/browser/extensions/manifest_v2/BUILD.gn b/browser/extensions/manifest_v2/BUILD.gn
+index 0d32799c6f..5f8e89795f 100644
+--- a/browser/extensions/manifest_v2/BUILD.gn
++++ b/browser/extensions/manifest_v2/BUILD.gn
+@@ -5,7 +5,7 @@
+ 
+ import("//extensions/buildflags/buildflags.gni")
+ 
+-assert(enable_extensions)
++assert(enable_extensions_core)
+ 
+ source_set("manifest_v2") {
+   sources = [
+diff --git a/browser/extensions/resources.gni b/browser/extensions/resources.gni
+index 60ddb4ac7f..fc7b389c0f 100644
+--- a/browser/extensions/resources.gni
++++ b/browser/extensions/resources.gni
+@@ -3,7 +3,14 @@
+ # License, v. 2.0. If a copy of the MPL was not distributed with this file,
+ # you can obtain one at http://mozilla.org/MPL/2.0/.
+ 
+-brave_extensions_resources = [
+-  "//brave/browser/extensions/api:generated_api_registration",
+-  "//brave/browser/extensions:resources",
+-]
++import("//extensions/buildflags/buildflags.gni")
++
++brave_extensions_resources = []
++
++# These targets are desktop-only; Android builds only the extensions core.
++if (enable_extensions) {
++  brave_extensions_resources += [
++    "//brave/browser/extensions/api:generated_api_registration",
++    "//brave/browser/extensions:resources",
++  ]
++}
+diff --git a/browser/profiles/brave_renderer_updater.cc b/browser/profiles/brave_renderer_updater.cc
+index d9c9c30df7..adf9b5897c 100644
+--- a/browser/profiles/brave_renderer_updater.cc
++++ b/browser/profiles/brave_renderer_updater.cc
+@@ -35,7 +35,7 @@
+ #include "brave/components/tor/pref_names.h"
+ #endif
+ 
+-#if BUILDFLAG(ENABLE_EXTENSIONS)
++#if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
+ #include "extensions/browser/extension_registry.h"
+ #endif
+ 
+@@ -222,7 +222,7 @@ void BraveRendererUpdater::UpdateRenderer(
+     mojo::AssociatedRemote<brave::mojom::BraveRendererConfiguration>*
+         renderer_configuration) {
+ #if BUILDFLAG(ENABLE_BRAVE_WALLET)
+-#if BUILDFLAG(ENABLE_EXTENSIONS)
++#if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
+   extensions::ExtensionRegistry* registry =
+       extensions::ExtensionRegistry::Get(profile_);
+   bool has_installed_metamask =
+diff --git a/browser/quick_search_engines/android/java/res/layout/quick_search_engines_view.xml b/browser/quick_search_engines/android/java/res/layout/quick_search_engines_view.xml
+index b9ee8ab338..f9824e2f12 100644
+--- a/browser/quick_search_engines/android/java/res/layout/quick_search_engines_view.xml
++++ b/browser/quick_search_engines/android/java/res/layout/quick_search_engines_view.xml
+@@ -34,7 +34,7 @@
+         android:layout_height="24dp"
+         android:layout_margin="8dp"
+         android:layout_gravity="center"
+-        app:srcCompat="@drawable/ic_settings"
++        app:srcCompat="@drawable/brave_ic_settings"
+         android:contentDescription="@null"/>
+ 
+ </LinearLayout>
+diff --git a/browser/sources.gni b/browser/sources.gni
+index 57f8462732..f46200b846 100644
+--- a/browser/sources.gni
++++ b/browser/sources.gni
+@@ -441,6 +441,11 @@ if (!is_android) {
+   }
+ }
+ 
++if (!is_android || enable_extensions_core) {
++  brave_chrome_browser_deps +=
++      [ "//ui/webui/resources/cr_components/color_change_listener:mojom" ]
++}
++
+ if (!is_android) {
+   # Already included on android by upstream
+ 
+@@ -711,6 +716,19 @@ if (enable_extensions) {
+     "//extensions/common:common_constants",
+     "//extensions/common:extension_features",
+   ]
++} else if (enable_extensions_core) {
++  brave_chrome_browser_sources += [
++    "//brave/browser/extensions/android/brave_extension_management.cc",
++    "//brave/browser/extensions/android/brave_extension_management.h",
++  ]
++  brave_chrome_browser_deps += [
++    "//brave/browser/extensions:core",
++    "//chrome/browser/extensions",
++    "//chrome/browser/extensions:chrome_extensions_browser_client",
++    "//extensions/browser",
++    "//extensions/common",
++    "//extensions/strings",
++  ]
+ }
+ 
+ if (enable_brave_wayback_machine) {
+@@ -865,6 +883,12 @@ if (enable_local_ai) {
+     "//brave/components/history_embeddings:open_tab_passages",
+   ]
+ }
++if (is_android && !is_desktop_android && enable_extensions_core) {
++  brave_chrome_browser_ui_deps += [
++    "//brave/browser/extensions/android:side_panel_stub",
++    "//chrome/browser/ui/android/extensions/windowing/internal",
++  ]
++}
+ if (enable_brave_wallet) {
+   brave_chrome_browser_ui_deps += [
+     "//brave/browser/brave_wallet",
+diff --git a/browser/ui/BUILD.gn b/browser/ui/BUILD.gn
+index e30f19d4ac..8b7b0d1a1d 100644
+--- a/browser/ui/BUILD.gn
++++ b/browser/ui/BUILD.gn
+@@ -261,7 +261,7 @@ source_set("ui") {
+ 
+     public_deps += [ "//chrome/browser/ui/webui:favicon_source" ]
+ 
+-    if (!is_android || enable_webui_ntp) {
++    if (!is_android || enable_extensions_core) {
+       deps += [ "//chrome/browser/ui/webui:theme_source" ]
+     }
+ 
+diff --git a/browser/ui/webui/ai_chat/BUILD.gn b/browser/ui/webui/ai_chat/BUILD.gn
+index 8fa90ec7aa..de1006c678 100644
+--- a/browser/ui/webui/ai_chat/BUILD.gn
++++ b/browser/ui/webui/ai_chat/BUILD.gn
+@@ -5,6 +5,7 @@
+ 
+ import("//brave/components/ai_chat/core/common/buildflags/buildflags.gni")
+ import("//brave/components/local_ai/buildflags/buildflags.gni")
++import("//extensions/buildflags/buildflags.gni")
+ 
+ assert(enable_ai_chat)
+ 
+@@ -82,7 +83,6 @@ source_set("ai_chat") {
+       "//chrome/browser/ui/tabs:tab_model",
+       "//chrome/browser/ui/tabs:tab_strip",
+       "//chrome/browser/ui/thumbnails",
+-      "//chrome/browser/ui/webui:theme_source",
+       "//chrome/browser/ui/webui/top_chrome",
+       "//chrome/browser/ui/webui/util",
+     ]
+@@ -93,6 +93,10 @@ source_set("ai_chat") {
+     ]
+   }
+ 
++  if (!is_android || enable_extensions_core) {
++    deps += [ "//chrome/browser/ui/webui:theme_source" ]
++  }
++
+   if (enable_local_ai) {
+     # SearchForTabs ranks the user's open tabs with on-device history
+     # embeddings; open_tab_search is desktop only.
+diff --git a/browser/ui/webui/brave_wallet/line_chart/BUILD.gn b/browser/ui/webui/brave_wallet/line_chart/BUILD.gn
+index bb71503d5f..2f68e95618 100644
+--- a/browser/ui/webui/brave_wallet/line_chart/BUILD.gn
++++ b/browser/ui/webui/brave_wallet/line_chart/BUILD.gn
+@@ -4,6 +4,7 @@
+ # You can obtain one at https://mozilla.org/MPL/2.0/.
+ 
+ import("//brave/components/brave_wallet/common/buildflags/buildflags.gni")
++import("//extensions/buildflags/buildflags.gni")
+ 
+ assert(enable_brave_wallet)
+ 
+@@ -25,7 +26,7 @@ source_set("line_chart") {
+     "//ui/webui",
+   ]
+ 
+-  if (!is_android) {
++  if (!is_android || enable_extensions_core) {
+     deps += [ "//chrome/browser/ui/webui:theme_source" ]
+   }
+ }
+diff --git a/browser/ui/webui/brave_wallet/market/BUILD.gn b/browser/ui/webui/brave_wallet/market/BUILD.gn
+index 3be9ac96b0..3a9471a877 100644
+--- a/browser/ui/webui/brave_wallet/market/BUILD.gn
++++ b/browser/ui/webui/brave_wallet/market/BUILD.gn
+@@ -4,6 +4,7 @@
+ # You can obtain one at https://mozilla.org/MPL/2.0/.
+ 
+ import("//brave/components/brave_wallet/common/buildflags/buildflags.gni")
++import("//extensions/buildflags/buildflags.gni")
+ 
+ assert(enable_brave_wallet)
+ 
+@@ -25,7 +26,7 @@ source_set("market") {
+     "//ui/webui/resources:resources_grit",
+   ]
+ 
+-  if (!is_android) {
++  if (!is_android || enable_extensions_core) {
+     deps += [ "//chrome/browser/ui/webui:theme_source" ]
+   }
+ }
+diff --git a/browser/ui/webui/brave_wallet/wallet_page/BUILD.gn b/browser/ui/webui/brave_wallet/wallet_page/BUILD.gn
+index fe5399fb26..5d30a8bd4f 100644
+--- a/browser/ui/webui/brave_wallet/wallet_page/BUILD.gn
++++ b/browser/ui/webui/brave_wallet/wallet_page/BUILD.gn
+@@ -6,6 +6,7 @@
+ import("//brave/components/brave_ads/buildflags/buildflags.gni")
+ import("//brave/components/brave_rewards/core/buildflags/buildflags.gni")
+ import("//brave/components/brave_wallet/common/buildflags/buildflags.gni")
++import("//extensions/buildflags/buildflags.gni")
+ 
+ assert(enable_brave_wallet)
+ 
+@@ -45,11 +46,14 @@ source_set("wallet_page") {
+     sources += [ "wallet_page_handler_desktop.cc" ]
+     deps += [
+       "//brave/browser/ui/brave_wallet",
+-      "//chrome/browser/ui/webui:theme_source",
+       "//chrome/browser/ui/webui/sanitized_image:sanitized_image_source",
+     ]
+   }
+ 
++  if (!is_android || enable_extensions_core) {
++    deps += [ "//chrome/browser/ui/webui:theme_source" ]
++  }
++
+   if (enable_brave_rewards) {
+     deps += [
+       "//brave/browser/brave_rewards",
+diff --git a/build/args/android_defaults.gni b/build/args/android_defaults.gni
+index bc218ce1de..7160132e7b 100644
+--- a/build/args/android_defaults.gni
++++ b/build/args/android_defaults.gni
+@@ -14,3 +14,12 @@ enable_mdns = true
+ 
+ # We want it to be enabled for all configurations
+ disable_android_lint = false
++
++# EXT0 only: compile the Android extension runtime in an isolated proof build.
++# Runtime remains separately gated by BraveAndroidExtensions (off by default).
++declare_args() {
++  sandium_ubo_runtime_experiment = false
++}
++if (sandium_ubo_runtime_experiment) {
++  enable_extensions_core = true
++}
+diff --git a/build/config/brave_build.gni b/build/config/brave_build.gni
+index d550cd45a0..8e94188eac 100644
+--- a/build/config/brave_build.gni
++++ b/build/config/brave_build.gni
+@@ -8,7 +8,6 @@
+ # import("//build/config/chrome_build.gni") in compiler.gni
+ import("//brave/app/entitlements.gni")
+ import("//brave/brave_repack_locales.gni")
+-import("//brave/browser/extensions/resources.gni")
+ import("//brave/browser/resources/settings/sources.gni")
+ import("//brave/browser/ui/color/sources.gni")
+ import("//brave/build/mac/config.gni")
+diff --git a/chromium_src/chrome/browser/chrome_browser_field_trials.cc b/chromium_src/chrome/browser/chrome_browser_field_trials.cc
+index 4d94864866..ac36c896f5 100644
+--- a/chromium_src/chrome/browser/chrome_browser_field_trials.cc
++++ b/chromium_src/chrome/browser/chrome_browser_field_trials.cc
+@@ -5,6 +5,13 @@
+ 
+ #include "chrome/browser/chrome_browser_field_trials.h"
+ 
++#include "build/build_config.h"
++#include "extensions/buildflags/buildflags.h"
++
++#if BUILDFLAG(IS_ANDROID) && BUILDFLAG(ENABLE_EXTENSIONS_CORE)
++#include "brave/browser/brave_browser_features.h"
++#endif  // BUILDFLAG(IS_ANDROID) && BUILDFLAG(ENABLE_EXTENSIONS_CORE)
++
+ #define ChromeBrowserFieldTrials ChromeBrowserFieldTrialsChromium
+ 
+ #include <chrome/browser/chrome_browser_field_trials.cc>
+@@ -17,3 +24,25 @@ void ChromeBrowserFieldTrials::SetUpClientSideFieldTrials(
+     base::FeatureList* feature_list) {
+   // Don't setup upstream's client-side field trials.
+ }
++
++void ChromeBrowserFieldTrials::RegisterFeatureOverrides(
++    base::FeatureList* feature_list) {
++  ChromeBrowserFieldTrialsChromium::RegisterFeatureOverrides(feature_list);
++
++#if BUILDFLAG(IS_ANDROID) && BUILDFLAG(ENABLE_EXTENSIONS_CORE)
++  // The FeatureList isn't initialized yet, so read the flag as about:flags
++  // passes it.
++  if (!feature_list->IsFeatureOverriddenFromCommandLine(
++          features::kBraveAndroidExtensions.name,
++          base::FeatureList::OVERRIDE_ENABLE_FEATURE)) {
++    return;
++  }
++
++  // The extensions tabs APIs expect every tab to have WebContents, as upstream
++  // guarantees on desktop Android.
++  variations::FeatureOverrides feature_overrides(*feature_list);
++  feature_overrides.EnableFeature(features::kWebContentsDiscard);
++  feature_overrides.EnableFeature(features::kLazyBrowserInterfaceBroker);
++  feature_overrides.EnableFeature(chrome::android::kLoadAllTabsAtStartup);
++#endif  // BUILDFLAG(IS_ANDROID) && BUILDFLAG(ENABLE_EXTENSIONS_CORE)
++}
+diff --git a/chromium_src/chrome/browser/chrome_browser_field_trials.h b/chromium_src/chrome/browser/chrome_browser_field_trials.h
+index 972541c1e4..86cbc10346 100644
+--- a/chromium_src/chrome/browser/chrome_browser_field_trials.h
++++ b/chromium_src/chrome/browser/chrome_browser_field_trials.h
+@@ -23,6 +23,7 @@ class ChromeBrowserFieldTrials : public ChromeBrowserFieldTrialsChromium {
+       bool has_seed,
+       const variations::EntropyProviders& entropy_providers,
+       base::FeatureList* feature_list) override;
++  void RegisterFeatureOverrides(base::FeatureList* feature_list) override;
+ };
+ 
+ #endif  // BRAVE_CHROMIUM_SRC_CHROME_BROWSER_CHROME_BROWSER_FIELD_TRIALS_H_
+diff --git a/chromium_src/chrome/browser/content_settings/host_content_settings_map_factory.cc b/chromium_src/chrome/browser/content_settings/host_content_settings_map_factory.cc
+index 00cd7d1e4e..cdcdc3086d 100644
+--- a/chromium_src/chrome/browser/content_settings/host_content_settings_map_factory.cc
++++ b/chromium_src/chrome/browser/content_settings/host_content_settings_map_factory.cc
+@@ -12,7 +12,7 @@
+ #include "components/keyed_service/core/simple_keyed_service_factory.h"
+ #include "extensions/buildflags/buildflags.h"
+ 
+-#if BUILDFLAG(ENABLE_EXTENSIONS)
++#if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
+ #include "extensions/browser/browser_context_keyed_api_factory.h"
+ #endif
+ 
+diff --git a/chromium_src/chrome/browser/extensions/chrome_component_extension_resource_manager.cc b/chromium_src/chrome/browser/extensions/chrome_component_extension_resource_manager.cc
+index 43cea8cf22..4ee7a1eb9c 100644
+--- a/chromium_src/chrome/browser/extensions/chrome_component_extension_resource_manager.cc
++++ b/chromium_src/chrome/browser/extensions/chrome_component_extension_resource_manager.cc
+@@ -3,7 +3,13 @@
+  * License, v. 2.0. If a copy of the MPL was not distributed with this file,
+  * You can obtain one at https://mozilla.org/MPL/2.0/. */
+ 
++#include "build/android_buildflags.h"
++#include "extensions/buildflags/buildflags.h"
++
++// The Brave extension is desktop-only.
++#if BUILDFLAG(ENABLE_EXTENSIONS)
+ #include "brave/components/brave_extension/grit/brave_extension_generated_map.h"
+ #include "brave/components/brave_extension/grit/brave_extension_resources_map.h"
++#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
+ 
+ #include <chrome/browser/extensions/chrome_component_extension_resource_manager.cc>
+diff --git a/chromium_src/chrome/browser/extensions/component_extensions_allowlist/allowlist.cc b/chromium_src/chrome/browser/extensions/component_extensions_allowlist/allowlist.cc
+index b9d3e361c9..99ae5d7bb5 100644
+--- a/chromium_src/chrome/browser/extensions/component_extensions_allowlist/allowlist.cc
++++ b/chromium_src/chrome/browser/extensions/component_extensions_allowlist/allowlist.cc
+@@ -5,11 +5,15 @@
+ 
+ #include "chrome/browser/extensions/component_extensions_allowlist/allowlist.h"
+ 
+-#include "brave/components/brave_extension/grit/brave_extension.h"
+ #include "chrome/common/extensions/extension_constants.h"
+ #include "components/grit/brave_components_resources.h"
++#include "extensions/buildflags/buildflags.h"
+ #include "extensions/common/constants.h"
+ 
++#if BUILDFLAG(ENABLE_EXTENSIONS)
++#include "brave/components/brave_extension/grit/brave_extension.h"
++#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
++
+ namespace extensions {
+ 
+ namespace {
+@@ -39,11 +43,13 @@ bool IsComponentExtensionDenylistedBraveImpl(const std::string& extension_id) {
+ }
+ 
+ bool IsComponentExtensionAllowlistedBraveImpl(int manifest_resource_id) {
++#if BUILDFLAG(ENABLE_EXTENSIONS)
+   switch (manifest_resource_id) {
+     // Please keep the list in alphabetical order.
+     case IDR_BRAVE_EXTENSION:
+       return true;
+   }
++#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
+ 
+   return false;
+ }
+diff --git a/chromium_src/chrome/browser/extensions/component_loader_factory.cc b/chromium_src/chrome/browser/extensions/component_loader_factory.cc
+index 84d83945a2..1eef20adbf 100644
+--- a/chromium_src/chrome/browser/extensions/component_loader_factory.cc
++++ b/chromium_src/chrome/browser/extensions/component_loader_factory.cc
+@@ -3,6 +3,16 @@
+  * License, v. 2.0. If a copy of the MPL was not distributed with this file,
+  * You can obtain one at https://mozilla.org/MPL/2.0/. */
+ 
++#include "chrome/browser/extensions/component_loader.h"
++#include "extensions/buildflags/buildflags.h"
++
++#if BUILDFLAG(ENABLE_EXTENSIONS)
+ #include "brave/browser/extensions/brave_component_loader.h"
+ 
++using CurrentComponentLoader = extensions::BraveComponentLoader;
++#else
++// BraveComponentLoader only loads the Brave extension, which is desktop-only.
++using CurrentComponentLoader = extensions::ComponentLoader;
++#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
++
+ #include <chrome/browser/extensions/component_loader_factory.cc>
+diff --git a/chromium_src/chrome/browser/extensions/extension_management.cc b/chromium_src/chrome/browser/extensions/extension_management.cc
+index f03c00978e..35ecc18983 100644
+--- a/chromium_src/chrome/browser/extensions/extension_management.cc
++++ b/chromium_src/chrome/browser/extensions/extension_management.cc
+@@ -3,6 +3,12 @@
+  * License, v. 2.0. If a copy of the MPL was not distributed with this file,
+  * You can obtain one at http://mozilla.org/MPL/2.0/. */
+ 
++#include "extensions/buildflags/buildflags.h"
++
++#if BUILDFLAG(ENABLE_EXTENSIONS)
+ #include "brave/browser/extensions/brave_extension_management.h"
++#else
++#include "brave/browser/extensions/android/brave_extension_management.h"
++#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
+ 
+ #include <chrome/browser/extensions/extension_management.cc>
+diff --git a/chromium_src/chrome/browser/extensions/favicon/favicon_util.cc b/chromium_src/chrome/browser/extensions/favicon/favicon_util.cc
+new file mode 100644
+index 0000000000..570e6abd84
+--- /dev/null
++++ b/chromium_src/chrome/browser/extensions/favicon/favicon_util.cc
+@@ -0,0 +1,21 @@
++// Copyright (c) 2026 The Brave Authors. All rights reserved.
++// This Source Code Form is subject to the terms of the Mozilla Public
++// License, v. 2.0. If a copy of the MPL was not distributed with this file,
++// You can obtain one at https://mozilla.org/MPL/2.0/.
++
++#include "ui/resources/grit/ui_resources.h"
++
++// ui_resources.grd ships the larger favicons only on some platforms.
++#if !defined(IDR_DEFAULT_FAVICON_32)
++constexpr int BRAVE_IDR_DEFAULT_FAVICON_32 = IDR_DEFAULT_FAVICON;
++constexpr int BRAVE_IDR_DEFAULT_FAVICON_64 = IDR_DEFAULT_FAVICON;
++constexpr int BRAVE_IDR_DEFAULT_FAVICON_DARK_32 = IDR_DEFAULT_FAVICON_DARK;
++constexpr int BRAVE_IDR_DEFAULT_FAVICON_DARK_64 = IDR_DEFAULT_FAVICON_DARK;
++#else
++constexpr int BRAVE_IDR_DEFAULT_FAVICON_32 = IDR_DEFAULT_FAVICON_32;
++constexpr int BRAVE_IDR_DEFAULT_FAVICON_64 = IDR_DEFAULT_FAVICON_64;
++constexpr int BRAVE_IDR_DEFAULT_FAVICON_DARK_32 = IDR_DEFAULT_FAVICON_DARK_32;
++constexpr int BRAVE_IDR_DEFAULT_FAVICON_DARK_64 = IDR_DEFAULT_FAVICON_DARK_64;
++#endif  // !defined(IDR_DEFAULT_FAVICON_32)
++
++#include <chrome/browser/extensions/favicon/favicon_util.cc>
+diff --git a/chromium_src/chrome/browser/flags/android/chrome_feature_list.cc b/chromium_src/chrome/browser/flags/android/chrome_feature_list.cc
+index d17c93d6d7..b5ffeb08b6 100644
+--- a/chromium_src/chrome/browser/flags/android/chrome_feature_list.cc
++++ b/chromium_src/chrome/browser/flags/android/chrome_feature_list.cc
+@@ -109,7 +109,8 @@
+     &brave_shields::features::kBraveShredFeature,                              \
+     &brave_origin::features::kBraveOrigin,                                     \
+     &features::kBraveCustomSearchEngines,                                      \
+-    &features::kBraveAndroidTabGroupsSettings
++    &features::kBraveAndroidTabGroupsSettings,                                 \
++    &features::kBraveAndroidExtensions
+ 
+ // clang-format on
+ 
+diff --git a/chromium_src/chrome/browser/sources.gni b/chromium_src/chrome/browser/sources.gni
+index 248bc47713..25e0971da2 100644
+--- a/chromium_src/chrome/browser/sources.gni
++++ b/chromium_src/chrome/browser/sources.gni
+@@ -36,7 +36,7 @@ if (toolkit_views) {
+       [ "//brave/components/sidebar/browser" ]
+ }
+ 
+-if (enable_extensions) {
++if (enable_extensions_core) {
+   brave_chromium_src_chrome_browser_deps +=
+       [ "//brave/browser/extensions/manifest_v2" ]
+ }
+diff --git a/chromium_src/chrome/browser/ui/webui/favicon_source.cc b/chromium_src/chrome/browser/ui/webui/favicon_source.cc
+index 5ef5de632c..e754972cdb 100644
+--- a/chromium_src/chrome/browser/ui/webui/favicon_source.cc
++++ b/chromium_src/chrome/browser/ui/webui/favicon_source.cc
+@@ -5,26 +5,29 @@
+ 
+ #include <string>
+ 
++#include "build/android_buildflags.h"
+ #include "build/build_config.h"
++#include "ui/resources/grit/ui_resources.h"
+ 
+ // Defined in brave/browser/ui/webui/favicon_source.cc.
+ bool BraveIsFavicon2AllowedOnOrigin(bool serve_untrusted,
+                                     const std::string& origin);
+ 
+-#if BUILDFLAG(IS_ANDROID)
+-
+-#define IDR_DEFAULT_FAVICON_32 IDR_DEFAULT_FAVICON
+-#define IDR_DEFAULT_FAVICON_64 IDR_DEFAULT_FAVICON
+-#define IDR_DEFAULT_FAVICON_DARK_32 IDR_DEFAULT_FAVICON_DARK
+-#define IDR_DEFAULT_FAVICON_DARK_64 IDR_DEFAULT_FAVICON_DARK
+-
+-#endif  // #if BUILDFLAG(IS_ANDROID)
++// Only used where favicon_source.cc's own SendDefaultResponse() references
++// the 32/64 sizes: desktop and desktop Android.
++#if !BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_DESKTOP_ANDROID)
++// ui_resources.grd ships the larger favicons only on some platforms.
++#if !defined(IDR_DEFAULT_FAVICON_32)
++constexpr int BRAVE_IDR_DEFAULT_FAVICON_32 = IDR_DEFAULT_FAVICON;
++constexpr int BRAVE_IDR_DEFAULT_FAVICON_64 = IDR_DEFAULT_FAVICON;
++constexpr int BRAVE_IDR_DEFAULT_FAVICON_DARK_32 = IDR_DEFAULT_FAVICON_DARK;
++constexpr int BRAVE_IDR_DEFAULT_FAVICON_DARK_64 = IDR_DEFAULT_FAVICON_DARK;
++#else
++constexpr int BRAVE_IDR_DEFAULT_FAVICON_32 = IDR_DEFAULT_FAVICON_32;
++constexpr int BRAVE_IDR_DEFAULT_FAVICON_64 = IDR_DEFAULT_FAVICON_64;
++constexpr int BRAVE_IDR_DEFAULT_FAVICON_DARK_32 = IDR_DEFAULT_FAVICON_DARK_32;
++constexpr int BRAVE_IDR_DEFAULT_FAVICON_DARK_64 = IDR_DEFAULT_FAVICON_DARK_64;
++#endif  // !defined(IDR_DEFAULT_FAVICON_32)
++#endif  // !BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_DESKTOP_ANDROID)
+ 
+ #include <chrome/browser/ui/webui/favicon_source.cc>
+-
+-#if BUILDFLAG(IS_ANDROID)
+-#undef IDR_DEFAULT_FAVICON_DARK_64
+-#undef IDR_DEFAULT_FAVICON_DARK_32
+-#undef IDR_DEFAULT_FAVICON_64
+-#undef IDR_DEFAULT_FAVICON_32
+-#endif  // #if BUILDFLAG(IS_ANDROID)
+diff --git a/chromium_src/chrome/grit/chrome_unscaled_resources.h b/chromium_src/chrome/grit/chrome_unscaled_resources.h
+index c460a8eebc..9113bc05b3 100644
+--- a/chromium_src/chrome/grit/chrome_unscaled_resources.h
++++ b/chromium_src/chrome/grit/chrome_unscaled_resources.h
+@@ -6,7 +6,12 @@
+ #ifndef BRAVE_CHROMIUM_SRC_CHROME_GRIT_CHROME_UNSCALED_RESOURCES_H_
+ #define BRAVE_CHROMIUM_SRC_CHROME_GRIT_CHROME_UNSCALED_RESOURCES_H_
+ 
++#include "build/build_config.h"
++
++// Brave's unscaled resources are desktop-only.
++#if !BUILDFLAG(IS_ANDROID)
+ #include "brave/grit/brave_unscaled_resources.h"  // IWYU pragma: export
++#endif                                            // !BUILDFLAG(IS_ANDROID)
+ 
+ #include "../gen/chrome/grit/chrome_unscaled_resources.h"  // IWYU pragma: export
+ 
+diff --git a/chromium_src/chrome/renderer/url_loader_throttle_provider_impl.h b/chromium_src/chrome/renderer/url_loader_throttle_provider_impl.h
+index e350182d9b..ba91b9c8b2 100644
+--- a/chromium_src/chrome/renderer/url_loader_throttle_provider_impl.h
++++ b/chromium_src/chrome/renderer/url_loader_throttle_provider_impl.h
+@@ -9,7 +9,7 @@
+ #include "extensions/buildflags/buildflags.h"
+ #include "third_party/blink/public/platform/url_loader_throttle_provider.h"
+ 
+-#if BUILDFLAG(ENABLE_EXTENSIONS)
++#if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
+ #include "extensions/renderer/extension_throttle_manager.h"
+ #endif
+ 
+diff --git a/chromium_src/extensions/browser/extension_registry.h b/chromium_src/extensions/browser/extension_registry.h
+index e06af38ef3..9301f8e6db 100644
+--- a/chromium_src/extensions/browser/extension_registry.h
++++ b/chromium_src/extensions/browser/extension_registry.h
+@@ -7,14 +7,15 @@
+ #define BRAVE_CHROMIUM_SRC_EXTENSIONS_BROWSER_EXTENSION_REGISTRY_H_
+ 
+ #include "build/build_config.h"
++#include "extensions/buildflags/buildflags.h"
+ 
+ // This exclusion is added because chrome/browser/ui/webui/favicon_source.cc is
+ // custom added to the android build, which ends up pulling these dependecies
+ // that we dont build.
+-#if !BUILDFLAG(IS_ANDROID)
++#if !BUILDFLAG(IS_ANDROID) || BUILDFLAG(ENABLE_EXTENSIONS_CORE)
+ 
+ #include <extensions/browser/extension_registry.h>  // IWYU pragma: export
+ 
+-#endif  // #if BUILDFLAG(IS_ANDROID)
++#endif  // !BUILDFLAG(IS_ANDROID) || BUILDFLAG(ENABLE_EXTENSIONS_CORE)
+ 
+ #endif  // BRAVE_CHROMIUM_SRC_EXTENSIONS_BROWSER_EXTENSION_REGISTRY_H_
+diff --git a/chromium_src/extensions/common/constants.h b/chromium_src/extensions/common/constants.h
+index 4f131a71e7..55fad27787 100644
+--- a/chromium_src/extensions/common/constants.h
++++ b/chromium_src/extensions/common/constants.h
+@@ -6,10 +6,10 @@
+ #ifndef BRAVE_CHROMIUM_SRC_EXTENSIONS_COMMON_CONSTANTS_H_
+ #define BRAVE_CHROMIUM_SRC_EXTENSIONS_COMMON_CONSTANTS_H_
+ 
+-#include "build/build_config.h"
++#include "extensions/buildflags/buildflags.h"
+ 
+-#if BUILDFLAG(IS_IOS) || BUILDFLAG(IS_ANDROID)
+-// ios and android cannot include extensions deps
++#if !BUILDFLAG(ENABLE_EXTENSIONS_CORE)
++// Builds without the extensions system cannot include extensions deps.
+ namespace extensions {
+ inline constexpr char kExtensionScheme[] = "chrome-extension";
+ }
+diff --git a/chromium_src/extensions/common/manifest.h b/chromium_src/extensions/common/manifest.h
+index 2abdb9fad7..2df66bee23 100644
+--- a/chromium_src/extensions/common/manifest.h
++++ b/chromium_src/extensions/common/manifest.h
+@@ -7,14 +7,15 @@
+ #define BRAVE_CHROMIUM_SRC_EXTENSIONS_COMMON_MANIFEST_H_
+ 
+ #include "build/build_config.h"
++#include "extensions/buildflags/buildflags.h"
+ 
+ // This exclusion is added because chrome/browser/ui/webui/favicon_source.cc is
+ // custom added to the android build, which ends up pulling these dependecies
+ // that we dont build.
+-#if !BUILDFLAG(IS_ANDROID)
++#if !BUILDFLAG(IS_ANDROID) || BUILDFLAG(ENABLE_EXTENSIONS_CORE)
+ 
+ #include <extensions/common/manifest.h>  // IWYU pragma: export
+ 
+-#endif  // #if BUILDFLAG(IS_ANDROID)
++#endif  // !BUILDFLAG(IS_ANDROID) || BUILDFLAG(ENABLE_EXTENSIONS_CORE)
+ 
+ #endif  // BRAVE_CHROMIUM_SRC_EXTENSIONS_COMMON_MANIFEST_H_
+diff --git a/common/extensions/sources.gni b/common/extensions/sources.gni
+index c122511ee3..314db506e7 100644
+--- a/common/extensions/sources.gni
++++ b/common/extensions/sources.gni
+@@ -5,7 +5,7 @@
+ 
+ import("//extensions/buildflags/buildflags.gni")
+ 
+-assert(enable_extensions)
++assert(enable_extensions_core)
+ 
+ brave_chrome_common_extensions_public = [
+   "//brave/common/extensions/brave_extensions_api_provider.h",
+diff --git a/common/importer/BUILD.gn b/common/importer/BUILD.gn
+index 361be4d555..69de717284 100644
+--- a/common/importer/BUILD.gn
++++ b/common/importer/BUILD.gn
+@@ -34,7 +34,7 @@ source_set("importer") {
+     "//sql",
+   ]
+ 
+-  if (enable_extensions) {
++  if (enable_extensions_core) {
+     deps += [ "//extensions/common" ]
+   }
+ 
+diff --git a/extensions/BUILD.gn b/extensions/BUILD.gn
+index 26ddbacaea..77d64a449b 100644
+--- a/extensions/BUILD.gn
++++ b/extensions/BUILD.gn
+@@ -19,7 +19,7 @@ deprecated_visibility_allowed = [
+   "//chrome/browser/content_settings:unit_tests",
+ ]
+ 
+-if (enable_extensions) {
++if (enable_extensions_core) {
+   group("common") {
+     visibility = deprecated_visibility_allowed
+     public_deps = [ "//extensions/common" ]
+diff --git a/patches/chrome-android-BUILD.gn.patch b/patches/chrome-android-BUILD.gn.patch
+index 1d3446839c..dcf8d60095 100644
+--- a/patches/chrome-android-BUILD.gn.patch
++++ b/patches/chrome-android-BUILD.gn.patch
+@@ -1,8 +1,7 @@
+ diff --git a/chrome/android/BUILD.gn b/chrome/android/BUILD.gn
+-index 6ed792010ee90f07562ce80b34afe5fe722df299..cb3d4e6fdd6af4b5ee0b3d39b3062401ad7c090c 100644
+ --- a/chrome/android/BUILD.gn
+ +++ b/chrome/android/BUILD.gn
+-@@ -161,6 +161,7 @@ if (_is_default_toolchain) {
++@@ -161,6 +161,7 @@
+        "java/res_chromium_base/mipmap-xxxhdpi/layered_app_icon_background.png",
+        "java/res_chromium_base/values/channel_constants.xml",
+      ]
+@@ -10,7 +9,7 @@ index 6ed792010ee90f07562ce80b34afe5fe722df299..cb3d4e6fdd6af4b5ee0b3d39b3062401
+    }
+  
+    android_resources("chrome_app_java_resources") {
+-@@ -264,6 +265,7 @@ if (_is_default_toolchain) {
++@@ -264,6 +265,7 @@
+      if (enable_extensions_core) {
+        deps += [ "//chrome/browser/ui/android/extensions:java_resources" ]
+      }
+@@ -18,7 +17,7 @@ index 6ed792010ee90f07562ce80b34afe5fe722df299..cb3d4e6fdd6af4b5ee0b3d39b3062401
+    }
+  
+    android_resources("java_overlay_resources") {
+-@@ -871,6 +873,7 @@ if (_is_default_toolchain) {
++@@ -871,6 +873,7 @@
+      ]
+  
+      deps += feed_deps
+@@ -26,7 +25,7 @@ index 6ed792010ee90f07562ce80b34afe5fe722df299..cb3d4e6fdd6af4b5ee0b3d39b3062401
+  
+      srcjar_deps = [
+        ":chrome_android_java_enums_srcjar",
+-@@ -890,6 +893,7 @@ if (_is_default_toolchain) {
++@@ -890,6 +893,7 @@
+        "//components/supervised_user/core/browser:supervised_user_utils_enum_javagen",
+        "//components/touch_to_search/core/browser:quick_action_category_enum_javagen",
+      ]
+@@ -34,15 +33,21 @@ index 6ed792010ee90f07562ce80b34afe5fe722df299..cb3d4e6fdd6af4b5ee0b3d39b3062401
+  
+      # From java_sources.gni.
+      sources = chrome_java_sources
+-@@ -1044,6 +1048,7 @@ if (_is_default_toolchain) {
+-         "//chrome/browser/ui/android/extensions/windowing/stub:java",
++@@ -1041,9 +1045,11 @@
++       # TODO(crbug.com/434123514): see if we can remove these stub targets.
++       deps += [
++         "//chrome/browser/ui/android/extensions/side_panel/stub:java",
++-        "//chrome/browser/ui/android/extensions/windowing/stub:java",
+++
+        ]
+-     }
++-    }
+++      if (enable_extensions_core) { deps += [ "//chrome/browser/ui/android/extensions/windowing/internal:java" ] } else { deps += [ "//chrome/browser/ui/android/extensions/windowing/stub:java" ] }
+++    }
+ +    deps += brave_chrome_all_java_deps
+    }
+  
+    action_with_pydeps("chrome_android_java_google_api_keys_srcjar") {
+-@@ -1822,6 +1827,7 @@ if (_is_default_toolchain) {
++@@ -1822,6 +1828,7 @@
+        "java/res_chromium_base/mipmap-xxxhdpi/layered_app_icon_background.png",
+        "java/res_chromium_base/values/channel_constants.xml",
+      ]
+@@ -50,7 +55,7 @@ index 6ed792010ee90f07562ce80b34afe5fe722df299..cb3d4e6fdd6af4b5ee0b3d39b3062401
+  
+      # Dep needed to ensure override works properly.
+      deps = [ ":chrome_base_module_resources" ]
+-@@ -1973,6 +1979,7 @@ if (_is_default_toolchain) {
++@@ -1973,6 +1980,7 @@
+          ":${_variant}_locale_pak_assets",
+          ":${_variant}_paks",
+        ]
+@@ -58,7 +63,7 @@ index 6ed792010ee90f07562ce80b34afe5fe722df299..cb3d4e6fdd6af4b5ee0b3d39b3062401
+      }
+    }
+  
+-@@ -2261,6 +2268,7 @@ if (_is_default_toolchain) {
++@@ -2261,6 +2269,7 @@
+        "//third_party/androidx:androidx_annotation_annotation_experimental_java",
+        "//third_party/androidx:androidx_browser_browser_java",
+      ]
+@@ -66,7 +71,7 @@ index 6ed792010ee90f07562ce80b34afe5fe722df299..cb3d4e6fdd6af4b5ee0b3d39b3062401
+  
+      # More deps for DFMs.
+      if (enable_chrome_android_internal) {
+-@@ -3222,6 +3230,7 @@ if (_is_default_toolchain) {
++@@ -3222,6 +3231,7 @@
+        "java/src/org/chromium/chrome/browser/webapps/WebappRegistry.java",
+        "java/src/org/chromium/chrome/browser/xr/scenecore/XrModuleBridge.java",
+      ]
+diff --git a/patches/chrome-browser-extensions-BUILD.gn.patch b/patches/chrome-browser-extensions-BUILD.gn.patch
+index a486bebd8d..51930a2512 100644
+--- a/patches/chrome-browser-extensions-BUILD.gn.patch
++++ b/patches/chrome-browser-extensions-BUILD.gn.patch
+@@ -1,5 +1,4 @@
+ diff --git a/chrome/browser/extensions/BUILD.gn b/chrome/browser/extensions/BUILD.gn
+-index bd3a172183d755d0ba68d5e863c6c8156f504d8f..4a73dda7040bfba16474b6f3477f9f5a32b5fe88 100644
+ --- a/chrome/browser/extensions/BUILD.gn
+ +++ b/chrome/browser/extensions/BUILD.gn
+ @@ -2,6 +2,7 @@
+@@ -10,7 +9,7 @@ index bd3a172183d755d0ba68d5e863c6c8156f504d8f..4a73dda7040bfba16474b6f3477f9f5a
+  import("//build/config/chromebox_for_meetings/buildflags.gni")
+  import("//build/config/features.gni")
+  import("//build/config/ozone.gni")
+-@@ -646,6 +647,7 @@ source_set("extensions") {
++@@ -646,6 +647,7 @@
+      "//ui/native_window_tracker",
+      "//ui/shell_dialogs",
+    ]
+@@ -18,11 +17,45 @@ index bd3a172183d755d0ba68d5e863c6c8156f504d8f..4a73dda7040bfba16474b6f3477f9f5a
+    public_deps = [
+      "//chrome/browser/extensions/api/messaging",
+      "//chrome/browser/media/webrtc",
+-@@ -2040,6 +2042,7 @@ source_set("unit_tests") {
++@@ -689,7 +691,7 @@
++       "//chrome/browser/ui/android/tab_model",
++     ]
++ 
++-    if (enable_desktop_android_extensions) {
+++    if (enable_extensions_core) {
++       sources += [
++         # These files are temporary workarounds to allow for a lightweight
++         # extensions runtime in desktop-android builds. They should be removed
++@@ -2040,6 +2042,7 @@
+      "//base",
+      "//base/test:test_config",
+      "//base/test:test_support",
+-+    "//brave/browser/extensions",
+++    "//brave/browser/extensions:core",
+      "//chrome/browser:browser_process_impl",
+      "//chrome/browser:global_features",
+      "//chrome/browser/background",
++@@ -2202,7 +2205,7 @@
++       ]
++     }
++ 
++-    if (enable_service_discovery) {
+++    if (enable_service_discovery && (!is_android || is_desktop_android)) {
++       sources += [ "api/mdns/mdns_api_unittest.cc" ]
++       deps += [ "//chrome/browser/extensions/api/mdns" ]
++     }
++@@ -2301,6 +2304,7 @@
++ }
++ 
++ # By default these tests run on Win, Mac, Linux, Chrome OS and desktop Android.
+++if (!is_android || is_desktop_android) {
++ source_set("browser_tests") {
++   testonly = true
++ 
++@@ -3214,6 +3218,7 @@
++     deps += [ "//chrome/browser/ui/views/web_apps:launch_dialogs" ]
++   }
++ }
+++}
++ 
++ source_set("interactive_ui_tests") {
++   testonly = true
+diff --git a/patches/chrome-browser-extensions-api-BUILD.gn.patch b/patches/chrome-browser-extensions-api-BUILD.gn.patch
+new file mode 100644
+index 0000000000..9515534a59
+--- /dev/null
++++ b/patches/chrome-browser-extensions-api-BUILD.gn.patch
+@@ -0,0 +1,13 @@
++diff --git a/chrome/browser/extensions/api/BUILD.gn b/chrome/browser/extensions/api/BUILD.gn
++index 76252be893e5c8a238197af67ea2e087497bc084..900e8df62eb077c48c5b679f349eb17ace1c1812 100644
++--- a/chrome/browser/extensions/api/BUILD.gn
+++++ b/chrome/browser/extensions/api/BUILD.gn
++@@ -61,7 +61,7 @@ group("api_implementations") {
++     "//chrome/browser/extensions/api/webrtc_logging_private",
++   ]
++ 
++-  if (enable_service_discovery) {
+++  if (enable_service_discovery && (!is_android || is_desktop_android)) {
++     public_deps += [ "//chrome/browser/extensions/api/mdns" ]
++   }
++ 
+diff --git a/patches/chrome-browser-extensions-api-api_browser_context_keyed_service_factories.cc.patch b/patches/chrome-browser-extensions-api-api_browser_context_keyed_service_factories.cc.patch
+new file mode 100644
+index 0000000000..76db091190
+--- /dev/null
++++ b/patches/chrome-browser-extensions-api-api_browser_context_keyed_service_factories.cc.patch
+@@ -0,0 +1,32 @@
++diff --git a/chrome/browser/extensions/api/api_browser_context_keyed_service_factories.cc b/chrome/browser/extensions/api/api_browser_context_keyed_service_factories.cc
++index 6f4953f01d03e7ad741c9371ffa89a129a25b320..e2d228ac66f61027a6e9a9d62f41d96c91b312c1 100644
++--- a/chrome/browser/extensions/api/api_browser_context_keyed_service_factories.cc
+++++ b/chrome/browser/extensions/api/api_browser_context_keyed_service_factories.cc
++@@ -25,6 +25,7 @@
++ #include "chrome/browser/extensions/api/tabs/tabs_windows_api.h"
++ #include "chrome/browser/extensions/api/web_navigation/web_navigation_api.h"
++ #include "chrome/browser/extensions/commands/command_service.h"
+++#include "build/android_buildflags.h"
++ #include "chrome/common/buildflags.h"
++ #include "extensions/buildflags/buildflags.h"
++ #include "printing/buildflags/buildflags.h"
++@@ -69,7 +70,8 @@
++ #include "extensions/browser/api/bluetooth_low_energy/bluetooth_low_energy_api.h"
++ #endif
++ 
++-#if BUILDFLAG(ENABLE_SERVICE_DISCOVERY)
+++#if BUILDFLAG(ENABLE_SERVICE_DISCOVERY) && \
+++    (!BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_DESKTOP_ANDROID))
++ #include "chrome/browser/extensions/api/mdns/mdns_api.h"
++ #endif
++ 
++@@ -93,7 +95,8 @@ void EnsureApiBrowserContextKeyedServiceFactoriesBuilt() {
++   extensions::HistoryAPI::GetFactoryInstance();
++   extensions::IdentityAPI::GetFactoryInstance();
++   extensions::IncognitoConnectability::EnsureFactoryBuilt();
++-#if BUILDFLAG(ENABLE_SERVICE_DISCOVERY)
+++#if BUILDFLAG(ENABLE_SERVICE_DISCOVERY) && \
+++    (!BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_DESKTOP_ANDROID))
++   extensions::MDnsAPI::GetFactoryInstance();
++ #endif
++   extensions::OmniboxAPI::GetFactoryInstance();
+diff --git a/patches/chrome-browser-extensions-chrome_component_extension_resource_manager.cc.patch b/patches/chrome-browser-extensions-chrome_component_extension_resource_manager.cc.patch
+index 2e4d53e1d5..8165ce4a7c 100644
+--- a/patches/chrome-browser-extensions-chrome_component_extension_resource_manager.cc.patch
++++ b/patches/chrome-browser-extensions-chrome_component_extension_resource_manager.cc.patch
+@@ -1,22 +1,37 @@
+ diff --git a/chrome/browser/extensions/chrome_component_extension_resource_manager.cc b/chrome/browser/extensions/chrome_component_extension_resource_manager.cc
+-index d39de6b12c1eec34033eacd5ab2dfc9032b09003..8aabf6dd0eab0171e7a9c252472f2d2612e4560a 100644
+ --- a/chrome/browser/extensions/chrome_component_extension_resource_manager.cc
+ +++ b/chrome/browser/extensions/chrome_component_extension_resource_manager.cc
+-@@ -102,6 +102,7 @@ class ChromeComponentExtensionResourceManager::Data {
++@@ -102,6 +102,8 @@
+  };
+  
+  ChromeComponentExtensionResourceManager::Data::Data() {
+ +  [&]() -> void {
+++#if !BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_DESKTOP_ANDROID)
+    static const webui::ResourcePath kExtraComponentExtensionResources[] = {
+  #if BUILDFLAG(IS_CHROMEOS)
+      {"web_store/webstore_icon_128.png", IDR_WEBSTORE_APP_ICON_128},
+-@@ -190,6 +191,9 @@ ChromeComponentExtensionResourceManager::Data::Data() {
++@@ -116,9 +118,12 @@
++     {"chrome_app/chrome_app_icon_192.png", IDR_CHROME_APP_ICON_192},
++ #endif  // BUILDFLAG(IS_CHROMEOS)
++   };
+++#endif
++ 
++   AddComponentResourceEntries(kComponentExtensionResources);
+++#if !BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_DESKTOP_ANDROID)
++   AddComponentResourceEntries(kExtraComponentExtensionResources);
+++#endif
++   if (base::FeatureList::IsEnabled(
++           omnibox::kAimEligibilityComponentExtension)) {
++     AddComponentResourceEntries(kAimEligibilityExtensionResources);
++@@ -190,6 +195,11 @@
+          std::move(pdf_viewer_replacements);
+    }
+  #endif
+ +  }();
+++#if BUILDFLAG(ENABLE_EXTENSIONS)
+ +  AddComponentResourceEntries(kBraveExtension);
+ +  AddComponentResourceEntries(kBraveExtensionGenerated);
+++#endif
+  }
+  
+  void ChromeComponentExtensionResourceManager::Data::AddComponentResourceEntries(
+diff --git a/patches/chrome-browser-extensions-component_loader_factory.cc.patch b/patches/chrome-browser-extensions-component_loader_factory.cc.patch
+index d8dca417d2..9d5d71b93f 100644
+--- a/patches/chrome-browser-extensions-component_loader_factory.cc.patch
++++ b/patches/chrome-browser-extensions-component_loader_factory.cc.patch
+@@ -1,5 +1,5 @@
+ diff --git a/chrome/browser/extensions/component_loader_factory.cc b/chrome/browser/extensions/component_loader_factory.cc
+-index 2d2c332880ffeced368c11b004eb3c96f6ae823d..580e22a60d02a75f94547793914ebc5d177939b0 100644
++index 2d2c332880ffeced368c11b004eb3c96f6ae823d..4fffbdeb5ea1e709b5fa462026c951418a6c7526 100644
+ --- a/chrome/browser/extensions/component_loader_factory.cc
+ +++ b/chrome/browser/extensions/component_loader_factory.cc
+ @@ -56,7 +56,7 @@ ComponentLoaderFactory::BuildServiceInstanceForBrowserContext(
+@@ -7,7 +7,7 @@ index 2d2c332880ffeced368c11b004eb3c96f6ae823d..580e22a60d02a75f94547793914ebc5d
+    Profile* profile = Profile::FromBrowserContext(context);
+    // Use `new` to access private constructor.
+ -  return base::WrapUnique(new ComponentLoader(profile));
+-+  return base::WrapUnique(new BraveComponentLoader(profile));
+++  return base::WrapUnique(new CurrentComponentLoader(profile));
+  }
+  
+  }  // namespace extensions
+diff --git a/patches/chrome-browser-extensions-favicon-favicon_util.cc.patch b/patches/chrome-browser-extensions-favicon-favicon_util.cc.patch
+new file mode 100644
+index 0000000000..4529f27d01
+--- /dev/null
++++ b/patches/chrome-browser-extensions-favicon-favicon_util.cc.patch
+@@ -0,0 +1,19 @@
++diff --git a/chrome/browser/extensions/favicon/favicon_util.cc b/chrome/browser/extensions/favicon/favicon_util.cc
++index 4c59a428e7d6715a1d4c534526370478919afdd4..777fa494ef6e391ac09be3f466cc2c3402ae21e6 100644
++--- a/chrome/browser/extensions/favicon/favicon_util.cc
+++++ b/chrome/browser/extensions/favicon/favicon_util.cc
++@@ -37,10 +37,12 @@ int GetResourceID(int size_in_pixels) {
++       ui::NativeTheme::GetInstanceForNativeUi()->preferred_color_scheme() ==
++       ui::NativeTheme::PreferredColorScheme::kDark;
++   if (size_in_pixels >= 64) {
++-    return is_dark ? IDR_DEFAULT_FAVICON_DARK_64 : IDR_DEFAULT_FAVICON_64;
+++    return is_dark ? BRAVE_IDR_DEFAULT_FAVICON_DARK_64
+++                   : BRAVE_IDR_DEFAULT_FAVICON_64;
++   }
++   if (size_in_pixels >= 32) {
++-    return is_dark ? IDR_DEFAULT_FAVICON_DARK_32 : IDR_DEFAULT_FAVICON_32;
+++    return is_dark ? BRAVE_IDR_DEFAULT_FAVICON_DARK_32
+++                   : BRAVE_IDR_DEFAULT_FAVICON_32;
++   }
++   return is_dark ? IDR_DEFAULT_FAVICON_DARK : IDR_DEFAULT_FAVICON;
++ }
+diff --git a/patches/chrome-browser-ui-android-extensions-java-src-org-chromium-chrome-browser-ui-extensions-ExtensionUiBackendImpl.java.patch b/patches/chrome-browser-ui-android-extensions-java-src-org-chromium-chrome-browser-ui-extensions-ExtensionUiBackendImpl.java.patch
+new file mode 100644
+index 0000000000..33a5df7bae
+--- /dev/null
++++ b/patches/chrome-browser-ui-android-extensions-java-src-org-chromium-chrome-browser-ui-extensions-ExtensionUiBackendImpl.java.patch
+@@ -0,0 +1,16 @@
++diff --git a/chrome/browser/ui/android/extensions/java/src/org/chromium/chrome/browser/ui/extensions/ExtensionUiBackendImpl.java b/chrome/browser/ui/android/extensions/java/src/org/chromium/chrome/browser/ui/extensions/ExtensionUiBackendImpl.java
++index 3b26ce12a0041cf837003468fd0bf5b773c98f05..dee6c44357965c64086fb7d7473a1d2d322d0cea 100644
++--- a/chrome/browser/ui/android/extensions/java/src/org/chromium/chrome/browser/ui/extensions/ExtensionUiBackendImpl.java
+++++ b/chrome/browser/ui/android/extensions/java/src/org/chromium/chrome/browser/ui/extensions/ExtensionUiBackendImpl.java
++@@ -20,7 +20,10 @@ public class ExtensionUiBackendImpl implements ExtensionUiBackend {
++ 
++     @Override
++     public boolean isEnabled(Profile profile) {
++-        return true;
+++        return org.chromium.chrome.browser.flags.ChromeFeatureList.isEnabled(
+++                "BraveAndroidExtensions")
+++                && org.chromium.ui.base.DeviceFormFactor.isNonMultiDisplayContextOnTablet(
+++                        org.chromium.base.ContextUtils.getApplicationContext());
++     }
++ 
++     @Override
+diff --git a/patches/chrome-browser-ui-webui-favicon_source.cc.patch b/patches/chrome-browser-ui-webui-favicon_source.cc.patch
+index 10692d8288..77c07593f1 100644
+--- a/patches/chrome-browser-ui-webui-favicon_source.cc.patch
++++ b/patches/chrome-browser-ui-webui-favicon_source.cc.patch
+@@ -1,8 +1,7 @@
+ diff --git a/chrome/browser/ui/webui/favicon_source.cc b/chrome/browser/ui/webui/favicon_source.cc
+-index 41c17c3fee32931c3d6579bd772d67c643b02d4d..3dec0598de27a50f8359afe5696cab3a9c822b21 100644
+ --- a/chrome/browser/ui/webui/favicon_source.cc
+ +++ b/chrome/browser/ui/webui/favicon_source.cc
+-@@ -245,6 +245,9 @@ bool FaviconSource::ShouldServiceRequest(
++@@ -245,6 +245,9 @@
+  
+  std::string FaviconSource::GetAccessControlAllowOriginForOrigin(
+      const std::string& origin) {
+@@ -12,3 +11,17 @@ index 41c17c3fee32931c3d6579bd772d67c643b02d4d..3dec0598de27a50f8359afe5696cab3a
+    // chrome-untrusted://favicon2 serves the favicons that the Data Sharing
+    // page renders for the tabs of a shared tab group.
+    if (serve_untrusted_ &&
++@@ -332,11 +335,11 @@
++ #if !BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_DESKTOP_ANDROID)
++     case 64:
++       resource_id =
++-          dark_mode ? IDR_DEFAULT_FAVICON_DARK_64 : IDR_DEFAULT_FAVICON_64;
+++          dark_mode ? BRAVE_IDR_DEFAULT_FAVICON_DARK_64 : BRAVE_IDR_DEFAULT_FAVICON_64;
++       break;
++     case 32:
++       resource_id =
++-          dark_mode ? IDR_DEFAULT_FAVICON_DARK_32 : IDR_DEFAULT_FAVICON_32;
+++          dark_mode ? BRAVE_IDR_DEFAULT_FAVICON_DARK_32 : BRAVE_IDR_DEFAULT_FAVICON_32;
++       break;
++ #endif
++     default:
+diff --git a/patches/chrome-common-extensions-api-api_sources.gni.patch b/patches/chrome-common-extensions-api-api_sources.gni.patch
+new file mode 100644
+index 0000000000..469bc5c772
+--- /dev/null
++++ b/patches/chrome-common-extensions-api-api_sources.gni.patch
+@@ -0,0 +1,13 @@
++diff --git a/chrome/common/extensions/api/api_sources.gni b/chrome/common/extensions/api/api_sources.gni
++index 194386bf5e2a788140a888a1dc9f58e4625538d2..a63490a41e166a888a135b0c5d94ef0acc97e9e8 100644
++--- a/chrome/common/extensions/api/api_sources.gni
+++++ b/chrome/common/extensions/api/api_sources.gni
++@@ -49,7 +49,7 @@ schema_sources_ = [
++   "windows.json",
++ ]
++ 
++-if (enable_service_discovery) {
+++if (enable_service_discovery && (!is_android || is_desktop_android)) {
++   schema_sources_ += [ "mdns.idl" ]
++ }
++ 
+diff --git a/patches/ui-webui-resources-cr_elements-BUILD.gn.patch b/patches/ui-webui-resources-cr_elements-BUILD.gn.patch
+index c75aa71e4a..9a02a5f3ef 100644
+--- a/patches/ui-webui-resources-cr_elements-BUILD.gn.patch
++++ b/patches/ui-webui-resources-cr_elements-BUILD.gn.patch
+@@ -1,12 +1,11 @@
+ diff --git a/ui/webui/resources/cr_elements/BUILD.gn b/ui/webui/resources/cr_elements/BUILD.gn
+-index 0fd0b4a04d2108f1904ba7f0eb164dfe0d383826..15e61acdea031a9224bf624acbdaf401efeb59fd 100644
+ --- a/ui/webui/resources/cr_elements/BUILD.gn
+ +++ b/ui/webui/resources/cr_elements/BUILD.gn
+-@@ -243,6 +243,9 @@ build_webui("build") {
++@@ -243,6 +243,9 @@
+      "../js:build_ts",
+      "//third_party/lit/v3_0:build_ts",
+    ]
+-+  if (!is_android && !is_ios) {
+++  if ((!is_android && !is_ios) || enable_extensions_core) {
+ +    ts_deps += [ "//brave/ui/webui/resources:build_ts" ]
+ +  }
+    if ((!is_android && !is_ios) || is_desktop_android) {
+diff --git a/rewrite/chrome/browser/extensions/BUILD.gn.yaml b/rewrite/chrome/browser/extensions/BUILD.gn.yaml
+index 96789f452a..20c7f4b330 100644
+--- a/rewrite/chrome/browser/extensions/BUILD.gn.yaml
++++ b/rewrite/chrome/browser/extensions/BUILD.gn.yaml
+@@ -15,11 +15,38 @@ substitutions:
+       import: //brave/browser/extensions/resources.gni
+ 
+   - description: |-
+-      Depend on `//brave/browser/extensions:extensions` for
++      Depend on `//brave/browser/extensions:core` for
+       updater/features.h, used to disable BraveAutoUpdateExtensions in
+       ChromeRuntimeAPIDelegateTest.
+     insert_into_list:
+       target: unit_tests
+       list_name: deps
+       values:
+-        - //brave/browser/extensions:extensions
++        - //brave/browser/extensions:core
++
++  - description: |-
++      Build mobile Android extension runtime helpers with extensions core.
++    regex:
++      re_pattern: 'if \(enable_desktop_android_extensions\)(\s*\{\s*sources \+= \[\s*# These files are temporary)'
++      replace: 'if (enable_extensions_core)\1'
++
++  - description: |-
++      Skip the mDNS API unit test on mobile Android.
++
++      The mDNS API needs //chrome/browser/media/router/discovery, which is
++      desktop-only.
++    regex:
++      re_pattern:
++        'if \(enable_service_discovery\)(\s*\{\s*sources \+=
++        \[\s*"api/mdns/mdns_api_unittest\.cc")'
++      replace:
++        'if (enable_service_discovery && (!is_android || is_desktop_android))\1'
++
++  - description: |-
++      Don't define the extension browser tests on mobile Android.
++
++      They pull in the desktop WebUI NTP and other desktop-only targets.
++    regex:
++      re_pattern: '\nsource_set\("browser_tests"\) \{.*?\n\}\n'
++      re_flags: [DOTALL]
++      replace: '\nif (!is_android || is_desktop_android) {\g<0>}\n'
+diff --git a/rewrite/chrome/browser/extensions/api/BUILD.gn.yaml b/rewrite/chrome/browser/extensions/api/BUILD.gn.yaml
+new file mode 100644
+index 0000000000..e820d5f612
+--- /dev/null
++++ b/rewrite/chrome/browser/extensions/api/BUILD.gn.yaml
+@@ -0,0 +1,17 @@
++# Copyright (c) 2026 The Brave Authors. All rights reserved.
++# This Source Code Form is subject to the terms of the Mozilla Public
++# License, v. 2.0. If a copy of the MPL was not distributed with this file,
++# You can obtain one at https://mozilla.org/MPL/2.0/.
++
++substitutions:
++  - description: |-
++      Leave the mDNS API out on mobile Android.
++
++      The mDNS API needs //chrome/browser/media/router/discovery, which is
++      desktop-only.
++    regex:
++      re_pattern:
++        'if \(enable_service_discovery\)(\s*\{\s*public_deps \+=
++        \[\s*"//chrome/browser/extensions/api/mdns")'
++      replace:
++        'if (enable_service_discovery && (!is_android || is_desktop_android))\1'
+diff --git a/rewrite/chrome/browser/extensions/api/api_browser_context_keyed_service_factories.cc.yaml b/rewrite/chrome/browser/extensions/api/api_browser_context_keyed_service_factories.cc.yaml
+new file mode 100644
+index 0000000000..7cdf4441dc
+--- /dev/null
++++ b/rewrite/chrome/browser/extensions/api/api_browser_context_keyed_service_factories.cc.yaml
+@@ -0,0 +1,25 @@
++# Copyright (c) 2026 The Brave Authors. All rights reserved.
++# This Source Code Form is subject to the terms of the Mozilla Public
++# License, v. 2.0. If a copy of the MPL was not distributed with this file,
++# You can obtain one at https://mozilla.org/MPL/2.0/.
++
++substitutions:
++  - description: Include the desktop-android buildflag.
++    regex:
++      pattern: |
++        #include "chrome/common/buildflags.h"
++      replace: |
++        #include "build/android_buildflags.h"
++        #include "chrome/common/buildflags.h"
++  - description: |-
++      Leave the mDNS API out on mobile Android, matching the
++      //chrome/browser/extensions/api/mdns dependency. Matches the include and
++      the factory registration.
++    count: 2
++    regex:
++      re_pattern:
++        '#if BUILDFLAG\(ENABLE_SERVICE_DISCOVERY\)(\n(?:#include
++        "chrome/browser/extensions/api/mdns/mdns_api\.h"|  extensions::MDnsAPI::GetFactoryInstance\(\);)\n)'
++      replace:
++        '#if BUILDFLAG(ENABLE_SERVICE_DISCOVERY) &&
++        \\\n    (!BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_DESKTOP_ANDROID))\1'
+diff --git a/rewrite/chrome/browser/extensions/chrome_component_extension_resource_manager.cc.yaml b/rewrite/chrome/browser/extensions/chrome_component_extension_resource_manager.cc.yaml
+index 178edbfccc..9ab9458c2b 100644
+--- a/rewrite/chrome/browser/extensions/chrome_component_extension_resource_manager.cc.yaml
++++ b/rewrite/chrome/browser/extensions/chrome_component_extension_resource_manager.cc.yaml
+@@ -4,10 +4,25 @@
+ # You can obtain one at https://mozilla.org/MPL/2.0/.
+ 
+ substitutions:
++  - description: |-
++      Skip the Web Store icons on mobile Android, matching the condition in
++      theme_resources.grd.
++    regex:
++      re_pattern:
++        '(\n  static const webui::ResourcePath
++        kExtraComponentExtensionResources\[\] =
++        \{.*?\n  \};\n)(\n  AddComponentResourceEntries\(kComponentExtensionResources\);\n)(  AddComponentResourceEntries\(kExtraComponentExtensionResources\);\n)'
++      replace:
++        '\n#if !BUILDFLAG(IS_ANDROID) ||
++        BUILDFLAG(IS_DESKTOP_ANDROID)\1#endif\n\2#if !BUILDFLAG(IS_ANDROID) ||
++        BUILDFLAG(IS_DESKTOP_ANDROID)\n\3#endif\n'
++      re_flags: [DOTALL]
+   - description: |
+       Register Brave's own component extension resources.
+     after_function_impl:
+       function_name: ChromeComponentExtensionResourceManager::Data::Data
+       code: |-
++        #if BUILDFLAG(ENABLE_EXTENSIONS)
+         AddComponentResourceEntries(kBraveExtension);
+         AddComponentResourceEntries(kBraveExtensionGenerated);
++        #endif
+diff --git a/rewrite/chrome/browser/extensions/component_loader_factory.cc.yaml b/rewrite/chrome/browser/extensions/component_loader_factory.cc.yaml
+index b16fb0164a..c8f2a706b3 100644
+--- a/rewrite/chrome/browser/extensions/component_loader_factory.cc.yaml
++++ b/rewrite/chrome/browser/extensions/component_loader_factory.cc.yaml
+@@ -8,4 +8,4 @@ substitutions:
+       Build a BraveComponentLoader instead of a ComponentLoader.
+     regex:
+       pattern: 'new ComponentLoader('
+-      replace: 'new BraveComponentLoader('
++      replace: 'new CurrentComponentLoader('
+diff --git a/rewrite/chrome/browser/extensions/favicon/favicon_util.cc.yaml b/rewrite/chrome/browser/extensions/favicon/favicon_util.cc.yaml
+new file mode 100644
+index 0000000000..e3bba6ecfa
+--- /dev/null
++++ b/rewrite/chrome/browser/extensions/favicon/favicon_util.cc.yaml
+@@ -0,0 +1,25 @@
++# Copyright (c) 2026 The Brave Authors. All rights reserved.
++# This Source Code Form is subject to the terms of the Mozilla Public
++# License, v. 2.0. If a copy of the MPL was not distributed with this file,
++# You can obtain one at https://mozilla.org/MPL/2.0/.
++
++substitutions:
++  - description: |-
++      Use Brave's own default favicon resource names, instead of shadowing
++      the real ones.
++    regex:
++      pattern: |-
++        return is_dark ? IDR_DEFAULT_FAVICON_DARK_64 : IDR_DEFAULT_FAVICON_64;
++      replace: |-
++        return is_dark ? BRAVE_IDR_DEFAULT_FAVICON_DARK_64
++                           : BRAVE_IDR_DEFAULT_FAVICON_64;
++
++  - description: |-
++      Use Brave's own default favicon resource names, instead of shadowing
++      the real ones.
++    regex:
++      pattern: |-
++        return is_dark ? IDR_DEFAULT_FAVICON_DARK_32 : IDR_DEFAULT_FAVICON_32;
++      replace: |-
++        return is_dark ? BRAVE_IDR_DEFAULT_FAVICON_DARK_32
++                           : BRAVE_IDR_DEFAULT_FAVICON_32;
+diff --git a/rewrite/chrome/browser/ui/android/extensions/java/src/org/chromium/chrome/browser/ui/extensions/ExtensionUiBackendImpl.java.yaml b/rewrite/chrome/browser/ui/android/extensions/java/src/org/chromium/chrome/browser/ui/extensions/ExtensionUiBackendImpl.java.yaml
+new file mode 100644
+index 0000000000..0ae2797d84
+--- /dev/null
++++ b/rewrite/chrome/browser/ui/android/extensions/java/src/org/chromium/chrome/browser/ui/extensions/ExtensionUiBackendImpl.java.yaml
+@@ -0,0 +1,19 @@
++# Copyright (c) 2026 The Brave Authors. All rights reserved.
++# This Source Code Form is subject to the terms of the Mozilla Public
++# License, v. 2.0. If a copy of the MPL was not distributed with this file,
++# You can obtain one at https://mozilla.org/MPL/2.0/.
++
++substitutions:
++  - description: |
++      Show the extensions UI only on tablets with BraveAndroidExtensions on.
++
++      The phone UI isn't supported yet.
++    count: 1
++    regex:
++      re_pattern:
++        '(public boolean isEnabled\(Profile profile\) \{\s*)return true;'
++      replace: |-
++        \1return org.chromium.chrome.browser.flags.ChromeFeatureList.isEnabled(
++                        "BraveAndroidExtensions")
++                        && org.chromium.ui.base.DeviceFormFactor.isNonMultiDisplayContextOnTablet(
++                                org.chromium.base.ContextUtils.getApplicationContext());
+diff --git a/rewrite/chrome/browser/ui/webui/favicon_source.cc.yaml b/rewrite/chrome/browser/ui/webui/favicon_source.cc.yaml
+index 8fab654dd2..99f5ee0026 100644
+--- a/rewrite/chrome/browser/ui/webui/favicon_source.cc.yaml
++++ b/rewrite/chrome/browser/ui/webui/favicon_source.cc.yaml
+@@ -16,3 +16,25 @@ substitutions:
+         if (BraveIsFavicon2AllowedOnOrigin(serve_untrusted_, origin)) {
+           return origin;
+         }
++
++  - description: |-
++      Use Brave's own default favicon resource names, instead of shadowing
++      the real ones.
++    regex:
++      pattern: |-
++        resource_id =
++                  dark_mode ? IDR_DEFAULT_FAVICON_DARK_64 : IDR_DEFAULT_FAVICON_64;
++      replace: |-
++        resource_id = dark_mode ? BRAVE_IDR_DEFAULT_FAVICON_DARK_64
++                                      : BRAVE_IDR_DEFAULT_FAVICON_64;
++
++  - description: |-
++      Use Brave's own default favicon resource names, instead of shadowing
++      the real ones.
++    regex:
++      pattern: |-
++        resource_id =
++                  dark_mode ? IDR_DEFAULT_FAVICON_DARK_32 : IDR_DEFAULT_FAVICON_32;
++      replace: |-
++        resource_id = dark_mode ? BRAVE_IDR_DEFAULT_FAVICON_DARK_32
++                                      : BRAVE_IDR_DEFAULT_FAVICON_32;
+diff --git a/rewrite/chrome/common/extensions/api/api_sources.gni.yaml b/rewrite/chrome/common/extensions/api/api_sources.gni.yaml
+new file mode 100644
+index 0000000000..d6f3660e28
+--- /dev/null
++++ b/rewrite/chrome/common/extensions/api/api_sources.gni.yaml
+@@ -0,0 +1,15 @@
++# Copyright (c) 2026 The Brave Authors. All rights reserved.
++# This Source Code Form is subject to the terms of the Mozilla Public
++# License, v. 2.0. If a copy of the MPL was not distributed with this file,
++# You can obtain one at https://mozilla.org/MPL/2.0/.
++
++substitutions:
++  - description: |-
++      Leave the mDNS API schema out on mobile Android, matching the
++      //chrome/browser/extensions/api/mdns dependency.
++    regex:
++      re_pattern:
++        'if \(enable_service_discovery\)(\s*\{\s*schema_sources_ \+= \[
++        "mdns\.idl" \])'
++      replace:
++        'if (enable_service_discovery && (!is_android || is_desktop_android))\1'
+diff --git a/rewrite/ui/webui/resources/cr_elements/BUILD.gn.yaml b/rewrite/ui/webui/resources/cr_elements/BUILD.gn.yaml
+index ec7f48a511..f5d35e6bbb 100644
+--- a/rewrite/ui/webui/resources/cr_elements/BUILD.gn.yaml
++++ b/rewrite/ui/webui/resources/cr_elements/BUILD.gn.yaml
+@@ -9,4 +9,4 @@ substitutions:
+       target: build
+       list_name: ts_deps
+       literal: '[ "//brave/ui/webui/resources:build_ts" ]'
+-      conditional: '!is_android && !is_ios'
++      conditional: '(!is_android && !is_ios) || enable_extensions_core'
+diff --git a/test/BUILD.gn b/test/BUILD.gn
+index f0ec75d1a8..e80b6f4452 100644
+--- a/test/BUILD.gn
++++ b/test/BUILD.gn
+@@ -662,11 +662,32 @@ test("brave_unit_tests") {
+     deps += [ "//brave/components/brave_talk" ]
+   }
+ 
+-  if (enable_extensions) {
++  if (enable_extensions_core) {
+     sources += [
+       "//brave/browser/extensions/api/brave_extensions_api_client_unittest.cc",
+       "//brave/browser/extensions/chrome_content_verifier_delegate_unittest.cc",
+       "//brave/browser/extensions/install_verifier_unittest.cc",
++    ]
++
++    deps += [
++      "//brave/browser/extensions:core",
++      "//brave/browser/extensions/manifest_v2:unit_tests",
++      "//chrome/browser/extensions",
++      "//extensions/browser",
++      "//extensions/common",
++    ]
++  }
++
++  if (is_android && !is_desktop_android && enable_extensions_core) {
++    sources += [ "//brave/browser/extensions/android/brave_extension_management_unittest.cc" ]
++    deps += [
++      "//chrome/browser/flags:flags_android",
++      "//extensions:test_support",
++    ]
++  }
++
++  if (enable_extensions) {
++    sources += [
+       "//brave/browser/extensions/mv2_warning_unittest.cc",
+       "//brave/common/importer/chrome_importer_utils_unittest.cc",
+       "//chrome/browser/extensions/extension_service_test_base.cc",
+@@ -676,7 +697,6 @@ test("brave_unit_tests") {
+     deps += [
+       "//brave/browser/extensions",
+       "//brave/browser/extensions/api:unit_tests",
+-      "//brave/browser/extensions/manifest_v2:unit_tests",
+       "//brave/browser/importer:unit_tests",
+       "//brave/common/importer",
+       "//chrome/browser/extensions",
+@@ -1709,6 +1729,7 @@ if (is_android) {
+       "//brave/android/javatests/org/chromium/chrome/browser/BraveSafetyNetThreatsPrioritiesTest.java",
+       "//brave/android/javatests/org/chromium/chrome/browser/BytecodeTest.java",
+       "//brave/android/javatests/org/chromium/chrome/browser/PrivateTabSystemUiModeChangeTest.java",
++      "//brave/android/javatests/org/chromium/chrome/browser/app/BraveActivityWindowingFeaturesTest.java",
+       "//brave/android/javatests/org/chromium/chrome/browser/autofill/settings/BraveAutofillPaymentMethodsFragmentTest.java",
+       "//brave/android/javatests/org/chromium/chrome/browser/autofill/settings/options/BraveAutofillOptionsFragmentTest.java",
+       "//brave/android/javatests/org/chromium/chrome/browser/homepage/settings/BraveHomepageSettingsTest.java",
+@@ -1784,6 +1805,7 @@ if (is_android) {
+       "//chrome/browser/ui/android/desktop_windowing:java",
+       "//chrome/browser/ui/android/edge_to_edge:java",
+       "//chrome/browser/ui/android/extensions:java",
++      "//chrome/browser/ui/android/extensions/windowing:java",
+       "//chrome/browser/ui/android/favicon:java",
+       "//chrome/browser/ui/android/layouts:java",
+       "//chrome/browser/ui/android/layouts/test:java",
+@@ -1796,6 +1818,8 @@ if (is_android) {
+       "//chrome/browser/ui/android/theme:java",
+       "//chrome/browser/ui/android/toolbar:java",
+       "//chrome/browser/ui/android/toolbar:optional_button_java",
++      "//chrome/browser/ui/browser_window/public/android:factory_java",
++      "//chrome/browser/ui/browser_window/public/android:java",
+       "//chrome/browser/ui/messages/android:java",
+       "//chrome/browser/user_education:java",
+       "//chrome/test:test_support_java",
+diff --git a/ui/webui/resources/BUILD.gn b/ui/webui/resources/BUILD.gn
+index 47003d56e4..91a1792dc6 100644
+--- a/ui/webui/resources/BUILD.gn
++++ b/ui/webui/resources/BUILD.gn
+@@ -7,6 +7,7 @@ import("//brave/components/brave_vpn/common/buildflags/buildflags.gni")
+ import("//brave/components/common/typescript.gni")
+ import("//brave/components/speedreader/common/buildflags/buildflags.gni")
+ import("//brave/ui/webui/custom_profile_image/buildflags/buildflags.gni")
++import("//extensions/buildflags/buildflags.gni")
+ import("//tools/grit/preprocess_if_expr.gni")
+ import("//tools/polymer/css_to_wrapper.gni")
+ import("//tools/polymer/html_to_wrapper.gni")
+@@ -25,6 +26,10 @@ import("./sources.gni")
+ 
+ include_polymer = !is_android && !is_ios
+ 
++# Android with the extensions core only needs lit_overriding, for the
++# chrome://extensions page overrides.
++include_lit_overriding_only = !include_polymer && enable_extensions_core
++
+ group("grdp") {
+   public_deps = [
+     ":external_js_bundles",
+@@ -33,11 +38,24 @@ group("grdp") {
+     ":static_grdp",
+     "//brave/components/brave_account/resources/opaque_ke",
+   ]
+-  if (include_polymer) {
++  if (include_polymer || include_lit_overriding_only) {
+     public_deps += [ ":build_grdp" ]
+   }
+ }
+ 
++if (include_lit_overriding_only) {
++  build_webui("build") {
++    grd_prefix = "brave"
++    ts_files = [ "lit_overriding.ts" ]
++    ts_composite = true
++    generate_grdp = true
++    grd_resource_path_prefix = "brave"
++    ts_out_dir = "$root_gen_dir/brave/ui/webui/resources/tsc"
++    ts_deps = [ "//third_party/lit/v3_0:build_ts" ]
++    webui_context_type = "trusted"
++  }
++}
++
+ if (include_polymer) {
+   build_webui("build") {
+     grd_prefix = "brave"
+diff --git a/ui/webui/resources/sources.gni b/ui/webui/resources/sources.gni
+index 1f124e2de6..cb501cb6b9 100644
+--- a/ui/webui/resources/sources.gni
++++ b/ui/webui/resources/sources.gni
+@@ -6,6 +6,8 @@
+ # Extra GRDPs to give //ui/webui/resources:build_grd
+ # (which generates //ui/webui/resources/webui_generated_resources.grd)
+ 
++import("//extensions/buildflags/buildflags.gni")
++
+ brave_resources_extra_grdps_path = "$root_gen_dir/brave/ui/webui/resources"
+ 
+ brave_resources_extra_grdps = [
+@@ -22,7 +24,22 @@ brave_resources_extra_grdps_deps = [ "//brave/ui/webui/resources:grdp" ]
+ # This could change and, when it does, the `include_polymer` conditional can be
+ # removed here and the one in //brave/ui/webui/resources/BUILD.gn be relied on
+ # to only add polymer-related files when appropriate.
+-if (!is_android && !is_ios) {
++if ((!is_android && !is_ios) || enable_extensions_core) {
+   brave_resources_extra_grdps +=
+       [ "$brave_resources_extra_grdps_path/resources.grdp" ]
+ }
++
++# Upstream bundles these only for desktop, but chrome://extensions needs them
++# wherever the extensions core is built.
++if (is_android && !is_desktop_android && enable_extensions_core) {
++  brave_resources_extra_grdps += [
++    "$root_gen_dir/ui/webui/resources/cr_components/color_change_listener/resources.grdp",
++    "$root_gen_dir/ui/webui/resources/cr_components/cr_shortcut_input/resources.grdp",
++    "$root_gen_dir/ui/webui/resources/cr_components/managed_footnote/resources.grdp",
++  ]
++  brave_resources_extra_grdps_deps += [
++    "//ui/webui/resources/cr_components/color_change_listener:build_grdp",
++    "//ui/webui/resources/cr_components/cr_shortcut_input:build_grdp",
++    "//ui/webui/resources/cr_components/managed_footnote:build_grdp",
++  ]
++}

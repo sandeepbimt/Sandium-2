@@ -8,8 +8,22 @@ PATH = 'chromium_src/chrome/browser/flags/android/chrome_feature_list.cc'
 INPUT_SHA = '62d5f2fb824e6d2f14fef5f4d3d4ca51c6327f985bfd0d6658143aebbe02d2d4'
 OUTPUT_SHA = '508a9c14ac3c717e83207f98a6f27537189e7af4df34b14e4ad338d141b03a41'
 
+# Isolated EXT0 variant: exactly the reviewed extension flag addition. Other
+# source drift remains fail-closed; product removal semantics are unchanged.
+EXT_INPUT_SHA = 'c443e83e11c939e38a3cd37df6f40cf5df452e6cc16cee898db798bdcd3e8633'
+EXT_OUTPUT_SHA = 'd6c71a4d0fae0f05e7f20db38e6effdae17f81f0d94d7c10ed3b7d29ac4ea3e9'
+EXT_OLD = '    &features::kBraveAndroidTabGroupsSettings\n'
+EXT_NEW = '    &features::kBraveAndroidTabGroupsSettings,                                 \\\n    &features::kBraveAndroidExtensions\n'
+
 def transform(s):
     digest = hashlib.sha256(s.encode()).hexdigest()
+    if digest == EXT_OUTPUT_SHA:
+        return s
+    if digest == EXT_INPUT_SHA:
+        result = transform(s.replace(EXT_NEW, EXT_OLD)).replace(EXT_OLD, EXT_NEW)
+        if hashlib.sha256(result.encode()).hexdigest() != EXT_OUTPUT_SHA:
+            raise ValueError('EXT0 native feature map result differs')
+        return result
     if digest == OUTPUT_SHA:
         return s
     if digest != INPUT_SHA:

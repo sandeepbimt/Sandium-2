@@ -21,6 +21,19 @@ jobs:
     resource_class: large
     steps:
     - checkout
+    - run:
+        name: Guard isolated uBO EXT0 compile-only branch
+        command: 'set -euo pipefail
+
+          test "$CIRCLE_BRANCH" = "experiment/ubo-runtime"
+
+          python3 experiments/ubo-runtime/test_preflight.py
+
+          python3 experiments/ubo-runtime/test_ci_isolation.py
+
+          echo "EXT0=runtime_infrastructure_only; uBO not loaded; existing blocker retained"
+
+          '
     - when:
         condition:
           equal:
@@ -30,7 +43,7 @@ jobs:
         - restore_cache:
             name: Restore verified APK marker for stage 2
             keys:
-            - sandium-brave-apk-complete-v2-{{ .Branch }}-{{ .Revision }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-1
+            - sandium-ubo-ext0-apk-v1-{{ .Branch }}-{{ .Revision }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-1
         - run:
             name: Stop stage 2 when a prior stage published a verified APK
             command: "set -euo pipefail\nSTATUS=\"$CIRCLE_WORKING_DIRECTORY/brave-work/.sandium/apk-completion-status.txt\"\
@@ -46,8 +59,8 @@ jobs:
         - restore_cache:
             name: Restore verified APK marker for stage 3
             keys:
-            - sandium-brave-apk-complete-v2-{{ .Branch }}-{{ .Revision }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-2
-            - sandium-brave-apk-complete-v2-{{ .Branch }}-{{ .Revision }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-1
+            - sandium-ubo-ext0-apk-v1-{{ .Branch }}-{{ .Revision }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-2
+            - sandium-ubo-ext0-apk-v1-{{ .Branch }}-{{ .Revision }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-1
         - run:
             name: Stop stage 3 when a prior stage published a verified APK
             command: "set -euo pipefail\nSTATUS=\"$CIRCLE_WORKING_DIRECTORY/brave-work/.sandium/apk-completion-status.txt\"\
@@ -63,9 +76,9 @@ jobs:
         - restore_cache:
             name: Restore verified APK marker for stage 4
             keys:
-            - sandium-brave-apk-complete-v2-{{ .Branch }}-{{ .Revision }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-3
-            - sandium-brave-apk-complete-v2-{{ .Branch }}-{{ .Revision }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-2
-            - sandium-brave-apk-complete-v2-{{ .Branch }}-{{ .Revision }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-1
+            - sandium-ubo-ext0-apk-v1-{{ .Branch }}-{{ .Revision }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-3
+            - sandium-ubo-ext0-apk-v1-{{ .Branch }}-{{ .Revision }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-2
+            - sandium-ubo-ext0-apk-v1-{{ .Branch }}-{{ .Revision }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-1
         - run:
             name: Stop stage 4 when a prior stage published a verified APK
             command: "set -euo pipefail\nSTATUS=\"$CIRCLE_WORKING_DIRECTORY/brave-work/.sandium/apk-completion-status.txt\"\
@@ -81,10 +94,10 @@ jobs:
         - restore_cache:
             name: Restore verified APK marker for stage 5
             keys:
-            - sandium-brave-apk-complete-v2-{{ .Branch }}-{{ .Revision }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-4
-            - sandium-brave-apk-complete-v2-{{ .Branch }}-{{ .Revision }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-3
-            - sandium-brave-apk-complete-v2-{{ .Branch }}-{{ .Revision }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-2
-            - sandium-brave-apk-complete-v2-{{ .Branch }}-{{ .Revision }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-1
+            - sandium-ubo-ext0-apk-v1-{{ .Branch }}-{{ .Revision }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-4
+            - sandium-ubo-ext0-apk-v1-{{ .Branch }}-{{ .Revision }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-3
+            - sandium-ubo-ext0-apk-v1-{{ .Branch }}-{{ .Revision }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-2
+            - sandium-ubo-ext0-apk-v1-{{ .Branch }}-{{ .Revision }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-1
         - run:
             name: Stop stage 5 when a prior stage published a verified APK
             command: "set -euo pipefail\nSTATUS=\"$CIRCLE_WORKING_DIRECTORY/brave-work/.sandium/apk-completion-status.txt\"\
@@ -200,7 +213,7 @@ jobs:
         - restore_cache:
             name: Restore verified APK marker from the same source revision
             keys:
-            - sandium-brave-apk-complete-v2-{{ .Branch }}-{{ .Revision }}-
+            - sandium-ubo-ext0-apk-v1-{{ .Branch }}-{{ .Revision }}-
         - run:
             name: Stop when this revision already has a published APK
             command: "set -euo pipefail\nSTATUS=\"$CIRCLE_WORKING_DIRECTORY/brave-work/.sandium/apk-completion-status.txt\"\
@@ -275,7 +288,7 @@ jobs:
         - restore_cache:
             name: Restore canonical 26 GiB reference (3c8004b / cache job 949)
             keys:
-            - sandium-brave-handoff-v2-sandium/fix-archive-completion-gate-d0bc6af6-e2a7-451e-8561-3c90eb48c2e1-stage-1
+            - sandium-ubo-ext0-handoff-v1-sandium/fix-archive-completion-gate-d0bc6af6-e2a7-451e-8561-3c90eb48c2e1-stage-1
     - when:
         condition:
           and:
@@ -302,7 +315,7 @@ jobs:
         - restore_cache:
             name: Restore reference Stage 1 handoff
             keys:
-            - sandium-brave-handoff-v2-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-1
+            - sandium-ubo-ext0-handoff-v1-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-1
             - sandium-brave-handoff-v1-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-1
     - when:
         condition:
@@ -330,7 +343,7 @@ jobs:
         - restore_cache:
             name: Restore reference Stage 2 handoff
             keys:
-            - sandium-brave-handoff-v2-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-2
+            - sandium-ubo-ext0-handoff-v1-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-2
             - sandium-brave-handoff-v1-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-2
     - when:
         condition:
@@ -358,7 +371,7 @@ jobs:
         - restore_cache:
             name: Restore reference Stage 3 handoff
             keys:
-            - sandium-brave-handoff-v2-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-3
+            - sandium-ubo-ext0-handoff-v1-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-3
             - sandium-brave-handoff-v1-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-3
     - when:
         condition:
@@ -386,7 +399,7 @@ jobs:
         - restore_cache:
             name: Restore reference Stage 4 handoff
             keys:
-            - sandium-brave-handoff-v2-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-4
+            - sandium-ubo-ext0-handoff-v1-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-4
             - sandium-brave-handoff-v1-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-4
     - when:
         condition:
@@ -413,7 +426,7 @@ jobs:
         - restore_cache:
             name: Restore canonical 26 GiB reference for FAST MODE Stage 2
             keys:
-            - sandium-brave-handoff-v2-sandium/fix-archive-completion-gate-d0bc6af6-e2a7-451e-8561-3c90eb48c2e1-stage-1
+            - sandium-ubo-ext0-handoff-v1-sandium/fix-archive-completion-gate-d0bc6af6-e2a7-451e-8561-3c90eb48c2e1-stage-1
     - when:
         condition:
           and:
@@ -439,7 +452,7 @@ jobs:
         - restore_cache:
             name: Restore canonical 26 GiB reference for FAST MODE Stage 3
             keys:
-            - sandium-brave-handoff-v2-sandium/fix-archive-completion-gate-d0bc6af6-e2a7-451e-8561-3c90eb48c2e1-stage-1
+            - sandium-ubo-ext0-handoff-v1-sandium/fix-archive-completion-gate-d0bc6af6-e2a7-451e-8561-3c90eb48c2e1-stage-1
     - when:
         condition:
           and:
@@ -465,7 +478,7 @@ jobs:
         - restore_cache:
             name: Restore canonical 26 GiB reference for FAST MODE Stage 4
             keys:
-            - sandium-brave-handoff-v2-sandium/fix-archive-completion-gate-d0bc6af6-e2a7-451e-8561-3c90eb48c2e1-stage-1
+            - sandium-ubo-ext0-handoff-v1-sandium/fix-archive-completion-gate-d0bc6af6-e2a7-451e-8561-3c90eb48c2e1-stage-1
     - when:
         condition:
           and:
@@ -491,7 +504,7 @@ jobs:
         - restore_cache:
             name: Restore canonical 26 GiB reference for FAST MODE Stage 5
             keys:
-            - sandium-brave-handoff-v2-sandium/fix-archive-completion-gate-d0bc6af6-e2a7-451e-8561-3c90eb48c2e1-stage-1
+            - sandium-ubo-ext0-handoff-v1-sandium/fix-archive-completion-gate-d0bc6af6-e2a7-451e-8561-3c90eb48c2e1-stage-1
     - restore_cache:
         keys:
         - sandium-brave-node-v1-24.16.0
@@ -521,11 +534,6 @@ jobs:
             name: Verify restored fixed-reference source pins and accept bootstrap metadata
             command: python3 .circleci/original-full/fixed_reference.py postrestore --root "$CIRCLE_WORKING_DIRECTORY" --legacy-script
               .circleci/scripts/sandium-checkpoint-shards.py
-        - save_cache:
-            name: Save small fixed-reference identity only; identical metadata is immutable
-            key: fixed-sandium-reference-v1-backpreview01-{{ checksum ".fixed-reference/accepted.json" }}
-            paths:
-            - .fixed-reference/accepted.json
     - run:
         name: Select Sandium build mode and validate reference
         command: "set -euo pipefail\nif [ \"${CIRCLE_BRANCH:-}\" = \"feature/sandium-disable-13-brave-features\" ] || [ \"\
@@ -761,7 +769,7 @@ jobs:
           \ -qx 'BUILD_FINISHED=true' \"$MARKER\" && echo VERIFIED || echo INCOMPLETE)\"\n"
     - save_cache:
         name: Save small revision-scoped verified APK marker
-        key: sandium-brave-apk-complete-v2-{{ .Branch }}-{{ .Revision }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-<< parameters.stage_index
+        key: sandium-ubo-ext0-apk-v1-{{ .Branch }}-{{ .Revision }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-<< parameters.stage_index
           >>
         paths:
         - brave-work/.sandium/apk-completion-status.txt
@@ -866,7 +874,7 @@ jobs:
               '
         - save_cache:
             name: Save FULL MODE parallel stage handoff shards
-            key: sandium-brave-handoff-v2-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-<< parameters.stage_index
+            key: sandium-ubo-ext0-handoff-v1-{{ .Branch }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-<< parameters.stage_index
               >>
             paths:
             - brave-workspace-checkpoint.shards
@@ -895,65 +903,6 @@ jobs:
       SISO_LIMITS: local=8,remote=80
     retention:
       caches: 15d
-  renew-fixed-reference:
-    machine:
-      image: ubuntu-2404:current
-    resource_class: large
-    retention:
-      caches: 15d
-    steps:
-    - checkout
-    - restore_cache:
-        name: Read accepted fixed-reference metadata
-        keys:
-        - fixed-sandium-reference-v1-backpreview01-
-    - run:
-        name: Select accepted fixed reference; no legacy fallback in maintenance
-        command: python3 .circleci/original-full/fixed_reference.py select --root "$CIRCLE_WORKING_DIRECTORY" --legacy-script
-          .circleci/scripts/sandium-checkpoint-shards.py
-    - run:
-        name: Stop before large download unless saved reference is within expiry margin
-        command: 'set -euo pipefail
-
-          python3 .circleci/original-full/fixed_reference.py renewal-check --root "$CIRCLE_WORKING_DIRECTORY" --legacy-script
-          .circleci/scripts/sandium-checkpoint-shards.py
-
-          if [ "$(cat .fixed-reference/renewal-due)" = no ]; then circleci-agent step halt; fi'
-    - restore_cache:
-        name: Restore exact unchanged fixed reference for expiry-only renewal
-        keys:
-        - sandium-bridge-base-v1-{{ checksum ".fixed-reference/cache.key" }}
-    - run:
-        name: Verify all fixed-reference archive identities before copying
-        command: python3 .circleci/original-full/fixed_reference.py preverify --root "$CIRCLE_WORKING_DIRECTORY" --legacy-script
-          .circleci/scripts/sandium-checkpoint-shards.py
-    - run:
-        name: Prepare new immutable key for identical reference bytes
-        command: python3 .circleci/original-full/fixed_reference.py renewal-prepare --root "$CIRCLE_WORKING_DIRECTORY" --legacy-script
-          .circleci/scripts/sandium-checkpoint-shards.py --new-logical-key "fixed-reference-backpreview01-${CIRCLE_WORKFLOW_ID}-${CIRCLE_BUILD_NUM}"
-    - save_cache:
-        name: Copy identical compressed reference only when expiry is near
-        key: sandium-bridge-base-v1-{{ checksum ".fixed-reference/cache.key" }}
-        paths:
-        - brave-workspace-checkpoint.shards
-        - brave-workspace-checkpoint.manifest.json
-    - run:
-        name: Clear only verified local transport files before remote readback
-        command: python3 .circleci/original-full/fixed_reference.py renewal-clear --root "$CIRCLE_WORKING_DIRECTORY" --legacy-script
-          .circleci/scripts/sandium-checkpoint-shards.py
-    - restore_cache:
-        name: Read back exact newly saved immutable reference
-        keys:
-        - sandium-bridge-base-v1-{{ checksum ".fixed-reference/cache.key" }}
-    - run:
-        name: Verify remote readback before accepting renewed reference metadata
-        command: python3 .circleci/original-full/fixed_reference.py renewal-accept --root "$CIRCLE_WORKING_DIRECTORY" --legacy-script
-          .circleci/scripts/sandium-checkpoint-shards.py
-    - save_cache:
-        name: Publish renewed fixed identity only after readback
-        key: fixed-sandium-reference-v1-backpreview01-{{ checksum ".fixed-reference/accepted.json" }}
-        paths:
-        - .fixed-reference/accepted.json
 workflows:
   sandium-full-mode:
     when:
@@ -966,7 +915,7 @@ workflows:
         stage_index: 1
         filters:
           branches:
-            only: release/phone-20261117
+            only: experiment/ubo-runtime
     - brave-android-staged-build:
         name: SANDIUM-FULL-MODE-stage-2
         stage_index: 2
@@ -974,7 +923,7 @@ workflows:
         - SANDIUM-FULL-MODE-stage-1
         filters:
           branches:
-            only: release/phone-20261117
+            only: experiment/ubo-runtime
     - brave-android-staged-build:
         name: SANDIUM-FULL-MODE-stage-3
         stage_index: 3
@@ -982,7 +931,7 @@ workflows:
         - SANDIUM-FULL-MODE-stage-2
         filters:
           branches:
-            only: release/phone-20261117
+            only: experiment/ubo-runtime
     - brave-android-staged-build:
         name: SANDIUM-FULL-MODE-stage-4
         stage_index: 4
@@ -990,7 +939,7 @@ workflows:
         - SANDIUM-FULL-MODE-stage-3
         filters:
           branches:
-            only: release/phone-20261117
+            only: experiment/ubo-runtime
     - brave-android-staged-build:
         name: SANDIUM-FULL-MODE-stage-5
         stage_index: 5
@@ -998,14 +947,4 @@ workflows:
         - SANDIUM-FULL-MODE-stage-4
         filters:
           branches:
-            only: release/phone-20261117
-  fixed-reference-maintenance:
-    when:
-      and:
-      - << pipeline.parameters.run_maintenance >>
-      - not: << pipeline.parameters.run_build >>
-    jobs:
-    - renew-fixed-reference:
-        filters:
-          branches:
-            only: experiment/sandium-back-transition
+            only: experiment/ubo-runtime

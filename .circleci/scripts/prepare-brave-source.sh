@@ -7,6 +7,11 @@ if [ -f "$ROOT/brave-work/src/.sandium-native-navigation-state.json" ]; then
   python3 "$ROOT/.circleci/scripts/apply-sandium-native-navigation.py" "$ROOT/brave-work/src" --mode off
 fi
 
+# EXT0 source boundary: scoped reset before any standard reset/patch replays.
+if [ -e "$ROOT/brave-work/src/.git" ] && [ -e "$ROOT/brave-work/src/brave/.git" ]; then
+  python3 "$ROOT/experiments/ubo-runtime/source.py" --core "$ROOT/brave-work/src/brave" --src "$ROOT/brave-work/src" --mode off
+fi
+
 # Configure the persistent APT workspace cache before any dependency installation.
 # Reuse restored .deb files and reduce repeated index/network overhead during PPBAS.
 APT_CACHE_DIR="$ROOT/.apt-cache"
@@ -466,6 +471,7 @@ PY
   MINIMAL_VANILLA_BUILD=false
   ORIGIN_GN_ARGS=()
   python3 "$ROOT/.circleci/scripts/sandium-removal-recipe.py" --core "$CORE_DIR" --src "$SRC_DIR" --out "$OUT" --phase reset
+  python3 "$ROOT/experiments/ubo-runtime/source.py" --core "$CORE_DIR" --src "$SRC_DIR" --mode on
   SANDIUM_REMOVAL_RESET_DONE=true
   python3 "$ROOT/.circleci/scripts/verify-sandium-vanilla-brave.py" --core "$CORE_DIR" --src "$SRC_DIR" --out "$OUT" --phase retire-reader
   python3 "$ROOT/.circleci/scripts/apply-sandium-full-overlays.py" --core "$CORE_DIR" --src "$SRC_DIR"
@@ -551,7 +557,7 @@ PY
     echo "PPBAS_GN_GRAPH_REUSE=PASS; pinned ARM64 Release graph and Siso/REAPI args already match."
   else
     echo "PPBAS_GN_GRAPH_REUSE=MISS; running pinned Brave GN generation."
-    pnpm run build Release --target_os=android --target_arch=arm64 --target_android_output_format=apk --use_remoteexec=true --gn use_siso:true --gn use_reclient:false "${ORIGIN_GN_ARGS[@]}" --gn is_java_debug:false --gn enable_android_secondary_abi:false --gn is_official_build:false --gn enable_updater:false --gn enable_update_notifications:false --gn android_channel:default --gn chrome_public_manifest_package:com.brave.browser_default --gn brave_channel:development --target brave --ninja=n
+    pnpm run build Release --target_os=android --target_arch=arm64 --target_android_output_format=apk --use_remoteexec=true --gn use_siso:true --gn use_reclient:false --gn sandium_ubo_runtime_experiment:true "${ORIGIN_GN_ARGS[@]}" --gn is_java_debug:false --gn enable_android_secondary_abi:false --gn is_official_build:false --gn enable_updater:false --gn enable_update_notifications:false --gn android_channel:default --gn chrome_public_manifest_package:com.brave.browser_default --gn brave_channel:development --target brave --ninja=n
   fi
   bash "$ROOT/.circleci/scripts/verify-clang-diagnostics-gn.sh"
   if [ "$MINIMAL_VANILLA_BUILD" = true ]; then
@@ -566,6 +572,7 @@ CORE_DIR="$SRC_DIR/brave"
 # Unconditional in every continuation stage; stage 1 also retires before GN.
 if [ "${SANDIUM_REMOVAL_RESET_DONE:-false}" != true ]; then
   python3 "$ROOT/.circleci/scripts/sandium-removal-recipe.py" --core "$CORE_DIR" --src "$SRC_DIR" --out "$SRC_DIR/out/android_Release_arm64" --phase reset
+  python3 "$ROOT/experiments/ubo-runtime/source.py" --core "$CORE_DIR" --src "$SRC_DIR" --mode on
 fi
 python3 "$ROOT/.circleci/scripts/verify-sandium-vanilla-brave.py" --core "$CORE_DIR" --src "$SRC_DIR" --out "$SRC_DIR/out/android_Release_arm64" --phase retire-reader
 # A continuation reset above replaces product-modified inputs with pinned upstream

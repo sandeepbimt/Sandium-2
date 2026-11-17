@@ -6,6 +6,14 @@ p=Path(__file__).with_name('apply-sandium-native-feature-map.py')
 spec=importlib.util.spec_from_file_location('feature_map',p);m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m)
 original=(p.parents[1]/'tests/fixtures/native-feature-map/chrome_feature_list.cc').read_text()
 class Tests(unittest.TestCase):
+ def test_exact_ext0_variant_preserves_extension_flag_and_product_removals(self):
+  variant=original.replace(m.EXT_OLD,m.EXT_NEW)
+  result=m.transform(variant)
+  self.assertEqual(result,m.transform(original).replace(m.EXT_OLD,m.EXT_NEW))
+  self.assertIn('&features::kBraveAndroidExtensions',result)
+  self.assertEqual(result,m.transform(result))
+  with self.assertRaises(ValueError):m.transform(variant+'\n')
+
  def test_removed_native_consumers(self):
   result=m.transform(original)
   for token in ('ai_chat::','BRAVE_AI_CHAT_FLAGS','brave_rewards::','playlist::','components/ai_chat/','components/brave_news/'):
