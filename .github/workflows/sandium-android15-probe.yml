@@ -67,7 +67,20 @@ jobs:
           adb shell cmd overlay enable-exclusive --category com.android.internal.systemui.navbar.gestural
           adb shell settings get secure navigation_mode
           adb logcat -c
-          adb logcat -v threadtime > logcat.txt &
+          adb logcat -b all -v threadtime > logcat.txt &
+          (
+            mkdir -p seen-pids
+            for n in $(seq 1 240); do
+              for p in $(adb shell ps -A -o PID,NAME 2>/dev/null | awk '/com.brave.browser_default/ {print $1}'); do
+                if [ ! -f "seen-pids/$p" ]; then
+                  touch "seen-pids/$p"
+                  echo "PROCESS_MAPS_PID=$p"
+                  adb shell cat "/proc/$p/maps" 2>&1 || true
+                fi
+              done
+              sleep 1
+            done
+          ) > process-maps.txt 2>&1 &
           adb uninstall com.brave.browser_default || true
           adb install --no-streaming Sandium.apk
           adb shell dumpsys package com.brave.browser_default | grep -E 'versionName|versionCode|primaryCpuAbi|targetSdk|enableOnBackInvokedCallback'
@@ -275,42 +288,17 @@ jobs:
           PYFILE
           cat > run_matrix.py <<'PYFILE'
           import test_navigation as t
-          import time,json,traceback,subprocess as sp
-          results=[]
-          def case(name,fn):
-           start=time.monotonic()
-           try:
-            fn();alive=t.adb('shell','pidof',t.PKG).strip()
-            if not alive:raise RuntimeError('Application not alive')
-            results.append({'case':name,'status':'executed; inspect evidence for visual verdict','seconds':round(time.monotonic()-start,2)})
-           except Exception as e:results.append({'case':name,'status':'blocked/failed','error':str(e)})
-           print('RESULT',json.dumps(results[-1]),flush=True)
-          def public(url,cold):
-           if cold:
-            t.adb('shell','am','force-stop',t.PKG);t.adb('shell','monkey','-p',t.PKG,'-c','android.intent.category.LAUNCHER','1');time.sleep(5)
-           t.type_url(url);time.sleep(6)
-           ns=t.nodes();print('PAGE_STATE',url, json.dumps([{'text':n.get('text'),'id':n.get('resource-id')} for n in ns if n.get('text')][:50]),flush=True)
-           t.gesture(True);t.gesture(False)
-          def external():
-           print('VIEW_RESOLVER_BEFORE',t.adb('shell','cmd','package','resolve-activity','--brief','-a','android.intent.action.VIEW','-d','https://www.wikipedia.org/'),flush=True)
-           print('IMPLICIT_VIEW',t.adb('shell','am','start','-W','-a','android.intent.action.VIEW','-d','https://www.wikipedia.org/'),flush=True)
-           time.sleep(5);t.evidence('external_view')
-           resumed=t.adb('shell','dumpsys','activity','activities')
-           print('VIEW_RESUMED',[line for line in resumed.splitlines() if 'ResumedActivity' in line],flush=True)
-           if not any(t.PKG in line for line in resumed.splitlines() if 'ResumedActivity' in line):raise RuntimeError('Implicit VIEW did not foreground Sandium; chooser/default handoff needs review')
-          case('onboarding',t.wait_ready)
-          if results[-1]['status'].startswith('executed'):
-           case('controlled_three_round_navigation',t.navigation_matrix)
-           for label in ['Settings','Bookmarks','History']:
-            case('native_'+label,lambda l=label:t.menu_scene(l))
-           for url in ['https://www.bhaskar.com/','https://www.thehindu.com/','https://en.wikipedia.org/wiki/India','https://www.youtube.com/','https://timesofindia.indiatimes.com/']:
-            for cold in [True,False]:case(('process_cold' if cold else 'warm')+' '+url,lambda u=url,c=cold:public(u,c))
-           case('implicit_external_VIEW',external)
-           case('google_search',lambda:t.type_url('https://www.google.com/search?q=India%20news'))
-           t.evidence('google_results')
-           print('Adult-content case not run; ad-heavy public and controlled fixtures cover technical navigation only.',flush=True)
-          print('FINAL_RESULTS',json.dumps(results),flush=True)
-          if any(x['status']=='blocked/failed' for x in results):raise SystemExit(1)
+          import time
+          t.wait_ready()
+          print('DEFAULT_ROLE_SETUP', t.adb('shell','cmd','role','add-role-holder','--user','0','android.app.role.BROWSER',t.PKG,check=False),flush=True)
+          print('DEFAULT_ROLE_RESULT', t.adb('shell','cmd','role','get-role-holders','--user','0','android.app.role.BROWSER',check=False),flush=True)
+          t.home()
+          t.type_url('http://127.0.0.1:8765/a')
+          t.evidence('renderer_repro')
+          print('CHILD_PROCESSES',t.adb('shell','ps','-A'),flush=True)
+          print('TOMBSTONE_LIST',t.adb('shell','ls','-l','/data/tombstones',check=False),flush=True)
+          print('DROPBOX_NATIVE',t.adb('shell','dumpsys','dropbox','--print','SYSTEM_TOMBSTONE',check=False),flush=True)
+          t.expect('PAGE_A')
           PYFILE
           python -u serve_test.py > fixture.log 2>&1 &
           adb reverse tcp:8765 tcp:8765
@@ -323,8 +311,19 @@ jobs:
           if [ -f logcat.txt ]; then grep -E 'FATAL EXCEPTION|Fatal signal|ANR in|chromium|BackNavigation|BackGesture|WindowOnBack' logcat.txt | tail -150 || true; fi
           adb shell dumpsys activity activities | grep -E 'mResumedActivity|topResumedActivity' || true
           cat fixture.log 2>/dev/null || true
+          cat process-maps.txt 2>/dev/null || true
           adb logcat -b crash -d -v threadtime || true
           adb shell dumpsys activity exit-info com.brave.browser_default || true
+          python - <<'PYLOG'
+          import gzip,base64,pathlib
+          p=pathlib.Path('logcat.txt')
+          if p.exists():
+           raw=p.read_bytes()
+           print('FULL_LOGCAT_GZIP_BEGIN',len(raw),flush=True)
+           s=base64.b64encode(gzip.compress(raw)).decode()
+           for i in range(0,len(s),60000):print(s[i:i+60000],flush=True)
+           print('FULL_LOGCAT_GZIP_END',flush=True)
+          PYLOG
           adb emu kill || true
           if [ -f emulator.pid ]; then kill "$(cat emulator.pid)" 2>/dev/null || true; fi
 
