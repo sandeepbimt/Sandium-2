@@ -29,7 +29,11 @@ jobs:
 
           python3 experiments/ubo-runtime/test_preflight.py
 
-          python3 experiments/ubo-runtime/test_ci_isolation.py
+          python3 -m venv /tmp/sandium-ext0-preflight
+
+          /tmp/sandium-ext0-preflight/bin/pip install --disable-pip-version-check PyYAML==6.0.2
+
+          /tmp/sandium-ext0-preflight/bin/python experiments/ubo-runtime/test_ci_isolation.py
 
           echo "EXT0=runtime_infrastructure_only; uBO not loaded; existing blocker retained"
 

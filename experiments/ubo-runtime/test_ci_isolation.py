@@ -17,6 +17,9 @@ class Tests(unittest.TestCase):
   for o in self.visit(self.c):
    if 'save_cache' in o:
     key=o['save_cache']['key'];self.assertFalse(key.startswith(('fixed-sandium','sandium-bridge-base','sandium-brave-handoff','sandium-brave-apk')))
+ def test_preflight_dependency_bootstrapped(self):
+  s=self.c["jobs"]["brave-android-staged-build"]["steps"][1]["run"]["command"]
+  self.assertLess(s.index("pip install --disable-pip-version-check PyYAML==6.0.2"),s.index("/bin/python experiments/ubo-runtime/test_ci_isolation.py"))
  def test_only_experiment_branch(self):
   for wf in self.c['workflows'].values():
    for j in wf['jobs']:
