@@ -1,0 +1,7 @@
+{
+  "chromium_pin": "d331de35ca8ab1358c7a17e4bd41627d55eaef51",
+  "sha256": {
+    "chrome/android/java/src/org/chromium/chrome/browser/ui/system/StatusBarColorController.java": "58a3c85d3ba516542066309e53f31a600cf3e1a2b50adef9691c7bf3c95453fc",
+    "ui/edge_to_edge/android/java/src/org/chromium/ui/edge_to_edge/EdgeToEdgeSystemBarColorHelper.java": "eb7601c2aceb1b64dbafbf8b99ab95b395868403857a6733cedcac913b63380d"
+  }
+}

@@ -18,7 +18,7 @@ class FullOverlayWiring(unittest.TestCase):
         shutil.copy2(ROOT/'.circleci/original-full/config.sha256',root/'.circleci/original-full/config.sha256')
         for names in REQUIRED.values():
             for name in names:
-                target=root/('.circleci/tests' if name == 'test_status_underlap_patch.py' else '.circleci/scripts')/name
+                target=root/name if name.startswith('.circleci/features/page-text/') else root/('.circleci/tests' if name == 'test_status_underlap_patch.py' else '.circleci/scripts')/name
                 target.parent.mkdir(parents=True,exist_ok=True);target.touch()
         return root
 
@@ -97,9 +97,9 @@ class FullOverlayWiring(unittest.TestCase):
             'apply-sandium-shields-popup.py "$SRC"')
         with self.assertRaisesRegex(ValueError,'popup must target restored core'):verify_full_wiring(root)
 
-    def test_status_trial_cannot_be_skipped(self):
+    def test_native_status_restoration_cannot_be_skipped(self):
         root=self.fixture();self.edit(root,'.circleci/experimental-steps/product-overlay-29-0.sh',
-            'python3 .circleci/scripts/apply-sandium-scroll-status-bar.py','echo .circleci/scripts/apply-sandium-scroll-status-bar.py')
+            'python3 .circleci/scripts/apply-sandium-native-insets.py','echo .circleci/scripts/apply-sandium-native-insets.py')
         with self.assertRaisesRegex(ValueError,'command'):verify_full_wiring(root)
 
     def test_native_theme_cannot_be_skipped(self):

@@ -142,6 +142,9 @@ public final class SandiumMenuState {
         return text.toString();
     }
 
+    /** Allows settings edits to reject corrupt stored data instead of replacing it. */
+    static boolean isValidSavedLayout(String saved) { return parse(saved) != null; }
+
     private static SandiumMenuState parse(String saved) {
         if (saved == null || saved.length() > 131072) return null;
         String[] lines = saved.split("\n", -1);

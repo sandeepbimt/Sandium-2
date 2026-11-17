@@ -27,7 +27,7 @@ def run(audit, chromium, repo):
         }
         for destination, source in files.items():
             target = src / destination; target.parent.mkdir(parents=True, exist_ok=True); shutil.copyfile(source, target)
-        for relative in [patch.CUSTOMIZE,
+        for relative in [patch.CUSTOMIZE, patch.CUSTOMIZE_SETTINGS,
                 'android/java/org/chromium/chrome/browser/app/BraveActivity.java',
                 'android/java/org/chromium/chrome/browser/app/appmenu/AppMenuIconRowFooter.java']:
             target = core / relative; target.parent.mkdir(parents=True, exist_ok=True); shutil.copyfile(audit / relative, target)
@@ -47,7 +47,21 @@ def run(audit, chromium, repo):
         patch.verify(src, repo, False)
         second = {str(p.relative_to(src)): p.read_bytes() for p in src.rglob('*') if p.is_file()}
         assert first == second, 'not idempotent'
-        copy = src / patch.INTERNAL / ('java/src/' + patch.PACKAGE + 'SandiumMenuState.java')
+        # A restored previous checkpoint owns state/store internally and has only
+        # Metadata in the public target. Upgrade it without duplicate class entries.
+        public_build = src / patch.PUBLIC / 'BUILD.gn'
+        public_text = public_build.read_text()
+        for name in ['SandiumMenuState', 'SandiumMenuPreferences']:
+            public_text = public_text.replace('    "java/src/' + patch.PACKAGE + name + '.java",\n', '')
+        public_build.write_text(public_text)
+        internal_build = src / patch.INTERNAL / 'BUILD.gn'
+        internal_build.write_text(patch.register(internal_build.read_text(),
+                ['SandiumPagedMenu', 'SandiumMenuState', 'SandiumMenuPreferences']))
+        patch.apply(src, repo, False)
+        patch.verify(src, repo, False)
+        assert public_build.read_text().count('SandiumMenuMetadata.java') == 1
+        assert 'SandiumMenuPreferences.java' not in internal_build.read_text()
+        copy = src / patch.PUBLIC / ('java/src/' + patch.PACKAGE + 'SandiumMenuState.java')
         original = copy.read_bytes(); copy.write_bytes(original + b'\n// drift\n')
         try:
             patch.verify(src, repo, False)

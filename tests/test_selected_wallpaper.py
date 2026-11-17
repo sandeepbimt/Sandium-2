@@ -32,7 +32,7 @@ class SelectedWallpaperTests(unittest.TestCase):
                 branding.refresh_wallpaper_focal_point(path)
                 self.assertEqual(path.read_text(), 'new BackgroundImage(R.drawable.sandium_wallpaper, 409, 960); customWallpaper(path);')
     def test_selected_asset_identity(self):
-        self.assertEqual(branding.ASSETS['wallpaper.webp'], '601e01315df64a7d4bda32c43078add6cb923e49e02dc8caa83ef06d6afe8134')
+        self.assertEqual(branding.ASSETS['wallpaper.webp'], '6ab6df2f4dab4ff2f9b6d516797564b629c680ca90522ef31f3f4bd3ab34e083')
 
 if __name__ == '__main__':
     unittest.main()

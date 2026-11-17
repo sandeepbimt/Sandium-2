@@ -287,6 +287,7 @@
     "browser/browser_context_keyed_service_factories.cc",
     "browser/customize_menu/android/BUILD.gn",
     "browser/customize_menu/android/java/src/org/chromium/brave/browser/customize_menu/CustomizeBraveMenu.java",
+    "browser/customize_menu/android/java/src/org/chromium/brave/browser/customize_menu/settings/BraveCustomizeMenuPreferenceFragment.java",
     "browser/first_run/android/BUILD.gn",
     "browser/first_run/android/java/res/layout-land/help_brave_search.xml",
     "browser/first_run/android/java/res/layout-land/make_brave_better.xml",
@@ -491,7 +492,11 @@
     "chrome/browser/ui/android/native_page/java/src/org/chromium/chrome/browser/ui/native_page/NativePage.java",
     "chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/TopToolbarOverlayMediator.java",
     "chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/PhoneCaptureStateToken.java",
-    "chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/ToolbarControlContainer.java"
+    "chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/ToolbarControlContainer.java",
+    "content/browser/renderer_host/page_impl.h",
+    "content/browser/renderer_host/render_frame_host_impl.cc",
+    "third_party/blink/renderer/core/dom/document.cc",
+    "chrome/android/java/src/org/chromium/chrome/browser/ui/system/StatusBarColorController.java"
   ],
   "generated_overwrite": [
     "components/minidump_uploader/android/java/src/org/chromium/components/minidump_uploader/MinidumpUploader.java",
@@ -520,7 +525,11 @@
     "third_party/blink/renderer/core/dom/sandium_element_colors.h",
     "brave/android/java/org/chromium/chrome/browser/sandium/dark/SandiumRuleBackup.java",
     "brave/android/java/org/chromium/chrome/browser/sandium/dark/SandiumRulesPreferences.java",
-    "brave/android/java/org/chromium/chrome/browser/sandium/dark/SandiumBlockingRulesPreferences.java"
+    "brave/android/java/org/chromium/chrome/browser/sandium/dark/SandiumBlockingRulesPreferences.java",
+    "chrome/browser/ui/android/night_mode/java/src/org/chromium/chrome/browser/sandium/text/PageTextPolicy.java",
+    "chrome/browser/ui/android/night_mode/java/src/org/chromium/chrome/browser/sandium/text/PageTextStylesheet.java",
+    "chrome/browser/ui/android/night_mode/java/src/org/chromium/chrome/browser/sandium/text/SandiumPageText.java",
+    "brave/android/java/org/chromium/chrome/browser/sandium/text/SandiumPageTextUi.java"
   ],
   "steps": [
     {
@@ -793,6 +802,10 @@
     "third_party/blink/renderer/core/paint/image_painter.cc",
     "chrome/android/java/src/org/chromium/chrome/browser/about_settings/AboutChromeSettings.java",
     "chrome/android/java/src/org/chromium/chrome/browser/about_settings/LegalInformationSettings.java",
-    "chrome/android/java/res/xml/developer_preferences.xml"
+    "chrome/android/java/res/xml/developer_preferences.xml",
+    "content/browser/renderer_host/page_impl.h",
+    "content/browser/renderer_host/render_frame_host_impl.cc",
+    "third_party/blink/renderer/core/dom/document.cc",
+    "chrome/android/java/src/org/chromium/chrome/browser/ui/system/StatusBarColorController.java"
   ]
 }

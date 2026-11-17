@@ -10,13 +10,13 @@ import shlex
 
 ORDER = [f'product-overlay-{i}-0.sh' for i in range(24,31)] + ['graph-validation.sh','remote-smoke.sh','full-bounded-build.sh']
 REQUIRED = {
- 'product-overlay-30-0.sh': ['test-sandium-removal-composition.py','trace-sandium-back-geometry.py','sandium-removal-recipe.py','apply-sandium-home-shortcuts.py','apply-sandium-home-shortcuts.py','apply-sandium-video-gestures.py','apply-sandium-video-gestures.py','apply-sandium-dark-combined.py','apply-sandium-dark-combined.py','test-sandium-dark-composition.py','apply-sandium-homepage-combined.py','apply-sandium-homepage-combined.py','apply-sandium-capture-coherence.py','apply-sandium-capture-coherence.py','precheck-graph.py','removal-evidence.py'],
+ 'product-overlay-30-0.sh': ['test-sandium-removal-composition.py','apply-sandium-native-insets.py','sandium-removal-recipe.py','apply-sandium-home-shortcuts.py','apply-sandium-home-shortcuts.py','apply-sandium-video-gestures.py','apply-sandium-video-gestures.py','apply-sandium-dark-combined.py','apply-sandium-dark-combined.py','test-sandium-dark-composition.py','.circleci/features/page-text/apply.py','.circleci/features/page-text/apply.py','.circleci/features/page-text/tests/test_combined.py','apply-sandium-homepage-combined.py','apply-sandium-homepage-combined.py','apply-sandium-capture-coherence.py','apply-sandium-capture-coherence.py','apply-sandium-native-insets.py','.circleci/features/page-text/apply.py','precheck-graph.py','removal-evidence.py'],
  'product-overlay-24-0.sh': ['apply-sandium-branding.sh'],
  'product-overlay-25-0.sh': ['apply-sandium-adblock-engine-race.py','apply-sandium-filter-subscriptions.py','apply-sandium-filter-bootstrap.py'],
  'product-overlay-26-0.sh': ['apply-sandium-page-transition-full.py','apply-sandium-back-transition.py','apply-sandium-back-controls.py','trace-sandium-back-geometry.py'],
  'product-overlay-27-0.sh': ['apply-sandium-homepage-adblock-warmup.py','apply-sandium-download-concurrency.py','apply-sandium-welcome-setup.py','test-sandium-homepage-adblock-warmup.py','test-sandium-download-concurrency.py','test-sandium-welcome-setup.py','test-sandium-page-transition-full.py','verify-sandium-vanilla-brave.py'],
  'product-overlay-28-0.sh': ['apply-sandium-shields-two-state.py','apply-sandium-adblock-engine-race.py','test-sandium-shields-two-state.py','test-sandium-adblock-engine-race.py','test-sandium-filter-subscriptions.py','test-sandium-filter-bootstrap.py','apply-sandium-adblock-resources.py','test-sandium-adblock-resources.py'],
- 'product-overlay-29-0.sh': ['apply-sandium-ui-prune.py','test-sandium-ui-prune.py','apply-sandium-no-video-promo.py','apply-sandium-visible-branding.py','test-sandium-visible-branding.py','apply-sandium-native-theme.py','test-sandium-native-theme.py','apply-sandium-scroll-status-bar.py','test_status_underlap_patch.py','apply-sandium-shields-popup.py','test-sandium-shields-popup.py','apply-sandium-bottom-toolbar.py','test-sandium-bottom-toolbar.py','apply-sandium-paged-menu.py','apply-sandium-paged-menu.py','apply-sandium-chrome-theme.py','test-sandium-chrome-theme.py','test-sandium-motion.py','apply-sandium-unified-address.py','apply-sandium-unified-address.py','test-sandium-unified-address.py','apply-sandium-toolbar-refinements.py','apply-sandium-toolbar-refinements.py','test-sandium-toolbar-refinements.py','apply-sandium-search-choices.py','apply-sandium-search-choices.py','test-sandium-search-choices.py','apply-sandium-focus-follow.py','apply-sandium-focus-follow.py','test-sandium-focus-follow.py','apply-sandium-settings-fade.py','apply-sandium-settings-fade.py','test-sandium-settings-fade.py','apply-sandium-progress-diagnostics.py','apply-sandium-progress-diagnostics.py','test-sandium-progress-diagnostics.py','apply-sandium-suggestion-anchor.py','apply-sandium-suggestion-anchor.py','test-sandium-suggestion-anchor.py','apply-sandium-ui-links.py','test-sandium-ui-links.py','apply-sandium-oppo-toggles.py','test-sandium-oppo-toggles.py'],
+ 'product-overlay-29-0.sh': ['apply-sandium-ui-prune.py','test-sandium-ui-prune.py','apply-sandium-no-video-promo.py','apply-sandium-visible-branding.py','test-sandium-visible-branding.py','apply-sandium-native-theme.py','test-sandium-native-theme.py','apply-sandium-native-insets.py','apply-sandium-native-insets.py','apply-sandium-shields-popup.py','test-sandium-shields-popup.py','apply-sandium-bottom-toolbar.py','test-sandium-bottom-toolbar.py','apply-sandium-paged-menu.py','apply-sandium-paged-menu.py','apply-sandium-chrome-theme.py','test-sandium-chrome-theme.py','test-sandium-motion.py','apply-sandium-unified-address.py','apply-sandium-unified-address.py','test-sandium-unified-address.py','apply-sandium-toolbar-refinements.py','apply-sandium-toolbar-refinements.py','test-sandium-toolbar-refinements.py','apply-sandium-search-choices.py','apply-sandium-search-choices.py','test-sandium-search-choices.py','apply-sandium-focus-follow.py','apply-sandium-focus-follow.py','test-sandium-focus-follow.py','apply-sandium-settings-fade.py','apply-sandium-settings-fade.py','test-sandium-settings-fade.py','apply-sandium-progress-diagnostics.py','apply-sandium-progress-diagnostics.py','test-sandium-progress-diagnostics.py','apply-sandium-suggestion-anchor.py','apply-sandium-suggestion-anchor.py','test-sandium-suggestion-anchor.py','apply-sandium-ui-links.py','test-sandium-ui-links.py','apply-sandium-oppo-toggles.py','test-sandium-oppo-toggles.py'],
 }
 
 NAV='apply-sandium-native-navigation.py'
@@ -45,9 +45,9 @@ def shell_invocations(path):
             continue
         if not tokens or tokens[0] not in ('python3','bash'):
             raise ValueError(f'{path.name}: unsupported shell command in overlay wrapper')
-        if len(tokens)>1 and tokens[0] in ('python3','bash') and tokens[1].startswith(('.circleci/scripts/','$ROOT/.circleci/scripts/','${ROOT}/.circleci/scripts/','.circleci/tests/')):
+        if len(tokens)>1 and tokens[0] in ('python3','bash') and tokens[1].startswith(('.circleci/scripts/','$ROOT/.circleci/scripts/','${ROOT}/.circleci/scripts/','.circleci/tests/','.circleci/features/page-text/')):
             if any(t in (';','&&','||','|','&') for t in tokens):raise ValueError('Compound/optional overlay invocation unsupported')
-            result.append((Path(tokens[1]).name,tokens[2:]))
+            result.append((tokens[1] if tokens[1].startswith('.circleci/features/page-text/') else Path(tokens[1]).name,tokens[2:]))
     if heredoc:raise ValueError('Unclosed shell heredoc')
     return result
 
@@ -98,13 +98,22 @@ def verify_product_wrappers(repo):
         invocations=shell_invocations(repo/'.circleci/experimental-steps'/wrapper)
         names=[name for name,args in invocations]
         for name in names:
+            if name.startswith('.circleci/features/page-text/'):
+                if not (repo/name).is_file():raise ValueError(f'Missing invoked script {name}')
+                continue
             if not (repo/('.circleci/tests' if name == 'test_status_underlap_patch.py' else '.circleci/scripts')/name).is_file():raise ValueError(f'Missing invoked script {name}')
         if names!=expected:raise ValueError(f'{wrapper}: actual apply/test command sequence differs: {names}')
         if invocations[0] != (NAV,['$CIRCLE_WORKING_DIRECTORY/brave-work/src','--mode','off']):raise ValueError('Native navigation rollback must precede every product mutator')
         if wrapper=='product-overlay-30-0.sh' and invocations[-4:-2] != [(NAV,['$SRC','--mode','configured']),(NAV,['$SRC','--mode','configured','--verify-only'])]:raise ValueError('Native navigation profile must apply and verify after all frozen overlays')
         invocations=[item for item in invocations if item[0]!=NAV]
+        text_calls=[args for name,args in invocations if name.startswith('.circleci/features/page-text/')]
+        if wrapper=='product-overlay-30-0.sh' and text_calls != [['$SRC','--repo','$ROOT'],['$SRC','--repo','$ROOT','--verify-only'],[],['$SRC','--repo','$ROOT','--verify-only']]:
+            raise ValueError('Page text requires atomic apply, readback and pinned composition test')
+        invocations=[item for item in invocations if not item[0].startswith('.circleci/features/page-text/')]
         if wrapper=='product-overlay-30-0.sh' and invocations[0][1] != ['--source','$CORE','--chromium-source','$SRC','--gn','$SRC/buildtools/linux64/gn']:raise ValueError('Composition must read both pinned repositories')
         if wrapper=='product-overlay-30-0.sh':
+            if invocations[1][1] != ['$SRC']:raise ValueError('Resumed UI needs native inset migration')
+            if invocations[-3][1] != ['$SRC','--verify-only']:raise ValueError('Final native insets require readback')
             if invocations[3][1] != ['$SRC','--repo','$ROOT'] or invocations[4][1] != ['$SRC','--repo','$ROOT','--verify-only']:
                 raise ValueError('Home shortcuts must target restored source and verify after removal')
             if invocations[5][1] != ['$SRC','--repo','$ROOT'] or invocations[6][1] != ['$SRC','--repo','$ROOT','--verify-only']:
@@ -129,10 +138,10 @@ def verify_product_wrappers(repo):
             if '--report' not in invocations[2][1]:raise ValueError('Final branding must export coverage report')
             if invocations[4][1] != ['$CORE']:raise ValueError('Native theme must target restored core')
             if invocations[5][1]:raise ValueError('Native theme tests take no arguments')
-            if invocations[6][1] != ['$SRC']:raise ValueError('Status trial must target restored Chromium source')
+            if invocations[6][1] != ['$SRC']:raise ValueError('Native insets must target restored Chromium source')
             if invocations[8][1] != ['$CORE']:raise ValueError('Apply popup must target restored core')
             if invocations[9][1] != ['--core', '$CORE']:raise ValueError('Test popup must target restored core')
-            if invocations[7][1]:raise ValueError('Status trial tests take no arguments')
+            if invocations[7][1] != ['$SRC','--verify-only']:raise ValueError('Native insets require source readback')
             for index in (10,11):
                 if invocations[index][1] != ['--src', '$SRC', '--core', '$CORE']:
                     raise ValueError('Native toolbar must target restored source/core')

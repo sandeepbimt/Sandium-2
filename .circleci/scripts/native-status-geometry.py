@@ -20,8 +20,13 @@ def owned_identifiers(pairs):
             if name not in old_tokens and ('Sandium' in name or 'SANDIUM' in name):result.add(name)
     return result
 
-def transform(name,text):
-    paints=PAINT.get(name,[])
+def transform(name,text,paint=True):
+    if not paint and MARKER in text:
+        for old,new in reversed(PAINT.get(name,[])):
+            if text.count(new)!=1:raise RuntimeError('Unknown legacy status paint: '+name)
+            text=text.replace(new,old,1)
+        if MARKER in text:raise RuntimeError('Residual legacy status paint: '+name)
+    paints=PAINT.get(name,[]) if paint else []
     if MARKER in text:
         if not paints or any(text.count(new)!=1 for old,new in paints):
             raise RuntimeError('Unknown native status paint: '+name)
@@ -42,9 +47,9 @@ def transform(name,text):
         raise RuntimeError('Residual bottom-toolbar inset suppression: '+name)
     return text
 
-def plan(root):
+def plan(root,paint=True):
     result={}
     for name in REVERSAL:
         path=root/name
-        result[path]=transform(name,path.read_text())
+        result[path]=transform(name,path.read_text(),paint=paint)
     return result

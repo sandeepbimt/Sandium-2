@@ -15,9 +15,9 @@ python3 .circleci/scripts/test-sandium-visible-branding.py --core "$CORE"
 python3 .circleci/scripts/apply-sandium-native-theme.py "$CORE"
 python3 .circleci/scripts/test-sandium-native-theme.py
 
-# Bounded Android 16 portrait top/bottom-toolbar web-underlap trial; no frost.
-python3 .circleci/scripts/apply-sandium-scroll-status-bar.py "$SRC"
-python3 .circleci/tests/test_status_underlap_patch.py
+# Native status inset owner: no scrolling spacer or transparent web underlap.
+python3 .circleci/scripts/apply-sandium-native-insets.py "$SRC"
+python3 .circleci/scripts/apply-sandium-native-insets.py "$SRC" --verify-only
 
 # Selected grouped site popup; keep underlying Shields policies and handlers.
 python3 .circleci/scripts/apply-sandium-shields-popup.py "$CORE"
