@@ -16,8 +16,13 @@ REQUIRED = {
  'product-overlay-26-0.sh': ['apply-sandium-page-transition-full.py','apply-sandium-back-transition.py','apply-sandium-back-controls.py','trace-sandium-back-geometry.py'],
  'product-overlay-27-0.sh': ['apply-sandium-homepage-adblock-warmup.py','apply-sandium-download-concurrency.py','apply-sandium-welcome-setup.py','test-sandium-homepage-adblock-warmup.py','test-sandium-download-concurrency.py','test-sandium-welcome-setup.py','test-sandium-page-transition-full.py','verify-sandium-vanilla-brave.py'],
  'product-overlay-28-0.sh': ['apply-sandium-shields-two-state.py','apply-sandium-adblock-engine-race.py','test-sandium-shields-two-state.py','test-sandium-adblock-engine-race.py','test-sandium-filter-subscriptions.py','test-sandium-filter-bootstrap.py','apply-sandium-adblock-resources.py','test-sandium-adblock-resources.py'],
- 'product-overlay-29-0.sh': ['apply-sandium-ui-prune.py','test-sandium-ui-prune.py','apply-sandium-visible-branding.py','test-sandium-visible-branding.py','apply-sandium-native-theme.py','test-sandium-native-theme.py','apply-sandium-scroll-status-bar.py','test_status_underlap_patch.py','apply-sandium-shields-popup.py','test-sandium-shields-popup.py','apply-sandium-bottom-toolbar.py','test-sandium-bottom-toolbar.py','apply-sandium-paged-menu.py','apply-sandium-paged-menu.py','apply-sandium-chrome-theme.py','test-sandium-chrome-theme.py','test-sandium-motion.py','apply-sandium-unified-address.py','apply-sandium-unified-address.py','test-sandium-unified-address.py','apply-sandium-toolbar-refinements.py','apply-sandium-toolbar-refinements.py','test-sandium-toolbar-refinements.py','apply-sandium-search-choices.py','apply-sandium-search-choices.py','test-sandium-search-choices.py','apply-sandium-focus-follow.py','apply-sandium-focus-follow.py','test-sandium-focus-follow.py','apply-sandium-settings-fade.py','apply-sandium-settings-fade.py','test-sandium-settings-fade.py','apply-sandium-progress-diagnostics.py','apply-sandium-progress-diagnostics.py','test-sandium-progress-diagnostics.py','apply-sandium-suggestion-anchor.py','apply-sandium-suggestion-anchor.py','test-sandium-suggestion-anchor.py','apply-sandium-ui-links.py','test-sandium-ui-links.py','apply-sandium-oppo-toggles.py','test-sandium-oppo-toggles.py'],
+ 'product-overlay-29-0.sh': ['apply-sandium-ui-prune.py','test-sandium-ui-prune.py','apply-sandium-no-video-promo.py','apply-sandium-visible-branding.py','test-sandium-visible-branding.py','apply-sandium-native-theme.py','test-sandium-native-theme.py','apply-sandium-scroll-status-bar.py','test_status_underlap_patch.py','apply-sandium-shields-popup.py','test-sandium-shields-popup.py','apply-sandium-bottom-toolbar.py','test-sandium-bottom-toolbar.py','apply-sandium-paged-menu.py','apply-sandium-paged-menu.py','apply-sandium-chrome-theme.py','test-sandium-chrome-theme.py','test-sandium-motion.py','apply-sandium-unified-address.py','apply-sandium-unified-address.py','test-sandium-unified-address.py','apply-sandium-toolbar-refinements.py','apply-sandium-toolbar-refinements.py','test-sandium-toolbar-refinements.py','apply-sandium-search-choices.py','apply-sandium-search-choices.py','test-sandium-search-choices.py','apply-sandium-focus-follow.py','apply-sandium-focus-follow.py','test-sandium-focus-follow.py','apply-sandium-settings-fade.py','apply-sandium-settings-fade.py','test-sandium-settings-fade.py','apply-sandium-progress-diagnostics.py','apply-sandium-progress-diagnostics.py','test-sandium-progress-diagnostics.py','apply-sandium-suggestion-anchor.py','apply-sandium-suggestion-anchor.py','test-sandium-suggestion-anchor.py','apply-sandium-ui-links.py','test-sandium-ui-links.py','apply-sandium-oppo-toggles.py','test-sandium-oppo-toggles.py'],
 }
+
+NAV='apply-sandium-native-navigation.py'
+for wrapper in REQUIRED:
+    REQUIRED[wrapper].insert(0,NAV)
+REQUIRED['product-overlay-30-0.sh'][-2:-2]=[NAV,NAV]
 
 
 def shell_invocations(path):
@@ -95,6 +100,9 @@ def verify_product_wrappers(repo):
         for name in names:
             if not (repo/('.circleci/tests' if name == 'test_status_underlap_patch.py' else '.circleci/scripts')/name).is_file():raise ValueError(f'Missing invoked script {name}')
         if names!=expected:raise ValueError(f'{wrapper}: actual apply/test command sequence differs: {names}')
+        if invocations[0] != (NAV,['$CIRCLE_WORKING_DIRECTORY/brave-work/src','--mode','off']):raise ValueError('Native navigation rollback must precede every product mutator')
+        if wrapper=='product-overlay-30-0.sh' and invocations[-4:-2] != [(NAV,['$SRC','--mode','configured']),(NAV,['$SRC','--mode','configured','--verify-only'])]:raise ValueError('Native navigation profile must apply and verify after all frozen overlays')
+        invocations=[item for item in invocations if item[0]!=NAV]
         if wrapper=='product-overlay-30-0.sh' and invocations[0][1] != ['--source','$CORE','--chromium-source','$SRC','--gn','$SRC/buildtools/linux64/gn']:raise ValueError('Composition must read both pinned repositories')
         if wrapper=='product-overlay-30-0.sh':
             if invocations[3][1] != ['$SRC','--repo','$ROOT'] or invocations[4][1] != ['$SRC','--repo','$ROOT','--verify-only']:
@@ -109,6 +117,9 @@ def verify_product_wrappers(repo):
         if wrapper=='product-overlay-26-0.sh' and invocations[-1][1] != ['$CIRCLE_WORKING_DIRECTORY/brave-work/src','--reset']:raise ValueError('Geometry trace must reset before status overlay')
         if wrapper=='product-overlay-25-0.sh' and '--reset-shared' not in invocations[0][1]:raise ValueError('Shared reset must precede feature consumers')
         if wrapper=='product-overlay-29-0.sh':
+            promo=[args for name,args in invocations if name=='apply-sandium-no-video-promo.py']
+            if promo != [['--core', '$CORE']]:raise ValueError('Video promo removal must target restored core')
+            invocations=[item for item in invocations if item[0]!='apply-sandium-no-video-promo.py']
             for name,args in invocations[:2]:
                 for flag in ('--core','--src'):
                     if flag not in args:raise ValueError(f'{name}: missing {flag}')

@@ -40,6 +40,7 @@ final class SandiumPagedMenu extends FrameLayout {
     private final SandiumMenuPreferences mPreferences;
     private static final int PAGE_SIZE = 8;
     private static final int EDITOR_AVAILABLE_ROWS = 4;
+    private static final int ALL_MENU_ACTION_ROWS = 5;
     private static final String ALL_MENU = "sandium:all-menu";
     private boolean mAllMenu;
     private final int mGroupColor, mPanelColor, mTextColor, mSecondaryTextColor, mDividerColor, mAccentColor;
@@ -65,8 +66,11 @@ final class SandiumPagedMenu extends FrameLayout {
     private android.animation.ValueAnimator mEntranceAnimator;
     private float mPanelAlpha = 1f;
     private boolean mNativeVisible;
-    private float mDownX, mDownY;
-    private boolean mSwipeEligible;
+    private final PageSwipe mPageSwipe = new PageSwipe();
+    private android.view.VelocityTracker mSwipeVelocity;
+    private View mPageGestureArea;
+    private android.widget.HorizontalScrollView mPagerScroll;
+    private boolean mPagerDragReplay;
     private String mDragging;
     private final Map<PropertyModel, LazyOneshotSupplier<Drawable>> mRequestedIcons = new java.util.IdentityHashMap<>();
     private final Set<PropertyModel> mObserved = new HashSet<>();
@@ -95,6 +99,32 @@ final class SandiumPagedMenu extends FrameLayout {
     private boolean mPagerSequenceOwned;
     private ScrollView mScroll;
     private LinearLayout mHeading, mBody;
+
+    /** Direction lock shared by the quick pages and editor; independent of Android views. */
+    private static final class PageSwipe {
+        float downX, downY;
+        boolean eligible, captured;
+        void begin(float x, float y, boolean inside) {
+            downX = x; downY = y; eligible = inside; captured = false;
+        }
+        boolean move(float x, float y, float slop) {
+            if (!eligible || captured) return captured;
+            float dx = Math.abs(x - downX), dy = Math.abs(y - downY);
+            if (dy > slop && dy >= dx) eligible = false;
+            else if (dx > slop && dx > dy) captured = true;
+            return captured;
+        }
+        int finish(float x, float velocity, float slop, float minFling) {
+            float dx = x - downX;
+            boolean fling = Math.abs(dx) > slop && Math.abs(velocity) >= minFling
+                    && Math.signum(dx) == Math.signum(velocity);
+            int direction = eligible && captured && (Math.abs(dx) > 2 * slop || fling)
+                    ? (dx < 0 ? 1 : -1) : 0;
+            cancel();
+            return direction;
+        }
+        void cancel() { eligible = false; captured = false; }
+    }
 
     private static final class Entry {
         final PropertyModel model;
@@ -190,6 +220,7 @@ final class SandiumPagedMenu extends FrameLayout {
         setAlpha(1f);
     }
     @Override protected void onDetachedFromWindow() {
+        clearPageSwipe();
         finishEntranceMotion();
         mPagerTargets.clear(); clearPagerTouchDelegate(); mPagerSequenceOwned = false;
         cancelDragPage(); mDragging = null;
@@ -455,8 +486,23 @@ final class SandiumPagedMenu extends FrameLayout {
     void setNativeReset(Runnable reset) { mNativeReset = reset; }
     void setResizeListener(Runnable resize) { mResize = resize; }
     private int pagerHeight() { return quickPageCount() > 1 ? dp(32) : 0; }
+    private int allMenuActionRows() {
+        // Reserve five full rows even on pages with fewer applicable actions. Never
+        // truncate a conditional action if a future catalog needs more than five.
+        return Math.max(ALL_MENU_ACTION_ROWS,
+                (editableKeys().size() + columns() - 1) / columns());
+    }
     int preferredHeight(int width, int available) {
-        // One sheet envelope for quick pages, directory, editor and native fallback.
+        if (mAllMenu && mDraft == null) {
+            int libraryRows = (LIBRARY.length + columns() - 1) / columns();
+            // Panel bottom + heading + two groups (8dp padding + 4dp margin each).
+            // All Menu has no quick-page indicator. Its old quick-menu envelope
+            // clipped the directory to two rows and forced vertical scrolling.
+            int directoryHeight = dp(8) + dp(48) + 6 * dp(4)
+                    + (libraryRows + allMenuActionRows()) * tileHeight();
+            return Math.max(1, Math.min(available, directoryHeight));
+        }
+        // Keep the quick menu and editor envelopes independent of the directory.
         // Only window/font configuration changes it, never current labels or action count.
         int rows = (LIBRARY.length + columns() - 1) / columns()
                 + (PAGE_SIZE + columns() - 1) / columns();
@@ -560,7 +606,7 @@ final class SandiumPagedMenu extends FrameLayout {
         mRenderedScreen = screen; mRenderedPage = mPage;
         clearPendingNativeAction();
         mPagerTargets.clear(); clearPagerTouchDelegate();
-        removeAllViews(); mNativeVisible = false;
+        removeAllViews(); mNativeVisible = false; mPageGestureArea = null; mPagerScroll = null;
         LinearLayout panel = column(); panel.setPadding(dp(12), 0, dp(12), dp(8));
         addView(panel, new LayoutParams(-1, -1));
         // The sheet background stays opaque. Model refresh replaces only the
@@ -622,6 +668,10 @@ final class SandiumPagedMenu extends FrameLayout {
         panel.addView(heading);
         if (mResize != null && mDragging == null) post(mResize);
         ScrollView scroll = new ScrollView(getContext()); mScroll = scroll; scroll.setFillViewport(false);
+        if (mAllMenu && mDraft == null) {
+            scroll.setVerticalScrollBarEnabled(false);
+            scroll.setOverScrollMode(View.OVER_SCROLL_NEVER);
+        }
         panel.addView(scroll, new LinearLayout.LayoutParams(-1, 0, 1));
         LinearLayout body = column(); mBody = body; scroll.addView(body);
         List<String> libraryKeys = new ArrayList<>();
@@ -641,9 +691,14 @@ final class SandiumPagedMenu extends FrameLayout {
             List<String> directory = new ArrayList<>();
             Set<String> available = editableKeys();
             for (String key : mSaved.knownKeys()) if (available.contains(key)) directory.add(key);
+            // Content fills the reserved five-row box without a scroll range on
+            // supported portrait sizes. Preserve access, rather than clip actions,
+            // if large text/landscape leaves less physical room than that envelope.
+            actionsGroup.setMinimumHeight(2 * dp(4) + allMenuActionRows() * tileHeight());
             grid(actionsGroup, directory, false);
             return;
         }
+        mPageGestureArea = actionsGroup;
         List<String> visible = quickKeys();
         int pages = quickPageCount();
         mPage = Math.max(0, Math.min(mPage, pages - 1));
@@ -716,6 +771,7 @@ final class SandiumPagedMenu extends FrameLayout {
                 }
                 // Horizontal scrolling keeps every page selector accessible for large customized menus.
                 android.widget.HorizontalScrollView pagerScroll = new android.widget.HorizontalScrollView(getContext());
+                mPagerScroll = pagerScroll;
                 pagerScroll.setHorizontalScrollBarEnabled(false); pagerScroll.setFillViewport(true);
                 pagerScroll.addView(pager);
                 actionsGroup.addView(pagerScroll);
@@ -1166,7 +1222,11 @@ final class SandiumPagedMenu extends FrameLayout {
                 mPagerTouchDelegate.onTouchEvent(cancel); cancel.recycle();
                 MotionEvent down = mPagerDelegateDown; mPagerDelegateDown = null;
                 clearPagerTouchDelegate(); mPagerSequenceOwned = false;
-                super.dispatchTouchEvent(down); down.recycle();
+                // The proven-safe delegated strip extends below the action box.
+                // Its replayed DOWN must stay eligible for paging as well as scrolling.
+                mPagerDragReplay = true;
+                try { super.dispatchTouchEvent(down); }
+                finally { mPagerDragReplay = false; down.recycle(); }
                 return super.dispatchTouchEvent(event);
             }
         }
@@ -1186,37 +1246,74 @@ final class SandiumPagedMenu extends FrameLayout {
         if (event.getAction() == android.view.KeyEvent.ACTION_DOWN) clearPendingNativeAction();
         return super.dispatchKeyEvent(event);
     }
+    private void clearPageSwipe() {
+        mPageSwipe.cancel();
+        if (mSwipeVelocity != null) { mSwipeVelocity.recycle(); mSwipeVelocity = null; }
+    }
+    private boolean insidePageGestureArea(float x, float y) {
+        if (mPageGestureArea == null || !mPageGestureArea.isShown()
+                || quickPageCount() <= 1 || (mAllMenu && mDraft == null)) return false;
+        // A long selector strip must remain horizontally scrollable so every
+        // indicator can be reached. Only non-overflowing strips page the actions.
+        if (mPagerScroll != null && (mPagerScroll.canScrollHorizontally(-1)
+                || mPagerScroll.canScrollHorizontally(1)) && dragHit(mPagerScroll, x, y)) return false;
+        if (mPagerDragReplay) return true;
+        android.graphics.Rect bounds = new android.graphics.Rect();
+        if (!mPageGestureArea.getLocalVisibleRect(bounds)) return false;
+        offsetDescendantRectToMyCoords(mPageGestureArea, bounds);
+        return bounds.contains((int) x, (int) y);
+    }
     @Override public boolean onInterceptTouchEvent(MotionEvent event) {
-        if (event.getActionMasked() == MotionEvent.ACTION_DOWN) clearPendingNativeAction();
-        if (mNativeVisible || mDragging != null) return super.onInterceptTouchEvent(event);
-        if (event.getActionMasked() == MotionEvent.ACTION_DOWN) {
-            mDownX = event.getX(); mDownY = event.getY();
-            android.graphics.Rect bounds = new android.graphics.Rect();
-            mSwipeEligible = mPageViewport != null;
-            if (mSwipeEligible) {
-                mPageViewport.getDrawingRect(bounds);
-                offsetDescendantRectToMyCoords(mPageViewport, bounds);
-                mSwipeEligible = bounds.contains((int) mDownX, (int) mDownY);
+        int action = event.getActionMasked();
+        if (action == MotionEvent.ACTION_DOWN) clearPendingNativeAction();
+        if (mNativeVisible || mDragging != null) {
+            clearPageSwipe(); return super.onInterceptTouchEvent(event);
+        }
+        if (action == MotionEvent.ACTION_DOWN) {
+            clearPageSwipe();
+            mPageSwipe.begin(event.getX(), event.getY(),
+                    insidePageGestureArea(event.getX(), event.getY()));
+            if (mPageSwipe.eligible) {
+                mSwipeVelocity = android.view.VelocityTracker.obtain();
+                mSwipeVelocity.addMovement(event);
             }
-        } else if (event.getActionMasked() == MotionEvent.ACTION_MOVE
-                && mSwipeEligible && Math.abs(event.getX() - mDownX) > dp(48)
-                && Math.abs(event.getX() - mDownX) > Math.abs(event.getY() - mDownY) * 1.5f) return true;
+        } else if (action == MotionEvent.ACTION_MOVE) {
+            if (mSwipeVelocity != null) mSwipeVelocity.addMovement(event);
+            // Claim horizontal movement at platform slop, before the nested vertical
+            // ScrollView can steal a diagonal swipe. Vertical movement stays vertical.
+            if (mPageSwipe.move(event.getX(), event.getY(),
+                    android.view.ViewConfiguration.get(getContext()).getScaledTouchSlop())) {
+                return true; // ViewGroup sends ACTION_CANCEL to the pressed tile.
+            }
+        } else if (action == MotionEvent.ACTION_POINTER_DOWN
+                || action == MotionEvent.ACTION_POINTER_UP
+                || action == MotionEvent.ACTION_CANCEL || action == MotionEvent.ACTION_UP) {
+            clearPageSwipe();
+        }
         return super.onInterceptTouchEvent(event);
     }
     @Override public boolean onTouchEvent(MotionEvent event) {
-        if (event.getActionMasked() == MotionEvent.ACTION_CANCEL) {
-            mSwipeEligible = false; return true;
+        int action = event.getActionMasked();
+        if (action == MotionEvent.ACTION_CANCEL || action == MotionEvent.ACTION_POINTER_DOWN
+                || action == MotionEvent.ACTION_POINTER_UP || mNativeVisible || mDragging != null) {
+            clearPageSwipe(); return true;
         }
-        if (event.getActionMasked() == MotionEvent.ACTION_UP) {
-            boolean eligible = mSwipeEligible; mSwipeEligible = false;
-            if (!eligible) return super.onTouchEvent(event);
-            float distance = event.getX() - mDownX;
-            if (Math.abs(distance) > dp(48)) {
-                int direction = distance < 0 ? 1 : -1;
-                if (getLayoutDirection() == LAYOUT_DIRECTION_RTL) direction = -direction;
-                page(direction);
+        if (!mPageSwipe.eligible) return super.onTouchEvent(event);
+        android.view.ViewConfiguration config = android.view.ViewConfiguration.get(getContext());
+        if (mSwipeVelocity != null) mSwipeVelocity.addMovement(event);
+        if (action == MotionEvent.ACTION_MOVE) {
+            mPageSwipe.move(event.getX(), event.getY(), config.getScaledTouchSlop());
+        } else if (action == MotionEvent.ACTION_UP) {
+            float velocity = 0f;
+            if (mSwipeVelocity != null) {
+                mSwipeVelocity.computeCurrentVelocity(1000, config.getScaledMaximumFlingVelocity());
+                velocity = mSwipeVelocity.getXVelocity();
             }
-            return true;
+            int direction = mPageSwipe.finish(event.getX(), velocity,
+                    config.getScaledTouchSlop(), config.getScaledMinimumFlingVelocity());
+            clearPageSwipe();
+            if (getLayoutDirection() == LAYOUT_DIRECTION_RTL) direction = -direction;
+            if (direction != 0) page(direction);
         }
         return true;
     }

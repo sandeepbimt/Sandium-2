@@ -84,6 +84,27 @@ def activity(t):
         // Handle items replaced by Brave.''')
 
 def manager(t):
+    t=once(t, '    history_service_observation_.Observe(options.history_service.get());\n  }\n  if (IsInitialized()) {\n    current_links_ = store_.RetrieveLinks();', r"""    history_service_observation_.Observe(options.history_service.get());
+  }
+  // Sandium defaults are mobile-profile data, not a transient homepage overlay.
+  // Explicit false/empty prefs also count as user state: never resurrect deleted
+  // shortcuts on restart, upgrade, history clear, or reinitialization.
+  if (options.scope == CustomLinksScope::kMobile &&
+      !prefs_->GetUserPrefValue(custom_links_initialized_pref_) &&
+      !prefs_->GetUserPrefValue(store_.list_pref_name())) {
+    current_links_ = {
+        Link{GURL("https://www.google.com/"), u"Google", false},
+        Link{GURL("https://www.youtube.com/"), u"YouTube", false},
+        Link{GURL("https://www.facebook.com/"), u"Facebook", false},
+        Link{GURL("https://www.instagram.com/"), u"Instagram", false},
+        Link{GURL("https://x.com/"), u"X", false},
+    };
+    base::AutoReset<bool> auto_reset(&updating_preferences_, true);
+    StoreLinks();
+    prefs_->SetBoolean(custom_links_initialized_pref_, true);
+  }
+  if (IsInitialized()) {
+    current_links_ = store_.RetrieveLinks();""")
     t=once(t,'          base::FeatureList::IsEnabled(ntp_features::kNtpShortcutsRedesign)',
            '          options.scope == CustomLinksScope::kDesktop &&\n                  base::FeatureList::IsEnabled(ntp_features::kNtpShortcutsRedesign)')
     return once(t,'      current_links_.size() == max_links_) {','      current_links_.size() >= max_links_) {')

@@ -6,8 +6,9 @@ import unittest
 ROOT=Path(__file__).resolve().parents[1]
 S=(ROOT/'android/java/org/chromium/chrome/browser/ui/appmenu/SandiumPagedMenu.java').read_text()
 class MenuConsistency(unittest.TestCase):
- def test_height_independent_of_content_and_screen(self):
-  height=S[S.index('int preferredHeight('):S.index('private void finishPanelMotion')]
+ def test_quick_height_independent_of_content_and_page(self):
+  # All Menu deliberately gets a larger five-row directory envelope.
+  height=S[S.index('// Keep the quick menu and editor envelopes'):S.index('private void finishPanelMotion')]
   for forbidden in ('mBody','mHeading','mAllMenu','mPage','mNativeVisible','measure('):
    self.assertNotIn(forbidden,height)
   self.assertIn('Math.min(available',height)

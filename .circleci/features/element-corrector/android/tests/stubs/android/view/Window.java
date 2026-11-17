@@ -1,1 +1,1 @@
-package android.view;public class Window {public void setGravity(int g){}}
+package android.view;public class Window {public View decor=new View();public Attributes attr=new Attributes();public static class Attributes {public float dimAmount=.32f;}public View getDecorView(){return decor;}public Attributes getAttributes(){return attr;}public void setGravity(int g){}public void setDimAmount(float d){attr.dimAmount=d;}}

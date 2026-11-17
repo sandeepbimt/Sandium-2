@@ -84,6 +84,13 @@ class FullOverlayWiring(unittest.TestCase):
                 'python3 .circleci/scripts/'+name, '# python3 .circleci/scripts/'+name)
             with self.assertRaisesRegex(ValueError,'command'):verify_full_wiring(root)
 
+    def test_video_promo_must_target_restored_core(self):
+        root=self.fixture();self.edit(root,'.circleci/experimental-steps/product-overlay-29-0.sh',
+            'apply-sandium-no-video-promo.py --core "$CORE"',
+            'apply-sandium-no-video-promo.py --core "$SRC"')
+        with self.assertRaisesRegex(ValueError,'Video promo removal must target restored core'):
+            verify_full_wiring(root)
+
     def test_popup_must_target_restored_core(self):
         root=self.fixture();self.edit(root,'.circleci/experimental-steps/product-overlay-29-0.sh',
             'apply-sandium-shields-popup.py "$CORE"',

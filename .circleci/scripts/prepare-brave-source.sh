@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 ROOT="$CIRCLE_WORKING_DIRECTORY"
+# Restore frozen navigation before any checkpoint/source reset can overwrite
+# experimental postimages. Fresh source has no journal and needs no rollback.
+if [ -f "$ROOT/brave-work/src/.sandium-native-navigation-state.json" ]; then
+  python3 "$ROOT/.circleci/scripts/apply-sandium-native-navigation.py" "$ROOT/brave-work/src" --mode off
+fi
 
 # Configure the persistent APT workspace cache before any dependency installation.
 # Reuse restored .deb files and reduce repeated index/network overhead during PPBAS.

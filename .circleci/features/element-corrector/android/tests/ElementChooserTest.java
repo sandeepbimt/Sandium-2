@@ -32,9 +32,17 @@ public class ElementChooserTest {
   EditText color=(EditText)field(controller,"color");Button preview=(Button)field(controller,"preview");Button save=(Button)field(controller,"save");
   color.setText("url(x)");preview.performClick();check(n.previews==0&&color.error!=null);
   color.setText("#1A1A1A");preview.performClick();check(n.previews==1&&n.mode==1&&n.rgb==0x1a1a1a);
+  AlertDialog editor=(AlertDialog)field(controller,"dialog");
+  check(editor.window.decor.alpha==0 && editor.window.attr.dimAmount==0 && !editor.outside);
+  check((Boolean)field(controller,"previewing") && !save.enabled);
+  preview.performClick();check(n.previews==1);
+  ((Runnable)field(controller,"restorePreview")).run();((Runnable)field(controller,"finishPreview")).run();
+  check(editor.window.decor.alpha==1 && editor.window.attr.dimAmount==.32f && editor.outside);
+  check(color.getText().toString().equals("#1A1A1A") && save.enabled);
   RadioGroup properties=(RadioGroup)field(controller,"property");
   for(android.view.View v:properties.children)if(Integer.valueOf(2).equals(v.getTag()))properties.check(v.getId());
   color.setText("#EEEEEE");preview.performClick();check(n.previews==2&&n.mode==2&&n.rgb==0xeeeeee);
+  ((Runnable)field(controller,"restorePreview")).run();((Runnable)field(controller,"finishPreview")).run();
   save.performClick();save.performClick();check(n.saves==1&&!save.enabled);
   SandiumElementColorsUtils.onSaveResult(t,first-1,0);check(active().size()==1);
   SandiumElementColorsUtils.onSaveResult(t,first,0);check(active().isEmpty()&&a.app.callbacks.isEmpty()&&t.contents.observers==0);
@@ -62,6 +70,14 @@ public class ElementChooserTest {
   SandiumElementColorsUtils.start(a,t);SandiumElementColorsUtils.onSelection(t,n.id);controller=active().get(t);
   ((Button)field(controller,"save")).performClick();((Runnable)field(controller,"timeout")).run();
   check(active().isEmpty()&&android.widget.Toast.last==org.chromium.chrome.R.string.sandium_element_rejected);
+  android.animation.ValueAnimator.enabled=false;
+  SandiumElementColorsUtils.start(a,t);SandiumElementColorsUtils.onSelection(t,n.id);controller=active().get(t);
+  ((Button)field(controller,"preview")).performClick();editor=(AlertDialog)field(controller,"dialog");
+  check(editor.window.decor.alpha==0);
+  ((WebContentsObserver)field(controller,"observer")).didStartNavigationInPrimaryMainFrame(new NavigationHandle());
+  check(editor.dismissed && active().isEmpty());
+  ((Runnable)field(controller,"restorePreview")).run();check(active().isEmpty());
+  check(((android.os.Handler)field(controller,"handler")).pending.isEmpty());
   System.out.println(checks+" chooser lifecycle/typed-command assertions passed (Android/JNI APIs stubbed)");
  }
 }

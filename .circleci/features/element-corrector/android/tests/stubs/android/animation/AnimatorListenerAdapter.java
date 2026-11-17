@@ -1,0 +1,1 @@
+package android.animation;public class AnimatorListenerAdapter {public void onAnimationCancel(Animator a){}public void onAnimationEnd(Animator a){}}

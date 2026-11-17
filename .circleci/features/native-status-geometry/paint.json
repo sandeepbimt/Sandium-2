@@ -1,0 +1,14 @@
+{
+  "ui/edge_to_edge/android/java/src/org/chromium/ui/edge_to_edge/layout/EdgeToEdgeBaseLayout.java": [
+    [
+      "    private boolean mEnableExtraEdgeToEdgeLogging;",
+      "    private boolean mEnableExtraEdgeToEdgeLogging;\n    // Sandium native-navigation experiment: status paint only.\n    private int mSandiumTopProtectionHeight;\n    private final Paint mSandiumTopProtectionPaint = new Paint();\n\n    int getSandiumTopProtectionHeightForTesting() {\n        return mSandiumTopProtectionHeight;\n    }\n\n    void setSandiumTopProtectionHeight(int height) {\n        height = Math.max(0, height);\n        if (mSandiumTopProtectionHeight == height) return;\n        mSandiumTopProtectionHeight = height;\n        mSandiumTopProtectionPaint.setShader(height == 0 ? null :\n                new android.graphics.LinearGradient(0, 0, 0, height,\n                        new int[] {0xE6000000, 0x99000000, 0x00000000},\n                        new float[] {0f, 0.67f, 1f}, android.graphics.Shader.TileMode.CLAMP));\n        invalidate();\n    }\n\n    @Override\n    protected void dispatchDraw(Canvas canvas) {\n        super.dispatchDraw(canvas);\n        // Native reserved status area only. No content inset, offset or scrolling ownership.\n        // Match the pinned native light-foreground contrast threshold (3:1).\n        // Do not darken a light status backing while native icons remain dark.\n        if (mSandiumTopProtectionHeight > 0\n                && 1.05 / (Color.luminance(mStatusBarPaint.getColor()) + 0.05) >= 3.0) {\n            canvas.drawRect(mStatusBarRect, mSandiumTopProtectionPaint);\n        }\n    }\n"
+    ]
+  ],
+  "ui/edge_to_edge/android/java/src/org/chromium/ui/edge_to_edge/layout/EdgeToEdgeLayoutCoordinator.java": [
+    [
+      "        mView.setStatusBarInsets(statusBarInsets);",
+      "        mView.setStatusBarInsets(statusBarInsets);\n        // Sandium native-navigation experiment: status paint only.\n        // Use native status insets; never consume, synthesize or resize them.\n        mView.setSandiumTopProtectionHeight(statusBarInsets.top);"
+    ]
+  ]
+}

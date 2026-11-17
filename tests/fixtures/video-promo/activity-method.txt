@@ -1,0 +1,11 @@
+    private void showAdFreeCalloutDialog() {
+        ChromeSharedPreferences.getInstance()
+                .writeBoolean(BravePreferenceKeys.BRAVE_AD_FREE_CALLOUT_DIALOG, false);
+
+        BraveAdFreeCalloutDialogFragment braveAdFreeCalloutDialogFragment =
+                new BraveAdFreeCalloutDialogFragment();
+        braveAdFreeCalloutDialogFragment.show(
+                getSupportFragmentManager(), "BraveAdFreeCalloutDialogFragment");
+    }
+
+    public void setNewTabPageManager(

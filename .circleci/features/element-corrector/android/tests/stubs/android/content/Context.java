@@ -1,1 +1,1 @@
-package android.content; public class Context {public String getString(int i){return "s"+i;}public android.content.res.Resources getResources(){return new android.content.res.Resources();}}
+package android.content; public class Context {public static final String INPUT_METHOD_SERVICE="input";public Object getSystemService(String s){return null;}public String getString(int i){return "s"+i;}public android.content.res.Resources getResources(){return new android.content.res.Resources();}}

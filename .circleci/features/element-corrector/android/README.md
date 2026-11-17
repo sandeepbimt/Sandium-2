@@ -44,3 +44,17 @@ The Shield listener now uses `correctionContext`, avoiding setupViews' existing
 block. The Java test runner compiles the actual injected listener with a matching
 outer context local, alongside the chooser lifecycle assertions. These are local
 Java/stub checks, not a full Chromium Android build.
+
+### Unobstructed temporary preview
+Preview now fades the editor window and its dim amount to zero over 160 ms,
+keeps the page visible for 2 seconds after the fade completes, then restores the
+same editor. Android disabled animations skip both fades. No selected-element
+coordinates or page scroll position are modified. The keyboard is dismissed.
+The native modal window remains attached, with controls disabled, so invisible
+preview taps cannot activate website links. Back/Cancel and navigation/lifecycle
+termination still cancel the selection; pending timers and animators are removed.
+
+Validation: 39 Java lifecycle/typed-command assertions with Android/JNI stubs.
+Android render, actual keyboard behavior, accessibility and device timing remain
+to be validated. The broader 19-test corrector suite has four unavailable native
+fixture errors in this isolated worktree; these are not asserted as passing.

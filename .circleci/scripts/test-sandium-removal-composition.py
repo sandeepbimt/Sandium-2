@@ -85,6 +85,7 @@ with tempfile.TemporaryDirectory() as temporary:
   prune.patch_customize_menu(core);prune.patch_privacy_preferences(core,src);prune.patch_leo_wallet_preferences(core)
   prune.patch_search_engine_preferences(core);prune.patch_main_preferences_base(core);prune.patch_main_preferences(core)
   prune.patch_default_browser_icon(core);prune.patch_removed_origin_ordering(core)
+  load('apply-sandium-no-video-promo').apply(core)
   theme.apply(core);status.apply(src)
   for path,transform in [(src/toolbar.MENU_BUTTON,toolbar.menu_button),(src/toolbar.PHONE,toolbar.phone),(src/toolbar.PREF,toolbar.preference),(core/toolbar.BRAVE,toolbar.brave),(src/toolbar.BASE/'java/res/layout/toolbar_phone.xml',toolbar.layout),(src/toolbar.BASE/'java/res/layout/menu_button.xml',toolbar.menu),(src/toolbar.BASE/'BUILD.gn',toolbar.build),(core/'android/java/org/chromium/base/BraveCommandLineInitUtil.java',toolbar.commandline)]:path.write_text(transform(path.read_text()))
   for path,text in toolbar.resources().items():write(src/toolbar.BASE/path,text.encode())

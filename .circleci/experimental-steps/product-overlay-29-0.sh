@@ -1,9 +1,12 @@
 set -euo pipefail
+python3 .circleci/scripts/apply-sandium-native-navigation.py "$CIRCLE_WORKING_DIRECTORY/brave-work/src" --mode off
 ROOT="$CIRCLE_WORKING_DIRECTORY"
 SRC="$ROOT/brave-work/src"
 CORE="$SRC/brave"
 python3 .circleci/scripts/apply-sandium-ui-prune.py --core "$CORE" --src "$SRC"
 python3 .circleci/scripts/test-sandium-ui-prune.py --core "$CORE" --src "$SRC" --repo-root "$ROOT"
+# Remove the startup promotion, including fragments restored from earlier APKs.
+python3 .circleci/scripts/apply-sandium-no-video-promo.py --core "$CORE"
 # Final identity pass after all functional overlays; source identifiers and legal/service names stay intact.
 python3 .circleci/scripts/apply-sandium-visible-branding.py --core "$CORE" --report "$ROOT/sandium-visible-branding-report.json"
 python3 .circleci/scripts/test-sandium-visible-branding.py --core "$CORE"

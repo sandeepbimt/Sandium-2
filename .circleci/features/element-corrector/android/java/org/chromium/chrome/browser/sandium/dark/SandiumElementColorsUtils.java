@@ -1,6 +1,9 @@
 // Copyright 2026 Sandium Authors. BSD-style license.
 package org.chromium.chrome.browser.sandium.dark;
 
+import android.animation.Animator;
+import android.animation.AnimatorListenerAdapter;
+import android.animation.ValueAnimator;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.Application;
@@ -13,7 +16,9 @@ import android.os.Looper;
 import android.text.InputFilter;
 import android.view.Gravity;
 import android.view.View;
+import android.view.ViewGroup;
 import android.view.Window;
+import android.view.inputmethod.InputMethodManager;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.LinearLayout;
@@ -110,6 +115,20 @@ public final class SandiumElementColorsUtils {
         Button save;
         boolean closed;
         boolean saving;
+        boolean previewing;
+        LinearLayout editorBody;
+        ValueAnimator previewAnimator;
+        float editorDim;
+        final Runnable restorePreview=()->{
+            if(!valid() || dialog==null) {close(true);return;}
+            fadePreview(1f,this.finishPreview);
+        };
+        final Runnable finishPreview=()->{
+            if(!valid() || dialog==null) return;
+            previewing=false;
+            enableEditor(editorBody,true);
+            dialog.setCanceledOnTouchOutside(true);
+        };
         Controller(Activity activity,Tab tab,long request) {
             this.activity=activity;this.tab=tab;this.request=request;contents=tab.getWebContents();
         }
@@ -141,6 +160,7 @@ public final class SandiumElementColorsUtils {
             if (!valid() || saving || dialog!=null) return;
             handler.removeCallbacks(timeout);
             LinearLayout body=new LinearLayout(activity);body.setOrientation(LinearLayout.VERTICAL);
+            editorBody=body;
             body.setPadding(dp(20),dp(12),dp(20),dp(16));
             GradientDrawable background=new GradientDrawable();background.setColor(0xff1a1a1a);
             background.setCornerRadius(dp(16));body.setBackground(background);
@@ -183,8 +203,52 @@ public final class SandiumElementColorsUtils {
             dialog.show();Window window=dialog.getWindow();
             if(window!=null)window.setGravity(Gravity.BOTTOM);
         }
+        void enableEditor(View view,boolean enabled) {
+            view.setEnabled(enabled);
+            if(view instanceof ViewGroup) {
+                ViewGroup group=(ViewGroup)view;
+                for(int i=0;i<group.getChildCount();i++) enableEditor(group.getChildAt(i),enabled);
+            }
+        }
+        void fadePreview(float alpha,Runnable complete) {
+            Window window=dialog.getWindow();
+            if(window==null)return;
+            View decor=window.getDecorView();
+            if(previewAnimator!=null)previewAnimator.cancel();
+            if(!ValueAnimator.areAnimatorsEnabled()) {
+                decor.setAlpha(alpha);window.setDimAmount(editorDim*alpha);complete.run();return;
+            }
+            previewAnimator=ValueAnimator.ofFloat(decor.getAlpha(),alpha);
+            previewAnimator.setDuration(160);
+            previewAnimator.addUpdateListener(animation->{
+                if(closed)return;
+                float value=(Float)animation.getAnimatedValue();
+                decor.setAlpha(value);window.setDimAmount(editorDim*value);
+            });
+            previewAnimator.addListener(new AnimatorListenerAdapter() {
+                boolean cancelled;
+                @Override public void onAnimationCancel(Animator animation){cancelled=true;}
+                @Override public void onAnimationEnd(Animator animation){
+                    if(!cancelled && valid())complete.run();
+                }
+            });
+            previewAnimator.start();
+        }
+        void previewPage() {
+            if(previewing || dialog==null || dialog.getWindow()==null)return;
+            previewing=true;
+            color.clearFocus();
+            InputMethodManager keyboard=(InputMethodManager)activity.getSystemService(Context.INPUT_METHOD_SERVICE);
+            if(keyboard!=null)keyboard.hideSoftInputFromWindow(dialog.getWindow().getDecorView().getWindowToken(),0);
+            editorDim=dialog.getWindow().getAttributes().dimAmount;
+            enableEditor(editorBody,false);
+            dialog.setCanceledOnTouchOutside(false);
+            // Keep the native modal window attached: invisible taps cannot reach the
+            // website, change the selected element, or trigger links during preview.
+            fadePreview(0f,()->handler.postDelayed(restorePreview,2000));
+        }
         void submit(boolean commit) {
-            if (!valid() || saving) {if(!valid())close(true);return;}
+            if (!valid() || saving || previewing) {if(!valid())close(true);return;}
             String hex=color.getText().toString().trim();
             if(!hex.matches("#[0-9a-fA-F]{6}")) {color.setError(activity.getString(R.string.sandium_element_hex));return;}
             int rgb=Integer.parseInt(hex.substring(1),16);
@@ -195,6 +259,8 @@ public final class SandiumElementColorsUtils {
             if(!commit) {
                 if(!SandiumElementColorsUtilsJni.get().preview(tab,request,mode,rgb)) {
                     message(R.string.sandium_element_rejected);close(true);
+                } else {
+                    previewPage();
                 }
                 return;
             }
@@ -217,6 +283,9 @@ public final class SandiumElementColorsUtils {
             if(closed)return;closed=true;
             if(ACTIVE.get(tab)==this)ACTIVE.remove(tab);
             handler.removeCallbacks(timeout);
+            handler.removeCallbacks(restorePreview);
+            handler.removeCallbacks(finishPreview);
+            if(previewAnimator!=null){previewAnimator.cancel();previewAnimator=null;}
             if(observer!=null){WebContentsObserver oldObserver=observer;observer=null;oldObserver.observe(null);}
             activity.getApplication().unregisterActivityLifecycleCallbacks(this);
             if(resetDialog!=null){AlertDialog value=resetDialog;resetDialog=null;value.dismiss();}

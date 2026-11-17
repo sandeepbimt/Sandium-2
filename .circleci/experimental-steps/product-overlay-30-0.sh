@@ -1,4 +1,5 @@
 set -euo pipefail
+python3 .circleci/scripts/apply-sandium-native-navigation.py "$CIRCLE_WORKING_DIRECTORY/brave-work/src" --mode off
 ROOT="$CIRCLE_WORKING_DIRECTORY"
 SRC="$ROOT/brave-work/src"
 CORE="$SRC/brave"
@@ -26,6 +27,8 @@ python3 .circleci/scripts/apply-sandium-homepage-combined.py "$SRC"
 python3 .circleci/scripts/apply-sandium-homepage-combined.py "$SRC" --verify-only
 python3 .circleci/scripts/apply-sandium-capture-coherence.py "$SRC"
 python3 .circleci/scripts/apply-sandium-capture-coherence.py "$SRC" --verify-only
+python3 .circleci/scripts/apply-sandium-native-navigation.py "$SRC" --mode configured
+python3 .circleci/scripts/apply-sandium-native-navigation.py "$SRC" --mode configured --verify-only
 
 # Run every independent audit before failing, so one build reports all graph defects.
 python3 .circleci/scripts/precheck-graph.py --audits-only
