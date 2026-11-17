@@ -17,6 +17,25 @@ class Tests(unittest.TestCase):
   java=m.java(fixture(m.JAVA));extra=java[java.index('// '+m.MARK):]
   self.assertNotIn('getUrl',extra);self.assertNotIn('getTitle',extra);self.assertNotIn('String ',extra)
   self.assertIn('Profile.fromWebContents',extra);self.assertIn('profile.isOffTheRecord()',extra)
+ def test_component_api_without_private_content_accessor(self):
+  # Pinned content_client.h exposes GetContentClient only to CONTENT_IMPLEMENTATION.
+  # Exercise our real forwarding bodies in one TU, and the caller in another.
+  header=m.public_h('#include <stddef.h>\n  virtual bool OverrideWebPreferencesAfterNavigation(')
+  decl=header[header.index('  // '+m.MARK):header.index('  virtual bool OverrideWebPreferencesAfterNavigation(')]
+  source=m.public_cc('#include "content/public/browser/content_browser_client.h"\nbool ContentBrowserClient::OverrideWebPreferencesAfterNavigation(')
+  body=source[source.index('bool ContentBrowserClient::SandiumDiagnosticsEnabled'):source.index('bool ContentBrowserClient::OverrideWebPreferencesAfterNavigation(')]
+  with tempfile.TemporaryDirectory() as d:
+   d=P(d)
+   (d/'api.h').write_text('#pragma once\n#include <cstdint>\n#include <vector>\nstruct WebContents {};\nstruct ContentBrowserClient {\n'+decl+'};\n')
+   (d/'impl.cc').write_text('#include "api.h"\nstruct ContentClient { ContentBrowserClient* browser(); };\nContentClient* GetContentClient();\n'+body+"\nContentBrowserClient client; ContentClient content; ContentBrowserClient* ContentClient::browser(){return &client;} ContentClient* GetContentClient(){return &content;}\n")
+   (d/'caller.cc').write_text('#include "api.h"\n#include <cassert>\nint main(){ WebContents w; assert(!ContentBrowserClient::SandiumDiagnosticsEnabled(&w)); assert(ContentBrowserClient::SandiumDiagnosticsEpoch(&w)==0); ContentBrowserClient::RecordSandiumDiagnostic(&w,27,2,3,{1}); ContentBrowserClient::RecordSandiumDiagnosticForEpoch(&w,1,27,2,3,{1}); }\n')
+   subprocess.run(['g++','-std=c++20','-Wall','-Wextra','-Werror',str(d/'impl.cc'),str(d/'caller.cc'),'-o',str(d/'t')],check=True)
+   subprocess.run([str(d/'t')],check=True)
+  for path in ['apply-renderer-metrics.py','ad/apply.py','ad/domain.py']:
+   source=(HERE.parent/path).read_text()
+   self.assertNotIn('GetContentClient',source)
+   self.assertNotIn('CONTENT_IMPLEMENTATION',source)
+   self.assertNotIn('ForTesting',source)
  def test_browser_gate_actual_bodies(self):
   code=inserted(m.chrome_cc,'bool ChromeContentBrowserClient::OverrideWebPreferencesAfterNavigation(')
   with tempfile.TemporaryDirectory() as d:

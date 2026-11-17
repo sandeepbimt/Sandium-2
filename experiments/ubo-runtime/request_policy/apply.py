@@ -28,23 +28,26 @@ def plan(src):
     client='extensions/browser/api/extensions_api_client.h'
     edit(client,'#include "base/memory/raw_ptr.h"','#include "base/memory/raw_ptr.h"\n#include "base/values.h"')
     anchor='  // Notifies that an extension failed to act on a network request because the'
-    method='''  virtual bool SupportsPrivateWebRequestPolicy(const ExtensionId&) const { return false; }
+    method='''  virtual bool SupportsPrivateWebRequestPolicy(const ExtensionId&) const;
 
   virtual bool ReportPrivateBlockedResource(const ExtensionId&,
-      content::WebContents*, const GURL&) const { return false; }
+      content::WebContents*, const GURL&) const;
 
   virtual base::DictValue GetPrivateFilterLists(content::BrowserContext*,
-      const ExtensionId&) const { return {}; }
+      const ExtensionId&) const;
 
   // Embedder-only augmentation after permission filtering, per recipient.
   // Default is no-op; embedders must authorize identity and context themselves.
   virtual void AugmentWebRequestEventForExtension(
       content::BrowserContext* context, const WebRequestInfo& request,
       const ExtensionId& extension_id, bool crosses_incognito,
-      base::DictValue& details) const {}
+      base::DictValue& details) const;
 
 '''
     edit(client,anchor,method+anchor)
+    edit('extensions/browser/api/extensions_api_client.cc',
+         '}  // namespace extensions',
+         (HERE/'client_defaults.cc').read_text() + '\n}  // namespace extensions')
     header='extensions/browser/api/web_request/extension_web_request_event_router.h'
     a='''  void DispatchEventToListeners(
       content::BrowserContext* browser_context,

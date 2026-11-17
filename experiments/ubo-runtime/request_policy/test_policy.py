@@ -27,6 +27,7 @@ class Tests(unittest.TestCase):
   self.assertIn('&RuntimeState::InvalidateLists',bridge)
  def test_exact_native_apply_reset_and_both_dispatch_modes(self):
   inputs={
+   'extensions/browser/api/extensions_api_client.cc':PIN/'extensions/browser/api/extensions_api_client.cc',
    'extensions/browser/api/extensions_api_client.h':Path('/tmp/ubo_extensions_api_client.h'),
    'extensions/browser/api/web_request/extension_web_request_event_router.h':PIN/'extensions/browser/api/web_request/extension_web_request_event_router.h',
    'extensions/browser/api/web_request/extension_web_request_event_router.cc':Path('/tmp/ubo_extension_web_request_event_router.cc')}
@@ -46,6 +47,11 @@ class Tests(unittest.TestCase):
    subprocess.run(['git','apply','--include=browser/extensions/BUILD.gn','--whitespace=nowarn','-'],input=(HERE.parent/'brave-android-extensions.patch').read_bytes(),cwd=src/'brave',check=True,capture_output=True)
    baseline={str(p.relative_to(src)):p.read_bytes() for p in src.rglob('*') if p.is_file()}
    m.apply(src);first={str(p.relative_to(src)):p.read_bytes() for p in src.rglob('*') if p.is_file()}
+   header=(src/'extensions/browser/api/extensions_api_client.h').read_text()
+   defaults=(src/'extensions/browser/api/extensions_api_client.cc').read_text()
+   for name in ['SupportsPrivateWebRequestPolicy', 'ReportPrivateBlockedResource', 'GetPrivateFilterLists', 'AugmentWebRequestEventForExtension']:
+    self.assertRegex(header, r'virtual [^;{]+\b'+name+r'\([^;{]+;')
+    self.assertEqual(defaults.count('ExtensionsAPIClient::'+name+'('),1)
    router=(src/'extensions/browser/api/web_request/extension_web_request_event_router.cc').read_text()
    self.assertEqual(router.count('ExtensionsAPIClient::Get()->AugmentWebRequestEventForExtension('),2)
    self.assertIn('browser_context, *request, listener->id.extension_id,',router)
