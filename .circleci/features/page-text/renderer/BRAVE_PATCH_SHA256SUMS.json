@@ -1,0 +1,4 @@
+{
+  "content-browser-renderer_host-render_frame_host_impl.cc.patch": "4ad43309e0b86898090057b5af7112f7f56c6f4d16aa02d0107e43980dc1c5b1",
+  "third_party-blink-renderer-core-dom-document.cc.patch": "dc8f5e11cfef46a125b23bdb652179e1efeb92da234159e33be340f3d5a2fca3"
+}

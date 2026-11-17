@@ -101,7 +101,7 @@ print('PASS: numbered order, bounded row/panel geometry models, native ordering 
 
 assert 'GradientDrawable.Orientation.TL_BR' in java
 assert 'frost.setCornerRadius(dp(12))' in java
-assert 'frost.setStroke(dp(1), 0x26ffffff)' in java
+assert 'frost.setStroke(dp(1), 0x48ffffff)' in java
 assert 'ImageView.ScaleType.FIT_CENTER' in java
 assert 'icon.setPadding(dp(6),dp(6),dp(6),dp(6))' in java
 assert 'content.addView(iconBox, new LinearLayout.LayoutParams(dp(44), dp(44)))' in java
@@ -123,7 +123,7 @@ assert displayed(20)[-1] == [5,4,3,2,1]
 assert 'shortcutsParams.bottomMargin = Math.round(16 *' in m.layout((audit/layout_path).read_text())
 print('PASS: bottom-anchored row growth, empty-card removal, stable footer and partial top row')
 
-assert 'iconBox.setElevation(dp(2))' in java
+assert 'iconBox.setElevation(dp(4))' in java
 assert 'title.setShadowLayer(dp(2), 0, dp(1), 0x80000000)' in java
 assert 'UrlUtilities.getDomainAndRegistry(url.getSpec(), true)' in java
 assert 'if (savedTitle != null && !savedTitle.trim().isEmpty()) return savedTitle;' in java

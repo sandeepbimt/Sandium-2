@@ -12,7 +12,7 @@ No shipping pipeline invokes it. Brave blocking remains enabled and #1292 is unc
 * Upstream five-commit patch SHA256:
   `5e6fb6d65abd7093e004df3e0faf59fc5e5bebb3f54b87a1ca2cac450091f787`.
 * Adapted patch SHA256:
-  `aaa98373cb6614700aac99fed04806987028bbeb67b165e73a5e9be4f3bf72b4`.
+  `5add076c9c5daa6a9bfba4f76ffa0bc3ed690a46a1732f11c8220297fb263a93`.
 
 ## Port decisions
 

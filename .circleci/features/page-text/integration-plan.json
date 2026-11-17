@@ -1,0 +1,45 @@
+{
+  "chromium_pin": "d331de35ca8ab1358c7a17e4bd41627d55eaef51",
+  "brave_pin": "44a84b1f89d9a35287289d6a3d493e362f5a5123",
+  "chromium_restore": [
+    "chrome/browser/android/web_contents_theme_client.cc",
+    "chrome/browser/android/web_contents_theme_client.h",
+    "chrome/browser/chrome_content_browser_client.cc",
+    "chrome/browser/chrome_content_browser_client.h",
+    "chrome/browser/ui/android/night_mode/BUILD.gn",
+    "chrome/browser/ui/android/night_mode/java/src/org/chromium/chrome/browser/night_mode/WebContentsThemeClient.java",
+    "content/browser/renderer_host/navigation_controller_impl.cc",
+    "content/browser/renderer_host/navigation_entry_impl.cc",
+    "content/browser/renderer_host/navigation_request.cc",
+    "content/browser/renderer_host/page_impl.h",
+    "content/browser/renderer_host/render_frame_host_impl.cc",
+    "content/public/browser/content_browser_client.cc",
+    "content/public/browser/content_browser_client.h",
+    "content/renderer/render_frame_impl.cc",
+    "third_party/blink/public/mojom/navigation/navigation_params.mojom",
+    "third_party/blink/public/web/web_navigation_params.h",
+    "third_party/blink/renderer/build/scripts/templates/settings_base.h.tmpl",
+    "third_party/blink/renderer/core/dom/document.cc",
+    "third_party/blink/renderer/core/frame/settings.json5",
+    "third_party/blink/renderer/core/loader/frame_loader.cc"
+  ],
+  "core_restore": [
+    "android/brave_java_sources.gni",
+    "android/java/org/chromium/chrome/browser/settings/AppearancePreferences.java",
+    "browser/brave_profile_prefs.cc"
+  ],
+  "generated_overwrite": [
+    "chrome/browser/ui/android/night_mode/java/src/org/chromium/chrome/browser/sandium/text/PageTextPolicy.java",
+    "chrome/browser/ui/android/night_mode/java/src/org/chromium/chrome/browser/sandium/text/PageTextStylesheet.java",
+    "chrome/browser/ui/android/night_mode/java/src/org/chromium/chrome/browser/sandium/text/SandiumPageText.java",
+    "brave/android/java/org/chromium/chrome/browser/sandium/text/SandiumPageTextUi.java"
+  ],
+  "chromium_restore_patches": {
+    "content/browser/renderer_host/navigation_controller_impl.cc": "patches/content-browser-renderer_host-navigation_controller_impl.cc.patch",
+    "content/browser/renderer_host/navigation_request.cc": "patches/content-browser-renderer_host-navigation_request.cc.patch",
+    "content/browser/renderer_host/render_frame_host_impl.cc": "patches/content-browser-renderer_host-render_frame_host_impl.cc.patch",
+    "content/public/browser/content_browser_client.h": "patches/content-public-browser-content_browser_client.h.patch",
+    "content/renderer/render_frame_impl.cc": "patches/content-renderer-render_frame_impl.cc.patch",
+    "third_party/blink/renderer/core/dom/document.cc": "patches/third_party-blink-renderer-core-dom-document.cc.patch"
+  }
+}

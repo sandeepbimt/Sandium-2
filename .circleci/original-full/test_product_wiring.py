@@ -10,7 +10,7 @@ class ProductWiring(unittest.TestCase):
   shutil.copytree(ROOT/'.circleci/experimental-steps',root/'.circleci/experimental-steps')
   for names in w.REQUIRED.values():
    for name in names:
-    p=root/('.circleci/tests' if name=='test_status_underlap_patch.py' else '.circleci/scripts')/name;p.parent.mkdir(parents=True,exist_ok=True);p.touch()
+    p=root/name if name.startswith('.circleci/features/page-text/') else root/('.circleci/tests' if name=='test_status_underlap_patch.py' else '.circleci/scripts')/name;p.parent.mkdir(parents=True,exist_ok=True);p.touch()
   return root
  def test_active_original_config_and_all_arguments(self):
   self.assertEqual(['brave-android-staged-build','renew-fixed-reference'],w.verify_full_wiring(self.fixture()))

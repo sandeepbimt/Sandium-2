@@ -1,0 +1,52 @@
+[
+  [
+    "chrome/android/java/src/org/chromium/chrome/browser/ui/system/StatusBarColorController.java",
+    "                    @Override\n                    public void onDidChangeThemeColor(Tab tab, @ColorInt int color) {",
+    "                    @Override\n                    public void onBackgroundColorChanged(Tab tab, @ColorInt int color) {\n                        // SANDIUM_OPAQUE_STATUS_PAINT: actual renderer/native-page background.\n                        // Tab updates its background before notifying this observer.\n                        if (tab == mCurrentTab) updateStatusBarColor();\n                    }\n\n                    @Override\n                    public void onDidChangeThemeColor(Tab tab, @ColorInt int color) {"
+  ],
+  [
+    "chrome/android/java/src/org/chromium/chrome/browser/ui/system/StatusBarColorController.java",
+    "                        mShouldUpdateStatusBarColorForNtp = newShouldUpdateStatusBarColorForNtp;",
+    "                        mShouldUpdateStatusBarColorForNtp = newShouldUpdateStatusBarColorForNtp;\n                        updateStatusBarColor();"
+  ],
+  [
+    "chrome/android/java/src/org/chromium/chrome/browser/ui/system/StatusBarColorController.java",
+    "                mForceLightIconColorForNtp && isStandardNtp() && !mIsOmniboxFocused);",
+    "                /* forceLightIconColor= */ false);"
+  ],
+  [
+    "chrome/android/java/src/org/chromium/chrome/browser/ui/system/StatusBarColorController.java",
+    "        if (baseStatusBarColor != UNDEFINED_STATUS_BAR_COLOR) {\n            return baseStatusBarColor;\n        }\n",
+    "        if (baseStatusBarColor != UNDEFINED_STATUS_BAR_COLOR) {\n            return baseStatusBarColor;\n        }\n\n        // SANDIUM_OPAQUE_STATUS_PAINT: match the actual page background, not its\n        // optional theme-color or a screenshot sample. Native panels/omnibox,\n        // tablet header and Hub retain their native surface/provider policies.\n        boolean sandiumPageSurface = !mIsTablet && !mIsOmniboxFocused\n                && (mLayoutStateProvider == null\n                        || mLayoutStateProvider.isLayoutVisible(LayoutType.BROWSING));\n        if (sandiumPageSurface) {\n            return EdgeToEdgeSystemBarColorHelper.getSandiumOpaqueStatusColor(\n                    mCurrentTab == null ? Color.TRANSPARENT : mCurrentTab.getBackgroundColor());\n        }\n"
+  ],
+  [
+    "chrome/android/java/src/org/chromium/chrome/browser/ui/system/StatusBarColorController.java",
+    "            boolean forceLightIconColor) {\n        Window window = activity.getWindow();",
+    "            boolean forceLightIconColor) {\n        color = EdgeToEdgeSystemBarColorHelper.getSandiumOpaqueStatusColor(color);\n        Window window = activity.getWindow();"
+  ],
+  [
+    "ui/edge_to_edge/android/java/src/org/chromium/ui/edge_to_edge/EdgeToEdgeSystemBarColorHelper.java",
+    "    private void updateStatusBarColor() {",
+    "    // SANDIUM_OPAQUE_STATUS_PAINT: visible backing is always opaque. Preserve\n    // actual light pages; an unset/transparent background uses a dark startup\n    // surface until the renderer/native page reports its real background.\n    public static int getSandiumOpaqueStatusColor(int color) {\n        int alpha = Color.alpha(color);\n        if (alpha == 255) return color;\n        int inverse = 255 - alpha;\n        int red = (Color.red(color) * alpha + 18 * inverse + 127) / 255;\n        int green = (Color.green(color) * alpha + 18 * inverse + 127) / 255;\n        int blue = (Color.blue(color) * alpha + 18 * inverse + 127) / 255;\n        return Color.rgb(red, green, blue);\n    }\n\n    private void updateStatusBarColor() {"
+  ],
+  [
+    "ui/edge_to_edge/android/java/src/org/chromium/ui/edge_to_edge/EdgeToEdgeSystemBarColorHelper.java",
+    "        int windowStatusBarColor = mStatusBarColor;",
+    "        int effectiveColor = getSandiumOpaqueStatusColor(mStatusBarColor);\n        int windowStatusBarColor = effectiveColor;"
+  ],
+  [
+    "ui/edge_to_edge/android/java/src/org/chromium/ui/edge_to_edge/EdgeToEdgeSystemBarColorHelper.java",
+    "                delegateHelper.setStatusBarColor(mStatusBarColor);",
+    "                // Native Android E2E uses a transparent system window only\n                // because this delegate paints the opaque reserved status area.\n                delegateHelper.setStatusBarColor(effectiveColor);"
+  ],
+  [
+    "ui/edge_to_edge/android/java/src/org/chromium/ui/edge_to_edge/EdgeToEdgeSystemBarColorHelper.java",
+    "            } else if (mCanSetTransparentStatusBarWithoutDelegate) {\n                windowStatusBarColor = Color.TRANSPARENT;\n            }",
+    "            }\n            // Without a painting delegate, keep the system backing opaque."
+  ],
+  [
+    "ui/edge_to_edge/android/java/src/org/chromium/ui/edge_to_edge/EdgeToEdgeSystemBarColorHelper.java",
+    "            updateStatusBarIconColor(mWindow.getDecorView(), mStatusBarColor);",
+    "            updateStatusBarIconColor(mWindow.getDecorView(), effectiveColor);"
+  ]
+]

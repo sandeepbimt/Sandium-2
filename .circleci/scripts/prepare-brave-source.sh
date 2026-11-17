@@ -1,13 +1,23 @@
 #!/usr/bin/env bash
 set -euo pipefail
 ROOT="$CIRCLE_WORKING_DIRECTORY"
+# Reverse layered ownership before any vanilla/EXT0 reset changes postimages.
+# Absence is safe on initial bootstrap; unowned edits fail closed in each reset.
+if [ -d "$ROOT/brave-work/src/brave" ]; then
+  python3 "$ROOT/experiments/ubo-runtime/request_policy/apply.py" --src "$ROOT/brave-work/src" --reset
+  python3 "$ROOT/experiments/ubo-runtime/routing/apply_startup.py" --core "$ROOT/brave-work/src/brave" --reset
+  python3 "$ROOT/experiments/ubo-runtime/routing/apply.py" --core "$ROOT/brave-work/src/brave" --reset
+  python3 "$ROOT/experiments/ubo-runtime/shields_bridge/apply.py" --core "$ROOT/brave-work/src/brave" --reset
+  python3 "$ROOT/experiments/ubo-runtime/loader/apply.py" --src "$ROOT/brave-work/src" --reset
+fi
 # Restore frozen navigation before any checkpoint/source reset can overwrite
 # experimental postimages. Fresh source has no journal and needs no rollback.
 if [ -f "$ROOT/brave-work/src/.sandium-native-navigation-state.json" ]; then
   python3 "$ROOT/.circleci/scripts/apply-sandium-native-navigation.py" "$ROOT/brave-work/src" --mode off
 fi
+python3 "$ROOT/.circleci/scripts/apply-sandium-navigation-diagnostics.py" "$ROOT/brave-work/src" --reset-native-probes
 
-# EXT0 source boundary: scoped reset before any standard reset/patch replays.
+# Reset isolated extension source after all layered runtime overlays.
 if [ -e "$ROOT/brave-work/src/.git" ] && [ -e "$ROOT/brave-work/src/brave/.git" ]; then
   python3 "$ROOT/experiments/ubo-runtime/source.py" --core "$ROOT/brave-work/src/brave" --src "$ROOT/brave-work/src" --mode off
 fi

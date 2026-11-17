@@ -1,5 +1,6 @@
 set -euo pipefail
 python3 .circleci/scripts/apply-sandium-native-navigation.py "$CIRCLE_WORKING_DIRECTORY/brave-work/src" --mode off
+python3 .circleci/scripts/apply-sandium-navigation-diagnostics.py "$CIRCLE_WORKING_DIRECTORY/brave-work/src" --reset-native-probes
 ROOT="$CIRCLE_WORKING_DIRECTORY"
 SRC="$ROOT/brave-work/src"
 CORE="$SRC/brave"
@@ -15,9 +16,9 @@ python3 .circleci/scripts/test-sandium-visible-branding.py --core "$CORE"
 python3 .circleci/scripts/apply-sandium-native-theme.py "$CORE"
 python3 .circleci/scripts/test-sandium-native-theme.py
 
-# Bounded Android 16 portrait top/bottom-toolbar web-underlap trial; no frost.
-python3 .circleci/scripts/apply-sandium-scroll-status-bar.py "$SRC"
-python3 .circleci/tests/test_status_underlap_patch.py
+# Native status inset owner: no scrolling spacer or transparent web underlap.
+python3 .circleci/scripts/apply-sandium-native-insets.py "$SRC"
+python3 .circleci/scripts/apply-sandium-native-insets.py "$SRC" --verify-only
 
 # Selected grouped site popup; keep underlying Shields policies and handlers.
 python3 .circleci/scripts/apply-sandium-shields-popup.py "$CORE"

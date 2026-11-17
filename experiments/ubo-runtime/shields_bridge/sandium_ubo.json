@@ -1,0 +1,161 @@
+[
+  {
+    "namespace": "sandiumUbo",
+    "description": "Private fixed-identity Sandium component observation bridge.",
+    "compiler_options": {
+      "implemented_in": "brave/browser/extensions/api/sandium_ubo_api.h"
+    },
+    "functions": [
+      {
+        "name": "getSettings",
+        "type": "function",
+        "parameters": [
+          {
+            "name": "url",
+            "type": "string"
+          }
+        ],
+        "returns_async": {
+          "name": "callback",
+          "parameters": [
+            {
+              "name": "settings",
+              "type": "object",
+              "properties": {
+                "protocol": {
+                  "type": "integer"
+                },
+                "shieldsEnabled": {
+                  "type": "boolean"
+                },
+                "adControl": {
+                  "type": "string"
+                },
+                "cosmeticControl": {
+                  "type": "string"
+                },
+                "engineCutover": {
+                  "type": "boolean"
+                },
+                "startupAborted": {
+                  "type": "boolean"
+                },
+                "nativeFallbackComplete": {
+                  "type": "boolean"
+                },
+                "restartRequired": {
+                  "type": "boolean"
+                }
+              }
+            }
+          ]
+        }
+      },
+      {
+        "name": "reportReady",
+        "type": "function",
+        "parameters": [
+          {
+            "name": "protocol",
+            "type": "integer"
+          },
+          {
+            "name": "phase",
+            "type": "string"
+          }
+        ],
+        "returns_async": {
+          "name": "callback",
+          "parameters": [
+            {
+              "name": "acknowledged",
+              "type": "boolean"
+            }
+          ]
+        }
+      },
+      {
+        "name": "getSettingsSnapshot",
+        "type": "function",
+        "parameters": [],
+        "returns_async": {
+          "name": "callback",
+          "parameters": [
+            {
+              "name": "snapshot",
+              "type": "object",
+              "additionalProperties": {
+                "type": "any"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "name": "acknowledgeSettings",
+        "type": "function",
+        "parameters": [
+          {
+            "name": "generation",
+            "type": "integer"
+          },
+          {
+            "name": "customFiltersSha256",
+            "type": "string"
+          }
+        ],
+        "returns_async": {
+          "name": "callback",
+          "parameters": [
+            {
+              "name": "acknowledged",
+              "type": "boolean"
+            }
+          ]
+        }
+      },
+      {
+        "name": "getTabPolicy",
+        "type": "function",
+        "parameters": [
+          {
+            "name": "tabId",
+            "type": "integer"
+          },
+          {
+            "name": "frameId",
+            "type": "integer"
+          },
+          {
+            "name": "expectedUrl",
+            "type": "string"
+          }
+        ],
+        "returns_async": {
+          "name": "callback",
+          "parameters": [
+            {
+              "name": "policy",
+              "type": "object",
+              "additionalProperties": {
+                "type": "any"
+              }
+            }
+          ]
+        }
+      }
+    ],
+    "events": [
+      {
+        "name": "onSettingsChanged",
+        "type": "function",
+        "parameters": [
+          {
+            "name": "generation",
+            "type": "integer"
+          }
+        ]
+      }
+    ]
+  }
+]

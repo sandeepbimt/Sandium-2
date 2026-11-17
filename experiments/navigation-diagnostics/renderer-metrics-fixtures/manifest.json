@@ -1,0 +1,8 @@
+{
+  "chromium_revision": "d331de35ca8ab1358c7a17e4bd41627d55eaef51",
+  "files": {
+    "metrics_web_contents_observer.cc": "6a86bc458a942c6ce405cb230fe363d2f343109552d477b154f8ad9e6ea1f8c2",
+    "page_load_tracker.h": "8cf0235788204211bca8d66379ebad5308793ff60cffe00918c7c42e6e8e5698",
+    "page_load_metrics.mojom": "1daba3a72cb1cc192ce8069731298e7a4e0dd8b340c6e86eda4b33b6610893df"
+  }
+}

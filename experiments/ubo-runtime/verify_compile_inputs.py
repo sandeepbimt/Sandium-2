@@ -29,6 +29,20 @@ def require_response(value):
  if flags not in (['ENABLE_EXTENSIONS_CORE=true'],['ENABLE_EXTENSIONS_CORE=1']):
   raise ValueError('EXT0 generator action does not request enabled extension core: '+repr(flags))
 
+def require_schema_sources(value):
+ target = '//extensions/common/api:generated_api_types'
+ if not isinstance(value,dict) or set(value)!={target}:
+  raise ValueError('Unexpected generated API target')
+ properties=value[target]
+ if not isinstance(properties,dict) or set(properties)!={'sources'}:
+  raise ValueError('Unexpected generated API source properties')
+ sources=properties['sources']
+ if not isinstance(sources,list) or not all(isinstance(x,str) for x in sources):
+  raise ValueError('Unexpected generated API sources')
+ for suffix in ('/gen/extensions/common/api/scripts_internal.h','/gen/extensions/common/api/scripts_internal.cc'):
+  if sum(x.endswith(suffix) for x in sources)!=1:
+   raise ValueError('Missing/duplicate scripts_internal generated type: '+suffix)
+
 def inspect(src, require_generated=False):
  core=src/'brave';out=src/'out/android_Release_arm64'
  p=core/SHIM;data=p.read_bytes()
@@ -47,6 +61,12 @@ def inspect(src, require_generated=False):
   print('EXT0_BUILDFLAG_RESPONSE_CONTENTS='+r.stdout,flush=True)
   if r.returncode:raise ValueError(r.stderr)
   require_response(json.loads(r.stdout))
+  # Pinned json_schema_api.gni generated_types exposes BOTH generated .cc/.h
+  # as static_library sources through get_target_outputs(schema_generator).
+  r=subprocess.run([str(src/'buildtools/linux64/gn'),'desc',str(out),'//extensions/common/api:generated_api_types','sources','--format=json'],cwd=src,env=env,text=True,capture_output=True)
+  if r.returncode:raise ValueError(r.stderr)
+  require_schema_sources(json.loads(r.stdout))
+  print('EXT0_SCRIPTS_INTERNAL_TYPES=DECLARED_IN_GENERATED_API_TYPES',flush=True)
  print('EXT0_COMPILE_INPUT_GATE=PASS '+('generated' if require_generated else 'source-and-action')+'; runtime not validated',flush=True)
 if __name__=='__main__':
  p=argparse.ArgumentParser();p.add_argument('--src',type=Path,required=True);p.add_argument('--require-generated',action='store_true');a=p.parse_args();inspect(a.src.resolve(),a.require_generated)

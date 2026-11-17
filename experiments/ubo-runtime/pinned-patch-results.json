@@ -70,5 +70,11 @@
     "path": "extensions/browser/BUILD.gn",
     "pass": true,
     "error": ""
+  },
+  {
+    "patch": "extensions-common-api-schema.gni.patch",
+    "path": "extensions/common/api/schema.gni",
+    "pass": true,
+    "error": ""
   }
 ]

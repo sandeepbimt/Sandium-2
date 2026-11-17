@@ -11,6 +11,7 @@ CHROMIUM_PIN = 'd331de35ca8ab1358c7a17e4bd41627d55eaef51'
 PACKAGE = 'org/chromium/chrome/browser/ui/appmenu/'
 INTERNAL = 'chrome/browser/ui/android/appmenu/internal/'
 PUBLIC = 'chrome/browser/ui/android/appmenu/'
+CUSTOMIZE_SETTINGS = 'browser/customize_menu/android/java/src/org/chromium/brave/browser/customize_menu/settings/BraveCustomizeMenuPreferenceFragment.java'
 CUSTOMIZE = 'browser/customize_menu/android/java/src/org/chromium/brave/browser/customize_menu/CustomizeBraveMenu.java'
 
 
@@ -87,12 +88,33 @@ def customize(text):
                 continue;
             }
             // Skip current item if it matches the customize menu id or settings menu id.''')
-    return once(text, '            if (!isVisible(resources, menuItemId)) {', '''            org.chromium.chrome.browser.ui.appmenu.SandiumMenuMetadata.record(
+    text = once(text, '            if (!isVisible(resources, menuItemId)) {', '''            org.chromium.chrome.browser.ui.appmenu.SandiumMenuMetadata.record(
                     item.model, isVisible(resources, menuItemId));
             // Preserve product restrictions; only user-hidden shortcuts enter the phone editor.
             if (isRemovedBySandium(resources, menuItemId)
                     || (resources.getConfiguration().smallestScreenWidthDp >= 600
                             && !isVisible(resources, menuItemId))) {''')
+
+    return once(text, '        return ChromeSharedPreferences.getInstance()\n                .readBoolean(getFormattedSharedPreferenceMenuItemName(resourceName), true);',
+        '        return new org.chromium.chrome.browser.ui.appmenu.SandiumMenuPreferences(\n'
+        '                org.chromium.base.ContextUtils.getApplicationContext()).isVisible(resourceName,\n'
+        '                ChromeSharedPreferences.getInstance().readBoolean(\n'
+        '                        getFormattedSharedPreferenceMenuItemName(resourceName), true));')
+
+
+def customize_settings(text):
+    text = text.replace("import org.chromium.chrome.browser.preferences.ChromeSharedPreferences;\n", "")
+    text = once(text, '        preference.setChecked(menuItem.checked);',
+        '        // SANDIUM_MENU_CANONICAL_STORE: no second Preference-owned store.\n'
+        '        preference.setPersistent(false);\n'
+        '        preference.getExtras().putString("sandium.menu.resource", resourceName);\n'
+        '        preference.setChecked(CustomizeBraveMenu.isVisible(getResources(), menuItem.id));')
+    return once(text,
+        '        ChromeSharedPreferences.getInstance().writeBoolean(preference.getKey(), (Boolean) newValue);\n        return true;',
+        '        String resourceName = preference.getExtras().getString("sandium.menu.resource");\n'
+        '        if (resourceName == null) return false;\n'
+        '        return new org.chromium.chrome.browser.ui.appmenu.SandiumMenuPreferences(\n'
+        '                requireContext()).setVisible(resourceName, (Boolean) newValue);')
 
 
 def activity(text):
@@ -142,7 +164,17 @@ def footer(text):
     private AppMenuHandler mAppMenuHandler;''')
 
 
+def remove_internal_store(text):
+    # Checkpoints may retain the previous registration; each class has one owner.
+    for name in ['SandiumMenuState', 'SandiumMenuPreferences']:
+        text = text.replace('    "java/src/' + PACKAGE + name + '.java",\n', '')
+    return text
+
+
 def register(text, names):
+    # Normalize partial registrations from older checkpoints before inserting the block.
+    for name in names:
+        text = text.replace('    \"java/src/' + PACKAGE + name + '.java\",\n', '')
     anchor = '  sources = [\n'
     entries = ''.join('    "java/src/' + PACKAGE + name + '.java",\n' for name in names)
     start = text.index('android_library("java") {')
@@ -171,10 +203,11 @@ def apply(src, repo, verify_pin=True):
         src / INTERNAL / ('java/src/' + PACKAGE + 'AppMenu.java'): appmenu,
         src / INTERNAL / ('java/src/' + PACKAGE + 'AppMenuHandlerImpl.java'): handler,
         core / CUSTOMIZE: customize,
+        core / CUSTOMIZE_SETTINGS: customize_settings,
         core / 'android/java/org/chromium/chrome/browser/app/appmenu/AppMenuIconRowFooter.java': footer,
         core / 'android/java/org/chromium/chrome/browser/app/BraveActivity.java': activity,
-        src / INTERNAL / 'BUILD.gn': lambda t: register_resources(register(t, ['SandiumPagedMenu', 'SandiumMenuState', 'SandiumMenuPreferences'])),
-        src / PUBLIC / 'BUILD.gn': lambda t: register(t, ['SandiumMenuMetadata']),
+        src / INTERNAL / 'BUILD.gn': lambda t: register_resources(register(remove_internal_store(t), ['SandiumPagedMenu'])),
+        src / PUBLIC / 'BUILD.gn': lambda t: register(t, ['SandiumMenuMetadata', 'SandiumMenuState', 'SandiumMenuPreferences']),
     }
     # Validate every transformation before mutating any source file.
     updated = {path: transform(path.read_text()) for path, transform in edits.items()}
@@ -188,7 +221,7 @@ def apply(src, repo, verify_pin=True):
         color = src / INTERNAL / relative
         color.parent.mkdir(parents=True, exist_ok=True)
         color.write_bytes((repo / 'android' / relative).read_bytes())
-    for name, base in [('SandiumMenuPreferences', INTERNAL), ('SandiumMenuState', INTERNAL), ('SandiumPagedMenu', INTERNAL), ('SandiumMenuMetadata', PUBLIC)]:
+    for name, base in [('SandiumMenuPreferences', PUBLIC), ('SandiumMenuState', PUBLIC), ('SandiumPagedMenu', INTERNAL), ('SandiumMenuMetadata', PUBLIC)]:
         dest = src / base / ('java/src/' + PACKAGE + name + '.java')
         dest.parent.mkdir(parents=True, exist_ok=True)
         dest.write_text((repo / 'android/java' / PACKAGE / (name + '.java')).read_text())
@@ -206,16 +239,17 @@ def verify(src, repo, verify_pin=True):
         src / INTERNAL / ('java/src/' + PACKAGE + 'AppMenu.java'): appmenu,
         src / INTERNAL / ('java/src/' + PACKAGE + 'AppMenuHandlerImpl.java'): handler,
         core / CUSTOMIZE: customize,
+        core / CUSTOMIZE_SETTINGS: customize_settings,
         core / 'android/java/org/chromium/chrome/browser/app/appmenu/AppMenuIconRowFooter.java': footer,
         core / 'android/java/org/chromium/chrome/browser/app/BraveActivity.java': activity,
-        src / INTERNAL / 'BUILD.gn': lambda t: register_resources(register(t, ['SandiumPagedMenu', 'SandiumMenuState', 'SandiumMenuPreferences'])),
-        src / PUBLIC / 'BUILD.gn': lambda t: register(t, ['SandiumMenuMetadata']),
+        src / INTERNAL / 'BUILD.gn': lambda t: register_resources(register(remove_internal_store(t), ['SandiumPagedMenu'])),
+        src / PUBLIC / 'BUILD.gn': lambda t: register(t, ['SandiumMenuMetadata', 'SandiumMenuState', 'SandiumMenuPreferences']),
     }
     for path, transform in transforms.items():
         current = path.read_text()
         if transform(current) != current:
             raise ValueError('Menu contract not applied: ' + str(path))
-    for name, base in [('SandiumMenuPreferences', INTERNAL), ('SandiumMenuState', INTERNAL), ('SandiumPagedMenu', INTERNAL), ('SandiumMenuMetadata', PUBLIC)]:
+    for name, base in [('SandiumMenuPreferences', PUBLIC), ('SandiumMenuState', PUBLIC), ('SandiumPagedMenu', INTERNAL), ('SandiumMenuMetadata', PUBLIC)]:
         dest = src / base / ('java/src/' + PACKAGE + name + '.java')
         if dest.read_bytes() != (repo / 'android/java' / PACKAGE / (name + '.java')).read_bytes():
             raise ValueError('Menu Java drift: ' + str(dest))

@@ -40,6 +40,88 @@ public final class SandiumHomeShortcuts extends LinearLayout {
     private View mDragView;
     private int mGeneration;
     private AlertDialog mDialog;
+    // One bounded worker per attached surface. Never decode/scan artwork on the UI thread.
+    private java.util.concurrent.ThreadPoolExecutor mIconWorker;
+    private void cancelIconWork() {
+        mGeneration++; // Invalidate already-posted completions as well as queued work.
+        if (mIconWorker != null) { mIconWorker.shutdownNow(); mIconWorker = null; }
+    }
+    private void normalizeIcon(android.graphics.Bitmap original, ImageView icon, int generation) {
+        if (generation != mGeneration || !isAttachedToWindow() || !isShown()
+                || getWindowVisibility() != VISIBLE) return;
+        if (original.getWidth() > 512 || original.getHeight() > 512) return;
+        if (mIconWorker == null) {
+            mIconWorker = new java.util.concurrent.ThreadPoolExecutor(1, 1, 1,
+                    java.util.concurrent.TimeUnit.SECONDS,
+                    new java.util.concurrent.ArrayBlockingQueue<Runnable>(25), task -> {
+                        Thread thread = new Thread(() -> {
+                            android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_BACKGROUND);
+                            task.run();
+                        }, "SandiumShortcutArtwork");
+                        thread.setDaemon(true); thread.setPriority(Thread.MIN_PRIORITY); return thread;
+                    }, new java.util.concurrent.ThreadPoolExecutor.DiscardPolicy());
+            mIconWorker.allowCoreThreadTimeOut(true);
+        }
+        mIconWorker.execute(() -> {
+            try {
+                int w = original.getWidth(), h = original.getHeight();
+                int[] pixels = new int[w * h];
+                original.getPixels(pixels, 0, w, 0, 0, w, h);
+                int[] bounds = ArtworkPadding.bounds(pixels, w, h);
+                if (bounds == null || Thread.currentThread().isInterrupted()) return;
+                android.graphics.Bitmap trimmed = android.graphics.Bitmap.createBitmap(
+                        original, bounds[0], bounds[1], bounds[2], bounds[3]);
+                if (Thread.currentThread().isInterrupted()) return;
+                post(() -> {
+                    if (generation == mGeneration && isAttachedToWindow() && isShown()
+                            && getWindowVisibility() == VISIBLE && icon.isAttachedToWindow()) icon.setImageBitmap(trimmed);
+                });
+            } catch (IllegalArgumentException | IllegalStateException ignored) {
+                // Hardware/recycled/unreadable icons retain the already visible original.
+            }
+        });
+    }
+    /** Display-only normalization; never mutates bitmap, persisted links or the icon cache. */
+    static final class ArtworkPadding {
+        static boolean empty(int pixel, int background, boolean transparent) {
+            if (transparent) return (pixel >>> 24) <= 8;
+            // Opaque uniform neutral perimeter only. Coloured or varying artwork is uncertain.
+            return (pixel >>> 24) >= 250 &&
+                    Math.abs((pixel & 255) - (background & 255)) <= 2 &&
+                    Math.abs(((pixel >>> 8) & 255) - ((background >>> 8) & 255)) <= 2 &&
+                    Math.abs(((pixel >>> 16) & 255) - ((background >>> 16) & 255)) <= 2;
+        }
+        static int[] bounds(int[] pixels, int w, int h) {
+            if (w < 16 || h < 16 || w > 512 || h > 512 || pixels.length != w * h) return null;
+            int bg = pixels[0], r = (bg >>> 16) & 255, g = (bg >>> 8) & 255, b = bg & 255;
+            boolean transparent = (bg >>> 24) <= 8;
+            if (!transparent && !((r <= 8 && g <= 8 && b <= 8) || (r >= 247 && g >= 247 && b >= 247))) return null;
+            for (int x = 0; x < w; x++)
+                if (!empty(pixels[x], bg, transparent) || !empty(pixels[(h-1)*w+x], bg, transparent)) return null;
+            for (int y = 0; y < h; y++)
+                if (!empty(pixels[y*w], bg, transparent) || !empty(pixels[y*w+w-1], bg, transparent)) return null;
+            int left = w, top = h, right = -1, bottom = -1;
+            for (int y = 0; y < h; y++) {
+                if (Thread.currentThread().isInterrupted()) return null;
+                for (int x = 0; x < w; x++) if (!empty(pixels[y*w+x], bg, transparent)) {
+                    left = Math.min(left,x); right = Math.max(right,x);
+                    top = Math.min(top,y); bottom = Math.max(bottom,y);
+                }
+            }
+            if (right < 0) return null;
+            // Require real, balanced padding on all edges. Keep a safety rim and cap
+            // zoom at 1.4x; sparse, off-centre, full-bleed and ambiguous art stays intact.
+            int minX = Math.max(2,w/16), minY = Math.max(2,h/16);
+            if (left < minX || w-1-right < minX || top < minY || h-1-bottom < minY
+                    || Math.abs(left-(w-1-right)) > w/10 || Math.abs(top-(h-1-bottom)) > h/10) return null;
+            left = Math.min(Math.max(0,left-2),w/7);
+            top = Math.min(Math.max(0,top-2),h/7);
+            right = Math.max(Math.min(w-1,right+2),w-1-w/7);
+            bottom = Math.max(Math.min(h-1,bottom+2),h-1-h/7);
+            if (left == 0 && top == 0 && right == w-1 && bottom == h-1) return null;
+            return new int[]{left,top,right-left+1,bottom-top+1};
+        }
+    }
     private final Runnable mRender = this::render;
     private final androidx.activity.OnBackPressedCallback mBack = new androidx.activity.OnBackPressedCallback(false) {
         @Override public void handleOnBackPressed() {
@@ -98,6 +180,7 @@ public final class SandiumHomeShortcuts extends LinearLayout {
         if (mDialog != null) { mDialog.dismiss(); mDialog = null; }
         removeCallbacks(mRender); mBack.remove(); mBack.setEnabled(false);
         if (mDragView != null) { mDragView.setAlpha(1f); mDragView = null; }
+        cancelIconWork();
         stopWiggles(); mGeneration++; mDragging = null; mEditing = false;
         if (mBridge != null) { mBridge.destroy(); mBridge = null; }
         if (mIcons != null) { mIcons.destroy(); mIcons = null; }
@@ -115,6 +198,7 @@ public final class SandiumHomeShortcuts extends LinearLayout {
         // View construction may call these overrides before member initialization.
         if (mBack == null || mWiggles == null) return;
         if (!isShown() || getWindowVisibility() != VISIBLE) {
+            cancelIconWork();
             if (mDragView != null) { mDragView.setAlpha(1f); mDragView = null; }
             mEditing = false; mDragging = null;
             stopWiggles(); mBack.setEnabled(false);
@@ -141,6 +225,7 @@ public final class SandiumHomeShortcuts extends LinearLayout {
         mBack.setEnabled(isShown() && getWindowVisibility() == VISIBLE && (mEditing || mExpanded));
         setBackground(shape(Color.TRANSPARENT, 16));
         int scroll = mScroll == null ? 0 : mScroll.getScrollY();
+        cancelIconWork();
         stopWiggles(); mEditTiles.clear(); mGeneration++; removeAllViews();
         if (mSites.isEmpty()) {
             // No empty Add card or invisible reserved panel. Add remains in the page menu.
@@ -254,19 +339,21 @@ public final class SandiumHomeShortcuts extends LinearLayout {
         FrameLayout box = new FrameLayout(getContext());
         LinearLayout content = new LinearLayout(getContext()); content.setOrientation(VERTICAL);
         content.setGravity(Gravity.CENTER);
+        content.setClipChildren(false);
+        box.setClipChildren(false);
         FrameLayout iconBox = new FrameLayout(getContext());
         // Uniform frosted rounded-square backing, not a blur of the favicon or page.
         // Static drawable avoids per-frame wallpaper sampling/render effects.
         GradientDrawable frost = new GradientDrawable(GradientDrawable.Orientation.TL_BR,
-                new int[]{0xb34b4e54, 0xb32b2e34});
+                new int[]{0xd645484e, 0xd623262c});
         frost.setCornerRadius(dp(12));
-        frost.setStroke(dp(1), 0x26ffffff);
+        frost.setStroke(dp(1), 0x48ffffff);
         iconBox.setBackground(frost);
         iconBox.setClipToOutline(true);
-        iconBox.setElevation(dp(2));
+        iconBox.setElevation(dp(4));
         if (android.os.Build.VERSION.SDK_INT >= 28) {
-            iconBox.setOutlineAmbientShadowColor(0x38000000);
-            iconBox.setOutlineSpotShadowColor(0x38000000);
+            iconBox.setOutlineAmbientShadowColor(0x60000000);
+            iconBox.setOutlineSpotShadowColor(0x60000000);
         }
         iconBox.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
         String label = shortcutLabel(site.title, site.url);
@@ -286,6 +373,7 @@ public final class SandiumHomeShortcuts extends LinearLayout {
         if (mIcons != null) mIcons.getLargeIconForUrl(site.url, dp(32), (bitmap, color, def, type) -> {
             if (generation == mGeneration && bitmap != null && isAttachedToWindow()) {
                 icon.setImageBitmap(bitmap); letter.setVisibility(GONE);
+                normalizeIcon(bitmap, icon, generation); // Original is visible immediately.
             }
         });
         content.setContentDescription(title.getText()); content.setFocusable(true);

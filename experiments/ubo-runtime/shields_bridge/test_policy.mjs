@@ -1,0 +1,15 @@
+import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+const source=await readFile(new URL('./sandium-policy.js',import.meta.url),'utf8');
+const {allowsNetwork,allowsTab}=await import(`data:text/javascript;base64,${Buffer.from(source).toString('base64')}`);
+const p={protocol:1,engineOwned:true,shieldsEnabled:true,adControl:'block',cosmeticControl:'block'};
+assert.equal(allowsNetwork({sandiumShields:p}),true);
+for(const change of [{protocol:2},{engineOwned:false},{shieldsEnabled:false},{adControl:'allow'},{adControl:'unknown'}]) assert.equal(allowsNetwork({sandiumShields:{...p,...change}}),false);
+assert.equal(allowsNetwork({}),false);
+const api={getTabPolicy(t,f,u,cb){cb(p);}};
+assert.equal(await allowsTab(1,0,'https://example.test',true,api),true);
+assert.equal(await allowsTab(1,0,'https://example.test',true,{getTabPolicy(t,f,u,cb){cb({...p,cosmeticControl:'allow'});}}),false);
+assert.equal(await allowsTab(-1,0,'https://example.test',false,api),false);
+globalThis.chrome={runtime:{lastError:{message:'document changed'}}};
+assert.equal(await allowsTab(1,0,'https://example.test',false,api),false);
+console.log('Native-policy adapter gate tests PASS');

@@ -23,6 +23,14 @@ def load(path=MANIFEST):
  for key in ('chromium_restore','core_restore','generated_overwrite'):
   missing=set(dark[key])-set(m[key])
   if missing:raise ValueError('Dark input absent from removal '+key+': '+', '.join(sorted(missing)))
+ # Keep typography reset ownership mandatory as well as its standalone tests.
+ text=json.loads((ROOT/'.circleci/features/page-text/integration-plan.json').read_text())
+ for key in ('chromium_restore','core_restore','generated_overwrite'):
+  missing=set(text[key])-set(m[key])
+  if missing:raise ValueError('Page text input absent from removal '+key+': '+', '.join(sorted(missing)))
+ for target,patch in text.get('chromium_restore_patches',{}).items():
+  if m.get('chromium_restore_patches',{}).get(target)!=patch:
+   raise ValueError('Page text pinned Brave replay absent: '+target)
  return m
 
 def restore_payload(m, core_reader, chromium_reader, core_only=False):

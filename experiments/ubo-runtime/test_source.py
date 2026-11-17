@@ -26,6 +26,13 @@ class Tests(unittest.TestCase):
     on=m.plan(core,src,True);off=m.plan(core,src,False)
     m.execute(core,src,True);m.execute(core,src,True)
     self.assertTrue(all((not p.exists()) if b is None else p.read_bytes()==b for p,b in on.items()))
+    schema=(src/'extensions/common/api/schema.gni').read_text()
+    self.assertEqual(schema.count('"scripts_internal.webidl"'),1)
+    self.assertIn('"scripts_internal.webidl"',schema.split('if (enable_guest_view)')[0])
+    chrome_schema=(src/'chrome/common/extensions/api/api_sources.gni').read_text()
+    for name in ('browser_action.json','page_action.json'):
+     self.assertEqual(chrome_schema.count('"'+name+'"'),1)
+     self.assertIn('"'+name+'"',chrome_schema.split('if (enable_extensions)')[0])
     enum_build=(src/"extensions/browser/BUILD.gn").read_text()
     self.assertEqual(enum_build.count("if (is_android && enable_extensions_core) {"),2)
     self.assertIn('java_cpp_enum("extension_action_enums")',enum_build)

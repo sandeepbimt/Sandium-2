@@ -12,7 +12,7 @@ CORE_PIN = '44a84b1f89d9a35287289d6a3d493e362f5a5123'
 CHROMIUM_PIN = 'd331de35ca8ab1358c7a17e4bd41627d55eaef51'
 RENAMED_SETTINGS = 'android/java/brave-res/drawable/ic_settings.xml'
 RENAMED_SETTINGS_SHA = '54ddff249b581c4632e080404d692d754b3041e13c1b616717a9b2a871b7e4a7'
-PATCH_SHA = 'aaa98373cb6614700aac99fed04806987028bbeb67b165e73a5e9be4f3bf72b4'
+PATCH_SHA = '5add076c9c5daa6a9bfba4f76ffa0bc3ed690a46a1732f11c8220297fb263a93'
 
 def git(repo, *args, optional=False):
     r = subprocess.run(['git', '-C', str(repo), *args], capture_output=True)

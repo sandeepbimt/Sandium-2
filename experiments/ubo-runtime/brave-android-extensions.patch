@@ -2338,15 +2338,13 @@ index 10692d8288..77c07593f1 100644
 +     default:
 diff --git a/patches/chrome-common-extensions-api-api_sources.gni.patch b/patches/chrome-common-extensions-api-api_sources.gni.patch
 new file mode 100644
-index 0000000000..469bc5c772
 --- /dev/null
 +++ b/patches/chrome-common-extensions-api-api_sources.gni.patch
-@@ -0,0 +1,13 @@
+@@ -0,0 +1,33 @@
 +diff --git a/chrome/common/extensions/api/api_sources.gni b/chrome/common/extensions/api/api_sources.gni
-+index 194386bf5e2a788140a888a1dc9f58e4625538d2..a63490a41e166a888a135b0c5d94ef0acc97e9e8 100644
 +--- a/chrome/common/extensions/api/api_sources.gni
 ++++ b/chrome/common/extensions/api/api_sources.gni
-+@@ -49,7 +49,7 @@ schema_sources_ = [
++@@ -49,7 +49,7 @@
 +   "windows.json",
 + ]
 + 
@@ -2355,6 +2353,27 @@ index 0000000000..469bc5c772
 +   schema_sources_ += [ "mdns.idl" ]
 + }
 + 
++@@ -61,6 +61,8 @@
++ # registration. These do not generate the strong C++ types.
++ uncompiled_sources_ = [
++   "action.json",
+++  "browser_action.json",
+++  "page_action.json",
++   "browsing_data.json",
++   "commands.json",
++   "extension.json",
++@@ -157,11 +159,6 @@
++     schema_sources_ += [ "pdf_viewer_private.idl" ]
++   }
++ 
++-  uncompiled_sources_ += [
++-    "browser_action.json",
++-    "page_action.json",
++-  ]
++-
++   if (is_chromeos) {
++     uncompiled_sources_ += [
++       "chromeos_info_private.json",
 diff --git a/patches/extensions-browser-BUILD.gn.patch b/patches/extensions-browser-BUILD.gn.patch
 new file mode 100644
 index 0000000000..7d248c85c4
@@ -2830,3 +2849,35 @@ index 1f124e2de6..cb501cb6b9 100644
 +    "//ui/webui/resources/cr_components/managed_footnote:build_grdp",
 +  ]
 +}
+diff --git a/patches/extensions-common-api-schema.gni.patch b/patches/extensions-common-api-schema.gni.patch
+new file mode 100644
+--- /dev/null
++++ b/patches/extensions-common-api-schema.gni.patch
+@@ -0,0 +1,27 @@
++diff --git a/extensions/common/api/schema.gni b/extensions/common/api/schema.gni
++--- a/extensions/common/api/schema.gni
+++++ b/extensions/common/api/schema.gni
++@@ -50,6 +50,7 @@
++   "protocol_handlers.webidl",
++   "public_suffix.webidl",
++   "requirements.json",
+++  "scripts_internal.webidl",
++   "shared_module.webidl",
++   "types.json",
++   "web_accessible_resources_mv2.webidl",
++@@ -97,7 +98,6 @@
++     "automation.webidl",
++     "mime_handler_private.webidl",
++     "mojo_private.webidl",
++-    "scripts_internal.webidl",
++   ]
++ 
++   if (is_chromeos) {
++@@ -129,7 +129,6 @@
++ if (enable_desktop_android_extensions) {
++   extensions_types_only_schema_files_ += [
++     "clipboard.webidl",
++-    "scripts_internal.webidl",
++     "usb.webidl",
++     "virtual_keyboard_private.json",
++     "virtual_keyboard.webidl",

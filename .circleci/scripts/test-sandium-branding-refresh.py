@@ -9,7 +9,7 @@ import xml.etree.ElementTree as ET
 EXPECTED = {
     "icon.webp": "dbddd3838a9995ead3ef456a8ab964b7142e4c255232f1e27daf57572a73b3fe",
     "logo-mark.webp": "1f2f20b55c3a1d1ccdcaed4024eb88b31e9b763d5d63b73b68727f1247b127c2",
-    "wallpaper.webp": "601e01315df64a7d4bda32c43078add6cb923e49e02dc8caa83ef06d6afe8134",
+    "wallpaper.webp": "6ab6df2f4dab4ff2f9b6d516797564b629c680ca90522ef31f3f4bd3ab34e083",
 }
 
 def require(path: Path, *needles: str) -> str:

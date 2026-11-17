@@ -12,6 +12,9 @@ import android.content.res.ColorStateList;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.ColorDrawable;
+import android.graphics.drawable.ClipDrawable;
+import android.graphics.drawable.Drawable;
+import android.graphics.drawable.LayerDrawable;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Handler;
 import android.os.Looper;
@@ -60,6 +63,11 @@ final class SandiumWelcomeSetupView {
     private static final int CARD = Color.rgb(26, 26, 26);
     private static final int SEPARATOR = Color.rgb(69, 69, 69);
     private static final int PRIMARY = Color.rgb(25, 140, 255);
+    // Enabled Optimize button interior sampled from the owner's Phone Manager reference.
+    private static final int START_BUTTON = Color.rgb(36, 169, 50);
+    // Restart uses a dark track and saturated green fill with a light label.
+    private static final int START_TRACK = Color.rgb(9, 38, 16);
+    private static final int START_PROGRESS = Color.rgb(20, 130, 43);
     private static final int PRIMARY_TEXT = Color.rgb(8, 15, 24);
     private static final int DISABLED_BUTTON = Color.rgb(55, 55, 55);
     private static final int DISABLED_BUTTON_TEXT = Color.rgb(160, 160, 160);
@@ -111,7 +119,7 @@ final class SandiumWelcomeSetupView {
     private boolean mRestartInProgress;
     private boolean mStartInvoked;
     private Switch mDarkenSwitch;
-    private ProgressBar mRestartProgress;
+    private ClipDrawable mRestartButtonFill;
     private ValueAnimator mRestartAnimator;
     private SandiumShieldsTracer mLogoTracer;
     private final Runnable mRestartRunnable = this::performRestart;
@@ -171,14 +179,6 @@ final class SandiumWelcomeSetupView {
         buttonContainer.setGravity(Gravity.CENTER);
         buttonContainer.setPadding(dp(18), dp(8), dp(18), dp(12));
         mRoot.addView(buttonContainer, matchWrap());
-
-        mRestartProgress = new ProgressBar(mActivity, null, android.R.attr.progressBarStyleHorizontal);
-        mRestartProgress.setMax(100);
-        mRestartProgress.setProgressTintList(ColorStateList.valueOf(SUCCESS));
-        mRestartProgress.setProgressBackgroundTintList(ColorStateList.valueOf(SEPARATOR));
-        mRestartProgress.setVisibility(View.GONE);
-        buttonContainer.addView(mRestartProgress, new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, dp(4)));
 
         mStartButton = new Button(mActivity);
         mStartButton.setText("Start browsing");
@@ -766,22 +766,28 @@ final class SandiumWelcomeSetupView {
 
         mRestartInProgress = true;
         mStartButton.setText("Restarting");
-        mStartButton.setTextColor(PRIMARY_TEXT);
+        mStartButton.setTextColor(TEXT);
 
         // Explicit one-second pre-restart feedback, not download/setup progress.
         // The handler owns dispatch so disabled animations cannot skip the restart.
         mStartButton.setText("Restarting in a moment…");
-        mRestartProgress.setVisibility(View.VISIBLE);
-        mRestartProgress.setContentDescription("Preparing to restart Sandium");
+        // Fill the existing capsule itself: no added progress view or layout shift.
+        mRestartButtonFill = new ClipDrawable(
+                roundRect(START_PROGRESS, 28), Gravity.LEFT, ClipDrawable.HORIZONTAL);
+        mRestartButtonFill.setLevel(0);
+        mStartButton.setBackgroundTintList(null);
+        mStartButton.setBackground(new LayerDrawable(new Drawable[] {
+                roundRect(START_TRACK, 28), mRestartButtonFill}));
+        mStartButton.setContentDescription("Preparing to restart Sandium");
         if (ValueAnimator.areAnimatorsEnabled()) {
-            mRestartAnimator = ValueAnimator.ofInt(0, 100);
+            mRestartAnimator = ValueAnimator.ofInt(0, 10000);
             mRestartAnimator.setDuration(1000);
             mRestartAnimator.setInterpolator(new LinearInterpolator());
             mRestartAnimator.addUpdateListener(animation ->
-                    mRestartProgress.setProgress((Integer) animation.getAnimatedValue()));
+                    mRestartButtonFill.setLevel((Integer) animation.getAnimatedValue()));
             mRestartAnimator.start();
         } else {
-            mRestartProgress.setProgress(100);
+            mRestartButtonFill.setLevel(10000);
         }
         for (Switch toggle : mSwitches) toggle.setEnabled(false);
         mHandler.postDelayed(mRestartRunnable, 1000);
@@ -907,7 +913,7 @@ final class SandiumWelcomeSetupView {
             mStartButton.setText("Start browsing");
             mStartButton.setTextColor(mCanStartBrowsing ? PRIMARY_TEXT : DISABLED_BUTTON_TEXT);
             mStartButton.setBackground(roundRect(
-                    mCanStartBrowsing ? PRIMARY : DISABLED_BUTTON, 28));
+                    mCanStartBrowsing ? START_BUTTON : DISABLED_BUTTON, 28));
         }
         mStartButton.setAlpha(1f);
     }

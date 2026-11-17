@@ -14,18 +14,22 @@ class WelcomeRestart(unittest.TestCase):
   code='''public class RestartHarness {
  boolean mDestroyed,mCanStartBrowsing,mStartInvoked,mRestartInProgress,mRequiresRestart;
  static int prepared, restarted, started;
- static final int PRIMARY_TEXT=0;
+ static final int TEXT=0, START_TRACK=1, START_PROGRESS=2;
  Object mPollRunnable=new Object();
  static class Handler { Runnable pending; void removeCallbacks(Object r) {} void postDelayed(Runnable r,long ms){if(ms!=1000)throw new AssertionError();pending=r;} void fire(){pending.run();} }
  static class View { static int VISIBLE=0; }
  static class Switch { void setEnabled(boolean b){} }
  java.util.List<Switch> mSwitches=new java.util.ArrayList<>();
  static class LinearInterpolator {}
- static class ValueAnimator { static boolean enabled=true; static boolean areAnimatorsEnabled(){return enabled;} static ValueAnimator ofInt(int a,int b){return new ValueAnimator();} void setDuration(int d){} void setInterpolator(Object o){} void addUpdateListener(java.util.function.Consumer<ValueAnimator> c){} void start(){} Object getAnimatedValue(){return 1;} }
+ static class ValueAnimator { static boolean enabled=true; static boolean areAnimatorsEnabled(){return enabled;} static ValueAnimator ofInt(int a,int b){if(a!=0||b!=10000)throw new AssertionError("fill range");return new ValueAnimator();} void setDuration(int d){} void setInterpolator(Object o){} java.util.function.Consumer<ValueAnimator> callback; int level; void addUpdateListener(java.util.function.Consumer<ValueAnimator> c){callback=c;} void start(){level=5000;callback.accept(this);level=10000;callback.accept(this);} Object getAnimatedValue(){return level;} }
  ValueAnimator mRestartAnimator;
- static class Progress { void setVisibility(int v){} void setContentDescription(String s){} void setProgress(int n){} }
- Progress mRestartProgress=new Progress();
- static class Button { void setEnabled(boolean b) {} void setText(String s) {} void setTextColor(int c) {} }
+ static class Drawable {}
+ static class ClipDrawable extends Drawable { static int HORIZONTAL=1; int level; ClipDrawable(Drawable d,int g,int o){} void setLevel(int n){level=n;} }
+ static class LayerDrawable extends Drawable { LayerDrawable(Drawable[] d){} }
+ static class Gravity { static int LEFT=3; }
+ Drawable roundRect(int c,int r){return new Drawable();}
+ ClipDrawable mRestartButtonFill;
+ static class Button { void setEnabled(boolean b) {} void setText(String s) {} void setTextColor(int c) {} void setBackgroundTintList(Object o){} void setBackground(Drawable d){} void setContentDescription(String s){} }
  static class Listener { void onStartBrowsing(){started++;} void onPrepareForRestart(){prepared++;} }
  static class BraveRelaunchUtils { static void restart(){if(prepared!=1)throw new AssertionError("prepare order");restarted++;} }
  Handler mHandler=new Handler(); Button mStartButton=new Button(); Listener mListener=new Listener();
@@ -37,8 +41,8 @@ class WelcomeRestart(unittest.TestCase):
   h.mCanStartBrowsing=true;h.mDestroyed=true;h.startBrowsingWithFeedback();check(!h.mStartInvoked&&restarted==0);
   h.mDestroyed=false;h.startBrowsingWithFeedback();h.startBrowsingWithFeedback();check(started==1&&prepared==0&&restarted==0);
   reset();h=new RestartHarness();h.mCanStartBrowsing=true;h.mRequiresRestart=true;
-  h.startBrowsingWithFeedback();h.startBrowsingWithFeedback();check(prepared==0&&restarted==0);h.mHandler.fire();check(prepared==1&&restarted==1&&started==0);
-  reset();h=new RestartHarness();h.mCanStartBrowsing=true;h.mRequiresRestart=true;ValueAnimator.enabled=false;h.startBrowsingWithFeedback();h.mHandler.fire();check(restarted==1);
+  h.startBrowsingWithFeedback();h.startBrowsingWithFeedback();check(prepared==0&&restarted==0&&h.mRestartButtonFill.level==10000);h.mHandler.fire();check(prepared==1&&restarted==1&&started==0);
+  reset();h=new RestartHarness();h.mCanStartBrowsing=true;h.mRequiresRestart=true;ValueAnimator.enabled=false;h.startBrowsingWithFeedback();check(h.mRestartButtonFill.level==10000);h.mHandler.fire();check(restarted==1);
   reset();h=new RestartHarness();h.mCanStartBrowsing=true;h.mRequiresRestart=true;h.startBrowsingWithFeedback();h.mDestroyed=true;h.mHandler.fire();check(restarted==0&&prepared==0);
  }
 }'''

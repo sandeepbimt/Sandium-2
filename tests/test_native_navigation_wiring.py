@@ -13,7 +13,7 @@ class NativeWiring(unittest.TestCase):
   shutil.copytree(ROOT/'.circleci/experimental-steps',root/'.circleci/experimental-steps')
   for names in w.REQUIRED.values():
    for name in names:
-    p=root/('.circleci/tests' if name=='test_status_underlap_patch.py' else '.circleci/scripts')/name;p.parent.mkdir(parents=True,exist_ok=True);p.touch()
+    p=root/name if name.startswith('.circleci/features/page-text/') else root/('.circleci/tests' if name=='test_status_underlap_patch.py' else '.circleci/scripts')/name;p.parent.mkdir(parents=True,exist_ok=True);p.touch()
   return root
  def test_production_wrapper_order(self):w.verify_product_wrappers(ROOT)
  def test_every_wrapper_requires_first_rollback(self):
