@@ -47,14 +47,15 @@ class Paint(unittest.TestCase):
   source=m.plan(self.root)[self.root/m.BASE/'ToolbarPhone.java'];start=source.index('    private void bindSandiumWallpaperPage()');opening=source.index('{',start);end=opening+1;depth=1
   while depth:depth+=(source[end]=='{')-(source[end]=='}');end+=1
   method=source[start:end]
+  self.assertNotRegex(method,r'\bTab\s+tab\b')
   harness="""class Binding {
 static class Page {int adds,removes;boolean hasSandiumToolbarWallpaperBacking(){return true;}void setSandiumToolbarWallpaperPaintColor(Integer c){}void addSandiumWallpaperBackingObserver(Runnable r){adds++;}void removeSandiumWallpaperBackingObserver(Runnable r){removes++;}}
-static class Tab {Page page;Page getNativePage(){return page;}}
-static class Provider {Tab tab;Tab getTab(){return tab;}}
+static class TestTab {Page page;Page getNativePage(){return page;}}
+static class Provider {TestTab tab;TestTab getTab(){return tab;}}
 Provider provider=new Provider();Provider getToolbarDataProvider(){return provider;}
 boolean mSandiumWallpaperBackingReady;Page mSandiumWallpaperPage;final Runnable mSandiumWallpaperObserver=()->{};
 METHOD
-public static void main(String[] x){Binding b=new Binding();b.bindSandiumWallpaperPage();Tab t=new Tab();Page first=new Page(),second=new Page();t.page=first;b.provider.tab=t;b.bindSandiumWallpaperPage();b.bindSandiumWallpaperPage();if(first.adds!=1)throw new AssertionError();t.page=second;b.bindSandiumWallpaperPage();if(first.removes!=1||second.adds!=1)throw new AssertionError();b.provider.tab=null;b.bindSandiumWallpaperPage();if(second.removes!=1||b.mSandiumWallpaperPage!=null)throw new AssertionError();}
+public static void main(String[] x){Binding b=new Binding();b.bindSandiumWallpaperPage();TestTab t=new TestTab();Page first=new Page(),second=new Page();t.page=first;b.provider.tab=t;b.bindSandiumWallpaperPage();b.bindSandiumWallpaperPage();if(first.adds!=1)throw new AssertionError();t.page=second;b.bindSandiumWallpaperPage();if(first.removes!=1||second.adds!=1)throw new AssertionError();b.provider.tab=null;b.bindSandiumWallpaperPage();if(second.removes!=1||b.mSandiumWallpaperPage!=null)throw new AssertionError();}
 }""".replace('METHOD',method)
   p=self.root/'Binding.java';p.write_text(harness)
   subprocess.run(['java','-m','jdk.compiler/com.sun.tools.javac.Main',str(p)],check=True)
@@ -64,12 +65,13 @@ public static void main(String[] x){Binding b=new Binding();b.bindSandiumWallpap
   source=m.plan(self.root)[self.root/m.BASE/'ToolbarPhone.java'];start=source.index('    private boolean hasSandiumWallpaperSurround(');opening=source.index('{',start);end=opening+1;depth=1
   while depth:depth+=(source[end]=='{')-(source[end]=='}');end+=1
   method=source[start:end]
+  self.assertNotRegex(method,r'\bTab\s+tab\b')
   harness='''class Gate {
 static class VisualState {static int NEW_TAB_NORMAL=1,NEW_TAB_SEARCH_ENGINE_NO_LOGO=2;}
 static class ControlsPosition {static int BOTTOM=1;}
 static class Page {boolean ready=true;boolean hasSandiumToolbarWallpaperBacking(){return ready;}}
-static class Tab {boolean incognito;Page page=new Page();boolean isIncognito(){return incognito;}Page getNativePage(){return page;}}
-static class Provider {Tab tab=new Tab();Tab getTab(){return tab;}}
+static class TestTab {boolean incognito;Page page=new Page();boolean isIncognito(){return incognito;}Page getNativePage(){return page;}}
+static class Provider {TestTab tab=new TestTab();TestTab getTab(){return tab;}}
 static class Controls {int position=1;int getControlsPosition(){return position;}}
 Provider provider=new Provider();Controls mBrowserControlsStateProvider=new Controls();boolean mInLayoutTransition,mIsInLoadingPhaseFromNtpToWebpage,focus;
 Provider getToolbarDataProvider(){return provider;}boolean urlHasFocus(){return focus;}
