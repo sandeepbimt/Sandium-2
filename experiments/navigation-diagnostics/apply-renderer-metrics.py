@@ -15,8 +15,7 @@ BLOCK='''    // SANDIUM_RENDERER_METRICS_V1: actual renderer deltas, browser rec
     if (render_data && !render_data->new_layout_shifts.empty() &&
         render_frame_host->GetPage().IsPrimary() &&
         tracker == primary_page_.get() &&
-        content::GetContentClient()->browser()->
-            IsSandiumNavigationDiagnosticsEnabled(web_contents())) {
+        content::ContentBrowserClient::SandiumDiagnosticsEnabled(web_contents())) {
       double count = 0, score = 0, non_input_score = 0, input_count = 0;
       int64_t first_us = 0, last_us = 0;
       for (const auto& shift : render_data->new_layout_shifts) {
@@ -35,7 +34,7 @@ BLOCK='''    // SANDIUM_RENDERER_METRICS_V1: actual renderer deltas, browser rec
         if (ticks_us > last_us) last_us = ticks_us;
       }
       if (count > 0) {
-        content::GetContentClient()->browser()->RecordSandiumNavigationDiagnostic(
+        content::ContentBrowserClient::RecordSandiumDiagnostic(
             web_contents(), 27, tracker->GetSandiumDiagnosticNavigationId(),
             base::TimeTicks::Now().since_origin().InMicroseconds(),
             {render_frame_host->GetOutermostMainFrame() == render_frame_host
@@ -47,7 +46,7 @@ BLOCK='''    // SANDIUM_RENDERER_METRICS_V1: actual renderer deltas, browser rec
 '''
 def observer(s):
  s=once(s,'#include <algorithm>','#include <algorithm>\n#include <cmath>')
- s=once(s,'#include "content/public/browser/browser_thread.h"','#include "content/public/browser/browser_thread.h"\n#include "content/public/browser/content_browser_client.h"\n#include "content/public/common/content_client.h"')
+ s=once(s,'#include "content/public/browser/browser_thread.h"','#include "content/public/browser/browser_thread.h"\n#include "content/public/browser/content_browser_client.h"')
  anchor='''  if (PageLoadTracker* tracker = GetPageLoadTrackerIfValid(render_frame_host)) {
     tracker->UpdateMetrics('''
  return once(s,anchor,anchor.replace('    tracker->UpdateMetrics(',BLOCK+'    tracker->UpdateMetrics('))

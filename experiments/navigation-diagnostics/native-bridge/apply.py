@@ -20,6 +20,15 @@ def once(s,old,new):
 def public_h(s):
  s=once(s,'#include <stddef.h>','#include <stddef.h>\n#include <cstdint>')
  return once(s,'  virtual bool OverrideWebPreferencesAfterNavigation(','''  // '''+MARK+''': UI-thread numeric diagnostics, disabled by default.
+  // Narrow public entry points for components outside CONTENT_IMPLEMENTATION.
+  static bool SandiumDiagnosticsEnabled(WebContents* web_contents);
+  static int64_t SandiumDiagnosticsEpoch(WebContents* web_contents);
+  static void RecordSandiumDiagnosticForEpoch(
+      WebContents* web_contents, int64_t expected_epoch, int event_code,
+      int64_t navigation_id, int64_t source_ticks_us, const std::vector<double>& values);
+  static void RecordSandiumDiagnostic(
+      WebContents* web_contents, int event_code, int64_t navigation_id,
+      int64_t source_ticks_us, const std::vector<double>& values);
   virtual bool IsSandiumNavigationDiagnosticsEnabled(WebContents* web_contents);
   virtual int64_t GetSandiumNavigationDiagnosticsEpoch(WebContents* web_contents);
   virtual void RecordSandiumNavigationDiagnosticForEpoch(
@@ -31,7 +40,30 @@ def public_h(s):
 
   virtual bool OverrideWebPreferencesAfterNavigation(''')
 def public_cc(s):
- return once(s,'bool ContentBrowserClient::OverrideWebPreferencesAfterNavigation(','''bool ContentBrowserClient::IsSandiumNavigationDiagnosticsEnabled(WebContents*) {
+ s=once(s,'#include "content/public/browser/content_browser_client.h"','#include "content/public/browser/content_browser_client.h"\n#include "content/public/common/content_client.h"')
+ return once(s,'bool ContentBrowserClient::OverrideWebPreferencesAfterNavigation(','''bool ContentBrowserClient::SandiumDiagnosticsEnabled(WebContents* contents) {
+  return GetContentClient()->browser()->IsSandiumNavigationDiagnosticsEnabled(contents);
+}
+
+int64_t ContentBrowserClient::SandiumDiagnosticsEpoch(WebContents* contents) {
+  return GetContentClient()->browser()->GetSandiumNavigationDiagnosticsEpoch(contents);
+}
+
+void ContentBrowserClient::RecordSandiumDiagnosticForEpoch(
+    WebContents* contents, int64_t epoch, int event, int64_t navigation,
+    int64_t ticks, const std::vector<double>& values) {
+  GetContentClient()->browser()->RecordSandiumNavigationDiagnosticForEpoch(
+      contents, epoch, event, navigation, ticks, values);
+}
+
+void ContentBrowserClient::RecordSandiumDiagnostic(
+    WebContents* contents, int event, int64_t navigation, int64_t ticks,
+    const std::vector<double>& values) {
+  GetContentClient()->browser()->RecordSandiumNavigationDiagnostic(
+      contents, event, navigation, ticks, values);
+}
+
+bool ContentBrowserClient::IsSandiumNavigationDiagnosticsEnabled(WebContents*) {
   return false;
 }
 

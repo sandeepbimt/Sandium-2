@@ -18,7 +18,7 @@ class Tests(unittest.TestCase):
   raw=(ROOT/'renderer-metrics-fixtures/metrics_web_contents_observer.cc').read_text()
   out=m.observer(raw)
   self.assertLess(out.index(m.BLOCK),out.index('    tracker->UpdateMetrics('))
-  for s in ['!render_data->new_layout_shifts.empty()', 'count > 0','std::isfinite','tracker == primary_page_.get()', 'GetSandiumDiagnosticNavigationId()', 'IsSandiumNavigationDiagnosticsEnabled']:
+  for s in ['!render_data->new_layout_shifts.empty()', 'count > 0','std::isfinite','tracker == primary_page_.get()', 'GetSandiumDiagnosticNavigationId()', 'SandiumDiagnosticsEnabled']:
    self.assertIn(s,m.BLOCK)
   for s in ['GetURL','GetLastCommittedURL','GetTitle','innerText','EvaluateJavaScript']:
    self.assertNotIn(s,m.BLOCK)

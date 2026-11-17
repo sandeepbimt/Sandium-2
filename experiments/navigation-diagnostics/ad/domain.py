@@ -18,7 +18,7 @@ REPORT='''void DomainBlockNavigationThrottle::ReportSandiumDomainDiagnostic(
   if (sandium_diagnostic_epoch_ <= 0) return;
   auto* handle = navigation_handle();
   const auto now = base::TimeTicks::Now();
-  content::GetContentClient()->browser()->RecordSandiumNavigationDiagnosticForEpoch(
+  content::ContentBrowserClient::RecordSandiumDiagnosticForEpoch(
       handle->GetWebContents(), sandium_diagnostic_epoch_, 11,
       handle->GetNavigationId(), now.since_origin().InMicroseconds(),
       {0, static_cast<double>(phase),
@@ -29,11 +29,10 @@ REPORT='''void DomainBlockNavigationThrottle::ReportSandiumDomainDiagnostic(
 
 '''
 CHANGES=[
-('#include "content/public/browser/browser_context.h"','#include "content/public/browser/browser_context.h"\n#include "content/public/browser/content_browser_client.h"\n#include "content/public/common/content_client.h"'),
+('#include "content/public/browser/browser_context.h"','#include "content/public/browser/browser_context.h"\n#include "content/public/browser/content_browser_client.h"'),
 ('''  content::WebContents* web_contents = handle->GetWebContents();
   // Maybe don't block''','''  content::WebContents* web_contents = handle->GetWebContents();
-  sandium_diagnostic_epoch_ = content::GetContentClient()->browser()
-      ->GetSandiumNavigationDiagnosticsEpoch(web_contents);
+  sandium_diagnostic_epoch_ = content::ContentBrowserClient::SandiumDiagnosticsEpoch(web_contents);
   if (sandium_diagnostic_epoch_ > 0) sandium_diagnostic_started_ = base::TimeTicks::Now();
   // Maybe don't block'''),
 ('''  if (domain_blocking_type == DomainBlockingType::kNone) {

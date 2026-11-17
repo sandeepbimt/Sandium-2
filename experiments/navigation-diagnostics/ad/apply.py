@@ -27,7 +27,7 @@ void ReportSandiumAdLoadSnapshot(content::WebContents* contents, int64_t epoch) 
     if (g_sandium_ad_last_load_sequence[i] == row[3]) continue;
     const bool baseline = g_sandium_ad_last_load_sequence[i] < 0;
     g_sandium_ad_last_load_sequence[i] = row[3];
-    content::GetContentClient()->browser()->RecordSandiumNavigationDiagnosticForEpoch(
+    content::ContentBrowserClient::RecordSandiumDiagnosticForEpoch(
         contents, epoch, 10, 0, base::TimeTicks::Now().since_origin().InMicroseconds(),
         {static_cast<double>(row[0]), static_cast<double>(row[1]),
          static_cast<double>(row[2]), static_cast<double>(row[3]), -1,
@@ -41,8 +41,7 @@ SandiumAdDiagnostic BeginSandiumAdDiagnostic(T<BraveRequestInfo> ctx) {
   if (!content::BrowserThread::CurrentlyOn(content::BrowserThread::UI) || !ctx) return diagnostic;
   auto* frame = content::RenderFrameHost::FromFrameToken(ctx->render_frame_token());
   auto* contents = content::WebContents::FromRenderFrameHost(frame);
-  auto* browser = content::GetContentClient()->browser();
-  const int64_t epoch = browser->GetSandiumNavigationDiagnosticsEpoch(contents);
+  const int64_t epoch = content::ContentBrowserClient::SandiumDiagnosticsEpoch(contents);
   if (epoch <= 0) return diagnostic;
   if (g_sandium_ad_budget_epoch != epoch) {
     g_sandium_ad_budget_epoch = epoch; g_sandium_ad_next_request = 0;
@@ -51,7 +50,7 @@ SandiumAdDiagnostic BeginSandiumAdDiagnostic(T<BraveRequestInfo> ctx) {
   ReportSandiumAdLoadSnapshot(contents, epoch);
   if (++g_sandium_ad_next_request > 512) {
     // One aggregate count per omitted request; recorder does not append a row.
-    browser->RecordSandiumNavigationDiagnosticForEpoch(
+    content::ContentBrowserClient::RecordSandiumDiagnosticForEpoch(
         contents, epoch, 24, 0, base::TimeTicks::Now().since_origin().InMicroseconds(), {1});
     return diagnostic;
   }
@@ -69,13 +68,13 @@ void ReportSandiumAdDiagnostic(const SandiumAdDiagnostic& diagnostic, int phase,
   const auto now = base::TimeTicks::Now();
   auto* frame = content::RenderFrameHost::FromFrameToken(diagnostic.frame_token);
   auto* contents = content::WebContents::FromRenderFrameHost(frame);
-  if (content::GetContentClient()->browser()->GetSandiumNavigationDiagnosticsEpoch(contents)
+  if (content::ContentBrowserClient::SandiumDiagnosticsEpoch(contents)
       != diagnostic.epoch) return;
   ReportSandiumAdLoadSnapshot(contents, diagnostic.epoch);
   const int bits = (flags.did_match_rule ? 1 : 0) |
                    (flags.did_match_exception ? 2 : 0) |
                    (flags.did_match_important ? 4 : 0);
-  content::GetContentClient()->browser()->RecordSandiumNavigationDiagnosticForEpoch(
+  content::ContentBrowserClient::RecordSandiumDiagnosticForEpoch(
       contents, diagnostic.epoch, 11, 0, now.since_origin().InMicroseconds(),
       {static_cast<double>(diagnostic.request), static_cast<double>(phase),
        static_cast<double>(diagnostic.resource_type), static_cast<double>(blocked_by),
@@ -111,7 +110,7 @@ CHANGES=[
     diagnostic.cname_query = true;
     auto* ad_block_service''',1),
 
-('#include "content/public/browser/browser_context.h"','#include "content/public/browser/browser_context.h"\n#include "content/public/browser/content_browser_client.h"\n#include "content/public/common/content_client.h"\n#include "base/time/time.h"',1),
+('#include "content/public/browser/browser_context.h"','#include "content/public/browser/browser_context.h"\n#include "content/public/browser/content_browser_client.h"\n#include "base/time/time.h"',1),
 ('struct ShouldBlockRequestParams {',HELPERS+'struct ShouldBlockRequestParams {',1),
 ('''                    EngineFlags previous_result,
                     std::optional<std::string> cname)''','''                    EngineFlags previous_result,
