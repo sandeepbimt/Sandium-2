@@ -72,6 +72,7 @@ JSON_JAVA_JAR=/path/to/json-20240303.jar bash .circleci/features/page-text/tests
 python3 .circleci/features/page-text/tests/test_ui_transform.py
 python3 .circleci/features/page-text/renderer/test_native.py
 python3 .circleci/features/page-text/renderer/test_native_api.py
+python3 .circleci/features/page-text/renderer/test_brave_patch_replay.py
 python3 .circleci/features/page-text/renderer/test_oopif.py
 python3 .circleci/features/page-text/renderer/test_css_candidate.py
 python3 .circleci/features/page-text/tests/test_combined.py
@@ -105,3 +106,12 @@ predicate is syntax-compiled against its extracted method declarations. This
 catches the previous misspelling that string-only composition tests missed.
 Canonical reset owns document.cc, so retry starts from upstream and reapplies
 the corrected base and OOPIF layers rather than modifying prepared source in place.
+
+## Pinned Brave replay regression from build1313
+
+Raw Chromium reset must replay Brave's document.cc URL-rewrite hook and RFHI
+isolation/nonce/window hooks before typography. The feature inventory lists all
+six matching pinned Brave patches across its20 Chromium reset owners, and the
+canonical recipe validates those mappings. Hash-recorded exact document/RFHI
+patches are applied before full Dark Pages→typography composition in regression
+tests. This restores the caller of RewriteBraveToChrome, not warning suppression.

@@ -668,7 +668,9 @@
     "content/renderer/render_frame_impl.cc": "patches/content-renderer-render_frame_impl.cc.patch",
     "third_party/blink/renderer/core/BUILD.gn": "patches/third_party-blink-renderer-core-BUILD.gn.patch",
     "content/browser/renderer_host/navigation_controller_impl.cc": "patches/content-browser-renderer_host-navigation_controller_impl.cc.patch",
-    "chrome/android/java/src/org/chromium/chrome/browser/ntp/NewTabPage.java": "patches/chrome-android-java-src-org-chromium-chrome-browser-ntp-NewTabPage.java.patch"
+    "chrome/android/java/src/org/chromium/chrome/browser/ntp/NewTabPage.java": "patches/chrome-android-java-src-org-chromium-chrome-browser-ntp-NewTabPage.java.patch",
+    "third_party/blink/renderer/core/dom/document.cc": "patches/third_party-blink-renderer-core-dom-document.cc.patch",
+    "content/browser/renderer_host/render_frame_host_impl.cc": "patches/content-browser-renderer_host-render_frame_host_impl.cc.patch"
   },
   "ui_baseline": "50545b503d3429ee1a1dad86317147e87d4b556b",
   "ui_reset_note": "Reset pinned upstream inputs only; replay exact pinned Brave patches for declared Chromium paths before UI overlays. Sandium-created classes/resources are retained and recopied by their owning overlays.",

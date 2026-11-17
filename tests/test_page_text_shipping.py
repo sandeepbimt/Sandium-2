@@ -16,7 +16,7 @@ class PageTextShipping(unittest.TestCase):
    self.assertTrue(set(inventory[key]) <= set(recipe['ui_only_'+key]),key)
  def test_focused_source_and_policy_suites(self):
   cases=[['bash','tests/run-tests.sh']]
-  cases += [['python3',x] for x in ('tests/test_ui_transform.py','tests/test_combined.py','renderer/test_native.py','renderer/test_native_api.py','renderer/test_oopif.py','renderer/test_css_candidate.py')]
+  cases += [['python3',x] for x in ('tests/test_ui_transform.py','tests/test_combined.py','renderer/test_native.py','renderer/test_native_api.py','renderer/test_brave_patch_replay.py','renderer/test_oopif.py','renderer/test_css_candidate.py')]
   for command in cases:
    with self.subTest(command=command):
     result=subprocess.run(command,cwd=FEATURE,text=True,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
