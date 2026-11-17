@@ -7,17 +7,19 @@ ZIP is the output of bundle/prepare.py for pinned full uBO 1.76.4.
 The fixed public key identifies this Sandium component. It is NOT an upstream
 signature, and does not claim to be the Chrome Web Store uBO identity. No private
 key was saved. All 668 release files remain packaged, including GPLv3 license.
-The only release manifest edit is the fixed public key.
+The loader adds the fixed public key; the explicit activation overlay additionally
+sets incognito=not_allowed and regenerates the disk inventory.
 
-Activation defaults OFF. The explicit feature `SandiumUboRuntime` must be enabled
+Activation defaults OFF. Both `SandiumUboRuntime` and `SandiumUboExclusiveRouting` must be enabled
 for a controlled runtime test. Field-trial setup enables all four Android runtime
 prerequisites together. Arbitrary ordinary extension installation stays denied.
 The loader registers only the fixed bundle/resource ID. All other built-in
 component registration remains under Chromium's existing allowlist.
 
-Brave ad filtering remains unchanged. Do NOT default-enable this overlay or hand
-it off as a replacement: uBO initialization can itself start request filtering,
-causing double filtering until an exclusive engine coordinator is integrated.
+The standalone loader is not a replacement. The integrated candidate includes
+the exclusive coordinator and request-policy gates; only explicit paired
+activation may enable it. Pending/native ownership does not authorize uBO
+filtering. Do not bypass those layers or enable runtime alone.
 Registration is not a readiness acknowledgment. Background startup, request block
 and exception, scriptlets, cosmetics, locale catalogs, private-profile isolation,
 restart persistence and Shields parity require Android runtime verification.
@@ -29,9 +31,10 @@ Android execution have not run in this local fixture.
 
 ## Continuation and reset
 
-Run overlays in order: source.py EXT0 replay, product overlays, loader, Shields.
-Before any source.py mode-off/reset or continuation baseline audit, reset in
-reverse order: Shields first, then `loader/apply.py --src SRC --reset`.
+Follow the integrated build script: EXT0/product replay, loader, Shields, routing,
+startup, request policy, optional activation and status. Before source replay,
+reset outer layers in reverse order, then Shields and finally
+`loader/apply.py --src SRC --reset`.
 
 The loader plans all edits off-tree before writing. A durable ownership receipt
 at `SRC/.sandium-ubo-loader-state/receipt.json` stores original/postimage SHA-256

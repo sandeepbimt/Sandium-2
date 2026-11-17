@@ -1,7 +1,7 @@
-# Per-request native Shields policy (inactive experiment)
+# Per-request native Shields policy (candidate implementation)
 
-Apply after loader, Shields bridge and routing, then regenerate GN. Reset this
-layer first, before the underlying layers. Ownership receipt rejects foreign
+Apply after loader, Shields bridge, routing and startup, before activation/status
+and GN. Reset activation/status before this layer, then its underlying layers. Ownership receipt rejects foreign
 changes rather than clobbering them.
 
 Both pinned Chromium webRequest dispatch modes invoke an embedder virtual hook
@@ -11,7 +11,8 @@ component manifest location, same regular profile and enabled registry entry.
 Other extensions and private/cross-profile delivery receive no fields.
 
 `details.sandiumShields` contains protocol, selected owner generation,
-engineOwned, shieldsEnabled, adControl, cosmeticControl and contextSource.
+engineOwned, runtimeAvailable, shieldsEnabled, adControl, cosmeticControl,
+contextSource, pageEpoch and pageDocumentId.
 Settings are evaluated synchronously by the original native Shields helpers,
 not by copying and reimplementing ContentSettingsPattern rules in JavaScript.
 Top navigations use destination origin; frame requests use the real outermost
@@ -32,8 +33,9 @@ without that grouped filtering layer.
 
 Tests cover exact-source overlay application/reset, both dispatch recipients,
 identity restrictions and grouped renderer preservation. Native compilation,
-startup coordination, network filtering, cosmetics, and real-device Shields
-parity remain separate unpassed gates. This layer does not select an engine.
+network filtering, cosmetics, and real-device Shields parity remain separate
+evidence gates. Startup coordination is implemented in routing/, not selected
+by this policy hook.
 
 ## Policy semantics and counters
 
@@ -46,4 +48,10 @@ of network Ads policy, matching native IsCosmeticFilteringEnabled.
 
 `pageEpoch` is the committed NavigationEntry unique ID for framed subresources;
 main navigations and frameless workers use zero and must not contribute counters
-to the previous page. This is a stale-counter guard, not a navigation identifier.
+to the previous page. This is diagnostic only: counters validate pageDocumentId, the immutable native
+main-document token, rather than NavigationEntry IDs. Missing/stale tokens are
+omitted, not assigned to the previous page. Fixed-identity block reports use the
+existing Android Shields blocked-resource sink and require current owner/liveness.
+Runtime-unavailable policy prevents new uBO network/cosmetic actions. Popup target
+policy checks the real pending native navigation URL before committed URL fallback,
+not an arbitrary extension-provided destination.

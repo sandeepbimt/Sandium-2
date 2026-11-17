@@ -103,6 +103,7 @@ def plan(src):
 #include "crypto/sha2.h"
 #include "brave/components/brave_shields/core/common/pref_names.h"
 #include "chrome/browser/browser_process.h"
+#include "brave/browser/brave_browser_process.h"
 #include "components/prefs/pref_service.h"
 #include "brave/browser/brave_shields/brave_shields_web_contents_observer.h"
 #include "brave/components/brave_shields/core/common/brave_shield_constants.h"

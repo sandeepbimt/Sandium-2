@@ -9,6 +9,8 @@ class Tests(unittest.TestCase):
   s=(HERE/'native_method.cc').read_text()
   for marker in ['extension_id != sandium_ubo::kExtensionId','Manifest::IsComponentLocation','extension->version().GetString() != sandium_ubo::kVersion','context->IsOffTheRecord()','crosses_incognito','GetAdControlType(map, first_party)','GetCosmeticFilteringControlType(map, first_party)','IsUboOwnerChosen(context)','SelectedOwnerGeneration(context)','request.web_request_type == WebRequestResourceType::MAIN_FRAME']:
    self.assertIn(marker,s)
+  self.assertIn('g_brave_browser_process->ad_block_service()',s)
+  self.assertLess(s.index('g_brave_browser_process->ad_block_service()'), s.index('const bool migrated'))
   self.assertNotIn('GetSettingsForOneType',s)
   self.assertNotIn('SetContentSetting',s)
  def test_native_lists_authority_and_readiness(self):

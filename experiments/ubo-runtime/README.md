@@ -1,20 +1,79 @@
-# Sandium full-uBO experiment — EXT0 source port
+# Sandium full-uBO implementation experiment
 
-This is an isolated **full-uBO implementation experiment**, not a verified shipping
-replacement. Current source includes packaged uBO1.76.4, fixed-identity Shields
-bridge, authoritative request policy, exclusive startup routing, runtime-loss
-guards, custom-rule synchronization, real-block telemetry and visible Shields
-status. See `shields_bridge/README.md` for current parity gaps and `status/` for UI.
-Build/runtime outcomes must be obtained from the actual run and device evidence.
+Source review: 35ccd8c. The experiment now includes a complete pinned uBlock
+Origin payload, Android extension infrastructure, localized component loader,
+private native Shields bridge, authoritative per-request policy, exclusive
+startup ownership, bounded fallback, runtime-loss guards, source-list/custom-rule
+synchronization, real-block counters and visible engine status.
 
-The EXT0 decisions and run notes below are historical milestones. Statements such
-as “not triggered”, “no component loaded” or “still required” describe that stage,
-not the complete current implementation. Defaults remain opt-in; explicit current
-pipeline flags determine whether runtime layers are enabled.
+This is **not a verified shipping replacement**. An activated candidate was
+submitted as run #1329; consult actual CI artifacts and device evidence for its
+outcome. Source tests and synthetic ownership models do not prove Android build
+success, uBO execution, filtering parity or performance.
+
+## Activation and build isolation
+
+The pipeline opt-in `sandium_ubo_runtime_experiment=true` compiles the runtime
+infrastructure. `sandium_ubo_activate_candidate=true` additionally enables the
+paired SandiumUboRuntime/SandiumUboExclusiveRouting features only on the isolated
+`experiment/ubo-runtime` branch. Normal phone builds and foundation runs retain
+default-off activation. Explicit disable of either feature wins. Arbitrary
+extension installation remains denied; only the pinned component is registered.
+
+The integrated build script applies loader, bridge, routing, startup, request
+policy, optional activation, then status. Continuations reverse exact ownership
+receipts before source/product replay. Never bypass a receipt conflict. Isolated
+experiment caches/markers must not replace canonical phone checkpoints.
+
+## Actual behavior and limits
+
+- Regular profiles can select uBO only after native exact-generation, user-rule,
+  list-revision and listener readiness checks plus a live background host.
+- External navigation has a bounded 12-second startup barrier. A failed startup
+  unloads uBO and verifies teardown before native fallback. Failed teardown
+  cancels navigation. Shields reports actual fallback, not successful replacement.
+- Once selected, engine ownership is immutable for that session. Runtime loss
+  blocks subsequent request/navigation boundaries and exposes restart-required;
+  it does not silently enable the other engine. Previously completed/in-flight
+  work cannot be retroactively blocked.
+- Private/incognito profiles remain Brave-native and cannot load this component.
+  This is an explicit gap against an all-profiles uBO replacement.
+- Existing public Shields controls retain native state authority. The Sandium
+  product exposes URL subscriptions, not upstream Brave component catalog lists.
+  Bootstrap completion, effective subscription selection and original URLs feed
+  uBO before ACK. Deleted/disabled entries must not be recreated. Download or
+  compiled-source failure rejects readiness rather than silently omitting lists.
+- Master/ad/cosmetic settings gate actual request, cosmetic, scriptlet and popup
+  paths; this is source implementation, not verified UI parity. The two-state
+  cosmetic On maps to BLOCK, not hidden Standard/Aggressive equivalence.
+- Picker/clear/export use existing native custom-filter text. Cookies, shred,
+  dark mode, typography and unrelated Shields functionality remain native.
+- Counters use real blocked outcomes, bounded local batching and native document
+  validation. They omit stale/frameless/root/overflow events and do not count CSS
+  hides. They are not claimed identical to every uBO dashboard statistic.
+- Settings refresh preserves ownership. Existing pages may use old rules during
+  acquisition; removing already-applied cosmetic/scriptlet effects can require
+  reload. No claim of instant visual restoration or measured zero overhead.
+
+## Evidence still required
+
+Native/Java/GN build success, installed ARM64 launch, real active owner, controlled
+network block and exception, per-site controls, scriptlets, cosmetics, popup
+behavior, subscription changes, custom rules, counters, persistence, fallback,
+crash handling and navigation latency all require independent evidence. A runtime
+readiness ACK is not a controlled filtering smoke test. Keep compile-only,
+activated-build and observed-device results distinct.
+
+No emulator work is part of this experiment after the user's stop instruction.
+Do not clear a real profile to test persistence. Use a disposable profile for
+upgrade/restart/rollback tests and compare rules, disabled/deleted subscriptions
+and site choices exactly. Engine switching must not uninstall uBO or erase data.
 
 ## Provenance and immutable inputs
 
-* Sandium base: `d0d024f` (same tree shipped for #1292).
+* Historical EXT0 Sandium base: `d0d024f` (tree shipped for #1292).
+  The current composed phone baseline is selected by the build script, not this
+  historical identifier.
 * Brave core: `44a84b1f89d9a35287289d6a3d493e362f5a5123` / 1.98.62.
 * Chromium: `d331de35ca8ab1358c7a17e4bd41627d55eaef51` / 156.0.8078.74.
 * Upstream lead: https://github.com/brave/brave-core/pull/40242 (Draft).
@@ -23,94 +82,13 @@ pipeline flags determine whether runtime layers are enabled.
 * Adapted patch SHA256:
   `5add076c9c5daa6a9bfba4f76ffa0bc3ed690a46a1732f11c8220297fb263a93`.
 
-## Port decisions
+## Historical EXT0 stage
 
-Nine upstream path conflicts were reconciled against pinned Chromium/Brave:
-Android resources/build rules, extensions target dependencies, component resources,
-favicon sources, and cr_elements. The newer pinned `BraveIsFavicon2AllowedOnOrigin`
-security/access behavior remains alongside the extension favicon overrides.
-Generated Chromium patches for conflicted files were rebuilt against exact sources.
-The build opt-in is `sandium_ubo_runtime_experiment=true`; default is false.
-The runtime `BraveAndroidExtensions` flag is still disabled by default.
-
-A component extension bypasses the draft's ordinary extension policy gate.
-Consequently **do not bundle/load uBO as a component yet**: it must acquire an
-explicit tested runtime readiness gate. Default-enabling the runtime feature is
-also not equivalent to its explicit command-line enabling: dependency overrides
-must be verified (`WebContentsDiscard`, `LazyBrowserInterfaceBroker`,
-`LoadAllTabsAtStartup`). No ad-block engine cutover is part of EXT0.
-
-## Validation so far
-
-* Adapted complete patch applies cleanly to exact clean Brave pin.
-* All 11 changed/new generated Chromium patches pass `git apply --check` against
-  corresponding exact Chromium input; results recorded in pinned-patch-results.json.
-* Four read-only preflight safety tests pass (digest/pin/dirty-base/gate checks).
-* Actual partial-tree product UI/removal/homepage/capture and native-nav rollback
-  composition passes after accepting the exact added extension flag in the removal
-  transform. Existing removed product entries remain removed; six feature-map tests pass.
-* Full GN, Java/native compilation and ARM64 runtime are **not yet passed**.
-  Local Chromium materialization is a 5.6MB selective source fixture, not a full
-  build tree. A patch apply/composition pass is not a compile/runtime proof.
-* No CI push/build or device/emulator action has been made for this experiment.
-
-## Next gates
-
-1. Validate all regenerated/new patches and combined Sandium removal overlays.
-2. GN compile proof on ARM64 in an isolated existing Full-mode experiment branch;
-   preserve canonical build checkpoints and avoid contaminating #1292 caches.
-3. Full uBO background runtime proof (tabs/windowing, storage, blocking requests,
-   document-start scriptlets/all frames, restart, private profile separation).
-4. Native UI bridge with fixed identity/capability allowlist, versioned replies,
-   durable settings transaction/readback, original custom-rules preservation.
-5. Only after ARM64 runtime parity: coordinated network + cosmetic/scriptlet
-   cutover on controlled navigation, keeping unrelated Shields and rollback.
-
-Do not label partial list parsing, engine payload sizes, or synthetic model tests
-as uBO runtime parity. Do not globally enable arbitrary extension installation.
-
-## EXT0 compile-only CI isolation (prepared, not triggered)
-
-The experimental branch's Full workflow accepts only `experiment/ubo-runtime`;
-`run_build` still defaults false. It reads the immutable accepted reference but
-cannot renew or publish reference metadata. Built handoffs and APK completion
-markers have an `sandium-ubo-ext0-*` namespace; dependency-tool caches remain
-shared. No emulator pipeline or new paid service is added.
-
-Before ordinary source preparation, `source.py --mode off` restores exactly the
-76 touched core files and 11 native targets to pinned upstream + existing Brave
-patches. After each removal reset, it reapplies the complete port from exact
-pinned blobs, before product overlays. It rejects changed pins, payload hashes,
-symlinks and unowned new-path collisions; all source payloads preflight before
-live writes. Four reset/CI isolation tests plus two source replay tests pass.
-
-The GN opt-in compiles runtime infrastructure only. No uBO component is loaded,
-no runtime feature is enabled, and the existing blocker remains the sole blocker.
-This compile-only APK will not prove uBO filtering. It is the first gate before
-adding explicit readiness and an exclusive engine-selection experiment.
-
-Do not trigger while the priority phone run is active. Coordinate with the root;
-this branch is not a production replacement. A successful build still requires
-real ARM64 runtime validation before progressing to engine cutover.
-
-## Future data-preservation gate
-
-Historical Brave desktop issue https://github.com/brave/brave-browser/issues/42608
-reports MV2 toggle behavior losing extension custom data. This is a lead, not
-proof of Android behavior. Never implement engine selection by uninstalling uBO.
-Before cutover, on a disposable profile containing custom rules, disabled/deleted
-subscriptions and site choices, test enable/disable, upgrade, restart, rollback
-and backup restoration with exact membership/order/text comparisons. No real
-user profile may be cleared for these tests. Android infrastructure tracking:
-https://github.com/brave/brave-browser/issues/59354 .
-
-## Pinned Chromium enum dependency
-
-Run #1301 reached the extension-enabled GN graph and exposed a pinned-version
-guard mismatch: mobile extension UI needs `extension_action_enums`, but Chromium
-156 defined that Java enum target and Android rules import only for desktop
-Android. The isolated backport enables both on Android with extensions core,
-matching the consumer. Native graph and APK proof are still pending.
+EXT0 initially provided only the extension infrastructure port. Earlier compile-
+only runs did not package/activate a replacement; those historical results must
+not be applied to later full candidate source. The current component/coordinator
+and activation layers supersede the old “not bundled/not wired” implementation
+notes. Detailed provenance remains in git history and pinned-patch-results.json.
 
 ## Later engine selector (user request, not implemented)
 After full uBO runtime proof, expose a reversible Brave/uBlock engine selector.

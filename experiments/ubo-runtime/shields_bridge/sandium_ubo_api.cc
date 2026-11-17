@@ -1,6 +1,7 @@
 // Copyright 2026 Sandium. SPDX-License-Identifier: MPL-2.0
 #include "brave/browser/extensions/api/sandium_ubo_api.h"
 #include <memory>
+#include "build/build_config.h"
 #include <set>
 #include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/navigation_entry.h"
@@ -151,9 +152,14 @@ content::WebContents* FindTab(content::BrowserContext* context, int tab_id) {
   return contents;
 }
 bool IsTrustedComponent(const Extension* extension) {
+#if !BUILDFLAG(IS_ANDROID)
+  (void)extension;
+  return false;
+#else
   return extension && extension->id() == sandium_ubo::kExtensionId &&
          Manifest::IsComponentLocation(extension->location()) &&
          extension->version().GetString() == sandium_ubo::kVersion;
+#endif
 }
 }  // namespace
 

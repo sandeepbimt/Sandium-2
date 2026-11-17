@@ -16,7 +16,7 @@ and device results must be reported separately from these source tests.
   hostname matching or raw-rule snapshot used as request policy.
 - Startup reconciles native custom-filter text into real uBO save/readback/list
   reload before readyToFilter. Native ACK requires exact generation and source
-  SHA256. Listeners are reported only after initializeTabs and webRequest.start.
+  SHA256 plus current list revision. Listeners are reported only after initializeTabs and webRequest.start.
 - Profile settings/custom-filter observers invalidate ACKs; the adapter serially
   reconciles and ACKs the current generation again. The engine owner remains
   fixed while its settings can change.
@@ -39,11 +39,12 @@ this is not a reproduction of the hidden three-state Standard/Aggressive policy.
 ## Remaining parity and validation gaps
 
 1. **Native list/subscription controls:** source bridge now maps authoritative
-   effective catalog/subscription selections to exact original sources and
-   validates compiled payloads before revision ACK. Runtime catalog arrival,
-   enabled-source availability and actual rule semantics remain unverified.
-   Unknown catalog or unavailable enabled source rejects readiness, not silent
-   success. See LIST_RECONCILIATION.md.
+   effective Sandium subscription selections to exact original sources and
+   validates compiled payloads before revision ACK. The actual product is
+   subscription-only: readiness requires its native bootstrap migration, not
+   upstream Brave catalog arrival. Disabled/deleted subscriptions remain so.
+   Enabled-source availability and actual rule semantics remain unverified;
+   unavailable enabled sources reject readiness rather than silently succeeding. See LIST_RECONCILIATION.md.
 2. **Private profiles:** bridge is intentionally regular-profile-only. OTR retains
    Brave native filtering and the status row says so. A full private uBO lifecycle
    needs separate data/isolation work and tests.

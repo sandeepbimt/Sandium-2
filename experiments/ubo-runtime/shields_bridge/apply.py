@@ -52,10 +52,12 @@ def plan_native(core):
     edit('common/extensions/api/api_sources.gni',
          'schema_sources_ = [ "brave_theme.json" ]',
          'schema_sources_ = [ "brave_theme.json", "sandium_ubo.json" ]')
+    # Core-only Android is UNSPECIFIED_PLATFORM in pinned Chromium; android is
+    # invalid and desktop_android would deny this API. Enforce Android in the
+    # native capability guard, retaining fixed identity/context restrictions.
     feature = json.dumps({
         'channel':'stable','component_extensions_auto_granted':False,
-        'contexts':['privileged_extension'],'allowlist':[ID_HASH],
-        'platforms':['android']},indent=2)
+        'contexts':['privileged_extension'],'allowlist':[ID_HASH]},indent=2)
     # Explicit identity is the authority boundary, not automatic component trust.
     edit('common/extensions/api/_api_features.json',
          '  "braveTheme": [{', '  "sandiumUbo": '+feature+',\n  "braveTheme": [{')

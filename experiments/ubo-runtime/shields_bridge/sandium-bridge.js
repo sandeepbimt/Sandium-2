@@ -3,7 +3,7 @@
 // This is observation wiring, not filter cutover or parity proof.
 import { createListReconciler } from './sandium-lists.js';
 import { createUserFilterReconciler } from './sandium-user-filters.js';
-export async function startSandiumBridge(api = globalThis.chrome?.sandiumUbo, ubo, storage = globalThis.vAPI?.storage) {
+export async function startSandiumBridge(api = globalThis.chrome?.sandiumUbo, ubo, storage = globalThis.vAPI?.storage, { signal, readinessTimeoutMs = 10000 } = {}) {
     if ( !api ) { return { available: false, cutover: false }; }
     const call = (name, ...args) => new Promise((resolve, reject) => {
         api[name](...args, result => {
@@ -20,9 +20,29 @@ export async function startSandiumBridge(api = globalThis.chrome?.sandiumUbo, ub
     let initialized = false;
     let listenersStarted = false;
     let resync = Promise.resolve();
+    let wakePending = null;
+    const deadline = Date.now() + Math.max(0, Math.min(readinessTimeoutMs, 10000));
+    const waitForNativeLists = generation => new Promise((resolve, reject) => {
+        if (disposed || signal?.aborted) { reject(new Error('Bridge disposed')); return; }
+        if (Date.now() >= deadline) { reject(new Error('Native filter readiness timed out')); return; }
+        if (latestGeneration > generation) { resolve(); return; }
+        const finish = error => {
+            clearTimeout(timer);
+            signal?.removeEventListener('abort', abort);
+            wakePending = null;
+            error ? reject(error) : resolve();
+        };
+        const abort = () => finish(new Error('Bridge disposed'));
+        const timer = setTimeout(() => finish(new Error('Native filter readiness timed out')),
+            Math.max(0, deadline - Date.now()));
+        wakePending = () => finish();
+        signal?.addEventListener('abort', abort, {once:true});
+    });
     const invalidated = generation => {
+        if ( disposed ) return;
         latestGeneration = Math.max(latestGeneration, generation);
         snapshot = null;
+        wakePending?.();
         reconciler?.invalidate(generation);
         listReconciler?.invalidate(generation);
         if ( initialized && reconciler ) {
@@ -60,8 +80,14 @@ export async function startSandiumBridge(api = globalThis.chrome?.sandiumUbo, ub
     };
     const synchronize = async () => {
         for ( let attempt = 0; attempt < 3; attempt++ ) {
-            const current = await refreshSnapshot();
+            let current = await refreshSnapshot();
             if ( !reconciler ) return;
+            // Native migration is asynchronous. Keep the listener alive until it
+            // publishes readiness; do not mistake a pending seed for bad rules.
+            while (current.lists?.ready === false && !initialized) {
+                await waitForNativeLists(current.generation);
+                current = await refreshSnapshot();
+            }
             if (!await listReconciler.apply(current)) continue;
             const result = await reconciler.apply(current);
             if ( !result.applied || snapshot?.generation !== result.generation ) continue;
@@ -77,6 +103,7 @@ export async function startSandiumBridge(api = globalThis.chrome?.sandiumUbo, ub
         await synchronize();
         initialized = true;
     } catch (error) {
+        disposed = true;
         reconciler?.dispose();
         listReconciler?.dispose();
         api.onSettingsChanged.removeListener(invalidated);

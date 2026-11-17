@@ -66,3 +66,53 @@ assert.equal(live.cutover,false); // snapshot is observation, never authority
 assert.deepEqual(acks,[[1,'digest1'],[2,'digest2']]);
 live.dispose();
 console.log('Live generation reconcile/ACK PASS');
+// Actual adapter + actual reconcilers, mocked browser API/storage/engine only.
+// Cold migration must recover without disposing the extension or dropping lists.
+let seedReady=false, seedGeneration=1, seedSnapshots=0, removed=0;
+const seedListeners=new Set();
+const selected=[];
+const compiled=[];
+const persisted={};
+const retainedEntries=[
+ {id:'https://one.test/list.txt',url:'https://one.test/list.txt',enabled:true,kind:'subscription'},
+ {id:'https://off.test/list.txt',url:'https://off.test/list.txt',enabled:false,kind:'subscription'},
+];
+let rules='example.test##.retained';
+const seedApi={...updates,
+ onSettingsChanged:{addListener(f){seedListeners.add(f);},removeListener(f){removed++;seedListeners.delete(f);}},
+ getSettingsSnapshot(cb){seedSnapshots++;cb({protocol:1,engineCutover:false,generation:seedGeneration,
+ shields:[],ads:[],cosmetic:[],customFilters:rules,customFiltersSha256:'retained-digest',
+ lists:{ready:seedReady,revision:`r${seedGeneration}`,entries:retainedEntries}});},
+};
+const seedEngine={...engine,
+ async saveSelectedFilterLists(keys){selected.splice(0,selected.length,...keys);},
+ async getCompiledFilterList(key){compiled.push(key);return {content:'compiled-filter'};},
+};
+const seedStorage={async set(v){Object.assign(persisted,v);},async get(){return persisted;}};
+const starting=startSandiumBridge(seedApi,seedEngine,seedStorage);
+await new Promise(r=>setTimeout(r,0));
+assert.equal(seedListeners.size,1);assert.equal(removed,0);assert.equal(selected.length,0);
+seedReady=true;seedGeneration=2;for(const f of seedListeners)f(2);
+const recovered=await starting;
+assert.ok(seedSnapshots>=2);
+assert.deepEqual(selected,['user-filters','https://one.test/list.txt']);
+assert.deepEqual(compiled,['https://one.test/list.txt']);assert.equal(stored,rules);
+// Refresh: user disables/deletes selections and modifies custom rules. Empty is
+// authoritative, not a reason to resurrect stock defaults or native seed URLs.
+retainedEntries.length=0;rules='example.test##.changed';seedGeneration=3;
+for(const f of seedListeners)f(3);
+await new Promise(r=>setTimeout(r,10));
+assert.deepEqual(selected,['user-filters']);assert.equal(stored,rules);
+recovered.dispose();assert.equal(seedListeners.size,0);
+const restarted=await startSandiumBridge(seedApi,seedEngine,seedStorage);
+assert.deepEqual(selected,['user-filters']);assert.equal(stored,rules);
+restarted.dispose();
+// Bounded pending startup and caller cancellation both release the listener.
+seedReady=false;
+await assert.rejects(startSandiumBridge(seedApi,seedEngine,seedStorage,{readinessTimeoutMs:10}),/timed out/);
+assert.equal(seedListeners.size,0);
+const controller=new AbortController();
+const aborted=startSandiumBridge(seedApi,seedEngine,seedStorage,{signal:controller.signal});
+await new Promise(r=>setTimeout(r,0));controller.abort();
+await assert.rejects(aborted,/disposed/);assert.equal(seedListeners.size,0);
+console.log('Pending migration recovery, timeout/abort, retained selection/custom rules/restart PASS (host model, not device blocking proof)');

@@ -14,8 +14,9 @@ materializer callback also require exclusive routing, preventing a runtime-only
 configuration from activating uBO alongside native filtering. All four Android
 prerequisites remain enabled together through the existing pre-init path.
 
-Apply order: loader, Shields, routing, startup, activation (then GN).
-Reset activation FIRST, then startup, routing, Shields, loader, before baseline
+Apply order: loader, Shields, routing, startup, request policy, activation, status
+(then GN). Reset status FIRST, then activation, request policy, startup, routing,
+Shields, loader, before baseline
 source reset/audits. Ownership receipts reject unowned changes. Baseline
 runtime-off checks remain before all overlay application; they are not falsely
 applied to activated postimages.

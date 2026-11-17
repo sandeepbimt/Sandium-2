@@ -113,6 +113,10 @@ base::DictValue BraveExtensionsAPIClient::GetPrivateFilterLists(
   snapshot.Set("entries", base::ListValue());
   if (!CanReadFilterLists(context, extension_id) ||
       !g_browser_process || !g_browser_process->local_state()) return snapshot;
+  // The existing service owns asynchronous subscription migration. Initialize
+  // its lazy singleton before waiting for that migration; never seed here.
+  if (!g_brave_browser_process || !g_brave_browser_process->ad_block_service())
+    return snapshot;
   auto* prefs = g_browser_process->local_state();
   // Only the product's completed native seeding migration permits cutover.
   // Afterwards an empty map is a valid user choice; never reseed deleted lists.
