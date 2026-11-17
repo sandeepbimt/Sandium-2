@@ -6,6 +6,17 @@ from verify_generated import verify
 class Config(unittest.TestCase):
  def setUp(self):self.cfg=derive(yaml.safe_load((ROOT/'.circleci/native-status-test/config.yml').read_text()))
  def test_reproducible(self):verify()
+ def test_ci_validator_without_site_packages(self):
+  subprocess.run(['python3','-S',str(ROOT/'experiments/x64-test/verify_generated.py')],check=True)
+ def test_ci_validator_rejects_drift(self):
+  import shutil
+  with tempfile.TemporaryDirectory() as d:
+   root=Path(d)
+   manifest=__import__('json').loads((ROOT/'.circleci/x64-test/manifest.json').read_text())
+   for p in set(manifest['inputs']) | set(manifest['outputs']) | {'.circleci/x64-test/manifest.json','.circleci/config.yml'}:
+    (root/p).parent.mkdir(parents=True,exist_ok=True);shutil.copyfile(ROOT/p,root/p)
+   (root/'.circleci/x64-test/config.yml').write_text('tampered')
+   with self.assertRaises(ValueError):verify(root,full=False)
  def test_no_normal_cache_writes(self):
   for s in walk(self.cfg['jobs']['brave-android-staged-build']['steps']):
    if isinstance(s,dict) and 'save_cache' in s:

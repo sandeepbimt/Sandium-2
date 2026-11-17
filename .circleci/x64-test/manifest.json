@@ -11,7 +11,8 @@
     ".circleci/scripts/sandium-checkpoint-shards.py": "3b1baee1308f62ca7fd01917175674f663694ebfc2a800e44ed230fd0339fe6a",
     ".circleci/scripts/verify-brave-reference.sh": "2424119dc648f62617af6dbc69084c9559f09d3b4c9d9b79e472f99941fda550",
     ".circleci/scripts/verify-brave-remote-smoke.sh": "480077693507a322f026eb954f56391d477b7c0db58369ca48daf052acc6cbbc",
-    ".circleci/scripts/verify-clang-diagnostics-gn.sh": "1fbd425017133ae418cc36827d5d2b596e9dcfed53825dfb3d8acf8c8d15ea03"
+    ".circleci/scripts/verify-clang-diagnostics-gn.sh": "1fbd425017133ae418cc36827d5d2b596e9dcfed53825dfb3d8acf8c8d15ea03",
+    "experiments/x64-test/build_config.py": "b4d597cdfbb3a4ad0a5dc53308404dce3c1b8e44bf305f40ca2dfd48f4fc7ba7"
   },
   "outputs": {
     ".circleci/x64-test/archive-brave-workspace.sh": "397cd82df1149c30e3d34272b1082d758f610776af613956964cced5991abd4e",

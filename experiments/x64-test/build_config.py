@@ -119,7 +119,7 @@ def generate(root=ROOT):
  cfg=derive(yaml.safe_load(source.read_text()))
  outputs=scripts(root)
  outputs[DEST+'/config.yml']=yaml.safe_dump(cfg,sort_keys=False,width=120)
- manifest={'inputs':{p:hashlib.sha256((root/p).read_bytes()).hexdigest() for p in SOURCES+['.circleci/native-status-test/config.yml']},'outputs':{p:hashlib.sha256(t.encode()).hexdigest() for p,t in outputs.items()}}
+ manifest={'inputs':{p:hashlib.sha256((root/p).read_bytes()).hexdigest() for p in SOURCES+['.circleci/native-status-test/config.yml','experiments/x64-test/build_config.py']},'outputs':{p:hashlib.sha256(t.encode()).hexdigest() for p,t in outputs.items()}}
  for p,text in outputs.items():
   target=root/p;target.parent.mkdir(parents=True,exist_ok=True);target.write_text(text)
  (root/DEST/'manifest.json').write_text(json.dumps(manifest,sort_keys=True,indent=2)+'\n')
