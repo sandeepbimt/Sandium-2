@@ -71,6 +71,7 @@ bash .circleci/features/page-text/tests/run-tests.sh
 JSON_JAVA_JAR=/path/to/json-20240303.jar bash .circleci/features/page-text/tests/run-profile-tests.sh
 python3 .circleci/features/page-text/tests/test_ui_transform.py
 python3 .circleci/features/page-text/renderer/test_native.py
+python3 .circleci/features/page-text/renderer/test_native_api.py
 python3 .circleci/features/page-text/renderer/test_oopif.py
 python3 .circleci/features/page-text/renderer/test_css_candidate.py
 python3 .circleci/features/page-text/tests/test_combined.py
@@ -95,3 +96,12 @@ produced no rendering evidence.
 `renderer/CSS_CANDIDATE.md` details current semantics. `METRIC_READINESS.md` and
 `test_known_metric_blockers.py` preserve findings about the rejected custom
 FontBuilder multiplier; that multiplier is NOT part of the current patches.
+
+## Native API regression from build1311
+
+The URL predicate uses exact pinned KURL::ProtocolIsInHttpFamily (Http casing).
+The real pinned kurl.h is hash-recorded and the complete emitted embedded-URL
+predicate is syntax-compiled against its extracted method declarations. This
+catches the previous misspelling that string-only composition tests missed.
+Canonical reset owns document.cc, so retry starts from upstream and reapplies
+the corrected base and OOPIF layers rather than modifying prepared source in place.

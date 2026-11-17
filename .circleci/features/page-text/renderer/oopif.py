@@ -98,8 +98,8 @@ patch('third_party/blink/renderer/core/loader/frame_loader.cc',
   // The outgoing document and its unload handlers have finished, and a
   // provisional frame has successfully swapped in. Apply policy before the new''')
 patch('third_party/blink/renderer/core/dom/document.cc',
-      '''      GetFrame()->IsOutermostMainFrame() && Url().ProtocolIsInHTTPFamily()) {''',
-      '''      (Url().ProtocolIsInHTTPFamily() ||
+      '''      GetFrame()->IsOutermostMainFrame() && Url().ProtocolIsInHttpFamily()) {''',
+      '''      (Url().ProtocolIsInHttpFamily() ||
        (GetFrame()->Tree().Parent() &&
         (Url().IsAboutBlankUrl() || Url().IsAboutSrcdocUrl())))) {''')
 

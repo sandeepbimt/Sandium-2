@@ -139,7 +139,7 @@ patch('third_party/blink/renderer/core/dom/document.cc',
   if (const Settings* settings = GetSettings();
       settings && (settings->SandiumPageTextJustifyEnabled() ||
                    settings->SandiumPageTextScalePercent() != 100) &&
-      GetFrame()->IsOutermostMainFrame() && Url().ProtocolIsInHTTPFamily()) {
+      GetFrame()->IsOutermostMainFrame() && Url().ProtocolIsInHttpFamily()) {
     StringBuilder css;
     if (settings->SandiumPageTextScalePercent() != 100 &&
         settings->GetTextSizeAdjustEnabled()) {
