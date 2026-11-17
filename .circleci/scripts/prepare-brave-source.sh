@@ -557,9 +557,10 @@ PY
     echo "PPBAS_GN_GRAPH_REUSE=PASS; pinned ARM64 Release graph and Siso/REAPI args already match."
   else
     echo "PPBAS_GN_GRAPH_REUSE=MISS; running pinned Brave GN generation."
-    pnpm run build Release --target_os=android --target_arch=arm64 --target_android_output_format=apk --use_remoteexec=true --gn use_siso:true --gn use_reclient:false --gn sandium_ubo_runtime_experiment:true "${ORIGIN_GN_ARGS[@]}" --gn is_java_debug:false --gn enable_android_secondary_abi:false --gn is_official_build:false --gn enable_updater:false --gn enable_update_notifications:false --gn android_channel:default --gn chrome_public_manifest_package:com.brave.browser_default --gn brave_channel:development --target brave --ninja=n
+    pnpm run build Release --target_os=android --target_arch=arm64 --target_android_output_format=apk --use_remoteexec=true --gn use_siso:true --gn use_reclient:false --gn sandium_ubo_runtime_experiment:true --gn enable_extensions_core:true "${ORIGIN_GN_ARGS[@]}" --gn is_java_debug:false --gn enable_android_secondary_abi:false --gn is_official_build:false --gn enable_updater:false --gn enable_update_notifications:false --gn android_channel:default --gn chrome_public_manifest_package:com.brave.browser_default --gn brave_channel:development --target brave --ninja=n
   fi
   bash "$ROOT/.circleci/scripts/verify-clang-diagnostics-gn.sh"
+  python3 "$ROOT/experiments/ubo-runtime/verify_gn.py" --src "$SRC_DIR"
   if [ "$MINIMAL_VANILLA_BUILD" = true ]; then
     python3 "$ROOT/.circleci/scripts/verify-sandium-vanilla-brave.py" --core "$CORE_DIR" --src "$SRC_DIR" --out "$OUT" --phase verify
   fi

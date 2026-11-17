@@ -29,6 +29,8 @@ jobs:
 
           python3 experiments/ubo-runtime/test_preflight.py
 
+          python3 experiments/ubo-runtime/test_gn.py
+
           python3 -m venv /tmp/sandium-ext0-preflight
 
           /tmp/sandium-ext0-preflight/bin/pip install --disable-pip-version-check PyYAML==6.0.2
@@ -608,6 +610,7 @@ jobs:
         command: |
           set -euo pipefail
           python3 experiments/ubo-runtime/test_runtime_off.py
+          python3 experiments/ubo-runtime/verify_gn.py --src "$CIRCLE_WORKING_DIRECTORY/brave-work/src"
           python3 experiments/ubo-runtime/verify_runtime_off.py --core "$CIRCLE_WORKING_DIRECTORY/brave-work/src/brave" --src "$CIRCLE_WORKING_DIRECTORY/brave-work/src"
     - run:
         name: Validate build graph and remote-execution settings

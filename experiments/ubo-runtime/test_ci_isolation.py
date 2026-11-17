@@ -38,7 +38,8 @@ class Tests(unittest.TestCase):
   resets=[i for i,l in enumerate(lines) if '--phase reset' in l and '--phase reset-core' not in l]
   self.assertEqual(len(resets),2)
   for i in resets:self.assertIn('ubo-runtime/source.py',lines[i+1])
-  self.assertIn('--gn sandium_ubo_runtime_experiment:true',s)
+  self.assertIn('--gn sandium_ubo_runtime_experiment:true --gn enable_extensions_core:true',s)
+  self.assertIn('ubo-runtime/verify_gn.py',s)
   self.assertNotIn('--enable-features=BraveAndroidExtensions',s)
 
 if __name__=='__main__':unittest.main()
