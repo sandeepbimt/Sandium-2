@@ -1,0 +1,22 @@
+{
+  "brave_pin": "44a84b1f89d9a35287289d6a3d493e362f5a5123",
+  "restore": [
+    "browser/net/brave_ad_block_tp_network_delegate_helper.cc",
+    "components/brave_shields/content/browser/ad_block_service.h",
+    "components/brave_shields/content/browser/ad_block_service.cc",
+    "components/brave_shields/content/browser/domain_block_navigation_throttle.h",
+    "components/brave_shields/content/browser/domain_block_navigation_throttle.cc",
+    "android/java/org/chromium/chrome/browser/shields/FilterListServiceFactory.java",
+    "browser/brave_shields/android/filter_list_service_factory_android.cc"
+  ],
+  "ui_only_restore": [
+    "browser/net/brave_ad_block_tp_network_delegate_helper.cc",
+    "components/brave_shields/content/browser/ad_block_service.h",
+    "components/brave_shields/content/browser/ad_block_service.cc",
+    "components/brave_shields/content/browser/domain_block_navigation_throttle.h",
+    "components/brave_shields/content/browser/domain_block_navigation_throttle.cc",
+    "android/java/org/chromium/chrome/browser/shields/FilterListServiceFactory.java",
+    "browser/brave_shields/android/filter_list_service_factory_android.cc"
+  ],
+  "order": "after engine-race, warmup and resource overlays; requires browser diagnostics bridge and recorder codes10/11/24"
+}

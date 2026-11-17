@@ -10,7 +10,7 @@ import shlex
 
 ORDER = [f'product-overlay-{i}-0.sh' for i in range(24,31)] + ['graph-validation.sh','remote-smoke.sh','full-bounded-build.sh']
 REQUIRED = {
- 'product-overlay-30-0.sh': ['test-sandium-removal-composition.py','apply-sandium-native-insets.py','sandium-removal-recipe.py','apply-sandium-home-shortcuts.py','apply-sandium-home-shortcuts.py','apply-sandium-video-gestures.py','apply-sandium-video-gestures.py','apply-sandium-dark-combined.py','apply-sandium-dark-combined.py','test-sandium-dark-composition.py','.circleci/features/page-text/apply.py','.circleci/features/page-text/apply.py','.circleci/features/page-text/tests/test_combined.py','apply-sandium-homepage-combined.py','apply-sandium-homepage-combined.py','apply-sandium-capture-coherence.py','apply-sandium-capture-coherence.py','apply-sandium-native-insets.py','.circleci/features/page-text/apply.py','precheck-graph.py','removal-evidence.py'],
+ 'product-overlay-30-0.sh': ['test-sandium-removal-composition.py','apply-sandium-native-insets.py','sandium-removal-recipe.py','apply-sandium-home-shortcuts.py','apply-sandium-home-shortcuts.py','apply-sandium-video-gestures.py','apply-sandium-video-gestures.py','apply-sandium-dark-combined.py','apply-sandium-dark-combined.py','test-sandium-dark-composition.py','.circleci/features/page-text/apply.py','.circleci/features/page-text/apply.py','.circleci/features/page-text/tests/test_combined.py','apply-sandium-homepage-combined.py','apply-sandium-homepage-combined.py','apply-sandium-capture-coherence.py','apply-sandium-capture-coherence.py','apply-sandium-address-progress.py','apply-sandium-address-progress.py','test-sandium-address-progress.py','apply-sandium-native-insets.py','.circleci/features/page-text/apply.py','precheck-graph.py','removal-evidence.py'],
  'product-overlay-24-0.sh': ['apply-sandium-branding.sh'],
  'product-overlay-25-0.sh': ['apply-sandium-adblock-engine-race.py','apply-sandium-filter-subscriptions.py','apply-sandium-filter-bootstrap.py'],
  'product-overlay-26-0.sh': ['apply-sandium-page-transition-full.py','apply-sandium-back-transition.py','apply-sandium-back-controls.py','trace-sandium-back-geometry.py'],
@@ -20,9 +20,11 @@ REQUIRED = {
 }
 
 NAV='apply-sandium-native-navigation.py'
+DIAG='apply-sandium-navigation-diagnostics.py'
 for wrapper in REQUIRED:
     REQUIRED[wrapper].insert(0,NAV)
-REQUIRED['product-overlay-30-0.sh'][-2:-2]=[NAV,NAV]
+    REQUIRED[wrapper].insert(1,DIAG)
+REQUIRED['product-overlay-30-0.sh'][-2:-2]=[DIAG,DIAG,NAV,NAV]
 
 
 def shell_invocations(path):
@@ -105,7 +107,11 @@ def verify_product_wrappers(repo):
         if names!=expected:raise ValueError(f'{wrapper}: actual apply/test command sequence differs: {names}')
         if invocations[0] != (NAV,['$CIRCLE_WORKING_DIRECTORY/brave-work/src','--mode','off']):raise ValueError('Native navigation rollback must precede every product mutator')
         if wrapper=='product-overlay-30-0.sh' and invocations[-4:-2] != [(NAV,['$SRC','--mode','configured']),(NAV,['$SRC','--mode','configured','--verify-only'])]:raise ValueError('Native navigation profile must apply and verify after all frozen overlays')
-        invocations=[item for item in invocations if item[0]!=NAV]
+        diag_args=[args for name,args in invocations if name==DIAG]
+        expected_diag=[['$CIRCLE_WORKING_DIRECTORY/brave-work/src','--reset-native-probes']]
+        if wrapper=='product-overlay-30-0.sh':expected_diag += [['$SRC'],['$SRC','--verify-only']]
+        if diag_args!=expected_diag:raise ValueError('Diagnostics require preflight reversal and final apply/readback')
+        invocations=[item for item in invocations if item[0] not in (NAV,DIAG)]
         text_calls=[args for name,args in invocations if name.startswith('.circleci/features/page-text/')]
         if wrapper=='product-overlay-30-0.sh' and text_calls != [['$SRC','--repo','$ROOT'],['$SRC','--repo','$ROOT','--verify-only'],[],['$SRC','--repo','$ROOT','--verify-only']]:
             raise ValueError('Page text requires atomic apply, readback and pinned composition test')

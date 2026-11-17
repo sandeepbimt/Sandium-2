@@ -1,0 +1,12 @@
+{
+  "brave_pin": "44a84b1f89d9a35287289d6a3d493e362f5a5123",
+  "sha256": {
+    "browser/net/brave_ad_block_tp_network_delegate_helper.cc": "b1639961e12dd30091ffef9bf4d3ffd50c720efe8b5ea396c173bc0d6ed97dad",
+    "components/brave_shields/content/browser/ad_block_service.h": "3bcf8d97c4c50b0f19de0deddb525b882005178bfc48fd39c70902f71043cd84",
+    "components/brave_shields/content/browser/ad_block_service.cc": "28168012ec38e316f3ad2195de537c80e1a4f5ea73d4305b9be58ef91feac28a",
+    "components/brave_shields/content/browser/domain_block_navigation_throttle.h": "cb1095bd154b5cb758dc84f70e08120b7d06334dc7847acaf76a7ab4808669d9",
+    "components/brave_shields/content/browser/domain_block_navigation_throttle.cc": "23888d38b5d38cab65f3ab8d97048b158674bd01adedc387f4f91895e5858571",
+    "android/java/org/chromium/chrome/browser/shields/FilterListServiceFactory.java": "c0eb4021740e8b737f57d2d66a981dfe3d0aa9d876fdf7313d31eb60da3df78d",
+    "browser/brave_shields/android/filter_list_service_factory_android.cc": "aaae3032733b669d276592ee186982acda42469d0108d9e279ebb5c2357879e4"
+  }
+}

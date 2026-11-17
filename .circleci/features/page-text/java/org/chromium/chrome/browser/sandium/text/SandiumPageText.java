@@ -49,7 +49,7 @@ public final class SandiumPageText {
     }
     public static PageTextPolicy.Settings global(Profile p) { return policy(p).global(); }
     /** Native commit transport only: final browser URL, never a page-provided origin.
-     * Low byte is scale; bits8/9 retain the independent typography switches.
+     * Low byte is scale; both legacy bits8/9 are set for the single justification control.
      */
     public static int packed(WebContents contents, GURL documentUrl) {
         ThreadUtils.assertOnUiThread();

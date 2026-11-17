@@ -379,7 +379,14 @@
     "components/p3a/p3a_service.cc",
     "components/playlist/core/browser/utils.cc",
     "components/web_discovery/buildflags/buildflags.gni",
-    "android/java/org/chromium/chrome/browser/BraveAdFreeCalloutDialogFragment.java"
+    "android/java/org/chromium/chrome/browser/BraveAdFreeCalloutDialogFragment.java",
+    "browser/net/brave_ad_block_tp_network_delegate_helper.cc",
+    "components/brave_shields/content/browser/ad_block_service.h",
+    "components/brave_shields/content/browser/ad_block_service.cc",
+    "components/brave_shields/content/browser/domain_block_navigation_throttle.h",
+    "components/brave_shields/content/browser/domain_block_navigation_throttle.cc",
+    "android/java/org/chromium/chrome/browser/shields/FilterListServiceFactory.java",
+    "browser/brave_shields/android/filter_list_service_factory_android.cc"
   ],
   "chromium_restore": [
     "chrome/android/chrome_public_apk_tmpl.gni",
@@ -496,7 +503,15 @@
     "content/browser/renderer_host/page_impl.h",
     "content/browser/renderer_host/render_frame_host_impl.cc",
     "third_party/blink/renderer/core/dom/document.cc",
-    "chrome/android/java/src/org/chromium/chrome/browser/ui/system/StatusBarColorController.java"
+    "chrome/android/java/src/org/chromium/chrome/browser/ui/system/StatusBarColorController.java",
+    "chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/LocationBarBackgroundDrawable.java",
+    "chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/ToolbarProgressBar.java",
+    "chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/ToolbarProgressBarAnimatingView.java",
+    "chrome/android/java/src/org/chromium/chrome/browser/tab/TabWebContentsObserver.java",
+    "chrome/browser/gesturenav/android/java/src/org/chromium/chrome/browser/gesturenav/NativePageBitmapCapturer.java",
+    "content/browser/web_contents/web_contents_impl.cc",
+    "components/page_load_metrics/browser/metrics_web_contents_observer.cc",
+    "components/page_load_metrics/browser/page_load_tracker.h"
   ],
   "generated_overwrite": [
     "components/minidump_uploader/android/java/src/org/chromium/components/minidump_uploader/MinidumpUploader.java",
@@ -529,7 +544,10 @@
     "chrome/browser/ui/android/night_mode/java/src/org/chromium/chrome/browser/sandium/text/PageTextPolicy.java",
     "chrome/browser/ui/android/night_mode/java/src/org/chromium/chrome/browser/sandium/text/PageTextStylesheet.java",
     "chrome/browser/ui/android/night_mode/java/src/org/chromium/chrome/browser/sandium/text/SandiumPageText.java",
-    "brave/android/java/org/chromium/chrome/browser/sandium/text/SandiumPageTextUi.java"
+    "brave/android/java/org/chromium/chrome/browser/sandium/text/SandiumPageTextUi.java",
+    "chrome/browser/ui/android/night_mode/java/src/org/chromium/chrome/browser/sandium/diagnostics/SandiumNavigationDiagnostics.java",
+    "brave/android/java/org/chromium/chrome/browser/sandium/diagnostics/SandiumDiagnosticsPreferences.java",
+    "brave/android/java/org/chromium/chrome/browser/sandium/diagnostics/SandiumDiagnosticsCapture.java"
   ],
   "steps": [
     {
@@ -670,7 +688,8 @@
     "content/browser/renderer_host/navigation_controller_impl.cc": "patches/content-browser-renderer_host-navigation_controller_impl.cc.patch",
     "chrome/android/java/src/org/chromium/chrome/browser/ntp/NewTabPage.java": "patches/chrome-android-java-src-org-chromium-chrome-browser-ntp-NewTabPage.java.patch",
     "third_party/blink/renderer/core/dom/document.cc": "patches/third_party-blink-renderer-core-dom-document.cc.patch",
-    "content/browser/renderer_host/render_frame_host_impl.cc": "patches/content-browser-renderer_host-render_frame_host_impl.cc.patch"
+    "content/browser/renderer_host/render_frame_host_impl.cc": "patches/content-browser-renderer_host-render_frame_host_impl.cc.patch",
+    "content/browser/web_contents/web_contents_impl.cc": "patches/content-browser-web_contents-web_contents_impl.cc.patch"
   },
   "ui_baseline": "50545b503d3429ee1a1dad86317147e87d4b556b",
   "ui_reset_note": "Reset pinned upstream inputs only; replay exact pinned Brave patches for declared Chromium paths before UI overlays. Sandium-created classes/resources are retained and recopied by their owning overlays.",
@@ -710,7 +729,16 @@
     "components/cosmetic_filters/renderer/BUILD.gn",
     "components/cosmetic_filters/renderer/cosmetic_filters_js_handler.cc",
     "components/cosmetic_filters/renderer/cosmetic_filters_js_handler.h",
-    "android/java/res/xml/developer_preferences.xml"
+    "android/java/res/xml/developer_preferences.xml",
+    "android/java/org/chromium/chrome/browser/settings/BraveMainPreferencesBase.java",
+    "android/java/org/chromium/chrome/browser/tabbed_mode/BraveTabbedAppMenuPropertiesDelegate.java",
+    "browser/net/brave_ad_block_tp_network_delegate_helper.cc",
+    "components/brave_shields/content/browser/ad_block_service.h",
+    "components/brave_shields/content/browser/ad_block_service.cc",
+    "components/brave_shields/content/browser/domain_block_navigation_throttle.h",
+    "components/brave_shields/content/browser/domain_block_navigation_throttle.cc",
+    "android/java/org/chromium/chrome/browser/shields/FilterListServiceFactory.java",
+    "browser/brave_shields/android/filter_list_service_factory_android.cc"
   ],
   "ui_only_chromium_restore": [
     "chrome/browser/ui/android/appmenu/BUILD.gn",
@@ -808,6 +836,15 @@
     "content/browser/renderer_host/page_impl.h",
     "content/browser/renderer_host/render_frame_host_impl.cc",
     "third_party/blink/renderer/core/dom/document.cc",
-    "chrome/android/java/src/org/chromium/chrome/browser/ui/system/StatusBarColorController.java"
+    "chrome/android/java/src/org/chromium/chrome/browser/ui/system/StatusBarColorController.java",
+    "chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/LocationBarBackgroundDrawable.java",
+    "chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/ToolbarProgressBar.java",
+    "chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/ToolbarProgressBarAnimatingView.java",
+    "chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/PhoneCaptureStateToken.java",
+    "chrome/android/java/src/org/chromium/chrome/browser/tab/TabWebContentsObserver.java",
+    "chrome/browser/gesturenav/android/java/src/org/chromium/chrome/browser/gesturenav/NativePageBitmapCapturer.java",
+    "content/browser/web_contents/web_contents_impl.cc",
+    "components/page_load_metrics/browser/metrics_web_contents_observer.cc",
+    "components/page_load_metrics/browser/page_load_tracker.h"
   ]
 }

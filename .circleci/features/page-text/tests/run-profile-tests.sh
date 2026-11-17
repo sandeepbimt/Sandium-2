@@ -8,6 +8,7 @@ mapfile -t stubs < <(find "$root/../dark-pages/tests/stubs/org/chromium" -name '
 "$java_bin" com.sun.tools.javac.Main -cp "$JSON_JAVA_JAR" -d "$out" \
   "${stubs[@]}" \
   "$root/java/org/chromium/chrome/browser/sandium/text/PageTextPolicy.java" \
+  "$root/java/org/chromium/chrome/browser/sandium/text/PageTextStylesheet.java" \
   "$root/java/org/chromium/chrome/browser/sandium/text/SandiumPageText.java" \
   "$root/tests/PageTextProfileTest.java"
 "$java_bin" -cp "$out:$JSON_JAVA_JAR" PageTextProfileTest

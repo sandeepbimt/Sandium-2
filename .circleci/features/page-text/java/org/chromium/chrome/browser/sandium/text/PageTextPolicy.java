@@ -20,6 +20,12 @@ public final class PageTextPolicy {
         public final boolean enabled;
         public final int scalePercent;
         public final boolean justify;
+        /** Single-control settings; legacy storage bits remain compatible. */
+        public Settings(int scalePercent, boolean justify) {
+            this(justify, scalePercent, justify);
+        }
+        /** Preserve effective behavior when decoding old two-toggle records. */
+        public boolean isJustificationEnabled() { return enabled && justify; }
         public Settings(boolean enabled, int scalePercent, boolean justify) {
             if (scalePercent < MIN_SCALE || scalePercent > MAX_SCALE
                     || scalePercent % SCALE_STEP != 0)

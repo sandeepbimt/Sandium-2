@@ -1,7 +1,7 @@
 {
   "baseline": "50545b503d3429ee1a1dad86317147e87d4b556b",
   "files": {
-    ".circleci/experimental-steps/product-overlay-29-0.sh": "b9fb008560ea779946745ec5644be621a36eafe4815465a2a604eb3e7a4f2b8a",
+    ".circleci/experimental-steps/product-overlay-29-0.sh": "dd4c66346e8ca64b974c847440fb04d7697098c6f2b1067fee0c575ff780bff4",
     ".circleci/scripts/apply-sandium-bottom-toolbar.py": "ccdf6b99530a4505c5d42d0360f9f8efcba2ba432c6dc296fdc3e401686d2a4d",
     ".circleci/scripts/apply-sandium-chrome-theme.py": "13cfd73d17cd342cec9b1f3bf332f29be873a0b850cfb40942b7cd4660623ccf",
     ".circleci/scripts/apply-sandium-native-theme.py": "c63eefddc4ba6a167850e2f358c3383427f12c8094e79e8631be269bd6159931",
@@ -14,10 +14,10 @@
     ".circleci/scripts/test-sandium-native-theme.py": "df0c2baa1273ec3cf4110f6f2a2eb9054aef7fe2a7032ac445f5b16a28031e6e",
     ".circleci/scripts/test-sandium-paged-menu.py": "15359f36203499ab68c097a1cfbfa3d1827aedf32d84b80df5f83aa0ca805724",
     ".circleci/scripts/test-sandium-shields-popup.py": "49ea362d9b0322c77f02356d457bbc3efed8053ca878d261468ca614f3049de0",
-    "android/java/org/chromium/chrome/browser/firstrun/SandiumWelcomeSetupView.java": "0214eaa028e3491f9d95b38044229d10d45facb73d5680fe8576f02d774b405d",
-    "android/java/org/chromium/chrome/browser/ui/appmenu/SandiumMenuMetadata.java": "73c796d7c1c623bfa2d5246e68b7a5763a76bf78eec225d0722f60f171d24be2",
+    "android/java/org/chromium/chrome/browser/firstrun/SandiumWelcomeSetupView.java": "cdeb34d0171d58d00d94a3c4adb10a6419b29dccf44c956128b73507f293bf4a",
+    "android/java/org/chromium/chrome/browser/ui/appmenu/SandiumMenuMetadata.java": "9d521d9777fdb53608ca2927e16e497198e3d393f938984cb70212f52b6f9d1a",
     "android/java/org/chromium/chrome/browser/ui/appmenu/SandiumMenuState.java": "e3902c0a3673fc3ba368f980cccb4101da565440e2d44a95310a2bad49283d05",
-    "android/java/org/chromium/chrome/browser/ui/appmenu/SandiumPagedMenu.java": "2a40fc8e0c94071d15ddf4295bac68c931496d33d6df4c970226c4c33845cc3b",
+    "android/java/org/chromium/chrome/browser/ui/appmenu/SandiumPagedMenu.java": "07e9b8fc1e70ed3e9710da468cad4d23820653d7084da9455c3a7f13e2a6ed2e",
     "android/java/res/values-night/sandium_menu_colors.xml": "f27fa7dfce1f671ff7029c2a6b29b8c0afa30a029bf93520dbbaf0b4989310a7",
     "android/java/res/values/sandium_menu_colors.xml": "3c9efcdaf512005133b0c56c7b2376d6890225b72a7e6257a7cad54d8675efde",
     "android/java/res/values/sandium_menu_strings.xml": "a8248b879202e197ea05f71f260fd531154dae6053182f38d8b232de54962636"
@@ -516,9 +516,46 @@
           "current_sha256": "b9fb008560ea779946745ec5644be621a36eafe4815465a2a604eb3e7a4f2b8a"
         }
       }
+    },
+    {
+      "reason": "Owner requested green progress filling Start browsing capsule instead of separate restart progress strip. Preserve readiness and lifecycle dispatch; no build run.",
+      "changes": {
+        "android/java/org/chromium/chrome/browser/firstrun/SandiumWelcomeSetupView.java": {
+          "previous_sha256": "0214eaa028e3491f9d95b38044229d10d45facb73d5680fe8576f02d774b405d",
+          "current_sha256": "51b985ae7dd970386b5dfa0233363437ebfc8b3f59853c6a282b586a4dae277e"
+        }
+      }
+    },
+    {
+      "reason": "Owner requested enabled Start browsing match Phone Manager Optimize green; restart dark-green track, saturated green progress and contrast-safe light text. No behavior change or build.",
+      "changes": {
+        "android/java/org/chromium/chrome/browser/firstrun/SandiumWelcomeSetupView.java": {
+          "previous_sha256": "51b985ae7dd970386b5dfa0233363437ebfc8b3f59853c6a282b586a4dae277e",
+          "current_sha256": "cdeb34d0171d58d00d94a3c4adb10a6419b29dccf44c956128b73507f293bf4a"
+        }
+      }
     }
   ],
   "welcome_nov16": "Owner requested compact welcome, hidden scrollbars, green progress/checks, toolbar tracer and one-second restart feedback; lifecycle/copy constraints preserved.",
   "welcome_space_nov16": "Owner device feedback: distribute unused viewport height among main setting groups; natural size when More options expanded.",
-  "welcome_dark_hint_removal": "Owner requested removal of Dark Pages setup-restart text; startup-only transition hints retained."
+  "welcome_dark_hint_removal": "Owner requested removal of Dark Pages setup-restart text; startup-only transition hints retained.",
+  "diagnostic_integration": [
+    {
+      "reason": "Opt-in diagnostic reset preflight and optional typed menu read/save/render sink; no menu behavior or product feature removal",
+      "changes": {
+        ".circleci/experimental-steps/product-overlay-29-0.sh": {
+          "previous_sha256": "b9fb008560ea779946745ec5644be621a36eafe4815465a2a604eb3e7a4f2b8a",
+          "current_sha256": "dd4c66346e8ca64b974c847440fb04d7697098c6f2b1067fee0c575ff780bff4"
+        },
+        "android/java/org/chromium/chrome/browser/ui/appmenu/SandiumMenuMetadata.java": {
+          "previous_sha256": "73c796d7c1c623bfa2d5246e68b7a5763a76bf78eec225d0722f60f171d24be2",
+          "current_sha256": "9d521d9777fdb53608ca2927e16e497198e3d393f938984cb70212f52b6f9d1a"
+        },
+        "android/java/org/chromium/chrome/browser/ui/appmenu/SandiumPagedMenu.java": {
+          "previous_sha256": "2a40fc8e0c94071d15ddf4295bac68c931496d33d6df4c970226c4c33845cc3b",
+          "current_sha256": "07e9b8fc1e70ed3e9710da468cad4d23820653d7084da9455c3a7f13e2a6ed2e"
+        }
+      }
+    }
+  ]
 }

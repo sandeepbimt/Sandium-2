@@ -1,6 +1,6 @@
 # Global webpage text candidate
 
-Default: Website default(100%), Reader typography Off, justification Off. No
+Default: Website default(100%), Justify article text Off. No
 stylesheet or font override is installed at that default. Settings → Appearance
 → Webpage text is the only UI; there is no Shields row or per-site control.
 
@@ -78,8 +78,8 @@ python3 .circleci/features/page-text/renderer/test_css_candidate.py
 python3 .circleci/features/page-text/tests/test_combined.py
 ```
 
-Passed:63 model/compiler assertions,49 actual-adapter serialization/JNI
-assertions with mocked Chromium APIs,5 UI transform tests,9 native source tests,
+Passed:63 model/compiler assertions,73 actual-adapter serialization/JNI
+assertions with mocked Chromium APIs,6 UI transform tests,9 native source tests,
 10 OOPIF source/model tests,64-policy Java/native CSS parity,4 complete pinned
 fixture composition/atomicity/readback tests. These are not Android compilation
 or real renderer/device tests.
@@ -115,3 +115,13 @@ six matching pinned Brave patches across its20 Chromium reset owners, and the
 canonical recipe validates those mappings. Hash-recorded exact document/RFHI
 patches are applied before full Dark Pages→typography composition in regression
 tests. This restores the caller of RewriteBraveToChrome, not warning suppression.
+
+## Single justification control
+
+The redundant Reader typography master is removed. One global “Justify article
+text” toggle controls the effective feature, default Off; size stays independent.
+Old records decode effective justification as enabled AND justify, preserving all
+four legacy combinations without unexpectedly activating a previously disabled
+choice. Save writes both compatibility bits to the one new choice. JSON version
+and renderer protocol stay compatible; user font size and unrelated data remain
+unchanged. Opening settings performs no migration write or page mutation.

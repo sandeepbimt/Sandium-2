@@ -77,7 +77,22 @@ def shields(text):
     anchor='        setupAdvancedOptionsListeners();\n'
     return once(text,anchor,anchor+entry)
 
+APPEARANCE_GENERAL_ICONS = '''        // SANDIUM_APPEARANCE_GENERAL_ICONS_V1: retain keys, state and click handlers.
+        androidx.preference.Preference sandiumGroupLinksIcon =
+                findPreference("brave_enable_tab_groups");
+        if (sandiumGroupLinksIcon != null) {
+            sandiumGroupLinksIcon.setIcon(R.drawable.ic_browser_group);
+        }
+        androidx.preference.Preference sandiumUndoTabsIcon =
+                findPreference("show_undo_when_tabs_closed");
+        if (sandiumUndoTabsIcon != null) {
+            sandiumUndoTabsIcon.setIcon(R.drawable.ic_arrow_undo);
+        }
+'''
+
 def appearance(text):
+    text = text.replace(APPEARANCE_GENERAL_ICONS, '')
+    text = text.replace('        savedRules.setIcon(R.drawable.ic_appearance);\n', '')
     anchor='        SettingsUtils.addPreferencesFromResource(this, R.xml.brave_appearance_preferences);\n'
     text=once(text,'''                    .setChecked(ChromeFeatureList.isEnabled(
                             BraveFeatureList.FORCE_WEB_CONTENTS_DARK_MODE));''', '''                    .setChecked(org.chromium.chrome.browser.night_mode.SandiumDarkPages.global(
@@ -114,7 +129,7 @@ def appearance(text):
         savedRules.setFragment(org.chromium.chrome.browser.sandium.dark.SandiumRulesPreferences.class.getName());
         getPreferenceScreen().addPreference(savedRules);
 ''', '')
-    return once(text,anchor,anchor+'''
+    text = once(text,anchor,anchor+'''
         // SANDIUM_SAVED_COLOR_RULES_V2: Night Mode already owns the same global policy.
         androidx.preference.Preference savedRules = new androidx.preference.Preference(requireContext());
         savedRules.setKey("sandium_saved_color_rules");
@@ -123,6 +138,12 @@ def appearance(text):
         savedRules.setFragment(org.chromium.chrome.browser.sandium.dark.SandiumRulesPreferences.class.getName());
         getPreferenceScreen().addPreference(savedRules);
 ''')
+    # Add only presentation icons. Use the same shipped Nala icon family as
+    # Night Mode and the transition rows; native Preference binding owns sizing.
+    text = once(text, '        savedRules.setKey("sandium_saved_color_rules");',
+                '        savedRules.setKey("sandium_saved_color_rules");\n'
+                '        savedRules.setIcon(R.drawable.ic_appearance);')
+    return once(text, anchor, anchor + APPEARANCE_GENERAL_ICONS)
 
 def welcome(text):
     if 'SANDIUM_DARK_PAGES_WELCOME_V1' in text:

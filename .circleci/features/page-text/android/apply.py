@@ -25,8 +25,10 @@ def profile(s):
     return once(s, anchor, anchor + '  registry->RegisterStringPref("' + PREF + '", "");\n')
 
 def appearance(s):
+    # Normalize our presentation-only addition before replaying the owned block.
+    s = s.replace('        pageText.setIcon(R.drawable.ic_tune);\n', '')
     anchor = '        SettingsUtils.addPreferencesFromResource(this, R.xml.brave_appearance_preferences);\n'
-    return once(s, anchor, anchor + '''
+    s = once(s, anchor, anchor + '''
         // SANDIUM_PAGE_TEXT_SETTINGS_V1: profile defaults, not app UI font scaling.
         androidx.preference.Preference pageText = new androidx.preference.Preference(requireContext());
         pageText.setKey("sandium_page_text");
@@ -39,6 +41,9 @@ def appearance(s):
         });
         getPreferenceScreen().addPreference(pageText);
 ''')
+    return once(s, '        pageText.setKey("sandium_page_text");',
+                '        pageText.setKey("sandium_page_text");\n'
+                '        pageText.setIcon(R.drawable.ic_tune);')
 
 def theme(s):
     anchor = 'public class WebContentsThemeClient {'

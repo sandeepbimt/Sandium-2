@@ -6,6 +6,7 @@ ROOT="$CIRCLE_WORKING_DIRECTORY"
 if [ -f "$ROOT/brave-work/src/.sandium-native-navigation-state.json" ]; then
   python3 "$ROOT/.circleci/scripts/apply-sandium-native-navigation.py" "$ROOT/brave-work/src" --mode off
 fi
+python3 "$ROOT/.circleci/scripts/apply-sandium-navigation-diagnostics.py" "$ROOT/brave-work/src" --reset-native-probes
 
 # Configure the persistent APT workspace cache before any dependency installation.
 # Reuse restored .deb files and reduce repeated index/network overhead during PPBAS.

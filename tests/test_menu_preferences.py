@@ -64,7 +64,8 @@ public class Restart {
  def test_presenter_reads_and_writes_one_store(self):
   source=(JAVA/'SandiumPagedMenu.java').read_text()
   self.assertIn('mPreferences = new SandiumMenuPreferences(context)',source)
-  self.assertIn('SandiumMenuState.load(mPreferences.load()',source)
+  self.assertIn('String loadedLayout = mPreferences.load();',source)
+  self.assertIn('SandiumMenuState.load(loadedLayout,',source)
   self.assertIn('mPreferences.save(value.serialize())',source)
   self.assertNotIn('getSharedPreferences(',source)
  def test_overlay_registers_store(self):

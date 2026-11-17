@@ -32,7 +32,7 @@ public final class PageTextStylesheet {
                     .append("% !important;text-size-adjust:").append(settings.scalePercent)
                     .append("% !important;}");
         }
-        if (settings.enabled && settings.justify) {
+        if (settings.isJustificationEnabled()) {
             css.append(SELECTOR).append("{text-align:justify !important;}");
         }
         return css.toString();

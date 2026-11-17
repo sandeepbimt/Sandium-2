@@ -32,6 +32,7 @@ class CrossPageDrag(unittest.TestCase):
   self.assertIn('if (mResize != null && mDragging == null) post(mResize)',S)
  def test_directory_uses_saved_order_and_same_storage(self):
   self.assertIn('for (String key : mSaved.knownKeys()) if (available.contains(key)) directory.add(key)',S)
-  self.assertIn('mPreferences.load(), mCatalog.keySet(), hidden)',S)
+  self.assertIn('String loadedLayout = mPreferences.load();',S)
+  self.assertIn('loadedLayout, mCatalog.keySet(), hidden)',S)
   self.assertIn('mPreferences.save(value.serialize())',S)
 if __name__=='__main__':unittest.main()

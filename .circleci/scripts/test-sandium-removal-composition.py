@@ -64,9 +64,16 @@ for path in json.loads((root/'.circleci/features/page-text/integration-plan.json
 # Exact raw Chromium inputs for homepage reset; Brave NewTabPage patch is replayed
 # by restore_payload, not baked into these fixtures.
 for path in m['chromium_restore']:
- for folder in ['tests/fixtures/homepage-backing', 'tests/fixtures/homepage-surround', 'tests/fixtures/capture-coherence']:
+ for folder in ['tests/fixtures/homepage-backing', 'tests/fixtures/homepage-surround', 'tests/fixtures/capture-coherence', 'tests/fixtures/address-progress']:
   candidate=root/folder/P(path).name
   if candidate.is_file():fixture_map.setdefault(path,candidate)
+
+# Numeric diagnostics add pinned observer/capture owners and replay Brave web-contents hooks.
+fixture_map['chrome/android/java/src/org/chromium/chrome/browser/tab/TabWebContentsObserver.java']=root/'experiments/navigation-diagnostics/fixtures/TabWebContentsObserver.java'
+fixture_map['chrome/browser/gesturenav/android/java/src/org/chromium/chrome/browser/gesturenav/NativePageBitmapCapturer.java']=root/'experiments/capture-origin/NativePageBitmapCapturer.java'
+fixture_map['content/browser/web_contents/web_contents_impl.cc']=root/'experiments/navigation-diagnostics/fixtures/web_contents_impl.cc'
+for name in ('metrics_web_contents_observer.cc','page_load_tracker.h'):
+ fixture_map['components/page_load_metrics/browser/'+name]=root/'experiments/navigation-diagnostics/renderer-metrics-fixtures'/name
 
 def chromium_blob(path):
  if a.chromium_source:return blob(a.chromium_source,m['chromium_pin'],path)
@@ -86,7 +93,25 @@ with tempfile.TemporaryDirectory() as temporary:
   if not (core/path).exists():write(core/path,core_blob(path))
  privacy=src/'chrome/android/java/res/xml/privacy_preferences.xml';privacy.parent.mkdir(parents=True,exist_ok=True)
  privacy.write_text('<Preference android:key="incognito_lock" />') # unrelated old UI seam; not removal/reset input
+ def native_diagnostic_baseline():
+  diag=load('apply-sandium-navigation-diagnostics')
+  for path,text in diag.reset_native_probes(src).items():write(path,text.encode())
+  full=load('apply-sandium-page-transition-full');native=load('sandium-native-blur-source');back=load('apply-sandium-back-transition')
+  blur=src/diag.transition.BLUR
+  if not blur.exists():write(blur,(root/'tests/fixtures/ordinary-transition/blur_transition_animation_manager.cc').read_bytes())
+  blur.write_text(native.implementation(full.transform_transition_cc(blur.read_text())))
+  path=src/diag.transition.BACK
+  if not path.exists():write(path,(root/'tests/fixtures/back-transition'/diag.transition.BACK).read_bytes())
+  text=path.read_text()
+  for name,old,new in back.CHANGES:
+   if name==diag.transition.BACK:text=back.transform(text,old,new)
+  path.write_text(text)
+ def diagnostics_ui():
+  diag=load('apply-sandium-navigation-diagnostics')
+  for path,text in diag.compose(src).items():write(path,text.encode())
+  assert all(path.read_text()==text for path,text in diag.compose(src).items())
  def ui():
+  native_diagnostic_baseline()
   write(core/darkjava.WELCOME,(root/darkjava.WELCOME).read_bytes())
   activity=core/'android/java/org/chromium/chrome/browser/firstrun/WelcomeOnboardingActivity.java';activity.write_text(welcome.transform_activity(activity.read_text()))
   branding.replace_toolbar_method(core)
@@ -119,7 +144,8 @@ with tempfile.TemporaryDirectory() as temporary:
    subprocess.run([sys.executable,str(root/step['script'])]+[subs.get(x,x) for x in step['args']],check=True)
  def preserved_ui():
   text_combined=feature_module('page_text_preserve','.circleci/features/page-text/apply.py')
-  assert all(path.read_text()==text for path,text in text_combined.compose(src,root).items()), 'later owner changed page-text source'
+  text_drift=[str(path.relative_to(src)) for path,text in text_combined.compose(src,root).items() if path.read_text()!=text]
+  assert not text_drift, 'later owner changed page-text source: '+str(text_drift)
   assert toggles.MARKER in (src/toggles.STYLE).read_text()
   for name in ("thumb","track"):
    assert (src/toggles.BASE/("java/res/color/sandium_switch_"+name+".xml")).read_text()==toggles.selector(name=="thumb")
@@ -184,14 +210,18 @@ with tempfile.TemporaryDirectory() as temporary:
   capture=load('apply-sandium-capture-coherence')
   for path,text in capture.plan(src).items():write(path,text.encode())
   assert all(path.read_text()==text for path,text in capture.plan(src).items())
+ def address_progress_ui():
+  progress=load('apply-sandium-address-progress')
+  for rel,fn in progress.TRANSFORMS.items():
+   p=src/rel;out=fn(p.read_text());write(p,out.encode());assert p.read_text()==fn(p.read_text())
  def snapshot():return {str(p.relative_to(src)):p.read_bytes() for p in src.rglob('*') if p.is_file()}
- ui();removal();home.apply(src,root);home.apply(src,root,True);video_ui();dark_ui();page_text_ui();homepage_ui();capture_ui();preserved_ui();before=snapshot()
+ ui();removal();home.apply(src,root);home.apply(src,root,True);video_ui();dark_ui();page_text_ui();homepage_ui();capture_ui();address_progress_ui();preserved_ui();diagnostics_ui();preserved_ui();before=snapshot()
  if a.gn:
   for path in sorted(p for p in src.rglob('*') if p.suffix in ('.gn','.gni')):
    subprocess.run([str(a.gn.resolve()),'format','--dump-tree=json',str(path)],stdout=subprocess.DEVNULL,check=True)
- reset();ui();removal();home.apply(src,root);home.apply(src,root,True);video_ui();dark_ui();page_text_ui();homepage_ui();capture_ui();preserved_ui()
+ reset();ui();removal();home.apply(src,root);home.apply(src,root,True);video_ui();dark_ui();page_text_ui();homepage_ui();capture_ui();address_progress_ui();preserved_ui();diagnostics_ui();preserved_ui()
  if before!=snapshot():raise RuntimeError('UI/removal reset+replay changed output')
- reset();ui();removal(m['steps'][:4]);reset();ui();removal();home.apply(src,root);home.apply(src,root,True);video_ui();dark_ui();page_text_ui();homepage_ui();capture_ui();preserved_ui()
+ reset();ui();removal(m['steps'][:4]);reset();ui();removal();home.apply(src,root);home.apply(src,root,True);video_ui();dark_ui();page_text_ui();homepage_ui();capture_ui();address_progress_ui();preserved_ui();diagnostics_ui();preserved_ui()
  if before!=snapshot():raise RuntimeError('UI/removal partial-failure recovery changed output')
  # Verify production staging fails before returning any write set on bad patches.
  def bad_reader(path):return b'not a patch' if path in m['chromium_restore_patches'].values() else core_blob(path)

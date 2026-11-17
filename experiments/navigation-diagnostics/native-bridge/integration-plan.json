@@ -1,0 +1,28 @@
+{
+  "chromium_pin": "d331de35ca8ab1358c7a17e4bd41627d55eaef51",
+  "chromium_restore": [
+    "content/public/browser/content_browser_client.h",
+    "content/public/browser/content_browser_client.cc",
+    "chrome/browser/chrome_content_browser_client.h",
+    "chrome/browser/chrome_content_browser_client.cc",
+    "chrome/browser/android/web_contents_theme_client.h",
+    "chrome/browser/android/web_contents_theme_client.cc",
+    "chrome/browser/ui/android/night_mode/java/src/org/chromium/chrome/browser/night_mode/WebContentsThemeClient.java",
+    "chrome/browser/ui/android/night_mode/BUILD.gn"
+  ],
+  "ui_only_chromium_restore": [
+    "content/public/browser/content_browser_client.h",
+    "content/public/browser/content_browser_client.cc",
+    "chrome/browser/chrome_content_browser_client.h",
+    "chrome/browser/chrome_content_browser_client.cc",
+    "chrome/browser/android/web_contents_theme_client.h",
+    "chrome/browser/android/web_contents_theme_client.cc",
+    "chrome/browser/ui/android/night_mode/java/src/org/chromium/chrome/browser/night_mode/WebContentsThemeClient.java",
+    "chrome/browser/ui/android/night_mode/BUILD.gn"
+  ],
+  "generated": [
+    "chrome/browser/ui/android/night_mode/java/src/org/chromium/chrome/browser/sandium/diagnostics/SandiumNavigationDiagnostics.java"
+  ],
+  "order": "after existing Dark Pages and Page Text apply+verify; before final diagnostic bridge verify",
+  "producers": "none in this transport-only candidate"
+}

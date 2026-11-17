@@ -1,5 +1,6 @@
 set -euo pipefail
 python3 .circleci/scripts/apply-sandium-native-navigation.py "$CIRCLE_WORKING_DIRECTORY/brave-work/src" --mode off
+python3 .circleci/scripts/apply-sandium-navigation-diagnostics.py "$CIRCLE_WORKING_DIRECTORY/brave-work/src" --reset-native-probes
 ROOT="$CIRCLE_WORKING_DIRECTORY"
 SRC="$ROOT/brave-work/src"
 CORE="$SRC/brave"
@@ -32,8 +33,15 @@ python3 .circleci/scripts/apply-sandium-homepage-combined.py "$SRC"
 python3 .circleci/scripts/apply-sandium-homepage-combined.py "$SRC" --verify-only
 python3 .circleci/scripts/apply-sandium-capture-coherence.py "$SRC"
 python3 .circleci/scripts/apply-sandium-capture-coherence.py "$SRC" --verify-only
+# Native load state, full capsule-height green paint. No layout/viewport changes.
+python3 .circleci/scripts/apply-sandium-address-progress.py "$SRC"
+python3 .circleci/scripts/apply-sandium-address-progress.py "$SRC" --verify-only
+python3 .circleci/scripts/test-sandium-address-progress.py
 python3 .circleci/scripts/apply-sandium-native-insets.py "$SRC" --verify-only
 python3 .circleci/features/page-text/apply.py "$SRC" --repo "$ROOT" --verify-only
+# Bounded opt-in typed diagnostics after all product consumers.
+python3 .circleci/scripts/apply-sandium-navigation-diagnostics.py "$SRC"
+python3 .circleci/scripts/apply-sandium-navigation-diagnostics.py "$SRC" --verify-only
 python3 .circleci/scripts/apply-sandium-native-navigation.py "$SRC" --mode configured
 python3 .circleci/scripts/apply-sandium-native-navigation.py "$SRC" --mode configured --verify-only
 

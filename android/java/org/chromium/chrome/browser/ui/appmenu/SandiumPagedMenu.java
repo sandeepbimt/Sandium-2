@@ -52,6 +52,7 @@ final class SandiumPagedMenu extends FrameLayout {
     private final LinkedHashMap<String, Entry> mCatalog = new LinkedHashMap<>();
     private SandiumMenuState mSaved;
     private SandiumMenuState mDraft;
+    private long mDiagnosticSequence;
     private SandiumMenuState mPersisted;
     private int mPage;
     private int mRenderedScreen = -1;
@@ -155,7 +156,14 @@ final class SandiumPagedMenu extends FrameLayout {
         for (Map.Entry<String, Entry> e : mCatalog.entrySet()) {
             if (!SandiumMenuMetadata.wasVisible(e.getValue().model)) hidden.add(e.getKey());
         }
-        mSaved = SandiumMenuState.load(mPreferences.load(), mCatalog.keySet(), hidden);
+        String loadedLayout = mPreferences.load();
+        mSaved = SandiumMenuState.load(loadedLayout, mCatalog.keySet(), hidden);
+        SandiumMenuState stored = SandiumMenuState.load(loadedLayout,
+                java.util.Collections.emptyList(), java.util.Collections.emptySet());
+        SandiumMenuMetadata.diagnostic(mModels, 16, mDiagnosticSequence, 1,
+                loadedLayout.isEmpty() ? 0 : SandiumMenuState.isValidSavedLayout(loadedLayout) ? 1 : -1,
+                stored.knownKeys().size(),
+                SandiumMenuMetadata.diagnosticFingerprint(stored.knownKeys(), stored));
         mPersisted = mSaved.copy();
         render();
     }
@@ -460,6 +468,9 @@ final class SandiumPagedMenu extends FrameLayout {
     // This bounded layout write is performed only on user edits, never during scrolling.
     private boolean writeLayout(SandiumMenuState value) {
         boolean saved = mPreferences.save(value.serialize());
+        SandiumMenuMetadata.diagnostic(mModels, 17, ++mDiagnosticSequence, 1, 1,
+                value.knownKeys().size(),
+                SandiumMenuMetadata.diagnosticFingerprint(value.knownKeys(), value), saved ? 1 : 0);
         if (saved) mPersisted = value.copy();
         else android.widget.Toast.makeText(getContext(), R.string.sandium_menu_save_failed,
                 android.widget.Toast.LENGTH_LONG).show();
@@ -595,6 +606,12 @@ final class SandiumPagedMenu extends FrameLayout {
     private void render() {
         // Fade only actual navigation, never network/model updates or drag reorders.
         int screen = mDraft != null ? 2 : mAllMenu ? 1 : 0;
+        java.util.List<String> diagnosticKeys = new java.util.ArrayList<>();
+        if (screen == 1) {
+            for (String key : mSaved.knownKeys()) if (editableKeys().contains(key)) diagnosticKeys.add(key);
+        } else diagnosticKeys.addAll(quickKeys());
+        SandiumMenuMetadata.diagnostic(mModels, 18, mDiagnosticSequence, screen,
+                diagnosticKeys.size(), SandiumMenuMetadata.diagnosticFingerprint(diagnosticKeys, null), mPage);
         int pageDirection = Integer.compare(mPage, mRenderedPage);
         boolean pageTransition = mRenderedScreen == screen && mRenderedPage >= 0
                 && mPage != mRenderedPage && !mNativeVisible && mDragging == null;

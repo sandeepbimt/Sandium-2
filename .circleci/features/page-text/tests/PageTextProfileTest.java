@@ -65,6 +65,36 @@ public class PageTextProfileTest {
         check(SandiumPageText.packed(legacyContents,a)==(115|768));
         check(SandiumPageText.packed(legacyContents,b)==(115|768));
         check(UserPrefs.get(legacy).value.contains("sites"));
+        // Upgrades preserve ACTUAL old behavior, not a disabled remembered checkbox.
+        for (boolean oldEnabled : new boolean[]{false,true}) {
+            for (boolean oldJustify : new boolean[]{false,true}) {
+                Profile upgrading = new Profile();
+                PrefService upgradingPrefs = UserPrefs.get(upgrading);
+                upgradingPrefs.value = "{\"version\":1,\"global\":{\"enabled\":"
+                        + oldEnabled + ",\"scalePercent\":125,\"justify\":" + oldJustify + "}}";
+                PageTextPolicy.Settings old = SandiumPageText.global(upgrading);
+                boolean wasEffective = oldEnabled && oldJustify;
+                check(old.isJustificationEnabled() == wasEffective);
+                check(PageTextStylesheet.compile(old).contains("text-align:justify") == wasEffective);
+                // UI save with no toggle change preserves effective state and font size.
+                SandiumPageText.setGlobal(upgrading,new PageTextPolicy.Settings(old.scalePercent,
+                        old.isJustificationEnabled()));
+                WebContents upgradedContents = new WebContents(upgrading,a.getSpec());
+                check(SandiumPageText.packed(upgradedContents,a) == (125 | (wasEffective ? 768 : 0)));
+                Profile reopened = new Profile();UserPrefs.get(reopened).value = upgradingPrefs.value;
+                check(SandiumPageText.global(reopened).isJustificationEnabled() == wasEffective);
+                check(SandiumPageText.global(reopened).scalePercent == 125);
+                WebContents reopenedContents = new WebContents(reopened,a.getSpec());
+                check(SandiumPageText.packed(reopenedContents,a) == (125 | (wasEffective ? 768 : 0)));
+                check(PageTextStylesheet.compile(SandiumPageText.global(reopened)).contains("text-align:justify") == wasEffective);
+                SandiumPageText.setGlobal(upgrading,new PageTextPolicy.Settings(125,!wasEffective));
+                check(SandiumPageText.packed(upgradedContents,a) == (125 | (!wasEffective ? 768 : 0)));
+                Profile toggledReopened = new Profile();
+                UserPrefs.get(toggledReopened).value = upgradingPrefs.value;
+                check(SandiumPageText.global(toggledReopened).isJustificationEnabled() == !wasEffective);
+                check(SandiumPageText.global(toggledReopened).scalePercent == 125);
+            }
+        }
         Profile corrupt=new Profile();UserPrefs.get(corrupt).value="not json";
         check(SandiumPageText.global(corrupt).scalePercent==100);
         Profile badValue=new Profile();

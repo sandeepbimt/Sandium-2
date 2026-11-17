@@ -3,6 +3,8 @@ package org.chromium.chrome.browser.sandium.text;
 
 import android.app.AlertDialog;
 import android.content.Context;
+import android.graphics.Color;
+import android.graphics.drawable.GradientDrawable;
 import android.view.View;
 import android.widget.CheckBox;
 import android.widget.LinearLayout;
@@ -27,33 +29,38 @@ public final class SandiumPageTextUi {
         PageTextPolicy.Settings initial = SandiumPageText.global(profile);
         LinearLayout body = new LinearLayout(c); body.setOrientation(LinearLayout.VERTICAL);
         int pad = Math.round(20 * c.getResources().getDisplayMetrics().density);
-        body.setPadding(pad, pad / 2, pad, pad / 2);
+        // No stacked bottom padding between the preview and native dialog actions.
+        body.setPadding(pad, pad / 2, pad, 0);
         TextView size = text(c, ""); body.addView(size);
         SeekBar slider = new SeekBar(c); slider.setMax((PageTextPolicy.MAX_SCALE - PageTextPolicy.MIN_SCALE) / PageTextPolicy.SCALE_STEP);
         slider.setProgress((initial.scalePercent - PageTextPolicy.MIN_SCALE) / PageTextPolicy.SCALE_STEP);
         slider.setContentDescription("Webpage text size"); body.addView(slider);
-        CheckBox typography = new CheckBox(c); typography.setText("Reader typography");
-        typography.setChecked(initial.enabled); body.addView(typography);
         CheckBox justify = new CheckBox(c); justify.setText("Justify article text");
-        justify.setChecked(initial.justify); body.addView(justify);
-        TextView sampleLabel = text(c, "Sample preview only · Website fonts may differ"); body.addView(sampleLabel);
-        TextView sample = text(c, "Sandium keeps reading comfortable. Change text size here without moving the page behind this panel.");
-        sample.setPadding(0, pad / 2, 0, pad / 2); body.addView(sample);
-        TextView note = text(c, "Replaces the website’s text adjustment; actual size and layout depend on the site. Applies on the next load. Open pages stay unchanged until reloaded.");
-        note.setTextSize(13); body.addView(note);
+        justify.setChecked(initial.isJustificationEnabled()); body.addView(justify);
+        // A local reading surface beneath both controls.
+        TextView sample = text(c, "Sandium keeps reading comfortable. Adjust the text size and alignment to find a style that feels right. This sample changes instantly while your open webpages stay unchanged.");
+        sample.setTextColor(Color.rgb(232, 234, 237));
+        sample.setPadding(pad, pad, pad, pad);
+        sample.setLineSpacing(0, 1.3f);
+        GradientDrawable sampleBackground = new GradientDrawable();
+        sampleBackground.setColor(Color.rgb(24, 26, 29));
+        sampleBackground.setCornerRadius(12 * c.getResources().getDisplayMetrics().density);
+        sample.setBackground(sampleBackground);
+        LinearLayout.LayoutParams sampleParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        sampleParams.setMargins(0, pad / 2, 0, 0);
+        body.addView(sample, sampleParams);
         if (profile.isOffTheRecord()) {
             TextView privateNote = text(c, "Private session only. Changes are not saved to your regular profile.");
             privateNote.setTextSize(13); body.addView(privateNote);
         }
         Runnable preview = () -> {
             int percent = PageTextPolicy.MIN_SCALE + slider.getProgress() * PageTextPolicy.SCALE_STEP;
-            boolean typeOn = typography.isChecked();
             boolean justified = justify.isChecked();
-            size.setText(percent == 100 ? "Text size · Website default (100%)" : "Text size · Native adjustment " + percent + "%");
-            justify.setEnabled(typeOn);
+            size.setText(percent == 100 ? "Text size · Website default (100%)" : "Text size · " + percent + "%");
             sample.setTextSize(16f * percent / 100f);
             // Native sample widget only, never the webpage. Device API is >= Android 8 here.
-            sample.setJustificationMode(typeOn && justified
+            sample.setJustificationMode(justified
                     ? android.text.Layout.JUSTIFICATION_MODE_INTER_WORD
                     : android.text.Layout.JUSTIFICATION_MODE_NONE);
         };
@@ -62,12 +69,11 @@ public final class SandiumPageTextUi {
             @Override public void onStartTrackingTouch(SeekBar v) {}
             @Override public void onStopTrackingTouch(SeekBar v) {}
         });
-        typography.setOnCheckedChangeListener((v, checked) -> preview.run());
         justify.setOnCheckedChangeListener((v, checked) -> preview.run());
         preview.run();
         ScrollView scroll = new ScrollView(c); scroll.addView(body);
         AlertDialog dialog = new AlertDialog.Builder(c).setTitle("Webpage text")
-                .setView(scroll).setNegativeButton("Cancel", null).setPositiveButton("Save", null).create();
+                .setView(scroll, 0, 0, 0, 0).setNegativeButton("Cancel", null).setPositiveButton("Save", null).create();
         dialog.setOnShowListener(ignored -> {
             View.OnClickListener save = button -> {
                 if (!SandiumPageText.usable(profile)) {
@@ -75,7 +81,7 @@ public final class SandiumPageTextUi {
                     dialog.dismiss(); return;
                 }
                 try {
-                    PageTextPolicy.Settings value = new PageTextPolicy.Settings(typography.isChecked(),
+                    PageTextPolicy.Settings value = new PageTextPolicy.Settings(
                             PageTextPolicy.MIN_SCALE + slider.getProgress() * PageTextPolicy.SCALE_STEP, justify.isChecked());
                     SandiumPageText.setGlobal(profile, value);
                     dialog.dismiss();

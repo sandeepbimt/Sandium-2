@@ -1,5 +1,6 @@
 set -euo pipefail
 python3 .circleci/scripts/apply-sandium-native-navigation.py "$CIRCLE_WORKING_DIRECTORY/brave-work/src" --mode off
+python3 .circleci/scripts/apply-sandium-navigation-diagnostics.py "$CIRCLE_WORKING_DIRECTORY/brave-work/src" --reset-native-probes
 CORE="$CIRCLE_WORKING_DIRECTORY/brave-work/src/brave"
 python3 .circleci/scripts/apply-sandium-shields-two-state.py "$CORE"
 python3 .circleci/scripts/apply-sandium-adblock-engine-race.py "$CORE"

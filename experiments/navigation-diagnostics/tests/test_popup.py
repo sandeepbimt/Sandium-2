@@ -1,0 +1,31 @@
+import importlib.util,pathlib,tempfile,subprocess,unittest
+ROOT=pathlib.Path(__file__).resolve().parents[1]
+s=importlib.util.spec_from_file_location('p',ROOT/'apply-popup.py');m=importlib.util.module_from_spec(s);s.loader.exec_module(m)
+class Tests(unittest.TestCase):
+ def test_probe_lifetime_and_outcomes(self):
+  code=r'''#include <cstdint>
+#include <functional>
+#include <optional>
+#include <vector>
+#include <cassert>
+namespace base {struct Delta{int64_t InMicroseconds(){return 1;}};struct TimeTicks{static TimeTicks Now(){return {};}Delta since_origin()const{return {};}friend Delta operator-(TimeTicks,TimeTicks){return {};}};
+template<class T>struct WeakPtr{T* p=nullptr;WeakPtr()=default;WeakPtr(T* x):p(x){} explicit operator bool()const{return p!=nullptr;}T* get(){return p;}};
+struct ScopedClosureRunner{std::function<void()> f;explicit ScopedClosureRunner(std::function<void()> x):f(x){}~ScopedClosureRunner(){f();}};template<class F>std::function<void()> BindOnce(F f){return f;}}
+struct RenderFrameHostImpl;
+struct WebContents{static WebContents* FromRenderFrameHost(RenderFrameHostImpl*){static WebContents w;return &w;}};
+struct Client{int64_t epoch=1;std::vector<int> events;std::vector<double> statuses;
+int64_t GetSandiumNavigationDiagnosticsEpoch(WebContents*){return epoch;}
+void RecordSandiumNavigationDiagnosticForEpoch(WebContents*,int64_t e,int event,int64_t,int64_t,const std::vector<double>& v){if(e!=epoch||!e)return;events.push_back(event);if(event==20)statuses.push_back(v[1]);}} client;
+struct Content{Client* browser(){return &client;}} content;Content* GetContentClient(){return &content;}
+struct Params{bool started_with_transient_activation=true;int disposition=2;};
+struct RenderFrameHostImpl{base::WeakPtr<RenderFrameHostImpl> GetWeakPtr(){return {this};}int64_t GetNavigationId(){return 42;}
+void run(int mode){Params p;auto* params=&p;'''+m.PROBE+r'''
+if(mode==1)sandium_record_popup(2.,0.,true);
+if(mode==2){client.epoch=2;sandium_record_popup(2.,0.,true);}
+if(mode==3)sandium_popup_weak={};
+}};
+int main(){RenderFrameHostImpl r;r.run(0);assert(client.events.size()==2&&client.statuses.back()==-1);client.events.clear();r.run(1);assert(client.events.size()==2&&client.statuses.back()==2);client.events.clear();r.run(2);assert(client.events.size()==1);client.events.clear();client.epoch=1;r.run(3);assert(client.events.size()==1);client.events.clear();client.epoch=0;r.run(0);assert(client.events.empty());}
+'''
+  with tempfile.TemporaryDirectory() as d:
+   p=pathlib.Path(d)/'t.cc';p.write_text(code);subprocess.run(['g++','-std=c++20','-Wall','-Wextra','-Werror',str(p),'-o',d+'/t'],check=True);subprocess.run([d+'/t'],check=True)
+if __name__=='__main__':unittest.main()
