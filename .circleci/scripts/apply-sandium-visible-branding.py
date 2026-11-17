@@ -182,7 +182,7 @@ ABOUT_FOOTER_ANCHOR = "    @Override\n    public MonotonicObservableSupplier<Str
 ABOUT_FOOTER = """    // SANDIUM_LEGAL_FOOTER: small visible text, full accessible one-tap target.
     @Override
     public android.view.View onCreateView(android.view.LayoutInflater inflater,
-            @Nullable android.view.ViewGroup container, @Nullable Bundle savedInstanceState) {
+            android.view.@Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
         android.view.View preferences = super.onCreateView(inflater, container, savedInstanceState);
         assumeNonNull(preferences);
         android.content.Context context = requireContext();
@@ -224,7 +224,9 @@ ABOUT_FOOTER = """    // SANDIUM_LEGAL_FOOTER: small visible text, full accessib
 
 def compact_legal_footer(about):
     if '// SANDIUM_LEGAL_FOOTER:' in about:
-        return about
+        # Repair a reused checkpoint written before TYPE_USE qualification was fixed.
+        return about.replace('@Nullable android.view.ViewGroup container',
+                             'android.view.@Nullable ViewGroup container')
     if about.count(COPYRIGHT_CLEARED) != 1 or about.count(ABOUT_FOOTER_ANCHOR) != 1:
         raise RuntimeError('About legal footer anchors changed')
     about = about.replace(COPYRIGHT_CLEARED, COPYRIGHT_CLEARED +
