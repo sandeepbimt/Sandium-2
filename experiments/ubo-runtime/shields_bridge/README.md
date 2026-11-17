@@ -1,112 +1,99 @@
-# Fixed-identity native Shields observation bridge (phase 1)
+# Fixed-identity uBO / native Shields bridge
 
-Apply AFTER EXT0 source replay and loader overlay:
+This directory contains **implemented source**, not a claim of a tested Android
+replacement. The full uBO1.76.4 payload, API bridge, native exclusive owner, startup
+barrier and filtering adapters are now present. Actual GN/native/Java build status
+and device results must be reported separately from these source tests.
+
+## Implemented
+
+- Private extension API bound to pinned component ID, version, install location
+  and regular profile. Websites, arbitrary extensions and private profiles cannot
+  invoke it. No arbitrary script execution endpoint.
+- Authoritative native master/ad/cosmetic policy attached to each fixed-component
+  webRequest recipient, plus native tab/document policy for cosmetic and scriptlet
+  work. Both Chromium dispatch modes retain the private field. No guessed JS
+  hostname matching or raw-rule snapshot used as request policy.
+- Startup reconciles native custom-filter text into real uBO save/readback/list
+  reload before readyToFilter. Native ACK requires exact generation and source
+  SHA256. Listeners are reported only after initializeTabs and webRequest.start.
+- Profile settings/custom-filter observers invalidate ACKs; the adapter serially
+  reconciles and ACKs the current generation again. The engine owner remains
+  fixed while its settings can change.
+- Network, cosmetics/CSS insertion, scriptlet injection and popup closure have
+  native policy gates. Missing/invalid capability does not authorize filtering.
+- Coordinator waits at most12seconds for startup, checks a live background host,
+  and unloads the component before native fallback. Failure to tear down does not
+  silently release navigation. Runtime loss is guarded separately.
+- Existing native picker/clear/custom-rule storage is retained; it is not replaced
+  by a duplicate extension-only database. Cookies, dark mode and shred are untouched.
+- Genuine upstream uBO block outcomes are batched locally into existing Android
+  Shields blocked-resource events. The fixed caller, owner, profile and immutable
+  main-document identity are checked before delivery. No invented URL/count.
+- `status/` adds a read-only row inside existing Shields, distinguishing native,
+  uBO, updating, bounded startup, native fallback and unavailable/restart states.
+
+The public experiment's two-state cosmetic control normalizes On to native BLOCK;
+this is not a reproduction of the hidden three-state Standard/Aggressive policy.
+
+## Remaining parity and validation gaps
+
+1. **Native list/subscription controls:** source bridge now maps authoritative
+   effective catalog/subscription selections to exact original sources and
+   validates compiled payloads before revision ACK. Runtime catalog arrival,
+   enabled-source availability and actual rule semantics remain unverified.
+   Unknown catalog or unavailable enabled source rejects readiness, not silent
+   success. See LIST_RECONCILIATION.md.
+2. **Private profiles:** bridge is intentionally regular-profile-only. OTR retains
+   Brave native filtering and the status row says so. A full private uBO lifecycle
+   needs separate data/isolation work and tests.
+3. **Runtime verification:** compile success, actual network block+exception,
+   scriptlet/cosmetic behavior, popup handling, source control changes, restart,
+   update and rollback persistence must be exercised on real ARM64 Android.
+4. **Counters:** telemetry is bounded and omits stale, frameless, uncommitted-root
+   and over-limit events rather than misattributing them. CSS hiding is not a
+   network-block count. Do not equate it to every uBO dashboard statistic.
+5. Performance and navigation races need device measurement. The native tab
+   lookup uses SessionTabHelper IDs and public renderer enumeration, avoiding a
+   chrome/browser/extensions dependency cycle but requiring a performance audit.
+6. Already-injected cosmetic/scriptlet effects may require page reload after a
+   policy change. Restoring page state must not be promised without runtime tests.
+
+## Snapshot is diagnostic, not policy
+
+`getSettingsSnapshot` returns bounded ordered native rule listings/defaults and
+custom-filter text. Chromium explicitly documents GetSettingsForOneType as a UI
+listing, not an authoritative policy-evaluation API; expiry/provider semantics
+are therefore handled by the native request path instead. Snapshots never grant
+ownership. Likewise a readiness self-report alone is not a filtering smoke test.
+
+## Composition and reset
+
+Apply loader, bridge, routing, startup/request-policy and finally visible status
+according to the integrated build script. Bridge invocation:
 
 ```
 python3 experiments/ubo-runtime/shields_bridge/apply.py --core "$SRC/brave"
 ```
 
-This wires a real native extension API, schema/allowlist, explicit Android function
-registration, resource-mapped ES module, and a hook in official uBO 1.76.4 startup.
-The loader remains disabled by default. No build/run is triggered by this overlay.
-
-The bridge permits only the pinned component ID, component installation location,
-version and regular profile. No arbitrary extension/webpage endpoint or script
-execution capability is exposed. `getSettings(url)` returns the existing native
-Shields master/ad/cosmetic values; it changes none of them. Unrelated controls are
-untouched. No URL/rule/page content is logged.
-
-`reportReady(1, "listeners-ready")` executes only after `initializeTabs()` and
-`webRequest.start()`, not the earlier `readyToFilter` assignment. Its profile-owned
-state is observational and UI-thread only. It does not prove blocked requests,
-cosmetic filtering or scriptlets, and it never suppresses Brave. It can become
-stale after a background crash; a future coordinator must additionally observe
-extension unload/background-process destruction and use generation ACKs. The
-accessor must NOT be interpreted as permission to cut over.
-
-## Still required for replacement
-
-* Snapshot all native site rules/defaults before unsuspending filtering, not an
-  asynchronous settings lookup on each request.
-* Identity-only content-settings-change events, generations, ACKs and invalidation.
-* Preserve native pattern precedence and reject unsupported mapping. Native
-  Standard/Aggressive control semantics cannot silently become one on/off bit.
-* Existing custom-rule/picker add, reset, presence, import/export and counts.
-* Exclusive coordinated network/cosmetic/scriptlet switching with rollback.
-* Real native compile, controlled request+exception, cosmetic/scriptlet test,
-  restart persistence and phone runtime validation.
-
-The five Python tests cover composition, restricted API source invariants and
-startup ordering; Node tests cover adapter failure/version/absent-API paths. The
-hook was applied twice to the exact validated official release bundle. These are
-source/adapter tests, not Android or live-engine tests.
-
-## Reset ordering and owned changes
-
-Before replaying lower-level overlays, run:
+The bridge patches actual pinned uBO modules, registers added resources, and
+recomputes the localized loader's per-file disk inventory. Every modified file,
+including disk_resources.h, is in its exact before/after ownership receipt.
+Reset outer layers first (status/request-policy/startup/routing as applied), then
+bridge, then loader, before EXT0/product source replay:
 
 ```
 python3 experiments/ubo-runtime/shields_bridge/apply.py --core "$SRC/brave" --reset
-# then reset loader, then EXT0 source replay
 ```
 
-The local receipt records exact before/after bytes before live writes. Reset
-accepts original or expected postimage (including interrupted application), refuses
-unowned modifications and restores the loader's exact postimage. Paths/symlinks
-are validated. No arbitrary unknown source is overwritten. Repeated application
-first restores this overlay only. Do not remove receipts before reversing layers.
+Interrupted before/after states are accepted; unknown edits are refused rather
+than overwritten. Never delete receipts instead of reversing the layers.
 
-Phase 2 observation (not replacement): `getSettingsSnapshot` exposes ordered
-native Shields/ad/cosmetic rule listings, defaults and the existing local-state
-custom-filter string. It subscribes before snapshotting, sends identity-only,
-profile-restricted change-generation events, and unregisters all observations
-before profile keyed-service shutdown. The JS adapter rejects a reply made stale
-by an in-flight settings event; it never converts raw patterns into uBO switches.
-The getter is bounded (16,384 rules; 4 MiB custom-filter text), rejecting rather
-than silently truncating. Cookies, dark mode and shred settings remain untouched.
+## Evidence
 
-**Critical limitation:** pinned Chromium `host_content_settings_map.h` documents
-`GetSettingsForOneType` as a UI listing API, explicitly not an authoritative
-settings-evaluation API; returned rules can expire. Consequently this snapshot is
-not a safe synchronous per-request policy mirror. Before activation, implement a
-Chromium-evaluated policy handoff behind a pre-request navigation barrier, with
-expiry/invalidation and custom-rule synchronization ACK, rather than a guessed
-hostname matcher. No engine ownership is granted by either snapshot or readiness.
-
-Exact Chromium sources checked: commit d331de35ca8ab1358c7a17e4bd41627d55eaef51,
-`extensions/browser/event_router.h`, `components/content_settings/core/browser/`
-`{host_content_settings_map,content_settings_observer}.h`,
-`chrome/browser/profiles/{profile.h,profile.cc,profile_observer.h}`. Native compile
-and device-level behavior are still unverified.
-
-Composition supports the localized loader's constructor initialization marker.
-After adapter/start.js mutations it regenerates `disk_resources.h` using the
-loader's pure `build_disk_inventory(core)` helper; this header is included in the
-bridge ownership receipt and restored before the loader reset.
-
-Startup now imports the bridge before `µb.readyToFilter = true`, reconciles the
-native custom-filter text through real uBO save/readback/list reload, and ACKs the
-exact native generation plus source SHA-256. Listener readiness is reported only
-after tab restore and `webRequest.start()`. Failure aborts uBO startup; only the
-native coordinator may unload and choose fallback. Native eligibility keeps
-`policy_bridge_ready=false` until authoritative network/cosmetic bridges exist.
-Runtime settings changes invalidate readiness and ACK immediately; a live reload
-or restart handoff remains coordinator work, not silently considered synchronized.
-
-Authoritative policy adapters (still require native/device validation):
-- uBO request/header/response handlers filter only when private native request
-  details confirm uBO ownership, Shields on and native ad control enabled.
-- Content-script specific/generic cosmetics and actual CSS insertion query
-  fixed-identity native `getTabPolicy(tabId,frameId,expectedURL)`. Tab and frame
-  identity are resolved natively; stale documents and cross-profile access fail.
-- Programmatic MV2 scriptlet injection is gated by the native tab policy too.
-- Settings events serially reconcile native custom rules and re-ACK the current
-  generation, including listener readiness after startup; no JS hostname mirror.
-- The owner stays immutable. Policy capability is queried natively from the
-  registered ExtensionsAPIClient override, never claimed by extension JavaScript.
-- `getSettings` exposes owner, startup-aborted, native-fallback-complete and
-  restart-required fields. A user-visible Shields status UI is not yet wired.
-
-The native tab lookup uses the same SessionTabHelper ID as ExtensionTabUtil and
-only the exact normal profile and its primary main frames. Its public-renderer
-scan avoids a GN dependency cycle; performance should be measured before release.
+Pinned Chromium source: d331de35ca8ab1358c7a17e4bd41627d55eaef51. Observer lifecycle,
+event dispatch, tab/frame/document identity and GN ownership were checked against
+those headers/sources. Python tests cover composition/reset and source contracts;
+Node tests cover adapter gating, generation reconciliation, stale-popup protection
+and real-block batching. Patched upstream modules pass syntax/idempotence checks.
+These are not native compilation or device-level tests.

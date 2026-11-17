@@ -10,7 +10,7 @@ class Tests(unittest.TestCase):
 #include <cassert>
 int main(){using sandium_ubo::OwnerState;
 OwnerState n;assert(n.SealAndUseNative());assert(!n.PrepareUbo(1,true));
-OwnerState u;assert(!u.PrepareUbo(0,true));assert(!u.PrepareUbo(1,false));assert(u.PrepareUbo(1,true));assert(!u.SealAndUseNative());u.Invalidate(2);assert(u.restart_required());assert(!u.SealAndUseNative());assert(!u.PrepareUbo(2,true));assert(u.AcknowledgeSettings(2));assert(u.generation()==2);assert(!u.restart_required());assert(!u.SealAndUseNative());
+OwnerState u;assert(!u.PrepareUbo(0,true));assert(!u.PrepareUbo(1,false));assert(u.PrepareUbo(1,true));assert(!u.SealAndUseNative());u.Invalidate(2);assert(!u.restart_required());assert(!u.SealAndUseNative());assert(!u.PrepareUbo(2,true));assert(u.AcknowledgeSettings(2));assert(u.generation()==2);assert(!u.restart_required());assert(!u.SealAndUseNative());
 OwnerState pre;assert(pre.PrepareUbo(1,true));pre.Invalidate(2);assert(pre.SealAndUseNative());}
 ''')
    subprocess.run(['g++','-std=c++17','-I',str(HERE),str(p/'test.cc'),'-o',str(p/'test')],check=True)

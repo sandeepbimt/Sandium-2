@@ -4,6 +4,8 @@ ROOT="$CIRCLE_WORKING_DIRECTORY"
 # Reverse layered ownership before any vanilla/EXT0 reset changes postimages.
 # Absence is safe on initial bootstrap; unowned edits fail closed in each reset.
 if [ -d "$ROOT/brave-work/src/brave" ]; then
+  python3 "$ROOT/experiments/ubo-runtime/status/apply.py" --core "$ROOT/brave-work/src/brave" --reset
+  python3 "$ROOT/experiments/ubo-runtime/activation/apply.py" --core "$ROOT/brave-work/src/brave" --mode reset
   python3 "$ROOT/experiments/ubo-runtime/request_policy/apply.py" --src "$ROOT/brave-work/src" --reset
   python3 "$ROOT/experiments/ubo-runtime/routing/apply_startup.py" --core "$ROOT/brave-work/src/brave" --reset
   python3 "$ROOT/experiments/ubo-runtime/routing/apply.py" --core "$ROOT/brave-work/src/brave" --reset

@@ -45,6 +45,9 @@
                 },
                 "restartRequired": {
                   "type": "boolean"
+                },
+                "runtimeAvailable": {
+                  "type": "boolean"
                 }
               }
             }
@@ -102,6 +105,10 @@
           {
             "name": "customFiltersSha256",
             "type": "string"
+          },
+          {
+            "name": "filterListRevision",
+            "type": "string"
           }
         ],
         "returns_async": {
@@ -128,6 +135,67 @@
           },
           {
             "name": "expectedUrl",
+            "type": "string"
+          },
+          {
+            "name": "documentId",
+            "type": "string",
+            "optional": true
+          }
+        ],
+        "returns_async": {
+          "name": "callback",
+          "parameters": [
+            {
+              "name": "policy",
+              "type": "object",
+              "additionalProperties": {
+                "type": "any"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "name": "reportBlocked",
+        "type": "function",
+        "parameters": [
+          {
+            "name": "tabId",
+            "type": "integer"
+          },
+          {
+            "name": "pageDocumentId",
+            "type": "string"
+          },
+          {
+            "name": "urls",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        ],
+        "returns_async": {
+          "name": "callback",
+          "parameters": [
+            {
+              "name": "accepted",
+              "type": "boolean"
+            }
+          ]
+        }
+      },
+      {
+        "name": "getPopupTargetPolicy",
+        "type": "function",
+        "parameters": [
+          {
+            "name": "tabId",
+            "type": "integer"
+          },
+          {
+            "name": "expectedURL",
             "type": "string"
           }
         ],

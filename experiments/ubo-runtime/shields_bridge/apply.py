@@ -23,6 +23,26 @@ def replace_once(text, old, new):
         raise ValueError('Missing/ambiguous bridge source anchor: ' + old[:80])
     return text.replace(old,new,1)
 
+DESKTOP_THEME_TESTS = """source_set("unit_tests") {
+  testonly = true
+
+  sources = [ "brave_theme_api_unittest.cc" ]
+
+  deps = [
+    "//brave/browser/extensions",
+    "//chrome/browser/themes",
+    "//chrome/test:test_support",
+    "//testing/gtest",
+  ]
+}"""
+
+def guard_desktop_theme_tests(text):
+    # EXT0 intentionally has only :core on Android, not desktop :extensions.
+    # GN resolves all targets in this file when the private bridge is requested,
+    # even though these unrelated theme tests are not in the APK dependency path.
+    guarded='if (!is_android) {\n'+'\n'.join('  '+line if line else '' for line in DESKTOP_THEME_TESTS.splitlines())+'\n}'
+    return replace_once(text, DESKTOP_THEME_TESTS, guarded)
+
 def plan_native(core):
     inputs = {}
     def edit(path,old,new):
@@ -47,6 +67,7 @@ def plan_native(core):
          'inputs = [ "//brave/browser/extensions/api/brave_theme_api.h",\n'
          '             "//brave/browser/extensions/api/sandium_ubo_api.h" ]')
     p=core/'browser/extensions/api/BUILD.gn'
+    inputs[p]=guard_desktop_theme_tests(inputs[p])
     block='''
 # Isolated Android experiment; registration is explicit in its component loader.
 source_set("sandium_ubo_bridge") {
@@ -128,7 +149,7 @@ def patch_background(bundle):
     text=replace_once(text,hook,hook+'''
     await globalThis.sandiumNativeBridge.reportListenersReady();''')
     start.write_text(text)
-    for name in ('sandium-bridge.js','sandium-user-filters.js'):
+    for name in ('sandium-bridge.js','sandium-user-filters.js','sandium-lists.js'):
         (bundle/'js'/name).write_bytes((ROOT/name).read_bytes())
 
 def patch_filter_policy(bundle):
@@ -143,7 +164,7 @@ def patch_filter_policy(bundle):
     text=replace_once(text,"import µb from './background.js';", "import µb from './background.js';\nimport { allowsTab as sandiumAllowsTab } from './sandium-policy.js';")
     anchor='const retrieveContentScriptParameters = async function(sender, request) {'
     text=replace_once(text,anchor,anchor+\
-        '\n    if ( !await sandiumAllowsTab(sender.tabId, sender.frameId, sender.frameURL, true) ) { return; }')
+        '\n    if ( !await sandiumAllowsTab(sender.tabId, sender.frameId, sender.frameURL, true, undefined, sender.documentId) ) { return; }')
     anchor='''    case 'retrieveGenericCosmeticSelectors':
         request.tabId = sender.tabId;
         request.frameId = sender.frameId;
@@ -152,7 +173,7 @@ def patch_filter_policy(bundle):
         };
         break;'''
     replacement='''    case 'retrieveGenericCosmeticSelectors':
-        return sandiumAllowsTab(sender.tabId, sender.frameId, sender.frameURL, true).then(allowed => {
+        return sandiumAllowsTab(sender.tabId, sender.frameId, sender.frameURL, true, undefined, sender.documentId).then(allowed => {
             if (!allowed) { callback({ result: {} }); return; }
             request.tabId = sender.tabId;
             request.frameId = sender.frameId;
@@ -164,7 +185,7 @@ def patch_filter_policy(bundle):
     anchor='function onCommitted(details) {'
     text=replace_once(text,anchor,'async function onCommitted(details) {')
     anchor='    const entry = contentScriptDict.get(hostname);'
-    text=replace_once(text,anchor,'    if ( !await sandiumAllowsTab(tabId, frameId, details.url) ) { return; }\n'+anchor)
+    text=replace_once(text,anchor,'    if ( !await sandiumAllowsTab(tabId, frameId, details.url, false, undefined, details.documentId) ) { return; }\n'+anchor)
     anchor='        if ( code ) {'
     text=replace_once(text,anchor,'        if ( code && await sandiumAllowsTab(id, 0, url) ) {')
     if "import { allowsTab as sandiumAllowsTab }" not in text:
@@ -172,10 +193,12 @@ def patch_filter_policy(bundle):
     p.write_text(text)
     p=bundle/'js/vapi-background.js';text=p.read_text()
     text=replace_once(text,"import webext from './webext.js';", "import webext from './webext.js';\nimport { allowsTab as sandiumAllowsTab } from './sandium-policy.js';")
+    text=replace_once(text,'        portDetails.frameURL = url;',
+        '        portDetails.frameURL = url;\n        portDetails.documentId = sender.documentId;')
     text=replace_once(text,'onFrameworkMessage: function(request, port, callback) {',
         'onFrameworkMessage: async function(request, port, callback) {')
     text=replace_once(text,'            if ( msg.add ) {',
-        '            if ( msg.add && await sandiumAllowsTab(tabId, portDetails.frameId, portDetails.frameURL, true) ) {')
+        '            if ( msg.add && await sandiumAllowsTab(tabId, portDetails.frameId, portDetails.frameURL, true, undefined, portDetails.documentId) ) {')
     p.write_text(text)
     (bundle/'js/sandium-policy.js').write_bytes((ROOT/'sandium-policy.js').read_bytes())
 
@@ -204,12 +227,19 @@ def patch_installed_bundle(core):
     patch_background(root/'sandium_ubo')
     patch_filter_policy(root/'sandium_ubo')
     patch_popup_policy(root/'sandium_ubo')
+    spec=importlib.util.spec_from_file_location('sandium_stats_patch',ROOT/'patch_stats.py')
+    stats=importlib.util.module_from_spec(spec);spec.loader.exec_module(stats)
+    stats.patch_stats(root/'sandium_ubo',ROOT)
     grd=root/'resources.grd';text=grd.read_text()
     line='      <include name="IDR_SANDIUM_UBO_BRIDGE" file="sandium_ubo/js/sandium-bridge.js" type="BINDATA" />\n'
     text=replace_once(text,'  </includes></release>',line+'  </includes></release>')
     line='      <include name="IDR_SANDIUM_UBO_USER_FILTERS" file="sandium_ubo/js/sandium-user-filters.js" type="BINDATA" />\n'
     text=replace_once(text,'  </includes></release>',line+'  </includes></release>')
     line='      <include name="IDR_SANDIUM_UBO_POLICY" file="sandium_ubo/js/sandium-policy.js" type="BINDATA" />\n'
+    text=replace_once(text,'  </includes></release>',line+'  </includes></release>')
+    line='      <include name="IDR_SANDIUM_UBO_STATS" file="sandium_ubo/js/sandium-stats.js" type="BINDATA" />\n'
+    text=replace_once(text,'  </includes></release>',line+'  </includes></release>')
+    line='      <include name="IDR_SANDIUM_UBO_LISTS" file="sandium_ubo/js/sandium-lists.js" type="BINDATA" />\n'
     text=replace_once(text,'  </includes></release>',line+'  </includes></release>')
     grd.write_text(text)
     mapping=root/'resource_map.h';text=mapping.read_text()
@@ -218,6 +248,10 @@ def patch_installed_bundle(core):
     line='    {"sandium_ubo/js/sandium-user-filters.js", IDR_SANDIUM_UBO_USER_FILTERS},\n'
     text=replace_once(text,'};',line+'};')
     line='    {"sandium_ubo/js/sandium-policy.js", IDR_SANDIUM_UBO_POLICY},\n'
+    text=replace_once(text,'};',line+'};')
+    line='    {"sandium_ubo/js/sandium-stats.js", IDR_SANDIUM_UBO_STATS},\n'
+    text=replace_once(text,'};',line+'};')
+    line='    {"sandium_ubo/js/sandium-lists.js", IDR_SANDIUM_UBO_LISTS},\n'
     text=replace_once(text,'};',line+'};')
     mapping.write_text(text)
 
@@ -265,7 +299,7 @@ def apply(core,include_bundle=True):
             # untouched assets as well as this overlay's adapter and start hook.
             shutil.copytree(root,dest)
             patch_installed_bundle(staged)
-            changed=['sandium_ubo/js/tab.js','sandium_ubo/js/vapi-background.js','sandium_ubo/js/traffic.js','sandium_ubo/js/messaging.js','sandium_ubo/js/vapi-scripting.js','sandium_ubo/js/sandium-policy.js','sandium_ubo/js/start.js','sandium_ubo/js/sandium-user-filters.js','sandium_ubo/js/sandium-bridge.js','resources.grd','resource_map.h']
+            changed=['sandium_ubo/js/sandium-lists.js','sandium_ubo/js/sandium-stats.js','sandium_ubo/js/tab.js','sandium_ubo/js/vapi-background.js','sandium_ubo/js/traffic.js','sandium_ubo/js/messaging.js','sandium_ubo/js/vapi-scripting.js','sandium_ubo/js/sandium-policy.js','sandium_ubo/js/start.js','sandium_ubo/js/sandium-user-filters.js','sandium_ubo/js/sandium-bridge.js','resources.grd','resource_map.h']
             if (root/'disk_resources.h').exists():
                 helper=ROOT.parent/'loader/apply.py'
                 spec=importlib.util.spec_from_file_location('sandium_loader_inventory',helper)

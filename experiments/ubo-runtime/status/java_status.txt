@@ -1,0 +1,21 @@
+    // Read-only engine diagnostic in the existing Shields header. No setting writes.
+    private void refreshSandiumEngineStatus() {
+        if (mSandiumEngineStatusText == null || mProfile == null) return;
+        int state = BraveShieldsContentSettings.getSandiumBlockingEngineStatus(mProfile);
+        String label;
+        switch (state) {
+            case 0: label = "Engine: Brave native"; break;
+            case 1: label = "Engine: uBlock Origin"; break;
+            case 2: label = "uBlock Origin: updating rules"; break;
+            case 3: label = "Engine: Brave fallback"; break;
+            case 4: label = "Engine: starting (up to 12 seconds)"; break;
+            default: label = "Engine unavailable: restart Sandium"; break;
+        }
+        if (!label.contentEquals(mSandiumEngineStatusText.getText())) {
+            mSandiumEngineStatusText.setText(label);
+        }
+        mSandiumEngineStatusText.removeCallbacks(mSandiumEngineStatusRefresh);
+        if (isShowing()) {
+            mSandiumEngineStatusText.postDelayed(mSandiumEngineStatusRefresh, 500);
+        }
+    }

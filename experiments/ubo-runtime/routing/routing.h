@@ -15,6 +15,9 @@ uint64_t SelectedOwnerGeneration(content::BrowserContext*);
 bool IsUboOwnerChosen(content::BrowserContext*);
 bool IsNativeFallbackComplete(content::BrowserContext*);
 void MarkNativeFallbackComplete(content::BrowserContext*);
+void ArmRuntimeStartup(content::BrowserContext*);
+void MarkRuntimeUnavailable(content::BrowserContext*);
+bool MustBlockAdRequest(content::BrowserContext*);
 bool IsRuntimeStartupAborted(content::BrowserContext*);
 void AbortRuntimeStartup(content::BrowserContext*);
 // All calls UI-thread only, before scheduling any native worker work.

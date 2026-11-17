@@ -1,7 +1,16 @@
 # Sandium full-uBO experiment — EXT0 source port
 
-This is an **inactive source experiment**, not a functioning uBO engine.
-No shipping pipeline invokes it. Brave blocking remains enabled and #1292 is unchanged.
+This is an isolated **full-uBO implementation experiment**, not a verified shipping
+replacement. Current source includes packaged uBO1.76.4, fixed-identity Shields
+bridge, authoritative request policy, exclusive startup routing, runtime-loss
+guards, custom-rule synchronization, real-block telemetry and visible Shields
+status. See `shields_bridge/README.md` for current parity gaps and `status/` for UI.
+Build/runtime outcomes must be obtained from the actual run and device evidence.
+
+The EXT0 decisions and run notes below are historical milestones. Statements such
+as “not triggered”, “no component loaded” or “still required” describe that stage,
+not the complete current implementation. Defaults remain opt-in; explicit current
+pipeline flags determine whether runtime layers are enabled.
 
 ## Provenance and immutable inputs
 

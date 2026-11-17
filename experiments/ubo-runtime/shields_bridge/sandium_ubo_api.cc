@@ -1,6 +1,9 @@
 // Copyright 2026 Sandium. SPDX-License-Identifier: MPL-2.0
 #include "brave/browser/extensions/api/sandium_ubo_api.h"
 #include <memory>
+#include <set>
+#include "content/public/browser/navigation_controller.h"
+#include "content/public/browser/navigation_entry.h"
 #include "brave/components/sandium_ubo_routing/routing.h"
 #include "components/sessions/content/session_tab_helper.h"
 #include "content/public/browser/render_process_host.h"
@@ -52,7 +55,12 @@ class RuntimeState : public base::SupportsUserData::Data,
       prefs_.Init(g_browser_process->local_state());
       prefs_.Add(brave_shields::prefs::kAdBlockCustomFilters,
           base::BindRepeating(&RuntimeState::Invalidate, base::Unretained(this)));
+      for (const char* pref : {brave_shields::prefs::kAdBlockListSubscriptions,
+          brave_shields::prefs::kSandiumDefaultFilterListsMigrated}) {
+        prefs_.Add(pref, base::BindRepeating(&RuntimeState::InvalidateLists, base::Unretained(this)));
+      }
     }
+    list_revision_ = ReadListRevision();
     profile_observation_.Observe(profile);
     settings_observation_.Observe(HostContentSettingsMapFactory::GetForProfile(profile));
   }
@@ -69,6 +77,21 @@ class RuntimeState : public base::SupportsUserData::Data,
     if (!types.Contains(ContentSettingsType::BRAVE_SHIELDS) &&
         !types.Contains(ContentSettingsType::BRAVE_ADS) &&
         !types.Contains(ContentSettingsType::BRAVE_COSMETIC_FILTERING)) return;
+    Invalidate();
+  }
+  std::string ReadListRevision() const {
+    if (!profile_ || !ExtensionsAPIClient::Get()) return {};
+    const auto lists = ExtensionsAPIClient::Get()->GetPrivateFilterLists(
+        profile_, sandium_ubo::kExtensionId);
+    const auto* revision = lists.FindString("revision");
+    return revision ? *revision : std::string();
+  }
+  void InvalidateLists() {
+    // Native download timestamps/title metadata share this pref dictionary.
+    // They are not selection changes and must not restart uBO reconciliation.
+    const auto revision = ReadListRevision();
+    if (revision == list_revision_) return;
+    list_revision_ = revision;
     Invalidate();
   }
   void Invalidate() {
@@ -94,6 +117,7 @@ class RuntimeState : public base::SupportsUserData::Data,
  private:
   raw_ptr<Profile> profile_;
   PrefChangeRegistrar prefs_;
+  std::string list_revision_;
   base::ScopedObservation<Profile, ProfileObserver> profile_observation_{this};
   base::ScopedObservation<HostContentSettingsMap, content_settings::Observer>
       settings_observation_{this};
@@ -106,6 +130,25 @@ RuntimeState* GetOrCreateState(content::BrowserContext* context) {
     context->SetUserData(kRuntimeStateKey, std::move(owned));
   }
   return state;
+}
+content::WebContents* FindTab(content::BrowserContext* context, int tab_id) {
+  content::WebContents* contents = nullptr;
+  // Same native SessionTabHelper identity used by ExtensionTabUtil, without a
+  // dependency cycle back into //chrome/browser/extensions (which owns us).
+  for (auto it = content::RenderProcessHost::AllHostsIterator();
+       !it.IsAtEnd() && !contents; it.Advance()) {
+    auto* process = it.GetCurrentValue();
+    if (!process->IsInitializedAndNotDead() ||
+        process->GetBrowserContext() != context) continue;
+    process->ForEachRenderFrameHost([&](content::RenderFrameHost* candidate) {
+      auto* tab = content::WebContents::FromRenderFrameHost(candidate);
+      if (!tab || tab->GetBrowserContext() != context ||
+          candidate != tab->GetPrimaryMainFrame()) return;
+      if (sessions::SessionTabHelper::IdForTab(tab).id() == tab_id)
+        contents = tab;
+    });
+  }
+  return contents;
 }
 bool IsTrustedComponent(const Extension* extension) {
   return extension && extension->id() == sandium_ubo::kExtensionId &&
@@ -147,39 +190,64 @@ void RegisterSandiumUboFunctions() {
   auto* registry = ExtensionFunctionRegistry::GetInstance();
   registry->RegisterFunction<SandiumUboGetSettingsFunction>();
   registry->RegisterFunction<SandiumUboGetTabPolicyFunction>();
+  registry->RegisterFunction<SandiumUboGetPopupTargetPolicyFunction>();
+  registry->RegisterFunction<SandiumUboReportBlockedFunction>();
   registry->RegisterFunction<SandiumUboReportReadyFunction>();
   registry->RegisterFunction<SandiumUboGetSettingsSnapshotFunction>();
   registry->RegisterFunction<SandiumUboAcknowledgeSettingsFunction>();
 }
 
+ExtensionFunction::ResponseAction SandiumUboGetPopupTargetPolicyFunction::Run() {
+  if (!IsTrustedComponent(extension()) || browser_context()->IsOffTheRecord())
+    return RespondNow(Error("Sandium component capability unavailable"));
+  EXTENSION_FUNCTION_VALIDATE(args().size() == 2 && args()[0].is_int() && args()[1].is_string());
+  const auto& text = args()[1].GetString();
+  if (text.size() > 8192) return RespondNow(Error("Invalid target"));
+  const GURL expected(text);
+  if (!expected.is_valid() || !expected.SchemeIsHTTPOrHTTPS() ||
+      expected.has_username() || expected.has_password())
+    return RespondNow(Error("Invalid target"));
+  auto* tab = FindTab(browser_context(), args()[0].GetInt());
+  if (!tab) return RespondNow(Error("Tab unavailable"));
+  // Never grant policy for an arbitrary extension-supplied destination. Pending
+  // navigation takes precedence; committed old-page policy must not authorize
+  // closure of a target that is now navigating somewhere else.
+  auto* entry = tab->GetController().GetPendingEntry();
+  if (!entry) entry = tab->GetController().GetLastCommittedEntry();
+  if (!entry || entry->GetURL() != expected)
+    return RespondNow(Error("Target navigation changed"));
+  auto* map = HostContentSettingsMapFactory::GetForProfile(Profile::FromBrowserContext(browser_context()));
+  if (!map) return RespondNow(Error("Profile settings unavailable"));
+  const GURL target = entry->GetURL();
+  base::DictValue policy;
+  policy.Set("protocol", 1);
+  policy.Set("engineOwned", sandium_ubo::IsUboOwnerChosen(browser_context()));
+  policy.Set("runtimeAvailable", !sandium_ubo::MustBlockAdRequest(browser_context()));
+  policy.Set("shieldsEnabled", brave_shields::IsBraveShieldsEnabled(map, target));
+  policy.Set("adControl", brave_shields::ControlTypeToString(brave_shields::GetAdControlType(map, target)));
+  return RespondNow(WithArguments(base::Value(std::move(policy))));
+}
+
 ExtensionFunction::ResponseAction SandiumUboGetTabPolicyFunction::Run() {
   if (!IsTrustedComponent(extension()) || browser_context()->IsOffTheRecord())
     return RespondNow(Error("Sandium component capability unavailable"));
-  EXTENSION_FUNCTION_VALIDATE(args().size() == 3 && args()[0].is_int() &&
-      args()[1].is_int() && args()[2].is_string());
+  EXTENSION_FUNCTION_VALIDATE((args().size() == 3 || args().size() == 4) && args()[0].is_int() &&
+      args()[1].is_int() && args()[2].is_string() &&
+      (args().size() == 3 || args()[3].is_string() || args()[3].is_none()));
   const auto& expected_text = args()[2].GetString();
   if (expected_text.size() > 8192) return RespondNow(Error("Invalid frame"));
   const GURL expected(expected_text);
   content::WebContents* contents = nullptr;
-  // Same native SessionTabHelper identity used by ExtensionTabUtil, without a
-  // dependency cycle back into //chrome/browser/extensions (which owns us).
-  for (auto it = content::RenderProcessHost::AllHostsIterator();
-       !it.IsAtEnd() && !contents; it.Advance()) {
-    auto* process = it.GetCurrentValue();
-    if (!process->IsInitializedAndNotDead() ||
-        process->GetBrowserContext() != browser_context()) continue;
-    process->ForEachRenderFrameHost([&](content::RenderFrameHost* candidate) {
-      auto* tab = content::WebContents::FromRenderFrameHost(candidate);
-      if (!tab || tab->GetBrowserContext() != browser_context() ||
-          candidate != tab->GetPrimaryMainFrame()) return;
-      if (sessions::SessionTabHelper::IdForTab(tab).id() == args()[0].GetInt())
-        contents = tab;
-    });
-  }
+  contents = FindTab(browser_context(), args()[0].GetInt());
   if (!contents) return RespondNow(Error("Tab unavailable"));
   auto* frame = ExtensionApiFrameIdMap::GetRenderFrameHostById(contents, args()[1].GetInt());
-  if (!frame || !expected.is_valid() || frame->GetLastCommittedURL() != expected)
+  if (!frame || !expected.is_valid()) return RespondNow(Error("Document changed"));
+  if (args().size() == 4 && args()[3].is_string() && !args()[3].GetString().empty()) {
+    if (ExtensionApiFrameIdMap::GetDocumentId(frame).ToString() != args()[3].GetString())
+      return RespondNow(Error("Document changed"));
+  } else if (frame->GetLastCommittedURL() != expected) {
     return RespondNow(Error("Document changed"));
+  }
   auto* main = contents->GetPrimaryMainFrame();
   if (!main) return RespondNow(Error("Main frame unavailable"));
   const GURL top_url = main->GetLastCommittedURL();
@@ -188,10 +256,45 @@ ExtensionFunction::ResponseAction SandiumUboGetTabPolicyFunction::Run() {
   base::DictValue policy;
   policy.Set("protocol", 1);
   policy.Set("engineOwned", sandium_ubo::IsUboOwnerChosen(browser_context()));
+  policy.Set("runtimeAvailable", !sandium_ubo::MustBlockAdRequest(browser_context()));
   policy.Set("shieldsEnabled", brave_shields::IsBraveShieldsEnabled(map, top_url));
   policy.Set("adControl", brave_shields::ControlTypeToString(brave_shields::GetAdControlType(map, top_url)));
   policy.Set("cosmeticControl", brave_shields::ControlTypeToString(brave_shields::GetCosmeticFilteringControlType(map, top_url)));
   return RespondNow(WithArguments(base::Value(std::move(policy))));
+}
+
+ExtensionFunction::ResponseAction SandiumUboReportBlockedFunction::Run() {
+  if (!IsTrustedComponent(extension()) || browser_context()->IsOffTheRecord() ||
+      !sandium_ubo::IsUboOwnerChosen(browser_context()) ||
+      sandium_ubo::MustBlockAdRequest(browser_context()))
+    return RespondNow(Error("uBO telemetry unavailable"));
+  EXTENSION_FUNCTION_VALIDATE(args().size() == 3 && args()[0].is_int() &&
+      args()[1].is_string() && args()[2].is_list());
+  const auto& urls = args()[2].GetList();
+  if (urls.size() > 32) return RespondNow(Error("Telemetry batch limit"));
+  auto* tab = FindTab(browser_context(), args()[0].GetInt());
+  auto* main = tab ? tab->GetPrimaryMainFrame() : nullptr;
+  if (!main || args()[1].GetString().empty() || args()[1].GetString().size() > 128 ||
+      ExtensionApiFrameIdMap::GetDocumentId(main).ToString() != args()[1].GetString())
+    return RespondNow(Error("Telemetry page changed"));
+  std::set<GURL> unique;
+  size_t bytes = 0;
+  for (const auto& item : urls) {
+    if (!item.is_string() || item.GetString().size() > 8192)
+      return RespondNow(Error("Invalid blocked resource"));
+    bytes += item.GetString().size();
+    const GURL url(item.GetString());
+    if (bytes > 128 * 1024 || !url.is_valid() || !url.SchemeIsHTTPOrHTTPS() ||
+        url.has_username() || url.has_password())
+      return RespondNow(Error("Invalid blocked resource"));
+    unique.insert(url);
+  }
+  for (const auto& url : unique) {
+    if (!ExtensionsAPIClient::Get() ||
+        !ExtensionsAPIClient::Get()->ReportPrivateBlockedResource(sandium_ubo::kExtensionId, tab, url))
+      return RespondNow(Error("Shields counter sink unavailable"));
+  }
+  return RespondNow(WithArguments(true));
 }
 
 ExtensionFunction::ResponseAction SandiumUboGetSettingsFunction::Run() {
@@ -216,6 +319,7 @@ ExtensionFunction::ResponseAction SandiumUboGetSettingsFunction::Run() {
   // Observation bridge only: neither this call nor a readiness report changes
   // the active blocker. Never infer engine cutover from successful API access.
   settings.Set("engineCutover", sandium_ubo::IsUboOwnerChosen(browser_context()));
+  settings.Set("runtimeAvailable", !sandium_ubo::MustBlockAdRequest(browser_context()));
   settings.Set("startupAborted", sandium_ubo::IsRuntimeStartupAborted(browser_context()));
   settings.Set("nativeFallbackComplete", sandium_ubo::IsNativeFallbackComplete(browser_context()));
   settings.Set("restartRequired", sandium_ubo::OwnerRestartRequired(browser_context()));
@@ -232,13 +336,16 @@ ExtensionFunction::ResponseAction SandiumUboGetSettingsSnapshotFunction::Run() {
   base::DictValue snapshot;
   snapshot.Set("protocol", 1);
   snapshot.Set("generation", GetOrCreateState(browser_context())->generation);
-  snapshot.Set("engineCutover", false);
+  snapshot.Set("engineCutover", sandium_ubo::IsUboOwnerChosen(browser_context()));
   if (!g_browser_process || !g_browser_process->local_state())
     return RespondNow(Error("Custom filter settings unavailable"));
   const auto& custom_filters = g_browser_process->local_state()->GetString(
       brave_shields::prefs::kAdBlockCustomFilters);
   if (custom_filters.size() > 4 * 1024 * 1024)
     return RespondNow(Error("Custom filter snapshot limit exceeded"));
+  if (!ExtensionsAPIClient::Get()) return RespondNow(Error("Filter list bridge unavailable"));
+  snapshot.Set("lists", ExtensionsAPIClient::Get()->GetPrivateFilterLists(
+      browser_context(), sandium_ubo::kExtensionId));
   snapshot.Set("customFilters", custom_filters);
   snapshot.Set("customFiltersSha256", base::ToLowerASCII(
       base::HexEncode(crypto::SHA256HashString(custom_filters))));
@@ -280,7 +387,7 @@ ExtensionFunction::ResponseAction SandiumUboGetSettingsSnapshotFunction::Run() {
 ExtensionFunction::ResponseAction SandiumUboAcknowledgeSettingsFunction::Run() {
   if (!IsTrustedComponent(extension()) || browser_context()->IsOffTheRecord())
     return RespondNow(Error("Sandium component capability unavailable"));
-  EXTENSION_FUNCTION_VALIDATE(args().size() == 2 && args()[0].is_int() && args()[1].is_string());
+  EXTENSION_FUNCTION_VALIDATE(args().size() == 3 && args()[0].is_int() && args()[1].is_string() && args()[2].is_string());
   if (!g_browser_process || !g_browser_process->local_state())
     return RespondNow(Error("Custom filter settings unavailable"));
   const auto digest = base::ToLowerASCII(base::HexEncode(crypto::SHA256HashString(
@@ -290,6 +397,13 @@ ExtensionFunction::ResponseAction SandiumUboAcknowledgeSettingsFunction::Run() {
   auto* state = GetOrCreateState(browser_context());
   if (args()[0].GetInt() != state->generation)
     return RespondNow(Error("Settings generation changed; synchronization required"));
+  if (!ExtensionsAPIClient::Get()) return RespondNow(Error("Filter list bridge unavailable"));
+  const auto lists = ExtensionsAPIClient::Get()->GetPrivateFilterLists(
+      browser_context(), sandium_ubo::kExtensionId);
+  const auto* revision = lists.FindString("revision");
+  if (!lists.FindBool("ready").value_or(false) || !revision ||
+      *revision != args()[2].GetString())
+    return RespondNow(Error("Filter list revision changed or unavailable"));
   state->acknowledged_generation = state->generation;
   return RespondNow(WithArguments(true));
 }

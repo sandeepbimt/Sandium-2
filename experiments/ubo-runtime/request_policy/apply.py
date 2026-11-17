@@ -11,6 +11,17 @@ def replace_once(s,a,b):
     if s.count(a)!=1:raise ValueError('Missing/ambiguous policy anchor: '+a[:90])
     return s.replace(a,b,1)
 def plan(src):
+    # Product source must be composed before the runtime overlay. Do not infer
+    # Sandium's selections from upstream Brave's hidden component catalogue.
+    product = src/'brave'
+    checks = {
+      'android/java/org/chromium/chrome/browser/shields/ContentFilteringFragment.java': 'SANDIUM_FILTER_SUBSCRIPTIONS_ONLY',
+      'components/brave_shields/core/common/pref_names.h': 'kSandiumDefaultFilterListsMigrated',
+      'components/brave_shields/content/browser/ad_block_subscription_service_manager.cc': 'EnsureSandiumDefaultSubscriptions()',
+    }
+    for name, marker in checks.items():
+        if marker not in (product/name).read_text():
+            raise ValueError('Sandium subscription-only product prerequisite absent: '+name)
     changes={}
     def edit(n,a,b):
         p=src/n;s=changes.get(p,p.read_text());changes[p]=replace_once(s,a,b)
@@ -18,6 +29,12 @@ def plan(src):
     edit(client,'#include "base/memory/raw_ptr.h"','#include "base/memory/raw_ptr.h"\n#include "base/values.h"')
     anchor='  // Notifies that an extension failed to act on a network request because the'
     method='''  virtual bool SupportsPrivateWebRequestPolicy(const ExtensionId&) const { return false; }
+
+  virtual bool ReportPrivateBlockedResource(const ExtensionId&,
+      content::WebContents*, const GURL&) const { return false; }
+
+  virtual base::DictValue GetPrivateFilterLists(content::BrowserContext*,
+      const ExtensionId&) const { return {}; }
 
   // Embedder-only augmentation after permission filtering, per recipient.
   // Default is no-op; embedders must authorize identity and context themselves.
@@ -66,14 +83,29 @@ def plan(src):
     header='brave/browser/extensions/api/brave_extensions_api_client.h'
     edit(header,'  friend class BraveExtensionsAPIClientTests;','''  bool SupportsPrivateWebRequestPolicy(const ExtensionId& extension_id) const override;
 
+  bool ReportPrivateBlockedResource(const ExtensionId& extension_id,
+      content::WebContents* contents, const GURL& url) const override;
+
   void AugmentWebRequestEventForExtension(
       content::BrowserContext* context, const WebRequestInfo& request,
       const ExtensionId& extension_id, bool crosses_incognito,
       base::DictValue& details) const override;
 
+  base::DictValue GetPrivateFilterLists(content::BrowserContext* context,
+      const ExtensionId& extension_id) const override;
+
   friend class BraveExtensionsAPIClientTests;''')
     cc='brave/browser/extensions/api/brave_extensions_api_client.cc'
     includes='''#include "base/values.h"
+#include "base/json/json_writer.h"
+#include "base/strings/string_number_conversions.h"
+#include "base/strings/string_util.h"
+#include "crypto/sha2.h"
+#include "brave/components/brave_shields/core/common/pref_names.h"
+#include "chrome/browser/browser_process.h"
+#include "components/prefs/pref_service.h"
+#include "brave/browser/brave_shields/brave_shields_web_contents_observer.h"
+#include "brave/components/brave_shields/core/common/brave_shield_constants.h"
 #include "brave/components/brave_shields/core/browser/brave_shields_utils.h"
 #include "brave/components/sandium_ubo/identity.h"
 #include "brave/components/sandium_ubo_routing/routing.h"
@@ -86,6 +118,7 @@ def plan(src):
 #include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/navigation_entry.h"
 #include "extensions/browser/extension_registry.h"
+#include "extensions/browser/extension_api_frame_id_map.h"
 #include "extensions/common/extension.h"
 #include "extensions/common/manifest.h"
 #include "extensions/common/api/web_request/web_request_resource_type.h"
@@ -95,6 +128,8 @@ def plan(src):
     gn='brave/browser/extensions/BUILD.gn'
     s=(src/gn).read_text();start=s.index('source_set("core")');dep=s.index('  deps = [',start)
     inject='''
+    "//brave/browser/brave_shields",
+    "//crypto",
     "//brave/components/brave_shields/core/browser",
     "//brave/components/sandium_ubo:identity",
     "//brave/components/sandium_ubo_routing",

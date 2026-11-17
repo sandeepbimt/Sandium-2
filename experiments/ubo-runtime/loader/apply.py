@@ -130,9 +130,17 @@ if (is_android && enable_extensions_core) {
  replace(field,'''  if (!feature_list->IsFeatureOverriddenFromCommandLine(
           features::kBraveAndroidExtensions.name,
           base::FeatureList::OVERRIDE_ENABLE_FEATURE)) {''','''  // This isolated product experiment enables its dependencies as one unit.
-  const bool sandium_ubo_enabled = feature_list->IsFeatureOverriddenFromCommandLine(
-      features::kSandiumUboRuntime.name,
-      base::FeatureList::OVERRIDE_ENABLE_FEATURE);
+  // FeatureList is not installed yet: inspect this instance's command-line
+  // overrides and the declared default, not static IsEnabled(). Explicit
+  // disable wins; default-off diagnostic APKs remain off.
+  const bool sandium_ubo_enabled =
+      !feature_list->IsFeatureOverriddenFromCommandLine(
+          features::kSandiumUboRuntime.name,
+          base::FeatureList::OVERRIDE_DISABLE_FEATURE) &&
+      (feature_list->IsFeatureOverriddenFromCommandLine(
+           features::kSandiumUboRuntime.name,
+           base::FeatureList::OVERRIDE_ENABLE_FEATURE) ||
+       features::kSandiumUboRuntime.default_state == base::FEATURE_ENABLED_BY_DEFAULT);
   if (!sandium_ubo_enabled && !feature_list->IsFeatureOverriddenFromCommandLine(
           features::kBraveAndroidExtensions.name,
           base::FeatureList::OVERRIDE_ENABLE_FEATURE)) {''')

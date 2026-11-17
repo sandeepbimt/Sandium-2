@@ -3,6 +3,8 @@ import { readFile } from 'node:fs/promises';
 let source = await readFile(new URL('./sandium-bridge.js', import.meta.url), 'utf8');
 const helper = await readFile(new URL('./sandium-user-filters.js', import.meta.url), 'utf8');
 source = source.replace('./sandium-user-filters.js', `data:text/javascript;base64,${Buffer.from(helper).toString('base64')}`);
+const listHelper = await readFile(new URL('./sandium-lists.js', import.meta.url),'utf8');
+source = source.replace('./sandium-lists.js', `data:text/javascript;base64,${Buffer.from(listHelper).toString('base64')}`);
 const { startSandiumBridge } = await import(`data:text/javascript;base64,${Buffer.from(source).toString('base64')}`);
 assert.deepEqual(await startSandiumBridge(null), { available: false, cutover: false });
 const calls = [];
@@ -43,21 +45,24 @@ let observed;
 const acks=[];
 const updates={
  onSettingsChanged:{addListener(f){observed=f;},removeListener(){}},
- getSettingsSnapshot(cb){cb({protocol:1,engineCutover:false,generation,shields:[],ads:[],cosmetic:[],customFilters:`example.test##.ad${generation}`,customFiltersSha256:`digest${generation}`});},
- acknowledgeSettings(g,d,cb){acks.push([g,d]);cb(true);},
+ getSettingsSnapshot(cb){cb({protocol:1,engineCutover:generation > 1,generation,shields:[],ads:[],cosmetic:[],customFilters:`example.test##.ad${generation}`,lists:{ready:true,revision:`lists${generation}`,entries:[]},customFiltersSha256:`digest${generation}`});},
+ acknowledgeSettings(g,d,l,cb){acks.push([g,d]);cb(true);},
  reportReady(p,s,cb){cb(true);},
 };
 const engine={
- userFiltersPath:'user-filters',selectedFilterLists:['user-filters'],
+ userSettings:{},async getAvailableLists(){return {};},userFiltersPath:'user-filters',selectedFilterLists:['user-filters'],
  async loadUserFilters(){return {content:stored};},async saveUserFilters(s){stored=s;},
  async saveSelectedFilterLists(){},async loadFilterLists(){reloads++;},
 };
-const live=await startSandiumBridge(updates,engine);
+let listStorage={};
+const live=await startSandiumBridge(updates,engine,{async set(v){listStorage=v;},async get(){return listStorage;}});
 await live.reportListenersReady();
 generation=2;observed(2);
 await new Promise(resolve=>setTimeout(resolve,10));
 assert.equal(reloads,2);
 assert.equal(stored,'example.test##.ad2');
+assert.equal(live.snapshot.engineCutover,true);
+assert.equal(live.cutover,false); // snapshot is observation, never authority
 assert.deepEqual(acks,[[1,'digest1'],[2,'digest2']]);
 live.dispose();
 console.log('Live generation reconcile/ACK PASS');

@@ -1,0 +1,12 @@
+import assert from 'node:assert/strict';
+import {readFile} from 'node:fs/promises';
+const source=await readFile(new URL('./sandium-stats.js',import.meta.url),'utf8');
+const {createBlockReporter}=await import(`data:text/javascript;base64,${Buffer.from(source).toString('base64')}`);
+const calls=[];let flush;const reporter=createBlockReporter({reportBlocked(...args){calls.push(args.slice(0,3));args[3]();}},f=>{flush=f;});
+const d={tabId:1,url:'https://ads.test/a',sandiumShields:{protocol:1,engineOwned:true,runtimeAvailable:true,pageDocumentId:'doc7'}};
+reporter.report(d);reporter.report(d);assert.equal(calls.length,0);
+reporter.report({...d,url:'https://ads.test/b'});flush();assert.deepEqual(calls,[[1,'doc7',['https://ads.test/a','https://ads.test/b']]]);
+reporter.report({...d,sandiumShields:{...d.sandiumShields,pageDocumentId:'doc8'}});flush();assert.equal(calls[1][1],'doc8');
+for(const p of [{engineOwned:true,runtimeAvailable:false,pageDocumentId:'doc7'},{engineOwned:true,pageDocumentId:'doc7'},{engineOwned:false,pageDocumentId:'doc7'},{engineOwned:true,runtimeAvailable:true,pageDocumentId:''}])reporter.report({...d,sandiumShields:{protocol:1,...p}});
+reporter.flush();assert.equal(calls.length,2);
+console.log('Blocked-event batch/dedup/navigation isolation PASS');

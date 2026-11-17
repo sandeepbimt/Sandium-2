@@ -15,6 +15,32 @@ CORE=ROOT.parents[3]/'brave-core-audit'
 # Worktree sibling fixture; real source, not generated interface assumptions.
 CORE=Path('/workspace/scratch/40acbbeff193/brave-core-audit')
 class BridgeTests(unittest.TestCase):
+ def test_android_api_target_graph_excludes_desktop_theme_tests(self):
+  pinned=subprocess.check_output(['git','-C',str(CORE),'show','44a84b1f:browser/extensions/api/BUILD.gn']).decode()
+  guarded=m.guard_desktop_theme_tests(pinned)
+  self.assertEqual(m.guard_desktop_theme_tests(guarded),guarded)
+  # Exact desktop block retained unchanged inside its new platform guard.
+  self.assertIn('if (!is_android) {\n  source_set("unit_tests")',guarded)
+  guard_start=guarded.index('if (!is_android) {')
+  depth=0;guard_end=None
+  for i in range(guard_start,len(guarded)):
+   if guarded[i]=='{':depth+=1
+   elif guarded[i]=='}':
+    depth-=1
+    if depth==0:guard_end=i+1;break
+  android=guarded[:guard_start]+guarded[guard_end:]
+  self.assertNotIn('source_set("unit_tests")',android)
+  for desktop_dep in ['"//brave/browser/extensions"','"//chrome/browser/themes"','"//chrome/test:test_support"']:
+   self.assertNotIn(desktop_dep,android)
+  self.assertIn('function_registration("generated_api_registration")',android)
+  # Both remaining registration dependencies are valid core-runtime targets.
+  import re
+  deps=re.findall(r'"(//[^"\n]+)"',android[android.index('  deps = ['):])
+  self.assertEqual(deps,['//extensions/browser','//extensions/common'])
+  patch=(ROOT.parent/'brave-android-extensions.patch').read_text()
+  self.assertIn('source_set("core")',patch)
+  self.assertIn('if (!is_android)',patch)
+
  def test_identity_restricted_capability(self):
   cc=(ROOT/'sandium_ubo_api.cc').read_text()
   self.assertIn('extension->id() == sandium_ubo::kExtensionId',cc)
@@ -97,8 +123,34 @@ await popupCandidateTest(2);assert.equal(closed,1);
 })().catch(e=>{console.error(e);process.exitCode=1;});
 """
    subprocess.run(['node','-e',harness],check=True)
+ def test_stats_security_and_page_epoch(self):
+  cc=(ROOT/'sandium_ubo_api.cc').read_text()
+  self.assertIn('GetDocumentId(main).ToString() != args()[1].GetString()',cc)
+  self.assertIn('urls.size() > 32',cc)
+  self.assertIn('bytes > 128 * 1024',cc)
+  self.assertIn('ReportPrivateBlockedResource(sandium_ubo::kExtensionId, tab, url)',cc)
+  self.assertNotIn('synthetic://',cc)
+ def test_popup_target_uses_native_pending_not_supplied_origin(self):
+  source=(ROOT/'sandium_ubo_api.cc').read_text()
+  body=source.split('SandiumUboGetPopupTargetPolicyFunction::Run() {')[1].split('SandiumUboGetTabPolicyFunction::Run() {')[0]
+  self.assertIn('browser_context()->IsOffTheRecord()',body)
+  self.assertIn('!expected.SchemeIsHTTPOrHTTPS()',body)
+  self.assertLess(body.index('GetPendingEntry()'),body.index('GetLastCommittedEntry()'))
+  self.assertIn('if (!entry || entry->GetURL() != expected)',body)
+  self.assertIn('const GURL target = entry->GetURL()',body)
+  self.assertIn('GetAdControlType(map, target)',body)
+  self.assertNotIn('GetAdControlType(map, expected)',body)
+ def test_popup_native_argument_count_matches_schema(self):
+  schema=json.loads((ROOT/'sandium_ubo.json').read_text())[0]
+  function=next(f for f in schema['functions'] if f['name']=='getPopupTargetPolicy')
+  self.assertEqual(len(function['parameters']),2)
+  cc=(ROOT/'sandium_ubo_api.cc').read_text()
+  body=cc.split('SandiumUboGetPopupTargetPolicyFunction::Run()',1)[1].split('SandiumUboGetTabPolicyFunction::Run()',1)[0]
+  self.assertIn('args().size() == 2',body)
+  self.assertNotIn('args()[2]',body)
  def test_schema_exact_functions(self):
   s=json.loads((ROOT/'sandium_ubo.json').read_text())[0]
-  self.assertEqual([f['name'] for f in s['functions']],['getSettings','reportReady','getSettingsSnapshot','acknowledgeSettings','getTabPolicy'])
+  self.assertEqual([f['name'] for f in s['functions']],['getSettings','reportReady','getSettingsSnapshot','acknowledgeSettings','getTabPolicy','reportBlocked','getPopupTargetPolicy'])
   self.assertNotIn('externally_connectable',json.dumps(s))
+  self.assertEqual(s['functions'][0]['returns_async']['parameters'][0]['properties']['runtimeAvailable']['type'],'boolean')
 if __name__=='__main__':unittest.main()

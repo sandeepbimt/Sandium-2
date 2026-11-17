@@ -72,7 +72,7 @@ does not force a restart or silently switch engines.
 
 This is executable source, not runtime proof. Default-off routing remains.
 Current coordinator uses LOG(ERROR) plus exposed fallback-state getters; visible
-Shields fallback UX still needs wiring. Native GN/C++ compilation and device
+The status/ overlay exposes fallback/unavailable state inside Shields; actual visual/runtime QA remains required. Native GN/C++ compilation and device
 startup, concurrent tabs, timeout, crashes and settings-change tests are pending.
 Request-policy must suppress uBO decisions while owner is pending/native. Existing
 in-flight pages on runtime failure need further coordinated handling; do not
@@ -96,3 +96,27 @@ empty dictionary Value. Receivers/callbacks remain valid; worker code does not
 read BrowserContext. Existing constructor callers default to native behavior.
 The source tests assert the picker is byte-for-byte unchanged and both resource
 methods have empty-response branches.
+
+### Armed startup and runtime-loss guard
+
+The loader arms pending startup on UI only when runtime and exclusive-routing
+features are explicitly enabled. Non-extension HTTP(S)/WS requests while armed
+but unselected fail closed with ERR_BLOCKED_BY_CLIENT, rather than freezing the
+native owner or bypassing both filters. Main navigation retains its bounded
+barrier; extension assets/list startup remain allowed. Pre-existing worker fetches
+may need retry after owner selection: that is an explicit safety tradeoff, not a
+claim that all background workflows are uninterrupted.
+
+Before any uBO selection, the browser coordinator installs profile-owned
+ExtensionRegistry and ExtensionHostRegistry observers. Fixed-component unload,
+persistent-background renderer death or background host destruction latches
+runtime-unavailable. Active-page TP/CSP requests and subsequent HTTP navigation
+then fail closed without changing engines. RestartRequired exposes this runtime
+failure, not ordinary site-setting changes. Ordinary popup-host closure is not
+misidentified as background failure. Scope observations reset on registry shutdown.
+No recovery is silently attempted; full crash-recovery UX and device tests remain
+required. Already completed or in-flight network operations cannot be retroactively
+blocked; these guards govern subsequent native request/response boundaries.
+
+Observer signatures and ViewType enum were checked against pinned Chromium
+headers. Native compilation still required; source/model tests are not substitutes.

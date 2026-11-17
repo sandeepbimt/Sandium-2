@@ -25,7 +25,7 @@ class OwnerState {
   void Invalidate(uint64_t generation) {
     if (!ubo_ || generation == generation_) return;
     if (!sealed_) { ubo_ = false; generation_ = 0; }
-    else restart_required_ = true;
+    // A live settings change does not change engine ownership or require restart.
   }
   uint64_t generation() const { return generation_; }
   bool ubo_selected() const { return ubo_; }

@@ -23,7 +23,21 @@ def plan(core):
 
  }
  for name,(anchor,gate) in entries.items():
-  text=(core/name).read_text();result[name]=(include+edit(text,anchor,gate+anchor)).encode()
+  text=(core/name).read_text()
+  text=include+edit(text,anchor,gate+anchor)
+  if name.endswith('brave_ad_block_tp_network_delegate_helper.cc'):
+   marker='  // If the following info isn\'t available, then proper content settings can\'t'
+   guard='  if ((ctx->request_url().SchemeIsHTTPOrHTTPS() || ctx->request_url().SchemeIsWSOrWSS()) &&\n      (!ctx->request_initiator() || ctx->request_initiator()->scheme() != "chrome-extension") &&\n      sandium_ubo::MustBlockAdRequest(ctx->browser_context()))\n    return net::ERR_BLOCKED_BY_CLIENT;\n'
+   text=edit(text,marker,guard+marker)
+  elif name.endswith('brave_ad_block_csp_network_delegate_helper.cc'):
+   marker='  if (ctx->request_url().SchemeIsHTTPOrHTTPS() &&'
+   guard='  if (ctx->request_url().SchemeIsHTTPOrHTTPS() &&\n      (!ctx->request_initiator() || ctx->request_initiator()->scheme() != "chrome-extension") &&\n      sandium_ubo::MustBlockAdRequest(ctx->browser_context()))\n    return net::ERR_BLOCKED_BY_CLIENT;\n'
+   text=edit(text,marker,guard+marker)
+  else:
+   marker='  if (navigation_handle()->GetURL().SchemeIsHTTPOrHTTPS() &&'
+   guard='  if (navigation_handle()->GetURL().SchemeIsHTTPOrHTTPS() &&\n      sandium_ubo::MustBlockAdRequest(navigation_handle()->GetWebContents()->GetBrowserContext()))\n    return CANCEL;\n'
+   text=edit(text,marker,guard+marker)
+  result[name]=text.encode()
  # The picker binder is deliberately untouched. Capture filtering ownership on
  # UI, then pass an immutable bool to the existing worker-owned resource service.
  name='browser/brave_content_browser_client.cc';text=(core/name).read_text()

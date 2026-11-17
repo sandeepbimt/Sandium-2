@@ -11,7 +11,7 @@ class Lifecycle(unittest.TestCase):
   steps=yaml.safe_load(raw)['jobs']['brave-android-staged-build']['steps']
   names=[s['run']['name'] for s in steps if isinstance(s,dict) and 'run' in s]
   gate=names.index('Verify EXT0 runtime-off and phone UI source boundaries after overlays')
-  stage=names.index('Stage pinned full uBO payload and private bridge with activation disabled')
+  stage=names.index('Stage pinned uBO payload and explicit candidate activation')
   compile_=names.index('Verify exact EXT0 compile inputs and generated extension buildflag')
   self.assertLess(gate,stage);self.assertLess(stage,compile_)
  def test_preflight_scripts_are_separate_shell_commands(self):
@@ -30,20 +30,28 @@ class Lifecycle(unittest.TestCase):
   policy=s.index('ubo-runtime/request_policy/apply.py')
   startup=s.index('ubo-runtime/routing/apply_startup.py')
   routing=s.index('ubo-runtime/routing/apply.py')
-  self.assertLess(policy,startup)
+  activation=s.index('ubo-runtime/activation/apply.py')
+  status=s.index('ubo-runtime/status/apply.py')
+  policy=s.index('ubo-runtime/request_policy/apply.py')
+  self.assertLess(status,activation);self.assertLess(activation,policy);self.assertLess(policy,startup)
   self.assertLess(startup,routing);self.assertLess(routing,bridge)
   self.assertLess(bridge,loader);self.assertLess(loader,ext)
   self.assertLess(loader,s.index('apply-sandium-native-navigation.py'))
  def test_stage_pinned_source_and_disabled_runtime(self):
   s=(ROOT/'.circleci/scripts/stage-ubo-runtime.sh').read_text()
-  for x in ['--fetch','--cache-dir','--source-artifacts','--integration-details','git -C "$ROOT" archive HEAD','FEATURE_DISABLED_BY_DEFAULT','verify_compile_inputs.py']:
+  for x in ['--fetch','--cache-dir','--source-artifacts','--integration-details','git -C "$ROOT" archive HEAD','verify_compile_inputs.py']:
    self.assertIn(x,s)
   self.assertLess(s.index('loader/apply.py'),s.index('shields_bridge/apply.py'))
   self.assertLess(s.index('shields_bridge/apply.py'),s.index('routing/apply.py'))
   self.assertLess(s.index('routing/apply.py'),s.index('routing/apply_startup.py'))
+  self.assertLess(s.index('routing/apply_startup.py'),s.index('/gn" gen'))
+  self.assertIn('--mode verify-off',s)
+  self.assertIn('--branch "$CIRCLE_BRANCH" --mode on',s)
   self.assertLess(s.index('routing/apply_startup.py'),s.index('request_policy/apply.py'))
-  self.assertLess(s.index('request_policy/apply.py'),s.index('/gn" gen'))
-  self.assertIn('kSandiumUboExclusiveRouting, base::FEATURE_DISABLED_BY_DEFAULT',s)
+  self.assertLess(s.index('request_policy/apply.py'),s.index('activation/apply.py'))
+  self.assertLess(s.index('activation/apply.py'),s.index('status/apply.py'))
+  config=yaml.safe_load((ROOT/'.circleci/config.yml').read_text())
+  self.assertFalse(config['parameters']['sandium_ubo_activate_candidate']['default'])
   self.assertNotIn('--enable-features=',s)
   self.assertNotIn('rm -rf',s)
 if __name__=='__main__':unittest.main()

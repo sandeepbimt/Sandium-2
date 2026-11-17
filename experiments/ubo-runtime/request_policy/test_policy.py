@@ -11,6 +11,18 @@ class Tests(unittest.TestCase):
    self.assertIn(marker,s)
   self.assertNotIn('GetSettingsForOneType',s)
   self.assertNotIn('SetContentSetting',s)
+ def test_native_lists_authority_and_readiness(self):
+  s=(HERE/'native_method.cc').read_text()
+  for marker in ['kSandiumDefaultFilterListsMigrated', 'kAdBlockListSubscriptions', 'bool ready = migrated', 'sandium-subscriptions-only', 'if (enabled && !available) ready = false', 'crypto::SHA256HashString(*serialized)']:
+   self.assertIn(marker,s)
+  self.assertNotIn('GetFilterListCatalog',s)
+  self.assertNotIn('kSandiumDefaultFilterListsSeeded',s)
+  bridge=(HERE.parent/'shields_bridge/sandium_ubo_api.cc').read_text()
+  self.assertIn('snapshot.Set("lists"',bridge)
+  self.assertIn('*revision != args()[2].GetString()',bridge)
+  self.assertIn('kSandiumDefaultFilterListsMigrated',bridge)
+  self.assertIn('if (revision == list_revision_) return;',bridge)
+  self.assertIn('&RuntimeState::InvalidateLists',bridge)
  def test_exact_native_apply_reset_and_both_dispatch_modes(self):
   inputs={
    'extensions/browser/api/extensions_api_client.h':Path('/tmp/ubo_extensions_api_client.h'),
@@ -21,8 +33,14 @@ class Tests(unittest.TestCase):
    src=Path(d)
    for name,p in inputs.items():
     f=src/name;f.parent.mkdir(parents=True,exist_ok=True);f.write_bytes(p.read_bytes())
-   for name in ['browser/extensions/BUILD.gn','browser/extensions/api/brave_extensions_api_client.h','browser/extensions/api/brave_extensions_api_client.cc']:
+   for name in ['components/brave_shields/core/browser/ad_block_component_service_manager.h','components/brave_shields/core/browser/ad_block_component_service_manager.cc','browser/extensions/BUILD.gn','browser/extensions/api/brave_extensions_api_client.h','browser/extensions/api/brave_extensions_api_client.cc']:
     data=subprocess.check_output(['git','-C',str(CORE),'show','44a84b1f:'+name]);p=src/'brave'/name;p.parent.mkdir(parents=True,exist_ok=True);p.write_bytes(data)
+   for name, text in {
+    'android/java/org/chromium/chrome/browser/shields/ContentFilteringFragment.java':'SANDIUM_FILTER_SUBSCRIPTIONS_ONLY',
+    'components/brave_shields/core/common/pref_names.h':'kSandiumDefaultFilterListsMigrated',
+    'components/brave_shields/content/browser/ad_block_subscription_service_manager.cc':'EnsureSandiumDefaultSubscriptions()'
+   }.items():
+    p=src/'brave'/name;p.parent.mkdir(parents=True,exist_ok=True);p.write_text(text)
    subprocess.run(['git','apply','--include=browser/extensions/BUILD.gn','--whitespace=nowarn','-'],input=(HERE.parent/'brave-android-extensions.patch').read_bytes(),cwd=src/'brave',check=True,capture_output=True)
    baseline={str(p.relative_to(src)):p.read_bytes() for p in src.rglob('*') if p.is_file()}
    m.apply(src);first={str(p.relative_to(src)):p.read_bytes() for p in src.rglob('*') if p.is_file()}

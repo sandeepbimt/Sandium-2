@@ -18,6 +18,20 @@ SandiumUboRuntimePhase GetSandiumUboRuntimePhase(content::BrowserContext* contex
 int GetSandiumUboSettingsGeneration(content::BrowserContext* context);
 void ResetSandiumUboRuntimePhase(content::BrowserContext* context);
 void RegisterSandiumUboFunctions();
+class SandiumUboReportBlockedFunction : public ExtensionFunction {
+ public:
+  DECLARE_EXTENSION_FUNCTION("sandiumUbo.reportBlocked", UNKNOWN)
+ protected:
+  ~SandiumUboReportBlockedFunction() override = default;
+  ResponseAction Run() override;
+};
+class SandiumUboGetPopupTargetPolicyFunction : public ExtensionFunction {
+ public:
+  DECLARE_EXTENSION_FUNCTION("sandiumUbo.getPopupTargetPolicy", UNKNOWN)
+ protected:
+  ~SandiumUboGetPopupTargetPolicyFunction() override = default;
+  ResponseAction Run() override;
+};
 class SandiumUboGetTabPolicyFunction : public ExtensionFunction {
  public:
   DECLARE_EXTENSION_FUNCTION("sandiumUbo.getTabPolicy", UNKNOWN)

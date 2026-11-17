@@ -12,6 +12,8 @@ const char kOwnerKey[] = "sandium-ubo-session-owner";
 class OwnerData : public base::SupportsUserData::Data {
  public:
   OwnerState state;
+  bool startup_armed = false;
+  bool runtime_unavailable = false;
   bool startup_aborted = false;
   bool native_fallback_complete = false;
 };
@@ -48,6 +50,26 @@ void MarkNativeFallbackComplete(content::BrowserContext* context) {
   Get(context);
   static_cast<OwnerData*>(context->GetUserData(kOwnerKey))->native_fallback_complete = true;
 }
+void ArmRuntimeStartup(content::BrowserContext* context) {
+  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
+  if (!context || context->IsOffTheRecord() ||
+      !base::FeatureList::IsEnabled(kSandiumUboExclusiveRouting)) return;
+  Get(context);
+  static_cast<OwnerData*>(context->GetUserData(kOwnerKey))->startup_armed = true;
+}
+void MarkRuntimeUnavailable(content::BrowserContext* context) {
+  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
+  if (!context || context->IsOffTheRecord() || !Get(context).ubo_selected()) return;
+  static_cast<OwnerData*>(context->GetUserData(kOwnerKey))->runtime_unavailable = true;
+}
+bool MustBlockAdRequest(content::BrowserContext* context) {
+  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
+  if (!context || context->IsOffTheRecord()) return false;
+  Get(context);
+  const auto* data = static_cast<OwnerData*>(context->GetUserData(kOwnerKey));
+  return data->runtime_unavailable ||
+      (data->startup_armed && !data->state.ubo_selected() && !data->native_fallback_complete);
+}
 bool IsRuntimeStartupAborted(content::BrowserContext* context) {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
   if (!context) return true;
@@ -70,6 +92,9 @@ bool PrepareUboOwnerBeforeFirstRequest(content::BrowserContext* context,
 bool SealAndUseNativeAdEngine(content::BrowserContext* context) {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
   if (!context || context->IsOffTheRecord()) return true;
+  const auto* data = static_cast<OwnerData*>(context->GetUserData(kOwnerKey));
+  if (data && data->startup_armed && !data->native_fallback_complete &&
+      !data->state.ubo_selected()) return false;
   return Get(context).SealAndUseNative();
 }
 void InvalidateOwnerGeneration(content::BrowserContext* context,
@@ -79,6 +104,9 @@ void InvalidateOwnerGeneration(content::BrowserContext* context,
 }
 bool OwnerRestartRequired(content::BrowserContext* context) {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
-  return context && !context->IsOffTheRecord() && Get(context).restart_required();
+  if (!context || context->IsOffTheRecord()) return false;
+  Get(context);
+  const auto* data = static_cast<OwnerData*>(context->GetUserData(kOwnerKey));
+  return data->runtime_unavailable || data->state.restart_required();
 }
 }  // namespace sandium_ubo

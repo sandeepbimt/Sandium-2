@@ -1,8 +1,9 @@
 // Copyright 2026 Sandium. SPDX-License-Identifier: GPL-3.0-or-later
 // Prepared before readyToFilter; listener report occurs only after webRequest.start().
 // This is observation wiring, not filter cutover or parity proof.
+import { createListReconciler } from './sandium-lists.js';
 import { createUserFilterReconciler } from './sandium-user-filters.js';
-export async function startSandiumBridge(api = globalThis.chrome?.sandiumUbo, ubo) {
+export async function startSandiumBridge(api = globalThis.chrome?.sandiumUbo, ubo, storage = globalThis.vAPI?.storage) {
     if ( !api ) { return { available: false, cutover: false }; }
     const call = (name, ...args) => new Promise((resolve, reject) => {
         api[name](...args, result => {
@@ -12,6 +13,7 @@ export async function startSandiumBridge(api = globalThis.chrome?.sandiumUbo, ub
         });
     });
     const reconciler = ubo ? createUserFilterReconciler(ubo) : null;
+    const listReconciler = ubo ? createListReconciler(ubo, storage) : null;
     let latestGeneration = 0;
     let snapshot = null;
     let disposed = false;
@@ -22,6 +24,7 @@ export async function startSandiumBridge(api = globalThis.chrome?.sandiumUbo, ub
         latestGeneration = Math.max(latestGeneration, generation);
         snapshot = null;
         reconciler?.invalidate(generation);
+        listReconciler?.invalidate(generation);
         if ( initialized && reconciler ) {
             resync = resync.catch(() => {}).then(synchronize).catch(() => {
                 // Keep native ACK invalid; coordinator decides bounded outcome.
@@ -39,7 +42,7 @@ export async function startSandiumBridge(api = globalThis.chrome?.sandiumUbo, ub
         for ( let attempt = 0; attempt < 3; attempt++ ) {
             const next = await call('getSettingsSnapshot');
             if ( disposed ) { throw new Error('Bridge disposed'); }
-            if ( next?.protocol !== 1 || next.engineCutover !== false ||
+            if ( next?.protocol !== 1 || typeof next.engineCutover !== 'boolean' ||
                  !Number.isSafeInteger(next.generation) || next.generation < 1 ||
                  !['shields', 'ads', 'cosmetic'].every(k => Array.isArray(next[k])) ) {
                 throw new Error('Invalid settings snapshot');
@@ -59,10 +62,11 @@ export async function startSandiumBridge(api = globalThis.chrome?.sandiumUbo, ub
         for ( let attempt = 0; attempt < 3; attempt++ ) {
             const current = await refreshSnapshot();
             if ( !reconciler ) return;
+            if (!await listReconciler.apply(current)) continue;
             const result = await reconciler.apply(current);
             if ( !result.applied || snapshot?.generation !== result.generation ) continue;
             const ack = await call('acknowledgeSettings', result.generation,
-                current.customFiltersSha256);
+                current.customFiltersSha256, current.lists.revision);
             if ( ack !== true ) { throw new Error('Native filter ACK rejected'); }
             if ( listenersStarted ) await reportListeners();
             return;
@@ -74,6 +78,7 @@ export async function startSandiumBridge(api = globalThis.chrome?.sandiumUbo, ub
         initialized = true;
     } catch (error) {
         reconciler?.dispose();
+        listReconciler?.dispose();
         api.onSettingsChanged.removeListener(invalidated);
         throw error;
     }
@@ -91,6 +96,7 @@ export async function startSandiumBridge(api = globalThis.chrome?.sandiumUbo, ub
         dispose() {
             disposed = true;
             reconciler?.dispose();
+        listReconciler?.dispose();
             snapshot = null;
             api.onSettingsChanged.removeListener(invalidated);
         },

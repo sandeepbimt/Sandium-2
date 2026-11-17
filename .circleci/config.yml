@@ -3,6 +3,9 @@ parameters:
   run_build:
     type: boolean
     default: false
+  sandium_ubo_activate_candidate:
+    type: boolean
+    default: false
   sandium_build_mode:
     type: enum
     enum:
@@ -29,11 +32,14 @@ jobs:
           python3 experiments/ubo-runtime/test_preflight.py
           python3 experiments/ubo-runtime/test_wiring.py
           python3 experiments/ubo-runtime/test_gn.py
+          python3 experiments/ubo-runtime/activation/test_activation.py
+
           python3 -m venv /tmp/sandium-ext0-preflight
           /tmp/sandium-ext0-preflight/bin/pip install --disable-pip-version-check PyYAML==6.0.2
           /tmp/sandium-ext0-preflight/bin/python experiments/ubo-runtime/test_ci_isolation.py
           /tmp/sandium-ext0-preflight/bin/python .circleci/tests/test_ubo_runtime_lifecycle.py
-          echo "EXT0=runtime_infrastructure_only; uBO not loaded; existing blocker retained"
+
+          echo "EXT0=isolated runtime candidate; activation explicitly selected; runtime behavior unverified"
     - when:
         condition:
           equal:
@@ -607,9 +613,9 @@ jobs:
           python3 experiments/ubo-runtime/verify_gn.py --src "$CIRCLE_WORKING_DIRECTORY/brave-work/src"
           python3 experiments/ubo-runtime/verify_runtime_off.py --core "$CIRCLE_WORKING_DIRECTORY/brave-work/src/brave" --src "$CIRCLE_WORKING_DIRECTORY/brave-work/src"
     - run:
-        name: Stage pinned full uBO payload and private bridge with activation disabled
+        name: Stage pinned uBO payload and explicit candidate activation
         no_output_timeout: 20m
-        command: bash .circleci/scripts/stage-ubo-runtime.sh
+        command: SANDIUM_UBO_ACTIVATE_CANDIDATE=<< pipeline.parameters.sandium_ubo_activate_candidate >> bash .circleci/scripts/stage-ubo-runtime.sh
     - store_artifacts:
         path: ubo-source-artifacts
         destination: ubo-corresponding-source

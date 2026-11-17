@@ -18,6 +18,7 @@ def plan(core):
  edit(name,'  ChromeContentBrowserClient::CreateThrottlesForNavigation(registry);','  sandium_ubo::AddStartupNavigationThrottle(registry);\n  ChromeContentBrowserClient::CreateThrottlesForNavigation(registry);')
  name='chromium_src/chrome/browser/extensions/component_loader_factory.cc'
  edit(name,'#include "brave/components/sandium_ubo/identity.h"','#include "brave/components/sandium_ubo/identity.h"\n#include "brave/components/sandium_ubo_routing/routing.h"')
+ edit(name,'    // SANDIUM_UBO_PROFILE_INITIALIZATION','    // SANDIUM_UBO_PROFILE_INITIALIZATION\n    if (base::FeatureList::IsEnabled(features::kSandiumUboRuntime))\n      sandium_ubo::ArmRuntimeStartup(profile);')
  edit(name,'    materialization_pending_ = false;','    materialization_pending_ = false;\n    if (sandium_ubo::IsRuntimeStartupAborted(profile_)) return;')
  edit(name,'        materialization_pending_)','        materialization_pending_ || sandium_ubo::IsRuntimeStartupAborted(profile_))')
  edit('browser/extensions/resources.gni','    "//brave/components/sandium_ubo:identity",','    "//brave/components/sandium_ubo:identity",\n    "//brave/components/sandium_ubo_routing",')
