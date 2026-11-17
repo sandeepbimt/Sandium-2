@@ -966,7 +966,7 @@ workflows:
         stage_index: 1
         filters:
           branches:
-            only: experiment/sandium-back-transition
+            only: release/phone-20261117
     - brave-android-staged-build:
         name: SANDIUM-FULL-MODE-stage-2
         stage_index: 2
@@ -974,7 +974,7 @@ workflows:
         - SANDIUM-FULL-MODE-stage-1
         filters:
           branches:
-            only: experiment/sandium-back-transition
+            only: release/phone-20261117
     - brave-android-staged-build:
         name: SANDIUM-FULL-MODE-stage-3
         stage_index: 3
@@ -982,7 +982,7 @@ workflows:
         - SANDIUM-FULL-MODE-stage-2
         filters:
           branches:
-            only: experiment/sandium-back-transition
+            only: release/phone-20261117
     - brave-android-staged-build:
         name: SANDIUM-FULL-MODE-stage-4
         stage_index: 4
@@ -990,7 +990,7 @@ workflows:
         - SANDIUM-FULL-MODE-stage-3
         filters:
           branches:
-            only: experiment/sandium-back-transition
+            only: release/phone-20261117
     - brave-android-staged-build:
         name: SANDIUM-FULL-MODE-stage-5
         stage_index: 5
@@ -998,7 +998,7 @@ workflows:
         - SANDIUM-FULL-MODE-stage-4
         filters:
           branches:
-            only: experiment/sandium-back-transition
+            only: release/phone-20261117
   fixed-reference-maintenance:
     when:
       and:

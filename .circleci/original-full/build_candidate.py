@@ -82,7 +82,7 @@ j['environment']={'SANDIUM_STAGE':'<< parameters.stage_index >>','SISO_LIMITS':'
 j['steps']=out
 j['retention']={'caches':'15d'}
 w=copy.deepcopy(a['workflows']['sandium-full-mode']);w['when']='<< pipeline.parameters.run_build >>';w['jobs']=w['jobs'][:5]
-for job in w['jobs']:next(iter(job.values()))['filters']={'branches':{'only':'experiment/sandium-back-transition'}}
+for job in w['jobs']:next(iter(job.values()))['filters']={'branches':{'only':'release/phone-20261117'}}
 result={'version':2.1,'parameters':{'run_build':{'type':'boolean','default':False},'sandium_build_mode':{'type':'enum','enum':['full'],'default':'full'},'run_maintenance':{'type':'boolean','default':False}},'jobs':{'brave-android-staged-build':j},'workflows':{'sandium-full-mode':w}}
 def run(name,phase,extra=''):
  return {'run':{'name':name,'command':'python3 .circleci/original-full/fixed_reference.py '+phase+' --root "$CIRCLE_WORKING_DIRECTORY" --legacy-script .circleci/scripts/sandium-checkpoint-shards.py'+extra}}
