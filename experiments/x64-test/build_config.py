@@ -43,6 +43,10 @@ def scripts(root):
    anchor='      if [ -s "$GCLIENT_FILE" ] && [ -s "$GCLIENT_ENTRIES" ] && \\\n'
    assert text.count(anchor)==1
    text=text.replace(anchor,'      if false && [ -s "$GCLIENT_FILE" ] && [ -s "$GCLIENT_ENTRIES" ] && \\\n')
+  if source.endswith('archive-brave-workspace.sh'):
+   anchor='    echo "SANDIUM-FULL-MODE archive: parallel workers=$WORKERS"'
+   assert text.count(anchor)==1
+   text=text.replace(anchor,'    python3 "$ROOT/experiments/x64-test/reclaim_bootstrap.py" "$ROOT" --archive-space\n'+anchor)
   if source.endswith('precheck-graph.py'):
    # Retain original audited source-policy scripts, route only the output path.
    assert "scripts = root / '.circleci/scripts'" in text
@@ -106,10 +110,14 @@ def derive(normal):
   definition['brave-android-staged-build']['filters']={'branches':{'only':BRANCH}}
  # Early fail-closed runtime branch protection (before restore or caches).
  steps.insert(1,{'run':{'name':'Verify isolated native x64 branch','command':'set -euo pipefail\ntest "${CIRCLE_BRANCH:-}" = "'+BRANCH+'"\n'}})
+ # Graph exists only after immutable ARM bootstrap verification and x64 preparation.
+ # Drop disposable local ARM objects/input archives before x64 compile consumes disk.
  # Verify CPU before build and actual ELF ABI before standard APK export.
  i=next(i for i,s in enumerate(steps) if (s.get('run',{}) if isinstance(s,dict) else {}).get('name')=='Validate build graph and remote-execution settings')
  steps.insert(i,{'run':{'name':'Verify native x64 GN graph','command':'python3 experiments/x64-test/verify_generated.py\npython3 -c \'import sys;sys.path.insert(0,"experiments/x64-test");from contract import validate_graph;validate_graph("brave-work/src/out/android_Release")\'\n'}})
  i=next(i for i,s in enumerate(steps) if (s.get('run',{}) if isinstance(s,dict) else {}).get('name')=='Build bounded Brave Android APK slice')
+ steps.insert(i,{'run':{'name':'Reclaim isolated local ARM bootstrap copies','command':'python3 experiments/x64-test/reclaim_bootstrap.py "$CIRCLE_WORKING_DIRECTORY"\n'}})
+ i+=1
  steps.insert(i,{'run':{'name':'Check native x64 compile disk headroom','command':"python3 -c 'import shutil; free=shutil.disk_usage(\"brave-work\").free; print(\"X64_DISK_FREE_BYTES=\",free); assert free >= 30*1024**3, \"Native x64 compile requires 30GiB free headroom\"'\n"}})
  i=next(i for i,s in enumerate(steps) if (s.get('run',{}) if isinstance(s,dict) else {}).get('name')=='Export APK status and artifacts')
  steps.insert(i,{'run':{'name':'Validate native x64 APK architecture when produced','command':'set -euo pipefail\nAPK=brave-work/src/out/android_Release/apks/BraveMonox64.apk\nif [ -f "$APK" ]; then python3 experiments/x64-test/contract.py brave-work/src/out/android_Release; fi\n'}})
@@ -120,7 +128,7 @@ def generate(root=ROOT):
  cfg=derive(yaml.safe_load(source.read_text()))
  outputs=scripts(root)
  outputs[DEST+'/config.yml']=yaml.safe_dump(cfg,sort_keys=False,width=120)
- manifest={'inputs':{p:hashlib.sha256((root/p).read_bytes()).hexdigest() for p in SOURCES+['.circleci/native-status-test/config.yml','experiments/x64-test/build_config.py']+[str(p.relative_to(root)) for p in sorted((root/'experiments/x64-test/vendor').rglob('*')) if p.is_file() and '__pycache__' not in p.parts]},'outputs':{p:hashlib.sha256(t.encode()).hexdigest() for p,t in outputs.items()}}
+ manifest={'inputs':{p:hashlib.sha256((root/p).read_bytes()).hexdigest() for p in SOURCES+['.circleci/native-status-test/config.yml','experiments/x64-test/build_config.py','experiments/x64-test/reclaim_bootstrap.py']+[str(p.relative_to(root)) for p in sorted((root/'experiments/x64-test/vendor').rglob('*')) if p.is_file() and '__pycache__' not in p.parts]},'outputs':{p:hashlib.sha256(t.encode()).hexdigest() for p,t in outputs.items()}}
  for p,text in outputs.items():
   target=root/p;target.parent.mkdir(parents=True,exist_ok=True);target.write_text(text)
  (root/DEST/'manifest.json').write_text(json.dumps(manifest,sort_keys=True,indent=2)+'\n')

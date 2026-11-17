@@ -53,9 +53,11 @@ only. No normal reference promotion is present.
 Stage 1 verifies the original ARM fixed source bootstrap, then the derived prepare
 forces Brave target-aware x64 dependency sync and GN generation. Continuations
 accept only exact x64 workflow handoffs. The archived x64 tree excludes copied ARM
-output objects, but stage1 preserves them locally and requires 30GiB free before
-compilation. Export adds x86_64 ELF checks before existing product/signature gates.
+output objects. After verified native graph generation, only disposable local ARM
+output and incoming compressed archive copies are reclaimed. Canonical remote
+caches remain untouched. A 30GiB compile gate and a pre-archive source-size-based
+headroom estimate fail early if space remains insufficient. Export adds x86_64 ELF checks before existing product/signature gates.
 
-13 tests include real shard archive/restore retaining x64 objects and excluding ARM,
+22 tests include real shard archive/restore retaining x64 objects and excluding ARM,
 shell syntax, deterministic derivation, cache isolation and ABI validation. No
 claim is made that a native Android build or emulator execution has passed yet.

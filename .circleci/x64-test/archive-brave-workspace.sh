@@ -62,6 +62,7 @@ case "$MODE" in
     [ -s "$MANIFEST" ] || fail "missing validated checkpoint manifest"
     grep -qx "CHECKPOINT_VALID=true" "$MANIFEST" || fail "checkpoint manifest is not marked valid"
     ensure_zstd
+    python3 "$ROOT/experiments/x64-test/reclaim_bootstrap.py" "$ROOT" --archive-space
     echo "SANDIUM-FULL-MODE archive: parallel workers=$WORKERS"
     echo "BRAVE_WORKSPACE_ARCHIVE_INPUT_SIZE=$(du -sh "$WORK" | awk '{print $1}')"
     echo "BRAVE_WORKSPACE_ARCHIVE_OUTPUT_FILESYSTEM=$(df -h "$ROOT" | tail -n 1 | awk '{print $4 " available of " $2}')"

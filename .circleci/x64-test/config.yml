@@ -718,6 +718,11 @@ jobs:
           \ exit=$RC; continuing to the real APK build under -strict_remote. Main APK metrics are authoritative.\"\n  fi\n\
           fi\n"
     - run:
+        name: Reclaim isolated local ARM bootstrap copies
+        command: 'python3 experiments/x64-test/reclaim_bootstrap.py "$CIRCLE_WORKING_DIRECTORY"
+
+          '
+    - run:
         name: Check native x64 compile disk headroom
         command: 'python3 -c ''import shutil; free=shutil.disk_usage("brave-work").free; print("X64_DISK_FREE_BYTES=",free);
           assert free >= 30*1024**3, "Native x64 compile requires 30GiB free headroom"''
