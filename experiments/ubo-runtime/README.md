@@ -102,3 +102,14 @@ guard mismatch: mobile extension UI needs `extension_action_enums`, but Chromium
 156 defined that Java enum target and Android rules import only for desktop
 Android. The isolated backport enables both on Android with extensions core,
 matching the consumer. Native graph and APK proof are still pending.
+
+## Later engine selector (user request, not implemented)
+After full uBO runtime proof, expose a reversible Brave/uBlock engine selector.
+Default remains Brave. A selection must atomically coordinate network filtering,
+cosmetics and scriptlets so both engines are never active simultaneously. Preserve
+both engines' settings and rules across switches, restart and upgrade. Provide
+crash-safe rollback; require a restart if needed for a correct handoff. Do not
+ship a nonfunctional selector before the runtime and persistence tests pass.
+Selecting another engine must show a confirmation popup with a Restart button,
+using the existing smooth UX. Apply the engine choice only after restart;
+canceling leaves the current selection and active engine unchanged.

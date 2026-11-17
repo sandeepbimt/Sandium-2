@@ -689,6 +689,20 @@ jobs:
           \ exit=$RC; continuing to the real APK build under -strict_remote. Main APK metrics are authoritative.\"\n  fi\n\
           fi\n"
     - run:
+        name: Verify exact EXT0 compile inputs and generated extension buildflag
+        command: |
+          set -euo pipefail
+          ROOT="$CIRCLE_WORKING_DIRECTORY"
+          SRC="$ROOT/brave-work/src"
+          OUT="$SRC/out/android_Release_arm64"
+          python3 experiments/ubo-runtime/test_compile_inputs.py
+          python3 experiments/ubo-runtime/verify_compile_inputs.py --src "$SRC"
+          export PATH="$SRC/brave/vendor/depot_tools:$PATH"
+          export DEPOT_TOOLS_UPDATE=0
+          # Generate only the declared dependency; no cache wipe or source alteration.
+          (cd "$SRC" && "$SRC/brave/vendor/depot_tools/autoninja" -strict_remote -C "$OUT" gen/extensions/buildflags/buildflags.h)
+          python3 experiments/ubo-runtime/verify_compile_inputs.py --src "$SRC" --require-generated
+    - run:
         name: Build bounded Brave Android APK slice
         no_output_timeout: 50m
         command: "set -euo pipefail\nROOT=\"$CIRCLE_WORKING_DIRECTORY\"\nOUT=\"$ROOT/brave-work/src/out/android_Release_arm64\"\
