@@ -59,10 +59,20 @@ def verify_full_wiring(repo):
         # reviewed exact config, then retain every product invocation/argument gate.
         import hashlib
         expected=(repo/'.circleci/original-full/config.sha256').read_text().strip()
-        if not re.fullmatch('[0-9a-f]{64}',expected) or hashlib.sha256(text.encode()).hexdigest()!=expected:
+        actual=hashlib.sha256(text.encode()).hexdigest()
+        if re.fullmatch('[0-9a-f]{64}',expected) and actual==expected:
+            verify_product_wrappers(repo)
+            return ['brave-android-staged-build','renew-fixed-reference']
+        # EXT0 has independently reviewed branch/cache/runtime isolation. Its exact
+        # config receipt is separate: never replace the shipping Full receipt or
+        # accept arbitrary config merely because it mentions the experiment.
+        receipt=repo/'experiments/ubo-runtime/config.sha256'
+        experimental=receipt.read_text().strip() if receipt.is_file() and not receipt.is_symlink() else ''
+        if (not re.fullmatch('[0-9a-f]{64}',experimental) or actual!=experimental
+                or 'Guard isolated uBO EXT0 compile-only branch' not in text):
             raise ValueError('Original Full configuration differs from reviewed wiring')
         verify_product_wrappers(repo)
-        return ['brave-android-staged-build','renew-fixed-reference']
+        return ['brave-android-staged-build']
 
     section=re.search(r'^jobs:\s*\n(.*?)(?=^[A-Za-z][A-Za-z0-9_-]*:|\Z)',text,re.M|re.S)
     if not section:raise ValueError('Missing jobs section')

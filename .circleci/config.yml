@@ -29,6 +29,8 @@ jobs:
 
           python3 experiments/ubo-runtime/test_preflight.py
 
+          python3 experiments/ubo-runtime/test_wiring.py
+
           python3 experiments/ubo-runtime/test_gn.py
 
           python3 -m venv /tmp/sandium-ext0-preflight
