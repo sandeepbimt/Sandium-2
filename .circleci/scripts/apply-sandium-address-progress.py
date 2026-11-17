@@ -168,7 +168,7 @@ def token(s):
         mSandiumProgress = progress;''')
     s=once(s,'        } else if (current.mTint != next.mTint) {', '''        } else if (current.mSandiumProgress != next.mSandiumProgress
                 || current.mSandiumProgressAlpha != next.mSandiumProgressAlpha) {
-            return ToolbarSnapshotDifference.UNKNOWN;
+            return ToolbarSnapshotDifference.PROGRESS;
         } else if (current.mTint != next.mTint) {''')
     return s
 
