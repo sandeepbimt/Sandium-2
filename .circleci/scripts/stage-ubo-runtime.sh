@@ -14,6 +14,7 @@ STAGE="$(mktemp -d /tmp/sandium-ubo-stage.XXXXXX)"
 mkdir -p "$ARTIFACTS"
 git -C "$ROOT" rev-parse HEAD > "$STAGE/integration.txt"
 printf '\nCandidate activation requested=%s; actual runtime owner unverified. Private profiles native. Fallback must be reported explicitly.\n' "$ACTIVATE" >> "$STAGE/integration.txt"
+printf 'Offline original subscription coverage=28/30 (8upstream+20integration);2 still require original network sources. Personal-testing license limitation applies.\n' >> "$STAGE/integration.txt"
 # Include exact scripts/adapter/build recipe, not just a mutable repository URL.
 git -C "$ROOT" archive HEAD experiments/ubo-runtime .circleci > "$STAGE/sandium-integration-source.tar"
 sha256sum "$STAGE/sandium-integration-source.tar" >> "$STAGE/integration.txt"
@@ -27,6 +28,7 @@ python3 "$ROOT/experiments/ubo-runtime/shields_bridge/apply.py" --core "$SRC/bra
 python3 "$ROOT/experiments/ubo-runtime/routing/apply.py" --core "$SRC/brave"
 python3 "$ROOT/experiments/ubo-runtime/routing/apply_startup.py" --core "$SRC/brave"
 python3 "$ROOT/experiments/ubo-runtime/request_policy/apply.py" --src "$SRC"
+python3 "$ROOT/experiments/ubo-runtime/offline_lists/apply.py" --core "$SRC/brave"
 # Baseline runtime-off gates ran before these overlays, not on candidate postimages.
 if [ "$ACTIVATE" = true ]; then
   python3 "$ROOT/experiments/ubo-runtime/activation/apply.py" --core "$SRC/brave" --branch "$CIRCLE_BRANCH" --mode on

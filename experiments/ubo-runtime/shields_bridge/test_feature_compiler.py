@@ -1,8 +1,8 @@
 """Exercise the exact pinned compiler's failing Parse/Validate path offline.
 
-Only imports for file parsing and C++ emission are omitted: this test feeds a
-Python dict to the UNMODIFIED upstream Feature parser/validators. It is not a
-claim that C++ generation or native compilation has run.
+The JSON-file parser import is omitted: production metadata is supplied as a
+Python dict. The exact upstream parser, validators and C++ emitter execute;
+native Android compilation remains a separate CI gate.
 """
 import ast
 import copy
@@ -13,6 +13,7 @@ from pathlib import Path
 import unittest
 import subprocess
 import tempfile
+import sys
 
 ROOT = Path(__file__).parent
 spec = importlib.util.spec_from_file_location('bridge_apply', ROOT/'apply.py')
@@ -26,11 +27,15 @@ class FeatureCompilerTests(unittest.TestCase):
         assert hashlib.sha256(source).hexdigest() == 'f0eabfd292119c2c5e99138d3d206291cf74c943c27a01021f1c0a4bfe2f08a3'
         tree = ast.parse(source)
         tree.body = [node for node in tree.body if not (
-            isinstance(node, ast.ImportFrom) and node.module == 'code_util' or
             isinstance(node, ast.Import) and any(a.name == 'json_parse' for a in node.names))]
         ns = {'__name__': 'pinned_feature_compiler'}
-        exec(compile(tree, '<pinned Chromium feature compiler>', 'exec'), ns)
+        sys.path.insert(0, str(ROOT/'testdata'))
+        try:
+            exec(compile(tree, '<pinned Chromium feature compiler>', 'exec'), ns)
+        finally:
+            sys.path.pop(0)
         cls.Feature = ns['Feature']
+        cls.Compiler = ns['FeatureCompiler']
         # Read exact production metadata from its AST, not a duplicate test dict.
         tree = ast.parse((ROOT/'apply.py').read_text())
         feature = next(node.value.args[0] for node in ast.walk(tree)
@@ -48,6 +53,19 @@ class FeatureCompilerTests(unittest.TestCase):
         self.assertEqual(self.definition['allowlist'], [bridge.ID_HASH])
         self.assertFalse(self.definition['component_extensions_auto_granted'])
         self.assertEqual(self.definition['contexts'], ['privileged_extension'])
+
+    def test_actual_compiler_emits_feature_provider(self):
+        with tempfile.TemporaryDirectory() as d:
+            compiler = self.Compiler('.', ['_api_features.json'], 'APIFeature',
+                                     'AddBraveAPIFeatures', d, 'gen', 'api_features')
+            compiler._json = {'sandiumUbo': self.definition}
+            compiler.Compile()
+            compiler.Write()
+            generated = (Path(d)/'api_features.cc').read_text()
+            self.assertIn('sandiumUbo', generated)
+            self.assertIn(bridge.ID_HASH, generated)
+            self.assertNotIn('DESKTOP_ANDROID_PLATFORM', generated)
+            self.assertTrue((Path(d)/'api_features.h').is_file())
 
     def test_actual_native_guard_rejects_non_android(self):
         cc = (ROOT/'sandium_ubo_api.cc').read_text()

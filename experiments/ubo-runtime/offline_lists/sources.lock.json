@@ -1,0 +1,350 @@
+{
+  "version": 1,
+  "upstream_bundle_sha256": "580afa3547a46422b3752759b5a90018ba7bfa4320770ea863950c78b29932d5",
+  "subscriptions": [
+    {
+      "url": "https://ublockorigin.github.io/uAssets/filters/filters.txt",
+      "title": "uBlock filters \u2013 Ads",
+      "stock_key": "ublock-filters",
+      "upstream_local": "assets/ublock/filters.min.txt"
+    },
+    {
+      "url": "https://ublockorigin.github.io/uAssets/filters/privacy.txt",
+      "title": "uBlock filters \u2013 Privacy",
+      "stock_key": "ublock-privacy",
+      "upstream_local": "assets/ublock/privacy.min.txt"
+    },
+    {
+      "url": "https://ublockorigin.github.io/uAssets/filters/quick-fixes.txt",
+      "title": "uBlock filters \u2013 Quick fixes",
+      "stock_key": "ublock-quick-fixes",
+      "upstream_local": "assets/ublock/quick-fixes.min.txt"
+    },
+    {
+      "url": "https://ublockorigin.github.io/uAssets/filters/unbreak.txt",
+      "title": "uBlock filters \u2013 Unbreak",
+      "stock_key": "ublock-unbreak",
+      "upstream_local": "assets/ublock/unbreak.min.txt"
+    },
+    {
+      "url": "https://ublockorigin.github.io/uAssets/thirdparties/easylist.txt",
+      "title": "EasyList",
+      "stock_key": "easylist",
+      "upstream_local": "assets/thirdparties/easylist/easylist.txt"
+    },
+    {
+      "url": "https://filters.adtidy.org/extension/ublock/filters/2_without_easylist.txt",
+      "title": "AdGuard \u2013 Ads",
+      "stock_key": "adguard-generic",
+      "upstream_local": null
+    },
+    {
+      "url": "https://filters.adtidy.org/extension/ublock/filters/11.txt",
+      "title": "AdGuard \u2013 Mobile Ads",
+      "stock_key": "adguard-mobile",
+      "upstream_local": null
+    },
+    {
+      "url": "https://ublockorigin.github.io/uAssets/thirdparties/easyprivacy.txt",
+      "title": "EasyPrivacy",
+      "stock_key": "easyprivacy",
+      "upstream_local": "assets/thirdparties/easylist/easyprivacy.txt"
+    },
+    {
+      "url": "https://ublockorigin.github.io/uAssets/filters/privacy-removeparam.txt",
+      "title": "AdGuard/uBO \u2013 URL Tracking Protection",
+      "stock_key": "adguard-spyware-url",
+      "upstream_local": null
+    },
+    {
+      "url": "https://malware-filter.gitlab.io/urlhaus-filter/urlhaus-filter-vivaldi-online.txt",
+      "title": "Online Malicious URL Blocklist",
+      "stock_key": "urlhaus-1",
+      "upstream_local": "assets/thirdparties/urlhaus-filter/urlhaus-filter-online.txt"
+    },
+    {
+      "url": "https://malware-filter.gitlab.io/phishing-filter/phishing-filter.txt",
+      "title": "Phishing URL Blocklist",
+      "stock_key": "curben-phishing",
+      "upstream_local": null
+    },
+    {
+      "url": "https://pgl.yoyo.org/adservers/serverlist.php?hostformat=hosts&showintro=1&mimetype=plaintext",
+      "title": "Peter Lowe\u2019s Ad and tracking server list",
+      "stock_key": "plowe-0",
+      "upstream_local": "assets/thirdparties/pgl.yoyo.org/as/serverlist"
+    },
+    {
+      "url": "https://someonewhocares.org/hosts/hosts",
+      "title": "Dan Pollock\u2019s hosts file",
+      "stock_key": "dpollock-0",
+      "upstream_local": null
+    },
+    {
+      "url": "https://ublockorigin.github.io/uAssets/thirdparties/easylist-cookies.txt",
+      "title": "EasyList \u2013 Cookie Notices",
+      "stock_key": "fanboy-cookiemonster",
+      "upstream_local": null
+    },
+    {
+      "url": "https://filters.adtidy.org/extension/ublock/filters/18.txt",
+      "title": "",
+      "stock_key": "adguard-cookies",
+      "upstream_local": null
+    },
+    {
+      "url": "https://ublockorigin.github.io/uAssets/filters/annoyances-cookies.txt",
+      "title": "uBlock filters \u2013 Cookie Notices",
+      "stock_key": "ublock-cookies-adguard",
+      "upstream_local": null
+    },
+    {
+      "url": "https://ublockorigin.github.io/uAssets/thirdparties/easylist-social.txt",
+      "title": "EasyList \u2013 Social Widgets",
+      "stock_key": "fanboy-social",
+      "upstream_local": null
+    },
+    {
+      "url": "https://filters.adtidy.org/extension/ublock/filters/4.txt",
+      "title": "",
+      "stock_key": "adguard-social",
+      "upstream_local": null
+    },
+    {
+      "url": "https://secure.fanboy.co.nz/fanboy-antifacebook.txt",
+      "title": "",
+      "stock_key": "fanboy-thirdparty_social",
+      "upstream_local": null
+    },
+    {
+      "url": "https://ublockorigin.github.io/uAssets/thirdparties/easylist-ai.txt",
+      "title": "EasyList \u2013 AI Widgets",
+      "stock_key": "fanboy-ai-suggestions",
+      "upstream_local": null
+    },
+    {
+      "url": "https://ublockorigin.github.io/uAssets/thirdparties/easylist-chat.txt",
+      "title": "EasyList \u2013 Chat Widgets",
+      "stock_key": "easylist-chat",
+      "upstream_local": null
+    },
+    {
+      "url": "https://ublockorigin.github.io/uAssets/thirdparties/easylist-newsletters.txt",
+      "title": "EasyList \u2013 Newsletter Notices",
+      "stock_key": "easylist-newsletters",
+      "upstream_local": null
+    },
+    {
+      "url": "https://ublockorigin.github.io/uAssets/thirdparties/easylist-notifications.txt",
+      "title": "",
+      "stock_key": "easylist-notifications",
+      "upstream_local": null,
+      "unavailable": true
+    },
+    {
+      "url": "https://ublockorigin.github.io/uAssets/thirdparties/easylist-annoyances.txt",
+      "title": "",
+      "stock_key": "easylist-annoyances",
+      "upstream_local": null,
+      "unavailable": true
+    },
+    {
+      "url": "https://filters.adtidy.org/extension/ublock/filters/20.txt",
+      "title": "AdGuard \u2013 Mobile App Banners",
+      "stock_key": "adguard-mobile-app-banners",
+      "upstream_local": null
+    },
+    {
+      "url": "https://filters.adtidy.org/extension/ublock/filters/21.txt",
+      "title": "AdGuard \u2013 Other Annoyances",
+      "stock_key": "adguard-other-annoyances",
+      "upstream_local": null
+    },
+    {
+      "url": "https://filters.adtidy.org/extension/ublock/filters/19.txt",
+      "title": "AdGuard \u2013 Popup Overlays",
+      "stock_key": "adguard-popup-overlays",
+      "upstream_local": null
+    },
+    {
+      "url": "https://filters.adtidy.org/extension/ublock/filters/22.txt",
+      "title": "AdGuard \u2013 Widgets",
+      "stock_key": "adguard-widgets",
+      "upstream_local": null
+    },
+    {
+      "url": "https://easylist-downloads.adblockplus.org/indianlist.txt",
+      "title": "",
+      "stock_key": "IND-0",
+      "upstream_local": null
+    },
+    {
+      "url": "https://ublockorigin.github.io/uAssets/filters/annoyances-others.txt",
+      "title": "",
+      "stock_key": null,
+      "upstream_local": null
+    }
+  ],
+  "files": [
+    {
+      "url": "https://filters.adtidy.org/extension/ublock/filters/2_without_easylist.txt",
+      "file": "payload/cc2258f440be6fcb68a946eb30d46667123a93d343880cc03405b7b84e024044.txt",
+      "sha256": "8e857586e8cfba5f9f8af933ef96e4a3f72a15de734fc4d995669f8f94bc37f0",
+      "size": 4383967,
+      "retrieved_utc": "2026-11-17T21:47:45.777738+00:00",
+      "license_notice": "Original complete attribution/license headers retained in source bytes; see README."
+    },
+    {
+      "url": "https://filters.adtidy.org/extension/ublock/filters/11.txt",
+      "file": "payload/d5e95cc5c21f961fbd649841edbd38ddc56086c8d6a8f60b14c8865a6f737759.txt",
+      "sha256": "e776440a0758d9d47f4866cfe589d6f54355156cd4f8a3b95ce6e6d071cf8e98",
+      "size": 531889,
+      "retrieved_utc": "2026-11-17T21:47:45.780692+00:00",
+      "license_notice": "Original complete attribution/license headers retained in source bytes; see README."
+    },
+    {
+      "url": "https://ublockorigin.github.io/uAssets/filters/privacy-removeparam.txt",
+      "file": "payload/a235b5939228a4558192246eb06f9d830c3991bc779f7b6eb4fdd997232d2302.txt",
+      "sha256": "02f98af853e7a79012a2e481f810f4d8a4ab976f57175942ab7764e6a0dfc2c1",
+      "size": 182538,
+      "retrieved_utc": "2026-11-17T21:47:45.782767+00:00",
+      "license_notice": "Original complete attribution/license headers retained in source bytes; see README."
+    },
+    {
+      "url": "https://malware-filter.gitlab.io/phishing-filter/phishing-filter.txt",
+      "file": "payload/9a45267044517f95da90b808d1eedefc4cc6925afb3ecdc5d76daf3ee80a692c.txt",
+      "sha256": "3651a71f634c3f349d8d44680228ba651a0f858e140dd1347c04c88a919eebaa",
+      "size": 1937035,
+      "retrieved_utc": "2026-11-17T21:47:45.793349+00:00",
+      "license_notice": "Original complete attribution/license headers retained in source bytes; see README."
+    },
+    {
+      "url": "https://someonewhocares.org/hosts/hosts",
+      "file": "payload/66ec9626d580d3621bd36f9000d430c23475acf0b5889224e2729bc0471ca5c7.txt",
+      "sha256": "5b23b7a25f28d1d19af618af6aca5fa8d985a997f0f88f13d7335797e17b1020",
+      "size": 394063,
+      "retrieved_utc": "2026-11-17T21:47:45.796874+00:00",
+      "license_notice": "Original complete attribution/license headers retained in source bytes; see README."
+    },
+    {
+      "url": "https://ublockorigin.github.io/uAssets/thirdparties/easylist-cookies.txt",
+      "file": "payload/af375412dd10bd015b83367e017980bc6cab03ac6c667b3cc5510f63838e5768.txt",
+      "sha256": "139ca47d0ff65586af9cf4409ff1ff4dd82d4777bd5aecd353423706f01f8eaf",
+      "size": 1219653,
+      "retrieved_utc": "2026-11-17T21:47:45.798826+00:00",
+      "license_notice": "Original complete attribution/license headers retained in source bytes; see README."
+    },
+    {
+      "url": "https://ublockorigin.github.io/uAssets/filters/annoyances-cookies.txt",
+      "file": "payload/22861d0bbd9aaae6054d891c4726405444ac2e00382e5bd7c1cefe5a6250c5e7.txt",
+      "sha256": "2540b020ec5d160ae66ec8e40911b089052668483a31880b591d21cf1855403f",
+      "size": 378854,
+      "retrieved_utc": "2026-11-17T21:47:45.804461+00:00",
+      "license_notice": "Original complete attribution/license headers retained in source bytes; see README."
+    },
+    {
+      "url": "https://ublockorigin.github.io/uAssets/thirdparties/easylist-social.txt",
+      "file": "payload/91d3a9b80ebadc6c657a93704b1068e1d89b4ab8d199dec9d7333678a414ae21.txt",
+      "sha256": "efee9b87ddb132af8c793aa1ebfac296a9a105517d35f0978c60689c5169fd68",
+      "size": 407522,
+      "retrieved_utc": "2026-11-17T21:47:45.804987+00:00",
+      "license_notice": "Original complete attribution/license headers retained in source bytes; see README."
+    },
+    {
+      "url": "https://ublockorigin.github.io/uAssets/thirdparties/easylist-ai.txt",
+      "file": "payload/abaa2ff1bd9b073f130f82f89b4f64c619bf86c8a5e1fcff971ef8aefe1a1fb8.txt",
+      "sha256": "c70f8fb0312db91a2fdba86fed577e5e05723d1fac2f107649f357cf373d2bed",
+      "size": 14591,
+      "retrieved_utc": "2026-11-17T21:47:45.810149+00:00",
+      "license_notice": "Original complete attribution/license headers retained in source bytes; see README."
+    },
+    {
+      "url": "https://ublockorigin.github.io/uAssets/thirdparties/easylist-chat.txt",
+      "file": "payload/3332097ac23df4f0429aeff0dcfa996764b009b2251fd72bc937090bf41cd4f9.txt",
+      "sha256": "877acdd15884b27e8f185f4cb4c1fb7aef07fa2f6dc799168b181905b2ce7910",
+      "size": 10133,
+      "retrieved_utc": "2026-11-17T21:47:45.812471+00:00",
+      "license_notice": "Original complete attribution/license headers retained in source bytes; see README."
+    },
+    {
+      "url": "https://ublockorigin.github.io/uAssets/thirdparties/easylist-newsletters.txt",
+      "file": "payload/866ffdd37c2349b8399a6e95208047e134dfd3cdb9f5b46b828b7c9e1520ce78.txt",
+      "sha256": "02283a2851c83e763c8c8b950fc61541118ebc2f1804ea8819479a8b7e808c69",
+      "size": 303577,
+      "retrieved_utc": "2026-11-17T21:47:45.813137+00:00",
+      "license_notice": "Original complete attribution/license headers retained in source bytes; see README."
+    },
+    {
+      "url": "https://filters.adtidy.org/extension/ublock/filters/20.txt",
+      "file": "payload/b35f0d066f46e226e72be807e964b509237c6f33bfb0840fae9cfe7dae9e3b56.txt",
+      "sha256": "5c61482dc9e7f7a6607337ad03a90770c11c33483369233b4d2e7742d9bf32c5",
+      "size": 350904,
+      "retrieved_utc": "2026-11-17T21:47:45.819564+00:00",
+      "license_notice": "Original complete attribution/license headers retained in source bytes; see README."
+    },
+    {
+      "url": "https://filters.adtidy.org/extension/ublock/filters/21.txt",
+      "file": "payload/ceb53a3d36df83792e5634458a3fb5469b5acb192ed4e72fc0dfa9d059083601.txt",
+      "sha256": "472e0e3a236865c2ce010259f17d35a605b7de7af4f584dd7c23528c1a70603c",
+      "size": 791316,
+      "retrieved_utc": "2026-11-17T21:47:45.826043+00:00",
+      "license_notice": "Original complete attribution/license headers retained in source bytes; see README."
+    },
+    {
+      "url": "https://filters.adtidy.org/extension/ublock/filters/19.txt",
+      "file": "payload/3b09d1db1d902c33f5de4e50ab6fe106421b4d8c396f4d20caefa0442f541c0a.txt",
+      "sha256": "1b10c8aaf0dde1c0b398d4bdd67e7f57fb2ee9c16ffeac677d7c2df3bfb51e86",
+      "size": 1420977,
+      "retrieved_utc": "2026-11-17T21:47:45.837155+00:00",
+      "license_notice": "Original complete attribution/license headers retained in source bytes; see README."
+    },
+    {
+      "url": "https://filters.adtidy.org/extension/ublock/filters/22.txt",
+      "file": "payload/d9b354268275724a2f00f63f1828858c592c1c4def43d3390ef941b66cee3a08.txt",
+      "sha256": "a3a8022018a067638fef5ac80f5b6fb32c2ab4b3c87e4ef12e88baace133d144",
+      "size": 150446,
+      "retrieved_utc": "2026-11-17T21:47:45.840253+00:00",
+      "license_notice": "Original complete attribution/license headers retained in source bytes; see README."
+    },
+    {
+      "url": "https://easylist-downloads.adblockplus.org/indianlist.txt",
+      "file": "payload/1cb2261dbdb66a8028507f4f339a361e95ad456f7d40516daac7fbd97bf1aea6.txt",
+      "sha256": "b54ef791600152e634dad6f8f2d01e949fde4243dd61ebfe96cf705506310c47",
+      "size": 658856,
+      "retrieved_utc": "2026-11-17T21:47:45.845268+00:00",
+      "license_notice": "Original complete attribution/license headers retained in source bytes; see README."
+    },
+    {
+      "url": "https://filters.adtidy.org/extension/ublock/filters/18.txt",
+      "file": "payload/c37e6c9210813086c5613d370266689573e66881435a6731a7a0bec356d5794f.txt",
+      "sha256": "bdee075f2571326afe61ccf8b4d3946ad4fdf7b435cdff593d9286a8f0327946",
+      "size": 1495518,
+      "retrieved_utc": "2026-11-17T21:53:34.777567+00:00",
+      "license_notice": "Original complete attribution/license headers retained in source bytes; see README."
+    },
+    {
+      "url": "https://filters.adtidy.org/extension/ublock/filters/4.txt",
+      "file": "payload/27c8295f4f43c13826c23b8c449fa52f3254525ad1314f958528377f1ff9512d.txt",
+      "sha256": "91beef5760d3f0156e81205e8403b0c644e45374707423fcc51df0c4c095179b",
+      "size": 950197,
+      "retrieved_utc": "2026-11-17T21:53:34.781506+00:00",
+      "license_notice": "Original complete attribution/license headers retained in source bytes; see README."
+    },
+    {
+      "url": "https://secure.fanboy.co.nz/fanboy-antifacebook.txt",
+      "file": "payload/fbf6460c6c9016c2161aa595935013be0d72e72e7eb5cd3189d6f347bc6af866.txt",
+      "sha256": "9adafa78d18a2d51395ca36d9a51343ffcd81cb12997a9dce3bc7d8db6df9112",
+      "size": 4677,
+      "retrieved_utc": "2026-11-17T21:53:34.781667+00:00",
+      "license_notice": "Original complete attribution/license headers retained in source bytes; see README."
+    },
+    {
+      "url": "https://ublockorigin.github.io/uAssets/filters/annoyances-others.txt",
+      "file": "payload/25c5e5893a40e20a3b435d192e354ffad3ea7a202f1610f27c90c203f12ca1ef.txt",
+      "sha256": "ca65f2b7b48e11a3b47070bf9a5a51c4e2885161d2ccec199fc75519417b21f6",
+      "size": 425756,
+      "retrieved_utc": "2026-11-17T21:53:34.783161+00:00",
+      "license_notice": "Original complete attribution/license headers retained in source bytes; see README."
+    }
+  ]
+}

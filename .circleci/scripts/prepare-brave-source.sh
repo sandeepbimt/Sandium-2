@@ -6,6 +6,7 @@ ROOT="$CIRCLE_WORKING_DIRECTORY"
 if [ -d "$ROOT/brave-work/src/brave" ]; then
   python3 "$ROOT/experiments/ubo-runtime/status/apply.py" --core "$ROOT/brave-work/src/brave" --reset
   python3 "$ROOT/experiments/ubo-runtime/activation/apply.py" --core "$ROOT/brave-work/src/brave" --mode reset
+  python3 "$ROOT/experiments/ubo-runtime/offline_lists/apply.py" --core "$ROOT/brave-work/src/brave" --reset
   python3 "$ROOT/experiments/ubo-runtime/request_policy/apply.py" --src "$ROOT/brave-work/src" --reset
   python3 "$ROOT/experiments/ubo-runtime/routing/apply_startup.py" --core "$ROOT/brave-work/src/brave" --reset
   python3 "$ROOT/experiments/ubo-runtime/routing/apply.py" --core "$ROOT/brave-work/src/brave" --reset

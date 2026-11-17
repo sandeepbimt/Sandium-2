@@ -5,10 +5,13 @@ https://chromium.googlesource.com/chromium/src/+/d331de35ca8ab1358c7a17e4bd41627
 
 SHA-256: `f0eabfd292119c2c5e99138d3d206291cf74c943c27a01021f1c0a4bfe2f08a3`
 
-Chromium copyright and BSD-style source license apply. The test executes actual
-Feature.Parse and Feature.Validate. It omits the two dependencies used for file
-parsing and C++ rendering, neither of which is exercised. This is deliberately
-not represented as full code generation or native compile validation.
+Chromium copyright and BSD-style source license apply. The test executes actual Feature.Parse, Feature.Validate, FeatureCompiler.Compile
+and FeatureCompiler.Write, emitting the C++ feature provider and header. Only
+JSON file loading is bypassed: the exact production metadata is supplied as a
+dict. This is not represented as native Android compile validation.
+
+`code_util.py` is unchanged tools/json_schema_compiler/code_util.py from the same
+pin and is used by the real C++ emitter.
 
 `pinned_feature.cc` is exact `extensions/common/features/feature.cc` from the
 same revision. Its GetCurrentPlatform selects DESKTOP_ANDROID_PLATFORM only with
