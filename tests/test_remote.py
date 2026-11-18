@@ -66,3 +66,43 @@ class HostDependencyTests(unittest.TestCase):
         self.assertNotIn('--lib32',command)
         self.assertIn('--no-prompt',command)
         self.assertEqual(command[-2],'/source/build/install-build-deps.sh')
+
+class RemoteConfigureIntegrationTests(unittest.TestCase):
+    def fixture(self, root):
+        src=root/'src';depot=root/'depot'
+        folder=src/'build/config/siso'
+        (folder/'backend_config').mkdir(parents=True)
+        (folder/'backend_config/google.star').write_text('container_image = "docker://pinned-worker@sha256:example"\n')
+        depot.mkdir();(depot/'autoninja').write_text('#!/bin/sh\n');(depot/'autoninja').chmod(0o755)
+        return src,depot,folder
+    def run_configure(self, src, depot, folder):
+        from unittest.mock import patch
+        from ci_remote import configure,ADDRESS,INSTANCE
+        def configurator(args,**kwargs):
+            # Model precisely the pinned upstream script's two outputs.
+            self.assertTrue(args[1].endswith('configure_siso.py'))
+            helper=args[args.index('--credential-helper')+1]
+            (folder/'.sisoenv').write_text(f'SISO_REAPI_ADDRESS={ADDRESS}\nSISO_REAPI_INSTANCE={INSTANCE}\nSISO_CREDENTIAL_HELPER={helper}\n')
+            (folder/'backend_config/backend.star').write_text((folder/'backend_config/google.star').read_text())
+        with patch('ci_remote.subprocess.run',side_effect=configurator):
+            return configure(src,depot,{'BUILDBUDDY_API_KEY':'fake-test-key'})
+    def test_first_use_optional_sisorc_creation(self):
+        with tempfile.TemporaryDirectory() as d:
+            src,depot,folder=self.fixture(Path(d))
+            self.assertFalse((folder/'.sisorc').exists())
+            env,receipt=self.run_configure(src,depot,folder)
+            rc=(folder/'.sisorc').read_text()
+            self.assertIn('ninja ',rc)
+            self.assertIn('googlechrome,remote-link',rc)
+            self.assertIn('-re_cache_enable_write=true',rc)
+            self.assertTrue(receipt['strict_remote'])
+            self.assertNotIn('fake-test-key',rc)
+    def test_existing_native_flags_preserved(self):
+        with tempfile.TemporaryDirectory() as d:
+            src,depot,folder=self.fixture(Path(d))
+            (folder/'.sisorc').write_text('ninja -config googlechrome -preserve_flag value\n')
+            self.run_configure(src,depot,folder)
+            first=(folder/'.sisorc').read_text()
+            self.assertIn('-preserve_flag value',first)
+            self.run_configure(src,depot,folder)
+            self.assertEqual(first,(folder/'.sisorc').read_text())

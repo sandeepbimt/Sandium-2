@@ -79,3 +79,10 @@ stdin to the unattended installer. Process state and wait-channel diagnostics
 separate stalled installation from a child retaining the output pipe. This is a
 CI compatibility hypothesis, not a validated fix until a run passes installation.
 The dependency time bound and strict compilation/checkpoint rules are unchanged.
+
+#1378 validated the unattended dependency change: installation completed in 67
+seconds and runhooks in 24 seconds. It then exposed a first-use adapter error:
+`.sisorc` is an optional local Siso configuration and was absent in clean Chromium.
+Unlike a restored Brave checkout, a fresh RawS checkout must create its initial
+ninja configuration explicitly before applying the Full-mode options. This
+failure was before GN or compilation; no APK or accepted checkpoint was produced.

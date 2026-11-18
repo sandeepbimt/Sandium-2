@@ -214,7 +214,9 @@ def configure(src, depot, env):
                     '--credential-helper', str(helper)], cwd=src, env=env,
                    check=True, timeout=120)
     rc = folder/'.sisorc'
-    rc.write_text(configure_rc(rc.read_text()))
+    # Chromium configure_siso.py generates .sisoenv/backend.star, not .sisorc.
+    # Full mode owns this optional CLI override file on first use.
+    rc.write_text(configure_rc(rc.read_text() if rc.is_file() else 'ninja\n'))
     generated = (folder/'backend_config/backend.star').read_text()
     if images[0] not in generated:
         raise ValueError('Configured backend lost the pinned Chromium worker image')
