@@ -64,7 +64,7 @@ class FeatureConfig(unittest.TestCase):
         chain=self.config['job-groups']['raws-native-resume-chain']['jobs']
         self.assertEqual(len(chain),8)
         self.assertEqual(next(iter(chain[0])),'raws-native-validate-resume')
-        self.assertEqual(chain[1]['raws-native-compile-1']['requires'],['raws-native-validate-resume'])
+        self.assertEqual(chain[1]['raws-native-resume-compile-1']['requires'],['raws-native-validate-resume'])
 
     def test_fresh_resume_and_incomplete_selectors_are_exclusive(self):
         def evaluate(condition,values):
@@ -90,7 +90,7 @@ class FeatureConfig(unittest.TestCase):
 
     def test_completed_recovery_skips_compile_preserves_original_and_reverifies(self):
         chain=self.config['job-groups']['raws-native-recovery-chain']['jobs']
-        self.assertEqual([next(iter(x)) for x in chain],['raws-native-validate-completed-resume','raws-native-recovery-pack','raws-native-probe'])
+        self.assertEqual([next(iter(x)) for x in chain],['raws-native-validate-completed-resume','raws-native-recovery-pack','raws-native-recovery-probe'])
         validator=self.text('raws-native-validate-completed-resume')
         self.assertIn('completed_feature_resume.py authorize',validator)
         self.assertNotIn('promote-resume',validator)
@@ -103,6 +103,20 @@ class FeatureConfig(unittest.TestCase):
             self.assertNotIn('ci_compile.py --stage',text)
             self.assertNotIn('halt-complete',text)
             self.assertNotIn('ci_completion.py',text)
+
+    def test_job_group_membership_is_globally_unique_and_dependencies_local(self):
+        owners={}
+        for group,value in self.config['job-groups'].items():
+            members={next(iter(x)) for x in value['jobs']}
+            for invocation in value['jobs']:
+                name,options=next(iter(invocation.items()))
+                self.assertNotIn(name,owners, f'{name} shared with {owners.get(name)}')
+                owners[name]=group
+                self.assertIn(name,self.config['jobs'])
+                self.assertTrue(set(options.get('requires',[])) <= members)
+        for name in ('compile-1','compile-2','compile-3','compile-4','compile-5','pack','probe'):
+            self.assertEqual(self.config['jobs']['raws-native-'+name],self.config['jobs']['raws-native-resume-'+name])
+        self.assertEqual(self.config['jobs']['raws-native-probe'],self.config['jobs']['raws-native-recovery-probe'])
 
     def test_pre_restore_guard_has_explicit_jdk(self):
         for name,job in self.config['jobs'].items():

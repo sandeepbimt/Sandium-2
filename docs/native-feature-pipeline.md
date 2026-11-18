@@ -78,3 +78,7 @@ Ubuntu `openjdk-21-jdk-headless`, with explicit JAVA_HOME/PATH and executable
 Java/javac checks. Apt update/install are bounded to 240/420 seconds and occur
 after the original job clock begins. This host test compiler is not the APK
 verification JDK; APK verification overrides it with the restored pinned JDK.
+
+## First service parse: #1403
+
+The first authorized service attempt rejected configuration before workflows or compute: the same compile job was a member of both fresh and resume job groups. Mutually exclusive workflow conditions do not isolate CircleCI job-group membership. The repair generates distinct resume job definitions and a distinct recovery probe, byte-value identical to their original job implementations, with only group-local dependencies. A regression now checks globally unique membership, local dependencies and unchanged job definitions. Normal Full is unchanged. This is a configuration repair, not a source, checkpoint or UI fix.

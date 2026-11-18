@@ -171,7 +171,14 @@ PYCODE'''),
         item={'filters':{'branches':{'only':BRANCH}}}
         if index:item['requires']=[names[index-1]]
         chain.append({name:item})
-    resume_names=['raws-native-validate-resume']+[n for n in names if n not in ('raws-native-seed','raws-native-validate-inputs')]
+    # CircleCI job-group membership is global even for mutually exclusive workflows.
+    # Give each group distinct job definitions, not shared member invocations.
+    resume_names=['raws-native-validate-resume']
+    for original in names:
+        if original in ('raws-native-seed','raws-native-validate-inputs'):continue
+        unique=original.replace('raws-native-','raws-native-resume-',1)
+        jobs[unique]=copy.deepcopy(jobs[original])
+        resume_names.append(unique)
     resume_chain=[]
     for index,name in enumerate(resume_names):
         item={'filters':{'branches':{'only':BRANCH}}}
@@ -208,7 +215,8 @@ PYCODE'''),
     recovery_pack['steps'].insert(capture_index,run('Reverify actual restored source GN and signed APK before full capture','python3 -u tools/completed_feature_resume.py verify-pack'))
     jobs['raws-native-recovery-pack']=recovery_pack
     recovery_chain=[]
-    recovery_names=['raws-native-validate-completed-resume','raws-native-recovery-pack','raws-native-probe']
+    jobs['raws-native-recovery-probe']=copy.deepcopy(probe)
+    recovery_names=['raws-native-validate-completed-resume','raws-native-recovery-pack','raws-native-recovery-probe']
     for index,name in enumerate(recovery_names):
         item={'filters':{'branches':{'only':BRANCH}}}
         if index:item['requires']=[recovery_names[index-1]]
