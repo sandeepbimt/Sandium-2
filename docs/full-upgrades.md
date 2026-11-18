@@ -86,3 +86,12 @@ seconds and runhooks in 24 seconds. It then exposed a first-use adapter error:
 Unlike a restored Brave checkout, a fresh RawS checkout must create its initial
 ninja configuration explicitly before applying the Full-mode options. This
 failure was before GN or compilation; no APK or accepted checkpoint was produced.
+
+#1382 passed remote configuration, but GN exposed the next fresh-checkout
+contract: DEPOT_TOOLS_UPDATE=0 skips gclient's usual bootstrap, while vpython3
+initializes only its own CIPD runtime. GN and autoninja invoke the selected
+checkout's python-bin/python3, which requires bootstrap_python3's manifest.
+Use pinned upstream ensure_bootstrap without moving its Git revision; verify
+that revision and the real wrapper Python/GN before compiling. Dependencies
+completed in 68 seconds and hooks in 20 seconds. No compiler actions or accepted
+checkpoint were produced by this run.

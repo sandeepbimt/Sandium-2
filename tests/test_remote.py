@@ -106,3 +106,38 @@ class RemoteConfigureIntegrationTests(unittest.TestCase):
             self.assertIn('-preserve_flag value',first)
             self.run_configure(src,depot,folder)
             self.assertEqual(first,(folder/'.sisorc').read_text())
+
+class DepotBootstrapTests(unittest.TestCase):
+    def test_official_bootstrap_pinned_and_actual_wrappers_probed(self):
+        from unittest.mock import patch
+        from ci_remote import bootstrap_depot
+        with tempfile.TemporaryDirectory() as d:
+            root=Path(d);depot=root/'depot_tools';(depot/'python-bin').mkdir(parents=True)
+            (root/'src').mkdir()
+            for name in ('ensure_bootstrap','python-bin/python3','gn','autoninja'):
+                (depot/name).write_text('#!/bin/sh\n');(depot/name).chmod(0o755)
+            with patch('ci_remote.run_logged') as run,patch('ci_remote.subprocess.check_output',return_value='pinned\n'):
+                env=bootstrap_depot(depot,'pinned',{'PATH':'/usr/bin','DEPOT_TOOLS_DIR':'/wrong','DEPOT_TOOLS_BOOTSTRAP_PYTHON3':'0'},root,1)
+            self.assertEqual(env['DEPOT_TOOLS_DIR'],str(depot))
+            self.assertEqual(env['DEPOT_TOOLS_UPDATE'],'0')
+            self.assertEqual(env['DEPOT_TOOLS_BOOTSTRAP_PYTHON3'],'1')
+            commands=[c.args[0] for c in run.call_args_list]
+            self.assertEqual(commands[0][-1],str(depot/'ensure_bootstrap'))
+            self.assertIn(str(depot/'python-bin/python3'),commands[1])
+            self.assertIn(str(depot/'gn'),commands[2])
+            self.assertEqual(run.call_args_list[2].kwargs['cwd'],root/'src')
+            with patch('ci_remote.run_logged'),patch('ci_remote.subprocess.check_output',return_value='different\n'):
+                with self.assertRaisesRegex(ValueError,'pinned revision'):
+                    bootstrap_depot(depot,'pinned',{'PATH':'/usr/bin'},root,1)
+    def test_bootstrap_failure_prevents_wrapper_invocation(self):
+        from unittest.mock import patch
+        from ci_remote import bootstrap_depot
+        import subprocess
+        with tempfile.TemporaryDirectory() as d:
+            root=Path(d);depot=root/'depot_tools';(depot/'python-bin').mkdir(parents=True)
+            for name in ('ensure_bootstrap','python-bin/python3','gn','autoninja'):
+                (depot/name).write_text('#!/bin/sh\n');(depot/name).chmod(0o755)
+            with patch('ci_remote.run_logged',side_effect=subprocess.CalledProcessError(124,['timeout'])) as run:
+                with self.assertRaises(subprocess.CalledProcessError):
+                    bootstrap_depot(depot,'pin',{'PATH':'/usr/bin'},root,1)
+                self.assertEqual(run.call_count,1)

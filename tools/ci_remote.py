@@ -139,6 +139,29 @@ def run_logged(command, log_path, *, phase, cwd=None, env=None, check=False,
     return subprocess.CompletedProcess(command,code)
 
 
+def bootstrap_depot(depot, revision, env, artifacts, stage):
+    """Initialize the pinned tools' runtimes without permitting a Git update."""
+    depot=depot.resolve()
+    env=dict(env, DEPOT_TOOLS_DIR=str(depot), DEPOT_TOOLS_UPDATE='0',
+             DEPOT_TOOLS_BOOTSTRAP_PYTHON3='1')
+    env['PATH']=str(depot)+os.pathsep+env.get('PATH','')
+    for name in ('ensure_bootstrap','python-bin/python3','gn','autoninja'):
+        if not os.access(depot/name,os.X_OK):
+            raise ValueError('Missing pinned depot tool: '+name)
+    log=artifacts/f'depot-bootstrap-{stage}.log'
+    run_logged(['timeout','--kill-after=30s','5m',str(depot/'ensure_bootstrap')],
+               log,phase=f'depot-bootstrap-{stage}',cwd=depot,env=env,check=True,stdin=subprocess.DEVNULL)
+    # A gclient/vpython success does not prove these wrappers work. Exercise
+    # their real interpreter plus GN entrypoint, not a synthetic marker file.
+    run_logged(['timeout','60s',str(depot/'python-bin/python3'),'--version'],
+               log,phase=f'depot-python-{stage}',cwd=depot,env=env,check=True,append=True)
+    run_logged(['timeout','60s',str(depot/'gn'),'--version'],
+               log,phase=f'depot-gn-{stage}',cwd=depot.parent/'src',env=env,check=True,append=True)
+    actual=subprocess.check_output(['git','-C',str(depot),'rev-parse','HEAD'],text=True).strip()
+    if actual!=revision:raise ValueError('Depot bootstrap changed pinned revision')
+    return env
+
+
 def remote_command(out, metrics, target, budget, *, smoke=False):
     if not 1 <= budget <= 1500:
         raise ValueError('Remote slice must fit the 25-minute cap')

@@ -3,7 +3,7 @@
 import argparse, hashlib, json, os, re, shutil, subprocess, tarfile, time, zipfile
 from pathlib import Path
 from raw import ROOT, lock, verify
-from ci_remote import configure, smoke, remote_command, audit, run_logged
+from ci_remote import configure, smoke, remote_command, audit, run_logged, bootstrap_depot
 W=ROOT/'work/source'
 
 def file_sha(path):
@@ -79,13 +79,15 @@ def main(stage):
                    artifacts/f'prepare-{stage}.log',phase=f'install-dependencies-{stage}',check=True,env=env,stdin=subprocess.DEVNULL)
         run_logged(['timeout','--kill-after=30s','10m','gclient','runhooks'],
                    artifacts/f'prepare-{stage}.log',phase=f'runhooks-{stage}',append=True,cwd=W,check=True,env=env)
+        env=bootstrap_depot(W/'depot_tools',data['depot_tools']['revision'],env,artifacts,stage)
         out=W/'src/out/RawSandium';out.mkdir(parents=True,exist_ok=True)
         # Full checkpoint driver restores source and output together before this step.
         # No legacy whole-output tar path may bypass its verified chain.
         state['restored_checkpoint']='managed by RawS Full driver'
         env, state['remote_config'] = configure(W/'src', W/'depot_tools', env)
         (out/'args.gn').write_text((ROOT/'ci/args.gn').read_text())
-        subprocess.run(['gn','gen','out/RawSandium'],cwd=W/'src',env=env,check=True,timeout=300)
+        run_logged(['timeout','--kill-after=30s','5m',str(W/'depot_tools/gn'),'gen','out/RawSandium'],
+                   artifacts/f'gn-{stage}.log',phase=f'gn-generation-{stage}',cwd=W/'src',env=env,check=True)
         apk=out/'apks/ChromePublic.apk'
         if apk.exists():apk.unlink()
         started=json.loads((ROOT/'.checkpoint-state/job-start.json').read_text())['epoch']
