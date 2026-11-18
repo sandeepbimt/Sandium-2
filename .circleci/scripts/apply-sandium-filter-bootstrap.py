@@ -32,6 +32,18 @@ def replace_once(path: Path, old: str, new: str, marker: str, label: str) -> Non
     print(f"SANDIUM_FILTER_BOOTSTRAP_PATCH={label}:APPLIED")
 
 
+def migrate_refresh_title(menu: Path) -> None:
+    """Migrate the exact pre-resource #1394 checkpoint title before replay."""
+    source = menu.read_text(encoding="utf-8")
+    legacy = 'android:title="Refresh filters"'
+    current = 'android:title="@string/sandium_refresh_filters"'
+    if legacy in source:
+        if source.count(legacy) != 1 or current in source:
+            raise SystemExit("SANDIUM_FILTER_BOOTSTRAP=FAIL ambiguous legacy refresh title")
+        menu.write_text(source.replace(legacy, current, 1), encoding="utf-8")
+        print("SANDIUM_FILTER_BOOTSTRAP_PATCH=menu-refresh-filters-title:MIGRATED_CHECKPOINT")
+
+
 def remove_legacy_startup_warmup(manager_cc: Path) -> None:
     legacy = """  // DAT-cache startup suppression is optimized for a warm, already-built
   // engine. Sandium registers its default URL subscriptions after the native
@@ -562,6 +574,7 @@ void FilterListService::GetCustomFilters""",
         "mFilterListAndroidHandler.refreshAllSubscriptions(",
         "fragment-refresh-enabled-filter-sources",
     )
+    migrate_refresh_title(menu)
     replace_once(
         menu,
         'android:title="@string/update"',

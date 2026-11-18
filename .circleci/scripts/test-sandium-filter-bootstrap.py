@@ -121,6 +121,7 @@ with tempfile.TemporaryDirectory() as directory:
             labels.append(label)
             original_replace(path, old, new, marker, label)
     globals_["replace_once"] = manager_replace
+    globals_["migrate_refresh_title"] = lambda menu: None
     module["apply"](core)
     first = manager.read_text()
     module["apply"](core)
@@ -138,3 +139,22 @@ with tempfile.TemporaryDirectory() as directory:
     else:
         raise AssertionError("unknown manager body drift accepted")
 print("SANDIUM_FILTER_COMPOSED_CHECKPOINT=PASS homepage_preserved=true repeat=true drift_rejected=true")
+
+# Exact legacy checkpoint, pristine upstream and repeated current replay.
+import tempfile
+m = runpy.run_path(str(HERE / "apply-sandium-filter-bootstrap.py"))
+with tempfile.TemporaryDirectory() as d:
+    menu = Path(d) / "menu.xml"
+    for before in ('@string/update', 'Refresh filters', '@string/sandium_refresh_filters'):
+        menu.write_text('<item android:title="'+before+'" />')
+        for _ in range(2):
+            m['migrate_refresh_title'](menu)
+            m['replace_once'](menu, 'android:title="@string/update"',
+                'android:title="@string/sandium_refresh_filters"',
+                'android:title="@string/sandium_refresh_filters"', 'menu-refresh-filters-title')
+        assert menu.read_text() == '<item android:title="@string/sandium_refresh_filters" />'
+    menu.write_text('<item android:title="Refresh filters"/><item android:title="Refresh filters"/>')
+    try: m['migrate_refresh_title'](menu)
+    except SystemExit: pass
+    else: raise AssertionError('ambiguous legacy title must fail closed')
+print('FILTER_TITLE_REPLAY=PASS pristine/1394/current/double-replay/ambiguous')
