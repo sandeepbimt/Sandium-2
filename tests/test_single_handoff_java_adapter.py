@@ -6,7 +6,7 @@ s=importlib.util.spec_from_file_location('java_adapter',HERE/'java_adapter.py');
 PREFIX=r'''
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.chrome.browser.tab.Tab;
-@interface Nullable {} @interface CalledByNative {}
+@java.lang.annotation.Target({java.lang.annotation.ElementType.TYPE_USE}) @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) @interface Nullable {} @interface CalledByNative {}
 class View {static final int VISIBLE=0;}
 class SceneLayer {}
 class Layout {boolean eligible=true;Runnable duringQuery;boolean isSandiumNativeHandoffSceneEligible(Tab t,WebContents w,SceneLayer s){if(duringQuery!=null)duringQuery.run();return eligible&&!t.dead&&!w.dead&&t.wc==w;}}

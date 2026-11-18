@@ -46,7 +46,7 @@ class Home(unittest.TestCase):
   he=source.index('\n    /**',hb)
   hide_method=source[hb:he]
   code='''import java.util.*;
-@interface Nullable {}
+@java.lang.annotation.Target({java.lang.annotation.ElementType.TYPE_USE}) @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) @interface Nullable {}
 interface SmoothTransitionDelegate {void start(Runnable r);void cancel();}
 class AnimationStage {static final int NONE=0,OTHER=1,WAITING_FOR_EMBEDDER_CONTENT_FOR_COMMITTED_ENTRY=2;}
 class View {float alpha=1;List<Runnable> posts=new ArrayList<>();void setAlpha(float x){alpha=x;}float getAlpha(){return alpha;}void post(Runnable r){posts.add(r);}void removeOnAttachStateChangeListener(Object x){}}
@@ -114,7 +114,7 @@ public class Harness {
 'android/view/View.java':'''package android.view;public class View {public static Object ALPHA=new Object();public float alpha=1;public boolean attached=true,layout=true,pending=false;public java.util.List<OnAttachStateChangeListener> ls=new java.util.ArrayList<>();public interface OnAttachStateChangeListener {void onViewAttachedToWindow(View v);void onViewDetachedFromWindow(View v);}public ViewTreeObserver tree=new ViewTreeObserver();public void setAlpha(float a){alpha=a;}public boolean isAttachedToWindow(){return attached;}public boolean isLaidOut(){return layout;}public boolean isLayoutRequested(){return pending;}public int getWidth(){return 100;}public int getHeight(){return 200;}public void addOnAttachStateChangeListener(OnAttachStateChangeListener l){ls.add(l);}public void removeOnAttachStateChangeListener(OnAttachStateChangeListener l){ls.remove(l);}public ViewTreeObserver getViewTreeObserver(){return tree;}}''',
 'com/google/common/annotations/VisibleForTesting.java':'package com.google.common.annotations;public @interface VisibleForTesting {}',
 'org/chromium/build/annotations/NullMarked.java':'package org.chromium.build.annotations;public @interface NullMarked {}',
-'org/chromium/build/annotations/Nullable.java':'package org.chromium.build.annotations;public @interface Nullable {}',
+'org/chromium/build/annotations/Nullable.java':'package org.chromium.build.annotations;@java.lang.annotation.Target({java.lang.annotation.ElementType.TYPE_USE}) @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) public @interface Nullable {}',
 'org/chromium/build/NullUtil.java':'package org.chromium.build;public class NullUtil {public static void assumeNonNull(Object x){}}',
 'org/chromium/base/Callback.java':'package org.chromium.base;public interface Callback<T>{void onResult(T x);}',
 'org/chromium/base/TimeUtils.java':'package org.chromium.base;public class TimeUtils {public static long currentTimeMillis(){return 1;}}',

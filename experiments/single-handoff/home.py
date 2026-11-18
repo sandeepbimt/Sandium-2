@@ -6,8 +6,8 @@ HERE=Path(__file__).parent
 FIELDS='''    // SANDIUM_HOME_HANDOFF_V1: one operation owns readiness, animator and completion.
     private int mGeneration;
     private @Nullable Runnable mOnEnd;
-    private @Nullable android.view.ViewTreeObserver mPendingTree;
-    private @Nullable android.view.ViewTreeObserver.OnPreDrawListener mPendingDraw;
+    private android.view.@Nullable ViewTreeObserver mPendingTree;
+    private android.view.ViewTreeObserver.@Nullable OnPreDrawListener mPendingDraw;
     private boolean mFeedReady;
     private final View.OnAttachStateChangeListener mAttachListener =
             new View.OnAttachStateChangeListener() {

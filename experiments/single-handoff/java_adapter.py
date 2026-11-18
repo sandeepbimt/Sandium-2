@@ -8,13 +8,13 @@ FIELDS='''    // SANDIUM_NATIVE_HANDOFF_JAVA_V1
     private boolean mSandiumHandoffShuttingDown;
     private boolean mSandiumHandoffStarting;
     private boolean mSandiumHandoffBeginViolated;
-    private @Nullable org.chromium.chrome.browser.tab.Tab mSandiumHandoffTab;
+    private org.chromium.chrome.browser.tab.@Nullable Tab mSandiumHandoffTab;
     private @Nullable WebContents mSandiumHandoffContents;
     private @Nullable LayoutProvider mSandiumHandoffProvider;
     private @Nullable LayoutProvider mSandiumFinalizationProvider;
     private @Nullable SceneLayer mSandiumFinalizedScene;
-    private @Nullable java.util.function.BooleanSupplier mSandiumHandoffHolderGate;
-    private @Nullable org.chromium.base.Callback<Boolean> mSandiumHandoffCompletion;
+    private java.util.function.@Nullable BooleanSupplier mSandiumHandoffHolderGate;
+    private org.chromium.base.@Nullable Callback<Boolean> mSandiumHandoffCompletion;
 
 '''
 METHODS='''    // Caller transfers its native-page lease only when begin returns true.
@@ -84,7 +84,7 @@ METHODS='''    // Caller transfers its native-page lease only when begin returns
             mSandiumHandoffBeginViolated = true;
             return; // Native begin has not yet transferred resource ownership.
         }
-        @Nullable org.chromium.base.Callback<Boolean> completion = mSandiumHandoffCompletion;
+        org.chromium.base.@Nullable Callback<Boolean> completion = mSandiumHandoffCompletion;
         clearSandiumNativeHandoff();
         try {
             if (mNativeCompositorView != 0) {
@@ -112,11 +112,11 @@ METHODS='''    // Caller transfers its native-page lease only when begin returns
     private @Nullable SceneLayer getSandiumNativeHandoffScene(long token) {
         org.chromium.base.ThreadUtils.assertOnUiThread();
         if (!isSandiumNativeHandoffLocallyEligible(token)) return null;
-        @Nullable org.chromium.chrome.browser.tab.Tab tab = mSandiumHandoffTab;
+        org.chromium.chrome.browser.tab.@Nullable Tab tab = mSandiumHandoffTab;
         @Nullable WebContents contents = mSandiumHandoffContents;
         @Nullable LayoutProvider provider = mSandiumHandoffProvider;
         @Nullable SceneLayer scene = mSandiumFinalizedScene;
-        @Nullable java.util.function.BooleanSupplier holderGate = mSandiumHandoffHolderGate;
+        java.util.function.@Nullable BooleanSupplier holderGate = mSandiumHandoffHolderGate;
         if (tab == null || contents == null || provider == null || scene == null
                 || holderGate == null || provider != mSandiumFinalizationProvider
                 || !holderGate.getAsBoolean() || !isSandiumNativeHandoffLocallyEligible(token)
@@ -140,7 +140,7 @@ METHODS='''    // Caller transfers its native-page lease only when begin returns
         }
         boolean stillEligible = presented && getSandiumNativeHandoffScene(token) != null;
         if (token != mSandiumHandoffToken) return; // Gate reentered and ended/replaced this lease.
-        @Nullable org.chromium.base.Callback<Boolean> completion = mSandiumHandoffCompletion;
+        org.chromium.base.@Nullable Callback<Boolean> completion = mSandiumHandoffCompletion;
         clearSandiumNativeHandoff();
         if (completion != null) completion.onResult(stillEligible);
     }

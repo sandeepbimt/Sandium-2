@@ -20,7 +20,7 @@ class Eligibility(unittest.TestCase):
   for path,method in ((m.LAYOUT,m.DEFAULT),(m.STATIC,m.OVERRIDE)):
    self.assertIn(method,transformed[path])
   code='''import java.util.*;
-@interface Nullable {}
+@java.lang.annotation.Target({java.lang.annotation.ElementType.TYPE_USE}) @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) @interface Nullable {}
 class SceneLayer {}
 class WebContents {boolean dead;boolean isDestroyed(){return dead;}}
 class URL {String scheme="https";String getScheme(){return scheme;}}

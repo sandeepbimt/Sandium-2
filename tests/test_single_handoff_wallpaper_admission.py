@@ -43,7 +43,7 @@ class Wallpaper(unittest.TestCase):
   finally:m.METHODS=original
  def test_actual_request_methods(self):
   code='''import java.util.*;import java.util.concurrent.Executor;
-@java.lang.annotation.Target({java.lang.annotation.ElementType.TYPE_USE}) @interface Nullable {}
+@java.lang.annotation.Target({java.lang.annotation.ElementType.TYPE_USE}) @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) @interface Nullable {}
 class NTPImage {} class Wallpaper extends NTPImage {boolean rich;boolean isRichMedia(){return rich;}}
 class Bitmap {int w,h;boolean recycled;Bitmap(int w,int h){this.w=w;this.h=h;}int getWidth(){return w;}int getHeight(){return h;}boolean isRecycled(){return recycled;}}
 class ViewTreeObserver {interface OnGlobalLayoutListener {void onGlobalLayout();}boolean alive=true;List<OnGlobalLayoutListener> listeners=new ArrayList<>();boolean isAlive(){return alive;}void addOnGlobalLayoutListener(OnGlobalLayoutListener l){listeners.add(l);}void removeOnGlobalLayoutListener(OnGlobalLayoutListener l){listeners.remove(l);}void layout(){for(var l:List.copyOf(listeners))l.onGlobalLayout();}}

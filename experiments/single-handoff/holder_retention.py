@@ -3,7 +3,7 @@ from pathlib import Path
 PATH='chrome/android/java/src/org/chromium/chrome/browser/compositor/CompositorViewHolder.java'
 MARKER='SANDIUM_NATIVE_HOME_RETAIN_V1'
 FIELDS='''    // SANDIUM_NATIVE_HOME_RETAIN_V1
-    private @Nullable org.chromium.chrome.browser.tab.NativePageHandoffOffer.Claim mSandiumRetained;
+    private org.chromium.chrome.browser.tab.NativePageHandoffOffer.@Nullable Claim mSandiumRetained;
     private long mSandiumRetainedToken;
     private long mSandiumNextRetainedToken;
     private long mSandiumRetainedDeadline;
@@ -51,7 +51,7 @@ METHODS='''    private int[] sandiumGeometry(View view) {
             View child = getChildAt(i);
             if (child != mView && child != mCompositorView && child.getVisibility() == View.VISIBLE) return;
         }
-        @Nullable org.chromium.chrome.browser.tab.NativePageHandoffOffer.Claim claim =
+        org.chromium.chrome.browser.tab.NativePageHandoffOffer.@Nullable Claim claim =
                 offer.claim(tab, mView);
         if (claim == null) return;
         View retained = claim.view();
@@ -84,7 +84,7 @@ METHODS='''    private int[] sandiumGeometry(View view) {
     }
 
     private boolean sandiumRetainedEligible(long token) {
-        @Nullable org.chromium.chrome.browser.tab.NativePageHandoffOffer.Claim claim = mSandiumRetained;
+        org.chromium.chrome.browser.tab.NativePageHandoffOffer.@Nullable Claim claim = mSandiumRetained;
         if (claim == null || token != mSandiumRetainedToken || isLayoutRequested() || !claim.isValid()
                 || android.os.SystemClock.uptimeMillis() >= mSandiumRetainedDeadline
                 || !sandiumHolderLocallySafe()) return false;
@@ -109,7 +109,7 @@ METHODS='''    private int[] sandiumGeometry(View view) {
     }
 
     private void startSandiumNativeHome() {
-        @Nullable org.chromium.chrome.browser.tab.NativePageHandoffOffer.Claim claim = mSandiumRetained;
+        org.chromium.chrome.browser.tab.NativePageHandoffOffer.@Nullable Claim claim = mSandiumRetained;
         if (claim == null || mSandiumRetainedStarted) return;
         // addView(destination) normally requests layout. Wait for the normal draw traversal,
         // within the original absolute lease budget, rather than treating that as readiness.
@@ -133,7 +133,7 @@ METHODS='''    private int[] sandiumGeometry(View view) {
 
     private void releaseSandiumNativeHome(long token) {
         if (token == 0 || token != mSandiumRetainedToken) return;
-        @Nullable org.chromium.chrome.browser.tab.NativePageHandoffOffer.Claim claim = mSandiumRetained;
+        org.chromium.chrome.browser.tab.NativePageHandoffOffer.@Nullable Claim claim = mSandiumRetained;
         @Nullable Runnable expiry = mSandiumRetainedExpiry;
         int a11y = mSandiumRetainedA11y;
         int focusability = mSandiumRetainedFocusability;

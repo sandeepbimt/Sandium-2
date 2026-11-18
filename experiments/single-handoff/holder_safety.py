@@ -9,7 +9,7 @@ FIELDS='''    // SANDIUM_NATIVE_HANDOFF_SAFETY_V1
     private boolean mSandiumA11yEnabled;
     private boolean mSandiumObscuringKnown;
     private boolean mSandiumObscured;
-    private @Nullable java.util.function.BooleanSupplier mSandiumUiSafety;
+    private java.util.function.@Nullable BooleanSupplier mSandiumUiSafety;
     private @Nullable Runnable mSandiumUnsafeCallback;
     private boolean mSandiumA11yRegistered;
     private final AccessibilityUtil.Observer mSandiumSafetyA11yObserver = enabled -> {
@@ -34,7 +34,7 @@ METHODS='''    /** Separate observer: never enables the tablet-only virtual acce
     }
 
     private boolean isSandiumNativeHandoffUiSafe() {
-        @Nullable java.util.function.BooleanSupplier policy = mSandiumUiSafety;
+        java.util.function.@Nullable BooleanSupplier policy = mSandiumUiSafety;
         if (mSandiumSafetyClosed || !mSandiumA11yKnown || mSandiumA11yEnabled
                 || !mSandiumObscuringKnown || mSandiumObscured || policy == null) return false;
         boolean safe = policy.getAsBoolean();
