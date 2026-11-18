@@ -93,9 +93,23 @@ def measure(root, suffixes=None):
     suffix_bytes = {suffix: 0 for suffix in (suffixes or [])}
     if not os.path.isdir(root):
         return count, total, suffix_counts, suffix_bytes
-    for base, _, files in os.walk(root):
+    excluded_count = 0
+    excluded_bytes = 0
+    excluded_dirs = 0
+    for base, dirs, files in os.walk(root):
+        # Match BOTH immutable namespace snapshot and tar archive policy exactly.
+        # Ninja transient outputs are intentionally not persisted across stages.
+        excluded_dirs += sum(name.endswith(".staging") for name in dirs)
+        dirs[:] = [name for name in dirs if not name.endswith(".staging")]
         for name in files:
             path = os.path.join(base, name)
+            if name.endswith(".staging"):
+                excluded_count += 1
+                try:
+                    excluded_bytes += os.path.getsize(path)
+                except OSError:
+                    pass
+                continue
             try:
                 size = os.path.getsize(path)
             except OSError:
@@ -106,6 +120,10 @@ def measure(root, suffixes=None):
                 if name.endswith(suffix):
                     suffix_counts[suffix] += 1
                     suffix_bytes[suffix] += size
+    label = os.path.basename(root).upper()
+    print("%s_EXCLUDED_STAGING_COUNT=%d" % (label, excluded_count))
+    print("%s_EXCLUDED_STAGING_BYTES=%d" % (label, excluded_bytes))
+    print("%s_EXCLUDED_STAGING_DIRECTORIES=%d" % (label, excluded_dirs))
     return count, total, suffix_counts, suffix_bytes
 
 obj_count, obj_bytes, obj_counts, obj_sizes = measure(
