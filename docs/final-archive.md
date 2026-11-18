@@ -4,7 +4,7 @@ Set only `run_raw_final_archive=true`. All pipeline parameters default false.
 Normal RawS Full retains its existing early completion exit and is unchanged.
 Do not run the exception until the active baseline workflow has resolved.
 
-The serial `raws-final-chain` has two jobs:
+The serial `raws-final-chain` has three jobs:
 
 1. `raws-final-compile` restores compatible accepted state, finishes the same
    target, and saves a new immutable incremental checkpoint under a separate
@@ -16,6 +16,12 @@ The serial `raws-final-chain` has two jobs:
    native cache save it deletes the disposable local archive, restores the exact
    saved key, validates all shards, and extracts/hashes the APK member before
    publishing an independent final receipt.
+3. `raws-final-probe` restores that exact final full base on a fresh worker. It
+   records Siso state hashes/version, runs the unchanged target without deleting
+   the APK, and reports remote/local/cache work plus before/after APK integrity.
+   A changed APK digest fails the exact-reuse check. Missing action metrics or
+   missing incremental state are reported as inconclusive, not as a no-op pass.
+   The probe publishes evidence only and never promotes a checkpoint.
 
 This is a reconstructed final workspace, not a capture of another job's vanished
 filesystem. The old normal accepted checkpoint is never overwritten. The final

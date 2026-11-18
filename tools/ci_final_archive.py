@@ -27,6 +27,21 @@ def prepare(archive=False):
     elif c.D.HEAD.exists():c.D.select(precheck=True)
     else:c.prepare()
 
+def prepare_probe():
+    """Select only this workflow's remotely verified complete base, never layers."""
+    receipt=FINAL/'receipt.json'
+    if not receipt.is_file():raise ValueError('Missing exact final archive receipt')
+    payload=c.D.valid(c.D.c.read(receipt))
+    if not (payload.get('apk_verified') is True and payload.get('workflow')==os.environ['CIRCLE_WORKFLOW_ID'] and payload.get('source')==os.environ['CIRCLE_SHA1'] and payload.get('pipeline')==int(os.environ['RAWS_PIPELINE_NUMBER']) and payload['plan']['layers']==[] and payload['plan']['head']==payload['plan']['base']['id']):
+        raise ValueError('Probe requires same-workflow completed full base without deltas')
+    proof=c.D.c.read(FINAL/'archived-apk-proof.json')
+    if proof.get('sha256')!=payload.get('apk_sha256') or not proof.get('bytes',0):raise ValueError('Missing archived APK proof')
+    old=c.D.HEAD
+    try:
+        c.D.HEAD=receipt;c.D.select(precheck=True)
+    finally:c.D.HEAD=old
+
+
 def state():
     path=ROOT/'work/source/.sandium/final-build-state.json' if os.environ.get('RAWS_FINAL_PACK_ONLY')=='true' else ROOT/'handoff/stage1/state.json'
     value=c.D.c.read(path)
@@ -108,6 +123,6 @@ def run(phase):
     remaining=3300-(time.time()-c.D.c.read(c.D.STATE/'job-start.json')['epoch'])
     c.D.operation_budget=min(1200,remaining-120)
     if c.D.operation_budget<60:raise ValueError('Insufficient final archive budget; accepted head untouched')
-    actions={'prepare':prepare,'prepare-archive':lambda:prepare(True),'progress-capture':progress_capture,'progress-clear':c.clear_readback,'progress-publish':progress_publish,'progress-final':progress_final,'capture':capture,'clear':clear,'verify-publish':verify_publish}
+    actions={'prepare':prepare,'prepare-archive':lambda:prepare(True),'prepare-probe':prepare_probe,'progress-capture':progress_capture,'progress-clear':c.clear_readback,'progress-publish':progress_publish,'progress-final':progress_final,'capture':capture,'clear':clear,'verify-publish':verify_publish}
     with c.D.Watchdog(c.D.operation_budget,stall_seconds=c.D.operation_budget):actions[phase]()
 if __name__=='__main__':run(sys.argv[1])

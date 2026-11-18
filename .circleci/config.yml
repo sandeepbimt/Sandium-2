@@ -2677,9 +2677,84 @@ jobs:
         key: raws-final-receipt-v1-{{ checksum ".raws-final-archive/receipt.json" }}
         paths:
         - .raws-final-archive
+    - save_cache:
+        name: Publish exact final receipt for fresh-worker probe
+        key: raws-final-verified-v1-<< pipeline.id >>
+        paths:
+        - .raws-final-archive
     - store_artifacts:
         path: .raws-final-archive
         destination: raws-final-archive-evidence
+  raws-final-probe:
+    machine:
+      image: ubuntu-2404:current
+    resource_class: large
+    retention:
+      caches: 15d
+    environment:
+      RAWS_STAGE: '1'
+      RAWS_PIPELINE_NUMBER: << pipeline.number >>
+      RAWS_CHECKPOINT_REVIEWED: 'true'
+      RAWS_ALLOW_FRESH_SEED: 'false'
+      SISO_LIMITS: local=8,remote=80
+      RAWS_FINAL_ARCHIVE: 'true'
+      RAWS_FINAL_PACK_ONLY: 'true'
+    steps:
+    - checkout
+    - run:
+        name: Start one-off job budget before setup
+        command: 'mkdir -p .checkpoint-state
+
+          python3 -c ''import json,time;json.dump({"epoch":time.time()},open(".checkpoint-state/job-start.json","w"))'''
+        no_output_timeout: 55m
+    - run:
+        name: Install CI validation and checkpoint tools
+        command: sudo apt-get update -qq && sudo apt-get install -y zstd python3-yaml
+        no_output_timeout: 55m
+    - run:
+        name: Guard isolated RawS checkout
+        command: 'test "$CIRCLE_BRANCH" = "raw-sandium/bootstrap"
+
+          /usr/bin/python3 -m unittest discover -s tests -v'
+        no_output_timeout: 55m
+    - run:
+        name: RawS Full gate
+        command: python3 -u tools/ci_full.py gate
+        no_output_timeout: 55m
+    - run:
+        name: Ensure verified shard tools
+        command: command -v zstd >/dev/null || (sudo apt-get update -qq && sudo apt-get install -y zstd)
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact same-workflow verified final receipt
+        keys:
+        - raws-final-verified-v1-<< pipeline.id >>
+    - run:
+        name: Final archive prepare-probe
+        command: python3 -u tools/ci_final_archive.py prepare-probe
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore completed full base only
+        keys:
+        - raws-final-base-v1-{{ checksum ".checkpoint-state/base.key" }}
+    - run:
+        name: Verify and extract full base on fresh worker
+        command: python3 -u tools/ci_full.py restore-base
+        no_output_timeout: 55m
+    - run:
+        name: Certify full base restore without deltas
+        command: python3 -u tools/ci_full.py restore-finish
+        no_output_timeout: 55m
+    - run:
+        name: Probe unchanged target on restored completed workspace
+        command: python3 -u tools/ci_restore_probe.py
+        no_output_timeout: 55m
+    - store_artifacts:
+        path: artifacts
+        destination: raws-fresh-restore-probe
+    - store_artifacts:
+        path: .checkpoint-state
+        destination: raws-fresh-restore-evidence
 job-groups:
   raws-full-chain:
     jobs:
@@ -2720,6 +2795,12 @@ job-groups:
     - raws-final-pack:
         requires:
         - raws-final-compile
+        filters:
+          branches:
+            only: raw-sandium/bootstrap
+    - raws-final-probe:
+        requires:
+        - raws-final-pack
         filters:
           branches:
             only: raw-sandium/bootstrap

@@ -17,7 +17,7 @@ class FinalArchiveTests(unittest.TestCase):
    with self.assertRaisesRegex(ValueError,'digest'):a.require_done()
  def test_independent_default_off_split_serialized(self):
   cfg=generate_archive();self.assertFalse(cfg['parameters']['run_raw_final_archive']['default'])
-  self.assertEqual(set(cfg['jobs']),{'raws-final-compile','raws-final-pack'})
+  self.assertEqual(set(cfg['jobs']),{'raws-final-compile','raws-final-pack','raws-final-probe'})
   self.assertEqual(cfg['job-groups']['raws-final-chain']['jobs'][1]['raws-final-pack']['requires'],['raws-final-compile'])
   self.assertIn('serial-group',cfg['workflows']['RawS one-off final archive']['jobs'][0]['raws-final-chain'])
   for job in cfg['jobs'].values():
@@ -90,3 +90,25 @@ class FinalArchiveTests(unittest.TestCase):
    with patch.object(a,'ROOT',root),patch.object(a,'FINAL',final),patch.object(a,'state',return_value=build),patch.object(a,'require_done'),patch.object(a.c.D,'STATE',state),patch.object(a.c.D,'valid'),patch.object(a.c.f,'capture',side_effect=capture):a.progress_capture()
    result=json.loads((state/'candidate.json').read_text());self.assertTrue(result['payload']['apk_verified']);self.assertEqual(result['payload']['apk_sha256'],'abc')
    self.assertFalse((root/'.checkpoint-head').exists())
+
+ def test_probe_fresh_worker_has_only_exact_full_base(self):
+  cfg=generate_archive();job=cfg['jobs']['raws-final-probe'];steps=job['steps']
+  self.assertEqual(cfg['job-groups']['raws-final-chain']['jobs'][2]['raws-final-probe']['requires'],['raws-final-pack'])
+  saves=[s for s in steps if isinstance(s,dict) and 'save_cache' in s];self.assertEqual(saves,[])
+  restores=[s['restore_cache']['keys'] for s in steps if isinstance(s,dict) and 'restore_cache' in s]
+  self.assertEqual(restores,[['raws-final-verified-v1-<< pipeline.id >>'],['raws-final-base-v1-{{ checksum ".checkpoint-state/base.key" }}']])
+  commands='\n'.join(s.get('run',{}).get('command','') for s in steps if isinstance(s,dict))
+  self.assertIn('ci_restore_probe.py',commands)
+  for forbidden in ('ci_source.py','ci_compile.py','restore-layer','progress-capture',' publish'):self.assertNotIn(forbidden,commands)
+ def test_probe_binding_and_empty_chain_required(self):
+  baseline=dict(apk_verified=True,workflow='wf',source='sha',pipeline=1,apk_sha256='apk',plan=dict(layers=[],head='base',base={'id':'base'}))
+  with tempfile.TemporaryDirectory() as d,patch.dict(os.environ,CIRCLE_WORKFLOW_ID='wf',CIRCLE_SHA1='sha',RAWS_PIPELINE_NUMBER='1'):
+   final=Path(d);(final/'receipt.json').write_text('{}');(final/'archived-apk-proof.json').write_text('{"sha256":"apk","bytes":100}')
+   variants=[dict(baseline,workflow='other'),dict(baseline,apk_verified=False),dict(baseline,plan=dict(layers=[{}],head='base',base={'id':'base'}))]
+   for payload in variants:
+    with patch.object(a,'FINAL',final),patch.object(a.c.D,'valid',return_value=payload),patch.object(a.c.D,'select') as select:
+     with self.assertRaisesRegex(ValueError,'same-workflow'):a.prepare_probe()
+     select.assert_not_called()
+   old=a.c.D.HEAD
+   with patch.object(a,'FINAL',final),patch.object(a.c.D,'valid',return_value=baseline),patch.object(a.c.D,'select') as select:a.prepare_probe();select.assert_called_once_with(precheck=True)
+   self.assertEqual(a.c.D.HEAD,old)

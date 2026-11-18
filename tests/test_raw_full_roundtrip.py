@@ -15,7 +15,7 @@ class FullRoundtrip(unittest.TestCase):
    stack.enter_context(patch.dict(os.environ,CIRCLE_BRANCH='raw-sandium/bootstrap',CIRCLE_PROJECT_REPONAME='Sandium-2',RAWS_CHECKPOINT_REVIEWED='true',RAWS_ALLOW_FRESH_SEED='true',RAWS_STAGE='1',RAWS_PIPELINE_NUMBER='100',CIRCLE_WORKFLOW_ID='roundtrip',CIRCLE_BUILD_NUM='1',CIRCLE_SHA1='revision'))
    c.prepare()
    work=root/'work/source';out=work/'src/out/RawSandium';out.mkdir(parents=True)
-   for p in [work/'.gclient',work/'src/.git/HEAD',out/'build.ninja',out/'args.gn']:
+   for p in [work/'.gclient',work/'src/.git/HEAD',out/'build.ninja',out/'args.gn',out/'.siso_fs_state',out/'.siso_deps']:
     p.parent.mkdir(exist_ok=True,parents=True);p.write_text('fixture')
    for i in range(20):(work/'src'/f'file{i}').write_text('payload '+str(i))
    (work/'src/link').symlink_to('file1')
@@ -36,6 +36,8 @@ class FullRoundtrip(unittest.TestCase):
    c.f.restore_finish()
    self.assertEqual((work/'src/file1').read_text(),'payload 1')
    self.assertTrue((work/'src/link').is_symlink())
+   self.assertEqual((out/'.siso_fs_state').read_text(),'fixture')
+   self.assertEqual((out/'.siso_deps').read_text(),'fixture')
    c.begin();(work/'src/file1').write_text('changed');(work/'src/file2').unlink()
    c.D.c.save(root/'handoff/stage2/state.json',dict(status='slice_expired',fingerprint=c.fingerprint()))
    c.capture()
