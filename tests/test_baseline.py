@@ -35,7 +35,6 @@ class Baseline(unittest.TestCase):
     def test_arm64(self):
         args=(ROOT/'ci/args.gn').read_text(); self.assertIn('target_cpu = "arm64"',args)
         self.assertNotIn('enable_extensions',args)
-if __name__=='__main__':unittest.main()
 
 class CIIsolation(unittest.TestCase):
     def test_ci_opt_in_and_branch_guard(self):
@@ -52,3 +51,14 @@ class CIIsolation(unittest.TestCase):
         self.assertNotIn('autoninja',probe)
         self.assertNotIn('TOKEN',probe)
         self.assertNotIn('SECRET',probe)
+
+class GitProvenance(unittest.TestCase):
+    def test_tag_identity(self):
+        import sys
+        sys.path.insert(0,str(ROOT/'tools'))
+        from ci_bootstrap import tag_matches
+        self.assertFalse(tag_matches('', '1', 'a'*40))
+        self.assertFalse(tag_matches('b'*40+' refs/tags/1', '1', 'a'*40))
+        self.assertTrue(tag_matches('a'*40+' refs/tags/1', '1', 'a'*40))
+        self.assertTrue(tag_matches('b'*40+' refs/tags/1\n'+'a'*40+' refs/tags/1^{}', '1', 'a'*40))
+if __name__=='__main__':unittest.main()

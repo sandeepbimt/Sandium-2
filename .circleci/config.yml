@@ -3,7 +3,28 @@ parameters:
   run_raw_preflight:
     type: boolean
     default: false
+  run_raw_bootstrap:
+    type: boolean
+    default: false
 jobs:
+  raw-bootstrap:
+    machine:
+      image: ubuntu-2404:current
+    resource_class: large
+    steps:
+      - checkout
+      - run:
+          name: Verify isolated branch and tests
+          command: |
+            test "$CIRCLE_BRANCH" = "raw-sandium/bootstrap"
+            python3 -m unittest discover -s tests -v
+      - run:
+          name: Bounded canonical Git provenance and bootstrap
+          command: timeout 18m python3 -u tools/ci_bootstrap.py
+          no_output_timeout: 19m
+      - store_artifacts:
+          path: artifacts
+          destination: raw-sandium-bootstrap
   raw-preflight:
     machine:
       image: ubuntu-2404:current
@@ -30,6 +51,14 @@ workflows:
     when: << pipeline.parameters.run_raw_preflight >>
     jobs:
       - raw-preflight:
+          filters:
+            branches:
+              only: raw-sandium/bootstrap
+
+  raw-sandium-bootstrap:
+    when: << pipeline.parameters.run_raw_bootstrap >>
+    jobs:
+      - raw-bootstrap:
           filters:
             branches:
               only: raw-sandium/bootstrap
