@@ -13,6 +13,7 @@ import selectors
 import sys
 import time
 import codecs
+from source_compat import SISO_MAIN, apply_siso
 
 ADDRESS = 'remote.buildbuddy.io:443'
 INSTANCE = 'default'
@@ -214,6 +215,8 @@ def configure_rc(text):
 def configure(src, depot, env):
     if not env.get('BUILDBUDDY_API_KEY'):
         raise ValueError('MISSING_REQUIRED_SECRET=BUILDBUDDY_API_KEY')
+    original=subprocess.check_output(['git','-C',str(src),'show','HEAD:'+SISO_MAIN],text=True)
+    apply_siso(src,original)
     folder = src / 'build/config/siso'
     backend = folder / 'backend_config/google.star'
     images = []
@@ -252,6 +255,32 @@ def configure(src, depot, env):
         raise ValueError('Pinned depot_tools/autoninja unavailable')
     return env, {'address': ADDRESS, 'instance': INSTANCE,
                  'worker_image': images[0], 'limits': LIMITS, 'strict_remote': True}
+
+
+def verify_diagnostic_flags(payload):
+    if isinstance(payload,dict) and isinstance(payload.get('cflags'),list):
+        flags=payload['cflags']
+    elif isinstance(payload,dict) and len(payload)==1 and isinstance(next(iter(payload.values())),dict):
+        flags=next(iter(payload.values())).get('cflags',[])
+    else:raise ValueError('Unexpected GN diagnostic flag query response')
+    if not isinstance(flags,list) or not all(isinstance(flag,str) for flag in flags):
+        raise ValueError('GN cflags must be a list of strings')
+    actual=[f for f in flags if f.startswith('-fcrash-diagnostics-dir')]
+    if actual!=['-fcrash-diagnostics-dir=clang-crashreports']:
+        raise ValueError('Unsafe or missing compiler crash output directory: '+repr(actual))
+    return actual[0]
+
+
+def verify_graph_outputs(src,depot,out,env,artifacts,stage):
+    result={}
+    for name,label in [('android','//build/config/compiler:compiler'),
+                       ('host','//build/config/compiler:compiler(//build/toolchain/linux:clang_x64)')]:
+        payload=subprocess.check_output([str(depot/'gn'),'desc',str(out),label,'cflags','--format=json'],
+                                        cwd=src,env=env,text=True,timeout=120)
+        result[name]=verify_diagnostic_flags(json.loads(payload))
+    (artifacts/f'gn-output-paths-{stage}.json').write_text(json.dumps(result,indent=2)+'\n')
+    print('RAWS_GN_OUTPUT_PATH_GATE=PASS '+json.dumps(result),flush=True)
+    return result
 
 
 def audit(path, *, require_fresh=False):

@@ -1,7 +1,8 @@
-import importlib.util,json,tempfile,unittest
+import importlib.util,json,tempfile,unittest,sys
 from pathlib import Path
 from unittest.mock import patch
 ROOT=Path(__file__).resolve().parents[1]
+sys.path.insert(0,str(ROOT/'tools'))
 s=importlib.util.spec_from_file_location('raw',ROOT/'tools/raw.py'); raw=importlib.util.module_from_spec(s); s.loader.exec_module(raw)
 class Baseline(unittest.TestCase):
     def test_lock(self):

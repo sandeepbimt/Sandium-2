@@ -2,6 +2,7 @@
 """Isolated Chromium bootstrap/build with fail-closed source identity checks."""
 import argparse, hashlib, json, os, platform, re, shutil, subprocess, sys
 from pathlib import Path
+from source_compat import SISO_MAIN, patched_siso
 ROOT = Path(__file__).resolve().parents[1]
 SHA = re.compile(r'^[0-9a-f]{40}$')
 def run(args, **kw):
@@ -44,8 +45,13 @@ def resolve_tools():
 def verify(src, data):
     actual = run(['git','-C',str(src),'rev-parse','HEAD'],capture_output=True).stdout.strip()
     if actual != data['chromium']['revision']: raise ValueError('Wrong Chromium revision')
-    if run(['git','-C',str(src),'status','--porcelain','--untracked-files=no'],capture_output=True).stdout:
-        raise ValueError('Tracked Chromium changes present; baseline must be unmodified')
+    changed=run(['git','-C',str(src),'diff','HEAD','--name-only','-z'],capture_output=True).stdout
+    names=set(filter(None,changed.split('\0')))
+    if names:
+        if names!={SISO_MAIN}:raise ValueError('Unapproved tracked Chromium changes present')
+        original=run(['git','-C',str(src),'show','HEAD:'+SISO_MAIN],capture_output=True).stdout
+        if (src/SISO_MAIN).read_text()!=patched_siso(original):
+            raise ValueError('Siso compatibility source differs from exact approved transform')
     if (src/'brave').exists(): raise ValueError('Brave directory present in clean baseline')
     version = dict(line.split('=',1) for line in (src/'chrome/VERSION').read_text().splitlines())
     if '.'.join(version[k] for k in ('MAJOR','MINOR','BUILD','PATCH')) != data['chromium']['version']:

@@ -9,3 +9,6 @@ is_official_build = false
 use_remoteexec = true
 use_siso = true
 use_reclient = false
+# BuildBuddy forbids parent-relative declared outputs. GN's supported override
+# keeps compiler crash reports inside the action working directory.
+clang_diagnostic_dir = "clang-crashreports"

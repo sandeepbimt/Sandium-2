@@ -95,3 +95,30 @@ Use pinned upstream ensure_bootstrap without moving its Git revision; verify
 that revision and the real wrapper Python/GN before compiling. Dependencies
 completed in 68 seconds and hooks in 20 seconds. No compiler actions or accepted
 checkpoint were produced by this run.
+
+### BuildBuddy compatibility gates (#1385)
+
+The first remote smoke reached workers but BuildBuddy rejected the CXX action's
+`-fcrash-diagnostics-dir=../clang-crashreports`: REAPI declared output paths cannot
+contain parent components. The established Full build normalizes this directory.
+RawS uses the equivalent supported GN argument
+`clang_diagnostic_dir = "clang-crashreports"` (declared in the pinned
+`build/config/compiler/compiler.gni`), rather than editing that source file.
+Before remote compilation, `gn desc` checks the effective compiler flags for both
+the Android target and the host `clang_x64` toolchain used by protoc/Perfetto.
+
+RawS also carries the established Full BuildBuddy working-directory adapter:
+all remote Siso rules retain `canonicalize_dir=True` and include `./args.gn` so
+the canonical working directory exists in the remote Merkle input tree. Vanilla
+Chromium's `main.star` is transformed only at the exact final configuration
+insertion point. Source verification permits only this precise transformation
+against Git HEAD, rejecting other tracked changes or an altered adapter. The
+adapter participates in checkpoint identity. This is build infrastructure, not
+a Sandium browser feature or a Brave runtime dependency. Chromium upgrades must
+revalidate this insertion point and both GN flag queries.
+
+Brave's generated Python-wrapper chmod/generator patch is intentionally not
+ported: vanilla Chromium's pinned Siso main already supplies its native CPython
+inputs and executable declarations. Strict remote execution remains enabled;
+these changes are not a local-execution fallback. Their successful remote
+execution is still to be verified by the next CI run.

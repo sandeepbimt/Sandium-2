@@ -74,6 +74,8 @@ class RemoteConfigureIntegrationTests(unittest.TestCase):
         (folder/'backend_config').mkdir(parents=True)
         (folder/'backend_config/google.star').write_text('container_image = "docker://pinned-worker@sha256:example"\n')
         depot.mkdir();(depot/'autoninja').write_text('#!/bin/sh\n');(depot/'autoninja').chmod(0o755)
+        from source_compat import ANCHOR
+        (folder/'main.star').write_text(ANCHOR)
         return src,depot,folder
     def run_configure(self, src, depot, folder):
         from unittest.mock import patch
@@ -84,7 +86,8 @@ class RemoteConfigureIntegrationTests(unittest.TestCase):
             helper=args[args.index('--credential-helper')+1]
             (folder/'.sisoenv').write_text(f'SISO_REAPI_ADDRESS={ADDRESS}\nSISO_REAPI_INSTANCE={INSTANCE}\nSISO_CREDENTIAL_HELPER={helper}\n')
             (folder/'backend_config/backend.star').write_text((folder/'backend_config/google.star').read_text())
-        with patch('ci_remote.subprocess.run',side_effect=configurator):
+        from source_compat import ANCHOR
+        with patch('ci_remote.subprocess.run',side_effect=configurator),patch('ci_remote.subprocess.check_output',return_value=ANCHOR):
             return configure(src,depot,{'BUILDBUDDY_API_KEY':'fake-test-key'})
     def test_first_use_optional_sisorc_creation(self):
         with tempfile.TemporaryDirectory() as d:
@@ -141,3 +144,31 @@ class DepotBootstrapTests(unittest.TestCase):
                 with self.assertRaises(subprocess.CalledProcessError):
                     bootstrap_depot(depot,'pin',{'PATH':'/usr/bin'},root,1)
                 self.assertEqual(run.call_count,1)
+
+class BuildBuddyCompatibilityTests(unittest.TestCase):
+    def test_exact_source_transform_idempotent_and_tamper_rejected(self):
+        from source_compat import ANCHOR,SISO_MAIN,patched_siso,apply_siso
+        with tempfile.TemporaryDirectory() as d:
+            src=Path(d);target=src/SISO_MAIN;target.parent.mkdir(parents=True)
+            target.write_text(ANCHOR)
+            apply_siso(src,ANCHOR)
+            expected=target.read_text()
+            self.assertIn('rule["canonicalize_dir"] = True',expected)
+            self.assertIn('"./args.gn"',expected)
+            apply_siso(src,ANCHOR)
+            self.assertEqual(expected,target.read_text())
+            target.write_text(expected+'# unauthorized change')
+            with self.assertRaises(ValueError):apply_siso(src,ANCHOR)
+        for bad in ('',ANCHOR+ANCHOR):
+            with self.assertRaises(ValueError):patched_siso(bad)
+    def test_effective_gn_flags_gate(self):
+        from ci_remote import verify_diagnostic_flags
+        good='-fcrash-diagnostics-dir=clang-crashreports'
+        self.assertEqual(verify_diagnostic_flags({'//compiler':{'cflags':[good]}}),good)
+        for flags in ([],['-fcrash-diagnostics-dir=../clang-crashreports'],[good,good]):
+            with self.assertRaises(ValueError):verify_diagnostic_flags({'cflags':flags})
+
+    def test_malformed_effective_gn_flags(self):
+        from ci_remote import verify_diagnostic_flags
+        for value in (None,[],{'x':None},{'x':[]},{'x':{'cflags':None}},{'cflags':[None]},{'cflags':'x'}):
+            with self.assertRaises(ValueError):verify_diagnostic_flags(value)

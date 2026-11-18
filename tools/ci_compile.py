@@ -3,14 +3,14 @@
 import argparse, hashlib, json, os, re, shutil, subprocess, tarfile, time, zipfile
 from pathlib import Path
 from raw import ROOT, lock, verify
-from ci_remote import configure, smoke, remote_command, audit, run_logged, bootstrap_depot
+from ci_remote import configure, smoke, remote_command, audit, run_logged, bootstrap_depot, verify_graph_outputs
 W=ROOT/'work/source'
 
 def file_sha(path):
     with path.open("rb") as f:return hashlib.file_digest(f,"sha256").hexdigest()
 
 def fingerprint():
-    files=[ROOT/'upstream.lock.json',ROOT/'ci/args.gn',ROOT/'tools/ci_remote.py']
+    files=[ROOT/'upstream.lock.json',ROOT/'ci/args.gn',ROOT/'tools/ci_remote.py',ROOT/'tools/source_compat.py']
     files+=sorted((ROOT/'patches').rglob('*'))+sorted((ROOT/'sandium/features').rglob('*'))
     h=hashlib.sha256()
     for p in files:
@@ -88,6 +88,7 @@ def main(stage):
         (out/'args.gn').write_text((ROOT/'ci/args.gn').read_text())
         run_logged(['timeout','--kill-after=30s','5m',str(W/'depot_tools/gn'),'gen','out/RawSandium'],
                    artifacts/f'gn-{stage}.log',phase=f'gn-generation-{stage}',cwd=W/'src',env=env,check=True)
+        state['gn_output_path_gate']=verify_graph_outputs(W/'src',W/'depot_tools',out,env,artifacts,stage)
         apk=out/'apks/ChromePublic.apk'
         if apk.exists():apk.unlink()
         started=json.loads((ROOT/'.checkpoint-state/job-start.json').read_text())['epoch']
