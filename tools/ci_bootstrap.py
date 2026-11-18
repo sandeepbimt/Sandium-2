@@ -3,6 +3,7 @@
 import json, os, subprocess, time
 from pathlib import Path
 from raw import ROOT, lock, workspace
+from source_blob import version_blob
 
 def command(args, timeout=90):
     attempts=[]
@@ -50,9 +51,14 @@ def bootstrap():
             if text is None:raise ValueError(name+' pinned fetch failed')
             actual=subprocess.check_output(['git','-C',str(dest),'rev-parse','FETCH_HEAD'],text=True).strip()
             if actual!=entry['revision']:raise ValueError(name+' SHA mismatch')
-        text,attempts=command(['git','-C',str(w/'src'),'show',c['revision']+':chrome/VERSION'])
-        result['steps']['git_version']=attempts
-        if text is None:raise ValueError('Git VERSION retrieval failed')
+        tree,attempts=command(['git','-C',str(w/'src'),'ls-tree',c['revision'],'chrome/VERSION'])
+        result['steps']['git_version_tree']=attempts
+        if tree is None:raise ValueError('Pinned Git tree retrieval failed')
+        fields=tree.split()
+        if len(fields)!=4 or fields[1]!='blob' or fields[3]!='chrome/VERSION':raise ValueError('Unexpected VERSION tree entry')
+        text,attempts=version_blob(c['revision'],fields[2])
+        result['steps']['verified_version_blob']=attempts
+        if text is None:raise ValueError('Checksum-verified VERSION retrieval failed')
         values=dict(line.split('=',1) for line in text.splitlines())
         if '.'.join(values[k] for k in ('MAJOR','MINOR','BUILD','PATCH'))!=c['version']:raise ValueError('VERSION mismatch')
         result['source_provenance_verified']=True

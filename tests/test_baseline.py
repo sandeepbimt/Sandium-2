@@ -61,4 +61,19 @@ class GitProvenance(unittest.TestCase):
         self.assertFalse(tag_matches('b'*40+' refs/tags/1', '1', 'a'*40))
         self.assertTrue(tag_matches('a'*40+' refs/tags/1', '1', 'a'*40))
         self.assertTrue(tag_matches('b'*40+' refs/tags/1\n'+'a'*40+' refs/tags/1^{}', '1', 'a'*40))
+
+
+class VerifiedBlob(unittest.TestCase):
+    def test_routes_and_tampering(self):
+        import sys,base64
+        sys.path.insert(0,str(ROOT/'tools'))
+        from source_blob import blob_sha,decode_verified
+        data=b'MAJOR=156\nMINOR=0\nBUILD=8078\nPATCH=74\n'
+        sha='6021f7cb2c5f2769629835937cd70ab60c176fd3'
+        self.assertEqual(blob_sha(data),sha)
+        encoded=base64.b64encode(data)
+        self.assertEqual(decode_verified(encoded,'canonical_gitiles',sha),data)
+        self.assertEqual(decode_verified(json.dumps({'sha':sha,'encoding':'base64','content':encoded.decode()}),'mirror',sha),data)
+        with self.assertRaises(ValueError):decode_verified(encoded,'canonical_gitiles','a'*40)
+        with self.assertRaises(ValueError):decode_verified(json.dumps({'sha':'a'*40,'encoding':'base64','content':encoded.decode()}),'mirror',sha)
 if __name__=='__main__':unittest.main()
