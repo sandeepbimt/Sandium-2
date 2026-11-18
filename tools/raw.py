@@ -22,8 +22,8 @@ def workspace(path):
     marker.touch()
     return p
 def preflight(path):
-    if platform.system() != 'Linux' or platform.machine() not in ('x86_64','aarch64'):
-        raise ValueError('Linux build host required')
+    if platform.system() != 'Linux' or platform.machine() != 'x86_64':
+        raise ValueError('Linux x86-64 build host required')
     p = Path(path).resolve()
     while not p.exists(): p = p.parent
     free = shutil.disk_usage(p).free

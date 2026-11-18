@@ -12,14 +12,13 @@ comparison changes the Brave layer, not the browser engine version. It is not a
 claim that this is the latest secure release. Version provenance is in the lock.
 No Brave source, caches, patches or credential configuration are imported.
 
-The `depot_tools` lock is intentionally unresolved until an upstream connection
-can verify its exact revision. The build fails closed until that pin is committed.
+The `depot_tools` revision is independently verified against the official remote
+and pinned in the lock. Automatic tool updates are disabled.
 
 ## Commands
 ```sh
 python3 -m unittest discover -s tests -v
 python3 tools/raw.py preflight --workspace /large-disk/raw-sandium
-python3 tools/raw.py resolve-tools  # inspect and commit resolved lock
 python3 tools/raw.py setup --workspace /large-disk/raw-sandium
 # On that Linux host, install upstream OS packages (requires system authorization):
 # /large-disk/raw-sandium/src/build/install-build-deps.sh

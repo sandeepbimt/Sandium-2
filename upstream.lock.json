@@ -9,7 +9,8 @@
   },
   "depot_tools": {
     "repository": "https://chromium.googlesource.com/chromium/tools/depot_tools.git",
-    "revision": null
+    "revision": "fed8b43f48c4f4c2ac0c34aafbf0ec07a4e600cb",
+    "provenance": "Verified via git ls-remote official repository HEAD on 2026-11-18"
   },
   "target": "chrome_public_apk",
   "cpu": "arm64"

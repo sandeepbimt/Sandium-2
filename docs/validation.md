@@ -7,8 +7,9 @@ Chromium compilation. Empty feature/patch manifests are intentional.
 ## Full build host
 Official Chromium guidance calls for Linux, >=100GB disk and >=8GB RAM (>16GB
 recommended). This executor has about56GiB free: preflight correctly refuses a
-full checkout. Direct upstream shell connection also timed out. Neither issue is
-a source compilation failure. No APK has been built by this project.
+full checkout. Initial direct upstream shell connection timed out; a permitted network retry
+verified the official depot_tools revision. Disk remains the full-build blocker,
+not a source compilation failure. No APK has been built by this project.
 
 ## CI
 The inactive ci/circleci-config.example.yml runs inexpensive scaffold validation only when deliberately enabled in a separate project. No active .circleci/config.yml is supplied on this branch. It has no connection
