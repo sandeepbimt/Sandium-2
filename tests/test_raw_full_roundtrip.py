@@ -12,7 +12,7 @@ class FullRoundtrip(unittest.TestCase):
    stack.enter_context(patch.object(c,'ROOT',root))
    stack.enter_context(patch.multiple(c.D,ROOT=root,STATE=state,HEAD=head,INCOMING=incoming,LAYERS=root/'.bridge-layers',operation_budget=120,create=True))
    stack.enter_context(patch.multiple(c.D.c,ROOT=root,STATE=state,HEAD=head,INCOMING=incoming))
-   stack.enter_context(patch.dict(os.environ,CIRCLE_BRANCH='raw-sandium/bootstrap',CIRCLE_PROJECT_REPONAME='Sandium-2',RAWS_CHECKPOINT_REVIEWED='true',RAWS_ALLOW_FRESH_SEED='true',RAWS_STAGE='1',RAWS_PIPELINE_NUMBER='100',CIRCLE_WORKFLOW_ID='roundtrip',CIRCLE_BUILD_NUM='1',CIRCLE_SHA1='revision'))
+   stack.enter_context(patch.dict(os.environ,CIRCLE_BRANCH='raw-sandium/official158',CIRCLE_PROJECT_REPONAME='Sandium-2',RAWS_CHECKPOINT_REVIEWED='true',RAWS_ALLOW_FRESH_SEED='true',RAWS_STAGE='1',RAWS_PIPELINE_NUMBER='100',CIRCLE_WORKFLOW_ID='roundtrip',CIRCLE_BUILD_NUM='1',CIRCLE_SHA1='revision'))
    c.prepare()
    work=root/'work/source';out=work/'src/out/RawSandium';out.mkdir(parents=True)
    for p in [work/'.gclient',work/'src/.git/HEAD',out/'build.ninja',out/'args.gn',out/'.siso_fs_state',out/'.siso_deps']:

@@ -1,10 +1,10 @@
-# Baseline full Chromium Android browser, no Brave imports or extensions hacks.
+# Official Chromium Android Stable; no browser feature overrides.
 target_os = "android"
 target_cpu = "arm64"
 is_debug = false
 is_component_build = false
 symbol_level = 1
-is_official_build = false
+is_official_build = true
 # Shared authorized BuildBuddy service; independently identified RawS outputs.
 use_remoteexec = true
 use_siso = true

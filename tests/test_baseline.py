@@ -6,7 +6,7 @@ sys.path.insert(0,str(ROOT/'tools'))
 s=importlib.util.spec_from_file_location('raw',ROOT/'tools/raw.py'); raw=importlib.util.module_from_spec(s); s.loader.exec_module(raw)
 class Baseline(unittest.TestCase):
     def test_lock(self):
-        v=raw.lock(); self.assertEqual(v['chromium']['version'],'156.0.8078.74')
+        v=raw.lock(); self.assertEqual(v['chromium']['version'],'158.0.8127.42')
     def test_zero_patches(self):
         self.assertEqual(json.loads((ROOT/'patches/manifest.json').read_text())['patches'],[])
     def test_no_feature_claims(self):
@@ -41,8 +41,8 @@ class CIIsolation(unittest.TestCase):
     def test_ci_opt_in_and_branch_guard(self):
         config=(ROOT/'.circleci/config.yml').read_text()
         self.assertIn('default: false',config)
-        self.assertIn('only: raw-sandium/bootstrap',config)
-        self.assertIn('test "$CIRCLE_BRANCH" = "raw-sandium/bootstrap"',config)
+        self.assertIn('only: raw-sandium/official158',config)
+        self.assertIn('test "$CIRCLE_BRANCH" = "raw-sandium/official158"',config)
         import yaml
         preflight=str(yaml.safe_load(config)['jobs']['raw-preflight'])
         self.assertNotIn('restore_cache:',preflight)

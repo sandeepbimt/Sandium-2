@@ -20,7 +20,7 @@ def fresh():
 
 def gate():
     D.gate()
-    if os.environ.get('CIRCLE_BRANCH')!='raw-sandium/bootstrap':
+    if os.environ.get('CIRCLE_BRANCH')!='raw-sandium/official158':
         raise ValueError('RawS branch required')
     for name in ['base.key','outgoing.key']+[f'slot-{i}.key' for i in range(16)]:
         p=D.STATE/name

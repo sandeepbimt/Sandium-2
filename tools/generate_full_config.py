@@ -13,7 +13,7 @@ def restore(key,name):return {'restore_cache':{'name':name,'keys':[key]}}
 def save(key,paths,name):return {'save_cache':{'name':name,'key':key,'paths':paths}}
 def common(stage):
  return {'machine':{'image':'ubuntu-2404:current'},'resource_class':'large','retention':{'caches':'15d'},'environment':{'RAWS_STAGE':str(stage),'RAWS_PIPELINE_NUMBER':'<< pipeline.number >>','RAWS_CHECKPOINT_REVIEWED':'true','RAWS_ALLOW_FRESH_SEED':'true','SISO_LIMITS':'local=8,remote=80'}}
-def gate():return ['checkout',run('Install CI validation and checkpoint tools','sudo apt-get update -qq && sudo apt-get install -y zstd python3-yaml'),run('Guard isolated RawS checkout','test "$CIRCLE_BRANCH" = "raw-sandium/bootstrap"\n/usr/bin/python3 -m unittest discover -s tests -v'),phase('gate'),run('Ensure verified shard tools','command -v zstd >/dev/null || (sudo apt-get update -qq && sudo apt-get install -y zstd)'),restore(HEAD,'Restore latest accepted RawS receipt only')]
+def gate():return ['checkout',run('Install CI validation and checkpoint tools','sudo apt-get update -qq && sudo apt-get install -y zstd python3-yaml'),run('Guard isolated RawS checkout','test "$CIRCLE_BRANCH" = "raw-sandium/official158"\n/usr/bin/python3 -m unittest discover -s tests -v'),phase('gate'),run('Ensure verified shard tools','command -v zstd >/dev/null || (sudo apt-get update -qq && sudo apt-get install -y zstd)'),restore(HEAD,'Restore latest accepted RawS receipt only')]
 def layers(mode):
  steps=[restore(BASE,'Restore exact RawS base')]
  if mode=='sequential':steps += [phase('restore-base')]
@@ -49,12 +49,12 @@ def generate():
  jobs['raws-maintenance']=m
  group=[]
  for n in range(1,6):
-  item={'filters':{'branches':{'only':'raw-sandium/bootstrap'}}}
+  item={'filters':{'branches':{'only':'raw-sandium/official158'}}}
   if n>1:item['requires']=[f'raws-full-stage-{n-1}']
   group.append({f'raws-full-stage-{n}':item})
  workflows={k:v for k,v in old['workflows'].items() if k in ('raw-sandium-feasibility','raw-sandium-bootstrap')}
  workflows['RawS full']={'when':'<< pipeline.parameters.run_raw_full >>','jobs':[{'raws-full-chain':{'serial-group':'<< pipeline.project.slug >>/raws-full'}}]}
- workflows['RawS checkpoint maintenance']={'when':'<< pipeline.parameters.run_raw_maintenance >>','jobs':[{'raws-maintenance':{'serial-group':'<< pipeline.project.slug >>/raws-full','filters':{'branches':{'only':'raw-sandium/bootstrap'}}}}]}
+ workflows['RawS checkpoint maintenance']={'when':'<< pipeline.parameters.run_raw_maintenance >>','jobs':[{'raws-maintenance':{'serial-group':'<< pipeline.project.slug >>/raws-full','filters':{'branches':{'only':'raw-sandium/official158'}}}}]}
  result={'version':2.1,'parameters':params,'jobs':jobs,'job-groups':{'raws-full-chain':{'jobs':group}},'workflows':workflows}
  # Separate opt-in workflow only; normal Full remains fast-exit.
  from generate_final_archive_config import generate_archive

@@ -5,7 +5,7 @@ from pathlib import Path
 from raw import ROOT,lock,verify
 
 def main():
-    if os.environ.get('CIRCLE_BRANCH')!='raw-sandium/bootstrap':raise ValueError('Wrong branch')
+    if os.environ.get('CIRCLE_BRANCH')!='raw-sandium/official158':raise ValueError('Wrong branch')
     out=ROOT/'artifacts';out.mkdir(exist_ok=True)
     receipt={'phase':'source-sync','compilation_attempted':False,'apk_produced':False,'legacy_checkpoint_used':False,
              'lock_sha256':hashlib.sha256((ROOT/'upstream.lock.json').read_bytes()).hexdigest()}

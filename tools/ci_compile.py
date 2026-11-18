@@ -3,6 +3,7 @@
 import argparse, hashlib, json, os, re, shutil, subprocess, tarfile, time, zipfile
 from pathlib import Path
 from raw import ROOT, lock, verify
+from ci_official import verify_official
 from ci_remote import configure, smoke, remote_command, audit, run_logged, bootstrap_depot, verify_graph_outputs
 W=ROOT/'work/source'
 
@@ -10,7 +11,7 @@ def file_sha(path):
     with path.open("rb") as f:return hashlib.file_digest(f,"sha256").hexdigest()
 
 def fingerprint():
-    files=[ROOT/'upstream.lock.json',ROOT/'ci/args.gn',ROOT/'tools/ci_remote.py',ROOT/'tools/source_compat.py']
+    files=[ROOT/'upstream.lock.json',ROOT/'ci/args.gn',ROOT/'tools/ci_remote.py',ROOT/'tools/source_compat.py',ROOT/'tools/raw.py',ROOT/'tools/ci_official.py']
     files+=sorted((ROOT/'patches').rglob('*'))+sorted((ROOT/'sandium/features').rglob('*'))
     h=hashlib.sha256()
     for p in files:
@@ -62,7 +63,7 @@ def verify_apk(apk, src, env):
             'apk_abis':sorted(abis),'apk_signature_verified':True,'apk_zip_verified':True}
 
 def main(stage):
-    if os.environ.get('CIRCLE_BRANCH')!='raw-sandium/bootstrap' or stage not in (1,2,3,4,5):raise ValueError('Wrong build scope')
+    if os.environ.get('CIRCLE_BRANCH')!='raw-sandium/official158' or stage not in (1,2,3,4,5):raise ValueError('Wrong build scope')
     ident=fingerprint(); folder=ROOT/f'handoff/stage{stage}';folder.mkdir(parents=True,exist_ok=True)
     artifacts=ROOT/'artifacts';artifacts.mkdir(exist_ok=True)
     state={'stage':stage,'fingerprint':ident,'apk_produced':False}
@@ -86,8 +87,9 @@ def main(stage):
         state['restored_checkpoint']='managed by RawS Full driver'
         env, state['remote_config'] = configure(W/'src', W/'depot_tools', env)
         (out/'args.gn').write_text((ROOT/'ci/args.gn').read_text())
-        run_logged(['timeout','--kill-after=30s','5m',str(W/'depot_tools/gn'),'gen','out/RawSandium'],
+        run_logged(['timeout','--kill-after=30s','5m',str(W/'depot_tools/gn'),'gen','out/RawSandium','--fail-on-unused-args'],
                    artifacts/f'gn-{stage}.log',phase=f'gn-generation-{stage}',cwd=W/'src',env=env,check=True)
+        state['official_build']=verify_official(W/'src',W/'depot_tools',out,env,artifacts,stage)
         state['gn_output_path_gate']=verify_graph_outputs(W/'src',W/'depot_tools',out,env,artifacts,stage)
         apk=out/'apks/ChromePublic.apk'
         if apk.exists():apk.unlink()

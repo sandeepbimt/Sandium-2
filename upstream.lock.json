@@ -2,10 +2,12 @@
   "schema": 1,
   "chromium": {
     "repository": "https://chromium.googlesource.com/chromium/src.git",
-    "revision": "d331de35ca8ab1358c7a17e4bd41627d55eaef51",
-    "version": "156.0.8078.74",
-    "provenance": "https://raw.githubusercontent.com/chromium/chromium/d331de35ca8ab1358c7a17e4bd41627d55eaef51/chrome/VERSION",
-    "rationale": "Same Chromium revision as existing Sandium baseline; compare removal of Brave independently of engine upgrades. Not a claim of latest stable."
+    "revision": "52bdd21723d5db0c9ab11716d38feac74828cf84",
+    "version": "158.0.8127.42",
+    "provenance": "https://chromium.googlesource.com/chromium/src/+/52bdd21723d5db0c9ab11716d38feac74828cf84/chrome/VERSION",
+    "rationale": "Latest official Android Stable from ChromiumDash, independently matched to exact chrome/VERSION; separate official-build upgrade from preserved 156 baseline.",
+    "release_metadata": "https://chromiumdash.appspot.com/fetch_releases?channel=Stable&platform=Android&num=2",
+    "verified_date": "2026-11-18"
   },
   "depot_tools": {
     "repository": "https://chromium.googlesource.com/chromium/tools/depot_tools.git",
@@ -13,5 +15,8 @@
     "provenance": "Verified via git ls-remote official repository HEAD on 2026-11-18"
   },
   "target": "chrome_public_apk",
-  "cpu": "arm64"
+  "cpu": "arm64",
+  "gclient_custom_vars": {
+    "checkout_pgo_profiles": true
+  }
 }

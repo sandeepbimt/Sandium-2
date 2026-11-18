@@ -1,16 +1,19 @@
 # Raw Sandium
 
 Independent Chromium Android baseline and maintainable Sandium feature layer.
-**Scaffold, not a built APK.** Existing Sandium-2 branches, pipeline and user data
-are untouched. The first APK deliberately retains Chromium branding; renaming an
-artifact is not rebranding the application.
+This branch prepares Chromium **158.0.8127.42** in official build mode for the
+established RawS Full pipeline. The candidate APK is pending CI verification.
+Existing Sandium branches, pipeline and user data remain separate.
 
-## Reproducible baseline
-Chromium **156.0.8078.74**, commit `d331de35ca8ab1358c7a17e4bd41627d55eaef51`.
-This matches the Chromium under the existing Sandium reference so the first
-comparison changes the Brave layer, not the browser engine version. It is not a
-claim that this is the latest secure release. Version provenance is in the lock.
-No Brave source, caches or product patches are imported. The proven Full CI/checkpoint engine is adapted under an independent RawS namespace. BuildBuddy uses the existing authorized project credential without copying its value.
+## Reproducible candidate
+Chromium commit `52bdd21723d5db0c9ab11716d38feac74828cf84` was verified against
+ChromiumDash Android Stable and exact official `chrome/VERSION` on 2026-11-18.
+See [upgrade evidence and safeguards](docs/official158-upgrade.md).
+The verified Chromium 156 baseline and #1390 final archive remain on
+`raw-sandium/bootstrap`; they are not compatible output inputs for this candidate.
+No Brave source, caches or product patches are imported. The proven Full
+CI/checkpoint engine uses a revision/configuration-specific RawS namespace and
+the existing authorized BuildBuddy project credential without copying its value.
 
 The `depot_tools` revision is independently verified against the official remote
 and pinned in the lock. Automatic tool updates are disabled.

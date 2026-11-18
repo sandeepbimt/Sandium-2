@@ -32,7 +32,7 @@ jobs:
         no_output_timeout: 55m
     - run:
         name: Guard isolated RawS checkout
-        command: 'test "$CIRCLE_BRANCH" = "raw-sandium/bootstrap"
+        command: 'test "$CIRCLE_BRANCH" = "raw-sandium/official158"
 
           /usr/bin/python3 -m unittest discover -s tests -v'
         no_output_timeout: 55m
@@ -370,7 +370,7 @@ jobs:
         no_output_timeout: 55m
     - run:
         name: Guard isolated RawS checkout
-        command: 'test "$CIRCLE_BRANCH" = "raw-sandium/bootstrap"
+        command: 'test "$CIRCLE_BRANCH" = "raw-sandium/official158"
 
           /usr/bin/python3 -m unittest discover -s tests -v'
         no_output_timeout: 55m
@@ -673,7 +673,7 @@ jobs:
         no_output_timeout: 55m
     - run:
         name: Guard isolated RawS checkout
-        command: 'test "$CIRCLE_BRANCH" = "raw-sandium/bootstrap"
+        command: 'test "$CIRCLE_BRANCH" = "raw-sandium/official158"
 
           /usr/bin/python3 -m unittest discover -s tests -v'
         no_output_timeout: 55m
@@ -721,19 +721,19 @@ job-groups:
     - raws-final-compile:
         filters:
           branches:
-            only: raw-sandium/bootstrap
+            only: raw-sandium/official158
     - raws-final-pack:
         requires:
         - raws-final-compile
         filters:
           branches:
-            only: raw-sandium/bootstrap
+            only: raw-sandium/official158
     - raws-final-probe:
         requires:
         - raws-final-pack
         filters:
           branches:
-            only: raw-sandium/bootstrap
+            only: raw-sandium/official158
 workflows:
   RawS one-off final archive:
     when: << pipeline.parameters.run_raw_final_archive >>

@@ -67,7 +67,7 @@ def setup(path):
     run(['git','-C',str(depot),'fetch','origin',rev])
     run(['git','-C',str(depot),'checkout','--detach',rev])
     env = dict(os.environ, PATH=str(depot)+os.pathsep+os.environ['PATH'],DEPOT_TOOLS_UPDATE='0')
-    spec = 'solutions = '+repr([{'name':'src','url':data['chromium']['repository'],'managed':False,'custom_deps':{},'custom_vars':{}}])+"\ntarget_os = ['android']\n"
+    spec = 'solutions = '+repr([{'name':'src','url':data['chromium']['repository'],'managed':False,'custom_deps':{},'custom_vars':data['gclient_custom_vars']}])+"\ntarget_os = ['android']\n"
     cfg = w/'.gclient'
     if cfg.exists() and cfg.read_text()!=spec: raise ValueError('Unexpected gclient configuration')
     cfg.write_text(spec)

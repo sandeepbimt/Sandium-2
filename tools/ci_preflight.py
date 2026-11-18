@@ -3,7 +3,7 @@
 import base64, json, os, platform, shutil, urllib.request, urllib.error
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]
-EXPECTED_BRANCH='raw-sandium/bootstrap'
+EXPECTED_BRANCH='raw-sandium/official158'
 def memory_bytes():
     for line in Path('/proc/meminfo').read_text().splitlines():
         if line.startswith('MemTotal:'):return int(line.split()[1])*1024

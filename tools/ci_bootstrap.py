@@ -28,7 +28,7 @@ def tag_matches(output, version, revision):
     return refs.get(tag+'^{}',refs.get(tag))==revision
 
 def bootstrap():
-    if os.environ.get('CIRCLE_BRANCH')!='raw-sandium/bootstrap':raise ValueError('Wrong branch')
+    if os.environ.get('CIRCLE_BRANCH')!='raw-sandium/official158':raise ValueError('Wrong branch')
     data=lock(); result={'compilation_attempted':False,'apk_produced':False,'checkpoint_used':False,'steps':{}}
     out=ROOT/'artifacts';out.mkdir(exist_ok=True)
     try:
