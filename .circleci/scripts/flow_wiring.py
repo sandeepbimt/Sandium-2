@@ -25,6 +25,7 @@ for wrapper in REQUIRED:
     REQUIRED[wrapper].insert(0,NAV)
     REQUIRED[wrapper].insert(1,DIAG)
 REQUIRED['product-overlay-30-0.sh'][-2:-2]=[DIAG,DIAG,NAV,NAV]
+REQUIRED['product-overlay-30-0.sh'].append('apply-sandium-lint-resources.py')
 
 
 def shell_invocations(path):
@@ -105,6 +106,9 @@ def verify_product_wrappers(repo):
                 continue
             if not (repo/('.circleci/tests' if name == 'test_status_underlap_patch.py' else '.circleci/scripts')/name).is_file():raise ValueError(f'Missing invoked script {name}')
         if names!=expected:raise ValueError(f'{wrapper}: actual apply/test command sequence differs: {names}')
+        if wrapper=='product-overlay-30-0.sh':
+            if invocations[-1] != ('apply-sandium-lint-resources.py',['--core','$CORE']):raise ValueError('Reviewed lint resources must target restored core after product overlays')
+            invocations=invocations[:-1]
         if invocations[0] != (NAV,['$CIRCLE_WORKING_DIRECTORY/brave-work/src','--mode','off']):raise ValueError('Native navigation rollback must precede every product mutator')
         if wrapper=='product-overlay-30-0.sh' and invocations[-4:-2] != [(NAV,['$SRC','--mode','configured']),(NAV,['$SRC','--mode','configured','--verify-only'])]:raise ValueError('Native navigation profile must apply and verify after all frozen overlays')
         diag_args=[args for name,args in invocations if name==DIAG]

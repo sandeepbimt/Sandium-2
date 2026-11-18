@@ -5,7 +5,7 @@ class ProductWiring(unittest.TestCase):
  def fixture(self):
   t=tempfile.TemporaryDirectory();self.addCleanup(t.cleanup);root=pathlib.Path(t.name)
   (root/'.circleci/original-full').mkdir(parents=True)
-  shutil.copy2(ROOT/'.circleci/original-full/candidate.yml',root/'.circleci/config.yml')
+  shutil.copy2(ROOT/'.circleci/config.yml',root/'.circleci/config.yml')
   shutil.copy2(ROOT/'.circleci/original-full/config.sha256',root/'.circleci/original-full/config.sha256')
   shutil.copytree(ROOT/'.circleci/experimental-steps',root/'.circleci/experimental-steps')
   for names in w.REQUIRED.values():
@@ -22,6 +22,9 @@ class ProductWiring(unittest.TestCase):
    with self.subTest(wrapper=wrapper):
     root=self.fixture();p=root/'.circleci/experimental-steps'/wrapper;p.write_text('set -euo pipefail\nexit 0\n')
     with self.assertRaises(ValueError):w.verify_full_wiring(root)
+ def test_lint_resource_argument_mutation_rejected(self):
+  root=self.fixture();p=root/'.circleci/experimental-steps/product-overlay-30-0.sh';p.write_text(p.read_text().replace('apply-sandium-lint-resources.py --core "$CORE"','apply-sandium-lint-resources.py --core "$SRC"'))
+  with self.assertRaisesRegex(ValueError,'lint resources'):w.verify_full_wiring(root)
  def test_actual_tree_readback_removal_rejected(self):
   root=self.fixture();p=root/'.circleci/experimental-steps/product-overlay-30-0.sh';text=p.read_text();self.assertIn('--verify-only',text);p.write_text(text.replace('--verify-only','',1))
   with self.assertRaises(ValueError):w.verify_full_wiring(root)
