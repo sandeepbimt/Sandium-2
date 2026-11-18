@@ -90,7 +90,7 @@ if [ "${BRAVE_STAGE_INDEX:?BRAVE_STAGE_INDEX is required}" = "1" ]; then
   ENV_FILE="$CORE_DIR/.env"
   ENV_TMP="$(mktemp "$CORE_DIR/.env.tmp.XXXXXX")"
   if [ -f "$ENV_FILE" ]; then
-    grep -Ev '^(rbe_service|use_remoteexec|brave_services_key|is_brave_release_build)=' "$ENV_FILE" > "$ENV_TMP" || true
+    grep -Ev '^(rbe_service|use_remoteexec|is_brave_release_build)=' "$ENV_FILE" > "$ENV_TMP" || true
   fi
   printf '%s\n' \
     "rbe_service=$REAPI_ADDRESS" \
@@ -528,6 +528,10 @@ PY
   if [ "$MINIMAL_VANILLA_BUILD" = true ]; then
     python3 "$ROOT/.circleci/scripts/verify-sandium-vanilla-brave.py" --core "$CORE_DIR" --src "$SRC_DIR" --out "$OUT" --phase prepare
   fi
+
+  # Fill only missing service config using Brave's own resolver and documented
+  # external-build placeholders. This grants no access to Brave services.
+  node "$ROOT/.circleci/scripts/prepare-official-service-placeholders.mjs" "$CORE_DIR"
 
   # Official-mode reference: genuine upstream official GN semantics, not a
   # recolored renderer or a DCHECK-only substitute. Local Brave Release keeps

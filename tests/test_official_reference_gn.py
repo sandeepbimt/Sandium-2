@@ -17,7 +17,9 @@ class OfficialGN(unittest.TestCase):
    if key not in ('is_debug','symbol_level'):
     self.assertEqual(build.count(f'--gn {key}:{value}'),1)
   self.assertIn("'is_brave_release_build=0'", source)
-  self.assertIn('brave_services_key|is_brave_release_build',source)
+  self.assertIn('use_remoteexec|is_brave_release_build',source)
+  self.assertNotIn('use_remoteexec|brave_services_key|',source)
+  self.assertIn('prepare-official-service-placeholders.mjs',source)
   self.assertIn('--gn chrome_public_manifest_package:com.brave.browser_default',build)
   self.assertIn('--gn brave_channel:development',build)
   self.assertNotIn('blue_clear',(ROOT/'experiments/single-handoff/navigation_plan.py').read_text())

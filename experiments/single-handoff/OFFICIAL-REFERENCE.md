@@ -27,3 +27,11 @@ ThinLTO adds linker work; a final link could exceed a slice. No duration/RAM gua
 ## Validation boundary
 
 Local source/host regressions and independent reviews do not substitute for GN generation, generated JNI/Mojo compilation, linking, APK signature checks or device behavior. The first authorized CI run performs those validations. Keep #1389 available for rollback and compare the same navigation sequence on the same device.
+
+## Service configuration correction after #1391
+
+The first official-mode attempt failed GN's required nonempty Brave service-key assertion before compilation. This dependency was missed in the initial local preflight. Brave's public [build configuration guidance](https://github.com/brave/brave-browser/wiki/Build-configuration) expressly permits placeholder values for external official builds; genuine access to its services still requires valid provisioned credentials.
+
+The correction uses the exact upstream EnvConfig resolver, preserves any existing nonempty values (including included files and package config), and fills only absent/empty service/search/speech/AI keys with an unmistakably non-authenticating placeholder. It neither removes assertions nor changes feature flags/endpoints. The previous services-key stripping is removed. Reports contain names/status only, not credential values.
+
+CircleCI project variable-name inventory found no Brave service credentials and no attached contexts. #1391 proves its effective services key was empty. #1389's recipe stripped the direct .env services key, but retained build logs do not prove every effective key in its binary; do not claim that they do. In particular, retained Translate, Sync, search and component-update paths may send service headers. Nonempty invalid values can receive different server responses from empty values. Service parity and availability are **not** established by this compilation configuration. This remains an isolated reference with #1389 rollback, not a vendor-service credential workaround.
