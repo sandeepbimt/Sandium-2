@@ -1,6 +1,14 @@
 import json,os,pathlib,subprocess,tempfile,unittest,yaml,time,signal,sys,shlex,re
 ROOT=pathlib.Path(__file__).resolve().parents[2]
 class FailFast(unittest.TestCase):
+ def test_full_budget_is_25_minutes_in_both_configs(self):
+  for rel in ['.circleci/config.yml','.circleci/original-full/candidate.yml']:
+   cfg=yaml.safe_load((ROOT/rel).read_text())
+   steps=cfg['jobs']['brave-android-staged-build']['steps']
+   command=next(s['run']['command'] for s in steps if isinstance(s,dict) and s.get('run',{}).get('name')=='Build bounded Brave Android APK slice')
+   self.assertIn('full) STAGE_BUILD_BUDGET_SECONDS=1500',command)
+   self.assertNotIn('STAGE_BUILD_BUDGET_SECONDS=1200',command)
+   self.assertIn('fast) STAGE_BUILD_BUDGET_SECONDS=2700',command)
  def run_case(self,body, budget=3, audit_delay=0, recovery=None, recovery_return_delay=0):
   with tempfile.TemporaryDirectory() as tmp:
    p=pathlib.Path(tmp);(p/'out').mkdir();(p/'state').mkdir();(p/'bin').mkdir();(p/'.circleci/scripts').mkdir(parents=True);(p/'.circleci/original-full').mkdir(parents=True)
@@ -20,7 +28,7 @@ class FailFast(unittest.TestCase):
    cmd=next(s['run']['command'] for s in steps if isinstance(s,dict) and s.get('run',{}).get('name')=='Build bounded Brave Android APK slice')
    # Execute the generated build/recovery/classification/status body, with only preflight omitted.
    cmd='set -euo pipefail\n'+cmd[cmd.index('BUILD_RC=0\n'):]
-   cmd=cmd.replace('<< parameters.stage_index >>','1').replace('<< pipeline.parameters.sandium_build_mode >>','full').replace('STAGE_BUILD_BUDGET_SECONDS=1200','STAGE_BUILD_BUDGET_SECONDS='+str(budget))
+   cmd=cmd.replace('<< parameters.stage_index >>','1').replace('<< pipeline.parameters.sandium_build_mode >>','full').replace('STAGE_BUILD_BUDGET_SECONDS=1500','STAGE_BUILD_BUDGET_SECONDS='+str(budget))
    env={**os.environ,'ROOT':str(p),'OUT':str(p/'out'),'STATUS_DIR':str(p/'state'),'BUILD_STATUS':str(p/'state/status'),'PATH':str(p/'bin')+':'+os.environ['PATH']}
    run=subprocess.run(['bash','-c',cmd],env=env,capture_output=True,text=True,timeout=20)
    self.last_output=run.stdout+'\n'+run.stderr
