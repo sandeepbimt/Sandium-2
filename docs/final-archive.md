@@ -38,3 +38,15 @@ remains available if archive packaging fails.
 Local validation covers receipt/source/workflow/digest guards, default-off
 configuration, no changes to existing jobs/workflows, and a real tar+zstd APK
 extraction fixture. It is not a claim of production-sized archive validation.
+
+## Completion-marker correction after #1387
+
+#1387 produced and verified the ARM64 APK in stage 2. Stage 3 then restored
+stage 2's completed marker followed by stage 1's incomplete marker into the
+same path. The older marker overwrote success, so stage 3 wrongly attempted
+normal checkpoint preparation and failed its exact prior-stage guard.
+
+Later stages now use one native `restore_cache` operation whose ordered keys
+prefer the newest preceding stage. CircleCI selects the first matching key,
+preventing older incomplete markers from overwriting newer completion evidence.
+No compiler, checkpoint payload or produced APK changes are involved.

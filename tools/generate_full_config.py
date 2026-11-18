@@ -40,9 +40,10 @@ def generate():
    {'store_artifacts':{'path':'artifacts','destination':'raws-arm64'}},
    phase('completion'),save('raws-full-apk-v1-<< pipeline.id >>-'+str(n),['.raws-completion'],'Save verified workflow APK completion'),phase('halt-complete')]+checkpoint()+[phase('final'),{'store_artifacts':{'path':'.checkpoint-state','destination':'raws-checkpoint-evidence'}}]
   # Read small completion markers before downloading any large checkpoint.
-  early=[]
-  for earlier in range(n-1,0,-1):early.append(restore('raws-full-apk-v1-<< pipeline.id >>-'+str(earlier),'Restore prior APK completion'))
-  if early:j['steps'][1:1]=early+[phase('halt-complete')]
+  # One restore selects the newest available receipt. Multiple restore steps
+  # overwrite the newer completed marker with older incomplete markers.
+  keys=['raws-full-apk-v1-<< pipeline.id >>-'+str(earlier) for earlier in range(n-1,0,-1)]
+  if keys:j['steps'][1:1]=[{'restore_cache':{'name':'Restore newest prior APK completion','keys':keys}},phase('halt-complete')]
   jobs[f'raws-full-stage-{n}']=j
  m=common(6);m['steps']=gate()+[phase('maintenance-check')]+layers('ingest')+[phase('maintenance-capture'),save(BASE,basepaths,'Save refreshed base under new immutable key'),save(DELTA,['.checkpoint-incoming'],'Save refreshed overlay under new immutable key'),phase('maintenance-clear-saved-local'),restore(BASE,'Read back refreshed base'),restore(DELTA,'Read back refreshed overlay'),phase('maintenance-readback'),phase('maintenance-publish'),save(HEAD+'{{ checksum ".checkpoint-head/receipt.json" }}',['.checkpoint-head'],'Publish refreshed receipt after readback')]+[{'store_artifacts':{'path':'.checkpoint-state/maintenance-report.json','destination':'raws-maintenance'}}]
  jobs['raws-maintenance']=m

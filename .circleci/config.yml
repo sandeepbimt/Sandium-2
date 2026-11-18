@@ -407,7 +407,7 @@ jobs:
     steps:
     - checkout
     - restore_cache:
-        name: Restore prior APK completion
+        name: Restore newest prior APK completion
         keys:
         - raws-full-apk-v1-<< pipeline.id >>-1
     - run:
@@ -745,12 +745,9 @@ jobs:
     steps:
     - checkout
     - restore_cache:
-        name: Restore prior APK completion
+        name: Restore newest prior APK completion
         keys:
         - raws-full-apk-v1-<< pipeline.id >>-2
-    - restore_cache:
-        name: Restore prior APK completion
-        keys:
         - raws-full-apk-v1-<< pipeline.id >>-1
     - run:
         name: RawS Full halt-complete
@@ -1087,16 +1084,10 @@ jobs:
     steps:
     - checkout
     - restore_cache:
-        name: Restore prior APK completion
+        name: Restore newest prior APK completion
         keys:
         - raws-full-apk-v1-<< pipeline.id >>-3
-    - restore_cache:
-        name: Restore prior APK completion
-        keys:
         - raws-full-apk-v1-<< pipeline.id >>-2
-    - restore_cache:
-        name: Restore prior APK completion
-        keys:
         - raws-full-apk-v1-<< pipeline.id >>-1
     - run:
         name: RawS Full halt-complete
@@ -1433,20 +1424,11 @@ jobs:
     steps:
     - checkout
     - restore_cache:
-        name: Restore prior APK completion
+        name: Restore newest prior APK completion
         keys:
         - raws-full-apk-v1-<< pipeline.id >>-4
-    - restore_cache:
-        name: Restore prior APK completion
-        keys:
         - raws-full-apk-v1-<< pipeline.id >>-3
-    - restore_cache:
-        name: Restore prior APK completion
-        keys:
         - raws-full-apk-v1-<< pipeline.id >>-2
-    - restore_cache:
-        name: Restore prior APK completion
-        keys:
         - raws-full-apk-v1-<< pipeline.id >>-1
     - run:
         name: RawS Full halt-complete
