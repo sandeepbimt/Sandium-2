@@ -1,0 +1,14 @@
+{
+  "baseline_commit": "e7e782067daef429073e54c2bd8fbb91da7c8439",
+  "baseline_fingerprint": "b35abf73bb0a0a5998baeee4261715cbe73c8d55512c3a948cd6940590689843",
+  "receipt_id": "c84a3f88d74b96fc5c8f4b38e3946e85e1a253e1bccc61550f43f59af39c15fe",
+  "base_id": "d0bf5cf09ce9adf4d176ba8271357f1d22aafa60cc120a54e215d58561b1e631",
+  "manifest_sha256": "38ae30c1610ba11f5d8e23d1d6e6b812678948af628b5a7ed854c10ed928202d",
+  "expires_at": 1796239322,
+  "receipt_cache_key": "raws-final-receipt-v1-1okrnzzf7a7dVnuYH3RZUQh3v8ABzZh4G4yc4YAiROY=",
+  "archive_cache_key": "raws-final-base-v1-xLg0fZPI+fw9SpoFza6mLhAhAB2lVxH6jMOzj9OmBBU=",
+  "base_logical_key": "raws-full-v1-b35abf73bb0a0a5998baeee4261715cbe73c8d55512c3a948cd6940590689843-final-base-ceaa5f4e-7a36-4fa1-a5e9-e5633b70bf26-4271-d0bf5cf09ce9adf4d176ba8271357f1d22aafa60cc120a54e215d58561b1e631",
+  "transport": "unchanged baseline Full restore-base then restore-finish; precheck selection; no completion halt",
+  "old_completion_usable": false,
+  "feature_checkpoint_accepted": false
+}

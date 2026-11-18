@@ -1,0 +1,60 @@
+{
+  "offline_complete": false,
+  "normal_head_modified": false,
+  "target_unchanged": true,
+  "status": "completed",
+  "siso_binary": {
+    "exists": true,
+    "sha256": "19733a6faf64ad02594b19d5d4a08c7271e57e44a90934a37ef246ebe3c81d9d",
+    "version_exit": 0,
+    "version_output": "siso v1.6.7\nProdCIPD=true\n\nCIPD package name: build/siso/linux-amd64\nCIPD instance ID:  rteHidy1v5sOAG2wjUnsZqNqrkuPOb39rkXpT7dLngoC\ngo\tgo1.27.3\nmod\tgo.chromium.org/build/siso\t(devel)\t\nbuild\t-buildmode=exe\nbuild\t-compiler=gc\nbuild\t-trimpath=true\nCIPD URL: https://chrome-infra-packages.appspot.com/p/build/siso/linux-amd64/+/rteHidy1v5sOAG2wjUnsZqNqrkuPOb39rkXpT7dLngoC\nhttps://chromium.googlesource.com/build/+/dfc32e4edca158cff2b64a1658ee3940f0116b3a"
+  },
+  "apk_sha256_before": "7feb138bacb61dd9f77fca29c579330a2209f1ccd754c5e443962e76a76a977b",
+  "siso_state_before": {
+    ".siso_fs_state": {
+      "exists": true,
+      "bytes": 40803165,
+      "sha256": "ba63986ee6a46db1773a2d0afa8bf500a6ef5dd250e223badbc42e908f6ec275"
+    },
+    ".siso_deps": {
+      "exists": true,
+      "bytes": 142038644,
+      "sha256": "d08a707f8ae926d1d9057b2dc1da24ba37b683aa9ee4b0aefce947dbbefd7153"
+    }
+  },
+  "remote_config": {
+    "address": "remote.buildbuddy.io:443",
+    "instance": "default",
+    "worker_image": "docker://gcr.io/chops-public-images-prod/rbe/siso-chromium/linux@sha256:d7cb1ab14a0f20aa669c23f22c15a9dead761dcac19f43985bf9dd5f41fbef3a",
+    "limits": "local=8,remote=80",
+    "strict_remote": true
+  },
+  "probe_budget_seconds": 900,
+  "exit_code": 0,
+  "metrics": {
+    "metrics_present": true,
+    "classification": "inconclusive: no action records"
+  },
+  "apk_verified": true,
+  "apk_sha256": "7feb138bacb61dd9f77fca29c579330a2209f1ccd754c5e443962e76a76a977b",
+  "apk_package": "org.chromium.chrome",
+  "apk_abis": [
+    "arm64-v8a"
+  ],
+  "apk_signature_verified": true,
+  "apk_zip_verified": true,
+  "apk_sha256_after": "7feb138bacb61dd9f77fca29c579330a2209f1ccd754c5e443962e76a76a977b",
+  "siso_state_after": {
+    ".siso_fs_state": {
+      "exists": true,
+      "sha256": "845dcc0b038afb04d62b08218cc8b2174e26ff16767f5593e64c7221fd3f7c74"
+    },
+    ".siso_deps": {
+      "exists": true,
+      "sha256": "d08a707f8ae926d1d9057b2dc1da24ba37b683aa9ee4b0aefce947dbbefd7153"
+    }
+  },
+  "apk_identical": true,
+  "incremental_state_proof": true,
+  "reusable_label": "not promoted: remote-enabled probe, not offline materialization proof"
+}

@@ -2,10 +2,11 @@
 """Bounded fresh Android source sync; publish readiness only after identity validation."""
 import hashlib,json,os,shutil,subprocess,time
 from pathlib import Path
-from raw import ROOT,lock,verify
+from raw import ROOT,lock,verify,require_build_scope
+from ci_compile import fresh_feature_preparation
 
 def main():
-    if os.environ.get('CIRCLE_BRANCH')!='raw-sandium/official158':raise ValueError('Wrong branch')
+    require_build_scope()
     out=ROOT/'artifacts';out.mkdir(exist_ok=True)
     receipt={'phase':'source-sync','compilation_attempted':False,'apk_produced':False,'legacy_checkpoint_used':False,
              'lock_sha256':hashlib.sha256((ROOT/'upstream.lock.json').read_bytes()).hexdigest()}
@@ -14,14 +15,14 @@ def main():
         if (ROOT/'work/source/source-ready.json').exists():
             old=json.loads((ROOT/'work/source/source-ready.json').read_text())
             if old.get('lock_sha256')!=receipt['lock_sha256'] or not old.get('ready'):raise ValueError('Cached source identity mismatch')
-            verify(ROOT/'work/source/src',lock())
+            verify(ROOT/'work/source/src',lock(), allow_feature_preimages=fresh_feature_preparation())
             receipt.update(ready=True,reused_verified_source=True)
             return 0
         with (out/'source-sync.log').open('w') as log:
             p=subprocess.run(['timeout','--signal=TERM','--kill-after=30s','25m','python3','-u',str(ROOT/'tools/raw.py'),'setup','--workspace',str(ROOT/'work/source')],stdout=log,stderr=subprocess.STDOUT)
         receipt['exit_code']=p.returncode
         if p.returncode:raise ValueError('Source sync stopped; see source-sync.log (124 means bounded time limit)')
-        verify(ROOT/'work/source/src',lock())
+        verify(ROOT/'work/source/src',lock(), allow_feature_preimages=fresh_feature_preparation())
         receipt['ready']=True
         (ROOT/'work/source/source-ready.json').write_text(json.dumps(receipt,indent=2)+'\n')
         return 0

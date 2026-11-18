@@ -43,7 +43,9 @@ def prepare_probe():
 
 
 def state():
-    path=ROOT/'work/source/.sandium/final-build-state.json' if os.environ.get('RAWS_FINAL_PACK_ONLY')=='true' else ROOT/'handoff/stage1/state.json'
+    stage=int(os.environ.get('RAWS_STAGE','1'))
+    if stage not in (1,2,3,4,5):raise ValueError('Invalid final progress stage')
+    path=ROOT/'work/source/.sandium/final-build-state.json' if os.environ.get('RAWS_FINAL_PACK_ONLY')=='true' else ROOT/f'handoff/stage{stage}/state.json'
     value=c.D.c.read(path)
     if value.get('fingerprint')!=fingerprint():raise ValueError('Wrong progress fingerprint')
     return value

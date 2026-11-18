@@ -2,7 +2,7 @@
 """Sequential 25-minute compile slices using this workflow's own output only."""
 import argparse, hashlib, json, os, re, shutil, subprocess, tarfile, time, zipfile
 from pathlib import Path
-from raw import ROOT, lock, verify
+from raw import ROOT, lock, verify, require_build_scope
 from ci_official import verify_official
 from ci_remote import configure, smoke, remote_command, audit, run_logged, bootstrap_depot, verify_graph_outputs
 W=ROOT/'work/source'
@@ -12,11 +12,36 @@ def file_sha(path):
 
 def fingerprint():
     files=[ROOT/'upstream.lock.json',ROOT/'ci/args.gn',ROOT/'tools/ci_remote.py',ROOT/'tools/source_compat.py',ROOT/'tools/raw.py',ROOT/'tools/ci_official.py']
+    from native_features import recipe_inputs
+    files += [ROOT/'tools/native_features.py', ROOT/'tools/ci_compile.py', ROOT/'tools/ci_source.py'] + [ROOT/path for path in recipe_inputs(ROOT)]
+    files += [ROOT/'tools'/name for name in ('baseline_seed.py','feature_seed_callbacks.py',
+        'feature_seed_transport.py','feature_seed_checkpoint.py','ci_feature_seed.py',
+        'ci_full.py','ci_final_archive.py','ci_restore_probe.py','completed_feature_resume.py',
+        'generate_feature_seed_config.py','apk_java.py')]
+    files += sorted((ROOT/'docs/evidence/baseline1396').glob('*.json'))
     files+=sorted((ROOT/'patches').rglob('*'))+sorted((ROOT/'sandium/features').rglob('*'))
     h=hashlib.sha256()
     for p in files:
         if p.is_file():h.update(str(p.relative_to(ROOT)).encode()+b'\0'+p.read_bytes()+b'\0')
     return h.hexdigest()
+def fresh_feature_preparation(stage=1):
+    """Only a job-local, current-scope fresh bootstrap may admit preimages.
+
+    Ordinary restored checkpoints always require exact postimages. A future
+    authorized old-baseline seed needs its own verified admission, not this flag.
+    """
+    state = ROOT/'.checkpoint-state'
+    marker = state/'fresh.json'
+    if not marker.is_file(): return False
+    expected = {'scope':'raws-full-v1-'+fingerprint(),
+                'workflow':os.environ.get('CIRCLE_WORKFLOW_ID')}
+    if (stage != 1 or not expected['workflow']
+            or json.loads(marker.read_text()) != expected
+            or (state/'selected.json').exists()
+            or (state/'restored-proof.json').exists()):
+        raise ValueError('Invalid fresh feature preparation admission')
+    return True
+
 def classify(code, apk):
     if code==0 and apk.is_file() and apk.stat().st_size:return 'done'
     if code==124:return 'slice_expired'
@@ -41,6 +66,7 @@ def compile_budget(elapsed, fresh_seed):
     return min(1500, int(3300-elapsed-900-save_reserve-60-180))
 
 def verify_apk(apk, src, env):
+    from apk_java import environment as apk_java_environment
     with zipfile.ZipFile(apk) as z:
         bad=z.testzip()
         if bad:raise ValueError('APK ZIP checksum failed: '+bad)
@@ -48,6 +74,7 @@ def verify_apk(apk, src, env):
         if 'AndroidManifest.xml' not in names:raise ValueError('APK manifest missing')
         abis={n.split('/')[1] for n in names if n.startswith('lib/') and n.endswith('.so')}
         if abis!={'arm64-v8a'}:raise ValueError('Unexpected APK native ABIs: '+repr(sorted(abis)))
+    env=apk_java_environment(src,env)
     candidates=sorted((src/'third_party/android_sdk/public/build-tools').glob('*/apksigner'))
     if not candidates:raise ValueError('Pinned SDK apksigner unavailable')
     signer=candidates[-1]
@@ -63,7 +90,8 @@ def verify_apk(apk, src, env):
             'apk_abis':sorted(abis),'apk_signature_verified':True,'apk_zip_verified':True}
 
 def main(stage):
-    if os.environ.get('CIRCLE_BRANCH')!='raw-sandium/official158' or stage not in (1,2,3,4,5):raise ValueError('Wrong build scope')
+    require_build_scope()
+    if stage not in (1,2,3,4,5):raise ValueError('Wrong build stage')
     ident=fingerprint(); folder=ROOT/f'handoff/stage{stage}';folder.mkdir(parents=True,exist_ok=True)
     artifacts=ROOT/'artifacts';artifacts.mkdir(exist_ok=True)
     state={'stage':stage,'fingerprint':ident,'apk_produced':False}
@@ -71,7 +99,10 @@ def main(stage):
         receipt=json.loads((W/'source-ready.json').read_text())
         expected=hashlib.sha256((ROOT/'upstream.lock.json').read_bytes()).hexdigest()
         if not receipt['ready'] or receipt['lock_sha256']!=expected:raise ValueError('Unverified source handoff')
-        data=lock();verify(W/'src',data)
+        data=lock();verify(W/'src',data, allow_feature_preimages=fresh_feature_preparation(stage))
+        from native_features import apply
+        apply(W/'src', ROOT)
+        verify(W/'src',data)
         actual=subprocess.check_output(['git','-C',str(W/'depot_tools'),'rev-parse','HEAD'],text=True).strip()
         if actual!=data['depot_tools']['revision']:raise ValueError('Wrong tool revision')
         if shutil.disk_usage(ROOT).free<20*1024**3:raise ValueError('Need 20 GiB free before compile')
@@ -81,6 +112,7 @@ def main(stage):
         run_logged(['timeout','--kill-after=30s','10m','gclient','runhooks'],
                    artifacts/f'prepare-{stage}.log',phase=f'runhooks-{stage}',append=True,cwd=W,check=True,env=env)
         env=bootstrap_depot(W/'depot_tools',data['depot_tools']['revision'],env,artifacts,stage)
+        verify(W/'src',data)  # Hooks must not undo or introduce unreviewed feature changes.
         out=W/'src/out/RawSandium';out.mkdir(parents=True,exist_ok=True)
         # Full checkpoint driver restores source and output together before this step.
         # No legacy whole-output tar path may bypass its verified chain.

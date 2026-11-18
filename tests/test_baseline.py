@@ -9,8 +9,13 @@ class Baseline(unittest.TestCase):
         v=raw.lock(); self.assertEqual(v['chromium']['version'],'158.0.8127.42')
     def test_zero_patches(self):
         self.assertEqual(json.loads((ROOT/'patches/manifest.json').read_text())['patches'],[])
-    def test_no_feature_claims(self):
-        self.assertEqual(json.loads((ROOT/'sandium/features/manifest.json').read_text())['features'],[])
+    def test_explicit_feature_claims(self):
+        from native_features import load_manifest
+        manifest=json.loads((ROOT/'sandium/features/manifest.json').read_text())
+        self.assertIn(manifest['features'], ([], ['menu','toolbar']))
+        self.assertEqual(tuple(manifest['features']), load_manifest(ROOT))
+        if not manifest['features']:
+            self.assertEqual(manifest['baseline'],'unmodified Chromium')
     def test_refuse_project(self):
         with self.assertRaises(ValueError):raw.workspace(ROOT)
     def test_refuse_ancestor(self):
@@ -87,7 +92,7 @@ class SourceIsolation(unittest.TestCase):
         self.assertIn("ROOT/'work/source'",source)
         self.assertIn("'25m'",source)
         self.assertIn("if p.returncode:raise",source)
-        self.assertIn("verify(ROOT/'work/source/src',lock())",source)
+        self.assertIn("verify(ROOT/'work/source/src',lock(), allow_feature_preimages=fresh_feature_preparation())",source)
         self.assertNotIn('autoninja',source)
 
 

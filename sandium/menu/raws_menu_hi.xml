@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="raws_customize_menu">मेन्यू कस्टमाइज़ करें</string>
+    <string name="raws_menu_edit_hint">विकल्प चुनें। समूह में क्रम बदलने के लिए किसी विकल्प को दबाए रखें या Ctrl और तीर वाली कुंजियों का उपयोग करें।</string>
+    <string name="raws_menu_reset">रीसेट</string>
+    <string name="raws_menu_save">सहेजें</string>
+    <string name="raws_menu_move_up">ऊपर ले जाएँ</string>
+    <string name="raws_menu_move_down">नीचे ले जाएँ</string>
+    <string name="raws_menu_save_failed">सहेजा नहीं गया। दोबारा कोशिश करने के लिए बंद करके फिर खोलें।</string>
+    <string name="raws_menu_grid">मेन्यू</string>
+    <string name="raws_menu_all">सभी मेन्यू</string>
+    <string name="raws_menu_previous">पिछला</string>
+    <string name="raws_menu_next">अगला</string>
+    <string name="raws_menu_page">%1$d / %2$d</string>
+    <string name="raws_menu_drag">क्रम बदलने के लिए खींचें</string>
+    <string name="raws_menu_available">उपलब्ध विकल्प</string>
+    <string name="raws_menu_done">हो गया</string>
+</resources>

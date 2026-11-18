@@ -7,7 +7,7 @@ remote save occurred: clear-readback + readback must succeed before publication.
 import argparse, hashlib, json, os, shutil, sys, time, zipfile
 from pathlib import Path
 from ci_compile import fingerprint
-from raw import ROOT
+from raw import ROOT,require_build_scope
 os.environ['RAWS_CHECKPOINT_SCOPE']='raws-full-v1-'+fingerprint()
 sys.path.insert(0,str(ROOT/'.circleci/bridge'))
 import full_driver as f
@@ -20,8 +20,7 @@ def fresh():
 
 def gate():
     D.gate()
-    if os.environ.get('CIRCLE_BRANCH')!='raw-sandium/official158':
-        raise ValueError('RawS branch required')
+    require_build_scope()
     for name in ['base.key','outgoing.key']+[f'slot-{i}.key' for i in range(16)]:
         p=D.STATE/name
         if not p.exists():p.write_text('unused-'+D.c.scope()+'-'+name)

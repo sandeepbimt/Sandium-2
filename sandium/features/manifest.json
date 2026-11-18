@@ -1,1 +1,9 @@
-{"schema":1,"features":[],"baseline":"unmodified Chromium","note":"No existing Sandium feature is claimed ported. Add reviewed opt-in modules individually."}
+{
+  "schema": 1,
+  "features": [
+    "menu",
+    "toolbar"
+  ],
+  "baseline": "Pinned official Chromium 158 with reviewed native UI overlays",
+  "note": "Local candidate only. Menu viewport/accessibility exceptions and actual Android build/device validation remain unaccepted; no complete Sandium port is claimed."
+}

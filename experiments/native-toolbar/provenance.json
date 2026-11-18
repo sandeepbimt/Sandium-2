@@ -1,0 +1,14 @@
+{
+  "chromium": "52bdd21723d5db0c9ab11716d38feac74828cf84",
+  "raws_remote": "e7e782067daef429073e54c2bd8fbb91da7c8439",
+  "baseline_tree": "13ed86b7767839afbd62dbed3642ce956a7adaf0",
+  "sha256": {
+    "ToolbarTabController.java": "fb9478b991abbda166dda44df950251e16b71cf0c7b3552c7e25cf0d1dc4c7b8",
+    "LICENSE": "368cca1106be99d39ecd32a38d8305585d802a475effb66380b91ffc9bcf709b",
+    "AdaptiveToolbarFeatures.java": "4c5cb696a4639a1d962d3a7812931f3e93f68e919f911044b7f962a2582e9e63",
+    "ToolbarProgressBar.java": "ecd8755617fa5ead7086f0f8b0f004b7c57f34f58ddbcfab4fcc02df0b70edaa",
+    "AdaptiveToolbarButtonController.java": "3debcb56b435dc60dfe176d76de1321247eed45ed2da3ae60cb8eb829e54d56f",
+    "ToolbarPhone.java": "1d2c62ecbb9f7e24f47ea99b6303a9d245dfc0d3d0065b2fc0c65fb2eb88b507",
+    "toolbar_phone.xml": "e85721c57d57eb37bd17fbabf810261b465968156c7a64cb7cff0bf894bd7cda"
+  }
+}

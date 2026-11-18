@@ -16,6 +16,18 @@ parameters:
   run_raw_final_archive:
     type: boolean
     default: false
+  run_raw_native_features:
+    type: boolean
+    default: false
+  native_resume_completed:
+    type: boolean
+    default: false
+  native_resume_receipt_id:
+    type: string
+    default: ''
+  native_resume_cache_key:
+    type: string
+    default: ''
 jobs:
   raw-bootstrap:
     machine:
@@ -2737,6 +2749,3530 @@ jobs:
     - store_artifacts:
         path: .checkpoint-state
         destination: raws-fresh-restore-evidence
+  raws-native-seed:
+    machine:
+      image: ubuntu-2404:current
+    resource_class: large
+    retention:
+      caches: 15d
+    environment:
+      RAWS_STAGE: '1'
+      RAWS_PIPELINE_NUMBER: << pipeline.number >>
+      RAWS_CHECKPOINT_REVIEWED: 'true'
+      RAWS_ALLOW_FRESH_SEED: 'true'
+      SISO_LIMITS: local=8,remote=80
+      RAWS_NATIVE_FEATURE_BUILD: 'true'
+      RAWS_NATIVE_FEATURE_SEED: 'true'
+    steps:
+    - checkout
+    - run:
+        name: Start original one-hour job clock
+        command: 'python3 - <<''PYCODE''
+
+          import json,os,time
+
+          from pathlib import Path
+
+          p=Path(''.feature-seed-clock.json'')
+
+          if p.exists():raise SystemExit(''Job clock already exists'')
+
+          p.parent.mkdir(parents=True,exist_ok=True)
+
+          epoch=time.time();p.write_text(json.dumps({''epoch'':epoch})+''\n'')
+
+          with open(os.environ[''BASH_ENV''],''a'') as f:f.write(''export RAWS_FEATURE_JOB_STARTED_EPOCH=''+str(epoch)+''\n'')
+
+          PYCODE'
+        no_output_timeout: 55m
+    - run:
+        name: Install checkpoint and explicit pre-restore test JDK
+        command: 'timeout 240 sudo apt-get update -qq && timeout 420 sudo apt-get install -y zstd python3-yaml openjdk-21-jdk-headless
+
+          TEST_JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
+
+          "$TEST_JAVA_HOME/bin/java" -version
+
+          "$TEST_JAVA_HOME/bin/javac" -version
+
+          printf ''export JAVA_HOME=%s\nexport PATH=%s/bin:$PATH\n'' "$TEST_JAVA_HOME" "$TEST_JAVA_HOME" >> "$BASH_ENV"
+
+          '
+        no_output_timeout: 55m
+    - run:
+        name: Review explicit native feature scope and tests
+        command: 'test "$CIRCLE_BRANCH" = "raw-sandium/native-ui158"
+
+          python3 - <<''PYCODE''
+
+          import sys
+
+          sys.path.insert(0,''tools'')
+
+          from native_features import load_manifest
+
+          from ci_compile import fingerprint
+
+          from pathlib import Path
+
+          if load_manifest()!=(''menu'',''toolbar''):raise SystemExit(''Both reviewed UI features must be explicitly enabled'')
+
+          if Path(''ci/cache-identity.txt'').read_text().strip()!=fingerprint():raise SystemExit(''Recipe identity mismatch'')
+
+          PYCODE
+
+          /usr/bin/python3 -m unittest discover -s tests -v'
+        no_output_timeout: 55m
+    - run:
+        name: Prepare isolated unchanged baseline tools
+        command: python3 -u tools/feature_seed_transport.py prepare --repository "$PWD" --session .feature-seed-transport --job-start-epoch "$RAWS_FEATURE_JOB_STARTED_EPOCH"
+        no_output_timeout: 55m
+    - restore_cache:
+        name: 'Restore exact frozen #1396 receipt'
+        keys:
+        - raws-final-receipt-v1-1okrnzzf7a7dVnuYH3RZUQh3v8ABzZh4G4yc4YAiROY=
+    - run:
+        name: Relocate downloaded receipt outside feature state
+        command: 'python3 - <<''PYCODE''
+
+          from pathlib import Path
+
+          incoming=Path(''.feature-seed-incoming'');old=Path(''.raws-final-archive'')
+
+          if incoming.exists() or not old.is_dir() or old.is_symlink():raise SystemExit(''Unexpected baseline receipt location'')
+
+          incoming.mkdir();old.rename(incoming/''receipt'')
+
+          PYCODE'
+        no_output_timeout: 55m
+    - run:
+        name: Select exact old receipt in unchanged baseline process
+        command: python3 -u tools/feature_seed_transport.py select --session .feature-seed-transport --receipt .feature-seed-incoming/receipt/receipt.json
+        no_output_timeout: 55m
+    - restore_cache:
+        name: 'Restore exact #1396 full base, no prefix fallback'
+        keys:
+        - raws-final-base-v1-xLg0fZPI+fw9SpoFza6mLhAhAB2lVxH6jMOzj9OmBBU=
+    - run:
+        name: Relocate native cache inputs without copying archive
+        command: "python3 - <<'PYCODE'\nfrom pathlib import Path\nfor name in ('raw-workspace-checkpoint.manifest.json','raw-workspace-checkpoint.shards'):\n\
+          \    p=Path(name);dest=Path('.feature-seed-incoming')/name\n    if p.is_symlink() or not p.exists() or dest.exists():raise SystemExit('Unexpected\
+          \ baseline archive input')\n    if p.stat().st_dev!=dest.parent.stat().st_dev:raise SystemExit('Cross-filesystem archive copy forbidden')\n  \
+          \  p.rename(dest)\nPYCODE"
+        no_output_timeout: 55m
+    - run:
+        name: Verify and restore under exact old identity
+        command: python3 -u tools/feature_seed_transport.py restore --session .feature-seed-transport --incoming .feature-seed-incoming
+        no_output_timeout: 55m
+    - run:
+        name: Adopt only restored workspace and proof
+        command: python3 -u tools/feature_seed_transport.py adopt --session .feature-seed-transport --feature-root "$PWD"
+        no_output_timeout: 55m
+    - run:
+        name: Native feature transition --baseline-checkout .feature-seed-transport/baseline
+        command: python3 -u tools/ci_feature_seed.py transition --baseline-checkout .feature-seed-transport/baseline
+        no_output_timeout: 55m
+    - run:
+        name: Native feature capture
+        command: python3 -u tools/ci_feature_seed.py capture
+        no_output_timeout: 55m
+    - save_cache:
+        name: Save NEW full feature-input base
+        key: raws-full-base-v1-{{ checksum ".feature-seed-checkpoint/base.key" }}
+        paths: &id002
+        - raw-workspace-checkpoint.manifest.json
+        - raw-workspace-checkpoint.shards
+    - run:
+        name: Native feature clear-readback
+        command: python3 -u tools/ci_feature_seed.py clear-readback
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Read back exact new feature-input base
+        keys:
+        - raws-full-base-v1-{{ checksum ".feature-seed-checkpoint/base.key" }}
+    - run:
+        name: Native feature accept-readback
+        command: python3 -u tools/ci_feature_seed.py accept-readback
+        no_output_timeout: 55m
+    - save_cache:
+        name: Publish independent prepared receipt, not a normal head
+        key: raws-native-inputs-v1-{{ .Environment.CIRCLE_WORKFLOW_ID }}
+        paths:
+        - .feature-seed-checkpoint
+    - store_artifacts:
+        path: artifacts
+        destination: native-seed-evidence
+    - store_artifacts:
+        path: .feature-seed-checkpoint
+        destination: native-seed-checkpoint
+  raws-native-validate-inputs:
+    machine:
+      image: ubuntu-2404:current
+    resource_class: large
+    retention:
+      caches: 15d
+    environment:
+      RAWS_STAGE: '1'
+      RAWS_PIPELINE_NUMBER: << pipeline.number >>
+      RAWS_CHECKPOINT_REVIEWED: 'true'
+      RAWS_ALLOW_FRESH_SEED: 'false'
+      SISO_LIMITS: local=8,remote=80
+      RAWS_NATIVE_FEATURE_BUILD: 'true'
+      RAWS_NATIVE_FEATURE_SEED: 'true'
+    steps:
+    - checkout
+    - run:
+        name: Start original one-hour job clock
+        command: 'python3 - <<''PYCODE''
+
+          import json,os,time
+
+          from pathlib import Path
+
+          p=Path(''.feature-seed-clock.json'')
+
+          if p.exists():raise SystemExit(''Job clock already exists'')
+
+          p.parent.mkdir(parents=True,exist_ok=True)
+
+          epoch=time.time();p.write_text(json.dumps({''epoch'':epoch})+''\n'')
+
+          with open(os.environ[''BASH_ENV''],''a'') as f:f.write(''export RAWS_FEATURE_JOB_STARTED_EPOCH=''+str(epoch)+''\n'')
+
+          PYCODE'
+        no_output_timeout: 55m
+    - run:
+        name: Install checkpoint and explicit pre-restore test JDK
+        command: 'timeout 240 sudo apt-get update -qq && timeout 420 sudo apt-get install -y zstd python3-yaml openjdk-21-jdk-headless
+
+          TEST_JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
+
+          "$TEST_JAVA_HOME/bin/java" -version
+
+          "$TEST_JAVA_HOME/bin/javac" -version
+
+          printf ''export JAVA_HOME=%s\nexport PATH=%s/bin:$PATH\n'' "$TEST_JAVA_HOME" "$TEST_JAVA_HOME" >> "$BASH_ENV"
+
+          '
+        no_output_timeout: 55m
+    - run:
+        name: Review explicit native feature scope and tests
+        command: 'test "$CIRCLE_BRANCH" = "raw-sandium/native-ui158"
+
+          python3 - <<''PYCODE''
+
+          import sys
+
+          sys.path.insert(0,''tools'')
+
+          from native_features import load_manifest
+
+          from ci_compile import fingerprint
+
+          from pathlib import Path
+
+          if load_manifest()!=(''menu'',''toolbar''):raise SystemExit(''Both reviewed UI features must be explicitly enabled'')
+
+          if Path(''ci/cache-identity.txt'').read_text().strip()!=fingerprint():raise SystemExit(''Recipe identity mismatch'')
+
+          PYCODE
+
+          /usr/bin/python3 -m unittest discover -s tests -v'
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact same-pipeline prepared receipt
+        keys:
+        - raws-native-inputs-v1-{{ .Environment.CIRCLE_WORKFLOW_ID }}
+    - run:
+        name: Native feature select-prepared
+        command: python3 -u tools/ci_feature_seed.py select-prepared
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact new recipe base
+        keys:
+        - raws-full-base-v1-{{ checksum ".checkpoint-state/base.key" }}
+    - run:
+        name: Native checkpoint restore-base
+        command: python3 -u tools/ci_full.py restore-base
+        no_output_timeout: 55m
+    - run:
+        name: Native checkpoint restore-finish
+        command: python3 -u tools/ci_full.py restore-finish
+        no_output_timeout: 55m
+    - run:
+        name: Native feature verify-prepared
+        command: python3 -u tools/ci_feature_seed.py verify-prepared
+        no_output_timeout: 55m
+    - run:
+        name: Native feature promote-prepared
+        command: python3 -u tools/ci_feature_seed.py promote-prepared
+        no_output_timeout: 55m
+    - save_cache:
+        name: Publish fresh-validated new recipe head
+        key: raws-native-inputs-verified-v1-{{ .Environment.CIRCLE_WORKFLOW_ID }}
+        paths:
+        - .checkpoint-head
+    - store_artifacts:
+        path: artifacts
+        destination: native-input-validation
+  raws-native-compile-1:
+    machine:
+      image: ubuntu-2404:current
+    resource_class: large
+    retention:
+      caches: 15d
+    environment:
+      RAWS_STAGE: '1'
+      RAWS_PIPELINE_NUMBER: << pipeline.number >>
+      RAWS_CHECKPOINT_REVIEWED: 'true'
+      RAWS_ALLOW_FRESH_SEED: 'false'
+      SISO_LIMITS: local=8,remote=80
+      RAWS_NATIVE_FEATURE_BUILD: 'true'
+      RAWS_FINAL_ARCHIVE: 'true'
+    steps:
+    - checkout
+    - run:
+        name: Start original one-hour job clock
+        command: 'python3 - <<''PYCODE''
+
+          import json,os,time
+
+          from pathlib import Path
+
+          p=Path(''.checkpoint-state/job-start.json'')
+
+          if p.exists():raise SystemExit(''Job clock already exists'')
+
+          p.parent.mkdir(parents=True,exist_ok=True)
+
+          epoch=time.time();p.write_text(json.dumps({''epoch'':epoch})+''\n'')
+
+          with open(os.environ[''BASH_ENV''],''a'') as f:f.write(''export RAWS_FEATURE_JOB_STARTED_EPOCH=''+str(epoch)+''\n'')
+
+          PYCODE'
+        no_output_timeout: 55m
+    - run:
+        name: Install checkpoint and explicit pre-restore test JDK
+        command: 'timeout 240 sudo apt-get update -qq && timeout 420 sudo apt-get install -y zstd python3-yaml openjdk-21-jdk-headless
+
+          TEST_JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
+
+          "$TEST_JAVA_HOME/bin/java" -version
+
+          "$TEST_JAVA_HOME/bin/javac" -version
+
+          printf ''export JAVA_HOME=%s\nexport PATH=%s/bin:$PATH\n'' "$TEST_JAVA_HOME" "$TEST_JAVA_HOME" >> "$BASH_ENV"
+
+          '
+        no_output_timeout: 55m
+    - run:
+        name: Review explicit native feature scope and tests
+        command: 'test "$CIRCLE_BRANCH" = "raw-sandium/native-ui158"
+
+          python3 - <<''PYCODE''
+
+          import sys
+
+          sys.path.insert(0,''tools'')
+
+          from native_features import load_manifest
+
+          from ci_compile import fingerprint
+
+          from pathlib import Path
+
+          if load_manifest()!=(''menu'',''toolbar''):raise SystemExit(''Both reviewed UI features must be explicitly enabled'')
+
+          if Path(''ci/cache-identity.txt'').read_text().strip()!=fingerprint():raise SystemExit(''Recipe identity mismatch'')
+
+          PYCODE
+
+          /usr/bin/python3 -m unittest discover -s tests -v'
+        no_output_timeout: 55m
+    - run:
+        name: Native checkpoint gate
+        command: python3 -u tools/ci_full.py gate
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact fresh-validated feature head
+        keys:
+        - raws-native-inputs-verified-v1-{{ .Environment.CIRCLE_WORKFLOW_ID }}
+    - run:
+        name: Native full archive prepare
+        command: python3 -u tools/ci_final_archive.py prepare
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact RawS base
+        keys:
+        - raws-full-base-v1-{{ checksum ".checkpoint-state/base.key" }}
+    - run:
+        name: RawS Full restore-base
+        command: python3 -u tools/ci_full.py restore-base
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 0
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-0.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 0
+        command: python3 -u tools/ci_full.py restore-layer --slot 0
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 1
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-1.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 1
+        command: python3 -u tools/ci_full.py restore-layer --slot 1
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 2
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-2.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 2
+        command: python3 -u tools/ci_full.py restore-layer --slot 2
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 3
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-3.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 3
+        command: python3 -u tools/ci_full.py restore-layer --slot 3
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 4
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-4.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 4
+        command: python3 -u tools/ci_full.py restore-layer --slot 4
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 5
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-5.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 5
+        command: python3 -u tools/ci_full.py restore-layer --slot 5
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 6
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-6.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 6
+        command: python3 -u tools/ci_full.py restore-layer --slot 6
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 7
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-7.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 7
+        command: python3 -u tools/ci_full.py restore-layer --slot 7
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 8
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-8.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 8
+        command: python3 -u tools/ci_full.py restore-layer --slot 8
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 9
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-9.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 9
+        command: python3 -u tools/ci_full.py restore-layer --slot 9
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 10
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-10.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 10
+        command: python3 -u tools/ci_full.py restore-layer --slot 10
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 11
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-11.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 11
+        command: python3 -u tools/ci_full.py restore-layer --slot 11
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 12
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-12.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 12
+        command: python3 -u tools/ci_full.py restore-layer --slot 12
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 13
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-13.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 13
+        command: python3 -u tools/ci_full.py restore-layer --slot 13
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 14
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-14.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 14
+        command: python3 -u tools/ci_full.py restore-layer --slot 14
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 15
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-15.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 15
+        command: python3 -u tools/ci_full.py restore-layer --slot 15
+        no_output_timeout: 55m
+    - run:
+        name: RawS Full restore-finish
+        command: python3 -u tools/ci_full.py restore-finish
+        no_output_timeout: 55m
+    - run:
+        name: Strict source verification
+        command: python3 -u tools/ci_source.py
+        no_output_timeout: 55m
+    - run:
+        name: Native checkpoint begin
+        command: python3 -u tools/ci_full.py begin
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore independent apt download cache
+        keys:
+        - raws-apt-v1-ubuntu2404-{{ checksum "upstream.lock.json" }}-
+    - run:
+        name: Configure apt download cache
+        command: bash tools/prepare_apt_cache.sh
+        no_output_timeout: 55m
+    - run:
+        name: Compile within remaining one-hour budget, maximum 25 minutes
+        command: python3 -u tools/ci_compile.py --stage 1
+        no_output_timeout: 55m
+    - store_artifacts:
+        path: artifacts
+        destination: native-apk-and-build
+    - run:
+        name: Native full archive progress-capture
+        command: python3 -u tools/ci_final_archive.py progress-capture
+        no_output_timeout: 55m
+    - save_cache:
+        name: Save exact feature compilation increment
+        key: raws-final-delta-v1-{{ checksum ".checkpoint-state/outgoing.key" }}
+        paths:
+        - .checkpoint-incoming
+    - run:
+        name: Native full archive progress-clear
+        command: python3 -u tools/ci_final_archive.py progress-clear
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Read back exact feature compilation increment
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/outgoing.key" }}
+    - run:
+        name: Native full archive progress-publish
+        command: python3 -u tools/ci_final_archive.py progress-publish
+        no_output_timeout: 55m
+    - save_cache:
+        name: Publish exact archived feature continuation
+        key: raws-native-progress-v1-{{ .Environment.CIRCLE_WORKFLOW_ID }}-1
+        paths:
+        - .raws-final-progress
+    - run:
+        name: Bind APK completion only after archive readback
+        command: python3 -u tools/ci_completion.py completion
+        no_output_timeout: 55m
+    - save_cache:
+        name: Publish workflow completion after reusable output is saved
+        key: raws-native-apk-v1-{{ .Environment.CIRCLE_WORKFLOW_ID }}-1
+        paths:
+        - .raws-completion
+    - store_artifacts:
+        path: .raws-final-progress
+        destination: native-compile-continuation
+    - run:
+        name: Require APK before completed handoff; otherwise continue next slice
+        command: python3 -u tools/ci_feature_seed.py completed-handoff
+        no_output_timeout: 55m
+    - save_cache:
+        name: Publish completed same-workflow handoff
+        key: raws-native-completed-v1-{{ .Environment.CIRCLE_WORKFLOW_ID }}
+        paths:
+        - .raws-final-progress
+  raws-native-compile-2:
+    machine:
+      image: ubuntu-2404:current
+    resource_class: large
+    retention:
+      caches: 15d
+    environment:
+      RAWS_STAGE: '2'
+      RAWS_PIPELINE_NUMBER: << pipeline.number >>
+      RAWS_CHECKPOINT_REVIEWED: 'true'
+      RAWS_ALLOW_FRESH_SEED: 'false'
+      SISO_LIMITS: local=8,remote=80
+      RAWS_NATIVE_FEATURE_BUILD: 'true'
+      RAWS_FINAL_ARCHIVE: 'true'
+    steps:
+    - checkout
+    - run:
+        name: Start original one-hour job clock
+        command: 'python3 - <<''PYCODE''
+
+          import json,os,time
+
+          from pathlib import Path
+
+          p=Path(''.checkpoint-state/job-start.json'')
+
+          if p.exists():raise SystemExit(''Job clock already exists'')
+
+          p.parent.mkdir(parents=True,exist_ok=True)
+
+          epoch=time.time();p.write_text(json.dumps({''epoch'':epoch})+''\n'')
+
+          with open(os.environ[''BASH_ENV''],''a'') as f:f.write(''export RAWS_FEATURE_JOB_STARTED_EPOCH=''+str(epoch)+''\n'')
+
+          PYCODE'
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore latest prior verified APK completion
+        keys:
+        - raws-native-apk-v1-{{ .Environment.CIRCLE_WORKFLOW_ID }}-1
+    - run:
+        name: Skip only a previously archived same-workflow APK
+        command: python3 -u tools/ci_completion.py halt-complete
+        no_output_timeout: 55m
+    - run:
+        name: Install checkpoint and explicit pre-restore test JDK
+        command: 'timeout 240 sudo apt-get update -qq && timeout 420 sudo apt-get install -y zstd python3-yaml openjdk-21-jdk-headless
+
+          TEST_JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
+
+          "$TEST_JAVA_HOME/bin/java" -version
+
+          "$TEST_JAVA_HOME/bin/javac" -version
+
+          printf ''export JAVA_HOME=%s\nexport PATH=%s/bin:$PATH\n'' "$TEST_JAVA_HOME" "$TEST_JAVA_HOME" >> "$BASH_ENV"
+
+          '
+        no_output_timeout: 55m
+    - run:
+        name: Review explicit native feature scope and tests
+        command: 'test "$CIRCLE_BRANCH" = "raw-sandium/native-ui158"
+
+          python3 - <<''PYCODE''
+
+          import sys
+
+          sys.path.insert(0,''tools'')
+
+          from native_features import load_manifest
+
+          from ci_compile import fingerprint
+
+          from pathlib import Path
+
+          if load_manifest()!=(''menu'',''toolbar''):raise SystemExit(''Both reviewed UI features must be explicitly enabled'')
+
+          if Path(''ci/cache-identity.txt'').read_text().strip()!=fingerprint():raise SystemExit(''Recipe identity mismatch'')
+
+          PYCODE
+
+          /usr/bin/python3 -m unittest discover -s tests -v'
+        no_output_timeout: 55m
+    - run:
+        name: Native checkpoint gate
+        command: python3 -u tools/ci_full.py gate
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact preceding feature increment
+        keys:
+        - raws-native-progress-v1-{{ .Environment.CIRCLE_WORKFLOW_ID }}-1
+    - run:
+        name: Native full archive prepare
+        command: python3 -u tools/ci_final_archive.py prepare
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact RawS base
+        keys:
+        - raws-full-base-v1-{{ checksum ".checkpoint-state/base.key" }}
+    - run:
+        name: RawS Full restore-base
+        command: python3 -u tools/ci_full.py restore-base
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 0
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-0.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 0
+        command: python3 -u tools/ci_full.py restore-layer --slot 0
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 1
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-1.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 1
+        command: python3 -u tools/ci_full.py restore-layer --slot 1
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 2
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-2.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 2
+        command: python3 -u tools/ci_full.py restore-layer --slot 2
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 3
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-3.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 3
+        command: python3 -u tools/ci_full.py restore-layer --slot 3
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 4
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-4.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 4
+        command: python3 -u tools/ci_full.py restore-layer --slot 4
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 5
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-5.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 5
+        command: python3 -u tools/ci_full.py restore-layer --slot 5
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 6
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-6.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 6
+        command: python3 -u tools/ci_full.py restore-layer --slot 6
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 7
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-7.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 7
+        command: python3 -u tools/ci_full.py restore-layer --slot 7
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 8
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-8.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 8
+        command: python3 -u tools/ci_full.py restore-layer --slot 8
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 9
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-9.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 9
+        command: python3 -u tools/ci_full.py restore-layer --slot 9
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 10
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-10.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 10
+        command: python3 -u tools/ci_full.py restore-layer --slot 10
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 11
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-11.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 11
+        command: python3 -u tools/ci_full.py restore-layer --slot 11
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 12
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-12.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 12
+        command: python3 -u tools/ci_full.py restore-layer --slot 12
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 13
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-13.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 13
+        command: python3 -u tools/ci_full.py restore-layer --slot 13
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 14
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-14.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 14
+        command: python3 -u tools/ci_full.py restore-layer --slot 14
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 15
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-15.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 15
+        command: python3 -u tools/ci_full.py restore-layer --slot 15
+        no_output_timeout: 55m
+    - run:
+        name: RawS Full restore-finish
+        command: python3 -u tools/ci_full.py restore-finish
+        no_output_timeout: 55m
+    - run:
+        name: Strict source verification
+        command: python3 -u tools/ci_source.py
+        no_output_timeout: 55m
+    - run:
+        name: Native checkpoint begin
+        command: python3 -u tools/ci_full.py begin
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore independent apt download cache
+        keys:
+        - raws-apt-v1-ubuntu2404-{{ checksum "upstream.lock.json" }}-
+    - run:
+        name: Configure apt download cache
+        command: bash tools/prepare_apt_cache.sh
+        no_output_timeout: 55m
+    - run:
+        name: Compile within remaining one-hour budget, maximum 25 minutes
+        command: python3 -u tools/ci_compile.py --stage 2
+        no_output_timeout: 55m
+    - store_artifacts:
+        path: artifacts
+        destination: native-apk-and-build
+    - run:
+        name: Native full archive progress-capture
+        command: python3 -u tools/ci_final_archive.py progress-capture
+        no_output_timeout: 55m
+    - save_cache:
+        name: Save exact feature compilation increment
+        key: raws-final-delta-v1-{{ checksum ".checkpoint-state/outgoing.key" }}
+        paths:
+        - .checkpoint-incoming
+    - run:
+        name: Native full archive progress-clear
+        command: python3 -u tools/ci_final_archive.py progress-clear
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Read back exact feature compilation increment
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/outgoing.key" }}
+    - run:
+        name: Native full archive progress-publish
+        command: python3 -u tools/ci_final_archive.py progress-publish
+        no_output_timeout: 55m
+    - save_cache:
+        name: Publish exact archived feature continuation
+        key: raws-native-progress-v1-{{ .Environment.CIRCLE_WORKFLOW_ID }}-2
+        paths:
+        - .raws-final-progress
+    - run:
+        name: Bind APK completion only after archive readback
+        command: python3 -u tools/ci_completion.py completion
+        no_output_timeout: 55m
+    - save_cache:
+        name: Publish workflow completion after reusable output is saved
+        key: raws-native-apk-v1-{{ .Environment.CIRCLE_WORKFLOW_ID }}-2
+        paths:
+        - .raws-completion
+    - store_artifacts:
+        path: .raws-final-progress
+        destination: native-compile-continuation
+    - run:
+        name: Require APK before completed handoff; otherwise continue next slice
+        command: python3 -u tools/ci_feature_seed.py completed-handoff
+        no_output_timeout: 55m
+    - save_cache:
+        name: Publish completed same-workflow handoff
+        key: raws-native-completed-v1-{{ .Environment.CIRCLE_WORKFLOW_ID }}
+        paths:
+        - .raws-final-progress
+  raws-native-compile-3:
+    machine:
+      image: ubuntu-2404:current
+    resource_class: large
+    retention:
+      caches: 15d
+    environment:
+      RAWS_STAGE: '3'
+      RAWS_PIPELINE_NUMBER: << pipeline.number >>
+      RAWS_CHECKPOINT_REVIEWED: 'true'
+      RAWS_ALLOW_FRESH_SEED: 'false'
+      SISO_LIMITS: local=8,remote=80
+      RAWS_NATIVE_FEATURE_BUILD: 'true'
+      RAWS_FINAL_ARCHIVE: 'true'
+    steps:
+    - checkout
+    - run:
+        name: Start original one-hour job clock
+        command: 'python3 - <<''PYCODE''
+
+          import json,os,time
+
+          from pathlib import Path
+
+          p=Path(''.checkpoint-state/job-start.json'')
+
+          if p.exists():raise SystemExit(''Job clock already exists'')
+
+          p.parent.mkdir(parents=True,exist_ok=True)
+
+          epoch=time.time();p.write_text(json.dumps({''epoch'':epoch})+''\n'')
+
+          with open(os.environ[''BASH_ENV''],''a'') as f:f.write(''export RAWS_FEATURE_JOB_STARTED_EPOCH=''+str(epoch)+''\n'')
+
+          PYCODE'
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore latest prior verified APK completion
+        keys:
+        - raws-native-apk-v1-{{ .Environment.CIRCLE_WORKFLOW_ID }}-2
+        - raws-native-apk-v1-{{ .Environment.CIRCLE_WORKFLOW_ID }}-1
+    - run:
+        name: Skip only a previously archived same-workflow APK
+        command: python3 -u tools/ci_completion.py halt-complete
+        no_output_timeout: 55m
+    - run:
+        name: Install checkpoint and explicit pre-restore test JDK
+        command: 'timeout 240 sudo apt-get update -qq && timeout 420 sudo apt-get install -y zstd python3-yaml openjdk-21-jdk-headless
+
+          TEST_JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
+
+          "$TEST_JAVA_HOME/bin/java" -version
+
+          "$TEST_JAVA_HOME/bin/javac" -version
+
+          printf ''export JAVA_HOME=%s\nexport PATH=%s/bin:$PATH\n'' "$TEST_JAVA_HOME" "$TEST_JAVA_HOME" >> "$BASH_ENV"
+
+          '
+        no_output_timeout: 55m
+    - run:
+        name: Review explicit native feature scope and tests
+        command: 'test "$CIRCLE_BRANCH" = "raw-sandium/native-ui158"
+
+          python3 - <<''PYCODE''
+
+          import sys
+
+          sys.path.insert(0,''tools'')
+
+          from native_features import load_manifest
+
+          from ci_compile import fingerprint
+
+          from pathlib import Path
+
+          if load_manifest()!=(''menu'',''toolbar''):raise SystemExit(''Both reviewed UI features must be explicitly enabled'')
+
+          if Path(''ci/cache-identity.txt'').read_text().strip()!=fingerprint():raise SystemExit(''Recipe identity mismatch'')
+
+          PYCODE
+
+          /usr/bin/python3 -m unittest discover -s tests -v'
+        no_output_timeout: 55m
+    - run:
+        name: Native checkpoint gate
+        command: python3 -u tools/ci_full.py gate
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact preceding feature increment
+        keys:
+        - raws-native-progress-v1-{{ .Environment.CIRCLE_WORKFLOW_ID }}-2
+    - run:
+        name: Native full archive prepare
+        command: python3 -u tools/ci_final_archive.py prepare
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact RawS base
+        keys:
+        - raws-full-base-v1-{{ checksum ".checkpoint-state/base.key" }}
+    - run:
+        name: RawS Full restore-base
+        command: python3 -u tools/ci_full.py restore-base
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 0
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-0.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 0
+        command: python3 -u tools/ci_full.py restore-layer --slot 0
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 1
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-1.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 1
+        command: python3 -u tools/ci_full.py restore-layer --slot 1
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 2
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-2.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 2
+        command: python3 -u tools/ci_full.py restore-layer --slot 2
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 3
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-3.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 3
+        command: python3 -u tools/ci_full.py restore-layer --slot 3
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 4
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-4.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 4
+        command: python3 -u tools/ci_full.py restore-layer --slot 4
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 5
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-5.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 5
+        command: python3 -u tools/ci_full.py restore-layer --slot 5
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 6
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-6.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 6
+        command: python3 -u tools/ci_full.py restore-layer --slot 6
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 7
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-7.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 7
+        command: python3 -u tools/ci_full.py restore-layer --slot 7
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 8
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-8.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 8
+        command: python3 -u tools/ci_full.py restore-layer --slot 8
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 9
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-9.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 9
+        command: python3 -u tools/ci_full.py restore-layer --slot 9
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 10
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-10.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 10
+        command: python3 -u tools/ci_full.py restore-layer --slot 10
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 11
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-11.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 11
+        command: python3 -u tools/ci_full.py restore-layer --slot 11
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 12
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-12.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 12
+        command: python3 -u tools/ci_full.py restore-layer --slot 12
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 13
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-13.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 13
+        command: python3 -u tools/ci_full.py restore-layer --slot 13
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 14
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-14.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 14
+        command: python3 -u tools/ci_full.py restore-layer --slot 14
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 15
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-15.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 15
+        command: python3 -u tools/ci_full.py restore-layer --slot 15
+        no_output_timeout: 55m
+    - run:
+        name: RawS Full restore-finish
+        command: python3 -u tools/ci_full.py restore-finish
+        no_output_timeout: 55m
+    - run:
+        name: Strict source verification
+        command: python3 -u tools/ci_source.py
+        no_output_timeout: 55m
+    - run:
+        name: Native checkpoint begin
+        command: python3 -u tools/ci_full.py begin
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore independent apt download cache
+        keys:
+        - raws-apt-v1-ubuntu2404-{{ checksum "upstream.lock.json" }}-
+    - run:
+        name: Configure apt download cache
+        command: bash tools/prepare_apt_cache.sh
+        no_output_timeout: 55m
+    - run:
+        name: Compile within remaining one-hour budget, maximum 25 minutes
+        command: python3 -u tools/ci_compile.py --stage 3
+        no_output_timeout: 55m
+    - store_artifacts:
+        path: artifacts
+        destination: native-apk-and-build
+    - run:
+        name: Native full archive progress-capture
+        command: python3 -u tools/ci_final_archive.py progress-capture
+        no_output_timeout: 55m
+    - save_cache:
+        name: Save exact feature compilation increment
+        key: raws-final-delta-v1-{{ checksum ".checkpoint-state/outgoing.key" }}
+        paths:
+        - .checkpoint-incoming
+    - run:
+        name: Native full archive progress-clear
+        command: python3 -u tools/ci_final_archive.py progress-clear
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Read back exact feature compilation increment
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/outgoing.key" }}
+    - run:
+        name: Native full archive progress-publish
+        command: python3 -u tools/ci_final_archive.py progress-publish
+        no_output_timeout: 55m
+    - save_cache:
+        name: Publish exact archived feature continuation
+        key: raws-native-progress-v1-{{ .Environment.CIRCLE_WORKFLOW_ID }}-3
+        paths:
+        - .raws-final-progress
+    - run:
+        name: Bind APK completion only after archive readback
+        command: python3 -u tools/ci_completion.py completion
+        no_output_timeout: 55m
+    - save_cache:
+        name: Publish workflow completion after reusable output is saved
+        key: raws-native-apk-v1-{{ .Environment.CIRCLE_WORKFLOW_ID }}-3
+        paths:
+        - .raws-completion
+    - store_artifacts:
+        path: .raws-final-progress
+        destination: native-compile-continuation
+    - run:
+        name: Require APK before completed handoff; otherwise continue next slice
+        command: python3 -u tools/ci_feature_seed.py completed-handoff
+        no_output_timeout: 55m
+    - save_cache:
+        name: Publish completed same-workflow handoff
+        key: raws-native-completed-v1-{{ .Environment.CIRCLE_WORKFLOW_ID }}
+        paths:
+        - .raws-final-progress
+  raws-native-compile-4:
+    machine:
+      image: ubuntu-2404:current
+    resource_class: large
+    retention:
+      caches: 15d
+    environment:
+      RAWS_STAGE: '4'
+      RAWS_PIPELINE_NUMBER: << pipeline.number >>
+      RAWS_CHECKPOINT_REVIEWED: 'true'
+      RAWS_ALLOW_FRESH_SEED: 'false'
+      SISO_LIMITS: local=8,remote=80
+      RAWS_NATIVE_FEATURE_BUILD: 'true'
+      RAWS_FINAL_ARCHIVE: 'true'
+    steps:
+    - checkout
+    - run:
+        name: Start original one-hour job clock
+        command: 'python3 - <<''PYCODE''
+
+          import json,os,time
+
+          from pathlib import Path
+
+          p=Path(''.checkpoint-state/job-start.json'')
+
+          if p.exists():raise SystemExit(''Job clock already exists'')
+
+          p.parent.mkdir(parents=True,exist_ok=True)
+
+          epoch=time.time();p.write_text(json.dumps({''epoch'':epoch})+''\n'')
+
+          with open(os.environ[''BASH_ENV''],''a'') as f:f.write(''export RAWS_FEATURE_JOB_STARTED_EPOCH=''+str(epoch)+''\n'')
+
+          PYCODE'
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore latest prior verified APK completion
+        keys:
+        - raws-native-apk-v1-{{ .Environment.CIRCLE_WORKFLOW_ID }}-3
+        - raws-native-apk-v1-{{ .Environment.CIRCLE_WORKFLOW_ID }}-2
+        - raws-native-apk-v1-{{ .Environment.CIRCLE_WORKFLOW_ID }}-1
+    - run:
+        name: Skip only a previously archived same-workflow APK
+        command: python3 -u tools/ci_completion.py halt-complete
+        no_output_timeout: 55m
+    - run:
+        name: Install checkpoint and explicit pre-restore test JDK
+        command: 'timeout 240 sudo apt-get update -qq && timeout 420 sudo apt-get install -y zstd python3-yaml openjdk-21-jdk-headless
+
+          TEST_JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
+
+          "$TEST_JAVA_HOME/bin/java" -version
+
+          "$TEST_JAVA_HOME/bin/javac" -version
+
+          printf ''export JAVA_HOME=%s\nexport PATH=%s/bin:$PATH\n'' "$TEST_JAVA_HOME" "$TEST_JAVA_HOME" >> "$BASH_ENV"
+
+          '
+        no_output_timeout: 55m
+    - run:
+        name: Review explicit native feature scope and tests
+        command: 'test "$CIRCLE_BRANCH" = "raw-sandium/native-ui158"
+
+          python3 - <<''PYCODE''
+
+          import sys
+
+          sys.path.insert(0,''tools'')
+
+          from native_features import load_manifest
+
+          from ci_compile import fingerprint
+
+          from pathlib import Path
+
+          if load_manifest()!=(''menu'',''toolbar''):raise SystemExit(''Both reviewed UI features must be explicitly enabled'')
+
+          if Path(''ci/cache-identity.txt'').read_text().strip()!=fingerprint():raise SystemExit(''Recipe identity mismatch'')
+
+          PYCODE
+
+          /usr/bin/python3 -m unittest discover -s tests -v'
+        no_output_timeout: 55m
+    - run:
+        name: Native checkpoint gate
+        command: python3 -u tools/ci_full.py gate
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact preceding feature increment
+        keys:
+        - raws-native-progress-v1-{{ .Environment.CIRCLE_WORKFLOW_ID }}-3
+    - run:
+        name: Native full archive prepare
+        command: python3 -u tools/ci_final_archive.py prepare
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact RawS base
+        keys:
+        - raws-full-base-v1-{{ checksum ".checkpoint-state/base.key" }}
+    - run:
+        name: RawS Full restore-base
+        command: python3 -u tools/ci_full.py restore-base
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 0
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-0.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 0
+        command: python3 -u tools/ci_full.py restore-layer --slot 0
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 1
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-1.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 1
+        command: python3 -u tools/ci_full.py restore-layer --slot 1
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 2
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-2.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 2
+        command: python3 -u tools/ci_full.py restore-layer --slot 2
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 3
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-3.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 3
+        command: python3 -u tools/ci_full.py restore-layer --slot 3
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 4
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-4.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 4
+        command: python3 -u tools/ci_full.py restore-layer --slot 4
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 5
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-5.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 5
+        command: python3 -u tools/ci_full.py restore-layer --slot 5
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 6
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-6.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 6
+        command: python3 -u tools/ci_full.py restore-layer --slot 6
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 7
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-7.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 7
+        command: python3 -u tools/ci_full.py restore-layer --slot 7
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 8
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-8.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 8
+        command: python3 -u tools/ci_full.py restore-layer --slot 8
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 9
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-9.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 9
+        command: python3 -u tools/ci_full.py restore-layer --slot 9
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 10
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-10.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 10
+        command: python3 -u tools/ci_full.py restore-layer --slot 10
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 11
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-11.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 11
+        command: python3 -u tools/ci_full.py restore-layer --slot 11
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 12
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-12.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 12
+        command: python3 -u tools/ci_full.py restore-layer --slot 12
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 13
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-13.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 13
+        command: python3 -u tools/ci_full.py restore-layer --slot 13
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 14
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-14.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 14
+        command: python3 -u tools/ci_full.py restore-layer --slot 14
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 15
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-15.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 15
+        command: python3 -u tools/ci_full.py restore-layer --slot 15
+        no_output_timeout: 55m
+    - run:
+        name: RawS Full restore-finish
+        command: python3 -u tools/ci_full.py restore-finish
+        no_output_timeout: 55m
+    - run:
+        name: Strict source verification
+        command: python3 -u tools/ci_source.py
+        no_output_timeout: 55m
+    - run:
+        name: Native checkpoint begin
+        command: python3 -u tools/ci_full.py begin
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore independent apt download cache
+        keys:
+        - raws-apt-v1-ubuntu2404-{{ checksum "upstream.lock.json" }}-
+    - run:
+        name: Configure apt download cache
+        command: bash tools/prepare_apt_cache.sh
+        no_output_timeout: 55m
+    - run:
+        name: Compile within remaining one-hour budget, maximum 25 minutes
+        command: python3 -u tools/ci_compile.py --stage 4
+        no_output_timeout: 55m
+    - store_artifacts:
+        path: artifacts
+        destination: native-apk-and-build
+    - run:
+        name: Native full archive progress-capture
+        command: python3 -u tools/ci_final_archive.py progress-capture
+        no_output_timeout: 55m
+    - save_cache:
+        name: Save exact feature compilation increment
+        key: raws-final-delta-v1-{{ checksum ".checkpoint-state/outgoing.key" }}
+        paths:
+        - .checkpoint-incoming
+    - run:
+        name: Native full archive progress-clear
+        command: python3 -u tools/ci_final_archive.py progress-clear
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Read back exact feature compilation increment
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/outgoing.key" }}
+    - run:
+        name: Native full archive progress-publish
+        command: python3 -u tools/ci_final_archive.py progress-publish
+        no_output_timeout: 55m
+    - save_cache:
+        name: Publish exact archived feature continuation
+        key: raws-native-progress-v1-{{ .Environment.CIRCLE_WORKFLOW_ID }}-4
+        paths:
+        - .raws-final-progress
+    - run:
+        name: Bind APK completion only after archive readback
+        command: python3 -u tools/ci_completion.py completion
+        no_output_timeout: 55m
+    - save_cache:
+        name: Publish workflow completion after reusable output is saved
+        key: raws-native-apk-v1-{{ .Environment.CIRCLE_WORKFLOW_ID }}-4
+        paths:
+        - .raws-completion
+    - store_artifacts:
+        path: .raws-final-progress
+        destination: native-compile-continuation
+    - run:
+        name: Require APK before completed handoff; otherwise continue next slice
+        command: python3 -u tools/ci_feature_seed.py completed-handoff
+        no_output_timeout: 55m
+    - save_cache:
+        name: Publish completed same-workflow handoff
+        key: raws-native-completed-v1-{{ .Environment.CIRCLE_WORKFLOW_ID }}
+        paths:
+        - .raws-final-progress
+  raws-native-compile-5:
+    machine:
+      image: ubuntu-2404:current
+    resource_class: large
+    retention:
+      caches: 15d
+    environment:
+      RAWS_STAGE: '5'
+      RAWS_PIPELINE_NUMBER: << pipeline.number >>
+      RAWS_CHECKPOINT_REVIEWED: 'true'
+      RAWS_ALLOW_FRESH_SEED: 'false'
+      SISO_LIMITS: local=8,remote=80
+      RAWS_NATIVE_FEATURE_BUILD: 'true'
+      RAWS_FINAL_ARCHIVE: 'true'
+    steps:
+    - checkout
+    - run:
+        name: Start original one-hour job clock
+        command: 'python3 - <<''PYCODE''
+
+          import json,os,time
+
+          from pathlib import Path
+
+          p=Path(''.checkpoint-state/job-start.json'')
+
+          if p.exists():raise SystemExit(''Job clock already exists'')
+
+          p.parent.mkdir(parents=True,exist_ok=True)
+
+          epoch=time.time();p.write_text(json.dumps({''epoch'':epoch})+''\n'')
+
+          with open(os.environ[''BASH_ENV''],''a'') as f:f.write(''export RAWS_FEATURE_JOB_STARTED_EPOCH=''+str(epoch)+''\n'')
+
+          PYCODE'
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore latest prior verified APK completion
+        keys:
+        - raws-native-apk-v1-{{ .Environment.CIRCLE_WORKFLOW_ID }}-4
+        - raws-native-apk-v1-{{ .Environment.CIRCLE_WORKFLOW_ID }}-3
+        - raws-native-apk-v1-{{ .Environment.CIRCLE_WORKFLOW_ID }}-2
+        - raws-native-apk-v1-{{ .Environment.CIRCLE_WORKFLOW_ID }}-1
+    - run:
+        name: Skip only a previously archived same-workflow APK
+        command: python3 -u tools/ci_completion.py halt-complete
+        no_output_timeout: 55m
+    - run:
+        name: Install checkpoint and explicit pre-restore test JDK
+        command: 'timeout 240 sudo apt-get update -qq && timeout 420 sudo apt-get install -y zstd python3-yaml openjdk-21-jdk-headless
+
+          TEST_JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
+
+          "$TEST_JAVA_HOME/bin/java" -version
+
+          "$TEST_JAVA_HOME/bin/javac" -version
+
+          printf ''export JAVA_HOME=%s\nexport PATH=%s/bin:$PATH\n'' "$TEST_JAVA_HOME" "$TEST_JAVA_HOME" >> "$BASH_ENV"
+
+          '
+        no_output_timeout: 55m
+    - run:
+        name: Review explicit native feature scope and tests
+        command: 'test "$CIRCLE_BRANCH" = "raw-sandium/native-ui158"
+
+          python3 - <<''PYCODE''
+
+          import sys
+
+          sys.path.insert(0,''tools'')
+
+          from native_features import load_manifest
+
+          from ci_compile import fingerprint
+
+          from pathlib import Path
+
+          if load_manifest()!=(''menu'',''toolbar''):raise SystemExit(''Both reviewed UI features must be explicitly enabled'')
+
+          if Path(''ci/cache-identity.txt'').read_text().strip()!=fingerprint():raise SystemExit(''Recipe identity mismatch'')
+
+          PYCODE
+
+          /usr/bin/python3 -m unittest discover -s tests -v'
+        no_output_timeout: 55m
+    - run:
+        name: Native checkpoint gate
+        command: python3 -u tools/ci_full.py gate
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact preceding feature increment
+        keys:
+        - raws-native-progress-v1-{{ .Environment.CIRCLE_WORKFLOW_ID }}-4
+    - run:
+        name: Native full archive prepare
+        command: python3 -u tools/ci_final_archive.py prepare
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact RawS base
+        keys:
+        - raws-full-base-v1-{{ checksum ".checkpoint-state/base.key" }}
+    - run:
+        name: RawS Full restore-base
+        command: python3 -u tools/ci_full.py restore-base
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 0
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-0.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 0
+        command: python3 -u tools/ci_full.py restore-layer --slot 0
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 1
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-1.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 1
+        command: python3 -u tools/ci_full.py restore-layer --slot 1
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 2
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-2.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 2
+        command: python3 -u tools/ci_full.py restore-layer --slot 2
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 3
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-3.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 3
+        command: python3 -u tools/ci_full.py restore-layer --slot 3
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 4
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-4.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 4
+        command: python3 -u tools/ci_full.py restore-layer --slot 4
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 5
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-5.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 5
+        command: python3 -u tools/ci_full.py restore-layer --slot 5
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 6
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-6.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 6
+        command: python3 -u tools/ci_full.py restore-layer --slot 6
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 7
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-7.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 7
+        command: python3 -u tools/ci_full.py restore-layer --slot 7
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 8
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-8.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 8
+        command: python3 -u tools/ci_full.py restore-layer --slot 8
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 9
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-9.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 9
+        command: python3 -u tools/ci_full.py restore-layer --slot 9
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 10
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-10.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 10
+        command: python3 -u tools/ci_full.py restore-layer --slot 10
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 11
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-11.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 11
+        command: python3 -u tools/ci_full.py restore-layer --slot 11
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 12
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-12.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 12
+        command: python3 -u tools/ci_full.py restore-layer --slot 12
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 13
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-13.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 13
+        command: python3 -u tools/ci_full.py restore-layer --slot 13
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 14
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-14.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 14
+        command: python3 -u tools/ci_full.py restore-layer --slot 14
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 15
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-15.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 15
+        command: python3 -u tools/ci_full.py restore-layer --slot 15
+        no_output_timeout: 55m
+    - run:
+        name: RawS Full restore-finish
+        command: python3 -u tools/ci_full.py restore-finish
+        no_output_timeout: 55m
+    - run:
+        name: Strict source verification
+        command: python3 -u tools/ci_source.py
+        no_output_timeout: 55m
+    - run:
+        name: Native checkpoint begin
+        command: python3 -u tools/ci_full.py begin
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore independent apt download cache
+        keys:
+        - raws-apt-v1-ubuntu2404-{{ checksum "upstream.lock.json" }}-
+    - run:
+        name: Configure apt download cache
+        command: bash tools/prepare_apt_cache.sh
+        no_output_timeout: 55m
+    - run:
+        name: Compile within remaining one-hour budget, maximum 25 minutes
+        command: python3 -u tools/ci_compile.py --stage 5
+        no_output_timeout: 55m
+    - store_artifacts:
+        path: artifacts
+        destination: native-apk-and-build
+    - run:
+        name: Native full archive progress-capture
+        command: python3 -u tools/ci_final_archive.py progress-capture
+        no_output_timeout: 55m
+    - save_cache:
+        name: Save exact feature compilation increment
+        key: raws-final-delta-v1-{{ checksum ".checkpoint-state/outgoing.key" }}
+        paths:
+        - .checkpoint-incoming
+    - run:
+        name: Native full archive progress-clear
+        command: python3 -u tools/ci_final_archive.py progress-clear
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Read back exact feature compilation increment
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/outgoing.key" }}
+    - run:
+        name: Native full archive progress-publish
+        command: python3 -u tools/ci_final_archive.py progress-publish
+        no_output_timeout: 55m
+    - save_cache:
+        name: Publish exact archived feature continuation
+        key: raws-native-progress-v1-{{ .Environment.CIRCLE_WORKFLOW_ID }}-5
+        paths:
+        - .raws-final-progress
+    - run:
+        name: Bind APK completion only after archive readback
+        command: python3 -u tools/ci_completion.py completion
+        no_output_timeout: 55m
+    - save_cache:
+        name: Publish workflow completion after reusable output is saved
+        key: raws-native-apk-v1-{{ .Environment.CIRCLE_WORKFLOW_ID }}-5
+        paths:
+        - .raws-completion
+    - store_artifacts:
+        path: .raws-final-progress
+        destination: native-compile-continuation
+    - run:
+        name: Require APK before completed handoff; otherwise continue next slice
+        command: python3 -u tools/ci_feature_seed.py completed-handoff
+        no_output_timeout: 55m
+    - save_cache:
+        name: Publish completed same-workflow handoff
+        key: raws-native-completed-v1-{{ .Environment.CIRCLE_WORKFLOW_ID }}
+        paths:
+        - .raws-final-progress
+  raws-native-pack:
+    machine:
+      image: ubuntu-2404:current
+    resource_class: large
+    retention:
+      caches: 15d
+    environment:
+      RAWS_STAGE: '1'
+      RAWS_PIPELINE_NUMBER: << pipeline.number >>
+      RAWS_CHECKPOINT_REVIEWED: 'true'
+      RAWS_ALLOW_FRESH_SEED: 'false'
+      SISO_LIMITS: local=8,remote=80
+      RAWS_NATIVE_FEATURE_BUILD: 'true'
+      RAWS_FINAL_ARCHIVE: 'true'
+      RAWS_FINAL_PACK_ONLY: 'true'
+    steps:
+    - checkout
+    - run:
+        name: Start original one-hour job clock
+        command: 'python3 - <<''PYCODE''
+
+          import json,os,time
+
+          from pathlib import Path
+
+          p=Path(''.checkpoint-state/job-start.json'')
+
+          if p.exists():raise SystemExit(''Job clock already exists'')
+
+          p.parent.mkdir(parents=True,exist_ok=True)
+
+          epoch=time.time();p.write_text(json.dumps({''epoch'':epoch})+''\n'')
+
+          with open(os.environ[''BASH_ENV''],''a'') as f:f.write(''export RAWS_FEATURE_JOB_STARTED_EPOCH=''+str(epoch)+''\n'')
+
+          PYCODE'
+        no_output_timeout: 55m
+    - run:
+        name: Install checkpoint and explicit pre-restore test JDK
+        command: 'timeout 240 sudo apt-get update -qq && timeout 420 sudo apt-get install -y zstd python3-yaml openjdk-21-jdk-headless
+
+          TEST_JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
+
+          "$TEST_JAVA_HOME/bin/java" -version
+
+          "$TEST_JAVA_HOME/bin/javac" -version
+
+          printf ''export JAVA_HOME=%s\nexport PATH=%s/bin:$PATH\n'' "$TEST_JAVA_HOME" "$TEST_JAVA_HOME" >> "$BASH_ENV"
+
+          '
+        no_output_timeout: 55m
+    - run:
+        name: Review explicit native feature scope and tests
+        command: 'test "$CIRCLE_BRANCH" = "raw-sandium/native-ui158"
+
+          python3 - <<''PYCODE''
+
+          import sys
+
+          sys.path.insert(0,''tools'')
+
+          from native_features import load_manifest
+
+          from ci_compile import fingerprint
+
+          from pathlib import Path
+
+          if load_manifest()!=(''menu'',''toolbar''):raise SystemExit(''Both reviewed UI features must be explicitly enabled'')
+
+          if Path(''ci/cache-identity.txt'').read_text().strip()!=fingerprint():raise SystemExit(''Recipe identity mismatch'')
+
+          PYCODE
+
+          /usr/bin/python3 -m unittest discover -s tests -v'
+        no_output_timeout: 55m
+    - run:
+        name: Native checkpoint gate
+        command: python3 -u tools/ci_full.py gate
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore completed feature compilation handoff
+        keys:
+        - raws-native-completed-v1-{{ .Environment.CIRCLE_WORKFLOW_ID }}
+    - run:
+        name: Native full archive prepare-archive
+        command: python3 -u tools/ci_final_archive.py prepare-archive
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact RawS base
+        keys:
+        - raws-full-base-v1-{{ checksum ".checkpoint-state/base.key" }}
+    - run:
+        name: RawS Full restore-base
+        command: python3 -u tools/ci_full.py restore-base
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 0
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-0.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 0
+        command: python3 -u tools/ci_full.py restore-layer --slot 0
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 1
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-1.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 1
+        command: python3 -u tools/ci_full.py restore-layer --slot 1
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 2
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-2.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 2
+        command: python3 -u tools/ci_full.py restore-layer --slot 2
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 3
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-3.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 3
+        command: python3 -u tools/ci_full.py restore-layer --slot 3
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 4
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-4.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 4
+        command: python3 -u tools/ci_full.py restore-layer --slot 4
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 5
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-5.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 5
+        command: python3 -u tools/ci_full.py restore-layer --slot 5
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 6
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-6.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 6
+        command: python3 -u tools/ci_full.py restore-layer --slot 6
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 7
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-7.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 7
+        command: python3 -u tools/ci_full.py restore-layer --slot 7
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 8
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-8.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 8
+        command: python3 -u tools/ci_full.py restore-layer --slot 8
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 9
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-9.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 9
+        command: python3 -u tools/ci_full.py restore-layer --slot 9
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 10
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-10.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 10
+        command: python3 -u tools/ci_full.py restore-layer --slot 10
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 11
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-11.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 11
+        command: python3 -u tools/ci_full.py restore-layer --slot 11
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 12
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-12.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 12
+        command: python3 -u tools/ci_full.py restore-layer --slot 12
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 13
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-13.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 13
+        command: python3 -u tools/ci_full.py restore-layer --slot 13
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 14
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-14.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 14
+        command: python3 -u tools/ci_full.py restore-layer --slot 14
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 15
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-15.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 15
+        command: python3 -u tools/ci_full.py restore-layer --slot 15
+        no_output_timeout: 55m
+    - run:
+        name: RawS Full restore-finish
+        command: python3 -u tools/ci_full.py restore-finish
+        no_output_timeout: 55m
+    - run:
+        name: Native full archive capture
+        command: python3 -u tools/ci_final_archive.py capture
+        no_output_timeout: 55m
+    - save_cache:
+        name: Save complete APK-producing full archive
+        key: raws-final-base-v1-{{ checksum ".raws-final-archive/base.key" }}
+        paths: *id002
+    - run:
+        name: Native full archive clear
+        command: python3 -u tools/ci_final_archive.py clear
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Read back exact complete full archive
+        keys:
+        - raws-final-base-v1-{{ checksum ".raws-final-archive/base.key" }}
+    - run:
+        name: Native full archive verify-publish
+        command: python3 -u tools/ci_final_archive.py verify-publish
+        no_output_timeout: 55m
+    - save_cache:
+        name: Publish exact full archive for fresh probe
+        key: raws-native-final-v1-{{ .Environment.CIRCLE_WORKFLOW_ID }}
+        paths:
+        - .raws-final-archive
+    - save_cache:
+        name: Publish immutable full archive receipt
+        key: raws-final-receipt-v1-{{ checksum ".raws-final-archive/receipt.json" }}
+        paths:
+        - .raws-final-archive
+    - store_artifacts:
+        path: .raws-final-archive
+        destination: native-final-archive-evidence
+  raws-native-probe:
+    machine:
+      image: ubuntu-2404:current
+    resource_class: large
+    retention:
+      caches: 15d
+    environment:
+      RAWS_STAGE: '1'
+      RAWS_PIPELINE_NUMBER: << pipeline.number >>
+      RAWS_CHECKPOINT_REVIEWED: 'true'
+      RAWS_ALLOW_FRESH_SEED: 'false'
+      SISO_LIMITS: local=8,remote=80
+      RAWS_NATIVE_FEATURE_BUILD: 'true'
+      RAWS_FINAL_ARCHIVE: 'true'
+      RAWS_FINAL_PACK_ONLY: 'true'
+    steps:
+    - checkout
+    - run:
+        name: Start original one-hour job clock
+        command: 'python3 - <<''PYCODE''
+
+          import json,os,time
+
+          from pathlib import Path
+
+          p=Path(''.checkpoint-state/job-start.json'')
+
+          if p.exists():raise SystemExit(''Job clock already exists'')
+
+          p.parent.mkdir(parents=True,exist_ok=True)
+
+          epoch=time.time();p.write_text(json.dumps({''epoch'':epoch})+''\n'')
+
+          with open(os.environ[''BASH_ENV''],''a'') as f:f.write(''export RAWS_FEATURE_JOB_STARTED_EPOCH=''+str(epoch)+''\n'')
+
+          PYCODE'
+        no_output_timeout: 55m
+    - run:
+        name: Install checkpoint and explicit pre-restore test JDK
+        command: 'timeout 240 sudo apt-get update -qq && timeout 420 sudo apt-get install -y zstd python3-yaml openjdk-21-jdk-headless
+
+          TEST_JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
+
+          "$TEST_JAVA_HOME/bin/java" -version
+
+          "$TEST_JAVA_HOME/bin/javac" -version
+
+          printf ''export JAVA_HOME=%s\nexport PATH=%s/bin:$PATH\n'' "$TEST_JAVA_HOME" "$TEST_JAVA_HOME" >> "$BASH_ENV"
+
+          '
+        no_output_timeout: 55m
+    - run:
+        name: Review explicit native feature scope and tests
+        command: 'test "$CIRCLE_BRANCH" = "raw-sandium/native-ui158"
+
+          python3 - <<''PYCODE''
+
+          import sys
+
+          sys.path.insert(0,''tools'')
+
+          from native_features import load_manifest
+
+          from ci_compile import fingerprint
+
+          from pathlib import Path
+
+          if load_manifest()!=(''menu'',''toolbar''):raise SystemExit(''Both reviewed UI features must be explicitly enabled'')
+
+          if Path(''ci/cache-identity.txt'').read_text().strip()!=fingerprint():raise SystemExit(''Recipe identity mismatch'')
+
+          PYCODE
+
+          /usr/bin/python3 -m unittest discover -s tests -v'
+        no_output_timeout: 55m
+    - run:
+        name: Native checkpoint gate
+        command: python3 -u tools/ci_full.py gate
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact completed full archive receipt
+        keys:
+        - raws-native-final-v1-{{ .Environment.CIRCLE_WORKFLOW_ID }}
+    - run:
+        name: Native full archive prepare-probe
+        command: python3 -u tools/ci_final_archive.py prepare-probe
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact complete full base
+        keys:
+        - raws-final-base-v1-{{ checksum ".checkpoint-state/base.key" }}
+    - run:
+        name: Native checkpoint restore-base
+        command: python3 -u tools/ci_full.py restore-base
+        no_output_timeout: 55m
+    - run:
+        name: Native checkpoint restore-finish
+        command: python3 -u tools/ci_full.py restore-finish
+        no_output_timeout: 55m
+    - run:
+        name: Fresh-worker signed APK and remote-enabled reuse proof
+        command: python3 -u tools/ci_restore_probe.py
+        no_output_timeout: 55m
+    - store_artifacts:
+        path: artifacts
+        destination: native-final-fresh-probe
+    - store_artifacts:
+        path: .checkpoint-state
+        destination: native-final-restore-evidence
+  raws-native-validate-resume:
+    machine:
+      image: ubuntu-2404:current
+    resource_class: large
+    retention:
+      caches: 15d
+    environment:
+      RAWS_STAGE: '1'
+      RAWS_PIPELINE_NUMBER: << pipeline.number >>
+      RAWS_CHECKPOINT_REVIEWED: 'true'
+      RAWS_ALLOW_FRESH_SEED: 'false'
+      SISO_LIMITS: local=8,remote=80
+      RAWS_NATIVE_FEATURE_BUILD: 'true'
+      RAWS_NATIVE_FEATURE_SEED: 'true'
+      RAWS_NATIVE_RESUME_RECEIPT_ID: << pipeline.parameters.native_resume_receipt_id >>
+      RAWS_NATIVE_RESUME_CACHE_KEY: << pipeline.parameters.native_resume_cache_key >>
+    steps:
+    - checkout
+    - run:
+        name: Start original one-hour job clock
+        command: 'python3 - <<''PYCODE''
+
+          import json,os,time
+
+          from pathlib import Path
+
+          p=Path(''.feature-seed-clock.json'')
+
+          if p.exists():raise SystemExit(''Job clock already exists'')
+
+          p.parent.mkdir(parents=True,exist_ok=True)
+
+          epoch=time.time();p.write_text(json.dumps({''epoch'':epoch})+''\n'')
+
+          with open(os.environ[''BASH_ENV''],''a'') as f:f.write(''export RAWS_FEATURE_JOB_STARTED_EPOCH=''+str(epoch)+''\n'')
+
+          PYCODE'
+        no_output_timeout: 55m
+    - run:
+        name: Install checkpoint and explicit pre-restore test JDK
+        command: 'timeout 240 sudo apt-get update -qq && timeout 420 sudo apt-get install -y zstd python3-yaml openjdk-21-jdk-headless
+
+          TEST_JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
+
+          "$TEST_JAVA_HOME/bin/java" -version
+
+          "$TEST_JAVA_HOME/bin/javac" -version
+
+          printf ''export JAVA_HOME=%s\nexport PATH=%s/bin:$PATH\n'' "$TEST_JAVA_HOME" "$TEST_JAVA_HOME" >> "$BASH_ENV"
+
+          '
+        no_output_timeout: 55m
+    - run:
+        name: Review explicit native feature scope and tests
+        command: 'test "$CIRCLE_BRANCH" = "raw-sandium/native-ui158"
+
+          python3 - <<''PYCODE''
+
+          import sys
+
+          sys.path.insert(0,''tools'')
+
+          from native_features import load_manifest
+
+          from ci_compile import fingerprint
+
+          from pathlib import Path
+
+          if load_manifest()!=(''menu'',''toolbar''):raise SystemExit(''Both reviewed UI features must be explicitly enabled'')
+
+          if Path(''ci/cache-identity.txt'').read_text().strip()!=fingerprint():raise SystemExit(''Recipe identity mismatch'')
+
+          PYCODE
+
+          /usr/bin/python3 -m unittest discover -s tests -v'
+        no_output_timeout: 55m
+    - run:
+        name: Validate explicit resume selector before cache access
+        command: 'python3 - <<''PYCODE''
+
+          import os,re
+
+          if not re.fullmatch(''[0-9a-f]{64}'',os.environ[''RAWS_NATIVE_RESUME_RECEIPT_ID'']):raise SystemExit(''Exact receipt ID required'')
+
+          if not re.fullmatch(''raws-native-progress-v1-[A-Za-z0-9_-]+'',os.environ[''RAWS_NATIVE_RESUME_CACHE_KEY'']):raise SystemExit(''Exact native progress
+          cache key required'')
+
+          PYCODE'
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore explicitly selected prior native progress
+        keys:
+        - << pipeline.parameters.native_resume_cache_key >>
+    - run:
+        name: Native feature select-resume
+        command: python3 -u tools/ci_feature_seed.py select-resume
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact RawS base
+        keys:
+        - raws-full-base-v1-{{ checksum ".checkpoint-state/base.key" }}
+    - run:
+        name: RawS Full restore-base
+        command: python3 -u tools/ci_full.py restore-base
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 0
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-0.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 0
+        command: python3 -u tools/ci_full.py restore-layer --slot 0
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 1
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-1.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 1
+        command: python3 -u tools/ci_full.py restore-layer --slot 1
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 2
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-2.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 2
+        command: python3 -u tools/ci_full.py restore-layer --slot 2
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 3
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-3.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 3
+        command: python3 -u tools/ci_full.py restore-layer --slot 3
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 4
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-4.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 4
+        command: python3 -u tools/ci_full.py restore-layer --slot 4
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 5
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-5.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 5
+        command: python3 -u tools/ci_full.py restore-layer --slot 5
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 6
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-6.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 6
+        command: python3 -u tools/ci_full.py restore-layer --slot 6
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 7
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-7.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 7
+        command: python3 -u tools/ci_full.py restore-layer --slot 7
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 8
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-8.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 8
+        command: python3 -u tools/ci_full.py restore-layer --slot 8
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 9
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-9.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 9
+        command: python3 -u tools/ci_full.py restore-layer --slot 9
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 10
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-10.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 10
+        command: python3 -u tools/ci_full.py restore-layer --slot 10
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 11
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-11.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 11
+        command: python3 -u tools/ci_full.py restore-layer --slot 11
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 12
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-12.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 12
+        command: python3 -u tools/ci_full.py restore-layer --slot 12
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 13
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-13.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 13
+        command: python3 -u tools/ci_full.py restore-layer --slot 13
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 14
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-14.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 14
+        command: python3 -u tools/ci_full.py restore-layer --slot 14
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 15
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-15.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 15
+        command: python3 -u tools/ci_full.py restore-layer --slot 15
+        no_output_timeout: 55m
+    - run:
+        name: RawS Full restore-finish
+        command: python3 -u tools/ci_full.py restore-finish
+        no_output_timeout: 55m
+    - run:
+        name: Native feature verify-resume
+        command: python3 -u tools/ci_feature_seed.py verify-resume
+        no_output_timeout: 55m
+    - run:
+        name: Native feature promote-resume
+        command: python3 -u tools/ci_feature_seed.py promote-resume
+        no_output_timeout: 55m
+    - save_cache:
+        name: Publish current-pipeline verified resumed head
+        key: raws-native-inputs-verified-v1-{{ .Environment.CIRCLE_WORKFLOW_ID }}
+        paths:
+        - .checkpoint-head
+    - store_artifacts:
+        path: artifacts
+        destination: native-resume-validation
+  raws-native-validate-completed-resume:
+    machine:
+      image: ubuntu-2404:current
+    resource_class: large
+    retention:
+      caches: 15d
+    environment:
+      RAWS_STAGE: '1'
+      RAWS_PIPELINE_NUMBER: << pipeline.number >>
+      RAWS_CHECKPOINT_REVIEWED: 'true'
+      RAWS_ALLOW_FRESH_SEED: 'false'
+      SISO_LIMITS: local=8,remote=80
+      RAWS_NATIVE_FEATURE_BUILD: 'true'
+      RAWS_NATIVE_FEATURE_SEED: 'true'
+      RAWS_NATIVE_RESUME_RECEIPT_ID: << pipeline.parameters.native_resume_receipt_id >>
+      RAWS_NATIVE_RESUME_CACHE_KEY: << pipeline.parameters.native_resume_cache_key >>
+      RAWS_FINAL_ARCHIVE: 'true'
+      RAWS_FINAL_PACK_ONLY: 'true'
+    steps:
+    - checkout
+    - run:
+        name: Start original one-hour job clock
+        command: 'python3 - <<''PYCODE''
+
+          import json,os,time
+
+          from pathlib import Path
+
+          p=Path(''.feature-seed-clock.json'')
+
+          if p.exists():raise SystemExit(''Job clock already exists'')
+
+          p.parent.mkdir(parents=True,exist_ok=True)
+
+          epoch=time.time();p.write_text(json.dumps({''epoch'':epoch})+''\n'')
+
+          with open(os.environ[''BASH_ENV''],''a'') as f:f.write(''export RAWS_FEATURE_JOB_STARTED_EPOCH=''+str(epoch)+''\n'')
+
+          PYCODE'
+        no_output_timeout: 55m
+    - run:
+        name: Install checkpoint and explicit pre-restore test JDK
+        command: 'timeout 240 sudo apt-get update -qq && timeout 420 sudo apt-get install -y zstd python3-yaml openjdk-21-jdk-headless
+
+          TEST_JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
+
+          "$TEST_JAVA_HOME/bin/java" -version
+
+          "$TEST_JAVA_HOME/bin/javac" -version
+
+          printf ''export JAVA_HOME=%s\nexport PATH=%s/bin:$PATH\n'' "$TEST_JAVA_HOME" "$TEST_JAVA_HOME" >> "$BASH_ENV"
+
+          '
+        no_output_timeout: 55m
+    - run:
+        name: Review explicit native feature scope and tests
+        command: 'test "$CIRCLE_BRANCH" = "raw-sandium/native-ui158"
+
+          python3 - <<''PYCODE''
+
+          import sys
+
+          sys.path.insert(0,''tools'')
+
+          from native_features import load_manifest
+
+          from ci_compile import fingerprint
+
+          from pathlib import Path
+
+          if load_manifest()!=(''menu'',''toolbar''):raise SystemExit(''Both reviewed UI features must be explicitly enabled'')
+
+          if Path(''ci/cache-identity.txt'').read_text().strip()!=fingerprint():raise SystemExit(''Recipe identity mismatch'')
+
+          PYCODE
+
+          /usr/bin/python3 -m unittest discover -s tests -v'
+        no_output_timeout: 55m
+    - run:
+        name: Validate explicit resume selector before cache access
+        command: 'python3 - <<''PYCODE''
+
+          import os,re
+
+          if not re.fullmatch(''[0-9a-f]{64}'',os.environ[''RAWS_NATIVE_RESUME_RECEIPT_ID'']):raise SystemExit(''Exact receipt ID required'')
+
+          if not re.fullmatch(''raws-native-progress-v1-[A-Za-z0-9_-]+'',os.environ[''RAWS_NATIVE_RESUME_CACHE_KEY'']):raise SystemExit(''Exact native progress
+          cache key required'')
+
+          PYCODE'
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore explicitly selected prior native progress
+        keys:
+        - << pipeline.parameters.native_resume_cache_key >>
+    - run:
+        name: Native feature select-completed-resume
+        command: python3 -u tools/completed_feature_resume.py select
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact RawS base
+        keys:
+        - raws-full-base-v1-{{ checksum ".checkpoint-state/base.key" }}
+    - run:
+        name: RawS Full restore-base
+        command: python3 -u tools/ci_full.py restore-base
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 0
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-0.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 0
+        command: python3 -u tools/ci_full.py restore-layer --slot 0
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 1
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-1.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 1
+        command: python3 -u tools/ci_full.py restore-layer --slot 1
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 2
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-2.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 2
+        command: python3 -u tools/ci_full.py restore-layer --slot 2
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 3
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-3.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 3
+        command: python3 -u tools/ci_full.py restore-layer --slot 3
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 4
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-4.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 4
+        command: python3 -u tools/ci_full.py restore-layer --slot 4
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 5
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-5.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 5
+        command: python3 -u tools/ci_full.py restore-layer --slot 5
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 6
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-6.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 6
+        command: python3 -u tools/ci_full.py restore-layer --slot 6
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 7
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-7.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 7
+        command: python3 -u tools/ci_full.py restore-layer --slot 7
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 8
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-8.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 8
+        command: python3 -u tools/ci_full.py restore-layer --slot 8
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 9
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-9.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 9
+        command: python3 -u tools/ci_full.py restore-layer --slot 9
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 10
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-10.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 10
+        command: python3 -u tools/ci_full.py restore-layer --slot 10
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 11
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-11.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 11
+        command: python3 -u tools/ci_full.py restore-layer --slot 11
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 12
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-12.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 12
+        command: python3 -u tools/ci_full.py restore-layer --slot 12
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 13
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-13.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 13
+        command: python3 -u tools/ci_full.py restore-layer --slot 13
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 14
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-14.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 14
+        command: python3 -u tools/ci_full.py restore-layer --slot 14
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 15
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-15.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 15
+        command: python3 -u tools/ci_full.py restore-layer --slot 15
+        no_output_timeout: 55m
+    - run:
+        name: RawS Full restore-finish
+        command: python3 -u tools/ci_full.py restore-finish
+        no_output_timeout: 55m
+    - run:
+        name: Native feature verify-completed-resume
+        command: python3 -u tools/completed_feature_resume.py verify
+        no_output_timeout: 55m
+    - run:
+        name: Native feature authorize-completed-resume
+        command: python3 -u tools/completed_feature_resume.py authorize
+        no_output_timeout: 55m
+    - save_cache:
+        name: Publish fresh completed-resume authorization with original receipt
+        key: raws-native-recovery-proof-v1-{{ .Environment.CIRCLE_WORKFLOW_ID }}
+        paths:
+        - .feature-completed-resume
+        - .raws-final-progress
+    - store_artifacts:
+        path: artifacts
+        destination: native-completed-resume-validation
+  raws-native-recovery-pack:
+    machine:
+      image: ubuntu-2404:current
+    resource_class: large
+    retention:
+      caches: 15d
+    environment:
+      RAWS_STAGE: '1'
+      RAWS_PIPELINE_NUMBER: << pipeline.number >>
+      RAWS_CHECKPOINT_REVIEWED: 'true'
+      RAWS_ALLOW_FRESH_SEED: 'false'
+      SISO_LIMITS: local=8,remote=80
+      RAWS_NATIVE_FEATURE_BUILD: 'true'
+      RAWS_FINAL_ARCHIVE: 'true'
+      RAWS_FINAL_PACK_ONLY: 'true'
+      RAWS_NATIVE_FEATURE_SEED: 'true'
+      RAWS_NATIVE_RESUME_RECEIPT_ID: << pipeline.parameters.native_resume_receipt_id >>
+      RAWS_NATIVE_RESUME_CACHE_KEY: << pipeline.parameters.native_resume_cache_key >>
+    steps:
+    - checkout
+    - run:
+        name: Start original one-hour job clock
+        command: 'python3 - <<''PYCODE''
+
+          import json,os,time
+
+          from pathlib import Path
+
+          p=Path(''.checkpoint-state/job-start.json'')
+
+          if p.exists():raise SystemExit(''Job clock already exists'')
+
+          p.parent.mkdir(parents=True,exist_ok=True)
+
+          epoch=time.time();p.write_text(json.dumps({''epoch'':epoch})+''\n'')
+
+          with open(os.environ[''BASH_ENV''],''a'') as f:f.write(''export RAWS_FEATURE_JOB_STARTED_EPOCH=''+str(epoch)+''\n'')
+
+          PYCODE'
+        no_output_timeout: 55m
+    - run:
+        name: Install checkpoint and explicit pre-restore test JDK
+        command: 'timeout 240 sudo apt-get update -qq && timeout 420 sudo apt-get install -y zstd python3-yaml openjdk-21-jdk-headless
+
+          TEST_JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
+
+          "$TEST_JAVA_HOME/bin/java" -version
+
+          "$TEST_JAVA_HOME/bin/javac" -version
+
+          printf ''export JAVA_HOME=%s\nexport PATH=%s/bin:$PATH\n'' "$TEST_JAVA_HOME" "$TEST_JAVA_HOME" >> "$BASH_ENV"
+
+          '
+        no_output_timeout: 55m
+    - run:
+        name: Review explicit native feature scope and tests
+        command: 'test "$CIRCLE_BRANCH" = "raw-sandium/native-ui158"
+
+          python3 - <<''PYCODE''
+
+          import sys
+
+          sys.path.insert(0,''tools'')
+
+          from native_features import load_manifest
+
+          from ci_compile import fingerprint
+
+          from pathlib import Path
+
+          if load_manifest()!=(''menu'',''toolbar''):raise SystemExit(''Both reviewed UI features must be explicitly enabled'')
+
+          if Path(''ci/cache-identity.txt'').read_text().strip()!=fingerprint():raise SystemExit(''Recipe identity mismatch'')
+
+          PYCODE
+
+          /usr/bin/python3 -m unittest discover -s tests -v'
+        no_output_timeout: 55m
+    - run:
+        name: Native checkpoint gate
+        command: python3 -u tools/ci_full.py gate
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact current-workflow recovery proof and original completed receipt
+        keys:
+        - raws-native-recovery-proof-v1-{{ .Environment.CIRCLE_WORKFLOW_ID }}
+    - run:
+        name: Authorize exact completed receipt without rewriting provenance
+        command: python3 -u tools/completed_feature_resume.py prepare
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact RawS base
+        keys:
+        - raws-full-base-v1-{{ checksum ".checkpoint-state/base.key" }}
+    - run:
+        name: RawS Full restore-base
+        command: python3 -u tools/ci_full.py restore-base
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 0
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-0.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 0
+        command: python3 -u tools/ci_full.py restore-layer --slot 0
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 1
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-1.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 1
+        command: python3 -u tools/ci_full.py restore-layer --slot 1
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 2
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-2.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 2
+        command: python3 -u tools/ci_full.py restore-layer --slot 2
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 3
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-3.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 3
+        command: python3 -u tools/ci_full.py restore-layer --slot 3
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 4
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-4.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 4
+        command: python3 -u tools/ci_full.py restore-layer --slot 4
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 5
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-5.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 5
+        command: python3 -u tools/ci_full.py restore-layer --slot 5
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 6
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-6.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 6
+        command: python3 -u tools/ci_full.py restore-layer --slot 6
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 7
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-7.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 7
+        command: python3 -u tools/ci_full.py restore-layer --slot 7
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 8
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-8.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 8
+        command: python3 -u tools/ci_full.py restore-layer --slot 8
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 9
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-9.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 9
+        command: python3 -u tools/ci_full.py restore-layer --slot 9
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 10
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-10.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 10
+        command: python3 -u tools/ci_full.py restore-layer --slot 10
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 11
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-11.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 11
+        command: python3 -u tools/ci_full.py restore-layer --slot 11
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 12
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-12.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 12
+        command: python3 -u tools/ci_full.py restore-layer --slot 12
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 13
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-13.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 13
+        command: python3 -u tools/ci_full.py restore-layer --slot 13
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 14
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-14.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 14
+        command: python3 -u tools/ci_full.py restore-layer --slot 14
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 15
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-15.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 15
+        command: python3 -u tools/ci_full.py restore-layer --slot 15
+        no_output_timeout: 55m
+    - run:
+        name: RawS Full restore-finish
+        command: python3 -u tools/ci_full.py restore-finish
+        no_output_timeout: 55m
+    - run:
+        name: Reverify actual restored source GN and signed APK before full capture
+        command: python3 -u tools/completed_feature_resume.py verify-pack
+        no_output_timeout: 55m
+    - run:
+        name: Native full archive capture
+        command: python3 -u tools/ci_final_archive.py capture
+        no_output_timeout: 55m
+    - save_cache:
+        name: Save complete APK-producing full archive
+        key: raws-final-base-v1-{{ checksum ".raws-final-archive/base.key" }}
+        paths:
+        - raw-workspace-checkpoint.manifest.json
+        - raw-workspace-checkpoint.shards
+    - run:
+        name: Native full archive clear
+        command: python3 -u tools/ci_final_archive.py clear
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Read back exact complete full archive
+        keys:
+        - raws-final-base-v1-{{ checksum ".raws-final-archive/base.key" }}
+    - run:
+        name: Native full archive verify-publish
+        command: python3 -u tools/ci_final_archive.py verify-publish
+        no_output_timeout: 55m
+    - save_cache:
+        name: Publish exact full archive for fresh probe
+        key: raws-native-final-v1-{{ .Environment.CIRCLE_WORKFLOW_ID }}
+        paths:
+        - .raws-final-archive
+    - save_cache:
+        name: Publish immutable full archive receipt
+        key: raws-final-receipt-v1-{{ checksum ".raws-final-archive/receipt.json" }}
+        paths:
+        - .raws-final-archive
+    - store_artifacts:
+        path: .raws-final-archive
+        destination: native-final-archive-evidence
+  raws-native-invalid-resume:
+    machine:
+      image: ubuntu-2404:current
+    resource_class: large
+    retention:
+      caches: 15d
+    environment:
+      RAWS_STAGE: '1'
+      RAWS_PIPELINE_NUMBER: << pipeline.number >>
+      RAWS_CHECKPOINT_REVIEWED: 'true'
+      RAWS_ALLOW_FRESH_SEED: 'true'
+      SISO_LIMITS: local=8,remote=80
+    steps:
+    - run:
+        name: Reject incomplete explicit resume selection
+        command: echo 'Supply both exact resume receipt ID and exact cache key, or neither.' >&2; exit 1
+        no_output_timeout: 55m
 job-groups:
   raws-full-chain:
     jobs:
@@ -2786,6 +6322,126 @@ job-groups:
         filters:
           branches:
             only: raw-sandium/official158
+  raws-native-chain:
+    jobs:
+    - raws-native-seed:
+        filters:
+          branches:
+            only: raw-sandium/native-ui158
+    - raws-native-validate-inputs:
+        filters:
+          branches:
+            only: raw-sandium/native-ui158
+        requires:
+        - raws-native-seed
+    - raws-native-compile-1:
+        filters:
+          branches:
+            only: raw-sandium/native-ui158
+        requires:
+        - raws-native-validate-inputs
+    - raws-native-compile-2:
+        filters:
+          branches:
+            only: raw-sandium/native-ui158
+        requires:
+        - raws-native-compile-1
+    - raws-native-compile-3:
+        filters:
+          branches:
+            only: raw-sandium/native-ui158
+        requires:
+        - raws-native-compile-2
+    - raws-native-compile-4:
+        filters:
+          branches:
+            only: raw-sandium/native-ui158
+        requires:
+        - raws-native-compile-3
+    - raws-native-compile-5:
+        filters:
+          branches:
+            only: raw-sandium/native-ui158
+        requires:
+        - raws-native-compile-4
+    - raws-native-pack:
+        filters:
+          branches:
+            only: raw-sandium/native-ui158
+        requires:
+        - raws-native-compile-5
+    - raws-native-probe:
+        filters:
+          branches:
+            only: raw-sandium/native-ui158
+        requires:
+        - raws-native-pack
+  raws-native-resume-chain:
+    jobs:
+    - raws-native-validate-resume:
+        filters:
+          branches:
+            only: raw-sandium/native-ui158
+    - raws-native-compile-1:
+        filters:
+          branches:
+            only: raw-sandium/native-ui158
+        requires:
+        - raws-native-validate-resume
+    - raws-native-compile-2:
+        filters:
+          branches:
+            only: raw-sandium/native-ui158
+        requires:
+        - raws-native-compile-1
+    - raws-native-compile-3:
+        filters:
+          branches:
+            only: raw-sandium/native-ui158
+        requires:
+        - raws-native-compile-2
+    - raws-native-compile-4:
+        filters:
+          branches:
+            only: raw-sandium/native-ui158
+        requires:
+        - raws-native-compile-3
+    - raws-native-compile-5:
+        filters:
+          branches:
+            only: raw-sandium/native-ui158
+        requires:
+        - raws-native-compile-4
+    - raws-native-pack:
+        filters:
+          branches:
+            only: raw-sandium/native-ui158
+        requires:
+        - raws-native-compile-5
+    - raws-native-probe:
+        filters:
+          branches:
+            only: raw-sandium/native-ui158
+        requires:
+        - raws-native-pack
+  raws-native-recovery-chain:
+    jobs:
+    - raws-native-validate-completed-resume:
+        filters:
+          branches:
+            only: raw-sandium/native-ui158
+    - raws-native-recovery-pack:
+        filters:
+          branches:
+            only: raw-sandium/native-ui158
+        requires:
+        - raws-native-validate-completed-resume
+    - raws-native-probe:
+        filters:
+          branches:
+            only: raw-sandium/native-ui158
+        requires:
+        - raws-native-recovery-pack
 workflows:
   raw-sandium-feasibility:
     when: << pipeline.parameters.run_raw_preflight >>
@@ -2819,3 +6475,60 @@ workflows:
     jobs:
     - raws-final-chain:
         serial-group: << pipeline.project.slug >>/raws-full
+  RawS native UI candidate:
+    when:
+      and:
+      - << pipeline.parameters.run_raw_native_features >>
+      - &id003
+        equal:
+        - ''
+        - << pipeline.parameters.native_resume_receipt_id >>
+      - &id004
+        equal:
+        - ''
+        - << pipeline.parameters.native_resume_cache_key >>
+      - not: << pipeline.parameters.native_resume_completed >>
+    jobs:
+    - raws-native-chain:
+        serial-group: << pipeline.project.slug >>/raws-full
+  RawS native UI explicit resume:
+    when:
+      and:
+      - << pipeline.parameters.run_raw_native_features >>
+      - not: *id003
+      - not: *id004
+      - not: << pipeline.parameters.native_resume_completed >>
+    jobs:
+    - raws-native-resume-chain:
+        serial-group: << pipeline.project.slug >>/raws-full
+  RawS native UI completed archive recovery:
+    when:
+      and:
+      - << pipeline.parameters.run_raw_native_features >>
+      - not: *id003
+      - not: *id004
+      - << pipeline.parameters.native_resume_completed >>
+    jobs:
+    - raws-native-recovery-chain:
+        serial-group: << pipeline.project.slug >>/raws-full
+  Reject incomplete native resume:
+    when:
+      and:
+      - << pipeline.parameters.run_raw_native_features >>
+      - or:
+        - and:
+          - *id003
+          - not: *id004
+        - and:
+          - not: *id003
+          - *id004
+        - and:
+          - << pipeline.parameters.native_resume_completed >>
+          - or:
+            - *id003
+            - *id004
+    jobs:
+    - raws-native-invalid-resume:
+        filters:
+          branches:
+            only: raw-sandium/native-ui158

@@ -3,6 +3,7 @@ import contextlib,json,os,shutil,tempfile,time,unittest
 from pathlib import Path
 from unittest.mock import patch
 from test_raw_full_adapter import c
+from native_features import load_manifest
 
 @unittest.skipUnless(shutil.which('zstd'),'zstd needed for real checkpoint integration')
 class FullRoundtrip(unittest.TestCase):
@@ -12,7 +13,7 @@ class FullRoundtrip(unittest.TestCase):
    stack.enter_context(patch.object(c,'ROOT',root))
    stack.enter_context(patch.multiple(c.D,ROOT=root,STATE=state,HEAD=head,INCOMING=incoming,LAYERS=root/'.bridge-layers',operation_budget=120,create=True))
    stack.enter_context(patch.multiple(c.D.c,ROOT=root,STATE=state,HEAD=head,INCOMING=incoming))
-   stack.enter_context(patch.dict(os.environ,CIRCLE_BRANCH='raw-sandium/official158',CIRCLE_PROJECT_REPONAME='Sandium-2',RAWS_CHECKPOINT_REVIEWED='true',RAWS_ALLOW_FRESH_SEED='true',RAWS_STAGE='1',RAWS_PIPELINE_NUMBER='100',CIRCLE_WORKFLOW_ID='roundtrip',CIRCLE_BUILD_NUM='1',CIRCLE_SHA1='revision'))
+   stack.enter_context(patch.dict(os.environ,CIRCLE_BRANCH='raw-sandium/native-ui158' if load_manifest() else 'raw-sandium/official158',RAWS_NATIVE_FEATURE_BUILD='true',CIRCLE_PROJECT_REPONAME='Sandium-2',RAWS_CHECKPOINT_REVIEWED='true',RAWS_ALLOW_FRESH_SEED='true',RAWS_STAGE='1',RAWS_PIPELINE_NUMBER='100',CIRCLE_WORKFLOW_ID='roundtrip',CIRCLE_BUILD_NUM='1',CIRCLE_SHA1='revision'))
    c.prepare()
    work=root/'work/source';out=work/'src/out/RawSandium';out.mkdir(parents=True)
    for p in [work/'.gclient',work/'src/.git/HEAD',out/'build.ninja',out/'args.gn',out/'.siso_fs_state',out/'.siso_deps']:

@@ -12,6 +12,16 @@ def lock():
     assert SHA.fullmatch(value['chromium']['revision']), 'Invalid Chromium pin'
     assert value['cpu'] == 'arm64' and value['target'] == 'chrome_public_apk'
     return value
+def require_build_scope():
+    branch=os.environ.get('CIRCLE_BRANCH')
+    from native_features import load_manifest
+    if branch=='raw-sandium/official158' and not load_manifest(ROOT): return
+    if (branch=='raw-sandium/native-ui158'
+            and os.environ.get('RAWS_NATIVE_FEATURE_BUILD')=='true'
+            and load_manifest(ROOT)):
+        return
+    raise ValueError('Unapproved RawS build scope')
+
 def workspace(path):
     p = Path(path).resolve()
     if p == ROOT or ROOT.is_relative_to(p):
@@ -42,13 +52,16 @@ def resolve_tools():
     data['depot_tools']['revision'] = sha
     (ROOT/'upstream.lock.json').write_text(json.dumps(data,indent=2)+'\n')
     print('Resolved depot_tools pin; commit reviewed lock before publishing a build.')
-def verify(src, data):
+def verify(src, data, *, allow_feature_preimages=False):
     actual = run(['git','-C',str(src),'rev-parse','HEAD'],capture_output=True).stdout.strip()
     if actual != data['chromium']['revision']: raise ValueError('Wrong Chromium revision')
     changed=run(['git','-C',str(src),'diff','HEAD','--name-only','-z'],capture_output=True).stdout
     names=set(filter(None,changed.split('\0')))
-    if names:
-        if names!={SISO_MAIN}:raise ValueError('Unapproved tracked Chromium changes present')
+    from native_features import plan, verify_applied
+    feature_plan = plan(src, ROOT) if allow_feature_preimages else verify_applied(src, ROOT)
+    if names - set(feature_plan.tracked_paths) - {SISO_MAIN}:
+        raise ValueError('Unapproved tracked Chromium changes present')
+    if SISO_MAIN in names:
         original=run(['git','-C',str(src),'show','HEAD:'+SISO_MAIN],capture_output=True).stdout
         if (src/SISO_MAIN).read_text()!=patched_siso(original):
             raise ValueError('Siso compatibility source differs from exact approved transform')
@@ -72,7 +85,7 @@ def setup(path):
     if cfg.exists() and cfg.read_text()!=spec: raise ValueError('Unexpected gclient configuration')
     cfg.write_text(spec)
     run([str(depot/'gclient'),'sync','--nohooks','--no-history','--revision','src@'+data['chromium']['revision']],cwd=w,env=env)
-    verify(w/'src',data)
+    verify(w/'src',data, allow_feature_preimages=True)
     print('Source ready. Install OS dependencies with src/build/install-build-deps.sh, then build.')
 def build(path):
     data = lock(); w = Path(path).resolve()

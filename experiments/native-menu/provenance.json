@@ -1,0 +1,9 @@
+{
+  "chromium": "52bdd21723d5db0c9ab11716d38feac74828cf84",
+  "raws_base": "e7e782067daef429073e54c2bd8fbb91da7c8439",
+  "sha256": {
+    "AppMenuHandlerImpl.java": "572aef370edc37581181123c85d1bf99df2b805e4e84d5f4110224de6f0617f6",
+    "BUILD.gn": "7cbb8608ee92491b8ce94fa48c3b8bac8a58a317892eb4545754987b1632cf9c",
+    "LICENSE": "368cca1106be99d39ecd32a38d8305585d802a475effb66380b91ffc9bcf709b"
+  }
+}
