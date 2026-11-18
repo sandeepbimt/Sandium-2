@@ -1,0 +1,35 @@
+version: 2.1
+parameters:
+  run_raw_preflight:
+    type: boolean
+    default: false
+jobs:
+  raw-preflight:
+    machine:
+      image: ubuntu-2404:current
+    resource_class: large
+    steps:
+      - checkout
+      - run:
+          name: Guard isolated Raw Sandium branch
+          command: test "$CIRCLE_BRANCH" = "raw-sandium/bootstrap"
+      - run:
+          name: Validate scaffold
+          command: |
+            python3 -m unittest discover -s tests -v
+            python3 -m py_compile tools/raw.py tools/ci_preflight.py
+      - run:
+          name: Check clean Chromium host feasibility only
+          command: timeout 120s python3 tools/ci_preflight.py
+          no_output_timeout: 3m
+      - store_artifacts:
+          path: artifacts
+          destination: raw-sandium-preflight
+workflows:
+  raw-sandium-feasibility:
+    when: << pipeline.parameters.run_raw_preflight >>
+    jobs:
+      - raw-preflight:
+          filters:
+            branches:
+              only: raw-sandium/bootstrap

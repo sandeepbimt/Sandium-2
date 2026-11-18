@@ -12,7 +12,7 @@ verified the official depot_tools revision. Disk remains the full-build blocker,
 not a source compilation failure. No APK has been built by this project.
 
 ## CI
-The inactive ci/circleci-config.example.yml runs inexpensive scaffold validation only when deliberately enabled in a separate project. No active .circleci/config.yml is supplied on this branch. It has no connection
+The .circleci/config.yml is opt-in (run_raw_preflight=false by default) and guards the raw-sandium/bootstrap branch. Its first job only runs scaffold tests and a120-second host/network probe, not checkout/compile of Chromium. It has no connection
 to existing Sandium cache namespaces, artifacts or credential contexts. A clean
 Chromium build still needs a sufficiently provisioned host; the existing25-minute
 Sandium checkpoint strategy is not yet ported here. Do not enable a cold full

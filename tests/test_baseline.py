@@ -36,3 +36,19 @@ class Baseline(unittest.TestCase):
         args=(ROOT/'ci/args.gn').read_text(); self.assertIn('target_cpu = "arm64"',args)
         self.assertNotIn('enable_extensions',args)
 if __name__=='__main__':unittest.main()
+
+class CIIsolation(unittest.TestCase):
+    def test_ci_opt_in_and_branch_guard(self):
+        config=(ROOT/'.circleci/config.yml').read_text()
+        self.assertIn('default: false',config)
+        self.assertIn('only: raw-sandium/bootstrap',config)
+        self.assertIn('test "$CIRCLE_BRANCH" = "raw-sandium/bootstrap"',config)
+        self.assertNotIn('restore_cache:',config)
+        self.assertNotIn('save_cache:',config)
+        self.assertNotIn('context:',config)
+        self.assertIn('timeout 120s',config)
+    def test_probe_has_no_compile_or_credentials(self):
+        probe=(ROOT/'tools/ci_preflight.py').read_text()
+        self.assertNotIn('autoninja',probe)
+        self.assertNotIn('TOKEN',probe)
+        self.assertNotIn('SECRET',probe)
