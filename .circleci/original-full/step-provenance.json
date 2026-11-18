@@ -110,12 +110,12 @@
   },
   {
     "baseline_index": 21,
-    "candidate_index": 22,
+    "candidate_index": 23,
     "status": "approved incomplete handoff validation"
   },
   {
     "baseline_index": 22,
-    "candidate_index": 23,
+    "candidate_index": 24,
     "status": "byte-identical task object"
   },
   {
@@ -155,7 +155,7 @@
   },
   {
     "baseline_index": 28,
-    "candidate_index": 31,
+    "candidate_index": 21,
     "status": "byte-identical task object"
   },
   {

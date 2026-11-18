@@ -511,6 +511,15 @@ jobs:
           bash .circleci/scripts/archive-brave-workspace.sh restore
 
           '
+    - run:
+        name: Diagnose restored Siso checkpoint and compare prior stage
+        command: 'set -euo pipefail
+
+          export BRAVE_STAGE_INDEX="<< parameters.stage_index >>"
+
+          bash .circleci/scripts/capture-brave-siso-checkpoint.sh restore
+
+          '
     - when:
         condition:
           equal:
@@ -572,15 +581,6 @@ jobs:
     - run:
         name: Compile-exclude and audit all thirteen Sandium removal groups
         command: bash .circleci/experimental-steps/product-overlay-30-0.sh
-    - run:
-        name: Diagnose restored Siso checkpoint and compare prior stage
-        command: 'set -euo pipefail
-
-          export BRAVE_STAGE_INDEX="<< parameters.stage_index >>"
-
-          bash .circleci/scripts/capture-brave-siso-checkpoint.sh restore
-
-          '
     - save_cache:
         name: Save Ubuntu Android build-dependency package cache
         key: sandium-brave-apt-v1-ubuntu2404-{{ .Branch }}-{{ epoch }}
