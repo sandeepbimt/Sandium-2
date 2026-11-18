@@ -34,3 +34,25 @@ Checkout, branch guard and13 scaffold tests passed. Host free disk143007555584
 bytes, memory16464265216 bytes,4CPUs. Official depot_tools endpoint returned200.
 GitHub raw VERSION mirror returned HTTPError, so probe failed before any compile.
 Next probe uses canonical Chromium Gitiles and records HTTP status explicitly.
+
+## Canonical Git follow-up
+
+The official Git protocol independently resolved tag `156.0.8078.74` to
+`d331de35ca8ab1358c7a17e4bd41627d55eaef51`. This is stronger source-identity
+evidence than a failing Gitiles HTTP request. It does not prove a complete
+checkout or working compiler.
+
+The opt-in `run_raw_bootstrap` job verifies that tag again on CircleCI,
+fetches only pinned depot_tools and Chromium commit objects, and reads
+`chrome/VERSION` through Git. It retries each network operation once and has
+an 18-minute outer limit. It neither compiles nor restores any old cache.
+All diagnosis is saved as a JSON artifact, including failed attempts.
+
+Before a full compile pipeline is enabled, independent source/dependency sync,
+OS dependencies and hooks must succeed. Proposed phase boundaries are:
+1. Pinned source plus Android dependencies, with exact lock-keyed persistence.
+2. Toolchain hooks and GN generation, with resolved toolchain receipts.
+3. 25-minute compile slices on exactly that state; persist only on slice expiry.
+4. APK verification and artifact publication, then skip all later stages.
+Any genuine build failure terminates the chain, not another slice. No phase may
+read a Brave checkpoint. Compilation remains disabled pending those validations.

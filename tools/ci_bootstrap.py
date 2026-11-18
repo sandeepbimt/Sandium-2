@@ -6,6 +6,7 @@ from raw import ROOT, lock, workspace
 
 def command(args, timeout=90):
     attempts=[]
+    print('Starting:', ' '.join(args), flush=True)
     for attempt in range(2):
         try:
             p=subprocess.run(args,text=True,capture_output=True,timeout=timeout,
@@ -14,6 +15,7 @@ def command(args, timeout=90):
         except subprocess.TimeoutExpired:
             item={'error':'timeout','seconds':timeout}
         attempts.append(item)
+        print('Attempt', attempt+1, 'finished:', item.get('returncode',item.get('error')), flush=True)
         if item.get('returncode')==0:return item['stdout'],attempts
         if attempt==0:time.sleep(3)
     return None,attempts
@@ -38,8 +40,12 @@ def bootstrap():
             dest=w/name
             if not dest.exists():
                 dest.mkdir();subprocess.run(['git','init',str(dest)],check=True,capture_output=True)
+            # Name the promisor remote so a filtered fetch can retrieve VERSION later.
+            subprocess.run(['git','-C',str(dest),'config','remote.origin.url',entry['repository']],check=True)
+            subprocess.run(['git','-C',str(dest),'config','remote.origin.promisor','true'],check=True)
+            subprocess.run(['git','-C',str(dest),'config','remote.origin.partialclonefilter','blob:none'],check=True)
             # Fetch only one pinned commit. No checkout, dependencies, hooks, or old caches.
-            text,attempts=command(['git','-C',str(dest),'-c','http.lowSpeedLimit=1000','-c','http.lowSpeedTime=30','fetch','--depth=1','--filter=blob:none','--no-tags',entry['repository'],entry['revision']],timeout=180)
+            text,attempts=command(['git','-C',str(dest),'-c','http.lowSpeedLimit=1000','-c','http.lowSpeedTime=30','fetch','--depth=1','--filter=blob:none','--no-tags','origin',entry['revision']],timeout=180)
             result['steps'][name+'_fetch']=attempts
             if text is None:raise ValueError(name+' pinned fetch failed')
             actual=subprocess.check_output(['git','-C',str(dest),'rev-parse','FETCH_HEAD'],text=True).strip()
