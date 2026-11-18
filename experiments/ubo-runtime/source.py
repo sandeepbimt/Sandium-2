@@ -84,6 +84,11 @@ def plan(core,src,enabled):
         raise ValueError('Missing pinned web auth source')
     fixed_auth = auth['transform'](raw_auth)
     payload[src/auth['PATH']] = fixed_auth if enabled else raw_auth
+    raw_auth_header = blob(src, CHROMIUM_PIN, auth['HEADER_PATH'])
+    if raw_auth_header is None:
+        raise ValueError('Missing pinned web auth header')
+    fixed_auth_header = auth['transform_header'](raw_auth_header)
+    payload[src/auth['HEADER_PATH']] = fixed_auth_header if enabled else raw_auth_header
     api = runpy.run_path(str(ROOT/'api-client/apply.py'))
     raw_api = blob(src, CHROMIUM_PIN, api['PATH'])
     if raw_api is None:

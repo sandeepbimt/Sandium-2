@@ -17,3 +17,17 @@ source.py owns exact pinned on/off postimages, including reset before subsequent
 source preparation. No live source is accepted as an input. The focused compiled
 regression exercises the actual patched popup function with both UI flags off,
 without declaring the missing desktop callback or weak factory.
+
+Header fixture: same official Chromium revision, web_auth_flow.h in the same
+source directory. SHA256:
+177cc5e7d364470b40a25bded701d26dd272955d75acd935269832da7d80ea5d
+The gesture member and its initializer exist only with an implemented popup UI.
+Each supported popup branch returns true itself; the core-only branch returns
+false without an unreachable trailing success return.
+
+The warning regression uses installed libclang 19's real C++ frontend (via its
+stable C API), with -Werror -Wunreachable-code-return -Wunused-private-field.
+It checks the exact patched field/initializer in all three supported flag
+combinations and the exact core-only popup body. Negative controls verify that
+both original warning categories are diagnosed. This is a host semantic check,
+not a complete Android compile or runtime claim.
