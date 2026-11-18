@@ -54,7 +54,7 @@ jobs:
       - run:
           name: Skip checkpoints once APK exists
           command: |
-            python3 - <<'CHECK'
+            python3 - \<<'CHECK'
             import json,subprocess
             if json.load(open('handoff/stage1/state.json'))['status']=='done':
                 subprocess.run(['circleci-agent','step','halt'],check=True)
@@ -92,7 +92,7 @@ jobs:
       - run:
           name: Skip before large restore when earlier APK is done
           command: |
-            python3 - <<'CHECK'
+            python3 - \<<'CHECK'
             import json,pathlib,subprocess
             for p in pathlib.Path('handoff').glob('stage*/state.json'):
                 if json.load(open(p)).get('status') in ('done','skipped_done'):
@@ -134,7 +134,7 @@ jobs:
       - run:
           name: Final-slice completion check
           command: |
-            python3 - <<'CHECK'
+            python3 - \<<'CHECK'
             import json
             stage = << parameters.stage >>
             state=json.load(open(f'handoff/stage{stage}/state.json'))
