@@ -1,1 +1,0 @@
-package android.content;public interface DialogInterface {void dismiss();interface OnClickListener{void onClick(DialogInterface d,int i);}interface OnMultiChoiceClickListener{void onClick(DialogInterface d,int i,boolean b);} }

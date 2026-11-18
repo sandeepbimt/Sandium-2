@@ -1,0 +1,16 @@
+{
+  "schema": 1,
+  "chromium": {
+    "repository": "https://chromium.googlesource.com/chromium/src.git",
+    "revision": "d331de35ca8ab1358c7a17e4bd41627d55eaef51",
+    "version": "156.0.8078.74",
+    "provenance": "https://raw.githubusercontent.com/chromium/chromium/d331de35ca8ab1358c7a17e4bd41627d55eaef51/chrome/VERSION",
+    "rationale": "Same Chromium revision as existing Sandium baseline; compare removal of Brave independently of engine upgrades. Not a claim of latest stable."
+  },
+  "depot_tools": {
+    "repository": "https://chromium.googlesource.com/chromium/tools/depot_tools.git",
+    "revision": null
+  },
+  "target": "chrome_public_apk",
+  "cpu": "arm64"
+}

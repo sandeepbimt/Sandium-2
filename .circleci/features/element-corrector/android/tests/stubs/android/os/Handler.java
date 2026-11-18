@@ -1,1 +1,0 @@
-package android.os;import java.util.*;public class Handler {public List<Runnable> pending=new ArrayList<>();public Handler(Looper l){}public void postDelayed(Runnable r,long t){pending.add(r);}public void removeCallbacks(Runnable r){pending.removeIf(x->x==r);}}

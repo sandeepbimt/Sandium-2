@@ -1,1 +1,0 @@
-package org.chromium.components.prefs; public class PrefService { public String value="";public int writes,reads;public boolean fail; public String getString(String key){reads++;return value;}public void setString(String key,String v){if(fail)throw new IllegalStateException("disk");value=v;writes++;} }

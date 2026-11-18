@@ -1,1 +1,0 @@
-package android.media; public class AudioManager {public static final int STREAM_MUSIC=3; public int volume=5; public int getStreamVolume(int t){return volume;} public boolean isVolumeFixed(){return false;} public int getStreamMaxVolume(int t){return 10;} public int getStreamMinVolume(int t){return 0;} public void setStreamVolume(int t,int v,int f){volume=v;}}

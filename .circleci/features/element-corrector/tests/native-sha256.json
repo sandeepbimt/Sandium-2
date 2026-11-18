@@ -1,9 +1,0 @@
-{
-  "third_party/blink/renderer/core/dom/element.cc": "ca5bb2412592931db52617386e04572ce9f587dc1ca456790e0f8d6226f30fb0",
-  "third_party/blink/renderer/core/css/resolver/style_adjuster.cc": "55df506be8e2e750ec085ef31413bc2f371c25e9b261032e32e56e14ec46ef9e",
-  "third_party/blink/renderer/core/BUILD.gn": "110d4ee2c85265dd5104e709545418342ced1b6e6c848321ace57c24d723e467",
-  "third_party/blink/public/web/web_element.h": "e2d4340fdbd2a1e6e0ad4b660b20137136e9b4268ba47dcd4be21f23aa1a563a",
-  "third_party/blink/renderer/core/exported/web_element.cc": "f62e6af7ab6776d32f818e148d6a4fe1889a4ba6f0337e97c78f05e2eb025276",
-  "third_party/blink/renderer/core/paint/image_painter.cc": "2caca55d412a93090c1faf8c083d11ddbda18de083a8fe88d2b5d8a4dd77635b",
-  "third_party/blink/renderer/core/style/computed_style_extra_fields.json5": "d9db22700dd4b616b4f241ddc778d1069c3c7b43bbca1b002b5511176e916363"
-}

@@ -1,1 +1,0 @@
-package android.view; public class KeyEvent {public static final int KEYCODE_ENTER=66,KEYCODE_SPACE=62,KEYCODE_DPAD_CENTER=23;private final int repeat;private final boolean canceled;public KeyEvent(int r,boolean c){repeat=r;canceled=c;}public int getRepeatCount(){return repeat;}public boolean isCanceled(){return canceled;}}

@@ -1,1 +1,0 @@
-package org.chromium.services.media_session; public class MediaPosition {long d,p,t;float r;public MediaPosition(long d,long p,float r,long t){this.d=d;this.p=p;this.r=r;this.t=t;}public long getDuration(){return d;}public long getPosition(){return p;}public float getPlaybackRate(){return r;}public long getLastUpdatedTime(){return t;}}

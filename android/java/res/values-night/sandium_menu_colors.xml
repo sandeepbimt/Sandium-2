@@ -1,9 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-  <color name="sandium_menu_group_surface">#1A1A1A</color>
-  <color name="sandium_menu_surface_container">#000000</color>
-  <color name="sandium_menu_on_surface">#FAFAFA</color>
-  <color name="sandium_menu_on_surface_variant">#BDBDBD</color>
-  <color name="sandium_menu_outline_variant">#454545</color>
-  <color name="sandium_menu_accent">#198CFF</color>
-</resources>

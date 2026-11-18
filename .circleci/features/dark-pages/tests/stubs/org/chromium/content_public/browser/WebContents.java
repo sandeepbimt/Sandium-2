@@ -1,1 +1,0 @@
-package org.chromium.content_public.browser;import org.chromium.chrome.browser.profiles.Profile;import org.chromium.url.GURL;public class WebContents {public Profile profile; public GURL url;public WebContents(Profile p,String u){profile=p;url=new GURL(u);}public GURL getVisibleUrl(){return url;} }

@@ -1,1 +1,0 @@
-package org.chromium.chrome.browser.sandium.dark;public class SandiumElementColorsUtilsJni {public static SandiumElementColorsUtils.Natives instance;public static SandiumElementColorsUtils.Natives get(){return instance;}}

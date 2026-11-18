@@ -1,1 +1,0 @@
-package org.chromium.components.user_prefs;import java.util.*;import org.chromium.chrome.browser.profiles.Profile;import org.chromium.components.prefs.PrefService;public class UserPrefs { static Map<Profile,PrefService> prefs=new HashMap<>();public static PrefService get(Profile p){return prefs.computeIfAbsent(p,x->new PrefService());} }

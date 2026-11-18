@@ -1,1 +1,0 @@
-package org.chromium.chrome.browser.tab; public class Tab {public org.chromium.content_public.browser.WebContents contents; public Tab(org.chromium.content_public.browser.WebContents c){contents=c;} public org.chromium.content_public.browser.WebContents getWebContents(){return contents;}}

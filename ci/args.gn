@@ -1,0 +1,9 @@
+# Baseline full Chromium Android browser, no Brave imports or extensions hacks.
+target_os = "android"
+target_cpu = "arm64"
+is_debug = false
+is_component_build = false
+symbol_level = 1
+is_official_build = false
+# Standalone baseline; do not borrow existing Sandium remote-execution credentials.
+use_remoteexec = false

@@ -1,1 +1,0 @@
-package android.view;public class ViewGroup extends View {public int getChildCount(){return children.size();}public View getChildAt(int i){return children.get(i);}}

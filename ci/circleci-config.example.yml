@@ -1,0 +1,14 @@
+version: 2.1
+# Deliberately validation-only: no borrowed Sandium credentials, caches or runs.
+jobs:
+  validate:
+    docker:
+      - image: cimg/python:3.12
+    steps:
+      - checkout
+      - run: python3 -m unittest discover -s tests -v
+      - run: python3 -m py_compile tools/raw.py
+workflows:
+  raw-baseline-validation:
+    jobs:
+      - validate

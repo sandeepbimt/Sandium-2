@@ -1,1 +1,0 @@
-package android.widget;public class RadioGroup extends LinearLayout {int checked;public RadioGroup(android.content.Context c){super(c);}public void check(int i){checked=i;}public int getCheckedRadioButtonId(){return checked;}}
