@@ -56,8 +56,18 @@ class SnapshotOrdering(unittest.TestCase):
    files={'build.ninja':'build example: rule\n','args.gn':'x=true\n','args_generated.gni':'x=1\n','.siso_fs_state':'state','.ninja_log':'log','obj/a.o':'object','gen/a.h':'generated'}
    for name,data in files.items():
     p=out/name;p.parent.mkdir(parents=True,exist_ok=True);p.write_text(data)
+   # Exact archive exclusion: emulate the 354-byte Ninja transient delta.
+   staging=out/'obj/metadata.staging';staging.write_bytes(b'x'*354)
+   staged_dir=out/'gen/transient.staging';staged_dir.mkdir()
+   (staged_dir/'hidden.h').write_text('not archived')
    env=dict(os.environ,CIRCLE_WORKING_DIRECTORY=td,CIRCLE_WORKFLOW_ID='same-workflow',CIRCLE_BUILD_NUM='1',BRAVE_STAGE_INDEX='1')
    subprocess.run(['bash',str(script),'checkpoint-ready'],env=env,check=True,capture_output=True)
+   report=next((root/'brave-work/.sandium/checkpoint-diagnostics/stage-1').glob('*checkpoint-ready.txt')).read_text()
+   self.assertIn('OBJ_EXCLUDED_STAGING_BYTES=354',report)
+   self.assertIn('GEN_EXCLUDED_STAGING_DIRECTORIES=1',report)
+   staging.unlink()
+   import shutil
+   shutil.rmtree(staged_dir)
    env.update(BRAVE_STAGE_INDEX='2',CIRCLE_BUILD_NUM='2')
    passed=subprocess.run(['bash',str(script),'restore'],env=env,capture_output=True,text=True)
    self.assertEqual(0,passed.returncode,passed.stdout+passed.stderr)
