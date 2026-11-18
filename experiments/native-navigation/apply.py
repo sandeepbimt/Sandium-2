@@ -7,9 +7,15 @@ PIN='d331de35ca8ab1358c7a17e4bd41627d55eaef51'
 BRAVE='44a84b1f89d9a35287289d6a3d493e362f5a5123'
 STATE='.sandium-native-navigation-state.json'
 CHANGES=json.loads((HERE/'patches.json').read_text())
+def module(name):
+ spec=importlib.util.spec_from_file_location('native_'+name,HERE/(name+'.py'))
+ m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m);return m
+diag=module('diagnostics')
+settings=module('settings')
 def recipe_hash():
  root=HERE.parents[1]
- paths=[HERE/'patches.json',HERE/'geometry.py',
+ paths=[HERE/'patches.json',HERE/'geometry.py',HERE/'settings.py',HERE/'settings-reversal.json',HERE/'diagnostics.py',
+        root/'experiments/native-transition-diagnostics/apply.py',
         root/'.circleci/scripts/native-status-geometry.py',
         root/'.circleci/scripts/trace-sandium-back-geometry.py',
         root/'.circleci/features/native-status-geometry/reversal.json',
@@ -19,11 +25,18 @@ def recipe_hash():
 def sha(s):return hashlib.sha256(s.encode()).hexdigest()
 def transform(root):
  result={}
+ probed=set()
+ for path in diag.PATHS:
+  p=root/path;text=p.read_text()
+  if "SANDIUM_TRANSITION_RING_V1" in text:
+   result[p]=diag.strip(path,text);probed.add(path)
  for c in CHANGES:
   p=root/c['path'];s=result.get(p,p.read_text());old,new=c['old'],c['new']
   # Input must be the frozen overlay, not arbitrary already-edited native text.
   if s.count(old)!=1:raise RuntimeError('Native experiment anchor mismatch: '+c['path']+' '+old[:70])
   result[p]=s.replace(old,new,1)
+ for path in probed:
+  p=root/path;result[p]=diag.apply(path,result[p])
  return result
 
 def geometry_changes(root):
@@ -52,6 +65,9 @@ def plan(root,enabled):
  extra=geometry_changes(root)
  if set(extra)&set(result):raise RuntimeError('Native geometry/transition overlap requires staged composition')
  result.update(extra)
+ settings_changes=settings.plan(root)
+ if set(settings_changes)&set(result):raise RuntimeError("Settings overlap requires composition")
+ result.update(settings_changes)
  state={'schema':1,'recipe_sha256':recipe_hash(),'baseline_commit':'a6863ec','chromium_pin':PIN,'brave_pin':BRAVE,'files':{}}
  for p,after in result.items():
   before=p.read_text();state['files'][str(p.relative_to(root))]={'before':before,'after':after,'before_sha256':sha(before),'after_sha256':sha(after)}

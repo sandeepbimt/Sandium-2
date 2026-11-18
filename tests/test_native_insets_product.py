@@ -83,7 +83,7 @@ class NativeInsetsProduct(unittest.TestCase):
   recipe=json.loads((ROOT/'.circleci/features/removal-recipe.json').read_text())
   for key in ['chromium_restore','ui_only_chromium_restore']:
    for path in native.paint.PAINT_PATHS:self.assertIn(path,recipe[key])
- def test_active_pipeline_never_installs_underlap_or_full_native_profile(self):
+ def test_active_pipeline_installs_native_profile_without_underlap(self):
   flow.verify_product_wrappers(ROOT)
   text=(ROOT/'.circleci/experimental-steps/product-overlay-29-0.sh').read_text()
   self.assertNotIn('apply-sandium-scroll-status-bar.py',text)
@@ -93,5 +93,9 @@ class NativeInsetsProduct(unittest.TestCase):
   self.assertIn('apply-sandium-native-insets.py "$SRC"\n',late)
   self.assertIn('apply-sandium-native-insets.py "$SRC" --verify-only',late)
   import json
-  self.assertFalse(json.loads((ROOT/'experiments/native-navigation/profile.json').read_text())['enabled'])
+  self.assertTrue(json.loads((ROOT/'experiments/native-navigation/profile.json').read_text())['enabled'])
+  geometry=(ROOT/'experiments/native-navigation/geometry.py').read_text()
+  self.assertIn('native.plan(stage,paint=False)',geometry.replace(' ',''))
+  self.assertLess(late.index('apply-sandium-navigation-diagnostics.py "$SRC" --verify-only'),late.index('apply-sandium-native-navigation.py "$SRC" --mode configured'))
+  self.assertIn('apply-sandium-native-navigation.py "$SRC" --mode configured --verify-only',late)
 if __name__=='__main__':unittest.main()

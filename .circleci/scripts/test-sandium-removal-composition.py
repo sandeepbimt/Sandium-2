@@ -112,6 +112,14 @@ with tempfile.TemporaryDirectory() as temporary:
   assert all(path.read_text()==text for path,text in diag.compose(src).items())
  def ui():
   native_diagnostic_baseline()
+  # Replay overlay26 transition preferences before later UI/dark transformations.
+  base_blur=load('apply-sandium-blur-transition');full_blur=load('apply-sandium-page-transition-full')
+  for relative,base_fn,full_fn in [
+    (base_blur.APPEARANCE_XML,base_blur.transform_appearance_xml,full_blur.transform_appearance_xml),
+    (base_blur.APPEARANCE_JAVA,base_blur.transform_appearance_java,full_blur.transform_appearance_java)]:
+   path=core/relative
+   if not path.exists():write(path,core_blob(str(relative)))
+   path.write_text(full_fn(base_fn(path.read_text())))
   write(core/darkjava.WELCOME,(root/darkjava.WELCOME).read_bytes())
   activity=core/'android/java/org/chromium/chrome/browser/firstrun/WelcomeOnboardingActivity.java';activity.write_text(welcome.transform_activity(activity.read_text()))
   branding.replace_toolbar_method(core)
@@ -223,6 +231,25 @@ with tempfile.TemporaryDirectory() as temporary:
  if before!=snapshot():raise RuntimeError('UI/removal reset+replay changed output')
  reset();ui();removal(m['steps'][:4]);reset();ui();removal();home.apply(src,root);home.apply(src,root,True);video_ui();dark_ui();page_text_ui();homepage_ui();capture_ui();address_progress_ui();preserved_ui();diagnostics_ui();preserved_ui()
  if before!=snapshot():raise RuntimeError('UI/removal partial-failure recovery changed output')
+ # Compose the enabled native profile over the actual final styled/diagnosed UI.
+ # Unowned native engine files are supplied by the existing pinned/full-overlay
+ # fixture. Existing composed UI sources MUST NOT be overwritten by fixtures.
+ if json.loads((root/'experiments/native-navigation/profile.json').read_text())['enabled']:
+  import gzip
+  nav=feature_module('native_final_composition','experiments/native-navigation/apply.py')
+  frozen=json.loads(gzip.decompress((root/'tests/fixtures/native-navigation.json.gz').read_bytes()))['frozen']
+  for relative,text in frozen.items():
+   path=src/relative
+   if not path.exists():write(path,text.encode())
+  native_before=snapshot()
+  nav.execute(src,True);nav.execute(src,True,True)
+  assert 'SANDIUM_NATIVE_REVEAL_V1' in (src/'chrome/android/java/src/org/chromium/chrome/browser/ntp/NewTabPage.java').read_text()
+  assert 'sandium_toolbar_mark' in (src/'chrome/android/java/src/org/chromium/chrome/browser/tab/TabWebContentsDelegateAndroidImpl.java').read_text()
+  nav.execute(src,False)
+  restored=snapshot()
+  for relative,data in native_before.items():
+   assert restored[relative]==data,relative
+  print('NATIVE_PROFILE_OVER_FINAL_DIAGNOSTIC_UI_AND_EXACT_ROLLBACK=PASS')
  # Verify production staging fails before returning any write set on bad patches.
  def bad_reader(path):return b'not a patch' if path in m['chromium_restore_patches'].values() else core_blob(path)
  try:recipe.restore_payload(m,bad_reader,chromium_blob)

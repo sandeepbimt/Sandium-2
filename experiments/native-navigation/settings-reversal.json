@@ -1,0 +1,22 @@
+{
+  "chrome/android/java/src/org/chromium/chrome/browser/settings/SettingsActivity.java": [
+    [
+      "    private static void setFragmentAnimation(FragmentTransaction transaction, Fragment fragment) {\n        switch (getAnimationType(fragment)) {\n            case SettingsFragment.AnimationType.TWEEN -> transaction.setCustomAnimations(\n                    R.anim.shared_x_axis_open_enter,\n                    R.anim.shared_x_axis_open_exit,\n                    R.anim.shared_x_axis_close_enter,\n                    R.anim.shared_x_axis_close_exit);\n            case SettingsFragment.AnimationType.PROPERTY -> transaction.setCustomAnimations(\n                    R.animator.shared_x_axis_open_enter,\n                    R.animator.shared_x_axis_open_exit,\n                    R.animator.shared_x_axis_close_enter,\n                    R.animator.shared_x_axis_close_exit);\n        }\n    }",
+      "    private static void setFragmentAnimation(FragmentTransaction transaction, Fragment fragment) {\n        // SANDIUM_SETTINGS_FADE_V1: retain TWEEN/PROPERTY ownership and native back stack.\n        if (!android.animation.ValueAnimator.areAnimatorsEnabled()) {\n            transaction.setCustomAnimations(0, 0, 0, 0);\n            return;\n        }\n        switch (getAnimationType(fragment)) {\n            case SettingsFragment.AnimationType.TWEEN -> transaction.setCustomAnimations(\n                    R.anim.sandium_settings_fade_in,\n                    R.anim.sandium_settings_fade_out,\n                    R.anim.sandium_settings_fade_in,\n                    R.anim.sandium_settings_fade_out);\n            case SettingsFragment.AnimationType.PROPERTY -> transaction.setCustomAnimations(\n                    R.animator.sandium_settings_fade_in,\n                    R.animator.sandium_settings_fade_out,\n                    R.animator.sandium_settings_fade_in,\n                    R.animator.sandium_settings_fade_out);\n        }\n    }"
+    ]
+  ],
+  "brave/android/java/org/chromium/chrome/browser/settings/BraveSettingsActivity.java": [
+    [
+      "        super.onCreate(savedInstanceState);",
+      "        super.onCreate(savedInstanceState);\n        // Activity boundary, including standalone subpages. Fragment motion is owned separately.\n        if (android.os.Build.VERSION.SDK_INT >= 34) {\n            sandiumConfigureWindowFade();\n        } else if (savedInstanceState == null) {\n            overridePendingTransition(sandiumFadeIn(), sandiumFadeOut());\n        }"
+    ],
+    [
+      "            startActivity(intent);\n            return true;",
+      "            startActivity(intent);\n            overridePendingTransition(sandiumFadeIn(), sandiumFadeOut());\n            return true;"
+    ],
+    [
+      "    @Override\n    protected void onDestroy() {",
+      "    // SANDIUM_SETTINGS_FADE_V1: no delayed finish, input lock, or custom back handling.\n    private int sandiumFadeIn() {\n        return android.animation.ValueAnimator.areAnimatorsEnabled()\n                ? R.anim.sandium_settings_fade_in : 0;\n    }\n\n    private int sandiumFadeOut() {\n        return android.animation.ValueAnimator.areAnimatorsEnabled()\n                ? R.anim.sandium_settings_fade_out : 0;\n    }\n\n    @android.annotation.TargetApi(34)\n    private void sandiumConfigureWindowFade() {\n        overrideActivityTransition(OVERRIDE_TRANSITION_OPEN, sandiumFadeIn(), sandiumFadeOut());\n        overrideActivityTransition(OVERRIDE_TRANSITION_CLOSE, sandiumFadeIn(), sandiumFadeOut());\n    }\n\n    @Override\n    public void finish() {\n        if (android.os.Build.VERSION.SDK_INT >= 34) sandiumConfigureWindowFade();\n        super.finish();\n        if (android.os.Build.VERSION.SDK_INT < 34) {\n            overridePendingTransition(sandiumFadeIn(), sandiumFadeOut());\n        }\n    }\n\n    @Override\n    protected void onDestroy() {"
+    ]
+  ]
+}

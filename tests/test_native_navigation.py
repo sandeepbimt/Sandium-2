@@ -2,6 +2,7 @@
 import gzip,importlib.util,json,tempfile,unittest
 from pathlib import Path
 from unittest.mock import patch
+from native_navigation_test_support import seed_settings, expected_native
 ROOT=Path(__file__).resolve().parents[1]
 spec=importlib.util.spec_from_file_location('native',ROOT/'experiments/native-navigation/apply.py');m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m)
 DATA=json.loads(gzip.decompress((ROOT/'tests/fixtures/native-navigation.json.gz').read_bytes()))
@@ -11,6 +12,7 @@ class Native(unittest.TestCase):
  def seed(self,root):
   for p,s in DATA['frozen'].items():
    f=root/p;f.parent.mkdir(parents=True,exist_ok=True);f.write_text(s)
+  seed_settings(root)
  def test_fixture_matches_production_transition_layers(self):
   def load(name):
    spec=importlib.util.spec_from_file_location(name,ROOT/'.circleci/scripts'/(name+'.py'))
@@ -24,13 +26,13 @@ class Native(unittest.TestCase):
  def test_exact_pinned_native_transition_parity(self):
   with tempfile.TemporaryDirectory() as d:
    root=Path(d);self.seed(root)
-   for p,s in m.transform(root).items():self.assertEqual(s,DATA['native'][str(p.relative_to(root))])
+   for p,s in m.transform(root).items():self.assertEqual(s,expected_native(str(p.relative_to(root)),DATA['native'][str(p.relative_to(root))]))
  def test_on_off_restores_frozen_and_unrelated_edits(self):
   with tempfile.TemporaryDirectory() as d:
    root=Path(d);self.seed(root)
    p=root/next(iter(DATA['frozen']));p.write_text(p.read_text()+'\n// unrelated frozen customization\n')
    untouched=root/'menu-fix.txt';untouched.write_text('five rows and swipe')
-   before={root/p:(root/p).read_text() for p in DATA['frozen']}
+   before={p:p.read_text() for p in root.rglob('*') if p.is_file()}
    # Engine transaction only; geometry is tested independently before wiring.
    changes,state=m.plan(root,True)
    m.execute(root,True);m.execute(root,True,True)
@@ -42,13 +44,20 @@ class Native(unittest.TestCase):
   with tempfile.TemporaryDirectory() as d:
    root=Path(d);self.seed(root);m.execute(root,True)
    p=root/list(DATA['frozen'])[-1];p.write_text(p.read_text()+'new unrelated work')
-   before={root/p:(root/p).read_text() for p in DATA['frozen']}
+   before={p:p.read_text() for p in root.rglob('*') if p.is_file()}
+   with self.assertRaises(RuntimeError):m.execute(root,False)
+   self.assertEqual(before,{p:p.read_text() for p in before})
+ def test_settings_edit_blocks_restore_atomically(self):
+  with tempfile.TemporaryDirectory() as d:
+   root=Path(d);self.seed(root);m.execute(root,True)
+   p=root/next(iter(m.settings.PAIRS));p.write_text(p.read_text()+'\n// later settings edit')
+   before={p:p.read_text() for p in root.rglob('*') if p.is_file()}
    with self.assertRaises(RuntimeError):m.execute(root,False)
    self.assertEqual(before,{p:p.read_text() for p in before})
  def test_late_bad_anchor_writes_nothing(self):
   with tempfile.TemporaryDirectory() as d:
    root=Path(d);self.seed(root);p=root/m.CHANGES[-1]['path'];p.write_text('bad pin')
-   before={root/p:(root/p).read_text() for p in DATA['frozen']}
+   before={p:p.read_text() for p in root.rglob('*') if p.is_file()}
    with self.assertRaises(RuntimeError):m.execute(root,True)
    self.assertEqual(before,{p:p.read_text() for p in before});self.assertFalse((root/m.STATE).exists())
 if __name__=='__main__':unittest.main()

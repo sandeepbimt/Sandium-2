@@ -1,4 +1,6 @@
-# Reversible native Brave navigation experiment
+# Reversible pinned Chromium navigation profile
+
+Current activated scope: [standard Chromium with native blur enabled](CHROMIUM-DEFAULTS-20261118.md).
 
 Frozen Sandium navigation cut-off: **a6863ec**. Chromium
 `d331de35ca8ab1358c7a17e4bd41627d55eaef51`, Brave
@@ -29,12 +31,10 @@ that the shake or flashes have been fixed.
   fallback and preview-to-live animation. Native BFCache/navigation controller
   remains responsible for history; no invented history-cache mechanism.
 - Ordinary navigation blur manager and its native feature parameters. Custom
-  outgoing blur/darken/fallback modifications removed. Startup no longer overrides
-  native feature defaults. Existing custom blur/darken preference values remain
+  outgoing blur/darken/fallback modifications removed. Startup enables the bare native blur feature without parameter overrides. Existing custom blur/darken preference values remain
   saved but their controls are disabled during the comparison.
 - Native gesture SHOWN ordering was already restored in frozen Sandium and remains.
-- Native inset/control geometry reset is supplied by `geometry.py`; status paint
-  is retained where separable. **Web content scroll-under-status is unavailable in
+- Native inset/control geometry reset is supplied by `geometry.py`; existing opaque status paint is retained; legacy gradient overrides are excluded. **Web content scroll-under-status is unavailable in
   this native-geometry comparison.**
 
 ## Customizations deliberately preserved
@@ -46,7 +46,7 @@ call native controllers and are not replaced by a second navigation implementati
 
 The disabled-feed NO_STATE_TO_RESTORE adapter remains because Sandium removes the
 feed; copying its native feed-wait supplier blindly could stall the homepage.
-Native smooth delegate fade/cancel/view lifecycle remains. Custom homepage backing,
+Native smooth delegate fade/cancel/view lifecycle remains. Settings motion is restored as part of the transaction. Custom homepage backing,
 forward-button capture coherence, bottom-toolbar placement/focus choices remain
 and are explicit comparison differences, not falsely labeled pristine Brave UI.
 Native cache-miss fallback can still be visible when a usable screenshot is absent.

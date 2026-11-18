@@ -1,5 +1,5 @@
 {
-  "enabled": false,
+  "enabled": true,
   "frozen_navigation_commit": "a6863ec",
-  "purpose": "Reversible pinned-native Brave navigation comparison"
+  "purpose": "Pinned Chromium navigation with native blur enabled, preserving Sandium visual branding"
 }

@@ -13,4 +13,4 @@ def plan(root):
    text=(root/name).read_text()
    if name==trace.PATH:text=trace.reset(text)
    p=stage/name;p.parent.mkdir(parents=True,exist_ok=True);p.write_text(text)
-  return {root/p.relative_to(stage):s for p,s in native.plan(stage).items()}
+  return {root/p.relative_to(stage):s for p,s in native.plan(stage, paint=False).items()}

@@ -74,8 +74,8 @@
   {
     "path": "chrome/android/java/src/org/chromium/chrome/browser/tab/TabWebContentsDelegateAndroidImpl.java",
     "old": "Drawable drawable = ApiCompatibilityUtils.getDrawable(res, R.drawable.sandium_toolbar_mark);",
-    "new": "Drawable drawable = ApiCompatibilityUtils.getDrawable(res, R.drawable.chromelogo16);",
-    "reason": "Pinned native predictive transition"
+    "new": "Drawable drawable = ApiCompatibilityUtils.getDrawable(res, R.drawable.sandium_toolbar_mark);",
+    "reason": "Keep Sandium fallback asset; native transition behavior unchanged"
   },
   {
     "path": "content/browser/navigation_transitions/back_forward_transition_animator.cc",
@@ -128,8 +128,8 @@
   {
     "path": "chrome/android/java/src/org/chromium/chrome/browser/base/SplitCompatApplication.java",
     "old": "            enableSandiumNavigationBlurTransition();",
-    "new": "            // Native-navigation comparison: use pinned feature defaults.",
-    "reason": "Native default feature configuration"
+    "new": "            // Native Chromium navigation: enable blur without custom field-trial params.\n            // Saved Sandium strength/darken preferences are deliberately inert.\n            final CommandLine nativeBlurCommandLine = CommandLine.getInstance();\n            final String nativeBlurFeature = \"AndroidNavigationBlurTransitionAnimation\";\n            if (!containsSandiumFeature(nativeBlurCommandLine.getSwitchValue(\n                        \"disable-features\", \"\"), nativeBlurFeature)) {\n                final StringBuilder nativeBlurEnabled = new StringBuilder();\n                for (String entry : nativeBlurCommandLine.getSwitchValue(\n                            \"enable-features\", \"\").split(\",\")) {\n                    final String trimmed = entry.trim();\n                    if (!trimmed.isEmpty() && !nativeBlurFeature.equals(\n                                getSandiumFeatureName(trimmed))) {\n                        if (nativeBlurEnabled.length() > 0) nativeBlurEnabled.append(',');\n                        nativeBlurEnabled.append(trimmed);\n                    }\n                }\n                if (nativeBlurEnabled.length() > 0) nativeBlurEnabled.append(',');\n                nativeBlurEnabled.append(nativeBlurFeature);\n                nativeBlurCommandLine.appendSwitchWithValue(\n                        \"enable-features\", nativeBlurEnabled.toString());\n            }",
+    "reason": "Enable native Chromium blur with unchanged native parameters; explicit debug opt-out respected"
   },
   {
     "path": "brave/android/java/brave-res/xml/brave_appearance_preferences.xml",

@@ -21,8 +21,7 @@ INPUTS=set(bridge.TRANSFORMS)|{p.PATH for p in producers}|{transition.BLUR,trans
 INPUTS.update('brave/'+p for p in AD_TRANSFORMS)
 INPUTS.update((metrics.OBSERVER,metrics.TRACKER))
 def compose(src):
- if json.loads((ROOT/'experiments/native-navigation/profile.json').read_text()).get('enabled'):
-  raise ValueError('Diagnostic producers target Sandium navigation, not alternate native experiment')
+ # Product diagnostics are staged first; native profile rebases transition probes transactionally.
  with tempfile.TemporaryDirectory() as d:
   stage=Path(d)
   for rel in INPUTS:
