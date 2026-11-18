@@ -261,11 +261,11 @@ with tempfile.TemporaryDirectory() as temporary:
                                'content_registration','java_registration')]
   bridge_fixture_files={}
   for name in ('native-holder','native-handoff-adapter','static-layout-eligibility',
-               'content-registration','java-handoff-registration'):
+               'content-registration','java-handoff-registration','capture-coordinates'):
    evidence=json.loads(gzip.decompress((root/'experiments/single-handoff/fixtures'/(name+'.json.gz')).read_bytes()))
    for relative,item in evidence['files'].items():
     bridge_fixture_files[relative]=item.get('source',item.get('text'))
-  for name in ('compositor-view-java','root-ui-handoff-gate'):
+  for name in ('compositor-view-java','root-ui-handoff-gate','blue-clear'):
    evidence=json.loads(gzip.decompress((root/'experiments/single-handoff/fixtures'/(name+'.json.gz')).read_bytes()))
    bridge_fixture_files[evidence['path']]=evidence.get('source',evidence.get('text'))
   for relative,text in bridge_fixture_files.items():
@@ -274,6 +274,9 @@ with tempfile.TemporaryDirectory() as temporary:
   outer.execute(src,True,True);outer.execute(src,True,True,True)
   assert 'SANDIUM_SINGLE_HANDOFF_WEB_V1' in (src/'chrome/android/java/src/org/chromium/chrome/browser/base/SplitCompatApplication.java').read_text()
   assert 'SANDIUM_HOME_HANDOFF_V1' in (src/holder.DELEGATE).read_text()
+  assert 'SANDIUM_UNWRAPPED_NTP_CAPTURE_V1' in (src/'chrome/android/java/src/org/chromium/chrome/browser/ntp/NewTabPage.java').read_text()
+  assert 'SANDIUM_NATIVE_CAPTURE_ORIGIN_V1' in (src/'chrome/browser/gesturenav/android/java/src/org/chromium/chrome/browser/gesturenav/NativePageBitmapCapturer.java').read_text()
+  assert 'SANDIUM_DIAGNOSTIC_CLEAR_TEST_V1' in (src/'components/viz/service/display/skia_renderer.cc').read_text()
   bridge_before=snapshot()
   def apply_bridge():
    for module in bridge_modules:

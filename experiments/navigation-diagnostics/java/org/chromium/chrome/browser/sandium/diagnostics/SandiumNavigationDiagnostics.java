@@ -10,6 +10,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.zip.CRC32;
 import java.util.ArrayList;
+import java.util.ArrayDeque;
 import java.util.Arrays;
 import java.util.HashMap;
 
@@ -63,7 +64,10 @@ public final class SandiumNavigationDiagnostics {
     private static int sRecoveredDiscarded;
     private static String sStorage = "not_initialized";
     private static final int MAGIC = 0x53444a32;
-    private static final int JOURNAL_SCHEMA = 2;
+    private static final int JOURNAL_SCHEMA = 3;
+    private static boolean sRecoveredAsyncTailUnknown;
+    private static long sJournalRejected;
+    private static final JournalQueue JOURNAL = new JournalQueue();
     private static final long MAX_JOURNAL_BYTES = 2_000_000;
     public static String storageStatus() {
         synchronized (SandiumNavigationDiagnostics.class) { return sStorage; }
@@ -85,7 +89,8 @@ public final class SandiumNavigationDiagnostics {
                 try (DataInputStream in = new DataInputStream(new FileInputStream(sJournal))) {
                     if (in.readInt() != MAGIC) throw new IOException();
                     sWallStart = in.readLong(); sEpoch = in.readLong() + 1;
-                    if (in.readInt() != JOURNAL_SCHEMA || !BUILD_REVISION.equals(in.readUTF())) {
+                    int recoveredSchema = in.readInt();
+                    if ((recoveredSchema != 2 && recoveredSchema != JOURNAL_SCHEMA) || !BUILD_REVISION.equals(in.readUTF())) {
                         sRecording = false; sStorage = "incompatible_recording";
                         sEnd = "incompatible_recording"; return;
                     }
@@ -110,6 +115,14 @@ public final class SandiumNavigationDiagnostics {
                 if (!EVENTS.isEmpty()) sOffsetUs = Math.max(sOffsetUs, EVENTS.get(EVENTS.size() - 1).micros);
                 sLastWall = now; sStartNs = System.nanoTime(); sSegment++; NAV_IDS.clear();
                 if (sRecording && (now < sWallStart || now - sWallStart >= 120000)) { sRecording = false; sEnd = "restart_time_limit_or_clock_change"; }
+                if (sRecording) {
+                    // An asynchronous writer may have lost an unpersisted tail. Never
+                    // silently resume and call a recovered prefix a complete session.
+                    sRecording = false; sEnd = "recovered_async_prefix";
+                    sRecoveredAsyncTailUnknown = true;
+                }
+                if (sEnd.equals("recovered_async_prefix")) sRecoveredAsyncTailUnknown = true;
+                JOURNAL.adopt(sEpoch);
                 if (EVENTS.size() >= MAX_EVENTS) { sRecording = false; sEnd = "event_limit"; persistState(); }
                 if (sRecoveredDiscarded == 0) persistState();
                 else sStorage = "recovered_valid_prefix";
@@ -141,14 +154,141 @@ public final class SandiumNavigationDiagnostics {
         if (in.available() != 0) throw new IOException();
     }
     private interface JournalWriter { void write(DataOutputStream out) throws IOException; }
+    // Package-private test hook. Never set by product callers; invoked off all locks.
+    static volatile Runnable beforeJournalWriteForTesting;
+    private static final class JournalCommand {
+        static final int APPEND = 0;
+        static final int RESET = 1;
+        static final int DELETE = 2;
+        final long epoch;
+        final long sequence;
+        final int kind;
+        final File file;
+        final byte[] bytes;
+        JournalCommand(long epoch, long sequence, int kind, File file, byte[] bytes) {
+            this.epoch = epoch; this.sequence = sequence; this.kind = kind;
+            this.file = file; this.bytes = bytes;
+        }
+        int cost() { return bytes.length + 64; }
+    }
+    /** One bounded FIFO owns every journal mutation. No UI caller waits for IO. */
+    private static final class JournalQueue {
+        private static final int MAX_PENDING_BYTES = 262144;
+        private static final int MAX_COMMANDS = 2048;
+        private final ArrayDeque<JournalCommand> queue = new ArrayDeque<>();
+        private long epoch;
+        private long sequence;
+        private long lastWritten;
+        private long failedEpoch = -1;
+        private int pendingBytes;
+        private int activeBytes;
+        private int activeCommands;
+        private boolean started;
+        synchronized void adopt(long value) { epoch = value; }
+        synchronized boolean enqueue(long value, int kind, File file, byte[] bytes) {
+            if (value != epoch || value == failedEpoch) return false;
+            int cost = bytes.length + 64;
+            if (pendingBytes + cost > MAX_PENDING_BYTES || queue.size() + activeCommands >= MAX_COMMANDS) return false;
+            queue.add(new JournalCommand(value, ++sequence, kind, file, bytes));
+            pendingBytes += cost;
+            launch(); notifyAll(); return true;
+        }
+        synchronized void replace(long value, int kind, File file, byte[] bytes) {
+            epoch = value; failedEpoch = -1; queue.clear(); pendingBytes = activeBytes; lastWritten = 0;
+            // Only one bounded control command survives rapid start/clear changes.
+            queue.add(new JournalCommand(value, ++sequence, kind, file, bytes));
+            pendingBytes += bytes.length + 64;
+            launch(); notifyAll();
+        }
+        private void launch() {
+            if (started) return;
+            started = true;
+            Thread thread = new Thread(this::run, "SandiumDiagnosticJournal");
+            thread.setDaemon(true); thread.start();
+        }
+        synchronized long[] status() { return new long[] {queue.size() + activeCommands, pendingBytes, lastWritten}; }
+        private void run() {
+            while (true) {
+                ArrayList<JournalCommand> batch = new ArrayList<>();
+                synchronized (this) {
+                    while (queue.isEmpty()) {
+                        try { wait(); } catch (InterruptedException ignored) { /* dedicated owner */ }
+                    }
+                    JournalCommand first = queue.remove(); batch.add(first);
+                    int bytes = first.cost();
+                    while (first.kind == JournalCommand.APPEND && !queue.isEmpty() && batch.size() < 64) {
+                        JournalCommand next = queue.peek();
+                        if (next.kind != JournalCommand.APPEND || next.epoch != first.epoch || bytes + next.cost() > 65536) break;
+                        bytes += next.cost(); batch.add(queue.remove());
+                    }
+                    activeBytes = bytes; activeCommands = batch.size();
+                }
+                boolean success = true;
+                try {
+                    Runnable hook = beforeJournalWriteForTesting;
+                    if (hook != null) hook.run();
+                    writeBatch(batch);
+                } catch (IOException | RuntimeException failure) { success = false; }
+                long completedEpoch = batch.get(0).epoch;
+                synchronized (this) {
+                    if (completedEpoch == epoch) {
+                        if (success) lastWritten = batch.get(batch.size() - 1).sequence;
+                        else { failedEpoch = completedEpoch; queue.clear(); pendingBytes = activeBytes; }
+                    }
+                }
+                // Never take the recorder monitor while holding the queue monitor.
+                // Keep the batch pending until its failure/clear state is published.
+                synchronized (SandiumNavigationDiagnostics.class) {
+                    if (completedEpoch == sEpoch) {
+                        if (!success) storageError();
+                        else if (batch.get(0).kind == JournalCommand.DELETE && sEnd.equals("clearing")) {
+                            sEnd = "cleared";
+                        }
+                    }
+                }
+                synchronized (this) {
+                    pendingBytes -= activeBytes; activeBytes = 0; activeCommands = 0;
+                    notifyAll();
+                }
+            }
+        }
+        private void writeBatch(ArrayList<JournalCommand> batch) throws IOException {
+            JournalCommand first = batch.get(0);
+            if (first.kind == JournalCommand.DELETE) {
+                if (first.file.exists() && !first.file.delete()) throw new IOException();
+                File temp = new File(first.file.getParentFile(), "events.tmp");
+                if (temp.exists() && !temp.delete()) throw new IOException();
+                return;
+            }
+            if (first.kind == JournalCommand.RESET) {
+                File temp = new File(first.file.getParentFile(), "events.tmp");
+                try (FileOutputStream file = new FileOutputStream(temp)) {
+                    file.write(first.bytes); file.getFD().sync();
+                }
+                if (!temp.renameTo(first.file)) throw new IOException();
+                return;
+            }
+            long total = first.file.length();
+            for (JournalCommand command : batch) total += command.bytes.length;
+            if (total > MAX_JOURNAL_BYTES) throw new IOException();
+            try (FileOutputStream out = new FileOutputStream(first.file, true)) {
+                for (JournalCommand command : batch) out.write(command.bytes);
+            }
+        }
+    }
     private static void append(JournalWriter writer) {
         if (sJournal == null || !sStorage.equals("available")) return;
         try {
             ByteArrayOutputStream bytes = new ByteArrayOutputStream();
             try (DataOutputStream record = new DataOutputStream(bytes)) { writer.write(record); }
             byte[] payload = bytes.toByteArray(); CRC32 crc = new CRC32(); crc.update(payload);
-            if (sJournal.length() + payload.length + 12 > MAX_JOURNAL_BYTES) throw new IOException();
-            try (DataOutputStream out = new DataOutputStream(new FileOutputStream(sJournal, true))) { out.writeInt(payload.length); out.write(payload); out.writeLong(crc.getValue()); }
+            ByteArrayOutputStream framed = new ByteArrayOutputStream(payload.length + 12);
+            try (DataOutputStream out = new DataOutputStream(framed)) {
+                out.writeInt(payload.length); out.write(payload); out.writeLong(crc.getValue());
+            }
+            if (!JOURNAL.enqueue(sEpoch, JournalCommand.APPEND, sJournal, framed.toByteArray())) {
+                sJournalRejected++; sRecording = false; sStorage = "queue_overflow"; sEnd = "persistence_queue_full";
+            }
         } catch (IOException | RuntimeException failure) { storageError(); }
     }
     private static void persistState() {
@@ -160,9 +300,12 @@ public final class SandiumNavigationDiagnostics {
     private static boolean replaceJournal() {
         if (sJournal == null) return true;
         try {
-            File temp = new File(sDirectory, "events.tmp");
-            try (FileOutputStream file = new FileOutputStream(temp); DataOutputStream out = new DataOutputStream(file)) { out.writeInt(MAGIC); out.writeLong(sWallStart); out.writeLong(sEpoch); out.writeInt(JOURNAL_SCHEMA); out.writeUTF(BUILD_REVISION); out.flush(); file.getFD().sync(); }
-            if (!temp.renameTo(sJournal)) throw new IOException();
+            ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+            try (DataOutputStream out = new DataOutputStream(bytes)) {
+                out.writeInt(MAGIC); out.writeLong(sWallStart); out.writeLong(sEpoch);
+                out.writeInt(JOURNAL_SCHEMA); out.writeUTF(BUILD_REVISION);
+            }
+            JOURNAL.replace(sEpoch, JournalCommand.RESET, sJournal, bytes.toByteArray());
             sStorage = "available"; return true;
         } catch (IOException | RuntimeException failure) { storageError(); return false; }
     }
@@ -185,7 +328,7 @@ public final class SandiumNavigationDiagnostics {
     private SandiumNavigationDiagnostics() {}
     public static boolean start() {
         synchronized (SandiumNavigationDiagnostics.class) {
-            clear(); sStartNs = System.nanoTime(); sWallStart = System.currentTimeMillis(); sLastWall = sWallStart;
+            clear(); sEpoch++; sStartNs = System.nanoTime(); sWallStart = System.currentTimeMillis(); sLastWall = sWallStart;
             sOffsetUs = 0; sNextNav = 0; sSegment = 0; sRecoveredDiscarded = 0;
             if (!replaceJournal()) return false;
             sRecording = true; sEnd = "recording"; persistState(); return sRecording;
@@ -200,9 +343,10 @@ public final class SandiumNavigationDiagnostics {
     }
     public static void clear() {
         synchronized (SandiumNavigationDiagnostics.class) {
-            sRecording = false; sEpoch++; EVENTS.clear(); NAV_IDS.clear(); sDropped = 0; sAdRequestOmitted = 0; sEnd = "cleared"; sRecoveredDiscarded = 0;
-            if (sJournal != null && sJournal.exists() && !sJournal.delete()) storageError();
-            else if (sDirectory != null && sDirectory.isDirectory()) sStorage = "available";
+            sRecording = false; sEpoch++; EVENTS.clear(); NAV_IDS.clear(); sDropped = 0; sAdRequestOmitted = 0; sEnd = sJournal == null ? "cleared" : "clearing"; sRecoveredDiscarded = 0;
+            sRecoveredAsyncTailUnknown = false; sJournalRejected = 0;
+            if (sJournal != null) JOURNAL.replace(sEpoch, JournalCommand.DELETE, sJournal, new byte[0]);
+            if (sDirectory != null) sStorage = "available";
 
         }
     }
@@ -283,17 +427,23 @@ public final class SandiumNavigationDiagnostics {
     }
     public static String snapshotSummary() {
         synchronized (SandiumNavigationDiagnostics.class) {
-            expire(); return EVENTS.size() + " events; " + sEnd + "; " + sDropped + " invalid events rejected; " + sStorage + "; recovered discarded tails: " + sRecoveredDiscarded;
+            expire(); return EVENTS.size() + " events; " + sEnd + "; " + sDropped + " invalid events rejected; " + sStorage + "; pending journal records: " + JOURNAL.status()[0] + "; recovered discarded tails: " + sRecoveredDiscarded;
 
         }
     }
     public static String snapshotJson() {
         synchronized (SandiumNavigationDiagnostics.class) {
             expire();
+            long[] persistence = JOURNAL.status();
             StringBuilder out = new StringBuilder(1024);
             out.append("{\"build_revision\":\"").append(BUILD_REVISION).append("\",\"coverage_complete\":false,\"unconnected\":[\"renderer_dark_applied_ack\",\"renderer_typography_applied_ack\",\"gpu_presented_frame\",\"renderer_denied_popup\",\"ad_resource_scriptlet_readiness\",\"request_to_document_link\",\"popup_to_child_navigation_link\"],\"schema\":1,\"clock\":\"segmented_receive_us\",\"end\":\"")
                     .append(sEnd).append("\",\"invalid_events\":").append(sDropped)
                     .append(",\"storage\":\"").append(sStorage).append("\",\"recovered_discarded_tails\":").append(sRecoveredDiscarded)
+                    .append(",\"journal_async\":true,\"journal_pending_commands\":").append(persistence[0])
+                    .append(",\"journal_pending_bytes\":").append(persistence[1])
+                    .append(",\"journal_last_written_sequence\":").append(persistence[2])
+                    .append(",\"journal_rejected_records\":").append(sJournalRejected)
+                    .append(",\"recovered_async_tail_unknown\":").append(sRecoveredAsyncTailUnknown)
                     .append(",\"restart_clock\":\"wall_elapsed_conservative_segmented_monotonic\",\"ad_requests_omitted\":").append(sAdRequestOmitted)
                     .append(",\"limits\":{\"events\":5000,\"seconds\":120},\"field_names\":{");
             Event[] kinds = Event.values();

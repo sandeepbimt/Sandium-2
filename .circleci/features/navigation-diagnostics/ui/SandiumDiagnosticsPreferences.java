@@ -55,7 +55,7 @@ public class SandiumDiagnosticsPreferences extends BravePreferenceFragment {
         row(screen, "Local, opt-in recording",
                 "Records supported navigation and ad-blocking events, not websites, URLs, page text, "
                 + "screenshots or network bodies. Private-tab events are excluded. "
-                + "Recording ends after 2 minutes or 5,000 events; closing this screen does not stop it. Saved sessions can resume after normal app reopen within the original limit.",
+                + "Recording ends after 2 minutes or 5,000 events; closing this screen does not stop it. Interrupted sessions do not resume automatically after reopening.",
                 null);
         row(screen, "What this can show",
                 "Event timing can help investigate unexpected redirects and blocking. "
@@ -63,8 +63,8 @@ public class SandiumDiagnosticsPreferences extends BravePreferenceFragment {
                 null);
         row(screen, "Saved on this device",
                 "Session data stays in app-private storage until cleared or replaced. "
-                + "The original time limit still applies after reopening; device reboot is not separately detected. "
-                + "Sudden power loss can lose the latest unsynced events; interrupted writes are reported. "
+                + "Completed writes can be recovered after reopening; an interrupted session may have an unflushed tail. "
+                + "Disk writes run in the background. Export includes the captured events still in memory without waiting for disk writes. "
                 + "Check Recording status after reopening.", null);
         mStatus = row(screen, "Recording status", null, null);
         mStart = row(screen, "Start recording", "Replaces the previous app-private saved session",
@@ -87,7 +87,7 @@ public class SandiumDiagnosticsPreferences extends BravePreferenceFragment {
                 "Stop and save a JSON file using Android’s document chooser. "
                 + "Nothing is sent automatically; choose a location you trust.",
                 this::chooseExport);
-        mClear = row(screen, "Clear recording", "Stop and erase the app-private saved recording",
+        mClear = row(screen, "Clear recording", "Stop and erase the app-private saved recording; check status until cleared",
                 SandiumNavigationDiagnostics::clear);
         refresh();
     }

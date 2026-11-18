@@ -42,11 +42,16 @@ Recorder initialize(File directory) must be idempotent. The JNI initialization
 owner must use this same directory for events arriving before a tab observer.
 The native tab observer source now belongs in reset/final consumer inventories.
 
-UI now describes app-private saved sessions, original expiry, abrupt-kill loss
-of unsaved events and status after reopen. Core recorder owns restore validation,
-torn-write recovery, durable clear, reboot detection and storage-error reporting.
-These claims require that persistence implementation at integration; this UI
-change alone does not make an in-memory recorder durable.
+UI describes app-private saved sessions and ordered background writes. Interrupted
+sessions recover their valid persisted prefix but do not resume automatically;
+an unflushed tail may be missing. Export snapshots the captured RAM events without
+waiting for journal writes. Clear stops recording and clears RAM immediately;
+the app-private file is removed asynchronously, so status remains `clearing`
+until completion. Process death before that completion can leave the old file.
+Core recorder owns restore validation, CRC-prefix recovery and storage-error
+reporting. Neither a completed write nor stop promises power-loss durability.
+Device reboot is not separately detected. These statements require the matching
+async recorder implementation; UI copy alone does not establish persistence.
 
 The capture bootstrap is compiled/executed against narrow declared-interface
 stubs: regular capture,16/11 payload arity, zero/unlinked nav ID, stopped recorder,
