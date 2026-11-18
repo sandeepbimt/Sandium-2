@@ -28,3 +28,9 @@ predictive Back. Repeat dark/light transitions, ad-heavy pages, settings restart
 renderer crash recovery. Capture video/log timeline together and distinguish
 frame presentation from renderer events. No masking delays or overlays passed
 as navigation fixes.
+
+## First actual CI probe: pipeline1365
+Checkout, branch guard and13 scaffold tests passed. Host free disk143007555584
+bytes, memory16464265216 bytes,4CPUs. Official depot_tools endpoint returned200.
+GitHub raw VERSION mirror returned HTTPError, so probe failed before any compile.
+Next probe uses canonical Chromium Gitiles and records HTTP status explicitly.

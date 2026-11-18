@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Read-only CI feasibility probe. No source checkout, credentials or cache use."""
-import json, os, platform, shutil, subprocess, urllib.request
+import base64, json, os, platform, shutil, urllib.request, urllib.error
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]
 EXPECTED_BRANCH='raw-sandium/bootstrap'
@@ -17,14 +17,16 @@ def probe():
             'disk_100gib':disk>=100*1024**3,'memory_8gb':memory>=7.5*1024**3,
             'git':bool(shutil.which('git')),'python':bool(shutil.which('python3'))}
     endpoints={}
-    for name,url in [('chromium_version',lock['chromium']['provenance']),('depot_tools','https://chromium.googlesource.com/chromium/tools/depot_tools.git/info/refs?service=git-upload-pack')]:
+    for name,url in [('chromium_version','https://chromium.googlesource.com/chromium/src/+/'+lock['chromium']['revision']+'/chrome/VERSION?format=TEXT'),('depot_tools','https://chromium.googlesource.com/chromium/tools/depot_tools.git/info/refs?service=git-upload-pack')]:
         try:
             with urllib.request.urlopen(url,timeout=30) as response:
                 body=response.read(4096)
                 endpoints[name]={'ok':response.status==200,'status':response.status}
                 if name=='chromium_version':
-                    values=dict(line.split('=',1) for line in body.decode().splitlines())
+                    values=dict(line.split('=',1) for line in base64.b64decode(body,validate=True).decode().splitlines())
                     checks['upstream_version']='.'.join(values[k] for k in ('MAJOR','MINOR','BUILD','PATCH'))==lock['chromium']['version']
+        except urllib.error.HTTPError as e:
+            endpoints[name]={'ok':False,'error_type':'HTTPError','status':e.code}
         except Exception as e:
             endpoints[name]={'ok':False,'error_type':type(e).__name__}
     checks['upstream_network']=all(x['ok'] for x in endpoints.values())
