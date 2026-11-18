@@ -221,5 +221,9 @@
     "baseline_index": 40,
     "candidate_index": 44,
     "status": "byte-identical task object"
+  },
+  {
+    "baseline_index": null,
+    "exception": "User-approved Full compile slice increased from 1200 to 1500 seconds from next run; unchanged supervisor, fail-fast, APK exit and checkpoint behavior."
   }
 ]

@@ -560,7 +560,7 @@ jobs:
           n' \"$MODE\" > \"$ROOT/brave-work/.sandium/build-mode.txt\"\necho \"SANDIUM_BUILD_MODE=$MODE\"\nif [ \"$MODE\" =\
           \ \"fast\" ]; then\n  echo \"SANDIUM_CI_NAME=SANDIUM-FAST-MODE\"\n  bash \"$ROOT/.circleci/scripts/verify-brave-reference.sh\"\
           \nelif [ \"$MODE\" = \"full\" ]; then\n  echo \"SANDIUM_CI_NAME=SANDIUM-FULL-MODE\"\n  echo \"SANDIUM_FULL_MODE=FORCED;\
-          \ stage budget=20 minutes; canonical checkpoint validation required.\"\n  if [ \"<< parameters.stage_index >>\"\
+          \ stage budget=25 minutes; canonical checkpoint validation required.\"\n  if [ \"<< parameters.stage_index >>\"\
           \ -eq 1 ]; then\n    bash \"$ROOT/.circleci/scripts/verify-brave-reference.sh\"\n  else\n    bash \"$ROOT/.circleci/scripts/verify-brave-reference.sh\"\
           \ --handoff \"<< parameters.stage_index >>\" \"$CIRCLE_WORKFLOW_ID\" \"$CIRCLE_SHA1\"\n  fi\nelse\n  echo \"SANDIUM_BUILD_MODE_GATE=FAIL\
           \ unsupported mode=$MODE\" >&2\n  exit 2\nfi\n"
@@ -739,7 +739,7 @@ jobs:
           \nMETRICS_FILE=\"${METRICS_PREFIX}0.jsonl\"\nif [ \"${CIRCLE_BRANCH:-}\" = \"feature/sandium-disable-13-brave-features\"\
           \ ] || [ \"${CIRCLE_BRANCH:-}\" = \"feature/sandium-page-transition-full\" ] || [ \"${CIRCLE_BRANCH:-}\" = \"feature/sandium-filter-bootstrap-full\"\
           \ ] || [ \"${CIRCLE_BRANCH:-}\" = \"feature/sandium-vanilla-welcome\" ]; then\n  BUILD_MODE=\"full\"\nelse\n  BUILD_MODE=\"\
-          << pipeline.parameters.sandium_build_mode >>\"\nfi\ncase \"$BUILD_MODE\" in\n  full) STAGE_BUILD_BUDGET_SECONDS=1200\
+          << pipeline.parameters.sandium_build_mode >>\"\nfi\ncase \"$BUILD_MODE\" in\n  full) STAGE_BUILD_BUDGET_SECONDS=1500\
           \ ;;\n  fast) STAGE_BUILD_BUDGET_SECONDS=2700 ;;\n  *) echo \"BRAVE_BUILD_MODE_GATE=FAIL unsupported mode=$BUILD_MODE\"\
           \ >&2; exit 2 ;;\nesac\nSTAGE_BUILD_DEADLINE=$((SECONDS + STAGE_BUILD_BUDGET_SECONDS))\necho \"BRAVE_BUILD_MODE=$BUILD_MODE\"\
           \nif [ \"$BUILD_MODE\" = \"full\" ]; then\n  echo \"SANDIUM_CI_NAME=SANDIUM-FULL-MODE\"\nelse\n  echo \"SANDIUM_CI_NAME=SANDIUM-FAST-MODE\"\
