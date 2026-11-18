@@ -90,3 +90,12 @@ Compiler time is capped at 25 minutes, shortened when necessary to reserve 15
 minutes for checkpoint/publication before the free job's one-hour limit.
 This change addresses the measured #1372 archive bottleneck; it still requires
 actual compiler and handoff validation. No existing Sandium pipeline is renamed.
+
+## Five-stage continuation (next trigger only)
+#1374 remains on its original three-stage configuration. Future RawS full runs
+use five sequential slices, each at most25minutes. Successful APK completion
+saves a tiny done marker then skips all remaining archive/restore work; genuine
+compile failure prevents dependent jobs. Final time-slice exhaustion saves the
+independent output checkpoint before reporting incomplete. Cross-run reuse is
+implemented with source/output fingerprints and SHA verification, but is not
+claimed proven until an actual subsequent restore succeeds.

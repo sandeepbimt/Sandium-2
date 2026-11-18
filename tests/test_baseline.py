@@ -121,4 +121,22 @@ class ReusableHandoff(unittest.TestCase):
         groups=partition([(str(i),i) for i in range(20)])
         self.assertEqual(len(groups),5)
         self.assertEqual(sorted(p for g in groups for p in g),sorted(str(i) for i in range(20)))
+class FiveStageWorkflow(unittest.TestCase):
+    def test_five_stages_and_completion_early_exit(self):
+        config=(ROOT/'.circleci/config.yml').read_text()
+        for stage in range(2,6):
+            self.assertIn(f'stage: {stage}',config)
+        for stage in range(1,5):
+            self.assertIn(f'raw-done-v1-<< pipeline.id >>-{stage}',config)
+        self.assertIn('if stage==5 and',config)
+        self.assertIn('Skip checkpoints immediately after completed APK',config)
+        self.assertIn('stage not in (1,2,3,4,5)',(ROOT/'tools/ci_compile.py').read_text())
+        self.assertNotIn("python3 - <<'CHECK'",config)
+    def test_fail_stop_requires_successful_previous_stage(self):
+        config=(ROOT/'.circleci/config.yml').read_text()
+        self.assertIn('requires: [RawS full - first ARM64 slice]',config)
+        for stage in range(2,5):
+            self.assertIn(f'requires: [RawS full - ARM64 slice {stage}]',config)
+        self.assertNotIn('requires: {',config)
+
 if __name__=='__main__':unittest.main()

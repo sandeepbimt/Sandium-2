@@ -87,6 +87,8 @@ jobs:
       - run: date +%s > .raw-job-start
       - restore_cache:
           keys:
+            - raw-done-v1-<< pipeline.id >>-4
+            - raw-done-v1-<< pipeline.id >>-3
             - raw-done-v1-<< pipeline.id >>-2
             - raw-done-v1-<< pipeline.id >>-1
       - run:
@@ -122,6 +124,15 @@ jobs:
           paths:
             - handoff/stage<< parameters.stage >>/state.json
       - run:
+          name: Skip checkpoints immediately after completed APK
+          command: |
+            python3 - \<<'CHECK'
+            import json,subprocess
+            state=json.load(open('handoff/stage<< parameters.stage >>/state.json'))
+            if state['status'] in ('done','skipped_done'):
+                subprocess.run(['circleci-agent','step','halt'],check=True)
+            CHECK
+      - run:
           name: Save resumable output reference
           command: python3 tools/ci_handoff.py cache-output
       - save_cache:
@@ -138,8 +149,8 @@ jobs:
             import json
             stage = << parameters.stage >>
             state=json.load(open(f'handoff/stage{stage}/state.json'))
-            if stage==3 and state['status']=='slice_expired':
-                raise SystemExit('Three slices exhausted; checkpoint retained, no APK claimed')
+            if stage==5 and state['status']=='slice_expired':
+                raise SystemExit('Five slices exhausted; checkpoint retained, no APK claimed')
             CHECK
   raw-source:
     machine:
@@ -245,3 +256,11 @@ workflows:
           name: RawS full - ARM64 slice 3
           stage: 3
           requires: [RawS full - ARM64 slice 2]
+      - raw-compile:
+          name: RawS full - ARM64 slice 4
+          stage: 4
+          requires: [RawS full - ARM64 slice 3]
+      - raw-compile:
+          name: RawS full - ARM64 slice 5
+          stage: 5
+          requires: [RawS full - ARM64 slice 4]

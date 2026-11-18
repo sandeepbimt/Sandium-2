@@ -28,7 +28,7 @@ def safe_members(archive):
     return members
 
 def main(stage):
-    if os.environ.get('CIRCLE_BRANCH')!='raw-sandium/bootstrap' or stage not in (1,2,3):raise ValueError('Wrong build scope')
+    if os.environ.get('CIRCLE_BRANCH')!='raw-sandium/bootstrap' or stage not in (1,2,3,4,5):raise ValueError('Wrong build scope')
     ident=fingerprint(); folder=ROOT/f'handoff/stage{stage}';folder.mkdir(parents=True,exist_ok=True)
     artifacts=ROOT/'artifacts';artifacts.mkdir(exist_ok=True)
     state={'stage':stage,'fingerprint':ident,'apk_produced':False}
