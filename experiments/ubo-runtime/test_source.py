@@ -21,6 +21,8 @@ class Tests(unittest.TestCase):
     if repo==core:
      return m.git_original(CORE,*args,optional=optional)
     f=ROOT/'identity/fixtures/web_auth_flow.cc' if name=='chrome/browser/extensions/api/identity/web_auth_flow.cc' else RAW/name
+    if name=='chrome/browser/extensions/api/chrome_extensions_api_client_android.cc':
+     f=ROOT/'api-client/fixtures/chrome_extensions_api_client_android.cc'
     return f.read_bytes() if f.exists() else None
    with patch.object(m,'git_original',m.git,create=True),patch.object(m,'git',git):
     on=m.plan(core,src,True);off=m.plan(core,src,False)

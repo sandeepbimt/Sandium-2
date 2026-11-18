@@ -1,0 +1,1 @@
+Exact Chromium source from https://chromium.googlesource.com/chromium/src/+/d331de35ca8ab1358c7a17e4bd41627d55eaef51/chrome/browser/extensions/api/chrome_extensions_api_client_android.cc . BSD license retained. The original USB permission prompt is already a nullptr-returning Android stub; no permission behavior is changed.

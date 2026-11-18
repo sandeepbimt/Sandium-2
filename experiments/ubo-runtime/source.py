@@ -84,6 +84,12 @@ def plan(core,src,enabled):
         raise ValueError('Missing pinned web auth source')
     fixed_auth = auth['transform'](raw_auth)
     payload[src/auth['PATH']] = fixed_auth if enabled else raw_auth
+    api = runpy.run_path(str(ROOT/'api-client/apply.py'))
+    raw_api = blob(src, CHROMIUM_PIN, api['PATH'])
+    if raw_api is None:
+        raise ValueError('Missing pinned Android API client')
+    fixed_api = api['transform'](raw_api)
+    payload[src/api['PATH']] = fixed_api if enabled else raw_api
     retire_renamed_settings(core,enabled,payload)
     for p in payload:
         if p.is_symlink() or any(q.is_symlink() for q in p.parents if q not in (core.parent,src.parent)):
