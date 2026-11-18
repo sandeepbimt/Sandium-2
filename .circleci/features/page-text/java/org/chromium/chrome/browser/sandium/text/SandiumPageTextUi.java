@@ -13,6 +13,7 @@ import android.widget.SeekBar;
 import android.widget.TextView;
 import android.widget.Toast;
 import org.chromium.chrome.browser.profiles.Profile;
+import org.chromium.chrome.R;
 
 /** Edits a draft and a local sample only. Saving never executes script or mutates the document. */
 public final class SandiumPageTextUi {
@@ -35,7 +36,7 @@ public final class SandiumPageTextUi {
         SeekBar slider = new SeekBar(c); slider.setMax((PageTextPolicy.MAX_SCALE - PageTextPolicy.MIN_SCALE) / PageTextPolicy.SCALE_STEP);
         slider.setProgress((initial.scalePercent - PageTextPolicy.MIN_SCALE) / PageTextPolicy.SCALE_STEP);
         slider.setContentDescription("Webpage text size"); body.addView(slider);
-        CheckBox justify = new CheckBox(c); justify.setText("Justify article text");
+        CheckBox justify = new CheckBox(c); justify.setText(R.string.sandium_page_text_justify);
         justify.setChecked(initial.isJustificationEnabled()); body.addView(justify);
         // A local reading surface beneath both controls.
         TextView sample = text(c, "Sandium keeps reading comfortable. Adjust the text size and alignment to find a style that feels right. This sample changes instantly while your open webpages stay unchanged.");
@@ -61,8 +62,8 @@ public final class SandiumPageTextUi {
             sample.setTextSize(16f * percent / 100f);
             // Native sample widget only, never the webpage. Device API is >= Android 8 here.
             sample.setJustificationMode(justified
-                    ? android.text.Layout.JUSTIFICATION_MODE_INTER_WORD
-                    : android.text.Layout.JUSTIFICATION_MODE_NONE);
+                    ? android.graphics.text.LineBreaker.JUSTIFICATION_MODE_INTER_WORD
+                    : android.graphics.text.LineBreaker.JUSTIFICATION_MODE_NONE);
         };
         slider.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override public void onProgressChanged(SeekBar v, int value, boolean user) { preview.run(); }

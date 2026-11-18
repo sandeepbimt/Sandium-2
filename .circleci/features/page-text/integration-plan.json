@@ -26,13 +26,15 @@
   "core_restore": [
     "android/brave_java_sources.gni",
     "android/java/org/chromium/chrome/browser/settings/AppearancePreferences.java",
-    "browser/brave_profile_prefs.cc"
+    "browser/brave_profile_prefs.cc",
+    "android/BUILD.gn"
   ],
   "generated_overwrite": [
     "chrome/browser/ui/android/night_mode/java/src/org/chromium/chrome/browser/sandium/text/PageTextPolicy.java",
     "chrome/browser/ui/android/night_mode/java/src/org/chromium/chrome/browser/sandium/text/PageTextStylesheet.java",
     "chrome/browser/ui/android/night_mode/java/src/org/chromium/chrome/browser/sandium/text/SandiumPageText.java",
-    "brave/android/java/org/chromium/chrome/browser/sandium/text/SandiumPageTextUi.java"
+    "brave/android/java/org/chromium/chrome/browser/sandium/text/SandiumPageTextUi.java",
+    "brave/android/java/brave-res/values/sandium_page_text_strings.xml"
   ],
   "chromium_restore_patches": {
     "content/browser/renderer_host/navigation_controller_impl.cc": "patches/content-browser-renderer_host-navigation_controller_impl.cc.patch",

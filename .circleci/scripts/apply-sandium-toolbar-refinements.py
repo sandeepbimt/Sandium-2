@@ -222,7 +222,8 @@ def button(s):
     s = once(s, '''        mTabSwitcherButtonDrawable.setNotificationBackground(brandedColorScheme);''', '''        mTabSwitcherButtonDrawable.setNotificationBackground(brandedColorScheme);
         mSandiumAddPaint.setColor(ThemeUtils.getThemedToolbarIconTint(getContext(), brandedColorScheme).getDefaultColor());''')
     s = once(s, '        setContentDescription(drawableText);', '''        if (mSandiumDualAction) {
-            drawableText = getContext().getString(R.string.sandium_toolbar_tabs_dual_action, tabCount);
+            drawableText = getContext().getResources().getQuantityString(
+                    R.plurals.sandium_toolbar_tabs_dual_action, tabCount, tabCount);
         }
         setContentDescription(drawableText);''')
     s = once(s, '        mTabSwitcherButtonDrawable.draw(canvas);', '''        mTabSwitcherButtonDrawable.draw(canvas);
@@ -232,7 +233,10 @@ def button(s):
 
 def strings(s):
     return once(s, '</resources>', '''    <string name="sandium_toolbar_show_tabs">Show tabs</string>
-    <string name="sandium_toolbar_tabs_dual_action">New tab. Touch and hold to show tabs. %1$d open tabs.</string>
+    <plurals name="sandium_toolbar_tabs_dual_action">
+        <item quantity="one">New tab. Touch and hold to show tabs. %1$d open tab.</item>
+        <item quantity="other">New tab. Touch and hold to show tabs. %1$d open tabs.</item>
+    </plurals>
 </resources>''')
 
 

@@ -422,7 +422,9 @@ def apply_android_sources(core: Path) -> None:
         }
     }
 """,
-        """    public void setFilterLists(Value filterLists[]) {
+        """    // Replaces catalogue and optional header together; old/new item identities are unavailable.
+    @android.annotation.SuppressLint("NotifyDataSetChanged")
+    public void setFilterLists(Value filterLists[]) {
         mFilterLists = filterLists == null ? new Value[0] : filterLists;
         notifyDataSetChanged();
     }

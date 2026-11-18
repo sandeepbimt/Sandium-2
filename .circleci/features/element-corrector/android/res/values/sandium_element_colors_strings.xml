@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+ <string name="sandium_element_default_hex" translatable="false">#EEEEEE</string>
  <string name="sandium_element_title">Correct element colors</string>
  <string name="sandium_element_select_hint">Tap the page element you want to correct.</string>
  <string name="sandium_element_choose_hint">Preview before saving. Image artwork recolors the selected image, including its emblem, but keeps transparent areas. Opaque images become a solid color. Some elements cannot be selected.</string>

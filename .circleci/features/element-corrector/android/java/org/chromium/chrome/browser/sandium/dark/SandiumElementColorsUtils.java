@@ -179,7 +179,7 @@ public final class SandiumElementColorsUtils {
             color=new EditText(activity);color.setSingleLine(true);color.setTextColor(0xffeeeeee);
             color.setHint(R.string.sandium_element_hex);color.setHintTextColor(0xffaaaaaa);
             color.setFilters(new InputFilter[]{new InputFilter.LengthFilter(7)});
-            color.setText("#EEEEEE");color.setContentDescription(activity.getString(R.string.sandium_element_hex));
+            color.setText(R.string.sandium_element_default_hex);color.setContentDescription(activity.getString(R.string.sandium_element_hex));
             body.addView(color);
             LinearLayout presets=new LinearLayout(activity);presets.setOrientation(LinearLayout.HORIZONTAL);
             for (String hex : new String[]{"#EEEEEE","#1A1A1A","#000000","#408CFF"}) {

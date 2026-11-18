@@ -14,6 +14,9 @@ class WelcomeRestart(unittest.TestCase):
   code='''public class RestartHarness {
  boolean mDestroyed,mCanStartBrowsing,mStartInvoked,mRestartInProgress,mRequiresRestart;
  static int prepared, restarted, started;
+ static class R { static class string { static final int sandium_welcome_restarting=1, sandium_welcome_restarting_moment=2; } }
+ static class Activity { String getString(int id) { if(id==1)return "Restarting";if(id==2)return "Restarting in a moment…";throw new AssertionError("unknown resource"); } }
+ Activity mActivity=new Activity();
  static final int TEXT=0, START_TRACK=1, START_PROGRESS=2;
  Object mPollRunnable=new Object();
  static class Handler { Runnable pending; void removeCallbacks(Object r) {} void postDelayed(Runnable r,long ms){if(ms!=1000)throw new AssertionError();pending=r;} void fire(){pending.run();} }
@@ -26,7 +29,7 @@ class WelcomeRestart(unittest.TestCase):
  static class Drawable {}
  static class ClipDrawable extends Drawable { static int HORIZONTAL=1; int level; ClipDrawable(Drawable d,int g,int o){} void setLevel(int n){level=n;} }
  static class LayerDrawable extends Drawable { LayerDrawable(Drawable[] d){} }
- static class Gravity { static int LEFT=3; }
+ static class Gravity { static int START=3; }
  Drawable roundRect(int c,int r){return new Drawable();}
  ClipDrawable mRestartButtonFill;
  static class Button { void setEnabled(boolean b) {} void setText(String s) {} void setTextColor(int c) {} void setBackgroundTintList(Object o){} void setBackground(Drawable d){} void setContentDescription(String s){} }

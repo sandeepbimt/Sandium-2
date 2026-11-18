@@ -1,0 +1,34 @@
+{
+  "schema": 1,
+  "source_revision": "68eb3032aed511ed5b49ac3a85464a16b9eb3d37",
+  "brave_pin": "44a84b1f89d9a35287289d6a3d493e362f5a5123",
+  "chromium_pin": "d331de35ca8ab1358c7a17e4bd41627d55eaef51",
+  "scope": "Recomputed from actual #1394 same-pin sources; no1.99 evidence reused. Source/XML/declared dependencies only, not executed GN/lint/runtime.",
+  "composition_log_sha256": "ff142874d06e088296f167de51ffe1c822aca4e784400759976e1cac08b8bac6",
+  "counts": {
+    "approved": 320,
+    "removed": 8,
+    "unresolved": 0
+  },
+  "static_settings_dependency_evidence": {
+    "path": ".circleci/features/lint-resources/same-pin-audit.json",
+    "apk": "//chrome/android:chrome_public_apk",
+    "chain": [
+      "chrome_public_apk(android_apk,lint=true)",
+      "chrome_all_java",
+      "chrome_java (combined Chromium+Brave sources, chrome_app_java_resources)",
+      "brave_chrome_app_java_resources_deps",
+      "//brave/android:java_resources"
+    ],
+    "chromium_revision": "d331de35ca8ab1358c7a17e4bd41627d55eaef51",
+    "chromium_build_sha256": "0ddb8f56c59166dcdb6cc49f2e5a8d2ab22491aa8a3822d4ac27a133fa2d3760",
+    "chromium_source_list_sha256": "3d29e5b5d0b8e47dda747aac48edcac429a077e90cb75c142896d4cb3da68be4",
+    "apk_template_sha256": "326a15927e5ee513175b0c0edc5482d00949f467f87f3153ce214a3a53b16356",
+    "brave_source_patch_git_blob": "8bd67f15a9ab3f87a710163923039e163f996af8",
+    "brave_resource_patch_git_blob": "1d3446839c6c2ee41a811b3b31a1d3a6084ee887",
+    "composed_brave_sources_sha256": "5f1607861039443ba53f44327f2020a2f320ad7414bc712fca4fdf278a6c724d",
+    "composed_brave_build_sha256": "d1a436db3286adf6fe038878db93ed0786af2027d810864da2aba2b37dea50bb",
+    "composed_brave_config_sha256": "1eeca641400aec269d920c63ed97edc27a94354f11668991c1c756d2905915ca",
+    "composed_brave_manifest_sha256": "249a2367123af9570822a1edcc33acf3bf703305a336fc3438d52771eb828183"
+  }
+}

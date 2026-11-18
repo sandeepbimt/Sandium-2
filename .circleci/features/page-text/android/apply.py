@@ -85,6 +85,14 @@ def outputs(src, repo):
     anchor = 'brave_java_sources = [\n'
     out[path] = once(path.read_text(), anchor,
             anchor+'  "../../brave/android/java/'+PACKAGE+'SandiumPageTextUi.java",\n')
+    path = core/'android/BUILD.gn'
+    out[path] = once(path.read_text(), '    "java/brave-res/values/brave_ids.xml",\n',
+            '    "java/brave-res/values/brave_ids.xml",\n'
+            '    "java/brave-res/values/sandium_page_text_strings.xml",\n')
+    out[core/'android/java/brave-res/values/sandium_page_text_strings.xml'] = (
+            '<?xml version="1.0" encoding="utf-8"?>\n<resources>\n'
+            '    <string name="sandium_page_text_justify">Justify article text</string>\n'
+            '</resources>\n')
     return out
 
 def main():

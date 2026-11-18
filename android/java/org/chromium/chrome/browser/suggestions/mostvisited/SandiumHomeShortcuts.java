@@ -312,6 +312,7 @@ public final class SandiumHomeShortcuts extends LinearLayout {
     }
     private final class ChevronButton extends View {
         private final android.graphics.Paint paint = new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
+        private final android.graphics.Path chevronPath = new android.graphics.Path();
         ChevronButton(Context context) { super(context); }
         @Override public CharSequence getAccessibilityClassName() { return android.widget.Button.class.getName(); }
         @Override protected void onDraw(android.graphics.Canvas canvas) {
@@ -323,10 +324,10 @@ public final class SandiumHomeShortcuts extends LinearLayout {
             paint.setColor(mAccent); paint.setStyle(android.graphics.Paint.Style.STROKE);
             paint.setStrokeWidth(dp(2)); paint.setStrokeCap(android.graphics.Paint.Cap.ROUND);
             paint.setStrokeJoin(android.graphics.Paint.Join.ROUND);
-            android.graphics.Path path = new android.graphics.Path();
+            chevronPath.reset();
             float sign=mExpanded?-1:1;
-            path.moveTo(x-dp(8),y+sign*dp(3));path.lineTo(x,y-sign*dp(4));path.lineTo(x+dp(8),y+sign*dp(3));
-            canvas.drawPath(path,paint);
+            chevronPath.moveTo(x-dp(8),y+sign*dp(3));chevronPath.lineTo(x,y-sign*dp(4));chevronPath.lineTo(x+dp(8),y+sign*dp(3));
+            canvas.drawPath(chevronPath,paint);
         }
     }
     private void finishDrag() {
@@ -413,7 +414,7 @@ public final class SandiumHomeShortcuts extends LinearLayout {
             });
             delete.setMinHeight(0); delete.setTextSize(15); delete.setTextColor(mPanel);
             delete.setBackground(new android.graphics.drawable.InsetDrawable(shape(mAccent,10),dp(7))); delete.setContentDescription(getResources().getString(R.string.sandium_home_remove_named,site.title));
-            FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(dp(32),dp(32),Gravity.TOP|Gravity.RIGHT);
+            FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(dp(32),dp(32),Gravity.TOP|Gravity.END);
             box.addView(delete,lp);
             mEditTiles.add(content);
         }

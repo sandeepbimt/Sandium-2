@@ -18,7 +18,8 @@ class TransformTests(unittest.TestCase):
  def test_complete_outputs_idempotent(self):
   with tempfile.TemporaryDirectory() as tmp:
    src=Path(tmp);core=src/'brave'
-   data={'browser/brave_profile_prefs.cc':'void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {\n}',
+   data={'android/BUILD.gn':'    "java/brave-res/values/brave_ids.xml",\n',
+    'browser/brave_profile_prefs.cc':'void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {\n}',
     'android/java/org/chromium/chrome/browser/settings/AppearancePreferences.java':'        SettingsUtils.addPreferencesFromResource(this, R.xml.brave_appearance_preferences);\n',
     'android/java/org/chromium/chrome/browser/shields/BraveUnifiedPanelHandler.java':'        setupAdvancedOptionsListeners();\n',
     'android/java/brave-res/layout/brave_shields_tab_content.xml':'<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"><LinearLayout android:id="@+id/sandium_appearance_group" /></LinearLayout>',
@@ -43,7 +44,7 @@ class TransformTests(unittest.TestCase):
  def test_single_justify_control_and_legacy_effective_state(self):
   ui=(ROOT/'.circleci/features/page-text/java/org/chromium/chrome/browser/sandium/text/SandiumPageTextUi.java').read_text()
   self.assertEqual(ui.count('new CheckBox(c)'),1)
-  self.assertIn('Justify article text',ui)
+  self.assertIn('R.string.sandium_page_text_justify',ui)
   self.assertIn('initial.isJustificationEnabled()',ui)
   self.assertNotIn('Reader typography',ui)
   self.assertNotIn('justify.setEnabled(',ui)
@@ -55,6 +56,9 @@ class TransformTests(unittest.TestCase):
   self.assertLess(ui.index('body.addView(justify)'),ui.index('body.addView(sample, sampleParams)'))
   self.assertIn('sample.setTextSize(16f * percent / 100f)',ui)
   self.assertIn('sample.setJustificationMode(justified',ui)
+  self.assertIn('android.graphics.text.LineBreaker.JUSTIFICATION_MODE_INTER_WORD',ui)
+  self.assertIn('android.graphics.text.LineBreaker.JUSTIFICATION_MODE_NONE',ui)
+  self.assertNotIn('android.text.Layout.JUSTIFICATION_MODE_',ui)
   self.assertIn('onProgressChanged(SeekBar v, int value, boolean user) { preview.run(); }',ui)
   self.assertIn('justify.setOnCheckedChangeListener((v, checked) -> preview.run())',ui)
   self.assertIn('sample.setBackground(sampleBackground)',ui)

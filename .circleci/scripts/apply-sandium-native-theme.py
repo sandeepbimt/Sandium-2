@@ -19,7 +19,6 @@ COMMON = {
     'baseline_primary_90': '#D5E4F6',
     'baseline_primary_10': '#071C32',
     'gm3_baseline_surface_dark': BACKGROUND,
-    'gm3_baseline_surface_container_lowest_dark': BACKGROUND,
     'gm3_baseline_surface_container_low_dark': CARD,
     'gm3_baseline_surface_container_dark': CARD,
     'gm3_baseline_surface_container_high_dark': CARD,

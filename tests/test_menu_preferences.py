@@ -8,6 +8,7 @@ class MenuPreferences(unittest.TestCase):
   with tempfile.TemporaryDirectory() as directory:
    root=Path(directory)
    sources={
+'android/annotation/SuppressLint.java':'package android.annotation; public @interface SuppressLint { String[] value(); }',
 'android/content/SharedPreferences.java':'''package android.content;
 public interface SharedPreferences { boolean contains(String k); String getString(String k,String d); Editor edit(); interface Editor { Editor putString(String k,String v); boolean commit(); } }''',
 'android/content/Context.java':'''package android.content;

@@ -12,10 +12,7 @@
   <string name="sandium_menu_drag_hint">Drag to move · Tap for options</string>
   <string name="sandium_menu_native">Original controls</string>
   <string name="sandium_menu_native_description">Original menu for specialized controls</string>
-  <string name="sandium_menu_previous">Previous menu page</string>
-  <string name="sandium_menu_next">Next menu page</string>
   <string name="sandium_menu_available">Available actions</string>
-  <string name="sandium_menu_reset">Reset to default</string>
   <string name="sandium_menu_reset_description">Reset menu layout</string>
   <string name="sandium_menu_reset_question">Reset menu layout to default?</string>
   <string name="sandium_menu_reset_confirm">Reset</string>
@@ -32,7 +29,6 @@
   <string name="sandium_menu_remove">Remove</string>
   <string name="sandium_menu_page_description">Menu page %1$d of %2$d</string>
   <string name="sandium_menu_add_action">Add %1$s</string>
-  <string name="sandium_menu_remove_action">Remove %1$s</string>
   <string name="sandium_menu_private_tab">Private tab</string>
   <string name="sandium_menu_group_tab">Group tab</string>
   <string name="sandium_menu_reader">Reader</string>

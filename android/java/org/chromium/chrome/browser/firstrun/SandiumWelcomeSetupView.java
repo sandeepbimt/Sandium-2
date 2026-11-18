@@ -181,7 +181,7 @@ final class SandiumWelcomeSetupView {
         mRoot.addView(buttonContainer, matchWrap());
 
         mStartButton = new Button(mActivity);
-        mStartButton.setText("Start browsing");
+        mStartButton.setText(mActivity.getString(R.string.sandium_welcome_start));
         mStartButton.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16);
         mStartButton.setTextColor(DISABLED_BUTTON_TEXT);
         mStartButton.setAllCaps(false);
@@ -244,6 +244,8 @@ final class SandiumWelcomeSetupView {
         });
     }
 
+    // Persist setup values before the native-feature relaunch.
+    @android.annotation.SuppressLint("ApplySharedPref")
     private void applyInitialPreferences() {
         BraveShieldsContentSettings.setShields(
                 mProfile, "", BraveShieldsContentSettings.RESOURCE_IDENTIFIER_BRAVE_SHIELDS,
@@ -304,6 +306,12 @@ final class SandiumWelcomeSetupView {
         mContent.addView(brand, params);
     }
 
+    // This switch can be followed immediately by restart; persist synchronously.
+    @android.annotation.SuppressLint("ApplySharedPref")
+    private void persistDarkenPreference(boolean checked) {
+        ContextUtils.getAppSharedPreferences().edit().putBoolean(PREF_DARKEN, checked).commit();
+    }
+
     private void buildMainSettingsCard() {
         LinearLayout card = card();
         mMainSettingsCard = card;
@@ -334,8 +342,7 @@ final class SandiumWelcomeSetupView {
                 "Dim the outgoing page",
                 darkenChecked, checked -> {
                     if (!isBlurTransitionEnabled()) return;
-                    ContextUtils.getAppSharedPreferences().edit()
-                            .putBoolean(PREF_DARKEN, checked).commit();
+                    persistDarkenPreference(checked);
                     mRequiresRestart = true;
                 });
         mDarkenSwitch.setEnabled(blurEnabled);
@@ -358,8 +365,8 @@ final class SandiumWelcomeSetupView {
             mAdvancedOptions.setVisibility(mExpanded ? View.VISIBLE : View.GONE);
             if (mExpanded) fadeIn(mAdvancedOptions);
             else mScrollView.post(() -> mScrollView.scrollTo(0, 0));
-            mMoreOptionsLabel.setText(mExpanded ? "Fewer options" : "More options");
-            arrow.setText(mExpanded ? "⌄" : "›");
+            mMoreOptionsLabel.setText(mExpanded ? mActivity.getString(R.string.sandium_welcome_fewer_options) : mActivity.getString(R.string.sandium_welcome_more_options));
+            arrow.setText(mExpanded ? mActivity.getString(R.string.sandium_welcome_expanded_glyph) : mActivity.getString(R.string.sandium_welcome_collapsed_glyph));
         });
         card.addView(more, matchWrap());
 
@@ -437,7 +444,7 @@ final class SandiumWelcomeSetupView {
         progressRow.addView(mProgress, new LinearLayout.LayoutParams(0, dp(5), 1f));
 
         mPercent = text("0%", 11, TEXT, false);
-        mPercent.setGravity(Gravity.RIGHT | Gravity.CENTER_VERTICAL);
+        mPercent.setGravity(Gravity.END | Gravity.CENTER_VERTICAL);
         LinearLayout.LayoutParams percentParams = new LinearLayout.LayoutParams(dp(38), dp(22));
         percentParams.setMargins(dp(8), 0, 0, 0);
         progressRow.addView(mPercent, percentParams);
@@ -765,15 +772,15 @@ final class SandiumWelcomeSetupView {
         }
 
         mRestartInProgress = true;
-        mStartButton.setText("Restarting");
+        mStartButton.setText(mActivity.getString(R.string.sandium_welcome_restarting));
         mStartButton.setTextColor(TEXT);
 
         // Explicit one-second pre-restart feedback, not download/setup progress.
         // The handler owns dispatch so disabled animations cannot skip the restart.
-        mStartButton.setText("Restarting in a moment…");
+        mStartButton.setText(mActivity.getString(R.string.sandium_welcome_restarting_moment));
         // Fill the existing capsule itself: no added progress view or layout shift.
         mRestartButtonFill = new ClipDrawable(
-                roundRect(START_PROGRESS, 28), Gravity.LEFT, ClipDrawable.HORIZONTAL);
+                roundRect(START_PROGRESS, 28), Gravity.START, ClipDrawable.HORIZONTAL);
         mRestartButtonFill.setLevel(0);
         mStartButton.setBackgroundTintList(null);
         mStartButton.setBackground(new LayerDrawable(new Drawable[] {
@@ -838,7 +845,7 @@ final class SandiumWelcomeSetupView {
                 if (subscriptions == null) {
                     mPollInFlight = false;
                     updateEngineStatus(false, 0, 0);
-                    mFinalizing.setText("○   Unable to read filter status. Retrying...");
+                    mFinalizing.setText(mActivity.getString(R.string.sandium_welcome_status_retry));
                     schedulePoll();
                     return;
                 }
@@ -858,7 +865,7 @@ final class SandiumWelcomeSetupView {
         } catch (RuntimeException exception) {
             mPollInFlight = false;
             updateEngineStatus(false, 0, 0);
-            mFinalizing.setText("○   Unable to read filter status. Retrying...");
+            mFinalizing.setText(mActivity.getString(R.string.sandium_welcome_status_retry));
             schedulePoll();
         }
     }
@@ -876,41 +883,41 @@ final class SandiumWelcomeSetupView {
     private void updateEngineStatus(boolean ready, int downloaded, int total) {
         int percent = total == 0 ? 0 : Math.min(100, (downloaded * 100) / total);
         mProgress.setProgress(percent);
-        mPercent.setText(percent + "%");
+        mPercent.setText(mActivity.getString(R.string.sandium_welcome_percent, percent));
         boolean allFiltersReady = allEnabledFiltersDownloaded(downloaded, total);
         mCanStartBrowsing = canStartWithProtection(ready, downloaded, total);
         mEngineState.setText(mCanStartBrowsing
-                ? "✓   Ad blocker engine: Ready"
+                ? mActivity.getString(R.string.sandium_welcome_engine_ready)
                 : (allFiltersReady
-                    ? "○   Ad blocker engine: Activating"
-                    : "○   Ad blocker engine: Waiting for enabled filters"));
+                    ? mActivity.getString(R.string.sandium_welcome_engine_activating)
+                    : mActivity.getString(R.string.sandium_welcome_engine_waiting)));
         mEngineState.setTextColor(mCanStartBrowsing ? SUCCESS : SECONDARY);
         mProtectionTitle.setText(mCanStartBrowsing
-                ? "Ad-blocking protection completed"
-                : "Preparing ad-blocking protection...");
+                ? mActivity.getString(R.string.sandium_welcome_protection_complete)
+                : mActivity.getString(R.string.sandium_welcome_protection_preparing));
         mProtectionTitle.setTextColor(mCanStartBrowsing ? SUCCESS : TEXT);
         mProtectionSubtitle.setText(mCanStartBrowsing
-                ? "Downloads and native engine ready"
-                : "Waiting for downloads and native engine");
+                ? mActivity.getString(R.string.sandium_welcome_downloads_ready)
+                : mActivity.getString(R.string.sandium_welcome_downloads_waiting));
         mProtectionSubtitle.setTextColor(mCanStartBrowsing ? SUCCESS : SECONDARY);
-        mProtectionSpinner.setText(mCanStartBrowsing ? "✓" : "⟳");
+        mProtectionSpinner.setText(mCanStartBrowsing ? mActivity.getString(R.string.sandium_welcome_ready_glyph) : mActivity.getString(R.string.sandium_welcome_waiting_glyph));
         mProtectionSpinner.setTextColor(mCanStartBrowsing ? SUCCESS : PRIMARY);
         mProgress.setProgressTintList(ColorStateList.valueOf(
                 SUCCESS));
         mPercent.setTextColor(mCanStartBrowsing ? SUCCESS : TEXT);
-        mFilterCount.setText((allFiltersReady ? "✓   " : "○   ") + "Filters: " + downloaded + " of " + total + " loaded");
+        mFilterCount.setText(mActivity.getString(allFiltersReady ? R.string.sandium_welcome_filters_ready : R.string.sandium_welcome_filters_waiting, downloaded, total));
         mFilterCount.setTextColor(allFiltersReady ? SUCCESS : SECONDARY);
         mFinalizing.setText(mCanStartBrowsing
-                ? "✓   Finalizing: Complete"
+                ? mActivity.getString(R.string.sandium_welcome_final_complete)
                 : (allFiltersReady
-                    ? "○   Finalizing: Activating the native engine..."
+                    ? mActivity.getString(R.string.sandium_welcome_final_activating)
                     : (total == 0
-                        ? "○   Waiting for enabled filter subscriptions..."
-                        : "○   Waiting for remaining downloads; check your connection.")));
+                        ? mActivity.getString(R.string.sandium_welcome_subscriptions_waiting)
+                        : mActivity.getString(R.string.sandium_welcome_downloads_remaining))));
         mFinalizing.setTextColor(mCanStartBrowsing ? SUCCESS : SECONDARY);
         mStartButton.setEnabled(mCanStartBrowsing && !mStartInvoked);
         if (!mRestartInProgress) {
-            mStartButton.setText("Start browsing");
+            mStartButton.setText(mActivity.getString(R.string.sandium_welcome_start));
             mStartButton.setTextColor(mCanStartBrowsing ? PRIMARY_TEXT : DISABLED_BUTTON_TEXT);
             mStartButton.setBackground(roundRect(
                     mCanStartBrowsing ? START_BUTTON : DISABLED_BUTTON, 28));

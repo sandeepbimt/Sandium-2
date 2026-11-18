@@ -514,6 +514,7 @@
     "components/page_load_metrics/browser/page_load_tracker.h"
   ],
   "generated_overwrite": [
+    "brave/android/java/brave-res/values/sandium_welcome_strings.xml",
     "components/minidump_uploader/android/java/src/org/chromium/components/minidump_uploader/MinidumpUploader.java",
     "android/java/org/chromium/chrome/browser/SandiumTextUtils.java",
     "components/browser_ui/styles/android/java/res/color/sandium_switch_thumb.xml",
@@ -547,7 +548,9 @@
     "brave/android/java/org/chromium/chrome/browser/sandium/text/SandiumPageTextUi.java",
     "chrome/browser/ui/android/night_mode/java/src/org/chromium/chrome/browser/sandium/diagnostics/SandiumNavigationDiagnostics.java",
     "brave/android/java/org/chromium/chrome/browser/sandium/diagnostics/SandiumDiagnosticsPreferences.java",
-    "brave/android/java/org/chromium/chrome/browser/sandium/diagnostics/SandiumDiagnosticsCapture.java"
+    "brave/android/java/org/chromium/chrome/browser/sandium/diagnostics/SandiumDiagnosticsCapture.java",
+    "brave/android/java/brave-res/values/sandium_filter_action_strings.xml",
+    "brave/android/java/brave-res/values/sandium_page_text_strings.xml"
   ],
   "steps": [
     {

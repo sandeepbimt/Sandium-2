@@ -6,7 +6,6 @@
     <string name="sandium_dark_pages_follow">Follow global setting</string>
     <string name="sandium_dark_pages_on">On</string>
     <string name="sandium_dark_pages_off">Off</string>
-    <string name="sandium_dark_pages_reload_notice">Changes apply when you reload the page. Individual elements may need manual color correction.</string>
     <string name="sandium_dark_pages_reset">Reset this site</string>
     <string name="sandium_dark_pages_reload">Reload page</string>
     <string name="sandium_dark_pages_later">Done</string>

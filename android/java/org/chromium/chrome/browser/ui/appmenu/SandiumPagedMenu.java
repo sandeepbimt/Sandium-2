@@ -271,6 +271,8 @@ final class SandiumPagedMenu extends FrameLayout {
         if (mFooter != null) for (ListItem item : mFooter.sandiumActions()) add(item.model, -1, false);
     }
 
+    // Restore only the element that already held accessibility focus before rebuilding.
+    @android.annotation.SuppressLint("AccessibilityFocus")
     void refresh() {
         refreshCatalog();
         Set<String> legacy = new HashSet<>();
@@ -1072,6 +1074,8 @@ final class SandiumPagedMenu extends FrameLayout {
         });
     }
 
+    // Preserve pager accessibility focus only when that pager held it before paging.
+    @android.annotation.SuppressLint("AccessibilityFocus")
     private void page(int direction) {
         if (mAllMenu && mDraft == null) return;
         int count = quickPageCount();
@@ -1309,6 +1313,10 @@ final class SandiumPagedMenu extends FrameLayout {
         }
         return super.onInterceptTouchEvent(event);
     }
+    @Override public boolean performClick() {
+        super.performClick();
+        return true;
+    }
     @Override public boolean onTouchEvent(MotionEvent event) {
         int action = event.getActionMasked();
         if (action == MotionEvent.ACTION_CANCEL || action == MotionEvent.ACTION_POINTER_DOWN
@@ -1331,6 +1339,7 @@ final class SandiumPagedMenu extends FrameLayout {
             clearPageSwipe();
             if (getLayoutDirection() == LAYOUT_DIRECTION_RTL) direction = -direction;
             if (direction != 0) page(direction);
+            else performClick();
         }
         return true;
     }

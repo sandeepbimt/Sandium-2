@@ -5,8 +5,6 @@
   <string name="sandium_home_less">⌄  Show less</string>
   <string name="sandium_home_all">⌃  All shortcuts</string>
   <string name="sandium_home_done">Done</string>
-  <string name="sandium_home_add">+ Add</string>
-  <string name="sandium_home_empty">Add your favourite sites</string>
   <string name="sandium_home_name">Name</string>
   <string name="sandium_home_address">https://example.com</string>
   <string name="sandium_home_cancel">Cancel</string>

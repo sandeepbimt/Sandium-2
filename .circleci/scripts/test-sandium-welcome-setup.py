@@ -102,8 +102,8 @@ required_view_markers = (
     "addRestartSwitchRow(card, \"◐\", \"Darken transition\"",
     "mListener.onPrepareForRestart()",
     "BraveRelaunchUtils.restart()",
-    'mStartButton.setText("Restarting")',
-    '"Ad-blocking protection completed"',
+    'mActivity.getString(R.string.sandium_welcome_restarting)',
+    'mActivity.getString(R.string.sandium_welcome_protection_complete)',
     "mTemplateUrlService.setSearchEngine(google.getKeyword())",
     "getOrCreatePrimaryOtrProfile()",
     "TemplateUrlServiceFactory.getForProfile(privateProfile)",
@@ -158,7 +158,7 @@ assert "29 filters" not in view_source
 assert "if (!item.enabled) continue;" in view_source
 assert "if (successful > 0) downloaded++;" in view_source
 assert "subscriptions == null" in view_source
-assert "Unable to read filter status. Retrying..." in view_source
+assert 'mActivity.getString(R.string.sandium_welcome_status_retry)' in view_source
 assert "mStartButton.setEnabled(mCanStartBrowsing && !mStartInvoked);" in view_source
 
 # Real apply() over an old generated view must overwrite the obsolete constant,
@@ -169,6 +169,7 @@ with tempfile.TemporaryDirectory() as temp_dir:
     activity_path = core / PATCHER["ACTIVITY"]
     activity_path.parent.mkdir(parents=True)
     activity_path.write_text(patched)
+    (core / "android/BUILD.gn").write_text('    "java/brave-res/values/brave_ids.xml",\n')
     source_list = core / PATCHER["JAVA_SOURCES"]
     source_list.parent.mkdir(parents=True, exist_ok=True)
     source_list.write_text('  "../../brave/android/java/org/chromium/chrome/browser/firstrun/WelcomeOnboardingActivity.java",\n')
@@ -190,8 +191,8 @@ print("SANDIUM_WELCOME_DYNAMIC_COUNT_TEST=PASS count_cases=9 native_ready_requir
 # rule or resource was accepted and executed on every site.
 assert "All filter rules applied" not in view_source
 assert "loaded and active" not in view_source
-assert "Downloads and native engine ready" in view_source
-assert "Finalizing: Complete" in view_source
+assert "R.string.sandium_welcome_downloads_ready" in view_source
+assert "R.string.sandium_welcome_final_complete" in view_source
 
 # Profile-card header with Oppo theme and unchanged green readiness signal.
 assert 'text("Sandium", 24, TEXT, true)' in view_source
@@ -223,3 +224,19 @@ assert 'params.setMarginStart(dp(56));' in view_source
 assert 'params.setMarginEnd(dp(14));' in view_source
 assert 'if (i > 0) addDivider(container);' in view_source  # Picker dividers unchanged.
 print("SANDIUM_WELCOME_OPPO_CATEGORY_STYLE=PASS")
+
+# All direct status text is resource-backed without changing runtime behavior.
+import json
+import xml.etree.ElementTree as ET
+resource = Path("android/java/brave-res/values/sandium_welcome_strings.xml")
+strings = {el.attrib["name"]: el.text for el in ET.parse(HERE.parent.parent / resource).getroot()}
+assert strings["sandium_welcome_start"] == '"Start browsing"'
+assert strings["sandium_welcome_restarting_moment"] == '"Restarting in a moment…"'
+assert set(re.findall(r"R.string.(sandium_welcome_\w+)", view_source)) == set(strings)
+assert all('"' not in expr for expr in re.findall(r"\.setText\((.*?)\);", view_source, re.S))
+assert "Gravity.RIGHT" not in view_source and "Gravity.LEFT" not in view_source
+assert 'SuppressLint("SetTextI18n")' not in view_source
+assert "Restarting in 5" not in view_source
+recipe = json.loads((HERE.parent / "features/removal-recipe.json").read_text())
+assert "brave/" + str(resource) in recipe["generated_overwrite"]
+print("SANDIUM_WELCOME_LINT_RESOURCE_TEST=PASS")

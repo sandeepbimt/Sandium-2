@@ -8,7 +8,7 @@ class WelcomeCompact(unittest.TestCase):
   self.assertIn(toolbar,VIEW.read_text())
  def test_scroll_and_colors(self):
   s=VIEW.read_text()
-  for marker in ['setVerticalScrollBarEnabled(false)','setHorizontalScrollBarEnabled(false)','View.OVER_SCROLL_NEVER','mExpanded ? View.VISIBLE : View.GONE','Color.rgb(70, 200, 120)','allFiltersReady ? "✓   "','mContent.setPadding(dp(18), dp(6), dp(18), dp(4))']:
+  for marker in ['setVerticalScrollBarEnabled(false)','setHorizontalScrollBarEnabled(false)','View.OVER_SCROLL_NEVER','mExpanded ? View.VISIBLE : View.GONE','Color.rgb(70, 200, 120)','allFiltersReady ? R.string.sandium_welcome_filters_ready','mContent.setPadding(dp(18), dp(6), dp(18), dp(4))']:
    self.assertIn(marker,s)
  def test_dark_policy_fresh_and_upgrade(self):
   patch=runpy.run_path(str(ROOT/'.circleci/scripts/apply-sandium-dark-pages.py'))['welcome']

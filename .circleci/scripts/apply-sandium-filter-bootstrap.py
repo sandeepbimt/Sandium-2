@@ -119,6 +119,18 @@ def apply(core: Path) -> None:
     adapter = core / "android/java/org/chromium/chrome/browser/shields/ContentFilteringAdapter.java"
     fragment = core / "android/java/org/chromium/chrome/browser/shields/ContentFilteringFragment.java"
     menu = core / "android/java/brave-res/menu/menu_custom_filter_list.xml"
+    strings = core / "android/java/brave-res/values/sandium_filter_action_strings.xml"
+    strings.parent.mkdir(parents=True, exist_ok=True)
+    strings.write_text('<?xml version="1.0" encoding="utf-8"?>\n<resources>\n'
+            '    <string name="sandium_refresh_filters">Refresh filters</string>\n'
+            '</resources>\n', encoding="utf-8")
+    replace_once(core / "android/BUILD.gn",
+            '    "java/brave-res/values/brave_ids.xml",\n',
+            '    "java/brave-res/values/brave_ids.xml",\n'
+            '    "java/brave-res/values/sandium_filter_action_strings.xml",\n',
+            '"java/brave-res/values/sandium_filter_action_strings.xml"',
+            "filter-action-resource")
+
 
     migrate_29_list_checkpoint(manager_cc)
 
@@ -553,8 +565,8 @@ void FilterListService::GetCustomFilters""",
     replace_once(
         menu,
         'android:title="@string/update"',
-        'android:title="Refresh filters"',
-        'android:title="Refresh filters"',
+        'android:title="@string/sandium_refresh_filters"',
+        'android:title="@string/sandium_refresh_filters"',
         "menu-refresh-filters-title",
     )
 

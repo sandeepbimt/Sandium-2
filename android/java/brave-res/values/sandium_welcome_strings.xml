@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="sandium_welcome_start">"Start browsing"</string>
+    <string name="sandium_welcome_fewer_options">"Fewer options"</string>
+    <string name="sandium_welcome_more_options">"More options"</string>
+    <string name="sandium_welcome_expanded_glyph" translatable="false">"⌄"</string>
+    <string name="sandium_welcome_collapsed_glyph" translatable="false">"›"</string>
+    <string name="sandium_welcome_restarting">"Restarting"</string>
+    <string name="sandium_welcome_restarting_moment">"Restarting in a moment…"</string>
+    <string name="sandium_welcome_status_retry">"○   Unable to read filter status. Retrying..."</string>
+    <string name="sandium_welcome_engine_ready">"✓   Ad blocker engine: Ready"</string>
+    <string name="sandium_welcome_engine_activating">"○   Ad blocker engine: Activating"</string>
+    <string name="sandium_welcome_engine_waiting">"○   Ad blocker engine: Waiting for enabled filters"</string>
+    <string name="sandium_welcome_protection_complete">"Ad-blocking protection completed"</string>
+    <string name="sandium_welcome_protection_preparing">"Preparing ad-blocking protection..."</string>
+    <string name="sandium_welcome_downloads_ready">"Downloads and native engine ready"</string>
+    <string name="sandium_welcome_downloads_waiting">"Waiting for downloads and native engine"</string>
+    <string name="sandium_welcome_ready_glyph" translatable="false">"✓"</string>
+    <string name="sandium_welcome_waiting_glyph" translatable="false">"⟳"</string>
+    <string name="sandium_welcome_final_complete">"✓   Finalizing: Complete"</string>
+    <string name="sandium_welcome_final_activating">"○   Finalizing: Activating the native engine..."</string>
+    <string name="sandium_welcome_subscriptions_waiting">"○   Waiting for enabled filter subscriptions..."</string>
+    <string name="sandium_welcome_downloads_remaining">"○   Waiting for remaining downloads; check your connection."</string>
+    <string name="sandium_welcome_percent" translatable="false">%1$d%%</string>
+    <string name="sandium_welcome_filters_ready">"✓   Filters: %1$d of %2$d loaded"</string>
+    <string name="sandium_welcome_filters_waiting">"○   Filters: %1$d of %2$d loaded"</string>
+</resources>

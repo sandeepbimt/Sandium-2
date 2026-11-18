@@ -43,6 +43,8 @@ public final class SandiumMenuPreferences {
 
     String load() { return mPreferences.getString(KEY, ""); }
 
+    // The caller needs the disk result before exit/restart; apply() cannot report failure.
+    @android.annotation.SuppressLint("ApplySharedPref")
     boolean save(String layout) {
         android.os.StrictMode.ThreadPolicy policy = android.os.StrictMode.allowThreadDiskWrites();
         try {

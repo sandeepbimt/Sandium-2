@@ -250,8 +250,8 @@ def apply(core: Path, src: Path, repo_root: Path) -> None:
         "new LinearLayout.LayoutParams(dp(92), dp(40))",
         'if (!preferences.contains(PREF_BLUR_LEVEL)) editor.putString(PREF_BLUR_LEVEL, "high")',
         "mScrollView.setFillViewport(true)",
-        'mStartButton.setText("Restarting")',
-        '"Ad-blocking protection completed"',
+        'mActivity.getString(R.string.sandium_welcome_restarting)',
+        'mActivity.getString(R.string.sandium_welcome_protection_complete)',
         "TemplateUrlServiceFactory.getForProfile(regularProfile)",
         'mTemplateUrlService.setSearchEngine(google.getKeyword())',
         "getOrCreatePrimaryOtrProfile()",
@@ -285,6 +285,15 @@ def apply(core: Path, src: Path, repo_root: Path) -> None:
             "welcome view verification missing required behavior: "
             + ", ".join(missing_view_behaviour)
         )
+    resource = Path("android/java/brave-res/values/sandium_welcome_strings.xml")
+    write(core / resource, read(repo_root / resource), "welcome-string-resources")
+    build_file = core / "android/BUILD.gn"
+    build_text = replace_once(read(build_file),
+            '    "java/brave-res/values/brave_ids.xml",\n',
+            '    "java/brave-res/values/brave_ids.xml",\n'
+            '    "java/brave-res/values/sandium_welcome_strings.xml",\n',
+            "welcome-resource-registration")
+    write(build_file, build_text, "welcome-resource-registration")
     write(core / VIEW, view_source, "welcome-setup-view")
     write(activity_path, transform_activity(read(activity_path)), "welcome-activity")
     restart_activity_path = src / RESTART_ACTIVITY

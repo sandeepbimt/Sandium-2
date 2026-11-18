@@ -48,3 +48,6 @@ python3 .circleci/scripts/apply-sandium-native-navigation.py "$SRC" --mode confi
 # Run every independent audit before failing, so one build reports all graph defects.
 python3 .circleci/scripts/precheck-graph.py --audits-only
 python3 .circleci/scripts/removal-evidence.py capture --root "$ROOT"
+
+# Exact same-pin #1394 resource review; preserve lint and upstream rules.
+python3 .circleci/scripts/apply-sandium-lint-resources.py --core "$CORE"
