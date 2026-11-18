@@ -126,11 +126,25 @@ class FeatureConfig(unittest.TestCase):
             self.assertIn('TEST_JAVA_HOME/bin/javac',text)
             self.assertIn('export JAVA_HOME=',text)
 
+    def test_circleci_template_delimiters_are_closed_or_explicitly_escaped(self):
+        def strings(value):
+            if isinstance(value,str):yield value
+            elif isinstance(value,dict):
+                for item in value.values():yield from strings(item)
+            elif isinstance(value,list):
+                for item in value:yield from strings(item)
+        for value in strings({'native':self.config,'merged':yaml.safe_load((ROOT/'.circleci/config.yml').read_text())}):
+            for match in re.finditer(r'(?<!\\)<<',value):
+                self.assertRegex(value[match.start():],r'^<< pipeline\.(?:number|id|project\.slug|parameters\.[a-z_]+) >>')
+        raw=self.text('raws-native-seed')
+        self.assertIn("\\<<'PYCODE'",raw)
+        self.assertNotIn("\\<< pipeline.",raw)
+
     def test_shell_and_embedded_python_parse(self):
         for job in self.config['jobs'].values():
             for step in job['steps']:
                 if not isinstance(step,dict) or 'run' not in step:continue
-                command=step['run']['command']
+                command=step['run']['command'].replace('\\<<','<<')
                 result=subprocess.run(['bash','-n'],input=command,text=True,capture_output=True)
                 self.assertEqual(result.returncode,0,result.stderr)
                 for body in re.findall("<<'PYCODE'\n(.*?)\nPYCODE",command,re.S):

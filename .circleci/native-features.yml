@@ -32,7 +32,7 @@ jobs:
     - checkout
     - run:
         name: Start original one-hour job clock
-        command: 'python3 - <<''PYCODE''
+        command: 'python3 - \<<''PYCODE''
 
           import json,os,time
 
@@ -68,7 +68,7 @@ jobs:
         name: Review explicit native feature scope and tests
         command: 'test "$CIRCLE_BRANCH" = "raw-sandium/native-ui158"
 
-          python3 - <<''PYCODE''
+          python3 - \<<''PYCODE''
 
           import sys
 
@@ -98,7 +98,7 @@ jobs:
         - raws-final-receipt-v1-1okrnzzf7a7dVnuYH3RZUQh3v8ABzZh4G4yc4YAiROY=
     - run:
         name: Relocate downloaded receipt outside feature state
-        command: 'python3 - <<''PYCODE''
+        command: 'python3 - \<<''PYCODE''
 
           from pathlib import Path
 
@@ -120,7 +120,7 @@ jobs:
         - raws-final-base-v1-xLg0fZPI+fw9SpoFza6mLhAhAB2lVxH6jMOzj9OmBBU=
     - run:
         name: Relocate native cache inputs without copying archive
-        command: "python3 - <<'PYCODE'\nfrom pathlib import Path\nfor name in ('raw-workspace-checkpoint.manifest.json','raw-workspace-checkpoint.shards'):\n\
+        command: "python3 - \\<<'PYCODE'\nfrom pathlib import Path\nfor name in ('raw-workspace-checkpoint.manifest.json','raw-workspace-checkpoint.shards'):\n\
           \    p=Path(name);dest=Path('.feature-seed-incoming')/name\n    if p.is_symlink() or not p.exists() or dest.exists():raise SystemExit('Unexpected\
           \ baseline archive input')\n    if p.stat().st_dev!=dest.parent.stat().st_dev:raise SystemExit('Cross-filesystem archive copy forbidden')\n  \
           \  p.rename(dest)\nPYCODE"
@@ -188,7 +188,7 @@ jobs:
     - checkout
     - run:
         name: Start original one-hour job clock
-        command: 'python3 - <<''PYCODE''
+        command: 'python3 - \<<''PYCODE''
 
           import json,os,time
 
@@ -224,7 +224,7 @@ jobs:
         name: Review explicit native feature scope and tests
         command: 'test "$CIRCLE_BRANCH" = "raw-sandium/native-ui158"
 
-          python3 - <<''PYCODE''
+          python3 - \<<''PYCODE''
 
           import sys
 
@@ -298,7 +298,7 @@ jobs:
     - checkout
     - run:
         name: Start original one-hour job clock
-        command: 'python3 - <<''PYCODE''
+        command: 'python3 - \<<''PYCODE''
 
           import json,os,time
 
@@ -334,7 +334,7 @@ jobs:
         name: Review explicit native feature scope and tests
         command: 'test "$CIRCLE_BRANCH" = "raw-sandium/native-ui158"
 
-          python3 - <<''PYCODE''
+          python3 - \<<''PYCODE''
 
           import sys
 
@@ -658,7 +658,7 @@ jobs:
     - checkout
     - run:
         name: Start original one-hour job clock
-        command: 'python3 - <<''PYCODE''
+        command: 'python3 - \<<''PYCODE''
 
           import json,os,time
 
@@ -702,7 +702,7 @@ jobs:
         name: Review explicit native feature scope and tests
         command: 'test "$CIRCLE_BRANCH" = "raw-sandium/native-ui158"
 
-          python3 - <<''PYCODE''
+          python3 - \<<''PYCODE''
 
           import sys
 
@@ -1026,7 +1026,7 @@ jobs:
     - checkout
     - run:
         name: Start original one-hour job clock
-        command: 'python3 - <<''PYCODE''
+        command: 'python3 - \<<''PYCODE''
 
           import json,os,time
 
@@ -1071,7 +1071,7 @@ jobs:
         name: Review explicit native feature scope and tests
         command: 'test "$CIRCLE_BRANCH" = "raw-sandium/native-ui158"
 
-          python3 - <<''PYCODE''
+          python3 - \<<''PYCODE''
 
           import sys
 
@@ -1395,7 +1395,7 @@ jobs:
     - checkout
     - run:
         name: Start original one-hour job clock
-        command: 'python3 - <<''PYCODE''
+        command: 'python3 - \<<''PYCODE''
 
           import json,os,time
 
@@ -1441,7 +1441,7 @@ jobs:
         name: Review explicit native feature scope and tests
         command: 'test "$CIRCLE_BRANCH" = "raw-sandium/native-ui158"
 
-          python3 - <<''PYCODE''
+          python3 - \<<''PYCODE''
 
           import sys
 
@@ -1765,7 +1765,7 @@ jobs:
     - checkout
     - run:
         name: Start original one-hour job clock
-        command: 'python3 - <<''PYCODE''
+        command: 'python3 - \<<''PYCODE''
 
           import json,os,time
 
@@ -1812,7 +1812,7 @@ jobs:
         name: Review explicit native feature scope and tests
         command: 'test "$CIRCLE_BRANCH" = "raw-sandium/native-ui158"
 
-          python3 - <<''PYCODE''
+          python3 - \<<''PYCODE''
 
           import sys
 
@@ -2137,7 +2137,7 @@ jobs:
     - checkout
     - run:
         name: Start original one-hour job clock
-        command: 'python3 - <<''PYCODE''
+        command: 'python3 - \<<''PYCODE''
 
           import json,os,time
 
@@ -2173,7 +2173,7 @@ jobs:
         name: Review explicit native feature scope and tests
         command: 'test "$CIRCLE_BRANCH" = "raw-sandium/native-ui158"
 
-          python3 - <<''PYCODE''
+          python3 - \<<''PYCODE''
 
           import sys
 
@@ -2461,7 +2461,7 @@ jobs:
     - checkout
     - run:
         name: Start original one-hour job clock
-        command: 'python3 - <<''PYCODE''
+        command: 'python3 - \<<''PYCODE''
 
           import json,os,time
 
@@ -2497,7 +2497,7 @@ jobs:
         name: Review explicit native feature scope and tests
         command: 'test "$CIRCLE_BRANCH" = "raw-sandium/native-ui158"
 
-          python3 - <<''PYCODE''
+          python3 - \<<''PYCODE''
 
           import sys
 
@@ -2569,7 +2569,7 @@ jobs:
     - checkout
     - run:
         name: Start original one-hour job clock
-        command: 'python3 - <<''PYCODE''
+        command: 'python3 - \<<''PYCODE''
 
           import json,os,time
 
@@ -2605,7 +2605,7 @@ jobs:
         name: Review explicit native feature scope and tests
         command: 'test "$CIRCLE_BRANCH" = "raw-sandium/native-ui158"
 
-          python3 - <<''PYCODE''
+          python3 - \<<''PYCODE''
 
           import sys
 
@@ -2929,7 +2929,7 @@ jobs:
     - checkout
     - run:
         name: Start original one-hour job clock
-        command: 'python3 - <<''PYCODE''
+        command: 'python3 - \<<''PYCODE''
 
           import json,os,time
 
@@ -2973,7 +2973,7 @@ jobs:
         name: Review explicit native feature scope and tests
         command: 'test "$CIRCLE_BRANCH" = "raw-sandium/native-ui158"
 
-          python3 - <<''PYCODE''
+          python3 - \<<''PYCODE''
 
           import sys
 
@@ -3297,7 +3297,7 @@ jobs:
     - checkout
     - run:
         name: Start original one-hour job clock
-        command: 'python3 - <<''PYCODE''
+        command: 'python3 - \<<''PYCODE''
 
           import json,os,time
 
@@ -3342,7 +3342,7 @@ jobs:
         name: Review explicit native feature scope and tests
         command: 'test "$CIRCLE_BRANCH" = "raw-sandium/native-ui158"
 
-          python3 - <<''PYCODE''
+          python3 - \<<''PYCODE''
 
           import sys
 
@@ -3666,7 +3666,7 @@ jobs:
     - checkout
     - run:
         name: Start original one-hour job clock
-        command: 'python3 - <<''PYCODE''
+        command: 'python3 - \<<''PYCODE''
 
           import json,os,time
 
@@ -3712,7 +3712,7 @@ jobs:
         name: Review explicit native feature scope and tests
         command: 'test "$CIRCLE_BRANCH" = "raw-sandium/native-ui158"
 
-          python3 - <<''PYCODE''
+          python3 - \<<''PYCODE''
 
           import sys
 
@@ -4036,7 +4036,7 @@ jobs:
     - checkout
     - run:
         name: Start original one-hour job clock
-        command: 'python3 - <<''PYCODE''
+        command: 'python3 - \<<''PYCODE''
 
           import json,os,time
 
@@ -4083,7 +4083,7 @@ jobs:
         name: Review explicit native feature scope and tests
         command: 'test "$CIRCLE_BRANCH" = "raw-sandium/native-ui158"
 
-          python3 - <<''PYCODE''
+          python3 - \<<''PYCODE''
 
           import sys
 
@@ -4408,7 +4408,7 @@ jobs:
     - checkout
     - run:
         name: Start original one-hour job clock
-        command: 'python3 - <<''PYCODE''
+        command: 'python3 - \<<''PYCODE''
 
           import json,os,time
 
@@ -4444,7 +4444,7 @@ jobs:
         name: Review explicit native feature scope and tests
         command: 'test "$CIRCLE_BRANCH" = "raw-sandium/native-ui158"
 
-          python3 - <<''PYCODE''
+          python3 - \<<''PYCODE''
 
           import sys
 
@@ -4734,7 +4734,7 @@ jobs:
     - checkout
     - run:
         name: Start original one-hour job clock
-        command: 'python3 - <<''PYCODE''
+        command: 'python3 - \<<''PYCODE''
 
           import json,os,time
 
@@ -4770,7 +4770,7 @@ jobs:
         name: Review explicit native feature scope and tests
         command: 'test "$CIRCLE_BRANCH" = "raw-sandium/native-ui158"
 
-          python3 - <<''PYCODE''
+          python3 - \<<''PYCODE''
 
           import sys
 
@@ -4844,7 +4844,7 @@ jobs:
     - checkout
     - run:
         name: Start original one-hour job clock
-        command: 'python3 - <<''PYCODE''
+        command: 'python3 - \<<''PYCODE''
 
           import json,os,time
 
@@ -4880,7 +4880,7 @@ jobs:
         name: Review explicit native feature scope and tests
         command: 'test "$CIRCLE_BRANCH" = "raw-sandium/native-ui158"
 
-          python3 - <<''PYCODE''
+          python3 - \<<''PYCODE''
 
           import sys
 
@@ -4902,7 +4902,7 @@ jobs:
         no_output_timeout: 55m
     - run:
         name: Validate explicit resume selector before cache access
-        command: 'python3 - <<''PYCODE''
+        command: 'python3 - \<<''PYCODE''
 
           import os,re
 
@@ -5163,7 +5163,7 @@ jobs:
     - checkout
     - run:
         name: Start original one-hour job clock
-        command: 'python3 - <<''PYCODE''
+        command: 'python3 - \<<''PYCODE''
 
           import json,os,time
 
@@ -5199,7 +5199,7 @@ jobs:
         name: Review explicit native feature scope and tests
         command: 'test "$CIRCLE_BRANCH" = "raw-sandium/native-ui158"
 
-          python3 - <<''PYCODE''
+          python3 - \<<''PYCODE''
 
           import sys
 
@@ -5221,7 +5221,7 @@ jobs:
         no_output_timeout: 55m
     - run:
         name: Validate explicit resume selector before cache access
-        command: 'python3 - <<''PYCODE''
+        command: 'python3 - \<<''PYCODE''
 
           import os,re
 
@@ -5483,7 +5483,7 @@ jobs:
     - checkout
     - run:
         name: Start original one-hour job clock
-        command: 'python3 - <<''PYCODE''
+        command: 'python3 - \<<''PYCODE''
 
           import json,os,time
 
@@ -5519,7 +5519,7 @@ jobs:
         name: Review explicit native feature scope and tests
         command: 'test "$CIRCLE_BRANCH" = "raw-sandium/native-ui158"
 
-          python3 - <<''PYCODE''
+          python3 - \<<''PYCODE''
 
           import sys
 
@@ -5813,7 +5813,7 @@ jobs:
     - checkout
     - run:
         name: Start original one-hour job clock
-        command: 'python3 - <<''PYCODE''
+        command: 'python3 - \<<''PYCODE''
 
           import json,os,time
 
@@ -5849,7 +5849,7 @@ jobs:
         name: Review explicit native feature scope and tests
         command: 'test "$CIRCLE_BRANCH" = "raw-sandium/native-ui158"
 
-          python3 - <<''PYCODE''
+          python3 - \<<''PYCODE''
 
           import sys
 

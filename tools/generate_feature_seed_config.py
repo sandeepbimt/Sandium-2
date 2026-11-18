@@ -7,7 +7,12 @@ service validation must be reviewed before this standalone configuration is used
 import copy,json
 from pathlib import Path
 import yaml
-from generate_full_config import ROOT, common, run, restore, save, layers, basepaths
+from generate_full_config import ROOT, common, run as _run, restore, save, layers, basepaths
+def run(name,command):
+    # CircleCI processes template delimiters before handing the command to Bash.
+    # Escape only our literal shell heredoc; genuine pipeline expressions remain.
+    return _run(name,command.replace("<<'PYCODE'", "\\<<'PYCODE'"))
+
 BRANCH='raw-sandium/native-ui158'
 PARAM='run_raw_native_features'
 PREPARED='raws-native-inputs-v1-{{ .Environment.CIRCLE_WORKFLOW_ID }}'

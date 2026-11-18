@@ -82,3 +82,7 @@ verification JDK; APK verification overrides it with the restored pinned JDK.
 ## First service parse: #1403
 
 The first authorized service attempt rejected configuration before workflows or compute: the same compile job was a member of both fresh and resume job groups. Mutually exclusive workflow conditions do not isolate CircleCI job-group membership. The repair generates distinct resume job definitions and a distinct recovery probe, byte-value identical to their original job implementations, with only group-local dependencies. A regression now checks globally unique membership, local dependencies and unchanged job definitions. Normal Full is unchanged. This is a configuration repair, not a source, checkpoint or UI fix.
+
+## Second service parse: #1404
+
+CircleCI then rejected an unescaped shell heredoc `<<'PYCODE'` before compute. Native command generation now emits the required escaped literal `\<<'PYCODE'` while retaining real `<< pipeline... >>` expressions unchanged. A lexical regression audits every string in both native and merged configurations; Bash and embedded-Python syntax checks emulate CircleCI removing the escape before execution. All 44 native heredoc occurrences are covered. This does not alter the executed shell payload or normal Full jobs.
