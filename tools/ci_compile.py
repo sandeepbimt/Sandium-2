@@ -17,7 +17,7 @@ def fingerprint():
     files += [ROOT/'tools'/name for name in ('baseline_seed.py','feature_seed_callbacks.py',
         'feature_seed_transport.py','feature_seed_checkpoint.py','ci_feature_seed.py',
         'ci_full.py','ci_final_archive.py','ci_restore_probe.py','completed_feature_resume.py',
-        'generate_feature_seed_config.py','apk_java.py')]
+        'generate_feature_seed_config.py','apk_java.py','prepare_native_tools.sh')]
     files += sorted((ROOT/'docs/evidence/baseline1396').glob('*.json'))
     files+=sorted((ROOT/'patches').rglob('*'))+sorted((ROOT/'sandium/features').rglob('*'))
     h=hashlib.sha256()

@@ -122,9 +122,8 @@ class FeatureConfig(unittest.TestCase):
         for name,job in self.config['jobs'].items():
             if name=='raws-native-invalid-resume':continue
             text=self.text(name)
-            self.assertLess(text.index('openjdk-21-jdk-headless'),text.index('unittest discover'))
-            self.assertIn('TEST_JAVA_HOME/bin/javac',text)
-            self.assertIn('export JAVA_HOME=',text)
+            self.assertLess(text.index('bash tools/prepare_native_tools.sh'),text.index('unittest discover'))
+            self.assertNotIn('apt-get install',text)
 
     def test_circleci_template_delimiters_are_closed_or_explicitly_escaped(self):
         def strings(value):

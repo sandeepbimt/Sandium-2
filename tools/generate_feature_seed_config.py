@@ -56,12 +56,7 @@ def job(stage=1,seed=False):
     value=common(stage)
     value['environment'].update(RAWS_NATIVE_FEATURE_BUILD='true',RAWS_ALLOW_FRESH_SEED='false')
     if seed:value['environment'].update(RAWS_NATIVE_FEATURE_SEED='true')
-    value['steps']=['checkout',clock(seed),run('Install checkpoint and explicit pre-restore test JDK',"""timeout 240 sudo apt-get update -qq && timeout 420 sudo apt-get install -y zstd python3-yaml openjdk-21-jdk-headless
-TEST_JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
-"$TEST_JAVA_HOME/bin/java" -version
-"$TEST_JAVA_HOME/bin/javac" -version
-printf 'export JAVA_HOME=%s\\nexport PATH=%s/bin:$PATH\\n' "$TEST_JAVA_HOME" "$TEST_JAVA_HOME" >> "$BASH_ENV"
-"""),guard()]
+    value['steps']=['checkout',clock(seed),run('Verify native tools; install missing capabilities only','bash tools/prepare_native_tools.sh'),guard()]
     return value
 
 def artifact(path,destination):return {'store_artifacts':{'path':path,'destination':destination}}

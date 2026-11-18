@@ -86,3 +86,7 @@ The first authorized service attempt rejected configuration before workflows or 
 ## Second service parse: #1404
 
 CircleCI then rejected an unescaped shell heredoc `<<'PYCODE'` before compute. Native command generation now emits the required escaped literal `\<<'PYCODE'` while retaining real `<< pipeline... >>` expressions unchanged. A lexical regression audits every string in both native and merged configurations; Bash and embedded-Python syntax checks emulate CircleCI removing the escape before execution. All 44 native heredoc occurrences are covered. This does not alter the executed shell payload or normal Full jobs.
+
+## First executed seed job: #1405
+
+Service configuration was accepted. The seed job stopped after about 7m09s in tool setup (exit124), before cache restore or compilation. Its log reports zstd and python3-yaml already installed, and four existing OpenJDK21 packages unnecessarily upgraded (132MB). Package setup messages precede the timeout; the log does not identify a specific hanging post-install hook. The corrective requirement is capability-first setup: use verified existing tools without apt work; install only missing prerequisites under a bounded, noninteractive, no-upgrade path. The original job clock must not be reset, and prior baseline archives remain untouched.
