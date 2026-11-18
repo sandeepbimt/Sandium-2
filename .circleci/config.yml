@@ -13,6 +13,9 @@ parameters:
   run_raw_maintenance:
     type: boolean
     default: false
+  run_raw_final_archive:
+    type: boolean
+    default: false
 jobs:
   raw-bootstrap:
     machine:
@@ -2042,6 +2045,641 @@ jobs:
     - store_artifacts:
         path: .checkpoint-state/maintenance-report.json
         destination: raws-maintenance
+  raws-final-compile:
+    machine:
+      image: ubuntu-2404:current
+    resource_class: large
+    retention:
+      caches: 15d
+    environment:
+      RAWS_STAGE: '1'
+      RAWS_PIPELINE_NUMBER: << pipeline.number >>
+      RAWS_CHECKPOINT_REVIEWED: 'true'
+      RAWS_ALLOW_FRESH_SEED: 'false'
+      SISO_LIMITS: local=8,remote=80
+      RAWS_FINAL_ARCHIVE: 'true'
+    steps:
+    - checkout
+    - run:
+        name: Start one-off job budget before setup
+        command: 'mkdir -p .checkpoint-state
+
+          python3 -c ''import json,time;json.dump({"epoch":time.time()},open(".checkpoint-state/job-start.json","w"))'''
+        no_output_timeout: 55m
+    - run:
+        name: Install CI validation and checkpoint tools
+        command: sudo apt-get update -qq && sudo apt-get install -y zstd python3-yaml
+        no_output_timeout: 55m
+    - run:
+        name: Guard isolated RawS checkout
+        command: 'test "$CIRCLE_BRANCH" = "raw-sandium/bootstrap"
+
+          /usr/bin/python3 -m unittest discover -s tests -v'
+        no_output_timeout: 55m
+    - run:
+        name: RawS Full gate
+        command: python3 -u tools/ci_full.py gate
+        no_output_timeout: 55m
+    - run:
+        name: Ensure verified shard tools
+        command: command -v zstd >/dev/null || (sudo apt-get update -qq && sudo apt-get install -y zstd)
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore latest accepted RawS receipt only
+        keys:
+        - raws-full-head-v1-{{ checksum ".checkpoint-state/scope-key" }}-
+    - restore_cache:
+        name: Restore isolated one-off progress before normal head fallback
+        keys:
+        - raws-final-progress-v1-{{ checksum ".checkpoint-state/scope-key" }}-
+    - run:
+        name: Final archive prepare
+        command: python3 -u tools/ci_final_archive.py prepare
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact RawS base
+        keys:
+        - raws-full-base-v1-{{ checksum ".checkpoint-state/base.key" }}
+    - run:
+        name: RawS Full restore-base
+        command: python3 -u tools/ci_full.py restore-base
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 0
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-0.key" }}
+        - raws-full-delta-v1-{{ checksum ".checkpoint-state/slot-0.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 0
+        command: python3 -u tools/ci_full.py restore-layer --slot 0
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 1
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-1.key" }}
+        - raws-full-delta-v1-{{ checksum ".checkpoint-state/slot-1.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 1
+        command: python3 -u tools/ci_full.py restore-layer --slot 1
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 2
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-2.key" }}
+        - raws-full-delta-v1-{{ checksum ".checkpoint-state/slot-2.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 2
+        command: python3 -u tools/ci_full.py restore-layer --slot 2
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 3
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-3.key" }}
+        - raws-full-delta-v1-{{ checksum ".checkpoint-state/slot-3.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 3
+        command: python3 -u tools/ci_full.py restore-layer --slot 3
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 4
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-4.key" }}
+        - raws-full-delta-v1-{{ checksum ".checkpoint-state/slot-4.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 4
+        command: python3 -u tools/ci_full.py restore-layer --slot 4
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 5
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-5.key" }}
+        - raws-full-delta-v1-{{ checksum ".checkpoint-state/slot-5.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 5
+        command: python3 -u tools/ci_full.py restore-layer --slot 5
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 6
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-6.key" }}
+        - raws-full-delta-v1-{{ checksum ".checkpoint-state/slot-6.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 6
+        command: python3 -u tools/ci_full.py restore-layer --slot 6
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 7
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-7.key" }}
+        - raws-full-delta-v1-{{ checksum ".checkpoint-state/slot-7.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 7
+        command: python3 -u tools/ci_full.py restore-layer --slot 7
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 8
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-8.key" }}
+        - raws-full-delta-v1-{{ checksum ".checkpoint-state/slot-8.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 8
+        command: python3 -u tools/ci_full.py restore-layer --slot 8
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 9
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-9.key" }}
+        - raws-full-delta-v1-{{ checksum ".checkpoint-state/slot-9.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 9
+        command: python3 -u tools/ci_full.py restore-layer --slot 9
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 10
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-10.key" }}
+        - raws-full-delta-v1-{{ checksum ".checkpoint-state/slot-10.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 10
+        command: python3 -u tools/ci_full.py restore-layer --slot 10
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 11
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-11.key" }}
+        - raws-full-delta-v1-{{ checksum ".checkpoint-state/slot-11.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 11
+        command: python3 -u tools/ci_full.py restore-layer --slot 11
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 12
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-12.key" }}
+        - raws-full-delta-v1-{{ checksum ".checkpoint-state/slot-12.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 12
+        command: python3 -u tools/ci_full.py restore-layer --slot 12
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 13
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-13.key" }}
+        - raws-full-delta-v1-{{ checksum ".checkpoint-state/slot-13.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 13
+        command: python3 -u tools/ci_full.py restore-layer --slot 13
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 14
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-14.key" }}
+        - raws-full-delta-v1-{{ checksum ".checkpoint-state/slot-14.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 14
+        command: python3 -u tools/ci_full.py restore-layer --slot 14
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 15
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-15.key" }}
+        - raws-full-delta-v1-{{ checksum ".checkpoint-state/slot-15.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 15
+        command: python3 -u tools/ci_full.py restore-layer --slot 15
+        no_output_timeout: 55m
+    - run:
+        name: RawS Full restore-finish
+        command: python3 -u tools/ci_full.py restore-finish
+        no_output_timeout: 55m
+    - run:
+        name: Ensure pinned fresh source or verify restored source
+        command: python3 -u tools/ci_source.py
+        no_output_timeout: 55m
+    - run:
+        name: RawS Full begin
+        command: python3 -u tools/ci_full.py begin
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore independent RawS apt downloads
+        keys:
+        - raws-apt-v1-ubuntu2404-{{ checksum "upstream.lock.json" }}-
+    - run:
+        name: Configure independent RawS apt cache
+        command: bash tools/prepare_apt_cache.sh
+        no_output_timeout: 55m
+    - run:
+        name: Strict remote BuildBuddy ARM64 compile, maximum 25 minutes
+        command: python3 -u tools/ci_compile.py --stage 1
+        no_output_timeout: 55m
+    - save_cache:
+        name: Save RawS apt downloads
+        key: raws-apt-v1-ubuntu2404-{{ checksum "upstream.lock.json" }}-<< pipeline.id >>-1
+        paths:
+        - .raws-apt-cache/archives
+    - store_artifacts:
+        path: artifacts
+        destination: raws-arm64
+    - run:
+        name: Final archive progress-capture
+        command: python3 -u tools/ci_final_archive.py progress-capture
+        no_output_timeout: 55m
+    - save_cache:
+        name: Save isolated one-off increment
+        key: raws-final-delta-v1-{{ checksum ".checkpoint-state/outgoing.key" }}
+        paths:
+        - .checkpoint-incoming
+    - run:
+        name: Final archive progress-clear
+        command: python3 -u tools/ci_final_archive.py progress-clear
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Read back exact isolated increment
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/outgoing.key" }}
+    - run:
+        name: Final archive progress-publish
+        command: python3 -u tools/ci_final_archive.py progress-publish
+        no_output_timeout: 55m
+    - save_cache:
+        name: Publish independent verified continuation
+        key: raws-final-progress-v1-{{ checksum ".checkpoint-state/scope-key" }}-{{ checksum ".raws-final-progress/receipt.json" }}
+        paths:
+        - .raws-final-progress
+    - store_artifacts:
+        path: .raws-final-progress
+        destination: raws-final-progress-evidence
+    - run:
+        name: Final archive progress-final
+        command: python3 -u tools/ci_final_archive.py progress-final
+        no_output_timeout: 55m
+    - save_cache:
+        name: Publish same-workflow completed handoff
+        key: raws-final-completed-v1-<< pipeline.id >>
+        paths:
+        - .raws-final-progress
+  raws-final-pack:
+    machine:
+      image: ubuntu-2404:current
+    resource_class: large
+    retention:
+      caches: 15d
+    environment:
+      RAWS_STAGE: '1'
+      RAWS_PIPELINE_NUMBER: << pipeline.number >>
+      RAWS_CHECKPOINT_REVIEWED: 'true'
+      RAWS_ALLOW_FRESH_SEED: 'false'
+      SISO_LIMITS: local=8,remote=80
+      RAWS_FINAL_ARCHIVE: 'true'
+      RAWS_FINAL_PACK_ONLY: 'true'
+    steps:
+    - checkout
+    - run:
+        name: Start one-off job budget before setup
+        command: 'mkdir -p .checkpoint-state
+
+          python3 -c ''import json,time;json.dump({"epoch":time.time()},open(".checkpoint-state/job-start.json","w"))'''
+        no_output_timeout: 55m
+    - run:
+        name: Install CI validation and checkpoint tools
+        command: sudo apt-get update -qq && sudo apt-get install -y zstd python3-yaml
+        no_output_timeout: 55m
+    - run:
+        name: Guard isolated RawS checkout
+        command: 'test "$CIRCLE_BRANCH" = "raw-sandium/bootstrap"
+
+          /usr/bin/python3 -m unittest discover -s tests -v'
+        no_output_timeout: 55m
+    - run:
+        name: RawS Full gate
+        command: python3 -u tools/ci_full.py gate
+        no_output_timeout: 55m
+    - run:
+        name: Ensure verified shard tools
+        command: command -v zstd >/dev/null || (sudo apt-get update -qq && sudo apt-get install -y zstd)
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact same-workflow completed handoff
+        keys:
+        - raws-final-completed-v1-<< pipeline.id >>
+    - run:
+        name: Final archive prepare-archive
+        command: python3 -u tools/ci_final_archive.py prepare-archive
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact RawS base
+        keys:
+        - raws-full-base-v1-{{ checksum ".checkpoint-state/base.key" }}
+    - run:
+        name: RawS Full restore-base
+        command: python3 -u tools/ci_full.py restore-base
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 0
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-0.key" }}
+        - raws-full-delta-v1-{{ checksum ".checkpoint-state/slot-0.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 0
+        command: python3 -u tools/ci_full.py restore-layer --slot 0
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 1
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-1.key" }}
+        - raws-full-delta-v1-{{ checksum ".checkpoint-state/slot-1.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 1
+        command: python3 -u tools/ci_full.py restore-layer --slot 1
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 2
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-2.key" }}
+        - raws-full-delta-v1-{{ checksum ".checkpoint-state/slot-2.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 2
+        command: python3 -u tools/ci_full.py restore-layer --slot 2
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 3
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-3.key" }}
+        - raws-full-delta-v1-{{ checksum ".checkpoint-state/slot-3.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 3
+        command: python3 -u tools/ci_full.py restore-layer --slot 3
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 4
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-4.key" }}
+        - raws-full-delta-v1-{{ checksum ".checkpoint-state/slot-4.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 4
+        command: python3 -u tools/ci_full.py restore-layer --slot 4
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 5
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-5.key" }}
+        - raws-full-delta-v1-{{ checksum ".checkpoint-state/slot-5.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 5
+        command: python3 -u tools/ci_full.py restore-layer --slot 5
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 6
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-6.key" }}
+        - raws-full-delta-v1-{{ checksum ".checkpoint-state/slot-6.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 6
+        command: python3 -u tools/ci_full.py restore-layer --slot 6
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 7
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-7.key" }}
+        - raws-full-delta-v1-{{ checksum ".checkpoint-state/slot-7.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 7
+        command: python3 -u tools/ci_full.py restore-layer --slot 7
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 8
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-8.key" }}
+        - raws-full-delta-v1-{{ checksum ".checkpoint-state/slot-8.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 8
+        command: python3 -u tools/ci_full.py restore-layer --slot 8
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 9
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-9.key" }}
+        - raws-full-delta-v1-{{ checksum ".checkpoint-state/slot-9.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 9
+        command: python3 -u tools/ci_full.py restore-layer --slot 9
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 10
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-10.key" }}
+        - raws-full-delta-v1-{{ checksum ".checkpoint-state/slot-10.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 10
+        command: python3 -u tools/ci_full.py restore-layer --slot 10
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 11
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-11.key" }}
+        - raws-full-delta-v1-{{ checksum ".checkpoint-state/slot-11.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 11
+        command: python3 -u tools/ci_full.py restore-layer --slot 11
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 12
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-12.key" }}
+        - raws-full-delta-v1-{{ checksum ".checkpoint-state/slot-12.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 12
+        command: python3 -u tools/ci_full.py restore-layer --slot 12
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 13
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-13.key" }}
+        - raws-full-delta-v1-{{ checksum ".checkpoint-state/slot-13.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 13
+        command: python3 -u tools/ci_full.py restore-layer --slot 13
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 14
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-14.key" }}
+        - raws-full-delta-v1-{{ checksum ".checkpoint-state/slot-14.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 14
+        command: python3 -u tools/ci_full.py restore-layer --slot 14
+        no_output_timeout: 55m
+    - run:
+        name: Clear disposable incoming delta
+        command: rm -rf .checkpoint-incoming
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Restore exact delta 15
+        keys:
+        - raws-final-delta-v1-{{ checksum ".checkpoint-state/slot-15.key" }}
+        - raws-full-delta-v1-{{ checksum ".checkpoint-state/slot-15.key" }}
+    - run:
+        name: RawS Full restore-layer --slot 15
+        command: python3 -u tools/ci_full.py restore-layer --slot 15
+        no_output_timeout: 55m
+    - run:
+        name: RawS Full restore-finish
+        command: python3 -u tools/ci_full.py restore-finish
+        no_output_timeout: 55m
+    - run:
+        name: Final archive capture
+        command: python3 -u tools/ci_final_archive.py capture
+        no_output_timeout: 55m
+    - save_cache:
+        name: Save independent completed full archive
+        key: raws-final-base-v1-{{ checksum ".raws-final-archive/base.key" }}
+        paths:
+        - raw-workspace-checkpoint.manifest.json
+        - raw-workspace-checkpoint.shards
+    - run:
+        name: Final archive clear
+        command: python3 -u tools/ci_final_archive.py clear
+        no_output_timeout: 55m
+    - restore_cache:
+        name: Read back exact completed full archive
+        keys:
+        - raws-final-base-v1-{{ checksum ".raws-final-archive/base.key" }}
+    - run:
+        name: Final archive verify-publish
+        command: python3 -u tools/ci_final_archive.py verify-publish
+        no_output_timeout: 55m
+    - save_cache:
+        name: Save independent verified final receipt
+        key: raws-final-receipt-v1-{{ checksum ".raws-final-archive/receipt.json" }}
+        paths:
+        - .raws-final-archive
+    - store_artifacts:
+        path: .raws-final-archive
+        destination: raws-final-archive-evidence
 job-groups:
   raws-full-chain:
     jobs:
@@ -2073,6 +2711,18 @@ job-groups:
             only: raw-sandium/bootstrap
         requires:
         - raws-full-stage-4
+  raws-final-chain:
+    jobs:
+    - raws-final-compile:
+        filters:
+          branches:
+            only: raw-sandium/bootstrap
+    - raws-final-pack:
+        requires:
+        - raws-final-compile
+        filters:
+          branches:
+            only: raw-sandium/bootstrap
 workflows:
   raw-sandium-feasibility:
     when: << pipeline.parameters.run_raw_preflight >>
@@ -2101,3 +2751,8 @@ workflows:
         filters:
           branches:
             only: raw-sandium/bootstrap
+  RawS one-off final archive:
+    when: << pipeline.parameters.run_raw_final_archive >>
+    jobs:
+    - raws-final-chain:
+        serial-group: << pipeline.project.slug >>/raws-full
