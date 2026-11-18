@@ -36,6 +36,12 @@ public class Harness {
         SandiumNavigationDiagnostics.recordNativeForEpoch(epoch,12,0,42,false,new double[0]);
         check(SandiumNavigationDiagnostics.snapshotSummary().startsWith("1 events"));
         check(SandiumNavigationDiagnostics.snapshotJson().contains("\"source_browser_ticks_us\":42"));
+        SandiumNavigationDiagnostics.recordForEpoch(oldEpoch, SandiumNavigationDiagnostics.Event.NATIVE_REVEAL_VIEW, false, new double[16]);
+        SandiumNavigationDiagnostics.recordForEpoch(epoch, SandiumNavigationDiagnostics.Event.NATIVE_REVEAL_VIEW, true, new double[16]);
+        check(SandiumNavigationDiagnostics.snapshotSummary().startsWith("1 events"));
+        SandiumNavigationDiagnostics.recordForEpoch(epoch, SandiumNavigationDiagnostics.Event.NATIVE_REVEAL_VIEW, false, new double[16]);
+        check(SandiumNavigationDiagnostics.snapshotSummary().startsWith("2 events"));
+        check(SandiumNavigationDiagnostics.snapshotJson().contains("\"source_browser_ticks_us\":-1"));
         SandiumNavigationDiagnostics.clear();
         check(SandiumNavigationDiagnostics.snapshotJson().contains("\"events\":[]"));
         System.out.println("RECORDER_HOST_TESTS_PASS");

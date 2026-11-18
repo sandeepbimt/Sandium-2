@@ -1,7 +1,7 @@
 {
   "content/browser/navigation_transitions/blur_transition_animation_manager.cc": {
     "native_sha256": "ac0998d32e7dbd44cd6b71828c82b4e68ff2ed355cf1d9422698851e00ccd850",
-    "modified_sha256": "c3d507ab4d9fad378a09cc5a2f0d4a979b27bd02f444bd38c8648384aae269d0"
+    "modified_sha256": "e9b605f6a3eafa1f24f4e4d465243201e4ec45d1676d62796f5ffd84ec8656c2"
   },
   "content/browser/navigation_transitions/blur_transition_animation_manager.h": {
     "native_sha256": "2a272cbbe0110c803511567b06763a37b42d4325a026ba6a238e919f047a970b",

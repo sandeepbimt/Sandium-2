@@ -13,9 +13,9 @@ class CompileContract(unittest.TestCase):
  def test_wire_codes_preserve_original_journal_and_native_abi(self):
   source=JAVA.read_text().split('public enum Event {',1)[1].split('final int code;',1)[0]
   codes=re.findall(r'([A-Z_]+)\((\d+), (\d+)\)',source)
-  self.assertEqual([int(code) for _,code,_ in codes],list(range(28)))
+  self.assertEqual([int(code) for _,code,_ in codes],list(range(30)))
   self.assertEqual(codes[0],('NAV_START','0','5'))
-  self.assertEqual(codes[-1],('LAYOUT_SHIFT_BATCH','27','7'))
+  self.assertEqual(codes[-1],('NATIVE_REVEAL_CONTROLS','29','10'))
  def test_same_class_monitor_excludes_concurrent_start(self):
   with tempfile.TemporaryDirectory() as tmp:
    tmp=pathlib.Path(tmp)

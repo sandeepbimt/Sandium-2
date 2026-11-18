@@ -41,7 +41,9 @@ public class NativePageBitmapCapturer {
             PKG + 'SandiumNavigationDiagnostics.java': """
 package org.chromium.chrome.browser.sandium.diagnostics;
 public class SandiumNavigationDiagnostics {
- public enum Event {CAPTURE,CAPTURE_LAYER}
+ public enum Event {CAPTURE,CAPTURE_LAYER,NATIVE_REVEAL_VIEW,NATIVE_REVEAL_CONTROLS}
+ public static long sessionEpoch(){return enabled?1:0;}
+ public static void recordForEpoch(long epoch,Event event,boolean priv,double[] v){if(priv)throw new AssertionError();}
  public static boolean enabled; public static int count;
  public static boolean isRecording(){return enabled;}
  public static void initialize(java.io.File directory){if(!directory.getName().equals("sandium-diagnostics"))throw new AssertionError();}
@@ -50,6 +52,14 @@ public class SandiumNavigationDiagnostics {
   if(values.length!=(event==Event.CAPTURE?16:11))throw new AssertionError("arity");
   count++;
  }
+}""",
+            'org/chromium/chrome/browser/ntp/NewTabPage.java': """
+package org.chromium.chrome.browser.ntp;
+import org.chromium.chrome.browser.tab.Tab;
+public class NewTabPage {
+ public interface SandiumRevealObserver {long epoch(Tab t);void record(Tab t,long e,boolean c,double[] v);}
+ public static SandiumRevealObserver observer;
+ public static void setSandiumRevealObserver(SandiumRevealObserver o){observer=o;}
 }""",
             'org/chromium/base/ContextUtils.java': """
 package org.chromium.base;

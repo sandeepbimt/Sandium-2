@@ -8,7 +8,7 @@ def load(relative):
 BASE='experiments/navigation-diagnostics/'
 bridge=load(BASE+'native-bridge/apply.py')
 ui=load('.circleci/features/navigation-diagnostics/ui/apply-ui.py')
-producers=[load(BASE+'apply-'+name+'.py') for name in ('lifecycle','capture','menu','redirect','dark-policy','popup','document-paint','typography-policy')]
+producers=[load(BASE+'apply-'+name+'.py') for name in ('lifecycle','capture','menu','redirect','dark-policy','popup','document-paint','typography-policy','native-reveal')]
 transition=load('experiments/native-transition-diagnostics/apply.py')
 metrics=load(BASE+'apply-renderer-metrics.py')
 ad=load(BASE+'ad/apply.py')

@@ -21,7 +21,7 @@ public final class SandiumNavigationDiagnostics {
         RENDERER_EXIT(8, 2), POPUP_REQUEST(9, 3), AD_ENGINE_LOAD(10, 6), AD_DECISION(11, 8),
         AD_WARNING_MARK(12, 0), USER_GESTURE(13, 2), CAPTURE_LAYER(14, 11), TIMEOUT(15, 0),
         MENU_READ(16, 5), MENU_SAVE(17, 6), MENU_RENDER(18, 5), REDIRECT_RESULT(19, 2), POPUP_RESULT(20, 6),
-        BLUR_TRANSITION(21, 8), PREDICTIVE_BACK(22, 8), TRANSITION_LAYER(23, 16), AD_REQUEST_OMITTED(24, 1), DOCUMENT_PAINT(25, 3), TYPOGRAPHY_POLICY_DISPATCH(26, 3), LAYOUT_SHIFT_BATCH(27, 7);
+        BLUR_TRANSITION(21, 8), PREDICTIVE_BACK(22, 8), TRANSITION_LAYER(23, 16), AD_REQUEST_OMITTED(24, 1), DOCUMENT_PAINT(25, 3), TYPOGRAPHY_POLICY_DISPATCH(26, 3), LAYOUT_SHIFT_BATCH(27, 7), NATIVE_REVEAL_VIEW(28, 16), NATIVE_REVEAL_CONTROLS(29, 10);
         final int code;
         final int fields;
         Event(int code, int fields) { this.code = code; this.fields = fields; }
@@ -42,7 +42,9 @@ public final class SandiumNavigationDiagnostics {
         "stage,state,detail,has_blur,has_fallback,blur_width_px,blur_height_px,delegate_top_px",
         "stage,state,navigation_state,detail,fallback,copied_native,width_px,height_px",
         "stage,depth,x_px,y_px,width_px,height_px,transform_identity,opacity,has_parent,top_px,viewport_width_px,viewport_height_px,dip_scale,kind,truncated,reserved",
-        "count", "primary_document,browser_receipt,reserved", "packed_policy,outermost_main_frame,phase", "outermost_main_frame,count,total_score,non_input_score,input_or_scroll_count,first_renderer_ticks_us,last_renderer_ticks_us"
+        "count", "primary_document,browser_receipt,reserved", "packed_policy,outermost_main_frame,phase", "outermost_main_frame,count,total_score,non_input_score,input_or_scroll_count,first_renderer_ticks_us,last_renderer_ticks_us",
+        "sample,stage,frame,kind,attached,window_x_px,window_y_px,width_px,height_px,top_margin_px,bottom_margin_px,translation_x_px,translation_y_px,alpha,scroll_x_px,scroll_y_px",
+        "sample,stage,frame,content_offset_px,top_height_px,top_offset_px,bottom_height_px,bottom_offset_px,controls_position,current_native_view"
     };
     public static final String BUILD_REVISION = "__SANDIUM_DIAGNOSTIC_BUILD_REVISION__";
     private static final int MAX_EVENTS = 5000;
@@ -220,6 +222,12 @@ public final class SandiumNavigationDiagnostics {
         synchronized (SandiumNavigationDiagnostics.class) {
             recordInternal(event, nativeNavigationId, offTheRecord, values, -1);
 
+        }
+    }
+    public static void recordForEpoch(long epoch, Event event, boolean offTheRecord, double[] values) {
+        synchronized (SandiumNavigationDiagnostics.class) {
+            if (epoch == 0 || epoch != sessionEpoch()) return;
+            recordInternal(event, 0, offTheRecord, values, -1);
         }
     }
     public static long sessionEpoch() {

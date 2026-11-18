@@ -27,6 +27,20 @@ public final class SandiumDiagnosticsCapture {
                 }
             };
 
+    private static final org.chromium.chrome.browser.ntp.NewTabPage.SandiumRevealObserver REVEAL_OBSERVER =
+            new org.chromium.chrome.browser.ntp.NewTabPage.SandiumRevealObserver() {
+                @Override public long epoch(Tab tab) {
+                    return eligible(tab) ? SandiumNavigationDiagnostics.sessionEpoch() : 0;
+                }
+                @Override public void record(Tab tab, long epoch, boolean controls, double[] values) {
+                    if (!eligible(tab)) return;
+                    SandiumNavigationDiagnostics.recordForEpoch(epoch, controls
+                            ? SandiumNavigationDiagnostics.Event.NATIVE_REVEAL_CONTROLS
+                            : SandiumNavigationDiagnostics.Event.NATIVE_REVEAL_VIEW,
+                            tab.getProfile().isOffTheRecord(), values);
+                }
+            };
+
     private SandiumDiagnosticsCapture() {}
 
     private static boolean eligible(Tab tab) {
@@ -42,5 +56,6 @@ public final class SandiumDiagnosticsCapture {
         SandiumNavigationDiagnostics.initialize(new File(
                 ContextUtils.getApplicationContext().getNoBackupFilesDir(), "sandium-diagnostics"));
         NativePageBitmapCapturer.setSandiumOriginObserver(OBSERVER);
+        org.chromium.chrome.browser.ntp.NewTabPage.setSandiumRevealObserver(REVEAL_OBSERVER);
     }
 }
