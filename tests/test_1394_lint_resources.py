@@ -83,7 +83,10 @@ class SamePinResources(unittest.TestCase):
             pin = self.inventory['provenance']['brave_pin']
             def git(argv, **kwargs):
                 if 'rev-parse' in argv: return pin + '\n'
-                return self.baseline if argv[-1].endswith(m.TARGET) else hook_data
+                if argv[-1].endswith(m.TARGET): return self.baseline
+                if argv[-1].endswith(m.HOOK): return hook_data
+                relative = argv[-1].split(':', 1)[1]
+                return (m.DATA / 'fixtures/1401' / relative.replace('/', '__')).read_bytes()
             with patch.object(m.subprocess, 'check_output', side_effect=git):
                 m.apply(core); once = target.read_bytes(); m.apply(core); self.assertEqual(once, target.read_bytes())
                 target.write_bytes(self.baseline.replace(b'</lint>', b'<issue id="Foreign"/></lint>'))

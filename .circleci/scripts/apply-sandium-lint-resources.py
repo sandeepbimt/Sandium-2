@@ -66,13 +66,60 @@ def load():
     return inventory, baseline
 
 
+def load_supplement(inventory):
+    path = DATA / 'inventory-1401.json'
+    supplement = json.loads(path.read_text())
+    rows = supplement['resources']
+    if len(rows) != 644 or len({r['resource'] for r in rows}) != 644:
+        raise ValueError('Supplemental inventory identity/count mismatch')
+    if {r['resource'] for r in rows} & {r['resource'] for r in inventory['resources']}:
+        raise ValueError('Supplemental inventory overlaps previous inventory')
+    provenance = supplement['provenance']
+    for key in ('brave_pin', 'chromium_pin', 'removal_recipe_sha256'):
+        if provenance[key] != inventory['provenance'][key]:
+            raise ValueError('Supplemental provenance differs from original inventory')
+    if hashlib.sha256((DATA / 'inventory.json').read_bytes()).hexdigest() != provenance['base_inventory_sha256']:
+        raise ValueError('Previous reviewed resource inventory changed')
+    allowed = {'retained_upstream_removed_or_replaced_consumer',
+               'retained_shared_reference', 'retained_upstream_ui_catalogue',
+               'retained_upstream_catalogue_entry'}
+    for row in rows:
+        if (not row['approved'] or row['classification'] not in allowed or
+                not row.get('evidence') or not row.get('definition') or
+                not re.fullmatch(r'R\.[a-z]+\.[A-Za-z0-9_]+', row['resource'])):
+            raise ValueError('Unreviewed supplemental resource')
+        definition = row['definition']
+        if definition['path'] not in supplement['pinned_files']:
+            raise ValueError('Unverified supplemental definition')
+        if definition['git_blob'] != supplement['pinned_files'][definition['path']]['git_blob']:
+            raise ValueError('Supplemental definition blob mismatch')
+    return supplement
+
+
+def verify_supplement(core, supplement):
+    pin = supplement['provenance']['brave_pin']
+    texts = {}
+    for path, proof in supplement['pinned_files'].items():
+        raw = subprocess.check_output(['git', '-C', str(core), 'show', pin + ':' + path])
+        if hashlib.sha256(raw).hexdigest() != proof['sha256']:
+            raise ValueError('Pinned supplemental evidence changed')
+        texts[path] = raw.decode()
+    for row in supplement['resources']:
+        definition = row['definition']; text = texts[definition['path']]
+        if row['resource'].startswith('R.drawable.'):
+            if '"' + definition['generated_name'] + '"' not in text:
+                raise ValueError('Generated icon absent from pinned Nala manifest')
+        elif not re.search(r'<message\s+name="' + re.escape(definition['name']) + '"', text):
+            raise ValueError('String absent from pinned GRIT catalogue')
+
+
 def expression(resource):
     # Lint config matches messages using backtick-delimited resource IDs.
     # Java Pattern understands these literal-dot escapes; no wildcard suffix.
     return '^The resource `' + resource.replace('.', r'\.') + '` appears to be unused$'
 
 
-def render(inventory, baseline, reviewed_only=False):
+def render(inventory, baseline, reviewed_only=False, supplement=None):
     unresolved = [r for r in inventory['resources'] if not r['approved'] and r['classification'] != 'removed_obsolete_owned']
     if unresolved and not reviewed_only:
         raise ValueError(f'{len(unresolved)} unresolved resources; full integration blocked')
@@ -82,6 +129,10 @@ def render(inventory, baseline, reviewed_only=False):
     lines = ['        <!-- Sandium exact reviewed resource inventory; CircleCI #1394. -->']
     for row in inventory['resources']:
         if row['approved']:
+            lines.append('        <ignore regexp="' + html.escape(expression(row['resource']), quote=True) + '" />')
+    if supplement is not None:
+        lines.append('        <!-- Additional exact retained upstream catalogue IDs; CircleCI #1401. -->')
+        for row in supplement['resources']:
             lines.append('        <ignore regexp="' + html.escape(expression(row['resource']), quote=True) + '" />')
     # Extend the existing issue, avoiding duplicate-ID merge semantics in lint.
     pattern = r'(<issue id="UnusedResources">)(.*?)(    </issue>)'
@@ -105,12 +156,15 @@ def apply(core, reviewed_only=False):
             raise ValueError('Unexpected pinned upstream lint implementation')
     if (core / HOOK).read_bytes() != (DATA / 'fixtures/upstream-lint-override.py').read_bytes():
         raise ValueError('Live Brave lint hook differs from reviewed upstream')
-    result = render(inventory, baseline, reviewed_only)
+    supplement = load_supplement(inventory)
+    verify_supplement(core, supplement)
+    previous = render(inventory, baseline, reviewed_only)
+    result = render(inventory, baseline, reviewed_only, supplement)
     target = core / TARGET
-    if target.read_bytes() not in (baseline, result):
+    if target.read_bytes() not in (baseline, previous, result):
         raise ValueError('Unreviewed live lint rules; refusing overwrite')
     target.write_bytes(result)
-    print('SANDIUM_LINT_RESOURCES=APPLIED exact_reviewed_exclusions=320 owned_removals=8; all other diagnostics remain fatal')
+    print('SANDIUM_LINT_RESOURCES=APPLIED exact_reviewed_exclusions=964 owned_removals=8; all other diagnostics remain fatal')
 
 
 if __name__ == '__main__':

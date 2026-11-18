@@ -36,3 +36,39 @@ positives is not established; their verified uses must not be deleted.
 Local tests:
 - `python3 -m unittest discover -s tests -p test_1394_lint_resources.py -v`
 - `python3 .circleci/scripts/test-sandium-native-theme.py`
+
+## #1401 supplemental catalogue audit
+
+Stage 2/job 4291 exposed 644 **new** unused-resource IDs, with zero overlap with
+#1394's 320 exceptions. The original exceptions therefore worked. The new batch
+is 630 strings, 3 plurals and 11 generated Nala drawables. Definitions and generator
+mappings were checked at the exact 1.98.62 Git pin, not a newer upstream tree.
+
+`inventory-1401.json` records the exact diagnostics, original Android Java/XML
+references (verified Git blobs), composition status, and source provenance:
+- 547 have pinned Java/XML chains through removed/replaced consumers;
+- 86 are retained upstream UI catalogue entries, with original and composed
+  reference evidence. Some composition files were not materialized; that is
+  recorded explicitly, never treated as proof of exclusion;
+- 5 still have shared composed references, so deleting them would be unsafe;
+- 6 have no references in the audited Android Java/XML files. Four are Wallet
+  catalogue entries; two are Chromium overlay entries (`fre_activity_label`,
+  `search_widget_description`). This is not a claim of no native/manifest use.
+
+The correction deliberately retains upstream declarations rather than expanding
+feature stripping into shared GRIT/Nala catalogues. It extends Brave's existing
+UnusedResources hook using **644 exact escaped message IDs**, not prefixes or
+paths. This is an explicit retained-resource policy, not a claim that all 644 are
+false positives or that every diagnostic was caused by Sandium. Other lint
+issues, new resource IDs, severity, official flags, and warnings-as-errors remain
+unchanged. All original upstream rules and original 320 rules are preserved.
+
+The runtime helper verifies exact pinned catalogue/generator bytes and each
+resource's definition before application. The accepted live suppression inputs
+are only: original upstream, previous reviewed 320-rule result, or new exact
+964-rule result. Any foreign live rule fails closed. This supports restoring the
+#1401 stage-1 checkpoint without overwriting unknown lint state.
+
+Validation: original six tests plus four supplement tests, including previous
+320-rule migration, idempotency, tampered definitions, and foreign-rule rejection.
+These are host checks, not a full lint execution, APK build, or runtime proof.

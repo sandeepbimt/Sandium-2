@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fail-closed one-off continuation from the verified official #1394 stage 3."""
+"""Fail-closed one-off continuation from the verified official #1401 stage 1."""
 import argparse
 import importlib.util
 import json
@@ -8,10 +8,10 @@ from pathlib import Path
 import re
 import subprocess
 
-WORKFLOW = '59a89c27-4187-414d-9f34-8cf6e4b31ebf'
-REVISION = '68eb3032aed511ed5b49ac3a85464a16b9eb3d37'
+WORKFLOW = '2e04b4eb-d8c4-4d0e-af5f-e19e8fb77fd6'
+REVISION = '75771fab8d021eba0161d7ad5cf1c4a99f37a9b8'
 EXPECTED = {
-    'STAGE': '3', 'WORKFLOW_ID': WORKFLOW, 'REFERENCE_SOURCE_REVISION': REVISION,
+    'STAGE': '1', 'WORKFLOW_ID': WORKFLOW, 'REFERENCE_SOURCE_REVISION': REVISION,
     'CHECKPOINT_VALID': 'true', 'REFERENCE_MODE': 'reference',
     'CHROMIUM_SHA': 'd331de35ca8ab1358c7a17e4bd41627d55eaef51',
     'BRAVE_CORE_TAG': 'v1.98.62', 'TARGET': 'android-arm64', 'BUILD_TYPE': 'Release',
@@ -32,7 +32,7 @@ def validate_manifest(payload):
     cp = payload.get('checkpoint_manifest', {})
     for key, value in EXPECTED.items():
         if cp.get(key) != value:
-            raise ValueError(f'1394 provenance mismatch: {key} expected={value!r} actual={cp.get(key)!r}')
+            raise ValueError(f'1401 provenance mismatch: {key} expected={value!r} actual={cp.get(key)!r}')
     if payload.get('workers') != 8 or len(payload.get('shards', [])) != 8:
         raise ValueError('expected exactly eight shards/workers')
 
@@ -80,10 +80,10 @@ def main():
         module.verify(root, zstd_test=False, workers=8)
     else:
         subprocess.run(['bash', str(Path(__file__).with_name('verify-brave-reference.sh')),
-                        '--handoff', '4', WORKFLOW, REVISION], check=True,
+                        '--handoff', '2', WORKFLOW, REVISION], check=True,
                        env={**os.environ, 'CIRCLE_WORKING_DIRECTORY': str(root)})
         validate_gn_files(root/'brave-work/src/out/android_Release_arm64')
-    print('OFFICIAL_1394_RESUME=PASS phase='+args.phase)
+    print('OFFICIAL_1401_RESUME=PASS phase='+args.phase)
 
 if __name__ == '__main__':
     main()

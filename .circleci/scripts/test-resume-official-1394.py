@@ -54,10 +54,10 @@ class ResumeTests(unittest.TestCase):
         self.assertEqual(config['parameters']['sandium_build_mode']['enum'], ['full'])
         steps=config['jobs']['brave-android-staged-build']['steps']
         group=next(s['when'] for s in steps if 'when' in s and any(
-            'restore_cache' in x and x['restore_cache'].get('name')=='Restore exact verified official 1394 stage 3 checkpoint'
+            'restore_cache' in x and x['restore_cache'].get('name')=='Restore exact verified official 1401 stage 1 checkpoint'
             for x in s['when']['steps']))
         caches=[x['restore_cache']['keys'] for x in group['steps'] if 'restore_cache' in x]
-        self.assertEqual(caches, [['sandium-official-handoff-v1-fix/official-checkpoint-1392-'+r.WORKFLOW+'-stage-3']])
+        self.assertEqual(caches, [['sandium-official-handoff-v1-fix/1394-official-lint-'+r.WORKFLOW+'-stage-1']])
         self.assertNotIn('fixed_reference.py', str(steps))
         self.assertEqual(text.count('- fix/1394-official-lint'),5)
         self.assertIn('EXCEPTIONAL_ARCHIVE=REQUIRED',text)

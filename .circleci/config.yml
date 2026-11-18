@@ -242,11 +242,11 @@ jobs:
               - << pipeline.git.branch >>
         steps:
         - restore_cache:
-            name: Restore exact verified official 1394 stage 3 checkpoint
+            name: Restore exact verified official 1401 stage 1 checkpoint
             keys:
-            - sandium-official-handoff-v1-fix/official-checkpoint-1392-59a89c27-4187-414d-9f34-8cf6e4b31ebf-stage-3
+            - sandium-official-handoff-v1-fix/1394-official-lint-2e04b4eb-d8c4-4d0e-af5f-e19e8fb77fd6-stage-1
         - run:
-            name: Verify exact 1394 provenance and all eight shard hashes
+            name: Verify exact 1401 provenance and all eight shard hashes
             command: python3 .circleci/scripts/resume-official-1394.py preverify --root "$CIRCLE_WORKING_DIRECTORY"
     - when:
         condition:
@@ -521,7 +521,7 @@ jobs:
           - << parameters.stage_index >>
         steps:
         - run:
-            name: Verify restored official 1394 engine and GN identity
+            name: Verify restored official 1401 engine and GN identity
             command: python3 .circleci/scripts/resume-official-1394.py postrestore --root "$CIRCLE_WORKING_DIRECTORY"
     - run:
         name: Select Sandium build mode and validate reference
