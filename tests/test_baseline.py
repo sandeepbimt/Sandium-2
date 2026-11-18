@@ -42,8 +42,9 @@ class CIIsolation(unittest.TestCase):
         self.assertIn('default: false',config)
         self.assertIn('only: raw-sandium/bootstrap',config)
         self.assertIn('test "$CIRCLE_BRANCH" = "raw-sandium/bootstrap"',config)
-        self.assertNotIn('restore_cache:',config)
-        self.assertNotIn('save_cache:',config)
+        preflight=config[config.index('  raw-preflight:'):config.index('workflows:')]
+        self.assertNotIn('restore_cache:',preflight)
+        self.assertNotIn('save_cache:',preflight)
         self.assertNotIn('context:',config)
         self.assertIn('timeout 120s',config)
     def test_probe_has_no_compile_or_credentials(self):
@@ -86,4 +87,26 @@ class SourceIsolation(unittest.TestCase):
         self.assertIn("if p.returncode:raise",source)
         self.assertIn("verify(ROOT/'work/source/src',lock())",source)
         self.assertNotIn('autoninja',source)
+
+
+class CompileState(unittest.TestCase):
+    def test_only_timeout_is_resumable(self):
+        import sys
+        sys.path.insert(0,str(ROOT/'tools'))
+        from ci_compile import classify
+        with tempfile.TemporaryDirectory() as d:
+            apk=Path(d)/'x.apk'
+            self.assertEqual(classify(124,apk),'slice_expired')
+            for code in (0,1,2,137):
+                with self.assertRaises(ValueError):classify(code,apk)
+            apk.write_bytes(b'new apk')
+            self.assertEqual(classify(0,apk),'done')
+            with self.assertRaises(ValueError):classify(1,apk)
+    def test_unsafe_archive_rejected(self):
+        import sys,tarfile
+        sys.path.insert(0,str(ROOT/'tools'))
+        from ci_compile import safe_members
+        class Fake:
+            def getmembers(self):return [tarfile.TarInfo('../escape')]
+        with self.assertRaises(ValueError):safe_members(Fake())
 if __name__=='__main__':unittest.main()

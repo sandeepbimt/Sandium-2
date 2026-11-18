@@ -56,3 +56,26 @@ OS dependencies and hooks must succeed. Proposed phase boundaries are:
 4. APK verification and artifact publication, then skip all later stages.
 Any genuine build failure terminates the chain, not another slice. No phase may
 read a Brave checkpoint. Compilation remains disabled pending those validations.
+
+## Staged build candidate (not yet compiled)
+
+`run_raw_source` performs a fresh, shallow-history Android dependency sync with
+a 25-minute bound. A successful exact source identity check is required before
+handing that workflow's tree to later jobs. #1372 is the first actual source-sync
+trial. It is separate from the successful smaller #1371 provenance bootstrap.
+
+The `run_raw_full` opt-in candidate chains that source job with three sequential
+25-minute compiler slices. These are not a claim of a validated build. Each
+worker installs official OS dependencies and runs pinned toolchain hooks first.
+Only compiler time-slice expiry permits an output checkpoint; compilation
+errors fail the chain. Output archives are workflow-local, checksum verified,
+and never use the Brave pipeline's state. Earlier APK completion is cached as a
+tiny optimization marker so subsequent jobs can skip before downloading source;
+a cache miss remains safe because the workspace contains authoritative state.
+Each slice has unique handoff paths, avoiding concurrent workspace collisions.
+If three slices expire, the last job reports incomplete rather than success.
+
+Known tradeoffs pending real measurements: source workspace transfer is large;
+toolchain hooks and OS packages are repeated on workers; checkpoint archives
+need spare disk. Guards fail safely rather than claiming resumability if disk
+is insufficient. Do not enable more slices or broader caching without measuring.

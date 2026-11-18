@@ -9,7 +9,63 @@ parameters:
   run_raw_source:
     type: boolean
     default: false
+  run_raw_full:
+    type: boolean
+    default: false
 jobs:
+  raw-compile:
+    parameters:
+      stage:
+        type: integer
+    machine:
+      image: ubuntu-2404:current
+    resource_class: large
+    steps:
+      - checkout
+      - restore_cache:
+          keys:
+            - raw-done-v1-<< pipeline.id >>-2
+            - raw-done-v1-<< pipeline.id >>-1
+      - run:
+          name: Skip before large restore when earlier APK is done
+          command: |
+            python3 - <<'CHECK'
+            import json,pathlib,subprocess
+            for p in pathlib.Path('handoff').glob('stage*/state.json'):
+                if json.load(open(p)).get('status') in ('done','skipped_done'):
+                    subprocess.run(['circleci-agent','step','halt'],check=True)
+                    break
+            CHECK
+      - attach_workspace:
+          at: .
+      - run:
+          name: Guard and compile isolated 25-minute slice
+          command: |
+            test "$CIRCLE_BRANCH" = "raw-sandium/bootstrap"
+            python3 -m unittest discover -s tests -v
+            timeout --kill-after=30s 56m python3 -u tools/ci_compile.py --stage << parameters.stage >>
+          no_output_timeout: 57m
+      - store_artifacts:
+          path: artifacts
+          destination: raw-build-results
+      - save_cache:
+          key: raw-done-v1-<< pipeline.id >>-<< parameters.stage >>
+          paths:
+            - handoff/stage<< parameters.stage >>/state.json
+      - persist_to_workspace:
+          root: .
+          paths:
+            - handoff/stage<< parameters.stage >>
+      - run:
+          name: Final-slice completion check
+          command: |
+            python3 - <<'CHECK'
+            import json
+            stage = << parameters.stage >>
+            state=json.load(open(f'handoff/stage{stage}/state.json'))
+            if stage==3 and state['status']=='slice_expired':
+                raise SystemExit('Three slices exhausted; checkpoint retained, no APK claimed')
+            CHECK
   raw-source:
     machine:
       image: ubuntu-2404:current
@@ -33,7 +89,7 @@ jobs:
       - persist_to_workspace:
           root: .
           paths:
-            - work
+            - work/source
   raw-bootstrap:
     machine:
       image: ubuntu-2404:current
@@ -97,3 +153,23 @@ workflows:
           filters:
             branches:
               only: raw-sandium/bootstrap
+
+  raw-sandium-full:
+    when: << pipeline.parameters.run_raw_full >>
+    jobs:
+      - raw-source:
+          filters:
+            branches:
+              only: raw-sandium/bootstrap
+      - raw-compile:
+          name: raw-compile-1
+          stage: 1
+          requires: [raw-source]
+      - raw-compile:
+          name: raw-compile-2
+          stage: 2
+          requires: [raw-compile-1]
+      - raw-compile:
+          name: raw-compile-3
+          stage: 3
+          requires: [raw-compile-2]
