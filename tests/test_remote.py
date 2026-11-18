@@ -62,6 +62,7 @@ class HostDependencyTests(unittest.TestCase):
         from ci_compile import host_dependency_command
         command=host_dependency_command(Path('/source'))
         self.assertNotIn('--android',command)
+        self.assertNotIn('sudo',command)
         self.assertNotIn('--lib32',command)
         self.assertIn('--no-prompt',command)
         self.assertEqual(command[-2],'/source/build/install-build-deps.sh')

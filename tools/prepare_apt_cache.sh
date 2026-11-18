@@ -11,6 +11,7 @@ sudo tee /etc/apt/apt.conf.d/99raws-workspace-cache >/dev/null <<APTCONF
 Dir::Cache::archives "$CACHE/archives";
 Binary::apt::APT::Keep-Downloaded-Packages "true";
 APT::Keep-Downloaded-Packages "true";
+Dpkg::Use-Pty "0";
 Acquire::Retries "3";
 Acquire::Languages "none";
 Acquire::http::Timeout "60";

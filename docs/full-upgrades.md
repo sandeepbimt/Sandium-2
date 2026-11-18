@@ -67,3 +67,15 @@ recipe change and independently cached APT archives are prospective fixes;
 a successful fresh-worker install and APK build must still verify them. APT
 archives reduce downloads, but do not preserve installed root-filesystem state
 between workers. Do not skip installation merely because an archive cache exists.
+
+### Dependency installer retry after #1377
+
+#1377 verified source setup in 10m58s and live dependency logging, but host
+installation again hit the 15-minute bound before compilation. Package output
+paused for minutes and resumed around timeout; this does not identify a specific
+package as the cause. The next candidate removes redundant outer sudo (the pinned
+installer invokes sudo itself), disables apt's pseudo-terminal, and supplies closed
+stdin to the unattended installer. Process state and wait-channel diagnostics
+separate stalled installation from a child retaining the output pipe. This is a
+CI compatibility hypothesis, not a validated fix until a run passes installation.
+The dependency time bound and strict compilation/checkpoint rules are unchanged.

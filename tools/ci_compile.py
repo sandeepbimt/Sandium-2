@@ -31,7 +31,7 @@ def safe_members(archive):
 def host_dependency_command(src):
     # Pinned Chromium Android docs invoke this without deprecated --android.
     # That compatibility flag merely enables i386/multilib, not Android tools.
-    return ['timeout','--kill-after=30s','15m','sudo','-n',
+    return ['timeout','--kill-after=30s','15m',
             str(src/'build/install-build-deps.sh'),'--no-prompt']
 
 def compile_budget(elapsed, fresh_seed):
@@ -76,7 +76,7 @@ def main(stage):
         if shutil.disk_usage(ROOT).free<20*1024**3:raise ValueError('Need 20 GiB free before compile')
         env=dict(os.environ,PATH=str(W/'depot_tools')+os.pathsep+os.environ['PATH'],DEPOT_TOOLS_UPDATE='0')
         run_logged(host_dependency_command(W/'src'),
-                   artifacts/f'prepare-{stage}.log',phase=f'install-dependencies-{stage}',check=True,env=env)
+                   artifacts/f'prepare-{stage}.log',phase=f'install-dependencies-{stage}',check=True,env=env,stdin=subprocess.DEVNULL)
         run_logged(['timeout','--kill-after=30s','10m','gclient','runhooks'],
                    artifacts/f'prepare-{stage}.log',phase=f'runhooks-{stage}',append=True,cwd=W,check=True,env=env)
         out=W/'src/out/RawSandium';out.mkdir(parents=True,exist_ok=True)

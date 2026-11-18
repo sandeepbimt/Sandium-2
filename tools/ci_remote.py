@@ -50,14 +50,33 @@ class StreamRedactor:
         return ready
 
 
+def process_snapshot(pid):
+    """Only process metadata, never arguments, environment, or command lines."""
+    try:
+        result=subprocess.run(['ps','-eo','pid=,ppid=,stat=,wchan:32=,etimes=,comm='],
+                              capture_output=True,text=True,timeout=3,check=True)
+        rows=[]
+        for line in result.stdout.splitlines():
+            fields=line.split(None,5)
+            if len(fields)==6:rows.append((int(fields[0]),int(fields[1]),line.strip()))
+        relevant={pid}
+        for _ in range(32):
+            expanded=relevant|{p for p,parent,_ in rows if parent in relevant}
+            if expanded==relevant:break
+            relevant=expanded
+        return '\n'.join(text for p,_,text in rows if p in relevant) or 'supervisor no longer in process table'
+    except (OSError,ValueError,subprocess.SubprocessError) as exc:
+        return 'process snapshot unavailable: '+type(exc).__name__
+
+
 def run_logged(command, log_path, *, phase, cwd=None, env=None, check=False,
-               append=False, heartbeat_seconds=30):
+               append=False, heartbeat_seconds=30, drain_grace_seconds=5, stdin=None):
     """Tee sanitized output without changing timeout arguments or return codes.
 
     Never prints command arguments or environment. The caller's GNU timeout
     remains the process supervisor; stdin/process-group inheritance is unchanged.
     """
-    if heartbeat_seconds<=0:raise ValueError('Heartbeat interval must be positive')
+    if heartbeat_seconds<=0 or drain_grace_seconds<=0:raise ValueError('Logging intervals must be positive')
     env=dict(os.environ if env is None else env)
     redactor=StreamRedactor(env)
     decoder=codecs.getincrementaldecoder('utf-8')(errors='replace')
@@ -68,22 +87,37 @@ def run_logged(command, log_path, *, phase, cwd=None, env=None, check=False,
                 logfile.write(text);logfile.flush()
                 sys.stdout.write(text);sys.stdout.flush()
         emit(f'RAWS_PHASE_START phase={phase}\n')
-        process=subprocess.Popen(command,cwd=cwd,env=env,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
+        process=subprocess.Popen(command,cwd=cwd,env=env,stdin=stdin,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
         try:
             with selectors.DefaultSelector() as selector:
                 selector.register(process.stdout,selectors.EVENT_READ)
                 next_beat=start+heartbeat_seconds
+                exited_at=None
+                last_output=start
+                drain_abandoned=False
                 while selector.get_map():
-                    events=selector.select(max(0,next_beat-time.monotonic()))
+                    events=selector.select(min(1,max(0,next_beat-time.monotonic())))
                     for key,_ in events:
                         data=os.read(key.fileobj.fileno(),65536)
-                        if data:emit(redactor.feed(decoder.decode(data)))
+                        if data:
+                            last_output=time.monotonic()
+                            emit(redactor.feed(decoder.decode(data)))
                         else:
                             selector.unregister(key.fileobj)
                             emit(redactor.feed(decoder.decode(b'',final=True),final=True))
                     now=time.monotonic()
+                    supervisor_code=process.poll()
+                    if supervisor_code is not None and exited_at is None:
+                        exited_at=now
+                    if exited_at is not None and selector.get_map() and now-exited_at>=drain_grace_seconds:
+                        drain_abandoned=True
+                        emit(redactor.feed(decoder.decode(b'',final=True),final=True))
+                        emit(f'\nRAWS_PIPE_DRAIN_EXPIRED phase={phase} supervisor_exit={supervisor_code} grace_seconds={drain_grace_seconds}\n')
+                        break
                     if now>=next_beat:
-                        emit(f'\nRAWS_PHASE_HEARTBEAT phase={phase} elapsed_seconds={int(now-start)}\n')
+                        emit(f'\nRAWS_PHASE_HEARTBEAT phase={phase} elapsed_seconds={int(now-start)} supervisor_pid={process.pid} supervisor_exit={supervisor_code} quiet_seconds={int(now-last_output)}\n')
+                        if now-last_output>=heartbeat_seconds:
+                            emit(StreamRedactor(env).feed('RAWS_PROCESS_SNAPSHOT pid ppid state wait_channel elapsed command_name\n'+process_snapshot(process.pid)+'\n',final=True))
                         next_beat=now+heartbeat_seconds
             # A child may close stdout before it exits; keep the phase visible.
             while process.poll() is None:
@@ -99,6 +133,8 @@ def run_logged(command, log_path, *, phase, cwd=None, env=None, check=False,
         finally:
             process.stdout.close()
         emit(f'\nRAWS_PHASE_COMPLETE phase={phase} exit={code} elapsed_seconds={int(time.monotonic()-start)}\n')
+        if drain_abandoned and code==0:
+            raise RuntimeError('Supervisor exited but descendant retained log pipe; refusing success')
     if check and code:raise subprocess.CalledProcessError(code,command)
     return subprocess.CompletedProcess(command,code)
 

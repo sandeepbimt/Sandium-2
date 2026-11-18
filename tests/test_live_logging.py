@@ -43,4 +43,28 @@ class LiveLoggingTests(unittest.TestCase):
         self.assertEqual(result.returncode,124)
         self.assertIn('exit=124',output)
 
+    def test_orphan_pipe_has_bounded_drain(self):
+        import time
+        with tempfile.TemporaryDirectory() as d,contextlib.redirect_stdout(io.StringIO()) as console:
+            started=time.monotonic()
+            with self.assertRaisesRegex(RuntimeError,'descendant retained'):
+                run_logged([sys.executable,'-c','import os,time; p=os.fork(); time.sleep(.5) if p==0 else None'],
+                           Path(d)/'log',phase='orphan',heartbeat_seconds=.02,drain_grace_seconds=.08)
+            self.assertLess(time.monotonic()-started,.45)
+            self.assertIn('RAWS_PIPE_DRAIN_EXPIRED',console.getvalue())
+            self.assertIn('supervisor_exit=0',console.getvalue())
+    def test_quiet_diagnostics_exclude_arguments(self):
+        marker='unique-argument-not-for-logs'
+        result,output=self.run_command([sys.executable,'-c','import time;time.sleep(.15)',marker])
+        self.assertIn('RAWS_PROCESS_SNAPSHOT',output)
+        self.assertIn('supervisor_exit=None',output)
+        self.assertNotIn(marker,output)
+
+    def test_optional_devnull_stdin(self):
+        with tempfile.TemporaryDirectory() as d,contextlib.redirect_stdout(io.StringIO()) as console:
+            result=run_logged([sys.executable,'-c','import sys; print("input-bytes",len(sys.stdin.read()))'],
+                              Path(d)/'log',phase='stdin',stdin=subprocess.DEVNULL)
+            self.assertEqual(result.returncode,0)
+            self.assertIn('input-bytes 0',console.getvalue())
+
 if __name__=='__main__':unittest.main()
