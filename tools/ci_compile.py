@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Sequential 25-minute compile slices using this workflow's own output only."""
-import argparse, hashlib, json, os, shutil, subprocess, tarfile
+import argparse, hashlib, json, os, shutil, subprocess, tarfile, time
 from pathlib import Path
 from raw import ROOT, lock, verify
 W=ROOT/'work/source'
@@ -56,8 +56,12 @@ def main(stage):
         subprocess.run(['gn','gen','out/RawSandium'],cwd=W/'src',env=env,check=True,timeout=300)
         apk=out/'apks/ChromePublic.apk'
         if apk.exists():apk.unlink()
+        started=float((ROOT/'.raw-job-start').read_text()) if (ROOT/'.raw-job-start').exists() else time.time()
+        budget=min(1500,int(3600-(time.time()-started)-900))
+        if budget<120:raise ValueError('Insufficient job time for safe compile and checkpoint')
+        state['compile_budget_seconds']=budget
         with (artifacts/f'compile-{stage}.log').open('w') as log:
-            code=subprocess.run(['timeout','--signal=TERM','--kill-after=30s','25m','autoninja','-C','out/RawSandium','-j','4',data['target']],cwd=W/'src',env=env,stdout=log,stderr=subprocess.STDOUT).returncode
+            code=subprocess.run(['timeout','--signal=TERM','--kill-after=30s',str(budget)+'s','autoninja','-C','out/RawSandium','-j','4',data['target']],cwd=W/'src',env=env,stdout=log,stderr=subprocess.STDOUT).returncode
         state['status']=classify(code,apk)
         if state['status']=='done':
             shutil.copy2(apk,artifacts/'RawSandium-baseline-arm64.apk')

@@ -79,3 +79,14 @@ Known tradeoffs pending real measurements: source workspace transfer is large;
 toolchain hooks and OS packages are repeated on workers; checkpoint archives
 need spare disk. Guards fail safely rather than claiming resumability if disk
 is insufficient. Do not enable more slices or broader caching without measuring.
+
+### First-APK priority adjustment
+
+The workflow is now named **RawS full**. The first worker syncs source and
+compiles without first archiving the source tree. Source is packed only when a
+compiler time slice requires continuation. Source checkpoints use fast
+multithreaded zstd, with checksum/fingerprint checks and safe extraction.
+Compiler time is capped at 25 minutes, shortened when necessary to reserve 15
+minutes for checkpoint/publication before the free job's one-hour limit.
+This change addresses the measured #1372 archive bottleneck; it still requires
+actual compiler and handoff validation. No existing Sandium pipeline is renamed.

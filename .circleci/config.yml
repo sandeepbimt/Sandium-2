@@ -13,6 +13,50 @@ parameters:
     type: boolean
     default: false
 jobs:
+  raw-first:
+    machine:
+      image: ubuntu-2404:current
+    resource_class: large
+    steps:
+      - checkout
+      - run:
+          name: RawS full - guard first APK worker
+          command: |
+            date +%s > .raw-job-start
+            test "$CIRCLE_BRANCH" = "raw-sandium/bootstrap"
+            python3 -m unittest discover -s tests -v
+            python3 -u tools/ci_bootstrap.py
+      - run:
+          name: Sync source without an intermediate archive
+          command: python3 -u tools/ci_source.py
+          no_output_timeout: 27m
+      - run:
+          name: Prepare and compile first 25-minute slice on same worker
+          command: python3 -u tools/ci_compile.py --stage 1
+          no_output_timeout: 52m
+      - store_artifacts:
+          path: artifacts
+          destination: raw-build-results
+      - save_cache:
+          key: raw-done-v1-<< pipeline.id >>-1
+          paths: [handoff/stage1/state.json]
+      - run:
+          name: Skip checkpoints once APK exists
+          command: |
+            python3 - <<'CHECK'
+            import json,subprocess
+            if json.load(open('handoff/stage1/state.json'))['status']=='done':
+                subprocess.run(['circleci-agent','step','halt'],check=True)
+            CHECK
+      - run:
+          name: Fast independent source checkpoint
+          command: |
+            command -v zstd || (sudo apt-get update -qq && sudo apt-get install -y zstd)
+            python3 tools/ci_handoff.py pack
+          no_output_timeout: 11m
+      - persist_to_workspace:
+          root: .
+          paths: [handoff/source, handoff/stage1]
   raw-compile:
     parameters:
       stage:
@@ -22,6 +66,7 @@ jobs:
     resource_class: large
     steps:
       - checkout
+      - run: date +%s > .raw-job-start
       - restore_cache:
           keys:
             - raw-done-v1-<< pipeline.id >>-2
@@ -38,6 +83,12 @@ jobs:
             CHECK
       - attach_workspace:
           at: .
+      - run:
+          name: Restore verified independent source checkpoint
+          command: |
+            command -v zstd || (sudo apt-get update -qq && sudo apt-get install -y zstd)
+            python3 tools/ci_handoff.py restore
+          no_output_timeout: 11m
       - run:
           name: Guard and compile isolated 25-minute slice
           command: |
@@ -154,22 +205,19 @@ workflows:
             branches:
               only: raw-sandium/bootstrap
 
-  raw-sandium-full:
+  "RawS full":
     when: << pipeline.parameters.run_raw_full >>
     jobs:
-      - raw-source:
+      - raw-first:
+          name: RawS full - first ARM64 slice
           filters:
             branches:
               only: raw-sandium/bootstrap
       - raw-compile:
-          name: raw-compile-1
-          stage: 1
-          requires: [raw-source]
-      - raw-compile:
-          name: raw-compile-2
+          name: RawS full - ARM64 slice 2
           stage: 2
-          requires: [raw-compile-1]
+          requires: [RawS full - first ARM64 slice]
       - raw-compile:
-          name: raw-compile-3
+          name: RawS full - ARM64 slice 3
           stage: 3
-          requires: [raw-compile-2]
+          requires: [RawS full - ARM64 slice 2]
