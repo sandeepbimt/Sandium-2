@@ -57,7 +57,7 @@ def setup(path):
     preflight(path)
     w = workspace(path)
     depot = w/'depot_tools'
-    if not depot.exists(): run(['git','clone',data['depot_tools']['repository'],str(depot)])
+    if not depot.exists(): run(['git','clone','--depth=1',data['depot_tools']['repository'],str(depot)])
     run(['git','-C',str(depot),'fetch','origin',rev])
     run(['git','-C',str(depot),'checkout','--detach',rev])
     env = dict(os.environ, PATH=str(depot)+os.pathsep+os.environ['PATH'],DEPOT_TOOLS_UPDATE='0')
@@ -65,7 +65,7 @@ def setup(path):
     cfg = w/'.gclient'
     if cfg.exists() and cfg.read_text()!=spec: raise ValueError('Unexpected gclient configuration')
     cfg.write_text(spec)
-    run([str(depot/'gclient'),'sync','--nohooks','--revision','src@'+data['chromium']['revision']],cwd=w,env=env)
+    run([str(depot/'gclient'),'sync','--nohooks','--no-history','--revision','src@'+data['chromium']['revision']],cwd=w,env=env)
     verify(w/'src',data)
     print('Source ready. Install OS dependencies with src/build/install-build-deps.sh, then build.')
 def build(path):

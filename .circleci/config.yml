@@ -6,7 +6,34 @@ parameters:
   run_raw_bootstrap:
     type: boolean
     default: false
+  run_raw_source:
+    type: boolean
+    default: false
 jobs:
+  raw-source:
+    machine:
+      image: ubuntu-2404:current
+    resource_class: large
+    steps:
+      - checkout
+      - run:
+          name: Guard clean source bootstrap
+          command: |
+            test "$CIRCLE_BRANCH" = "raw-sandium/bootstrap"
+            python3 -m unittest discover -s tests -v
+            python3 -u tools/ci_bootstrap.py
+          no_output_timeout: 19m
+      - run:
+          name: Fresh pinned Chromium Android source and dependencies
+          command: python3 -u tools/ci_source.py
+          no_output_timeout: 27m
+      - store_artifacts:
+          path: artifacts
+          destination: raw-source-diagnostics
+      - persist_to_workspace:
+          root: .
+          paths:
+            - work
   raw-bootstrap:
     machine:
       image: ubuntu-2404:current
@@ -59,6 +86,14 @@ workflows:
     when: << pipeline.parameters.run_raw_bootstrap >>
     jobs:
       - raw-bootstrap:
+          filters:
+            branches:
+              only: raw-sandium/bootstrap
+
+  raw-sandium-source:
+    when: << pipeline.parameters.run_raw_source >>
+    jobs:
+      - raw-source:
           filters:
             branches:
               only: raw-sandium/bootstrap

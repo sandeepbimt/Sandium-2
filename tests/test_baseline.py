@@ -76,4 +76,14 @@ class VerifiedBlob(unittest.TestCase):
         self.assertEqual(decode_verified(json.dumps({'sha':sha,'encoding':'base64','content':encoded.decode()}),'mirror',sha),data)
         with self.assertRaises(ValueError):decode_verified(encoded,'canonical_gitiles','a'*40)
         with self.assertRaises(ValueError):decode_verified(json.dumps({'sha':'a'*40,'encoding':'base64','content':encoded.decode()}),'mirror',sha)
+
+
+class SourceIsolation(unittest.TestCase):
+    def test_source_is_separate_and_bounded(self):
+        source=(ROOT/'tools/ci_source.py').read_text()
+        self.assertIn("ROOT/'work/source'",source)
+        self.assertIn("'25m'",source)
+        self.assertIn("if p.returncode:raise",source)
+        self.assertIn("verify(ROOT/'work/source/src',lock())",source)
+        self.assertNotIn('autoninja',source)
 if __name__=='__main__':unittest.main()
