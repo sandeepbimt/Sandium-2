@@ -75,6 +75,15 @@ def plan(core,src,enabled):
         p=core/name
         if old is None and p.exists() and p.read_bytes()!=candidate[name]:
             raise ValueError('Unowned new-path collision: '+name)
+    # This core-only port cannot instantiate desktop-Android OAuth windows.
+    # Own the exact pinned source in both directions so stop/reset stays clean.
+    import runpy
+    auth = runpy.run_path(str(ROOT/'identity/apply.py'))
+    raw_auth = blob(src, CHROMIUM_PIN, auth['PATH'])
+    if raw_auth is None:
+        raise ValueError('Missing pinned web auth source')
+    fixed_auth = auth['transform'](raw_auth)
+    payload[src/auth['PATH']] = fixed_auth if enabled else raw_auth
     retire_renamed_settings(core,enabled,payload)
     for p in payload:
         if p.is_symlink() or any(q.is_symlink() for q in p.parents if q not in (core.parent,src.parent)):

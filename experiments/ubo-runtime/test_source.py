@@ -20,7 +20,7 @@ class Tests(unittest.TestCase):
     pin,name=args[1].split(':',1)
     if repo==core:
      return m.git_original(CORE,*args,optional=optional)
-    f=RAW/name
+    f=ROOT/'identity/fixtures/web_auth_flow.cc' if name=='chrome/browser/extensions/api/identity/web_auth_flow.cc' else RAW/name
     return f.read_bytes() if f.exists() else None
    with patch.object(m,'git_original',m.git,create=True),patch.object(m,'git',git):
     on=m.plan(core,src,True);off=m.plan(core,src,False)
