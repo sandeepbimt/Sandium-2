@@ -42,7 +42,8 @@ class CIIsolation(unittest.TestCase):
         self.assertIn('default: false',config)
         self.assertIn('only: raw-sandium/bootstrap',config)
         self.assertIn('test "$CIRCLE_BRANCH" = "raw-sandium/bootstrap"',config)
-        preflight=config[config.index('  raw-preflight:'):config.index('workflows:')]
+        import yaml
+        preflight=str(yaml.safe_load(config)['jobs']['raw-preflight'])
         self.assertNotIn('restore_cache:',preflight)
         self.assertNotIn('save_cache:',preflight)
         self.assertNotIn('context:',config)
@@ -122,21 +123,23 @@ class ReusableHandoff(unittest.TestCase):
         self.assertEqual(len(groups),5)
         self.assertEqual(sorted(p for g in groups for p in g),sorted(str(i) for i in range(20)))
 class FiveStageWorkflow(unittest.TestCase):
-    def test_five_stages_and_completion_early_exit(self):
-        config=(ROOT/'.circleci/config.yml').read_text()
-        for stage in range(2,6):
-            self.assertIn(f'stage: {stage}',config)
-        for stage in range(1,5):
-            self.assertIn(f'raw-done-v1-<< pipeline.id >>-{stage}',config)
-        self.assertIn('if stage==5 and',config)
-        self.assertIn('Skip checkpoints immediately after completed APK',config)
-        self.assertIn('stage not in (1,2,3,4,5)',(ROOT/'tools/ci_compile.py').read_text())
-        self.assertNotIn("python3 - <<'CHECK'",config)
-    def test_fail_stop_requires_successful_previous_stage(self):
-        config=(ROOT/'.circleci/config.yml').read_text()
-        self.assertIn('requires: [RawS full - first ARM64 slice]',config)
-        for stage in range(2,5):
-            self.assertIn(f'requires: [RawS full - ARM64 slice {stage}]',config)
-        self.assertNotIn('requires: {',config)
+    def test_full_protocol_and_completion_early_exit(self):
+        import yaml
+        config=yaml.safe_load((ROOT/'.circleci/config.yml').read_text())
+        group=config['job-groups']['raws-full-chain']['jobs']
+        self.assertEqual(len(group),5)
+        for stage in range(1,6):
+            name=f'raws-full-stage-{stage}'
+            job=config['jobs'][name]
+            self.assertEqual(job['retention']['caches'],'15d')
+            steps=str(job['steps'])
+            self.assertIn('ci_compile.py --stage '+str(stage),steps)
+            self.assertIn('restore-finish',steps)
+            self.assertIn('readback',steps)
+            self.assertLess(steps.index('halt-complete'),steps.index('ci_full.py capture'))
+            if stage>1:self.assertEqual(group[stage-1][name]['requires'],[f'raws-full-stage-{stage-1}'])
+        workflow=config['workflows']['RawS full']['jobs'][0]['raws-full-chain']
+        self.assertEqual(workflow['serial-group'],'<< pipeline.project.slug >>/raws-full')
+        self.assertNotIn('sandium-bridge-',(ROOT/'.circleci/config.yml').read_text())
 
 if __name__=='__main__':unittest.main()

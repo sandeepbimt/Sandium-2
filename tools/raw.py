@@ -74,21 +74,7 @@ def build(path):
     verify(w/'src',data)
     actual = run(['git','-C',str(w/'depot_tools'),'rev-parse','HEAD'],capture_output=True).stdout.strip()
     if actual != data['depot_tools']['revision']: raise ValueError('Wrong depot_tools pin')
-    env = dict(os.environ,PATH=str(w/'depot_tools')+os.pathsep+os.environ['PATH'],DEPOT_TOOLS_UPDATE='0')
-    run(['gclient','runhooks'],cwd=w,env=env)
-    out = w/'src/out/RawSandium'; out.mkdir(parents=True,exist_ok=True)
-    args = (ROOT/'ci/args.gn').read_text()
-    (out/'args.gn').write_text(args)
-    # Remove only our output APK so a failed build cannot publish a stale artifact.
-    apk = out/'apks/ChromePublic.apk'
-    if apk.exists(): apk.unlink()
-    run(['gn','gen','out/RawSandium'],cwd=w/'src',env=env)
-    run(['autoninja','-C','out/RawSandium',data['target']],cwd=w/'src',env=env)
-    if not apk.is_file() or not apk.stat().st_size: raise ValueError('No new APK')
-    dest=ROOT/'artifacts'; dest.mkdir(exist_ok=True)
-    shutil.copy2(apk,dest/'RawSandium-baseline-arm64.apk')
-    receipt={'upstream':data,'apk_sha256':hashlib.sha256(apk.read_bytes()).hexdigest(),'gn_args_sha256':hashlib.sha256(args.encode()).hexdigest(),'features':[],'device_tested':False,'branding':'Chromium baseline, not yet Sandium'}
-    (dest/'build-receipt.json').write_text(json.dumps(receipt,indent=2)+'\n')
+    raise ValueError('Use RawS full CI for strict remote build and verified checkpoint publication; standalone build is intentionally disabled')
 if __name__=='__main__':
     p=argparse.ArgumentParser(); p.add_argument('command',choices=['preflight','resolve-tools','setup','build']); p.add_argument('--workspace',default=str(ROOT/'work'))
     a=p.parse_args()

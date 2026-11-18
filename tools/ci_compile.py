@@ -1,15 +1,16 @@
 #!/usr/bin/env python3
 """Sequential 25-minute compile slices using this workflow's own output only."""
-import argparse, hashlib, json, os, shutil, subprocess, tarfile, time
+import argparse, hashlib, json, os, re, shutil, subprocess, tarfile, time, zipfile
 from pathlib import Path
 from raw import ROOT, lock, verify
+from ci_remote import configure, smoke, remote_command, audit
 W=ROOT/'work/source'
 
 def file_sha(path):
     with path.open("rb") as f:return hashlib.file_digest(f,"sha256").hexdigest()
 
 def fingerprint():
-    files=[ROOT/'upstream.lock.json',ROOT/'ci/args.gn']
+    files=[ROOT/'upstream.lock.json',ROOT/'ci/args.gn',ROOT/'tools/ci_remote.py']
     files+=sorted((ROOT/'patches').rglob('*'))+sorted((ROOT/'sandium/features').rglob('*'))
     h=hashlib.sha256()
     for p in files:
@@ -27,17 +28,39 @@ def safe_members(archive):
         if not (m.isfile() or m.isdir()):raise ValueError('Unexpected output archive member type')
     return members
 
+def compile_budget(elapsed, fresh_seed):
+    # Established Full reserves, capped to the requested 25-minute slice.
+    save_reserve=600 if fresh_seed else 300
+    return min(1500, int(3300-elapsed-900-save_reserve-60-180))
+
+def verify_apk(apk, src, env):
+    with zipfile.ZipFile(apk) as z:
+        bad=z.testzip()
+        if bad:raise ValueError('APK ZIP checksum failed: '+bad)
+        names=z.namelist()
+        if 'AndroidManifest.xml' not in names:raise ValueError('APK manifest missing')
+        abis={n.split('/')[1] for n in names if n.startswith('lib/') and n.endswith('.so')}
+        if abis!={'arm64-v8a'}:raise ValueError('Unexpected APK native ABIs: '+repr(sorted(abis)))
+    candidates=sorted((src/'third_party/android_sdk/public/build-tools').glob('*/apksigner'))
+    if not candidates:raise ValueError('Pinned SDK apksigner unavailable')
+    signer=candidates[-1]
+    aapt=signer.parent/'aapt2'
+    if not aapt.is_file():raise ValueError('Pinned SDK aapt2 unavailable')
+    subprocess.run([str(signer),'verify',str(apk)],env=env,check=True,timeout=120,
+                   stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+    badging=subprocess.check_output([str(aapt),'dump','badging',str(apk)],env=env,text=True,timeout=60)
+    match=re.search(r"^package: name='([^']+)'",badging,re.M)
+    if not match or match.group(1)!='org.chromium.chrome':
+        raise ValueError('Unexpected Chromium baseline APK package')
+    return {'apk_verified':True,'apk_sha256':file_sha(apk),'apk_package':match.group(1),
+            'apk_abis':sorted(abis),'apk_signature_verified':True,'apk_zip_verified':True}
+
 def main(stage):
     if os.environ.get('CIRCLE_BRANCH')!='raw-sandium/bootstrap' or stage not in (1,2,3,4,5):raise ValueError('Wrong build scope')
     ident=fingerprint(); folder=ROOT/f'handoff/stage{stage}';folder.mkdir(parents=True,exist_ok=True)
     artifacts=ROOT/'artifacts';artifacts.mkdir(exist_ok=True)
     state={'stage':stage,'fingerprint':ident,'apk_produced':False}
     try:
-        for earlier in range(1,stage):
-            old=json.loads((ROOT/f'handoff/stage{earlier}/state.json').read_text())
-            if old['fingerprint']!=ident:raise ValueError('Foreign checkpoint identity')
-            if old['status'] in ('done','skipped_done'):
-                state['status']='skipped_done';return 0
         receipt=json.loads((W/'source-ready.json').read_text())
         expected=hashlib.sha256((ROOT/'upstream.lock.json').read_bytes()).hexdigest()
         if not receipt['ready'] or receipt['lock_sha256']!=expected:raise ValueError('Unverified source handoff')
@@ -50,42 +73,66 @@ def main(stage):
             subprocess.run(['timeout','--kill-after=30s','15m','sudo','-n',str(W/'src/build/install-build-deps.sh'),'--android','--no-prompt'],check=True,stdout=log,stderr=subprocess.STDOUT,env=env)
             subprocess.run(['timeout','--kill-after=30s','10m','gclient','runhooks'],cwd=W,check=True,stdout=log,stderr=subprocess.STDOUT,env=env)
         out=W/'src/out/RawSandium';out.mkdir(parents=True,exist_ok=True)
-        previous=ROOT/f'handoff/stage{stage-1}' if stage>1 else ROOT/'resume'
-        if stage>1 or (previous/'state.json').exists():
-            prior=json.loads((previous/'state.json').read_text())
-            if prior['status']!='slice_expired' or prior['fingerprint']!=ident:raise ValueError('Previous checkpoint not compatible/resumable')
-            archive=previous/'output.tar.gz'
-            if file_sha(archive)!=prior['archive_sha256']:raise ValueError('Checkpoint checksum mismatch')
-            with tarfile.open(archive) as tar:tar.extractall(out.parent,members=safe_members(tar),filter='data')
-            state['restored_checkpoint']={'stage':prior['stage'],'sha256':prior['archive_sha256'],'bytes':archive.stat().st_size,'cross_run_cache':stage==1}
-            print('RESTORED_CHECKPOINT',json.dumps(state['restored_checkpoint']),flush=True)
-        else:state['restored_checkpoint']=None
+        # Full checkpoint driver restores source and output together before this step.
+        # No legacy whole-output tar path may bypass its verified chain.
+        state['restored_checkpoint']='managed by RawS Full driver'
+        env, state['remote_config'] = configure(W/'src', W/'depot_tools', env)
         (out/'args.gn').write_text((ROOT/'ci/args.gn').read_text())
         subprocess.run(['gn','gen','out/RawSandium'],cwd=W/'src',env=env,check=True,timeout=300)
         apk=out/'apks/ChromePublic.apk'
         if apk.exists():apk.unlink()
-        started=float((ROOT/'.raw-job-start').read_text()) if (ROOT/'.raw-job-start').exists() else time.time()
-        budget=min(1500,int(3600-(time.time()-started)-900))
+        started=json.loads((ROOT/'.checkpoint-state/job-start.json').read_text())['epoch']
+        budget=compile_budget(time.time()-started,(ROOT/'.checkpoint-state/fresh.json').is_file())
         if budget<120:raise ValueError('Insufficient job time for safe compile and checkpoint')
         state['compile_budget_seconds']=budget
-        with (artifacts/f'compile-{stage}.log').open('w') as log:
-            code=subprocess.run(['timeout','--signal=TERM','--kill-after=30s',str(budget)+'s','autoninja','-C','out/RawSandium','-j','4',data['target']],cwd=W/'src',env=env,stdout=log,stderr=subprocess.STDOUT).returncode
+        deadline=time.monotonic()+budget
+        if stage==1:
+            try:
+                state['remote_smoke']=smoke(W/'src',out,env,artifacts,stage,budget)
+            except subprocess.CalledProcessError as e:
+                if e.returncode!=124:raise
+                # Same Full-mode bounded probe policy: a cold prerequisite set
+                # can exceed 10m. Real build stays strict remote and is audited.
+                state['remote_smoke']={'status':'timeout_warning','verified':False}
+
+        remaining=int(deadline-time.monotonic())
+        if remaining<1:
+            code=124
+        else:
+            metrics=f'raws-stage-{stage}-build.jsonl'
+            (out/metrics).unlink(missing_ok=True)
+            with (artifacts/f'compile-{stage}.log').open('w') as log:
+                code=subprocess.run(remote_command(out,metrics,data['target'],remaining),
+                    cwd=W/'src',env=env,stdout=log,stderr=subprocess.STDOUT).returncode
+            if code in (0,124):
+                # Audit real compilation, not merely configured flags. Time-slice
+                # checkpoints may have no finished action; record that explicitly.
+                if (out/metrics).is_file() and (out/metrics).stat().st_size:
+                    state['remote_audit']=audit(out/metrics)
+                    shutil.copy2(out/metrics,artifacts/metrics)
+                elif code==0:
+                    raise ValueError('Successful build has no remote execution metrics')
+                else:
+                    state['remote_audit']={'status':'no completed actions before slice expiry'}
         state['status']=classify(code,apk)
         if state['status']=='done':
+            state.update(verify_apk(apk,W/'src',env))
             shutil.copy2(apk,artifacts/'RawSandium-baseline-arm64.apk')
             state.update(apk_produced=True,apk_sha256=file_sha(apk),device_tested=False,branding='Chromium baseline')
         else:
-            size=sum(p.stat().st_size for p in out.rglob('*') if p.is_file())
-            if shutil.disk_usage(ROOT).free<size+5*1024**3:raise ValueError('Insufficient checkpoint space')
-            archive=folder/'output.tar.gz'
-            with tarfile.open(archive,'w:gz',compresslevel=1) as tar:tar.add(out,arcname='RawSandium')
-            state['archive_sha256']=file_sha(archive)
-            state['archive_bytes']=archive.stat().st_size
-            state['output_uncompressed_bytes']=size
+            state['checkpoint_required']=True
+            # The proven Full driver captures the immutable delta and receipt;
+            # no whole output archive is generated by this compile adapter.
         return 0
     except Exception as e:
         state.update(status='failed',error=str(e));return 1
     finally:
+        for name in ('siso_output', 'siso_failed_commands.sh', 'siso.INFO'):
+            diagnostic=W/'src/out/RawSandium'/name
+            if diagnostic.is_file():
+                shutil.copy2(diagnostic, artifacts/f'stage-{stage}-{name}')
+        for metric in (W/'src/out/RawSandium').glob(f'raws-stage-{stage}-*.jsonl'):
+            shutil.copy2(metric, artifacts/metric.name)
         (folder/'state.json').write_text(json.dumps(state,indent=2)+'\n')
         (artifacts/f'build-state-{stage}.json').write_text(json.dumps(state,indent=2)+'\n')
         print(json.dumps(state,indent=2))

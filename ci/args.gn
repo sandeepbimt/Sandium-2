@@ -5,5 +5,7 @@ is_debug = false
 is_component_build = false
 symbol_level = 1
 is_official_build = false
-# Standalone baseline; do not borrow existing Sandium remote-execution credentials.
-use_remoteexec = false
+# Shared authorized BuildBuddy service; independently identified RawS outputs.
+use_remoteexec = true
+use_siso = true
+use_reclient = false

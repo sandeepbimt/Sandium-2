@@ -1,0 +1,78 @@
+{
+  "source": "Sandium-2 proven Full local reference",
+  "adaptation": "RawS isolated namespace, workspace and output; legacy engine preserved",
+  "files": [
+    {
+      "path": "bridge/sparse_restore.py",
+      "sha256": "f75e4869804144a87a2e5b9d9087f7a8faef2084421cfccad911e5ef715477d7"
+    },
+    {
+      "path": "bridge/bridge.py",
+      "sha256": "c0b5bca78572d24662702ffcc68656ed536c999eb553ddc8868df72d30d8e06b"
+    },
+    {
+      "path": "bridge/driver.py",
+      "sha256": "41aaba5b2a619ff324672b4b1fb616f39ee55f93bd736d30cf62e2bb42bcdeeb"
+    },
+    {
+      "path": "bridge/full_driver.py",
+      "sha256": "df362c21bc7c55c81c46704c80bfcb3f7f83f0079a8c701722f76de70b31f40d"
+    },
+    {
+      "path": "bridge/cli.py",
+      "sha256": "11127be067f905e896866bffa053d604d3acf6f045ce36889f31e7323fd1f304"
+    },
+    {
+      "path": "bridge/quiescence.py",
+      "sha256": "2d46e88c39dac5f7715e31f2ef8ab656f685ffbd5fbfe47af5f5b29ed6707f90"
+    },
+    {
+      "path": "bridge/rollup.py",
+      "sha256": "d527dd9cff9e5e77ad8c0cd8aafa0ce03f5d0c5fb33fa901c422ec12c6e359c2"
+    },
+    {
+      "path": "checkpoint/circleci_plan.py",
+      "sha256": "1ea728a8166df0f6442748e4d8f3577bae995b5a450b96d27c767494f3d1fc7c"
+    },
+    {
+      "path": "checkpoint/native_slots.py",
+      "sha256": "1b9836dc14a605c0ff7bd3b6e1c64c350ea8f22992d8cead1510933805272571"
+    },
+    {
+      "path": "checkpoint/cache_bundle.py",
+      "sha256": "7249dc8a60e30bff264e84eaccaea5dd10fef0a41c253172b4b2b0d39866234b"
+    },
+    {
+      "path": "checkpoint/consume_restore.py",
+      "sha256": "63bb7bd333abacc8051212e6e5d937fa4b7dab1df938329f1afe7d6af74e7cb8"
+    },
+    {
+      "path": "checkpoint/driver.py",
+      "sha256": "c40f59432803a5e014c652cb2e846de611c8f0ece7d9c407d88915ceafa742b7"
+    },
+    {
+      "path": "checkpoint/progress.py",
+      "sha256": "2554743941de017c558d526bb2d82459ff2d71e45a099232bd34a08929fca656"
+    },
+    {
+      "path": "checkpoint/job_budget.py",
+      "sha256": "b32948ec10319ce35771259576756a96a8daeb40258d6b56f0c8635ec1bbf30b"
+    },
+    {
+      "path": "checkpoint/full_job_budget.py",
+      "sha256": "02efe71b1c8fd2d61635be3d033cddef1a61792536614010738e1271092a1fc2"
+    },
+    {
+      "path": "checkpoint/checkpoint.py",
+      "sha256": "f9cb7a9d950415f96df6076629cba244c2eddd9b3dc6619dc558afe34df7919f"
+    },
+    {
+      "path": "checkpoint/receipts.py",
+      "sha256": "65debf57523f5bc58a0ab181c28bddbb934410f74d97a6b6ccbfe974b5cc3744"
+    },
+    {
+      "path": "scripts/sandium-checkpoint-shards.py",
+      "sha256": "3b1baee1308f62ca7fd01917175674f663694ebfc2a800e44ed230fd0339fe6a"
+    }
+  ]
+}

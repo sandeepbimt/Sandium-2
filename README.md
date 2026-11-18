@@ -10,7 +10,7 @@ Chromium **156.0.8078.74**, commit `d331de35ca8ab1358c7a17e4bd41627d55eaef51`.
 This matches the Chromium under the existing Sandium reference so the first
 comparison changes the Brave layer, not the browser engine version. It is not a
 claim that this is the latest secure release. Version provenance is in the lock.
-No Brave source, caches, patches or credential configuration are imported.
+No Brave source, caches or product patches are imported. The proven Full CI/checkpoint engine is adapted under an independent RawS namespace. BuildBuddy uses the existing authorized project credential without copying its value.
 
 The `depot_tools` revision is independently verified against the official remote
 and pinned in the lock. Automatic tool updates are disabled.
@@ -22,7 +22,7 @@ python3 tools/raw.py preflight --workspace /large-disk/raw-sandium
 python3 tools/raw.py setup --workspace /large-disk/raw-sandium
 # On that Linux host, install upstream OS packages (requires system authorization):
 # /large-disk/raw-sandium/src/build/install-build-deps.sh
-python3 tools/raw.py build --workspace /large-disk/raw-sandium
+# Compile through the opt-in RawS full workflow (strict remote, verified checkpoints).
 ```
 Use an empty dedicated workspace. The script refuses existing unowned directories
 and the project itself. Source is pinned and verified; dependency versions follow
@@ -38,3 +38,5 @@ Chromium installation: do not install over another browser. Product package,
 signing, profile migration and trademark choices precede any release.
 
 See [architecture](docs/architecture.md) and [validation](docs/validation.md).
+
+See [Full lifecycle and Chromium upgrades](docs/full-upgrades.md).
