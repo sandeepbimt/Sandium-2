@@ -64,7 +64,7 @@ class PhoneBranchGate(unittest.TestCase):
  def test_phone_full_only_and_existing_maintenance_gate(self):
   c=yaml.safe_load((ROOT/'candidate.yml').read_text())
   for job in c['workflows']['sandium-full-mode']['jobs']:
-   self.assertEqual('release/phone-20261117',next(iter(job.values()))['filters']['branches']['only'])
+   self.assertEqual(['release/phone-20261117','diagnostic/navigation-phone-20261118','experimental/navigation-single-handoff-20261118'],next(iter(job.values()))['filters']['branches']['only'])
   maintenance=c['workflows']['fixed-reference-maintenance']['jobs'][0]
   self.assertEqual('experiment/sandium-back-transition',next(iter(maintenance.values()))['filters']['branches']['only'])
 

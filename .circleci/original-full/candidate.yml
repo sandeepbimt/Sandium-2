@@ -966,7 +966,10 @@ workflows:
         stage_index: 1
         filters:
           branches:
-            only: release/phone-20261117
+            only:
+            - release/phone-20261117
+            - diagnostic/navigation-phone-20261118
+            - experimental/navigation-single-handoff-20261118
     - brave-android-staged-build:
         name: SANDIUM-FULL-MODE-stage-2
         stage_index: 2
@@ -974,7 +977,10 @@ workflows:
         - SANDIUM-FULL-MODE-stage-1
         filters:
           branches:
-            only: release/phone-20261117
+            only:
+            - release/phone-20261117
+            - diagnostic/navigation-phone-20261118
+            - experimental/navigation-single-handoff-20261118
     - brave-android-staged-build:
         name: SANDIUM-FULL-MODE-stage-3
         stage_index: 3
@@ -982,7 +988,10 @@ workflows:
         - SANDIUM-FULL-MODE-stage-2
         filters:
           branches:
-            only: release/phone-20261117
+            only:
+            - release/phone-20261117
+            - diagnostic/navigation-phone-20261118
+            - experimental/navigation-single-handoff-20261118
     - brave-android-staged-build:
         name: SANDIUM-FULL-MODE-stage-4
         stage_index: 4
@@ -990,7 +999,10 @@ workflows:
         - SANDIUM-FULL-MODE-stage-3
         filters:
           branches:
-            only: release/phone-20261117
+            only:
+            - release/phone-20261117
+            - diagnostic/navigation-phone-20261118
+            - experimental/navigation-single-handoff-20261118
     - brave-android-staged-build:
         name: SANDIUM-FULL-MODE-stage-5
         stage_index: 5
@@ -998,7 +1010,10 @@ workflows:
         - SANDIUM-FULL-MODE-stage-4
         filters:
           branches:
-            only: release/phone-20261117
+            only:
+            - release/phone-20261117
+            - diagnostic/navigation-phone-20261118
+            - experimental/navigation-single-handoff-20261118
   fixed-reference-maintenance:
     when:
       and:

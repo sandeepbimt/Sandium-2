@@ -1,0 +1,28 @@
+# Navigation route inventory: implementation is not universal readiness
+
+This inventory separates source changes from observed device improvement. All new components remain dormant; no Android compilation or device no-flash claim follows from host tests.
+
+| Route | Concrete work | Remaining gap |
+|---|---|---|
+| Native homepage → HTTP(S) web | New retained native-child ownership, document/surface observation, presentation callback and holder safety integration have committed source/host review and transaction composition. No screenshot and no extra blur. | Android compilation/device validation remain; source/host review is not presentation behavior proof. Bounded fail-safe release is not a readiness event. |
+| Ordinary web → native homepage | Existing Chromium native page creation/selection remains. Concrete wallpaper request-generation/current-selection and already-measured admission fix is underway; existing backing waits for a matching-size bitmap. | **No new ordinary destination-native presentation gate.** Existing smooth delegate applies only back/forward animation. Reverse route is not solved by the outgoing native-page bridge. |
+| Back/forward gesture, cancellation and native home | Reviewed generation/identity ownership and once-only native acknowledgement protect stale queued callbacks; delegate waits for attached, laid-out pre-draw with bounded native fallback. | Pre-draw is not presentation. Ordinary non-gesture history and error/cancel routes require device checks; no universal screenshot retention. |
+| Web → web, address-bar/search/external-link navigations | Chromium remains navigation/rendering owner; optional custom blur manager disabled. Dormant dark authority adds document identity and monotonic policy revision across preferences, commit, BFCache and prerender. | Native paint-holding eligibility and finite timeout remain. Slow, empty, error, download or security destinations cannot promise never showing an empty frame. Dark fix is source ordering protection, not proof this caused a recorded flash. |
+| Toolbar hide/reveal, Back with hidden toolbar | Existing Chromium holder controls/insets are sole viewport owner; native NTP margins remain sole native-page inset owner. New retained lease revokes on geometry changes rather than adding a competing geometry calculation. | No independently demonstrated new general toolbar shake correction. Revoking a lease is safe cleanup, not a smoothing fix. |
+| Rotation, resize/multi-window, hide/detach/crash | Candidate ownership uses explicit invalidation and safe release; unknown geometry/security states decline retention. | Lifecycle source coverage and host tests cannot replace Android surface/window validation. Tablet remains untested. |
+
+## Why reverse-route preparation is not a simple mirror
+
+At the pinned revision, TabImpl creates native pages via its delegate and installs them through showNativePage. Only an active back/forward animation prepares the smooth-transition delegate. Normal native selection and notifyContentChanged occur before any proof that the Java wallpaper view has drawn.
+
+NewTabPage construction is not a pure offscreen rendering operation: it binds the real Tab, registers template/tab/browser-controls observers, creates a native page host and may record shown state. Creating it speculatively before commit needs an explicit prepare/activate/discard lifecycle, not an extra call to the existing factory. Wallpaper decoding and measured-size availability must be included in that lifecycle. A native pre-draw alone cannot certify a loaded wallpaper.
+
+A safe reverse-route design would prepare only the expected native destination with tab/navigation generation, activate only after matching commit, dispose abandoned preparations, and never retain an outgoing website under a trusted internal URL or over security UI. No verified implementation of that lifecycle exists in this candidate yet.
+
+## Dark authority scope
+
+The existing dark renderer pipeline already characterizes a stale WebPreferences overwrite after activation in test_policy_handoff_ordering.py. The candidate rejects preferences for a different current DocumentToken and older/equal revisions. Tokens are rejection metadata on the existing endpoint, not a routing mechanism. Commit and BFCache/prerender carry fresh authority; live toggles still work. Remaining work includes browser helper review, all-platform GN graph validation, generated Mojo/Settings compilation and actual navigation ordering tests. Do not activate merely because the extracted C++ tests pass.
+
+### Browser authority review correction
+
+The first draft stamped a revision after the Java policy query; independent review reproduced a nested newer query being overwritten by the older outer sample. The draft is corrected to reserve an epoch before querying, retain the expected SiteInstance, validate weak WebContents and document identity afterward, and discard a superseded query without clobbering nested preferences. Commit/BFCache/prerender revisions are likewise reserved before queries, with owner-destruction guards. Invalid same-owner BFCache/prerender samples omit the optional override (-2/revision zero) and preserve native activation flow. Query freshness is WebContents-owned, not global, so unrelated-tab queries do not discard a valid live update. Actual injected browser and renderer blocks have host regressions, but full native browser lifecycle/generated-Mojo compilation is still outstanding; an extracted actual producer-prefix harness covers destruction and optional-sample omission, not the complete activation function. This correction is not activated.

@@ -969,6 +969,7 @@ workflows:
             only:
             - release/phone-20261117
             - diagnostic/navigation-phone-20261118
+            - experimental/navigation-single-handoff-20261118
     - brave-android-staged-build:
         name: SANDIUM-FULL-MODE-stage-2
         stage_index: 2
@@ -979,6 +980,7 @@ workflows:
             only:
             - release/phone-20261117
             - diagnostic/navigation-phone-20261118
+            - experimental/navigation-single-handoff-20261118
     - brave-android-staged-build:
         name: SANDIUM-FULL-MODE-stage-3
         stage_index: 3
@@ -989,6 +991,7 @@ workflows:
             only:
             - release/phone-20261117
             - diagnostic/navigation-phone-20261118
+            - experimental/navigation-single-handoff-20261118
     - brave-android-staged-build:
         name: SANDIUM-FULL-MODE-stage-4
         stage_index: 4
@@ -999,6 +1002,7 @@ workflows:
             only:
             - release/phone-20261117
             - diagnostic/navigation-phone-20261118
+            - experimental/navigation-single-handoff-20261118
     - brave-android-staged-build:
         name: SANDIUM-FULL-MODE-stage-5
         stage_index: 5
@@ -1009,6 +1013,7 @@ workflows:
             only:
             - release/phone-20261117
             - diagnostic/navigation-phone-20261118
+            - experimental/navigation-single-handoff-20261118
   fixed-reference-maintenance:
     when:
       and:

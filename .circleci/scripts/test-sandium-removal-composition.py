@@ -245,11 +245,83 @@ with tempfile.TemporaryDirectory() as temporary:
   nav.execute(src,True);nav.execute(src,True,True)
   assert 'SANDIUM_NATIVE_REVEAL_V1' in (src/'chrome/android/java/src/org/chromium/chrome/browser/ntp/NewTabPage.java').read_text()
   assert 'sandium_toolbar_mark' in (src/'chrome/android/java/src/org/chromium/chrome/browser/tab/TabWebContentsDelegateAndroidImpl.java').read_text()
-  nav.execute(src,False)
+  # Exercise the opt-in outer candidate over ACTUAL composed UI, even while
+  # shipping profile remains held/off. Only missing upstream files are seeded.
+  outer=feature_module('single_handoff_final_composition','experiments/single-handoff/composition.py')
+  holder=feature_module('single_handoff_home_fixture','experiments/single-handoff/home.py')
+  for relative,data in [
+      (holder.DELEGATE,(root/'experiments/single-handoff/fixtures/NtpSmoothTransitionDelegate.java').read_bytes()),
+      (holder.TAB,gzip.decompress((root/'experiments/single-handoff/fixtures/TabImpl.java.gz').read_bytes()))]:
+   if not (src/relative).exists():write(src/relative,data)
+  # Dormant production-bridge stages must also compose over this real styled UI.
+  # Seed only absent files; never replace already composed browser sources.
+  bridge_modules=[feature_module('bridge_'+name,'experiments/single-handoff/'+name+'.py')
+                  for name in ('holder','holder_safety','holder_retention','eligibility',
+                               'java_adapter','native_adapter','ui_gate',
+                               'content_registration','java_registration')]
+  bridge_fixture_files={}
+  for name in ('native-holder','native-handoff-adapter','static-layout-eligibility',
+               'content-registration','java-handoff-registration'):
+   evidence=json.loads(gzip.decompress((root/'experiments/single-handoff/fixtures'/(name+'.json.gz')).read_bytes()))
+   for relative,item in evidence['files'].items():
+    bridge_fixture_files[relative]=item.get('source',item.get('text'))
+  for name in ('compositor-view-java','root-ui-handoff-gate'):
+   evidence=json.loads(gzip.decompress((root/'experiments/single-handoff/fixtures'/(name+'.json.gz')).read_bytes()))
+   bridge_fixture_files[evidence['path']]=evidence.get('source',evidence.get('text'))
+  for relative,text in bridge_fixture_files.items():
+   if not (src/relative).exists():write(src/relative,text.encode())
+  candidate_before=snapshot()
+  outer.execute(src,True,True);outer.execute(src,True,True,True)
+  assert 'SANDIUM_SINGLE_HANDOFF_WEB_V1' in (src/'chrome/android/java/src/org/chromium/chrome/browser/base/SplitCompatApplication.java').read_text()
+  assert 'SANDIUM_HOME_HANDOFF_V1' in (src/holder.DELEGATE).read_text()
+  bridge_before=snapshot()
+  def apply_bridge():
+   for module in bridge_modules:
+    for path,text in module.plan(src).items():write(path,text.encode())
+   return snapshot()
+  def restore_bridge():
+   for relative in set(snapshot())-set(bridge_before):(src/relative).unlink()
+   for relative,data in bridge_before.items():write(src/relative,data)
+   assert snapshot()==bridge_before
+  bridge_after=apply_bridge()
+  restore_bridge()
+  assert apply_bridge()==bridge_after
+  restore_bridge()
+  print('DORMANT_HOLDER_AND_PRESENTATION_BRIDGE_OVER_FINAL_DIAGNOSTIC_UI_REPLAY=PASS')
+  # The unified dormant planner includes the existing dark-policy transport and
+  # native wallpaper request owner on the ACTUAL final UI, not replacement fixtures.
+  unified=feature_module('single_navigation_final','experiments/single-handoff/navigation_plan.py')
+  unified_before=snapshot()
+  planned=unified.plan(src)
+  assert snapshot()==unified_before
+  for path,text in planned.items():write(path,text.encode())
+  assert unified.plan(src)==planned
+  for relative in set(snapshot())-set(unified_before):(src/relative).unlink()
+  for relative,data in unified_before.items():write(src/relative,data)
+  assert snapshot()==unified_before
+  print('DORMANT_UNIFIED_NAVIGATION_DARK_WALLPAPER_FINAL_UI_REPLAY_AND_ROLLBACK=PASS')
+  outer.handoff.execute(src,False)
+  # Independently assemble the whole candidate from the restored real native baseline.
+  # Its home patches are one-shot; replay belongs to the journal, not repeated patching.
+  whole=feature_module('single_whole_candidate_final','experiments/single-handoff/candidate_plan.py')
+  whole_before=snapshot()
+  whole_plan=whole.plan(src)
+  assert set(planned).issubset(whole_plan)
+  assert src/holder.DELEGATE in whole_plan and src/holder.TAB in whole_plan
+  assert snapshot()==whole_before
+  for path,text in whole_plan.items():
+   relative=str(path.relative_to(src))
+   expected=planned[path].encode() if path in planned else unified_before[relative]
+   assert text.encode()==expected,relative
+  print('DORMANT_WHOLE_CANDIDATE_REAL_NATIVE_BASELINE_EQUIVALENCE=PASS')
+  for relative,data in candidate_before.items():assert (src/relative).read_bytes()==data,relative
+  nav.execute(src,True,True)
+  # Repeat through production nested restore rather than only direct modules.
+  outer.execute(src,True,True);outer.execute(src,False,False)
   restored=snapshot()
   for relative,data in native_before.items():
    assert restored[relative]==data,relative
-  print('NATIVE_PROFILE_OVER_FINAL_DIAGNOSTIC_UI_AND_EXACT_ROLLBACK=PASS')
+  print('NATIVE_AND_SINGLE_HANDOFF_OVER_FINAL_DIAGNOSTIC_UI_AND_EXACT_ROLLBACK=PASS')
  # Verify production staging fails before returning any write set on bad patches.
  def bad_reader(path):return b'not a patch' if path in m['chromium_restore_patches'].values() else core_blob(path)
  try:recipe.restore_payload(m,bad_reader,chromium_blob)

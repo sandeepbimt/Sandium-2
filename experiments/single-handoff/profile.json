@@ -1,0 +1,5 @@
+{
+  "enabled": true,
+  "purpose": "Integrated Chromium presentation experiment; source/host reviewed, Android and device validation pending",
+  "baseline": "4a00f053c3caf3dedcbad7bc1949cf7129aaf42d"
+}
