@@ -11,6 +11,12 @@ def main():
              'lock_sha256':hashlib.sha256((ROOT/'upstream.lock.json').read_bytes()).hexdigest()}
     started=time.monotonic()
     try:
+        if (ROOT/'work/source/source-ready.json').exists():
+            old=json.loads((ROOT/'work/source/source-ready.json').read_text())
+            if old.get('lock_sha256')!=receipt['lock_sha256'] or not old.get('ready'):raise ValueError('Cached source identity mismatch')
+            verify(ROOT/'work/source/src',lock())
+            receipt.update(ready=True,reused_verified_source=True)
+            return 0
         with (out/'source-sync.log').open('w') as log:
             p=subprocess.run(['timeout','--signal=TERM','--kill-after=30s','25m','python3','-u',str(ROOT/'tools/raw.py'),'setup','--workspace',str(ROOT/'work/source')],stdout=log,stderr=subprocess.STDOUT)
         receipt['exit_code']=p.returncode

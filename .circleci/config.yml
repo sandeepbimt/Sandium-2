@@ -19,16 +19,27 @@ jobs:
     resource_class: large
     steps:
       - checkout
+      - run: date +%s > .raw-job-start
+      - restore_cache:
+          keys:
+            - raws-source-v2-{{ checksum "ci/cache-identity.txt" }}
+      - restore_cache:
+          keys:
+            - raws-output-v2-{{ checksum "ci/cache-identity.txt" }}-
       - run:
           name: RawS full - guard first APK worker
           command: |
-            date +%s > .raw-job-start
             test "$CIRCLE_BRANCH" = "raw-sandium/bootstrap"
             python3 -m unittest discover -s tests -v
             python3 -u tools/ci_bootstrap.py
       - run:
           name: Sync source without an intermediate archive
-          command: python3 -u tools/ci_source.py
+          command: |
+            if test -f handoff/source/receipt.json; then
+              command -v zstd || (sudo apt-get update -qq && sudo apt-get install -y zstd)
+              python3 tools/ci_handoff.py restore
+            fi
+            python3 -u tools/ci_source.py
           no_output_timeout: 27m
       - run:
           name: Prepare and compile first 25-minute slice on same worker
@@ -54,6 +65,13 @@ jobs:
             command -v zstd || (sudo apt-get update -qq && sudo apt-get install -y zstd)
             python3 tools/ci_handoff.py pack
           no_output_timeout: 11m
+      - run: python3 tools/ci_handoff.py cache-output
+      - save_cache:
+          key: raws-source-v2-{{ checksum "ci/cache-identity.txt" }}
+          paths: [handoff/source]
+      - save_cache:
+          key: raws-output-v2-{{ checksum "ci/cache-identity.txt" }}-{{ .BuildNum }}
+          paths: [resume]
       - persist_to_workspace:
           root: .
           paths: [handoff/source, handoff/stage1]
@@ -103,6 +121,12 @@ jobs:
           key: raw-done-v1-<< pipeline.id >>-<< parameters.stage >>
           paths:
             - handoff/stage<< parameters.stage >>/state.json
+      - run:
+          name: Save resumable output reference
+          command: python3 tools/ci_handoff.py cache-output
+      - save_cache:
+          key: raws-output-v2-{{ checksum "ci/cache-identity.txt" }}-{{ .BuildNum }}
+          paths: [resume]
       - persist_to_workspace:
           root: .
           paths:

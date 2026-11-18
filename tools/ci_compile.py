@@ -9,7 +9,12 @@ def file_sha(path):
     with path.open("rb") as f:return hashlib.file_digest(f,"sha256").hexdigest()
 
 def fingerprint():
-    return hashlib.sha256((ROOT/'upstream.lock.json').read_bytes()+(ROOT/'ci/args.gn').read_bytes()).hexdigest()
+    files=[ROOT/'upstream.lock.json',ROOT/'ci/args.gn']
+    files+=sorted((ROOT/'patches').rglob('*'))+sorted((ROOT/'sandium/features').rglob('*'))
+    h=hashlib.sha256()
+    for p in files:
+        if p.is_file():h.update(str(p.relative_to(ROOT)).encode()+b'\0'+p.read_bytes()+b'\0')
+    return h.hexdigest()
 def classify(code, apk):
     if code==0 and apk.is_file() and apk.stat().st_size:return 'done'
     if code==124:return 'slice_expired'
@@ -45,13 +50,16 @@ def main(stage):
             subprocess.run(['timeout','--kill-after=30s','15m','sudo','-n',str(W/'src/build/install-build-deps.sh'),'--android','--no-prompt'],check=True,stdout=log,stderr=subprocess.STDOUT,env=env)
             subprocess.run(['timeout','--kill-after=30s','10m','gclient','runhooks'],cwd=W,check=True,stdout=log,stderr=subprocess.STDOUT,env=env)
         out=W/'src/out/RawSandium';out.mkdir(parents=True,exist_ok=True)
-        if stage>1:
-            prev=ROOT/f'handoff/stage{stage-1}'
-            prior=json.loads((prev/'state.json').read_text())
-            if prior['status']!='slice_expired':raise ValueError('Previous slice not resumable')
-            archive=prev/'output.tar.gz'
+        previous=ROOT/f'handoff/stage{stage-1}' if stage>1 else ROOT/'resume'
+        if stage>1 or (previous/'state.json').exists():
+            prior=json.loads((previous/'state.json').read_text())
+            if prior['status']!='slice_expired' or prior['fingerprint']!=ident:raise ValueError('Previous checkpoint not compatible/resumable')
+            archive=previous/'output.tar.gz'
             if file_sha(archive)!=prior['archive_sha256']:raise ValueError('Checkpoint checksum mismatch')
             with tarfile.open(archive) as tar:tar.extractall(out.parent,members=safe_members(tar),filter='data')
+            state['restored_checkpoint']={'stage':prior['stage'],'sha256':prior['archive_sha256'],'bytes':archive.stat().st_size,'cross_run_cache':stage==1}
+            print('RESTORED_CHECKPOINT',json.dumps(state['restored_checkpoint']),flush=True)
+        else:state['restored_checkpoint']=None
         (out/'args.gn').write_text((ROOT/'ci/args.gn').read_text())
         subprocess.run(['gn','gen','out/RawSandium'],cwd=W/'src',env=env,check=True,timeout=300)
         apk=out/'apks/ChromePublic.apk'
@@ -72,6 +80,8 @@ def main(stage):
             archive=folder/'output.tar.gz'
             with tarfile.open(archive,'w:gz',compresslevel=1) as tar:tar.add(out,arcname='RawSandium')
             state['archive_sha256']=file_sha(archive)
+            state['archive_bytes']=archive.stat().st_size
+            state['output_uncompressed_bytes']=size
         return 0
     except Exception as e:
         state.update(status='failed',error=str(e));return 1

@@ -109,4 +109,16 @@ class CompileState(unittest.TestCase):
         class Fake:
             def getmembers(self):return [tarfile.TarInfo('../escape')]
         with self.assertRaises(ValueError):safe_members(Fake())
+
+
+class ReusableHandoff(unittest.TestCase):
+    def test_identity_file_and_partition(self):
+        import sys
+        sys.path.insert(0,str(ROOT/'tools'))
+        from ci_compile import fingerprint
+        from ci_handoff import partition
+        self.assertEqual((ROOT/'ci/cache-identity.txt').read_text().strip(),fingerprint())
+        groups=partition([(str(i),i) for i in range(20)])
+        self.assertEqual(len(groups),5)
+        self.assertEqual(sorted(p for g in groups for p in g),sorted(str(i) for i in range(20)))
 if __name__=='__main__':unittest.main()
