@@ -3,6 +3,7 @@ import copy
 import importlib.util
 from pathlib import Path
 import unittest
+import tempfile
 import yaml
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -30,6 +31,22 @@ class ResumeTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             r.validate_gn(good.replace('is_official_build = true', 'is_official_build = false'))
         with self.assertRaises(ValueError): r.validate_gn(good+'\nis_official_build = true')
+
+    def test_generated_wrapper(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            out=Path(tmp)
+            generated='\n'.join(f'{k} = {v}' for k,v in r.GN.items())
+            (out/'args_generated.gni').write_text(generated)
+            good='import("//out/android_Release_arm64/args_generated.gni")'
+            (out/'args.gn').write_text('# comment\n'+good+'\n# extra args')
+            r.validate_gn_files(out)
+            for bad in ('# '+good, good+'\n'+good, good+'\nis_official_build = false',
+                        good+'\nimport("//other.gni")', good+'\nif (true) {}'):
+                (out/'args.gn').write_text(bad)
+                with self.subTest(wrapper=bad), self.assertRaises(ValueError): r.validate_gn_files(out)
+            (out/'args.gn').write_text(good)
+            (out/'args_generated.gni').write_text(generated.replace('is_official_build = true','is_official_build = false'))
+            with self.assertRaises(ValueError): r.validate_gn_files(out)
 
     def test_config(self):
         text=(ROOT/'.circleci/config.yml').read_text()

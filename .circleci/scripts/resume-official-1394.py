@@ -42,6 +42,30 @@ def validate_gn(text):
         if len(values) != 1 or values[0].strip() != expected:
             raise ValueError(f'official GN mismatch: {key} expected={expected} actual={values}')
 
+def validate_gn_files(out):
+    # Brave writes the effective generated values into an imported file, not
+    # into its user-editable args.gn wrapper (build/commands/lib/util.js).
+    generated = out/'args_generated.gni'
+    wrapper = (out/'args.gn').read_text()
+    import_line = 'import("//out/android_Release_arm64/args_generated.gni")'
+    lines = [line.split('#', 1)[0].strip() for line in wrapper.splitlines()]
+    lines = [line for line in lines if line]
+    if lines.count(import_line) != 1:
+        raise ValueError('expected one active exact generated GN import')
+    validate_gn(generated.read_text())
+    # Do not accept commented-out imports, other imports/control flow, or an
+    # override that could change official identity after the generated import.
+    for line in lines:
+        if line == import_line:
+            continue
+        match = re.fullmatch(r'([a-zA-Z_][a-zA-Z_0-9]*)\s*=\s*(true|false|[0-9]+|"[^"\n]*")', line)
+        if not match:
+            raise ValueError('unsupported executable GN wrapper statement: '+line)
+        key, value = match.groups()
+        if key in GN and value != GN[key]:
+            raise ValueError('conflicting GN wrapper override: '+key)
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('phase', choices=['preverify', 'postrestore'])
@@ -58,7 +82,7 @@ def main():
         subprocess.run(['bash', str(Path(__file__).with_name('verify-brave-reference.sh')),
                         '--handoff', '4', WORKFLOW, REVISION], check=True,
                        env={**os.environ, 'CIRCLE_WORKING_DIRECTORY': str(root)})
-        validate_gn((root/'brave-work/src/out/android_Release_arm64/args.gn').read_text())
+        validate_gn_files(root/'brave-work/src/out/android_Release_arm64')
     print('OFFICIAL_1394_RESUME=PASS phase='+args.phase)
 
 if __name__ == '__main__':
