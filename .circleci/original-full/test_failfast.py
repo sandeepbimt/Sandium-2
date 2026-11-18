@@ -13,6 +13,8 @@ class FailFast(unittest.TestCase):
   with tempfile.TemporaryDirectory() as tmp:
    p=pathlib.Path(tmp);(p/'out').mkdir();(p/'state').mkdir();(p/'bin').mkdir();(p/'.circleci/scripts').mkdir(parents=True);(p/'.circleci/original-full').mkdir(parents=True)
    (p/'.circleci/scripts/capture-brave-siso-checkpoint.sh').write_text('exit 0\n')
+   # Budget selection is separately runtime-tested; retain tiny deterministic supervisor budgets.
+   (p/'.circleci/scripts/official-checkpoint-safety.py').write_text('print('+str(budget)+')\n')
    (p/'.circleci/original-full/run_budget.py').write_bytes((ROOT/'.circleci/original-full/run_budget.py').read_bytes())
    (p/'.circleci/scripts/verify-brave-remote-metrics.py').write_text('import time; time.sleep('+str(audit_delay)+')\n')
    if recovery is not None:

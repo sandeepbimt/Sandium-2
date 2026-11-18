@@ -9,7 +9,7 @@ import unittest
 import yaml
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
-NAME = 'Skip large handoff after verified APK publication'
+NAME = 'Retain full archive after verified APK publication'
 VALID = dict.fromkeys((
     'BUILD_FINISHED', 'APK_ARCHIVE_VALID', 'APK_SIGNATURE_VALID',
     'APK_PACKAGE_ID_VALID', 'APK_BRANDING_VALID', 'APK_REMOVALS_VALID',
@@ -55,13 +55,13 @@ class APKArchiveSkip(unittest.TestCase):
             halted = (root / 'halted').exists()
             return result.returncode, halted, result.stdout + result.stderr
 
-    def test_verified_apk_halts_every_stage(self):
+    def test_verified_apk_retains_archive_every_stage(self):
         for stage in range(1, 6):
             with self.subTest(stage=stage):
                 code, halted, output = self.execute(VALID, stage=stage)
                 self.assertEqual(code, 0, output)
-                self.assertTrue(halted)
-                self.assertIn('large handoff archive skipped', output)
+                self.assertFalse(halted)
+                self.assertIn('full archive required', output)
 
     def test_incomplete_attested_slice_continues_handoff(self):
         for apk in (None, {'BUILD_FINISHED': 'false'}):
@@ -114,7 +114,7 @@ class APKArchiveSkip(unittest.TestCase):
 
     def test_downstream_halts_before_restore_or_preparation(self):
         for stage in range(2, 6):
-            block = self.steps[stage - 1]['when']
+            block = self.steps[stage]['when']
             self.assertEqual([stage, '<< parameters.stage_index >>'], block['condition']['equal'])
             keys = block['steps'][0]['restore_cache']['keys']
             self.assertEqual(stage - 1, len(keys))

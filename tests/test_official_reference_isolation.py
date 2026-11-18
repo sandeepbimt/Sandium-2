@@ -3,7 +3,7 @@ from pathlib import Path
 import unittest
 import yaml
 ROOT = Path(__file__).resolve().parents[1]
-BRANCH = 'experimental/navigation-official-reference-20261118'
+BRANCH = 'fix/official-checkpoint-1392'
 
 def entries(obj, key):
     if isinstance(obj, dict):
