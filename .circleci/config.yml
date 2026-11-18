@@ -309,10 +309,23 @@ jobs:
         name: RawS Full begin
         command: python3 -u tools/ci_full.py begin
         no_output_timeout: 55m
+    - restore_cache:
+        name: Restore independent RawS apt downloads
+        keys:
+        - raws-apt-v1-ubuntu2404-{{ checksum "upstream.lock.json" }}-
+    - run:
+        name: Configure independent RawS apt cache
+        command: bash tools/prepare_apt_cache.sh
+        no_output_timeout: 55m
     - run:
         name: Strict remote BuildBuddy ARM64 compile, maximum 25 minutes
         command: python3 -u tools/ci_compile.py --stage 1
         no_output_timeout: 55m
+    - save_cache:
+        name: Save RawS apt downloads
+        key: raws-apt-v1-ubuntu2404-{{ checksum "upstream.lock.json" }}-<< pipeline.id >>-1
+        paths:
+        - .raws-apt-cache/archives
     - store_artifacts:
         path: artifacts
         destination: raws-arm64
@@ -636,10 +649,23 @@ jobs:
         name: RawS Full begin
         command: python3 -u tools/ci_full.py begin
         no_output_timeout: 55m
+    - restore_cache:
+        name: Restore independent RawS apt downloads
+        keys:
+        - raws-apt-v1-ubuntu2404-{{ checksum "upstream.lock.json" }}-
+    - run:
+        name: Configure independent RawS apt cache
+        command: bash tools/prepare_apt_cache.sh
+        no_output_timeout: 55m
     - run:
         name: Strict remote BuildBuddy ARM64 compile, maximum 25 minutes
         command: python3 -u tools/ci_compile.py --stage 2
         no_output_timeout: 55m
+    - save_cache:
+        name: Save RawS apt downloads
+        key: raws-apt-v1-ubuntu2404-{{ checksum "upstream.lock.json" }}-<< pipeline.id >>-2
+        paths:
+        - .raws-apt-cache/archives
     - store_artifacts:
         path: artifacts
         destination: raws-arm64
@@ -965,10 +991,23 @@ jobs:
         name: RawS Full begin
         command: python3 -u tools/ci_full.py begin
         no_output_timeout: 55m
+    - restore_cache:
+        name: Restore independent RawS apt downloads
+        keys:
+        - raws-apt-v1-ubuntu2404-{{ checksum "upstream.lock.json" }}-
+    - run:
+        name: Configure independent RawS apt cache
+        command: bash tools/prepare_apt_cache.sh
+        no_output_timeout: 55m
     - run:
         name: Strict remote BuildBuddy ARM64 compile, maximum 25 minutes
         command: python3 -u tools/ci_compile.py --stage 3
         no_output_timeout: 55m
+    - save_cache:
+        name: Save RawS apt downloads
+        key: raws-apt-v1-ubuntu2404-{{ checksum "upstream.lock.json" }}-<< pipeline.id >>-3
+        paths:
+        - .raws-apt-cache/archives
     - store_artifacts:
         path: artifacts
         destination: raws-arm64
@@ -1298,10 +1337,23 @@ jobs:
         name: RawS Full begin
         command: python3 -u tools/ci_full.py begin
         no_output_timeout: 55m
+    - restore_cache:
+        name: Restore independent RawS apt downloads
+        keys:
+        - raws-apt-v1-ubuntu2404-{{ checksum "upstream.lock.json" }}-
+    - run:
+        name: Configure independent RawS apt cache
+        command: bash tools/prepare_apt_cache.sh
+        no_output_timeout: 55m
     - run:
         name: Strict remote BuildBuddy ARM64 compile, maximum 25 minutes
         command: python3 -u tools/ci_compile.py --stage 4
         no_output_timeout: 55m
+    - save_cache:
+        name: Save RawS apt downloads
+        key: raws-apt-v1-ubuntu2404-{{ checksum "upstream.lock.json" }}-<< pipeline.id >>-4
+        paths:
+        - .raws-apt-cache/archives
     - store_artifacts:
         path: artifacts
         destination: raws-arm64
@@ -1635,10 +1687,23 @@ jobs:
         name: RawS Full begin
         command: python3 -u tools/ci_full.py begin
         no_output_timeout: 55m
+    - restore_cache:
+        name: Restore independent RawS apt downloads
+        keys:
+        - raws-apt-v1-ubuntu2404-{{ checksum "upstream.lock.json" }}-
+    - run:
+        name: Configure independent RawS apt cache
+        command: bash tools/prepare_apt_cache.sh
+        no_output_timeout: 55m
     - run:
         name: Strict remote BuildBuddy ARM64 compile, maximum 25 minutes
         command: python3 -u tools/ci_compile.py --stage 5
         no_output_timeout: 55m
+    - save_cache:
+        name: Save RawS apt downloads
+        key: raws-apt-v1-ubuntu2404-{{ checksum "upstream.lock.json" }}-<< pipeline.id >>-5
+        paths:
+        - .raws-apt-cache/archives
     - store_artifacts:
         path: artifacts
         destination: raws-arm64

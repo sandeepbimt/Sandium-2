@@ -3,7 +3,7 @@
 import argparse, hashlib, json, os, re, shutil, subprocess, tarfile, time, zipfile
 from pathlib import Path
 from raw import ROOT, lock, verify
-from ci_remote import configure, smoke, remote_command, audit
+from ci_remote import configure, smoke, remote_command, audit, run_logged
 W=ROOT/'work/source'
 
 def file_sha(path):
@@ -27,6 +27,12 @@ def safe_members(archive):
         if p.is_absolute() or '..' in p.parts or not p.parts or p.parts[0]!='RawSandium':raise ValueError('Unsafe output archive path')
         if not (m.isfile() or m.isdir()):raise ValueError('Unexpected output archive member type')
     return members
+
+def host_dependency_command(src):
+    # Pinned Chromium Android docs invoke this without deprecated --android.
+    # That compatibility flag merely enables i386/multilib, not Android tools.
+    return ['timeout','--kill-after=30s','15m','sudo','-n',
+            str(src/'build/install-build-deps.sh'),'--no-prompt']
 
 def compile_budget(elapsed, fresh_seed):
     # Established Full reserves, capped to the requested 25-minute slice.
@@ -69,9 +75,10 @@ def main(stage):
         if actual!=data['depot_tools']['revision']:raise ValueError('Wrong tool revision')
         if shutil.disk_usage(ROOT).free<20*1024**3:raise ValueError('Need 20 GiB free before compile')
         env=dict(os.environ,PATH=str(W/'depot_tools')+os.pathsep+os.environ['PATH'],DEPOT_TOOLS_UPDATE='0')
-        with (artifacts/f'prepare-{stage}.log').open('w') as log:
-            subprocess.run(['timeout','--kill-after=30s','15m','sudo','-n',str(W/'src/build/install-build-deps.sh'),'--android','--no-prompt'],check=True,stdout=log,stderr=subprocess.STDOUT,env=env)
-            subprocess.run(['timeout','--kill-after=30s','10m','gclient','runhooks'],cwd=W,check=True,stdout=log,stderr=subprocess.STDOUT,env=env)
+        run_logged(host_dependency_command(W/'src'),
+                   artifacts/f'prepare-{stage}.log',phase=f'install-dependencies-{stage}',check=True,env=env)
+        run_logged(['timeout','--kill-after=30s','10m','gclient','runhooks'],
+                   artifacts/f'prepare-{stage}.log',phase=f'runhooks-{stage}',append=True,cwd=W,check=True,env=env)
         out=W/'src/out/RawSandium';out.mkdir(parents=True,exist_ok=True)
         # Full checkpoint driver restores source and output together before this step.
         # No legacy whole-output tar path may bypass its verified chain.
@@ -101,9 +108,8 @@ def main(stage):
         else:
             metrics=f'raws-stage-{stage}-build.jsonl'
             (out/metrics).unlink(missing_ok=True)
-            with (artifacts/f'compile-{stage}.log').open('w') as log:
-                code=subprocess.run(remote_command(out,metrics,data['target'],remaining),
-                    cwd=W/'src',env=env,stdout=log,stderr=subprocess.STDOUT).returncode
+            code=run_logged(remote_command(out,metrics,data['target'],remaining),
+                artifacts/f'compile-{stage}.log',phase=f'compile-{stage}',cwd=W/'src',env=env).returncode
             if code in (0,124):
                 # Audit real compilation, not merely configured flags. Time-slice
                 # checkpoints may have no finished action; record that explicitly.

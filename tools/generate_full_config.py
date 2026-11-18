@@ -33,7 +33,10 @@ def generate():
  for n in range(1,6):
   j=common(n);j['steps']=gate()+[phase('prepare')]+layers('sequential')+[
    run('Ensure pinned fresh source or verify restored source','python3 -u tools/ci_source.py'),phase('begin'),
+   restore('raws-apt-v1-ubuntu2404-{{ checksum "upstream.lock.json" }}-', 'Restore independent RawS apt downloads'),
+   run('Configure independent RawS apt cache','bash tools/prepare_apt_cache.sh'),
    run('Strict remote BuildBuddy ARM64 compile, maximum 25 minutes',f'python3 -u tools/ci_compile.py --stage {n}'),
+   save('raws-apt-v1-ubuntu2404-{{ checksum "upstream.lock.json" }}-<< pipeline.id >>-'+str(n),['.raws-apt-cache/archives'],'Save RawS apt downloads'),
    {'store_artifacts':{'path':'artifacts','destination':'raws-arm64'}},
    phase('completion'),save('raws-full-apk-v1-<< pipeline.id >>-'+str(n),['.raws-completion'],'Save verified workflow APK completion'),phase('halt-complete')]+checkpoint()+[phase('final'),{'store_artifacts':{'path':'.checkpoint-state','destination':'raws-checkpoint-evidence'}}]
   # Read small completion markers before downloading any large checkpoint.

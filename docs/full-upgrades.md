@@ -49,3 +49,21 @@ consumes worker time, network, and storage, so it is not run every build.
 
 No promise of patch-free Chromium updates: upstream API changes require adapter
 and feature tests. Initial baseline has no uBO, Sandium branding, or custom UX.
+
+### Android host dependency recipe
+
+RawS follows the pinned Chromium Android guide at
+https://chromium.googlesource.com/chromium/src/+/d331de35ca8ab1358c7a17e4bd41627d55eaef51/docs/android_build_instructions.md:
+run `build/install-build-deps.sh` (with `--no-prompt` for CI), without the legacy
+`--android` flag. At this revision, `build/install-build-deps.py` marks that flag
+deprecated and uses it solely to enable `lib32`; the guide reserves `--lib32` for
+32-bit builds. RawS builds ARM64. This removes the unnecessary forced i386
+package family without inventing an unsupported minimal host package list.
+The standard host dependencies remain required for Android build tools.
+
+Run #1376 hit the 15-minute installer bound before any compilation; its log ends
+at package configuration/libc triggers, not a compiler error. The dependency
+recipe change and independently cached APT archives are prospective fixes;
+a successful fresh-worker install and APK build must still verify them. APT
+archives reduce downloads, but do not preserve installed root-filesystem state
+between workers. Do not skip installation merely because an archive cache exists.

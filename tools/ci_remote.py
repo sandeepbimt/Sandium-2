@@ -9,6 +9,10 @@ import os
 from pathlib import Path
 import shlex
 import subprocess
+import selectors
+import sys
+import time
+import codecs
 
 ADDRESS = 'remote.buildbuddy.io:443'
 INSTANCE = 'default'
@@ -21,6 +25,82 @@ if len(sys.argv) != 2 or sys.argv[1] != "get":
 sys.stdin.read()
 print(json.dumps({"headers": {"x-buildbuddy-api-key": [os.environ["BUILDBUDDY_API_KEY"]]}}))
 '''
+
+
+class StreamRedactor:
+    """Hold a suffix so even credentials split across reads cannot escape."""
+    def __init__(self, env):
+        self.secrets=sorted({str(v) for k,v in env.items() if v and
+            any(word in k.upper() for word in ('TOKEN','SECRET','PASSWORD','API_KEY','CREDENTIAL'))},key=len,reverse=True)
+        self.keep=max((len(v) for v in self.secrets),default=1)-1
+        self.pending=''
+    def feed(self,text,final=False):
+        self.pending+=text
+        cutoff=len(self.pending) if final else max(0,len(self.pending)-self.keep)
+        # Avoid emitting a prefix of any known secret crossing the cutoff.
+        for secret in self.secrets:
+            start=0
+            while True:
+                start=self.pending.find(secret,start)
+                if start<0:break
+                if start<cutoff<start+len(secret):cutoff=start
+                start+=len(secret)
+        ready,self.pending=self.pending[:cutoff],self.pending[cutoff:]
+        for secret in self.secrets:ready=ready.replace(secret,'[REDACTED]')
+        return ready
+
+
+def run_logged(command, log_path, *, phase, cwd=None, env=None, check=False,
+               append=False, heartbeat_seconds=30):
+    """Tee sanitized output without changing timeout arguments or return codes.
+
+    Never prints command arguments or environment. The caller's GNU timeout
+    remains the process supervisor; stdin/process-group inheritance is unchanged.
+    """
+    if heartbeat_seconds<=0:raise ValueError('Heartbeat interval must be positive')
+    env=dict(os.environ if env is None else env)
+    redactor=StreamRedactor(env)
+    decoder=codecs.getincrementaldecoder('utf-8')(errors='replace')
+    start=time.monotonic()
+    with Path(log_path).open('a' if append else 'w') as logfile:
+        def emit(text):
+            if text:
+                logfile.write(text);logfile.flush()
+                sys.stdout.write(text);sys.stdout.flush()
+        emit(f'RAWS_PHASE_START phase={phase}\n')
+        process=subprocess.Popen(command,cwd=cwd,env=env,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
+        try:
+            with selectors.DefaultSelector() as selector:
+                selector.register(process.stdout,selectors.EVENT_READ)
+                next_beat=start+heartbeat_seconds
+                while selector.get_map():
+                    events=selector.select(max(0,next_beat-time.monotonic()))
+                    for key,_ in events:
+                        data=os.read(key.fileobj.fileno(),65536)
+                        if data:emit(redactor.feed(decoder.decode(data)))
+                        else:
+                            selector.unregister(key.fileobj)
+                            emit(redactor.feed(decoder.decode(b'',final=True),final=True))
+                    now=time.monotonic()
+                    if now>=next_beat:
+                        emit(f'\nRAWS_PHASE_HEARTBEAT phase={phase} elapsed_seconds={int(now-start)}\n')
+                        next_beat=now+heartbeat_seconds
+            # A child may close stdout before it exits; keep the phase visible.
+            while process.poll() is None:
+                now=time.monotonic()
+                if now>=next_beat:
+                    emit(f'\nRAWS_PHASE_HEARTBEAT phase={phase} elapsed_seconds={int(now-start)}\n')
+                    next_beat=now+heartbeat_seconds
+                time.sleep(min(.1,max(.001,next_beat-time.monotonic())))
+            code=process.wait()
+        except BaseException:
+            process.kill();process.wait()
+            raise
+        finally:
+            process.stdout.close()
+        emit(f'\nRAWS_PHASE_COMPLETE phase={phase} exit={code} elapsed_seconds={int(time.monotonic()-start)}\n')
+    if check and code:raise subprocess.CalledProcessError(code,command)
+    return subprocess.CompletedProcess(command,code)
 
 
 def remote_command(out, metrics, target, budget, *, smoke=False):
@@ -145,9 +225,9 @@ def smoke(src, out, env, artifacts, stage, seconds):
     (out/metrics).unlink(missing_ok=True)
     target = out / SMOKE_TARGET
     target.unlink(missing_ok=True)
-    with (artifacts/f'remote-smoke-{stage}.log').open('w') as log:
-        subprocess.run(remote_command(out, metrics, SMOKE_TARGET, min(600, seconds), smoke=True),
-                       cwd=src, env=env, stdout=log, stderr=subprocess.STDOUT, check=True)
+    run_logged(remote_command(out, metrics, SMOKE_TARGET, min(600, seconds), smoke=True),
+               artifacts/f'remote-smoke-{stage}.log', phase=f'remote-smoke-{stage}',
+               cwd=src, env=env, check=True)
     if not target.is_file() or not target.stat().st_size:
         raise ValueError('Remote smoke completed without expected generated header')
     return audit(out/metrics, require_fresh=True)

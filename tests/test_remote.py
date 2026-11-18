@@ -56,3 +56,12 @@ class CompileValidationTests(unittest.TestCase):
                 z.writestr('lib/x86_64/libchrome.so','x')
             with self.assertRaisesRegex(ValueError,'ABIs'):
                 verify_apk(p,Path(d),{})
+
+class HostDependencyTests(unittest.TestCase):
+    def test_pinned_android_docs_without_legacy_multilib(self):
+        from ci_compile import host_dependency_command
+        command=host_dependency_command(Path('/source'))
+        self.assertNotIn('--android',command)
+        self.assertNotIn('--lib32',command)
+        self.assertIn('--no-prompt',command)
+        self.assertEqual(command[-2],'/source/build/install-build-deps.sh')
