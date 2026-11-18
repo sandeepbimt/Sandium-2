@@ -63,7 +63,9 @@ def materialize(core,bundle):
  (dest/'resources.grd').write_text('''<?xml version="1.0" encoding="UTF-8"?>
 <grit base_dir="." latest_public_release="0" current_release="1">
   <outputs>
-    <output filename="grit/sandium_ubo_resources.h" type="rc_header" />
+    <output filename="grit/sandium_ubo_resources.h" type="rc_header">
+      <emit emit_type="prepend"></emit>
+    </output>
     <output filename="sandium_ubo_resources.pak" type="data_package" />
   </outputs>
   <release seq="1"><includes>
@@ -219,7 +221,9 @@ using CurrentComponentLoader = extensions::BraveComponentLoader;''')
   if (manifest_resource_id == IDR_SANDIUM_UBO_MANIFEST) return true;
 #endif''')
  mgr=core/'chromium_src/chrome/browser/extensions/chrome_component_extension_resource_manager.cc'
- replace(mgr,'#include <chrome/browser/extensions/chrome_component_extension_resource_manager.cc>','''#if BUILDFLAG(IS_ANDROID) && BUILDFLAG(ENABLE_EXTENSIONS_CORE)
+ replace(mgr,'#include <chrome/browser/extensions/chrome_component_extension_resource_manager.cc>','''#include "build/build_config.h"
+#include "extensions/buildflags/buildflags.h"
+#if BUILDFLAG(IS_ANDROID) && BUILDFLAG(ENABLE_EXTENSIONS_CORE)
 #include "brave/components/sandium_ubo/resource_map.h"
 #endif
 #include <chrome/browser/extensions/chrome_component_extension_resource_manager.cc>''')

@@ -45,6 +45,32 @@ class Tests(unittest.TestCase):
    self.assertEqual(len(list((core/'components/sandium_ubo/sandium_ubo').rglob('*')))>668,True)
    grd=(core/'components/sandium_ubo/resources.grd').read_text();mapping=(core/'components/sandium_ubo/resource_map.h').read_text()
    self.assertEqual(grd.count('<include '),668);self.assertEqual(mapping.count('{"sandium_ubo/'),668)
+   import xml.etree.ElementTree as ET
+   header=ET.fromstring(grd).find("./outputs/output[@type='rc_header']")
+   self.assertIsNotNone(header.find("emit[@emit_type='prepend']"))
+   mgr=(core/'chromium_src/chrome/browser/extensions/chrome_component_extension_resource_manager.cc').read_text()
+   guard=mgr.index('#if BUILDFLAG(IS_ANDROID)')
+   self.assertLess(mgr.index('#include "build/build_config.h"'),guard)
+   self.assertLess(mgr.index('#include "extensions/buildflags/buildflags.h"'),guard)
+   # Execute the actual pinned GRIT header formatter using an XML-node adapter.
+   # Not a replacement formatter or full GN/GRIT build.
+   formatter=__import__('runpy').run_path(str(HERE/'fixtures/rc_header.py'))
+   class Node:
+    def __init__(self,e):self.e=e;self.name=e.tag;self.attrs=e.attrib;self.children=[Node(c) for c in e]
+    def GetType(self):return self.attrs['type']
+    def GetCdata(self):return self.e.text or ''
+   class Root:
+    def GetOutputFiles(self):return [Node(header)]
+    def IsAllowlistSupportEnabled(self):return False
+    def GetIdMap(self):return {}
+    def ActiveDescendants(self):return []
+   generated=''.join(formatter['Format'](Root()))
+   self.assertNotIn('atlres.h',generated)
+   h=src/'grit-header-test.h';h.write_text(generated)
+   cpp=src/'grit-header-test.cc';cpp.write_text('#include "grit-header-test.h"\nint main(){return 0;}\n')
+   subprocess.run(['g++','-std=c++20','-Wall','-Werror',str(cpp),'-o',str(src/'grit-header-test')],check=True)
+   cpp.unlink();h.unlink();(src/'grit-header-test').unlink()
+
    component=core/'components/sandium_ubo'
    inventory=(component/'disk_resources.h').read_text()
    self.assertEqual(inventory,m.build_disk_inventory(core))
