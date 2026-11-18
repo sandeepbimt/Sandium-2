@@ -79,7 +79,7 @@ jobs:
         name: Guard isolated RawS checkout
         command: 'test "$CIRCLE_BRANCH" = "raw-sandium/bootstrap"
 
-          python3 -m unittest discover -s tests -v'
+          /usr/bin/python3 -m unittest discover -s tests -v'
         no_output_timeout: 55m
     - run:
         name: RawS Full gate
@@ -406,7 +406,7 @@ jobs:
         name: Guard isolated RawS checkout
         command: 'test "$CIRCLE_BRANCH" = "raw-sandium/bootstrap"
 
-          python3 -m unittest discover -s tests -v'
+          /usr/bin/python3 -m unittest discover -s tests -v'
         no_output_timeout: 55m
     - run:
         name: RawS Full gate
@@ -735,7 +735,7 @@ jobs:
         name: Guard isolated RawS checkout
         command: 'test "$CIRCLE_BRANCH" = "raw-sandium/bootstrap"
 
-          python3 -m unittest discover -s tests -v'
+          /usr/bin/python3 -m unittest discover -s tests -v'
         no_output_timeout: 55m
     - run:
         name: RawS Full gate
@@ -1068,7 +1068,7 @@ jobs:
         name: Guard isolated RawS checkout
         command: 'test "$CIRCLE_BRANCH" = "raw-sandium/bootstrap"
 
-          python3 -m unittest discover -s tests -v'
+          /usr/bin/python3 -m unittest discover -s tests -v'
         no_output_timeout: 55m
     - run:
         name: RawS Full gate
@@ -1405,7 +1405,7 @@ jobs:
         name: Guard isolated RawS checkout
         command: 'test "$CIRCLE_BRANCH" = "raw-sandium/bootstrap"
 
-          python3 -m unittest discover -s tests -v'
+          /usr/bin/python3 -m unittest discover -s tests -v'
         no_output_timeout: 55m
     - run:
         name: RawS Full gate
@@ -1722,7 +1722,7 @@ jobs:
         name: Guard isolated RawS checkout
         command: 'test "$CIRCLE_BRANCH" = "raw-sandium/bootstrap"
 
-          python3 -m unittest discover -s tests -v'
+          /usr/bin/python3 -m unittest discover -s tests -v'
         no_output_timeout: 55m
     - run:
         name: RawS Full gate

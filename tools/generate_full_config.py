@@ -13,7 +13,7 @@ def restore(key,name):return {'restore_cache':{'name':name,'keys':[key]}}
 def save(key,paths,name):return {'save_cache':{'name':name,'key':key,'paths':paths}}
 def common(stage):
  return {'machine':{'image':'ubuntu-2404:current'},'resource_class':'large','retention':{'caches':'15d'},'environment':{'RAWS_STAGE':str(stage),'RAWS_PIPELINE_NUMBER':'<< pipeline.number >>','RAWS_CHECKPOINT_REVIEWED':'true','RAWS_ALLOW_FRESH_SEED':'true','SISO_LIMITS':'local=8,remote=80'}}
-def gate():return ['checkout',run('Install CI validation and checkpoint tools','sudo apt-get update -qq && sudo apt-get install -y zstd python3-yaml'),run('Guard isolated RawS checkout','test "$CIRCLE_BRANCH" = "raw-sandium/bootstrap"\npython3 -m unittest discover -s tests -v'),phase('gate'),run('Ensure verified shard tools','command -v zstd >/dev/null || (sudo apt-get update -qq && sudo apt-get install -y zstd)'),restore(HEAD,'Restore latest accepted RawS receipt only')]
+def gate():return ['checkout',run('Install CI validation and checkpoint tools','sudo apt-get update -qq && sudo apt-get install -y zstd python3-yaml'),run('Guard isolated RawS checkout','test "$CIRCLE_BRANCH" = "raw-sandium/bootstrap"\n/usr/bin/python3 -m unittest discover -s tests -v'),phase('gate'),run('Ensure verified shard tools','command -v zstd >/dev/null || (sudo apt-get update -qq && sudo apt-get install -y zstd)'),restore(HEAD,'Restore latest accepted RawS receipt only')]
 def layers(mode):
  steps=[restore(BASE,'Restore exact RawS base')]
  if mode=='sequential':steps += [phase('restore-base')]
