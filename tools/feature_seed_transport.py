@@ -41,7 +41,7 @@ def write_new(path,value):
 
 def git(root,*args):
  env={k:v for k,v in os.environ.items() if not k.startswith('GIT_')}
- env.update(GIT_CONFIG_NOSYSTEM='1',GIT_CONFIG_GLOBAL='/dev/null')
+ env.update(GIT_CONFIG_NOSYSTEM='1',GIT_CONFIG_GLOBAL='/dev/null',GIT_NO_LAZY_FETCH='1')
  return subprocess.check_output(['git','-c','core.hooksPath=/dev/null','-C',str(root),*args],env=env,text=True).strip()
 
 def checked(root,relative):
@@ -163,23 +163,45 @@ def verified_origin(repository):
   raise ValueError('Baseline origin does not match current CI repository')
  return origin
 
+def baseline_closure_complete(root):
+ # --no-walk checks this exact commit/tree/blob closure, not irrelevant history.
+ # Missing objects must be reported locally, never lazily fetched via local origin.
+ try:rows=git(root,'rev-list','--objects','--missing=print','--no-walk',seed.BASELINE_COMMIT).splitlines()
+ except subprocess.CalledProcessError:return False
+ if not rows:raise ValueError('Empty baseline object closure')
+ for row in rows:
+  if not re.fullmatch(r'[?]?[0-9a-f]{40}',row.split(' ',1)[0]):raise ValueError('Invalid baseline object closure report')
+ return not any(row.startswith('?') for row in rows)
+
+def require_full_refetch_support():
+ # Help is local and bounded; no network capability probe or branch fallback.
+ result=subprocess.run(['git','fetch','-h'],env={**os.environ,'LC_ALL':'C'},
+                       stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,timeout=10)
+ if result.returncode not in (0,129) or '--refetch' not in result.stdout or not any(
+         token in result.stdout for token in ('--filter','--[no-]filter')):
+  raise ValueError('Git must support exact --refetch --no-filter recovery')
+
 def ensure_baseline_object(root,repository,job_start_epoch):
  try:actual=git(root,'rev-parse','--verify',seed.BASELINE_COMMIT+'^{commit}')
  except subprocess.CalledProcessError:actual=None
- if actual is None:
+ if actual is None or not baseline_closure_complete(root):
   origin=verified_origin(repository)
   env={k:v for k,v in os.environ.items() if not k.startswith(('GIT_','PYTHON'))}
   env.update(GIT_CONFIG_NOSYSTEM='1',GIT_CONFIG_GLOBAL='/dev/null',GIT_TERMINAL_PROMPT='0')
+  require_full_refetch_support()
   seconds=min(120,budget(job_start_epoch))
+  # Refetch disables have-object negotiation: commit/tree presence is NOT proof
+  # that a blobless checkout contains the old baseline's complete file content.
   # Fetch only the frozen object into the isolated clone, never a moving branch.
   command=['git','-c','core.hooksPath=/dev/null','-c','protocol.file.allow=never',
-           '-c','protocol.ext.allow=never','fetch','--no-tags','--depth=1',origin,seed.BASELINE_COMMIT]
+           '-c','protocol.ext.allow=never','fetch','--refetch','--no-filter','--no-tags','--depth=1',origin,seed.BASELINE_COMMIT]
   run_owned(command,cwd=root,env=env,seconds=seconds,
             deadline_epoch=min(time.time()+seconds,job_start_epoch+3300-POST_RESTORE_RESERVE-CLEANUP_GRACE))
   if git(root,'rev-parse','--verify','FETCH_HEAD^{commit}')!=seed.BASELINE_COMMIT:
    raise ValueError('Fetched baseline identity mismatch')
   actual=git(root,'rev-parse','--verify',seed.BASELINE_COMMIT+'^{commit}')
  if actual!=seed.BASELINE_COMMIT:raise ValueError('Baseline object identity mismatch')
+ if not baseline_closure_complete(root):raise ValueError('Baseline object closure remains incomplete after exact refetch')
  tree=git(root,'rev-parse','--verify',seed.BASELINE_COMMIT+'^{tree}')
  if not re.fullmatch('[0-9a-f]{40}',tree):raise ValueError('Invalid baseline tree identity')
  return tree

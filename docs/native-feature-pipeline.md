@@ -90,3 +90,7 @@ CircleCI then rejected an unescaped shell heredoc `<<'PYCODE'` before compute. N
 ## First executed seed job: #1405
 
 Service configuration was accepted. The seed job stopped after about 7m09s in tool setup (exit124), before cache restore or compilation. Its log reports zstd and python3-yaml already installed, and four existing OpenJDK21 packages unnecessarily upgraded (132MB). Package setup messages precede the timeout; the log does not identify a specific hanging post-install hook. The corrective requirement is capability-first setup: use verified existing tools without apt work; install only missing prerequisites under a bounded, noninteractive, no-upgrade path. The original job clock must not be reset, and prior baseline archives remain untouched.
+
+## Seed preflight: #1406
+
+Capability-first setup passed in one second with no apt work. Two real-checkout transport tests then failed the unchanged clean-tree gate. Earlier stderr identifies the cause: checkout could not read 11 historical baseline blobs, including `.circleci/config.yml`, the old feature manifest and old helper scripts. The pinned baseline commit/tree existed in CircleCI's partial checkout, but their object contents were incomplete. This was not evidence of another test mutating the baseline. Recovery must verify the complete frozen Git object closure before checkout, fetch the same exact SHA without blob filtering when needed, then repeat closure and clean-tree verification. No archive restore or compilation occurred.

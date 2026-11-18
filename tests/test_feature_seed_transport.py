@@ -145,10 +145,10 @@ class Transport(unittest.TestCase):
   with patch.dict(os.environ,{'CIRCLE_PROJECT_USERNAME':'FixtureOwner','CIRCLE_REPOSITORY_URL':'https://github.com/FixtureOwner/Sandium-2.git'}),patch.object(t,'git',side_effect=git),patch.object(t,'run_owned',side_effect=run):
    self.assertEqual(t.ensure_baseline_object(self.root,self.base,time.time()),'a'*40)
   self.assertEqual(len(commands),1);argv,kw=commands[0]
-  self.assertEqual(argv[-2:],[origin,t.seed.BASELINE_COMMIT]);self.assertIn('--no-tags',argv)
+  self.assertEqual(argv[-2:],[origin,t.seed.BASELINE_COMMIT]);self.assertIn('--no-tags',argv);self.assertIn('--refetch',argv);self.assertIn('--no-filter',argv)
   self.assertLessEqual(kw['seconds'],120);self.assertEqual(kw['cwd'],self.root)
  def test_present_baseline_never_fetches_and_foreign_origin_refused(self):
-  with patch.object(t,'git',side_effect=[t.seed.BASELINE_COMMIT,'b'*40]),patch.object(t,'run_owned') as run:
+  with patch.object(t,'git',side_effect=[t.seed.BASELINE_COMMIT,t.seed.BASELINE_COMMIT,t.seed.BASELINE_COMMIT,'b'*40]),patch.object(t,'run_owned') as run:
    self.assertEqual(t.ensure_baseline_object(self.root,self.base,time.time()),'b'*40);run.assert_not_called()
   with patch.dict(os.environ,{'CIRCLE_PROJECT_USERNAME':'Owner','CIRCLE_REPOSITORY_URL':'https://github.com/Owner/Sandium-2.git'}),patch.object(t,'git',return_value='https://github.com/Other/Sandium-2.git'):
    with self.assertRaisesRegex(ValueError,'match'):t.verified_origin(self.base)
@@ -159,6 +159,60 @@ class Transport(unittest.TestCase):
     return 'f'*40
    with patch.object(t,'git',side_effect=git),patch.object(t,'verified_origin',return_value='https://github.com/Owner/Sandium-2.git'),patch.object(t,'run_owned',side_effect=subprocess.TimeoutExpired('fetch',120) if failure=='timeout' else None):
     with self.assertRaises(subprocess.TimeoutExpired if failure=='timeout' else ValueError):t.ensure_baseline_object(self.root,self.base,time.time())
+ def partial_object_fixture(self):
+  repo=self.base/'partial';repo.mkdir();t.git(repo,'init','--template=')
+  t.git(repo,'config','user.name','Fixture');t.git(repo,'config','user.email','fixture@example.invalid')
+  (repo/'old.txt').write_text('old baseline blob')
+  t.git(repo,'add','old.txt');t.git(repo,'commit','-m','baseline')
+  commit=t.git(repo,'rev-parse','HEAD');blob=t.git(repo,'rev-parse','HEAD:old.txt')
+  object_path=repo/'.git/objects'/blob[:2]/blob[2:];saved=object_path.read_bytes();object_path.unlink()
+  (repo/'old.txt').unlink()
+  # Model a fresh --no-checkout clone: no index or working files and no prior
+  # failed checkout whose staged deletion an ordinary checkout would preserve.
+  (repo/'.git/index').unlink()
+  # Commit/tree still resolve while one old checkout blob is physically absent.
+  self.assertEqual(t.git(repo,'rev-parse',commit+'^{commit}'),commit)
+  self.assertEqual(len(t.git(repo,'rev-parse',commit+'^{tree}')),40)
+  return repo,commit,blob,object_path,saved
+ def test_real_missing_blob_fixture_refetches_before_checkout(self):
+  repo,commit,blob,path,saved=self.partial_object_fixture();calls=[]
+  def fetch(argv,**kw):
+   calls.append(argv);self.assertEqual(argv[-1],commit)
+   self.assertIn('--refetch',argv);self.assertIn('--no-filter',argv)
+   path.write_bytes(saved);(repo/'.git/FETCH_HEAD').write_text(commit+'\n')
+  with patch.object(t.seed,'BASELINE_COMMIT',commit),patch.object(t,'verified_origin',return_value='https://github.com/Owner/Sandium-2.git'),patch.object(t,'run_owned',side_effect=fetch):
+   self.assertFalse(t.baseline_closure_complete(repo))
+   t.ensure_baseline_object(repo,self.base,time.time())
+   self.assertTrue(t.baseline_closure_complete(repo));self.assertEqual(len(calls),1)
+   t.git(repo,'checkout','--detach',commit);self.assertEqual(t.git(repo,'status','--porcelain','--untracked-files=no'),'')
+ def test_real_missing_blob_unrepaired_fetch_fails_closed(self):
+  repo,commit,blob,path,saved=self.partial_object_fixture()
+  (repo/'.git/FETCH_HEAD').write_text(commit+'\n')
+  with patch.object(t.seed,'BASELINE_COMMIT',commit),patch.object(t,'verified_origin',return_value='https://github.com/Owner/Sandium-2.git'),patch.object(t,'run_owned'):
+   with self.assertRaisesRegex(ValueError,'closure remains incomplete'):t.ensure_baseline_object(repo,self.base,time.time())
+ def test_real_local_refetch_recovers_missing_blob_closure(self):
+  repo,commit,blob,path,saved=self.partial_object_fixture()
+  # Build a complete bare fixture before removing the target's blob again.
+  path.write_bytes(saved);remote=self.base/'complete.git'
+  t.git(self.base,'clone','--bare','--no-hardlinks',str(repo),str(remote));path.unlink()
+  real_run=t.run_owned;commands=[]
+  def local_transport(argv,**kw):
+   # Test-only local transport seam. Preserve every production fetch/negotiation
+   # flag; production still forbids file:// and only accepts verified GitHub.
+   self.assertIn('protocol.file.allow=never',argv)
+   argv=['protocol.file.allow=always' if x=='protocol.file.allow=never' else x for x in argv]
+   commands.append(argv);return real_run(argv,**kw)
+  with patch.object(t.seed,'BASELINE_COMMIT',commit),patch.object(t,'verified_origin',return_value=str(remote)),patch.object(t,'run_owned',side_effect=local_transport):
+   self.assertFalse(t.baseline_closure_complete(repo))
+   t.ensure_baseline_object(repo,self.base,time.time())
+   self.assertTrue(t.baseline_closure_complete(repo));self.assertEqual(len(commands),1)
+   t.git(repo,'checkout','--detach',commit)
+   self.assertEqual((repo/'old.txt').read_text(),'old baseline blob')
+   self.assertEqual(t.git(repo,'status','--porcelain','--untracked-files=no'),'')
+ def test_unsupported_refetch_capability_fails_before_network(self):
+  response=subprocess.CompletedProcess(['git'],129,stdout='usage: git fetch --filter')
+  with patch.object(t.subprocess,'run',return_value=response):
+   with self.assertRaisesRegex(ValueError,'support'):t.require_full_refetch_support()
  def test_real_isolated_baseline_checkout_and_fingerprint(self):
   self.ident.stop()
   repository=Path(__file__).resolve().parents[1];session=self.base/'real'
