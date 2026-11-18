@@ -40,7 +40,15 @@ require_release_arg() {
   fi
 }
 require_release_arg 'is_debug=false'
-require_release_arg 'is_official_build=false'
+require_release_arg 'is_official_build=true'
+require_release_arg 'dcheck_always_on=false'
+require_release_arg 'dcheck_is_configurable=false'
+require_release_arg 'enable_expensive_dchecks=false'
+require_release_arg 'enable_java_asserts=false'
+require_release_arg 'chrome_pgo_phase=0'
+require_release_arg 'use_thin_lto=true'
+require_release_arg 'use_lld=true'
+require_release_arg 'use_mold=false'
 require_release_arg 'is_component_build=false'
 require_release_arg 'is_java_debug=false'
 require_release_arg 'symbol_level=1'
@@ -81,6 +89,31 @@ test -x "$GN_HOST_PYTHON" || {
 # step, which runs in a fresh shell after source preparation has completed.
 cd "$SRC"
 echo "CLANG_DIAGNOSTIC_GN_ROOT=$(pwd)"
+
+# Query GN's resolved values rather than relying only on wrapper input text.
+# Do not dump all args: unrelated service credentials may be present there.
+while IFS='=' read -r name expected; do
+  resolved="$("$GN" args "$OUT" --list="$name" --short)"
+  python3 -c 'import re,sys
+name,expected,payload=sys.argv[1:]
+pattern=r"\s*"+re.escape(name)+r"\s*=\s*"+re.escape(expected)+r"\s*"
+if not re.fullmatch(pattern,payload):
+ raise SystemExit("OFFICIAL_GN_GATE=FAIL resolved argument mismatch: "+name)
+print("OFFICIAL_GN_ARG="+name+"="+expected)
+' "$name" "$expected" "$resolved"
+done <<'OFFICIAL_GN_EXPECTED'
+is_official_build=true
+is_debug=false
+dcheck_always_on=false
+dcheck_is_configurable=false
+enable_expensive_dchecks=false
+enable_java_asserts=false
+chrome_pgo_phase=0
+use_thin_lto=true
+use_lld=true
+use_mold=false
+symbol_level=1
+OFFICIAL_GN_EXPECTED
 
 # Do not grep build.ninja: GN stores compiler flags on the config/target,
 # not necessarily as literal text in the top-level Ninja manifest.
@@ -155,3 +188,14 @@ if diagnostic_flags != expected:
 
 print("CLANG_DIAGNOSTIC_GN_GATE=PASS effective_cflags=%s" % diagnostic_flags[0])
 '
+
+# Pinned viz:service owns display/skia_renderer.cc. Inspect effective target
+# defines, not merely an assumed default; this still is not device proof.
+VIZ_DEFINES="$(mktemp)"
+VIZ_CFLAGS="$(mktemp)"
+trap 'rm -f "$VIZ_DEFINES" "$VIZ_CFLAGS"' EXIT
+"$GN" desc "$OUT" //components/viz/service:service defines --format=json > "$VIZ_DEFINES"
+"$GN" desc "$OUT" //components/viz/service:service cflags --format=json > "$VIZ_CFLAGS"
+python3 "$ROOT/.circleci/scripts/verify-official-viz-gn.py" "$VIZ_DEFINES" "$VIZ_CFLAGS"
+rm -f "$VIZ_DEFINES" "$VIZ_CFLAGS"
+trap - EXIT

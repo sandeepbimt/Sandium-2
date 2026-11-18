@@ -16,8 +16,8 @@ def load(name):
 
 def inputs_for(root):
     root = Path(root).resolve()
-    bridge, dark, wallpaper, capture, blue = (load(name) for name in ('bridge', 'dark_policy', 'wallpaper_admission', 'capture_coordinates', 'blue_clear'))
-    inputs = set(bridge.INPUTS) | set(dark.patches()) | set(dark.REGISTRATION) | {wallpaper.PATH, capture.PAGE, capture.NTP, capture.CAPTURE, blue.PATH}
+    bridge, dark, wallpaper, capture = (load(name) for name in ('bridge', 'dark_policy', 'wallpaper_admission', 'capture_coordinates'))
+    inputs = set(bridge.INPUTS) | set(dark.patches()) | set(dark.REGISTRATION) | {wallpaper.PATH, capture.PAGE, capture.NTP, capture.CAPTURE}
     components = {dark.HELPER, 'content/browser/renderer_host/sandium_dark_policy_authority.cc'}
     for name in bridge.STAGES:
         components.update(getattr(bridge.load(name), 'COMPONENTS', {}))
@@ -26,7 +26,7 @@ def inputs_for(root):
 
 def plan(root):
     root = Path(root).resolve()
-    bridge, dark, wallpaper, capture, blue = (load(name) for name in ('bridge', 'dark_policy', 'wallpaper_admission', 'capture_coordinates', 'blue_clear'))
+    bridge, dark, wallpaper, capture = (load(name) for name in ('bridge', 'dark_policy', 'wallpaper_admission', 'capture_coordinates'))
     inputs = inputs_for(root)
     with tempfile.TemporaryDirectory(prefix='sandium-navigation-plan-') as temporary:
         staged = Path(temporary)
@@ -38,7 +38,7 @@ def plan(root):
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_text(source.read_text())
         outputs = {}
-        for planner in (bridge.plan, dark.plan, dark.registration_plan, wallpaper.plan, capture.plan, blue.plan):
+        for planner in (bridge.plan, dark.plan, dark.registration_plan, wallpaper.plan, capture.plan):
             for path, text in planner(staged).items():
                 path = path.resolve()
                 if not path.is_relative_to(staged):

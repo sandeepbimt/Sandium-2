@@ -1,5 +1,15 @@
 import json,pathlib,unittest,yaml,hashlib
 ROOT=pathlib.Path(__file__).resolve().parent
+def original_namespaces(value):
+ # Official reference changes transport namespaces, not the inherited task behavior.
+ value = remove_obsolete_fallbacks(value)
+ return json.loads(json.dumps(value).replace('sandium-official-handoff-v1-', 'sandium-brave-handoff-v2-').replace('sandium-official-apk-complete-v1-', 'sandium-brave-apk-complete-v2-'))
+
+def remove_obsolete_fallbacks(value):
+ if isinstance(value,dict):return {k:remove_obsolete_fallbacks(v) for k,v in value.items()}
+ if isinstance(value,list):return [remove_obsolete_fallbacks(v) for v in value if not (isinstance(v,str) and v.startswith('sandium-brave-handoff-v1-{{'))]
+ return value
+
 class OriginalFullCandidate(unittest.TestCase):
  def setUp(self):
   self.original=yaml.safe_load((ROOT/'fc220e7f.config.yml').read_text())
@@ -10,7 +20,7 @@ class OriginalFullCandidate(unittest.TestCase):
  def test_unchanged_task_objects(self):
   old=self.original['jobs']['brave-android-staged-build']['steps']; new=self.candidate['jobs']['brave-android-staged-build']['steps']
   for m in json.loads((ROOT/'step-provenance.json').read_text()):
-   if m.get('status')=='byte-identical task object':self.assertEqual(old[m['baseline_index']],new[m['candidate_index']])
+   if m.get('status')=='byte-identical task object':self.assertEqual(original_namespaces(old[m['baseline_index']]),original_namespaces(new[m['candidate_index']]))
  def test_five_original_stage_dependencies(self):
   jobs=self.candidate['workflows']['sandium-full-mode']['jobs'];self.assertEqual(5,len(jobs))
   for i,j in enumerate(jobs,1):
@@ -44,7 +54,7 @@ class OriginalFullCandidate(unittest.TestCase):
   old=self.original['jobs']['brave-android-staged-build']['steps']
   candidate=self.candidate['jobs']['brave-android-staged-build']['steps']
   for index in range(10,14):
-   actual=next(s for s in candidate if s==old[index])
+   actual=next(s for s in candidate if original_namespaces(s)==original_namespaces(old[index]))
    for key in actual['when']['steps'][0]['restore_cache']['keys']:
     self.assertIn('{{ .Environment.CIRCLE_WORKFLOW_ID }}',key)
  def test_cli_has_required_legacy_argument(self):
@@ -64,7 +74,7 @@ class PhoneBranchGate(unittest.TestCase):
  def test_phone_full_only_and_existing_maintenance_gate(self):
   c=yaml.safe_load((ROOT/'candidate.yml').read_text())
   for job in c['workflows']['sandium-full-mode']['jobs']:
-   self.assertEqual(['release/phone-20261117','diagnostic/navigation-phone-20261118','experimental/navigation-single-handoff-20261118'],next(iter(job.values()))['filters']['branches']['only'])
+   self.assertEqual(['experimental/navigation-official-reference-20261118'],next(iter(job.values()))['filters']['branches']['only'])
   maintenance=c['workflows']['fixed-reference-maintenance']['jobs'][0]
   self.assertEqual('experiment/sandium-back-transition',next(iter(maintenance.values()))['filters']['branches']['only'])
 

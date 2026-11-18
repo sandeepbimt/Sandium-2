@@ -90,11 +90,12 @@ if [ "${BRAVE_STAGE_INDEX:?BRAVE_STAGE_INDEX is required}" = "1" ]; then
   ENV_FILE="$CORE_DIR/.env"
   ENV_TMP="$(mktemp "$CORE_DIR/.env.tmp.XXXXXX")"
   if [ -f "$ENV_FILE" ]; then
-    grep -Ev '^(rbe_service|use_remoteexec|brave_services_key)=' "$ENV_FILE" > "$ENV_TMP" || true
+    grep -Ev '^(rbe_service|use_remoteexec|brave_services_key|is_brave_release_build)=' "$ENV_FILE" > "$ENV_TMP" || true
   fi
   printf '%s\n' \
     "rbe_service=$REAPI_ADDRESS" \
     'use_remoteexec=true' \
+    'is_brave_release_build=0' \
     >> "$ENV_TMP"
   mv "$ENV_TMP" "$ENV_FILE"
   echo "BRAVE_RBE_ENDPOINT=$REAPI_ADDRESS"
@@ -528,6 +529,10 @@ PY
     python3 "$ROOT/.circleci/scripts/verify-sandium-vanilla-brave.py" --core "$CORE_DIR" --src "$SRC_DIR" --out "$OUT" --phase prepare
   fi
 
+  # Official-mode reference: genuine upstream official GN semantics, not a
+  # recolored renderer or a DCHECK-only substitute. Local Brave Release keeps
+  # PGO off; distributed Brave production signing/profiles are not reproduced.
+  # The full product path below always regenerates GN before compilation.
   # Reuse the pinned Vanilla Welcome GN/Ninja graph when all critical args match.
   # Any missing/stale graph or changed build-critical arg falls back to normal GN generation.
   REUSE_GN_GRAPH=false
@@ -540,7 +545,7 @@ PY
      grep -Fqx 'use_siso = true' "$OUT/args.gn" && \
      grep -Fqx 'use_reclient = false' "$OUT/args.gn" && \
      grep -Fqx 'enable_android_secondary_abi = false' "$OUT/args.gn" && \
-     grep -Fqx 'is_official_build = false' "$OUT/args.gn" && \
+     grep -Fqx 'is_official_build = true' "$OUT/args.gn" && \
      grep -Fqx 'enable_updater = false' "$OUT/args.gn" && \
      grep -Fqx 'enable_update_notifications = false' "$OUT/args.gn" && \
      grep -Fqx 'android_channel = "default"' "$OUT/args.gn" && \
@@ -552,7 +557,7 @@ PY
     echo "PPBAS_GN_GRAPH_REUSE=PASS; pinned ARM64 Release graph and Siso/REAPI args already match."
   else
     echo "PPBAS_GN_GRAPH_REUSE=MISS; running pinned Brave GN generation."
-    pnpm run build Release --target_os=android --target_arch=arm64 --target_android_output_format=apk --use_remoteexec=true --gn use_siso:true --gn use_reclient:false "${ORIGIN_GN_ARGS[@]}" --gn is_java_debug:false --gn enable_android_secondary_abi:false --gn is_official_build:false --gn enable_updater:false --gn enable_update_notifications:false --gn android_channel:default --gn chrome_public_manifest_package:com.brave.browser_default --gn brave_channel:development --target brave --ninja=n
+    pnpm run build Release --target_os=android --target_arch=arm64 --target_android_output_format=apk --use_remoteexec=true --gn use_siso:true --gn use_reclient:false "${ORIGIN_GN_ARGS[@]}" --gn is_java_debug:false --gn enable_android_secondary_abi:false --gn is_official_build:true --gn dcheck_always_on:false --gn dcheck_is_configurable:false --gn enable_expensive_dchecks:false --gn enable_java_asserts:false --gn chrome_pgo_phase:0 --gn use_thin_lto:true --gn use_lld:true --gn use_mold:false --gn enable_updater:false --gn enable_update_notifications:false --gn android_channel:default --gn chrome_public_manifest_package:com.brave.browser_default --gn brave_channel:development --target brave --ninja=n
   fi
   bash "$ROOT/.circleci/scripts/verify-clang-diagnostics-gn.sh"
   if [ "$MINIMAL_VANILLA_BUILD" = true ]; then

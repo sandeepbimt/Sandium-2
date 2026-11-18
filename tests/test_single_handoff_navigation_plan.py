@@ -32,8 +32,6 @@ class NavigationPlan(unittest.TestCase):
         for path, item in capture_fixture['files'].items():
             if path not in originals:
                 originals[path] = item['source']
-        blue_fixture = json.loads(gzip.decompress((BASE / 'fixtures/blue-clear.json.gz').read_bytes()))
-        originals.setdefault(blue_fixture['path'], blue_fixture['source'])
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             for path, text in originals.items():
