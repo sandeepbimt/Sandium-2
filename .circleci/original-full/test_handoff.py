@@ -36,4 +36,39 @@ class Handoff(unittest.TestCase):
  def test_pins_and_integrity_fields(self):
   for key in ['CHECKPOINT_VALID','REFERENCE_MODE','CHROMIUM_SHA','BRAVE_CORE_TAG','TARGET','BUILD_TYPE']:
    self.assertNotEqual(0,self.run_gate(changes={key:'wrong'}))
+
+class SnapshotOrdering(unittest.TestCase):
+ def test_raw_restore_verified_before_all_mutators(self):
+  for rel in ['.circleci/config.yml','.circleci/original-full/candidate.yml']:
+   steps=yaml.safe_load((ROOT/rel).read_text())['jobs']['brave-android-staged-build']['steps']
+   names=[s.get('run',{}).get('name','') for s in steps if isinstance(s,dict)]
+   restore=names.index('SANDIUM FULL/FAST MODE - Restore checkpoint with up to 8 parallel workers')
+   compare=names.index('Diagnose restored Siso checkpoint and compare prior stage')
+   self.assertEqual(restore+1,compare)
+   self.assertLess(compare,names.index('Prepare pinned Brave Android source'))
+   for i,s in enumerate(steps):
+    command=s.get('run',{}).get('command','') if isinstance(s,dict) else ''
+    if 'product-overlay-' in command:self.assertGreater(i,compare)
+ def test_actual_snapshot_gate_keeps_corruption_checks(self):
+  script=ROOT/'.circleci/scripts/capture-brave-siso-checkpoint.sh'
+  with tempfile.TemporaryDirectory() as td:
+   root=pathlib.Path(td);out=root/'brave-work/src/out/android_Release_arm64';out.mkdir(parents=True)
+   files={'build.ninja':'build example: rule\n','args.gn':'x=true\n','args_generated.gni':'x=1\n','.siso_fs_state':'state','.ninja_log':'log','obj/a.o':'object','gen/a.h':'generated'}
+   for name,data in files.items():
+    p=out/name;p.parent.mkdir(parents=True,exist_ok=True);p.write_text(data)
+   env=dict(os.environ,CIRCLE_WORKING_DIRECTORY=td,CIRCLE_WORKFLOW_ID='same-workflow',CIRCLE_BUILD_NUM='1',BRAVE_STAGE_INDEX='1')
+   subprocess.run(['bash',str(script),'checkpoint-ready'],env=env,check=True,capture_output=True)
+   env.update(BRAVE_STAGE_INDEX='2',CIRCLE_BUILD_NUM='2')
+   passed=subprocess.run(['bash',str(script),'restore'],env=env,capture_output=True,text=True)
+   self.assertEqual(0,passed.returncode,passed.stdout+passed.stderr)
+   self.assertIn('HANDOFF_COMPARISON=PASS',passed.stdout)
+   # These are precisely the graph/generated/output changes seen in stage 2.
+   # They remain errors at the raw-restore boundary, not ignored differences.
+   for name in ['build.ninja','args_generated.gni','obj/a.o','gen/a.h','.siso_fs_state','.ninja_log']:
+    p=out/name;before=p.read_text();p.write_text(before+'changed')
+    failed=subprocess.run(['bash',str(script),'restore'],env=env,capture_output=True,text=True)
+    self.assertNotEqual(0,failed.returncode,name)
+    self.assertIn('HANDOFF_COMPARISON=FAIL',failed.stdout)
+    p.write_text(before)
+
 if __name__=='__main__':unittest.main()
