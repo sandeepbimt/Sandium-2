@@ -30,6 +30,14 @@ class CompactDnsUi(unittest.TestCase):
   self.assertIn('mNativeStartupComplete && SandiumSecureDns.isReady()',JAVA.read_text())
   self.assertIn('mSecureDns.setColors(TEXT, SECONDARY, CARD, PRIMARY)',s)
   self.assertIn('mActivity, false, false',s)
+ def test_dns_only_takes_space_in_existing_expanded_options(self):
+  s=(ROOT/'android/java/org/chromium/chrome/browser/firstrun/SandiumWelcomeSetupView.java').read_text()
+  card=s.split('private void buildMainSettingsCard()',1)[1].split('private void buildFilterProgressCard()',1)[0]
+  self.assertNotIn('mSecureDns',card.split('card.addView(mAdvancedOptions, matchWrap());',1)[0])
+  self.assertIn('mAdvancedOptions.setVisibility(View.GONE);',card)
+  self.assertEqual(card.count('mAdvancedOptions.addView(mSecureDns, matchWrap());'),1)
+  self.assertIn('mAdvancedOptions.setVisibility(mExpanded ? View.VISIBLE : View.GONE);',card)
+  self.assertIn('else mScrollView.post(() -> mScrollView.scrollTo(0, 0));',card)
  def test_android_api_compilation(self):
   jar=Path(os.environ.get('RAWS_ANDROID_API_JAR','/workspace/shared/raws-api/android15.jar'))
   if not jar.exists(): self.skipTest('Android SDK API jar unavailable')

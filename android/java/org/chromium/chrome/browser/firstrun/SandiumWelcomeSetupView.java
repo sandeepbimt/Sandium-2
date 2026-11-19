@@ -247,7 +247,7 @@ final class SandiumWelcomeSetupView {
 
     View createView() {
         // Android 15 may enforce a transparent status bar. Its backing must be
-        // the same black as this screen, not the Activity theme's launch colour.
+        // the same dark surface as this screen, not the Activity theme's launch colour.
         // Leave safe-inset/layout ownership with the first-run Activity.
         mActivity.getWindow().setBackgroundDrawable(new ColorDrawable(BACKGROUND));
         mActivity.getWindow().setStatusBarColor(BACKGROUND);
@@ -478,12 +478,6 @@ final class SandiumWelcomeSetupView {
         mDarkenSwitch.setEnabled(blurEnabled);
         addSettingsDivider(card);
 
-        mSecureDns = new org.chromium.chrome.browser.privacy.secure_dns.SandiumSecureDnsDropdown(
-                mActivity, false, false);
-        mSecureDns.setColors(TEXT, SECONDARY, CARD, PRIMARY);
-        card.addView(mSecureDns, matchWrap());
-        addSettingsDivider(card);
-
         LinearLayout more = new LinearLayout(mActivity);
         more.setGravity(Gravity.CENTER_VERTICAL);
         more.setPadding(dp(12), dp(3), dp(10), dp(3));
@@ -510,6 +504,13 @@ final class SandiumWelcomeSetupView {
         mAdvancedOptions.setOrientation(LinearLayout.VERTICAL);
         mAdvancedOptions.setVisibility(View.GONE);
         card.addView(mAdvancedOptions, matchWrap());
+        // Optional DNS belongs to the existing GONE section. The main settings card
+        // gains no row, spacer or margin until the user opens More options.
+        addSettingsDivider(mAdvancedOptions);
+        mSecureDns = new org.chromium.chrome.browser.privacy.secure_dns.SandiumSecureDnsDropdown(
+                mActivity, false, false);
+        mSecureDns.setColors(TEXT, SECONDARY, CARD, PRIMARY);
+        mAdvancedOptions.addView(mSecureDns, matchWrap());
         mNotificationsEnabled = mActivity.getApplicationContext()
                 .getSharedPreferences("sandium_notifications", android.content.Context.MODE_PRIVATE)
                 .getBoolean("enabled", true);
