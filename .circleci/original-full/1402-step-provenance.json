@@ -1,0 +1,144 @@
+{
+  "baseline_commit": "bba47961ec5ea37799160fa8e6ac485276170c67",
+  "baseline_config_git_blob": "ab6000b315b16f997785a92fd7d1f6141525bb5c",
+  "baseline_config_sha256": "a1135efd9217783c454c25c2ba31ddfa0d5fe2bcde413e32fb84d5b17456d9f3",
+  "historical_step_provenance_sha256": "6ff59a68af93b2b62528099163491c82238a5d5f46c4aa60cc38d55d312aa5d9",
+  "active_branch": "work/1402-approved-ui",
+  "byte_identical_task_mapping": [
+    {
+      "fc220e7f_index": 0,
+      "historical_candidate_index": 1,
+      "bba47961_index": 1
+    },
+    {
+      "fc220e7f_index": 1,
+      "historical_candidate_index": 2,
+      "bba47961_index": 2
+    },
+    {
+      "fc220e7f_index": 2,
+      "historical_candidate_index": 3,
+      "bba47961_index": 3
+    },
+    {
+      "fc220e7f_index": 3,
+      "historical_candidate_index": 4,
+      "bba47961_index": 4
+    },
+    {
+      "fc220e7f_index": 4,
+      "historical_candidate_index": 5,
+      "bba47961_index": 5
+    },
+    {
+      "fc220e7f_index": 5,
+      "historical_candidate_index": 6,
+      "bba47961_index": 6
+    },
+    {
+      "fc220e7f_index": 6,
+      "historical_candidate_index": 7,
+      "bba47961_index": 7
+    },
+    {
+      "fc220e7f_index": 9,
+      "historical_candidate_index": 10,
+      "bba47961_index": 10
+    },
+    {
+      "fc220e7f_index": 10,
+      "historical_candidate_index": 11,
+      "bba47961_index": 11
+    },
+    {
+      "fc220e7f_index": 11,
+      "historical_candidate_index": 12,
+      "bba47961_index": 12
+    },
+    {
+      "fc220e7f_index": 12,
+      "historical_candidate_index": 13,
+      "bba47961_index": 13
+    },
+    {
+      "fc220e7f_index": 13,
+      "historical_candidate_index": 14,
+      "bba47961_index": 14
+    },
+    {
+      "fc220e7f_index": 14,
+      "historical_candidate_index": 15,
+      "bba47961_index": 15
+    },
+    {
+      "fc220e7f_index": 15,
+      "historical_candidate_index": 16,
+      "bba47961_index": 16
+    },
+    {
+      "fc220e7f_index": 16,
+      "historical_candidate_index": 17,
+      "bba47961_index": 17
+    },
+    {
+      "fc220e7f_index": 17,
+      "historical_candidate_index": 18,
+      "bba47961_index": 18
+    },
+    {
+      "fc220e7f_index": 18,
+      "historical_candidate_index": 19,
+      "bba47961_index": 19
+    },
+    {
+      "fc220e7f_index": 19,
+      "historical_candidate_index": 20,
+      "bba47961_index": 20
+    },
+    {
+      "fc220e7f_index": 20,
+      "historical_candidate_index": 21,
+      "bba47961_index": 21
+    },
+    {
+      "fc220e7f_index": 22,
+      "historical_candidate_index": 26,
+      "bba47961_index": 27
+    },
+    {
+      "fc220e7f_index": 28,
+      "historical_candidate_index": 22,
+      "bba47961_index": 22
+    },
+    {
+      "fc220e7f_index": 30,
+      "historical_candidate_index": 35,
+      "bba47961_index": 36
+    },
+    {
+      "fc220e7f_index": 31,
+      "historical_candidate_index": 36,
+      "bba47961_index": 37
+    },
+    {
+      "fc220e7f_index": 32,
+      "historical_candidate_index": 37,
+      "bba47961_index": 38
+    },
+    {
+      "fc220e7f_index": 33,
+      "historical_candidate_index": 38,
+      "bba47961_index": 39
+    },
+    {
+      "fc220e7f_index": 36,
+      "historical_candidate_index": 41,
+      "bba47961_index": 42
+    },
+    {
+      "fc220e7f_index": 40,
+      "historical_candidate_index": 46,
+      "bba47961_index": 47
+    }
+  ]
+}

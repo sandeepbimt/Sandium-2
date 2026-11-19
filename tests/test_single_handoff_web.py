@@ -34,6 +34,10 @@ class CommandLine {
  String getSwitchValue(String k,String v){return values.getOrDefault(k,v);}
  void appendSwitchWithValue(String k,String v){values.put(k,v);}
 }
+class ContextUtils {
+ static android.content.SharedPreferences p=new android.content.SharedPreferences();
+ static android.content.SharedPreferences getAppSharedPreferences(){return p;}
+}
 public class Harness {
  static String getSandiumFeatureName(String entry){
   int modifier=entry.indexOf('<'),params=entry.indexOf(':');
@@ -55,29 +59,51 @@ public class Harness {
   if(!before.equals(CommandLine.c.values))throw new AssertionError("not idempotent");
  }
  public static void main(String[] args){
-  String f="AndroidNavigationBlurTransitionAnimation";
-  check(null,null,"",f);
-  check("", "", "",f);
-  check("Other:foo/bar,"+f+":sigma/9", "Disabled<Trial", "Other:foo/bar", "Disabled<Trial,"+f);
-  check(f+"<Trial,"+f+","+f+":a/b",f+","+f+":a/b,"+f+"<Trial","",f);
-  check(" , Other<Trial , , "+f+"<Trial:param/value, Prefix"+f+", "," ,Disabled:foo/bar, ,"+f+", ","Other<Trial,Prefix"+f,"Disabled:foo/bar,"+f);
+  String f="AndroidNavigationBlurTransitionAnimation", dim="SandiumNavigationTransitionDim";
+  ContextUtils.p.values.clear();
+  check(null,null,f,dim);
+  if(!ContextUtils.p.getBoolean("sandium_page_transition_blur_enabled",false))throw new AssertionError("fresh default");
+  for(String legacy:new String[]{"default","off","low","medium","high","on","unknown"}){
+   ContextUtils.p.values.clear();ContextUtils.p.values.put("sandium_page_transition_blur_level",legacy);
+   boolean on=!legacy.equals("default")&&!legacy.equals("off");
+   check("Other:foo/bar,"+f+":sigma/9", "Disabled<Trial,"+f+", "+dim,
+       "Other:foo/bar"+(on?","+f:""), "Disabled<Trial"+(on?"":","+f)+","+dim);
+  }
+  ContextUtils.p.values.clear();ContextUtils.p.values.put("sandium_page_transition_blur_enabled",true);
+  ContextUtils.p.values.put("sandium_page_transition_blur_level","default");
+  ContextUtils.p.values.put("sandium_page_transition_darken",true);
+  check(f+"<Trial,"+f+":a/b",f+","+dim,f+","+dim,"");
+  ContextUtils.p.values.put("sandium_page_transition_blur_enabled",false);
+  check(f+","+dim,"", "",f+","+dim);
  }
 }
 '''
         with tempfile.TemporaryDirectory() as d:
             p=Path(d)/'Harness.java'
             p.write_text(source)
-            subprocess.run(['java','--module','jdk.compiler/com.sun.tools.javac.Main',str(p)],check=True,capture_output=True)
+            stub=Path(d)/'android/content/SharedPreferences.java'
+            stub.parent.mkdir(parents=True)
+            stub.write_text("""package android.content;
+public class SharedPreferences {
+ public java.util.Map<String,Object> values=new java.util.HashMap<>();
+ public boolean contains(String k){return values.containsKey(k);}
+ public boolean getBoolean(String k,boolean d){return (Boolean)values.getOrDefault(k,d);}
+ public String getString(String k,String d){return (String)values.getOrDefault(k,d);}
+ public SharedPreferences edit(){return this;}
+ public SharedPreferences putBoolean(String k,boolean v){values.put(k,v);return this;}
+ public void apply(){}
+}""")
+            subprocess.run(['java','--module','jdk.compiler/com.sun.tools.javac.Main',str(stub),str(p)],check=True,capture_output=True)
             subprocess.run(['java','-cp',d,'Harness'],check=True,capture_output=True)
 
-    def test_saved_custom_blur_is_inert(self):
-        for token in ('getAppSharedPreferences', 'page_transition_blur', 'page_transition_darken', 'nav-animation-blur-sigma/', 'nav-animation-fade-hold-duration-ms/'):
+    def test_old_strength_timing_are_not_reused(self):
+        for token in ('nav-animation-blur-sigma/', 'nav-animation-fade-hold-duration-ms/', 'nav-animation-fade-out-duration-ms/'):
             self.assertNotIn(token, w.NEW)
-        self.assertIn('handoffDisabled.append(handoffBlurFeature)', w.NEW)
+        self.assertIn('sandium_page_transition_blur_enabled',w.NEW)
+        self.assertIn('SandiumNavigationTransitionDim',w.NEW)
 
     def test_no_second_transition_owner_or_timing_policy(self):
-        self.assertIn('"disable-features", handoffDisabled.toString()',w.NEW)
-        self.assertEqual(w.NEW.count('getSandiumFeatureName(trimmed)'),2)
+        self.assertEqual(w.NEW.count('getSandiumFeatureName(trimmed)'),1)
         self.assertNotIn('PaintHolding',w.NEW)
         for token in ('postDelayed(', 'SurfaceLayer', 'Bitmap', '350', 'DidFirst', 'setAlpha'):
             self.assertNotIn(token,w.NEW)

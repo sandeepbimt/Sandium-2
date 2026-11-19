@@ -62,6 +62,22 @@ class NavigationPlan(unittest.TestCase):
             startup = root/web.PATH
             startup.parent.mkdir(parents=True,exist_ok=True)
             startup.write_text(web.OLD)
+            # Final native-blur stage takes exact restored156 C++ plus the
+            # real baseline Settings overlays, all owned by the same journal.
+            blur = module('native_blur')
+            import importlib.util
+            def script(name):
+                spec=importlib.util.spec_from_file_location(name, ROOT/'.circleci/scripts'/(name+'.py'))
+                value=importlib.util.module_from_spec(spec);spec.loader.exec_module(value);return value
+            base=script('apply-sandium-blur-transition')
+            full=script('apply-sandium-page-transition-full')
+            blur_sources={p:blur.fixture(p) for p in (blur.CC,blur.H,blur.FC,blur.FH)}
+            appearance=(blur.FIX/'AppearancePreferences.java').read_text()
+            blur_sources[blur.SETTINGS]=full.transform_appearance_java(base.transform_appearance_java(appearance))
+            blur_sources[blur.XML]=base.XML_BLOCK + full.XML_DARKEN_BLOCK
+            blur_sources[blur.GRD]=full.transform_grd(base.GRD_BLOCK)
+            for path,text in blur_sources.items():
+                target=root/path;target.parent.mkdir(parents=True,exist_ok=True);target.write_text(text)
             candidate_before={p:p.read_bytes() for p in root.rglob('*') if p.is_file()}
             whole=module('candidate_plan')
             whole_plan=whole.plan(root)

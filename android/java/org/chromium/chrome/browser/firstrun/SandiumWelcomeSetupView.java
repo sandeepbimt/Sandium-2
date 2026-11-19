@@ -18,6 +18,10 @@ import android.graphics.drawable.LayerDrawable;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.SystemClock;
+import android.text.SpannableString;
+import android.text.Spanned;
+import android.text.style.ForegroundColorSpan;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.Window;
@@ -63,11 +67,11 @@ final class SandiumWelcomeSetupView {
     private static final int CARD = Color.rgb(26, 26, 26);
     private static final int SEPARATOR = Color.rgb(69, 69, 69);
     private static final int PRIMARY = Color.rgb(25, 140, 255);
-    // Enabled Optimize button interior sampled from the owner's Phone Manager reference.
-    private static final int START_BUTTON = Color.rgb(36, 169, 50);
-    // Restart uses a dark track and saturated green fill with a light label.
-    private static final int START_TRACK = Color.rgb(9, 38, 16);
-    private static final int START_PROGRESS = Color.rgb(20, 130, 43);
+    // Approved off-white ready state and pale-green progress fill.
+    private static final int START_BUTTON = Color.rgb(238, 236, 229);
+    // Start and restart share the same 1.5-second feedback without changing layout.
+    private static final int START_TRACK = Color.rgb(238, 236, 229);
+    private static final int START_PROGRESS = Color.rgb(182, 220, 193);
     private static final int PRIMARY_TEXT = Color.rgb(8, 15, 24);
     private static final int DISABLED_BUTTON = Color.rgb(55, 55, 55);
     private static final int DISABLED_BUTTON_TEXT = Color.rgb(160, 160, 160);
@@ -80,6 +84,7 @@ final class SandiumWelcomeSetupView {
     private static final int ICON_AMBER = Color.rgb(253, 178, 0);
     private static final int ICON_ORANGE = Color.rgb(255, 119, 1);
 
+    private static final String PREF_NATIVE_BLUR = "sandium_page_transition_blur_enabled";
     private static final String PREF_BLUR_LEVEL = "sandium_page_transition_blur_level";
     private static final String PREF_DARKEN = "sandium_page_transition_darken";
     private static final String PREF_ENGINE_READY = "sandium.ad_block.engine_warmup_done_v2";
@@ -124,10 +129,112 @@ final class SandiumWelcomeSetupView {
     private SandiumShieldsTracer mLogoTracer;
     private final Runnable mRestartRunnable = this::performRestart;
 
+    private static final long START_FEEDBACK_MS = 1500L;
+    private boolean mCompletionDispatched;
+    private boolean mNotificationsEnabled = true;
+    private boolean mPendingRestart;
+    private long mStartFeedbackAt;
+    private int mDotPhase;
+    private final Runnable mDotsRunnable = this::updatePreparingDots;
+    private final Runnable mCountdownRunnable = this::updateStartCountdown;
+
     private void performRestart() {
-        if (mDestroyed || !mRestartInProgress) return;
-        mListener.onPrepareForRestart();
-        BraveRelaunchUtils.restart();
+        if (mDestroyed || !mRestartInProgress || mCompletionDispatched) return;
+        if (!persistNotificationSetup()) {
+            cancelButtonFeedback();
+            for (Switch toggle : mSwitches) toggle.setEnabled(true);
+            if (mDarkenSwitch != null) mDarkenSwitch.setEnabled(isBlurTransitionEnabled());
+            updateStartButtonState();
+            android.widget.Toast.makeText(mActivity, R.string.sandium_welcome_save_failed,
+                    android.widget.Toast.LENGTH_LONG).show();
+            if (mFilterHandler != null) pollFilterStatus();
+            return;
+        }
+        mCompletionDispatched = true;
+        mHandler.removeCallbacks(mCountdownRunnable);
+        if (mPendingRestart) {
+            mListener.onPrepareForRestart();
+            BraveRelaunchUtils.restart();
+        } else {
+            mListener.onStartBrowsing();
+        }
+    }
+
+    // The next activity/process must see this before startup can request permission.
+    @android.annotation.SuppressLint("ApplySharedPref")
+    private boolean persistNotificationSetup() {
+        android.content.SharedPreferences prefs = mActivity.getApplicationContext()
+                .getSharedPreferences("sandium_notifications", android.content.Context.MODE_PRIVATE);
+        return prefs.edit().putBoolean("enabled", mNotificationsEnabled)
+                .putBoolean("setup_completed", true)
+                .putBoolean("request_pending",
+                        mNotificationsEnabled && !prefs.getBoolean("request_attempted", false))
+                .commit();
+    }
+
+    private String readyButtonLabel() {
+        return mActivity.getString(mRequiresRestart
+                ? R.string.sandium_welcome_quick_restart : R.string.sandium_welcome_start);
+    }
+
+    private void updatePreparingDots() {
+        mHandler.removeCallbacks(mDotsRunnable);
+        if (mDestroyed || mCanStartBrowsing || mStartInvoked
+                || !mStartButton.isAttachedToWindow()) return;
+        SpannableString dots = new SpannableString(
+                mActivity.getString(R.string.sandium_welcome_dots));
+        for (int i = 0; i < 3; i++) {
+            int color = !ValueAnimator.areAnimatorsEnabled() || i == mDotPhase
+                    ? DISABLED_BUTTON_TEXT : Color.rgb(95, 95, 95);
+            dots.setSpan(new ForegroundColorSpan(color), i * 2, i * 2 + 1,
+                    Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        }
+        mStartButton.setText(dots);
+        mStartButton.setContentDescription(
+                mActivity.getString(R.string.sandium_welcome_protection_preparing));
+        mDotPhase = (mDotPhase + 1) % 3;
+        if (ValueAnimator.areAnimatorsEnabled()) mHandler.postDelayed(mDotsRunnable, 300);
+    }
+
+    private void updateStartCountdown() {
+        mHandler.removeCallbacks(mCountdownRunnable);
+        if (mDestroyed || !mRestartInProgress || mCompletionDispatched) return;
+        long elapsed = Math.max(0, SystemClock.uptimeMillis() - mStartFeedbackAt);
+        int remaining = Math.max(1, 5 - (int) (elapsed / 300));
+        mStartButton.setText(mActivity.getString(mPendingRestart
+                ? R.string.sandium_welcome_restarting_countdown
+                : R.string.sandium_welcome_starting_countdown, remaining));
+        if (elapsed < START_FEEDBACK_MS) {
+            mHandler.postDelayed(mCountdownRunnable, 300 - elapsed % 300);
+        }
+    }
+
+    private void cancelButtonFeedback() {
+        mHandler.removeCallbacks(mDotsRunnable);
+        mHandler.removeCallbacks(mCountdownRunnable);
+        mHandler.removeCallbacks(mRestartRunnable);
+        if (mRestartAnimator != null) mRestartAnimator.cancel();
+        if (!mCompletionDispatched) {
+            mRestartInProgress = false;
+            mStartInvoked = false;
+        }
+    }
+
+    private void updateStartButtonState() {
+        if (mDestroyed || mRestartInProgress || mCompletionDispatched) return;
+        mHandler.removeCallbacks(mDotsRunnable);
+        mStartButton.setEnabled(mCanStartBrowsing && !mStartInvoked);
+        mStartButton.setTextColor(mCanStartBrowsing ? PRIMARY_TEXT : DISABLED_BUTTON_TEXT);
+        mStartButton.setBackgroundTintList(null);
+        mStartButton.setBackground(roundRect(
+                mCanStartBrowsing ? START_BUTTON : DISABLED_BUTTON, 28));
+        if (mCanStartBrowsing) {
+            mStartButton.setText(readyButtonLabel());
+            mStartButton.setContentDescription(readyButtonLabel());
+        } else {
+            mStartButton.setText(mActivity.getString(R.string.sandium_welcome_dots));
+            updatePreparingDots();
+        }
     }
 
     SandiumWelcomeSetupView(Activity activity, Listener listener) {
@@ -181,7 +288,7 @@ final class SandiumWelcomeSetupView {
         mRoot.addView(buttonContainer, matchWrap());
 
         mStartButton = new Button(mActivity);
-        mStartButton.setText(mActivity.getString(R.string.sandium_welcome_start));
+        mStartButton.setText(mActivity.getString(R.string.sandium_welcome_dots));
         mStartButton.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16);
         mStartButton.setTextColor(DISABLED_BUTTON_TEXT);
         mStartButton.setAllCaps(false);
@@ -193,6 +300,22 @@ final class SandiumWelcomeSetupView {
         mStartButton.setEnabled(false);
         mStartButton.setAlpha(1f);
         mStartButton.setOnClickListener(v -> startBrowsingWithFeedback());
+        mStartButton.addOnAttachStateChangeListener(new View.OnAttachStateChangeListener() {
+            @Override
+            public void onViewAttachedToWindow(View view) {
+                if (mDestroyed || mCompletionDispatched) return;
+                updateStartButtonState();
+                for (Switch toggle : mSwitches) toggle.setEnabled(mProfile != null);
+                if (mDarkenSwitch != null) {
+                    mDarkenSwitch.setEnabled(mProfile != null && isBlurTransitionEnabled());
+                }
+                if (mFilterHandler != null) pollFilterStatus();
+            }
+            @Override
+            public void onViewDetachedFromWindow(View view) {
+                cancelButtonFeedback();
+            }
+        });
         LinearLayout.LayoutParams buttonParams = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, dp(52));
         buttonContainer.addView(mStartButton, buttonParams);
@@ -217,6 +340,7 @@ final class SandiumWelcomeSetupView {
 
     void destroy() {
         mDestroyed = true;
+        cancelButtonFeedback();
         mHandler.removeCallbacks(mRestartRunnable);
         if (mRestartAnimator != null) mRestartAnimator.cancel();
         if (mLogoTracer != null) mLogoTracer.setEnabled(false);
@@ -259,7 +383,9 @@ final class SandiumWelcomeSetupView {
                 BraveShieldsContentSettings.BLOCK_RESOURCE, false);
         android.content.SharedPreferences preferences = ContextUtils.getAppSharedPreferences();
         android.content.SharedPreferences.Editor editor = preferences.edit();
-        if (!preferences.contains(PREF_BLUR_LEVEL)) editor.putString(PREF_BLUR_LEVEL, "high");
+        if (!preferences.contains(PREF_NATIVE_BLUR)) {
+            editor.putBoolean(PREF_NATIVE_BLUR, isBlurTransitionEnabled());
+        }
         if (!preferences.contains(PREF_DARKEN)) editor.putBoolean(PREF_DARKEN, true);
         editor.commit();
         // Brave feature overrides are read during native startup; relaunch after
@@ -374,6 +500,14 @@ final class SandiumWelcomeSetupView {
         mAdvancedOptions.setOrientation(LinearLayout.VERTICAL);
         mAdvancedOptions.setVisibility(View.GONE);
         card.addView(mAdvancedOptions, matchWrap());
+        mNotificationsEnabled = mActivity.getApplicationContext()
+                .getSharedPreferences("sandium_notifications", android.content.Context.MODE_PRIVATE)
+                .getBoolean("enabled", true);
+        addSettingsDivider(mAdvancedOptions);
+        addSwitchRow(mAdvancedOptions, "♧",
+                mActivity.getString(R.string.sandium_welcome_notifications),
+                mActivity.getString(R.string.sandium_welcome_notifications_summary),
+                mNotificationsEnabled, checked -> mNotificationsEnabled = checked);
         addSettingsDivider(mAdvancedOptions);
         addSwitchRow(mAdvancedOptions, "◈", "Block third-party cookies",
                 "Prevent third-party sites from storing cookies",
@@ -525,7 +659,7 @@ final class SandiumWelcomeSetupView {
         labels.addView(blurTitle, matchWrap());
 
         TextView summary = itemText(
-                "Blur strength when navigating",
+                mActivity.getString(R.string.sandium_welcome_native_blur_summary),
                 13, SECONDARY, false);
         summary.setPadding(0, dp(3), dp(4), 0);
         labels.addView(summary, matchWrap());
@@ -675,13 +809,13 @@ final class SandiumWelcomeSetupView {
     }
 
     private String getBlurLevelLabel() {
-        String value = ContextUtils.getAppSharedPreferences()
-                .getString(PREF_BLUR_LEVEL, "high");
-        return "default".equals(value) ? "Off" : capitalize(value);
+        return mActivity.getString(isBlurTransitionEnabled()
+                ? R.string.sandium_welcome_on : R.string.sandium_welcome_off);
     }
 
     private void showBlurLevelPicker() {
-        final String[] values = { "Off", "Low", "Medium", "High" };
+        final String[] values = { mActivity.getString(R.string.sandium_welcome_off),
+                mActivity.getString(R.string.sandium_welcome_on) };
         Dialog dialog = new Dialog(mActivity);
         dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
 
@@ -734,61 +868,51 @@ final class SandiumWelcomeSetupView {
         }
     }
 
+    // A restart can follow immediately, so persist the startup-only choice first.
+    @android.annotation.SuppressLint("ApplySharedPref")
     private void applyBlurLevel(String selected) {
-        String value = "Off".equals(selected) ? "default"
-                : selected.toLowerCase(java.util.Locale.ROOT);
-        String previous = ContextUtils.getAppSharedPreferences()
-                .getString(PREF_BLUR_LEVEL, "medium");
-        boolean changed = !value.equals(previous);
-        ContextUtils.getAppSharedPreferences().edit()
-                .putString(PREF_BLUR_LEVEL, value)
-                .putBoolean(PREF_DARKEN,
-                        !"default".equals(value)
-                                && ContextUtils.getAppSharedPreferences()
-                                        .getBoolean(PREF_DARKEN, true))
-                .apply();
-        if ("default".equals(value)) {
-            ContextUtils.getAppSharedPreferences().edit()
-                    .putBoolean(PREF_DARKEN, false).apply();
-            if (mDarkenSwitch != null) mDarkenSwitch.setChecked(false);
+        boolean enabled = mActivity.getString(R.string.sandium_welcome_on).equals(selected);
+        boolean changed = enabled != isBlurTransitionEnabled();
+        if (!ContextUtils.getAppSharedPreferences().edit()
+                .putBoolean(PREF_NATIVE_BLUR, enabled)
+                .putBoolean(PREF_DARKEN, enabled && ContextUtils.getAppSharedPreferences()
+                        .getBoolean(PREF_DARKEN, true)).commit()) {
+            android.widget.Toast.makeText(mActivity, R.string.sandium_welcome_save_failed,
+                    android.widget.Toast.LENGTH_LONG).show();
+            return;
         }
-        if (mBlurValue != null) mBlurValue.setText(selected);
-        if (mDarkenSwitch != null) mDarkenSwitch.setEnabled(!"default".equals(value));
+        if (!enabled && mDarkenSwitch != null) mDarkenSwitch.setChecked(false);
+        if (mBlurValue != null) mBlurValue.setText(getBlurLevelLabel());
+        if (mDarkenSwitch != null) mDarkenSwitch.setEnabled(enabled);
         if (changed) {
             mRequiresRestart = true;
             if (mBlurRestartHint != null) mBlurRestartHint.setVisibility(View.VISIBLE);
+            updateStartButtonState();
         }
     }
 
     private void startBrowsingWithFeedback() {
-        if (mDestroyed || !mCanStartBrowsing || mStartInvoked || mRestartInProgress) return;
+        if (mDestroyed || !mCanStartBrowsing || mStartInvoked || mRestartInProgress
+                || mCompletionDispatched) return;
         mStartInvoked = true;
-        mHandler.removeCallbacks(mPollRunnable);
-        mStartButton.setEnabled(false);
-
-        if (!mRequiresRestart) {
-            mListener.onStartBrowsing();
-            return;
-        }
-
         mRestartInProgress = true;
-        mStartButton.setText(mActivity.getString(R.string.sandium_welcome_restarting));
-        mStartButton.setTextColor(TEXT);
-
-        // Explicit one-second pre-restart feedback, not download/setup progress.
-        // The handler owns dispatch so disabled animations cannot skip the restart.
-        mStartButton.setText(mActivity.getString(R.string.sandium_welcome_restarting_moment));
-        // Fill the existing capsule itself: no added progress view or layout shift.
+        mPendingRestart = mRequiresRestart;
+        mHandler.removeCallbacks(mPollRunnable);
+        mHandler.removeCallbacks(mDotsRunnable);
+        mStartButton.setEnabled(false);
+        mStartButton.setTextColor(PRIMARY_TEXT);
         mRestartButtonFill = new ClipDrawable(
                 roundRect(START_PROGRESS, 28), Gravity.START, ClipDrawable.HORIZONTAL);
         mRestartButtonFill.setLevel(0);
         mStartButton.setBackgroundTintList(null);
         mStartButton.setBackground(new LayerDrawable(new Drawable[] {
                 roundRect(START_TRACK, 28), mRestartButtonFill}));
-        mStartButton.setContentDescription("Preparing to restart Sandium");
+        mStartButton.setContentDescription(readyButtonLabel());
+        mStartFeedbackAt = SystemClock.uptimeMillis();
+        updateStartCountdown();
         if (ValueAnimator.areAnimatorsEnabled()) {
             mRestartAnimator = ValueAnimator.ofInt(0, 10000);
-            mRestartAnimator.setDuration(1000);
+            mRestartAnimator.setDuration(START_FEEDBACK_MS);
             mRestartAnimator.setInterpolator(new LinearInterpolator());
             mRestartAnimator.addUpdateListener(animation ->
                     mRestartButtonFill.setLevel((Integer) animation.getAnimatedValue()));
@@ -797,7 +921,8 @@ final class SandiumWelcomeSetupView {
             mRestartButtonFill.setLevel(10000);
         }
         for (Switch toggle : mSwitches) toggle.setEnabled(false);
-        mHandler.postDelayed(mRestartRunnable, 1000);
+        // Completion is clock-driven, not animation-driven, and fires exactly once.
+        mHandler.postDelayed(mRestartRunnable, START_FEEDBACK_MS);
     }
 
     private void setProtectionEnabled(boolean enabled) {
@@ -812,8 +937,10 @@ final class SandiumWelcomeSetupView {
     }
 
     private boolean isBlurTransitionEnabled() {
-        return !"default".equals(ContextUtils.getAppSharedPreferences()
-                .getString(PREF_BLUR_LEVEL, "medium"));
+        android.content.SharedPreferences prefs = ContextUtils.getAppSharedPreferences();
+        if (prefs.contains(PREF_NATIVE_BLUR)) return prefs.getBoolean(PREF_NATIVE_BLUR, true);
+        String legacy = prefs.getString(PREF_BLUR_LEVEL, "on");
+        return !"default".equals(legacy) && !"off".equals(legacy);
     }
 
     private boolean isThirdPartyCookiesBlocked() {
@@ -915,13 +1042,7 @@ final class SandiumWelcomeSetupView {
                         ? mActivity.getString(R.string.sandium_welcome_subscriptions_waiting)
                         : mActivity.getString(R.string.sandium_welcome_downloads_remaining))));
         mFinalizing.setTextColor(mCanStartBrowsing ? SUCCESS : SECONDARY);
-        mStartButton.setEnabled(mCanStartBrowsing && !mStartInvoked);
-        if (!mRestartInProgress) {
-            mStartButton.setText(mActivity.getString(R.string.sandium_welcome_start));
-            mStartButton.setTextColor(mCanStartBrowsing ? PRIMARY_TEXT : DISABLED_BUTTON_TEXT);
-            mStartButton.setBackground(roundRect(
-                    mCanStartBrowsing ? START_BUTTON : DISABLED_BUTTON, 28));
-        }
+        updateStartButtonState();
         mStartButton.setAlpha(1f);
     }
 

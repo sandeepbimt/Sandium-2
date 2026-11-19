@@ -116,7 +116,8 @@ with tempfile.TemporaryDirectory() as temporary:
   base_blur=load('apply-sandium-blur-transition');full_blur=load('apply-sandium-page-transition-full')
   for relative,base_fn,full_fn in [
     (base_blur.APPEARANCE_XML,base_blur.transform_appearance_xml,full_blur.transform_appearance_xml),
-    (base_blur.APPEARANCE_JAVA,base_blur.transform_appearance_java,full_blur.transform_appearance_java)]:
+    (base_blur.APPEARANCE_JAVA,base_blur.transform_appearance_java,full_blur.transform_appearance_java),
+    (base_blur.STRINGS_GRD,base_blur.transform_grd,full_blur.transform_grd)]:
    path=core/relative
    if not path.exists():write(path,core_blob(str(relative)))
    path.write_text(full_fn(base_fn(path.read_text())))
@@ -272,7 +273,7 @@ with tempfile.TemporaryDirectory() as temporary:
    if not (src/relative).exists():write(src/relative,text.encode())
   candidate_before=snapshot()
   outer.execute(src,True,True);outer.execute(src,True,True,True)
-  assert 'SANDIUM_SINGLE_HANDOFF_WEB_V1' in (src/'chrome/android/java/src/org/chromium/chrome/browser/base/SplitCompatApplication.java').read_text()
+  assert 'SANDIUM_NATIVE_BLUR_156' in (src/'chrome/android/java/src/org/chromium/chrome/browser/base/SplitCompatApplication.java').read_text()
   assert 'SANDIUM_HOME_HANDOFF_V1' in (src/holder.DELEGATE).read_text()
   assert 'SANDIUM_UNWRAPPED_NTP_CAPTURE_V1' in (src/'chrome/android/java/src/org/chromium/chrome/browser/ntp/NewTabPage.java').read_text()
   assert 'SANDIUM_NATIVE_CAPTURE_ORIGIN_V1' in (src/'chrome/browser/gesturenav/android/java/src/org/chromium/chrome/browser/gesturenav/NativePageBitmapCapturer.java').read_text()

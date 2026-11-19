@@ -511,7 +511,9 @@
     "chrome/browser/gesturenav/android/java/src/org/chromium/chrome/browser/gesturenav/NativePageBitmapCapturer.java",
     "content/browser/web_contents/web_contents_impl.cc",
     "components/page_load_metrics/browser/metrics_web_contents_observer.cc",
-    "components/page_load_metrics/browser/page_load_tracker.h"
+    "components/page_load_metrics/browser/page_load_tracker.h",
+    "chrome/browser/notifications/android/java/src/org/chromium/chrome/browser/notifications/permissions/NotificationPermissionController.java",
+    "chrome/android/java/src/org/chromium/chrome/browser/tabbed_mode/TabbedRootUiCoordinator.java"
   ],
   "generated_overwrite": [
     "brave/android/java/brave-res/values/sandium_welcome_strings.xml",
@@ -692,7 +694,8 @@
     "chrome/android/java/src/org/chromium/chrome/browser/ntp/NewTabPage.java": "patches/chrome-android-java-src-org-chromium-chrome-browser-ntp-NewTabPage.java.patch",
     "third_party/blink/renderer/core/dom/document.cc": "patches/third_party-blink-renderer-core-dom-document.cc.patch",
     "content/browser/renderer_host/render_frame_host_impl.cc": "patches/content-browser-renderer_host-render_frame_host_impl.cc.patch",
-    "content/browser/web_contents/web_contents_impl.cc": "patches/content-browser-web_contents-web_contents_impl.cc.patch"
+    "content/browser/web_contents/web_contents_impl.cc": "patches/content-browser-web_contents-web_contents_impl.cc.patch",
+    "chrome/android/java/src/org/chromium/chrome/browser/tabbed_mode/TabbedRootUiCoordinator.java": "patches/chrome-android-java-src-org-chromium-chrome-browser-tabbed_mode-TabbedRootUiCoordinator.java.patch"
   },
   "ui_baseline": "50545b503d3429ee1a1dad86317147e87d4b556b",
   "ui_reset_note": "Reset pinned upstream inputs only; replay exact pinned Brave patches for declared Chromium paths before UI overlays. Sandium-created classes/resources are retained and recopied by their owning overlays.",
@@ -848,6 +851,8 @@
     "chrome/browser/gesturenav/android/java/src/org/chromium/chrome/browser/gesturenav/NativePageBitmapCapturer.java",
     "content/browser/web_contents/web_contents_impl.cc",
     "components/page_load_metrics/browser/metrics_web_contents_observer.cc",
-    "components/page_load_metrics/browser/page_load_tracker.h"
+    "components/page_load_metrics/browser/page_load_tracker.h",
+    "chrome/browser/notifications/android/java/src/org/chromium/chrome/browser/notifications/permissions/NotificationPermissionController.java",
+    "chrome/android/java/src/org/chromium/chrome/browser/tabbed_mode/TabbedRootUiCoordinator.java"
   ]
 }

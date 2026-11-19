@@ -97,12 +97,12 @@ required_view_markers = (
     "mBlurRestartHint.setVisibility(View.VISIBLE)",
     "blurTitle.setSingleLine(true)",
     "new LinearLayout.LayoutParams(dp(92), dp(40))",
-    "if (!preferences.contains(PREF_BLUR_LEVEL)) editor.putString(PREF_BLUR_LEVEL, \"high\")",
+    "if (!preferences.contains(PREF_NATIVE_BLUR))",
     "addRestartSwitchRow(card, \"☾\", \"Night Mode\"",
     "addRestartSwitchRow(card, \"◐\", \"Darken transition\"",
     "mListener.onPrepareForRestart()",
     "BraveRelaunchUtils.restart()",
-    'mActivity.getString(R.string.sandium_welcome_restarting)',
+    'R.string.sandium_welcome_restarting_countdown',
     'mActivity.getString(R.string.sandium_welcome_protection_complete)',
     "mTemplateUrlService.setSearchEngine(google.getKeyword())",
     "getOrCreatePrimaryOtrProfile()",
@@ -231,7 +231,7 @@ import xml.etree.ElementTree as ET
 resource = Path("android/java/brave-res/values/sandium_welcome_strings.xml")
 strings = {el.attrib["name"]: el.text for el in ET.parse(HERE.parent.parent / resource).getroot()}
 assert strings["sandium_welcome_start"] == '"Start browsing"'
-assert strings["sandium_welcome_restarting_moment"] == '"Restarting in a moment…"'
+assert strings["sandium_welcome_restarting_countdown"] == 'Restarting in %1$d…'
 assert set(re.findall(r"R.string.(sandium_welcome_\w+)", view_source)) == set(strings)
 assert all('"' not in expr for expr in re.findall(r"\.setText\((.*?)\);", view_source, re.S))
 assert "Gravity.RIGHT" not in view_source and "Gravity.LEFT" not in view_source

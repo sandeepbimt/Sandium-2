@@ -5,8 +5,6 @@
     <string name="sandium_welcome_more_options">"More options"</string>
     <string name="sandium_welcome_expanded_glyph" translatable="false">"⌄"</string>
     <string name="sandium_welcome_collapsed_glyph" translatable="false">"›"</string>
-    <string name="sandium_welcome_restarting">"Restarting"</string>
-    <string name="sandium_welcome_restarting_moment">"Restarting in a moment…"</string>
     <string name="sandium_welcome_status_retry">"○   Unable to read filter status. Retrying…"</string>
     <string name="sandium_welcome_engine_ready">"✓   Ad blocker engine: Ready"</string>
     <string name="sandium_welcome_engine_activating">"○   Ad blocker engine: Activating"</string>
@@ -24,4 +22,14 @@
     <string name="sandium_welcome_percent" translatable="false">%1$d%%</string>
     <string name="sandium_welcome_filters_ready">"✓   Filters loaded: %1$d / %2$d"</string>
     <string name="sandium_welcome_filters_waiting">"○   Filters loaded: %1$d / %2$d"</string>
+    <string name="sandium_welcome_quick_restart">Quick Restart</string>
+    <string name="sandium_welcome_dots" translatable="false">"• • •"</string>
+    <string name="sandium_welcome_restarting_countdown">Restarting in %1$d…</string>
+    <string name="sandium_welcome_starting_countdown">Starting in %1$d…</string>
+    <string name="sandium_welcome_notifications">App notifications</string>
+    <string name="sandium_welcome_notifications_summary">Ask for notification permission after setup</string>
+    <string name="sandium_welcome_save_failed">Could not save setup. Please try again.</string>
+    <string name="sandium_welcome_on">On</string>
+    <string name="sandium_welcome_off">Off</string>
+    <string name="sandium_welcome_native_blur_summary">Use the browser’s native navigation transition</string>
 </resources>

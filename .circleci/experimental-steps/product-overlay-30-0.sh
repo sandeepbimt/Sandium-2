@@ -33,7 +33,7 @@ python3 .circleci/scripts/apply-sandium-homepage-combined.py "$SRC"
 python3 .circleci/scripts/apply-sandium-homepage-combined.py "$SRC" --verify-only
 python3 .circleci/scripts/apply-sandium-capture-coherence.py "$SRC"
 python3 .circleci/scripts/apply-sandium-capture-coherence.py "$SRC" --verify-only
-# Native load state, full capsule-height green paint. No layout/viewport changes.
+# Native load state, off-white top-edge paint. No layout/viewport changes.
 python3 .circleci/scripts/apply-sandium-address-progress.py "$SRC"
 python3 .circleci/scripts/apply-sandium-address-progress.py "$SRC" --verify-only
 python3 .circleci/scripts/test-sandium-address-progress.py
@@ -44,6 +44,10 @@ python3 .circleci/scripts/apply-sandium-navigation-diagnostics.py "$SRC"
 python3 .circleci/scripts/apply-sandium-navigation-diagnostics.py "$SRC" --verify-only
 python3 .circleci/scripts/apply-sandium-native-navigation.py "$SRC" --mode configured
 python3 .circleci/scripts/apply-sandium-native-navigation.py "$SRC" --mode configured --verify-only
+
+# Request permission only after the completed setup and actual normal homepage frame.
+python3 .circleci/scripts/apply-sandium-deferred-notifications.py --src "$SRC"
+python3 .circleci/scripts/apply-sandium-deferred-notifications.py --src "$SRC" --verify-only
 
 # Run every independent audit before failing, so one build reports all graph defects.
 python3 .circleci/scripts/precheck-graph.py --audits-only

@@ -7,9 +7,11 @@ class OriginalWelcomeStrings(unittest.TestCase):
     def test_exact_original_labels_and_status(self):
         strings = {e.attrib['name'].removeprefix('sandium_welcome_'): e.text.strip('"') for e in ET.parse(ROOT/'android/java/brave-res/values/sandium_welcome_strings.xml').getroot()}
         self.assertEqual(strings, {
+            'notifications': 'App notifications', 'notifications_summary': 'Ask for notification permission after setup', 'save_failed': 'Could not save setup. Please try again.',
+            'on': 'On', 'off': 'Off', 'native_blur_summary': 'Use the browser’s native navigation transition',
             'start': 'Start browsing', 'fewer_options': 'Fewer options', 'more_options': 'More options',
-            'expanded_glyph': '⌄', 'collapsed_glyph': '›', 'restarting': 'Restarting',
-            'restarting_moment': 'Restarting in a moment…',
+            'expanded_glyph': '⌄', 'collapsed_glyph': '›', 'quick_restart': 'Quick Restart', 'dots': '• • •',
+            'restarting_countdown': 'Restarting in %1$d…', 'starting_countdown': 'Starting in %1$d…',
             'status_retry': '○   Unable to read filter status. Retrying…',
             'engine_ready': '✓   Ad blocker engine: Ready', 'engine_activating': '○   Ad blocker engine: Activating',
             'engine_waiting': '○   Ad blocker engine: Waiting for enabled filters',

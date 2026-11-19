@@ -242,25 +242,12 @@ jobs:
               - << pipeline.git.branch >>
         steps:
         - restore_cache:
-            name: Read accepted fixed-reference metadata only
+            name: Restore exact readback-verified official 1402 stage 2 reference
             keys:
-            - fixed-sandium-reference-v1-backpreview01-
-        - restore_cache:
-            name: Read legacy accepted receipt only for initial fixed-base metadata bootstrap
-            keys:
-            - sandium-experimental-head-v1-fSJgSbKhoW8y5Z2yXRIK+o_g6oruZ_+JUYmKGb3vgt4=-
+            - sandium-official-handoff-v1-fix/1394-official-lint-07214cac-daf8-47f1-a9dd-b48d229e934f-stage-2
         - run:
-            name: Select exact fixed base without consuming legacy increments
-            command: python3 .circleci/original-full/fixed_reference.py select --root "$CIRCLE_WORKING_DIRECTORY"
-              --legacy-script .circleci/scripts/sandium-checkpoint-shards.py --legacy-receipt "$CIRCLE_WORKING_DIRECTORY/.checkpoint-head/receipt.json"
-        - restore_cache:
-            name: Restore only exact selected fixed complete reference
-            keys:
-            - sandium-bridge-base-v1-{{ checksum ".fixed-reference/cache.key" }}
-        - run:
-            name: Verify fixed reference manifest identity and all eight shard hashes
-            command: python3 .circleci/original-full/fixed_reference.py preverify --root "$CIRCLE_WORKING_DIRECTORY"
-              --legacy-script .circleci/scripts/sandium-checkpoint-shards.py
+            name: Verify exact 1402 reference provenance and all eight shard hashes
+            command: python3 .circleci/scripts/resume-official-1394.py preverify --root "$CIRCLE_WORKING_DIRECTORY"
     - when:
         condition:
           and:
@@ -534,29 +521,20 @@ jobs:
           - << parameters.stage_index >>
         steps:
         - run:
-            name: Verify restored fixed-reference source pins and accept bootstrap metadata
-            command: python3 .circleci/original-full/fixed_reference.py postrestore --root "$CIRCLE_WORKING_DIRECTORY"
-              --legacy-script .circleci/scripts/sandium-checkpoint-shards.py
-        - run:
-            name: Keep frozen reference metadata read-only for official candidate
-            command: echo "OFFICIAL_REFERENCE_SEED=READ_ONLY; no stable metadata publication"
+            name: Verify restored official 1402 engine, GN and APK identity
+            command: python3 .circleci/scripts/resume-official-1394.py postrestore --root "$CIRCLE_WORKING_DIRECTORY"
     - run:
         name: Select Sandium build mode and validate reference
-        command: "set -euo pipefail\nif [ \"${CIRCLE_BRANCH:-}\" = \"feature/sandium-disable-13-brave-features\"\
-          \ ] || [ \"${CIRCLE_BRANCH:-}\" = \"feature/sandium-page-transition-full\" ] || [ \"${CIRCLE_BRANCH:-}\"\
-          \ = \"feature/sandium-filter-bootstrap-full\" ] || [ \"${CIRCLE_BRANCH:-}\" = \"feature/sandium-vanilla-welcome\"\
-          \ ]; then\n  MODE=\"full\"\nelse\n  MODE=\"<< pipeline.parameters.sandium_build_mode >>\"\nfi\nROOT=\"\
-          $CIRCLE_WORKING_DIRECTORY\"\nmkdir -p \"$ROOT/brave-work/.sandium\"\n# This marker distinguishes an archive\
-          \ created by this run from the\n# immutable reference archive restored at the start of FAST MODE.\nrm\
-          \ -f \"$ROOT/brave-work/.sandium/workspace-archive-created-this-run\"\nprintf 'SANDIUM_BUILD_MODE=%s\\\
-          n' \"$MODE\" > \"$ROOT/brave-work/.sandium/build-mode.txt\"\necho \"SANDIUM_BUILD_MODE=$MODE\"\nif [ \"\
-          $MODE\" = \"fast\" ]; then\n  echo \"SANDIUM_CI_NAME=SANDIUM-FAST-MODE\"\n  bash \"$ROOT/.circleci/scripts/verify-brave-reference.sh\"\
-          \nelif [ \"$MODE\" = \"full\" ]; then\n  echo \"SANDIUM_CI_NAME=SANDIUM-FULL-MODE\"\n  echo \"SANDIUM_FULL_MODE=FORCED;\
-          \ stage budget=25 minutes; canonical checkpoint validation required.\"\n  if [ \"<< parameters.stage_index\
-          \ >>\" -eq 1 ]; then\n    bash \"$ROOT/.circleci/scripts/verify-brave-reference.sh\"\n  else\n    bash\
-          \ \"$ROOT/.circleci/scripts/verify-brave-reference.sh\" --handoff \"<< parameters.stage_index >>\" \"\
-          $CIRCLE_WORKFLOW_ID\" \"$CIRCLE_SHA1\"\n  fi\nelse\n  echo \"SANDIUM_BUILD_MODE_GATE=FAIL unsupported\
-          \ mode=$MODE\" >&2\n  exit 2\nfi\n"
+        command: "set -euo pipefail\nif [ \"${CIRCLE_BRANCH:-}\" = \"feature/sandium-disable-13-brave-features\" ] || [ \"${CIRCLE_BRANCH:-}\" = \"feature/sandium-page-transition-full\" ] || [ \"${CIRCLE_BRANCH:-}\" = \"feature/sandium-filter-bootstrap-full\" ] || [ \"${CIRCLE_BRANCH:-}\" = \"feature/sandium-vanilla-welcome\" ]; then\n  MODE=\"full\"\nelse\n  MODE=\"<< pipeline.parameters.sandium_build_mode >>\"\nfi\nROOT=\"$CIRCLE_WORKING_DIRECTORY\"\nmkdir -p \"$ROOT/brave-work/.sandium\"\n# This marker distinguishes an archive created by this run from the\n# immutable reference archive restored at the start of FAST MODE.\nrm -f \"$ROOT/brave-work/.sandium/workspace-archive-created-this-run\"\nprintf 'SANDIUM_BUILD_MODE=%s\\n' \"$MODE\" > \"$ROOT/brave-work/.sandium/build-mode.txt\"\necho \"SANDIUM_BUILD_MODE=$MODE\"\nif [ \"$MODE\" = \"fast\" ]; then\n  echo \"SANDIUM_CI_NAME=SANDIUM-FAST-MODE\"\n  bash \"$ROOT/.circleci/scripts/verify-brave-reference.sh\"\nelif [ \"$MODE\" = \"full\" ]; then\n  echo \"SANDIUM_CI_NAME=SANDIUM-FULL-MODE\"\n  echo \"SANDIUM_FULL_MODE=FORCED; stage budget=25 minutes; canonical checkpoint validation required.\"\n  if [ \"<< parameters.stage_index >>\" -eq 1 ]; then\n    python3 \"$ROOT/.circleci/scripts/resume-official-1394.py\" postrestore --root \"$ROOT\"\n  else\n    bash \"$ROOT/.circleci/scripts/verify-brave-reference.sh\" --handoff \"<< parameters.stage_index >>\" \"$CIRCLE_WORKFLOW_ID\" \"$CIRCLE_SHA1\"\n  fi\nelse\n  echo \"SANDIUM_BUILD_MODE_GATE=FAIL unsupported mode=$MODE\" >&2\n  exit 2\nfi\n"
+    - when:
+        condition:
+          equal:
+          - 1
+          - << parameters.stage_index >>
+        steps:
+        - run:
+            name: Retire restored 1402 APK and completion state before new build
+            command: python3 .circleci/scripts/resume-official-1394.py retire-seed-outputs --root "$CIRCLE_WORKING_DIRECTORY"
     - run:
         name: Reclaim verified restored transport before official build
         command: python3 .circleci/scripts/official-checkpoint-safety.py reclaim --root "$CIRCLE_WORKING_DIRECTORY"
@@ -1003,7 +981,7 @@ workflows:
         filters:
           branches:
             only:
-            - fix/official-checkpoint-1392
+            - work/1402-approved-ui
     - brave-android-staged-build:
         name: SANDIUM-FULL-MODE-stage-2
         stage_index: 2
@@ -1012,7 +990,7 @@ workflows:
         filters:
           branches:
             only:
-            - fix/official-checkpoint-1392
+            - work/1402-approved-ui
     - brave-android-staged-build:
         name: SANDIUM-FULL-MODE-stage-3
         stage_index: 3
@@ -1021,7 +999,7 @@ workflows:
         filters:
           branches:
             only:
-            - fix/official-checkpoint-1392
+            - work/1402-approved-ui
     - brave-android-staged-build:
         name: SANDIUM-FULL-MODE-stage-4
         stage_index: 4
@@ -1030,7 +1008,7 @@ workflows:
         filters:
           branches:
             only:
-            - fix/official-checkpoint-1392
+            - work/1402-approved-ui
     - brave-android-staged-build:
         name: SANDIUM-FULL-MODE-stage-5
         stage_index: 5
@@ -1039,7 +1017,7 @@ workflows:
         filters:
           branches:
             only:
-            - fix/official-checkpoint-1392
+            - work/1402-approved-ui
   fixed-reference-maintenance:
     when:
       and:

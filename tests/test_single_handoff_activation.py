@@ -19,7 +19,7 @@ class Activation(unittest.TestCase):
   jobs=data['workflows']['sandium-full-mode']['jobs'];self.assertEqual(len(jobs),5)
   for i,item in enumerate(jobs,1):
    job=item['brave-android-staged-build'];self.assertEqual(job['stage_index'],i)
-   self.assertEqual(job['filters']['branches']['only'],['fix/official-checkpoint-1392'])
+   self.assertEqual(job['filters']['branches']['only'],['work/1402-approved-ui'])
    self.assertEqual(job.get('requires',[]),[] if i==1 else [f'SANDIUM-FULL-MODE-stage-{i-1}'])
   self.assertIn('STAGE_BUILD_BUDGET_SECONDS=1500',config.decode())
   maintenance=data['workflows']['fixed-reference-maintenance']['jobs'][0]['renew-fixed-reference']
