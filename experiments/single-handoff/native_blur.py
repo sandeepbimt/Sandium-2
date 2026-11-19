@@ -194,13 +194,21 @@ def xml(s):
         '<!-- SANDIUM_PAGE_TRANSITION_DARKEN_END -->',
     ):
         if block.count(token)!=1:raise ValueError('Darken XML anchor drift: '+token)
-    return s[:a]+once(block,'''    <androidx.preference.ListPreference
+    legacy='''    <androidx.preference.ListPreference
         android:key="sandium_page_transition_blur_level"
         android:icon="@drawable/ic_sandium_page_transition_blur"
         android:persistent="false"
         android:defaultValue="default"
         android:title="@string/sandium_page_transition_blur_title"
-        android:summary="@string/sandium_page_transition_blur_summary" />''',
+        android:summary="@string/sandium_page_transition_blur_summary" />'''
+    # The active native-navigation layer disables this exact legacy selector
+    # before the outer overlay replaces it with the new live switch.
+    disabled=legacy.replace(
+        '        android:key="sandium_page_transition_blur_level"\n',
+        '        android:key="sandium_page_transition_blur_level"\n        android:enabled="false"\n',1)
+    present=[node for node in (legacy,disabled) if node in block]
+    if len(present)!=1:raise ValueError('Native blur156 legacy selector anchor drift')
+    return s[:a]+once(block,present[0],
         '''    <org.chromium.components.browser_ui.settings.ChromeSwitchPreference
         android:key="sandium_page_transition_blur_enabled"
         android:persistent="false"
