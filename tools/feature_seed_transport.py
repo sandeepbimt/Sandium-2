@@ -151,7 +151,8 @@ def verified_origin(repository):
  """Accept only the repository identified by current CircleCI job metadata.
 
  No URL helpers, credentials in URLs, arbitrary hosts, paths or branch discovery.
- The checkout and CI repository URL must both match this reviewed repository.
+ The checkout and service-resolved pipeline.git.repo_url must match this pin.
+ CIRCLE_REPOSITORY_URL is OAuth-only and is not an authority for GitHub App.
  GitHub App CIRCLE_PROJECT_USERNAME is a CircleCI display name, not a VCS owner.
  """
  def identity(url):
@@ -160,7 +161,7 @@ def verified_origin(repository):
   return tuple(x.lower() for x in match.groups())
  origin=git(repository,'remote','get-url','origin')
  expected=('sandeepbimt','sandium-2')
- if identity(origin)!=expected or identity(os.environ.get('CIRCLE_REPOSITORY_URL',''))!=expected:
+ if identity(origin)!=expected or identity(os.environ.get('RAWS_CI_REPOSITORY_URL',''))!=expected:
   raise ValueError('Baseline origin does not match current CI repository')
  return origin
 

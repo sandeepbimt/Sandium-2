@@ -27,6 +27,7 @@ jobs:
       RAWS_ALLOW_FRESH_SEED: 'true'
       SISO_LIMITS: local=8,remote=80
       RAWS_NATIVE_FEATURE_BUILD: 'true'
+      RAWS_CI_REPOSITORY_URL: << pipeline.git.repo_url >>
       RAWS_NATIVE_FEATURE_SEED: 'true'
     steps:
     - checkout
@@ -173,6 +174,7 @@ jobs:
       RAWS_ALLOW_FRESH_SEED: 'false'
       SISO_LIMITS: local=8,remote=80
       RAWS_NATIVE_FEATURE_BUILD: 'true'
+      RAWS_CI_REPOSITORY_URL: << pipeline.git.repo_url >>
       RAWS_NATIVE_FEATURE_SEED: 'true'
     steps:
     - checkout
@@ -273,6 +275,7 @@ jobs:
       RAWS_ALLOW_FRESH_SEED: 'false'
       SISO_LIMITS: local=8,remote=80
       RAWS_NATIVE_FEATURE_BUILD: 'true'
+      RAWS_CI_REPOSITORY_URL: << pipeline.git.repo_url >>
       RAWS_FINAL_ARCHIVE: 'true'
     steps:
     - checkout
@@ -623,6 +626,7 @@ jobs:
       RAWS_ALLOW_FRESH_SEED: 'false'
       SISO_LIMITS: local=8,remote=80
       RAWS_NATIVE_FEATURE_BUILD: 'true'
+      RAWS_CI_REPOSITORY_URL: << pipeline.git.repo_url >>
       RAWS_FINAL_ARCHIVE: 'true'
     steps:
     - checkout
@@ -981,6 +985,7 @@ jobs:
       RAWS_ALLOW_FRESH_SEED: 'false'
       SISO_LIMITS: local=8,remote=80
       RAWS_NATIVE_FEATURE_BUILD: 'true'
+      RAWS_CI_REPOSITORY_URL: << pipeline.git.repo_url >>
       RAWS_FINAL_ARCHIVE: 'true'
     steps:
     - checkout
@@ -1340,6 +1345,7 @@ jobs:
       RAWS_ALLOW_FRESH_SEED: 'false'
       SISO_LIMITS: local=8,remote=80
       RAWS_NATIVE_FEATURE_BUILD: 'true'
+      RAWS_CI_REPOSITORY_URL: << pipeline.git.repo_url >>
       RAWS_FINAL_ARCHIVE: 'true'
     steps:
     - checkout
@@ -1700,6 +1706,7 @@ jobs:
       RAWS_ALLOW_FRESH_SEED: 'false'
       SISO_LIMITS: local=8,remote=80
       RAWS_NATIVE_FEATURE_BUILD: 'true'
+      RAWS_CI_REPOSITORY_URL: << pipeline.git.repo_url >>
       RAWS_FINAL_ARCHIVE: 'true'
     steps:
     - checkout
@@ -2061,6 +2068,7 @@ jobs:
       RAWS_ALLOW_FRESH_SEED: 'false'
       SISO_LIMITS: local=8,remote=80
       RAWS_NATIVE_FEATURE_BUILD: 'true'
+      RAWS_CI_REPOSITORY_URL: << pipeline.git.repo_url >>
       RAWS_FINAL_ARCHIVE: 'true'
       RAWS_FINAL_PACK_ONLY: 'true'
     steps:
@@ -2375,6 +2383,7 @@ jobs:
       RAWS_ALLOW_FRESH_SEED: 'false'
       SISO_LIMITS: local=8,remote=80
       RAWS_NATIVE_FEATURE_BUILD: 'true'
+      RAWS_CI_REPOSITORY_URL: << pipeline.git.repo_url >>
       RAWS_FINAL_ARCHIVE: 'true'
       RAWS_FINAL_PACK_ONLY: 'true'
     steps:
@@ -2474,6 +2483,7 @@ jobs:
       RAWS_ALLOW_FRESH_SEED: 'false'
       SISO_LIMITS: local=8,remote=80
       RAWS_NATIVE_FEATURE_BUILD: 'true'
+      RAWS_CI_REPOSITORY_URL: << pipeline.git.repo_url >>
       RAWS_FINAL_ARCHIVE: 'true'
     steps:
     - checkout
@@ -2824,6 +2834,7 @@ jobs:
       RAWS_ALLOW_FRESH_SEED: 'false'
       SISO_LIMITS: local=8,remote=80
       RAWS_NATIVE_FEATURE_BUILD: 'true'
+      RAWS_CI_REPOSITORY_URL: << pipeline.git.repo_url >>
       RAWS_FINAL_ARCHIVE: 'true'
     steps:
     - checkout
@@ -3182,6 +3193,7 @@ jobs:
       RAWS_ALLOW_FRESH_SEED: 'false'
       SISO_LIMITS: local=8,remote=80
       RAWS_NATIVE_FEATURE_BUILD: 'true'
+      RAWS_CI_REPOSITORY_URL: << pipeline.git.repo_url >>
       RAWS_FINAL_ARCHIVE: 'true'
     steps:
     - checkout
@@ -3541,6 +3553,7 @@ jobs:
       RAWS_ALLOW_FRESH_SEED: 'false'
       SISO_LIMITS: local=8,remote=80
       RAWS_NATIVE_FEATURE_BUILD: 'true'
+      RAWS_CI_REPOSITORY_URL: << pipeline.git.repo_url >>
       RAWS_FINAL_ARCHIVE: 'true'
     steps:
     - checkout
@@ -3901,6 +3914,7 @@ jobs:
       RAWS_ALLOW_FRESH_SEED: 'false'
       SISO_LIMITS: local=8,remote=80
       RAWS_NATIVE_FEATURE_BUILD: 'true'
+      RAWS_CI_REPOSITORY_URL: << pipeline.git.repo_url >>
       RAWS_FINAL_ARCHIVE: 'true'
     steps:
     - checkout
@@ -4262,6 +4276,7 @@ jobs:
       RAWS_ALLOW_FRESH_SEED: 'false'
       SISO_LIMITS: local=8,remote=80
       RAWS_NATIVE_FEATURE_BUILD: 'true'
+      RAWS_CI_REPOSITORY_URL: << pipeline.git.repo_url >>
       RAWS_FINAL_ARCHIVE: 'true'
       RAWS_FINAL_PACK_ONLY: 'true'
     steps:
@@ -4578,6 +4593,7 @@ jobs:
       RAWS_ALLOW_FRESH_SEED: 'false'
       SISO_LIMITS: local=8,remote=80
       RAWS_NATIVE_FEATURE_BUILD: 'true'
+      RAWS_CI_REPOSITORY_URL: << pipeline.git.repo_url >>
       RAWS_FINAL_ARCHIVE: 'true'
       RAWS_FINAL_PACK_ONLY: 'true'
     steps:
@@ -4677,6 +4693,7 @@ jobs:
       RAWS_ALLOW_FRESH_SEED: 'false'
       SISO_LIMITS: local=8,remote=80
       RAWS_NATIVE_FEATURE_BUILD: 'true'
+      RAWS_CI_REPOSITORY_URL: << pipeline.git.repo_url >>
       RAWS_NATIVE_FEATURE_SEED: 'true'
       RAWS_NATIVE_RESUME_RECEIPT_ID: << pipeline.parameters.native_resume_receipt_id >>
       RAWS_NATIVE_RESUME_CACHE_KEY: << pipeline.parameters.native_resume_cache_key >>
@@ -4984,6 +5001,7 @@ jobs:
       RAWS_ALLOW_FRESH_SEED: 'false'
       SISO_LIMITS: local=8,remote=80
       RAWS_NATIVE_FEATURE_BUILD: 'true'
+      RAWS_CI_REPOSITORY_URL: << pipeline.git.repo_url >>
       RAWS_NATIVE_FEATURE_SEED: 'true'
       RAWS_NATIVE_RESUME_RECEIPT_ID: << pipeline.parameters.native_resume_receipt_id >>
       RAWS_NATIVE_RESUME_CACHE_KEY: << pipeline.parameters.native_resume_cache_key >>
@@ -5294,6 +5312,7 @@ jobs:
       RAWS_ALLOW_FRESH_SEED: 'false'
       SISO_LIMITS: local=8,remote=80
       RAWS_NATIVE_FEATURE_BUILD: 'true'
+      RAWS_CI_REPOSITORY_URL: << pipeline.git.repo_url >>
       RAWS_FINAL_ARCHIVE: 'true'
       RAWS_FINAL_PACK_ONLY: 'true'
       RAWS_NATIVE_FEATURE_SEED: 'true'
@@ -5617,6 +5636,7 @@ jobs:
       RAWS_ALLOW_FRESH_SEED: 'false'
       SISO_LIMITS: local=8,remote=80
       RAWS_NATIVE_FEATURE_BUILD: 'true'
+      RAWS_CI_REPOSITORY_URL: << pipeline.git.repo_url >>
       RAWS_FINAL_ARCHIVE: 'true'
       RAWS_FINAL_PACK_ONLY: 'true'
     steps:

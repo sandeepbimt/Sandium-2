@@ -118,6 +118,12 @@ class FeatureConfig(unittest.TestCase):
             self.assertEqual(self.config['jobs']['raws-native-'+name],self.config['jobs']['raws-native-resume-'+name])
         self.assertEqual(self.config['jobs']['raws-native-probe'],self.config['jobs']['raws-native-recovery-probe'])
 
+    def test_service_repository_identity_is_bound_for_every_native_job(self):
+        for name,job in self.config['jobs'].items():
+            if name=='raws-native-invalid-resume':continue
+            self.assertEqual(job['environment']['RAWS_CI_REPOSITORY_URL'],'<< pipeline.git.repo_url >>')
+        self.assertNotIn('RAWS_CI_REPOSITORY_URL',self.config['parameters'])
+
     def test_pre_restore_guard_has_explicit_jdk(self):
         for name,job in self.config['jobs'].items():
             if name=='raws-native-invalid-resume':continue
@@ -134,7 +140,7 @@ class FeatureConfig(unittest.TestCase):
                 for item in value:yield from strings(item)
         for value in strings({'native':self.config,'merged':yaml.safe_load((ROOT/'.circleci/config.yml').read_text())}):
             for match in re.finditer(r'(?<!\\)<<',value):
-                self.assertRegex(value[match.start():],r'^<< pipeline\.(?:number|id|project\.slug|parameters\.[a-z_]+) >>')
+                self.assertRegex(value[match.start():],r'^<< pipeline\.(?:number|id|project\.slug|git\.repo_url|parameters\.[a-z_]+) >>')
         raw=self.text('raws-native-seed')
         self.assertIn("\\<<'PYCODE'",raw)
         self.assertNotIn("\\<< pipeline.",raw)

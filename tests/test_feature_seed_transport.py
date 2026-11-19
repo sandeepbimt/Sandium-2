@@ -9,7 +9,7 @@ class Transport(unittest.TestCase):
   self.temp=tempfile.TemporaryDirectory();self.addCleanup(self.temp.cleanup)
   self.base=Path(self.temp.name);self.session=self.base/'session';self.root=self.session/'baseline'
   self.root.mkdir(parents=True);(self.root/'.checkpoint-state').mkdir()
-  self.env=patch.dict(os.environ,{'CIRCLE_WORKFLOW_ID':'test-job','CIRCLE_BUILD_NUM':'1','CIRCLE_BRANCH':'raw-sandium/native-ui158','RAWS_NATIVE_FEATURE_SEED':'true','RAWS_STAGE':'1','CIRCLE_PROJECT_REPONAME':'Sandium-2','CIRCLE_PROJECT_USERNAME':'Fixture CircleCI Organization','CIRCLE_REPOSITORY_URL':'https://github.com/sandeepbimt/Sandium-2.git','RAWS_CHECKPOINT_REVIEWED':'true','RAWS_PIPELINE_NUMBER':str(t.seed.evidence()['payload']['pipeline']+1)});self.env.start();self.addCleanup(self.env.stop)
+  self.env=patch.dict(os.environ,{'CIRCLE_WORKFLOW_ID':'test-job','CIRCLE_BUILD_NUM':'1','CIRCLE_BRANCH':'raw-sandium/native-ui158','RAWS_NATIVE_FEATURE_SEED':'true','RAWS_STAGE':'1','CIRCLE_PROJECT_REPONAME':'Sandium-2','CIRCLE_PROJECT_USERNAME':'Fixture CircleCI Organization','RAWS_CI_REPOSITORY_URL':'https://github.com/sandeepbimt/Sandium-2.git','RAWS_CHECKPOINT_REVIEWED':'true','RAWS_PIPELINE_NUMBER':str(t.seed.evidence()['payload']['pipeline']+1)});self.env.start();self.addCleanup(self.env.stop)
   self.c=dict(phase='prepared',job={'CIRCLE_WORKFLOW_ID':'test-job','CIRCLE_BUILD_NUM':'1'},job_start_epoch=time.time(),tree='tree')
   t.write_new(self.session/'context.json',self.c);t.write_new(self.session/'plan.json',t.seed.restore_plan())
   t.write_new(self.root/'.checkpoint-state/job-start.json',{'epoch':self.c['job_start_epoch']})
@@ -142,7 +142,7 @@ class Transport(unittest.TestCase):
    if args[-1].endswith('^{tree}'):return 'a'*40
    return t.seed.BASELINE_COMMIT
   def run(argv,**kw):commands.append((argv,kw))
-  with patch.dict(os.environ,{'CIRCLE_PROJECT_USERNAME':'Fixture CircleCI Organization','CIRCLE_REPOSITORY_URL':'https://github.com/sandeepbimt/Sandium-2.git'}),patch.object(t,'git',side_effect=git),patch.object(t,'run_owned',side_effect=run):
+  with patch.dict(os.environ,{'CIRCLE_PROJECT_USERNAME':'Fixture CircleCI Organization','RAWS_CI_REPOSITORY_URL':'https://github.com/sandeepbimt/Sandium-2.git'}),patch.object(t,'git',side_effect=git),patch.object(t,'run_owned',side_effect=run):
    self.assertEqual(t.ensure_baseline_object(self.root,self.base,time.time()),'a'*40)
   self.assertEqual(len(commands),1);argv,kw=commands[0]
   self.assertEqual(argv[-2:],[origin,t.seed.BASELINE_COMMIT]);self.assertIn('--no-tags',argv);self.assertIn('--refetch',argv);self.assertIn('--no-filter',argv)
@@ -150,17 +150,24 @@ class Transport(unittest.TestCase):
  def test_present_baseline_never_fetches_and_foreign_origin_refused(self):
   with patch.object(t,'git',side_effect=[t.seed.BASELINE_COMMIT,t.seed.BASELINE_COMMIT,t.seed.BASELINE_COMMIT,'b'*40]),patch.object(t,'run_owned') as run:
    self.assertEqual(t.ensure_baseline_object(self.root,self.base,time.time()),'b'*40);run.assert_not_called()
-  with patch.dict(os.environ,{'CIRCLE_PROJECT_USERNAME':'Owner','CIRCLE_REPOSITORY_URL':'https://github.com/Owner/Sandium-2.git'}),patch.object(t,'git',return_value='https://github.com/Other/Sandium-2.git'):
+  with patch.dict(os.environ,{'CIRCLE_PROJECT_USERNAME':'Owner','RAWS_CI_REPOSITORY_URL':'https://github.com/Owner/Sandium-2.git'}),patch.object(t,'git',return_value='https://github.com/Other/Sandium-2.git'):
    with self.assertRaisesRegex(ValueError,'match'):t.verified_origin(self.base)
  def test_github_app_display_name_is_not_vcs_owner_and_urls_match_pin(self):
   forms=('https://github.com/sandeepbimt/Sandium-2.git','git@github.com:sandeepbimt/Sandium-2.git','ssh://git@github.com/sandeepbimt/Sandium-2.git')
   for origin in forms:
    for metadata in forms:
-    with patch.dict(os.environ,{'CIRCLE_PROJECT_USERNAME':'My CircleCI Organization','CIRCLE_REPOSITORY_URL':metadata}),patch.object(t,'git',return_value=origin):
+    with patch.dict(os.environ,{'CIRCLE_PROJECT_USERNAME':'My CircleCI Organization','RAWS_CI_REPOSITORY_URL':metadata}),patch.object(t,'git',return_value=origin):
      self.assertEqual(t.verified_origin(self.base),origin)
+ def test_github_app_uses_pipeline_url_not_legacy_oauth_metadata(self):
+  origin='https://github.com/sandeepbimt/Sandium-2.git'
+  for legacy in ('','Sandium-2'):
+   with patch.dict(os.environ,{'CIRCLE_REPOSITORY_URL':legacy,'RAWS_CI_REPOSITORY_URL':origin}),patch.object(t,'git',return_value=origin):
+    self.assertEqual(t.verified_origin(self.base),origin)
+  with patch.dict(os.environ,{'CIRCLE_REPOSITORY_URL':origin,'RAWS_CI_REPOSITORY_URL':''}),patch.object(t,'git',return_value=origin):
+   with self.assertRaises(ValueError):t.verified_origin(self.base)
  def test_origin_gate_rejects_matching_foreign_urls_and_missing_metadata(self):
   for origin,metadata in (('https://github.com/Other/Sandium-2.git','https://github.com/Other/Sandium-2.git'),('https://github.com/Other/Sandium-2.git','https://github.com/sandeepbimt/Sandium-2.git'),('https://github.com/sandeepbimt/Sandium-2.git','https://github.com/Other/Sandium-2.git'),('https://github.com/sandeepbimt/Other.git','https://github.com/sandeepbimt/Other.git'),('https://github.com/sandeepbimt/Sandium-2.git',''),('file:///tmp/Sandium-2','file:///tmp/Sandium-2'),('https://token@github.com/sandeepbimt/Sandium-2.git','https://github.com/sandeepbimt/Sandium-2.git')):
-   with patch.dict(os.environ,{'CIRCLE_PROJECT_USERNAME':'sandeepbimt','CIRCLE_REPOSITORY_URL':metadata}),patch.object(t,'git',return_value=origin):
+   with patch.dict(os.environ,{'CIRCLE_PROJECT_USERNAME':'sandeepbimt','RAWS_CI_REPOSITORY_URL':metadata}),patch.object(t,'git',return_value=origin):
     with self.assertRaises(ValueError):t.verified_origin(self.base)
  def test_fetch_wrong_commit_and_timeout_fail_closed(self):
   for failure in ('identity','timeout'):

@@ -54,7 +54,8 @@ PYCODE
 
 def job(stage=1,seed=False):
     value=common(stage)
-    value['environment'].update(RAWS_NATIVE_FEATURE_BUILD='true',RAWS_ALLOW_FRESH_SEED='false')
+    value['environment'].update(RAWS_NATIVE_FEATURE_BUILD='true',RAWS_ALLOW_FRESH_SEED='false',
+        RAWS_CI_REPOSITORY_URL='<< pipeline.git.repo_url >>')
     if seed:value['environment'].update(RAWS_NATIVE_FEATURE_SEED='true')
     value['steps']=['checkout',clock(seed),run('Verify native tools; install missing capabilities only','bash tools/prepare_native_tools.sh'),guard()]
     return value
