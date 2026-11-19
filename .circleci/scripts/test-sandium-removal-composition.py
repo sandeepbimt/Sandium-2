@@ -122,6 +122,17 @@ with tempfile.TemporaryDirectory() as temporary:
   for path,text in diag.compose(src).items():write(path,text.encode())
   assert all(path.read_text()==text for path,text in diag.compose(src).items())
  def ui():
+  # Replay real overlay26 startup from the pinned source, not the truncated
+  # native-navigation fixture (which contains only the call-site block).
+  base_startup=load('apply-sandium-blur-transition')
+  full_startup=load('apply-sandium-page-transition-full')
+  startup=src/base_startup.ROOT_TARGET
+  raw_startup=(root/'tests/fixtures/blur-startup156/SplitCompatApplication.java').read_bytes()
+  import hashlib
+  assert m['chromium_pin']==base_startup.CHROMIUM_SHA
+  assert hashlib.sha1(b'blob '+str(len(raw_startup)).encode()+b'\0'+raw_startup).hexdigest()=='b2eff462cf575ef245f90c9bb52305418c421e68'
+  write(startup,full_startup.transform_startup(
+      base_startup.transform_chromium_startup(raw_startup.decode())).encode())
   native_diagnostic_baseline()
   # Replay overlay26 transition preferences before later UI/dark transformations.
   base_blur=load('apply-sandium-blur-transition');full_blur=load('apply-sandium-page-transition-full')
