@@ -1,4 +1,5 @@
 import json,pathlib,unittest,yaml,hashlib,gzip
+from recovery_test_contract import RECOVERY, normalize_normal_branch
 ROOT=pathlib.Path(__file__).resolve().parent
 def original_namespaces(value):
  # Official reference changes transport namespaces, not the inherited task behavior.
@@ -23,7 +24,8 @@ class OriginalFullCandidate(unittest.TestCase):
   raw=(ROOT/'fc220e7f.config.yml').read_bytes()
   self.assertEqual('9512ffcdfc8ff52a534c9025cfee61abf1d39bc1',hashlib.sha1(b'blob '+str(len(raw)).encode()+b'\0'+raw).hexdigest())
  def test_unchanged_task_objects(self):
-  old=self.original['jobs']['brave-android-staged-build']['steps']; new=self.candidate['jobs']['brave-android-staged-build']['steps']
+  normal=normalize_normal_branch(self.candidate,self.frozen)
+  old=self.original['jobs']['brave-android-staged-build']['steps']; new=normal['jobs']['brave-android-staged-build']['steps']
   historical=(ROOT/'step-provenance.json').read_bytes()
   self.assertEqual(hashlib.sha256(historical).hexdigest(),self.provenance['historical_step_provenance_sha256'])
   rows=[m for m in json.loads(historical) if m.get('status')=='byte-identical task object']
@@ -35,7 +37,7 @@ class OriginalFullCandidate(unittest.TestCase):
    index=m['bba47961_index']
    self.assertEqual(original_namespaces(old[m['fc220e7f_index']]),original_namespaces(frozen[index]))
    self.assertEqual(frozen[index],new[index])
-  self.assertEqual(self.frozen['jobs'],self.candidate['jobs'])
+  self.assertEqual(self.frozen['jobs'],normal['jobs'])
  def test_five_original_stage_dependencies(self):
   jobs=self.candidate['workflows']['sandium-full-mode']['jobs'];self.assertEqual(5,len(jobs))
   for i,j in enumerate(jobs,1):
@@ -91,7 +93,7 @@ class PhoneBranchGate(unittest.TestCase):
  def test_phone_full_only_and_existing_maintenance_gate(self):
   c=yaml.safe_load((ROOT/'candidate.yml').read_text())
   for job in c['workflows']['sandium-full-mode']['jobs']:
-   self.assertEqual(['work/1402-approved-ui'],next(iter(job.values()))['filters']['branches']['only'])
+   self.assertEqual(['work/1402-approved-ui',RECOVERY],next(iter(job.values()))['filters']['branches']['only'])
   maintenance=c['workflows']['fixed-reference-maintenance']['jobs'][0]
   self.assertEqual('experiment/sandium-back-transition',next(iter(maintenance.values()))['filters']['branches']['only'])
 

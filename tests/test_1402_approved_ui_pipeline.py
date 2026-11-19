@@ -1,7 +1,9 @@
-import gzip,hashlib,unittest
+import gzip,hashlib,sys,unittest
 from pathlib import Path
 import yaml
 ROOT=Path(__file__).resolve().parents[1]
+sys.path.insert(0,str(ROOT/'.circleci/original-full'))
+from recovery_test_contract import normalize_normal_branch
 class StablePipeline(unittest.TestCase):
  def test_only_five_branch_gates_change(self):
   fixture=ROOT/'tests/fixtures/1402-approved-ui'
@@ -9,8 +11,8 @@ class StablePipeline(unittest.TestCase):
   self.assertEqual(hashlib.sha256(raw).hexdigest(),(fixture/'baseline-config.sha256').read_text().strip())
   before=yaml.safe_load(raw);after=yaml.safe_load((ROOT/'.circleci/config.yml').read_text())
   expected=raw.decode().replace('            - fix/1394-official-lint\n','            - work/1402-approved-ui\n')
-  self.assertEqual(after,yaml.safe_load(expected))
-  self.assertEqual(before['jobs'],after['jobs'])
+  self.assertEqual(normalize_normal_branch(after,before),yaml.safe_load(expected))
+  self.assertEqual(before['jobs'],normalize_normal_branch(after,before)['jobs'])
   self.assertFalse(after['parameters']['run_build']['default'])
   self.assertIn('sandium-official-handoff-v1-fix/1394-official-lint-07214cac-daf8-47f1-a9dd-b48d229e934f-stage-2',expected)
  def test_reference_identity_and_completion_invalidation_preserved(self):

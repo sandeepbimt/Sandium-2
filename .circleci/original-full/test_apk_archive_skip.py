@@ -33,7 +33,7 @@ class APKArchiveSkip(unittest.TestCase):
         self.gate = next(s['run']['command'] for s in self.steps
                          if isinstance(s, dict) and s.get('run', {}).get('name') == NAME)
 
-    def execute(self, apk=None, build=None, stage=1):
+    def execute(self, apk=None, build=None, stage=1, branch='work/1402-approved-ui'):
         with tempfile.TemporaryDirectory() as td:
             root = pathlib.Path(td)
             state = root / 'brave-work/.sandium'
@@ -41,6 +41,7 @@ class APKArchiveSkip(unittest.TestCase):
             scripts = root / '.circleci/scripts'
             scripts.mkdir(parents=True)
             shutil.copy2(ROOT / '.circleci/scripts/check-apk-completion-marker.py', scripts)
+            shutil.copy2(ROOT / '.circleci/scripts/halt-after-recovery-apk.sh', scripts)
             write_status(state / 'apk-completion-status.txt', apk)
             write_status(state / 'build-stage-status.txt', build)
             bin_dir = root / 'bin'
@@ -49,7 +50,7 @@ class APKArchiveSkip(unittest.TestCase):
             agent.write_text('#!/bin/bash\nset -eu\ntest "$*" = "step halt"\ntouch "$CIRCLE_WORKING_DIRECTORY/halted"\n')
             agent.chmod(0o755)
             env = dict(os.environ, CIRCLE_WORKING_DIRECTORY=str(root), SANDIUM_STAGE=str(stage),
-                       PATH=str(bin_dir) + ':' + os.environ['PATH'])
+                       PATH=str(bin_dir) + ':' + os.environ['PATH'], CIRCLE_BRANCH=branch)
             result = subprocess.run(['bash', '-c', self.gate], env=env,
                                     text=True, capture_output=True, timeout=5)
             halted = (root / 'halted').exists()
@@ -62,6 +63,17 @@ class APKArchiveSkip(unittest.TestCase):
                 self.assertEqual(code, 0, output)
                 self.assertFalse(halted)
                 self.assertIn('full archive required', output)
+
+    def test_recovery_skips_archive_only_after_verified_apk(self):
+        for stage in range(1, 6):
+            code, halted, output = self.execute(VALID, stage=stage, branch='fix/1416-apk-recovery')
+            self.assertEqual(code, 0, output)
+            self.assertTrue(halted)
+            self.assertIn('recovery skips the full archive', output)
+        code, halted, output = self.execute(build=TIMEOUT, branch='fix/1416-apk-recovery')
+        self.assertEqual(code, 0, output)
+        self.assertFalse(halted)
+        self.assertIn('CHECKPOINT_HANDOFF=REQUIRED', output)
 
     def test_incomplete_attested_slice_continues_handoff(self):
         for apk in (None, {'BUILD_FINISHED': 'false'}):
