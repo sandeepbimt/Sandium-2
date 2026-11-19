@@ -108,7 +108,12 @@ class AutofillRuntimeTest(unittest.TestCase):
                 file=Path(temp)/"strict.cc";file.write_text(source)
                 args=["-std=c++17","-Wall","-Wextra","-Werror","-Wunreachable-code","-Wunreachable-code-aggressive",f"-DIS_ANDROID={android}"]
                 if driver:
-                    run=subprocess.run([driver,*args,"-fsyntax-only",str(file)],capture_output=True,text=True)
+                    # This header-free test needs only the frontend. Driver mode
+                    # probes the runner's GCC installations and can fail before
+                    # parsing our fixture; do not relax any source diagnostics.
+                    run=subprocess.run(
+                        [driver, "-cc1", "-x", "c++", *args, "-fsyntax-only", str(file)],
+                        capture_output=True, text=True)
                     messages=[(3,line.split("error:",1)[1]) for line in run.stderr.splitlines() if "error:" in line]
                     if run.returncode and not messages:
                         self.fail("Clang driver failed without diagnostics: "+run.stderr)
