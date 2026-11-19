@@ -151,15 +151,16 @@ def verified_origin(repository):
  """Accept only the repository identified by current CircleCI job metadata.
 
  No URL helpers, credentials in URLs, arbitrary hosts, paths or branch discovery.
- The source checkout's origin must match both authenticated CI repository fields.
+ The checkout and CI repository URL must both match this reviewed repository.
+ GitHub App CIRCLE_PROJECT_USERNAME is a CircleCI display name, not a VCS owner.
  """
  def identity(url):
   match=re.fullmatch(r'(?:https://github[.]com/|git@github[.]com:|ssh://git@github[.]com/)([A-Za-z0-9_-]+)/([A-Za-z0-9_.-]+?)(?:[.]git)?',url)
   if not match:raise ValueError('Unsupported baseline origin')
   return tuple(x.lower() for x in match.groups())
  origin=git(repository,'remote','get-url','origin')
- expected=(os.environ.get('CIRCLE_PROJECT_USERNAME','').lower(),'sandium-2')
- if not expected[0] or identity(origin)!=expected or identity(os.environ.get('CIRCLE_REPOSITORY_URL',''))!=expected:
+ expected=('sandeepbimt','sandium-2')
+ if identity(origin)!=expected or identity(os.environ.get('CIRCLE_REPOSITORY_URL',''))!=expected:
   raise ValueError('Baseline origin does not match current CI repository')
  return origin
 
