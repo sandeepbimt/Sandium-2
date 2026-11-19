@@ -47,7 +47,7 @@ class Safety(unittest.TestCase):
   with patch.object(m.subprocess,'check_output',return_value=str(70*1024**3)+' workspace'),patch.object(m.shutil,'disk_usage',return_value=type('Disk',(),{'free':60*1024**3})()):m.space(Path('/tmp'))
  def test_config(self):
   raw=(ROOT/'.circleci/config.yml').read_text();d=yaml.safe_load(raw);steps=d['jobs']['brave-android-staged-build']['steps'];runs={x['run']['name']:x['run'] for x in steps if isinstance(x,dict) and 'run' in x}
-  self.assertNotIn('step halt',runs['Retain full archive after verified APK publication']['command'])
+  self.assertIn('circleci-agent step halt',runs['Skip large handoff after verified APK publication']['command'])
   self.assertIn('official-checkpoint-safety.py" budget',runs['Build bounded Brave Android APK slice']['command'])
   self.assertEqual((ROOT/'.circleci/original-full/candidate.yml').read_text(),raw)
   self.assertEqual((ROOT/'.circleci/original-full/config.sha256').read_text().strip(),hashlib.sha256(raw.encode()).hexdigest())

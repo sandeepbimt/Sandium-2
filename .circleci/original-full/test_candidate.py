@@ -35,6 +35,13 @@ class OriginalFullCandidate(unittest.TestCase):
    index=m['bba47961_index']
    self.assertEqual(original_namespaces(old[m['fc220e7f_index']]),original_namespaces(frozen[index]))
    self.assertEqual(frozen[index],new[index])
+  # These two gates intentionally restore ordinary APK completion behavior.
+  changed=[i for i,(before,after) in enumerate(zip(frozen,new)) if before!=after]
+  self.assertEqual(changed,[8,45])
+  self.assertIn('Stop when this revision already has a published APK',str(new[8]))
+  self.assertEqual(new[45]['run']['name'],'Skip large handoff after verified APK publication')
+  for index in changed:
+   new[index]=frozen[index]
   self.assertEqual(self.frozen['jobs'],self.candidate['jobs'])
  def test_five_original_stage_dependencies(self):
   jobs=self.candidate['workflows']['sandium-full-mode']['jobs'];self.assertEqual(5,len(jobs))

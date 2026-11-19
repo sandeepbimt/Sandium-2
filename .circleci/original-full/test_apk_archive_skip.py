@@ -9,7 +9,7 @@ import unittest
 import yaml
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
-NAME = 'Retain full archive after verified APK publication'
+NAME = 'Skip large handoff after verified APK publication'
 VALID = dict.fromkeys((
     'BUILD_FINISHED', 'APK_ARCHIVE_VALID', 'APK_SIGNATURE_VALID',
     'APK_PACKAGE_ID_VALID', 'APK_BRANDING_VALID', 'APK_REMOVALS_VALID',
@@ -33,7 +33,7 @@ class APKArchiveSkip(unittest.TestCase):
         self.gate = next(s['run']['command'] for s in self.steps
                          if isinstance(s, dict) and s.get('run', {}).get('name') == NAME)
 
-    def execute(self, apk=None, build=None, stage=1):
+    def execute(self, apk=None, build=None, stage=1, command=None):
         with tempfile.TemporaryDirectory() as td:
             root = pathlib.Path(td)
             state = root / 'brave-work/.sandium'
@@ -49,19 +49,36 @@ class APKArchiveSkip(unittest.TestCase):
             agent.write_text('#!/bin/bash\nset -eu\ntest "$*" = "step halt"\ntouch "$CIRCLE_WORKING_DIRECTORY/halted"\n')
             agent.chmod(0o755)
             env = dict(os.environ, CIRCLE_WORKING_DIRECTORY=str(root), SANDIUM_STAGE=str(stage),
+                       CIRCLE_SHA1='example-revision',
                        PATH=str(bin_dir) + ':' + os.environ['PATH'])
-            result = subprocess.run(['bash', '-c', self.gate], env=env,
+            result = subprocess.run(['bash', '-c', command or self.gate], env=env,
                                     text=True, capture_output=True, timeout=5)
             halted = (root / 'halted').exists()
             return result.returncode, halted, result.stdout + result.stderr
 
-    def test_verified_apk_retains_archive_every_stage(self):
+    def test_verified_apk_halts_every_stage(self):
         for stage in range(1, 6):
             with self.subTest(stage=stage):
                 code, halted, output = self.execute(VALID, stage=stage)
                 self.assertEqual(code, 0, output)
-                self.assertFalse(halted)
-                self.assertIn('full archive required', output)
+                self.assertTrue(halted)
+                self.assertIn('large handoff archive skipped', output)
+
+    def test_stage_one_only_reuses_verified_same_revision_apk(self):
+        group = next(s['when'] for s in self.steps if isinstance(s, dict)
+                     and any(c.get('restore_cache', {}).get('name') ==
+                             'Restore verified APK marker from the same source revision'
+                             for c in s.get('when', {}).get('steps', [])))
+        self.assertEqual(group['condition']['equal'], [1, '<< parameters.stage_index >>'])
+        cache, gate = group['steps']
+        self.assertEqual(cache['restore_cache']['keys'],
+                         ['sandium-official-apk-complete-v1-{{ .Branch }}-{{ .Revision }}-'])
+        command = gate['run']['command']
+        for marker, expected in [(VALID, True), (None, False),
+                                 (dict(VALID, APK_REMOVALS_VALID='false'), False)]:
+            code, halted, output = self.execute(marker, command=command)
+            self.assertEqual(code, 0, output)
+            self.assertEqual(halted, expected, output)
 
     def test_incomplete_attested_slice_continues_handoff(self):
         for apk in (None, {'BUILD_FINISHED': 'false'}):

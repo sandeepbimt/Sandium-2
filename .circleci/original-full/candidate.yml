@@ -217,7 +217,18 @@ jobs:
             - sandium-official-apk-complete-v1-{{ .Branch }}-{{ .Revision }}-
         - run:
             name: Stop when this revision already has a published APK
-            command: echo "EXCEPTIONAL_ARCHIVE=REQUIRED ignoring APK-only completion marker"
+            command: |
+              set -euo pipefail
+              ROOT="$CIRCLE_WORKING_DIRECTORY"
+              STATUS="$ROOT/brave-work/.sandium/apk-completion-status.txt"
+              if python3 "$ROOT/.circleci/scripts/check-apk-completion-marker.py" "$STATUS" \
+                  && grep -qx 'APK_REMOVALS_VALID=true' "$STATUS"; then
+                echo "BRAVE_APK=ALREADY_PUBLISHED for revision $CIRCLE_SHA1"
+                cat "$STATUS"
+                circleci-agent step halt
+              else
+                echo "BRAVE_APK=NOT_YET_PUBLISHED"
+              fi
     - when:
         condition:
           and:
@@ -773,11 +784,11 @@ jobs:
         - brave-work/.sandium/apk-completion-status.txt
         when: on_success
     - run:
-        name: Retain full archive after verified APK publication
+        name: Skip large handoff after verified APK publication
         command: "set -euo pipefail\nROOT=\"$CIRCLE_WORKING_DIRECTORY\"\nSTATUS_DIR=\"$ROOT/brave-work/.sandium\"\
           \nAPK_STATUS=\"$STATUS_DIR/apk-completion-status.txt\"\nif python3 \"$ROOT/.circleci/scripts/check-apk-completion-marker.py\"\
           \ \"$APK_STATUS\" && grep -qx 'APK_REMOVALS_VALID=true' \"$APK_STATUS\"; then\n  echo \"FINAL_STAGE_GATE=PASS\
-          \ APK validated and artifacts published; full archive required for this exceptional run.\"\n  exit 0\n\
+          \ APK validated and artifacts published; large handoff archive skipped.\"\n  circleci-agent step halt\n  exit 0\n\
           fi\nBUILD_STATUS=\"$STATUS_DIR/build-stage-status.txt\"\nif grep -qx 'BUILD_REASON=TIME_SLICE_COMPLETE'\
           \ \"$BUILD_STATUS\" && grep -qx 'BUILD_TIME_SLICE_EXPIRED=true' \"$BUILD_STATUS\" && grep -qx 'BUILD_HANDOFF_ALLOWED=true'\
           \ \"$BUILD_STATUS\"; then\n  echo \"CHECKPOINT_HANDOFF=REQUIRED unfinished attested time-slice; preserving\
