@@ -59,7 +59,7 @@ class SeedCallbacksTest(unittest.TestCase):
             command=call.args[0]
             self.assertEqual(command[1:3],['-I','-c'])
             self.assertEqual(Path(command[4]),self.baseline if index==0 else self.root)
-            self.assertLessEqual(call.kwargs['timeout'],330)
+            self.assertLessEqual(call.kwargs['timeout'],callbacks.PHASE_LIMITS[command[6]])
             self.assertEqual(command[7:10],[callbacks.BASELINE_COMMIT,callbacks.BASELINE_FINGERPRINT,callbacks.RECEIPT])
         self.assertEqual(calls[-1].args[0][-1],'f'*64)
         for phase in ('baseline','apply','gn','verify'):
@@ -116,6 +116,20 @@ class SeedCallbacksTest(unittest.TestCase):
         worker=self.make()
         worker.job_started=time.time()-1500
         self.assertLessEqual(worker._timeout('gn'),150)
+
+    def test_cold_baseline_scan_budget_preserves_original_archive_reserve(self):
+        worker=self.make()
+        self.assertEqual(worker._timeout('baseline'),600)
+        # A slow restore consumes the larger allowance, never archive reserve.
+        with patch.object(worker,'_remaining',return_value=1970):
+            self.assertEqual(worker._timeout('baseline'),300)
+        with patch.object(worker,'_remaining',return_value=1729):
+            with self.assertRaisesRegex(ValueError,'Insufficient original job'):
+                worker._timeout('baseline')
+        self.assertEqual(callbacks.POST_TRANSITION_RESERVE,1620)
+        self.assertEqual(callbacks.CLEANUP_RESERVE,50)
+        self.assertEqual(callbacks.PHASE_LIMITS['apply'],120)
+        self.assertEqual(callbacks.PHASE_LIMITS['verify'],180)
 
     def test_timeout_invokes_quiescence_and_cannot_emit_success(self):
         worker=self.make()

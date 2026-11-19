@@ -102,7 +102,10 @@ JOB_LIMIT_SECONDS = 3300
 POST_TRANSITION_RESERVE = 1620
 CLEANUP_RESERVE = 50  # phase TERM/KILL grace + quiescence + its TERM/KILL grace
 QUIESCENCE_TIMEOUT = 30
-PHASE_LIMITS = {'baseline': 180, 'apply': 120, 'gn': 330, 'verify': 180}
+# #1412 exhausted 180s in the first full restored Chromium git diff,
+# before depot/GN checks. Allow that unchanged integrity scan to complete,
+# still clamped to the original job deadline and archive/cleanup reserves.
+PHASE_LIMITS = {'baseline': 600, 'apply': 120, 'gn': 330, 'verify': 180}
 
 
 def run_owned(command, *, env, cwd, timeout, grace=5):

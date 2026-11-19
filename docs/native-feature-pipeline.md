@@ -106,3 +106,20 @@ The gate now pins the reviewed repository `sandeepbimt/Sandium-2` and requires B
 All preflight tests passed, but the real seed preparation rejected `CIRCLE_REPOSITORY_URL` as an unsupported URL. Tests had incorrectly supplied an OAuth-style value. The log does not expose whether the actual value was empty or a project name. CircleCI's official variables reference lists `CIRCLE_REPOSITORY_URL` for GitHub OAuth/Bitbucket, while `pipeline.git.repo_url` supports GitHub App: https://circleci.com/docs/reference/variables/ . Its support guidance also documents the legacy variable's nonavailability for GitHub App: https://circleci.zendesk.com/hc/en-us/articles/36266044809243-Using-GitHub-App-Functionality-in-a-GitHub-OAuth-App-Organization .
 
 Every native job now binds service-resolved `pipeline.git.repo_url` into `RAWS_CI_REPOSITORY_URL`; this is not a user-controlled pipeline parameter. The origin gate requires that field and the checkout origin independently match the reviewed repository pin. It never falls back to a missing service identity or the legacy OAuth variable. Tests verify every generated job's binding, absence from user parameters, GitHub App legacy-empty/project-name cases, and failure when service metadata is missing even if the old variable looks valid. Full suite: 231 tests, one optional Android API fixture skipped, no failures. No source/archive or feature behavior changed.
+
+### #1412 cold restored-source integrity scan
+
+The live baseline callback journal ended at `git -C work/source/src diff HEAD
+--name-only -z`, before depot/GN validation or native feature application. The
+aggregate callback deadline was 180 seconds; its recorded remaining original job
+budget was 2864.896 seconds. No source-check success or feature readiness was
+claimed. A cold restored-tree stat/content scan is the working explanation, not
+proof of a particular filesystem bottleneck.
+
+Only the baseline verification ceiling is raised to 600 seconds. It remains
+clamped to original remaining job time minus 1620 seconds for archive/publication
+and 50 seconds for cleanup. All original source, official-GN and graph checks,
+owned-process cleanup, quiescence and success-only receipts remain. No index,
+source or accepted-checkpoint integrity check is skipped. Later phases retain
+their existing ceilings. The next service run must establish actual completion;
+this change does not itself prove verification or an APK.
