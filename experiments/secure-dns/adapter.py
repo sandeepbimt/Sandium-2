@@ -36,6 +36,15 @@ static bool JNI_SecureDnsBridge_IsConfigManaged() {
 
 static int32_t JNI_SecureDnsBridge_GetManagementMode() {''')
  if path==GN:
+  # SemanticColorUtils is a Java dependency, not a foreign Material R namespace.
+  # Scope to the production java target, not similarly shaped test/resource targets.
+  start=s.index('  android_library("java") {')
+  end=s.index('\n  }',start)
+  target=s[start:end]
+  dep='      "//components/browser_ui/styles/android:java",'
+  if dep not in target:
+   target=once(target,'    deps = [\n','    deps = [\n'+dep+'\n')
+  s=s[:start]+target+s[end:]
   anchor='      "java/src/org/chromium/chrome/browser/privacy/secure_dns/SecureDnsSettings.java",'
   s=once(s,anchor,anchor+'\n      "java/src/org/chromium/chrome/browser/privacy/secure_dns/SandiumSecureDns.java",\n      "java/src/org/chromium/chrome/browser/privacy/secure_dns/SandiumSecureDnsDropdown.java",')
   anchor='      "java/res/xml/secure_dns_settings.xml",'

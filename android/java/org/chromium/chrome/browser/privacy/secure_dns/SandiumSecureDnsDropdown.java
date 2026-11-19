@@ -6,7 +6,6 @@ package org.chromium.chrome.browser.privacy.secure_dns;
 import android.content.Context;
 import android.graphics.drawable.GradientDrawable;
 import android.text.TextUtils;
-import android.util.TypedValue;
 import android.view.Gravity;
 import android.widget.LinearLayout;
 import android.widget.PopupMenu;
@@ -14,6 +13,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 import java.util.ArrayList;
 import java.util.List;
+import org.chromium.components.browser_ui.styles.SemanticColorUtils;
 
 /** Compact global control. All state and writes belong to the native DNS facade. */
 public final class SandiumSecureDnsDropdown extends LinearLayout {
@@ -42,7 +42,7 @@ public final class SandiumSecureDnsDropdown extends LinearLayout {
         labels.addView(mTitle);
         mNote = label(showGlobalNote ? R.string.sandium_dns_ui_global
                 : R.string.sandium_dns_ui_off_hint, 12);
-        mNote.setTextColor(color(com.google.android.material.R.attr.colorOnSurfaceVariant));
+        mNote.setTextColor(SemanticColorUtils.getDefaultTextColorSecondary(getContext()));
         labels.addView(mNote);
         row.addView(labels, new LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f));
         mChoice = label(R.string.sandium_dns_ui_off, 14);
@@ -51,9 +51,9 @@ public final class SandiumSecureDnsDropdown extends LinearLayout {
         mChoice.setEllipsize(TextUtils.TruncateAt.END);
         mChoice.setPadding(dp(10), 0, dp(10), 0);
         GradientDrawable pill = new GradientDrawable();
-        pill.setColor(color(com.google.android.material.R.attr.colorSurfaceContainer));
+        pill.setColor(SemanticColorUtils.getColorSurfaceContainer(getContext()));
         pill.setCornerRadius(dp(22));
-        pill.setStroke(dp(1), color(com.google.android.material.R.attr.colorPrimary));
+        pill.setStroke(dp(1), SemanticColorUtils.getColorPrimary(getContext()));
         mChoice.setBackground(pill);
         mChoice.setClickable(true);
         mChoice.setFocusable(true);
@@ -63,7 +63,7 @@ public final class SandiumSecureDnsDropdown extends LinearLayout {
         row.addView(mChoice, choiceParams);
         addView(row, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT));
         mManage = label(R.string.sandium_dns_ui_manage, 12);
-        mManage.setTextColor(color(com.google.android.material.R.attr.colorPrimary));
+        mManage.setTextColor(SemanticColorUtils.getColorPrimary(getContext()));
         mManage.setGravity(Gravity.CENTER_VERTICAL);
         mManage.setMinHeight(dp(48));
         mManage.setFocusable(true);
@@ -144,13 +144,8 @@ public final class SandiumSecureDnsDropdown extends LinearLayout {
     private TextView label(int resource, int size) {
         TextView view = new TextView(getContext());
         view.setText(resource); view.setTextSize(size);
-        view.setTextColor(color(com.google.android.material.R.attr.colorOnSurface));
+        view.setTextColor(SemanticColorUtils.getDefaultTextColor(getContext()));
         return view;
-    }
-    private int color(int attr) {
-        TypedValue value = new TypedValue();
-        if (!getContext().getTheme().resolveAttribute(attr, value, true)) return 0;
-        return value.resourceId == 0 ? value.data : getContext().getColor(value.resourceId);
     }
     private int dp(int value) { return Math.round(value * getResources().getDisplayMetrics().density); }
 }

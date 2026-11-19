@@ -16,6 +16,30 @@ class Tests(unittest.TestCase):
    with self.assertRaises(ValueError):m.execute(root,off=True)
    target.write_text(post);m.execute(root,off=True)
    self.assertEqual(before,{str(p.relative_to(root)):p.read_bytes() for p in root.rglob('*') if p.is_file()})
+ def test_effective_production_java_color_dependency(self):
+  adapter=m.load('adapter')
+  original=json.loads(gzip.decompress((D/'fixtures/pinned.json.gz').read_bytes()))['files'][adapter.GN]['source']
+  actual=adapter.transform(adapter.GN,original)
+  self.assertEqual(actual,adapter.transform(adapter.GN,actual))
+  def java_target(s):return s.split('android_library("java") {',1)[1].split('\n  }',1)[0]
+  def dependencies(s):return java_target(s).split('    deps = [',1)[1].split('    ]',1)[0]
+  before=dependencies(original);after=dependencies(actual)
+  dep='      "//components/browser_ui/styles/android:java",'
+  self.assertNotIn(dep,before)
+  self.assertEqual(after.count(dep),1)
+  self.assertEqual(after.replace(dep+'\n',''),before)
+  self.assertEqual(after.count('//third_party/android_deps:material_design_java'),1)
+  ui=(ROOT/'android/java/org/chromium/chrome/browser/privacy/secure_dns/SandiumSecureDnsDropdown.java').read_text()
+  self.assertNotIn('com.google.android.material.R',ui)
+  self.assertIn('import org.chromium.components.browser_ui.styles.SemanticColorUtils;',ui)
+  api=json.loads((D/'fixtures/semantic-colors-api.json').read_text())
+  self.assertEqual(api['git_blob'],'57cdea3eae8187abdae4a3e7f0d723914a2122e7')
+  self.assertEqual(api['methods'],{'getDefaultTextColorSecondary':'colorOnSurfaceVariant','getColorSurfaceContainer':'colorSurfaceContainer','getColorPrimary':'colorPrimary','getDefaultTextColor':'colorOnSurface'})
+  for method in api['methods']:
+   self.assertIn('SemanticColorUtils.'+method+'(getContext())',ui)
+  # Adjacent DNS sources use their owned resource package, not the missing foreign R.
+  for path in (D/'java').glob('*.java'):
+   self.assertNotIn('com.google.android.material.R',path.read_text())
  def test_probe_and_policy_sources(self):
   facade=(D/'java/SandiumSecureDns.java').read_text();settings=(D/'java/SecureDnsSettings.java').read_text()
   self.assertIn('SecureDnsBridge.isConfigManaged()',facade)

@@ -1,0 +1,12 @@
+{
+  "revision": "d331de35ca8ab1358c7a17e4bd41627d55eaef51",
+  "source": "components/browser_ui/styles/android/java/src/org/chromium/components/browser_ui/styles/SemanticColorUtils.java",
+  "git_blob": "57cdea3eae8187abdae4a3e7f0d723914a2122e7",
+  "target": "//components/browser_ui/styles/android:java",
+  "methods": {
+    "getDefaultTextColorSecondary": "colorOnSurfaceVariant",
+    "getColorSurfaceContainer": "colorSurfaceContainer",
+    "getColorPrimary": "colorPrimary",
+    "getDefaultTextColor": "colorOnSurface"
+  }
+}

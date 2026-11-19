@@ -55,8 +55,8 @@ public final class SandiumSecureDns {
 ''')
    names=[x.attrib['name'] for x in ET.parse(ROOT/'android/java/res/values/sandium_secure_dns_ui_strings.xml').getroot()]
    (pkg/'R.java').write_text('package org.chromium.chrome.browser.privacy.secure_dns;public class R {public static class string {'+''.join('public static final int '+n+'='+str(i+1)+';' for i,n in enumerate(names))+'}}')
-   mat=root/'com/google/android/material';mat.mkdir(parents=True)
-   (mat/'R.java').write_text('package com.google.android.material;public class R {public static class attr {public static final int colorOnSurface=1,colorOnSurfaceVariant=2,colorPrimary=3,colorSurfaceContainer=4;}}')
+   semantic=root/'org/chromium/components/browser_ui/styles';semantic.mkdir(parents=True)
+   (semantic/'SemanticColorUtils.java').write_text('package org.chromium.components.browser_ui.styles;public class SemanticColorUtils {'+''.join('public static int '+name+'(android.content.Context context){return 0;}' for name in ['getDefaultTextColorSecondary','getColorSurfaceContainer','getColorPrimary','getDefaultTextColor'])+'}')
    result=subprocess.run(['javac','-cp',str(jar),'-d',str(root/'classes')]+[str(p) for p in root.rglob('*.java')],capture_output=True,text=True)
    self.assertEqual(result.returncode,0,result.stderr)
 if __name__=='__main__': unittest.main()
