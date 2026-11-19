@@ -4,8 +4,8 @@ from pathlib import Path
 import subprocess
 import sys
 
-BRAVE_SHA = "44a84b1f89d9a35287289d6a3d493e362f5a5123"
-CHROMIUM_SHA = "d331de35ca8ab1358c7a17e4bd41627d55eaef51"
+BRAVE_SHA = "bd6d26d1bced03c17a98baa86d2cd3425d543d1b"
+CHROMIUM_SHA = "52bdd21723d5db0c9ab11716d38feac74828cf84"
 PACKAGE = "com.brave.browser_default"
 START = "        // SANDIUM_MORPHE_STARTUP_BEGIN"
 END = "        // SANDIUM_MORPHE_STARTUP_END"

@@ -8,23 +8,32 @@ class WelcomeRestart(unittest.TestCase):
   method=s.split('    private void startBrowsingWithFeedback() {',1)[1].split('    private void setProtectionEnabled',1)[0]
   method='    private void startBrowsingWithFeedback() {'+method
   perform='private void performRestart() {'+s.split('    private void performRestart() {',1)[1].split('\n    }',1)[0]+'\n    }'
-  self.assertIn('postDelayed(mRestartRunnable, 1000)',method)
+  self.assertIn('postDelayed(mRestartRunnable, START_FEEDBACK_MS)',method)
+  helpers = ''
+  for name in ('readyButtonLabel', 'updateStartCountdown', 'cancelButtonFeedback'):
+   sig = ('private String ' if name == 'readyButtonLabel' else 'private void ') + name + '() {'
+   helpers += sig + s.split(sig,1)[1].split('\n    }',1)[0] + '\n    }\n'
   self.assertIn('mHandler.removeCallbacks(mRestartRunnable)',s)
   self.assertIn('mRestartAnimator.cancel()',s)
   code='''public class RestartHarness {
- boolean mDestroyed,mCanStartBrowsing,mStartInvoked,mRestartInProgress,mRequiresRestart;
+ boolean mDestroyed,mCanStartBrowsing,mStartInvoked,mRestartInProgress,mRequiresRestart,mCompletionDispatched,mPendingRestart;
+ boolean saveOk=true; Object mFilterHandler; Switch mDarkenSwitch; boolean persistNotificationSetup(){return saveOk;} void updateStartButtonState(){} boolean isBlurTransitionEnabled(){return true;} void pollFilterStatus(){}
+ static class android { static class widget { static class Toast { static int LENGTH_LONG; static Toast makeText(Object a,int b,int c){return new Toast();} void show(){} } } }
+ long mStartFeedbackAt; static final long START_FEEDBACK_MS=1500L;
+ static class SystemClock { static long now; static long uptimeMillis(){return now;} }
  static int prepared, restarted, started;
- static class R { static class string { static final int sandium_welcome_restarting=1, sandium_welcome_restarting_moment=2; } }
- static class Activity { String getString(int id) { if(id==1)return "Restarting";if(id==2)return "Restarting in a moment…";throw new AssertionError("unknown resource"); } }
+ static class R { static class string { static final int sandium_welcome_save_failed=5, sandium_welcome_quick_restart=1, sandium_welcome_start=2, sandium_welcome_restarting_countdown=3, sandium_welcome_starting_countdown=4; } }
+ static class Activity { String getString(int id, Object... args) { if(id==1)return "Quick Restart";if(id==2)return "Start browsing";if(id==3)return "Restarting in "+args[0]+"…";if(id==4)return "Starting in "+args[0]+"…";throw new AssertionError("unknown resource"); } }
  Activity mActivity=new Activity();
- static final int TEXT=0, START_TRACK=1, START_PROGRESS=2;
- Object mPollRunnable=new Object();
- static class Handler { Runnable pending; void removeCallbacks(Object r) {} void postDelayed(Runnable r,long ms){if(ms!=1000)throw new AssertionError();pending=r;} void fire(){pending.run();} }
+ static final int PRIMARY_TEXT=0, START_TRACK=1, START_PROGRESS=2;
+ Object mPollRunnable=new Object(),mDotsRunnable=new Object();
+ Runnable mCountdownRunnable=this::updateStartCountdown;
+ static class Handler { Runnable pending; void removeCallbacks(Object r) {} void postDelayed(Runnable r,long ms){if(ms==1500)pending=r;else if(ms<1||ms>300)throw new AssertionError();} void fire(){pending.run();} }
  static class View { static int VISIBLE=0; }
  static class Switch { void setEnabled(boolean b){} }
  java.util.List<Switch> mSwitches=new java.util.ArrayList<>();
  static class LinearInterpolator {}
- static class ValueAnimator { static boolean enabled=true; static boolean areAnimatorsEnabled(){return enabled;} static ValueAnimator ofInt(int a,int b){if(a!=0||b!=10000)throw new AssertionError("fill range");return new ValueAnimator();} void setDuration(int d){} void setInterpolator(Object o){} java.util.function.Consumer<ValueAnimator> callback; int level; void addUpdateListener(java.util.function.Consumer<ValueAnimator> c){callback=c;} void start(){level=5000;callback.accept(this);level=10000;callback.accept(this);} Object getAnimatedValue(){return level;} }
+ static class ValueAnimator { static boolean enabled=true; static boolean areAnimatorsEnabled(){return enabled;} static ValueAnimator ofInt(int a,int b){if(a!=0||b!=10000)throw new AssertionError("fill range");return new ValueAnimator();} void setDuration(long d){if(d!=1500)throw new AssertionError("duration");} void cancel(){} void setInterpolator(Object o){} java.util.function.Consumer<ValueAnimator> callback; int level; void addUpdateListener(java.util.function.Consumer<ValueAnimator> c){callback=c;} void start(){level=5000;callback.accept(this);level=10000;callback.accept(this);} Object getAnimatedValue(){return level;} }
  ValueAnimator mRestartAnimator;
  static class Drawable {}
  static class ClipDrawable extends Drawable { static int HORIZONTAL=1; int level; ClipDrawable(Drawable d,int g,int o){} void setLevel(int n){level=n;} }
@@ -32,21 +41,23 @@ class WelcomeRestart(unittest.TestCase):
  static class Gravity { static int START=3; }
  Drawable roundRect(int c,int r){return new Drawable();}
  ClipDrawable mRestartButtonFill;
- static class Button { void setEnabled(boolean b) {} void setText(String s) {} void setTextColor(int c) {} void setBackgroundTintList(Object o){} void setBackground(Drawable d){} void setContentDescription(String s){} }
+ static class Button { void setEnabled(boolean b) {} String text; void setText(String s) {text=s;} void setTextColor(int c) {} void setBackgroundTintList(Object o){} void setBackground(Drawable d){} void setContentDescription(String s){} }
  static class Listener { void onStartBrowsing(){started++;} void onPrepareForRestart(){prepared++;} }
  static class BraveRelaunchUtils { static void restart(){if(prepared!=1)throw new AssertionError("prepare order");restarted++;} }
  Handler mHandler=new Handler(); Button mStartButton=new Button(); Listener mListener=new Listener();
- '''+perform+'\nRunnable mRestartRunnable = this::performRestart;\n'+method+'''
- static void reset(){prepared=restarted=started=0;}
+ '''+helpers+perform+'\nRunnable mRestartRunnable = this::performRestart;\n'+method+'''
+ static void reset(){prepared=restarted=started=0;SystemClock.now=0;}
  static void check(boolean b){if(!b)throw new AssertionError();}
  public static void main(String[] args) {
-  RestartHarness h=new RestartHarness();h.startBrowsingWithFeedback();check(!h.mStartInvoked&&restarted==0);
+  RestartHarness h=new RestartHarness();check(h.readyButtonLabel().equals("Start browsing"));h.mRequiresRestart=true;check(h.readyButtonLabel().equals("Quick Restart"));h.mRequiresRestart=false;h.startBrowsingWithFeedback();check(!h.mStartInvoked&&restarted==0);
   h.mCanStartBrowsing=true;h.mDestroyed=true;h.startBrowsingWithFeedback();check(!h.mStartInvoked&&restarted==0);
-  h.mDestroyed=false;h.startBrowsingWithFeedback();h.startBrowsingWithFeedback();check(started==1&&prepared==0&&restarted==0);
+  h.mDestroyed=false;h.startBrowsingWithFeedback();h.startBrowsingWithFeedback();check(started==0&&h.mStartButton.text.equals("Starting in 5…"));h.mHandler.fire();h.mHandler.fire();check(started==1&&prepared==0&&restarted==0);
   reset();h=new RestartHarness();h.mCanStartBrowsing=true;h.mRequiresRestart=true;
-  h.startBrowsingWithFeedback();h.startBrowsingWithFeedback();check(prepared==0&&restarted==0&&h.mRestartButtonFill.level==10000);h.mHandler.fire();check(prepared==1&&restarted==1&&started==0);
+  h.startBrowsingWithFeedback();h.startBrowsingWithFeedback();check(prepared==0&&restarted==0&&h.mRestartButtonFill.level==10000);for(int i=0;i<5;i++){SystemClock.now=i*300;h.updateStartCountdown();check(h.mStartButton.text.equals("Restarting in "+(5-i)+"…"));}h.mHandler.fire();h.mHandler.fire();check(prepared==1&&restarted==1&&started==0);
   reset();h=new RestartHarness();h.mCanStartBrowsing=true;h.mRequiresRestart=true;ValueAnimator.enabled=false;h.startBrowsingWithFeedback();check(h.mRestartButtonFill.level==10000);h.mHandler.fire();check(restarted==1);
   reset();h=new RestartHarness();h.mCanStartBrowsing=true;h.mRequiresRestart=true;h.startBrowsingWithFeedback();h.mDestroyed=true;h.mHandler.fire();check(restarted==0&&prepared==0);
+  reset();h=new RestartHarness();h.mCanStartBrowsing=true;h.saveOk=false;h.startBrowsingWithFeedback();h.mHandler.fire();check(started==0&&!h.mCompletionDispatched&&!h.mStartInvoked);
+  reset();h=new RestartHarness();h.mCanStartBrowsing=true;h.mRequiresRestart=true;h.startBrowsingWithFeedback();h.cancelButtonFeedback();h.mHandler.fire();check(restarted==0&&!h.mStartInvoked&&!h.mRestartInProgress);
  }
 }'''
   compiler=['javac'] if shutil.which('javac') else ['java','--module','jdk.compiler/com.sun.tools.javac.Main']

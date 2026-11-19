@@ -20,6 +20,7 @@ spec.loader.exec_module(m)
 p = argparse.ArgumentParser()
 p.add_argument('--core', type=Path, required=True)
 p.add_argument('--src', type=Path, required=True)
+p.add_argument('--source-profile', choices=('legacy156','target158'), default='legacy156')
 a = p.parse_args()
 with tempfile.TemporaryDirectory() as d:
     root = Path(d)
@@ -64,9 +65,10 @@ with tempfile.TemporaryDirectory() as d:
     # Upgrade the failed #1179 generated no-op as well as pristine pinned source.
     # CI invokes this test AFTER applying the overlay to --src. Historical
     # migration/drift cases must use hermetic pristine input, not that live tree.
-    fixture = Path(__file__).resolve().parents[2] / 'tests/fixtures/ui-links/ConnectionInfoView.java'
+    fixture = Path(__file__).resolve().parents[2] / ('tests/fixtures/upgrade1100/ConnectionInfoView.java' if a.source_profile == 'target158' else 'tests/fixtures/ui-links/ConnectionInfoView.java')
     original = fixture.read_text()
-    assert hashlib.sha256(fixture.read_bytes()).hexdigest() == '5a30895d6511c7cb3a2bf02d3e1d03d15541dfb63fdae91e583760f356147770'
+    expected_sha = 'a84006dae5f5015b9c50b29d285b0edd4131cdca2e983fb4ce62e36f179f2875' if a.source_profile == 'target158' else '5a30895d6511c7cb3a2bf02d3e1d03d15541dfb63fdae91e583760f356147770'
+    assert hashlib.sha256(fixture.read_bytes()).hexdigest() == expected_sha
     connection.write_text(original)
     m.apply_chromium(root)
     expected = connection.read_text()
@@ -78,7 +80,7 @@ with tempfile.TemporaryDirectory() as d:
               tofile='actual-transformed')), flush=True)
         raise AssertionError('pristine and actual-tree outputs differ')
     assert matches_pinned_source(expected, expected)
-    assert matches_pinned_source(expected, expected[:-1])
+    assert matches_pinned_source(expected, expected[:-1]) == expected.endswith('}\n\n')
     for changed in (expected[:-2], expected + '\n', expected + ' ',
                     expected.replace('mCertificateLayout.addView', 'changed.addView', 1),
                     expected.replace('    private', '   private', 1)):

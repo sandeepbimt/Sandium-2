@@ -28,4 +28,15 @@ class ProductWiring(unittest.TestCase):
  def test_actual_tree_readback_removal_rejected(self):
   root=self.fixture();p=root/'.circleci/experimental-steps/product-overlay-30-0.sh';text=p.read_text();self.assertIn('--verify-only',text);p.write_text(text.replace('--verify-only','',1))
   with self.assertRaises(ValueError):w.verify_full_wiring(root)
+ def test_only_exact_full_u_dispatch_is_allowed(self):
+  for old,new in [('--phase apply-source','--phase skip-source'),('FULL_U_SCOPE:-','ANYTHING:-'),('--audits-only','--skip-audits'),('no readiness claim','success'),('else\n','else\n  exit 0\n')]:
+   with self.subTest(change=new):
+    root=self.fixture();p=root/'.circleci/experimental-steps/product-overlay-30-0.sh'
+    p.write_text(p.read_text().replace(old,new,1))
+    with self.assertRaises(ValueError):w.verify_full_wiring(root)
+ def test_other_typed_dispatches_reject_mutations(self):
+  for wrapper,old,new in [('27','verify-base','verify-nothing'),('29','target158','unknown'),('29','--source-profile "$LINKS_PROFILE"','--source-profile legacy156')]:
+   root=self.fixture();p=root/f'.circleci/experimental-steps/product-overlay-{wrapper}-0.sh'
+   p.write_text(p.read_text().replace(old,new,1))
+   with self.assertRaises(ValueError):w.verify_full_wiring(root)
 if __name__=='__main__':unittest.main()

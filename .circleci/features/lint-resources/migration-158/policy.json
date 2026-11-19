@@ -1,0 +1,17 @@
+{
+  "schema": 1,
+  "brave_pin": "bd6d26d1bced03c17a98baa86d2cd3425d543d1b",
+  "chromium_pin": "52bdd21723d5db0c9ab11716d38feac74828cf84",
+  "files": {
+    "chromium_src/chrome/android/expectations/lint-suppressions.xml": {
+      "sha256": "2025a0f485cae2c5b646eb2246e2d6eef03c7fa31e3b4b9bcc6afa48d7e12b20",
+      "git_blob": "bf858fa8fa7b26556f9c4a50165ae269912be982"
+    },
+    "chromium_src/build/android/gyp/lint.py": {
+      "sha256": "926868ed001b8385157fd83ecaa74525153a55f1835ea94e6e4a5abc24b0b811",
+      "git_blob": "781cea05c02bd76949e517c26bb13a34365b8a13"
+    }
+  },
+  "extra_exceptions": [],
+  "status": "official upstream policy verified; target lint not executed; previous resource approvals not migrated"
+}

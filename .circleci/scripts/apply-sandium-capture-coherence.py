@@ -5,6 +5,7 @@ from pathlib import Path
 import subprocess
 
 PIN='d331de35ca8ab1358c7a17e4bd41627d55eaef51'
+FULL_U_PIN='52bdd21723d5db0c9ab11716d38feac74828cf84'
 BASE='chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/'
 
 def replace(source, old, new):
@@ -61,6 +62,13 @@ def phone(source):
                 mHomeButton.getImageAlpha());''')
 
 def container(source):
+    native158='                } else if (ChromeFeatureList.sToolbarCaptureFixForSPAs.isEnabled()\n                        && isDirty(super.isDirty(), /* allowInMotion= */ true)) {\n                    // The controls are scrolled partially or fully off, so the compositor shows\n                    // the capture, and locking would snap them back into view. Captures are\n                    // blocked for the rest of the motion, so refresh it now, e.g. after a\n                    // same-document navigation changed the URL while the controls were hidden.\n                    triggerBitmapCapture();\n                }'
+    if source.count(native158)==1 and 'shouldCaptureWhileHidden()' not in source:
+        # Chromium158 removed the top-only ratio path. Native capture now uses
+        # actual container visibility and dirty state; do not reintroduce it.
+        if source.count('if (mControlContainerIsVisibleSupplier.getAsBoolean()) {')!=1:
+            raise RuntimeError('Native158 container visibility anchor drift')
+        return source
     old='''        private boolean shouldCaptureWhileHidden() {
             return ChromeFeatureList.sToolbarCaptureFixForSPAs.isEnabled()
                     && !mIsDestroyed
@@ -82,7 +90,7 @@ def plan(root):
 
 def main():
     p=argparse.ArgumentParser(description=__doc__);p.add_argument('source',type=Path);p.add_argument('--verify-only',action='store_true');a=p.parse_args()
-    if subprocess.check_output(['git','-C',str(a.source),'rev-parse','HEAD'],text=True).strip()!=PIN:raise RuntimeError('Chromium pin mismatch')
+    if subprocess.check_output(['git','-C',str(a.source),'rev-parse','HEAD'],text=True).strip() not in (PIN,FULL_U_PIN):raise RuntimeError('Chromium pin mismatch')
     result=plan(a.source)
     if not a.verify_only:
         for path,s in result.items():path.write_text(s)

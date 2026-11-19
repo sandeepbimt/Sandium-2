@@ -9,6 +9,7 @@ import subprocess
 import sys
 
 PIN = 'd331de35ca8ab1358c7a17e4bd41627d55eaef51'
+FULL_U_PIN = '52bdd21723d5db0c9ab11716d38feac74828cf84'
 PREFIX = 'chrome/android/java/src/org/chromium/chrome/browser/'
 LEGACY_GESTURE_CHANGES = [
     (PREFIX + 'toolbar/ToolbarManager.java', '''                // Always force to show the top control at the start of the gesture.
@@ -89,7 +90,7 @@ def plan(root):
 
 def main():
     root = Path(sys.argv[1]).resolve()
-    if subprocess.check_output(['git', '-C', str(root), 'rev-parse', 'HEAD'], text=True).strip() != PIN:
+    if subprocess.check_output(['git', '-C', str(root), 'rev-parse', 'HEAD'], text=True).strip() not in (PIN,FULL_U_PIN):
         raise RuntimeError('back-controls revision mismatch')
     for path, source in plan(root).items():
         path.write_text(source)

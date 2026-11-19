@@ -5,6 +5,7 @@ Default is fail closed while inventory contains unresolved diagnostics. This doe
 not edit a lint baseline, disable an issue, delete resources, or alter GN gates.
 """
 import argparse
+import runpy
 import ast
 import xml.etree.ElementTree as ET
 import hashlib
@@ -144,6 +145,13 @@ def render(inventory, baseline, reviewed_only=False, supplement=None):
 
 
 def apply(core, reviewed_only=False):
+    # The upgrade has a separate exact target policy. Never mutate or relabel the
+    # historical #1394/#1401 inventories to make a new source pin pass.
+    actual_pin = subprocess.check_output(['git', '-C', str(core), 'rev-parse', 'HEAD'], text=True).strip()
+    if actual_pin == 'bd6d26d1bced03c17a98baa86d2cd3425d543d1b':
+        verifier = runpy.run_path(str(ROOT / '.circleci/scripts/verify-sandium-lint-158.py'))
+        verifier['verify'](core)
+        return
     inventory, baseline = load()
     pin = inventory['provenance']['brave_pin']
     actual = subprocess.check_output(['git', '-C', str(core), 'rev-parse', 'HEAD'], text=True).strip()

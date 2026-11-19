@@ -12,6 +12,11 @@ def module(name):
  m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m);return m
 diag=module('diagnostics')
 settings=module('settings')
+def source_identity(root):
+ path=HERE.parents[1]/'.circleci/scripts/sandium-source-identity.py'
+ spec=importlib.util.spec_from_file_location('native_source_identity',path)
+ module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
+ return module.verify(root)
 def recipe_hash():
  root=HERE.parents[1]
  paths=[HERE/'patches.json',HERE/'geometry.py',HERE/'settings.py',HERE/'settings-reversal.json',HERE/'diagnostics.py',
@@ -19,10 +24,32 @@ def recipe_hash():
         root/'.circleci/scripts/native-status-geometry.py',
         root/'.circleci/scripts/trace-sandium-back-geometry.py',
         root/'.circleci/features/native-status-geometry/reversal.json',
-        root/'.circleci/features/native-status-geometry/paint.json']
+        root/'.circleci/features/native-status-geometry/paint.json',
+        HERE/'apply.py',root/'.circleci/scripts/sandium-source-identity.py',root/'.circleci/scripts/apply-sandium-page-transition-full.py',
+        root/'.circleci/scripts/sandium-native-blur-source.py',
+        root/'experiments/single-handoff/native_blur.py',
+        *sorted((root/'experiments/single-handoff/fixtures/native-blur-158').glob('*'))]
  return hashlib.sha256(b''.join(p.read_bytes() for p in paths if p.exists())).hexdigest()
 
 def sha(s):return hashlib.sha256(s.encode()).hexdigest()
+def native158_blur(root, staged):
+ # Authenticate the full reviewed158 intermediate; never apply156 lifecycle
+ # reversal text to a new native manager. The outer owner adds dim separately.
+ repository=HERE.parents[1]
+ def load(path):
+  spec=importlib.util.spec_from_file_location('native158_'+path.stem,path)
+  module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module);return module
+ native=load(repository/'experiments/single-handoff/native_blur.py')
+ full=load(repository/'.circleci/scripts/apply-sandium-page-transition-full.py')
+ capture=load(repository/'.circleci/scripts/sandium-native-blur-source.py')
+ originals={native.CC:native.fixture(native.CC),native.H:native.fixture(native.H)}
+ expected={native.CC:capture.implementation(full.transform_transition_cc(originals[native.CC])),
+           native.H:capture.header(full.transform_transition_h(originals[native.H]))}
+ current={p:staged.get(root/p,(root/p).read_text()) for p in originals}
+ if not any(current[p]==expected[p] for p in originals):return {}
+ if current!=expected:raise RuntimeError('Mixed or modified158 native blur overlay')
+ return {root/p:text for p,text in originals.items()}
+
 def transform(root):
  result={}
  probed=set()
@@ -30,7 +57,10 @@ def transform(root):
   p=root/path;text=p.read_text()
   if "SANDIUM_TRANSITION_RING_V1" in text:
    result[p]=diag.strip(path,text);probed.add(path)
+ target_blur=native158_blur(root,result)
+ result.update(target_blur)
  for c in CHANGES:
+  if root/c['path'] in target_blur:continue
   p=root/c['path'];s=result.get(p,p.read_text());old,new=c['old'],c['new']
   # Input must be the frozen overlay, not arbitrary already-edited native text.
   if s.count(old)!=1:raise RuntimeError('Native experiment anchor mismatch: '+c['path']+' '+old[:70])
@@ -46,10 +76,11 @@ def geometry_changes(root):
  m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m)
  return m.plan(root)
 
-def plan(root,enabled):
+def plan(root,enabled,identity=None):
  state_path=root/STATE
  if state_path.exists():
   state=json.loads(state_path.read_text())
+  if identity is not None and (state.get('chromium_pin'),state.get('brave_pin'))!=tuple(identity):raise RuntimeError('Native journal source identity mismatch')
   if state['schema']!=1:raise RuntimeError('Unknown native experiment snapshot')
   if enabled and state.get('recipe_sha256')!=recipe_hash():raise RuntimeError('Native experiment recipe changed; restore off before replay')
   result={}
@@ -68,13 +99,13 @@ def plan(root,enabled):
  settings_changes=settings.plan(root)
  if set(settings_changes)&set(result):raise RuntimeError("Settings overlap requires composition")
  result.update(settings_changes)
- state={'schema':1,'recipe_sha256':recipe_hash(),'baseline_commit':'a6863ec','chromium_pin':PIN,'brave_pin':BRAVE,'files':{}}
+ state={'schema':1,'recipe_sha256':recipe_hash(),'baseline_commit':'a6863ec','chromium_pin':identity[0] if identity else PIN,'brave_pin':identity[1] if identity else BRAVE,'files':{}}
  for p,after in result.items():
   before=p.read_text();state['files'][str(p.relative_to(root))]={'before':before,'after':after,'before_sha256':sha(before),'after_sha256':sha(after)}
  return result,state
 
-def execute(root,enabled,verify_only=False):
- changes,state=plan(root,enabled)
+def execute(root,enabled,verify_only=False,identity=None):
+ changes,state=plan(root,enabled,identity)
  if verify_only:
   for p,s in changes.items():
    if p.read_text()!=s:raise RuntimeError('Native experiment verification differs: '+str(p))
@@ -93,9 +124,8 @@ def execute(root,enabled,verify_only=False):
 def main():
  p=argparse.ArgumentParser(description=__doc__);p.add_argument('source',type=Path);p.add_argument('--mode',choices=['on','off','configured'],default='configured');p.add_argument('--verify-only',action='store_true');a=p.parse_args();r=a.source.resolve()
  if a.mode=='configured':a.mode='on' if json.loads((HERE/'profile.json').read_text())['enabled'] else 'off'
- for directory,pin in [(r,PIN),(r/'brave',BRAVE)]:
-  if subprocess.check_output(['git','-C',str(directory),'rev-parse','HEAD'],text=True).strip()!=pin:raise RuntimeError('Pin mismatch')
+ identity=source_identity(r)
  if a.mode=='on' and not (HERE/'geometry.py').exists():raise RuntimeError('Native geometry profile missing; refusing partial production experiment')
- execute(r,a.mode=='on',a.verify_only)
+ execute(r,a.mode=='on',a.verify_only,identity)
  print('SANDIUM_NATIVE_NAVIGATION='+a.mode.upper()+'; runtime comparison required')
 if __name__=='__main__':main()

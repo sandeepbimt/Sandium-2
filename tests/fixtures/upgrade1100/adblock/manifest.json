@@ -1,0 +1,289 @@
+[
+  {
+    "repo": "brave-core",
+    "path": "android/BUILD.gn",
+    "sha256": "8ab05bb504bb841d7fe4f5dd571c1475f0c225a33969e9f5c0d8197ee4e1e349",
+    "git_blob": "e623c9bab8308a826abd652eb647f65da8162a2e",
+    "revision": "bd6d26d1bced03c17a98baa86d2cd3425d543d1b"
+  },
+  {
+    "repo": "brave-core",
+    "path": "android/java/brave-res/layout/brave_trackers_ads_panel.xml",
+    "sha256": "5b6aeb5006771b80b14a61c4e9ef5c056984ea9b0179866b36af569821288fc8",
+    "git_blob": "13f14075b6d5f3a0f4daafb7c92c241992b2a4cb",
+    "revision": "bd6d26d1bced03c17a98baa86d2cd3425d543d1b"
+  },
+  {
+    "repo": "brave-core",
+    "path": "android/java/brave-res/menu/menu_custom_filter_list.xml",
+    "sha256": "25be03e2501b7220ea51f6c97be00687fe2a9afbdeadcc432cc79360c43922ee",
+    "git_blob": "1b56f112f40c25cf5e125bd941a91c42ad1de464",
+    "revision": "bd6d26d1bced03c17a98baa86d2cd3425d543d1b"
+  },
+  {
+    "repo": "brave-core",
+    "path": "android/java/brave-res/values/array.xml",
+    "sha256": "68bb13ab64918bcffbe6befe7fa8a1ee0449e2c728cb24b18eca04bfd0fcd4e1",
+    "git_blob": "790b246f18332dd18cb4aa76af21694b05c66897",
+    "revision": "bd6d26d1bced03c17a98baa86d2cd3425d543d1b"
+  },
+  {
+    "repo": "brave-core",
+    "path": "android/java/brave-res/xml/brave_privacy_preferences.xml",
+    "sha256": "4f695978df005da4f2e32d290abb82f34e09ccf865501cf55223de6b216879eb",
+    "git_blob": "946b35169ef076b6c15467f0e32a71d4b27215d8",
+    "revision": "bd6d26d1bced03c17a98baa86d2cd3425d543d1b"
+  },
+  {
+    "repo": "brave-core",
+    "path": "android/java/org/chromium/chrome/browser/preferences/website/BraveShieldsContentSettings.java",
+    "sha256": "b29c3f0bd2ab243dd9f0a3a4b36c6f060ae46a2c3a0f738371fc552d53e8a5ce",
+    "git_blob": "7e28db66eb2cb37680375e64ace8ab05c1e101e9",
+    "revision": "bd6d26d1bced03c17a98baa86d2cd3425d543d1b"
+  },
+  {
+    "repo": "brave-core",
+    "path": "android/java/org/chromium/chrome/browser/privacy/settings/BravePrivacySettings.java",
+    "sha256": "7bb2b4d3783f56f1cdfe428cb48f3357ddefdfdce568546b652da82d4d105fee",
+    "git_blob": "69eb07cf77e1be6263727db34c844af6433b4b32",
+    "revision": "bd6d26d1bced03c17a98baa86d2cd3425d543d1b"
+  },
+  {
+    "repo": "brave-core",
+    "path": "android/java/org/chromium/chrome/browser/settings/BravePreferenceDialogFragment.java",
+    "sha256": "33d1bccf34c37dfc59d2837e2024e45043b999dcb5e05c3e5c6b93f36c86d1da",
+    "git_blob": "c31339a394e7851a0c5be23e8f6a08335f15f371",
+    "revision": "bd6d26d1bced03c17a98baa86d2cd3425d543d1b"
+  },
+  {
+    "repo": "brave-core",
+    "path": "android/java/org/chromium/chrome/browser/shields/BraveUnifiedPanelHandler.java",
+    "sha256": "1e26ddf5dd65e8c0f24001730c23996baa79606aa09dcdbfa09098a81a853eb5",
+    "git_blob": "14cf2b639c8e26c4b5569113a838ef143ebce416",
+    "revision": "bd6d26d1bced03c17a98baa86d2cd3425d543d1b"
+  },
+  {
+    "repo": "brave-core",
+    "path": "android/java/org/chromium/chrome/browser/shields/ContentFilteringAdapter.java",
+    "sha256": "05502936064b400fd1a8f26f5ca3217704727a1ea8578e262a37a516258f4f44",
+    "git_blob": "8904b6ab626abd998eacdf902fc967ed7229e6c8",
+    "revision": "bd6d26d1bced03c17a98baa86d2cd3425d543d1b"
+  },
+  {
+    "repo": "brave-core",
+    "path": "android/java/org/chromium/chrome/browser/shields/ContentFilteringFragment.java",
+    "sha256": "dcc012e7b1ec8c0677bfb14dcb9c06240a28ba73afb05fabc53a638a6b1b0c47",
+    "git_blob": "9ad94e572f83e62ff0aa62ecc1f267ca62fce623",
+    "revision": "bd6d26d1bced03c17a98baa86d2cd3425d543d1b"
+  },
+  {
+    "repo": "brave-core",
+    "path": "android/java/org/chromium/chrome/browser/shields/FilterListServiceFactory.java",
+    "sha256": "c0eb4021740e8b737f57d2d66a981dfe3d0aa9d876fdf7313d31eb60da3df78d",
+    "git_blob": "28d45dffc11302899d7ec52932418172dd169283",
+    "revision": "bd6d26d1bced03c17a98baa86d2cd3425d543d1b"
+  },
+  {
+    "repo": "brave-core",
+    "path": "browser/brave_browser_main_parts.cc",
+    "sha256": "aedfc9054a67a74261ff51aabead249b540c637decfdb651cb8ce5d607fab98e",
+    "git_blob": "4314e0e8031e61a3fab92ffd82e75f111663427e",
+    "revision": "bd6d26d1bced03c17a98baa86d2cd3425d543d1b"
+  },
+  {
+    "repo": "brave-core",
+    "path": "browser/content_settings/brave_content_settings_registry_unittest.cc",
+    "sha256": "9769e505d9e1021085f31e149948156badd61df150687e4012e7b00edb0dc52e",
+    "git_blob": "912320e6b56f5be1e4429c94d1e0e4aada9bcaaa",
+    "revision": "bd6d26d1bced03c17a98baa86d2cd3425d543d1b"
+  },
+  {
+    "repo": "chromium",
+    "path": "chrome/android/java/src/org/chromium/chrome/browser/ntp/NewTabPage.java",
+    "sha256": "041b02c93879d4883ac3768fada16659cf9f0cd5f16f1e23b84723611b4986fd",
+    "git_blob": "a08c5880ba6c2239406650444cc78de868940477",
+    "revision": "52bdd21723d5db0c9ab11716d38feac74828cf84"
+  },
+  {
+    "repo": "brave-core",
+    "path": "components/brave_component_updater/browser/brave_component_updater_delegate.cc",
+    "sha256": "2d966bae94f830a48a314651dcfbd39d4a4a1e874b619aaadd1b058be6e2bab6",
+    "git_blob": "4f8acc3394d38ce31ae0de405f1f473229468af8",
+    "revision": "bd6d26d1bced03c17a98baa86d2cd3425d543d1b"
+  },
+  {
+    "repo": "brave-core",
+    "path": "components/brave_component_updater/browser/brave_on_demand_updater.h",
+    "sha256": "767212d8ead1876c1386d72a3d98f36c67ba3d52b6f4c79599288813a6b22179",
+    "git_blob": "a226ee6bd6300e4f23fc9ef094f1806256b802e3",
+    "revision": "bd6d26d1bced03c17a98baa86d2cd3425d543d1b"
+  },
+  {
+    "repo": "brave-core",
+    "path": "components/brave_shields/content/browser/ad_block_service.cc",
+    "sha256": "88ee517629bbf6217f45d55f48f4e338fa83ff76cb36c21cdf5e6b9571dca6fc",
+    "git_blob": "ebbd6c499d4a5f8e9f9728faf494e1ca44c801bb",
+    "revision": "bd6d26d1bced03c17a98baa86d2cd3425d543d1b"
+  },
+  {
+    "repo": "brave-core",
+    "path": "components/brave_shields/content/browser/ad_block_service.h",
+    "sha256": "4f38888698fab601c631f92f03137350a633d221deacf3eb172edf6b56fbaa93",
+    "git_blob": "0282ffa85def6ce36264425ef66eb4bd8b846eef",
+    "revision": "bd6d26d1bced03c17a98baa86d2cd3425d543d1b"
+  },
+  {
+    "repo": "brave-core",
+    "path": "components/brave_shields/content/browser/ad_block_subscription_service_manager.cc",
+    "sha256": "63baa70515096572ab0b2570e4035eb05c4560c160fc4fb758ee494c49947cdf",
+    "git_blob": "a9a9ef15aa217021c7b4064c52136a1416f43ffd",
+    "revision": "bd6d26d1bced03c17a98baa86d2cd3425d543d1b"
+  },
+  {
+    "repo": "brave-core",
+    "path": "components/brave_shields/content/browser/ad_block_subscription_service_manager.h",
+    "sha256": "19b33ef9bdbbba0ba95b8f867f19e558010d1e9379f8cf66a6a136e738be7e57",
+    "git_blob": "fe8e59ce6c27b0f9312a2234fda7e260db489096",
+    "revision": "bd6d26d1bced03c17a98baa86d2cd3425d543d1b"
+  },
+  {
+    "repo": "brave-core",
+    "path": "components/brave_shields/content/browser/filter_list_service.cc",
+    "sha256": "9716ae82b5951b4e2df93ecf9ad652f8c9e39d935f6121166087c2b480e60567",
+    "git_blob": "be0dd46424aa1c87398398ff72179aa905666580",
+    "revision": "bd6d26d1bced03c17a98baa86d2cd3425d543d1b"
+  },
+  {
+    "repo": "brave-core",
+    "path": "components/brave_shields/content/browser/filter_list_service.h",
+    "sha256": "2804c2821802971d9a711735cfa796b731fdfe96c5038018e63c96e43980e570",
+    "git_blob": "b550277110db3344c5a54b1e70c4baf5d73ba387",
+    "revision": "bd6d26d1bced03c17a98baa86d2cd3425d543d1b"
+  },
+  {
+    "repo": "brave-core",
+    "path": "components/brave_shields/content/test/ad_block_service_unittest.cc",
+    "sha256": "ac8364f65e9c7e6c8ccbc816f6c119979e371722ad8ccfb76f82bd86fdda721c",
+    "git_blob": "132aac731af1afde51aeb40425b3423efdafd255",
+    "revision": "bd6d26d1bced03c17a98baa86d2cd3425d543d1b"
+  },
+  {
+    "repo": "brave-core",
+    "path": "components/brave_shields/core/browser/ad_block_component_filters_provider.cc",
+    "sha256": "3f5ff5b8c1e0b471ec9428213abf1e973e01d2aabc6eaa1f24ece14e3af6c8ef",
+    "git_blob": "47c748dd4655b541329adf480e444409767976e8",
+    "revision": "bd6d26d1bced03c17a98baa86d2cd3425d543d1b"
+  },
+  {
+    "repo": "brave-core",
+    "path": "components/brave_shields/core/browser/ad_block_component_installer.cc",
+    "sha256": "058a15b412364bfbb87bfe806bbeb97147828ad879f93fc278f3dceac04b4124",
+    "git_blob": "757ae5ed0136a6a5400a5ace323e2c63e0489b47",
+    "revision": "bd6d26d1bced03c17a98baa86d2cd3425d543d1b"
+  },
+  {
+    "repo": "brave-core",
+    "path": "components/brave_shields/core/browser/ad_block_component_service_manager.cc",
+    "sha256": "a39a3cf6d116ec72279dc7d534703e39c824489edb3a8b3a54882d0e147a4b84",
+    "git_blob": "0f4cae9562ff4293caaee65b81402486bf5e38a1",
+    "revision": "bd6d26d1bced03c17a98baa86d2cd3425d543d1b"
+  },
+  {
+    "repo": "brave-core",
+    "path": "components/brave_shields/core/browser/ad_block_custom_resource_provider.cc",
+    "sha256": "5f179c2bc98d8d22007eaf11a46157ca7540bc5e234e7e34ca0972c03a478363",
+    "git_blob": "57d3bc39e0da7837506f8ec346dc710aeb0f900c",
+    "revision": "bd6d26d1bced03c17a98baa86d2cd3425d543d1b"
+  },
+  {
+    "repo": "brave-core",
+    "path": "components/brave_shields/core/browser/ad_block_custom_resource_provider.h",
+    "sha256": "4a932153d6314274840e5217a6481225ac545caa7874f570c73b7272fc45391e",
+    "git_blob": "6c2ba1a749607b6af8778bf59afda6bab1287ea2",
+    "revision": "bd6d26d1bced03c17a98baa86d2cd3425d543d1b"
+  },
+  {
+    "repo": "brave-core",
+    "path": "components/brave_shields/core/browser/ad_block_custom_resource_provider_unittest.cc",
+    "sha256": "3db058d7ff7e809aeec5d30d8888567f72c569fc2718ed0c7f9fe2b044226c27",
+    "git_blob": "e5636716df306baabcbfa2b2e17a26bdd506dd9f",
+    "revision": "bd6d26d1bced03c17a98baa86d2cd3425d543d1b"
+  },
+  {
+    "repo": "brave-core",
+    "path": "components/brave_shields/core/browser/ad_block_default_resource_provider.cc",
+    "sha256": "11d281e97635f9b7fc9591a67b2401549e197ae8c5341271f0ef10c8f7b04659",
+    "git_blob": "e0f1eed5768a4eb653d0854caf32a502f91a77b2",
+    "revision": "bd6d26d1bced03c17a98baa86d2cd3425d543d1b"
+  },
+  {
+    "repo": "brave-core",
+    "path": "components/brave_shields/core/browser/ad_block_default_resource_provider.h",
+    "sha256": "5d402825795d11d5288e54cadc3e93ce6bace7c0e6e3c4d2de491c319a6aed45",
+    "git_blob": "662ef3e0dba7ef6bf461402b7802c03424c47b3c",
+    "revision": "bd6d26d1bced03c17a98baa86d2cd3425d543d1b"
+  },
+  {
+    "repo": "brave-core",
+    "path": "components/brave_shields/core/browser/ad_block_filter_list_catalog_provider.cc",
+    "sha256": "69d040b5099ee35abceb22d67ff53991468ceea4857711b7b9d0ae134e695b3e",
+    "git_blob": "4522b1d6051a2820281cbed3ec3fbbbb86065f7e",
+    "revision": "bd6d26d1bced03c17a98baa86d2cd3425d543d1b"
+  },
+  {
+    "repo": "brave-core",
+    "path": "components/brave_shields/core/browser/ad_block_filters_provider_manager.cc",
+    "sha256": "008ded6b1a87ccae1cd980196774b9c241092fbf10f31561b8d785d7336f551a",
+    "git_blob": "9081f9300436a11869d8374f2710cd639938fe66",
+    "revision": "bd6d26d1bced03c17a98baa86d2cd3425d543d1b"
+  },
+  {
+    "repo": "brave-core",
+    "path": "components/brave_shields/core/browser/ad_block_filters_provider_manager.h",
+    "sha256": "a1d3607a4176579e47691cb17991954d01d91dd1ac2cfd0772971d0dfd26b93c",
+    "git_blob": "06340926fbfe65bf4a381528f56971ac0cbc1d72",
+    "revision": "bd6d26d1bced03c17a98baa86d2cd3425d543d1b"
+  },
+  {
+    "repo": "brave-core",
+    "path": "components/brave_shields/core/common/adblock/rs/src/lib.rs",
+    "sha256": "1f2549773004402e8597c82d8bea8efddf23a3fc79bd183fd69e1e8ff1757594",
+    "git_blob": "078a6414174d8c4e448c6512ff5c7d7e5a1c6eb4",
+    "revision": "bd6d26d1bced03c17a98baa86d2cd3425d543d1b"
+  },
+  {
+    "repo": "brave-core",
+    "path": "components/brave_shields/core/common/adblock/rs/src/resource_storage.rs",
+    "sha256": "67e19be9ba638e8612f79dbf0bf5d962b908a2e416e81bde06ebe730b2f461c9",
+    "git_blob": "8ad8992f92ffb7735a84bac59f7c8f411a826588",
+    "revision": "bd6d26d1bced03c17a98baa86d2cd3425d543d1b"
+  },
+  {
+    "repo": "brave-core",
+    "path": "components/brave_shields/core/common/brave_shields_settings_values.h",
+    "sha256": "6712b137085e08ad1a8c925aa5cb82be678b8b4632e414e51f3d7a8b4f68dd25",
+    "git_blob": "608e746cf27d37c725053bc43c9f98767c6f91c3",
+    "revision": "bd6d26d1bced03c17a98baa86d2cd3425d543d1b"
+  },
+  {
+    "repo": "brave-core",
+    "path": "components/brave_shields/core/common/filter_list.mojom",
+    "sha256": "b7406b69e0b80af287b532cd08abd055cdbecdab8392bbb8fd5ef6386d167050",
+    "git_blob": "24a5471faafb3c606c29c17e52fbcab492bb4aed",
+    "revision": "bd6d26d1bced03c17a98baa86d2cd3425d543d1b"
+  },
+  {
+    "repo": "brave-core",
+    "path": "components/brave_shields/core/common/pref_names.h",
+    "sha256": "8ff140b64a47aaa171ade55aef8c53c32bf35332e25c5f409452c750f584cdea",
+    "git_blob": "7ef5b3c83f4b34042b9b66e27d496d753fcf4a8c",
+    "revision": "bd6d26d1bced03c17a98baa86d2cd3425d543d1b"
+  },
+  {
+    "repo": "brave-core",
+    "path": "components/brave_shields/core/test/ad_block_filters_provider_manager_unittest.cc",
+    "sha256": "8c2bb3dbc14ffc7148b3fea533554443c3ed202549757c081cd40657b519f9bf",
+    "git_blob": "5aabbfb1f3e3784645f33b9be85b991d00db76f8",
+    "revision": "bd6d26d1bced03c17a98baa86d2cd3425d543d1b"
+  }
+]

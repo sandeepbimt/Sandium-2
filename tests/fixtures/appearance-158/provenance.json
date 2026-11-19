@@ -1,0 +1,7 @@
+{
+  "repository": "brave/brave-core",
+  "commit": "bd6d26d1bced03c17a98baa86d2cd3425d543d1b",
+  "path": "android/java/org/chromium/chrome/browser/settings/AppearancePreferences.java",
+  "git_blob": "0a11ee85c7c201dc177fcf059280316327518886",
+  "sha256": "33a2c92b08f0da6b8ba1ec7494fe0333834b57d107266337ca768f10c8725748"
+}

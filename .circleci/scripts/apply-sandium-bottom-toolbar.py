@@ -7,8 +7,8 @@ import re
 from pathlib import Path
 import subprocess
 
-PIN = 'd331de35ca8ab1358c7a17e4bd41627d55eaef51'
-BRAVE_PIN = '44a84b1f89d9a35287289d6a3d493e362f5a5123'
+PIN = '52bdd21723d5db0c9ab11716d38feac74828cf84'
+BRAVE_PIN = 'bd6d26d1bced03c17a98baa86d2cd3425d543d1b'
 BASE = 'chrome/browser/ui/android/toolbar/'
 PHONE = BASE+'java/src/org/chromium/chrome/browser/toolbar/top/ToolbarPhone.java'
 MENU_BUTTON = BASE+'java/src/org/chromium/chrome/browser/toolbar/menu_button/MenuButton.java'
@@ -49,14 +49,23 @@ def phone(s):
                 (metaState, buttonState) -> tabController.forward());
         homeButtonCoordinator.setHasSpaceToShow(true);''')
     s = body(s, '    private boolean shouldShowBackButtonOutside()', '        return false; // Android system Back remains unchanged.')
-    s = once(s, '''        boolean hideHomeButton =
+    if '        boolean hideHomeButton = !mIsHomeButtonEnabled || mIsToolbarUiRefactorEnabled;' in s:
+        # Reviewed Chromium158 refactor: retain the native nullable coordinator.
+        s = once(s, '        boolean hideHomeButton = !mIsHomeButtonEnabled || mIsToolbarUiRefactorEnabled;',
+                 '        ((org.chromium.chrome.browser.toolbar.home_button.HomeButton) mHomeButton)\n'
+                 '                .setHasSpaceToShow(true);\n'
+                 '        boolean hideHomeButton = false; // Forward owns the start slot independent of Home prefs.')
+        s = once(s, '            tabSwitcherButtonCoordinator.setHasSpaceToShow(!mIsToolbarUiRefactorEnabled);',
+                 '            tabSwitcherButtonCoordinator.setHasSpaceToShow(true);')
+    else:
+        s = once(s, '''        boolean hideHomeButton =
                 !mIsHomeButtonEnabled
                         || showBackButtonOutside
                         || (shouldModifyToolbarButtons
                                 && !ToolbarVariationUtils.shouldHomeButtonBeAtStartOfToolbar());''', '''        ((org.chromium.chrome.browser.toolbar.home_button.HomeButton) mHomeButton)
                 .setHasSpaceToShow(true);
         boolean hideHomeButton = false; // Forward owns the start slot independent of Home prefs.''')
-    s = once(s, '            getTabSwitcherButtonCoordinator().setHasSpaceToShow(!shouldModifyToolbarButtons);', '            getTabSwitcherButtonCoordinator().setHasSpaceToShow(true);')
+        s = once(s, '            getTabSwitcherButtonCoordinator().setHasSpaceToShow(!shouldModifyToolbarButtons);', '            getTabSwitcherButtonCoordinator().setHasSpaceToShow(true);')
     s = once(s, '    private ImageView mHomeButton;', """    private ImageView mHomeButton;
     private org.chromium.chrome.browser.tab.@Nullable Tab mSandiumObservedTab;
     private final org.chromium.chrome.browser.tab.TabObserver mSandiumNavigationObserver =

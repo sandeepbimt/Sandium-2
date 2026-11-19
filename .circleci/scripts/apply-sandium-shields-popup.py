@@ -6,7 +6,7 @@ import re
 import subprocess
 import xml.etree.ElementTree as ET
 
-PIN = '44a84b1f89d9a35287289d6a3d493e362f5a5123'
+PIN = 'bd6d26d1bced03c17a98baa86d2cd3425d543d1b'
 LAYOUT = 'android/java/brave-res/layout/brave_shields_tab_content.xml'
 JAVA = 'android/java/org/chromium/chrome/browser/shields/BraveUnifiedPanelHandler.java'
 STRINGS = 'browser/ui/android/strings/android_brave_strings.grd'

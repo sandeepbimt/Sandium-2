@@ -1,0 +1,117 @@
+{
+  "brave_sha": "bd6d26d1bced03c17a98baa86d2cd3425d543d1b",
+  "files": {
+    "renderer/brave_content_renderer_client.cc": {
+      "git_blob": "fa9ce8946340ad424691141c36165f2cc6368f56",
+      "sha256": "9f29234d16a3567facfea9e1f2fd29af88550511a6e619a9b57c0bcb70660976"
+    },
+    "renderer/sources.gni": {
+      "git_blob": "460e50b972d4f333ff4b5bd5abc4593108e4df09",
+      "sha256": "06e584b5e1747acc5d76a42b4725e21bfea0f8ae6577d9b2ede63a8271fba3aa"
+    },
+    "android/brave_java_sources.gni": {
+      "git_blob": "a74bab0507f9cf1f74238f6bddb7a54cec7471ad",
+      "sha256": "3d9fd7eb72a6700128ee0e7cb390869072b27cc5a8cf4393f8e4a5217f0b6f75"
+    },
+    "android/BUILD.gn": {
+      "git_blob": "e623c9bab8308a826abd652eb647f65da8162a2e",
+      "sha256": "8ab05bb504bb841d7fe4f5dd571c1475f0c225a33969e9f5c0d8197ee4e1e349"
+    },
+    "components/playlist/core/common/buildflags/buildflags.gni": {
+      "git_blob": "5e401c3ab3097736b043c91ad9cee01e1ec34d2a",
+      "sha256": "c724a0bab8df74e138cd3599eb7adb4e407cf2f41274a5ebf0e4724e37c3accd"
+    },
+    "components/brave_mobile_subscription/renderer/android/subscription_render_frame_observer.cc": {
+      "git_blob": "dc0202328d42c5117903af524931fd31736bc5d1",
+      "sha256": "3cecb92eb0a14f691428a5daa5f63ffef21fd828b1441786c5449f4aa4190d4a"
+    },
+    "components/brave_mobile_subscription/renderer/android/BUILD.gn": {
+      "git_blob": "19391f64a1eb4ce43816a7fcbc895ee82e32252d",
+      "sha256": "190c5a3ce0894285bf21ecf4adc9f2446eb4586b9fa1c9e7fe89722716d36cb9"
+    },
+    "components/brave_mobile_subscription/renderer/android/subscription_render_frame_observer.h": {
+      "git_blob": "a4e7a95f7b9f1d55c15414a44817240c031bdd90",
+      "sha256": "d60cd7062b258da64e090b542795f7311af98355e17d36887464c30f300ea1e9"
+    },
+    "build/android/config.gni": {
+      "git_blob": "db403d925671b20e8992a8ffbc7b914283187196",
+      "sha256": "0712f7b5fdb899eb1fe6d51f187f435fbb897bd0e726395f9fd62556181d6f24"
+    },
+    "browser/android/preferences/brave_pref_service_bridge.cc": {
+      "git_blob": "54f90a761df892b75a18e67fd70b2c66fd8ec7ea",
+      "sha256": "fc8d01b099a3af7a112819dd1289e976f46ef68fc55d24ecce9f0546b69c9df4"
+    },
+    "browser/android/preferences/BUILD.gn": {
+      "git_blob": "5cdf735dad3eb50fda9efd06e392cbb914cec765",
+      "sha256": "dd2756d1e64116a701e74a0124aba5507ce8bc0a56a5e56940c779e6493a029d"
+    },
+    "browser/customize_menu/android/BUILD.gn": {
+      "git_blob": "4063395f2ae8f5bfdd6007b0d1568c02deebcb05",
+      "sha256": "382ce196890166958319de1640ca80c43a0b546ffc00b0f4239000c287d750c7"
+    },
+    "browser/customize_menu/android/java/src/org/chromium/brave/browser/customize_menu/CustomizeBraveMenu.java": {
+      "git_blob": "38b79d3f791a0e07817e7f6a44c5d3a16974ebad",
+      "sha256": "13e347b4157a2802aefabf72709e08dec828fa5bff3d195e548bfa2a9f6cacf3"
+    },
+    "android/java/AndroidManifest.xml": {
+      "git_blob": "4aacdfe277b4f93c45115f80292be2047ef0624f",
+      "sha256": "6d37205196cdccde6216c53af9dc4532745d21a5b55cd711f8cd400ebd9b0ee2"
+    },
+    "android/java/res/layout/new_tab_page_layout.xml": {
+      "git_blob": "383e83f621224b25bfe82465977e4949846a7d77",
+      "sha256": "337d29bd8201e774a2a724630f782b58e9f331eb60eb0384b4588016e7147ccf"
+    },
+    "android/java/org/chromium/chrome/browser/preferences/BravePrefServiceBridge.java": {
+      "git_blob": "b82e717ba55b85ba116c02eafc9ad60ac43050f2",
+      "sha256": "78a95851b1810cc4892c8e18fd78237ba2f033e6efe51850e3f726525831d89b"
+    },
+    "android/java/org/chromium/chrome/browser/tabbed_mode/BraveTabbedAppMenuPropertiesDelegate.java": {
+      "git_blob": "56ab238ba8e88b4b5df597f6c7794148a9e65e40",
+      "sha256": "46aa5f1197b40e94389846a0edfb15c93742813445bf03033d2d6fabbc14bc14"
+    },
+    "android/java/org/chromium/chrome/browser/settings/BraveMainPreferencesBase.java": {
+      "git_blob": "70960380d0965531a83b9bbb64eb46437fd65ff2",
+      "sha256": "10c11aecf8981e7018cf8399b77c86e9b7997ed3b687063ef8adaaa3b3c11a8b"
+    },
+    "android/java/org/chromium/chrome/browser/app/BraveActivity.java": {
+      "git_blob": "cb9bcaeae971d8c3c31f316f6e863f39307ede70",
+      "sha256": "aa2ba9c668f0391421b8ba19448795529dbbe27addd08bb4681865ed8d395b54"
+    },
+    "android/java/org/chromium/chrome/browser/billing/LinkSubscriptionUtils.java": {
+      "git_blob": "4dda7e5b14855cbfb658a9b0fc9800b117a80a30",
+      "sha256": "6b07b3f2e3af5cd5bac2bf223af026ef0e0b2dd6daaf3827707fceed730d4fdd"
+    },
+    "android/java/org/chromium/chrome/browser/billing/InAppPurchaseWrapper.java": {
+      "git_blob": "bdc09468087a6562f366df8f4b37d4c4c3b51684",
+      "sha256": "11e6f692eaf3b28783e262480b1e9c17774a97ef042c304dd69f49b4fe9a2f7c"
+    },
+    "android/java/org/chromium/chrome/browser/ntp/BraveNtpAdapter.java": {
+      "git_blob": "b96174dbb489e7046a5b3dd4317b27598c82ced6",
+      "sha256": "dd24f7fb675ddd29fa323453c52773ad44f34d22e4126ed5b5ccaf4f9d86b6af"
+    },
+    "android/java/org/chromium/chrome/browser/ntp/BraveNewTabPageLayout.java": {
+      "git_blob": "62fecd996473d223f3715b41b69bbeb97de3b1e0",
+      "sha256": "1a159032b6fe7551dba66998903559cb8f62352bbcfb151fa989a640bbc581e8"
+    },
+    "android/java/org/chromium/chrome/browser/ntp/OnBraveNtpListener.java": {
+      "git_blob": "c438a16de300e4b308aa9426d9ccb5b7a29bb69a",
+      "sha256": "611d6867b4532bf2f8cc9ab9b6ae071f96237ff204a6080070d15394581dfb39"
+    },
+    "android/java/org/chromium/chrome/browser/toolbar/top/BraveToolbarLayoutImpl.java": {
+      "git_blob": "3cc0fa02d9777e335901bed6fd49cd0baadce861",
+      "sha256": "5e46431e356d9020a431c6520c373cccfd3ab5b3729822b286bdc13b0605d081"
+    },
+    "android/java/brave-res/xml/brave_main_preferences.xml": {
+      "git_blob": "42f124fc2e2b83aeea03063919974fab31e9ec95",
+      "sha256": "39979da1b815a3dafd9a19311a8fba1bafe34d3a6659ca6f4dfcf694aa299a32"
+    },
+    "browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/adaptive/BraveAdaptiveToolbarStatePredictor.java": {
+      "git_blob": "d369ec61846b1ebea1a47ef86b3dd1110d4e290c",
+      "sha256": "8fa80d4ef75968b432a3cb4609af0d37e1b65b7be1ede3f4040b5a608073672f"
+    },
+    "chromium_src/chrome/browser/flags/android/chrome_feature_list.cc": {
+      "git_blob": "e1d13c324ba76cd58ed72dc26134213874a8b05c",
+      "sha256": "ae1a68e0a05f4e8823b13a40c5ea8f833216b59be25646685cfb932b7c5c2b20"
+    }
+  }
+}

@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import importlib.util
 """Pinned Dark Pages Java/pref/UI layer. Not wired until native consumers pass review."""
 from pathlib import Path
 import argparse
@@ -18,6 +19,12 @@ A='{http://schemas.android.com/apk/res/android}'
 ET.register_namespace('android',A[1:-1])
 ET.register_namespace('app','http://schemas.android.com/apk/res-auto')
 ET.register_namespace('tools','http://schemas.android.com/tools')
+
+def verify_source_identity(source):
+    path = Path(__file__).resolve().parents[2] / '.circleci/scripts/sandium-source-identity.py'
+    spec = importlib.util.spec_from_file_location('sandium_source_identity', path)
+    module = importlib.util.module_from_spec(spec); spec.loader.exec_module(module)
+    return module.verify(source)
 
 def once(text, old, new):
     if new in text: return text
@@ -240,9 +247,7 @@ def transformations(src,repo):
     return outputs
 
 def apply(src,repo,verify=False):
-    for path,pin in ((src,CHROMIUM_PIN),(src/'brave',BRAVE_PIN)):
-        if subprocess.check_output(['git','-C',str(path),'rev-parse','HEAD'],text=True).strip()!=pin:
-            raise ValueError('Dark Pages source pin mismatch')
+    verify_source_identity(src)
     for path,text in transformations(src,repo).items():
         if verify:
             if not path.exists() or path.read_text()!=text: raise ValueError('Dark Pages drift: '+str(path))

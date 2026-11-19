@@ -13,7 +13,7 @@ import argparse
 import subprocess
 from pathlib import Path
 
-EXPECTED_CHROMIUM_SHA = "d331de35ca8ab1358c7a17e4bd41627d55eaef51"
+EXPECTED_CHROMIUM_SHA = "52bdd21723d5db0c9ab11716d38feac74828cf84"
 CONFIG = Path("components/download/internal/background_service/config.cc")
 
 LIMITS = {

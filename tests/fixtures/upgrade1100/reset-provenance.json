@@ -1,0 +1,2126 @@
+{
+  "brave_sha": "bd6d26d1bced03c17a98baa86d2cd3425d543d1b",
+  "chromium_sha": "52bdd21723d5db0c9ab11716d38feac74828cf84",
+  "files": {
+    "core/BUILD.gn": {
+      "git_blob": "83f4e22d0e6c3d8b6b8ca436503a4e49e0ceed47",
+      "sha256": "f709e38a8248b028154b7d554bb5d85a9572ed2284c18031b6f73302c0ca63f0"
+    },
+    "core/android/BUILD.gn": {
+      "git_blob": "e623c9bab8308a826abd652eb647f65da8162a2e",
+      "sha256": "8ab05bb504bb841d7fe4f5dd571c1475f0c225a33969e9f5c0d8197ee4e1e349"
+    },
+    "core/android/android_browser_tests.gni": {
+      "git_blob": "16d906e7a2aaaf3b75d3b9bfbdcccd8d0b71fa29",
+      "sha256": "276697f36b08fb52e96c325efaa977b3498249400e4fc814fdb59b551556029a"
+    },
+    "core/android/brave_java_sources.gni": {
+      "git_blob": "a74bab0507f9cf1f74238f6bddb7a54cec7471ad",
+      "sha256": "3d9fd7eb72a6700128ee0e7cb390869072b27cc5a8cf4393f8e4a5217f0b6f75"
+    },
+    "core/android/feed/core/java/src/org/chromium/chrome/browser/feed/BraveFeedSurfaceCoordinator.java": {
+      "git_blob": "fbf7f2698c13938a654ec4668f16a4b236d0b4b2",
+      "sha256": "fcbc24b8c613df1c72723a26f4f12213df5172b3f5cdf22727aa6b07a6961ffe"
+    },
+    "core/android/java/AndroidManifest.xml": {
+      "git_blob": "4aacdfe277b4f93c45115f80292be2047ef0624f",
+      "sha256": "6d37205196cdccde6216c53af9dc4532745d21a5b55cd711f8cd400ebd9b0ee2"
+    },
+    "core/android/java/brave-res/color/brave_news_settings_follow_button_text_color.xml": {
+      "git_blob": "e3d401d3b38ef874570bf931463978e4fc923faf",
+      "sha256": "398bd10ed0b0e66535c6d8121dba667a0cbb4b33a2f0b11b043e6f7a4e970413"
+    },
+    "core/android/java/brave-res/drawable-hdpi/vpn_install_bg.png": {
+      "git_blob": "22501d6c49e437632ad000ad4768076117d82d84",
+      "sha256": "843e57239d2e45228efeb92fb150ed1e8e87f38dbf3b74e0eecac55f9267b1ef"
+    },
+    "core/android/java/brave-res/drawable-mdpi/vpn_install_bg.png": {
+      "git_blob": "28cef802e327967911447b9dd478ef838983c6d3",
+      "sha256": "5d272f3352363349391412a5e310ded7a616b64b8da8543f8b50c3c0dded91d3"
+    },
+    "core/android/java/brave-res/drawable-night/ic_vpn_always_on_1.xml": {
+      "git_blob": "885f1b2fd3825502285299922259d92c4605aff9",
+      "sha256": "2b9e1de73d16e60c9b8149e23eca33d3372f5e475645b5caaca51a5d20fc57c1"
+    },
+    "core/android/java/brave-res/drawable-night/ic_vpn_always_on_2.xml": {
+      "git_blob": "5a7b4af9cf0b2d723861f5850d4d25b588f673ca",
+      "sha256": "9869092b60472c5a528779c80d47c6773776bb4428da44f128ef1b4ab733c8f3"
+    },
+    "core/android/java/brave-res/drawable-night/ic_vpn_always_on_3.xml": {
+      "git_blob": "06864f6d9c99c7d7a5bfe8bbfd4433c119c5da4c",
+      "sha256": "44c840e65357ea13d80d4dfeeb7c844eb9980d577e1bb2cbc8c846f96fb22fe5"
+    },
+    "core/android/java/brave-res/drawable-xhdpi/vpn_install_bg.png": {
+      "git_blob": "a0af66eb5ef995354c845aafb8af8b1a0d7dacdc",
+      "sha256": "4d6d5fb91eee8c71ef5ce271afc0ba820aa695c6398bdb740607c3ad2240f68a"
+    },
+    "core/android/java/brave-res/drawable-xxhdpi/vpn_install_bg.png": {
+      "git_blob": "0a9f9989c8aeed246bec9a88bf6405c4146ad514",
+      "sha256": "6cbb78df42d2b5d486ee8009c7b00c6f2471e15b38b8e9d4ec40e79c3f470717"
+    },
+    "core/android/java/brave-res/drawable/brave_news_settings_list_divider.xml": {
+      "git_blob": "c170d845a8644908071e20daf5494c0caa53f54e",
+      "sha256": "c6178a33f258e2d6e763d786bd338e78baa88dde3e001aa64e4fb330c061db5b"
+    },
+    "core/android/java/brave-res/drawable/brave_news_settings_publisher_bg.xml": {
+      "git_blob": "4e32155db4c3a251ac40fda79249aaf034796e4a",
+      "sha256": "0404a4df56a1acd3ebd4a63e4e74864946826470325cd7708ae3336fc0d0a18e"
+    },
+    "core/android/java/brave-res/drawable/brave_news_settings_search_bg.xml": {
+      "git_blob": "7e327dd4d3fbb80bc61bfd1a9b4fcfe01856703f",
+      "sha256": "bc7d66eab63951f0937ba708730fe0da4523aed75abbcd1ef092277a77769f97"
+    },
+    "core/android/java/brave-res/drawable/brave_news_settings_unfollow_bg.xml": {
+      "git_blob": "a60d8a284366c5ea121a9882d9ab17c1b901a772",
+      "sha256": "0e7ba6e61025b941a90bd3cf5b052362512b8d74527659c6b8b59d604056475c"
+    },
+    "core/android/java/brave-res/drawable/ic_brave_news_no_source.xml": {
+      "git_blob": "806c5bd10926d157633d6e65945394a056ec5ac5",
+      "sha256": "06acd53e6d3e90f10640407fce74d562202761b557fbcfd9d087d725bc2ba3f3"
+    },
+    "core/android/java/brave-res/drawable/ic_brave_vpn_graphic.xml": {
+      "git_blob": "1f4fad7f01b72439b8fc9ffec710566c1294300a",
+      "sha256": "f88d54ebe98c865caf8f6b0fe933f2c7b3ad8e3dcc77d1444f723b4487013871"
+    },
+    "core/android/java/brave-res/drawable/ic_channel_brave.xml": {
+      "git_blob": "146670f35c0a36328c8a2e192de50c9f6d9fe6b6",
+      "sha256": "d5c99b387e93b60a5ba6208ec4b9d97d4573725ee0ef11826d4b1e2b4976d17f"
+    },
+    "core/android/java/brave-res/drawable/ic_channel_business.xml": {
+      "git_blob": "67ee4b7c0658fcfccc00f76802be6fee9acb722b",
+      "sha256": "281207c408c32cbb7bb65bfd2ccb7136164f864447ab667cf80c59d062ce2612"
+    },
+    "core/android/java/brave-res/drawable/ic_channel_cars.xml": {
+      "git_blob": "28d40f3ec7e5ad1ab2d85fdc2ddfec8dc9da81ba",
+      "sha256": "d185d210fe357f8802af6ffed8e5a3841831d10a65d9867826ce00704efb7815"
+    },
+    "core/android/java/brave-res/drawable/ic_channel_crypto.xml": {
+      "git_blob": "6b6151e9ee7d03d1caadc8858a0938cd699c65af",
+      "sha256": "789a580f4fccc603109b27fc49215af7632b2bac7dd0284dcdb744f05fe40424"
+    },
+    "core/android/java/brave-res/drawable/ic_channel_culture.xml": {
+      "git_blob": "a093f7eee3aec57b02781b4a78f6ad2fa63ba340",
+      "sha256": "dddd122cf323f737ebd1c0df8878375f93483f065e9b5c1f8a28de21e22b2272"
+    },
+    "core/android/java/brave-res/drawable/ic_channel_default.xml": {
+      "git_blob": "c1d563332ed6847e67c8f2e0cc6312d9334d5acb",
+      "sha256": "b8dcd962329c7115682d87f51643d75ee146b926e96ff81b11f05fe0df4dc2d8"
+    },
+    "core/android/java/brave-res/drawable/ic_channel_entertainment.xml": {
+      "git_blob": "d1428a089aa3aed14148bcad000b9d7191e78ff5",
+      "sha256": "e73a40258fcc83406c677c39e75e14158d0fb93418fb6edad9b2ab7c5837b0d2"
+    },
+    "core/android/java/brave-res/drawable/ic_channel_fashion.xml": {
+      "git_blob": "64e9a7878922eb1b285dd69301b31422e3c85d8a",
+      "sha256": "384b04583ac42888d91655723b5f049f2f2d155e639cf3accbbec7d7627a6896"
+    },
+    "core/android/java/brave-res/drawable/ic_channel_filmtv.xml": {
+      "git_blob": "c76de4587acfa671f81b84fe19fdc77855778cf3",
+      "sha256": "78a57e4d3a1cf1cd1a0e69e29260517881f742fc0be770f470933ea742934fae"
+    },
+    "core/android/java/brave-res/drawable/ic_channel_food.xml": {
+      "git_blob": "fd3b5dcaa9e79e105408faf94c4057280a8f3299",
+      "sha256": "a6c20309cfa4be47a1aecfa76e874401b41e77461bc0e0d84ba3a43d998fc876"
+    },
+    "core/android/java/brave-res/drawable/ic_channel_fun.xml": {
+      "git_blob": "a174937ed6a55517d0706d2743fb0a337b95923b",
+      "sha256": "1b77cca87bd80a093c4e796865069f86018393a705c583b159d22fae49946412"
+    },
+    "core/android/java/brave-res/drawable/ic_channel_gaming.xml": {
+      "git_blob": "0c9e7489f732e4dadd429ee1493d7680ecfa9ccc",
+      "sha256": "aba3d89473fa3b7b5bc24f889257dd319cbdfc5ee8f5d9797a02dcae9974b647"
+    },
+    "core/android/java/brave-res/drawable/ic_channel_health.xml": {
+      "git_blob": "7ab1290ee7fcd050201b205a83fa591dfff56f89",
+      "sha256": "0a6da60878036547b1925b2bf24b7a3c05b18e2e4a99f8fd382023cd9f518b7e"
+    },
+    "core/android/java/brave-res/drawable/ic_channel_home.xml": {
+      "git_blob": "ed41f1187287f184cc320578a004948fdba88d64",
+      "sha256": "710abfcad3eb68c9c0c258b5a3d319be7357abcbd18b6de0e8b984c92eed4a19"
+    },
+    "core/android/java/brave-res/drawable/ic_channel_music.xml": {
+      "git_blob": "affe2784abd2aa488ef874e12a34fa5d9fff746c",
+      "sha256": "b34eeb720f2507c65aad7b43787fd5052adaacf74b70b8d0d4485b8eedebe114"
+    },
+    "core/android/java/brave-res/drawable/ic_channel_politics.xml": {
+      "git_blob": "5c6c82533f416d503fd64870ced5d3c7bf88b21e",
+      "sha256": "f28055d17e3a79bcfff6f2cf680932afcc7c4ec3f745ad792a57688c1e39f0d7"
+    },
+    "core/android/java/brave-res/drawable/ic_channel_science.xml": {
+      "git_blob": "95614c279ac01e31ea30ff5b6307497a65b3b498",
+      "sha256": "6786f69c6c61142881089ab0849e85de4c1417168f7c3cef1cd42bb560639b53"
+    },
+    "core/android/java/brave-res/drawable/ic_channel_sports.xml": {
+      "git_blob": "cf8628a74128ec17c409e91c46e3ec24a874e2cb",
+      "sha256": "534038fb73ce4b1b1b7eb493017af4885f6547bb8c324bc29509139a40d88b74"
+    },
+    "core/android/java/brave-res/drawable/ic_channel_tech_reviews.xml": {
+      "git_blob": "3e885ffbd42a104523a25b3e2c08f64e0c0d1e00",
+      "sha256": "2b3a08e64c055f9519cc1faf6a51a135ff065786e980a7e2a6dbcc051b58e82f"
+    },
+    "core/android/java/brave-res/drawable/ic_channel_technology.xml": {
+      "git_blob": "86cc234af2f5c461b95aabf3f9b709fb064f4ae1",
+      "sha256": "a4c1e3817c92e68971a502a2adb0a104c54072416e29a22840860f0a4b43fb00"
+    },
+    "core/android/java/brave-res/drawable/ic_channel_top_news.xml": {
+      "git_blob": "328387929580334924add1e167e1242b0cfecb9d",
+      "sha256": "dc6e2ffb1803332739ca48d22d51bd7c7cf88b1c72a94c7ba979bc236609fced"
+    },
+    "core/android/java/brave-res/drawable/ic_channel_travel.xml": {
+      "git_blob": "7b6f6271ee2c955a033d48a834f9b272e772e32c",
+      "sha256": "a43ea0f09bdb4ba95bca9f02e505a98736094dc6acd2596e8ecfaf3000356943"
+    },
+    "core/android/java/brave-res/drawable/ic_channel_us_news.xml": {
+      "git_blob": "6b0fe8fdc90bcbae1b764c8569c3b21640cb78d7",
+      "sha256": "2069ba9900cf015bc87ee390949460f29360ea1fed4bb45d23915721cfde8844"
+    },
+    "core/android/java/brave-res/drawable/ic_channel_weather.xml": {
+      "git_blob": "f866ebb2dd8d692a544eecb6a74a55c6f233febe",
+      "sha256": "746d269ab1c8448a7c095238b31616a755918ca5a882cd8bcab1bf2f7273290a"
+    },
+    "core/android/java/brave-res/drawable/ic_channel_world_news.xml": {
+      "git_blob": "afd7cc8559ba313c9d6cb7f38d3044566ef7f0d9",
+      "sha256": "243025e9876ef792a7e30c0ad5da475b9b3da78bf2471b5111cef16197c3a235"
+    },
+    "core/android/java/brave-res/drawable/ic_circle_news_settings.xml": {
+      "git_blob": "3ed691fba4ee4e6fcc59da671fdf2d80712495c6",
+      "sha256": "84d1d0fe4c1c8260c745c369d3da052ccfd9ba4e2375228e8b4d0e4034266e9d"
+    },
+    "core/android/java/brave-res/drawable/ic_news_settings.xml": {
+      "git_blob": "678d404a2a38428abebfac6ff40eee0bb68d07e1",
+      "sha256": "411e1e68b5bbd61157c25efeeb9ed016757cd08c93656616e9484ad9eccd1273"
+    },
+    "core/android/java/brave-res/drawable/ic_vpn_always_on_1.xml": {
+      "git_blob": "22f5fdfab49f23059c738eb117bfec38f5bccc4f",
+      "sha256": "c980dba0fb16766969a285258e16778859cc666fc6121c53490e934fd82b9e10"
+    },
+    "core/android/java/brave-res/drawable/ic_vpn_always_on_2.xml": {
+      "git_blob": "a00214be8a8620566dc7108f6ebc55b3276b37b3",
+      "sha256": "99632a162c0795650f305a4d1fd5a3b6cfb5a1e32afcdea9fb0f9d3199d4feb6"
+    },
+    "core/android/java/brave-res/drawable/ic_vpn_always_on_3.xml": {
+      "git_blob": "c4d26d683c3c3122bd88aec20258708a97e22405",
+      "sha256": "8f98019113bf4904c20b7601d8bc31a301d3e7edf9538ee591b1ab518043e430"
+    },
+    "core/android/java/brave-res/drawable/ic_vpn_promo.xml": {
+      "git_blob": "71843067464f70e14bc86d1af5c5b6baa62a9b30",
+      "sha256": "48a633034f46a98cc63a063ea6e3b0208b67ab3e2653dfcac8ab09ff8b864d54"
+    },
+    "core/android/java/brave-res/drawable/leo_plan_active_bg.xml": {
+      "git_blob": "dd246fcbfdf5374ea4755cca5bda556d61619b8c",
+      "sha256": "5f5551df3023087d318f0bc1b778445d6be75f8e002d56c744031a94c4b7400c"
+    },
+    "core/android/java/brave-res/drawable/leo_plan_non_active_bg.xml": {
+      "git_blob": "da38db0f35879fa745db3c3abbce44b93ec96159",
+      "sha256": "e856d89f48a0e2c449a611bd9a5adf5a83c3a95e266c3e05ad44585fa9f55171"
+    },
+    "core/android/java/brave-res/drawable/leo_plan_premium_adv_bg.xml": {
+      "git_blob": "4edc7bc5f84ec90d5c7313c708cbd962de4b5cf7",
+      "sha256": "7a760cdb8db0512a9aa60f1429b29205002d16a02dd7ba5187639dd3f9a0a07f"
+    },
+    "core/android/java/brave-res/drawable/leo_plan_upgrade_now_bg.xml": {
+      "git_blob": "d34a12b858262c9337f922096a313161ff8e3b66",
+      "sha256": "b080897a9074c72498f85214c7fe3eadf9b15bc1f571f48c7cd89eb9a7ef2d0f"
+    },
+    "core/android/java/brave-res/drawable/leo_tip_icon_background.xml": {
+      "git_blob": "c3f7cc1ae044356cb79972fe5e07e5a07fe42565",
+      "sha256": "4c037c2955cbaa6c9e60db8a3c9fda39eede7d56ce07927581f5d4c9910398ec"
+    },
+    "core/android/java/brave-res/drawable/leo_yearly_bg.xml": {
+      "git_blob": "e3ce9c0479fd5b2f09c7aff1adb0369b3d2de26f",
+      "sha256": "693c31045c469966f7ba7b222d1121cdb8a6e7cf792c8187c4c02cb71b3098f6"
+    },
+    "core/android/java/brave-res/drawable/news_button_bg.xml": {
+      "git_blob": "14e7f53c5181ae5e6cbb5c8b0bf777346a31fd33",
+      "sha256": "ffda63e217ae97829e841771c1bd89a11f22941770a4467e3ae99a00b72f441c"
+    },
+    "core/android/java/brave-res/drawable/news_settings_following_count_bg.xml": {
+      "git_blob": "ea11b947b39472222ba4b973c0cfe752ac82ca01",
+      "sha256": "b59e68b1e91948a051e3e67014775d9315fbdf82cd7f0e24fd7e967a0d1bdb4c"
+    },
+    "core/android/java/brave-res/drawable/news_settings_item_bg.xml": {
+      "git_blob": "805a7c7c9bd6ef8669266115732f76b35e8b00f7",
+      "sha256": "bb23d9f9ebf65eae1cc0687c2903895dddcfc611fef8df86fc911a20d9435b6f"
+    },
+    "core/android/java/brave-res/drawable/product_vpn_layer_list.xml": {
+      "git_blob": "8628f3f187635aaffee3db34062489e5c5f4ba56",
+      "sha256": "c402a134b37f0cf4bc3ef347317d92247182a5cea710586190b105d3ccb4b7c5"
+    },
+    "core/android/java/brave-res/drawable/rating_news_button_background.xml": {
+      "git_blob": "f863e1e7341c13083f4ea3f130c7886c8b6d4e00",
+      "sha256": "53723e7e6d5ff4ea65fd3cacd0d4941cb9d35cb5aded63cc176d21153adde70f"
+    },
+    "core/android/java/brave-res/drawable/shields_tooltip_background.xml": {
+      "git_blob": "2f6406e153bc98d6151a730eec656ee7ab1cd144",
+      "sha256": "179058e0273f12b5859a2451bf1bc3eb9b0ffd409cc7c6f44b20c60df971edd7"
+    },
+    "core/android/java/brave-res/drawable/shields_tooltip_pill_bg.xml": {
+      "git_blob": "7f7223710e99fffcd75091353afd2bef48446513",
+      "sha256": "024fb7ce5f2a22c823fb9fea85dc80212d512e856646256951900d28d681f79a"
+    },
+    "core/android/java/brave-res/drawable/vpn_install_phone.xml": {
+      "git_blob": "01a6081e8cbc090674a1eac2b11c4c54d4421613",
+      "sha256": "5587fe5231fdd0b02f2afd8cf7cfa577d850fdb04fbdf01793bcb955090267fc"
+    },
+    "core/android/java/brave-res/drawable/vpn_paywall_bg.xml": {
+      "git_blob": "65c74436b21896837a2914019b806ea43ad80edf",
+      "sha256": "e31963260820b0844d562bc5e359124c31e7f6921720150039af03609373012c"
+    },
+    "core/android/java/brave-res/drawable/vpn_paywall_selected_bg.xml": {
+      "git_blob": "248f80da526a86479ff55b8f022b739caadf2318",
+      "sha256": "0da49a3c1d2e14c4e0733fe64e5d7d3c103855b63ec088757de9df9c3650547e"
+    },
+    "core/android/java/brave-res/drawable/vpn_plan_action_gradient.xml": {
+      "git_blob": "81bf46adcde1fd332e3dcdc39ac6caca818a5f95",
+      "sha256": "b0befa4958aaf91108e977fe8fae188d09dfd1f9a021880da963c2c2f1022cf2"
+    },
+    "core/android/java/brave-res/layout-land/activity_brave_leo_plans.xml": {
+      "git_blob": "99bfee5a1c76bed74b811071f73e8cd1496f7006",
+      "sha256": "64ce16f0a7703efb4c28dab05a3cf1e53719bd700abf29ec40a69875214863a2"
+    },
+    "core/android/java/brave-res/layout-land/activity_brave_vpn_profile.xml": {
+      "git_blob": "3c92a5abaff6af45ceb4013be2c6418fda5b8a45",
+      "sha256": "d21a2a5751ad62b52dc775c838eefcee5acc89ab7de2e3d97699131a52ec5f87"
+    },
+    "core/android/java/brave-res/layout-land/activity_vpn_paywall.xml": {
+      "git_blob": "1d460f039d51f0000cc25d36106c576cee186143",
+      "sha256": "9ce0c57b778865eaaeb7999ea7e8d747da7fc498fc96c406c70ec5b6efca668d"
+    },
+    "core/android/java/brave-res/layout-land/approve_tx_bottom_sheet.xml": {
+      "git_blob": "3437efd013a3daf281b7ebd1c9cdf62012758f72",
+      "sha256": "38309ab82aa4b5553158de4fd6c3310d3cda944e9ebede85f0d28062d14474e5"
+    },
+    "core/android/java/brave-res/layout-land/fragment_onboarding_network_selection.xml": {
+      "git_blob": "7d9f50069c9f7c14146ec3e6a3af4d28a7c278d9",
+      "sha256": "bb4b6040d5cc37039141f6d45ccfbd33e03b82c1b2190b54fb45029f5346424f"
+    },
+    "core/android/java/brave-res/layout-land/fragment_sign_message.xml": {
+      "git_blob": "b6fbbe45e02025dc4b359081a176a3b52c34d379",
+      "sha256": "eecf821f07101e813a51f7c07979baf5d06bcac55d3899b59602f3469d1d8ead"
+    },
+    "core/android/java/brave-res/layout-land/fragment_sign_tx_message.xml": {
+      "git_blob": "e322caaa3da17905a76734d3c8e11a3f589b9411",
+      "sha256": "137e05b464182ea050949bee2eedce36eabb49c028c0c788afbb12cd81d5322f"
+    },
+    "core/android/java/brave-res/layout-land/fragment_siwe.xml": {
+      "git_blob": "a459a4970b78b46c3e24aadb713603db4c2cba2a",
+      "sha256": "ec2210993acf5276bb265795b074e5d7d4eb619ebfcc82f08070e0eb7d4dda1d"
+    },
+    "core/android/java/brave-res/layout-land/fragment_unlock_wallet.xml": {
+      "git_blob": "64c4c3fc5d9f89d5518ede32da330e8c5b0a3aab",
+      "sha256": "a8dc1118333c3470695f6f26ac90bcd862fa62f5109fbdb056164e7c27726855"
+    },
+    "core/android/java/brave-res/layout-sw600dp-land/approve_tx_bottom_sheet.xml": {
+      "git_blob": "157395ce27323e97160443e2ae2f3f4f8b75bc78",
+      "sha256": "451a56f2bbc5996eaafd328aee36e6d916787573c22264e3b0089e8cd13a8965"
+    },
+    "core/android/java/brave-res/layout-sw600dp-land/fragment_onboarding_network_selection.xml": {
+      "git_blob": "466c91e6c5e1d9b10b14900252b0888e249f35bf",
+      "sha256": "8377a02952a4345c4a3b427c08dad80d33107f12c47dcc60781ce38cccb62577"
+    },
+    "core/android/java/brave-res/layout-sw600dp-land/fragment_sign_message.xml": {
+      "git_blob": "61879c478d95e939f4ae733cc89fb6b90baaa19d",
+      "sha256": "4a0e99a399d7d389bb02ede3277ae9b76d81f894bd989874db8e703159f42298"
+    },
+    "core/android/java/brave-res/layout-sw600dp-land/fragment_sign_tx_message.xml": {
+      "git_blob": "ce4b2f92c6b467bb5b45d91002915d6f520982c8",
+      "sha256": "02c4b5f8826ba8bfa4e1ad81ed13920bf78b08fc82ac9188ef860f52e2c7bd2c"
+    },
+    "core/android/java/brave-res/layout-sw600dp-land/fragment_siwe.xml": {
+      "git_blob": "731e89a07ec7930a1258b48eddb3ab02677165dd",
+      "sha256": "e1fe3aa55c227a7777055a4311648585ed997381a7be7e04a6bb1f4677440d83"
+    },
+    "core/android/java/brave-res/layout-sw600dp-land/fragment_unlock_wallet.xml": {
+      "git_blob": "30c147a996a649d73774b9d7c1b266270d534f8c",
+      "sha256": "91822687c8d494a68fab02a53139008eb0c6089437d73523e3487fb8fcbcfb3c"
+    },
+    "core/android/java/brave-res/layout/activity_account_selector.xml": {
+      "git_blob": "d459b25c3e6ba62b2d492922cfe2dad3bdab00f6",
+      "sha256": "a2a79949ce4ac123aaf84ccff3dad6c0bd4fe986ae8b5f1a9405f1dd464b922f"
+    },
+    "core/android/java/brave-res/layout/activity_add_account.xml": {
+      "git_blob": "211132706f842ef8149727e20433a350c000ef9b",
+      "sha256": "517dbe97c9e32be102710b3ba64e6c0fef8067b88367b81aba70ff022c68b2cf"
+    },
+    "core/android/java/brave-res/layout/activity_advance_tx_setting.xml": {
+      "git_blob": "ef10aea12eb70e0ab6fd8909dd84e7f35277915e",
+      "sha256": "1a8a16dfb28f5ea4a324cc11b9d93300ef942ada99e98b48d98ee28952102ab6"
+    },
+    "core/android/java/brave-res/layout/activity_auto_reconnect_vpn.xml": {
+      "git_blob": "10f3f03430a7f1ef71759fe0f413033cc1a00b63",
+      "sha256": "1074ea83a509fab11abfd96819bbe54ed77e6969b49b5cced61e45ca03a05762"
+    },
+    "core/android/java/brave-res/layout/activity_brave_leo_plans.xml": {
+      "git_blob": "90d094d62b9249379d1a06b6a02e5ee4376e0c95",
+      "sha256": "7782273e2aa2c26ee5b7ebe205d8710caba030aa3d444c79233c0b5050698ce0"
+    },
+    "core/android/java/brave-res/layout/activity_brave_vpn_profile.xml": {
+      "git_blob": "d1ca265565b8d1f79b22a74cf3b004cceb3f9549",
+      "sha256": "a9129ef3c04e32d2d06137c5f3d78cf105a2eb36b41265abe94afd8734e55b92"
+    },
+    "core/android/java/brave-res/layout/activity_brave_vpn_support.xml": {
+      "git_blob": "eb4db086fe0b0a2a31aa29325f6ede30b0110bef",
+      "sha256": "6ec5da4c30ecb5175ebc879c8a5267b440e6c0803ef60275767f8e1994cb2896"
+    },
+    "core/android/java/brave-res/layout/activity_brave_wallet.xml": {
+      "git_blob": "10fa62425a64c524bab72980641dc6e739ec92c5",
+      "sha256": "317dea528e8bebf96a8affd4fd955e8d2e234097366fb1ac5d45277f0a319118"
+    },
+    "core/android/java/brave-res/layout/activity_brave_wallet_dapps.xml": {
+      "git_blob": "b5b232afc13b4119e805f29c178a8f7549f590c4",
+      "sha256": "0c748e50a234ed90c7f713ddff85522cb3ccff2e57cbd6afc2d134114f42546d"
+    },
+    "core/android/java/brave-res/layout/activity_network_selector.xml": {
+      "git_blob": "0c14c1037730154ce749e4998d072959ae4c7e4e",
+      "sha256": "543ce8cbe09e15cb4f22a64e27c77821ca8ccee76e50f124eb4b7c8ce62585aa"
+    },
+    "core/android/java/brave-res/layout/activity_playlist_host.xml": {
+      "git_blob": "8f49fc9d9c86327a29d6c742d6359bcc34f13e7d",
+      "sha256": "6d19a552f94e40e09d8fe8e7f831f5bb95bcbdff2ca0af116cb2356340d1396e"
+    },
+    "core/android/java/brave-res/layout/activity_vpn_paywall.xml": {
+      "git_blob": "332659e733db001b07740dfde3d1456d2d80e5a3",
+      "sha256": "90d29c863c81938fdf97d9af7ddfe1d2570610b88927bc71d9c016e59cfedc3a"
+    },
+    "core/android/java/brave-res/layout/activity_vpn_server.xml": {
+      "git_blob": "8601b54aab4467f41411b0efae300783d0c4f36b",
+      "sha256": "6c662e7b7876b717dc530d8403413e125b4c1224f33a24a9c16661e297a72dab"
+    },
+    "core/android/java/brave-res/layout/activity_vpn_server_selection.xml": {
+      "git_blob": "db84080a9eb87108e1a8be19317416b8e9a0128c",
+      "sha256": "ea9a377180da6ca05f6d45e7c074f8827e2042ded61c2ae91afcbfba53eaeb98"
+    },
+    "core/android/java/brave-res/layout/approve_tx_bottom_sheet.xml": {
+      "git_blob": "1885c099cc1098f4edd2b9d4cee84bdd041336de",
+      "sha256": "188ac121bfff41b1f02bf742f5bb19d3215c24b381af9b7bbc6baaaf9a719a6e"
+    },
+    "core/android/java/brave-res/layout/auto_reconnect_vpn_tutorial_item_layout.xml": {
+      "git_blob": "1d4709f83d733732798f0e1d5e7f26594a248882",
+      "sha256": "4bc18ac249fae71d323cf08d8ff6363eb69822e0427e8fafccac067682909d8e"
+    },
+    "core/android/java/brave-res/layout/brave_ads_existing_user_dialog_layout.xml": {
+      "git_blob": "e09cc92438fbcaf36513cbd28d15667f3d401288",
+      "sha256": "c63bcec6c38bdf01a1ad406319c2d39e4f3dbb7d17fd141d2501e574ebbe2194"
+    },
+    "core/android/java/brave-res/layout/brave_ads_new_user_dialog_layout.xml": {
+      "git_blob": "9ee71f63c084bbdcabe7cb8e7798ed45c48ac523",
+      "sha256": "827c9546801e922620da2546a2b9b9668fea26e159047065de3204aa57d0b716"
+    },
+    "core/android/java/brave-res/layout/brave_leo_clear_history_dialog.xml": {
+      "git_blob": "fb4fbfb77a8a97d1a0b44b8f4f9a924de68c1442",
+      "sha256": "4f5790f472014ac1a1dabd31c2a08dcc1e89c24492d661282c412e56a409660e"
+    },
+    "core/android/java/brave-res/layout/brave_leo_reset_dialog.xml": {
+      "git_blob": "e0016a87d3ef2d7b0fe640ffd24841655bb71b2a",
+      "sha256": "ab8a7db87d051c06e2d6a5b627d2a1c3fed3c6d76cf3b153b12975d012178f48"
+    },
+    "core/android/java/brave-res/layout/brave_news_card_menu.xml": {
+      "git_blob": "ede0f4b1ffbed51e980630adeca498d7b87270d7",
+      "sha256": "523c246d8ec2da6537c8fa7562710125726427ba4ab3a08f237ac0b6a5a7a6f6"
+    },
+    "core/android/java/brave-res/layout/brave_news_load_new_content.xml": {
+      "git_blob": "99978f489ace1dfd58a6d215c69720dc8fb9b15b",
+      "sha256": "ee28e0a887c4830dcbf52b82b8717423031c578bed7ab839ce4a0b371dcc4f1d"
+    },
+    "core/android/java/brave-res/layout/brave_news_no_sources.xml": {
+      "git_blob": "a635814b3fe6b3edf0ffe2f8fc23298e7519151e",
+      "sha256": "2d5c4b824ce6a546e19194aeb99ca71bf734f64867144dc5b5e7e4392ea7698b"
+    },
+    "core/android/java/brave-res/layout/brave_news_row.xml": {
+      "git_blob": "749a21d7e7fbd443be4034de59208b4989d15648",
+      "sha256": "ebfde8fc66a9d2bfa8c946d7b2983a02d6a2b7b38739f5e6b79ffff9385c652e"
+    },
+    "core/android/java/brave-res/layout/brave_news_settings.xml": {
+      "git_blob": "900b83b921208c4fa876cfafaca7e2b8183690d4",
+      "sha256": "0018f5d9ffddc326b8d7d1bfa2e76a2e7b717914a9f469f3d2a115c153ab6c3b"
+    },
+    "core/android/java/brave-res/layout/brave_news_settings_details.xml": {
+      "git_blob": "86864f5daa430349899886579286aebde411c36d",
+      "sha256": "cd36234d32a9145fb3a8667844196aebfaff97c5a10aa8878daef005357b4d4d"
+    },
+    "core/android/java/brave-res/layout/brave_permission_prompt_dialog.xml": {
+      "git_blob": "0e4beb9332ff159680d5b6b4bed054f66f3a1bbd",
+      "sha256": "a87702e0d64120520c0512fb83694affbcd3b9915d16a3c9f92b85b9a1bef2fb"
+    },
+    "core/android/java/brave-res/layout/brave_rating_news_layout.xml": {
+      "git_blob": "d4b94e0c327e7f0fcb82d42d36b328e456021cfd",
+      "sha256": "d3d54da1bbc2ae5de84ad180e406115361b7423f35a47b0d57187d3e5d44b233"
+    },
+    "core/android/java/brave-res/layout/brave_shields_tab_content.xml": {
+      "git_blob": "10762727caa12f462dda4e2d0c2eb7d4302a5a8c",
+      "sha256": "c7c2be17156652ca6b4cf6a3ecdfb01ffdda0e16fbf06163af94196de112827d"
+    },
+    "core/android/java/brave-res/layout/brave_shields_tooltip_layout.xml": {
+      "git_blob": "ffacfbbec4a7441224a32d05d28c2bc2f64b2092",
+      "sha256": "289fc0b515b9493bf216067d32475dad6cc5932ad19d85b6b74d3c336168e6c7"
+    },
+    "core/android/java/brave-res/layout/brave_vpn_server_selection_item_layout.xml": {
+      "git_blob": "c543d8fe983b53012aefcd28a38b492de56c903e",
+      "sha256": "d991fe30498cf67a2329eede5b8c821ef6d906841891d05adcd8bc91a70e3b12"
+    },
+    "core/android/java/brave-res/layout/brave_wallet_accounts_list_item.xml": {
+      "git_blob": "6f8cd6ec21e4f60cc8fb463f8caa9d429fdd6431",
+      "sha256": "73a3d08479ad1f1bfd9c6673669cb240f6012417aa65a87d6de1789b796f538e"
+    },
+    "core/android/java/brave-res/layout/brave_wallet_add_network.xml": {
+      "git_blob": "baa9ed8f68e83ce98ff97e25fd7483b19e32987a",
+      "sha256": "a268b6a124c48b065f0650dc7d74651cb2419b8c26987ae10feced6182c21155"
+    },
+    "core/android/java/brave-res/layout/brave_wallet_autolock_layout.xml": {
+      "git_blob": "ea73a085784114696447b1c5d2b7aaedcc6cec98",
+      "sha256": "8ba40c67e83ae729cdef7afe65129d4ed2d97860708e99ac92273e977daf7f6a"
+    },
+    "core/android/java/brave-res/layout/brave_wallet_connected_sites_list_item.xml": {
+      "git_blob": "fc3848aabe6284831a7f71cfd7820e53f7149fdb",
+      "sha256": "134a4db446c2bd26eff0cfbfda9a48b243b505e2efd737fb7ae6571c5112f5cc"
+    },
+    "core/android/java/brave-res/layout/brave_wallet_edit_gas.xml": {
+      "git_blob": "44256429de92904c0052f7f870c23cef75c60512",
+      "sha256": "f5b686d21852455ca44e6ac2de46d0d497cc9cebe1b59ccdeccaa127b022de1e"
+    },
+    "core/android/java/brave-res/layout/brave_wallet_network_item.xml": {
+      "git_blob": "baaf70245bd58ae45f544278ce62e6ee5c575320",
+      "sha256": "338628002416226df5dbe25b5c66c9f8eb26076dea370f59a60012f1f7325fc4"
+    },
+    "core/android/java/brave-res/layout/brave_wallet_network_label.xml": {
+      "git_blob": "7edb0ffe11145cccc2227f497278bba85e6432aa",
+      "sha256": "8234f6b815a8fe03e3a7cff04590e6b3a32a697d4da4a449b392d6fe7ad8585a"
+    },
+    "core/android/java/brave-res/layout/brave_wallet_panel_layout.xml": {
+      "git_blob": "9d24b969a7899de12ad2f67f448a9dd7ffce82cb",
+      "sha256": "40835833253f24dcd661509d718a9dc0bf086d2c78c5b229be5ff1eb2752fbf9"
+    },
+    "core/android/java/brave-res/layout/brave_wallet_preference_confirmation_text_layout.xml": {
+      "git_blob": "65800a3feff7a78b293fc2b2c3a04a784021b6af",
+      "sha256": "ad86c8aeda183f7a527a4a4fc1e20a34a1af5abcb48b1de4c871d4906b18ae64"
+    },
+    "core/android/java/brave-res/layout/brave_wallet_reset_content.xml": {
+      "git_blob": "f2ff4b776ff32776b5973693ffbe48b257885adb",
+      "sha256": "a35498c2010ee2ef5a6b3a7c1ddbc11ccdeecee74b15e1ca94fee948436150af"
+    },
+    "core/android/java/brave-res/layout/dapps_dialog.xml": {
+      "git_blob": "181cb81fab4c328931590ae21f7fa4ae0fdad34f",
+      "sha256": "ed683a6ef578c6f30a966cabb780f949ffeb629dfe48a2124ebbf24711e99264"
+    },
+    "core/android/java/brave-res/layout/dialog_skip_onboarding.xml": {
+      "git_blob": "9d8eb5e61d173c921e81ca935236f8218760249d",
+      "sha256": "71c8a6e2f2ad447bbc4b2d4a7d9a07444b2bfb63a9fe1e997eadc67b688b3b4f"
+    },
+    "core/android/java/brave-res/layout/fragment_add_switch_ethereum_chain.xml": {
+      "git_blob": "266dbccd839ed839db299a279051bb3b484a2a52",
+      "sha256": "9b402fd18b1d32902d9709278d51acb677390a274296c7003f51d317d7e213a3"
+    },
+    "core/android/java/brave-res/layout/fragment_add_token.xml": {
+      "git_blob": "bf00bc691b2d6dbd89083af621a00fa5ba8f66ed",
+      "sha256": "d66c71d880201c95fdb638607186618073e52ba7dc2f399e0ca2131132e55619"
+    },
+    "core/android/java/brave-res/layout/fragment_backup_wallet.xml": {
+      "git_blob": "eb46df92e5352a45fd411aff38c8433d55818a8e",
+      "sha256": "4e4888447b331fc46a47870a60693210edeef3a86d81cfdb2d98bde750c9eec4"
+    },
+    "core/android/java/brave-res/layout/fragment_brave_vpn_always_on_error_dialog.xml": {
+      "git_blob": "7da1cd0abe7f8d00e3bfff31ae53cb28860f622c",
+      "sha256": "894c5bbcb90acd02b09220ec26ced689d662c6a0edb7bfb71d5a334e4f9a4ca1"
+    },
+    "core/android/java/brave-res/layout/fragment_brave_vpn_confirm_dialog.xml": {
+      "git_blob": "c0ec4a0395b02306908ac51f9495c6b78029a082",
+      "sha256": "aad47a3e3e518cc02ddeef8a2616477561fcfbd84b9cabb476646375d052e188"
+    },
+    "core/android/java/brave-res/layout/fragment_brave_vpn_plan.xml": {
+      "git_blob": "36a7b2cdb4136ced021ec667476eb22777d2cff6",
+      "sha256": "a833454da2af8a334d89b0cace0ac4ba92e9caec64b30cac74207a0397e81647"
+    },
+    "core/android/java/brave-res/layout/fragment_confirmation_wallet.xml": {
+      "git_blob": "5ddef2797e732a187a530e391a2679a700142b76",
+      "sha256": "e09bd2eb265501d1306c73aa6d2bfa4f1dd7444b5c02cb921ca4571ea838329a"
+    },
+    "core/android/java/brave-res/layout/fragment_connect_account.xml": {
+      "git_blob": "05f1e58cb493a722eefba08538a7552d2664b230",
+      "sha256": "fe9e756564d859a739a188164b835dff14ee5e5ace369fb6e599620f23b40389"
+    },
+    "core/android/java/brave-res/layout/fragment_create_account.xml": {
+      "git_blob": "88c893f01694ad15b2c737fa3d432e0bcef59506",
+      "sha256": "ec3e37f157895d772c5c0015c02c0e3ef780df421effff7c5ff2677ca04725fe"
+    },
+    "core/android/java/brave-res/layout/fragment_creating_wallet.xml": {
+      "git_blob": "af948633531e525e67dca4ff99665204af635c18",
+      "sha256": "0da00ba5267bb609c5cdf3dbb26a1a7cb7146e1179bc4eb0ae997ea066d1d0cc"
+    },
+    "core/android/java/brave-res/layout/fragment_encryption_key.xml": {
+      "git_blob": "d7206655d6f5f32f02dfc6c23081e3bc965252e6",
+      "sha256": "0a9caeb3ac73aa1b2be396bd2b67727d03418704f073ab452c1f9463a76f6630"
+    },
+    "core/android/java/brave-res/layout/fragment_fingerprint_unlock.xml": {
+      "git_blob": "63434ca667dede0c69e747ba6c6a4117185449f2",
+      "sha256": "8388ab4c1f8f07c8b6789b9f3d24e34df16eee40a44649d24ec579ec9e1e1cac"
+    },
+    "core/android/java/brave-res/layout/fragment_link_subscription_dialog.xml": {
+      "git_blob": "53e67d1d2024b47239319908efbaca7da5a664a5",
+      "sha256": "6fe1bae9687033bdd1d9d489c641821bbdf9d842d793839143bc8d2634992a3f"
+    },
+    "core/android/java/brave-res/layout/fragment_onboarding_network_selection.xml": {
+      "git_blob": "df8a550aed3500954e0f9e32ccb17c54017f8ecc",
+      "sha256": "f91d108f7ecc293d76abba96b7e777678b4e64d2e38f2866049e3bc9bb4764d4"
+    },
+    "core/android/java/brave-res/layout/fragment_recovery_phrase.xml": {
+      "git_blob": "81d37089c6f02812c02ce18784bee16fc12c32a1",
+      "sha256": "f71beb5e8aa5a4c210b0b1e2591a26dddb1e7b01f59a14006240680a9494d0d1"
+    },
+    "core/android/java/brave-res/layout/fragment_restore_wallet.xml": {
+      "git_blob": "9f9edc37493e25482eeb426685c92c1a4a2b207d",
+      "sha256": "d5c3fc4551e05758bd47119da030f9008f6e9db639be61f87956b1b57a521803"
+    },
+    "core/android/java/brave-res/layout/fragment_secure_password.xml": {
+      "git_blob": "3e190a6f5cc28731b5d39454c131c69f730d6f5b",
+      "sha256": "63de04734c0efbad9e854b375d5106f6893dcc8717f4c8c68adbde5109fa5383"
+    },
+    "core/android/java/brave-res/layout/fragment_setup_wallet.xml": {
+      "git_blob": "c2838de7d2406a3fc0ab5c9201824e119dba8210",
+      "sha256": "762c2c552b59e8ac1865dc6ff140fc480a67dbf1c34499d8ea42dfcc98d72545"
+    },
+    "core/android/java/brave-res/layout/fragment_sign_message.xml": {
+      "git_blob": "054fde7aba88978c7d6814f20ff80195b0b7d7ca",
+      "sha256": "ce6e3c572a290135ca03f56eda8a18c094d6d0e0a24a0ec9bb916cd62355e6b7"
+    },
+    "core/android/java/brave-res/layout/fragment_sign_message_error.xml": {
+      "git_blob": "bc056b7344560640e2451bac13c82d0d981a7abe",
+      "sha256": "7e669135801d6ab56e453f48651c8eb720b2c19bca231bebc79abd926f40ac03"
+    },
+    "core/android/java/brave-res/layout/fragment_sign_tx_message.xml": {
+      "git_blob": "147d66e80c50fff50b3d6e252ca81bf3c130a98c",
+      "sha256": "ccb9c40ce794c4c0ef8a14a5ce94ad43afbfbbdcd1ddace0c40fa46df8a4cfe9"
+    },
+    "core/android/java/brave-res/layout/fragment_siwe.xml": {
+      "git_blob": "6b0a18c4ad488fa9413483c3cc54d8eb32f5a3aa",
+      "sha256": "30552f34815337528aed33e66be93cade77c66deb4b300334ba95e4ddb836c14"
+    },
+    "core/android/java/brave-res/layout/fragment_terms_of_use_wallet.xml": {
+      "git_blob": "f8df276aa101b37b7d884c0baa1d7f04e9f7664a",
+      "sha256": "e5aaf6f6bc58a150af88d554cbc69cecfa7b76cd380565b4317b519290f676f0"
+    },
+    "core/android/java/brave-res/layout/fragment_transaction.xml": {
+      "git_blob": "beb63643e390cbf656dd21a62d7a933443503d3c",
+      "sha256": "af502e7a7b323006d34fd1d7da494b533880781393d8508ae656d9a336d967dd"
+    },
+    "core/android/java/brave-res/layout/fragment_transaction_details.xml": {
+      "git_blob": "cbe896d89f2d6921c964782b364c419a1f08f30e",
+      "sha256": "ba92ab4d8e970cabfd5b17ad259b816a1951d6121be72912e55767cc33ebabca"
+    },
+    "core/android/java/brave-res/layout/fragment_two_line_item_list.xml": {
+      "git_blob": "8ee14eb0f4b075d4cf36ef26f07eeb2452b5a9db",
+      "sha256": "f56e524aa99b2e44b2d07b1653d985f684bca7c3981aee4646777c13d0cea2d9"
+    },
+    "core/android/java/brave-res/layout/fragment_two_line_item_sheet.xml": {
+      "git_blob": "302bb25eac3218f984974d65e260df01ad10116d",
+      "sha256": "7c1ff3484ce017c19c7dcb9a51fc865102246d5b949b84b0729a1f8166873195"
+    },
+    "core/android/java/brave-res/layout/fragment_unlock_wallet.xml": {
+      "git_blob": "b5307306a4106fadf4ec678b0b348674eed8746e",
+      "sha256": "9d79b361e51a2264670d24428dbae44de58cdacbe7eee3df0d1ec2644f2d1dc6"
+    },
+    "core/android/java/brave-res/layout/fragment_verify_recovery_phrase.xml": {
+      "git_blob": "299a26b0925c259f22545ee21ffb2ffaf3a017ba",
+      "sha256": "a1b799d667e2819b5aaa6cd2fbe4330097a96169226e46af9db4bcd01731804d"
+    },
+    "core/android/java/brave-res/layout/item_create_account.xml": {
+      "git_blob": "2253fa6b322313c9b974a61b96e80ca620d31d4d",
+      "sha256": "b2fc5cbe106cfb936ac49c3c10d0f417ec7a62b4cdb8745a698780edc33f2b22"
+    },
+    "core/android/java/brave-res/layout/item_fragment_two_line_divider_item.xml": {
+      "git_blob": "43e2556d7a1b56b307f8480286c5dc2031865c14",
+      "sha256": "bd6a4f1fd05fc46ad46f36e433873128c5283979dcd494c01b5660014e91e056"
+    },
+    "core/android/java/brave-res/layout/item_fragment_two_line_item.xml": {
+      "git_blob": "8b27c8b685364a1ff55ccc89762d803d597cc113",
+      "sha256": "0cce46e6095adf78498780b3cbe961b5ffe6c92015d20b43274da519ed2256d0"
+    },
+    "core/android/java/brave-res/layout/item_fragment_two_line_single_text.xml": {
+      "git_blob": "b8739b5f0a11d79adb60072a3781b6244234258e",
+      "sha256": "ad91d34aaa98a5d4c12708d177053e42b35b5f90bd81620dc0b8c860f0be6efa"
+    },
+    "core/android/java/brave-res/layout/item_network_selector.xml": {
+      "git_blob": "cfa056101ee857c02bbf5ca9fa1dda1be7ce2ab4",
+      "sha256": "9156b9106a7f29b8b5ac80efd2bbbe7602488080fab2b53d9e665ba2276a2508"
+    },
+    "core/android/java/brave-res/layout/item_news_settings.xml": {
+      "git_blob": "524c2853495a60185da4d2d3adcad707d7d047bf",
+      "sha256": "2bad4d9bf001e24cc9ff7fbbf5bba7327e214707853b00e7944a13ba1347a713"
+    },
+    "core/android/java/brave-res/layout/item_news_settings_section.xml": {
+      "git_blob": "544eaf0a84bd09e1846ce8efac020d23808e93bb",
+      "sha256": "4180f66c9f8619458ba9370c674861eb066e8592001c96c0001f46b2dd70a12c"
+    },
+    "core/android/java/brave-res/layout/item_two_line_horizontal.xml": {
+      "git_blob": "5bc11982361a39c4eeeb83dd7402e04580f04e3a",
+      "sha256": "5f8c3d68ae5cc53175823319d312ef10763e1351ae7ff49183eada1397736ed8"
+    },
+    "core/android/java/brave-res/layout/label_network_selector.xml": {
+      "git_blob": "cb3196d9fa20a7a4bd8120059834799f82cf18c5",
+      "sha256": "f3317e0725bc26e9d1300f119b7b88c6d45b0e241e5f4fc8ab963fa773a3829c"
+    },
+    "core/android/java/brave-res/layout/network_spinner_items.xml": {
+      "git_blob": "b7311831ab9c243ef03be552d5b170a6daeb5b05",
+      "sha256": "85902e90f5901b19752164fbdc74895a1e3f539b9e79389cdbb8c0e29e8fc378"
+    },
+    "core/android/java/brave-res/layout/news_loading.xml": {
+      "git_blob": "1c96ad13425b16532c07f6aff86f1362a3c40566",
+      "sha256": "20e7f98e8a40b294529357a155a2e2d54b5a320e2f62b549c950ccd25e33676b"
+    },
+    "core/android/java/brave-res/layout/optin_layout.xml": {
+      "git_blob": "d22702d4c43d1259a5e222e5b88887695328a31a",
+      "sha256": "39553a872d6a5e9e8701e04bbab2698c6dc171a765c3e81396eca9dabe4bf00b"
+    },
+    "core/android/java/brave-res/layout/quick_action_search_and_bookmark_widget_layout.xml": {
+      "git_blob": "803cc240b83369faec7dc0b70d13e4ce76cf4ec6",
+      "sha256": "8cc3c5e0c3712e0b4bb2f219a10e5bf86bc6838ef058faec71198720d31d16c9"
+    },
+    "core/android/java/brave-res/layout/radio_button_group_ddns_resolve_method_preference.xml": {
+      "git_blob": "0ab3eb6ff7974e50dd4c92703d1292e214219609",
+      "sha256": "ce5bf64e57b76b26a153401e4f61f518062d27542dbb64e42899c8b193acdfeb"
+    },
+    "core/android/java/brave-res/layout/recovery_phrase_item_layout.xml": {
+      "git_blob": "1fcb9f2963acfd7a22773ca7c8cdae86843dcf97",
+      "sha256": "dd706bc5a9a200fa820e8e4c2abdbdf60d17bfd66d0e0deb9b44769c3295a763"
+    },
+    "core/android/java/brave-res/layout/selected_network_item.xml": {
+      "git_blob": "4f4849d8c1a30bb9a33e196877914c5b7d99a5f4",
+      "sha256": "87fe91d494ac0499d19e94d801d31bff46f5ecabfca1c184862d2dff4bdf5e87"
+    },
+    "core/android/java/brave-res/layout/view_holder_account_selector.xml": {
+      "git_blob": "fe9e3de0aff951a10c6c2be035c29a0cb5b18a70",
+      "sha256": "b22d23fe1569792ef7b31ad3ab58090be87ecf651a2ca077bff31ff27030d725"
+    },
+    "core/android/java/brave-res/layout/view_holder_onboarding_header_network_selector.xml": {
+      "git_blob": "603660d851bd9c199c3b784cf501432044d77890",
+      "sha256": "939fdc47e226b3c83c2c23000518796456d9c556d3286bd6e13a88171bc2f36c"
+    },
+    "core/android/java/brave-res/layout/view_holder_onboarding_network_selector.xml": {
+      "git_blob": "df03205e5d902d150babdb2d6b8ae7e0a1a8ebc6",
+      "sha256": "b1d1c843f82ac169eefb201360d3f6f3c04cbfc5a88bf14e1ef345913cb72687"
+    },
+    "core/android/java/brave-res/layout/vpn_location_menu_item_action_layout.xml": {
+      "git_blob": "32144776a8b7c0c2466e17f00fb50547a8e6cc81",
+      "sha256": "c5224a6a3d9486dc6853bd9e5d35a5c6c3ca2212825180814233632889799cfa"
+    },
+    "core/android/java/brave-res/layout/vpn_region_preference_layout.xml": {
+      "git_blob": "929c19f5202b09a31682e5f6f566e52c3508636d",
+      "sha256": "7b36aaab0a48c779ea1dd3aece309799078c322f02a00e32381f020a69e14c1c"
+    },
+    "core/android/java/brave-res/layout/vpn_server_item_layout.xml": {
+      "git_blob": "9d18a819cdc98eb376c6b0f7701a3c07eeccd1cd",
+      "sha256": "0cf3382b921400f23b7cda25413de42ebc94cca8f6e35a6530804e11dff9c1ec"
+    },
+    "core/android/java/brave-res/layout/vpn_settings_callout_modal_layout.xml": {
+      "git_blob": "0d99c7bca1d5a9b5296b124ad145ae466fbd24b1",
+      "sha256": "3361b6d992a07b9696ae061a0a7d36bf9fee511e7f0b45c79fdd6abc10cf7035"
+    },
+    "core/android/java/brave-res/layout/widget_search_preview.xml": {
+      "git_blob": "12cd8fe97c1be9f56f2f017fb533b30664b7aacf",
+      "sha256": "955f244fd1f684a134fca132957f3fbfc3ada68cd104d2801ddf801479b97498"
+    },
+    "core/android/java/brave-res/menu/menu_brave_news_settings_search.xml": {
+      "git_blob": "6077f05ce451401562e51e3b7a13d0cdf51ff206",
+      "sha256": "759d8666bae2682c24e7c7283cecffa77afb9204138d859332525bc204f545d4"
+    },
+    "core/android/java/brave-res/menu/menu_brave_vpn.xml": {
+      "git_blob": "a87c3d3e401cf4b36ec691db207c433d1c08f4d3",
+      "sha256": "2d1eeded4d8d5157d046916b5de99288be684fd595431e29fe8de67f806fee53"
+    },
+    "core/android/java/brave-res/values/brave_ids.xml": {
+      "git_blob": "e3cf1ade12e81fa3a180151ca83d28b62fe0ae44",
+      "sha256": "3ee96bd55bc0a94b424ded73e636df5932e86cdbcb2195c6bf0b939c8b0814e2"
+    },
+    "core/android/java/brave-res/xml/brave_appearance_preferences.xml": {
+      "git_blob": "7baba86b08b0313a898fd29346629f82a3877872",
+      "sha256": "a216160c7497363c822e67852f217af7aa4d4a5bb85b5ad5bb6934584648a55a"
+    },
+    "core/android/java/brave-res/xml/brave_ethereum_preferences.xml": {
+      "git_blob": "daa286efae4547be8090bfb39d887cfcf1839a72",
+      "sha256": "f1ab46bd99897b221175297bd20e5d540322ebce25b1dbbf8c197dd40c276540"
+    },
+    "core/android/java/brave-res/xml/brave_leo_default_model_preferences.xml": {
+      "git_blob": "7f3a495f6c7e024ca6655d9a14489197b7d04fa6",
+      "sha256": "3339624d4123e61d2856ad1c8d60c866df48da8a65856c59299ef5cd9eb04e5e"
+    },
+    "core/android/java/brave-res/xml/brave_leo_preferences.xml": {
+      "git_blob": "9ec7a2bd5f30cd7065b7e92152bec6f9e5f13bfc",
+      "sha256": "aafec2b634ceea314314af12b64a3f5045192614bbfb06194e59e5d9f92584a8"
+    },
+    "core/android/java/brave-res/xml/brave_leo_radio_button_group_default_model_preference.xml": {
+      "git_blob": "ea82b3f4afeb4dcfdbe3803201f9e4d91eb7d7e8",
+      "sha256": "ecd9baa52270bc889bae6421a2ff205dca210328df28fc43518238eaa57736c3"
+    },
+    "core/android/java/brave-res/xml/brave_main_preferences.xml": {
+      "git_blob": "42f124fc2e2b83aeea03063919974fab31e9ec95",
+      "sha256": "39979da1b815a3dafd9a19311a8fba1bafe34d3a6659ca6f4dfcf694aa299a32"
+    },
+    "core/android/java/brave-res/xml/brave_origin_preferences.xml": {
+      "git_blob": "aa92d913b8786617df1f36d73e41c46edc3ea04f",
+      "sha256": "2374ac37e6f5faea54d35f1c4372f18d41420052623fe39822dd9974d7852f72"
+    },
+    "core/android/java/brave-res/xml/brave_playlist_preferences.xml": {
+      "git_blob": "3a7be0381252bc0eb723002d5256c69ccd2bd8eb",
+      "sha256": "13d971cd55980469756e99b792b9f1fd3b2691e124e56f2c846068278a170a05"
+    },
+    "core/android/java/brave-res/xml/brave_privacy_preferences.xml": {
+      "git_blob": "946b35169ef076b6c15467f0e32a71d4b27215d8",
+      "sha256": "4f695978df005da4f2e32d290abb82f34e09ccf865501cf55223de6b216879eb"
+    },
+    "core/android/java/brave-res/xml/brave_rewards_debug_preferences.xml": {
+      "git_blob": "ef5f19947f48201f1f84b65315a393a8da53882f",
+      "sha256": "4124cae787a3b0a9bab58999549d081cf1d1171d55b66c0efd1170bdef2aae20"
+    },
+    "core/android/java/brave-res/xml/brave_search_engines_preferences.xml": {
+      "git_blob": "c097fd9b9b3fd9f9145b2a8d616858d0c8de459a",
+      "sha256": "ced91b6d96c9bf6991ba85170415b3ef98972e6470537fb7c565c3865f9b55f3"
+    },
+    "core/android/java/brave-res/xml/brave_solana_preferences.xml": {
+      "git_blob": "caabd32c2c61f0d8ef5b95a24912e710c5851602",
+      "sha256": "b50a125254bf901fdffa1955c6985c65fa1bbf5cad248960d6f48054c676043c"
+    },
+    "core/android/java/brave-res/xml/brave_vpn_preferences.xml": {
+      "git_blob": "896e7a47d26f8c04200436d27142904d9ae0be5e",
+      "sha256": "beb9f0fb3919d2a599f397a1e012594df68e560226277d98bf8d977605f21de9"
+    },
+    "core/android/java/brave-res/xml/brave_wallet_networks_preference.xml": {
+      "git_blob": "f99692ef043a816a196170c3d9e3db0ec8be4201",
+      "sha256": "89aee7e83ed0f3ed28e44b70f80231cc00991571080bf80b9106fdb14ee22903"
+    },
+    "core/android/java/brave-res/xml/brave_wallet_preferences.xml": {
+      "git_blob": "cc4a224cdf907acd45620dd54d48956151e49851",
+      "sha256": "741b4c043c63b544695b0918cadc5f7f7d3381dc5e4f452c4ed2de8f2823284f"
+    },
+    "core/android/java/brave-res/xml/ens_preferences.xml": {
+      "git_blob": "211e9915af2290240fd1b18d626e9029c5c146fa",
+      "sha256": "e91a697c097a24e77b699ae8f4d6c23f2b3081529b3a2d63c65081328bb81e34"
+    },
+    "core/android/java/brave-res/xml/sns_preferences.xml": {
+      "git_blob": "9e24f69644396569177c132706d0c15dfa2c79a4",
+      "sha256": "7b1905a59f36db886e415a03942b5f2f1554024f9b1677838f61179ec1846def"
+    },
+    "core/android/java/brave-res/xml/unstoppable_domains_preferences.xml": {
+      "git_blob": "5623897b1a73052e876d5eb33c6d9eb5b711ecaa",
+      "sha256": "b9c3b48e2c7c065d80266ecdfabdb8087c7fb77ceebe4d7e5a4022cea07b35d9"
+    },
+    "core/android/java/org/chromium/base/BraveCommandLineInitUtil.java": {
+      "git_blob": "0e0feb6c377fa7f377f14f92c8a0073d53ad732e",
+      "sha256": "5ca143dce42ea60bc889aa0f5d36ffdae2b07efefdafe38a466a5f86dfe34065"
+    },
+    "core/android/java/org/chromium/chrome/browser/BraveAdFreeCalloutDialogFragment.java": {
+      "git_blob": "68c02fd3887545e1c601fc6bb98cde83e1abd2b7",
+      "sha256": "0e2c60be3a86b4b531f6a78ac8fdedcba35b26ed98a6e3fcdec6b3aa87a3d45e"
+    },
+    "core/android/java/org/chromium/chrome/browser/BraveApplicationImplBase.java": {
+      "git_blob": "e907ddf9789c7890976a4f90f95d3c64f29ccf95",
+      "sha256": "b5499cc9356b1001ab21140a0e863ab0e9037d6e55a3f2ccf74f59ef4e04f58d"
+    },
+    "core/android/java/org/chromium/chrome/browser/app/BraveActivity.java": {
+      "git_blob": "cb9bcaeae971d8c3c31f316f6e863f39307ede70",
+      "sha256": "aa2ba9c668f0391421b8ba19448795529dbbe27addd08bb4681865ed8d395b54"
+    },
+    "core/android/java/org/chromium/chrome/browser/app/appmenu/AppMenuIconRowFooter.java": {
+      "git_blob": "9dfa1827e479586ceddd6e47948084ae90a2f572",
+      "sha256": "7758e370c011e9e726a69944b135422a166ad4d6739e0246538590e9873ac39d"
+    },
+    "core/android/java/org/chromium/chrome/browser/billing/InAppPurchaseWrapper.java": {
+      "git_blob": "bdc09468087a6562f366df8f4b37d4c4c3b51684",
+      "sha256": "11e6f692eaf3b28783e262480b1e9c17774a97ef042c304dd69f49b4fe9a2f7c"
+    },
+    "core/android/java/org/chromium/chrome/browser/billing/LinkSubscriptionUtils.java": {
+      "git_blob": "4dda7e5b14855cbfb658a9b0fc9800b117a80a30",
+      "sha256": "6b07b3f2e3af5cd5bac2bf223af026ef0e0b2dd6daaf3827707fceed730d4fdd"
+    },
+    "core/android/java/org/chromium/chrome/browser/browsing_data/BraveClearBrowsingDataFragment.java": {
+      "git_blob": "a942b203be96b0e6ac4abcaf53485ce738636b8a",
+      "sha256": "e0c801b65b304a0d2c911f08f85a52c40adfdcc3ddef5b0deb26f219dfbee18f"
+    },
+    "core/android/java/org/chromium/chrome/browser/firstrun/WelcomeOnboardingActivity.java": {
+      "git_blob": "9f2678d64da2a2f05acc4345c40361ed3e1dc462",
+      "sha256": "6c67dac4c2b98d184dda882e8cdb2c3e3c7b81c608bdb5a7c90bef95be589179"
+    },
+    "core/android/java/org/chromium/chrome/browser/notifications/BraveNotificationWarningDialog.java": {
+      "git_blob": "202e44aa605b2331821d3cb875aaad1051b6b1d5",
+      "sha256": "ae020f7a59655ed7421b8b6c255e287f14d2adbad54bc84ea7186d413270a065"
+    },
+    "core/android/java/org/chromium/chrome/browser/notifications/retention/RetentionNotificationPublisher.java": {
+      "git_blob": "57af678c8fecdee84d235d80b0888d2583acdc30",
+      "sha256": "57fe48bdaaaa424000707aeda5760d604b5bb3fe076e52d2857e7580b27f4503"
+    },
+    "core/android/java/org/chromium/chrome/browser/ntp/BraveIncognitoNewTabPage.java": {
+      "git_blob": "dc5a200a05cd7c84a6f223d7d17b970a2680f1ce",
+      "sha256": "180104cee450fa9bfdd23bf9ecbdb34d875a003d5473d229fe46c40d5fb1042d"
+    },
+    "core/android/java/org/chromium/chrome/browser/ntp/BraveNewTabPage.java": {
+      "git_blob": "0a538fd1094e3011fcb65c5a24c578f77020265c",
+      "sha256": "094ee138a7c18676268b5685141d0efea85817c3f54d7b3917156acb8e15c600"
+    },
+    "core/android/java/org/chromium/chrome/browser/ntp/BraveNewTabPageLayout.java": {
+      "git_blob": "62fecd996473d223f3715b41b69bbeb97de3b1e0",
+      "sha256": "1a159032b6fe7551dba66998903559cb8f62352bbcfb151fa989a640bbc581e8"
+    },
+    "core/android/java/org/chromium/chrome/browser/ntp/BraveNewTabTakeoverInfobar.java": {
+      "git_blob": "68be3cfc1b7fd5845e7e301f27b06789879f0ce0",
+      "sha256": "6fb34b041691e176a4d1efc103ee71329c1b300a3122610290e2dfedc2289103"
+    },
+    "core/android/java/org/chromium/chrome/browser/ntp/BraveNtpAdapter.java": {
+      "git_blob": "b96174dbb489e7046a5b3dd4317b27598c82ced6",
+      "sha256": "dd24f7fb675ddd29fa323453c52773ad44f34d22e4126ed5b5ccaf4f9d86b6af"
+    },
+    "core/android/java/org/chromium/chrome/browser/ntp/IncognitoNewTabPageView.java": {
+      "git_blob": "e11b934091c365ccc847a8f861e4cf28996e7c49",
+      "sha256": "288932b38e0ddc259ba9d93e438b6a2fc184a96bc3dde3e9d8f8c6e978481df0"
+    },
+    "core/android/java/org/chromium/chrome/browser/ntp/OnBraveNtpListener.java": {
+      "git_blob": "c438a16de300e4b308aa9426d9ccb5b7a29bb69a",
+      "sha256": "611d6867b4532bf2f8cc9ab9b6ae071f96237ff204a6080070d15394581dfb39"
+    },
+    "core/android/java/org/chromium/chrome/browser/ntp_background_images/NTPBackgroundImagesBridge.java": {
+      "git_blob": "cb15ebc45279c47a46d817c60b2e864d1aa80ba4",
+      "sha256": "86da4e2c70c06833514c421be95c65be8050b44dec21661cad2e5eab7fc7758d"
+    },
+    "core/android/java/org/chromium/chrome/browser/ntp_background_images/model/Wallpaper.java": {
+      "git_blob": "543c5d9323d263a87376d1963dc68a16e92ea112",
+      "sha256": "cc742193494bf25960a5e4f379a5d55d7662a0a3f6ea282554715a89182e329e"
+    },
+    "core/android/java/org/chromium/chrome/browser/omnibox/suggestions/BraveAutocompleteMediator.java": {
+      "git_blob": "d85ac0ce227322802c8f2044e05d64093daac89b",
+      "sha256": "c35b32b47f63b88fb7401dab6c292c35967c489456e7d8917176d9e5e2124ccb"
+    },
+    "core/android/java/org/chromium/chrome/browser/onboarding/OnboardingPrefManager.java": {
+      "git_blob": "741a1804634fedb8d503631b9bdb4b1383e15143",
+      "sha256": "1cace7f9ef8e18f9db532dd04c0ae7588089e82b34b9ff7434917907a58b9511"
+    },
+    "core/android/java/org/chromium/chrome/browser/onboarding/v2/HighlightDialogFragment.java": {
+      "git_blob": "4efd5f2b77b8e010f0a67e4c34500e9e3533c24f",
+      "sha256": "0d6a9631e604338123a9a5c745921073beb96dc2e281b6884e9f644bfb211ca0"
+    },
+    "core/android/java/org/chromium/chrome/browser/preferences/BravePrefServiceBridge.java": {
+      "git_blob": "b82e717ba55b85ba116c02eafc9ad60ac43050f2",
+      "sha256": "78a95851b1810cc4892c8e18fd78237ba2f033e6efe51850e3f726525831d89b"
+    },
+    "core/android/java/org/chromium/chrome/browser/privacy/settings/BravePrivacySettings.java": {
+      "git_blob": "69eb07cf77e1be6263727db34c844af6433b4b32",
+      "sha256": "7bb2b4d3783f56f1cdfe428cb48f3357ddefdfdce568546b652da82d4d105fee"
+    },
+    "core/android/java/org/chromium/chrome/browser/rate/RateUtils.java": {
+      "git_blob": "2cdf8623fc679e748e6193779c72faff73f4523f",
+      "sha256": "8b46f4cc43f1affc94cf112976601c7439cfa576ffe18c2b3deda435def5ed22"
+    },
+    "core/android/java/org/chromium/chrome/browser/search_engines/settings/BraveBaseSearchEngineAdapter.java": {
+      "git_blob": "1172f42ec5370ffc4e2398d71dd42639a4f2a221",
+      "sha256": "daf8d2365ca9c947c28283d5bc3102c1703102e4702464fe0dcc3c1e95d3fc51"
+    },
+    "core/android/java/org/chromium/chrome/browser/search_engines/settings/BraveSearchEngineAdapter.java": {
+      "git_blob": "5c9705d1641f49001e553c90ca383bf2515438b0",
+      "sha256": "7dbd40aa81c5953a9c82f0bada56bf5e3c939bee180c361168b566f27d5a02c3"
+    },
+    "core/android/java/org/chromium/chrome/browser/settings/AppearancePreferences.java": {
+      "git_blob": "0a11ee85c7c201dc177fcf059280316327518886",
+      "sha256": "33a2c92b08f0da6b8ba1ec7494fe0333834b57d107266337ca768f10c8725748"
+    },
+    "core/android/java/org/chromium/chrome/browser/settings/BackgroundImagesPreferences.java": {
+      "git_blob": "c0c84986f0cc348143747fe0fde07b7e56c7699c",
+      "sha256": "164514032b174edb3e94a7bce905778ef6cd7f6d72e4704e46f8fe1b450b922f"
+    },
+    "core/android/java/org/chromium/chrome/browser/settings/BraveLicensePreferences.java": {
+      "git_blob": "b446d80972883cf45d6995e82c4c029c8b0c21dd",
+      "sha256": "8591273aa1293a7d0715c1d36d07fffa0ff38e6e96ca9f13de9308716e09854e"
+    },
+    "core/android/java/org/chromium/chrome/browser/settings/BraveMainPreferencesBase.java": {
+      "git_blob": "70960380d0965531a83b9bbb64eb46437fd65ff2",
+      "sha256": "10c11aecf8981e7018cf8399b77c86e9b7997ed3b687063ef8adaaa3b3c11a8b"
+    },
+    "core/android/java/org/chromium/chrome/browser/settings/BraveOriginPreferences.java": {
+      "git_blob": "731195a06047768c2657a825b9c5b67a4789c95e",
+      "sha256": "7219cdfc674c2c6163cc5a0f2a11bb22741c8045d1f58c9cc6007d1871f60c2a"
+    },
+    "core/android/java/org/chromium/chrome/browser/settings/BravePreferenceFragment.java": {
+      "git_blob": "38f0522eea6a271df1ac176c13577ebb1ed6b202",
+      "sha256": "26ec1bdc1bd768fc4b06b684c69fcbeb897e5aa5978728c967004fc0fadb9171"
+    },
+    "core/android/java/org/chromium/chrome/browser/settings/BraveSearchEnginesPreferences.java": {
+      "git_blob": "72b141feb65ad9c140a3150bf6742ee09c709101",
+      "sha256": "de392df6756c47254bccc29787cc8a1efdd1d073fcc2c50045ef32232973cc83"
+    },
+    "core/android/java/org/chromium/chrome/browser/settings/BraveSettingsActivity.java": {
+      "git_blob": "e5703aa3411d452f6fc385973cadd1429e915a0c",
+      "sha256": "acd11fc30e73c5d30238104cae0a96693da1bf1d4435dae0e419c0cdf3bae693"
+    },
+    "core/android/java/org/chromium/chrome/browser/settings/BraveWebrtcPolicyPreference.java": {
+      "git_blob": "590c6ec4f7189d909f23150cd7a51148e655481a",
+      "sha256": "e5ab0f3e3a5b035d25370d2f94f0130314bfa70354d210f5f8e9641cf176e862"
+    },
+    "core/android/java/org/chromium/chrome/browser/settings/developer/BraveQAPreferences.java": {
+      "git_blob": "9d9bf67d795ae19e44583af88649842044cfa433",
+      "sha256": "3a27a7d0f6bc29dc6cbf56cca62b93ad5ae9327c94d4e520fe4d70950fd50d01"
+    },
+    "core/android/java/org/chromium/chrome/browser/shields/BraveUnifiedPanelHandler.java": {
+      "git_blob": "14cf2b639c8e26c4b5569113a838ef143ebce416",
+      "sha256": "1e26ddf5dd65e8c0f24001730c23996baa79606aa09dcdbfa09098a81a853eb5"
+    },
+    "core/android/java/org/chromium/chrome/browser/shields/CreateCustomFiltersFragment.java": {
+      "git_blob": "857550dd5ced7c1da34a29328e2789a1fe4d47fb",
+      "sha256": "f10322b7c621fbf86f0dbe321d0d0105ef6632be818fdfe566704bf3378e26f1"
+    },
+    "core/android/java/org/chromium/chrome/browser/shields/FilterListServiceFactory.java": {
+      "git_blob": "28d45dffc11302899d7ec52932418172dd169283",
+      "sha256": "c0eb4021740e8b737f57d2d66a981dfe3d0aa9d876fdf7313d31eb60da3df78d"
+    },
+    "core/android/java/org/chromium/chrome/browser/site_settings/BraveSiteSettingsDelegate.java": {
+      "git_blob": "0897bf648984b3f004ed60cb37d172189321dbe3",
+      "sha256": "f13fdabcd35f6d5eb3c21c8b2bf06766069e495b22ccf02c6764a741440576aa"
+    },
+    "core/android/java/org/chromium/chrome/browser/suggestions/mostvisited/BraveMostVisitedSites.java": {
+      "git_blob": "2764bad1178994a71bb6470dd6fca36f458c105f",
+      "sha256": "d91741842f2ceab64c90a92bbae64f9d27656de16d9e18d1329e085c0db5f825"
+    },
+    "core/android/java/org/chromium/chrome/browser/sync/settings/BraveManageSyncSettings.java": {
+      "git_blob": "a64b2dccc34cdad811a214ff753a1f4ff83884ae",
+      "sha256": "45fdb8273469e850044f1ce3212d0fe294b39c16e5e33dbb155566edc108e4da"
+    },
+    "core/android/java/org/chromium/chrome/browser/tabbed_mode/BraveTabbedAppMenuPropertiesDelegate.java": {
+      "git_blob": "56ab238ba8e88b4b5df597f6c7794148a9e65e40",
+      "sha256": "46aa5f1197b40e94389846a0edfb15c93742813445bf03033d2d6fabbc14bc14"
+    },
+    "core/android/java/org/chromium/chrome/browser/toolbar/top/BraveToolbarLayoutImpl.java": {
+      "git_blob": "3cc0fa02d9777e335901bed6fd49cd0baadce861",
+      "sha256": "5e46431e356d9020a431c6520c373cccfd3ab5b3729822b286bdc13b0605d081"
+    },
+    "core/android/java/org/chromium/chrome/browser/ui/BraveAdaptiveToolbarUiCoordinator.java": {
+      "git_blob": "966d79dff4d292dc4ab4eab588e76ef6dfee0144",
+      "sha256": "70022660cdbf819429cc9c3ee2357d9fefdb87f7e8da5a5a1e00f3855388d7a0"
+    },
+    "core/android/java/org/chromium/chrome/browser/upgrade/NotificationIntent.java": {
+      "git_blob": "0b17e7dfda5d8cb89ee7835172b8f61cd71058c4",
+      "sha256": "5f24e324302efc5ec54a9e29b1cf793fd3c33c559788e0f6b488fe1c3107a841"
+    },
+    "core/android/java/org/chromium/chrome/browser/widget/quickactionsearchandbookmark/QuickActionSearchAndBookmarkWidgetProvider.java": {
+      "git_blob": "17d3ec2fd58936e01a4eec89667d1a35131dd3c2",
+      "sha256": "f0fd4c7ef5ce434bbfd9f3bd3ea2752fae5c2485bc47a5501409c77a8c22b515"
+    },
+    "core/android/java/proguard.flags": {
+      "git_blob": "83e623601a52ccf20ac94b5c372c321ea2b63117",
+      "sha256": "737cfc626d4f06d83c1808d9f577d34718e0bdb7072d399fa0d0958e352920d1"
+    },
+    "core/android/java/res/layout/new_tab_page_incognito.xml": {
+      "git_blob": "2d9c5c503de94438b482cec95aa10f6108fd8120",
+      "sha256": "31597506d2a4fb38a1d45e76f27f1ba906bb0d67cfe52cb3119d33367a18dd57"
+    },
+    "core/android/java/res/layout/new_tab_page_layout.xml": {
+      "git_blob": "383e83f621224b25bfe82465977e4949846a7d77",
+      "sha256": "337d29bd8201e774a2a724630f782b58e9f331eb60eb0384b4588016e7147ccf"
+    },
+    "core/android/java/res/values-night/brave_colors.xml": {
+      "git_blob": "070f22e1c3d2ec9d1df932f335b53c0c42a9b91e",
+      "sha256": "6869c2c741e1fd5e7892ce6e9d53f43a5b51ef284fd58ceaccae169f3cc3593a"
+    },
+    "core/android/java/res/values/brave_colors.xml": {
+      "git_blob": "a5d5140d3c8324d25fbbdad4872ffa9d66683f76",
+      "sha256": "2750656b5123b0e6dbba264c869e56e89f910c7e61e4d11316ab449a99305f50"
+    },
+    "core/android/java/res/xml/developer_preferences.xml": {
+      "git_blob": "bf35adfd968f6829d7dffb51342bd07359c1403d",
+      "sha256": "dba0295dddc47445e4d070e8201aa10421d4c2b7bceacb6eca87bd35883e35db"
+    },
+    "core/browser/BUILD.gn": {
+      "git_blob": "a0ed4504de6c9e51ed5d2d6fd646645f95c2be54",
+      "sha256": "5ce4d0a680765dc51a4ae676d3aea0e4054940eaa17ad05c04ed94d46db21ac5"
+    },
+    "core/browser/android/BUILD.gn": {
+      "git_blob": "3398d05bb9d65e8fef03828ddf75caf2f431acda",
+      "sha256": "ec9f1eb413288151980b7e1d2e4b2d7c0b551b299cd743d43fbcf5fa3a382c99"
+    },
+    "core/browser/android/brave_init_android.cc": {
+      "git_blob": "cfcf67caa28dae254cb233a43aa66bf7fd25adf8",
+      "sha256": "71476bab5b5697b26c58a597b86c7c2861f9aea8227e1309d3a7d5bca5763255"
+    },
+    "core/browser/android/brave_tab_features.cc": {
+      "git_blob": "bd1f861c72123e86b74c094ec0a86a4dc346b311",
+      "sha256": "0d00b4ad99ebafca4e677761999643c33625bacd96569831890adc30eba6bb00"
+    },
+    "core/browser/android/brave_tab_features.h": {
+      "git_blob": "aada36ee0b5e2ff845f7eca6c9bafb884323c1e8",
+      "sha256": "1d23463cd6946d29cf58258ebb8f82a28488409f9bbebe0d2be5f1148648d463"
+    },
+    "core/browser/android/preferences/BUILD.gn": {
+      "git_blob": "5cdf735dad3eb50fda9efd06e392cbb914cec765",
+      "sha256": "dd2756d1e64116a701e74a0124aba5507ce8bc0a56a5e56940c779e6493a029d"
+    },
+    "core/browser/android/preferences/brave_pref_service_bridge.cc": {
+      "git_blob": "54f90a761df892b75a18e67fd70b2c66fd8ec7ea",
+      "sha256": "fc8d01b099a3af7a112819dd1289e976f46ef68fc55d24ecce9f0546b69c9df4"
+    },
+    "core/browser/brave_browser_main_extra_parts.cc": {
+      "git_blob": "29c83f5f3ed3abe50db5928dc58e2a296b634708",
+      "sha256": "a677c5a8551a8986d527b06c461b3937060518be9683097568e790e0207585d9"
+    },
+    "core/browser/brave_browser_process_impl.cc": {
+      "git_blob": "676b0e7c6f3bd7d0caa80695087bfc57bea0fcd3",
+      "sha256": "2514aa7eb9ee665156217bc2416b2e693c4aeaad780cdf443d2d98b369f74d09"
+    },
+    "core/browser/brave_browser_process_impl.h": {
+      "git_blob": "c76fa13398392ff46124b9e16a24b3e5c805128a",
+      "sha256": "aae3e25cb6fea7180d442f9e503717a7b70539a39952eae9e1975b363d81f9f1"
+    },
+    "core/browser/brave_content_browser_client.cc": {
+      "git_blob": "21a2c5c99f3820d4eefeedd204c1a0044d071097",
+      "sha256": "c6a179c0f75d695122bc4cebe7ce4999b4944e439252f688a0ab1b63ad79fc70"
+    },
+    "core/browser/brave_local_state_prefs.cc": {
+      "git_blob": "fc42e00c3619e2d41100b295c1d24cb3fcbf2c05",
+      "sha256": "8550dd8e6701cb015fe5b6d9b407f4a8194a30bc66e69cc72843cea94f6b4fce"
+    },
+    "core/browser/brave_profile_prefs.cc": {
+      "git_blob": "413b27a1a6a589fd2dea85d33a8de4c73eaaefb5",
+      "sha256": "54c2018e41d5b8a752d82fafccfe0e5502c61ca614ddacd4a8154e02897f2701"
+    },
+    "core/browser/brave_shields/android/filter_list_service_factory_android.cc": {
+      "git_blob": "c59d3e8a559585855796e30531628bb8c155c5c4",
+      "sha256": "aaae3032733b669d276592ee186982acda42469d0108d9e279ebb5c2357879e4"
+    },
+    "core/browser/brave_stats/BUILD.gn": {
+      "git_blob": "387649031381b157d681729ac383918b3570cdb9",
+      "sha256": "2dfdff634f54086f5354e65a37d8363465dcd9df1ec438aec34d979cc75a9dfd"
+    },
+    "core/browser/brave_stats/brave_stats_updater.cc": {
+      "git_blob": "9073c9ddd2f8ac93d9937f434a49794c76f90fb4",
+      "sha256": "b086aad270530f2c9cd8a12b05f00861191f1b2bdc116ed7ed8cf14fabdaac86"
+    },
+    "core/browser/brave_tab_helpers.cc": {
+      "git_blob": "07962fa117e7ca187ffc4d91d7ddc3e9c8935c71",
+      "sha256": "233b6ba13c8e780f5bcb61cc429d5e66ee553e953738dfe87e7e9c9e7c7f37f9"
+    },
+    "core/browser/browser_context_keyed_service_factories.cc": {
+      "git_blob": "99b56580e686fd7cb2ee71f8ae96d2cd5bb1ff91",
+      "sha256": "d476255a3d7fa5604f1ebfc05e8db6b95e8f316783d4b8c2128f660476eb5aac"
+    },
+    "core/browser/cosmetic_filters/cosmetic_filters_tab_helper.cc": {
+      "git_blob": "99f2ef1529f485f3c5eb3c51a83816c895dedd74",
+      "sha256": "4ead0349f0021819a6775d59eacf8c53365f42bb4f88ba916574e5ae1dcc94e5"
+    },
+    "core/browser/cosmetic_filters/cosmetic_filters_tab_helper.h": {
+      "git_blob": "42e2344db846ec3d1dd684505aa1624c904a5094",
+      "sha256": "573e5100be35d3b5e14a6f0e24b00d9eaef7b7b859dbd8193333ef0ad6215803"
+    },
+    "core/browser/customize_menu/android/BUILD.gn": {
+      "git_blob": "4063395f2ae8f5bfdd6007b0d1568c02deebcb05",
+      "sha256": "382ce196890166958319de1640ca80c43a0b546ffc00b0f4239000c287d750c7"
+    },
+    "core/browser/customize_menu/android/java/src/org/chromium/brave/browser/customize_menu/CustomizeBraveMenu.java": {
+      "git_blob": "38b79d3f791a0e07817e7f6a44c5d3a16974ebad",
+      "sha256": "13e347b4157a2802aefabf72709e08dec828fa5bff3d195e548bfa2a9f6cacf3"
+    },
+    "core/browser/customize_menu/android/java/src/org/chromium/brave/browser/customize_menu/settings/BraveCustomizeMenuPreferenceFragment.java": {
+      "git_blob": "305b55bc34fd5d4d2c4873ea7ea928ecd8bd0788",
+      "sha256": "5146d43c964937bc968d00953f712351adcd1fd77cba8c67bab0292e930b4fc4"
+    },
+    "core/browser/first_run/android/BUILD.gn": {
+      "git_blob": "3672d49eddb387a3b3680ac3c450c044087b9c9f",
+      "sha256": "14c7f3160998c5dcb944564f3985b72b34f8bcbe142160dab7ab1a7ff07e2ac8"
+    },
+    "core/browser/first_run/android/java/res/layout-land/help_brave_search.xml": {
+      "git_blob": "1426b2bd6d96e527e7c292d7293d76c91bdecd12",
+      "sha256": "e34d09206d50ebb6c0811db8c254f7522e2df6c523ddfb43475b10d4bd2d72e5"
+    },
+    "core/browser/first_run/android/java/res/layout-land/make_brave_better.xml": {
+      "git_blob": "5d8ebd14bf6979a6db3eceb95c87b31d0ce56d8e",
+      "sha256": "2f969994fab19592594a7be958e3ba684c7d8bad89b9df5edc54408154a80be1"
+    },
+    "core/browser/first_run/android/java/res/layout-sw600dp-land/help_brave_search.xml": {
+      "git_blob": "c9aee02322c8d6a6701ff812bf278a1e6b374e37",
+      "sha256": "6ea3e5dd83483b7ca5a4615578d7d37a8c38d5310189d277f3be249f232418d5"
+    },
+    "core/browser/first_run/android/java/res/layout-sw600dp-land/make_brave_better.xml": {
+      "git_blob": "a77ee77812e6a7d425a8da4ed11428132d4da00f",
+      "sha256": "2b6e720e2f5982d69041247893e77b37ed5522ce95f8abf7eb2beac735134155"
+    },
+    "core/browser/first_run/android/java/res/layout-sw600dp-port/help_brave_search.xml": {
+      "git_blob": "d46c7f2a2c1acaf0b3be33f0ceea95ba13254669",
+      "sha256": "ce448474e27f87ec540410525e49abc21a16ced5775d139b06cabf3dfd5442e3"
+    },
+    "core/browser/first_run/android/java/res/layout-sw600dp-port/make_brave_better.xml": {
+      "git_blob": "4791cc1926f6fe9eedc9f575800ebaacd64ba27b",
+      "sha256": "a500a26b752997e9737e08ca93bef549f5bc19cdb1edcf7e176ecb78fbe980c3"
+    },
+    "core/browser/first_run/android/java/res/layout/help_brave_search.xml": {
+      "git_blob": "17559049654252b85ff1b944431c956484d8aa7b",
+      "sha256": "6cb0c00bd9ccb56a9c58d1528feb149ec883f7eda7f385626f7f71208bec2579"
+    },
+    "core/browser/first_run/android/java/res/layout/help_brave_search_landscape_content.xml": {
+      "git_blob": "d26e75763986412d3d653d8ba7bdbcb7495fcf3b",
+      "sha256": "f3441954aed8c40738a766ac6a546fbf33a7250904b11c52bb93626c79f6e86e"
+    },
+    "core/browser/first_run/android/java/res/layout/make_brave_better.xml": {
+      "git_blob": "98d9b06ea27872f1122b4b7e36a1af21e0b83104",
+      "sha256": "477b0b99d1cb6e76a24fa7ae78e646e4ec5d5e4f9e7ff245c47874979a31ab9f"
+    },
+    "core/browser/first_run/android/java/res/layout/make_brave_better_landscape_content.xml": {
+      "git_blob": "ef9176175126652018ead5735a0112df78bbf8eb",
+      "sha256": "90e5651cb055b9778fa46ef32663a5b2d0e79f9746c371fef851abd12a578535"
+    },
+    "core/browser/first_run/android/java/src/org/chromium/chrome/browser/firstrun/OnboardingStepAdapter.java": {
+      "git_blob": "3a3536bc05efd194d24df79000719bb9eb6d2bad",
+      "sha256": "3298c0f79671358105217a16cd85194b8c4d86cc74d06ee955f7375b392bc7e2"
+    },
+    "core/browser/first_run/android/javatests/src/org/chromium/chrome/browser/firstrun/OnboardingStepAdapterTest.java": {
+      "git_blob": "89c5ce65e9e46dbdce688bfa8e1970b399411176",
+      "sha256": "dda98900d48f743778366b21894ae1d5bcdfa9c01a2ed8bfe0444ac850757093"
+    },
+    "core/browser/net/brave_ad_block_tp_network_delegate_helper.cc": {
+      "git_blob": "22b123bc93c898e2fc4ed0f87b83e8587cbdd43c",
+      "sha256": "b1639961e12dd30091ffef9bf4d3ffd50c720efe8b5ea396c173bc0d6ed97dad"
+    },
+    "core/browser/notifications/BUILD.gn": {
+      "git_blob": "a2afc502e1567a2cb7750cbf271a6a23f8966d5a",
+      "sha256": "3f3a958928185e2c4b4114be96f89ec0360d5a860564e3bc0064d3ea3de424a7"
+    },
+    "core/browser/ntp_background/android/BUILD.gn": {
+      "git_blob": "2e8203ff3aed00423b4f147886cabec7b24d43e2",
+      "sha256": "23f1f1fcc1350e7c149ae09e7ac80f2f407a877dba4979c514900b2c1894b7c2"
+    },
+    "core/browser/ntp_background/android/ntp_background_images_bridge.cc": {
+      "git_blob": "4b051bf5dbbcc0627e20deb40311691c7e9a7082",
+      "sha256": "bff871b3133490b2a597898052b16b92e7cbabad02e6ea82e56bd0ee51be92bc"
+    },
+    "core/browser/ntp_background/android/ntp_background_images_bridge.h": {
+      "git_blob": "8638476f3446472860b2c6d676bc2fddd844dbe9",
+      "sha256": "b0f3c150bf71deefdfd2b2998a048d65a19967829f9071372ac4d5430b00ac87"
+    },
+    "core/browser/ntp_background/view_counter_service_factory.cc": {
+      "git_blob": "d620f894873cc2c4eba8c70eaf5c549e17ad004f",
+      "sha256": "0a383b17de0f3f5a96386f5f8a036808cf74db5dcd2063bd8624268d3a2c6b5e"
+    },
+    "core/browser/playlist/playlist_service_factory.cc": {
+      "git_blob": "d28848371d3a4fc136ef8b753c4d250e55b87541",
+      "sha256": "d663f6414d0706548cd9d4167f5452cba74f9b9c5657ee43b93a3c738e99ec02"
+    },
+    "core/browser/quick_search_engines/android/java/src/org/chromium/brave/browser/quick_search_engines/utils/QuickSearchEnginesUtil.java": {
+      "git_blob": "65e424be3d7f7a588f6a5672ed85b8e6ca78a42b",
+      "sha256": "65b21e2bdb0e21201c944f78e47746f76e50a90c1dc2652a159e39f4bb6f9bd0"
+    },
+    "core/browser/sources.gni": {
+      "git_blob": "3a4182a6ba90bed10f0e3ed4906ec257602650fb",
+      "sha256": "0b448de2cdb44fcb3e9728a49ebd2e38980f1c228c72cd99475aa36732268d5c"
+    },
+    "core/browser/ui/BUILD.gn": {
+      "git_blob": "b71d9e2d385b3ea6729daa329e444d77785ef670",
+      "sha256": "53a2969487d57c54ec026289a4ee909a6cba8829e90fac7c943022891baa4f3b"
+    },
+    "core/browser/ui/android/omnibox/BUILD.gn": {
+      "git_blob": "7e0a85a97657a2078ccbf708190347119b786261",
+      "sha256": "42a077508ae48b21332d6f01acf6f6d9a48c1d3caa121cb07f591cca846cfbfc"
+    },
+    "core/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/suggestions/BraveDropdownItemViewInfoListBuilder.java": {
+      "git_blob": "adf51ad251b37cecbfa06b7443e9580698158e2a",
+      "sha256": "c07c998dec8f4132431117a90f9f1118767d9489e310889c5057878531056c5f"
+    },
+    "core/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/suggestions/BraveOmniboxViewHolderFactory.java": {
+      "git_blob": "2ed8894f57db6847ebdac5a7d6a59c85bd27acee",
+      "sha256": "3df0c0e608066bc7f50c289a65e432006252b8a0403f25663d5467a07a9bafe0"
+    },
+    "core/browser/ui/android/theme/java/src/org/chromium/chrome/browser/theme/BraveDynamicColors.java": {
+      "git_blob": "bcf6e395c6825482d83c6d01c9c8321148316f2c",
+      "sha256": "9551e80c63a7d877ada883db3aad0fbc403496d02594b8aaf0948b9ed45b1fdb"
+    },
+    "core/browser/ui/android/theme/junit/src/org/chromium/chrome/browser/theme/BraveDynamicColorsTest.java": {
+      "git_blob": "cd1fd60016631bb5d70f1d5aedada9f03200c9d0",
+      "sha256": "e3ab17b7227fe1df16dd2d6cfba2531a95be3ff410186ea89cf5e20abc59c8aa"
+    },
+    "core/browser/ui/android/toolbar/java/brave-res/layout/brave_adaptive_preference_buttons.xml": {
+      "git_blob": "3a05bed6f3708763296b2a5e96c0bf27fb7c81ec",
+      "sha256": "9cfdd110007351c4ec13e2f62093ea8dd08744c1123c0b0a2244b2eb4edf2ddb"
+    },
+    "core/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/adaptive/BraveAdaptiveToolbarStatePredictor.java": {
+      "git_blob": "d369ec61846b1ebea1a47ef86b3dd1110d4e290c",
+      "sha256": "8fa80d4ef75968b432a3cb4609af0d37e1b65b7be1ede3f4040b5a608073672f"
+    },
+    "core/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/adaptive/settings/BraveRadioButtonGroupAdaptiveToolbarPreference.java": {
+      "git_blob": "66f183ea2424d6b5c16d48d27ba869c323d3899d",
+      "sha256": "872b58694318333746f5dbc45d1d0ecea08369eb36ea829b514ff99ebec3c1b1"
+    },
+    "core/browser/ui/config.gni": {
+      "git_blob": "b72cc25c66c779719e702f1798356dc25e33cf14",
+      "sha256": "4e6207a49dfa8724e7471df0f416cba8928a958ab8dc5d48e9d6c91ae5ac77f1"
+    },
+    "core/browser/ui/webui/brave_rewards/rewards_page_handler.cc": {
+      "git_blob": "963d46b69f540aac69325995389fcd17f34aa084",
+      "sha256": "4a4b5ce02406b1a604b526687ff23e0498ac0b196aedd833401d581484667f65"
+    },
+    "core/build/android/config.gni": {
+      "git_blob": "db403d925671b20e8992a8ffbc7b914283187196",
+      "sha256": "0712f7b5fdb899eb1fe6d51f187f435fbb897bd0e726395f9fd62556181d6f24"
+    },
+    "core/build/config/siso/brave_siso_config.star": {
+      "git_blob": "a0154edd465b497688753a388f2a07fb237c4d76",
+      "sha256": "bff0364e2ea33f83136ee4c24a3b2d6b32a7a36d273e6330d20f0c49416c17f0"
+    },
+    "core/chromium_src/chrome/browser/component_updater/registration.cc": {
+      "git_blob": "37710daf1f8874c8bda49b338354b391dc494bea",
+      "sha256": "06253d423483ace7d86f98efe8c011490635f4ce6d4dfa5ea02976acbb086518"
+    },
+    "core/chromium_src/chrome/browser/flags/android/chrome_feature_list.cc": {
+      "git_blob": "e1d13c324ba76cd58ed72dc26134213874a8b05c",
+      "sha256": "ae1a68e0a05f4e8823b13a40c5ea8f833216b59be25646685cfb932b7c5c2b20"
+    },
+    "core/chromium_src/chrome/browser/prefs/browser_prefs.cc": {
+      "git_blob": "8762abaddce46ba250aebfe4bc6da9677e1ff432",
+      "sha256": "67678ed15dda5a8c43d23ead8e33321aac4c72f9f2c1ec77378a0a661124dc37"
+    },
+    "core/chromium_src/chrome/browser/ui/webui/chrome_web_ui_configs.cc": {
+      "git_blob": "ed868749456a244a8c4af6a45b65abba32951c6c",
+      "sha256": "9ee01d18715a4eb9541c73b7ec2f9bcced588f14596287b611098629c968d7f0"
+    },
+    "core/components/brave_mobile_subscription/renderer/android/BUILD.gn": {
+      "git_blob": "19391f64a1eb4ce43816a7fcbc895ee82e32252d",
+      "sha256": "190c5a3ce0894285bf21ecf4adc9f2446eb4586b9fa1c9e7fe89722716d36cb9"
+    },
+    "core/components/brave_mobile_subscription/renderer/android/subscription_render_frame_observer.cc": {
+      "git_blob": "dc0202328d42c5117903af524931fd31736bc5d1",
+      "sha256": "3cecb92eb0a14f691428a5daa5f63ffef21fd828b1441786c5449f4aa4190d4a"
+    },
+    "core/components/brave_mobile_subscription/renderer/android/subscription_render_frame_observer.h": {
+      "git_blob": "a4e7a95f7b9f1d55c15414a44817240c031bdd90",
+      "sha256": "d60cd7062b258da64e090b542795f7311af98355e17d36887464c30f300ea1e9"
+    },
+    "core/components/brave_shields/content/browser/ad_block_service.cc": {
+      "git_blob": "ebbd6c499d4a5f8e9f9728faf494e1ca44c801bb",
+      "sha256": "88ee517629bbf6217f45d55f48f4e338fa83ff76cb36c21cdf5e6b9571dca6fc"
+    },
+    "core/components/brave_shields/content/browser/ad_block_service.h": {
+      "git_blob": "0282ffa85def6ce36264425ef66eb4bd8b846eef",
+      "sha256": "4f38888698fab601c631f92f03137350a633d221deacf3eb172edf6b56fbaa93"
+    },
+    "core/components/brave_shields/content/browser/domain_block_navigation_throttle.cc": {
+      "git_blob": "13a2b114446d0cb9cbc53e8baff8215e34b55fc4",
+      "sha256": "4b076da7c9f67cbdefc7e7397acc773bd7b4810b3b8c33de199f480965d7181a"
+    },
+    "core/components/brave_shields/content/browser/domain_block_navigation_throttle.h": {
+      "git_blob": "b196d8c7a9169c8daeb1bf348c2940f54197d6da",
+      "sha256": "cb1095bd154b5cb758dc84f70e08120b7d06334dc7847acaf76a7ab4808669d9"
+    },
+    "core/components/cosmetic_filters/common/cosmetic_filters.mojom": {
+      "git_blob": "4913a97b52f5f94ad4c6fad028f5e68ec6a1cb67",
+      "sha256": "1e129cc3efc620373ab9e39ef9e7c754db946f08020e5c949ad7b63a5304874a"
+    },
+    "core/components/cosmetic_filters/renderer/BUILD.gn": {
+      "git_blob": "93260ffaa3290bb3f1fd1c6fc171cd8b28b5f2c4",
+      "sha256": "9789c81309b0c8add9d83c13babc9c27a6384e61807e0bb1ff768ab6c78dc032"
+    },
+    "core/components/cosmetic_filters/renderer/cosmetic_filters_js_handler.cc": {
+      "git_blob": "25e7f3f84764f34914bcb22e333a93eb74dc7729",
+      "sha256": "3795777919a43e62538ca684715bf7cede2e14483c852be3ceab2fdc0fae6a35"
+    },
+    "core/components/cosmetic_filters/renderer/cosmetic_filters_js_handler.h": {
+      "git_blob": "8fbfcb12895b37705151837c505c3e1bf6ac249e",
+      "sha256": "1bc1057d7aba36f0496176deadcc96597bb1ec18290b062eca3dc6a921b686c7"
+    },
+    "core/components/email_aliases/buildflags/buildflags.gni": {
+      "git_blob": "5004997b808ef6e88fa43c629a392ed8e1846c7f",
+      "sha256": "df2839e39bed931ffeb4d314a08ebf8094f0d9bd4cd6a67b6560f4979eec7445"
+    },
+    "core/components/minidump_uploader/sources.gni": {
+      "git_blob": "9ebfa1e8b3ff6abc8e5a2c8c1d91d65da3bae020",
+      "sha256": "c534374e22491c307ead06aa3074abf76f93a023ae7dacd0c1d7509c26fbdc3e"
+    },
+    "core/components/ntp_background_images/browser/BUILD.gn": {
+      "git_blob": "1750c046a4b429040205a58a12251f85768b745b",
+      "sha256": "226532ea8dd50296e47a2963402b08c600813a56eb7f1a28270ab64ae1f8c948"
+    },
+    "core/components/ntp_background_images/browser/ntp_background_images_service.cc": {
+      "git_blob": "83833fd2d1b2f28a2037a5e6cb206e8ce6e3ca96",
+      "sha256": "c963fae7d759086799d7b10882306dc651c66c212d11ccce4f3ec21e304aca47"
+    },
+    "core/components/ntp_background_images/browser/ntp_background_images_service.h": {
+      "git_blob": "2c10df72f94aef883f4d9462542c2358b937bb94",
+      "sha256": "dabcc9d3fa3d34a6136b0ed45850b4e7619c8bc2ad0e604743d005a0809dd663"
+    },
+    "core/components/ntp_background_images/browser/sponsored_content/new_tab_takeover/dynamic/ntp_dynamic_new_tab_takeover_ad_event_handler.cc": {
+      "git_blob": "b66e9a0cb9f7c2b81eead0578dc892e17e75a92c",
+      "sha256": "82b28802b7d8d1e6366a76499990ca70427684144ee9df2a7b76c40a6d9ee45a"
+    },
+    "core/components/ntp_background_images/browser/sponsored_content/new_tab_takeover/dynamic/ntp_dynamic_new_tab_takeover_ad_event_handler.h": {
+      "git_blob": "a2cce13f4ae115674f2b726b442a1b1efe2d9d82",
+      "sha256": "ec5f9f86681b87dc36458d8893132b0013631fc008f88d8eca116121420589b7"
+    },
+    "core/components/ntp_background_images/browser/sponsored_content/new_tab_takeover/new_tab_takeover_infobar_util.cc": {
+      "git_blob": "93b09d2209f2fbf4c86aca2b4b0681f377e33fe4",
+      "sha256": "aff98873c1357783d7ffe1c7d7147a77d66d5e1014b03f262f0d2483dee492e4"
+    },
+    "core/components/ntp_background_images/browser/sponsored_content/new_tab_takeover/ntp_sponsored_content_data.cc": {
+      "git_blob": "e8e76c14191a69a92b935887a69ac129e091591e",
+      "sha256": "bfa2b68b40f24813ea7a010ac6887928ddb52b35b6397ca2e2b162a251db18e8"
+    },
+    "core/components/ntp_background_images/browser/sponsored_content/site/ntp_sponsored_sites_data.cc": {
+      "git_blob": "665f4123c3125e18b2e26d201960a548e3b04061",
+      "sha256": "18a82ec4def99f911497531d06d3044c33747cca99b9de8e48cb57695d975f8b"
+    },
+    "core/components/ntp_background_images/browser/view_counter_model.cc": {
+      "git_blob": "6c17cd2ac78ac52fe4d8954c849086d95c7c68f0",
+      "sha256": "bf95ff1e6b53d11726125a52f2946bccf1285cde56c4998e98656cfc41119104"
+    },
+    "core/components/ntp_background_images/browser/view_counter_model.h": {
+      "git_blob": "eebc88f798168201e1991182d431b1c2c13b7cbf",
+      "sha256": "409d8c16db10940d0955ab04a9e38708ddc7e62876567fea8fa5b10192b7d04a"
+    },
+    "core/components/ntp_background_images/browser/view_counter_service.cc": {
+      "git_blob": "49f41b7674f98e847c00c781401eda6c37d1d6b3",
+      "sha256": "5c723490644406d1c69592607104213c4688bb10a306e5205e85615ff64cdff4"
+    },
+    "core/components/ntp_background_images/browser/view_counter_service.h": {
+      "git_blob": "5fc8d7035feb1c1ccef19c4e0d17c38f8090229e",
+      "sha256": "849e7b81be2868efc791d2325ddb3fcf1c5f970cf27ea833154ce0a5f8c26599"
+    },
+    "core/components/p3a/BUILD.gn": {
+      "git_blob": "b79e1d063c510ce4a1801b0ca86b735363598773",
+      "sha256": "0be18cf493eb12568b04d550d5f919b7e6e5934dd6226acb219654925f1cc1b1"
+    },
+    "core/components/p3a/p3a_service.cc": {
+      "git_blob": "e533279ed759b5a2c580cefa2c5d7cc074c44348",
+      "sha256": "998f914c7eee48f4dad961fed466248821ae1bbbdb01ce9a87da9e3d62e4c309"
+    },
+    "core/components/p3a/p3a_service.h": {
+      "git_blob": "ac08ffc7400123d40bfec8016a753271d4744e5a",
+      "sha256": "b80243ac8769729b086db3361dd53035c77ca2e41379a3dbf06fd6ced58230a3"
+    },
+    "core/components/playlist/core/browser/utils.cc": {
+      "git_blob": "2635d19ff9d157dbc2de7431e8bfec754bf3100f",
+      "sha256": "a8baa184de3fc3b4baa296ab25f8c59089e87a4bc78335508a1dae0558158378"
+    },
+    "core/components/playlist/core/common/buildflags/buildflags.gni": {
+      "git_blob": "5e401c3ab3097736b043c91ad9cee01e1ec34d2a",
+      "sha256": "c724a0bab8df74e138cd3599eb7adb4e407cf2f41274a5ebf0e4724e37c3accd"
+    },
+    "core/components/resources/BUILD.gn": {
+      "git_blob": "4bfff3e5280e889ecf52a9c050128b7415eebe87",
+      "sha256": "80766df9b6ac8ec1e9f674d9d7da57f360330becadbfac6bc38a40bea3ef3ca8"
+    },
+    "core/components/web_discovery/buildflags/buildflags.gni": {
+      "git_blob": "f92bd29394384fadc2594e148d533ea1a7f04cc2",
+      "sha256": "2af1d108f2697431367c3e5b9e76c50be454cb5d70331c0e64819f3a262552ca"
+    },
+    "core/patches/chrome-android-chrome_java_sources.gni.patch": {
+      "git_blob": "73663217d9c11b77c0bd2262c26f0c1fdcde3654",
+      "sha256": "00eb33db8278d0807435743f04d628d9835373c1d7efa9f12a6bc65c4d9cfab7"
+    },
+    "core/patches/chrome-android-chrome_public_apk_tmpl.gni.patch": {
+      "git_blob": "ef4a30d26a82246803312190c0a757e8db3c3960",
+      "sha256": "189ea07d559416d02813d50c4797410c13c649610c878fa4aa2a7a416823d8f2"
+    },
+    "core/patches/chrome-android-java-src-org-chromium-chrome-browser-ChromeTabbedActivity.java.patch": {
+      "git_blob": "0b9e6678f77eb9eb31843c703fb40ef617957f14",
+      "sha256": "8e43f2d3fa2e908d358af6d6fe1a15ff75dedf1fb87a902d940204d4444fa300"
+    },
+    "core/patches/chrome-android-java-src-org-chromium-chrome-browser-ntp-NewTabPage.java.patch": {
+      "git_blob": "59dd4773de3e680c55806062ddaa00187aa664c6",
+      "sha256": "35a7cedbeef3173586b917102a14a948167cd96d59d13a1d12a36d52ae64e518"
+    },
+    "core/patches/chrome-android-java-src-org-chromium-chrome-browser-settings-search-SearchIndexProviderRegistry.java.patch": {
+      "git_blob": "d600ae1b8ac04ef340122bea83fed2f6f477b823",
+      "sha256": "ef3c1dcafe93b2e1913b486ca4ce2fbecc964a2bf80f769367d26752353d7450"
+    },
+    "core/patches/chrome-android-java-src-org-chromium-chrome-browser-tabbed_mode-TabbedRootUiCoordinator.java.patch": {
+      "git_blob": "64948265f0b8d670b0f78587af3b1de4f3232121",
+      "sha256": "ce82e1b8c5c4ed8f36def86aca23ca457133056e9abbf2fe3e762af301ffacf6"
+    },
+    "core/patches/chrome-browser-search_engines-android-java-src-org-chromium-chrome-browser-search_engines-settings-SearchEngineAdapter.java.patch": {
+      "git_blob": "826c048a50c89034017c34ba7c472d8628d02956",
+      "sha256": "877ddcce8942d5b8a502cb0a79b763908d692bd77586982848fef064974688ad"
+    },
+    "core/patches/chrome-browser-ui-android-appmenu-internal-BUILD.gn.patch": {
+      "git_blob": "5b45fa31237cd7dc55ecb5b19993b984e102ded7",
+      "sha256": "6b39fa635c6f054fbf8d99de7459303c361e5461897fd2ebf091f0539e980cce"
+    },
+    "core/patches/chrome-browser-ui-android-appmenu-internal-java-src-org-chromium-chrome-browser-ui-appmenu-AppMenu.java.patch": {
+      "git_blob": "878e512329acfc0d17aa0ac885308d99960177cc",
+      "sha256": "e0da0a2eb49d2d18f6ad6341487acf44da6559160c5da5ef1949adcbe0611738"
+    },
+    "core/patches/chrome-browser-ui-android-toolbar-BUILD.gn.patch": {
+      "git_blob": "19c765c92dde3c8163c1c9a0f05503352b32c083",
+      "sha256": "6329bddbfb01ff2961f5fcc044e801a21a8245b1db58fc641827d24ea4e6ab61"
+    },
+    "core/patches/chrome-browser-ui-android-toolbar-java-res-layout-toolbar_phone.xml.patch": {
+      "git_blob": "41aee0ecd241b90623f22c90ddcb9849b21cfce3",
+      "sha256": "21401b8990da0e6ba98dde3f37420314cdfe0e19850726d0d7f7c53ea3510529"
+    },
+    "core/patches/chrome-browser-ui-android-toolbar-java-src-org-chromium-chrome-browser-toolbar-top-ToolbarPhone.java.patch": {
+      "git_blob": "d321c4b4f0bb736f5f9a3aabf1640ad15f420f3f",
+      "sha256": "b3b672dbb6b082deb9e46eff6e0c7bb0ab9fa9c77de713bbc0b132ac088dbd39"
+    },
+    "core/patches/components-minidump_uploader-BUILD.gn.patch": {
+      "git_blob": "acf18a5c2c0a6d52763cf4a0256851badf5da557",
+      "sha256": "377418bced1dc8e6d1aca398e53e0c6f98755d833162a8ed9600b13162f960c9"
+    },
+    "core/patches/content-browser-BUILD.gn.patch": {
+      "git_blob": "8970006bfbf4c91a960f644e2e02fbcb8475d0e2",
+      "sha256": "813e2145d2d9f5d7aa295b36efc10db63df1f6e89278b923d37635b83a8cce9e"
+    },
+    "core/patches/content-browser-renderer_host-navigation_controller_impl.cc.patch": {
+      "git_blob": "7d0b35e8f539baab0cf6b2bb666f4459c8378600",
+      "sha256": "df9b95fe75184c01a35533ef5d2ff13c21f1b154d3ca5bec12089d944e2ca5d9"
+    },
+    "core/patches/content-browser-renderer_host-navigation_request.cc.patch": {
+      "git_blob": "3cf55c86001f40c11a1bcd0700e108aeddd77292",
+      "sha256": "51ebe998cbce21be2fe5cb07a6d11a5f6829fd3239ea1744d00b8275dc1aff33"
+    },
+    "core/patches/content-browser-renderer_host-render_frame_host_impl.cc.patch": {
+      "git_blob": "b5b1a8263132c5d3c50b9049aeba8d24c3889c91",
+      "sha256": "e40c63fe48b6a7fda88e48efb75f23fb53d021aad5b9076ff2a6fe8928f74861"
+    },
+    "core/patches/content-browser-web_contents-web_contents_impl.cc.patch": {
+      "git_blob": "9d7b02e0877647a7732e0ac4bdce2c8267de57e6",
+      "sha256": "bcd5210ff83b625968b3d67dfa46332bfc9f2261460f000509b0d8406291fe04"
+    },
+    "core/patches/content-public-browser-BUILD.gn.patch": {
+      "git_blob": "e04b04ec2eae267bdb43878838e80d1b555abc46",
+      "sha256": "58e3d86120f83acce52040373257b9adcbca0095d79ea0df4c4c645f1c9d282e"
+    },
+    "core/patches/content-public-browser-content_browser_client.h.patch": {
+      "git_blob": "f379e5b1a948e6bc023f4405903dff38b888947c",
+      "sha256": "9af3500bf1436e770b90b196556e381c7435a0412fae1c216686608519cf7a91"
+    },
+    "core/patches/content-public-common-content_features.cc.patch": {
+      "git_blob": "1b502796f0e1f1b606f6386e38eafa37a8ed3058",
+      "sha256": "d1d48d8ff4cda05b2cf85a81193b9b2e40dd31c544caab20d678ac77e4d342ad"
+    },
+    "core/patches/content-renderer-render_frame_impl.cc.patch": {
+      "git_blob": "65f79fa59db7a01a512b6c72b0ee0bbc4d0b5162",
+      "sha256": "f01d98cc165fe13f7cb24785b2c5704720a4b9020a4769b7592665594568930e"
+    },
+    "core/patches/third_party-blink-renderer-core-BUILD.gn.patch": {
+      "git_blob": "32949ca6fad4eb6a95ef8911bd6449ad308b5635",
+      "sha256": "644f2a6347ccf6eccff016899b15845f4f028429fdce237ba8dacf547d5611af"
+    },
+    "core/patches/third_party-blink-renderer-core-dom-document.cc.patch": {
+      "git_blob": "31ec5c5fb9fcb091fd26ecd0eeb92671a9ae2d66",
+      "sha256": "1d5f86d01ed76052a05a67f7758252932c410f912d965ee4e13e711140eb9ed9"
+    },
+    "core/renderer/brave_content_renderer_client.cc": {
+      "git_blob": "fa9ce8946340ad424691141c36165f2cc6368f56",
+      "sha256": "9f29234d16a3567facfea9e1f2fd29af88550511a6e619a9b57c0bcb70660976"
+    },
+    "core/renderer/sources.gni": {
+      "git_blob": "460e50b972d4f333ff4b5bd5abc4593108e4df09",
+      "sha256": "06e584b5e1747acc5d76a42b4725e21bfea0f8ae6577d9b2ede63a8271fba3aa"
+    },
+    "core/third_party/android_deps/BUILD.gn": {
+      "git_blob": "f746ddeb5d1a9408f94724f777d5e4dd89911dd0",
+      "sha256": "fb31886d8b0d5f9bc25e151a5e407438ac2be297d7714a8e61e27cac938cc93f"
+    },
+    "core/third_party/reclient_configs/brave_custom/brave_custom.py": {
+      "git_blob": "8ce2865ff7644cfb613028b6e8b8b3a88f0f9e8f",
+      "sha256": "f79af458ca24db5b772c7e93e212b733dea07da24f27342f5e03af8ff07549db"
+    },
+    "chromium/build/config/compiler/compiler.gni": {
+      "git_blob": "a312b04c0741bc0a43eab7daa86c46d87d4a87c1",
+      "sha256": "251c239416334d20a7c34eebd2b345dfe81359e83ab2c57d196bb96c8cb0a0c4"
+    },
+    "chromium/cc/slim/layer_tree_impl.cc": {
+      "git_blob": "05f991a346e6d890f97ebeb8719cfb4658ddaf18",
+      "sha256": "ab6bc8b4871a86e8b4397e5730d559c016b190709ba496ec2fff2543ec105cb2"
+    },
+    "chromium/chrome/android/chrome_java_sources.gni": {
+      "git_blob": "21b0b69ba1b23156944085f767603c6ec30b0d62",
+      "sha256": "81db6b1c904d657e439870b7c00cbebf75801748305f75ecf88f0d91e68af27d"
+    },
+    "chromium/chrome/android/chrome_public_apk_tmpl.gni": {
+      "git_blob": "7817cd680fe2c3827bbadc85f8684f64d94fc82e",
+      "sha256": "2615c3cbc0a8858bb0eeb1fa8545354c7a87631719cc29c8702b8cdd7f9c5535"
+    },
+    "chromium/chrome/android/feed/core/java/src/org/chromium/chrome/browser/feed/FeedSurfaceCoordinator.java": {
+      "git_blob": "6d593875356d448eea8a45a647f479a0357b7c12",
+      "sha256": "e980d8fb0350a64ccfa8f11b5ebfa243387a5574c54710ee54e822592e1d14da"
+    },
+    "chromium/chrome/android/java/res/xml/developer_preferences.xml": {
+      "git_blob": "32688add76931b72dd77f05eddd62f75a6cd3997",
+      "sha256": "3d6dab24365a60333c77a2220923a7c908772dfc4ee5bc1bdd2ac3b9f0be40f6"
+    },
+    "chromium/chrome/android/java/src/org/chromium/chrome/browser/ChromeTabbedActivity.java": {
+      "git_blob": "eb3e5785daad6ea265e0497a8c918af330c398c9",
+      "sha256": "c13888336f01167eb33eb439a77f0c24be2a1672e3bbc2b7aa41af941c520157"
+    },
+    "chromium/chrome/android/java/src/org/chromium/chrome/browser/about_settings/AboutChromeSettings.java": {
+      "git_blob": "70db74f9c1eaa89beb77cf5e1fa939b674411d14",
+      "sha256": "0a3928a3af542d1de25b9d8e58848f5efd084107b7c9ce4c0129ea33fa8ef89a"
+    },
+    "chromium/chrome/android/java/src/org/chromium/chrome/browser/about_settings/LegalInformationSettings.java": {
+      "git_blob": "1296e3ed5ace4a970a54376dab590deb9411d6de",
+      "sha256": "636d28ee7c59d528a3667cd7d1e122f4cc03247c7a1c80a96abf3ae3b05e23e7"
+    },
+    "chromium/chrome/android/java/src/org/chromium/chrome/browser/base/SplitCompatApplication.java": {
+      "git_blob": "19c3b81b7e579d659501d7db7e1774737a45c337",
+      "sha256": "8b1e104b02fa56760ce5c4489df8154a152e9b05aafface8b5af14cbd6773efd"
+    },
+    "chromium/chrome/android/java/src/org/chromium/chrome/browser/compositor/CompositorView.java": {
+      "git_blob": "dc758358e74657939fae8959bcf3095f0292834a",
+      "sha256": "eca530507d4447a6e5578324e54b113c9bb3ded0b1c7064785c514b410bf5e32"
+    },
+    "chromium/chrome/android/java/src/org/chromium/chrome/browser/compositor/CompositorViewHolder.java": {
+      "git_blob": "0682149cba842202162806aca990077f669543ae",
+      "sha256": "397ff920ef4821ac25881c1380493c736228ca20d9e1dc7b3bf7c9227075ddcb"
+    },
+    "chromium/chrome/android/java/src/org/chromium/chrome/browser/compositor/layouts/Layout.java": {
+      "git_blob": "4b4dcff4198b24134044cd2841d3b64b23b7f0fe",
+      "sha256": "85dc3fedd143c64e186d7c5b9afa38ae60246eea1f74074958255c5bb3efbf0e"
+    },
+    "chromium/chrome/android/java/src/org/chromium/chrome/browser/compositor/layouts/StaticLayout.java": {
+      "git_blob": "be9c9323036fd72d22c20e1e526e74f0040eb857",
+      "sha256": "9fa277f984e0f486ef21430f50122d89d3d76027b73b6ca9db9c5fec7313ca8a"
+    },
+    "chromium/chrome/android/java/src/org/chromium/chrome/browser/crash/ChromeMinidumpUploadJobServiceImpl.java": {
+      "git_blob": "11b01d2d011694f24b774cc03bb3ab3de96bc679",
+      "sha256": "33fc48ef3bdf115789c73dff4be9410a1927851b619b36b80e58654745a16f16"
+    },
+    "chromium/chrome/android/java/src/org/chromium/chrome/browser/crash/MinidumpUploadServiceImpl.java": {
+      "git_blob": "3b94da2250e617501e48e3e2414dcf91a27f246f",
+      "sha256": "380b1a58ad1cec5d29bd8fdc85bdbdbf3a9c3ffe24215eaa443f71d4bd32e71b"
+    },
+    "chromium/chrome/android/java/src/org/chromium/chrome/browser/fullscreen/BrowserControlsManager.java": {
+      "git_blob": "fbb790389c56e976cb8e398282704f2d4bad906a",
+      "sha256": "2913cfd658c0685a356c7a1fe9fe66c68112f48027f1122bb6083ca2998b4829"
+    },
+    "chromium/chrome/android/java/src/org/chromium/chrome/browser/ntp/NewTabPage.java": {
+      "git_blob": "a08c5880ba6c2239406650444cc78de868940477",
+      "sha256": "041b02c93879d4883ac3768fada16659cf9f0cd5f16f1e23b84723611b4986fd"
+    },
+    "chromium/chrome/android/java/src/org/chromium/chrome/browser/ntp/NtpSmoothTransitionDelegate.java": {
+      "git_blob": "ea3a7b3a59bd0c542d34c010c5a6d9f53964992f",
+      "sha256": "e03a926af7ce8e884c98496e8669b600cf37c2b442f050c48f19ca49485bd8f5"
+    },
+    "chromium/chrome/android/java/src/org/chromium/chrome/browser/settings/SettingsActivity.java": {
+      "git_blob": "68ec16daa2ed60e11152b510ddc29b046ae6c5bd",
+      "sha256": "ae3634463578cb361b0a5922085d09b17bec0fb02e96cab4d74024c27567104f"
+    },
+    "chromium/chrome/android/java/src/org/chromium/chrome/browser/settings/search/SearchIndexProviderRegistry.java": {
+      "git_blob": "bd7b0543328ebfc041c639b1ef8e77488bca53f5",
+      "sha256": "35614bf44526cf5df582ca6e97ebd445de66d672e279d597203583af7312977c"
+    },
+    "chromium/chrome/android/java/src/org/chromium/chrome/browser/tab/TabImpl.java": {
+      "git_blob": "8f9a561242df75bd084394ffdfebf8b7457d531d",
+      "sha256": "40f6374e48c47607f526cb9e542977f18fd48e22b376cdb6c061d96113eb2750"
+    },
+    "chromium/chrome/android/java/src/org/chromium/chrome/browser/tab/TabWebContentsDelegateAndroidImpl.java": {
+      "git_blob": "5598176a446f0d492eba2d31d4bf3e3fdfe0e5bd",
+      "sha256": "c2c49994544fe08b30a751b8930567d68a84560703d91c87e4a401d61f142c92"
+    },
+    "chromium/chrome/android/java/src/org/chromium/chrome/browser/tab/TabWebContentsObserver.java": {
+      "git_blob": "dbba6c00c3129c2d5b92c7c422df40a97580a914",
+      "sha256": "8d0cb671e86ed9d33646cfde4f4e20aceab8ac6af1f156286c04b8da1a6504c0"
+    },
+    "chromium/chrome/android/java/src/org/chromium/chrome/browser/tabbed_mode/TabbedRootUiCoordinator.java": {
+      "git_blob": "4cead4d5ed6b4370ffcb2419305789245a799c6a",
+      "sha256": "5b20b64e9bd8c0d0eb447ecd4ed824e10c4cb015fcce4511731dd48dc80a34a1"
+    },
+    "chromium/chrome/android/java/src/org/chromium/chrome/browser/ui/RootUiCoordinator.java": {
+      "git_blob": "3b1195f974998e6b2b1c391bb22a0e6a96ce5263",
+      "sha256": "93509a7cd5f866421e59d53544ada279094ae23e72c1e7bef37e1de97a3eb60e"
+    },
+    "chromium/chrome/android/java/src/org/chromium/chrome/browser/ui/system/StatusBarColorController.java": {
+      "git_blob": "0aad27dee44476bb4e9943836f8bf979c2cb3636",
+      "sha256": "338587d1553e770203e3259679692ba2f8a10bdec1b958361864753f5da352c8"
+    },
+    "chromium/chrome/browser/android/compositor/compositor_view.cc": {
+      "git_blob": "e2dc5c408315aea509fcfe566392790c56ea2ac0",
+      "sha256": "5969d8a71af4f86556973c345dea01d0d550684d5f38701c8853a33b07bec1f0"
+    },
+    "chromium/chrome/browser/android/compositor/compositor_view.h": {
+      "git_blob": "e5726f4548af63a4424e24019d25e27fd80c1f13",
+      "sha256": "d8afd22e7c1917a968466da5b342d8a316fbcb99fdb4edf7fcfff2314050f452"
+    },
+    "chromium/chrome/browser/android/web_contents_theme_client.cc": {
+      "git_blob": "bf35feaaa827b6a3d1fc714066f8bacaa7e79607",
+      "sha256": "f60f6efe3542ff992479e1d5b361078a2020ea3b1b3a95c8196943d9b8a1d438"
+    },
+    "chromium/chrome/browser/android/web_contents_theme_client.h": {
+      "git_blob": "7f011de3b5d45af1fb2033d1cc9477092846fac9",
+      "sha256": "ffe2a1b755bb01033899f1d145b040b8a3f2c0a05601ef2135f8b1f6a62c1c81"
+    },
+    "chromium/chrome/browser/browser_controls/android/java/src/org/chromium/chrome/browser/browser_controls/BrowserControlsSizer.java": {
+      "git_blob": "6edba75cd22dd096cd1e9a70ca61cad8c7da135e",
+      "sha256": "52b241acc67b15488aadf4964be87b982d89e7c697d37d2d6ac077e493f407df"
+    },
+    "chromium/chrome/browser/browser_controls/android/java/src/org/chromium/chrome/browser/browser_controls/BrowserControlsStateProvider.java": {
+      "git_blob": "12473f40de041ff46d251411825029dbb4d8e16f",
+      "sha256": "bd9ecd77855f5b6e6138188921fc58ce778a5a1cd806ed6c6da08d6e8e81262c"
+    },
+    "chromium/chrome/browser/browser_controls/android/java/src/org/chromium/chrome/browser/browser_controls/TopControlsStacker.java": {
+      "git_blob": "36821eb64a60edefe47262e94990fe01b478aff8",
+      "sha256": "186aa169a887655206cf8573c4cb5674e04b178f3861595bbd84327b25a75c48"
+    },
+    "chromium/chrome/browser/browser_controls/android/java/src/org/chromium/chrome/browser/browser_controls/TopControlsStackerUnitTest.java": {
+      "git_blob": "2d56b3b5a0afd67b9afa2bd580151778a8b3bb9a",
+      "sha256": "5b5bd5877577e5b69d94aee24b1d21ea86049b631a2b63cdd89c714221bd8b2f"
+    },
+    "chromium/chrome/browser/chrome_content_browser_client.cc": {
+      "git_blob": "565bd580ba6172469d31079a4e455eb05020488c",
+      "sha256": "235fbfdbfe13d7ce2833017f67d6a899dda5b14131e38e5f7177b62f8a4b981b"
+    },
+    "chromium/chrome/browser/chrome_content_browser_client.h": {
+      "git_blob": "f363c71769f87ad341d1755f564635a9c7f65d09",
+      "sha256": "1168aefbf9ceb95d02f9809681ae18292d84e73b452ecb37bb704cf04afd7a50"
+    },
+    "chromium/chrome/browser/gesturenav/android/java/src/org/chromium/chrome/browser/gesturenav/NativePageBitmapCapturer.java": {
+      "git_blob": "4a8420ac29e9d9378c5d6f8b67b3d0ea21cba0c3",
+      "sha256": "b2dcf0b188c6892953f964fb83126048386c1eab843ca0fd71fa4cecbadb8474"
+    },
+    "chromium/chrome/browser/notifications/android/java/src/org/chromium/chrome/browser/notifications/permissions/NotificationPermissionController.java": {
+      "git_blob": "4a4ea4b2ddffcdbddcdd2c0bc08280458880af1f",
+      "sha256": "bb8b3e4b891ddb8d4a9d6b73a2e93ad6c682347a4da6a766b85de3e2ccb6dbfb"
+    },
+    "chromium/chrome/browser/ntp_tiles/chrome_custom_links_manager_factory.cc": {
+      "git_blob": "4ce11a4e3b9f7533914ceff03e1ae63c04f0d970",
+      "sha256": "e5ebe3e983fcf4ed63987f05cc0c08694f167b8ac7e3592d7f6a2e621c32246d"
+    },
+    "chromium/chrome/browser/partnercustomizations/java/src/org/chromium/chrome/browser/partnercustomizations/PartnerBrowserCustomizations.java": {
+      "git_blob": "c97c163a2d47590a9451ade12dde72653c2c94ca",
+      "sha256": "4cb8f8601014e063a6ab3219dd02c7725f21057baf7af8d1c0e5f223e89fd746"
+    },
+    "chromium/chrome/browser/search_engines/android/java/src/org/chromium/chrome/browser/search_engines/settings/SearchEngineAdapter.java": {
+      "git_blob": "fa020af6dadadd6426708e13065eee3da8955654",
+      "sha256": "3ca36d813e50e23c40062bb03b688b8094e676da90e64aec0051fd455572c3c3"
+    },
+    "chromium/chrome/browser/tab/BUILD.gn": {
+      "git_blob": "e41d7adc4e9fcf04cebbdbbfb0bce04cb25d2b1f",
+      "sha256": "f7c4021de496f0f258a73a3ded56007ae33d035bbef6c0040fa4327e42538e5a"
+    },
+    "chromium/chrome/browser/tab/java/src/org/chromium/chrome/browser/tab/TabObserver.java": {
+      "git_blob": "dac8373a3cc0c5bde719bca25db4c8657b0b486d",
+      "sha256": "2322c958e5c3c2a17fafbab8884f9187d1c2008986b9aa22646943487fc18f2b"
+    },
+    "chromium/chrome/browser/ui/android/appmenu/BUILD.gn": {
+      "git_blob": "d59ecbc720b691275d65e7f425d191d607162138",
+      "sha256": "4cbbf045f708b6d50b2b410edd4d2517b19c9ad03b6aa9cb085f2f77b1c9f98d"
+    },
+    "chromium/chrome/browser/ui/android/appmenu/internal/BUILD.gn": {
+      "git_blob": "3caae1037b9d094bb2b0a4d690d6dc0ec78bb0b2",
+      "sha256": "3a12ec0ae0912256b3a00c93e1380062a496d0d00211da19f5706790ec86703a"
+    },
+    "chromium/chrome/browser/ui/android/appmenu/internal/java/src/org/chromium/chrome/browser/ui/appmenu/AppMenu.java": {
+      "git_blob": "ffb24f2d3f1360df36e08facbf1c1cc35ca0370e",
+      "sha256": "9b16b3ce3e18f17b698273fe5ff89bdab09be0a942327e212a26b48dce48066e"
+    },
+    "chromium/chrome/browser/ui/android/appmenu/internal/java/src/org/chromium/chrome/browser/ui/appmenu/AppMenuHandlerImpl.java": {
+      "git_blob": "cc8ac963bc098f9f976a8d53f499622ce3f2d451",
+      "sha256": "fee19879a73bda8f974afd11bfa64fa462b25938d54df86471d5adfafafddb01"
+    },
+    "chromium/chrome/browser/ui/android/edge_to_edge/internal/java/src/org/chromium/chrome/browser/ui/edge_to_edge/EdgeToEdgeControllerImpl.java": {
+      "git_blob": "29ee3989692c089bf865bf3fa68322dc7bc0ae22",
+      "sha256": "4885e73ded14f2f1615f5a650caa12e989fba6bab80ce09c1a97aa8945e11f0f"
+    },
+    "chromium/chrome/browser/ui/android/edge_to_edge/internal/junit/src/org/chromium/chrome/browser/ui/edge_to_edge/EdgeToEdgeControllerTest.java": {
+      "git_blob": "f9a54e24e8dee81c063afbe64b6ef1031d5a83a4",
+      "sha256": "686f2e35ac161463acbe81675901d69a6b513f557a3c3ca47fbb7169c1ee96ba"
+    },
+    "chromium/chrome/browser/ui/android/edge_to_edge/java/src/org/chromium/chrome/browser/ui/edge_to_edge/EdgeToEdgeControllerCreator.java": {
+      "git_blob": "ab440ede151a6bc27f178cbac188c3a8535fd039",
+      "sha256": "cf65ed6ff7f4d119650901b97e44d7cf9101c6cd48865a8de80ba190d07da5fb"
+    },
+    "chromium/chrome/browser/ui/android/edge_to_edge/java/src/org/chromium/chrome/browser/ui/edge_to_edge/EdgeToEdgeUtils.java": {
+      "git_blob": "b44e40c8a8c649f456b5c9124ad64b5a24fdfcbc",
+      "sha256": "9e413cc685534c0bbd91d9ebf266c634d99405ffc08ead00158621cd3fede3af"
+    },
+    "chromium/chrome/browser/ui/android/edge_to_edge/java/src/org/chromium/chrome/browser/ui/edge_to_edge/TopInsetProvider.java": {
+      "git_blob": "cd3e7f1f4087e7fa59ec0d7265d2d2dec6faca03",
+      "sha256": "cd1bfaf863935332c606c5a96eae947ee9c78b1dc2118d82773250eee7473375"
+    },
+    "chromium/chrome/browser/ui/android/edge_to_edge/java/src/org/chromium/chrome/browser/ui/edge_to_edge/TransitiveTopInsetProvider.java": {
+      "git_blob": "adc317300ebcaadcfa4b26860b4b5d9f39ae62c0",
+      "sha256": "b51dd010466910b5203992f212ea5a5212c1c0622b3ad5b72c42372c0cf246d5"
+    },
+    "chromium/chrome/browser/ui/android/native_page/java/src/org/chromium/chrome/browser/ui/native_page/NativePage.java": {
+      "git_blob": "3014d2084ef691eddc02e74e3047e220725a229b",
+      "sha256": "52a7d5b84ef91be9a2f60c8f75ebbfe396eabaf6cfa3962944d15bbdcb7c6d38"
+    },
+    "chromium/chrome/browser/ui/android/night_mode/BUILD.gn": {
+      "git_blob": "c7a8601fdf902e272d5156db250ad68956914184",
+      "sha256": "74473aacd60f36c2bb352af0859eddf5e94ee9f1777d14f485574c41f281d6b8"
+    },
+    "chromium/chrome/browser/ui/android/night_mode/java/src/org/chromium/chrome/browser/night_mode/WebContentsThemeClient.java": {
+      "git_blob": "bda8d2b45a65818b4d7256470b749eb0ac0cd971",
+      "sha256": "6c90a59d8d3237c24ce2c3eabba64ed3320da6b957b4192e7f8304a1a6d41eee"
+    },
+    "chromium/chrome/browser/ui/android/omnibox/java/res/values/dimens.xml": {
+      "git_blob": "9e18bfabb0ab828fe9e4306ccd86072256d3c7df",
+      "sha256": "1f51d19654736b6ec8ba63a8d1acc0d03b08afa6b1c7a9ae2056f01857a5f12a"
+    },
+    "chromium/chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/LocationBarBackgroundDrawable.java": {
+      "git_blob": "5802fb20c25cc1e075a54798c9b00487779f6202",
+      "sha256": "a43198b10611f3f47ef8c03aef2da3615a661db94960f26c5a2f91bd4d47b105"
+    },
+    "chromium/chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/LocationBarPhone.java": {
+      "git_blob": "b3c15b9392d87825417d5870f12a8f251ce29b18",
+      "sha256": "57017a8f72d7841b5ee47a74edf956b9ab2f20b795800f05d91cb146d4d9aa3d"
+    },
+    "chromium/chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/OmniboxSuggestionsDropdownEmbedderImpl.java": {
+      "git_blob": "5122c9ee29c1ae7d995fe5e4e0b982c35cd8651e",
+      "sha256": "170e5bbddf2b8af8cccec62d01331573b3a04ec45dda45ea9957a47979b10d92"
+    },
+    "chromium/chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/suggestions/GroupSeparatorDecoration.java": {
+      "git_blob": "4f9f3c1459f784075ac3da7b767b8aa8d525668f",
+      "sha256": "84d4921abcfb2ab8bdbc0b4c58299b66774b4289a9de354510928f4012e30e14"
+    },
+    "chromium/chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/suggestions/HeaderDecoration.java": {
+      "git_blob": "60aba691e3acfa2d2b9b0c28d22b29f7d52ed672",
+      "sha256": "e7b665a1d330edaa6d911d5aaeaa18250705b4629414103f07a2d2b60df4b6f2"
+    },
+    "chromium/chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/suggestions/OmniboxSuggestionsContainer.java": {
+      "git_blob": "bb400f40caf92519b5ec97052e2898324ab2799e",
+      "sha256": "b7932bbf6eeb36975757e2c00f488ade638cceaa659c56cf9e7a242de1449c9b"
+    },
+    "chromium/chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/suggestions/OmniboxSuggestionsDropdown.java": {
+      "git_blob": "7c417a96ca875fc032dff64581e0d25019220e73",
+      "sha256": "36b8acf1b0725c37827b8ef1b2957149370323bfc1d6064b286be0971ae5d0d4"
+    },
+    "chromium/chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/suggestions/OmniboxSuggestionsDropdownEmbedder.java": {
+      "git_blob": "23073e855f26ff1416467d1cb44d068d2e32c229",
+      "sha256": "6cd63fbb3b00377fd195bd22df7f45b4d3ae51d8b4f8ffa1c91cbe210abc011a"
+    },
+    "chromium/chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/suggestions/SuggestionHorizontalDivider.java": {
+      "git_blob": "02e244dcabeca287d9996e757e27afb457b83a88",
+      "sha256": "9af66eff78b1dc655f755d29d488254019711e9c2465fbd1ab47c6d9382437fa"
+    },
+    "chromium/chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/suggestions/base/BaseSuggestionView.java": {
+      "git_blob": "d1f7bcd96429211e2d0c216bf8dcb25c4fda5373",
+      "sha256": "52e74f92f6e7a86f204e8941b9852c3862c25c5581ff80e4fa5de2aeda3034f4"
+    },
+    "chromium/chrome/browser/ui/android/theme/java/src/org/chromium/chrome/browser/theme/BottomUiThemeColorProvider.java": {
+      "git_blob": "0e8116cf24858918566ddb1a0c23e50991d91fbb",
+      "sha256": "e434708d2c377bc381354db8680478b07e61ee6b781ed839fa3c4d7031ed158e"
+    },
+    "chromium/chrome/browser/ui/android/theme/java/src/org/chromium/chrome/browser/theme/TopUiThemeColorProvider.java": {
+      "git_blob": "e91ccb0caa38da8538823cbdb33ecd548fd5a7ed",
+      "sha256": "fd335416d56bc4cf8b4216c198f350d1778b415e1299f11201d8343ba55688ef"
+    },
+    "chromium/chrome/browser/ui/android/toolbar/BUILD.gn": {
+      "git_blob": "2446998438dad8c92af415ddf8e8cbbe01a6edfa",
+      "sha256": "36b6f3edd95e81a18bbc66f2246b7946f7960bf52158b2a843cc1c1f36dfa8f8"
+    },
+    "chromium/chrome/browser/ui/android/toolbar/java/res/layout/menu_button.xml": {
+      "git_blob": "f1594a1ef63ac8e3200fb994832dacc2a18defce",
+      "sha256": "97cc31fcaaf78bf07a9d1588c5cc5d917468fd0942e94d7afe75b8ca7b8cab47"
+    },
+    "chromium/chrome/browser/ui/android/toolbar/java/res/layout/toolbar_phone.xml": {
+      "git_blob": "9e1f21d5a0c8ec9cdf75ca8a24c30adadd16af0c",
+      "sha256": "e85721c57d57eb37bd17fbabf810261b465968156c7a64cb7cff0bf894bd7cda"
+    },
+    "chromium/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/LocationBarModel.java": {
+      "git_blob": "d3d2469cbab866948480ee0aadb542acd6394722",
+      "sha256": "94a455d7bf990d1c532e135b7391e86f22d27179d95310f4f8044590e8b50482"
+    },
+    "chromium/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/ToolbarPositionController.java": {
+      "git_blob": "7fbbcf5903eb2b4e09bf15efe015c664e12b89ef",
+      "sha256": "5151083e53097c7b9147d5ec6191be0cd1e9e5771800f8c000589aec74e9cb4c"
+    },
+    "chromium/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/ToolbarProgressBar.java": {
+      "git_blob": "6ddd0b7e4d6207d222a95937a5887d74e6f6f98b",
+      "sha256": "ecd8755617fa5ead7086f0f8b0f004b7c57f34f58ddbcfab4fcc02df0b70edaa"
+    },
+    "chromium/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/ToolbarProgressBarAnimatingView.java": {
+      "git_blob": "ba8c613d87f3935de7f8c97f6397d50454ecbdd3",
+      "sha256": "ed3c20fa4b0aed080d3c1da6c71608ccf028ae900b2505fb59a9693d8f59c9b3"
+    },
+    "chromium/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/ToolbarProgressBarLayer.java": {
+      "git_blob": "c67becf3dbeb114db89860ae2d6239dba93359bd",
+      "sha256": "f657aa4ec93e0079ef8941ef3279adb7e6d33518ccd3d68b3d8e3966c8cd40b9"
+    },
+    "chromium/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/menu_button/MenuButton.java": {
+      "git_blob": "c45dd5ac8ae26a460c1584197d52e3a70d1e2841",
+      "sha256": "9887790f91a37aa68e1dcec9f3fcdfed6984ce7f5a740c69597066f83a48a53a"
+    },
+    "chromium/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/settings/AddressBarPreference.java": {
+      "git_blob": "1f79e585dd76ba4577e1ac1ac1a5f97fe567f137",
+      "sha256": "68c5e2142f3bef08582362fa9c1c3b246ab2e36e02e597b9b4d2b5e3cbec8d75"
+    },
+    "chromium/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/PhoneCaptureStateToken.java": {
+      "git_blob": "047e8981138944028cc096a3ac4d9f40f016c466",
+      "sha256": "19719ec6212b608120ce4a352494df8db53abd0bd290b4fda0b0ed86d8265be1"
+    },
+    "chromium/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/ToggleTabStackButton.java": {
+      "git_blob": "c0072e47130ebe9b191198cc4d349a4996825382",
+      "sha256": "ccf523104ecb100873c8450549447573fce8581bdab371fa83d177e90d246d44"
+    },
+    "chromium/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/ToggleTabStackButtonCoordinator.java": {
+      "git_blob": "beb0e0b97f8d92f2ce88518d791259adafd1d80f",
+      "sha256": "0c43968867822490a77053cef95c692bb98ebabad902b87cba09801648ae5c6d"
+    },
+    "chromium/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/ToolbarControlContainer.java": {
+      "git_blob": "046dda836e99f8ae90f7ab4928e88b133ba15528",
+      "sha256": "8dd315c90f7401201d7a40c44e7ae1d9370f3967a635f528bba282b98bec1ddb"
+    },
+    "chromium/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/ToolbarPhone.java": {
+      "git_blob": "fd98066d266e83f031cc9051a1f72ffe4f9d23a9",
+      "sha256": "1d2c62ecbb9f7e24f47ea99b6303a9d245dfc0d3d0065b2fc0c65fb2eb88b507"
+    },
+    "chromium/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/TopToolbarOverlayMediator.java": {
+      "git_blob": "4f34a1167fb7439693c58cbc6451cd9f8bd076d0",
+      "sha256": "c02d554d526928304f9521c918cd22e44547b00b01ace28fe0145933afe86546"
+    },
+    "chromium/chrome/browser/util/android/java/src/org/chromium/chrome/browser/util/BrowserUiUtils.java": {
+      "git_blob": "1f2b1b536fc4461024cf4aed7ae12d6bd3d5beef",
+      "sha256": "f577902275bebf851f9458068067ecbd61a396dacea9be2e648e8bb35e01657f"
+    },
+    "chromium/components/browser_ui/styles/android/BUILD.gn": {
+      "git_blob": "e3ac3dfee033794a6cfe8455a9e4c9371db3c76f",
+      "sha256": "a24338d31270f62b63a7534048e685e9387fd42a244547e31911be9bace289c1"
+    },
+    "chromium/components/browser_ui/styles/android/java/res/values/styles.xml": {
+      "git_blob": "9473be261f379709840b55feced7ff013a99ccfe",
+      "sha256": "621fa335eeb6028e65a14ab5787fd20279b74d56d110f5b64d202a5b9fd4a5ed"
+    },
+    "chromium/components/minidump_uploader/BUILD.gn": {
+      "git_blob": "ff635a06f614cf44f3afb198e6d5b2c093ed2aa6",
+      "sha256": "3ce411954281253f07362b5f9ce3342b38e5dc449fefcd5b9b89a57295f3c90c"
+    },
+    "chromium/components/ntp_tiles/custom_links_manager_impl.cc": {
+      "git_blob": "7832070c1f5a241faafd483a397596164a7986a3",
+      "sha256": "96363b912790cfb07b78bcfc9cf9155150a0df4f121a43f722b9f74d581a4cf8"
+    },
+    "chromium/components/page_info/android/java/src/org/chromium/components/page_info/ConnectionInfoView.java": {
+      "git_blob": "3d1cbc744a4d5649a8d8a2368014f430f68f2c70",
+      "sha256": "a84006dae5f5015b9c50b29d285b0edd4131cdca2e983fb4ce62e36f179f2875"
+    },
+    "chromium/components/page_load_metrics/browser/metrics_web_contents_observer.cc": {
+      "git_blob": "a2ec9c826395b2e66244d5124afaec1fa31f7c9c",
+      "sha256": "76cf33d557dd242ea4e139768fb8cf81d86b08ac7fb4a508601d232e287dfcf4"
+    },
+    "chromium/components/page_load_metrics/browser/page_load_tracker.h": {
+      "git_blob": "b4e61707699a2ad9fa30ad80d38c75bf64686b34",
+      "sha256": "7309a734e298d4557a2a8f8c2a4de47e43e300366ce6fb165dc8c459763ae0cb"
+    },
+    "chromium/content/browser/BUILD.gn": {
+      "git_blob": "5beda3489b369b52fd9f711eecf3505a41732bc4",
+      "sha256": "963676039b0adb111e00457b0ded74db3912d2bcb731d3f03039a750d89cfc5d"
+    },
+    "chromium/content/browser/navigation_transitions/back_forward_transition_animation_manager_android.cc": {
+      "git_blob": "e491908e12fdbeac3d375e138ee8061c94af2c28",
+      "sha256": "35c07055b0700aa5d0b9faf5993d94ced37f557289ebd531ce109781b8f2d32d"
+    },
+    "chromium/content/browser/navigation_transitions/back_forward_transition_animator.cc": {
+      "git_blob": "be0b3a963e475c3724cb8977e003b729b95c7bd0",
+      "sha256": "65db985fbc254517182240324826d90a71e3d07fe17139b9fcc3c71bc98bd8ad"
+    },
+    "chromium/content/browser/navigation_transitions/blur_transition_animation_manager.cc": {
+      "git_blob": "dd39f71baf9b7dd74f1c6fca73b2dd7b7c9757e6",
+      "sha256": "e2d29e590f30f9d53bd45073bb2e78a5911124d41357d469042628e4f3431252"
+    },
+    "chromium/content/browser/navigation_transitions/blur_transition_animation_manager.h": {
+      "git_blob": "1b6c0b6a01d139accf2b6d33844fe9dc255d8e05",
+      "sha256": "070bb8688a67d92eaac00bd2204950ec74f3a9b98d8b53d5948f0890c9a1cf2f"
+    },
+    "chromium/content/browser/renderer_host/navigation_controller_impl.cc": {
+      "git_blob": "cf5e166fd1c0aa03f99945cb30fe16a7c8ebe1cf",
+      "sha256": "30b66fb718e98cf26b73b941531eb28309d9269f87a7b203f02e915f2f7b1774"
+    },
+    "chromium/content/browser/renderer_host/navigation_entry_impl.cc": {
+      "git_blob": "b17da226fd32d06ef013c1e1bf41eb58dbbb7648",
+      "sha256": "de96a0448ebe18decc839a6092013a8490251ac60e34c79938a5c7e9f06f43b5"
+    },
+    "chromium/content/browser/renderer_host/navigation_request.cc": {
+      "git_blob": "ecdd16654af1ec8efd623ccb77d6424ed48824f5",
+      "sha256": "db7a020a1b2387a4027fab8d4e0d71ad7adab3045feb83b2df3dbc0e99ed7154"
+    },
+    "chromium/content/browser/renderer_host/navigation_transitions/navigation_transition_data.h": {
+      "git_blob": "cd3a0e5dae4750cfd5d3c3b17b4d5a8f63fcc1d1",
+      "sha256": "bbc24364f4f2704e00bfd0fd9574c020831eb89afedc7fe31d4c58fdd729f16f"
+    },
+    "chromium/content/browser/renderer_host/navigation_transitions/navigation_transition_utils.cc": {
+      "git_blob": "8615caedcc2b24afd59938a03311095ecc3af5b4",
+      "sha256": "35a341451e123801c9605035007457901552d69d8979d4112e11e63323b53fa2"
+    },
+    "chromium/content/browser/renderer_host/page_impl.cc": {
+      "git_blob": "c79023439af008145422475e0e2a9d162ad56205",
+      "sha256": "adf7fb46e15ec48e43f54fa08e105a356f88d3cc0c3614f8d0f5c76f579020b8"
+    },
+    "chromium/content/browser/renderer_host/page_impl.h": {
+      "git_blob": "a1650e85a101c95f68a17c4b3a09c2d9e3fcf48d",
+      "sha256": "6991520e15ec5938b0d2dbe29cedd4f544676146afa0e74672312a33db2cdbf1"
+    },
+    "chromium/content/browser/renderer_host/render_frame_host_impl.cc": {
+      "git_blob": "ae294eab673e6e39b3e536f0ce00ae447beec5d2",
+      "sha256": "584c39ef534e1d8d6f7d6a5df91794dbbd71d427a7c518f044d98bf1634e44aa"
+    },
+    "chromium/content/browser/renderer_host/render_frame_host_manager.cc": {
+      "git_blob": "2c6cd48fced362491cbc725fea35b41392330630",
+      "sha256": "a84af11920e81867ab5041a3c85e79dce4b01978f0a940e3f1d7f62b9b96e448"
+    },
+    "chromium/content/browser/web_contents/web_contents_impl.cc": {
+      "git_blob": "a2638c29d409ebe008a9c3487aa6dfb093c36500",
+      "sha256": "a934dbd4d0c497df12ca0b43f61c786ba3bbee21032430255d276e49395898dc"
+    },
+    "chromium/content/public/browser/BUILD.gn": {
+      "git_blob": "12b5c5e209716455e9c7077ca8842ac821f1e366",
+      "sha256": "622f0937f9d7c47ef1aa900315fe8d0d99660c5920970d9425ab70126a870e06"
+    },
+    "chromium/content/public/browser/content_browser_client.cc": {
+      "git_blob": "d127c0082c1c95ac871b36c8ef5647ed996c0185",
+      "sha256": "d71ac72abad2e1a44cd8b90fb95dee978c49649863ad10ffd3901ab4d4e5dff5"
+    },
+    "chromium/content/public/browser/content_browser_client.h": {
+      "git_blob": "afb78e0cca326fc20516a5c75dc26d55909e38b3",
+      "sha256": "0568eeacb8184c3ec083bb0af1fc20131b7eaad27ba16e224a71484dfaf594f3"
+    },
+    "chromium/content/public/common/content_features.cc": {
+      "git_blob": "a33f8cf89a83d0264acb17250c7fc421220a9066",
+      "sha256": "ee2448635d6671c5debc1a6015029784778aa32b24b6766224db6be6d4c64757"
+    },
+    "chromium/content/public/common/content_features.h": {
+      "git_blob": "18f938cd0263d75606d9f314e9d6a724df4632fb",
+      "sha256": "6d1ae40896f58d2ecbfe5a250946696566e05f056ef78306cc16bdfda42100c8"
+    },
+    "chromium/content/renderer/render_frame_impl.cc": {
+      "git_blob": "4d740159bbf7665963ecce0afc82ef2c34a517bb",
+      "sha256": "776e592b151fadc5e9191d7fa671507700a95b4076c5230287b6368a558167c7"
+    },
+    "chromium/third_party/blink/common/web_preferences/web_preferences_mojom_traits.cc": {
+      "git_blob": "180ee8bd4c380b88b361fa8ad120a519503b2d0f",
+      "sha256": "63b497d17d9346cd7a5f394c4a143e212507552a89dbd24daf8a609e3e8526fe"
+    },
+    "chromium/third_party/blink/public/common/web_preferences/web_preferences.h": {
+      "git_blob": "2d9ccfb50526d6f9eb37dedf901378f808ae3784",
+      "sha256": "facc2c9ae6739eeba34ab73f036c20fcd3ad4a3eceb0b0346c77964ef2f1cd09"
+    },
+    "chromium/third_party/blink/public/common/web_preferences/web_preferences_mojom_traits.h": {
+      "git_blob": "ee4484a65e7cbdd844dd660ca55a7e0fb3eace13",
+      "sha256": "c5551ed2e4604f7a6bd88fb65295370708ca0840616368fb51fffbb7f8aa124e"
+    },
+    "chromium/third_party/blink/public/mojom/navigation/navigation_params.mojom": {
+      "git_blob": "ab7cc45af8512fddbbcc686076a0b5063918ab7b",
+      "sha256": "0b86b2aa22e3c109ec66c6022e091eab07d6a9ff25a1302caa982ada79618c64"
+    },
+    "chromium/third_party/blink/public/mojom/page/page.mojom": {
+      "git_blob": "ff782741a0b1939f770352e45c091cb79beaea5c",
+      "sha256": "a1711511ae96e43081dc8a5199c155ade9f714bd852fff897fe8ded7d7b4796f"
+    },
+    "chromium/third_party/blink/public/mojom/webpreferences/web_preferences.mojom": {
+      "git_blob": "505832dd70e9089a98be31856e7a2bfb848aac17",
+      "sha256": "f63cf8168c7fb37484e391d7d329cfc78ec2cd19f789011856394d43f8ab379e"
+    },
+    "chromium/third_party/blink/public/web/web_element.h": {
+      "git_blob": "759f8fe551a580b9886f17726cd9375177889378",
+      "sha256": "03e02f72052479be0e90e81f8097b8ea022a583a49f8c9605c9b888925bb1736"
+    },
+    "chromium/third_party/blink/public/web/web_navigation_params.h": {
+      "git_blob": "392fd850d451b623ee65682c1d32a84dd5e909b3",
+      "sha256": "8877efb442bf9bbc96ffae8a12c00e16c30754fc9781ca8dc8b76a483240a8f6"
+    },
+    "chromium/third_party/blink/public/web/web_settings.h": {
+      "git_blob": "afe27dcc12400959a3196dddbd2152b4e70b6d68",
+      "sha256": "c4de8e9d9798eb8cc1af40cc28e27010c24b1ba746ca5289cf695c05807dd4f4"
+    },
+    "chromium/third_party/blink/renderer/build/scripts/templates/settings_base.h.tmpl": {
+      "git_blob": "5327160c679a58cd4a7ce5edb7e8311d0041f493",
+      "sha256": "2f5d2a4909c38163c9f689a0c8c04fb09e3632f1a2f2c8411827242345aa8658"
+    },
+    "chromium/third_party/blink/renderer/core/BUILD.gn": {
+      "git_blob": "a96e9c9df209abba41bccf9d348eee89058b5f83",
+      "sha256": "7b57a0073fe9e72f4519835e0c5090855a83d712e53080cbfd4d697e13342109"
+    },
+    "chromium/third_party/blink/renderer/core/css/resolver/style_adjuster.cc": {
+      "git_blob": "a9fa1f3df070c44828f735d7b9e75b8752b389cd",
+      "sha256": "f23e1c6fe49224ee5fe26b3cc182e4afcdf1a6d04f7512fee5a335c9ed6c8bc4"
+    },
+    "chromium/third_party/blink/renderer/core/css/resolver/style_adjuster.h": {
+      "git_blob": "5386e38f3408f344d7c2a9c6bbc7af9c2a7caad9",
+      "sha256": "715dd7a9ca560b9d6e862de202ccd36f80103acb192faf6ab8042f1b32d05d52"
+    },
+    "chromium/third_party/blink/renderer/core/dom/document.cc": {
+      "git_blob": "26b38668d878b9cd8b5669c09e22096fdc35f912",
+      "sha256": "2e68305ae3385e746fbe5ad431374b775115f57b2f636ed197e9b838d3de0b6c"
+    },
+    "chromium/third_party/blink/renderer/core/dom/element.cc": {
+      "git_blob": "19f2e8bf67ca893de2c71adec9591278d180e5f4",
+      "sha256": "048bb22cf1c3a89cf62ca83334b4ddb179ddde8a1563dea9f499ebe06d4597fb"
+    },
+    "chromium/third_party/blink/renderer/core/exported/web_element.cc": {
+      "git_blob": "29297da7fbfb3f35f22dbf5475c70049b3f5ab05",
+      "sha256": "f3bf1f8ba7383ce29502b32bfd670e6c0e262152982ac4ed90321278a2f08022"
+    },
+    "chromium/third_party/blink/renderer/core/exported/web_settings_impl.cc": {
+      "git_blob": "573e43958041359e6dbd72f78d718220df1db2b9",
+      "sha256": "300a2ce5e0ffde4569cee9cc1b9c377f90e8db60e8012f0ce3bce123a23eafe5"
+    },
+    "chromium/third_party/blink/renderer/core/exported/web_settings_impl.h": {
+      "git_blob": "3d8839154bb872db567119aae19df1cb51424de6",
+      "sha256": "2417df2ad778db1a1f1282df5c817ec05111c27a73874c66df66a775c8c1615e"
+    },
+    "chromium/third_party/blink/renderer/core/exported/web_view_impl.cc": {
+      "git_blob": "5aca41e3ac3bf62c785ee9cedd159614e9f50385",
+      "sha256": "80af090aba8a57a1aaff658dada2fcfdcc9c23496429975567e182173ecd5426"
+    },
+    "chromium/third_party/blink/renderer/core/frame/local_frame_view.cc": {
+      "git_blob": "7343fa232d4f6358cfb1fa5f8f352c7c15c35d69",
+      "sha256": "bd62b7eb1a9a17c523627e0ecb87b00c85c2fb92b8ec79f481d89d7a4476240e"
+    },
+    "chromium/third_party/blink/renderer/core/frame/settings.json5": {
+      "git_blob": "2fd38b078ec5f6dfaa76d3e62be25d09255d69dd",
+      "sha256": "9af1c96c968b108a17046b2b14ac33fc12644a00e6cb57ba20261ad0bcc159b7"
+    },
+    "chromium/third_party/blink/renderer/core/loader/frame_loader.cc": {
+      "git_blob": "286d40b0ddf879efc1a95676db27f5ad1551cca7",
+      "sha256": "a4d897f68d26dd8ce1cd659602ce8dd0bb5d94d5537910e4de2b1b71ef44fb6b"
+    },
+    "chromium/third_party/blink/renderer/core/paint/box_painter_base.cc": {
+      "git_blob": "7193a580815733be905dfe299d9fd140c26f3721",
+      "sha256": "123bef7ab243c060fc9fdc2c64edd559ba6032cda2547533d7b15a67b213afe3"
+    },
+    "chromium/third_party/blink/renderer/core/paint/image_painter.cc": {
+      "git_blob": "add75ea9f4f051bd07bf3fe69620bee855cbd082",
+      "sha256": "5bd70857442afdcced3365e468d2c1bde44df1ea686c2fd7b2ad8037e0398705"
+    },
+    "chromium/third_party/blink/renderer/core/paint/paint_auto_dark_mode.cc": {
+      "git_blob": "b2808a39d166ceff2a65c8d73a7dca2b4ad1df7a",
+      "sha256": "a0ff12f497135a915f74ba085b4750719dab3e39de30c88dc39b61bb7c0f674e"
+    },
+    "chromium/third_party/blink/renderer/core/paint/paint_auto_dark_mode.h": {
+      "git_blob": "a21d1472cde63a23ef834f102b0dd2a8bee17f59",
+      "sha256": "5986114e062f8f739615cb4584e85f7aca9a89e87026d8294b8af7b6ded656d5"
+    },
+    "chromium/third_party/blink/renderer/core/paint/view_painter.cc": {
+      "git_blob": "eb3a5dc033fcc3639da2e7b394bdb3309faa0b43",
+      "sha256": "ef647e9b6cf23c8fa002fa9b97312f5037e0b07f1741b9cb874717eee5ba7d41"
+    },
+    "chromium/third_party/blink/renderer/core/style/computed_style_extra_fields.json5": {
+      "git_blob": "4b3c2a676538ab5c84d7d99035529d8368b1dce9",
+      "sha256": "25d8b7e9ed6ec5aa9e0e07a58d51dfab0d9906b802395c5ed659bec8ed8a6b34"
+    },
+    "chromium/third_party/blink/renderer/platform/graphics/gradient_generated_image.h": {
+      "git_blob": "05dd32ad9e7c794429a8be06a6a9836471a1fa75",
+      "sha256": "c2b4117625a8f18ce7ebe10616848db3e95ae12b153fd1e43023298a426851ba"
+    },
+    "chromium/third_party/blink/renderer/platform/graphics/graphics_context.cc": {
+      "git_blob": "f9ef9a1f1a7fdd06a225d4a268c890a4974c35ff",
+      "sha256": "718aec91319dbc7dfb7b278d734a12a9473ce5b0974b430960d2164e75d71e84"
+    },
+    "chromium/third_party/blink/renderer/platform/graphics/graphics_context.h": {
+      "git_blob": "aef17b9fc7c86e6571f119ca4b4566672cee54bd",
+      "sha256": "3bcb83b5a9452d5943800548cb6122ed6c27017fe2cbae18e298831dd5308e3b"
+    },
+    "chromium/third_party/blink/renderer/platform/graphics/image.h": {
+      "git_blob": "f1f1a50ac8f63e2df5d022dfa5b49819c772677e",
+      "sha256": "8e3adadcbe6e55931cbf80d2f85bb4551d5f24e79c72c2d09868ff15698b12d6"
+    },
+    "chromium/ui/android/java/src/org/chromium/ui/insets/InsetObserver.java": {
+      "git_blob": "ca8c66109aeed43d899844949448226cab50e052",
+      "sha256": "ffa3c8edf3fd2ef2278074e8bb2dee246fb101e2e3a350af6dd8267536468136"
+    },
+    "chromium/ui/edge_to_edge/android/java/src/org/chromium/ui/edge_to_edge/EdgeToEdgeSystemBarColorHelper.java": {
+      "git_blob": "b1f23dc2b4296c6842edce8f21b50b06dd737255",
+      "sha256": "306e7ab9806b2ded72aefb572067aed0b9faaf2bb04d47c78a65136a3fff2480"
+    },
+    "chromium/ui/edge_to_edge/android/java/src/org/chromium/ui/edge_to_edge/layout/EdgeToEdgeBaseLayout.java": {
+      "git_blob": "1a807788ba3cc4041d030a346e5e3b5fe984f35c",
+      "sha256": "0da56409e78386ffc38cf8c7cca5f5c79f1110ee7d7d38547748e39151132a37"
+    },
+    "chromium/ui/edge_to_edge/android/java/src/org/chromium/ui/edge_to_edge/layout/EdgeToEdgeLayoutCoordinator.java": {
+      "git_blob": "520daaa9dc908dc116cd8684b0fb42005cf57e67",
+      "sha256": "f28380a94b3cce28b39478720840d6261faa614cd6b66f5195f4868f61ca4b44"
+    },
+    "chromium/ui/edge_to_edge/android/junit/src/org/chromium/ui/edge_to_edge/EdgeToEdgeSystemBarColorHelperUnitTest.java": {
+      "git_blob": "e5231a9e5cd7b7de96cf52075a5a96598b351063",
+      "sha256": "5712269834d5c1d14a757cd1d058a1b818d7259aa82a69273a397444cd8b0abc"
+    },
+    "chromium/ui/edge_to_edge/android/junit/src/org/chromium/ui/edge_to_edge/layout/EdgeToEdgeLayoutUnitTest.java": {
+      "git_blob": "887bd555ccbb5b2059e4ddbf2ba993d294aab88c",
+      "sha256": "91f6dd50e941c992dfac62733f1efda1f64db2d51311aa37752acc2fa40153a3"
+    }
+  }
+}

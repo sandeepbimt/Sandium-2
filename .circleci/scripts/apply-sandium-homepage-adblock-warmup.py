@@ -74,12 +74,16 @@ def verify_pin(core: Path, src: Path) -> None:
         ["git", "-C", str(src), "rev-parse", "HEAD"],
         check=True, capture_output=True, text=True,
     ).stdout.strip()
-    if tag != EXPECTED_CORE_TAG or core_sha != EXPECTED_CORE_SHA:
+    if (tag, core_sha) not in ((EXPECTED_CORE_TAG, EXPECTED_CORE_SHA),
+                               ("v1.100.58", "bd6d26d1bced03c17a98baa86d2cd3425d543d1b")):
         raise RuntimeError(
             f"Brave pin mismatch expected={EXPECTED_CORE_TAG}@{EXPECTED_CORE_SHA} "
             f"actual={tag}@{core_sha}"
         )
-    if chromium_sha != EXPECTED_CHROMIUM_SHA:
+    expected_chromium = ("52bdd21723d5db0c9ab11716d38feac74828cf84"
+                         if core_sha == "bd6d26d1bced03c17a98baa86d2cd3425d543d1b"
+                         else EXPECTED_CHROMIUM_SHA)
+    if chromium_sha != expected_chromium:
         raise RuntimeError(
             f"Chromium pin mismatch expected={EXPECTED_CHROMIUM_SHA} actual={chromium_sha}"
         )

@@ -13,6 +13,28 @@ def transform(name, text):
     if 'mSandiumScrollUnderStatusBar' in text or 'mSandiumRestoringStatusBar' in text:
         raise RuntimeError('Native inset restoration must precede opaque paint: ' + name)
     changes = [entry for entry in CHANGES if entry[0] == name]
+    # Chromium158 adds a TaskDescription background argument. Preserve it;
+    # only the existing foreground/icon and opaque paint policy is overridden.
+    if '            @ColorInt int taskDescriptionBackgroundColor) {' in text:
+        variants = {
+            '                mForceLightIconColorForNtp && isStandardNtp() && !mIsOmniboxFocused);': (
+                '                mActivity,\n                statusBarColor,\n'
+                '                mForceLightIconColorForNtp && isStandardNtp() && !mIsOmniboxFocused,\n'
+                '                backgroundColor);',
+                '                mActivity,\n                statusBarColor,\n'
+                '                /* forceLightIconColor= */ false,\n'
+                '                backgroundColor);'),
+            '            boolean forceLightIconColor) {\n        Window window = activity.getWindow();': (
+                '            boolean forceLightIconColor,\n'
+                '            @ColorInt int taskDescriptionBackgroundColor) {\n'
+                '        Window window = activity.getWindow();',
+                '            boolean forceLightIconColor,\n'
+                '            @ColorInt int taskDescriptionBackgroundColor) {\n'
+                '        color = EdgeToEdgeSystemBarColorHelper.getSandiumOpaqueStatusColor(color);\n'
+                '        Window window = activity.getWindow();'),
+        }
+        changes = [(path, *variants[old]) if old in variants else (path, old, new)
+                   for path, old, new in changes]
     for _, old, new in reversed(changes):
         if text.count(new) == 1 and old not in text.replace(new, '', 1):
             text = text.replace(new, old, 1)

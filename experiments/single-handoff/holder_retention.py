@@ -208,9 +208,19 @@ def transform(s):
  s=once(s,'        if (mView == null) return;\n        WebContents webContents = getWebContents();','''        if (mView == null) return;
         if (!show && mSandiumRetained != null && mView == mSandiumRetained.view()) return;
         WebContents webContents = getWebContents();''')
- s=once(s,'        // Clear drop permissions when tab changes unless this is a new tab loading from the drop.','''        startSandiumNativeHome();
+ # Chromium158 retains drop permissions until activity destruction. The old
+ # comment disappeared; keep admission at the same end-of-setTab lifecycle point.
+ legacy='        // Clear drop permissions when tab changes unless this is a new tab loading from the drop.'
+ if legacy in s:
+  s=once(s,legacy,'        startSandiumNativeHome();\n\n'+legacy)
+ else:
+  tail='''            mOnscreenContentProvider.onWebContentsChanged(assumeNonNull(getWebContents()));
+        }
+    }
 
-        // Clear drop permissions when tab changes unless this is a new tab loading from the drop.''')
+    private void updateViewStateListener(@Nullable ContentView newContentView) {'''
+  replacement=tail.replace('        }\n    }','        }\n        startSandiumNativeHome();\n    }',1)
+  s=once(s,tail,replacement)
  s=once(s,'    private void setTab(@Nullable Tab tab) {','''    private void setTab(@Nullable Tab tab) {
         if (mSandiumRetained != null && tab != mSandiumRetained.tab()) {
             releaseSandiumNativeHome(mSandiumRetainedToken);

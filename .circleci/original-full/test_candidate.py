@@ -1,5 +1,10 @@
-import json,pathlib,unittest,yaml,hashlib
+import json,pathlib,unittest,yaml,hashlib,gzip
 ROOT=pathlib.Path(__file__).resolve().parent
+def upgrade_parent():
+ raw=gzip.decompress((ROOT/'full-u-parent.config.yml.gz').read_bytes())
+ assert hashlib.sha256(raw).hexdigest()=='a1135efd9217783c454c25c2ba31ddfa0d5fe2bcde413e32fb84d5b17456d9f3'
+ return yaml.safe_load(raw)
+
 def original_namespaces(value):
  # Official reference changes transport namespaces, not the inherited task behavior.
  value = remove_obsolete_fallbacks(value)
@@ -18,16 +23,16 @@ class OriginalFullCandidate(unittest.TestCase):
   raw=(ROOT/'fc220e7f.config.yml').read_bytes()
   self.assertEqual('9512ffcdfc8ff52a534c9025cfee61abf1d39bc1',hashlib.sha1(b'blob '+str(len(raw)).encode()+b'\0'+raw).hexdigest())
  def test_unchanged_task_objects(self):
-  old=self.original['jobs']['brave-android-staged-build']['steps']; new=self.candidate['jobs']['brave-android-staged-build']['steps']
-  for m in json.loads((ROOT/'step-provenance.json').read_text()):
-   if m.get('status')=='byte-identical task object':self.assertEqual(original_namespaces(old[m['baseline_index']]),original_namespaces(new[m['candidate_index']]))
+  # U is appended to the verified current pipeline, not the obsolete indexed layout.
+  for section in ('jobs','workflows','parameters'):
+   for name,value in upgrade_parent()[section].items():self.assertEqual(value,self.candidate[section][name],name)
  def test_five_original_stage_dependencies(self):
   jobs=self.candidate['workflows']['sandium-full-mode']['jobs'];self.assertEqual(5,len(jobs))
   for i,j in enumerate(jobs,1):
    args=j['brave-android-staged-build'];self.assertEqual(i,args['stage_index'])
    self.assertEqual([] if i==1 else [f'SANDIUM-FULL-MODE-stage-{i-1}'],args.get('requires',[]))
  def test_no_current_head_capture_or_reference_promotion(self):
-  s=(ROOT/'candidate.yml').read_text();self.assertNotIn('full_driver.py capture',s);self.assertNotIn('promote-brave-reference',s);self.assertEqual(1,s.count('sandium-experimental-head-v1-'))
+  s=(ROOT/'candidate.yml').read_text();self.assertNotIn('full_driver.py capture',s);self.assertNotIn('promote-brave-reference',s);self.assertEqual(str(upgrade_parent()).count('sandium-experimental-head-v1-'),s.count('sandium-experimental-head-v1-'))
  def test_product_overlays_preserved(self):
   s=(ROOT/'candidate.yml').read_text()
   for i in range(24,31):self.assertEqual(1,s.count(f'product-overlay-{i}-0.sh'))
@@ -74,7 +79,7 @@ class PhoneBranchGate(unittest.TestCase):
  def test_phone_full_only_and_existing_maintenance_gate(self):
   c=yaml.safe_load((ROOT/'candidate.yml').read_text())
   for job in c['workflows']['sandium-full-mode']['jobs']:
-   self.assertEqual(['fix/official-checkpoint-1392'],next(iter(job.values()))['filters']['branches']['only'])
+   self.assertEqual(['fix/1394-official-lint'],next(iter(job.values()))['filters']['branches']['only'])
   maintenance=c['workflows']['fixed-reference-maintenance']['jobs'][0]
   self.assertEqual('experiment/sandium-back-transition',next(iter(maintenance.values()))['filters']['branches']['only'])
 

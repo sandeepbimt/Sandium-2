@@ -9,6 +9,12 @@ import subprocess
 import tempfile
 
 ROOT=Path(__file__).resolve().parents[2]
+def verify_source_identity(source):
+    path = ROOT / '.circleci/scripts/sandium-source-identity.py'
+    spec = importlib.util.spec_from_file_location('sandium_source_identity', path)
+    module = importlib.util.module_from_spec(spec); spec.loader.exec_module(module)
+    return module.verify(source)
+
 def load(name,path):
     spec=importlib.util.spec_from_file_location(name,path)
     module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
@@ -56,9 +62,7 @@ def compose(src,repo=ROOT,_replaying=False):
 
 def apply(src,repo=ROOT,verify=False):
     inventory=json.loads((repo/'.circleci/features/dark-pages/integration-plan.json').read_text())
-    for path,pin in ((src,inventory['chromium_pin']),(src/'brave',inventory['brave_pin'])):
-        actual=subprocess.check_output(['git','-C',str(path),'rev-parse','HEAD'],text=True).strip()
-        if actual!=pin:raise ValueError('Combined dark source pin mismatch: '+str(path))
+    verify_source_identity(src)
     outputs=compose(src,repo)
     changed=[p for p,text in outputs.items() if not p.exists() or p.read_text()!=text]
     if verify:

@@ -14,7 +14,7 @@ REQUIRED = {
  'product-overlay-24-0.sh': ['apply-sandium-branding.sh'],
  'product-overlay-25-0.sh': ['apply-sandium-adblock-engine-race.py','apply-sandium-filter-subscriptions.py','apply-sandium-filter-bootstrap.py'],
  'product-overlay-26-0.sh': ['apply-sandium-page-transition-full.py','apply-sandium-back-transition.py','apply-sandium-back-controls.py','trace-sandium-back-geometry.py'],
- 'product-overlay-27-0.sh': ['apply-sandium-homepage-adblock-warmup.py','apply-sandium-download-concurrency.py','apply-sandium-welcome-setup.py','test-sandium-homepage-adblock-warmup.py','test-sandium-download-concurrency.py','test-sandium-welcome-setup.py','test-sandium-page-transition-full.py','verify-sandium-vanilla-brave.py'],
+ 'product-overlay-27-0.sh': ['apply-sandium-homepage-adblock-warmup.py','apply-sandium-download-concurrency.py','apply-sandium-welcome-setup.py','apply-sandium-deferred-notifications.py','test-sandium-homepage-adblock-warmup.py','test-sandium-download-concurrency.py','test-sandium-welcome-setup.py','test-sandium-page-transition-full.py','verify-sandium-vanilla-brave.py'],
  'product-overlay-28-0.sh': ['apply-sandium-shields-two-state.py','apply-sandium-adblock-engine-race.py','test-sandium-shields-two-state.py','test-sandium-adblock-engine-race.py','test-sandium-filter-subscriptions.py','test-sandium-filter-bootstrap.py','apply-sandium-adblock-resources.py','test-sandium-adblock-resources.py'],
  'product-overlay-29-0.sh': ['apply-sandium-ui-prune.py','test-sandium-ui-prune.py','apply-sandium-no-video-promo.py','apply-sandium-visible-branding.py','test-sandium-visible-branding.py','apply-sandium-native-theme.py','test-sandium-native-theme.py','apply-sandium-native-insets.py','apply-sandium-native-insets.py','apply-sandium-shields-popup.py','test-sandium-shields-popup.py','apply-sandium-bottom-toolbar.py','test-sandium-bottom-toolbar.py','apply-sandium-paged-menu.py','apply-sandium-paged-menu.py','apply-sandium-chrome-theme.py','test-sandium-chrome-theme.py','test-sandium-motion.py','apply-sandium-unified-address.py','apply-sandium-unified-address.py','test-sandium-unified-address.py','apply-sandium-toolbar-refinements.py','apply-sandium-toolbar-refinements.py','test-sandium-toolbar-refinements.py','apply-sandium-search-choices.py','apply-sandium-search-choices.py','test-sandium-search-choices.py','apply-sandium-focus-follow.py','apply-sandium-focus-follow.py','test-sandium-focus-follow.py','apply-sandium-settings-fade.py','apply-sandium-settings-fade.py','test-sandium-settings-fade.py','apply-sandium-progress-diagnostics.py','apply-sandium-progress-diagnostics.py','test-sandium-progress-diagnostics.py','apply-sandium-suggestion-anchor.py','apply-sandium-suggestion-anchor.py','test-sandium-suggestion-anchor.py','apply-sandium-ui-links.py','test-sandium-ui-links.py','apply-sandium-oppo-toggles.py','test-sandium-oppo-toggles.py'],
 }
@@ -26,10 +26,40 @@ for wrapper in REQUIRED:
     REQUIRED[wrapper].insert(1,DIAG)
 REQUIRED['product-overlay-30-0.sh'][-2:-2]=[DIAG,DIAG,NAV,NAV]
 REQUIRED['product-overlay-30-0.sh'].append('apply-sandium-lint-resources.py')
+REQUIRED['product-overlay-30-0.sh'].append('apply-sandium-deferred-notifications.py')
 
+
+# Exact reviewed dispatch: U defers graph audits until its final GN generation.
+# This is not permission for arbitrary optional product execution.
+FULL_U_GRAPH_DISPATCH = """if [ -n "${FULL_U_SCOPE:-}" ]; then
+  echo 'FULL_U_GRAPH_AUDITS=DEFERRED until final official GN generation; no readiness claim'
+else
+  python3 .circleci/scripts/precheck-graph.py --audits-only
+  python3 .circleci/scripts/removal-evidence.py capture --root "$ROOT"
+fi"""
+FULL_GRAPH_AUDITS = """python3 .circleci/scripts/precheck-graph.py --audits-only
+python3 .circleci/scripts/removal-evidence.py capture --root "$ROOT"
+"""
+
+FULL_U_SOURCE_DISPATCH = 'if [ -n "${FULL_U_SCOPE:-}" ]; then\n  python3 .circleci/scripts/sandium-removal-recipe.py --core "$CORE" --src "$SRC" --out "$SRC/out/android_Release_arm64" --phase apply-source\nelse\n  python3 .circleci/scripts/sandium-removal-recipe.py --core "$CORE" --src "$SRC" --out "$SRC/out/android_Release_arm64" --phase apply\nfi'
+FULL_SOURCE_APPLY = 'python3 .circleci/scripts/sandium-removal-recipe.py --core "$CORE" --src "$SRC" --out "$SRC/out/android_Release_arm64" --phase apply'
+
+FULL_U_BASE_DISPATCH = 'if [ -n "${FULL_U_SCOPE:-}" ]; then\n  python3 .circleci/upgrades/product.py verify-base --root "$ROOT"\nelse\n  python3 .circleci/scripts/verify-sandium-vanilla-brave.py --core "$CORE" --src "$SRC" --out "$SRC/out/android_Release_arm64" --phase verify\nfi'
+FULL_BASE_VERIFY = 'python3 .circleci/scripts/verify-sandium-vanilla-brave.py --core "$CORE" --src "$SRC" --out "$SRC/out/android_Release_arm64" --phase verify'
+FULL_U_LINKS_DISPATCH = 'LINKS_PROFILE=legacy156\nif [ -n "${FULL_U_SCOPE:-}" ]; then LINKS_PROFILE=target158; fi\npython3 .circleci/scripts/test-sandium-ui-links.py --core "$CORE" --src "$SRC" --source-profile "$LINKS_PROFILE"'
+FULL_LINKS_VERIFY = 'python3 .circleci/scripts/test-sandium-ui-links.py --core "$CORE" --src "$SRC" --source-profile legacy156'
 
 def shell_invocations(path):
     text=path.read_text();result=[];heredoc=None
+    if 'FULL_U_SCOPE' in text:
+        dispatches={
+          'product-overlay-27-0.sh':[(FULL_U_BASE_DISPATCH,FULL_BASE_VERIFY)],
+          'product-overlay-29-0.sh':[(FULL_U_LINKS_DISPATCH,FULL_LINKS_VERIFY)],
+          'product-overlay-30-0.sh':[(FULL_U_GRAPH_DISPATCH,FULL_GRAPH_AUDITS),(FULL_U_SOURCE_DISPATCH,FULL_SOURCE_APPLY)]}
+        pairs=dispatches.get(path.name,[])
+        if not pairs or text.count('FULL_U_SCOPE')!=len(pairs) or any(text.count(old)!=1 for old,new in pairs):
+            raise ValueError('Unreviewed Full-U typed dispatch')
+        for old,new in pairs:text=text.replace(old,new)
     if not re.search(r'^set -euo pipefail$',text,re.M):raise ValueError(f'{path.name}: fail-fast shell required')
     for line in text.splitlines():
         if heredoc:
@@ -107,6 +137,9 @@ def verify_product_wrappers(repo):
             if not (repo/('.circleci/tests' if name == 'test_status_underlap_patch.py' else '.circleci/scripts')/name).is_file():raise ValueError(f'Missing invoked script {name}')
         if names!=expected:raise ValueError(f'{wrapper}: actual apply/test command sequence differs: {names}')
         if wrapper=='product-overlay-30-0.sh':
+            if invocations[-1] != ('apply-sandium-deferred-notifications.py', ['--src','$SRC','--verify-only']):
+                raise ValueError('Final notification readback must follow every product mutator')
+            invocations=invocations[:-1]
             if invocations[-1] != ('apply-sandium-lint-resources.py',['--core','$CORE']):raise ValueError('Reviewed lint resources must target restored core after product overlays')
             invocations=invocations[:-1]
         if invocations[0] != (NAV,['$CIRCLE_WORKING_DIRECTORY/brave-work/src','--mode','off']):raise ValueError('Native navigation rollback must precede every product mutator')
@@ -178,7 +211,9 @@ def verify_product_wrappers(repo):
             if invocations[35][1] != ['$SRC'] or invocations[36][1] != ['$SRC','--verify-only'] or invocations[37][1]:
                 raise ValueError('Suggestion grouping requires source and readback')
             for index in (38,39):
-                if invocations[index][1] != ['--core','$CORE','--src','$SRC']:
+                expected=['--core','$CORE','--src','$SRC']
+                if index==39 and FULL_U_LINKS_DISPATCH in (repo/'.circleci/experimental-steps'/wrapper).read_text():expected += ['--source-profile','legacy156']
+                if invocations[index][1] != expected:
                     raise ValueError('UI links require restored core and source')
             if invocations[40][1] != ['$SRC','$CORE'] or invocations[41][1]:
                 raise ValueError('Oppo toggles require restored source/core and contract')

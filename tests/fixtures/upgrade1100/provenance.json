@@ -1,0 +1,16 @@
+{
+  "brave_sha": "bd6d26d1bced03c17a98baa86d2cd3425d543d1b",
+  "source": "https://raw.githubusercontent.com/brave/brave-core/bd6d26d1bced03c17a98baa86d2cd3425d543d1b/",
+  "files": {
+    "components/p3a/p3a_service.cc": "998f914c7eee48f4dad961fed466248821ae1bbbdb01ce9a87da9e3d62e4c309",
+    "browser/brave_local_state_prefs.cc": "8550dd8e6701cb015fe5b6d9b407f4a8194a30bc66e69cc72843cea94f6b4fce",
+    "browser/brave_stats/brave_stats_updater.cc": "b086aad270530f2c9cd8a12b05f00861191f1b2bdc116ed7ed8cf14fabdaac86",
+    "components/web_discovery/buildflags/buildflags.gni": "2af1d108f2697431367c3e5b9e76c50be454cb5d70331c0e64819f3a262552ca",
+    "browser/ui/webui/brave_rewards/rewards_page_handler.cc": "4a4b5ce02406b1a604b526687ff23e0498ac0b196aedd833401d581484667f65",
+    "components/playlist/core/browser/utils.cc": "a8baa184de3fc3b4baa296ab25f8c59089e87a4bc78335508a1dae0558158378",
+    "browser/playlist/playlist_service_factory.cc": "d663f6414d0706548cd9d4167f5452cba74f9b9c5657ee43b93a3c738e99ec02",
+    "android/android_browser_tests.gni": "276697f36b08fb52e96c325efaa977b3498249400e4fc814fdb59b551556029a",
+    "components/email_aliases/buildflags/buildflags.gni": "df2839e39bed931ffeb4d314a08ebf8094f0d9bd4cd6a67b6560f4979eec7445",
+    "android/java/brave-res/xml/brave_main_preferences.xml": "39979da1b815a3dafd9a19311a8fba1bafe34d3a6659ca6f4dfcf694aa299a32"
+  }
+}

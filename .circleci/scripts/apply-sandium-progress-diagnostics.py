@@ -3,7 +3,7 @@
 import argparse
 import subprocess
 from pathlib import Path
-PIN = 'd331de35ca8ab1358c7a17e4bd41627d55eaef51'
+PIN = '52bdd21723d5db0c9ab11716d38feac74828cf84'
 PATH = 'chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/ToolbarProgressBarLayer.java'
 MARKER = 'SANDIUM_PROGRESS_GEOMETRY_V1'
 

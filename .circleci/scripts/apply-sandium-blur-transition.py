@@ -248,6 +248,27 @@ JAVA_ORDER_ANCHOR = (
     "        setPreferenceOrder(PREF_SHOW_UNDO_WHEN_TABS_CLOSED, 15);\n"
 )
 
+# Brave 1.100.58 adds the General section and removes PREF_ADS_SWITCH.
+# Retain its exact upstream ordering; append only reviewed overrides.
+JAVA_ORDER_ANCHOR_158 = (
+    "        setPreferenceOrder(PREF_BRAVE_NIGHT_MODE_ENABLED, 10);\n"
+    "        setPreferenceOrder(PREF_BRAVE_DISABLE_SHARING_HUB, 11);\n"
+    "        setPreferenceOrder(PREF_SHOW_BRAVE_REWARDS_ICON, 12);\n"
+    "        setPreferenceOrder(AppearanceSettingsFragment.PREF_BOOKMARK_BAR, 13);\n"
+    "        setPreferenceOrder(PREF_BRAVE_ENABLE_TAB_GROUPS, 14);\n"
+    "        setPreferenceOrder(PREF_SHOW_UNDO_WHEN_TABS_CLOSED, 15);\n"
+)
+JAVA_ORDER_BLOCK_158 = (
+    JAVA_ORDER_BEGIN + "\n"
+    "        setPreferenceOrder(PREF_SANDIUM_PAGE_TRANSITION_BLUR_LEVEL, 11);\n"
+    "        setPreferenceOrder(PREF_BRAVE_DISABLE_SHARING_HUB, 12);\n"
+    "        setPreferenceOrder(PREF_SHOW_BRAVE_REWARDS_ICON, 13);\n"
+    "        setPreferenceOrder(AppearanceSettingsFragment.PREF_BOOKMARK_BAR, 14);\n"
+    "        setPreferenceOrder(PREF_BRAVE_ENABLE_TAB_GROUPS, 15);\n"
+    "        setPreferenceOrder(PREF_SHOW_UNDO_WHEN_TABS_CLOSED, 16);\n"
+    + JAVA_ORDER_END + "\n"
+)
+
 GRD_BEGIN = "      <!-- SANDIUM_PAGE_TRANSITION_BLUR_STRINGS_BEGIN -->"
 GRD_END = "      <!-- SANDIUM_PAGE_TRANSITION_BLUR_STRINGS_END -->"
 GRD_BLOCK = (
@@ -421,8 +442,12 @@ def transform_appearance_java(source: str) -> str:
                             JAVA_CHANGE_ANCHOR, "Appearance preference handler", before=True)
     source = replace_marked(source, JAVA_HELPER_BEGIN, JAVA_HELPER_END, JAVA_HELPER_BLOCK,
                             JAVA_HELPER_ANCHOR, "Appearance preference helpers", before=True)
-    source = replace_marked(source, JAVA_ORDER_BEGIN, JAVA_ORDER_END, JAVA_ORDER_BLOCK,
-                            JAVA_ORDER_ANCHOR, "Appearance preference ordering")
+    ordering_158 = JAVA_ORDER_ANCHOR_158 in source
+    source = replace_marked(
+        source, JAVA_ORDER_BEGIN, JAVA_ORDER_END,
+        JAVA_ORDER_BLOCK_158 if ordering_158 else JAVA_ORDER_BLOCK,
+        JAVA_ORDER_ANCHOR_158 if ordering_158 else JAVA_ORDER_ANCHOR,
+        "Appearance preference ordering")
     if source.count(PREF_KEY) != 1:
         raise RuntimeError("Appearance Java validation failed: preference key count")
     if "BraveRelaunchUtils.askForRelaunch(getActivity());" not in source:
@@ -482,7 +507,8 @@ def main() -> None:
     root = Path(sys.argv[1]).resolve()
     core = root / "brave"
     actual_chromium, actual_brave = git_sha(root), git_sha(core)
-    if actual_chromium != CHROMIUM_SHA or actual_brave != BRAVE_SHA:
+    if (actual_chromium, actual_brave) not in ((CHROMIUM_SHA, BRAVE_SHA),
+            ("52bdd21723d5db0c9ab11716d38feac74828cf84", "bd6d26d1bced03c17a98baa86d2cd3425d543d1b")):
         raise RuntimeError(
             "pinned source mismatch; refusing Fast Mode overlay: "
             f"chromium={actual_chromium} expected={CHROMIUM_SHA}; "

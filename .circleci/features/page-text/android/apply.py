@@ -5,6 +5,7 @@ Renderer integration must be reviewed and wired separately before this transform
 No page-load callback, late injection or page mutation is introduced here.
 """
 from pathlib import Path
+import importlib.util
 import argparse
 import subprocess
 import xml.etree.ElementTree as ET
@@ -99,10 +100,9 @@ def main():
     p=argparse.ArgumentParser();p.add_argument('src',type=Path)
     p.add_argument('--repo',type=Path,default=Path(__file__).resolve().parents[4])
     p.add_argument('--verify-only',action='store_true');args=p.parse_args()
-    for path,pin in ((args.src,'d331de35ca8ab1358c7a17e4bd41627d55eaef51'),
-            (args.src/'brave','44a84b1f89d9a35287289d6a3d493e362f5a5123')):
-        actual=subprocess.check_output(['git','-C',str(path),'rev-parse','HEAD'],text=True).strip()
-        if actual != pin: raise SystemExit('Page text source pin mismatch: '+str(path))
+    spec=importlib.util.spec_from_file_location('page_text_identity',args.repo/'.circleci/scripts/sandium-source-identity.py')
+    identity=importlib.util.module_from_spec(spec);spec.loader.exec_module(identity)
+    identity.verify(args.src)
     for path,text in outputs(args.src,args.repo).items():
         if args.verify_only:
             if path.read_text()!=text: raise SystemExit('Page text drift: '+str(path))

@@ -132,7 +132,7 @@ def apply(src, repo, verify=False):
         for p,t in updates.items(): p.parent.mkdir(parents=True,exist_ok=True); p.write_text(t)
 if __name__=='__main__':
     p=argparse.ArgumentParser();p.add_argument('src',type=Path);p.add_argument('--repo',type=Path,default=Path(__file__).resolve().parents[2]);p.add_argument('--verify-only',action='store_true');a=p.parse_args()
-    for path,pin in [(a.src,'d331de35ca8ab1358c7a17e4bd41627d55eaef51'),(a.src/'brave','44a84b1f89d9a35287289d6a3d493e362f5a5123')]:
+    for path,pin in [(a.src,'52bdd21723d5db0c9ab11716d38feac74828cf84'),(a.src/'brave','bd6d26d1bced03c17a98baa86d2cd3425d543d1b')]:
         if subprocess.check_output(['git','-C',str(path),'rev-parse','HEAD'],text=True).strip()!=pin:
             raise ValueError('Home shortcuts source pin mismatch: '+str(path))
     apply(a.src,a.repo,a.verify_only)

@@ -1,0 +1,10 @@
+{
+  "patches/DEPS.patch": {
+    "sha256": "b2e3e90a8ee2f17496e889b1661c5f28830537fede634151f201e538d75850ab",
+    "git_blob": "0cb3a1acd56f8de53df16ab629da7b9169d291e0"
+  },
+  "patches/build-config-android-config.gni.patch": {
+    "sha256": "f545c176df0564669c92f22d53eab8ccd479a1450bacee7541b64fc001c48b2a",
+    "git_blob": "f3c7cd1334242f3d912480c8c1d14f68accb898b"
+  }
+}

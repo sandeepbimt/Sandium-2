@@ -199,7 +199,7 @@ def main():
         raise SystemExit('usage: apply-sandium-adblock-resources.py <brave-core>')
     core=Path(sys.argv[1]).resolve()
     actual=subprocess.check_output(['git','-C',str(core),'rev-parse','HEAD'],text=True).strip()
-    if actual!=PIN:
+    if actual not in (PIN, "bd6d26d1bced03c17a98baa86d2cd3425d543d1b"):
         raise SystemExit('resource patch requires pinned Brave core '+PIN)
     apply(core)
 

@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""Move phone load progress paint into the capsule; native load/animation state stays authoritative."""
+"""Paint native phone load progress along the address capsule's top edge."""
 import argparse
 from pathlib import Path
 import subprocess
 PIN='d331de35ca8ab1358c7a17e4bd41627d55eaef51'
+FULL_U_PIN='52bdd21723d5db0c9ab11716d38feac74828cf84'
 BAR='chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/'
 DRAW='chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/LocationBarBackgroundDrawable.java'
 def once(s,old,new):
@@ -12,7 +13,7 @@ def once(s,old,new):
     return s.replace(old,new,1)
 
 def drawable(s):
-    s=once(s,'    private final GradientDrawable mBackgroundGradient;', '''    // SANDIUM_ADDRESS_PROGRESS_V1: full-height translucent fill under URL/icons.
+    s=once(s,'    private final GradientDrawable mBackgroundGradient;', '''    // SANDIUM_ADDRESS_PROGRESS_V1: off-white top edge, no fill behind URL/icons.
     private final Paint mSandiumProgressPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private float mSandiumProgress;
     private int mSandiumProgressAlpha;
@@ -30,20 +31,33 @@ def drawable(s):
     }
 
     private final GradientDrawable mBackgroundGradient;''')
-    return once(s,'        mBackgroundGradient.draw(canvas);', '''        mBackgroundGradient.draw(canvas);
+    return once(s,'''    }
+
+    /** Controls the opacity of the rainbow outline. */''', '''        drawSandiumProgressEdge(canvas);
+    }
+
+    private void drawSandiumProgressEdge(Canvas canvas) {
         if (mSandiumProgress > 0f && mSandiumProgressAlpha > 0 && !mEffectiveBounds.isEmpty()) {
+            // Use the straight part of the capsule top edge, not its rounded sidewalls.
+            float inset = Math.max(0f, Math.min(mCornerRadiusPx, mEffectiveBounds.width() / 2f));
+            float start = mEffectiveBounds.left + inset;
+            float end = mEffectiveBounds.right - inset;
+            if (end <= start) return;
+            float width = (end - start) * mSandiumProgress;
+            float left = mSandiumProgressRtl ? end - width : start;
+            float right = mSandiumProgressRtl ? end : start + width;
+            float bottom = Math.min(mEffectiveBounds.bottom,
+                    mEffectiveBounds.top + Math.max(1f, mStrokePx));
             int saved = canvas.save();
-            // Reuse the native rounded outline, insets and current focus geometry.
             canvas.clipPath(mOuterPath);
-            float width = mEffectiveBounds.width() * mSandiumProgress;
-            float left = mSandiumProgressRtl ? mEffectiveBounds.right - width : mEffectiveBounds.left;
-            float right = mSandiumProgressRtl ? mEffectiveBounds.right : mEffectiveBounds.left + width;
-            mSandiumProgressPaint.setColor(0xFF46C878);
-            mSandiumProgressPaint.setAlpha(Math.round(0.22f * mSandiumProgressAlpha));
-            canvas.drawRect(left, mEffectiveBounds.top, right, mEffectiveBounds.bottom,
-                    mSandiumProgressPaint);
+            mSandiumProgressPaint.setColor(0xFFF4F0E8);
+            mSandiumProgressPaint.setAlpha(mSandiumProgressAlpha);
+            canvas.drawRect(left, mEffectiveBounds.top, right, bottom, mSandiumProgressPaint);
             canvas.restoreToCount(saved);
-        }''')
+        }
+    }
+
+    /** Controls the opacity of the rainbow outline. */''')
 
 def bar(s):
     s=once(s,'    /** Interface for progress bar animation interpolation logics. */', '''    // SANDIUM_ADDRESS_PROGRESS_V1: an optional paint owner, not another load state machine.
@@ -164,7 +178,7 @@ def token(s):
         return this;
     }''')
     s=once(s,'''        // Progress is not currently used for comparing snapshot states. It isn't part of the bitmap
-        // capture anyway.''', '''        // SANDIUM_ADDRESS_PROGRESS_V1: capsule fill is now part of the toolbar bitmap.
+        // capture anyway.''', '''        // SANDIUM_ADDRESS_PROGRESS_V1: capsule top edge is part of the toolbar bitmap.
         mSandiumProgress = progress;''')
     s=once(s,'        } else if (current.mTint != next.mTint) {', '''        } else if (current.mSandiumProgress != next.mSandiumProgress
                 || current.mSandiumProgressAlpha != next.mSandiumProgressAlpha) {
@@ -177,7 +191,7 @@ TRANSFORMS={DRAW:drawable,BAR+'ToolbarProgressBar.java':bar,
     BAR+'top/ToolbarPhone.java':phone,BAR+'top/PhoneCaptureStateToken.java':token}
 
 def apply(src,verify=False):
-    if subprocess.check_output(['git','-C',str(src),'rev-parse','HEAD'],text=True).strip()!=PIN:
+    if subprocess.check_output(['git','-C',str(src),'rev-parse','HEAD'],text=True).strip() not in (PIN, FULL_U_PIN):
         raise ValueError('Unexpected Chromium pin')
     result={src/p:fn((src/p).read_text()) for p,fn in TRANSFORMS.items()}
     if verify:

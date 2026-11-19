@@ -1,0 +1,450 @@
+version: 2.1
+parameters:
+  run_full_u:
+    type: boolean
+    default: false
+  full_u_resume:
+    type: string
+    default: none
+  full_u_recover:
+    type: string
+    default: none
+jobs:
+  full-u-writer:
+    parameters:
+      stage:
+        type: integer
+    machine:
+      image: ubuntu-2404:current
+    resource_class: large
+    environment:
+      FULL_U_RESUME: << pipeline.parameters.full_u_resume >>
+      FULL_U_RECOVER: << pipeline.parameters.full_u_recover >>
+      CIRCLE_PIPELINE_NUMBER: << pipeline.number >>
+    steps:
+    - &id001
+      run:
+        name: Record job start
+        command: 'set -euo pipefail
+
+          date +%s > /tmp/full-u-job-start'
+        no_output_timeout: 45m
+    - checkout
+    - &id002
+      run:
+        name: Admit exact target and scope
+        command: 'set -euo pipefail
+
+          python3 .circleci/full-u/worker.py init --root "$CIRCLE_WORKING_DIRECTORY" --stage << parameters.stage >>'
+        no_output_timeout: 45m
+    - &id003
+      when:
+        condition:
+          equal:
+          - 1
+          - << parameters.stage >>
+        steps:
+        - restore_cache:
+            keys:
+            - full-u-accepted-v1-{{ checksum ".full-u/scope" }}-{{ checksum ".full-u/expected" }}
+        - run:
+            name: Stop explicit completed resume
+            command: 'set -euo pipefail
+
+              if python3 .circleci/full-u/worker.py completed --root "$CIRCLE_WORKING_DIRECTORY" --stage << parameters.stage >>; then circleci-agent step halt; fi'
+            no_output_timeout: 45m
+    - &id004
+      when:
+        condition:
+          equal:
+          - 2
+          - << parameters.stage >>
+        steps:
+        - restore_cache:
+            keys:
+            - full-u-accepted-v1-{{ checksum ".full-u/scope" }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-1-
+        - run:
+            name: Stop after verified APK plus full archive
+            command: 'set -euo pipefail
+
+              if python3 .circleci/full-u/worker.py completed --root "$CIRCLE_WORKING_DIRECTORY" --stage << parameters.stage >>; then circleci-agent step halt; fi'
+            no_output_timeout: 45m
+    - &id005
+      when:
+        condition:
+          equal:
+          - 3
+          - << parameters.stage >>
+        steps:
+        - restore_cache:
+            keys:
+            - full-u-accepted-v1-{{ checksum ".full-u/scope" }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-2-
+            - full-u-accepted-v1-{{ checksum ".full-u/scope" }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-1-
+        - run:
+            name: Stop after verified APK plus full archive
+            command: 'set -euo pipefail
+
+              if python3 .circleci/full-u/worker.py completed --root "$CIRCLE_WORKING_DIRECTORY" --stage << parameters.stage >>; then circleci-agent step halt; fi'
+            no_output_timeout: 45m
+    - &id006
+      when:
+        condition:
+          equal:
+          - 4
+          - << parameters.stage >>
+        steps:
+        - restore_cache:
+            keys:
+            - full-u-accepted-v1-{{ checksum ".full-u/scope" }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-3-
+            - full-u-accepted-v1-{{ checksum ".full-u/scope" }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-2-
+            - full-u-accepted-v1-{{ checksum ".full-u/scope" }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-1-
+        - run:
+            name: Stop after verified APK plus full archive
+            command: 'set -euo pipefail
+
+              if python3 .circleci/full-u/worker.py completed --root "$CIRCLE_WORKING_DIRECTORY" --stage << parameters.stage >>; then circleci-agent step halt; fi'
+            no_output_timeout: 45m
+    - &id007
+      when:
+        condition:
+          equal:
+          - 5
+          - << parameters.stage >>
+        steps:
+        - restore_cache:
+            keys:
+            - full-u-accepted-v1-{{ checksum ".full-u/scope" }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-4-
+            - full-u-accepted-v1-{{ checksum ".full-u/scope" }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-3-
+            - full-u-accepted-v1-{{ checksum ".full-u/scope" }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-2-
+            - full-u-accepted-v1-{{ checksum ".full-u/scope" }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-1-
+        - run:
+            name: Stop after verified APK plus full archive
+            command: 'set -euo pipefail
+
+              if python3 .circleci/full-u/worker.py completed --root "$CIRCLE_WORKING_DIRECTORY" --stage << parameters.stage >>; then circleci-agent step halt; fi'
+            no_output_timeout: 45m
+    - &id008
+      run:
+        name: Install archive tools
+        command: 'set -euo pipefail
+
+          if ! command -v zstd >/dev/null; then sudo timeout --signal=TERM --kill-after=30s 180s bash -c ''apt-get update -qq && apt-get install -y zstd''; fi
+
+          zstd --version'
+        no_output_timeout: 45m
+    - &id009
+      run:
+        name: Configure Siso BuildBuddy API-key credential helper
+        command: "# Siso requires an explicit credential helper in non-Google CI.\n# Never enable xtrace here: BUILDBUDDY_API_KEY is a secret.\nset -eu\nif [ -z \"$(printenv BUILDBUDDY_API_KEY 2>/dev/null || true)\" ]; then\n  echo \"MISSING_REQUIRED_SECRET=BUILDBUDDY_API_KEY\" >&2\n  echo \"Set BUILDBUDDY_API_KEY in CircleCI project environment variables.\" >&2\n  exit 1\nfi\nHELPER=/tmp/sandium-buildbuddy-credential-helper.py\nprintf '%s\\n' \\\n  '#!/usr/bin/env python3' \\\n  'import json' \\\n  'import os' \\\n  'import sys' \\\n  '' \\\n  'if len(sys.argv) < 2 or sys.argv[1] != \"get\":' \\\n  '    raise SystemExit(1)' \\\n  'sys.stdin.read()' \\\n  'key = os.environ[\"BUILDBUDDY_API_KEY\"]' \\\n  'print(json.dumps({\"headers\": {\"x-buildbuddy-api-key\": [key]}}))' \\\n  > \"$HELPER\"\nchmod 700 \"$HELPER\"\necho 'export SISO_CREDENTIAL_HELPER=/tmp/sandium-buildbuddy-credential-helper.py' >> \"$BASH_ENV\"\n# Brave v1.98.62 installs depot_tools at vendor/depot_tools relative to src/brave.\n\
+          # Keep this separate from the Afterbird sibling checkout layout.\necho 'export PATH=\"$CIRCLE_WORKING_DIRECTORY/brave-work/src/brave/vendor/depot_tools:$PATH\"' >> \"$BASH_ENV\"\necho 'export DEPOT_TOOLS_UPDATE=0' >> \"$BASH_ENV\"\necho 'export SISO_LIMITS=local=8,remote=80' >> \"$BASH_ENV\"\necho \"SISO_CREDENTIAL_HELPER=CONFIGURED (secret value not printed)\"\n"
+    - when:
+        condition:
+          equal:
+          - 2
+          - << parameters.stage >>
+        steps:
+        - restore_cache:
+            keys:
+            - full-u-accepted-v1-{{ checksum ".full-u/scope" }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-1-
+    - when:
+        condition:
+          equal:
+          - 3
+          - << parameters.stage >>
+        steps:
+        - restore_cache:
+            keys:
+            - full-u-accepted-v1-{{ checksum ".full-u/scope" }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-2-
+    - when:
+        condition:
+          equal:
+          - 4
+          - << parameters.stage >>
+        steps:
+        - restore_cache:
+            keys:
+            - full-u-accepted-v1-{{ checksum ".full-u/scope" }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-3-
+    - when:
+        condition:
+          equal:
+          - 5
+          - << parameters.stage >>
+        steps:
+        - restore_cache:
+            keys:
+            - full-u-accepted-v1-{{ checksum ".full-u/scope" }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-4-
+    - run:
+        name: Validate predecessor receipt
+        command: 'set -euo pipefail
+
+          python3 .circleci/full-u/worker.py predecessor --root "$CIRCLE_WORKING_DIRECTORY" --stage << parameters.stage >>'
+        no_output_timeout: 45m
+    - restore_cache:
+        keys:
+        - full-u-archive-v1-{{ checksum ".full-u/scope" }}-{{ checksum ".full-u/archive-key" }}
+    - run:
+        name: Execute bounded source or product phase
+        command: 'set -euo pipefail
+
+          python3 .circleci/full-u/worker.py write --root "$CIRCLE_WORKING_DIRECTORY" --stage << parameters.stage >>'
+        no_output_timeout: 45m
+    - store_artifacts:
+        path: .full-u
+    - store_artifacts:
+        path: brave-apk
+    - run:
+        name: Capture full quiescent workspace
+        command: 'set -euo pipefail
+
+          python3 .circleci/full-u/worker.py capture --root "$CIRCLE_WORKING_DIRECTORY" --stage << parameters.stage >>'
+        no_output_timeout: 45m
+    - run:
+        name: Start native archive save clock
+        command: 'set -euo pipefail
+
+          python3 .circleci/full-u/worker.py upload_start --root "$CIRCLE_WORKING_DIRECTORY" --stage << parameters.stage >>'
+        no_output_timeout: 45m
+    - save_cache:
+        key: full-u-archive-v1-{{ checksum ".full-u/scope" }}-{{ checksum ".full-u/archive-key" }}
+        paths:
+        - full-u-workspace.shards
+        - full-u-workspace.manifest.json
+    - run:
+        name: Record actual archive save elapsed
+        command: 'set -euo pipefail
+
+          python3 .circleci/full-u/worker.py upload_end --root "$CIRCLE_WORKING_DIRECTORY" --stage << parameters.stage >>'
+        no_output_timeout: 45m
+    - save_cache:
+        key: full-u-pending-digest-v1-{{ checksum ".full-u/scope" }}-{{ checksum ".full-u/candidate-id" }}
+        paths:
+        - .full-u/candidate.json
+        - .full-u/archive-key
+    - save_cache:
+        key: full-u-pending-v1-{{ checksum ".full-u/scope" }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-<< parameters.stage >>-{{ checksum ".full-u/candidate-id" }}
+        paths:
+        - .full-u/candidate.json
+        - .full-u/archive-key
+    - run:
+        name: Clear local pending reference
+        command: 'set -euo pipefail
+
+          rm .full-u/candidate.json'
+        no_output_timeout: 45m
+    - restore_cache:
+        keys:
+        - full-u-pending-v1-{{ checksum ".full-u/scope" }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-<< parameters.stage >>-{{ checksum ".full-u/candidate-id" }}
+    - run:
+        name: Verify pending reference readback
+        command: 'set -euo pipefail
+
+          python3 .circleci/full-u/worker.py check-pending --root "$CIRCLE_WORKING_DIRECTORY" --stage << parameters.stage >>'
+        no_output_timeout: 45m
+    - store_artifacts:
+        path: .full-u
+  full-u-validator:
+    parameters:
+      stage:
+        type: integer
+    machine:
+      image: ubuntu-2404:current
+    resource_class: large
+    environment:
+      FULL_U_RESUME: << pipeline.parameters.full_u_resume >>
+      FULL_U_RECOVER: << pipeline.parameters.full_u_recover >>
+      CIRCLE_PIPELINE_NUMBER: << pipeline.number >>
+    steps:
+    - *id001
+    - checkout
+    - *id002
+    - *id003
+    - *id004
+    - *id005
+    - *id006
+    - *id007
+    - *id008
+    - *id009
+    - when:
+        condition:
+          equal:
+          - none
+          - << pipeline.parameters.full_u_recover >>
+        steps:
+        - restore_cache:
+            keys:
+            - full-u-pending-v1-{{ checksum ".full-u/scope" }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-<< parameters.stage >>-
+    - unless:
+        condition:
+          equal:
+          - none
+          - << pipeline.parameters.full_u_recover >>
+        steps:
+        - restore_cache:
+            keys:
+            - full-u-pending-digest-v1-{{ checksum ".full-u/scope" }}-{{ checksum ".full-u/recover" }}
+    - restore_cache:
+        keys:
+        - full-u-archive-v1-{{ checksum ".full-u/scope" }}-{{ checksum ".full-u/archive-key" }}
+    - run:
+        name: Fresh restore validates source and output
+        command: 'set -euo pipefail
+
+          python3 .circleci/full-u/worker.py accept --root "$CIRCLE_WORKING_DIRECTORY" --stage << parameters.stage >>'
+        no_output_timeout: 45m
+    - save_cache:
+        key: full-u-accepted-v1-{{ checksum ".full-u/scope" }}-{{ checksum ".full-u/accepted-id" }}
+        paths:
+        - .full-u/receipt.json
+        - .full-u/archive-key
+    - run:
+        name: Clear local receipt
+        command: 'set -euo pipefail
+
+          rm .full-u/receipt.json'
+        no_output_timeout: 45m
+    - restore_cache:
+        keys:
+        - full-u-accepted-v1-{{ checksum ".full-u/scope" }}-{{ checksum ".full-u/accepted-id" }}
+    - run:
+        name: Verify accepted reference readback
+        command: 'set -euo pipefail
+
+          python3 .circleci/full-u/worker.py check-published --root "$CIRCLE_WORKING_DIRECTORY" --stage << parameters.stage >>'
+        no_output_timeout: 45m
+    - save_cache:
+        key: full-u-accepted-v1-{{ checksum ".full-u/scope" }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-<< parameters.stage >>-{{ checksum ".full-u/accepted-id" }}
+        paths:
+        - .full-u/receipt.json
+        - .full-u/archive-key
+    - store_artifacts:
+        path: .full-u
+    - run:
+        name: Report verified completion or preserved hold
+        command: 'set -euo pipefail
+
+          python3 .circleci/full-u/worker.py finish --root "$CIRCLE_WORKING_DIRECTORY" --stage << parameters.stage >>'
+        no_output_timeout: 45m
+workflows:
+  Full-Mode-U:
+    when:
+      and:
+      - << pipeline.parameters.run_full_u >>
+      - equal:
+        - none
+        - << pipeline.parameters.full_u_recover >>
+    jobs:
+    - full-u-writer:
+        name: Full Mode-U-1
+        stage: 1
+        serial-group: << pipeline.project.slug >>/full-u
+        filters:
+          branches:
+            only:
+            - work/full-u-1100
+    - full-u-validator:
+        name: Full Mode-U-1-verify
+        stage: 1
+        serial-group: << pipeline.project.slug >>/full-u
+        filters:
+          branches:
+            only:
+            - work/full-u-1100
+        requires:
+        - Full Mode-U-1
+    - full-u-writer:
+        name: Full Mode-U-2
+        stage: 2
+        serial-group: << pipeline.project.slug >>/full-u
+        filters:
+          branches:
+            only:
+            - work/full-u-1100
+        requires:
+        - Full Mode-U-1-verify
+    - full-u-validator:
+        name: Full Mode-U-2-verify
+        stage: 2
+        serial-group: << pipeline.project.slug >>/full-u
+        filters:
+          branches:
+            only:
+            - work/full-u-1100
+        requires:
+        - Full Mode-U-2
+    - full-u-writer:
+        name: Full Mode-U-3
+        stage: 3
+        serial-group: << pipeline.project.slug >>/full-u
+        filters:
+          branches:
+            only:
+            - work/full-u-1100
+        requires:
+        - Full Mode-U-2-verify
+    - full-u-validator:
+        name: Full Mode-U-3-verify
+        stage: 3
+        serial-group: << pipeline.project.slug >>/full-u
+        filters:
+          branches:
+            only:
+            - work/full-u-1100
+        requires:
+        - Full Mode-U-3
+    - full-u-writer:
+        name: Full Mode-U-4
+        stage: 4
+        serial-group: << pipeline.project.slug >>/full-u
+        filters:
+          branches:
+            only:
+            - work/full-u-1100
+        requires:
+        - Full Mode-U-3-verify
+    - full-u-validator:
+        name: Full Mode-U-4-verify
+        stage: 4
+        serial-group: << pipeline.project.slug >>/full-u
+        filters:
+          branches:
+            only:
+            - work/full-u-1100
+        requires:
+        - Full Mode-U-4
+    - full-u-writer:
+        name: Full Mode-U-5
+        stage: 5
+        serial-group: << pipeline.project.slug >>/full-u
+        filters:
+          branches:
+            only:
+            - work/full-u-1100
+        requires:
+        - Full Mode-U-4-verify
+    - full-u-validator:
+        name: Full Mode-U-5-verify
+        stage: 5
+        serial-group: << pipeline.project.slug >>/full-u
+        filters:
+          branches:
+            only:
+            - work/full-u-1100
+        requires:
+        - Full Mode-U-5
+  Full-Mode-U-Recovery:
+    when:
+      and:
+      - << pipeline.parameters.run_full_u >>
+      - not:
+          equal:
+          - none
+          - << pipeline.parameters.full_u_recover >>
+    jobs:
+    - full-u-validator:
+        stage: 1
+        name: Full Mode-U recovery
+        serial-group: << pipeline.project.slug >>/full-u
+        filters:
+          branches:
+            only:
+            - work/full-u-1100

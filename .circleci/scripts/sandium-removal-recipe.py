@@ -86,11 +86,25 @@ def configure_gn(m,out):
   text+='\n'+key+' = '+str(value).lower()+'\n'
  p.write_text(text)
 
-def apply(m,core,src,out):
+def apply_sources(m,core,src,out):
  substitutions={'{core}':str(core),'{src}':str(src),'{out}':str(out),'{repo}':str(ROOT)}
  for step in m['steps']:
   command=[sys.executable,str(ROOT/step['script'])]+[substitutions.get(a,a) for a in step['args']]
   subprocess.run(command,check=True)
+
+
+def apply_source_checked(m,core,src,out):
+ # Mode-U only: exact source-owned receipt is mandatory before any overlay.
+ import importlib.util
+ spec=importlib.util.spec_from_file_location('full_u_removal_source',ROOT/'.circleci/upgrades/source.py')
+ module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
+ if core.resolve() != (src/'brave').resolve():raise ValueError('Mismatched removal core root')
+ module.verify(src.parent)
+ apply_sources(m,core,src,out)
+ print('SANDIUM_REMOVAL_SOURCE=APPLIED graph_generated=false')
+
+def apply(m,core,src,out):
+ apply_sources(m,core,src,out)
  configure_gn(m,out)
  gn=src/'buildtools/linux64/gn'
  if not gn.is_file():raise ValueError('Pinned GN missing')
@@ -101,6 +115,7 @@ def apply(m,core,src,out):
  print('SANDIUM_REMOVAL_RECIPE=APPLIED graph_generated=true recipe='+hashlib.sha256(MANIFEST.read_bytes()).hexdigest())
 
 if __name__=='__main__':
- p=argparse.ArgumentParser();p.add_argument('--core',type=Path,required=True);p.add_argument('--src',type=Path,required=True);p.add_argument('--out',type=Path,required=True);p.add_argument('--phase',choices=['reset','reset-core','apply'],required=True);a=p.parse_args();m=load()
+ p=argparse.ArgumentParser();p.add_argument('--core',type=Path,required=True);p.add_argument('--src',type=Path,required=True);p.add_argument('--out',type=Path,required=True);p.add_argument('--phase',choices=['reset','reset-core','apply','apply-source'],required=True);a=p.parse_args();m=load()
  if a.phase in ('reset','reset-core'):reset(m,a.core,a.src,a.out,core_only=a.phase=='reset-core')
+ elif a.phase=='apply-source':apply_source_checked(m,a.core,a.src,a.out)
  else:apply(m,a.core,a.src,a.out)

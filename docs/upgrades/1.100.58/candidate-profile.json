@@ -1,0 +1,34 @@
+{
+  "schema": 1,
+  "ready": true,
+  "branch": "work/full-u-1100",
+  "mode": "Full Mode-U",
+  "source": {
+    "brave_tag": "v1.100.58",
+    "wrapper_sha": "9a51201f8a71f3f2bd377322aaa09c9742588cdd",
+    "core_sha": "bd6d26d1bced03c17a98baa86d2cd3425d543d1b",
+    "chromium_version": "158.0.8127.42",
+    "chromium_sha": "52bdd21723d5db0c9ab11716d38feac74828cf84",
+    "release_url": "https://github.com/brave/brave-browser/releases/tag/v1.100.58",
+    "core_package_sha256": "cc13a7370be5e1cbc2dd76c7b59d3b716fd719d9a424234aca51af08d930adb9"
+  },
+  "build": {
+    "is_official_build": true,
+    "target_cpu": "arm64",
+    "target": "brave",
+    "artifact": "BraveMonoarm64.apk",
+    "universal_target_approved": false
+  },
+  "rollback": {
+    "run": 1402,
+    "source_commit": "af15f567",
+    "reference": "docs/1402_OFFICIAL_FULL_REFERENCE.md",
+    "compiled_seed_compatible": false
+  },
+  "promotion": {
+    "requires_apk": true,
+    "requires_full_archive": true,
+    "requires_exact_readback": true,
+    "requires_fresh_restore_verification": true
+  }
+}

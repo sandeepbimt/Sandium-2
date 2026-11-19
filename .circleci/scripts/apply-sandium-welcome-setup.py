@@ -6,9 +6,9 @@ import argparse
 import subprocess
 from pathlib import Path
 
-EXPECTED_CORE_TAG = "v1.98.62"
-EXPECTED_CORE_SHA = "44a84b1f89d9a35287289d6a3d493e362f5a5123"
-EXPECTED_CHROMIUM_SHA = "d331de35ca8ab1358c7a17e4bd41627d55eaef51"
+EXPECTED_CORE_TAG = "v1.100.58"
+EXPECTED_CORE_SHA = "bd6d26d1bced03c17a98baa86d2cd3425d543d1b"
+EXPECTED_CHROMIUM_SHA = "52bdd21723d5db0c9ab11716d38feac74828cf84"
 
 ACTIVITY = Path("android/java/org/chromium/chrome/browser/firstrun/WelcomeOnboardingActivity.java")
 JAVA_SOURCES = Path("android/brave_java_sources.gni")
@@ -248,9 +248,9 @@ def apply(core: Path, src: Path, repo_root: Path) -> None:
         "mBlurRestartHint.setVisibility(View.VISIBLE)",
         "blurTitle.setSingleLine(true)",
         "new LinearLayout.LayoutParams(dp(92), dp(40))",
-        'if (!preferences.contains(PREF_BLUR_LEVEL)) editor.putString(PREF_BLUR_LEVEL, "high")',
+        'if (!preferences.contains(PREF_NATIVE_BLUR))',
         "mScrollView.setFillViewport(true)",
-        'mActivity.getString(R.string.sandium_welcome_restarting)',
+        'R.string.sandium_welcome_restarting_countdown',
         'mActivity.getString(R.string.sandium_welcome_protection_complete)',
         "TemplateUrlServiceFactory.getForProfile(regularProfile)",
         'mTemplateUrlService.setSearchEngine(google.getKeyword())',

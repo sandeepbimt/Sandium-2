@@ -7,6 +7,7 @@ CORE="$SRC/brave"
 python3 .circleci/scripts/apply-sandium-homepage-adblock-warmup.py --core "$CORE" --src "$SRC"
 python3 .circleci/scripts/apply-sandium-download-concurrency.py --src "$SRC"
 python3 .circleci/scripts/apply-sandium-welcome-setup.py --core "$CORE" --src "$SRC" --repo-root "$ROOT"
+python3 .circleci/scripts/apply-sandium-deferred-notifications.py --src "$SRC"
 python3 .circleci/scripts/test-sandium-homepage-adblock-warmup.py
 python3 .circleci/scripts/test-sandium-download-concurrency.py
 python3 .circleci/scripts/test-sandium-welcome-setup.py
@@ -28,4 +29,8 @@ if source.count("PREF_SANDIUM_PAGE_TRANSITION_DARKEN =") != 1:
     raise SystemExit("SANDIUM_TRANSITION_JAVA_GATE=FAIL declaration count mismatch")
 print("SANDIUM_TRANSITION_JAVA_GATE=PASS darken_constant=1 init=present change_handler=present")
 PY
-python3 .circleci/scripts/verify-sandium-vanilla-brave.py --core "$CORE" --src "$SRC" --out "$SRC/out/android_Release_arm64" --phase verify
+if [ -n "${FULL_U_SCOPE:-}" ]; then
+  python3 .circleci/upgrades/product.py verify-base --root "$ROOT"
+else
+  python3 .circleci/scripts/verify-sandium-vanilla-brave.py --core "$CORE" --src "$SRC" --out "$SRC/out/android_Release_arm64" --phase verify
+fi

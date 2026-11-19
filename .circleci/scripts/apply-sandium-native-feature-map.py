@@ -5,8 +5,8 @@ No runtime flag toggles, no inert definitions, no Origin/payment changes.
 import argparse, hashlib
 from pathlib import Path
 PATH = 'chromium_src/chrome/browser/flags/android/chrome_feature_list.cc'
-INPUT_SHA = '62d5f2fb824e6d2f14fef5f4d3d4ca51c6327f985bfd0d6658143aebbe02d2d4'
-OUTPUT_SHA = '508a9c14ac3c717e83207f98a6f27537189e7af4df34b14e4ad338d141b03a41'
+INPUT_SHA = 'ae1a68e0a05f4e8823b13a40c5ea8f833216b59be25646685cfb932b7c5c2b20'
+OUTPUT_SHA = '3579c733713485684392b3badcc5b9772dbd09802258750d8dbf04f9519694f2'
 
 def transform(s):
     digest = hashlib.sha256(s.encode()).hexdigest()

@@ -27,14 +27,17 @@ class AddressProgress(unittest.TestCase):
   self.assertIn('onCompositedLayersVisibilityChanged() { notifySandiumCapsuleProgress(); }',out)
   self.assertIn('mSandiumProgressDetached = true;',out)
   self.assertIn('mSandiumProgressDetached = false;',out)
- def test_capsule_paint_is_clipped_below_foreground(self):
+ def test_capsule_paint_is_clipped_to_the_straight_top_edge(self):
   out=m.drawable(self.source(m.DRAW))
   self.assertLess(out.index('mBackgroundGradient.draw(canvas);'),out.index('canvas.clipPath(mOuterPath);'))
-  self.assertLess(out.index('canvas.drawRect(left,'),out.index('switch (mHairlineBehavior)'))
-  self.assertIn('0.22f * mSandiumProgressAlpha',out)
-  self.assertIn('0xFF46C878',out)
+  self.assertLess(out.index('switch (mHairlineBehavior)'),out.index('drawSandiumProgressEdge(canvas);'))
+  self.assertIn('mEffectiveBounds.top + Math.max(1f, mStrokePx)',out)
+  self.assertIn('canvas.drawRect(left, mEffectiveBounds.top, right, bottom',out)
+  self.assertIn('0xFFF4F0E8',out)
+  self.assertIn('mSandiumProgressPaint.setAlpha(mSandiumProgressAlpha);',out)
+  self.assertNotIn('0xFF46C878',out)
   self.assertNotIn('requestLayout',out)
-  self.assertIn('mSandiumProgressRtl ? mEffectiveBounds.right - width',out)
+  self.assertIn('mSandiumProgressRtl ? end - width : start',out)
  def test_thin_layers_suppressed_only_with_capsule_owner(self):
   b=m.bar(self.source(m.BAR+'ToolbarProgressBar.java'))
   a=m.animating(self.source(m.BAR+'ToolbarProgressBarAnimatingView.java'))
@@ -54,20 +57,16 @@ class AddressProgress(unittest.TestCase):
   self.assertIn('mSandiumProgress = progress;',t)
   self.assertIn('current.mSandiumProgressAlpha != next.mSandiumProgressAlpha',t)
   self.assertIn('if (alpha == 0) mSandiumProgress = 0;',t)
- def test_geometry_and_green_legibility(self):
+ def test_geometry_stays_inside_top_straight_segment(self):
   for width in (0,200,940):
-   for f in (0,.01,.5,.99,1):
-    for rtl in (False,True):
-     left=width-width*f if rtl else 0;right=width if rtl else width*f
-     self.assertGreaterEqual(left,0);self.assertLessEqual(right,width)
-     self.assertAlmostEqual(right-left,width*f)
-  def lum(rgb):
-   vals=[x/255 for x in rgb];vals=[x/12.92 if x<=.04045 else ((x+.055)/1.055)**2.4 for x in vals]
-   return sum(x*y for x,y in zip(vals,(.2126,.7152,.0722)))
-  green=(70,200,120)
-  for base,fg in [((41,41,41),(250,250,250)),((243,243,243),(32,32,32))]:
-   bg=tuple(round(.22*g+.78*b) for g,b in zip(green,base));a,b=sorted((lum(bg),lum(fg)))
-   self.assertGreaterEqual((b+.05)/(a+.05),4.5)
+   for radius in (0,16,100,1000):
+    inset=max(0,min(radius,width/2));start=inset;end=width-inset
+    for f in (0,.01,.5,.99,1):
+     for rtl in (False,True):
+      progress=(end-start)*f
+      left=end-progress if rtl else start;right=end if rtl else start+progress
+      self.assertGreaterEqual(left,start);self.assertLessEqual(right,end)
+      self.assertAlmostEqual(right-left,progress)
  @unittest.skipUnless(__import__('shutil').which('java'),'Java unavailable')
  def test_exact_capture_token_compile_reset_fade_and_restart(self):
   import re,subprocess,tempfile,shutil

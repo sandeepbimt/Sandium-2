@@ -16,6 +16,12 @@ PIN = 'd331de35ca8ab1358c7a17e4bd41627d55eaef51'
 BRAVE_PIN = '44a84b1f89d9a35287289d6a3d493e362f5a5123'
 
 
+def source_identity(root):
+    path=HERE.parents[1]/'.circleci/scripts/sandium-source-identity.py'
+    spec=importlib.util.spec_from_file_location('handoff_source_identity',path)
+    module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
+    return module.verify(root)
+
 def sha(text):
     return hashlib.sha256(text.encode()).hexdigest()
 
@@ -44,10 +50,12 @@ def proposed(root):
     return module.plan(root)
 
 
-def plan(root, enabled):
+def plan(root, enabled, identity=None):
     state_path = root / STATE
     if state_path.exists():
         state = json.loads(state_path.read_text())
+        if identity is not None and tuple(state.get('source_identity', (PIN, BRAVE_PIN))) != tuple(identity):
+            raise RuntimeError('Candidate journal source identity mismatch')
         if state.get('schema') not in (1, 2):
             raise RuntimeError('Unknown candidate journal schema')
         if enabled and state.get('recipe') != recipe():
@@ -68,7 +76,7 @@ def plan(root, enabled):
     if not enabled:
         return {}, None
     changes = proposed(root)
-    state = {'schema': 2, 'recipe': recipe(), 'files': {}}
+    state = {'schema': 2, 'recipe': recipe(), 'source_identity': list(identity or (PIN, BRAVE_PIN)), 'files': {}}
     for path, after in changes.items():
         relative = str(path.resolve().relative_to(root.resolve()))
         before = path.read_text() if path.exists() else None
@@ -76,9 +84,9 @@ def plan(root, enabled):
     return changes, state
 
 
-def execute(root, enabled, verify_only=False):
+def execute(root, enabled, verify_only=False, identity=None):
     root = root.resolve()
-    changes, state = plan(root, enabled)
+    changes, state = plan(root, enabled, identity)
     if verify_only:
         if any((path.read_text() if path.exists() else None) != value for path, value in changes.items()):
             raise RuntimeError('Candidate verification differs')
@@ -106,11 +114,8 @@ if __name__ == '__main__':
     parser.add_argument('--verify-only', action='store_true')
     args = parser.parse_args()
     enabled = json.loads((HERE / 'profile.json').read_text())['enabled'] if args.mode == 'configured' else args.mode == 'on'
+    identity = source_identity(args.source)
     if enabled:
-        for directory, expected in ((args.source, PIN), (args.source / 'brave', BRAVE_PIN)):
-            actual = subprocess.check_output(['git', '-C', str(directory), 'rev-parse', 'HEAD'], text=True).strip()
-            if actual != expected:
-                raise RuntimeError('Source pin mismatch; candidate not validated for this revision')
         if not (args.source / '.sandium-native-navigation-state.json').exists():
             raise RuntimeError('Apply native baseline before this candidate')
-    execute(args.source, enabled, args.verify_only)
+    execute(args.source, enabled, args.verify_only, identity)

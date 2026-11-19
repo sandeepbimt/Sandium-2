@@ -15,6 +15,12 @@ def apply(root):
     for patch in json.loads((HERE / 'patches.json').read_text()):
         path = root / patch['path']
         text = staged.get(path, path.read_text())
+        # Chromium158 renamed the non-null style accessor; retain upstream spelling.
+        if patch['path'] == 'third_party/blink/renderer/core/frame/local_frame_view.cc':
+            old158 = patch['old'].replace('StyleRef().ColorSchemeForced()', 'Style().ColorSchemeForced()')
+            new158 = patch['new'].replace('StyleRef().ColorSchemeForced()', 'Style().ColorSchemeForced()')
+            if old158 in text or new158 in text:
+                patch = dict(patch, old=old158, new=new158)
         if text.count(patch['new']) == patch['count']:
             continue
         if text.count(patch['old']) != patch['count']:

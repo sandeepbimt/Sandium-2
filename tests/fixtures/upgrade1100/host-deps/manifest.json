@@ -1,0 +1,22 @@
+{
+  "DEPS": {
+    "sha256": "882b7c95b6c0310b360299c1a8e4d630db3764c2266a9b28f7f5007ce23c2b04",
+    "git_blob": "b35a8409181b8861279ee465e6084c459ecc1c45",
+    "upstream_sha256": "db3d3a3f508dd4210446814aa977d6ef9e4a046194b04a94ad6a0d3ea5f39017",
+    "composed_git_blob": "35a75659357dcb488f40ef0dc471c9ffd00d1722"
+  },
+  "build/install-build-deps.sh": {
+    "sha256": "ed195bd040cbb52c5d9441c4bd42eddd8143a6c968293454f26c37447c55e13c",
+    "git_blob": "7ad84c6073afdf1a89c8c0525f39fbe7ab67a5b3"
+  },
+  "build/install-build-deps.py": {
+    "sha256": "a89e1810377176a5dc4546c9aed1b5b98abbe707547007f75ad30b1fb20812e1",
+    "git_blob": "8fe0643f47698e84d796fb89a7369cd6553ee927"
+  },
+  "build/config/android/config.gni": {
+    "sha256": "4537ffe1e3753a9fb753bec14de2c8a6014780bed8989e2417d8455ce2d17f63",
+    "git_blob": "8e828059f60707a62e57d8eedcf7ce35d4d8f2e1",
+    "upstream_sha256": "e118cb64ab759d01c071c1c1cfaab51fe4a590d6d3452abe16738ff531ac0b7d",
+    "composed_git_blob": "652f18889aa6230bad9fe77dcf90c3cc841660fa"
+  }
+}

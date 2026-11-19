@@ -264,8 +264,36 @@ def transform_appearance_java(source: str) -> str:
         ("setPreferenceOrder(PREF_BRAVE_ENABLE_TAB_GROUPS, 15);", "setPreferenceOrder(PREF_BRAVE_ENABLE_TAB_GROUPS, 16);"),
         ("setPreferenceOrder(PREF_SHOW_UNDO_WHEN_TABS_CLOSED, 16);", "setPreferenceOrder(PREF_SHOW_UNDO_WHEN_TABS_CLOSED, 17);"),
     )
-    for old, new in replacements:
-        source = replace_once_or_done(source, old, new, "Appearance order")
+    ordering_158 = "setPreferenceOrder(PREF_GENERAL_SECTION, 9);" in source
+    if ordering_158:
+        # Scope updates to our block, never rewrite upstream's own ordering.
+        start = source.index(JAVA_ORDER_BEGIN)
+        end = source.index(JAVA_ORDER_END, start) + len(JAVA_ORDER_END)
+        base = JAVA_ORDER_BEGIN + "\n" + "".join(
+            f"        setPreferenceOrder({key}, {order});\n"
+            for key, order in (
+                ("PREF_SANDIUM_PAGE_TRANSITION_BLUR_LEVEL", 11),
+                ("PREF_BRAVE_DISABLE_SHARING_HUB", 12),
+                ("PREF_SHOW_BRAVE_REWARDS_ICON", 13),
+                ("AppearanceSettingsFragment.PREF_BOOKMARK_BAR", 14),
+                ("PREF_BRAVE_ENABLE_TAB_GROUPS", 15),
+                ("PREF_SHOW_UNDO_WHEN_TABS_CLOSED", 16))) + JAVA_ORDER_END
+        updated = JAVA_ORDER_BEGIN + "\n" + "".join(
+            f"        setPreferenceOrder({key}, {order});\n"
+            for key, order in (
+                ("PREF_SANDIUM_PAGE_TRANSITION_BLUR_LEVEL", 11),
+                ("PREF_SANDIUM_PAGE_TRANSITION_DARKEN", 12),
+                ("PREF_BRAVE_DISABLE_SHARING_HUB", 13),
+                ("PREF_SHOW_BRAVE_REWARDS_ICON", 14),
+                ("AppearanceSettingsFragment.PREF_BOOKMARK_BAR", 15),
+                ("PREF_BRAVE_ENABLE_TAB_GROUPS", 16),
+                ("PREF_SHOW_UNDO_WHEN_TABS_CLOSED", 17))) + JAVA_ORDER_END
+        if source[start:end] not in (base, updated):
+            raise RuntimeError("Appearance 158 ordering block differs from reviewed source")
+        source = source[:start] + updated + source[end:]
+    else:
+        for old, new in replacements:
+            source = replace_once_or_done(source, old, new, "Appearance order")
     for snippet in (
         JAVA_DARKEN_PREF,
         "findPreference(PREF_SANDIUM_PAGE_TRANSITION_DARKEN)",
@@ -273,7 +301,7 @@ def transform_appearance_java(source: str) -> str:
         '"default".equals(blurLevel) && (Boolean) newValue',
         ".getBoolean(PREF_SANDIUM_PAGE_TRANSITION_DARKEN, false)",
         ".putBoolean(PREF_SANDIUM_PAGE_TRANSITION_DARKEN, (Boolean) newValue)",
-        "setPreferenceOrder(PREF_SANDIUM_PAGE_TRANSITION_DARKEN, 11);",
+        f"setPreferenceOrder(PREF_SANDIUM_PAGE_TRANSITION_DARKEN, {12 if ordering_158 else 11});",
     ):
         if snippet not in source:
             raise RuntimeError(f"Appearance Java validation failed: {snippet}")
@@ -646,7 +674,8 @@ def main() -> None:
     root = Path(sys.argv[1]).resolve()
     core = root / "brave"
     actual_chromium, actual_brave = git_sha(root), git_sha(core)
-    if actual_chromium != CHROMIUM_SHA or actual_brave != BRAVE_SHA:
+    if (actual_chromium, actual_brave) not in ((CHROMIUM_SHA, BRAVE_SHA),
+            ("52bdd21723d5db0c9ab11716d38feac74828cf84", "bd6d26d1bced03c17a98baa86d2cd3425d543d1b")):
         raise RuntimeError(
             "pinned source mismatch; refusing transition Full Mode overlay: "
             f"chromium={actual_chromium} expected={CHROMIUM_SHA}; "

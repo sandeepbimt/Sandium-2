@@ -3,9 +3,9 @@
 from pathlib import Path
 import argparse
 import subprocess
-CHROMIUM_PIN = "d331de35ca8ab1358c7a17e4bd41627d55eaef51"
+CHROMIUM_PIN = "52bdd21723d5db0c9ab11716d38feac74828cf84"
 
-PIN = '44a84b1f89d9a35287289d6a3d493e362f5a5123'
+PIN = 'bd6d26d1bced03c17a98baa86d2cd3425d543d1b'
 QUICK = 'browser/quick_search_engines/android/java/src/org/chromium/brave/browser/quick_search_engines/utils/QuickSearchEnginesUtil.java'
 ADAPTER = 'android/java/org/chromium/chrome/browser/search_engines/settings/BraveBaseSearchEngineAdapter.java'
 OLD_QUICK = '''        return ChromeSharedPreferences.getInstance()

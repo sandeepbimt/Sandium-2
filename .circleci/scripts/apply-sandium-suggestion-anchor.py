@@ -3,7 +3,7 @@
 from pathlib import Path
 import subprocess
 import sys
-PIN = "d331de35ca8ab1358c7a17e4bd41627d55eaef51"
+PIN = "52bdd21723d5db0c9ab11716d38feac74828cf84"
 CHANGES = [('chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/suggestions/OmniboxSuggestionsDropdownEmbedder.java',
   '    boolean isPhoneStyleWindow();',
   '    // SANDIUM_SUGGESTION_EDIT_00\n'

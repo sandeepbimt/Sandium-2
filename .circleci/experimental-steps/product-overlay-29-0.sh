@@ -70,7 +70,9 @@ python3 .circleci/scripts/test-sandium-suggestion-anchor.py
 
 # Scoped audited Brave UI-link suppression; operational services unchanged.
 python3 .circleci/scripts/apply-sandium-ui-links.py --core "$CORE" --src "$SRC"
-python3 .circleci/scripts/test-sandium-ui-links.py --core "$CORE" --src "$SRC"
+LINKS_PROFILE=legacy156
+if [ -n "${FULL_U_SCOPE:-}" ]; then LINKS_PROFILE=target158; fi
+python3 .circleci/scripts/test-sandium-ui-links.py --core "$CORE" --src "$SRC" --source-profile "$LINKS_PROFILE"
 
 # Fixed high-contrast native switch palette, after Shields and native theme.
 python3 .circleci/scripts/apply-sandium-oppo-toggles.py "$SRC" "$CORE"

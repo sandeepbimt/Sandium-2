@@ -6,8 +6,8 @@ import subprocess
 import re
 import xml.etree.ElementTree as ET
 
-BRAVE_PIN = '44a84b1f89d9a35287289d6a3d493e362f5a5123'
-CHROMIUM_PIN = 'd331de35ca8ab1358c7a17e4bd41627d55eaef51'
+BRAVE_PIN = 'bd6d26d1bced03c17a98baa86d2cd3425d543d1b'
+CHROMIUM_PIN = '52bdd21723d5db0c9ab11716d38feac74828cf84'
 PACKAGE = 'org/chromium/chrome/browser/ui/appmenu/'
 INTERNAL = 'chrome/browser/ui/android/appmenu/internal/'
 PUBLIC = 'chrome/browser/ui/android/appmenu/'
@@ -82,12 +82,16 @@ def handler(text):
 def customize(text):
     if 'public static boolean isRemovedBySandium' not in text:
         raise ValueError('Apply Sandium UI product restrictions before paged menu')
-    text = once(text, '            // Skip current item if it matches the customize menu id or settings menu id.', '''            if (BRAVE_CUSTOMIZE_ITEM_ID == menuItemId
+    old_comment = '            // Skip current item if it matches the customize menu id or settings menu id.'
+    new_comment = ('            // Skip current item if it matches the customize menu id, the settings menu id or the\n'
+                   '            // site controls menu id.')
+    comment = new_comment if new_comment in text else old_comment
+    text = once(text, comment, '''            if (BRAVE_CUSTOMIZE_ITEM_ID == menuItemId
                     && resources.getConfiguration().smallestScreenWidthDp < 600) {
                 it.remove(); // The phone presenter owns transactional layout editing through +.
                 continue;
             }
-            // Skip current item if it matches the customize menu id or settings menu id.''')
+''' + comment)
     text = once(text, '            if (!isVisible(resources, menuItemId)) {', '''            org.chromium.chrome.browser.ui.appmenu.SandiumMenuMetadata.record(
                     item.model, isVisible(resources, menuItemId));
             // Preserve product restrictions; only user-hidden shortcuts enter the phone editor.

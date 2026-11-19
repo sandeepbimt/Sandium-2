@@ -101,7 +101,7 @@ rm -f "$OUT/siso_output"
     else:self.fail('descendant still running after supervisor returned')
     self.assertEqual(marker.exists(),not cancellation)
  def test_serialized_circleci_expression_tokens(self):
-  allowed={'parameters.stage_index','pipeline.git.branch','pipeline.parameters.run_build','pipeline.parameters.run_maintenance','pipeline.parameters.sandium_build_mode'}
+  allowed={'parameters.stage','pipeline.number','pipeline.project.slug','pipeline.parameters.run_full_u','pipeline.parameters.full_u_resume','pipeline.parameters.full_u_recover','parameters.stage_index','pipeline.git.branch','pipeline.parameters.run_build','pipeline.parameters.run_maintenance','pipeline.parameters.sandium_build_mode'}
   for name in ('config.yml','original-full/candidate.yml'):
    serialized=(ROOT/'.circleci'/name).read_text()
    matches=list(re.finditer(r'<<([\s\S]*?)>>',serialized))

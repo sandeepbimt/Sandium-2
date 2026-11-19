@@ -430,10 +430,11 @@ def plan(root):
 
 def main():
     root = Path(sys.argv[1]).resolve()
-    for directory, pin in ((root, CHROMIUM_SHA), (root / "brave", BRAVE_SHA)):
-        actual = subprocess.check_output(["git", "-C", str(directory), "rev-parse", "HEAD"], text=True).strip()
-        if actual != pin:
-            raise RuntimeError("back-transition pinned revision mismatch")
+    actual = tuple(subprocess.check_output(["git", "-C", str(directory), "rev-parse", "HEAD"], text=True).strip()
+                   for directory in (root, root / "brave"))
+    if actual not in ((CHROMIUM_SHA, BRAVE_SHA),
+            ("52bdd21723d5db0c9ab11716d38feac74828cf84", "bd6d26d1bced03c17a98baa86d2cd3425d543d1b")):
+        raise RuntimeError("back-transition pinned source pair mismatch")
     # Validate every file before writing any file.
     for path, source in plan(root).items():
         path.write_text(source)

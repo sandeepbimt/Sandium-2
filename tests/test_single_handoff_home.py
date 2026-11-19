@@ -28,7 +28,7 @@ class Home(unittest.TestCase):
    with patch.object(driver, 'proposed', side_effect=lambda r: {**web.plan(r), **m.plan(r)}):
     driver.execute(root,True);driver.execute(root,True,True)
    self.assertIn('SANDIUM_HOME_HANDOFF_V1',(root/m.DELEGATE).read_text())
-   self.assertIn('SANDIUM_SINGLE_HANDOFF_WEB_V1',(root/web.PATH).read_text())
+   self.assertIn(web.NEW,(root/web.PATH).read_text())
    driver.execute(root,False)
    for name,text in original.items():self.assertEqual((root/name).read_text(),text)
  def test_actual_tab_async_callback_ownership(self):

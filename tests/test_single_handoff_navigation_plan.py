@@ -62,6 +62,28 @@ class NavigationPlan(unittest.TestCase):
             startup = root/web.PATH
             startup.parent.mkdir(parents=True,exist_ok=True)
             startup.write_text(web.OLD)
+            # Native158 adds explicit settings/XML and pinned C++ inputs to this
+            # source-only transaction fixture. Do not fabricate them from anchors.
+            blur = module('native_blur')
+            import importlib.util, hashlib
+            def overlay(name):
+                spec = importlib.util.spec_from_file_location(name, ROOT/'.circleci/scripts'/(name+'.py'))
+                value = importlib.util.module_from_spec(spec); spec.loader.exec_module(value)
+                return value
+            basic = overlay('apply-sandium-blur-transition')
+            full = overlay('apply-sandium-page-transition-full')
+            fixture = ROOT/'tests/fixtures/appearance-158'
+            xml_bytes = (fixture/'brave_appearance_preferences.xml').read_bytes()
+            proof = json.loads((fixture/'brave_appearance_preferences.provenance.json').read_text())
+            self.assertEqual(proof['commit'], 'bd6d26d1bced03c17a98baa86d2cd3425d543d1b')
+            self.assertEqual(hashlib.sha256(xml_bytes).hexdigest(), proof['sha256'])
+            self.assertEqual(hashlib.sha1(b'blob '+str(len(xml_bytes)).encode()+b'\0'+xml_bytes).hexdigest(), proof['git_blob'])
+            extra = {path: blur.fixture(path) for path in (blur.CC, blur.H, blur.FC, blur.FH)}
+            extra[blur.SETTINGS] = full.transform_appearance_java(basic.transform_appearance_java(
+                (fixture/'AppearancePreferences.java').read_text()))
+            extra[blur.XML] = full.transform_appearance_xml(basic.transform_appearance_xml(xml_bytes.decode()))
+            for relative, text in extra.items():
+                target = root/relative; target.parent.mkdir(parents=True,exist_ok=True); target.write_text(text)
             candidate_before={p:p.read_bytes() for p in root.rglob('*') if p.is_file()}
             whole=module('candidate_plan')
             whole_plan=whole.plan(root)

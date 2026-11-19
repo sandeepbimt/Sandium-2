@@ -16,8 +16,8 @@ def load(name):
 
 def plan(root):
     root = Path(root).resolve()
-    web, home, navigation = (load(name) for name in ('web', 'home', 'navigation_plan'))
-    inputs = navigation.inputs_for(root) | {web.PATH, home.TAB, home.DELEGATE}
+    web, home, navigation, blur = (load(name) for name in ('web', 'home', 'navigation_plan', 'native_blur'))
+    inputs = set(blur.INPUTS) | navigation.inputs_for(root) | {web.PATH, home.TAB, home.DELEGATE}
     with tempfile.TemporaryDirectory(prefix='sandium-candidate-plan-') as temporary:
         staged = Path(temporary)
         for relative in sorted(inputs):
@@ -28,7 +28,7 @@ def plan(root):
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_text(source.read_text())
         result = {}
-        for planner in (web.plan, home.plan, navigation.plan):
+        for planner in (web.plan, home.plan, navigation.plan, blur.plan):
             for path, text in planner(staged).items():
                 path = path.resolve()
                 if not path.is_relative_to(staged):

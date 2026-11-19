@@ -12,6 +12,9 @@ a=parser.parse_args();root=P(__file__).resolve().parents[2]
 def load(name):
  sp=importlib.util.spec_from_file_location(name,root/'.circleci/scripts'/(name+'.py'));module=importlib.util.module_from_spec(sp);sp.loader.exec_module(module);return module
 recipe=load('sandium-removal-recipe');m=recipe.load()
+TARGET_158=m['chromium_pin']=='52bdd21723d5db0c9ab11716d38feac74828cf84'
+IDENTITY=(m['chromium_pin'],m['brave_pin']) if TARGET_158 else None
+if TARGET_158 and not a.chromium_source:raise ValueError('Target158 composition requires exact Chromium source, never historical fixture fallback')
 welcome=load('apply-sandium-welcome-setup');prune=load('apply-sandium-ui-prune')
 toolbar=load('apply-sandium-bottom-toolbar');menu=load('apply-sandium-paged-menu')
 fade=load('apply-sandium-settings-fade');progress=load('apply-sandium-progress-diagnostics');suggest=load('apply-sandium-suggestion-anchor');links=load('apply-sandium-ui-links');toggles=load('apply-sandium-oppo-toggles');popup=load('apply-sandium-shields-popup')
@@ -97,11 +100,24 @@ with tempfile.TemporaryDirectory() as temporary:
   diag=load('apply-sandium-navigation-diagnostics')
   for path,text in diag.reset_native_probes(src).items():write(path,text.encode())
   full=load('apply-sandium-page-transition-full');native=load('sandium-native-blur-source');back=load('apply-sandium-back-transition')
+  if TARGET_158:
+   # All target native inputs are reset-owned exact158 blobs, never old fixtures.
+   base=load('apply-sandium-blur-transition')
+   path=src/full.STARTUP;path.write_text(full.transform_startup(base.transform_chromium_startup(path.read_text())))
+   path=src/full.TRANSITION_H;path.write_text(native.header(full.transform_transition_h(path.read_text())))
+   for relative,transform in [(full.FEATURES_CC,full.transform_features_cc),(full.FEATURES_H,full.transform_features_h)]:
+    path=src/relative;path.write_text(transform(path.read_text()))
+   for name,old,new in back.CHANGES:
+    path=src/name;path.write_text(back.transform(path.read_text(),old,new))
   blur=src/diag.transition.BLUR
-  if not blur.exists():write(blur,(root/'tests/fixtures/ordinary-transition/blur_transition_animation_manager.cc').read_bytes())
+  if not blur.exists():
+   if TARGET_158:raise ValueError('Missing exact158 native blur reset input')
+   write(blur,(root/'tests/fixtures/ordinary-transition/blur_transition_animation_manager.cc').read_bytes())
   blur.write_text(native.implementation(full.transform_transition_cc(blur.read_text())))
   path=src/diag.transition.BACK
-  if not path.exists():write(path,(root/'tests/fixtures/back-transition'/diag.transition.BACK).read_bytes())
+  if not path.exists():
+   if TARGET_158:raise ValueError('Missing exact158 back transition reset input')
+   write(path,(root/'tests/fixtures/back-transition'/diag.transition.BACK).read_bytes())
   text=path.read_text()
   for name,old,new in back.CHANGES:
    if name==diag.transition.BACK:text=back.transform(text,old,new)
@@ -143,7 +159,7 @@ with tempfile.TemporaryDirectory() as temporary:
   for path,text in suggest.plan(src).items():path.write_text(text)
   links.apply(core);links.apply_chromium(src)
   # Production stage29 invokes this test on the already-composed live inputs.
-  subprocess.run([sys.executable,str(root/'.circleci/scripts/test-sandium-ui-links.py'),'--core',str(core),'--src',str(src)],check=True)
+  subprocess.run([sys.executable,str(root/'.circleci/scripts/test-sandium-ui-links.py'),'--core',str(core),'--src',str(src),'--source-profile','target158' if TARGET_158 else 'legacy156'],check=True)
   shield_layout=core/toggles.SHIELDS;shield_layout.write_text(popup.layout(shield_layout.read_text()))
   toggles.apply(src,core)
  def removal(steps=None):
@@ -240,9 +256,11 @@ with tempfile.TemporaryDirectory() as temporary:
   frozen=json.loads(gzip.decompress((root/'tests/fixtures/native-navigation.json.gz').read_bytes()))['frozen']
   for relative,text in frozen.items():
    path=src/relative
-   if not path.exists():write(path,text.encode())
+   if not path.exists():
+    if TARGET_158:raise ValueError('Missing target native reset input: '+relative)
+    write(path,text.encode())
   native_before=snapshot()
-  nav.execute(src,True);nav.execute(src,True,True)
+  nav.execute(src,True,identity=IDENTITY);nav.execute(src,True,True,identity=IDENTITY)
   assert 'SANDIUM_NATIVE_REVEAL_V1' in (src/'chrome/android/java/src/org/chromium/chrome/browser/ntp/NewTabPage.java').read_text()
   assert 'sandium_toolbar_mark' in (src/'chrome/android/java/src/org/chromium/chrome/browser/tab/TabWebContentsDelegateAndroidImpl.java').read_text()
   # Exercise the opt-in outer candidate over ACTUAL composed UI, even while
@@ -252,7 +270,9 @@ with tempfile.TemporaryDirectory() as temporary:
   for relative,data in [
       (holder.DELEGATE,(root/'experiments/single-handoff/fixtures/NtpSmoothTransitionDelegate.java').read_bytes()),
       (holder.TAB,gzip.decompress((root/'experiments/single-handoff/fixtures/TabImpl.java.gz').read_bytes()))]:
-   if not (src/relative).exists():write(src/relative,data)
+   if not (src/relative).exists():
+    if TARGET_158:raise ValueError('Missing target holder reset input: '+relative)
+    write(src/relative,data)
   # Dormant production-bridge stages must also compose over this real styled UI.
   # Seed only absent files; never replace already composed browser sources.
   bridge_modules=[feature_module('bridge_'+name,'experiments/single-handoff/'+name+'.py')
@@ -269,10 +289,20 @@ with tempfile.TemporaryDirectory() as temporary:
    evidence=json.loads(gzip.decompress((root/'experiments/single-handoff/fixtures'/(name+'.json.gz')).read_bytes()))
    bridge_fixture_files[evidence['path']]=evidence.get('source',evidence.get('text'))
   for relative,text in bridge_fixture_files.items():
-   if not (src/relative).exists():write(src/relative,text.encode())
+   if not (src/relative).exists():
+    if TARGET_158:raise ValueError('Missing target bridge reset input: '+relative)
+    write(src/relative,text.encode())
   candidate_before=snapshot()
-  outer.execute(src,True,True);outer.execute(src,True,True,True)
-  assert 'SANDIUM_SINGLE_HANDOFF_WEB_V1' in (src/'chrome/android/java/src/org/chromium/chrome/browser/base/SplitCompatApplication.java').read_text()
+  outer.execute(src,True,True,identity=IDENTITY);outer.execute(src,True,True,True,identity=IDENTITY)
+  startup=(src/'chrome/android/java/src/org/chromium/chrome/browser/base/SplitCompatApplication.java').read_text()
+  if TARGET_158:
+   web=feature_module('actual158_startup_policy','experiments/single-handoff/web.py')
+   assert web.NEW in startup  # Exact final Off/On native policy, not retired forced-off policy.
+   assert 'if (enable == blurOn)' in startup
+   assert 'enable == (blurOn && blurPrefs.getBoolean("sandium_page_transition_darken", false))' in startup
+   assert 'SANDIUM_NATIVE_BLUR_158' in startup
+  else:
+   assert 'SANDIUM_SINGLE_HANDOFF_WEB_V1' in startup
   assert 'SANDIUM_HOME_HANDOFF_V1' in (src/holder.DELEGATE).read_text()
   assert 'SANDIUM_UNWRAPPED_NTP_CAPTURE_V1' in (src/'chrome/android/java/src/org/chromium/chrome/browser/ntp/NewTabPage.java').read_text()
   assert 'SANDIUM_NATIVE_CAPTURE_ORIGIN_V1' in (src/'chrome/browser/gesturenav/android/java/src/org/chromium/chrome/browser/gesturenav/NativePageBitmapCapturer.java').read_text()
@@ -302,7 +332,7 @@ with tempfile.TemporaryDirectory() as temporary:
   for relative,data in unified_before.items():write(src/relative,data)
   assert snapshot()==unified_before
   print('DORMANT_UNIFIED_NAVIGATION_DARK_WALLPAPER_FINAL_UI_REPLAY_AND_ROLLBACK=PASS')
-  outer.handoff.execute(src,False)
+  outer.handoff.execute(src,False,identity=IDENTITY)
   # Independently assemble the whole candidate from the restored real native baseline.
   # Its home patches are one-shot; replay belongs to the journal, not repeated patching.
   whole=feature_module('single_whole_candidate_final','experiments/single-handoff/candidate_plan.py')
@@ -317,9 +347,9 @@ with tempfile.TemporaryDirectory() as temporary:
    assert text.encode()==expected,relative
   print('DORMANT_WHOLE_CANDIDATE_REAL_NATIVE_BASELINE_EQUIVALENCE=PASS')
   for relative,data in candidate_before.items():assert (src/relative).read_bytes()==data,relative
-  nav.execute(src,True,True)
+  nav.execute(src,True,True,identity=IDENTITY)
   # Repeat through production nested restore rather than only direct modules.
-  outer.execute(src,True,True);outer.execute(src,False,False)
+  outer.execute(src,True,True,identity=IDENTITY);outer.execute(src,False,False,identity=IDENTITY)
   restored=snapshot()
   for relative,data in native_before.items():
    assert restored[relative]==data,relative
