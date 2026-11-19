@@ -74,7 +74,7 @@ class NavigationPlan(unittest.TestCase):
             blur_sources={p:blur.fixture(p) for p in (blur.CC,blur.H,blur.FC,blur.FH)}
             appearance=(blur.FIX/'AppearancePreferences.java').read_text()
             blur_sources[blur.SETTINGS]=full.transform_appearance_java(base.transform_appearance_java(appearance))
-            blur_sources[blur.XML]=base.XML_BLOCK + full.XML_DARKEN_BLOCK
+            blur_sources[blur.XML]=full.transform_appearance_xml(base.XML_BLOCK)
             blur_sources[blur.GRD]=full.transform_grd(base.GRD_BLOCK)
             for path,text in blur_sources.items():
                 target=root/path;target.parent.mkdir(parents=True,exist_ok=True);target.write_text(text)
