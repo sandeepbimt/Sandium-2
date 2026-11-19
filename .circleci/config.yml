@@ -212,9 +212,9 @@ jobs:
           - << parameters.stage_index >>
         steps:
         - restore_cache:
-            name: Restore verified APK marker from the same source revision
+            name: Restore verified APK marker from this workflow and revision
             keys:
-            - sandium-official-apk-complete-v1-{{ .Branch }}-{{ .Revision }}-
+            - sandium-official-apk-complete-v1-{{ .Branch }}-{{ .Revision }}-{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-1
         - run:
             name: Stop when this revision already has a published APK
             command: |

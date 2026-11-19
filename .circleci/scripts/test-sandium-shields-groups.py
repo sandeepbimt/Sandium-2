@@ -14,9 +14,14 @@ class Groups(unittest.TestCase):
   root=element.ET.fromstring(out);A=element.A
   def byid(n):return next(e for e in root.iter() if e.get(A+'id')=='@+id/'+n)
   appearance=byid('sandium_appearance_group'); controls=byid('advanced_options_content')
-  self.assertEqual([e.get(A+'id') for e in appearance],['@+id/sandium_dark_pages_button','@+id/sandium_element_colors_button'])
+  self.assertEqual([e.get(A+'id') for e in appearance if e.get(A+'id')],['@+id/sandium_dark_pages_button','@+id/sandium_element_colors_button'])
   self.assertEqual(appearance[0].tag,'androidx.appcompat.widget.SwitchCompat')
-  self.assertEqual([[e.get(A+'id') for e in card] for card in controls],[['@+id/trackers_item','@+id/block_element_item','@+id/clear_blocked_elements_divider','@+id/clear_blocked_elements_button'],['@+id/cookies_item','@+id/shred_data_item']])
+  self.assertEqual([e.get(A+'id') for e in controls[0] if e.get(A+'id')],['@+id/trackers_item','@+id/block_element_item','@+id/clear_blocked_elements_divider','@+id/clear_blocked_elements_button'])
+  self.assertEqual([e.get(A+'id') for e in byid('sandium_cookies_group') if e.get(A+'id')],['@+id/cookies_item','@+id/shred_data_item'])
+  self.assertEqual([root[i].get(A+'id') for i in (1,2,3)],['@+id/advanced_options_content','@+id/sandium_appearance_group','@+id/sandium_cookies_group'])
+  hidden=next(e for e in root if e.get(A+'importantForAccessibility')=='noHideDescendants')
+  self.assertIn(byid('shields_toggle_switch'), list(hidden.iter()))
+  self.assertEqual(byid('sandium_shields_panel_mark').get(A+'src'),'@drawable/sandium_toolbar_mark')
   self.assertEqual(element.layout(dark.layout(out)),out)
   self.assertNotIn(appearance,list(controls)) # appearance works even when Shields off
  def test_toggle_live_binding_not_dialog(self):

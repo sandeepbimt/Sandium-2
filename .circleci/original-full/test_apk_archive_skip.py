@@ -64,15 +64,22 @@ class APKArchiveSkip(unittest.TestCase):
                 self.assertTrue(halted)
                 self.assertIn('large handoff archive skipped', output)
 
-    def test_stage_one_only_reuses_verified_same_revision_apk(self):
+    def test_stage_one_only_reuses_verified_same_workflow_and_revision_apk(self):
         group = next(s['when'] for s in self.steps if isinstance(s, dict)
                      and any(c.get('restore_cache', {}).get('name') ==
-                             'Restore verified APK marker from the same source revision'
+                             'Restore verified APK marker from this workflow and revision'
                              for c in s.get('when', {}).get('steps', [])))
         self.assertEqual(group['condition']['equal'], [1, '<< parameters.stage_index >>'])
         cache, gate = group['steps']
         self.assertEqual(cache['restore_cache']['keys'],
-                         ['sandium-official-apk-complete-v1-{{ .Branch }}-{{ .Revision }}-'])
+                         ['sandium-official-apk-complete-v1-{{ .Branch }}-{{ .Revision }}-'
+                          '{{ .Environment.CIRCLE_WORKFLOW_ID }}-stage-1'])
+        # A fresh workflow for the same revision must not borrow an old
+        # marker and then halt without a marker its own stage 2 can restore.
+        key_template = cache['restore_cache']['keys'][0]
+        old_key = key_template.replace('{{ .Environment.CIRCLE_WORKFLOW_ID }}', 'old-workflow')
+        new_key = key_template.replace('{{ .Environment.CIRCLE_WORKFLOW_ID }}', 'new-workflow')
+        self.assertFalse(old_key.startswith(new_key))
         command = gate['run']['command']
         for marker, expected in [(VALID, True), (None, False),
                                  (dict(VALID, APK_REMOVALS_VALID='false'), False)]:

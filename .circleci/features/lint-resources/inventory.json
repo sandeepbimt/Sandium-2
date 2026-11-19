@@ -7,7 +7,7 @@
     "chromium_pin": "d331de35ca8ab1358c7a17e4bd41627d55eaef51",
     "issue_list_sha256": "e1183d656256fd3990482ec5b5bad2be6422ad0043438f8b90e48f4a27319329",
     "upstream_suppressions_sha256": "830418fc121c84c1588a248885242467f05091a488a1999962ab3d030f1ae8ce",
-    "removal_recipe_sha256": "f2a08557754aebf8ad12a75bc2a8202793631a6d896f9d02028852ef7b795e4a"
+    "removal_recipe_sha256": "4bc38cb7463241c859dd93a81f7e154364f0c3b21aa1f462acce2ea55a8c405a"
   },
   "resources": [
     {

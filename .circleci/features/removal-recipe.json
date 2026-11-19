@@ -386,7 +386,12 @@
     "components/brave_shields/content/browser/domain_block_navigation_throttle.h",
     "components/brave_shields/content/browser/domain_block_navigation_throttle.cc",
     "android/java/org/chromium/chrome/browser/shields/FilterListServiceFactory.java",
-    "browser/brave_shields/android/filter_list_service_factory_android.cc"
+    "browser/brave_shields/android/filter_list_service_factory_android.cc",
+    "android/java/brave-res/layout/brave_trackers_ads_panel.xml",
+    "android/java/brave-res/layout/brave_cookies_panel.xml",
+    "android/java/brave-res/layout/brave_shred_data_panel.xml",
+    "android/java/brave-res/layout/brave_https_upgrade_panel.xml",
+    "android/java/brave-res/layout/brave_report_broken_site_panel.xml"
   ],
   "chromium_restore": [
     "chrome/android/chrome_public_apk_tmpl.gni",
@@ -744,7 +749,12 @@
     "components/brave_shields/content/browser/domain_block_navigation_throttle.h",
     "components/brave_shields/content/browser/domain_block_navigation_throttle.cc",
     "android/java/org/chromium/chrome/browser/shields/FilterListServiceFactory.java",
-    "browser/brave_shields/android/filter_list_service_factory_android.cc"
+    "browser/brave_shields/android/filter_list_service_factory_android.cc",
+    "android/java/brave-res/layout/brave_trackers_ads_panel.xml",
+    "android/java/brave-res/layout/brave_cookies_panel.xml",
+    "android/java/brave-res/layout/brave_shred_data_panel.xml",
+    "android/java/brave-res/layout/brave_https_upgrade_panel.xml",
+    "android/java/brave-res/layout/brave_report_broken_site_panel.xml"
   ],
   "ui_only_chromium_restore": [
     "chrome/browser/ui/android/appmenu/BUILD.gn",

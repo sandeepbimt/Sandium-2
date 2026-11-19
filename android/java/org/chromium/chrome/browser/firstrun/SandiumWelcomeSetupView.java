@@ -231,6 +231,11 @@ final class SandiumWelcomeSetupView {
         mStartButton.setBackgroundTintList(null);
         mStartButton.setBackground(roundRect(
                 mCanStartBrowsing ? START_BUTTON : DISABLED_BUTTON, 28));
+        // Ready Quick Restart only; preparation and both tapped countdowns stay unchanged.
+        if (mCanStartBrowsing && mRequiresRestart) {
+            mStartButton.setBackground(quickRestartFrost());
+            mStartButton.setTextColor(Color.rgb(243, 242, 239));
+        }
         if (mCanStartBrowsing) {
             mStartButton.setText(readyButtonLabel());
             mStartButton.setContentDescription(readyButtonLabel());
@@ -1146,6 +1151,16 @@ final class SandiumWelcomeSetupView {
         if (bold) view.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
         view.setGravity(Gravity.CENTER_VERTICAL);
         return view;
+    }
+
+    private GradientDrawable quickRestartFrost() {
+        // A static smoky graphite finish, not a costly live backdrop-blur effect.
+        GradientDrawable drawable = new GradientDrawable(
+                GradientDrawable.Orientation.TOP_BOTTOM,
+                new int[] {Color.rgb(57, 57, 59), Color.rgb(37, 37, 39)});
+        drawable.setCornerRadius(dp(28));
+        drawable.setStroke(dp(1), Color.rgb(87, 87, 90));
+        return drawable;
     }
 
     private GradientDrawable roundRect(int color, int radiusDp) {

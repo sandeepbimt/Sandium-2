@@ -340,9 +340,13 @@ with tempfile.TemporaryDirectory() as temporary:
   assert set(planned).issubset(whole_plan)
   assert src/holder.DELEGATE in whole_plan and src/holder.TAB in whole_plan
   assert snapshot()==whole_before
+  fallback=feature_module('single_handoff_destination_fallback','experiments/single-handoff/destination_fallback.py')
+  assert src/fallback.PATH in whole_plan
   for path,text in whole_plan.items():
    relative=str(path.relative_to(src))
    expected=planned[path].encode() if path in planned else unified_before[relative]
+   if relative==fallback.PATH:
+    expected=fallback.transform(expected.decode()).encode()
    assert text.encode()==expected,relative
   print('DORMANT_WHOLE_CANDIDATE_REAL_NATIVE_BASELINE_EQUIVALENCE=PASS')
   for relative,data in candidate_before.items():assert (src/relative).read_bytes()==data,relative

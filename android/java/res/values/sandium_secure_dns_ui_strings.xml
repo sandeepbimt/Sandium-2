@@ -5,7 +5,6 @@
     <string name="sandium_dns_ui_off_hint">Off uses your device’s DNS</string>
     <string name="sandium_dns_ui_off">Off</string>
     <string name="sandium_dns_ui_loading">Loading…</string>
-    <string name="sandium_dns_ui_manage">Manage providers in Settings ›</string>
     <string name="sandium_dns_ui_selected">Secure DNS: %1$s. Choose provider.</string>
     <string name="sandium_dns_ui_failed">Secure DNS could not be changed. Check Settings.</string>
     <string name="sandium_dns_ui_picker_label">%1$s ▾</string>

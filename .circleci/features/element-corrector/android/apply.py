@@ -48,29 +48,60 @@ def layout(text):
  root.insert(3,view);ET.indent(root,space='    ')
  return regroup(text[:text.index('<LinearLayout')]+ET.tostring(root,encoding='unicode')+'\n')
 def regroup(text):
+ # Final layout pass after Dark Pages exists. Preserve handler IDs and policies.
  root=ET.fromstring(text)
+ nodes={e.get(A+'id'):e for e in root.iter() if e.get(A+'id')}
  def node(name):
-  return next(e for e in root.iter() if e.get(A+'id')=='@+id/'+name)
+  return nodes['@+id/'+name]
  def detach(e):
   for parent in root.iter():
    if e in list(parent):parent.remove(e);return e
+ def attrs(e, **values):
+  for k,v in values.items():e.set(A+k,v)
+  return e
  appearance=[detach(node(n)) for n in ('sandium_dark_pages_button','sandium_element_colors_button')]
  controls=node('advanced_options_content')
- privacy=[detach(node(n)) for n in ('trackers_item','block_element_item','clear_blocked_elements_divider','clear_blocked_elements_button')]
+ privacy=[detach(node(n)) for n in ('trackers_item','block_element_item','clear_blocked_elements_button')]
  data=[detach(node(n)) for n in ('cookies_item','shred_data_item')]
+ divider=detach(node('clear_blocked_elements_divider'))
+ footer=detach(node('block_count_text'))
+ detach(controls)
+ hidden=next(e for e in root if e.get(A+'importantForAccessibility')=='noHideDescendants')
+ # Retain the upstream site header for existing Java references, but remove it
+ # from the displayed panel and accessibility tree. No master setting is written.
  for e in list(root):
-  if e.get(A+'id')=='@+id/sandium_appearance_group':root.remove(e)
- for e in list(controls):controls.remove(e)
- def card(children):
-  c=ET.Element('LinearLayout')
-  for k,v in {'layout_width':'match_parent','layout_height':'wrap_content','orientation':'vertical','layout_marginTop':'10dp','background':'@drawable/advanced_options_bg','clipToOutline':'true'}.items():c.set(A+k,v)
-  for e in children:
-   if e in appearance:
-    e.attrib.pop(A+'background',None);e.attrib.pop(A+'layout_marginTop',None)
+  if any(n.get(A+'id')=='@+id/shields_toggle_switch' for n in e.iter()):
+   if e is not hidden:
+    root.remove(e);hidden.append(e)
+ title=next(e for e in root.iter() if e.get(A+'text')=='@string/sandium_shields_title')
+ detach(title)
+ for e in list(root):
+  if e is not hidden:root.remove(e)
+ attrs(root,padding='12dp')
+ header=attrs(ET.Element('LinearLayout'),layout_width='match_parent',layout_height='wrap_content',minHeight='48dp',orientation='horizontal',gravity='center_vertical')
+ attrs(title,layout_width='0dp',layout_weight='1',layout_height='wrap_content',textSize='20sp',paddingStart='8dp',paddingEnd='8dp')
+ header.append(title)
+ mark=attrs(ET.SubElement(header,'ImageView'),id='@+id/sandium_shields_panel_mark',layout_width='36dp',layout_height='40dp',layout_marginEnd='8dp',src='@drawable/sandium_toolbar_mark',scaleType='fitCenter',importantForAccessibility='no',clickable='false',focusable='false')
+ root.insert(0,header)
+ def separator(existing=None):
+  return attrs(existing if existing is not None else ET.Element('View'),layout_width='match_parent',layout_height='1dp',layout_marginStart='16dp',layout_marginEnd='16dp',background='#18F5F5F5',importantForAccessibility='no')
+ def card(children, name):
+  c=attrs(ET.Element('LinearLayout'),id='@+id/'+name,layout_width='match_parent',layout_height='wrap_content',orientation='vertical',layout_marginTop='8dp',background='@drawable/advanced_options_bg',clipToOutline='true')
+  for i,e in enumerate(children):
+   if i:c.append(separator(divider if e is privacy[-1] else None))
+   for k in ('background','layout_marginTop'):e.attrib.pop(A+k,None)
+   attrs(e,minHeight='48dp',paddingTop='4dp',paddingBottom='4dp')
+   e.attrib.pop(A+'paddingVertical',None)
    c.append(e)
   return c
- c=card(appearance);c.set(A+'id','@+id/sandium_appearance_group');root.insert(2,c)
- controls.append(card(privacy));controls.append(card(data))
+ for e in list(controls):controls.remove(e)
+ attrs(controls,visibility='visible',layout_height='wrap_content')
+ controls.append(card(privacy,'sandium_ads_group'))
+ root.insert(1,controls)
+ root.insert(2,card(appearance,'sandium_appearance_group'))
+ root.insert(3,card(data,'sandium_cookies_group'))
+ attrs(footer,paddingTop='8dp',paddingBottom='0dp',background='@android:color/transparent')
+ root.insert(4,footer)
  ET.indent(root,space='    ')
  return text[:text.index('<LinearLayout')]+ET.tostring(root,encoding='unicode')+'\n'
 def blocking_settings_xml(text):

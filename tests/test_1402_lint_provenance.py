@@ -15,6 +15,8 @@ OWNERS = [
     'chrome/browser/notifications/android/java/src/org/chromium/chrome/browser/notifications/permissions/NotificationPermissionController.java',
     'chrome/android/java/src/org/chromium/chrome/browser/tabbed_mode/TabbedRootUiCoordinator.java',
 ]
+SHIELDS_DETAIL_OWNERS = ['android/java/brave-res/layout/brave_trackers_ads_panel.xml', 'android/java/brave-res/layout/brave_cookies_panel.xml', 'android/java/brave-res/layout/brave_shred_data_panel.xml', 'android/java/brave-res/layout/brave_https_upgrade_panel.xml', 'android/java/brave-res/layout/brave_report_broken_site_panel.xml']
+CURRENT_RECIPE_SHA256 = '4bc38cb7463241c859dd93a81f7e154364f0c3b21aa1f462acce2ea55a8c405a'
 PATCH = 'patches/chrome-android-java-src-org-chromium-chrome-browser-tabbed_mode-TabbedRootUiCoordinator.java.patch'
 
 class ResetOnlyLintProvenance(unittest.TestCase):
@@ -25,14 +27,17 @@ class ResetOnlyLintProvenance(unittest.TestCase):
         old = gzip.decompress((FIXTURE / 'old-removal-recipe.json.gz').read_bytes())
         new = (ROOT / '.circleci/features/removal-recipe.json').read_bytes()
         self.assertEqual(sha(old), self.proof['old_recipe_sha256'])
-        self.assertEqual(sha(new), self.proof['new_recipe_sha256'])
+        self.assertEqual(sha(new), CURRENT_RECIPE_SHA256)
         expected = json.loads(old)
         for key in ('chromium_restore', 'ui_only_chromium_restore'):
             self.assertTrue(all(p not in expected[key] for p in OWNERS))
             expected[key].extend(OWNERS)
         self.assertNotIn(OWNERS[1], expected['chromium_restore_patches'])
         expected['chromium_restore_patches'][OWNERS[1]] = PATCH
-        self.assertEqual(json.loads(new), expected)  # Includes all groups, steps and resources.
+        for key in ('core_restore', 'ui_only_core_restore'):
+            self.assertTrue(all(path not in expected[key] for path in SHIELDS_DETAIL_OWNERS))
+            expected[key].extend(SHIELDS_DETAIL_OWNERS)
+        self.assertEqual(json.loads(new), expected)  # Includes every group, step and resource.
 
     def test_all_historical_evidence_and_rows_byte_reconstruct(self):
         for name, proof in self.proof['inventories'].items():
@@ -53,7 +58,7 @@ class ResetOnlyLintProvenance(unittest.TestCase):
                 self.assertEqual(sha(json.dumps(content, sort_keys=True, separators=(',', ':')).encode()),
                                  proof['content_without_provenance_sha256'])
                 expected = dict(proof['provenance'])
-                expected['removal_recipe_sha256'] = self.proof['new_recipe_sha256']
+                expected['removal_recipe_sha256'] = CURRENT_RECIPE_SHA256
                 if name == 'inventory-1401.json':
                     expected['base_inventory_sha256'] = sha((DATA / 'inventory.json').read_bytes())
                 self.assertEqual(data['provenance'], expected)

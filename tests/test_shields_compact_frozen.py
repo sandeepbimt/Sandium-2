@@ -1,0 +1,57 @@
+"""Frozen compact Shields order, real tracer reuse and shipping DNS lint contract."""
+import ast,gzip,importlib.util,json,re,subprocess,sys,tempfile,unittest
+from pathlib import Path
+R=Path(__file__).resolve().parents[1]
+def load(name,path):
+ s=importlib.util.spec_from_file_location(name,R/path);m=importlib.util.module_from_spec(s);s.loader.exec_module(m);return m
+p=load('compact_popup','.circleci/scripts/apply-sandium-shields-popup.py')
+e=load('compact_element','.circleci/features/element-corrector/android/apply.py')
+d=load('compact_dark','.circleci/scripts/apply-sandium-dark-pages.py')
+class Compact(unittest.TestCase):
+ def test_final_order_and_hidden_master_without_policy_mutation(self):
+  base=(R/'tests/fixtures/dark-pages/brave'/p.LAYOUT).read_text()
+  out=e.layout(d.layout(p.layout(base)))
+  self.assertEqual(out,e.layout(d.layout(p.layout(out))))
+  p.validate_layout(out)
+  root=e.ET.fromstring(out);A=e.A
+  self.assertEqual([root[i].get(A+'id') for i in (1,2,3,4)],['@+id/advanced_options_content','@+id/sandium_appearance_group','@+id/sandium_cookies_group','@+id/block_count_text'])
+  self.assertEqual(root[-1].get(A+'visibility'),'gone')
+  self.assertTrue(any(n.get(A+'id')=='@+id/shields_toggle_switch' for n in root[-1].iter()))
+  for card in (root[1][0],root[2],root[3]):
+   self.assertTrue(any(n.get(A+'background')=='#18F5F5F5' for n in card))
+  self.assertEqual(root[4].get(A+'background'),'@android:color/transparent')
+ def test_handler_reuses_toolbar_tracer_and_preserves_actions(self):
+  base=(R/'tests/fixtures/dark-pages/brave'/p.JAVA).read_text()
+  source=p.java(base);out=p.dns_ui(source)
+  self.assertEqual(out,p.dns_ui(out))
+  expected=next(n.value for n in ast.walk(ast.parse((R/'.circleci/scripts/apply-sandium-branding-refresh.py').read_text())) if isinstance(n,ast.Constant) and isinstance(n.value,str) and 'private static final class SandiumShieldsTracer' in n.value)
+  self.assertIn(expected,out)
+  self.assertIn('popupView.findViewById(R.id.shields_content_container)',out)
+  self.assertIn('panel.addView(dns, panel.getChildCount() - 2, dnsParams)',out)
+  for control in ('cookies_item','shred_data_item'):
+   self.assertIn('((View) mAdvancedOptionsContent.getParent()).findViewById(R.id.'+control+')',out)
+  for write in ('setShieldsValue(', 'setShields(', 'setShieldsEnabled('):
+   self.assertEqual(source.count(write),out.count(write))
+ def test_shipping_dns_resource_and_settings_management(self):
+  adapter=load('compact_dns','experiments/secure-dns/adapter.py')
+  fixture=json.loads(gzip.decompress((R/'experiments/secure-dns/fixtures/pinned.json.gz').read_bytes()))
+  with tempfile.TemporaryDirectory() as td:
+   root=Path(td)
+   for path,item in fixture['files'].items():
+    q=root/path;q.parent.mkdir(parents=True,exist_ok=True);q.write_text(item['source'])
+   outputs=adapter.plan(root)
+   ui=outputs[root/adapter.PACKAGE/'SandiumSecureDnsDropdown.java']
+   strings=outputs[root/'chrome/browser/privacy/java/res/values/sandium_secure_dns_ui_strings.xml']
+   self.assertNotIn('sandium_dns_ui_manage',strings+ui)
+   self.assertNotIn('openSettings(',ui)
+   self.assertIn('showGlobalNote ? R.string.sandium_dns_ui_global',ui)
+   defined=set(re.findall(r'<string name="([^"]+)"',strings))
+   refs=set(re.findall(r'R.string.(sandium_dns_ui_\w+)',ui))
+   self.assertEqual(defined,refs)
+   settings=outputs[root/adapter.SETTINGS]
+   self.assertEqual(settings,(R/'experiments/secure-dns/java/SecureDnsSettings.java').read_text())
+   self.assertIn('SandiumSecureDns.saveCustom(',settings)
+ def test_group_contract_suite(self):
+  result=subprocess.run([sys.executable,str(R/'.circleci/scripts/test-sandium-shields-groups.py')],capture_output=True,text=True)
+  self.assertEqual(result.returncode,0,result.stdout+result.stderr)
+if __name__=='__main__':unittest.main()

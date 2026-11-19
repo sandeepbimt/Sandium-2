@@ -7,14 +7,14 @@
     ".circleci/scripts/apply-sandium-native-theme.py": "c63eefddc4ba6a167850e2f358c3383427f12c8094e79e8631be269bd6159931",
     ".circleci/scripts/apply-sandium-paged-menu.py": "edbcfa86e2ca01f1666ff514efb70749107f5eb7bf2baeec0ac20edecdffb655",
     ".circleci/scripts/apply-sandium-scroll-status-bar.py": "e03c353c2b80cfa22969c26cce3ab9845b485fa5e36e476a133b7662bb6f69ae",
-    ".circleci/scripts/apply-sandium-shields-popup.py": "eaca25aec6ba08e28775815c112f8446f87dd49630da98bd86ea78770f2c078d",
+    ".circleci/scripts/apply-sandium-shields-popup.py": "2377f538845852ced5892eeb7fb9df6292f7157a8a4c8e044a3df060b61b657c",
     ".circleci/scripts/test-sandium-bottom-toolbar.py": "40e3750bb0bdc4e97b9c13e306406fffbc65d5b146f1ba526748cdce8152bb24",
     ".circleci/scripts/test-sandium-chrome-theme.py": "d9443c1ab2e17e2319b2df23af0e61ef2fd70b030450175a39eac53a8a4f3958",
     ".circleci/scripts/test-sandium-motion.py": "f548a6e41de9eb4890f722e4dea02f0f2f4b80ff927de94aa97bc8055378ae64",
     ".circleci/scripts/test-sandium-native-theme.py": "df0c2baa1273ec3cf4110f6f2a2eb9054aef7fe2a7032ac445f5b16a28031e6e",
     ".circleci/scripts/test-sandium-paged-menu.py": "15359f36203499ab68c097a1cfbfa3d1827aedf32d84b80df5f83aa0ca805724",
     ".circleci/scripts/test-sandium-shields-popup.py": "49ea362d9b0322c77f02356d457bbc3efed8053ca878d261468ca614f3049de0",
-    "android/java/org/chromium/chrome/browser/firstrun/SandiumWelcomeSetupView.java": "cdeb34d0171d58d00d94a3c4adb10a6419b29dccf44c956128b73507f293bf4a",
+    "android/java/org/chromium/chrome/browser/firstrun/SandiumWelcomeSetupView.java": "00bfa250ec68e67f73ec75636f3804bc9c12c70c6f08942d532cedbdcc780d10",
     "android/java/org/chromium/chrome/browser/ui/appmenu/SandiumMenuMetadata.java": "9d521d9777fdb53608ca2927e16e497198e3d393f938984cb70212f52b6f9d1a",
     "android/java/org/chromium/chrome/browser/ui/appmenu/SandiumMenuState.java": "e3902c0a3673fc3ba368f980cccb4101da565440e2d44a95310a2bad49283d05",
     "android/java/org/chromium/chrome/browser/ui/appmenu/SandiumPagedMenu.java": "07e9b8fc1e70ed3e9710da468cad4d23820653d7084da9455c3a7f13e2a6ed2e",
@@ -534,6 +534,15 @@
           "current_sha256": "cdeb34d0171d58d00d94a3c4adb10a6419b29dccf44c956128b73507f293bf4a"
         }
       }
+    },
+    {
+      "reason": "Frozen Nov19 full-size graphite frost Quick Restart styling, ready restart only; preserve preparing, Start browsing and pressed countdown palettes/behavior.",
+      "changes": {
+        "android/java/org/chromium/chrome/browser/firstrun/SandiumWelcomeSetupView.java": {
+          "previous_sha256": "cdeb34d0171d58d00d94a3c4adb10a6419b29dccf44c956128b73507f293bf4a",
+          "current_sha256": "00bfa250ec68e67f73ec75636f3804bc9c12c70c6f08942d532cedbdcc780d10"
+        }
+      }
     }
   ],
   "welcome_nov16": "Owner requested compact welcome, hidden scrollbars, green progress/checks, toolbar tracer and one-second restart feedback; lifecycle/copy constraints preserved.",
@@ -556,6 +565,14 @@
           "current_sha256": "07e9b8fc1e70ed3e9710da468cad4d23820653d7084da9455c3a7f13e2a6ed2e"
         }
       }
+    }
+  ],
+  "compact_shields_nov19": [
+    {
+      "reason": "Owner-approved compact card order and genuine toolbar tracer; no policy changes",
+      "path": ".circleci/scripts/apply-sandium-shields-popup.py",
+      "previous_sha256": "eaca25aec6ba08e28775815c112f8446f87dd49630da98bd86ea78770f2c078d",
+      "current_sha256": "2377f538845852ced5892eeb7fb9df6292f7157a8a4c8e044a3df060b61b657c"
     }
   ]
 }

@@ -11,14 +11,14 @@ JAVA=ROOT/'android/java/org/chromium/chrome/browser/privacy/secure_dns/SandiumSe
 class CompactDnsUi(unittest.TestCase):
  def test_no_parallel_state_or_per_site_resolver(self):
   s=JAVA.read_text()
-  for api in ['SandiumSecureDns.getState()', 'SandiumSecureDns.getProviders()', 'SandiumSecureDns.setEnabled(false)', 'SandiumSecureDns.selectProvider(', 'SandiumSecureDns.isReady()', 'SandiumSecureDns.isManaged()', 'SandiumSecureDns.openSettings(']: self.assertIn(api,s)
+  for api in ['SandiumSecureDns.getState()', 'SandiumSecureDns.getProviders()', 'SandiumSecureDns.setEnabled(false)', 'SandiumSecureDns.selectProvider(', 'SandiumSecureDns.isReady()', 'SandiumSecureDns.isManaged()']: self.assertIn(api,s)
   for forbidden in ['SharedPreferences','putBoolean','HttpURLConnection','setDns','mProfile','postDelayed']: self.assertNotIn(forbidden,s)
   self.assertIn('popup.getMenu().setGroupCheckable(0, true, true)',s)
   self.assertIn('mPopup.dismiss()',s)
  def test_shields_migrates_existing_grouped_input(self):
   spec=importlib.util.spec_from_file_location('popup', ROOT/'.circleci/scripts/apply-sandium-shields-popup.py')
   m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m)
-  old='        setupAdvancedOptionsListeners();\n        applySandiumPopupVisibility();'
+  old='class Handler {\n        setupAdvancedOptionsListeners();\n        applySandiumPopupVisibility();\n}'
   new=m.dns_ui(old)
   self.assertEqual(new,m.dns_ui(new))
   self.assertEqual(new.count('new org.chromium.chrome.browser.privacy.secure_dns.SandiumSecureDnsDropdown'),1)
@@ -49,7 +49,7 @@ class CompactDnsUi(unittest.TestCase):
   self.assertIn('mWelcomeChevron.setText("▾")',s)
   self.assertIn('mWelcomeStyle ? selected',s)
   self.assertIn('mButton.setContentDescription',s)
-  self.assertIn('dp(136), dp(48)',s) # Shields keeps its existing variant.
+  self.assertIn('dp(112), dp(48)',s) # Compact Shields retains a full-height touch target.
  def test_android_api_compilation(self):
   jar=Path(os.environ.get('RAWS_ANDROID_API_JAR','/workspace/shared/raws-api/android15.jar'))
   if not jar.exists(): self.skipTest('Android SDK API jar unavailable')

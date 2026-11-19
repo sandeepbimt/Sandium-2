@@ -172,9 +172,49 @@ def java(text):
     return text
 
 
+def compact_brand_java(text):
+    # Reuse the exact address-bar drawable implementation and real packaged mark.
+    # Its attach/focus/visibility listeners stop animation when the popup closes.
+    import ast
+    script = Path(__file__).with_name('apply-sandium-branding-refresh.py').read_text()
+    candidates = [n.value for n in ast.walk(ast.parse(script))
+                  if isinstance(n, ast.Constant) and isinstance(n.value, str)
+                  and 'private static final class SandiumShieldsTracer' in n.value]
+    if len(candidates) != 1:
+        raise ValueError('Expected exact shared toolbar tracer implementation')
+    tracer = candidates[0]
+    if 'private static final class SandiumShieldsTracer' not in text:
+        end = text.rfind('}')
+        if end < 0:
+            raise ValueError('Missing Shields handler class boundary')
+        text = text[:end] + tracer + text[end:]
+    entry = """        // SANDIUM_COMPACT_SHIELDS_MARK: decorative identity, never a policy toggle.
+        android.widget.ImageView sandiumPanelMark =
+                popupView.findViewById(R.id.sandium_shields_panel_mark);
+        if (sandiumPanelMark != null) {
+            SandiumShieldsTracer tracer = new SandiumShieldsTracer(sandiumPanelMark);
+            sandiumPanelMark.setImageDrawable(tracer);
+            tracer.setEnabled(true);
+        }
+"""
+    if entry not in text:
+        text = once(text, '        setupAdvancedOptionsListeners();',
+                    entry + '        setupAdvancedOptionsListeners();')
+    return text
+
+
 def dns_ui(text):
+    text = compact_brand_java(text)
+    # Cookie/data cards are root siblings so Dark Pages stays outside site controls.
+    for control in ('cookies_item', 'shred_data_item'):
+        text = text.replace('mAdvancedOptionsContent.findViewById(R.id.' + control + ')',
+                            '((View) mAdvancedOptionsContent.getParent()).findViewById(R.id.' + control + ')')
     marker = '// SANDIUM_SECURE_DNS_GLOBAL_UI'
     if marker in text:
+        # Upgrade old checkpoint placement: DNS follows all three XML cards.
+        text = text.replace('            mAdvancedOptionsContent.addView(dns, dnsParams);',
+                            '            android.widget.LinearLayout panel = popupView.findViewById(R.id.shields_content_container);\n'
+                            '            panel.addView(dns, panel.getChildCount() - 2, dnsParams);')
         return text
     anchor = '        setupAdvancedOptionsListeners();'
     return once(text, anchor, anchor + """
@@ -188,8 +228,9 @@ def dns_ui(text):
                     new android.widget.LinearLayout.LayoutParams(
                             android.view.ViewGroup.LayoutParams.MATCH_PARENT,
                             android.view.ViewGroup.LayoutParams.WRAP_CONTENT);
-            dnsParams.topMargin = Math.round(10 * context.getResources().getDisplayMetrics().density);
-            mAdvancedOptionsContent.addView(dns, dnsParams);
+            dnsParams.topMargin = Math.round(8 * context.getResources().getDisplayMetrics().density);
+            android.widget.LinearLayout panel = popupView.findViewById(R.id.shields_content_container);
+            panel.addView(dns, panel.getChildCount() - 2, dnsParams);
         }""")
 
 
@@ -235,7 +276,10 @@ def validate_layout(text):
             if e.get(A+'visibility') == 'gone': return True
             e = parents.get(e)
         return False
-    for n in ['trackers_item','cookies_item','block_element_item','clear_blocked_elements_button','shred_data_item','shields_toggle_switch','block_count_text']:
+    compact = 'sandium_shields_panel_mark' in nodes
+    if compact and ('shields_toggle_switch' not in nodes or not hidden(nodes['shields_toggle_switch'])):
+        raise ValueError('Compact Shields master header must remain hidden')
+    for n in ['trackers_item','cookies_item','block_element_item','clear_blocked_elements_button','shred_data_item','block_count_text'] + ([] if compact else ['shields_toggle_switch']):
         if n not in nodes or hidden(nodes[n]): raise ValueError('Missing visible control: '+n)
     for n in ['https_upgrade_item','scripts_toggle','fingerprinting_toggle','global_settings_item','shields_warning_section','advanced_options_button','block_count_number']:
         if n not in nodes or not hidden(nodes[n]): raise ValueError('Unexpected visible control: '+n)
@@ -291,6 +335,11 @@ def apply(core):
         if 'android:color="'+new+'"' not in s:
             s = once(s, 'android:color="'+old+'"', 'android:color="'+new+'"')
         changes[p] = raised_panel(s) if 'unified_panel_background' in path else s
+    import importlib.util
+    spec = importlib.util.spec_from_file_location('detail_rim', Path(__file__).with_name('sandium-shields-detail-rim.py'))
+    rim = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(rim)
+    changes.update(rim.plan(core))
     validate_layout(changes[core/LAYOUT])
     if '%1$s' not in changes[core/STRINGS]: raise ValueError('Android string format missing')
     for p,s in changes.items():

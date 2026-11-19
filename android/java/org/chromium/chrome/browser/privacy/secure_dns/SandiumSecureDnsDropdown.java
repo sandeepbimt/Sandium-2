@@ -21,7 +21,6 @@ public final class SandiumSecureDnsDropdown extends LinearLayout {
     private final TextView mTitle;
     private final TextView mNote;
     private final TextView mChoice;
-    private final TextView mManage;
     private final View mButton;
     private final boolean mWelcomeStyle;
     private TextView mWelcomeIcon;
@@ -90,7 +89,7 @@ public final class SandiumSecureDnsDropdown extends LinearLayout {
             mButton = selector;
         } else {
             mChoice.setPaddingRelative(dp(10), 0, dp(10), 0);
-            LayoutParams choiceParams = new LayoutParams(dp(136), dp(48));
+            LayoutParams choiceParams = new LayoutParams(dp(112), dp(48));
             choiceParams.setMarginStart(dp(8));
             row.addView(mChoice, choiceParams);
             mButton = mChoice;
@@ -101,21 +100,12 @@ public final class SandiumSecureDnsDropdown extends LinearLayout {
         mButton.setFocusable(true);
         mButton.setOnClickListener(view -> showChoices());
         addView(row, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT));
-        mManage = label(R.string.sandium_dns_ui_manage, 12);
-        mManage.setTextColor(SemanticColorUtils.getColorPrimary(getContext()));
-        mManage.setGravity(Gravity.CENTER_VERTICAL);
-        mManage.setMinHeight(dp(48));
-        mManage.setFocusable(true);
-        mManage.setOnClickListener(view -> SandiumSecureDns.openSettings(context));
-        // Provider creation belongs only to Settings, not either compact dropdown.
-        if (showGlobalNote) addView(mManage);
         refresh();
     }
 
     /** Welcome owns an explicitly dark palette even before the app theme is selected. */
     public void setColors(int text, int secondary, int surface, int accent) {
         mTitle.setTextColor(text); mNote.setTextColor(secondary); mChoice.setTextColor(text);
-        mManage.setTextColor(accent);
         if (mWelcomeIcon != null) mWelcomeIcon.setTextColor(accent);
         if (mWelcomeChevron != null) mWelcomeChevron.setTextColor(accent);
         paintPill(surface, accent);
@@ -138,7 +128,6 @@ public final class SandiumSecureDnsDropdown extends LinearLayout {
     private void refresh() {
         boolean ready = mNativeStartupComplete && SandiumSecureDns.isReady();
         mButton.setEnabled(ready && !SandiumSecureDns.isManaged());
-        mManage.setEnabled(ready);
         mButton.setAlpha(mButton.isEnabled() ? 1f : 0.5f);
         if (!ready) {
             mChoice.setText(R.string.sandium_dns_ui_loading);
