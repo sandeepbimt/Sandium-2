@@ -38,6 +38,18 @@ class CompactDnsUi(unittest.TestCase):
   self.assertEqual(card.count('mAdvancedOptions.addView(mSecureDns, matchWrap());'),1)
   self.assertIn('mAdvancedOptions.setVisibility(mExpanded ? View.VISIBLE : View.GONE);',card)
   self.assertIn('else mScrollView.post(() -> mScrollView.scrollTo(0, 0));',card)
+ def test_welcome_dns_matches_transition_blur_picker_geometry(self):
+  s=JAVA.read_text()
+  welcome=(ROOT/'android/java/org/chromium/chrome/browser/firstrun/SandiumWelcomeSetupView.java').read_text()
+  blur=welcome.split('private void addBlurRow(',1)[1].split('private Switch addSwitchRow(',1)[0]
+  for geometry in ['dp(112), dp(40)', 'dp(38), dp(38)', 'dp(16), dp(38)', 'dp(6), 0, dp(8), 0']:
+   self.assertIn(geometry,blur)
+   self.assertIn(geometry,s)
+  self.assertIn('row.setPaddingRelative(dp(16), dp(7), dp(14), dp(7))',s)
+  self.assertIn('mWelcomeChevron.setText("▾")',s)
+  self.assertIn('mWelcomeStyle ? selected',s)
+  self.assertIn('mButton.setContentDescription',s)
+  self.assertIn('dp(136), dp(48)',s) # Shields keeps its existing variant.
  def test_android_api_compilation(self):
   jar=Path(os.environ.get('RAWS_ANDROID_API_JAR','/workspace/shared/raws-api/android15.jar'))
   if not jar.exists(): self.skipTest('Android SDK API jar unavailable')
