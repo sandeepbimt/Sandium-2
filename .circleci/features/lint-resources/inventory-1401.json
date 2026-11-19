@@ -8,7 +8,7 @@
     "chromium_pin": "d331de35ca8ab1358c7a17e4bd41627d55eaef51",
     "log_sha256": "70d0202a8aae974f9f35935751929715cb856342ed31ab2a5dd7b989c409ed9d",
     "removal_recipe_sha256": "f2a08557754aebf8ad12a75bc2a8202793631a6d896f9d02028852ef7b795e4a",
-    "base_inventory_sha256": "6b152e9919bdc07198ab733c5aca173825e524459da58a6f1f1003870b14e761",
+    "base_inventory_sha256": "a74d39ba47088c73e8cf9dc9fd0cffea598d75109d4aeb3b4ce96dc505917d0b",
     "composed_source_list_sha256": "5f1607861039443ba53f44327f2020a2f320ad7414bc712fca4fdf278a6c724d"
   },
   "pinned_files": {
