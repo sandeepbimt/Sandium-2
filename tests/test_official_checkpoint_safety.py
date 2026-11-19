@@ -28,11 +28,19 @@ class Safety(unittest.TestCase):
     else:p.unlink();p.symlink_to(r/'brave-work/.gclient')
     with self.assertRaises((ValueError,SystemExit)):m.reclaim(r)
     self.assertTrue((d/'shard-02-of-08.tar.zst').exists())
- def test_budget(self):
-  self.assertEqual(m.budget(100,100+1136,1),720)
+ def test_stage_one_full_budget_and_handoff_reserve(self):
+  self.assertEqual(m.budget(100,100+13*60+23,1),1500)
+  self.assertEqual(m.budget(100,100+17*60,1),1500)
+  # Measured #1416 setup: 18m17s before the compile began.
+  self.assertEqual(m.budget(100,100+18*60+17,1),23*60+43)
+  self.assertEqual(m.budget(100,100+41*60,1),60)
+  with self.assertRaises(ValueError):m.budget(100,100+41*60+1,1)
+ def test_later_stage_budgets_unchanged(self):
   self.assertEqual(m.budget(100,100+600,2),1320)
   self.assertEqual(m.budget(100,100,2),1500)
-  with self.assertRaises(ValueError):m.budget(100,100+1900,1)
+  for stage in range(2,6):
+   self.assertEqual(m.budget(100,100+1136,stage),784)
+   with self.assertRaises(ValueError):m.budget(100,100+1900,stage)
  def test_space_floor(self):
   with patch.object(m.subprocess,'check_output',return_value=str(70*1024**3)+' workspace'),patch.object(m.shutil,'disk_usage',return_value=type('Disk',(),{'free':30*1024**3})()):
    with self.assertRaises(ValueError):m.space(Path('/tmp'))

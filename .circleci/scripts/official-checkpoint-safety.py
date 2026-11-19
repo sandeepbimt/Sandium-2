@@ -13,11 +13,14 @@ import time
 
 
 def budget(start, now, stage):
-    # 60m job ceiling; 28m reserved for termination, validation, archive,
-    # cache upload and safety. First-stage ceiling is 12m until measured.
+    # Same-pin normal Full Stage 1: default to a 25m compile. Only shorten
+    # it when setup ran long enough to encroach on the handoff reserve.
+    # The matching #1402 archive took 16m14s end to end; retain 18m for
+    # termination, validation, packing and upload. Later stages are unchanged.
     if start <= 0 or now < start:
         raise ValueError('invalid job-start clock')
-    seconds = min(720 if stage == 1 else 1500, 3600 - (now-start) - 1680)
+    reserve = 1080 if stage == 1 else 1680
+    seconds = min(1500, 3600 - (now-start) - reserve)
     if seconds < 60:
         raise ValueError('insufficient whole-job time for safe compile and archive')
     return seconds
