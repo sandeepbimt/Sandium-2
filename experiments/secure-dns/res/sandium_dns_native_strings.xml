@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+<string name="sandium_dns_managed">Controlled by your administrator or device settings</string>
+<string name="sandium_dns_provider">Provider</string>
+<string name="sandium_dns_add">Add provider</string>
+<string name="sandium_dns_name">Provider name</string>
+<string name="sandium_dns_endpoint">HTTPS DNS-over-HTTPS URL</string>
+<string name="sandium_dns_save">Save</string>
+<string name="sandium_dns_test">Test</string>
+<string name="sandium_dns_remove">Remove saved provider</string>
+<string name="sandium_dns_remove_note">Remove this saved entry? The active DNS configuration will not change.</string>
+<string name="sandium_dns_test_note">Test sends a DNS probe to this provider. Saving does not activate it.</string>
+<string name="sandium_dns_invalid">Enter a name and valid, unique HTTPS DNS-over-HTTPS URL.</string>
+<string name="sandium_dns_testing">Testing provider…</string>
+<string name="sandium_dns_test_ok">Provider responded. This does not guarantee faster page loading.</string>
+<string name="sandium_dns_test_fail">Provider did not respond. Check the URL or your network.</string>
+<string name="sandium_dns_explanation">Applies to all sites in Sandium. A selected provider encrypts DNS requests without falling back to insecure DNS. Automatic may fall back. Quad9 blocks known malicious domains. DNS does not block all ads or speed up every page. Android Private DNS is not changed.</string>
+</resources>

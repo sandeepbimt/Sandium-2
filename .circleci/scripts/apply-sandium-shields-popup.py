@@ -172,6 +172,27 @@ def java(text):
     return text
 
 
+def dns_ui(text):
+    marker = '// SANDIUM_SECURE_DNS_GLOBAL_UI'
+    if marker in text:
+        return text
+    anchor = '        setupAdvancedOptionsListeners();'
+    return once(text, anchor, anchor + """
+        // SANDIUM_SECURE_DNS_GLOBAL_UI: independent of this site's Shields toggle.
+        if (mAdvancedOptionsContent != null) {
+            org.chromium.chrome.browser.privacy.secure_dns.SandiumSecureDnsDropdown dns =
+                    new org.chromium.chrome.browser.privacy.secure_dns.SandiumSecureDnsDropdown(
+                            context, true);
+            dns.setBackgroundResource(R.drawable.advanced_options_bg);
+            android.widget.LinearLayout.LayoutParams dnsParams =
+                    new android.widget.LinearLayout.LayoutParams(
+                            android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                            android.view.ViewGroup.LayoutParams.WRAP_CONTENT);
+            dnsParams.topMargin = Math.round(10 * context.getResources().getDisplayMetrics().density);
+            mAdvancedOptionsContent.addView(dns, dnsParams);
+        }""")
+
+
 def strings(text):
     if 'name="IDS_SANDIUM_SHIELDS_TITLE"' in text:
         return text
@@ -253,7 +274,7 @@ def apply(core):
     if sha != PIN:
         raise ValueError('Wrong Brave source pin: '+sha)
     changes = {core/LAYOUT:layout((core/LAYOUT).read_text()),
-               core/JAVA:java((core/JAVA).read_text()), core/STRINGS:strings((core/STRINGS).read_text())}
+               core/JAVA:dns_ui(java((core/JAVA).read_text())), core/STRINGS:strings((core/STRINGS).read_text())}
     for folder, zero, positive in [('values','#795900','#365B40'),('values-night','#E9D58B','#B7D9BE')]:
         p = core/('android/java/brave-res/'+folder+'/sandium_shields_colors.xml')
         changes[p] = colors('<resources>\n</resources>\n', zero, positive)

@@ -80,3 +80,8 @@ python3 .circleci/scripts/test-sandium-oppo-toggles.py
 python3 .circleci/scripts/apply-sandium-autofill-off.py "$SRC"
 python3 .circleci/scripts/apply-sandium-autofill-off.py "$SRC" --verify-only
 python3 .circleci/scripts/test-sandium-autofill-off.py
+
+# Browser-global Secure DNS controls over Chromium's native resolver.
+python3 .circleci/scripts/apply-sandium-secure-dns.py "$SRC"
+python3 .circleci/scripts/apply-sandium-secure-dns.py "$SRC" --verify-only
+python3 -m unittest discover -s tests -p 'test_secure_dns_*.py'

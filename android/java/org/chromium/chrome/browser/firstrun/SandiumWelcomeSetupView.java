@@ -118,6 +118,7 @@ final class SandiumWelcomeSetupView {
     private FilterListAndroidHandler mFilterHandler;
     private TemplateUrlService mTemplateUrlService;
     private Profile mProfile;
+    private org.chromium.chrome.browser.privacy.secure_dns.SandiumSecureDnsDropdown mSecureDns;
     private boolean mExpanded;
     private boolean mDestroyed;
     private boolean mPollInFlight;
@@ -328,6 +329,7 @@ final class SandiumWelcomeSetupView {
 
     void initialize(Profile profile) {
         mProfile = profile;
+        if (mSecureDns != null) mSecureDns.finishNativeStartup();
         applyInitialPreferences();
         initializeSearchEngine();
         for (Switch toggle : mSwitches) toggle.setEnabled(true);
@@ -474,6 +476,12 @@ final class SandiumWelcomeSetupView {
                     mRequiresRestart = true;
                 });
         mDarkenSwitch.setEnabled(blurEnabled);
+        addSettingsDivider(card);
+
+        mSecureDns = new org.chromium.chrome.browser.privacy.secure_dns.SandiumSecureDnsDropdown(
+                mActivity, false, false);
+        mSecureDns.setColors(TEXT, SECONDARY, CARD, PRIMARY);
+        card.addView(mSecureDns, matchWrap());
         addSettingsDivider(card);
 
         LinearLayout more = new LinearLayout(mActivity);

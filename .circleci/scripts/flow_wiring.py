@@ -21,6 +21,8 @@ REQUIRED = {
 
 REQUIRED['product-overlay-29-0.sh'] += ['apply-sandium-autofill-off.py','apply-sandium-autofill-off.py','test-sandium-autofill-off.py']
 
+REQUIRED['product-overlay-29-0.sh'] += ['apply-sandium-secure-dns.py','apply-sandium-secure-dns.py']
+
 NAV='apply-sandium-native-navigation.py'
 DIAG='apply-sandium-navigation-diagnostics.py'
 for wrapper in REQUIRED:

@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 ROOT="$CIRCLE_WORKING_DIRECTORY"
+# Restore DNS source ownership before checkpoint/pinned source reconstruction.
+if [ -f "$ROOT/brave-work/src/.sandium-secure-dns-source.json" ]; then
+  python3 "$ROOT/.circleci/scripts/apply-sandium-secure-dns.py" "$ROOT/brave-work/src" --off
+fi
 # Restore frozen navigation before any checkpoint/source reset can overwrite
 # experimental postimages. Fresh source has no journal and needs no rollback.
 if [ -f "$ROOT/brave-work/src/.sandium-native-navigation-state.json" ]; then
