@@ -247,7 +247,7 @@ def apply(core: Path, src: Path, repo_root: Path) -> None:
         "row.setPadding(dp(16), dp(12), dp(14), dp(2))",
         "mBlurRestartHint.setVisibility(View.VISIBLE)",
         "blurTitle.setSingleLine(true)",
-        "new LinearLayout.LayoutParams(dp(92), dp(40))",
+        "new LinearLayout.LayoutParams(dp(112), dp(40))",
         'if (!preferences.contains(PREF_NATIVE_BLUR))',
         "mScrollView.setFillViewport(true)",
         'R.string.sandium_welcome_restarting_countdown',

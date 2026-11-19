@@ -63,7 +63,9 @@ final class SandiumWelcomeSetupView {
         void onPrepareForRestart();
     }
 
-    private static final int BACKGROUND = Color.rgb(0, 0, 0);
+    // Welcome is intentionally always dark, independent of the device's day theme.
+    // Use the default dark Shields surface; leave its existing charcoal cards and accents alone.
+    private static final int BACKGROUND = Color.rgb(15, 12, 19);
     private static final int CARD = Color.rgb(26, 26, 26);
     private static final int SEPARATOR = Color.rgb(69, 69, 69);
     private static final int PRIMARY = Color.rgb(25, 140, 255);
@@ -688,7 +690,7 @@ final class SandiumWelcomeSetupView {
         selector.addView(chevron, new LinearLayout.LayoutParams(dp(16), dp(38)));
         selector.setOnClickListener(v -> showBlurLevelPicker());
         LinearLayout.LayoutParams selectorParams =
-                new LinearLayout.LayoutParams(dp(92), dp(40));
+                new LinearLayout.LayoutParams(dp(112), dp(40));
         selectorParams.setMargins(dp(4), dp(1), 0, 0);
         row.addView(selector, selectorParams);
         group.addView(mBlurRestartHint, matchWrap());
@@ -815,13 +817,32 @@ final class SandiumWelcomeSetupView {
     }
 
     private String getBlurLevelLabel() {
-        return mActivity.getString(isBlurTransitionEnabled()
-                ? R.string.sandium_welcome_on : R.string.sandium_welcome_off);
+        switch (getSandiumBlurLevel()) {
+            case "off": return mActivity.getString(R.string.sandium_welcome_off);
+            case "medium": return mActivity.getString(R.string.sandium_welcome_blur_medium);
+            case "high": return mActivity.getString(R.string.sandium_welcome_blur_high);
+            default: return mActivity.getString(R.string.sandium_welcome_blur_low);
+        }
     }
+
+    private static String getSandiumBlurLevel() {
+        android.content.SharedPreferences prefs = ContextUtils.getAppSharedPreferences();
+        String choice = prefs.getString("sandium_page_transition_blur_choice", "");
+        if ("off".equals(choice) || "low".equals(choice)
+                || "medium".equals(choice) || "high".equals(choice)) return choice;
+        if (prefs.contains("sandium_page_transition_blur_enabled")) {
+            return prefs.getBoolean("sandium_page_transition_blur_enabled", true) ? "low" : "off";
+        }
+        String legacy = prefs.getString("sandium_page_transition_blur_level", "on");
+        return "default".equals(legacy) || "off".equals(legacy) ? "off" : "low";
+    }
+
 
     private void showBlurLevelPicker() {
         final String[] values = { mActivity.getString(R.string.sandium_welcome_off),
-                mActivity.getString(R.string.sandium_welcome_on) };
+                mActivity.getString(R.string.sandium_welcome_blur_low),
+                mActivity.getString(R.string.sandium_welcome_blur_medium),
+                mActivity.getString(R.string.sandium_welcome_blur_high) };
         Dialog dialog = new Dialog(mActivity);
         dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
 
@@ -877,17 +898,21 @@ final class SandiumWelcomeSetupView {
     // A restart can follow immediately, so persist the startup-only choice first.
     @android.annotation.SuppressLint("ApplySharedPref")
     private void applyBlurLevel(String selected) {
-        boolean enabled = mActivity.getString(R.string.sandium_welcome_on).equals(selected);
-        boolean changed = enabled != isBlurTransitionEnabled();
+        String level;
+        if (mActivity.getString(R.string.sandium_welcome_off).equals(selected)) level = "off";
+        else if (mActivity.getString(R.string.sandium_welcome_blur_low).equals(selected)) level = "low";
+        else if (mActivity.getString(R.string.sandium_welcome_blur_medium).equals(selected)) level = "medium";
+        else if (mActivity.getString(R.string.sandium_welcome_blur_high).equals(selected)) level = "high";
+        else return;
+        boolean enabled = !"off".equals(level);
+        boolean changed = !level.equals(getSandiumBlurLevel());
         if (!ContextUtils.getAppSharedPreferences().edit()
-                .putBoolean(PREF_NATIVE_BLUR, enabled)
-                .putBoolean(PREF_DARKEN, enabled && ContextUtils.getAppSharedPreferences()
-                        .getBoolean(PREF_DARKEN, true)).commit()) {
+                .putString("sandium_page_transition_blur_choice", level)
+                .putBoolean(PREF_NATIVE_BLUR, enabled).commit()) {
             android.widget.Toast.makeText(mActivity, R.string.sandium_welcome_save_failed,
                     android.widget.Toast.LENGTH_LONG).show();
             return;
         }
-        if (!enabled && mDarkenSwitch != null) mDarkenSwitch.setChecked(false);
         if (mBlurValue != null) mBlurValue.setText(getBlurLevelLabel());
         if (mDarkenSwitch != null) mDarkenSwitch.setEnabled(enabled);
         if (changed) {
@@ -943,10 +968,7 @@ final class SandiumWelcomeSetupView {
     }
 
     private boolean isBlurTransitionEnabled() {
-        android.content.SharedPreferences prefs = ContextUtils.getAppSharedPreferences();
-        if (prefs.contains(PREF_NATIVE_BLUR)) return prefs.getBoolean(PREF_NATIVE_BLUR, true);
-        String legacy = prefs.getString(PREF_BLUR_LEVEL, "on");
-        return !"default".equals(legacy) && !"off".equals(legacy);
+        return !"off".equals(getSandiumBlurLevel());
     }
 
     private boolean isThirdPartyCookiesBlocked() {

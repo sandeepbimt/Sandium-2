@@ -75,3 +75,8 @@ python3 .circleci/scripts/test-sandium-ui-links.py --core "$CORE" --src "$SRC"
 # Fixed high-contrast native switch palette, after Shields and native theme.
 python3 .circleci/scripts/apply-sandium-oppo-toggles.py "$SRC" "$CORE"
 python3 .circleci/scripts/test-sandium-oppo-toggles.py
+
+# External-service-only Autofill, retaining profile data and native provider confirmations.
+python3 .circleci/scripts/apply-sandium-autofill-off.py "$SRC"
+python3 .circleci/scripts/apply-sandium-autofill-off.py "$SRC" --verify-only
+python3 .circleci/scripts/test-sandium-autofill-off.py

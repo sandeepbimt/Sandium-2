@@ -96,7 +96,7 @@ required_view_markers = (
     "mBlurRestartHint.setPadding(dp(60), 0, dp(14), dp(4))",
     "mBlurRestartHint.setVisibility(View.VISIBLE)",
     "blurTitle.setSingleLine(true)",
-    "new LinearLayout.LayoutParams(dp(92), dp(40))",
+    "new LinearLayout.LayoutParams(dp(112), dp(40))",
     "if (!preferences.contains(PREF_NATIVE_BLUR))",
     "addRestartSwitchRow(card, \"☾\", \"Night Mode\"",
     "addRestartSwitchRow(card, \"◐\", \"Darken transition\"",
@@ -112,7 +112,7 @@ required_view_markers = (
     "showBlurLevelPicker()",
     "selector.setBackground(outlinedRoundRect(CARD, PRIMARY, 28))",
     "drawable.setStroke(dp(1), strokeColor)",
-    "new LinearLayout.LayoutParams(dp(92), dp(40))",
+    "new LinearLayout.LayoutParams(dp(112), dp(40))",
     "group.addView(mBlurRestartHint, matchWrap())",
     "mBlurRestartHint.setPadding(dp(60), 0, dp(14), dp(4))",
 )
@@ -196,7 +196,7 @@ assert "R.string.sandium_welcome_final_complete" in view_source
 
 # Profile-card header with Oppo theme and unchanged green readiness signal.
 assert 'text("Sandium", 24, TEXT, true)' in view_source
-assert 'private static final int BACKGROUND = Color.rgb(0, 0, 0);' in view_source
+assert 'private static final int BACKGROUND = Color.rgb(15, 12, 19);' in view_source
 assert 'private static final int CARD = Color.rgb(26, 26, 26);' in view_source
 assert 'private static final int SUCCESS = Color.rgb(70, 200, 120);' in view_source
 assert 'private static final int PRIMARY = Color.rgb(25, 140, 255);' in view_source

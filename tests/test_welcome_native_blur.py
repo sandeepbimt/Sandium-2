@@ -2,11 +2,12 @@ from pathlib import Path
 import re, shutil, subprocess, tempfile, unittest
 ROOT = Path(__file__).resolve().parents[1]
 class WelcomeNativeBlur(unittest.TestCase):
-    def test_two_options_and_new_preference_only(self):
+    def test_four_options_and_new_preference_only(self):
         s=(ROOT/'android/java/org/chromium/chrome/browser/firstrun/SandiumWelcomeSetupView.java').read_text()
         picker=s.split('private void showBlurLevelPicker()',1)[1].split('private void applyBlurLevel',1)[0]
         self.assertIn('R.string.sandium_welcome_off',picker)
-        self.assertIn('R.string.sandium_welcome_on',picker)
+        for level in ('low','medium','high'):
+            self.assertIn('R.string.sandium_welcome_blur_'+level,picker)
         self.assertNotIn('"Low"',picker)
         self.assertNotIn('"Medium"',picker)
         self.assertNotIn('"High"',picker)
@@ -16,6 +17,7 @@ class WelcomeNativeBlur(unittest.TestCase):
         s=(ROOT/'android/java/org/chromium/chrome/browser/firstrun/SandiumWelcomeSetupView.java').read_text()
         sig='private boolean isBlurTransitionEnabled()'
         method=sig+s.split(sig,1)[1].split('private boolean isThirdPartyCookiesBlocked()',1)[0]
+        helper='private static String getSandiumBlurLevel()'+s.split('private static String getSandiumBlurLevel()',1)[1].split('private void showBlurLevelPicker()',1)[0]
         code='''public class BlurHarness {
  static final String PREF_NATIVE_BLUR="new", PREF_BLUR_LEVEL="old";
  static class android { static class content { static class SharedPreferences {
@@ -25,15 +27,15 @@ class WelcomeNativeBlur(unittest.TestCase):
  String getString(String k,String d){return (String)values.getOrDefault(k,d);}
  } } }
  static class ContextUtils { static android.content.SharedPreferences prefs=new android.content.SharedPreferences(); static android.content.SharedPreferences getAppSharedPreferences(){return prefs;} }
- '''+method+'''
+ '''+method+helper+'''
  static void check(boolean b){if(!b)throw new AssertionError();}
  public static void main(String[]args){
  BlurHarness h=new BlurHarness();check(h.isBlurTransitionEnabled());
  for(String value:new String[]{"default","off","low","medium","high","on","unknown"}){
- ContextUtils.prefs.values.clear();ContextUtils.prefs.values.put("old",value);
+ ContextUtils.prefs.values.clear();ContextUtils.prefs.values.put("sandium_page_transition_blur_level",value);
  check(h.isBlurTransitionEnabled()==!(value.equals("default")||value.equals("off")));
- ContextUtils.prefs.values.put("new",false);check(!h.isBlurTransitionEnabled());
- ContextUtils.prefs.values.put("new",true);check(h.isBlurTransitionEnabled());
+ ContextUtils.prefs.values.put("sandium_page_transition_blur_enabled",false);check(!h.isBlurTransitionEnabled());
+ ContextUtils.prefs.values.put("sandium_page_transition_blur_enabled",true);check(h.isBlurTransitionEnabled());
  }
  }
 }'''

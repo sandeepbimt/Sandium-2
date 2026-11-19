@@ -28,7 +28,7 @@ class AllMenu(unittest.TestCase):
    self.assertEqual(flattened,actions);self.assertEqual(flattened.count('all'),1)
   self.assertIn('int pages = quickPageCount()',S);self.assertIn('int count = quickPageCount()',S)
  def test_live_actions_and_geometry_retained(self):
-  self.assertIn('setBackground(shape(mPanelColor, 16))',S)
+  self.assertIn('setBackground(raisedPanel(mPanelColor, 16))',S)
   self.assertIn('if (current == null || !enabled(current.model)) return',S)
   self.assertIn('LinearLayout all = tile()',S)
   self.assertIn('ValueAnimator.areAnimatorsEnabled()',S)

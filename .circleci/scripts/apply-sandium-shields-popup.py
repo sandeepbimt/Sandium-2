@@ -222,6 +222,32 @@ def validate_layout(text):
         raise ValueError('Counter must be the last visible child')
 
 
+def raised_panel(text):
+    """Keep the native shadow inset and 28dp outline; taper only the inner painted rim."""
+    if 'SANDIUM_TAPERED_POPUP_RIM' in text:
+        return text
+    root = ET.fromstring(text)
+    item = list(root)[0]
+    if len(item) != 1 or list(item)[0].tag != 'shape':
+        raise ValueError('Unexpected Shields outer background structure')
+    item.remove(list(item)[0])
+    layers = ET.SubElement(item, 'layer-list', {A+'paddingMode':'stack',
+        **{A+'padding'+side:'0dp' for side in ['Left','Top','Right','Bottom']}})
+    for i, shade in enumerate(['#507D8085', '#287D8085', '#107D8085', None]):
+        for gradient in ([False, True] if shade else [False]):
+            inset = str(i) + 'dp'
+            layer = ET.SubElement(layers, 'item', {A+k: inset for k in ['left','top','right','bottom']})
+            shape = ET.SubElement(layer, 'shape', {A+'shape':'rectangle'})
+            if gradient:
+                ET.SubElement(shape, 'gradient', {A+'angle':'270', A+'startColor':shade, A+'endColor':'#047D8085'})
+            else:
+                ET.SubElement(shape, 'solid', {A+'color':'?attr/colorSurfaceContainerLowest'})
+            ET.SubElement(shape, 'corners', {A+'radius':str(28-i)+'dp'})
+    ET.indent(root, space='    ')
+    notice = '\n'.join(re.findall(r'<!--.*?-->', text, re.S))
+    return '<?xml version="1.0" encoding="utf-8"?>\n' + notice + '\n<!-- SANDIUM_TAPERED_POPUP_RIM: paint only; native shadow inset retained. -->\n' + ET.tostring(root, encoding='unicode') + '\n'
+
+
 def apply(core):
     sha = subprocess.check_output(['git','-C',str(core),'rev-parse','HEAD'], text=True).strip()
     if sha != PIN:
@@ -243,7 +269,7 @@ def apply(core):
         s = p.read_text()
         if 'android:color="'+new+'"' not in s:
             s = once(s, 'android:color="'+old+'"', 'android:color="'+new+'"')
-        changes[p] = s
+        changes[p] = raised_panel(s) if 'unified_panel_background' in path else s
     validate_layout(changes[core/LAYOUT])
     if '%1$s' not in changes[core/STRINGS]: raise ValueError('Android string format missing')
     for p,s in changes.items():

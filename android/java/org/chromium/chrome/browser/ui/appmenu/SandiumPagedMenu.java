@@ -64,7 +64,6 @@ final class SandiumPagedMenu extends FrameLayout {
     private android.animation.ValueAnimator mPageAnimator;
     private int mPageMotionGeneration;
     private android.animation.ValueAnimator mPanelAnimator;
-    private android.animation.ValueAnimator mEntranceAnimator;
     private float mPanelAlpha = 1f;
     private boolean mNativeVisible;
     private final PageSwipe mPageSwipe = new PageSwipe();
@@ -140,7 +139,7 @@ final class SandiumPagedMenu extends FrameLayout {
         super(context);
         mPreferences = new SandiumMenuPreferences(context);
         mGroupColor = context.getColor(R.color.sandium_menu_group_surface);
-        mPanelColor = context.getColor(R.color.sandium_menu_surface_container);
+        mPanelColor = shieldsMatchedPanel(context);
         mTextColor = context.getColor(R.color.sandium_menu_on_surface);
         mSecondaryTextColor = context.getColor(R.color.sandium_menu_on_surface_variant);
         mDividerColor = context.getColor(R.color.sandium_menu_outline_variant);
@@ -149,7 +148,7 @@ final class SandiumPagedMenu extends FrameLayout {
                 ? (SandiumMenuMetadata.FooterProvider) footer : null;
         if (mFooter != null) SandiumMenuMetadata.watchFooter(mFooter, mFooterChanged);
         mModels = models; mNative = nativeContent; mNativeList = nativeList;
-        setBackground(shape(mPanelColor, 16));
+        setBackground(raisedPanel(mPanelColor, 16));
         setClipToOutline(true);
         refreshCatalog();
         Set<String> hidden = new HashSet<>();
@@ -197,39 +196,8 @@ final class SandiumPagedMenu extends FrameLayout {
     private void scheduleRefresh() {
         if (!mRefreshPending) { mRefreshPending = true; post(mRefreshTask); }
     }
-    @Override protected void onAttachedToWindow() {
-        super.onAttachedToWindow();
-        finishEntranceMotion();
-        if (org.chromium.base.SysUtils.isLowEndDevice()
-                || !android.animation.ValueAnimator.areAnimatorsEnabled()) return;
-        // Own the opening fade: OEM PopupWindow window-animation styles can be skipped.
-        // Set before the first draw; no translation, scale, delayed input or hidden controls.
-        setAlpha(0f);
-        mEntranceAnimator = android.animation.ValueAnimator.ofFloat(0f, 1f);
-        mEntranceAnimator.setDuration(100);
-        mEntranceAnimator.setInterpolator(new android.view.animation.LinearInterpolator());
-        mEntranceAnimator.addUpdateListener(animation -> setAlpha((float) animation.getAnimatedValue()));
-        mEntranceAnimator.addListener(new android.animation.AnimatorListenerAdapter() {
-            @Override public void onAnimationEnd(android.animation.Animator animation) {
-                if (mEntranceAnimator == animation) {
-                    mEntranceAnimator = null;
-                    setAlpha(1f);
-                }
-            }
-        });
-        mEntranceAnimator.start();
-    }
-    private void finishEntranceMotion() {
-        if (mEntranceAnimator != null) {
-            android.animation.ValueAnimator animation = mEntranceAnimator;
-            mEntranceAnimator = null;
-            animation.cancel();
-        }
-        setAlpha(1f);
-    }
     @Override protected void onDetachedFromWindow() {
         clearPageSwipe();
-        finishEntranceMotion();
         mPagerTargets.clear(); clearPagerTouchDelegate(); mPagerSequenceOwned = false;
         cancelDragPage(); mDragging = null;
         for (PropertyModel model : mObserved) model.removeObserver(mObserver);
@@ -405,6 +373,44 @@ final class SandiumPagedMenu extends FrameLayout {
     }
     private String s(int id, Object... args) { return getResources().getString(id, args); }
     private int dp(int n) { return Math.round(n * getResources().getDisplayMetrics().density); }
+    private static int shieldsMatchedPanel(Context context) {
+        int fallback = context.getColor(R.color.sandium_menu_surface_container);
+        if ((context.getResources().getConfiguration().uiMode
+                    & android.content.res.Configuration.UI_MODE_NIGHT_MASK)
+                != android.content.res.Configuration.UI_MODE_NIGHT_YES
+                || org.chromium.chrome.browser.theme.BraveDynamicColors.isDynamicColorsEnabled()) {
+            return fallback;
+        }
+        android.util.TypedValue color = new android.util.TypedValue();
+        if (!context.getTheme().resolveAttribute(
+                com.google.android.material.R.attr.colorSurfaceContainerLowest, color, true)) {
+            return fallback;
+        }
+        return color.resourceId != 0 ? context.getColor(color.resourceId) : color.data;
+    }
+
+    // Paint-only feathered rim: no added content padding, geometry or touch interception.
+    // Three nested grey highlights taper into the original surface, matching Shields.
+    private Drawable raisedPanel(int color, int radius) {
+        Drawable[] layers = new Drawable[7];
+        int[] highlights = {0x507d8085, 0x287d8085, 0x107d8085};
+        for (int i = 0; i < 3; i++) {
+            layers[i * 2] = shape(color, radius - i);
+            GradientDrawable rim = new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
+                    new int[] {highlights[i], 0x047d8085});
+            rim.setCornerRadius(dp(radius - i));
+            layers[i * 2 + 1] = rim;
+        }
+        layers[6] = shape(color, radius - 3);
+        android.graphics.drawable.LayerDrawable result = new android.graphics.drawable.LayerDrawable(layers);
+        result.setPaddingMode(android.graphics.drawable.LayerDrawable.PADDING_MODE_STACK);
+        result.setPadding(0, 0, 0, 0); // Inset paint must not become View padding.
+        for (int i = 0; i < layers.length; i++) {
+            int inset = dp(i / 2);
+            result.setLayerInset(i, inset, inset, inset, inset);
+        }
+        return result;
+    }
     private GradientDrawable shape(int color, int radius) {
         GradientDrawable d = new GradientDrawable(); d.setColor(color); d.setCornerRadius(dp(radius));
         return d;

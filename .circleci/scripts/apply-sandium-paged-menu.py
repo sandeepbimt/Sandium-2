@@ -23,7 +23,28 @@ def once(text, old, new):
     return text.replace(old, new, 1)
 
 
+def palette_dependency(text):
+    dep = '    "//brave/browser/ui/android/theme:dynamic_colors_java",'
+    if dep in text:
+        return text
+    start = text.index('android_library("java") {')
+    end = text.index('\n}', start)
+    target = text[start:end]
+    updated = once(target, '  deps = [\n', '  deps = [\n' + dep + '\n')
+    return text[:start] + updated + text[end:]
+
+
+LEGACY_POPUP_MOTION = '            // The Sandium view owns opening; the framework owns exit, including\n            // Back/outside/action/lifecycle dismissal. Never defer native cleanup ourselves.\n            popup.setAnimationStyle(0);\n            popup.setEnterTransition(null);\n            popup.setExitTransition(SysUtils.isLowEndDevice() || !ValueAnimator.areAnimatorsEnabled()\n                    ? null : new android.transition.Fade(android.transition.Fade.OUT).setDuration(80));\n'
+POPUP_MOTION = '            // One native window owner for entrance and every dismissal route, as in Shields.\n            // This presenter is physically bottom-positioned even with a top toolbar.\n            popup.setEnterTransition(null);\n            popup.setExitTransition(null);\n            popup.setAnimationStyle(SysUtils.isLowEndDevice() || !ValueAnimator.areAnimatorsEnabled()\n                    ? 0 : org.chromium.ui.R.style.AnchoredPopupAnimEndBottom);\n'
+
+def migrate_popup_motion(text):
+    if LEGACY_POPUP_MOTION in text:
+        return once(text, LEGACY_POPUP_MOTION, POPUP_MOTION)
+    return text
+
+
 def appmenu(text):
+    text = migrate_popup_motion(text)
     if 'SANDIUM_PAGED_MENU_V1' in text and 'menu.setNativeDrillDown(' not in text:
         raise ValueError('Older unpublished menu draft detected; restore pinned AppMenu.java before applying this revision')
     text = once(text, '    private @Nullable Context mContext;', '''    private org.chromium.ui.modelutil.MVCListAdapter.@Nullable ModelList mSandiumModels;
@@ -55,12 +76,12 @@ def appmenu(text):
                 int nextHeight = menu.preferredHeight(width, available);
                 popup.update(x, visibleDisplayFrame.bottom - inset - nextHeight, width, nextHeight);
             });
-            // The Sandium view owns opening; the framework owns exit, including
-            // Back/outside/action/lifecycle dismissal. Never defer native cleanup ourselves.
-            popup.setAnimationStyle(0);
+            // One native window owner for entrance and every dismissal route, as in Shields.
+            // This presenter is physically bottom-positioned even with a top toolbar.
             popup.setEnterTransition(null);
-            popup.setExitTransition(SysUtils.isLowEndDevice() || !ValueAnimator.areAnimatorsEnabled()
-                    ? null : new android.transition.Fade(android.transition.Fade.OUT).setDuration(80));
+            popup.setExitTransition(null);
+            popup.setAnimationStyle(SysUtils.isLowEndDevice() || !ValueAnimator.areAnimatorsEnabled()
+                    ? 0 : org.chromium.ui.R.style.AnchoredPopupAnimEndBottom);
             contentView = menu;
         }
         popup.setContentView(contentView);''')
@@ -206,7 +227,7 @@ def apply(src, repo, verify_pin=True):
         core / CUSTOMIZE_SETTINGS: customize_settings,
         core / 'android/java/org/chromium/chrome/browser/app/appmenu/AppMenuIconRowFooter.java': footer,
         core / 'android/java/org/chromium/chrome/browser/app/BraveActivity.java': activity,
-        src / INTERNAL / 'BUILD.gn': lambda t: register_resources(register(remove_internal_store(t), ['SandiumPagedMenu'])),
+        src / INTERNAL / 'BUILD.gn': lambda t: palette_dependency(register_resources(register(remove_internal_store(t), ['SandiumPagedMenu']))),
         src / PUBLIC / 'BUILD.gn': lambda t: register(t, ['SandiumMenuMetadata', 'SandiumMenuState', 'SandiumMenuPreferences']),
     }
     # Validate every transformation before mutating any source file.
@@ -242,7 +263,7 @@ def verify(src, repo, verify_pin=True):
         core / CUSTOMIZE_SETTINGS: customize_settings,
         core / 'android/java/org/chromium/chrome/browser/app/appmenu/AppMenuIconRowFooter.java': footer,
         core / 'android/java/org/chromium/chrome/browser/app/BraveActivity.java': activity,
-        src / INTERNAL / 'BUILD.gn': lambda t: register_resources(register(remove_internal_store(t), ['SandiumPagedMenu'])),
+        src / INTERNAL / 'BUILD.gn': lambda t: palette_dependency(register_resources(register(remove_internal_store(t), ['SandiumPagedMenu']))),
         src / PUBLIC / 'BUILD.gn': lambda t: register(t, ['SandiumMenuMetadata', 'SandiumMenuState', 'SandiumMenuPreferences']),
     }
     for path, transform in transforms.items():

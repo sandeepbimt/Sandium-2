@@ -12,7 +12,7 @@ class BlurAlignment(unittest.TestCase):
     'mBlurValue.setGravity(Gravity.CENTER)',
     'mBlurValue.setEllipsize(android.text.TextUtils.TruncateAt.END)',
     'selector.addView(chevron, new LinearLayout.LayoutParams(dp(16), dp(38)))',
-    'new LinearLayout.LayoutParams(dp(92), dp(40))',
+    'new LinearLayout.LayoutParams(dp(112), dp(40))',
     'selector.setOnClickListener(v -> showBlurLevelPicker())']:
    self.assertIn(token,block)
   self.assertNotIn('setOnClickListener',block.split('View chevronBalance',1)[1].split('mBlurValue =',1)[0])
@@ -21,7 +21,7 @@ class BlurAlignment(unittest.TestCase):
  def test_exact_midpoint_and_unmoved_arrow_ltr_rtl_density(self):
   for density in (1,1.5,2,2.625,3,4):
    dp=lambda x:int(x*density+0.5)
-   width,pad,arrow=dp(92),dp(6),dp(16)
+   width,pad,arrow=dp(112),dp(6),dp(16)
    label_width=width-2*pad-2*arrow
    self.assertGreater(label_width,0)
    center=pad+arrow+label_width/2

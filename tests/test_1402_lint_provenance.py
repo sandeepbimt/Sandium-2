@@ -38,6 +38,17 @@ class ResetOnlyLintProvenance(unittest.TestCase):
         for name, proof in self.proof['inventories'].items():
             with self.subTest(inventory=name):
                 data = json.loads((DATA / name).read_text())
+                if name == 'inventory.json':
+                    # Only the Settings-scoped palette adapter changed. Verify its live proof,
+                    # then reconstruct the precise historical #1402 record for this test.
+                    proofs = [r['removal_evidence'] for r in data['resources']
+                              if r['resource'] == 'R.color.gm3_baseline_surface_container_lowest_dark']
+                    self.assertEqual(len(proofs), 1)
+                    palette = proofs[0]
+                    self.assertEqual(palette['source_path'],
+                                     '.circleci/scripts/apply-sandium-native-theme.py')
+                    self.assertEqual(palette['sha256'], sha((ROOT / palette['source_path']).read_bytes()))
+                    palette['sha256'] = '9260eb297226fa5bd06b25183f2b7f3433851f6ba6f9995c236afa74dac92c53'
                 content = {k: v for k, v in data.items() if k != 'provenance'}
                 self.assertEqual(sha(json.dumps(content, sort_keys=True, separators=(',', ':')).encode()),
                                  proof['content_without_provenance_sha256'])

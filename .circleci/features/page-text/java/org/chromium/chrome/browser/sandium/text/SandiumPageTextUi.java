@@ -3,9 +3,15 @@ package org.chromium.chrome.browser.sandium.text;
 
 import android.app.AlertDialog;
 import android.content.Context;
+import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.drawable.GradientDrawable;
+import android.text.Layout;
+import android.text.StaticLayout;
+import android.text.TextPaint;
+import android.util.TypedValue;
 import android.view.View;
+import android.view.accessibility.AccessibilityNodeInfo;
 import android.widget.CheckBox;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
@@ -26,6 +32,70 @@ public final class SandiumPageTextUi {
         TextView view = new TextView(c); view.setText(value); view.setTextSize(16);
         return view;
     }
+    // Native paragraph layout confined to the settings preview, never the webpage.
+    private static final class ParagraphPreview extends View {
+        private static final String SAMPLE = "Sandium keeps reading comfortable. Adjust the text size "
+                + "and alignment to find a style that feels right. This sample changes instantly "
+                + "while your open webpages stay unchanged.";
+        private final TextPaint mPaint = new TextPaint(TextPaint.ANTI_ALIAS_FLAG);
+        private StaticLayout mParagraph;
+        private int mParagraphWidth = -1;
+        private boolean mJustify;
+
+        ParagraphPreview(Context context) {
+            super(context);
+            mPaint.setColor(Color.rgb(232, 234, 237));
+            setImportantForAccessibility(IMPORTANT_FOR_ACCESSIBILITY_YES);
+        }
+
+        void setStyle(float sizeSp, boolean justify) {
+            float px = TypedValue.applyDimension(
+                    TypedValue.COMPLEX_UNIT_SP, sizeSp, getResources().getDisplayMetrics());
+            if (mPaint.getTextSize() == px && mJustify == justify) return;
+            mPaint.setTextSize(px);
+            mJustify = justify;
+            mParagraph = null;
+            requestLayout();
+            invalidate();
+        }
+
+        @Override
+        protected void onMeasure(int widthSpec, int heightSpec) {
+            int width = MeasureSpec.getSize(widthSpec);
+            int contentWidth = Math.max(1, width - getPaddingLeft() - getPaddingRight());
+            if (mParagraph == null || mParagraphWidth != contentWidth) {
+                mParagraphWidth = contentWidth;
+                mParagraph = StaticLayout.Builder.obtain(SAMPLE, 0, SAMPLE.length(), mPaint, contentWidth)
+                        .setAlignment(Layout.Alignment.ALIGN_NORMAL)
+                        .setBreakStrategy(Layout.BREAK_STRATEGY_SIMPLE)
+                        .setLineSpacing(0f, 1.3f)
+                        .setJustificationMode(mJustify
+                                ? android.graphics.text.LineBreaker.JUSTIFICATION_MODE_INTER_WORD
+                                : android.graphics.text.LineBreaker.JUSTIFICATION_MODE_NONE)
+                        .build();
+            }
+            setMeasuredDimension(width, resolveSize(
+                    mParagraph.getHeight() + getPaddingTop() + getPaddingBottom(), heightSpec));
+        }
+
+        @Override
+        protected void onDraw(Canvas canvas) {
+            super.onDraw(canvas);
+            if (mParagraph == null) return;
+            int save = canvas.save();
+            canvas.translate(getPaddingLeft(), getPaddingTop());
+            mParagraph.draw(canvas);
+            canvas.restoreToCount(save);
+        }
+
+        @Override
+        public void onInitializeAccessibilityNodeInfo(AccessibilityNodeInfo info) {
+            super.onInitializeAccessibilityNodeInfo(info);
+            info.setClassName(TextView.class.getName());
+            info.setText(SAMPLE);
+        }
+    }
+
     private static void show(Context c, Profile profile) {
         PageTextPolicy.Settings initial = SandiumPageText.global(profile);
         LinearLayout body = new LinearLayout(c); body.setOrientation(LinearLayout.VERTICAL);
@@ -39,10 +109,8 @@ public final class SandiumPageTextUi {
         CheckBox justify = new CheckBox(c); justify.setText(R.string.sandium_page_text_justify);
         justify.setChecked(initial.isJustificationEnabled()); body.addView(justify);
         // A local reading surface beneath both controls.
-        TextView sample = text(c, "Sandium keeps reading comfortable. Adjust the text size and alignment to find a style that feels right. This sample changes instantly while your open webpages stay unchanged.");
-        sample.setTextColor(Color.rgb(232, 234, 237));
+        ParagraphPreview sample = new ParagraphPreview(c);
         sample.setPadding(pad, pad, pad, pad);
-        sample.setLineSpacing(0, 1.3f);
         GradientDrawable sampleBackground = new GradientDrawable();
         sampleBackground.setColor(Color.rgb(24, 26, 29));
         sampleBackground.setCornerRadius(12 * c.getResources().getDisplayMetrics().density);
@@ -59,11 +127,7 @@ public final class SandiumPageTextUi {
             int percent = PageTextPolicy.MIN_SCALE + slider.getProgress() * PageTextPolicy.SCALE_STEP;
             boolean justified = justify.isChecked();
             size.setText(percent == 100 ? "Text size · Website default (100%)" : "Text size · " + percent + "%");
-            sample.setTextSize(16f * percent / 100f);
-            // Native sample widget only, never the webpage. Device API is >= Android 8 here.
-            sample.setJustificationMode(justified
-                    ? android.graphics.text.LineBreaker.JUSTIFICATION_MODE_INTER_WORD
-                    : android.graphics.text.LineBreaker.JUSTIFICATION_MODE_NONE);
+            sample.setStyle(16f * percent / 100f, justified);
         };
         slider.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override public void onProgressChanged(SeekBar v, int value, boolean user) { preview.run(); }

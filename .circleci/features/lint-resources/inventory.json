@@ -9140,7 +9140,7 @@
       },
       "removal_evidence": {
         "source_path": ".circleci/scripts/apply-sandium-native-theme.py",
-        "sha256": "9260eb297226fa5bd06b25183f2b7f3433851f6ba6f9995c236afa74dac92c53",
+        "sha256": "7ee37dfbab09d236f81d5353abcd8bdc314de55c77f17a46cad1606aaf713b6b",
         "source_kind": "python_palette",
         "mapping": "COMMON",
         "upstream_palette_fixture": ".circleci/features/lint-resources/fixtures/chromium-d331-color-palette.xml",

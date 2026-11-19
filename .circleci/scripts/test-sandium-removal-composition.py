@@ -75,8 +75,19 @@ fixture_map['content/browser/web_contents/web_contents_impl.cc']=root/'experimen
 for name in ('metrics_web_contents_observer.cc','page_load_tracker.h'):
  fixture_map['components/page_load_metrics/browser/'+name]=root/'experiments/navigation-diagnostics/renderer-metrics-fixtures'/name
 
+# Exact Autofill-only inputs supplement existing product fixtures, never replace composed bytes.
+import gzip
+_autofill_spec=importlib.util.spec_from_file_location('autofill_composition',root/'experiments/autofill-off/apply.py')
+autofill=importlib.util.module_from_spec(_autofill_spec);_autofill_spec.loader.exec_module(autofill)
+_afui=autofill.load('ui')
+_aff=json.loads(gzip.decompress((root/'experiments/autofill-off/ui-fixtures.json.gz').read_bytes()))['files']
+autofill_raw={p:_aff[P(p).name].encode() for p in (_afui.FRAGMENT,_afui.BINDER,_afui.XML)}
+for p,item in json.loads(gzip.decompress((root/'experiments/autofill-off/fixtures/runtime-pinned.json.gz').read_bytes()))['files'].items():
+ autofill_raw[p]=item['source'].encode()
+
 def chromium_blob(path):
  if a.chromium_source:return blob(a.chromium_source,m['chromium_pin'],path)
+ if path in autofill_raw:return autofill_raw[path]
  fixture=fixture_map.get(path,root/'.circleci/tests/fixtures/reporting-pinned/chromium'/path)
  if not fixture.is_file():raise ValueError('Missing exact pinned Chromium fixture for '+path+'; supply --chromium-source or explicit fixture directories')
  return fixture.read_bytes()
@@ -147,6 +158,10 @@ with tempfile.TemporaryDirectory() as temporary:
   subprocess.run([sys.executable,str(root/'.circleci/scripts/test-sandium-ui-links.py'),'--core',str(core),'--src',str(src)],check=True)
   shield_layout=core/toggles.SHIELDS;shield_layout.write_text(popup.layout(shield_layout.read_text()))
   toggles.apply(src,core)
+  for rel,raw in autofill_raw.items():
+   if not (src/rel).exists():write(src/rel,raw)
+  autofill.execute(src)
+  autofill.execute(src,verify=True)
  def removal(steps=None):
   subs={'{core}':str(core),'{src}':str(src),'{out}':str(src/'out'),'{repo}':str(root)}
   for step in m['steps'] if steps is None else steps:
@@ -271,6 +286,8 @@ with tempfile.TemporaryDirectory() as temporary:
    bridge_fixture_files[evidence['path']]=evidence.get('source',evidence.get('text'))
   for relative,text in bridge_fixture_files.items():
    if not (src/relative).exists():write(src/relative,text.encode())
+  prepaint=feature_module('prepaint_fixture','experiments/single-handoff/prepaint_background.py')
+  if not (src/prepaint.PATH).exists():write(src/prepaint.PATH,prepaint.fixture().encode())
   candidate_before=snapshot()
   outer.execute(src,True,True);outer.execute(src,True,True,True)
   assert 'SANDIUM_NATIVE_BLUR_156' in (src/'chrome/android/java/src/org/chromium/chrome/browser/base/SplitCompatApplication.java').read_text()

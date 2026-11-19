@@ -51,18 +51,16 @@ class MotionTests(unittest.TestCase):
         self.assertNotIn('mPageMinimumHeight', text)
     def test_popup_retains_native_lifecycle_and_low_end_guard(self):
         text = Path(__file__).with_name('apply-sandium-paged-menu.py').read_text()
-        self.assertIn('popup.setAnimationStyle(0);', text)
         self.assertIn('popup.setEnterTransition(null);', text)
-        self.assertIn('popup.setExitTransition(SysUtils.isLowEndDevice() || !ValueAnimator.areAnimatorsEnabled()', text)
-        self.assertIn('new android.transition.Fade(android.transition.Fade.OUT).setDuration(80)', text)
+        self.assertIn('popup.setExitTransition(null);', text)
+        self.assertIn('SysUtils.isLowEndDevice() || !ValueAnimator.areAnimatorsEnabled()', text)
+        self.assertIn('org.chromium.ui.R.style.AnchoredPopupAnimEndBottom', text)
         view = (ROOT / 'android/java/org/chromium/chrome/browser/ui/appmenu/SandiumPagedMenu.java').read_text()
-        self.assertIn('onAttachedToWindow()', view)
         self.assertIn('org.chromium.base.SysUtils.isLowEndDevice()', view)
         self.assertIn('!android.animation.ValueAnimator.areAnimatorsEnabled()', view)
-        self.assertIn('mEntranceAnimator.setDuration(100)', view)
-        self.assertIn('if (mEntranceAnimator == animation)', view)
+        self.assertNotIn('mEntranceAnimator', view)
         detach = view.split('onDetachedFromWindow() {', 1)[1].split('\n    }', 1)[0]
-        for cleanup in ('clearPageSwipe();', 'finishEntranceMotion();', 'finishPanelMotion(); finishPageMotion();'):
+        for cleanup in ('clearPageSwipe();', 'finishPanelMotion(); finishPageMotion();'):
             self.assertIn(cleanup, detach)
             self.assertLess(detach.index(cleanup), detach.index('super.onDetachedFromWindow();'))
     def test_welcome_reduced_motion_and_destroy(self):

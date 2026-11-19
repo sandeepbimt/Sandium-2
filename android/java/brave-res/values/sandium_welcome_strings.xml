@@ -29,7 +29,9 @@
     <string name="sandium_welcome_notifications">App notifications</string>
     <string name="sandium_welcome_notifications_summary">Ask for notification permission after setup</string>
     <string name="sandium_welcome_save_failed">Could not save setup. Please try again.</string>
-    <string name="sandium_welcome_on">On</string>
     <string name="sandium_welcome_off">Off</string>
     <string name="sandium_welcome_native_blur_summary">Use the browser’s native navigation transition</string>
+    <string name="sandium_welcome_blur_low">Low</string>
+    <string name="sandium_welcome_blur_medium">Medium</string>
+    <string name="sandium_welcome_blur_high">High</string>
 </resources>

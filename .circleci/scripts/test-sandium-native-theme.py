@@ -121,7 +121,7 @@ class ThemeTests(unittest.TestCase):
         welcome = (root / 'android/java/org/chromium/chrome/browser/firstrun/SandiumWelcomeSetupView.java').read_text()
         self.assertIn('CARD = Color.rgb(26, 26, 26)', welcome)
         self.assertIn('PRIMARY = Color.rgb(25, 140, 255)', welcome)
-        self.assertIn('BACKGROUND = Color.rgb(0, 0, 0)', welcome)
+        self.assertIn('BACKGROUND = Color.rgb(15, 12, 19)', welcome)
 
     def test_shields_tooltip_pinned_styles_idempotent(self):
         fixture = Path(__file__).resolve().parents[1] / 'tests/fixtures/shields-tooltip'

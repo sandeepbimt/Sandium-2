@@ -378,8 +378,20 @@ public final class SandiumHomeShortcuts extends LinearLayout {
             }
         });
         content.setContentDescription(title.getText()); content.setFocusable(true);
-        content.setOnClickListener(v -> { if (!mEditing && safe(site.url)) mOpen.accept(site.url);
-            else if (mEditing) editDialog(site,index); });
+        // A native pressed-state ripple acknowledges the tap before any redirects.
+        // Keep it on the tile: no extra canvas, layout pass or deferred navigation.
+        if (!mEditing && safe(site.url)) {
+            content.setForeground(new android.graphics.drawable.RippleDrawable(
+                    android.content.res.ColorStateList.valueOf((mAccent & 0x00ffffff) | 0x60000000),
+                    null, shape(Color.WHITE, 12)));
+        }
+        content.setOnClickListener(v -> {
+            if (!mEditing && safe(site.url)) {
+                mOpen.accept(site.url);
+            } else if (mEditing) {
+                editDialog(site,index);
+            }
+        });
         content.setOnLongClickListener(v -> {
             mEditing = true;
             mDragging = site.url;

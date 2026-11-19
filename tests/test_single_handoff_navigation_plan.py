@@ -70,6 +70,8 @@ class NavigationPlan(unittest.TestCase):
                 spec=importlib.util.spec_from_file_location(name, ROOT/'.circleci/scripts'/(name+'.py'))
                 value=importlib.util.module_from_spec(spec);spec.loader.exec_module(value);return value
             base=script('apply-sandium-blur-transition')
+            # Actual startup retains the baseline feature-name helper used by final policy.
+            startup.write_text(web.OLD+'\n'+base.HELPER_BLOCK)
             full=script('apply-sandium-page-transition-full')
             blur_sources={p:blur.fixture(p) for p in (blur.CC,blur.H,blur.FC,blur.FH)}
             appearance=(blur.FIX/'AppearancePreferences.java').read_text()
@@ -78,6 +80,8 @@ class NavigationPlan(unittest.TestCase):
             blur_sources[blur.GRD]=full.transform_grd(base.GRD_BLOCK)
             for path,text in blur_sources.items():
                 target=root/path;target.parent.mkdir(parents=True,exist_ok=True);target.write_text(text)
+            prepaint=module('prepaint_background')
+            target=root/prepaint.PATH;target.parent.mkdir(parents=True,exist_ok=True);target.write_text(prepaint.fixture())
             candidate_before={p:p.read_bytes() for p in root.rglob('*') if p.is_file()}
             whole=module('candidate_plan')
             whole_plan=whole.plan(root)

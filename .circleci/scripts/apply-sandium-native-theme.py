@@ -331,6 +331,49 @@ def settings_motion(source):
         raise ValueError('Pinned Settings motion callback mismatch')
     return source.replace(old, new, 1)
 
+SETTINGS_PALETTE_STYLE = """    <!-- Settings only: Shapes, accents and baseline browser palette stay unchanged. -->
+    <style name="SandiumSettingsSurfacePalette" parent="">
+        <item name="android:colorBackground">?attr/colorSurfaceContainerLowest</item>
+        <item name="android:windowBackground">?attr/colorSurfaceContainerLowest</item>
+        <item name="colorSurface">?attr/colorSurfaceContainerLowest</item>
+        <item name="colorSurfaceContainerLow">@color/card_background_solid</item>
+        <item name="colorSurfaceContainer">@color/card_background_solid</item>
+        <item name="colorSurfaceContainerHigh">@color/card_background_solid</item>
+        <item name="colorSurfaceContainerHighest">@color/card_background_solid</item>
+    </style>
+"""
+
+def settings_palette_resource(source):
+    if SETTINGS_PALETTE_STYLE in source:
+        return source
+    if source.count('</resources>') != 1:
+        raise ValueError('Settings palette resource anchor changed')
+    return source.replace('</resources>', SETTINGS_PALETTE_STYLE + '</resources>')
+
+def settings_palette_theme(source):
+    marker = '// SANDIUM_SETTINGS_SCOPED_PALETTE'
+    if marker in source:
+        return source
+    anchor = '    @Override\n    protected void onCreate(@Nullable Bundle savedInstanceState) {'
+    hook = """    // SANDIUM_SETTINGS_SCOPED_PALETTE: applied after native containment/theme overlays,
+    // before inflation. Applies to this Activity's preferences/dialog contexts only.
+    @Override
+    public void applyThemeOverlays() {
+        super.applyThemeOverlays();
+        boolean night = (getResources().getConfiguration().uiMode
+                & android.content.res.Configuration.UI_MODE_NIGHT_MASK)
+                == android.content.res.Configuration.UI_MODE_NIGHT_YES;
+        if (night && !org.chromium.chrome.browser.theme.BraveDynamicColors.isDynamicColorsEnabled()) {
+            getTheme().applyStyle(R.style.SandiumSettingsSurfacePalette, true);
+        }
+    }
+
+"""
+    if source.count(anchor) != 1:
+        raise ValueError('Settings palette Activity anchor changed')
+    return source.replace(anchor, hook + anchor)
+
+
 def settings_surface(source):
     old = 'contentView.setBackgroundColor(SemanticColorUtils.getSettingsBackgroundColor(this));'
     new = 'contentView.setBackgroundColor(sandiumSettingsBackground());'
@@ -340,12 +383,27 @@ def settings_surface(source):
                 & android.content.res.Configuration.UI_MODE_NIGHT_MASK)
                 == android.content.res.Configuration.UI_MODE_NIGHT_YES;
         if (night && !org.chromium.chrome.browser.theme.BraveDynamicColors.isDynamicColorsEnabled()) {
+            android.util.TypedValue color = new android.util.TypedValue();
+            if (getTheme().resolveAttribute(
+                    com.google.android.material.R.attr.colorSurfaceContainerLowest, color, true)) {
+                return color.resourceId != 0 ? getColor(color.resourceId) : color.data;
+            }
             return getColor(R.color.container_background);
         }
         return SemanticColorUtils.getSettingsBackgroundColor(this);
     }
 
 """
+    # Upgrade the exact previously emitted helper before checking fresh-source anchors.
+    # Do not insert a second helper into a restored checkpoint's generated Java.
+    previous_helper = helper.replace("""android.util.TypedValue color = new android.util.TypedValue();
+            if (getTheme().resolveAttribute(
+                    com.google.android.material.R.attr.colorSurfaceContainerLowest, color, true)) {
+                return color.resourceId != 0 ? getColor(color.resourceId) : color.data;
+            }
+            """, "")
+    if previous_helper in source and previous_helper != helper:
+        source = source.replace(previous_helper, helper, 1)
     anchor = '    private void onSettingsFragmentViewReady(Fragment fragment, View fragmentView) {'
     if helper not in source:
         if source.count(anchor) != 1 or source.count(old) != 1:
@@ -414,7 +472,9 @@ def apply(root):
         target = root / relative
         result[target] = tooltip_style(target.read_text(), relative)
     settings = root / SETTINGS
-    result[settings] = settings_surface(settings_motion(settings.read_text()))
+    result[settings] = settings_palette_theme(settings_surface(settings_motion(settings.read_text())))
+    palette = root / 'android/java/res/values/brave_colors.xml'
+    result[palette] = settings_palette_resource(result[palette])
     test = root / 'browser/ui/android/theme/junit/src/org/chromium/chrome/browser/theme/BraveDynamicColorsTest.java'
     test_source = test.read_text()
     old = """public void testIsDynamicColorsEnabled_defaultEnabled_userPreferenceUnset_returnsTrue() {

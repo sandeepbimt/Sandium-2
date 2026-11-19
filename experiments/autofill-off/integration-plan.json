@@ -1,0 +1,16 @@
+{
+  "schema": 1,
+  "chromium_restore": [
+    "chrome/browser/autofill/android/java/src/org/chromium/chrome/browser/autofill/settings/options/AutofillOptionsFragment.java",
+    "chrome/browser/autofill/android/java/src/org/chromium/chrome/browser/autofill/settings/options/AutofillOptionsViewBinder.java",
+    "chrome/browser/autofill/android/java/res/xml/autofill_options_preferences.xml",
+    "components/autofill/core/browser/foundations/browser_autofill_manager.cc",
+    "chrome/browser/ui/autofill/chrome_autofill_client.cc",
+    "chrome/browser/ui/autofill/payments/chrome_payments_autofill_client.cc",
+    "chrome/browser/password_manager/chrome_password_manager_client.cc",
+    "chrome/browser/keyboard_accessory/android/manual_filling_controller_impl.cc"
+  ],
+  "core_restore": [],
+  "generated_overwrite": [],
+  "ownership": "Standalone journal and exact postimage verification; not canonical removal receipt inventory"
+}
