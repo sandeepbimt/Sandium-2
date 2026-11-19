@@ -133,6 +133,23 @@ class DiagnosticComposition(unittest.TestCase):
    with self.assertRaises(ValueError):m.native_plan(r)
 
 class OwnedBlurResources(unittest.TestCase):
+ def test_nested_darken_xml_remains_bound_to_all_three_lint_resources(self):
+  import xml.etree.ElementTree as ET
+  def script(name):
+   p=ROOT/'.circleci/scripts'/(name+'.py');spec=importlib.util.spec_from_file_location(name,p);v=importlib.util.module_from_spec(spec);spec.loader.exec_module(v);return v
+  b=script('apply-sandium-blur-transition');f=script('apply-sandium-page-transition-full')
+  before=f.transform_appearance_xml(b.XML_BLOCK)
+  after=m.xml(before)
+  self.assertIn(f.XML_DARKEN_BLOCK,after)
+  android='{http://schemas.android.com/apk/res/android}'
+  root=ET.fromstring('<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">'+after+'</PreferenceScreen>')
+  self.assertEqual([n.attrib[android+'key'] for n in root],
+                   ['sandium_page_transition_blur_enabled','sandium_page_transition_darken'])
+  self.assertEqual(root[1].attrib[android+'icon'],'@drawable/ic_sandium_page_transition_darken')
+  self.assertEqual(root[1].attrib[android+'title'],'@string/sandium_page_transition_darken_title')
+  self.assertEqual(root[1].attrib[android+'summary'],'@string/sandium_page_transition_darken_summary')
+  with self.assertRaisesRegex(ValueError,'Darken XML anchor drift'):
+   m.xml(before.replace(f.XML_DARKEN_BLOCK,''))
  def test_remove_only_owned_levels_keep_consumed_summary(self):
   p=ROOT/'.circleci/scripts/apply-sandium-blur-transition.py';spec=importlib.util.spec_from_file_location('baseblurresources',p);b=importlib.util.module_from_spec(spec);spec.loader.exec_module(b)
   out=m.strings(b.GRD_BLOCK+'\n<!-- unrelated -->')

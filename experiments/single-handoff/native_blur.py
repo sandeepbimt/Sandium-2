@@ -182,14 +182,31 @@ def xml(s):
     begin='<!-- SANDIUM_PAGE_TRANSITION_BLUR_BEGIN -->';end='<!-- SANDIUM_PAGE_TRANSITION_BLUR_END -->'
     if s.count(begin)!=1 or s.count(end)!=1:raise ValueError('Blur XML marker drift')
     a=s.index(begin);b=s.index(end,a)+len(end)
-    return s[:a]+'''<!-- SANDIUM_PAGE_TRANSITION_BLUR_BEGIN -->
-    <org.chromium.components.browser_ui.settings.ChromeSwitchPreference
+    block=s[a:b]
+    # The legacy Full overlay nests the distinct Darken switch in this marker.
+    # Replace only the blur node rather than removing the entire shared block.
+    for token in (
+        '<!-- SANDIUM_PAGE_TRANSITION_DARKEN_BEGIN -->',
+        'android:key="sandium_page_transition_darken"',
+        '@drawable/ic_sandium_page_transition_darken',
+        '@string/sandium_page_transition_darken_title',
+        '@string/sandium_page_transition_darken_summary',
+        '<!-- SANDIUM_PAGE_TRANSITION_DARKEN_END -->',
+    ):
+        if block.count(token)!=1:raise ValueError('Darken XML anchor drift: '+token)
+    return s[:a]+once(block,'''    <androidx.preference.ListPreference
+        android:key="sandium_page_transition_blur_level"
+        android:icon="@drawable/ic_sandium_page_transition_blur"
+        android:persistent="false"
+        android:defaultValue="default"
+        android:title="@string/sandium_page_transition_blur_title"
+        android:summary="@string/sandium_page_transition_blur_summary" />''',
+        '''    <org.chromium.components.browser_ui.settings.ChromeSwitchPreference
         android:key="sandium_page_transition_blur_enabled"
         android:persistent="false"
         android:defaultValue="true"
         android:icon="@drawable/ic_sandium_page_transition_blur"
-        android:title="@string/sandium_page_transition_blur_title" />
-    <!-- SANDIUM_PAGE_TRANSITION_BLUR_END -->'''+s[b:]
+        android:title="@string/sandium_page_transition_blur_title" />''')+s[b:]
 
 def strings(s):
     # These declarations were introduced by Sandium's legacy strength selector.
