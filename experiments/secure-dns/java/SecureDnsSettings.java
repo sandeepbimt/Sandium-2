@@ -18,6 +18,7 @@ import org.chromium.base.supplier.MonotonicObservableSupplier;
 import org.chromium.base.supplier.ObservableSuppliers;
 import org.chromium.base.supplier.SettableMonotonicObservableSupplier;
 import org.chromium.build.annotations.Nullable;
+import org.chromium.chrome.browser.net.SecureDnsManagementMode;
 import org.chromium.chrome.browser.settings.ChromeBaseSettingsFragment;
 import org.chromium.chrome.browser.settings.search.ChromeBaseSearchIndexProvider;
 import java.util.List;
@@ -26,7 +27,24 @@ import java.util.List;
 public class SecureDnsSettings extends ChromeBaseSettingsFragment {
     private final SettableMonotonicObservableSupplier<String> mPageTitle=ObservableSuppliers.createMonotonic();
     public static String getSummary(Context context) {
-        return SandiumSecureDns.getState().providerName;
+        return getProviderSummary(context, SandiumSecureDns.getState());
+    }
+    private static String getProviderSummary(Context context, SandiumSecureDns.State state) {
+        if ("automatic".equals(state.providerId)) {
+            return context.getString(R.string.settings_automatic_mode_summary);
+        }
+        return state.providerName;
+    }
+    private static String getManagedSummary(Context context) {
+        if (!SandiumSecureDns.isReady()
+                || SecureDnsBridge.isModeManaged()
+                || SecureDnsBridge.isConfigManaged()) {
+            return context.getString(R.string.sandium_dns_managed);
+        }
+        @SecureDnsManagementMode int mode = SecureDnsBridge.getManagementMode();
+        return context.getString(mode == SecureDnsManagementMode.DISABLED_PARENTAL_CONTROLS
+                ? R.string.settings_secure_dns_disabled_for_parental_control
+                : R.string.settings_secure_dns_disabled_for_managed_environment);
     }
     @Override public void onCreatePreferences(@Nullable Bundle state,@Nullable String key) {
         mPageTitle.set(getString(R.string.settings_secure_dns_title));
@@ -40,7 +58,8 @@ public class SecureDnsSettings extends ChromeBaseSettingsFragment {
         boolean managed=SandiumSecureDns.isManaged();
         SandiumSecureDns.State state=SandiumSecureDns.getState();
         Preference choose=new Preference(context);choose.setTitle(R.string.sandium_dns_provider);
-        choose.setSummary(managed ? getString(R.string.sandium_dns_managed) : state.providerName);choose.setEnabled(!managed);
+        choose.setSummary(managed ? getManagedSummary(context) : getProviderSummary(context, state));
+        choose.setEnabled(!managed);
         choose.setOnPreferenceClickListener(p->{showProviders();return true;});screen.addPreference(choose);
         Preference add=new Preference(context);add.setTitle(R.string.sandium_dns_add);add.setEnabled(!managed);
         add.setOnPreferenceClickListener(p->{showAdd();return true;});screen.addPreference(add);

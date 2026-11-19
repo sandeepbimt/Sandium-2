@@ -1,4 +1,4 @@
-import gzip,hashlib,importlib.util,json,pathlib,tempfile,unittest
+import gzip,hashlib,importlib.util,json,pathlib,re,tempfile,unittest
 ROOT=pathlib.Path(__file__).resolve().parents[1];D=ROOT/'experiments/secure-dns'
 s=importlib.util.spec_from_file_location('dnsapply',D/'apply.py');m=importlib.util.module_from_spec(s);s.loader.exec_module(m)
 class Tests(unittest.TestCase):
@@ -12,6 +12,27 @@ class Tests(unittest.TestCase):
    native=m.load('default_mode');p=root/native.PATH;p.parent.mkdir(parents=True,exist_ok=True);p.write_text((D/'fixtures/default_dns_over_https_config_source.cc').read_text())
    before={str(p.relative_to(root)):p.read_bytes() for p in root.rglob('*') if p.is_file()}
    m.execute(root);m.execute(root,True);m.execute(root)
+   settings_path=m.load('adapter').SETTINGS
+   upstream=fixture['files'][settings_path]['source']
+   settings=(root/settings_path).read_text()
+   references=lambda source:set(re.findall(r'\bR\.string\.(\w+)',source))
+   # APK lint reported these as unused after the upstream screen was replaced.
+   # Verify the production overlay retains their real Automatic/disabled states.
+   required={
+       'settings_automatic_mode_summary',
+       'settings_secure_dns_disabled_for_managed_environment',
+       'settings_secure_dns_disabled_for_parental_control',
+   }
+   self.assertTrue(required <= references(upstream) & references(settings))
+   automatic=settings.split('private static String getProviderSummary',1)[1].split('private static String getManagedSummary',1)[0]
+   self.assertRegex(automatic,r'if \("automatic"\.equals\(state\.providerId\)\) \{\s*return context\.getString\(R\.string\.settings_automatic_mode_summary\);')
+   managed=settings.split('private static String getManagedSummary',1)[1].split('@Override',1)[0]
+   self.assertLess(managed.index('!SandiumSecureDns.isReady()'),managed.index('SecureDnsBridge.getManagementMode()'))
+   self.assertIn('SecureDnsBridge.isModeManaged()',managed)
+   self.assertIn('SecureDnsBridge.isConfigManaged()',managed)
+   self.assertRegex(managed,r'mode == SecureDnsManagementMode\.DISABLED_PARENTAL_CONTROLS\s*\? R\.string\.settings_secure_dns_disabled_for_parental_control\s*: R\.string\.settings_secure_dns_disabled_for_managed_environment')
+   self.assertIn('choose.setSummary(managed ? getManagedSummary(context) : getProviderSummary(context, state));',settings)
+   self.assertIn('choose.setEnabled(!managed);',settings)
    adapter=m.load('adapter');target=root/adapter.BRIDGE;post=target.read_text();target.write_text(post+'//drift')
    with self.assertRaises(ValueError):m.execute(root,off=True)
    target.write_text(post);m.execute(root,off=True)
