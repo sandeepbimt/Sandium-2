@@ -11,7 +11,8 @@ LAYOUT='android/java/brave-res/layout/brave_shields_tab_content.xml'
 PRIVACY_XML='android/java/brave-res/xml/brave_privacy_preferences.xml'
 PRIVACY_JAVA='android/java/org/chromium/chrome/browser/privacy/settings/BravePrivacySettings.java'
 A='{http://schemas.android.com/apk/res/android}'
-ET.register_namespace('android',A[1:-1]);ET.register_namespace('app','http://schemas.android.com/apk/res-auto');ET.register_namespace('tools','http://schemas.android.com/tools')
+TOOLS='{http://schemas.android.com/tools}'
+ET.register_namespace('android',A[1:-1]);ET.register_namespace('app','http://schemas.android.com/apk/res-auto');ET.register_namespace('tools',TOOLS[1:-1])
 def insert(text,anchor,entry):
  if entry in text:return text
  if text.count(anchor)!=1:raise ValueError('Element chooser anchor changed: '+anchor)
@@ -63,6 +64,13 @@ def regroup(text):
  controls=node('advanced_options_content')
  privacy=[detach(node(n)) for n in ('trackers_item','block_element_item','clear_blocked_elements_button')]
  data=[detach(node(n)) for n in ('cookies_item','shred_data_item')]
+ # Preserve the pinned Brave action rows: weighted text wraps independently
+ # of the separately theme-tinted, fixed 24dp trailing icon. A compound
+ # drawable would change that sizing and wrapping contract.
+ for e in (*privacy[:2], *data):
+  ignores=e.get(TOOLS+'ignore','').split(',')
+  if 'UseCompoundDrawables' not in ignores:
+   e.set(TOOLS+'ignore',','.join(filter(None,(*ignores,'UseCompoundDrawables'))))
  divider=detach(node('clear_blocked_elements_divider'))
  footer=detach(node('block_count_text'))
  detach(controls)
@@ -85,8 +93,8 @@ def regroup(text):
  root.insert(0,header)
  def separator(existing=None):
   return attrs(existing if existing is not None else ET.Element('View'),layout_width='match_parent',layout_height='1dp',layout_marginStart='16dp',layout_marginEnd='16dp',background='#18F5F5F5',importantForAccessibility='no')
- def card(children, name):
-  c=attrs(ET.Element('LinearLayout'),id='@+id/'+name,layout_width='match_parent',layout_height='wrap_content',orientation='vertical',layout_marginTop='8dp',background='@drawable/advanced_options_bg',clipToOutline='true')
+ def card(children, name, existing=None):
+  c=attrs(existing if existing is not None else ET.Element('LinearLayout'),id='@+id/'+name,layout_width='match_parent',layout_height='wrap_content',orientation='vertical',layout_marginTop='8dp',background='@drawable/advanced_options_bg',clipToOutline='true')
   for i,e in enumerate(children):
    if i:c.append(separator(divider if e is privacy[-1] else None))
    for k in ('background','layout_marginTop'):e.attrib.pop(A+k,None)
@@ -96,8 +104,8 @@ def regroup(text):
   return c
  for e in list(controls):controls.remove(e)
  attrs(controls,visibility='visible',layout_height='wrap_content')
- controls.append(card(privacy,'sandium_ads_group'))
- root.insert(1,controls)
+ # The controller's existing container is itself the Ads and trackers card.
+ root.insert(1,card(privacy,'advanced_options_content',controls))
  root.insert(2,card(appearance,'sandium_appearance_group'))
  root.insert(3,card(data,'sandium_cookies_group'))
  attrs(footer,paddingTop='8dp',paddingBottom='0dp',background='@android:color/transparent')

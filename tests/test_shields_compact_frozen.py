@@ -17,9 +17,27 @@ class Compact(unittest.TestCase):
   self.assertEqual([root[i].get(A+'id') for i in (1,2,3,4)],['@+id/advanced_options_content','@+id/sandium_appearance_group','@+id/sandium_cookies_group','@+id/block_count_text'])
   self.assertEqual(root[-1].get(A+'visibility'),'gone')
   self.assertTrue(any(n.get(A+'id')=='@+id/shields_toggle_switch' for n in root[-1].iter()))
-  for card in (root[1][0],root[2],root[3]):
+  for card in (root[1],root[2],root[3]):
    self.assertTrue(any(n.get(A+'background')=='#18F5F5F5' for n in card))
   self.assertEqual(root[4].get(A+'background'),'@android:color/transparent')
+ def test_stage_two_lint_is_addressed_without_changing_pinned_row_layout(self):
+  base=(R/'tests/fixtures/dark-pages/brave'/p.LAYOUT).read_text()
+  root=e.ET.fromstring(e.layout(d.layout(p.layout(base))))
+  A=e.A
+  self.assertEqual(root[1].get(A+'background'),'@drawable/advanced_options_bg')
+  self.assertEqual(root[1].get(A+'clipToOutline'),'true')
+  self.assertEqual(root[1][0].get(A+'id'),'@+id/trackers_item')
+  self.assertFalse(any(n.get(A+'id')=='@+id/sandium_ads_group' for n in root.iter()))
+  needs_compound_exception={n.get(A+'id') for n in root.iter()
+     if 'UseCompoundDrawables' in n.get(e.TOOLS+'ignore','').split(',')}
+  self.assertEqual(needs_compound_exception,
+     {'@+id/'+n for n in ('trackers_item','block_element_item','cookies_item','shred_data_item')})
+  for row in (n for n in root.iter() if n.get(A+'id') in needs_compound_exception):
+   self.assertEqual((row[0].tag,row[0].get(A+'layout_weight')),('TextView','1'))
+   self.assertEqual((row[1].tag,row[1].get(A+'layout_width'),row[1].get(A+'layout_height')),
+                    ('ImageView','24dp','24dp'))
+   self.assertEqual(row[1].get('{http://schemas.android.com/apk/res-auto}tint'),
+                    '?attr/colorOnSurfaceVariant')
  def test_handler_reuses_toolbar_tracer_and_preserves_actions(self):
   base=(R/'tests/fixtures/dark-pages/brave'/p.JAVA).read_text()
   source=p.java(base);out=p.dns_ui(source)
