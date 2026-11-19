@@ -672,10 +672,16 @@ final class SandiumWelcomeSetupView {
 
         LinearLayout selector = new LinearLayout(mActivity);
         selector.setGravity(Gravity.CENTER_VERTICAL);
-        selector.setPadding(dp(9), 0, dp(6), 0);
+        selector.setPadding(dp(6), 0, dp(6), 0);
         selector.setBackground(outlinedRoundRect(CARD, PRIMARY, 28));
+        // Balance the end chevron so On/Off stays at the pill's exact centre in LTR and RTL.
+        View chevronBalance = new View(mActivity);
+        chevronBalance.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+        selector.addView(chevronBalance, new LinearLayout.LayoutParams(dp(16), dp(38)));
         mBlurValue = text(getBlurLevelLabel(), 14, TEXT, false);
         mBlurValue.setSingleLine(true);
+        mBlurValue.setGravity(Gravity.CENTER);
+        mBlurValue.setEllipsize(android.text.TextUtils.TruncateAt.END);
         selector.addView(mBlurValue, new LinearLayout.LayoutParams(0, dp(44), 1f));
         TextView chevron = text("▾", 15, PRIMARY, false);
         chevron.setGravity(Gravity.CENTER);
