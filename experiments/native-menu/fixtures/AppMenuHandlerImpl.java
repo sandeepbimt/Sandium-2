@@ -903,4 +903,3 @@ class AppMenuHandlerImpl
         return mAppMenu.createAndShowFlyoutPopup(adapter, view, dismissRunnable, scrollListener);
     }
 }
-

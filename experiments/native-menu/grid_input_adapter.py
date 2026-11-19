@@ -4,7 +4,7 @@ import hashlib
 HERE = Path(__file__).resolve().parent
 FIXTURE = HERE/'fixtures/AppMenuDragHelper.java'
 # Exact Chromium 158 source fixture, not a latest-branch heuristic.
-EXPECTED = 'de5acdf02cdbcc98e0446285e4745e1e06bdd980c55d7c5070a38173bf87400f'
+EXPECTED = 'c06c9d22e72c1a0c4e8f35cff9526e81aa8b95789903720ad9865c77dbc4cd02'
 ANCHOR = '''        for (int i = 0; i < listView.getChildCount(); ++i) {
             boolean hasImageButtons = false;'''
 INSERT = '''        for (int i = 0; i < listView.getChildCount(); ++i) {

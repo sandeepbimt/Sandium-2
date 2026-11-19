@@ -158,4 +158,3 @@ robolectric_library("junit") {
     "//ui/android:ui_java_test_support",
   ]
 }
-

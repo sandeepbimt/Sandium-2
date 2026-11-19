@@ -6,7 +6,7 @@ import grid_input_adapter
 HERE=Path(__file__).resolve().parent
 APP=adapter.JAVA+'AppMenu.java'
 DRAG=adapter.JAVA+'AppMenuDragHelper.java'
-APP_SHA='66a58df87ad367a628931417628f2ca46ed383ced84581d279d1395f239809bf'
+APP_SHA='9b16b3ce3e18f17b698273fe5ff89bdab09be0a942327e212a26b48dce48066e'
 SOURCES=('RawSMenuEditorState.java','RawSMenuEditorView.java','RawSMenuGridEditor.java','RawSMenuGridMetrics.java','RawSMenuPager.java','RawSMenuTileTargets.java','RawSMenuGridView.java','RawSMenuGridBinder.java','RawSGridHost.java')
 
 def handler(original):

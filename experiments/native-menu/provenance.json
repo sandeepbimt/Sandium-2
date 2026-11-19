@@ -2,8 +2,17 @@
   "chromium": "52bdd21723d5db0c9ab11716d38feac74828cf84",
   "raws_base": "e7e782067daef429073e54c2bd8fbb91da7c8439",
   "sha256": {
-    "AppMenuHandlerImpl.java": "572aef370edc37581181123c85d1bf99df2b805e4e84d5f4110224de6f0617f6",
-    "BUILD.gn": "7cbb8608ee92491b8ce94fa48c3b8bac8a58a317892eb4545754987b1632cf9c",
-    "LICENSE": "368cca1106be99d39ecd32a38d8305585d802a475effb66380b91ffc9bcf709b"
-  }
+    "AppMenuHandlerImpl.java": "fee19879a73bda8f974afd11bfa64fa462b25938d54df86471d5adfafafddb01",
+    "BUILD.gn": "3a12ec0ae0912256b3a00c93e1380062a496d0d00211da19f5706790ec86703a",
+    "LICENSE": "368cca1106be99d39ecd32a38d8305585d802a475effb66380b91ffc9bcf709b",
+    "AppMenu.java": "9b16b3ce3e18f17b698273fe5ff89bdab09be0a942327e212a26b48dce48066e",
+    "AppMenuDragHelper.java": "c06c9d22e72c1a0c4e8f35cff9526e81aa8b95789903720ad9865c77dbc4cd02"
+  },
+  "source_git_blobs": {
+    "AppMenuHandlerImpl.java": "cc8ac963bc098f9f976a8d53f499622ce3f2d451",
+    "AppMenu.java": "ffb24f2d3f1360df36e08facbf1c1cc35ca0370e",
+    "AppMenuDragHelper.java": "f230ea026d698dc940511eb911824f89e1c26a17",
+    "BUILD.gn": "3caae1037b9d094bb2b0a4d690d6dc0ec78bb0b2"
+  },
+  "source_url": "https://chromium.googlesource.com/chromium/src/+/52bdd21723d5db0c9ab11716d38feac74828cf84/"
 }

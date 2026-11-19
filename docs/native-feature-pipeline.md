@@ -123,3 +123,19 @@ owned-process cleanup, quiescence and success-only receipts remain. No index,
 source or accepted-checkpoint integrity check is skipped. Later phases retain
 their existing ceilings. The next service run must establish actual completion;
 this change does not itself prove verification or an APK.
+
+### #1413 exact upstream fixture correction
+
+The baseline clean-source and official-build proof passed. The apply command
+journal contained only depot/source read checks before the exact native-menu
+preimage gate rejected AppMenuHandlerImpl.java. Re-fetching all six active files
+at Chromium 52bdd21723d5db0c9ab11716d38feac74828cf84 showed four menu fixtures
+had an extra final newline; both toolbar fixtures already matched upstream.
+
+The four menu fixture bytes, their SHA256 identities and exact upstream Git blob
+IDs are now corrected together. There is no whitespace normalization or wider
+accepted preimage set: a source with an added final newline still fails. The
+feature transforms themselves are unchanged apart from their exact fixture
+hashes. Regression tests bind the four independent upstream blob IDs, reject the
+old extra-newline shape, and apply/replay/verify the combined native features.
+This establishes source composition, not Android compilation or device behavior.

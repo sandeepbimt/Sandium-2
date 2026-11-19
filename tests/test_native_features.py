@@ -60,6 +60,28 @@ class NativeFeaturesTest(unittest.TestCase):
             with self.assertRaises(ValueError):
                 nf.plan(self.source, self.root)
 
+    def test_pinned_menu_fixture_git_blob_identity_and_no_whitespace_tolerance(self):
+        # Independent pinned upstream Git object identities, not hashes derived
+        # from a fixture when the test runs. #1413 exposed an added final LF.
+        expected = {
+            'AppMenuHandlerImpl.java':'cc8ac963bc098f9f976a8d53f499622ce3f2d451',
+            'AppMenu.java':'ffb24f2d3f1360df36e08facbf1c1cc35ca0370e',
+            'AppMenuDragHelper.java':'f230ea026d698dc940511eb911824f89e1c26a17',
+            'BUILD.gn':'3caae1037b9d094bb2b0a4d690d6dc0ec78bb0b2',
+        }
+        for name, blob in expected.items():
+            data=(ROOT/'experiments/native-menu/fixtures'/name).read_bytes()
+            self.assertEqual(hashlib.sha1(b'blob '+str(len(data)).encode()+b'\0'+data).hexdigest(),blob)
+        with nf._menu_modules(self.root) as (adapter, grid):
+            path=self.source/adapter.HANDLER
+        original=path.read_bytes()
+        path.write_bytes(original+b'\n')
+        with self.assertRaisesRegex(ValueError,'Unreviewed native grid source'):
+            nf.plan(self.source,self.root)
+        path.write_bytes(original)
+        nf.apply(self.source,self.root)
+        nf.verify_applied(self.source,self.root)
+
     def test_combined_plan_exact_replay_and_all_required_outputs(self):
         plan = nf.plan(self.source, self.root)
         self.assertEqual((len(plan.tracked_paths), len(plan.generated_paths)), (6, 14))
