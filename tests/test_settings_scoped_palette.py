@@ -23,9 +23,9 @@ class ScopedPalette(unittest.TestCase):
   # The production test suite separately exercises the full pinned Activity.
   source='contentView.setBackgroundColor(SemanticColorUtils.getSettingsBackgroundColor(this));\n    private void onSettingsFragmentViewReady(Fragment fragment, View fragmentView) {\n        View insetView = getInsetView(fragment, fragmentView);\n        super.initializeSystemBarColors(edgeToEdgeSystemBarColorHelper);'
   fresh=m.settings_surface(source)
-  start=fresh.index('            android.util.TypedValue color')
-  end=fresh.index('            return getColor(R.color.container_background);',start)
-  prior=fresh[:start]+fresh[end:]
+  start=fresh.index('            try {')
+  end=fresh.index('\n        }',start)
+  prior=fresh[:start]+'            return getColor(R.color.container_background);'+fresh[end:]
   migrated=m.settings_surface(prior)
   self.assertEqual(migrated,fresh)
   self.assertEqual(migrated,m.settings_surface(migrated))
@@ -43,11 +43,11 @@ class ScopedPalette(unittest.TestCase):
   source=(ROOT/'.circleci/scripts/apply-sandium-native-theme.py').read_text()
   self.assertIn('fragment.getParentFragment() == null',source)
   self.assertIn('fragmentView.setBackgroundColor(sandiumSettingsBackground())',source)
-  self.assertIn('com.google.android.material.R.attr.colorSurfaceContainerLowest',source)
+  self.assertIn('return SemanticColorUtils.getColorSurfaceContainerLowest(this);',source)
  def test_menu_dark_only_and_explicit_dependency(self):
   source=(ROOT/'android/java/org/chromium/chrome/browser/ui/appmenu/SandiumPagedMenu.java').read_text()
   helper=source.split('private static int shieldsMatchedPanel',1)[1].split('// Paint-only',1)[0]
-  for value in ['UI_MODE_NIGHT_YES','isDynamicColorsEnabled()','return fallback','colorSurfaceContainerLowest']:
+  for value in ['UI_MODE_NIGHT_YES','isDynamicColorsEnabled()','return fallback','getColorSurfaceContainerLowest']:
    self.assertIn(value,helper)
   patch=(ROOT/'.circleci/scripts/apply-sandium-paged-menu.py').read_text()
   self.assertIn('//brave/browser/ui/android/theme:dynamic_colors_java',patch)

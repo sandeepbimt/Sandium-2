@@ -383,12 +383,11 @@ def settings_surface(source):
                 & android.content.res.Configuration.UI_MODE_NIGHT_MASK)
                 == android.content.res.Configuration.UI_MODE_NIGHT_YES;
         if (night && !org.chromium.chrome.browser.theme.BraveDynamicColors.isDynamicColorsEnabled()) {
-            android.util.TypedValue color = new android.util.TypedValue();
-            if (getTheme().resolveAttribute(
-                    com.google.android.material.R.attr.colorSurfaceContainerLowest, color, true)) {
-                return color.resourceId != 0 ? getColor(color.resourceId) : color.data;
+            try {
+                return SemanticColorUtils.getColorSurfaceContainerLowest(this);
+            } catch (IllegalArgumentException missingThemeAttribute) {
+                return getColor(R.color.container_background);
             }
-            return getColor(R.color.container_background);
         }
         return SemanticColorUtils.getSettingsBackgroundColor(this);
     }
@@ -396,14 +395,12 @@ def settings_surface(source):
 """
     # Upgrade the exact previously emitted helper before checking fresh-source anchors.
     # Do not insert a second helper into a restored checkpoint's generated Java.
-    previous_helper = helper.replace("""android.util.TypedValue color = new android.util.TypedValue();
-            if (getTheme().resolveAttribute(
-                    com.google.android.material.R.attr.colorSurfaceContainerLowest, color, true)) {
-                return color.resourceId != 0 ? getColor(color.resourceId) : color.data;
-            }
-            """, "")
-    if previous_helper in source and previous_helper != helper:
-        source = source.replace(previous_helper, helper, 1)
+    previous_attr_body = '            android.util.TypedValue color = new android.util.TypedValue();\n            if (getTheme().resolveAttribute(\n                    com.google.android.material.R.attr.colorSurfaceContainerLowest, color, true)) {\n                return color.resourceId != 0 ? getColor(color.resourceId) : color.data;\n            }\n            return getColor(R.color.container_background);'
+    for previous_body in (previous_attr_body, '            return getColor(R.color.container_background);'):
+        previous_helper = helper.replace(
+                '            try {\n                return SemanticColorUtils.getColorSurfaceContainerLowest(this);\n            } catch (IllegalArgumentException missingThemeAttribute) {\n                return getColor(R.color.container_background);\n            }', previous_body)
+        if previous_helper in source:
+            source = source.replace(previous_helper, helper, 1)
     anchor = '    private void onSettingsFragmentViewReady(Fragment fragment, View fragmentView) {'
     if helper not in source:
         if source.count(anchor) != 1 or source.count(old) != 1:

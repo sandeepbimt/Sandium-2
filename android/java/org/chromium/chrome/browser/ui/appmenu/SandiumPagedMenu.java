@@ -381,12 +381,12 @@ final class SandiumPagedMenu extends FrameLayout {
                 || org.chromium.chrome.browser.theme.BraveDynamicColors.isDynamicColorsEnabled()) {
             return fallback;
         }
-        android.util.TypedValue color = new android.util.TypedValue();
-        if (!context.getTheme().resolveAttribute(
-                com.google.android.material.R.attr.colorSurfaceContainerLowest, color, true)) {
+        try {
+            return org.chromium.components.browser_ui.styles.SemanticColorUtils
+                    .getColorSurfaceContainerLowest(context);
+        } catch (IllegalArgumentException missingThemeAttribute) {
             return fallback;
         }
-        return color.resourceId != 0 ? context.getColor(color.resourceId) : color.data;
     }
 
     // Paint-only feathered rim: no added content padding, geometry or touch interception.
