@@ -35,7 +35,7 @@ class AutofillRuntimeTest(unittest.TestCase):
                 file.write_text(transformed)
             self.assertEqual(planned, RUNTIME.plan(root))
             first = root / RUNTIME.BROWSER_MANAGER
-            first.write_text(first.read_text().replace("  return;\n#endif", "  // missing gate\n#endif", 1))
+            first.write_text(first.read_text().replace(RUNTIME.GUARD.format(statement="return;").rstrip("\n"), RUNTIME.GUARD.format(statement="// missing gate").rstrip("\n"), 1))
             with self.assertRaises(SystemExit):
                 RUNTIME.plan(root)
 
@@ -74,6 +74,76 @@ class AutofillRuntimeTest(unittest.TestCase):
             self.assertIn(stop, source[source.index(start):])
         self.assertTrue(set(records).isdisjoint(RUNTIME.PATCHES))
 
+    def test_clang_aggressive_unreachable_regression(self):
+        # Use the actual Clang frontend when no clang++ driver is installed.
+        # This is syntax/diagnostic validation, not a Chromium native link.
+        import ctypes
+        import ctypes.util
+        pinned_driver=ROOT/"brave-work/src/third_party/llvm-build/Release+Asserts/bin/clang++"
+        driver=str(pinned_driver) if pinned_driver.is_file() else shutil.which("clang++")
+        library=ctypes.util.find_library("clang-19")
+        if not driver and not library:
+            self.skipTest("Clang frontend unavailable")
+        clang=ctypes.CDLL(library) if library else None; pointer=ctypes.c_void_p
+        class CXString(ctypes.Structure):
+            _fields_=[("data",pointer),("private_flags",ctypes.c_uint)]
+        signatures={
+            "clang_createIndex":(pointer,[ctypes.c_int,ctypes.c_int]),
+            "clang_parseTranslationUnit":(pointer,[pointer,ctypes.c_char_p,ctypes.POINTER(ctypes.c_char_p),ctypes.c_int,pointer,ctypes.c_uint,ctypes.c_uint]),
+            "clang_getNumDiagnostics":(ctypes.c_uint,[pointer]),
+            "clang_getDiagnostic":(pointer,[pointer,ctypes.c_uint]),
+            "clang_getDiagnosticSeverity":(ctypes.c_int,[pointer]),
+            "clang_getDiagnosticSpelling":(CXString,[pointer]),
+            "clang_getCString":(ctypes.c_char_p,[CXString]),
+            "clang_disposeString":(None,[CXString]),
+            "clang_disposeDiagnostic":(None,[pointer]),
+            "clang_disposeTranslationUnit":(None,[pointer]),
+            "clang_disposeIndex":(None,[pointer]),
+        }
+        if clang:
+            for name,(result,args) in signatures.items():
+                function=getattr(clang,name);function.restype=result;function.argtypes=args
+        def diagnostics(source,android):
+            with tempfile.TemporaryDirectory() as temp:
+                file=Path(temp)/"strict.cc";file.write_text(source)
+                args=["-std=c++17","-Wall","-Wextra","-Werror","-Wunreachable-code","-Wunreachable-code-aggressive",f"-DIS_ANDROID={android}"]
+                if driver:
+                    run=subprocess.run([driver,*args,"-fsyntax-only",str(file)],capture_output=True,text=True)
+                    messages=[(3,line.split("error:",1)[1]) for line in run.stderr.splitlines() if "error:" in line]
+                    if run.returncode and not messages:
+                        self.fail("Clang driver failed without diagnostics: "+run.stderr)
+                    if not run.returncode:self.assertEqual(run.stderr, "")
+                    return messages
+                argv=(ctypes.c_char_p*len(args))(*(a.encode() for a in args))
+                index=clang.clang_createIndex(0,0)
+                unit=clang.clang_parseTranslationUnit(index,str(file).encode(),argv,len(args),None,0,0)
+                self.assertTrue(unit)
+                found=[]
+                for i in range(clang.clang_getNumDiagnostics(unit)):
+                    d=clang.clang_getDiagnostic(unit,i);message=clang.clang_getDiagnosticSpelling(d)
+                    found.append((clang.clang_getDiagnosticSeverity(d),clang.clang_getCString(message).decode()))
+                    clang.clang_disposeString(message);clang.clang_disposeDiagnostic(d)
+                clang.clang_disposeTranslationUnit(unit);clang.clang_disposeIndex(index)
+                return found
+        fixture=json.loads(gzip.decompress((MODULE/"fixtures/runtime-pinned.json.gz").read_bytes()))
+        fixed=[];broken=[]
+        for rel,edits in RUNTIME.PATCHES.items():
+            transformed=RUNTIME.transform(rel,fixture["files"][rel]["source"])
+            for anchor,statement in edits:
+                guard=RUNTIME.GUARD.format(statement=statement).rstrip("\n")
+                self.assertIn(anchor+guard,transformed)
+                i=len(fixed);result="bool" if statement=="return false;" else "void"
+                tail="return true;" if result=="bool" else "++observed;"
+                # Include an RAII parameter like the real OnAskForValuesToFillImpl.
+                fixed.append(f"{result} f{i}(Cleanup) {{{guard}\n{tail}\n}}")
+                broken.append(f"{result} f{i}(Cleanup) {{\n#if BUILDFLAG(IS_ANDROID)\n{statement}\n#endif\n{tail}\n}}")
+        prefix="#define BUILDFLAG(x) x\nint observed; struct Cleanup { ~Cleanup(){++observed;} };\n"
+        self.assertEqual(len(fixed),15)
+        for android in (0,1):
+            self.assertEqual(diagnostics(prefix+"\n".join(fixed),android),[])
+        old=diagnostics(prefix+"\n".join(broken),1)
+        self.assertEqual(sum(severity>=3 and "never be executed" in message for severity,message in old),15)
+
     @unittest.skipUnless(shutil.which("c++"), "C++ compiler unavailable")
     def test_actual_guard_bodies_android_vs_other_platform(self):
         fixture = json.loads(gzip.decompress((MODULE / "fixtures" / "runtime-pinned.json.gz").read_bytes()))
@@ -84,8 +154,9 @@ class AutofillRuntimeTest(unittest.TestCase):
             transformed = RUNTIME.transform(rel, fixture["files"][rel]["source"])
             for anchor, statement in edits:
                 start = transformed.index(anchor) + len(anchor)
-                stop = transformed.index("#endif", start) + len("#endif")
-                guards.append((transformed[start:stop] + "\n", statement))
+                production_guard = RUNTIME.GUARD.format(statement=statement).rstrip("\n")
+                self.assertEqual(transformed[start:start+len(production_guard)],production_guard)
+                guards.append((production_guard + "\n", statement))
         for i, (production_guard, statement) in enumerate(guards):
             flag = f"hit{i}"
             name = f"run{i}"

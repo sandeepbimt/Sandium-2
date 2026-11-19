@@ -15,10 +15,10 @@ PASSWORD_CLIENT = "chrome/browser/password_manager/chrome_password_manager_clien
 
 MARKER = "SANDIUM_NO_INTERNAL_ANDROID_AUTOFILL"
 GUARD = """
-#if BUILDFLAG(IS_ANDROID)
   // SANDIUM_NO_INTERNAL_ANDROID_AUTOFILL: Keep client/data objects intact.
-  {statement}
-#endif
+  if constexpr (BUILDFLAG(IS_ANDROID)) {{
+    {statement}
+  }}
 """
 
 # Match each full signature, not a possibly overloaded name or earlier callsite.
