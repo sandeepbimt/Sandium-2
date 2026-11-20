@@ -15,7 +15,7 @@ def isolated_restore(steps):
         yield step
 
 def generate_archive(config=None):
-    if config is None:config=generate()
+    if config is None:config=generate(restore_only=False)
     job=copy.deepcopy(config['jobs']['raws-full-stage-1'])
     steps=job['steps'];cut=next(i for i,s in enumerate(steps) if isinstance(s,dict) and s.get('run',{}).get('name')=='RawS Full completion')
     progress='raws-final-progress-v1-{{ checksum ".checkpoint-state/scope-key" }}-'

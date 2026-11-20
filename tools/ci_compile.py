@@ -62,16 +62,20 @@ def verify_apk(apk, src, env):
     return {'apk_verified':True,'apk_sha256':file_sha(apk),'apk_package':match.group(1),
             'apk_abis':sorted(abis),'apk_signature_verified':True,'apk_zip_verified':True}
 
-def main(stage):
+def main(stage, *, feature=None):
     if os.environ.get('CIRCLE_BRANCH')!='raw-sandium/official158' or stage not in (1,2,3,4,5):raise ValueError('Wrong build scope')
+    if feature is not None and (stage != 1 or os.environ.get('RAWS_ALLOW_FRESH_SEED') != 'false'):
+        raise ValueError('Feature build requires strict restore-only stage 1')
+    source_verifier = verify if feature is None else feature.verify
     ident=fingerprint(); folder=ROOT/f'handoff/stage{stage}';folder.mkdir(parents=True,exist_ok=True)
     artifacts=ROOT/'artifacts';artifacts.mkdir(exist_ok=True)
     state={'stage':stage,'fingerprint':ident,'apk_produced':False}
+    if feature is not None:state['feature_recipe_sha256']=feature.identity
     try:
         receipt=json.loads((W/'source-ready.json').read_text())
         expected=hashlib.sha256((ROOT/'upstream.lock.json').read_bytes()).hexdigest()
         if not receipt['ready'] or receipt['lock_sha256']!=expected:raise ValueError('Unverified source handoff')
-        data=lock();verify(W/'src',data)
+        data=lock();source_verifier(W/'src',data)
         actual=subprocess.check_output(['git','-C',str(W/'depot_tools'),'rev-parse','HEAD'],text=True).strip()
         if actual!=data['depot_tools']['revision']:raise ValueError('Wrong tool revision')
         if shutil.disk_usage(ROOT).free<20*1024**3:raise ValueError('Need 20 GiB free before compile')
@@ -91,11 +95,25 @@ def main(stage):
                    artifacts/f'gn-{stage}.log',phase=f'gn-generation-{stage}',cwd=W/'src',env=env,check=True)
         state['official_build']=verify_official(W/'src',W/'depot_tools',out,env,artifacts,stage)
         state['gn_output_path_gate']=verify_graph_outputs(W/'src',W/'depot_tools',out,env,artifacts,stage)
+        if feature is not None:
+            from ci_prepare_raws_engine import run_native_gate,verify_apk_graph
+            source_verifier(W/'src',data)
+            verify_apk_graph(W/'src', W/'depot_tools'/'gn',out,env,
+                             artifacts/'raws-engine-apk-graph.txt')
+            state['raws_engine_apk_graph_verified']=True
+            epoch=json.loads((ROOT/'.checkpoint-state/job-start.json').read_text())['epoch']
+            # Leave time for the Android build, verification and the APK upload.
+            native_budget=min(360,int(3300-(time.time()-epoch)-1060))
+            state['raws_engine_smoke']=run_native_gate(W/'src',artifacts,env,native_budget)
         apk=out/'apks/ChromePublic.apk'
         if apk.exists():apk.unlink()
         started=json.loads((ROOT/'.checkpoint-state/job-start.json').read_text())['epoch']
-        budget=compile_budget(time.time()-started,(ROOT/'.checkpoint-state/fresh.json').is_file())
-        if budget<120:raise ValueError('Insufficient job time for safe compile and checkpoint')
+        elapsed=time.time()-started
+        # Restore-only features have no archive phase. Preserve the one-hour
+        # clock and leave time for APK verification/upload, not checkpointing.
+        budget=(min(1500,int(3300-elapsed-180)) if feature is not None
+                else compile_budget(elapsed,(ROOT/'.checkpoint-state/fresh.json').is_file()))
+        if budget<120:raise ValueError('Insufficient job time for safe compile and publication')
         state['compile_budget_seconds']=budget
         deadline=time.monotonic()+budget
         if stage==1:
@@ -127,8 +145,10 @@ def main(stage):
                     state['remote_audit']={'status':'no completed actions before slice expiry'}
         state['status']=classify(code,apk)
         if state['status']=='done':
+            if feature is not None:source_verifier(W/'src',data)
             state.update(verify_apk(apk,W/'src',env))
-            shutil.copy2(apk,artifacts/'RawSandium-baseline-arm64.apk')
+            name='RawSandium-EasyList-arm64.apk' if feature is not None else 'RawSandium-baseline-arm64.apk'
+            shutil.copy2(apk,(folder if feature is not None else artifacts)/name)
             state.update(apk_produced=True,apk_sha256=file_sha(apk),device_tested=False,branding='Chromium baseline')
         else:
             state['checkpoint_required']=True
