@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: MPL-2.0
 // Real CXX bridge and two upstream Rust engines; lab inputs, not shipping lists.
 #include <cstdint>
-#include <cstdio>
 #include <cstdlib>
+#include <iostream>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -16,7 +17,7 @@ auto Build(const std::string& text) {
   const std::vector<uint8_t> rules(text.begin(), text.end());
   const auto added = filters->add_filter_list(rules);
   if (added.result_kind != adblock::ResultKind::Success) {
-    std::fputs("filter input was rejected\n", stderr);
+    std::cerr << "filter input was rejected\n";
     std::exit(2);
   }
   return adblock::engine_from_filter_set(std::move(filters));
@@ -35,7 +36,7 @@ int main() {
                      "||example.test/local-extra.js$script\n");
   if (primary.result_kind != adblock::ResultKind::Success ||
       extra.result_kind != adblock::ResultKind::Success) return 3;
-  struct Case { const char* name; const char* url; const char* site; R type;
+  struct Case { std::string_view name; const char* url; const char* site; R type;
                 bool block; };
   const Case cases[] = {
     {"third-party", "https://ads.example.test/ad.js", "https://publisher.test", R::kScript, true},
@@ -58,14 +59,15 @@ int main() {
     using A = sandium::adblock_native::SubresourceAction;
     if (action != (c.block ? A::kBlock : A::kAllow) ||
         decision.history.blocked() != c.block ||
-        (std::string(c.name) == "exception" && !decision.history.exception) ||
-        (std::string(c.name) == "important" && !decision.history.important)) {
-      std::fprintf(stderr, "FAIL %s: match=%d exception=%d important=%d\n", c.name,
-                   decision.history.rule, decision.history.exception, decision.history.important);
+        (c.name == "exception" && !decision.history.exception) ||
+        (c.name == "important" && !decision.history.important)) {
+      std::cerr << "FAIL " << c.name << ": match=" << decision.history.rule
+                << " exception=" << decision.history.exception
+                << " important=" << decision.history.important << '\n';
       return 4;
     }
-    std::printf("ok %s\n", c.name);
+    std::cout << "ok " << c.name << '\n';
   }
-  std::puts("RAWS_ENGINE_SMOKE_V2_PASS");
+  std::cout << "RAWS_ENGINE_SMOKE_V2_PASS\n";
   return 0;
 }
