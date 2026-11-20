@@ -12,7 +12,7 @@ class OriginalWelcomeStrings(unittest.TestCase):
             'off': 'Off', 'native_blur_summary': 'Use the browser’s native navigation transition',
             'start': 'Start browsing', 'fewer_options': 'Fewer options', 'more_options': 'More options',
             'expanded_glyph': '⌄', 'collapsed_glyph': '›', 'quick_restart': 'Quick Restart', 'dots': '• • •',
-            'restarting_countdown': 'Restarting in %1$d…', 'starting_countdown': 'Starting in %1$d…',
+            'restarting_countdown': 'Restarting…', 'starting_countdown': 'Starting…',
             'status_retry': '○   Unable to read filter status. Retrying…',
             'engine_ready': '✓   Ad blocker engine: Ready', 'engine_activating': '○   Ad blocker engine: Activating',
             'engine_waiting': '○   Ad blocker engine: Waiting for enabled filters',

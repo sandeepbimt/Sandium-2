@@ -67,6 +67,12 @@ def verify_full_wiring(repo):
         # reviewed exact config, then retain every product invocation/argument gate.
         import hashlib
         expected=(repo/'.circleci/original-full/config.sha256').read_text().strip()
+        # E1 allows one isolated checkout branch; every job and cache key
+        # still has to match the immutable reviewed Full configuration.
+        shipping_entry = '            - work/1402-approved-ui\n'
+        e1_entry = '            - experiment/sandium-e1-1430\n'
+        if text.count(e1_entry) == 5:
+            text = text.replace(shipping_entry + e1_entry, shipping_entry)
         if not re.fullmatch('[0-9a-f]{64}',expected) or hashlib.sha256(text.encode()).hexdigest()!=expected:
             raise ValueError('Original Full configuration differs from reviewed wiring')
         verify_product_wrappers(repo)

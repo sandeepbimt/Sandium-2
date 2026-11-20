@@ -24,8 +24,8 @@
     <string name="sandium_welcome_filters_waiting">"○   Filters loaded: %1$d / %2$d"</string>
     <string name="sandium_welcome_quick_restart">Quick Restart</string>
     <string name="sandium_welcome_dots" translatable="false">"• • •"</string>
-    <string name="sandium_welcome_restarting_countdown">Restarting in %1$d…</string>
-    <string name="sandium_welcome_starting_countdown">Starting in %1$d…</string>
+    <string name="sandium_welcome_restarting_countdown">Restarting…</string>
+    <string name="sandium_welcome_starting_countdown">Starting…</string>
     <string name="sandium_welcome_notifications">App notifications</string>
     <string name="sandium_welcome_notifications_summary">Ask for notification permission after setup</string>
     <string name="sandium_welcome_save_failed">Could not save setup. Please try again.</string>

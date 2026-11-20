@@ -12,13 +12,9 @@ import android.content.res.ColorStateList;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.ColorDrawable;
-import android.graphics.drawable.ClipDrawable;
-import android.graphics.drawable.Drawable;
-import android.graphics.drawable.LayerDrawable;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Handler;
 import android.os.Looper;
-import android.os.SystemClock;
 import android.text.SpannableString;
 import android.text.Spanned;
 import android.text.style.ForegroundColorSpan;
@@ -71,8 +67,6 @@ final class SandiumWelcomeSetupView {
     private static final int PRIMARY = Color.rgb(25, 140, 255);
     // Approved off-white ready state and pale-green progress fill.
     private static final int START_BUTTON = Color.rgb(238, 236, 229);
-    // Start and restart share the same 1.5-second feedback without changing layout.
-    private static final int START_TRACK = Color.rgb(238, 236, 229);
     private static final int START_PROGRESS = Color.rgb(182, 220, 193);
     private static final int PRIMARY_TEXT = Color.rgb(8, 15, 24);
     private static final int DISABLED_BUTTON = Color.rgb(55, 55, 55);
@@ -80,11 +74,11 @@ final class SandiumWelcomeSetupView {
     private static final int TEXT = Color.rgb(250, 250, 250);
     private static final int SECONDARY = Color.rgb(189, 189, 189);
     private static final int SUCCESS = Color.rgb(70, 200, 120);
-    // Decorative category colors sampled from the owner's Oppo Settings reference.
+    // E1 muted decorative category colors; confined to Welcome.
     // These do not encode switch state, warnings or native protection readiness.
-    private static final int ICON_GREEN = Color.rgb(2, 190, 18);
-    private static final int ICON_AMBER = Color.rgb(253, 178, 0);
-    private static final int ICON_ORANGE = Color.rgb(255, 119, 1);
+    private static final int ICON_GREEN = Color.rgb(145, 175, 154);
+    private static final int ICON_AMBER = Color.rgb(190, 174, 140);
+    private static final int ICON_ORANGE = Color.rgb(191, 158, 141);
 
     private static final String PREF_NATIVE_BLUR = "sandium_page_transition_blur_enabled";
     private static final String PREF_BLUR_LEVEL = "sandium_page_transition_blur_level";
@@ -103,6 +97,7 @@ final class SandiumWelcomeSetupView {
     private LinearLayout mAdvancedOptions;
     private LinearLayout mMainSettingsCard;
     private final List<LinearLayout> mMainSettingGroups = new ArrayList<>();
+    private LinearLayout mProtectionDetails;
     private TextView mMoreOptionsLabel;
     private TextView mEngineState;
     private TextView mFilterCount;
@@ -127,19 +122,13 @@ final class SandiumWelcomeSetupView {
     private boolean mRestartInProgress;
     private boolean mStartInvoked;
     private Switch mDarkenSwitch;
-    private ClipDrawable mRestartButtonFill;
-    private ValueAnimator mRestartAnimator;
     private SandiumShieldsTracer mLogoTracer;
-    private final Runnable mRestartRunnable = this::performRestart;
 
-    private static final long START_FEEDBACK_MS = 1500L;
     private boolean mCompletionDispatched;
     private boolean mNotificationsEnabled = true;
     private boolean mPendingRestart;
-    private long mStartFeedbackAt;
     private int mDotPhase;
     private final Runnable mDotsRunnable = this::updatePreparingDots;
-    private final Runnable mCountdownRunnable = this::updateStartCountdown;
 
     private void performRestart() {
         if (mDestroyed || !mRestartInProgress || mCompletionDispatched) return;
@@ -154,7 +143,6 @@ final class SandiumWelcomeSetupView {
             return;
         }
         mCompletionDispatched = true;
-        mHandler.removeCallbacks(mCountdownRunnable);
         if (mPendingRestart) {
             mListener.onPrepareForRestart();
             BraveRelaunchUtils.restart();
@@ -199,24 +187,8 @@ final class SandiumWelcomeSetupView {
         if (ValueAnimator.areAnimatorsEnabled()) mHandler.postDelayed(mDotsRunnable, 300);
     }
 
-    private void updateStartCountdown() {
-        mHandler.removeCallbacks(mCountdownRunnable);
-        if (mDestroyed || !mRestartInProgress || mCompletionDispatched) return;
-        long elapsed = Math.max(0, SystemClock.uptimeMillis() - mStartFeedbackAt);
-        int remaining = Math.max(1, 5 - (int) (elapsed / 300));
-        mStartButton.setText(mActivity.getString(mPendingRestart
-                ? R.string.sandium_welcome_restarting_countdown
-                : R.string.sandium_welcome_starting_countdown, remaining));
-        if (elapsed < START_FEEDBACK_MS) {
-            mHandler.postDelayed(mCountdownRunnable, 300 - elapsed % 300);
-        }
-    }
-
     private void cancelButtonFeedback() {
         mHandler.removeCallbacks(mDotsRunnable);
-        mHandler.removeCallbacks(mCountdownRunnable);
-        mHandler.removeCallbacks(mRestartRunnable);
-        if (mRestartAnimator != null) mRestartAnimator.cancel();
         if (!mCompletionDispatched) {
             mRestartInProgress = false;
             mStartInvoked = false;
@@ -231,7 +203,7 @@ final class SandiumWelcomeSetupView {
         mStartButton.setBackgroundTintList(null);
         mStartButton.setBackground(roundRect(
                 mCanStartBrowsing ? START_BUTTON : DISABLED_BUTTON, 28));
-        // Ready Quick Restart only; preparation and both tapped countdowns stay unchanged.
+        // Ready Quick Restart only; preparation and completion retain separate states.
         if (mCanStartBrowsing && mRequiresRestart) {
             mStartButton.setBackground(quickRestartFrost());
             mStartButton.setTextColor(Color.rgb(243, 242, 239));
@@ -350,8 +322,6 @@ final class SandiumWelcomeSetupView {
     void destroy() {
         mDestroyed = true;
         cancelButtonFeedback();
-        mHandler.removeCallbacks(mRestartRunnable);
-        if (mRestartAnimator != null) mRestartAnimator.cancel();
         if (mLogoTracer != null) mLogoTracer.setEnabled(false);
         if (mContent != null) { mContent.animate().cancel(); mContent.setAlpha(1f); }
         if (mAdvancedOptions != null) {
@@ -485,6 +455,7 @@ final class SandiumWelcomeSetupView {
 
         LinearLayout more = new LinearLayout(mActivity);
         more.setGravity(Gravity.CENTER_VERTICAL);
+        more.setMinimumHeight(dp(48));
         more.setPadding(dp(12), dp(3), dp(10), dp(3));
         TextView plus = text("⊕", 21, PRIMARY, false);
         more.addView(plus, new LinearLayout.LayoutParams(dp(34), dp(30)));
@@ -495,6 +466,7 @@ final class SandiumWelcomeSetupView {
         more.addView(arrow, new LinearLayout.LayoutParams(dp(24), dp(30)));
         more.setOnClickListener(v -> {
             mExpanded = !mExpanded;
+            mProtectionDetails.setVisibility(mExpanded ? View.VISIBLE : View.GONE);
             updateSettingsStretch();
             mAdvancedOptions.animate().cancel(); mAdvancedOptions.setAlpha(1f);
             mAdvancedOptions.setVisibility(mExpanded ? View.VISIBLE : View.GONE);
@@ -581,10 +553,14 @@ final class SandiumWelcomeSetupView {
         mProtectionSubtitle.setPadding(0, dp(4), 0, 0);
         labels.addView(mProtectionSubtitle, matchWrap());
 
+        mProtectionDetails = new LinearLayout(mActivity);
+        mProtectionDetails.setOrientation(LinearLayout.VERTICAL);
+        mProtectionDetails.setVisibility(View.GONE);
+        card.addView(mProtectionDetails, matchWrap());
         LinearLayout progressRow = new LinearLayout(mActivity);
         progressRow.setGravity(Gravity.CENTER_VERTICAL);
         progressRow.setPadding(dp(56), dp(2), dp(16), dp(10));
-        card.addView(progressRow, matchWrap());
+        mProtectionDetails.addView(progressRow, matchWrap());
 
         mProgress = new ProgressBar(mActivity, null, android.R.attr.progressBarStyleHorizontal);
         mProgress.setMax(100);
@@ -604,7 +580,7 @@ final class SandiumWelcomeSetupView {
         LinearLayout.LayoutParams dividerParams = matchWrap();
         dividerParams.height = dp(1);
         dividerParams.setMargins(dp(12), 0, dp(12), dp(4));
-        card.addView(divider, dividerParams);
+        mProtectionDetails.addView(divider, dividerParams);
 
         mEngineState = statusLine("●", "Ad blocker engine: Waiting for first rule", SECONDARY);
         mFilterCount = statusLine("●", "Filters: 0 of 0 updated", SECONDARY);
@@ -612,9 +588,9 @@ final class SandiumWelcomeSetupView {
         mEngineState.setPadding(dp(16), dp(4), dp(14), dp(3));
         mFilterCount.setPadding(dp(16), dp(4), dp(14), dp(3));
         mFinalizing.setPadding(dp(16), dp(4), dp(14), dp(10));
-        card.addView(mEngineState, matchWrap());
-        card.addView(mFilterCount, matchWrap());
-        card.addView(mFinalizing, matchWrap());
+        mProtectionDetails.addView(mEngineState, matchWrap());
+        mProtectionDetails.addView(mFilterCount, matchWrap());
+        mProtectionDetails.addView(mFinalizing, matchWrap());
     }
 
     private TextView statusLine(String marker, String value, int color) {
@@ -704,7 +680,7 @@ final class SandiumWelcomeSetupView {
         selector.addView(chevron, new LinearLayout.LayoutParams(dp(16), dp(38)));
         selector.setOnClickListener(v -> showBlurLevelPicker());
         LinearLayout.LayoutParams selectorParams =
-                new LinearLayout.LayoutParams(dp(112), dp(40));
+                new LinearLayout.LayoutParams(dp(112), dp(48));
         selectorParams.setMargins(dp(4), dp(1), 0, 0);
         row.addView(selector, selectorParams);
         group.addView(mBlurRestartHint, matchWrap());
@@ -877,7 +853,8 @@ final class SandiumWelcomeSetupView {
             option.setGravity(Gravity.CENTER_VERTICAL);
             option.setPadding(dp(6), 0, dp(6), 0);
             TextView label = text(value, 15, TEXT, false);
-            option.addView(label, new LinearLayout.LayoutParams(0, dp(46), 1f));
+            option.setMinimumHeight(dp(48));
+            option.addView(label, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
             RadioButton radio = new RadioButton(mActivity);
             radio.setClickable(false);
             radio.setFocusable(false);
@@ -946,28 +923,14 @@ final class SandiumWelcomeSetupView {
         mHandler.removeCallbacks(mDotsRunnable);
         mStartButton.setEnabled(false);
         mStartButton.setTextColor(PRIMARY_TEXT);
-        mRestartButtonFill = new ClipDrawable(
-                roundRect(START_PROGRESS, 28), Gravity.START, ClipDrawable.HORIZONTAL);
-        mRestartButtonFill.setLevel(0);
-        mStartButton.setBackgroundTintList(null);
-        mStartButton.setBackground(new LayerDrawable(new Drawable[] {
-                roundRect(START_TRACK, 28), mRestartButtonFill}));
-        mStartButton.setContentDescription(readyButtonLabel());
-        mStartFeedbackAt = SystemClock.uptimeMillis();
-        updateStartCountdown();
-        if (ValueAnimator.areAnimatorsEnabled()) {
-            mRestartAnimator = ValueAnimator.ofInt(0, 10000);
-            mRestartAnimator.setDuration(START_FEEDBACK_MS);
-            mRestartAnimator.setInterpolator(new LinearInterpolator());
-            mRestartAnimator.addUpdateListener(animation ->
-                    mRestartButtonFill.setLevel((Integer) animation.getAnimatedValue()));
-            mRestartAnimator.start();
-        } else {
-            mRestartButtonFill.setLevel(10000);
-        }
+        mStartButton.setBackground(roundRect(START_PROGRESS, 28));
+        mStartButton.setText(mPendingRestart
+                ? R.string.sandium_welcome_restarting_countdown
+                : R.string.sandium_welcome_starting_countdown);
+        mStartButton.setContentDescription(mStartButton.getText());
         for (Switch toggle : mSwitches) toggle.setEnabled(false);
-        // Completion is clock-driven, not animation-driven, and fires exactly once.
-        mHandler.postDelayed(mRestartRunnable, START_FEEDBACK_MS);
+        // E1: retain durable completion ordering, without a cosmetic dispatch delay.
+        performRestart();
     }
 
     private void setProtectionEnabled(boolean enabled) {
@@ -1015,6 +978,7 @@ final class SandiumWelcomeSetupView {
                     mPollInFlight = false;
                     updateEngineStatus(false, 0, 0);
                     mFinalizing.setText(mActivity.getString(R.string.sandium_welcome_status_retry));
+                    mProtectionSubtitle.setText(R.string.sandium_welcome_status_retry);
                     schedulePoll();
                     return;
                 }
@@ -1035,6 +999,7 @@ final class SandiumWelcomeSetupView {
             mPollInFlight = false;
             updateEngineStatus(false, 0, 0);
             mFinalizing.setText(mActivity.getString(R.string.sandium_welcome_status_retry));
+            mProtectionSubtitle.setText(R.string.sandium_welcome_status_retry);
             schedulePoll();
         }
     }
@@ -1140,7 +1105,7 @@ final class SandiumWelcomeSetupView {
     // Settings-item labels and descriptions use exactly half their previous
     // text size; the page heading, progress card, and primary action stay legible.
     private TextView itemText(String value, float originalSizeSp, int color, boolean bold) {
-        return text(value, originalSizeSp * 0.88f, color, bold);
+        return text(value, Math.max(13f, originalSizeSp * 0.94f), color, bold);
     }
 
     private TextView text(String value, float sizeSp, int color, boolean bold) {

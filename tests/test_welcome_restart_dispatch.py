@@ -8,13 +8,11 @@ class WelcomeRestart(unittest.TestCase):
   method=s.split('    private void startBrowsingWithFeedback() {',1)[1].split('    private void setProtectionEnabled',1)[0]
   method='    private void startBrowsingWithFeedback() {'+method
   perform='private void performRestart() {'+s.split('    private void performRestart() {',1)[1].split('\n    }',1)[0]+'\n    }'
-  self.assertIn('postDelayed(mRestartRunnable, START_FEEDBACK_MS)',method)
+  self.assertNotIn('postDelayed(',method)
   helpers = ''
-  for name in ('readyButtonLabel', 'updateStartCountdown', 'cancelButtonFeedback'):
+  for name in ('readyButtonLabel', 'cancelButtonFeedback'):
    sig = ('private String ' if name == 'readyButtonLabel' else 'private void ') + name + '() {'
    helpers += sig + s.split(sig,1)[1].split('\n    }',1)[0] + '\n    }\n'
-  self.assertIn('mHandler.removeCallbacks(mRestartRunnable)',s)
-  self.assertIn('mRestartAnimator.cancel()',s)
   code='''public class RestartHarness {
  boolean mDestroyed,mCanStartBrowsing,mStartInvoked,mRestartInProgress,mRequiresRestart,mCompletionDispatched,mPendingRestart;
  boolean saveOk=true; Object mFilterHandler; Switch mDarkenSwitch; boolean persistNotificationSetup(){return saveOk;} void updateStartButtonState(){} boolean isBlurTransitionEnabled(){return true;} void pollFilterStatus(){}
@@ -27,7 +25,7 @@ class WelcomeRestart(unittest.TestCase):
  Activity mActivity=new Activity();
  static final int PRIMARY_TEXT=0, START_TRACK=1, START_PROGRESS=2;
  Object mPollRunnable=new Object(),mDotsRunnable=new Object();
- Runnable mCountdownRunnable=this::updateStartCountdown;
+
  static class Handler { Runnable pending; void removeCallbacks(Object r) {} void postDelayed(Runnable r,long ms){if(ms==1500)pending=r;else if(ms<1||ms>300)throw new AssertionError();} void fire(){pending.run();} }
  static class View { static int VISIBLE=0; }
  static class Switch { void setEnabled(boolean b){} }
@@ -41,7 +39,7 @@ class WelcomeRestart(unittest.TestCase):
  static class Gravity { static int START=3; }
  Drawable roundRect(int c,int r){return new Drawable();}
  ClipDrawable mRestartButtonFill;
- static class Button { void setEnabled(boolean b) {} String text; void setText(String s) {text=s;} void setTextColor(int c) {} void setBackgroundTintList(Object o){} void setBackground(Drawable d){} void setContentDescription(String s){} }
+ static class Button { void setEnabled(boolean b) {} String text; void setText(String s) {text=s;} void setText(int id){text="state";} String getText(){return text;} void setTextColor(int c) {} void setBackgroundTintList(Object o){} void setBackground(Drawable d){} void setContentDescription(String s){} }
  static class Listener { void onStartBrowsing(){started++;} void onPrepareForRestart(){prepared++;} }
  static class BraveRelaunchUtils { static void restart(){if(prepared!=1)throw new AssertionError("prepare order");restarted++;} }
  Handler mHandler=new Handler(); Button mStartButton=new Button(); Listener mListener=new Listener();
@@ -49,16 +47,13 @@ class WelcomeRestart(unittest.TestCase):
  static void reset(){prepared=restarted=started=0;SystemClock.now=0;}
  static void check(boolean b){if(!b)throw new AssertionError();}
  public static void main(String[] args) {
-  RestartHarness h=new RestartHarness();check(h.readyButtonLabel().equals("Start browsing"));h.mRequiresRestart=true;check(h.readyButtonLabel().equals("Quick Restart"));h.mRequiresRestart=false;h.startBrowsingWithFeedback();check(!h.mStartInvoked&&restarted==0);
-  h.mCanStartBrowsing=true;h.mDestroyed=true;h.startBrowsingWithFeedback();check(!h.mStartInvoked&&restarted==0);
-  h.mDestroyed=false;h.startBrowsingWithFeedback();h.startBrowsingWithFeedback();check(started==0&&h.mStartButton.text.equals("Starting in 5…"));h.mHandler.fire();h.mHandler.fire();check(started==1&&prepared==0&&restarted==0);
-  reset();h=new RestartHarness();h.mCanStartBrowsing=true;h.mRequiresRestart=true;
-  h.startBrowsingWithFeedback();h.startBrowsingWithFeedback();check(prepared==0&&restarted==0&&h.mRestartButtonFill.level==10000);for(int i=0;i<5;i++){SystemClock.now=i*300;h.updateStartCountdown();check(h.mStartButton.text.equals("Restarting in "+(5-i)+"…"));}h.mHandler.fire();h.mHandler.fire();check(prepared==1&&restarted==1&&started==0);
-  reset();h=new RestartHarness();h.mCanStartBrowsing=true;h.mRequiresRestart=true;ValueAnimator.enabled=false;h.startBrowsingWithFeedback();check(h.mRestartButtonFill.level==10000);h.mHandler.fire();check(restarted==1);
-  reset();h=new RestartHarness();h.mCanStartBrowsing=true;h.mRequiresRestart=true;h.startBrowsingWithFeedback();h.mDestroyed=true;h.mHandler.fire();check(restarted==0&&prepared==0);
-  reset();h=new RestartHarness();h.mCanStartBrowsing=true;h.saveOk=false;h.startBrowsingWithFeedback();h.mHandler.fire();check(started==0&&!h.mCompletionDispatched&&!h.mStartInvoked);
-  reset();h=new RestartHarness();h.mCanStartBrowsing=true;h.mRequiresRestart=true;h.startBrowsingWithFeedback();h.cancelButtonFeedback();h.mHandler.fire();check(restarted==0&&!h.mStartInvoked&&!h.mRestartInProgress);
+  RestartHarness h=new RestartHarness();h.startBrowsingWithFeedback();check(!h.mStartInvoked&&started==0);
+  h.mCanStartBrowsing=true;h.mDestroyed=true;h.startBrowsingWithFeedback();check(started==0);
+  h.mDestroyed=false;h.startBrowsingWithFeedback();h.startBrowsingWithFeedback();h.performRestart();check(started==1&&prepared==0&&restarted==0);
+  reset();h=new RestartHarness();h.mCanStartBrowsing=true;h.mRequiresRestart=true;h.startBrowsingWithFeedback();h.startBrowsingWithFeedback();check(prepared==1&&restarted==1&&started==0);
+  reset();h=new RestartHarness();h.mCanStartBrowsing=true;h.saveOk=false;h.startBrowsingWithFeedback();check(started==0&&!h.mCompletionDispatched&&!h.mStartInvoked);h.saveOk=true;h.startBrowsingWithFeedback();check(started==1);
  }
+
 }'''
   compiler=['javac'] if shutil.which('javac') else ['java','--module','jdk.compiler/com.sun.tools.javac.Main']
   if not shutil.which('java'): self.skipTest('Java unavailable; dispatch harness not executed')

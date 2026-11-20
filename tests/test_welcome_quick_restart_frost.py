@@ -85,7 +85,7 @@ public class FrostHarness {
         self.assertIn('mStartButton.setMinHeight(dp(52))', source)
         pressed = extract(source, 'private void startBrowsingWithFeedback()')
         self.assertNotIn('quickRestartFrost', pressed)
-        self.assertIn('roundRect(START_TRACK, 28)', pressed)
+        self.assertNotIn('START_TRACK', pressed)
         self.assertIn('roundRect(START_PROGRESS, 28)', pressed)
         self.assertIn('mStartButton.setTextColor(PRIMARY_TEXT)', pressed)
 

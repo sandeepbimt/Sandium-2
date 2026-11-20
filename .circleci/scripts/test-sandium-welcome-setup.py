@@ -96,7 +96,7 @@ required_view_markers = (
     "mBlurRestartHint.setPadding(dp(60), 0, dp(14), dp(4))",
     "mBlurRestartHint.setVisibility(View.VISIBLE)",
     "blurTitle.setSingleLine(true)",
-    "new LinearLayout.LayoutParams(dp(112), dp(40))",
+    "new LinearLayout.LayoutParams(dp(112), dp(48))",
     "if (!preferences.contains(PREF_NATIVE_BLUR))",
     "addRestartSwitchRow(card, \"☾\", \"Night Mode\"",
     "addRestartSwitchRow(card, \"◐\", \"Darken transition\"",
@@ -112,7 +112,7 @@ required_view_markers = (
     "showBlurLevelPicker()",
     "selector.setBackground(outlinedRoundRect(CARD, PRIMARY, 28))",
     "drawable.setStroke(dp(1), strokeColor)",
-    "new LinearLayout.LayoutParams(dp(112), dp(40))",
+    "new LinearLayout.LayoutParams(dp(112), dp(48))",
     "group.addView(mBlurRestartHint, matchWrap())",
     "mBlurRestartHint.setPadding(dp(60), 0, dp(14), dp(4))",
 )
@@ -216,9 +216,9 @@ print("SANDIUM_WELCOME_FROZEN_DESIGN_TEST=PASS")
 assert "Color.rgb(168, 183, 248)" not in view_source
 
 # Oppo-reference category icons are decorative, independent from toggle state.
-assert 'ICON_GREEN = Color.rgb(2, 190, 18)' in view_source
-assert 'ICON_AMBER = Color.rgb(253, 178, 0)' in view_source
-assert 'ICON_ORANGE = Color.rgb(255, 119, 1)' in view_source
+assert 'ICON_GREEN = Color.rgb(145, 175, 154)' in view_source
+assert 'ICON_AMBER = Color.rgb(190, 174, 140)' in view_source
+assert 'ICON_ORANGE = Color.rgb(191, 158, 141)' in view_source
 assert 'text(glyph, 23, welcomeIconColor(glyph), false)' in view_source
 assert 'params.setMarginStart(dp(56));' in view_source
 assert 'params.setMarginEnd(dp(14));' in view_source
@@ -231,7 +231,7 @@ import xml.etree.ElementTree as ET
 resource = Path("android/java/brave-res/values/sandium_welcome_strings.xml")
 strings = {el.attrib["name"]: el.text for el in ET.parse(HERE.parent.parent / resource).getroot()}
 assert strings["sandium_welcome_start"] == '"Start browsing"'
-assert strings["sandium_welcome_restarting_countdown"] == 'Restarting in %1$d…'
+assert strings["sandium_welcome_restarting_countdown"] == 'Restarting…'
 assert set(re.findall(r"R.string.(sandium_welcome_\w+)", view_source)) == set(strings)
 assert all('"' not in expr for expr in re.findall(r"\.setText\((.*?)\);", view_source, re.S))
 assert "Gravity.RIGHT" not in view_source and "Gravity.LEFT" not in view_source

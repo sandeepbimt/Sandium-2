@@ -12,7 +12,7 @@ class BlurAlignment(unittest.TestCase):
     'mBlurValue.setGravity(Gravity.CENTER)',
     'mBlurValue.setEllipsize(android.text.TextUtils.TruncateAt.END)',
     'selector.addView(chevron, new LinearLayout.LayoutParams(dp(16), dp(38)))',
-    'new LinearLayout.LayoutParams(dp(112), dp(40))',
+    'new LinearLayout.LayoutParams(dp(112), dp(48))',
     'selector.setOnClickListener(v -> showBlurLevelPicker())']:
    self.assertIn(token,block)
   self.assertNotIn('setOnClickListener',block.split('View chevronBalance',1)[1].split('mBlurValue =',1)[0])

@@ -5,7 +5,7 @@ ROOT = Path(__file__).resolve().parents[1]
 class PreparingLifecycle(unittest.TestCase):
     def test_dots_stop_when_ready_or_detached(self):
         s=(ROOT/'android/java/org/chromium/chrome/browser/firstrun/SandiumWelcomeSetupView.java').read_text()
-        dots=s.split('private void updatePreparingDots()',1)[1].split('private void updateStartCountdown()',1)[0]
+        dots=s.split('private void updatePreparingDots()',1)[1].split('private void cancelButtonFeedback()',1)[0]
         for marker in ('mDestroyed || mCanStartBrowsing || mStartInvoked', '!mStartButton.isAttachedToWindow()', 'mHandler.removeCallbacks(mDotsRunnable)', 'if (ValueAnimator.areAnimatorsEnabled()) mHandler.postDelayed(mDotsRunnable, 300)'):
             self.assertIn(marker,dots)
         self.assertIn('new SpannableString(',dots)
@@ -13,13 +13,13 @@ class PreparingLifecycle(unittest.TestCase):
         detach=s.split('public void onViewDetachedFromWindow(View view)',1)[1].split('});',1)[0]
         self.assertIn('cancelButtonFeedback()',detach)
         cleanup=s.split('private void cancelButtonFeedback()',1)[1].split('private void updateStartButtonState()',1)[0]
-        for field in ('mDotsRunnable','mCountdownRunnable','mRestartRunnable'):
+        for field in ('mDotsRunnable',):
             self.assertIn('removeCallbacks('+field+')',cleanup)
-        self.assertIn('mRestartAnimator.cancel()',cleanup)
+        self.assertNotIn('mRestartAnimator',s)
     def test_countdown_is_fixed_clock_not_animation_dispatch(self):
         s=(ROOT/'android/java/org/chromium/chrome/browser/firstrun/SandiumWelcomeSetupView.java').read_text()
-        self.assertIn('START_FEEDBACK_MS = 1500L',s)
-        self.assertIn('elapsed / 300',s)
+        self.assertNotIn('START_FEEDBACK_MS',s)
+        self.assertIn('performRestart();',s)
         self.assertIn('mPendingRestart = mRequiresRestart',s)
         self.assertIn('mCompletionDispatched = true',s)
         self.assertNotIn('onAnimationEnd(',s)

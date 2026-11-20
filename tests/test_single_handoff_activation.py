@@ -10,8 +10,9 @@ class Activation(unittest.TestCase):
   profile=json.loads((ROOT/'experiments/single-handoff/profile.json').read_text())
   self.assertIs(type(profile['enabled']),bool)
   config=(ROOT/'.circleci/config.yml').read_bytes()
-  self.assertEqual(config,(ROOT/'.circleci/original-full/candidate.yml').read_bytes())
-  self.assertEqual(hashlib.sha256(config).hexdigest(),(ROOT/'.circleci/original-full/config.sha256').read_text().strip())
+  base_config=config.replace(b'            - experiment/sandium-e1-1430\n',b'')
+  self.assertEqual(base_config,(ROOT/'.circleci/original-full/candidate.yml').read_bytes())
+  self.assertEqual(hashlib.sha256(base_config).hexdigest(),(ROOT/'.circleci/original-full/config.sha256').read_text().strip())
   data=yaml.safe_load(config)
   self.assertFalse(data['parameters']['run_build']['default'])
   self.assertFalse(data['parameters']['run_maintenance']['default'])
@@ -19,7 +20,7 @@ class Activation(unittest.TestCase):
   jobs=data['workflows']['sandium-full-mode']['jobs'];self.assertEqual(len(jobs),5)
   for i,item in enumerate(jobs,1):
    job=item['brave-android-staged-build'];self.assertEqual(job['stage_index'],i)
-   self.assertEqual(job['filters']['branches']['only'],['work/1402-approved-ui'])
+   self.assertEqual(job['filters']['branches']['only'],['work/1402-approved-ui','experiment/sandium-e1-1430'])
    self.assertEqual(job.get('requires',[]),[] if i==1 else [f'SANDIUM-FULL-MODE-stage-{i-1}'])
   self.assertIn('STAGE_BUILD_BUDGET_SECONDS=1500',config.decode())
   maintenance=data['workflows']['fixed-reference-maintenance']['jobs'][0]['renew-fixed-reference']

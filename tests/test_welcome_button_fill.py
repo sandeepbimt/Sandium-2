@@ -8,20 +8,13 @@ VIEW = ROOT / 'android/java/org/chromium/chrome/browser/firstrun/SandiumWelcomeS
 
 
 class WelcomeButtonFill(unittest.TestCase):
-    def test_fill_reuses_capsule_without_separate_progress_row(self):
+    def test_immediate_completion_reuses_capsule(self):
         source = VIEW.read_text()
-        self.assertNotIn('mRestartProgress', source)
-        self.assertIn('private ClipDrawable mRestartButtonFill;', source)
-        self.assertIn('roundRect(START_PROGRESS, 28), Gravity.START, ClipDrawable.HORIZONTAL', source)
-        self.assertIn('roundRect(START_TRACK, 28), mRestartButtonFill', source)
-        self.assertIn('mStartButton.setBackgroundTintList(null)', source)
-        self.assertIn('ViewGroup.LayoutParams.MATCH_PARENT, dp(52)', source)
-        self.assertIn('R.string.sandium_welcome_restarting_countdown', source)
-        self.assertIn('mRestartButtonFill.setLevel(0)', source)
-        self.assertIn('ValueAnimator.ofInt(0, 10000)', source)
-        self.assertIn('mRestartButtonFill.setLevel(10000)', source)
-        # Setup download progress is independent and remains visible as before.
+        self.assertNotIn('mRestartButtonFill', source)
+        self.assertNotIn('START_FEEDBACK_MS', source)
+        self.assertIn('mStartButton.setBackground(roundRect(START_PROGRESS, 28))', source)
         self.assertIn('mProgress.setProgress(percent)', source)
+        self.assertIn('performRestart();', source)
 
     def test_reference_green_and_text_progress_contrast(self):
         import re
@@ -39,7 +32,7 @@ class WelcomeButtonFill(unittest.TestCase):
         self.assertEqual(color('START_BUTTON'), (238, 236, 229))
         self.assertEqual(color('START_PROGRESS'), (182, 220, 193))
         self.assertGreaterEqual(contrast(color('PRIMARY_TEXT'), color('START_BUTTON')), 4.5)
-        for background in ('START_TRACK', 'START_PROGRESS'):
+        for background in ('START_BUTTON', 'START_PROGRESS'):
             self.assertGreaterEqual(contrast(color('PRIMARY_TEXT'), color(background)), 4.5)
         self.assertIn('mStartButton.setTextColor(PRIMARY_TEXT)', source)
         self.assertIn('mCanStartBrowsing ? START_BUTTON : DISABLED_BUTTON, 28', source)
@@ -51,8 +44,8 @@ class WelcomeButtonFill(unittest.TestCase):
         patch = runpy.run_path(str(ROOT / '.circleci/scripts/apply-sandium-dark-pages.py'))['welcome']
         source = patch(VIEW.read_text())
         self.assertEqual(source, patch(source))
-        self.assertIn('mRestartButtonFill.setLevel((Integer) animation.getAnimatedValue())', source)
-        self.assertIn('mHandler.postDelayed(mRestartRunnable, START_FEEDBACK_MS)', source)
+        self.assertNotIn('mRestartButtonFill', source)
+        self.assertIn('performRestart();', source)
         self.assertIn('mCompletionDispatched', source)
         self.assertNotIn('mRestartProgress', source)
 

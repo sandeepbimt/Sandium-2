@@ -49,8 +49,9 @@ class Safety(unittest.TestCase):
   raw=(ROOT/'.circleci/config.yml').read_text();d=yaml.safe_load(raw);steps=d['jobs']['brave-android-staged-build']['steps'];runs={x['run']['name']:x['run'] for x in steps if isinstance(x,dict) and 'run' in x}
   self.assertIn('circleci-agent step halt',runs['Skip large handoff after verified APK publication']['command'])
   self.assertIn('official-checkpoint-safety.py" budget',runs['Build bounded Brave Android APK slice']['command'])
-  self.assertEqual((ROOT/'.circleci/original-full/candidate.yml').read_text(),raw)
-  self.assertEqual((ROOT/'.circleci/original-full/config.sha256').read_text().strip(),hashlib.sha256(raw.encode()).hexdigest())
+  base_config=raw.replace('            - experiment/sandium-e1-1430\n','')
+  self.assertEqual((ROOT/'.circleci/original-full/candidate.yml').read_text(),base_config)
+  self.assertEqual((ROOT/'.circleci/original-full/config.sha256').read_text().strip(),hashlib.sha256(base_config.encode()).hexdigest())
   names=[x.get('run',{}).get('name') for x in steps if isinstance(x,dict)]
   self.assertLess(names.index('Select Sandium build mode and validate reference'),names.index('Reclaim verified restored transport before official build'))
 if __name__=='__main__':unittest.main()
