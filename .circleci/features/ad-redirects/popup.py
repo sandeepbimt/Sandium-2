@@ -1,22 +1,29 @@
 """Install the Android ad-tab check in Brave's existing window creation hook."""
 import argparse
+import hashlib
 from pathlib import Path
 
 CLIENT = Path("browser/brave_content_browser_client.cc")
 INCLUDE_ANCHOR = '#if BUILDFLAG(IS_ANDROID)\n#include "base/files/memory_mapped_file.h"\n'
-INCLUDES = INCLUDE_ANCHOR + '''#include "brave/components/brave_shields/core/browser/brave_shields_utils.h"
+V1_INCLUDES = INCLUDE_ANCHOR + '''#include "brave/components/brave_shields/core/browser/brave_shields_utils.h"
 #include "net/base/url_util.h"
 '''
+INCLUDES = V1_INCLUDES + '#include "third_party/blink/public/mojom/window_features/window_features.mojom.h"\n'
 METHOD = 'bool BraveContentBrowserClient::CanCreateWindow(\n'
 BEFORE_RETURN = '''  return can_create_window && google_sign_in_permission::CanCreateWindow(
                                   opener, opener_url, target_url);'''
-GUARD = '''#if BUILDFLAG(IS_ANDROID)
+V1_GUARD = '''#if BUILDFLAG(IS_ANDROID)
   if (can_create_window && ShouldBlockSandiumAdTab(
           opener, opener_top_level_frame_url, target_url, disposition)) {
     return false;
   }
 #endif
 '''
+GUARD = V1_GUARD.replace(
+    "opener, opener_top_level_frame_url, target_url, disposition",
+    "opener, opener_url, opener_top_level_frame_url, target_url, disposition,\n"
+    "          features.sandium_scripted_media_popup")
+V1_HELPERS_SHA256 = "3d9fc572b75ac4a823af5993c21138e59a53d118a27bc5d80fdca2e7e06fbea2"
 HELPERS = '''#if BUILDFLAG(IS_ANDROID)
 namespace {
 
@@ -49,10 +56,61 @@ bool IsSandiumAdTabTarget(const GURL& target) {
   return has_nrb_flag && has_auction_fallback && has_metadata;
 }
 
+bool SameSandiumSite(const GURL& a, const GURL& b) {
+  return net::registry_controlled_domains::SameDomainOrHost(
+      a, b, net::registry_controlled_domains::INCLUDE_PRIVATE_REGISTRIES);
+}
+
+// The recorded ad exchange used this route even before video playback began.
+// Never classify a popup from the psid query key alone.
+bool IsSandiumAdExchangeTarget(const GURL& target) {
+  const auto path = target.path();
+  if (!path.starts_with("/10/") || path.size() != 4 + 32 ||
+      path.substr(4).find_first_not_of("0123456789abcdefABCDEF") != path.npos) {
+    return false;
+  }
+  for (net::QueryIterator fields(target); !fields.IsAtEnd(); fields.Advance()) {
+    const auto value = fields.GetValue();
+    if (fields.GetKey() == "psid" && !value.empty() &&
+        value.find_first_not_of("0123456789") == value.npos) {
+      return true;
+    }
+  }
+  return false;
+}
+
+// uBlock Origin's VOE quick fix suppresses script-opened windows at the
+// player. Apply that distinction across embedded players while retaining
+// publisher/player links and the publisher's popup and Shields permissions.
+// https://github.com/uBlockOrigin/uAssets/issues/24745
+bool IsSandiumEmbeddedAdTab(content::RenderFrameHost* opener,
+                            const GURL& opener_url,
+                            const GURL& top_url,
+                            const GURL& target,
+                            bool scripted_media_popup) {
+  if (!opener->GetParent()) {
+    return false;
+  }
+  // An initial about:blank/srcdoc frame can inherit its parent's origin.
+  const GURL source = opener_url.SchemeIsHTTPOrHTTPS()
+                          ? opener_url
+                          : opener->GetLastCommittedOrigin().GetURL();
+  if (!source.SchemeIsHTTPOrHTTPS() || SameSandiumSite(source, top_url)) {
+    return false;
+  }
+  if (target.IsAboutBlank()) {
+    return scripted_media_popup;
+  }
+  return target.SchemeIsHTTPOrHTTPS() && !SameSandiumSite(source, target) &&
+         (scripted_media_popup || IsSandiumAdExchangeTarget(target));
+}
+
 bool ShouldBlockSandiumAdTab(content::RenderFrameHost* opener,
+                             const GURL& opener_url,
                              const GURL& top_url,
                              const GURL& target,
-                             WindowOpenDisposition disposition) {
+                             WindowOpenDisposition disposition,
+                             bool scripted_media_popup) {
   switch (disposition) {
     case WindowOpenDisposition::NEW_FOREGROUND_TAB:
     case WindowOpenDisposition::NEW_BACKGROUND_TAB:
@@ -62,10 +120,10 @@ bool ShouldBlockSandiumAdTab(content::RenderFrameHost* opener,
     default:
       return false;
   }
-  if (!top_url.SchemeIsHTTPOrHTTPS() || !IsSandiumAdTabTarget(target) ||
-      net::registry_controlled_domains::SameDomainOrHost(
-          top_url, target,
-          net::registry_controlled_domains::INCLUDE_PRIVATE_REGISTRIES)) {
+  if (!top_url.SchemeIsHTTPOrHTTPS() || SameSandiumSite(top_url, target) ||
+      (!IsSandiumAdTabTarget(target) &&
+       !IsSandiumEmbeddedAdTab(opener, opener_url, top_url, target,
+                               scripted_media_popup))) {
     return false;
   }
   auto* profile = Profile::FromBrowserContext(opener->GetBrowserContext());
@@ -83,6 +141,18 @@ bool ShouldBlockSandiumAdTab(content::RenderFrameHost* opener,
 
 
 def transform(source):
+    # Checkpoints can contain the previously installed Android hook. Accept its
+    # exact generated helper and guard, then use the same clean install path.
+    if V1_GUARD in source:
+        start = source.find("#if BUILDFLAG(IS_ANDROID)\nnamespace {\n\n// AdGuard Base")
+        end = source.find(METHOD, start)
+        previous = source[start:end]
+        if (start < 0 or end < 0 or source.count(V1_GUARD) != 1
+                or hashlib.sha256(previous.encode()).hexdigest() != V1_HELPERS_SHA256
+                or source.count(V1_INCLUDES) != 1 or INCLUDES in source):
+            raise ValueError("Unexpected previous Sandium ad-tab check")
+        source = (source[:start] + source[end:]).replace(V1_GUARD, "", 1)
+        source = source.replace(V1_INCLUDES, INCLUDE_ANCHOR, 1)
     edits = ((INCLUDE_ANCHOR, INCLUDES), (METHOD, HELPERS + METHOD),
              (BEFORE_RETURN, GUARD + BEFORE_RETURN))
     if any(new in source for _, new in edits):
