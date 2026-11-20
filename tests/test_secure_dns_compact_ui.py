@@ -42,14 +42,14 @@ class CompactDnsUi(unittest.TestCase):
   s=JAVA.read_text()
   welcome=(ROOT/'android/java/org/chromium/chrome/browser/firstrun/SandiumWelcomeSetupView.java').read_text()
   blur=welcome.split('private void addBlurRow(',1)[1].split('private Switch addSwitchRow(',1)[0]
-  for geometry in ['dp(112), dp(40)', 'dp(38), dp(38)', 'dp(16), dp(38)', 'dp(6), 0, dp(8), 0']:
+  for geometry in ['dp(112), dp(48)', 'dp(38), dp(38)', 'dp(16), dp(38)', 'dp(6), 0, dp(8), 0']:
    self.assertIn(geometry,blur)
    self.assertIn(geometry,s)
   self.assertIn('row.setPaddingRelative(dp(16), dp(7), dp(14), dp(7))',s)
   self.assertIn('mWelcomeChevron.setText("▾")',s)
   self.assertIn('mWelcomeStyle ? selected',s)
   self.assertIn('mButton.setContentDescription',s)
-  self.assertIn('dp(112), dp(48)',s) # Compact Shields retains a full-height touch target.
+  self.assertEqual(s.count('dp(112), dp(48)'), 2) # Welcome and compact Shields keep full-height targets.
  def test_android_api_compilation(self):
   jar=Path(os.environ.get('RAWS_ANDROID_API_JAR','/workspace/shared/raws-api/android15.jar'))
   if not jar.exists(): self.skipTest('Android SDK API jar unavailable')

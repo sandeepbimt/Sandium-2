@@ -82,7 +82,7 @@ public final class SandiumSecureDnsDropdown extends LinearLayout {
             mWelcomeChevron.setGravity(Gravity.CENTER);
             mWelcomeChevron.setImportantForAccessibility(IMPORTANT_FOR_ACCESSIBILITY_NO);
             selector.addView(mWelcomeChevron, new LayoutParams(dp(16), dp(38)));
-            LayoutParams choiceParams = new LayoutParams(dp(112), dp(40));
+            LayoutParams choiceParams = new LayoutParams(dp(112), dp(48));
             choiceParams.setMarginStart(dp(4));
             choiceParams.topMargin = dp(1);
             row.addView(selector, choiceParams);
