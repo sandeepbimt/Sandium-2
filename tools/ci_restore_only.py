@@ -93,8 +93,11 @@ def compile_once():
         epoch=full.D.c.read(full.D.STATE/'job-start.json')['epoch']
         if time.time()-epoch > 1800:
             raise ValueError('Not enough original RawS job budget to prepare and build')
+        src = full.ROOT / 'work/source/src'
+        upstream = lock()
+        feature.preflight(src, upstream)
         prepare()
-        feature.apply(full.ROOT / 'work/source/src', lock())
+        feature.apply(src, upstream)
     return main(1, feature=feature)
 
 

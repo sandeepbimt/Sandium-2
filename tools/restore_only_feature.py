@@ -178,30 +178,53 @@ class Overlay:
             result[relative] = data
         return result
 
-    def apply(self, source, upstream):
-        """Validate the actual baseline and every path before writing any bytes."""
+    def preflight(self, source, upstream):
+        """Validate the restored baseline and every destination without writes."""
         src = Path(source).resolve()
-        verify_baseline(src, upstream)
+        if git(src, 'rev-parse', 'HEAD').decode().strip() != upstream['chromium']['revision']:
+            raise ValueError('Wrong Chromium revision')
         for directory in OWNED:
             if safe(src, directory).exists():
+                if directory == 'brave':
+                    raise ValueError('Brave directory present in clean baseline')
                 raise ValueError('Generated feature directory must not preexist: ' + directory)
-        postimages = self.postimages()
         targets = {}
         for relative, (before, _, mode) in self.files.items():
             path = safe(src, relative)
             if before is not None:
+                tree = git(src, 'ls-tree', '-z', 'HEAD', '--', relative)
+                if not re.fullmatch(rb'100644 blob [0-9a-f]{40,64}\t'
+                                    + re.escape(relative.encode()) + rb'\x00', tree):
+                    raise ValueError('Feature preimage Git mode mismatch: ' + relative)
                 original = git(src, 'show', 'HEAD:' + relative)
-                if (sha(original) != before or read_regular(path) != original
-                        or stat.S_IMODE(path.stat().st_mode) != int(mode, 8)):
-                    raise ValueError('Feature preimage mismatch: ' + relative)
+                if sha(original) != before:
+                    raise ValueError(f'Feature preimage digest mismatch: {relative}: '
+                                     f'pinned={sha(original)} expected={before}')
+                restored = read_regular(path)
+                if restored != original:
+                    raise ValueError(f'Feature preimage bytes mismatch: {relative}: '
+                                     f'restored={sha(restored)} expected={before}')
+                # The same non-executable Git file can be group-writable on
+                # shared checkout/restore workers. No other mode is admitted.
+                actual = stat.S_IMODE(path.lstat().st_mode)
+                if actual not in (0o644, 0o664):
+                    raise ValueError(f'Feature preimage disk mode mismatch: {relative}: '
+                                     f'restored={actual:04o} allowed=0644,0664')
             elif path.exists():
                 raise ValueError('Generated feature path must not preexist: ' + relative)
-            targets[path] = (postimages[relative], mode)
-        for path, (data, mode) in targets.items():
+            targets[relative] = (path, mode)
+        return targets
+
+    def apply(self, source, upstream):
+        """Verify exact preimages and payload again before writing any bytes."""
+        verify_baseline(Path(source).resolve(), upstream)
+        targets = self.preflight(source, upstream)
+        postimages = self.postimages()
+        for relative, (path, mode) in targets.items():
             path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_bytes(data)
+            path.write_bytes(postimages[relative])
             path.chmod(int(mode, 8))
-        self.verify(src, upstream)
+        self.verify(source, upstream)
 
     def verify(self, source, upstream):
         """Check engine postimages without relaxing any original source guard."""

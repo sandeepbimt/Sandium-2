@@ -118,9 +118,50 @@ class FeatureTransition(unittest.TestCase):
     def test_reject_exact_preimage_mismatch_with_zero_mutations(self):
         identity = self.admit(**{CLIENT: '0' * 64})
         with patch.object(feature, 'APPROVED_MANIFEST_SHA256', identity):
-            with self.assertRaisesRegex(ValueError, 'preimage mismatch'):
+            with self.assertRaisesRegex(ValueError, 'preimage digest mismatch'):
                 self.load().apply(self.source, self.upstream)
             self.assertEqual(b'clean gn', (self.source / BUILD).read_bytes())
+            self.assertFalse((self.source / NEW).exists())
+
+    def test_group_writable_restore_only_normalizes_reviewed_preimages(self):
+        identity = self.admit()
+        for name in feature.TRACKED | {'chrome/VERSION'}:
+            (self.source / name).chmod(0o664)
+        self.assertEqual(b'', self.git('diff', 'HEAD', '--name-only'))
+        with patch.object(feature, 'APPROVED_MANIFEST_SHA256', identity):
+            overlay = self.load()
+            overlay.preflight(self.source, self.upstream)
+            self.assertEqual(0o664, (self.source / BUILD).stat().st_mode & 0o777)
+            self.assertFalse((self.source / NEW).exists())
+            overlay.apply(self.source, self.upstream)
+            overlay.verify(self.source, self.upstream)
+        for name in feature.TRACKED:
+            self.assertEqual(0o644, (self.source / name).stat().st_mode & 0o777)
+        self.assertEqual(0o664, (self.source / 'chrome/VERSION').stat().st_mode & 0o777)
+
+    def test_world_write_or_hidden_executable_mode_rejected_without_mutation(self):
+        identity = self.admit()
+        self.git('config', 'core.filemode', 'false')
+        with patch.object(feature, 'APPROVED_MANIFEST_SHA256', identity):
+            for mode in (0o666, 0o755, 0o4644):
+                with self.subTest(mode=mode):
+                    (self.source / BUILD).chmod(mode)
+                    with self.assertRaisesRegex(ValueError, f'disk mode mismatch: .*{mode:04o}'):
+                        self.load().apply(self.source, self.upstream)
+                    self.assertEqual(b'clean gn', (self.source / BUILD).read_bytes())
+                    self.assertFalse((self.source / NEW).exists())
+
+    def test_executable_git_preimage_rejected_even_with_nonexecutable_disk_mode(self):
+        self.git('update-index', '--chmod=+x', BUILD)
+        self.git('-c', 'user.name=Test', '-c', 'user.email=test@example.com',
+                 'commit', '-qm', 'Executable Git preimage')
+        self.git('config', 'core.filemode', 'false')
+        self.pin = self.git('rev-parse', 'HEAD').decode().strip()
+        self.upstream['chromium']['revision'] = self.pin
+        identity = self.admit()
+        with patch.object(feature, 'APPROVED_MANIFEST_SHA256', identity):
+            with self.assertRaisesRegex(ValueError, 'preimage Git mode mismatch'):
+                self.load().apply(self.source, self.upstream)
             self.assertFalse((self.source / NEW).exists())
 
     def test_reject_unsafe_or_existing_generated_inputs(self):
@@ -196,6 +237,12 @@ class FeatureTransition(unittest.TestCase):
             candidate.apply.assert_not_called()
             phase.compile.assert_not_called()
             phase.restored.side_effect = None
+            candidate.preflight.side_effect = ValueError('wrong source mode')
+            with self.assertRaisesRegex(ValueError, 'wrong source mode'):
+                policy.compile_once()
+            phase.prepare.assert_not_called()
+            candidate.apply.assert_not_called()
+            candidate.preflight.side_effect = None
             self.assertEqual(0, policy.compile_once())
             phase.prepare.assert_called_once()
             candidate.apply.assert_called_once()
