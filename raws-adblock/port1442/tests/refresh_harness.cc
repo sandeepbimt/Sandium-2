@@ -9,6 +9,9 @@
 #include <utility>
 #include <vector>
 
+#include "cosmetic_host_clock.h"
+#include "cosmetic_readiness.cc.inc"
+
 #define LOG(level) std::cerr
 using Bodies = std::vector<std::string>;
 class RuleSnapshot {
@@ -59,6 +62,7 @@ struct State {
   base::SequenceBound<RuleSnapshot> snapshot{1};
   bool attempted=true;
   bool failed=false;
+  CosmeticReadinessQueue cosmetic_waiters;
   bool ready=false;
   std::string packaged_rules="packaged";
   std::optional<Bodies> queued_refresh;
@@ -76,7 +80,14 @@ int main() {
   InstallAdditionalRules({"old"});
   InstallAdditionalRules({"queued-before-ready"});
   assert(base::Jobs().empty() && state.snapshot.id==1);
+  int cosmetic_replays=0;
+  state.cosmetic_waiters.Push(base::TimeTicks::Now(),
+      base::OnceClosure([&] {
+        assert(state.ready && !state.failed);
+        ++cosmetic_replays;
+      }));
   OnInitialized(true);
+  assert(cosmetic_replays==1);
   assert(base::Jobs().size()==1 && base::Jobs()[0].options==Bodies{"queued-before-ready"});
   assert(base::Jobs()[0].sequence!=state.snapshot.id && state.snapshot.id==1);
   InstallAdditionalRules({"superseded"});
@@ -96,7 +107,10 @@ int main() {
   assert(state.snapshot.id==replacement && !state.refresh_in_flight);
   state.ready=false;
   InstallAdditionalRules({"queued-before-failure"});
+  state.cosmetic_waiters.Push(base::TimeTicks::Now(),
+      base::OnceClosure([&] { ++cosmetic_replays; }));
   OnInitialized(false);
+  assert(cosmetic_replays==1);
   assert(state.failed && !state.ready && !state.queued_refresh);
   std::cout << "PASS prewarm, separate runners, coalescing, stale/failed retention\n";
 }

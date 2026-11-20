@@ -8,6 +8,7 @@
 #include <utility>
 #include <vector>
 #include "base/json/json_reader.h"
+#include "components/sandium_adblock/generic_style.h"
 #include "components/sandium_adblock/network_decision.h"
 #include "components/sandium_adblock/policy.h"
 namespace {
@@ -63,6 +64,59 @@ int main() {
   auto suppress = base::JSONReader::ReadDict(
       std::string_view(suppress_raw.data(), suppress_raw.size()), base::JSON_PARSE_RFC);
   if (!suppress || !suppress->FindBool("generichide").value_or(false)) return 11;
+  {
+    using namespace sandium::port1442;
+    const std::string package_rules = "##.cross-list-ad\n###late-ad-slot\n";
+    const std::string added_rules =
+        "##.extra-ad-slot\n##.extra-ad-slot > .complex-child\n"
+        "publisher.test#@#.cross-list-ad\n"
+        "@@||disable-generic.test^$generichide\n";
+    auto primary = Build(package_rules);
+    auto extra = Build(added_rules);
+    if (primary.result_kind != adblock::ResultKind::Success ||
+        extra.result_kind != adblock::ResultKind::Success) return 12;
+    auto resolve = [](const adblock::Engine& engine, const std::string& entry) {
+      SimpleGenericCensus keys(8);
+      keys.AddList(entry, 8);
+      return keys.Resolve([&](const auto& classes, const auto& ids) {
+        auto result = engine.hidden_class_id_selectors(
+            classes, ids, std::vector<std::string>{});
+        if (result.result_kind == adblock::ResultKind::Success) {
+          return std::move(result.value);
+        }
+        return decltype(result.value){};
+      });
+    };
+    auto selectors = MergeSimpleGeneric(resolve(*primary.value, package_rules),
+                                        resolve(*extra.value, added_rules));
+    if (selectors != (std::vector<std::string>{
+                         ".cross-list-ad", "#late-ad-slot", ".extra-ad-slot"})) return 13;
+    auto raw_exceptions = extra.value->url_cosmetic_resources(
+        std::string("https://publisher.test/"));
+    auto page = base::JSONReader::ReadDict(
+        std::string_view(raw_exceptions.data(), raw_exceptions.size()),
+        base::JSON_PARSE_RFC);
+    if (!page || !page->FindList("exceptions")) return 14;
+    std::set<std::string> exceptions;
+    for (const auto& exception : *page->FindList("exceptions")) {
+      if (exception.is_string()) {
+        exceptions.insert(exception.GetString());
+      }
+    }
+    std::string merged_css;
+    AppendSimpleGenericStyles(merged_css, false, selectors, {}, exceptions);
+    if (merged_css != "#late-ad-slot,.extra-ad-slot { display:none !important; }\n")
+      return 15;
+    auto raw_disabled = extra.value->url_cosmetic_resources(
+        std::string("https://disable-generic.test/"));
+    auto disabled = base::JSONReader::ReadDict(
+        std::string_view(raw_disabled.data(), raw_disabled.size()),
+        base::JSON_PARSE_RFC);
+    merged_css.clear();
+    if (!disabled || !disabled->FindBool("generichide").value_or(false)) return 16;
+    AppendSimpleGenericStyles(merged_css, true, selectors, {}, {});
+    if (!merged_css.empty()) return 17;
+  }
   std::cout << "RAWS_ENGINE_SMOKE_1442_PASS\n";
   return 0;
 }

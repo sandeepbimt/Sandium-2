@@ -35,6 +35,7 @@ void OnInitialized(bool ready) {
   auto& state = GetState();
   state.failed = !ready;
   state.ready = ready;
+  state.cosmetic_waiters.Finish(ready, base::TimeTicks::Now());
   if (!ready) {
     state.queued_refresh.reset();
     state.packaged_rules.clear();

@@ -45,7 +45,14 @@ void QueryPopup(GURL target,GURL frame,base::OnceCallback<void(bool)> reply) {
      base::BindOnce([](base::OnceCallback<void(bool)> cb,bool block){--GetState().pending;std::move(cb).Run(block);},std::move(reply)));
 }
 void QueryHideStyles(GURL url,base::OnceCallback<void(std::string)> reply) {
-  auto& s=GetState(); if (!s.ready || s.pending>=kMaxPendingChecks) return;
+  auto& s=GetState();
+  if (!s.ready) {
+    if (s.attempted && !s.failed && url.spec().size() <= 16 * 1024)
+      s.cosmetic_waiters.Push(base::TimeTicks::Now(),
+          base::BindOnce(&QueryHideStyles, std::move(url), std::move(reply)));
+    return;
+  }
+  if (s.pending>=kMaxPendingChecks) return;
   ++s.pending;
   s.snapshot.AsyncCall(&RuleSnapshot::Style).WithArgs(std::move(url)).Then(
      base::BindOnce([](base::OnceCallback<void(std::string)> cb,std::string css){--GetState().pending;std::move(cb).Run(std::move(css));},std::move(reply)));

@@ -8,6 +8,17 @@ class Port(unittest.TestCase):
  def test_cosmetic_current_document(self):
     with tempfile.TemporaryDirectory() as d:
         exe=Path(d)/'cosmetic_document';subprocess.run([os.getenv('CXX','c++'),'-std=c++20','-Wall','-Wextra','-Werror',str(ROOT/'tests/cosmetic_document_harness.cc'),'-o',str(exe)],check=True);subprocess.run([exe],check=True)
+ def test_cold_cosmetic_readiness(self):
+    with tempfile.TemporaryDirectory() as d:
+        exe=Path(d)/'cosmetic_readiness';subprocess.run([os.getenv('CXX','c++'),'-std=c++20','-Wall','-Wextra','-Werror','-I'+str(ROOT),str(ROOT/'tests/cosmetic_readiness_harness.cc'),'-o',str(exe)],check=True);subprocess.run([exe],check=True)
+    source=compose.local('native_api.cc.inc')
+    retry=source.index('s.cosmetic_waiters.Push')
+    self.assertTrue(source.index('void QueryHideStyles(') < retry < source.index('bool CheckSubframe('))
+    self.assertEqual(source.count('cosmetic_waiters.Push'),1)
+    finish=compose.local('refresh.cc.inc')
+    self.assertLess(finish.index('state.ready = ready;'),finish.index('state.cosmetic_waiters.Finish('))
+    self.assertIn('document.AsRenderFrameHostIfValid()',compose.local('cosmetic.cc.inc'))
+    self.assertIn('target->GetLastCommittedURL() != url',compose.local('cosmetic.cc.inc'))
  def test_packaged_generic_provenance(self):
     packaged=ROOT.parent/'production-postimages/2d0f3968f88ded9441bfddf2284c3819d8de3018150fbd175afc49e2f116050a'
     self.assertEqual(compose.sha(packaged.read_bytes()),packaged.name)
@@ -17,6 +28,12 @@ class Port(unittest.TestCase):
     selectors=re.findall(r'"([.#][A-Za-z_][A-Za-z0-9_-]*)"',table)
     self.assertEqual(len(set(selectors)),10)
     self.assertTrue(all('##'+selector in rules for selector in selectors))
+ def test_simple_generic_census(self):
+    with tempfile.TemporaryDirectory() as d:
+        exe=Path(d)/'generic'
+        subprocess.run([os.getenv('CXX','c++'),'-std=c++20','-O2','-Wall','-Wextra','-Werror','-I'+str(ROOT),str(ROOT/'tests/generic_harness.cc'),str(ROOT/'generic_style.cc'),'-o',str(exe)],check=True)
+        packaged=ROOT.parent/'production-postimages/2d0f3968f88ded9441bfddf2284c3819d8de3018150fbd175afc49e2f116050a'
+        subprocess.run([exe,packaged],check=True)
  def test_early_reference(self):
     with tempfile.TemporaryDirectory() as d:
         d=Path(d);(d/'adapted_early.inc').write_text(compose.adapt_early(compose.local('tests/reference/early_helpers.inc')));exe=d/'early';subprocess.run([os.getenv('CXX','c++'),'-std=c++20','-Wall','-Wextra','-Werror','-I'+str(d),str(ROOT/'tests/early_harness.cc'),'-o',str(exe)],check=True);subprocess.run([exe],check=True)

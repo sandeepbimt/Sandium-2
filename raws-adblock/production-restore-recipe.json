@@ -8331,12 +8331,12 @@
       "before_sha256": "b3172f2b05944287a157906c16231ad457775525f314abad96d2d423af77d353"
     },
     "components/sandium_adblock/BUILD.gn": {
-      "after_sha256": "d45a15570a6387af5f19924174eebbe846727a4079ffc576cae0f3d34e15c031",
+      "after_sha256": "5c3b9d032c441406ee8c5d180000a8ee5fde7384f4544a5ca378fb07dc1e94b3",
       "before_sha256": null,
       "mode": "644"
     },
     "components/sandium_adblock/document_subresource_factory.cc": {
-      "after_sha256": "2976bfe6a8760072d4378f11fb93a6c3e703fd0003fbef33287586f4aec79b2c",
+      "after_sha256": "cc8bb3ba226b98a8710594fd165f005bedb5fd9dd8861855572f96bad0e3eab4",
       "before_sha256": null,
       "mode": "644"
     },
@@ -8349,6 +8349,14 @@
       "after_sha256": "e33d90165b9bf48ae9a43a460f4f97c11a7a871033b27800d6f03f30181736d4",
       "before_sha256": null,
       "mode": "644"
+    },
+    "components/sandium_adblock/generic_style.cc": {
+      "after_sha256": "82572478e3eb2ae9cf5812df6ed0c40636bc18db0f4901f530de86c72e64a6ff",
+      "before_sha256": null
+    },
+    "components/sandium_adblock/generic_style.h": {
+      "after_sha256": "becfda0ae6bb3e82c154e7167deb92ac98188c387f326c6730ee65fd2e722aeb",
+      "before_sha256": null
     },
     "components/sandium_adblock/network_decision.h": {
       "after_sha256": "c732c7068ae65a288a38d8920d4a90689b74a9e13b84b321ef75b2e3fba9be53",
@@ -8370,7 +8378,7 @@
       "mode": "644"
     },
     "components/sandium_adblock/smoke1442.cc": {
-      "after_sha256": "e2eed246af7d901ef354acf3a1796e5fc8c8db5b68b380b781737a2a386657d7",
+      "after_sha256": "0bd4835459e9a4d4eca9137503c79b868a6a9d47677b88707d589549df07c8dd",
       "before_sha256": null
     },
     "components/sandium_adblock/standard_merge.h": {

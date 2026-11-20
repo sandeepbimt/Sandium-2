@@ -1,6 +1,28 @@
+  static std::vector<std::string> ResolveGenericKeys(
+      const adblock::Engine& engine,
+      const ::sandium::port1442::SimpleGenericCensus& keys) {
+    return keys.Resolve([&](const auto& classes, const auto& ids) {
+      // An empty exception vector is correct at compile time: the exact
+      // exception union is enforced when this document's CSS is generated.
+      std::vector<std::string> matches;
+      auto result = engine.hidden_class_id_selectors(
+          classes, ids, std::vector<std::string>{});
+      if (result.result_kind == adblock::ResultKind::Success) {
+        for (const auto& selector : result.value) {
+          matches.emplace_back(selector);
+        }
+      }
+      return matches;
+    });
+  }
+
+  std::vector<std::string> generic_selectors_;
+
   bool Install(std::vector<std::string> bodies) {
     // Build off to the side: malformed input never clears the live engine.
     auto fs = adblock::new_filter_set(false);
+    ::sandium::port1442::SimpleGenericCensus keys(
+        ::sandium::port1442::kSubscriptionGenericCandidateLimit);
     size_t left = 96u << 20;
     auto add = [&](const std::string& text, bool preprocess) {
       if (text.empty() || text.size() > left || text.size() > kMaxRulesBytes ||
@@ -8,12 +30,20 @@
       left -= text.size();
       DATFileDataBuffer bytes(text.begin(),text.end());
       if (preprocess) PruneSandiumSubscription(bytes);
-      return fs->add_filter_list_with_permissions(bytes, 0).result_kind == adblock::ResultKind::Success;
+      if (fs->add_filter_list_with_permissions(bytes, 0).result_kind !=
+          adblock::ResultKind::Success) return false;
+      if (preprocess && !bytes.empty()) {
+        keys.AddList(
+            std::string_view(reinterpret_cast<const char*>(bytes.data()), bytes.size()),
+            ::sandium::port1442::kSubscriptionGenericPerList);
+      }
+      return true;
     };
     if (!add("! Title: Sandium player ad resources\n||ohjpfawpaap.in^$third-party,script,subdocument,image\n",false)) return false;
     for (const auto& body : bodies) if (!add(body,true)) return false;
     auto result = adblock::engine_from_filter_set(std::move(fs));
     if (result.result_kind != adblock::ResultKind::Success) return false;
+    generic_selectors_ = ResolveGenericKeys(*result.value, keys);
     additional_.emplace(std::move(result.value));
     return true;
   }
@@ -42,20 +72,8 @@
           if (item.is_string()) pair.second->insert(item.GetString());
       }
     }
-    // The worker asks only the verified packaged engine for positive generic
-    // rules. A subscribed list may supply an exception, not a new static rule.
-    ::sandium::port1442::AppendPackagedGenericHide(
-        suppress_generic, except, hide,
-        [&](const auto& classes, const auto& ids, const auto& exceptions) {
-          std::vector<std::string> matches;
-          auto result = (**primary_).hidden_class_id_selectors(
-              classes, ids, exceptions);
-          if (result.result_kind == adblock::ResultKind::Success) {
-            for (const auto& selector : result.value) {
-              matches.emplace_back(selector);
-            }
-          }
-          return matches;
-        });
-    return ::sandium::port1442::HideStyles(hide,except);
+    auto css = ::sandium::port1442::HideStyles(hide, except);
+    ::sandium::port1442::AppendSimpleGenericStyles(
+        css, suppress_generic, generic_selectors_, hide, except);
+    return css;
   }

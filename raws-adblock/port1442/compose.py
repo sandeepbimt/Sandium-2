@@ -57,17 +57,30 @@ def catalog_header(rows):
     return '\n'.join(out+['  {'+json.dumps(r['url'])+', "'+sha(r['url'].encode())+'"},' for r in rows]+['}};','}', ''])
 
 def factory(s,pre):
-    s=once(s,'#include <vector>','#include <vector>\n#include <set>\n#include <string_view>\n#include "base/containers/span.h"\n#include "base/json/json_reader.h"\n#include "base/logging.h"\n#include "base/task/sequenced_task_runner.h"\n#include "components/sandium_adblock/policy.h"\n#include "components/sandium_adblock/style.h"\n#include "net/base/registry_controlled_domains/registry_controlled_domain.h"')
+    s=once(s,'#include <vector>','#include <vector>\n#include <set>\n#include <string_view>\n#include "base/containers/span.h"\n#include "base/json/json_reader.h"\n#include "base/logging.h"\n#include "base/task/sequenced_task_runner.h"\n#include "base/time/time.h"\n#include "components/sandium_adblock/policy.h"\n#include "components/sandium_adblock/style.h"\n#include "components/sandium_adblock/generic_style.h"\n#include "net/base/registry_controlled_domains/registry_controlled_domain.h"')
     s=once(s,'class RuleSnapshot {','using DATFileDataBuffer = std::vector<uint8_t>;\n'+pre+'\nclass RuleSnapshot {')
     s=once(s,'  bool Initialize(std::string text) {',
            '  bool Initialize(std::string text, std::vector<std::string> additional, bool initialize_resolver) {')
     s=once(s,'        !adblock::set_domain_resolver()) {',
            '        (initialize_resolver && !adblock::set_domain_resolver())) {')
-    s=once(s,'    primary_.emplace(std::move(primary_engine.value));\n    additional_.emplace(adblock::new_engine());','    if (!Install(std::move(additional))) return false;\n    primary_.emplace(std::move(primary_engine.value));')
+    s=once(s,'    primary_.emplace(std::move(primary_engine.value));\n    additional_.emplace(adblock::new_engine());','''    ::sandium::port1442::SimpleGenericCensus keys(
+        ::sandium::port1442::kPackagedGenericCandidateLimit,
+        ::sandium::port1442::kPackagedGenericCandidateLimit / 2);
+    for (auto selector : ::sandium::port1442::kPackagedGenericAdSlots) {
+      keys.Add(selector);
+    }
+    keys.AddList(text, ::sandium::port1442::kPackagedGenericCandidateLimit);
+    if (!Install(std::move(additional))) return false;
+    generic_selectors_ = ::sandium::port1442::MergeSimpleGeneric(
+        ResolveGenericKeys(*primary_engine.value, keys),
+        std::move(generic_selectors_));
+    primary_.emplace(std::move(primary_engine.value));''')
     s=once(s,'  Action Evaluate(',local('snapshot.cc.inc')+'\n  Action Evaluate(')
     s=once(s,'Resource::kFontResource})','Resource::kFontResource, Resource::kXhr, Resource::kMedia, Resource::kPing})')
     s=once(s,'      response->OnComplete(\n          network::URLLoaderCompletionStatus(net::ERR_BLOCKED_BY_CLIENT));', "      network::URLLoaderCompletionStatus status(net::ERR_BLOCKED_BY_CLIENT);\n      // Preserve Chromium's native collapse behavior only for a definite blocked image.\n      status.should_collapse_initiator = request.resource_type == static_cast<int>(Resource::kImage);\n      response->OnComplete(status);")
+    s=once(s,'struct State {',local('cosmetic_readiness.cc.inc')+'\nstruct State {')
     s=once(s,'  bool failed = false;', '''  bool failed = false;
+  CosmeticReadinessQueue cosmetic_waiters;
   bool ready = false;
   std::string packaged_rules;
   std::optional<std::vector<std::string>> queued_refresh;
@@ -165,12 +178,12 @@ def compose(repo,src,core,out):
     if rule not in local('snapshot.cc.inc'):raise ValueError('player rule mismatch')
     change(F,lambda s:factory(s,pre));change(H,header)
     change(PREFIX+'subresource_decision.cc',lambda s:once(s,'    case Resource::kFontResource:', '    case Resource::kSubFrame:\n    case Resource::kXhr:\n    case Resource::kMedia:\n    case Resource::kPing:\n    case Resource::kFontResource:'))
-    for n in ['policy.h','style.h']:new(PREFIX+n,local(n))
+    for n in ['policy.h','style.h','generic_style.h','generic_style.cc']:new(PREFIX+n,local(n))
     for n in ['subscription_service.h','subscription_policy.h']:new('chrome/browser/raws/'+n,local(n))
     new('chrome/browser/raws/catalog_generated.h',catalog_header(rows))
     new(PREFIX+'smoke1442.cc',local('smoke1442.cc'))
     def gn(s):
-        s=once(s,'    "network_decision.h",','    "network_decision.h",\n    "policy.h",')
+        s=once(s,'    "network_decision.h",','    "network_decision.h",\n    "policy.h",\n    "generic_style.cc",\n    "generic_style.h",')
         s=once(s,'    sources = [ "document_subresource_factory.cc" ]','    sources = [ "document_subresource_factory.cc", "style.h" ]')
         return s+'\nexecutable("engine_smoke1442") {\n  testonly = true\n  sources = [ "smoke1442.cc" ]\n  deps = [ ":request_matcher", "//base" ]\n}\ngroup("host_smoke1442") {\n  testonly = true\n  deps = [ ":engine_smoke1442($host_toolchain)", ":engine_smoke($host_toolchain)" ]\n}\n'
     change(PREFIX+'BUILD.gn',gn)
