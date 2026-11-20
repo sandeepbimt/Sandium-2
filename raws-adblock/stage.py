@@ -113,7 +113,7 @@ def prepare(repo, out, rev):
                         raise ValueError('git blob hash mismatch')
                     if path == BRIDGE+'/BUILD.gn': data = bridge_patch(data)
                     dest = tree/'brave'/path; dest.parent.mkdir(parents=True, exist_ok=True); dest.write_bytes(data)
-                    if mode == b'100755': dest.chmod(0o755)
+                    dest.chmod(0o755 if mode == b'100755' else 0o644)
                     inventory['brave/'+path]=hashlib.sha256(data).hexdigest()
             finally:
                 cat.stdin.close()
@@ -122,6 +122,7 @@ def prepare(repo, out, rev):
         native = tree/'components/sandium_adblock'; native.mkdir(parents=True)
         for name in ('BUILD.gn','request_matcher.h','request_matcher.cc','standard_merge.h','network_decision.h','subresource_decision.h','subresource_decision.cc','document_subresource_factory.h','document_subresource_factory.cc','engine_smoke.cc'):
             data = (HERE/'native'/name).read_bytes(); (native/name).write_bytes(data)
+            (native/name).chmod(0o644)
             inventory['components/sandium_adblock/'+name]=hashlib.sha256(data).hexdigest()
         (tree/'source-receipt.json').write_text(json.dumps({'phase':'engine sources only; not GN or APK evidence',
             'pins':PINS,'source_input':rev,'roots':roots,'sha256':inventory},sort_keys=True,indent=2)+'\n')

@@ -42,7 +42,7 @@ class FeatureTransition(unittest.TestCase):
                          RESOURCE: b'resource xml', START: b'android init',
                          'chrome/VERSION': b'MAJOR=158\nMINOR=0\nBUILD=8127\nPATCH=42\n'}
         for path, data in self.baseline.items():
-            put(self.source, path, data)
+            put(self.source, path, data).chmod(0o644)
         self.git('init', '-q')
         self.git('add', '.')
         self.git('-c', 'user.name=Test', '-c', 'user.email=test@example.com',
