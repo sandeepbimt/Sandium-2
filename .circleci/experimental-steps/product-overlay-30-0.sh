@@ -49,6 +49,11 @@ python3 .circleci/scripts/apply-sandium-native-navigation.py "$SRC" --mode confi
 python3 .circleci/scripts/apply-sandium-deferred-notifications.py --src "$SRC"
 python3 .circleci/scripts/apply-sandium-deferred-notifications.py --src "$SRC" --verify-only
 
+# Install the ad-tab policy after the owners of profile prefs and Shields UI.
+python3 .circleci/features/ad-redirects/policy.py "$CORE"
+python3 .circleci/features/ad-redirects/android_ui.py "$CORE"
+python3 .circleci/features/ad-redirects/popup.py "$CORE"
+
 # Run every independent audit before failing, so one build reports all graph defects.
 python3 .circleci/scripts/precheck-graph.py --audits-only
 python3 .circleci/scripts/removal-evidence.py capture --root "$ROOT"

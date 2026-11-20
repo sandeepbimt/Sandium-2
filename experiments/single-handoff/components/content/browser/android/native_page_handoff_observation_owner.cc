@@ -68,6 +68,7 @@ NativePageHandoffObservationOwner::~NativePageHandoffObservationOwner() {
 }
 void NativePageHandoffObservationOwner::ClearPending() {
   weak_factory_.InvalidateWeakPtrs();
+  presented_waiting_for_paint_ = false;
   pending_.reset();
   pending_scene_.reset();
 }
@@ -111,11 +112,17 @@ void NativePageHandoffObservationOwner::ObserveAtFinalization(Compositor& compos
   compositor.RequestSuccessfulPresentationTimeForNextFrame(base::BindOnce(
       [](base::WeakPtr<NativePageHandoffObservationOwner> owner,
          const viz::FrameTimingDetails&) {
-        if (owner) owner->OnPresented();
+        if (owner) owner->ValidatePresentation();
       }, weak_factory_.GetWeakPtr()));
 }
-void NativePageHandoffObservationOwner::OnPresented() {
+void NativePageHandoffObservationOwner::DidFirstVisuallyNonEmptyPaint() {
+  if (presented_waiting_for_paint_) ValidatePresentation();
+}
+void NativePageHandoffObservationOwner::ValidatePresentation() {
   CHECK(BrowserThread::CurrentlyOn(BrowserThread::UI));
+  // The scene provider can synchronously notify paint or invalidate the observation.
+  // Consume the saved presentation before consulting it again.
+  presented_waiting_for_paint_ = false;
   if (ended_ || !pending_ || !web_contents()) return;
   if (web_contents()->GetController().GetPendingEntry()) {
     Complete(EndReason::kNavigationStarted); return;
@@ -124,6 +131,9 @@ void NativePageHandoffObservationOwner::OnPresented() {
   auto scene_provider = scene_;  // Keep callback state alive across reentrant revocation.
   auto scene = scene_provider.Run();
   if (!weak || ended_) return;
+  if (web_contents()->GetController().GetPendingEntry()) {
+    Complete(EndReason::kNavigationStarted); return;
+  }
   if (!scene || scene.get() != pending_scene_.get()) {
     Complete(EndReason::kSceneChanged); return;
   }
@@ -131,6 +141,12 @@ void NativePageHandoffObservationOwner::OnPresented() {
       target_.owner_generation, *scene);
   if (!current || !SameObservation(*pending_, *current)) {
     ClearPending(); return; // Rearm only at a subsequent finalized browser frame.
+  }
+  // Inspect has just matched the current primary document to the captured target.
+  // Its Page keeps this flag even if paint preceded our presentation callback.
+  if (!web_contents()->CompletedFirstVisuallyNonEmptyPaint()) {
+    presented_waiting_for_paint_ = true;
+    return;
   }
   Complete(EndReason::kPresentationObserved, std::move(current));
 }

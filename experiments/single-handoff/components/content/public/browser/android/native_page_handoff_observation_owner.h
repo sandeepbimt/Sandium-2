@@ -37,6 +37,7 @@ class CONTENT_EXPORT NativePageHandoffObservationOwner final : public WebContent
   // its bounded native lease deadline. This class does NOT create another timer.
   void Revoke(EndReason reason);
   void DidStartNavigation(NavigationHandle* navigation) override;
+  void DidFirstVisuallyNonEmptyPaint() override;
   void PrimaryPageChanged(Page& page) override;
   void PrimaryPageWillBeDeactivated(Page& page) override;
   void RenderFrameDeleted(RenderFrameHost* frame) override;
@@ -44,7 +45,7 @@ class CONTENT_EXPORT NativePageHandoffObservationOwner final : public WebContent
   void OnVisibilityChanged(Visibility visibility) override;
   void WebContentsDestroyed() override;
  private:
-  void OnPresented();
+  void ValidatePresentation();
   void ClearPending();
   void Complete(EndReason reason,
       std::optional<NativePageHandoffSurfaceObservation> observation = std::nullopt);
@@ -52,6 +53,7 @@ class CONTENT_EXPORT NativePageHandoffObservationOwner final : public WebContent
   SceneProvider scene_;
   Completion completion_;
   bool ended_ = false;
+  bool presented_waiting_for_paint_ = false;
   std::optional<NativePageHandoffSurfaceObservation> pending_;
   scoped_refptr<cc::slim::Layer> pending_scene_;
   base::WeakPtrFactory<NativePageHandoffObservationOwner> weak_factory_{this};

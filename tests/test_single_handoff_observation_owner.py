@@ -55,6 +55,7 @@ struct NavigationHandle {bool primary=true;bool IsInPrimaryMainFrame(){return pr
 class WebContentsObserver {WebContents* contents;
  public:explicit WebContentsObserver(WebContents* w):contents(w){}virtual ~WebContentsObserver()=default;
  WebContents* web_contents(){return contents;}void Observe(WebContents* w){contents=w;}
+ virtual void DidFirstVisuallyNonEmptyPaint(){}
  virtual void DidStartNavigation(NavigationHandle*){}virtual void PrimaryPageChanged(Page&){}
  virtual void PrimaryPageWillBeDeactivated(Page&){}virtual void RenderFrameDeleted(RenderFrameHost*){}
  virtual void PrimaryMainFrameRenderProcessGone(base::TerminationStatus){}
@@ -79,8 +80,50 @@ struct Fixture {
  void Start(){auto target=CaptureNativePageHandoffTarget(wc,1);assert(target);
  owner=std::make_unique<Owner>(wc,*target,[this](){return scene;},[this](Reason r, std::optional<NativePageHandoffSurfaceObservation> o){ended++;reason=r;observed=o.has_value();});}
  void Frame(){owner->ObserveAtFinalization(compositor);}
+ void Paint(){wc.painted=true;owner->DidFirstVisuallyNonEmptyPaint();}
 };
 int main(){
+ // A previously painted page only needs presentation; paint alone never retires a lease.
+ {Fixture f;f.wc.painted=false;f.Start();f.Frame();f.Paint();assert(f.ended==0);
+  f.compositor.Deliver(0);assert(f.ended==1&&f.observed);f.Paint();assert(f.ended==1);}
+ // A stable frame can be presented before paint; do not demand an extra tick or callback.
+ {Fixture f;f.wc.painted=false;f.Start();f.Frame();f.compositor.Deliver(0);f.Frame();
+  assert(f.ended==0&&f.compositor.callbacks.size()==1);f.Paint();assert(f.observed&&f.ended==1);}
+ // The sticky flag, not a stray callback, authorizes success. Deadline remains terminal.
+ {Fixture f;f.wc.painted=false;f.Start();f.Frame();f.compositor.Deliver(0);
+  f.owner->DidFirstVisuallyNonEmptyPaint();assert(f.ended==0);
+  f.owner->Revoke(Reason::kDeadline);f.Paint();assert(f.reason==Reason::kDeadline&&!f.observed);}
+ // Both a change seen at finalization and a change seen only on paint invalidate proof.
+ for(bool finalize : {false,true}) {
+  Fixture f;f.wc.painted=false;f.Start();f.Frame();f.compositor.Deliver(0);
+  f.wc.frame.widget.provider.metadata.device_scale_factor=2;
+  if(finalize) f.Frame();
+  f.Paint();assert(f.ended==0);f.Frame();
+  assert(f.compositor.callbacks.size()==2);f.compositor.Deliver(1);assert(f.observed);
+ }
+ {Fixture f;f.wc.painted=false;f.Start();f.Frame();f.compositor.Deliver(0);
+  f.wc.frame.doc.id++;f.Paint();assert(f.ended==0);
+  f.owner->Revoke(Reason::kDeadline);assert(!f.observed);}
+ {Fixture f;f.wc.painted=false;f.Start();f.Frame();f.compositor.Deliver(0);
+  f.scene=std::make_shared<cc::slim::Layer>();f.Paint();assert(f.reason==Reason::kSceneChanged&&!f.observed);}
+ // The selected scene callback may reenter the paint observer as it is being revalidated.
+ {Fixture f;f.wc.painted=false;auto target=CaptureNativePageHandoffTarget(f.wc,1);
+  int queries=0;
+  f.owner=std::make_unique<Owner>(f.wc,*target,[&](){
+    if(++queries==3) f.owner->DidFirstVisuallyNonEmptyPaint();
+    return f.scene;
+  },[&](Reason r, auto o){assert(r==Reason::kPresentationObserved&&o);++f.ended;});
+  f.Frame();f.compositor.Deliver(0);f.Paint();assert(queries==3&&f.ended==1);}
+ // A newly pending entry or destroyed owner during paint revalidation cannot complete successfully.
+ for(bool destroy : {false,true}) {
+  Fixture f;f.wc.painted=false;auto target=CaptureNativePageHandoffTarget(f.wc,1);
+  int queries=0;
+  f.owner=std::make_unique<Owner>(f.wc,*target,[&](){
+    if(++queries==3){if(destroy) f.owner.reset();else f.wc.controller.pending=true;}
+    return f.scene;
+  },[&](Reason r, auto o){assert(r==Reason::kNavigationStarted&&!o);++f.ended;});
+  f.Frame();f.compositor.Deliver(0);f.Paint();assert(f.ended==(destroy?0:1));
+ }
  {Fixture f;f.Start();f.Frame();f.Frame();assert(f.compositor.callbacks.size()==1);f.compositor.Deliver(0);assert(f.ended==1&&f.observed&&f.reason==Reason::kPresentationObserved);f.Frame();f.owner.reset();assert(f.ended==1);}
  {Fixture f;f.Start();f.Frame();f.owner->Revoke(Reason::kCancelled);f.compositor.Deliver(0);assert(f.ended==1&&!f.observed);}
  {Fixture f;f.Start();f.Frame();f.owner.reset();f.compositor.Deliver(0);assert(f.ended==0);}
@@ -129,6 +172,7 @@ int main(){
 class ObservationOwner(unittest.TestCase):
  def _compile_run(self, code=None, success=True, sanitize=False, main=MAIN):
   stub=snapshot.STUB.replace('gfx::Size viewport_size_in_pixels;};','gfx::Size viewport_size_in_pixels;'+METADATA_FIELDS+'};')
+  stub=stub.replace('struct WebContents {', 'struct WebContents {bool painted=true;bool CompletedFirstVisuallyNonEmptyPaint(){return painted;}')
   stub=stub.replace('struct NavigationController {NavigationEntryImpl entry;','struct NavigationController {bool pending=false;auto* GetPendingEntry(){return pending?&entry:nullptr;}NavigationEntryImpl entry;')
   with tempfile.TemporaryDirectory() as directory:
    out=pathlib.Path(directory);(out/'stub.h').write_text(stub+EXTRA)
