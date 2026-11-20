@@ -15,13 +15,32 @@ class SubscriptionConditions(unittest.TestCase):
         cls.executable = Path(cls.temp.name) / "subscription-test"
         test_source = r'''
 #include <cstdint>
-#include <cstring>
+#include <algorithm>
+#include <cassert>
 #include <iostream>
 #include <iterator>
 #include <optional>
+#include <span>
 #include <string_view>
 #include <vector>
 using DATFileDataBuffer = std::vector<unsigned char>;
+// Host-side adapter for the Chromium span interface. Match copy_from's
+// left-overlap behavior; the production operation uses Chromium's own type.
+namespace base {
+struct Span {
+  std::span<unsigned char> range;
+  Span subspan(size_t offset, size_t count) const {
+    assert(offset <= range.size() && count <= range.size() - offset);
+    return {range.subspan(offset, count)};
+  }
+  void copy_from(Span source) const {
+    assert(range.size() == source.range.size());
+    assert(range.data() < source.range.data());
+    std::ranges::copy(source.range, range.begin());
+  }
+};
+Span span(DATFileDataBuffer& data) { return {data}; }
+}  // namespace base
 ''' + subscriptions.HELPERS + r'''
 int main() {
   DATFileDataBuffer buf(std::istreambuf_iterator<char>(std::cin), {});
@@ -74,10 +93,23 @@ int main() {
         self.assertEqual(self.active("!#if false\nX\n!#else\nA\n!#else\nY\n!#endif\nB"),
                          ["A", "B"])
 
+    def test_left_overlapping_moves_preserve_mixed_endings(self):
+        long_rule = b"||" + b"a" * 4096 + b"^"
+        mixed_rule = b"@@||" + b"b" * 3072 + b"^"
+        raw = (b"pre\r\n!#if false\r\nX\n!#else\r\n" + long_rule +
+               b"\r\n!#if env_mobile\n" + mixed_rule +
+               b"\n!#else\nY\r\n!#endif\n!#endif\r\nlast")
+        expected = (b"pre\r\n\r\n\n!#else\r\n" + long_rule +
+                    b"\r\n!#if env_mobile\n" + mixed_rule +
+                    b"\n\n\r\n!#endif\n!#endif\r\nlast")
+        self.assertEqual(self.prune(raw), expected)
+
     def test_exact_once_overlay(self):
-        source = subscriptions.INCLUDE + subscriptions.FUNCTION + "\n" + subscriptions.PARSE
+        source = subscriptions.INCLUDE + subscriptions.BASE_INCLUDE + subscriptions.FUNCTION + "\n" + subscriptions.PARSE
         updated = subscriptions.transform(source)
         self.assertEqual(subscriptions.transform(updated), updated)
+        self.assertEqual(updated.count(subscriptions.SPAN_INCLUDE), 1)
+        self.assertNotIn("std::memmove", updated)
         for partial in [updated.replace(subscriptions.CALL, subscriptions.PARSE),
                         source + subscriptions.PARSE]:
             with self.assertRaises(ValueError):

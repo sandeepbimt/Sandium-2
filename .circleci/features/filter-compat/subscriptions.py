@@ -5,7 +5,9 @@ from pathlib import Path
 
 PROVIDER = Path("components/brave_shields/content/browser/ad_block_subscription_filters_provider.cc")
 INCLUDE = "#include <string>\n"
-INCLUDES = "#include <cstring>\n#include <optional>\n" + INCLUDE + "#include <string_view>\n#include <vector>\n"
+INCLUDES = "#include <optional>\n" + INCLUDE + "#include <string_view>\n#include <vector>\n"
+BASE_INCLUDE = '#include "base/logging.h"\n'
+SPAN_INCLUDE = '#include "base/containers/span.h"\n'
 FUNCTION = "// static\nvoid AddDATBufferToFilterSet("
 PARSE = "  auto result = (*filter_set)->add_filter_list(buffer);"
 CALL = "  PruneSandiumSubscription(buffer);\n" + PARSE
@@ -153,7 +155,8 @@ void PruneSandiumSubscription(DATFileDataBuffer& buffer) {
     }
     const size_t count = end - from;
     if (count && written != from) {
-      std::memmove(buffer.data() + written, buffer.data() + from, count);
+      auto bytes = base::span(buffer);
+      bytes.subspan(written, count).copy_from(bytes.subspan(from, count));
     }
     written += count;
     read = end;
@@ -165,7 +168,8 @@ void PruneSandiumSubscription(DATFileDataBuffer& buffer) {
 
 
 def transform(source):
-    edits = ((INCLUDE, INCLUDES), (FUNCTION, HELPERS + FUNCTION), (PARSE, CALL))
+    edits = ((INCLUDE, INCLUDES), (BASE_INCLUDE, SPAN_INCLUDE + BASE_INCLUDE),
+             (FUNCTION, HELPERS + FUNCTION), (PARSE, CALL))
     for old, new in edits:
         if source.count(old) != 1 or source.count(new) > 1:
             raise ValueError("Unexpected Brave subscription source")
