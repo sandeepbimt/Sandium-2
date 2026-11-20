@@ -10,6 +10,7 @@ source_set("request_matcher") {
   ]
   public_deps = [
     "//brave/components/brave_shields/core/common/adblock",
+    "//mojo/public/interfaces/bindings:bindings_headers",
     "//third_party/blink/public/mojom:mojom_platform_headers",
     "//url",
   ]
