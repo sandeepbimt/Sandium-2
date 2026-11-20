@@ -42,6 +42,7 @@ STUBS = r"""
 #include <string>
 #include <utility>
 #define BUILDFLAG(flag) 1
+#define FROM_HERE 0
 
 struct GURL {
   std::string url;
@@ -58,18 +59,37 @@ struct SupportsUserData {
   void RemoveUserData(const void*) { data.reset(); }
 };
 inline int now = 0;
+struct TimeDelta {
+  int ms = 0;
+  constexpr auto operator<=>(const TimeDelta&) const = default;
+  void operator-=(TimeDelta d) { ms -= d.ms; }
+};
 struct TimeTicks { int t; static TimeTicks Now() { return {now}; } };
-int operator-(TimeTicks a, TimeTicks b) { return a.t-b.t; }
-int Seconds(int s) { return s; }
+TimeDelta operator-(TimeTicks a, TimeTicks b) { return {a.t-b.t}; }
+TimeDelta Seconds(int s) { return {s*1000}; }
+constexpr TimeDelta Milliseconds(int ms) { return {ms}; }
+inline std::function<void()> pending_timer;
+inline int timer_ms = 0;
+struct OneShotTimer {
+  template<class C> void Start(int, TimeDelta t, C cb) {
+    timer_ms=t.ms; pending_timer=cb;
+  }
+  void Stop() { pending_timer={}; }
+  ~OneShotTimer() { Stop(); }
+};
 template<class T> struct WeakPtr { T* instance; std::weak_ptr<int> live; };
 template<class T> struct WeakPtrFactory {
   explicit WeakPtrFactory(T* t) : instance(t) {}
   WeakPtr<T> GetWeakPtr() { return {instance, live}; }
+  void InvalidateWeakPtrs() { live=std::make_shared<int>(); }
   T* instance;
   std::shared_ptr<int> live = std::make_shared<int>();
 };
 template<class T> auto BindOnce(void (T::*fn)(bool), WeakPtr<T> weak) {
   return [=](bool r) { if (!weak.live.expired()) (weak.instance->*fn)(r); };
+}
+template<class T> auto BindOnce(void (T::*fn)(bool), WeakPtr<T> weak, bool result) {
+  return [=]() { if (!weak.live.expired()) (weak.instance->*fn)(result); };
 }
 template<class F> auto BindOnce(F f, GURL target, GURL source) {
   return [=](auto* engine) { return f(target, source, engine); };
@@ -198,7 +218,7 @@ int main() {
   for (int i=0; i<4; ++i) {
     Fixture f; f.Mark();
     if(i==0) f.nav.handle.renderer=false;
-    if(i==1) base::now=11;
+    if(i==1) base::now=11000;
     if(i==2) f.nav.handle.same=true;
     if(i==3) f.nav.handle.url={"chrome://settings"};
     f.Attach(); assert(!f.nav.throttle && !f.contents.data); }
@@ -214,6 +234,22 @@ int main() {
     assert(f.nav.throttle->WillStartRequest()==T::DEFER);
     f.contents.profile.enabled=false; f.service.finish();
     assert(f.nav.throttle->resumed==1 && !f.nav.throttle->blocked); }
+  { Fixture f; f.Mark(); f.Attach(); assert(f.nav.throttle);
+    assert(f.nav.throttle->WillStartRequest()==T::DEFER);
+    assert(base::timer_ms==100);
+    base::now=20; auto expired_first=base::pending_timer; f.service.finish();
+    assert(!base::pending_timer && f.nav.throttle->resumed==1);
+    base::now=1000;  // Normal network latency does not consume engine budget.
+    f.nav.handle.url=ad;
+    assert(f.nav.throttle->WillRedirectRequest()==T::DEFER);
+    assert(base::timer_ms==80);
+    expired_first(); assert(f.nav.throttle->resumed==1);
+    base::now=1080; auto fire=base::pending_timer; fire();
+    assert(f.nav.throttle->resumed==2 && !f.nav.throttle->blocked);
+    f.service.finish();  // Late result must not cancel a resumed request.
+    assert(f.nav.throttle->resumed==2 && !f.nav.throttle->blocked);
+    assert(f.nav.throttle->WillRedirectRequest()==T::PROCEED);
+    assert(f.service.num==2); }
   { Fixture f; f.frame.current=blank; f.Mark(); f.Attach(); assert(f.nav.throttle);
     f.nav.throttle->WillStartRequest(); f.nav.throttle.reset(); f.service.finish();
     assert(f.service.engine.source==player.url); }

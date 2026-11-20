@@ -104,7 +104,7 @@ int main() {
   GURL target{"unrelated.test", "/opaque/slot/",
               "scontext_r=ctx&nrb=1&param_3=nortb_fallback&md=opaque"};
   using D = WindowOpenDisposition;
-  auto block = [&](D where) { return ShouldBlockSandiumAdTab(&opener, top, top, target, where, false); };
+  auto block = [&](D where) { return ShouldBlockSandiumAdTab(&opener, top, top, target, where); };
   for (D where : {D::NEW_FOREGROUND_TAB, D::NEW_BACKGROUND_TAB, D::NEW_WINDOW, D::NEW_POPUP})
     assert(block(where));
   int reads = opener.reads;
@@ -158,61 +158,57 @@ int main() {
   content::RenderFrameHost parent;
   opener.parent = &parent;
   GURL source{"embed.example"};
-  auto embedded = [&](bool scripted, D disposition = D::NEW_FOREGROUND_TAB) {
-    return ShouldBlockSandiumAdTab(&opener, source, top, target, disposition, scripted);
+  auto embedded = [&](D disposition = D::NEW_FOREGROUND_TAB) {
+    return ShouldBlockSandiumAdTab(&opener, source, top, target, disposition);
   };
   for (auto host : {"unrelated.test", "rotating-new-host.example"}) {
     target = GURL{host, "/watch/service", ""};
-    assert(embedded(true) && !embedded(false));
-    assert(!embedded(true, D::CURRENT_TAB) && !embedded(true, D::NEW_PICTURE_IN_PICTURE));
-    for (auto where : {D::NEW_BACKGROUND_TAB, D::NEW_WINDOW, D::NEW_POPUP})
-      assert(embedded(true, where));
+    assert(!embedded());
   }
-
-  // Recognize the first exchange hop before a real <video> has been mounted.
+  target = GURL{"", "blank", "", false, true};
+  assert(!embedded());
   target = GURL{"unrelated.test", "/10/abcde0123456789f0123456789abcdef", "psid=41242"};
-  assert(embedded(false));
+  assert(embedded());
+  assert(!embedded(D::CURRENT_TAB) && !embedded(D::NEW_PICTURE_IN_PICTURE));
+  for (auto where : {D::NEW_BACKGROUND_TAB, D::NEW_WINDOW, D::NEW_POPUP})
+      assert(embedded(where));
   target.query_ = "another=v&psid=3";
-  assert(embedded(false));
+  assert(embedded());
   for (auto query : {"psid=", "psid=hello", "pid=4", "q=psid%3D4"}) {
     target.query_ = query;
-    assert(!embedded(false));
+    assert(!embedded());
   }
   target.query_ = "psid=41242";
+  auto exchange = target;
   for (auto path : {"/", "/10/abc", "/10/abcde0123456789f0123456789abcdeg",
                     "/some/abcde0123456789f0123456789abcdef", "/media/index.m3u8"}) {
     target.path_ = path;
-    assert(!embedded(false));
+    assert(!embedded());
   }
-
-  target = GURL{"", "blank", "", false, true};
-  assert(embedded(true) && !embedded(false));
-  target.blank = false;
-  assert(!embedded(true));
   target = source;
-  assert(!embedded(true));
+  assert(!embedded());
   target = top;
-  assert(!embedded(true));
-  target = GURL{"unrelated.test"};
+  assert(!embedded());
+  target = exchange;
   source = top;
-  assert(!embedded(true));
+  assert(!embedded());
   source = GURL{"", "blank", "", false, true};
   opener.origin = {GURL{"embedded.test"}};
-  assert(embedded(true));
+  assert(embedded());
   opener.origin = {top};
-  assert(!embedded(true));
+  assert(!embedded());
   source = GURL{"embed.example"};
   opener.parent = nullptr;
-  assert(!embedded(true));
+  assert(!embedded());
   opener.parent = &parent;
   opener.profile.prefs.block = false;
-  assert(!embedded(true));
+  assert(!embedded());
   opener.profile.prefs.block = true;
   opener.profile.settings.popups = CONTENT_SETTING_ALLOW;
-  assert(!embedded(true));
+  assert(!embedded());
   opener.profile.settings.popups = CONTENT_SETTING_BLOCK;
   opener.profile.settings.shields = false;
-  assert(!embedded(true));
+  assert(!embedded());
 
 }
 '''

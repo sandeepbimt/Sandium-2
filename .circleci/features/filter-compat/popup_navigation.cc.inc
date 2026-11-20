@@ -4,6 +4,9 @@ namespace {
 // Snapshot the issuing frame and its publisher before noopener disconnects
 // the frame trees. Only this new tab can consume its pending check.
 constexpr char kSandiumPendingPopupKey[] = "sandium-pending-popup";
+// Share the deferral budget across the start and every redirect, but do not
+// count normal network time. The early known-exchange guard is independent.
+constexpr auto kSandiumPopupCheckBudget = base::Milliseconds(100);
 
 struct SandiumPopupSource final : base::SupportsUserData::Data {
   SandiumPopupSource(GURL frame, GURL publisher)
@@ -72,11 +75,17 @@ class SandiumPopupNavigationThrottle final
   ThrottleCheckResult Check() {
     const auto& target = navigation_handle()->GetURL();
     auto* service = g_brave_browser_process->ad_block_service();
-    if (!service || !target.SchemeIsHTTPOrHTTPS() ||
+    if (!service || remaining_budget_ <= base::TimeDelta() ||
+        !target.SchemeIsHTTPOrHTTPS() ||
         !ShouldCheckSandiumPopup(navigation_handle()->GetWebContents(),
                                  publisher_, target)) {
       return PROCEED;
     }
+    check_started_ = base::TimeTicks::Now();
+    check_timer_.Start(
+        FROM_HERE, remaining_budget_,
+        base::BindOnce(&SandiumPopupNavigationThrottle::OnChecked,
+                       weak_factory_.GetWeakPtr(), false));
     service->AsyncCallAndReplyWithResult<bool>(
         base::BindOnce(
             [](GURL target, GURL source,
@@ -90,6 +99,9 @@ class SandiumPopupNavigationThrottle final
   }
 
   void OnChecked(bool blocked) {
+    check_timer_.Stop();
+    weak_factory_.InvalidateWeakPtrs();
+    remaining_budget_ -= base::TimeTicks::Now() - check_started_;
     if (blocked &&
         ShouldCheckSandiumPopup(navigation_handle()->GetWebContents(),
                                 publisher_, navigation_handle()->GetURL())) {
@@ -101,6 +113,9 @@ class SandiumPopupNavigationThrottle final
 
   const GURL frame_;
   const GURL publisher_;
+  base::TimeDelta remaining_budget_ = kSandiumPopupCheckBudget;
+  base::TimeTicks check_started_;
+  base::OneShotTimer check_timer_;
   base::WeakPtrFactory<SandiumPopupNavigationThrottle> weak_factory_{this};
 };
 

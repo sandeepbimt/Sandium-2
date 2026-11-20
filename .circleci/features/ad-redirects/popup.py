@@ -8,7 +8,7 @@ INCLUDE_ANCHOR = '#if BUILDFLAG(IS_ANDROID)\n#include "base/files/memory_mapped_
 V1_INCLUDES = INCLUDE_ANCHOR + '''#include "brave/components/brave_shields/core/browser/brave_shields_utils.h"
 #include "net/base/url_util.h"
 '''
-INCLUDES = V1_INCLUDES + '#include "third_party/blink/public/mojom/window_features/window_features.mojom.h"\n'
+INCLUDES = V1_INCLUDES
 METHOD = 'bool BraveContentBrowserClient::CanCreateWindow(\n'
 BEFORE_RETURN = '''  return can_create_window && google_sign_in_permission::CanCreateWindow(
                                   opener, opener_url, target_url);'''
@@ -21,8 +21,7 @@ V1_GUARD = '''#if BUILDFLAG(IS_ANDROID)
 '''
 GUARD = V1_GUARD.replace(
     "opener, opener_top_level_frame_url, target_url, disposition",
-    "opener, opener_url, opener_top_level_frame_url, target_url, disposition,\n"
-    "          features.sandium_scripted_media_popup")
+    "opener, opener_url, opener_top_level_frame_url, target_url, disposition")
 V1_HELPERS_SHA256 = "3d9fc572b75ac4a823af5993c21138e59a53d118a27bc5d80fdca2e7e06fbea2"
 HELPERS = '''#if BUILDFLAG(IS_ANDROID)
 namespace {
@@ -79,15 +78,13 @@ bool IsSandiumAdExchangeTarget(const GURL& target) {
   return false;
 }
 
-// uBlock Origin's VOE quick fix suppresses script-opened windows at the
-// player. Apply that distinction across embedded players while retaining
-// publisher/player links and the publisher's popup and Shields permissions.
-// https://github.com/uBlockOrigin/uAssets/issues/24745
+// Keep the recognized exchange hop on the early path. The mere presence
+// of media is not an ad signal; other scripted windows can consult native
+// popup rules during navigation, including list exceptions.
 bool IsSandiumEmbeddedAdTab(content::RenderFrameHost* opener,
                             const GURL& opener_url,
                             const GURL& top_url,
-                            const GURL& target,
-                            bool scripted_media_popup) {
+                            const GURL& target) {
   if (!opener->GetParent()) {
     return false;
   }
@@ -98,19 +95,15 @@ bool IsSandiumEmbeddedAdTab(content::RenderFrameHost* opener,
   if (!source.SchemeIsHTTPOrHTTPS() || SameSandiumSite(source, top_url)) {
     return false;
   }
-  if (target.IsAboutBlank()) {
-    return scripted_media_popup;
-  }
   return target.SchemeIsHTTPOrHTTPS() && !SameSandiumSite(source, target) &&
-         (scripted_media_popup || IsSandiumAdExchangeTarget(target));
+         IsSandiumAdExchangeTarget(target);
 }
 
 bool ShouldBlockSandiumAdTab(content::RenderFrameHost* opener,
                              const GURL& opener_url,
                              const GURL& top_url,
                              const GURL& target,
-                             WindowOpenDisposition disposition,
-                             bool scripted_media_popup) {
+                             WindowOpenDisposition disposition) {
   switch (disposition) {
     case WindowOpenDisposition::NEW_FOREGROUND_TAB:
     case WindowOpenDisposition::NEW_BACKGROUND_TAB:
@@ -122,8 +115,7 @@ bool ShouldBlockSandiumAdTab(content::RenderFrameHost* opener,
   }
   if (!top_url.SchemeIsHTTPOrHTTPS() || SameSandiumSite(top_url, target) ||
       (!IsSandiumAdTabTarget(target) &&
-       !IsSandiumEmbeddedAdTab(opener, opener_url, top_url, target,
-                               scripted_media_popup))) {
+       !IsSandiumEmbeddedAdTab(opener, opener_url, top_url, target))) {
     return false;
   }
   auto* profile = Profile::FromBrowserContext(opener->GetBrowserContext());
@@ -149,7 +141,7 @@ def transform(source):
         previous = source[start:end]
         if (start < 0 or end < 0 or source.count(V1_GUARD) != 1
                 or hashlib.sha256(previous.encode()).hexdigest() != V1_HELPERS_SHA256
-                or source.count(V1_INCLUDES) != 1 or INCLUDES in source):
+                or source.count(V1_INCLUDES) != 1):
             raise ValueError("Unexpected previous Sandium ad-tab check")
         source = (source[:start] + source[end:]).replace(V1_GUARD, "", 1)
         source = source.replace(V1_INCLUDES, INCLUDE_ANCHOR, 1)
