@@ -8238,7 +8238,7 @@
       "mode": "644"
     },
     "chrome/browser/chrome_content_browser_client.cc": {
-      "after_sha256": "8ac7cfc90c4fa727947a5b0dfbe25366742c641c0210ddeb893fb43a0d2e147c",
+      "after_sha256": "8b2eea905fce9f9504823e28bf7821f3c6b56db92b0e7e68873f08cb3b50728d",
       "before_sha256": "235fbfdbfe13d7ce2833017f67d6a899dda5b14131e38e5f7177b62f8a4b981b",
       "mode": "644"
     },
@@ -8393,7 +8393,7 @@
       "mode": "644"
     },
     "content/browser/web_contents/web_contents_impl.cc": {
-      "after_sha256": "8fbee47d922ac712403adf1f63fddbbda25ce77a4712eadabf1063c9cdd10c94",
+      "after_sha256": "b6f2b9c40c1900c076becc5267104210b41039b0dffcb4975d57f6068d2c11ee",
       "before_sha256": "a934dbd4d0c497df12ca0b43f61c786ba3bbee21032430255d276e49395898dc"
     },
     "content/public/browser/content_browser_client.h": {

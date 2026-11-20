@@ -20,6 +20,20 @@ class Port(unittest.TestCase):
  def test_early_reference(self):
     with tempfile.TemporaryDirectory() as d:
         d=Path(d);(d/'adapted_early.inc').write_text(compose.adapt_early(compose.local('tests/reference/early_helpers.inc')));exe=d/'early';subprocess.run([os.getenv('CXX','c++'),'-std=c++20','-Wall','-Wextra','-Werror','-I'+str(d),str(ROOT/'tests/early_harness.cc'),'-o',str(exe)],check=True);subprocess.run([exe],check=True)
+ def test_sealed_popup_uses_m158_dispositions(self):
+    paths=(
+        'chrome/browser/chrome_content_browser_client.cc',
+        'content/browser/web_contents/web_contents_impl.cc',
+    )
+    manifest=json.loads((ROOT.parent/'production-restore-recipe.json').read_text())
+    for path in paths:
+        with self.subTest(path=path):
+            oid=manifest['files'][path]['after_sha256']
+            data=(ROOT.parent/'production-postimages'/oid).read_bytes()
+            self.assertEqual(compose.sha(data),oid)
+            for old,new in compose.POPUP_DISPOSITIONS.items():
+                self.assertNotIn(('WindowOpenDisposition::'+old).encode(),data)
+                self.assertIn(('WindowOpenDisposition::'+new).encode(),data)
  def test_navigation_lifecycle(self):
     with tempfile.TemporaryDirectory() as d:
         d=Path(d);(d/'adapted_nav.inc').write_text(compose.adapt_throttle(compose.local('tests/reference/popup_navigation.cc.inc')));exe=d/'flow';subprocess.run([os.getenv('CXX','c++'),'-std=c++20','-Wall','-Wextra','-Werror','-Wno-unused-parameter','-I'+str(d),str(ROOT/'tests/flow_harness.cc'),'-o',str(exe)],check=True);subprocess.run([exe],check=True)

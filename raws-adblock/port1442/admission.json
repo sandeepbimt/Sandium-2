@@ -1,5 +1,5 @@
 {
-  "delta_sha256": "7268d7f96c3714501ba13c70bfaee6dd1ae56eb1662374623fbea324fb71cbcf",
+  "delta_sha256": "30150f66da6aa113a0c42ec34e7c8349a7b757a7ad49d6ee559f695316e4008f",
   "extra_generated": [
     "chrome/browser/raws/catalog_generated.h",
     "chrome/browser/raws/subscription_policy.h",
@@ -20,7 +20,7 @@
     "third_party/blink/renderer/core/html/media/html_media_element.h",
     "third_party/blink/renderer/core/page/create_window.cc"
   ],
-  "manifest_sha256": "2c3f73f34766bcabbbd29abb8d4471f1a26123c759379aad27a2f538e61b2fc9",
+  "manifest_sha256": "0c1e2c35f9439eee721a8c03f23d289a0cd142fb45846b708e566e0c55df9654",
   "staged_vendor_delta": {
     "brave/third_party/rust/chromium_crates_io/vendor/adblock-v0_13/src/blocker.rs": {
       "after": "ac368737ffb88855918f8e32ac0eb39a308c4e76f41e4a8193cf223c2a59a7cb",

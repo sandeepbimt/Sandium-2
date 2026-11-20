@@ -101,8 +101,24 @@ def after_function_open(s,signature,extra,params=()):
     if end-at>2200 or any(not re.search(r'\b'+p+r'\b',s[at:end]) for p in params):raise ValueError('unexpected signature '+signature)
     return s[:end]+'\n'+extra+s[end:]
 
+# The #1442 behavioral reference still uses pre-M158 spellings. Keep its
+# verified source unchanged and adapt only the dispositions emitted into RawS.
+POPUP_DISPOSITIONS = {
+    'NEW_FOREGROUND_TAB': 'kNewForegroundTab',
+    'NEW_BACKGROUND_TAB': 'kNewBackgroundTab',
+    'NEW_POPUP': 'kNewPopup',
+    'NEW_WINDOW': 'kNewWindow',
+}
+
+def adapt_popup_dispositions(s):
+    for old, new in POPUP_DISPOSITIONS.items():
+        s = once(s, 'WindowOpenDisposition::' + old,
+                 'WindowOpenDisposition::' + new)
+    return s
+
 def adapt_early(s):
     if s!=local('tests/reference/early_helpers.inc'):raise ValueError('tested #1442 guards differ from source')
+    s=adapt_popup_dispositions(s)
     s=once(s,'map && brave_shields::IsBraveShieldsEnabled(map, top_url) &&','map &&')
     return once(s,'CONTENT_SETTING_ALLOW &&\n         brave_shields::ShouldBlockAdRedirect(*profile->GetPrefs(), top_url);','CONTENT_SETTING_ALLOW;')
 
@@ -173,7 +189,16 @@ def compose(repo,src,core,out):
             exec(compile(ref[k],mod.__file__,'exec'),mod.__dict__)
             mapping=mod.EDITS if k=='media' else mod.edits()
             for path,edits in mapping.items():
-                if not path.startswith('brave/'):apply(path,edits)
+                if path.startswith('brave/'):continue
+                if path == 'content/browser/web_contents/web_contents_impl.cc':
+                    edits = [(a, adapt_popup_dispositions(b)
+                              if 'WindowOpenDisposition::NEW_FOREGROUND_TAB' in b
+                              else b) for a,b in edits]
+                apply(path,edits)
+        contents = files['content/browser/web_contents/web_contents_impl.cc']
+        if any('WindowOpenDisposition::' + old in contents
+               for old in POPUP_DISPOSITIONS):
+            raise ValueError('legacy popup disposition emitted in WebContentsImpl')
     cl='chrome/browser/chrome_content_browser_client.cc'; ch=cl[:-2]+'h'
     def client(s):
         incl=['base/timer/timer.h','base/supports_user_data.h','chrome/common/chrome_render_frame.mojom.h','content/public/browser/navigation_handle.h','content/public/browser/navigation_throttle.h','content/public/browser/navigation_throttle_registry.h','content/public/browser/web_contents_user_data.h','content/public/browser/render_frame_host.h','chrome/browser/content_settings/host_content_settings_map_factory.h','components/content_settings/core/browser/host_content_settings_map.h','mojo/public/cpp/bindings/associated_remote.h','net/base/url_util.h','net/base/registry_controlled_domains/registry_controlled_domain.h','third_party/blink/public/common/associated_interfaces/associated_interface_provider.h']
