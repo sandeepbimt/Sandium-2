@@ -1,0 +1,37 @@
+// Generated from Sandium #1442. Metadata only; no remote list is redistributed.
+#pragma once
+namespace sandium::port1442 {
+struct CatalogEntry { const char* url; const char* key; };
+inline constexpr CatalogEntry kCatalog[] = {
+  {"https://ublockorigin.github.io/uAssets/filters/filters.txt", "5ad5e06cbbab2035756685feefea923a9964a28d500d739ecc01110f85b4b8f3"},
+  {"https://ublockorigin.github.io/uAssets/filters/privacy.txt", "9a28a02dfd3ff27a0acf6acf4f34fdbfc0cb87d8463ce9ac13e8b02592476fe1"},
+  {"https://ublockorigin.github.io/uAssets/filters/quick-fixes.txt", "4371c134ba65509982a7b2ad64228e28528c9da382b33e0e0c6ab4f66969cafc"},
+  {"https://ublockorigin.github.io/uAssets/filters/unbreak.txt", "dfb1abd3d0c9c7ee2c2fd239544a479f6f6d87c49bb669efc3a9830b50f1ba11"},
+  {"https://ublockorigin.github.io/uAssets/thirdparties/easylist.txt", "aed95aac42248efe5ca0af9b550c86239c9ffde3c498a224f5bf2db3073801b3"},
+  {"https://filters.adtidy.org/extension/ublock/filters/2_without_easylist.txt", "cc2258f440be6fcb68a946eb30d46667123a93d343880cc03405b7b84e024044"},
+  {"https://filters.adtidy.org/extension/ublock/filters/11.txt", "d5e95cc5c21f961fbd649841edbd38ddc56086c8d6a8f60b14c8865a6f737759"},
+  {"https://ublockorigin.github.io/uAssets/thirdparties/easyprivacy.txt", "5bea3da2c4e9d146834b6b8224612a51339ba5c7fdb035fca891f72e82642a47"},
+  {"https://ublockorigin.github.io/uAssets/filters/privacy-removeparam.txt", "a235b5939228a4558192246eb06f9d830c3991bc779f7b6eb4fdd997232d2302"},
+  {"https://malware-filter.gitlab.io/urlhaus-filter/urlhaus-filter-vivaldi-online.txt", "b40466b5148719580791440222aea550adb13459dadd11ba9416f8e18dea867d"},
+  {"https://malware-filter.gitlab.io/phishing-filter/phishing-filter.txt", "9a45267044517f95da90b808d1eedefc4cc6925afb3ecdc5d76daf3ee80a692c"},
+  {"https://pgl.yoyo.org/adservers/serverlist.php?hostformat=hosts&showintro=1&mimetype=plaintext", "0b81f03757420ec2f202e3b098b1ada5e3162604b8584033688a7192a7300b5f"},
+  {"https://someonewhocares.org/hosts/hosts", "66ec9626d580d3621bd36f9000d430c23475acf0b5889224e2729bc0471ca5c7"},
+  {"https://ublockorigin.github.io/uAssets/thirdparties/easylist-cookies.txt", "af375412dd10bd015b83367e017980bc6cab03ac6c667b3cc5510f63838e5768"},
+  {"https://filters.adtidy.org/extension/ublock/filters/18.txt", "c37e6c9210813086c5613d370266689573e66881435a6731a7a0bec356d5794f"},
+  {"https://ublockorigin.github.io/uAssets/filters/annoyances-cookies.txt", "22861d0bbd9aaae6054d891c4726405444ac2e00382e5bd7c1cefe5a6250c5e7"},
+  {"https://ublockorigin.github.io/uAssets/thirdparties/easylist-social.txt", "91d3a9b80ebadc6c657a93704b1068e1d89b4ab8d199dec9d7333678a414ae21"},
+  {"https://filters.adtidy.org/extension/ublock/filters/4.txt", "27c8295f4f43c13826c23b8c449fa52f3254525ad1314f958528377f1ff9512d"},
+  {"https://secure.fanboy.co.nz/fanboy-antifacebook.txt", "fbf6460c6c9016c2161aa595935013be0d72e72e7eb5cd3189d6f347bc6af866"},
+  {"https://ublockorigin.github.io/uAssets/thirdparties/easylist-ai.txt", "abaa2ff1bd9b073f130f82f89b4f64c619bf86c8a5e1fcff971ef8aefe1a1fb8"},
+  {"https://ublockorigin.github.io/uAssets/thirdparties/easylist-chat.txt", "3332097ac23df4f0429aeff0dcfa996764b009b2251fd72bc937090bf41cd4f9"},
+  {"https://ublockorigin.github.io/uAssets/thirdparties/easylist-newsletters.txt", "866ffdd37c2349b8399a6e95208047e134dfd3cdb9f5b46b828b7c9e1520ce78"},
+  {"https://ublockorigin.github.io/uAssets/thirdparties/easylist-notifications.txt", "87d0ac648c50a3bb5d2e695dfebaeab2b8da18dd1fc371a8d8dabd097e313717"},
+  {"https://ublockorigin.github.io/uAssets/thirdparties/easylist-annoyances.txt", "b5b9381acdd6f5f9bf9654affac1f6cab8f60db98ccdbd61865a1ec843fab419"},
+  {"https://filters.adtidy.org/extension/ublock/filters/20.txt", "b35f0d066f46e226e72be807e964b509237c6f33bfb0840fae9cfe7dae9e3b56"},
+  {"https://filters.adtidy.org/extension/ublock/filters/21.txt", "ceb53a3d36df83792e5634458a3fb5469b5acb192ed4e72fc0dfa9d059083601"},
+  {"https://filters.adtidy.org/extension/ublock/filters/19.txt", "3b09d1db1d902c33f5de4e50ab6fe106421b4d8c396f4d20caefa0442f541c0a"},
+  {"https://filters.adtidy.org/extension/ublock/filters/22.txt", "d9b354268275724a2f00f63f1828858c592c1c4def43d3390ef941b66cee3a08"},
+  {"https://easylist-downloads.adblockplus.org/indianlist.txt", "1cb2261dbdb66a8028507f4f339a361e95ad456f7d40516daac7fbd97bf1aea6"},
+  {"https://ublockorigin.github.io/uAssets/filters/annoyances-others.txt", "25c5e5893a40e20a3b435d192e354ffad3ea7a202f1610f27c90c203f12ca1ef"},
+};
+}

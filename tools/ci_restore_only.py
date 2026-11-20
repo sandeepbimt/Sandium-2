@@ -97,6 +97,8 @@ def compile_once():
         upstream = lock()
         feature.preflight(src, upstream)
         prepare()
+        from restore_only_port1442 import prepare_stage
+        prepare_stage(full.ROOT/'.raws-staged-engine', feature)
         feature.apply(src, upstream)
     return main(1, feature=feature)
 
@@ -108,10 +110,13 @@ def completed():
     if state.get('status') == 'slice_expired':
         raise ValueError('RawS Full compile timed out; no progress saved and no continuation')
     feature = active_feature()
-    apk = (root / 'handoff/stage1/RawSandium-EasyList-arm64.apk' if feature is not None
+    from restore_only_port1442 import proof as port_proof
+    port1442 = feature is not None and port_proof() is not None
+    name = ('RawSandium-1442-Filters-arm64.apk' if port1442 else 'RawSandium-EasyList-arm64.apk')
+    apk = (root / 'handoff/stage1' / name if feature is not None
            else root / 'artifacts/RawSandium-baseline-arm64.apk')
     expected_recipe = feature.identity if feature is not None else None
-    if feature is not None and (len(state.get('raws_engine_smoke',{}).get('cases',[]))!=9
+    if feature is not None and (len(state.get('raws_engine_smoke',{}).get('cases',[]))!=(13 if port1442 else 9)
                                 or state.get('raws_engine_apk_graph_verified') is not True):
         raise ValueError('Missing actual engine smoke or Android linkage proof')
     if feature is not None and feature.has_ui and state.get('raws_ui_apk_graph_verified') is not True:

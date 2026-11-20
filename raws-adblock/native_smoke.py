@@ -71,6 +71,8 @@ def main():
     inputs.add_argument('--brave-core',type=Path,help='local Git repository containing the pinned commit')
     inputs.add_argument('--verified-staged-tree',type=Path,
                         help='exact stage created and hash-verified by regular RawS admission')
+    ap.add_argument('--port1442', action='store_true',
+                    help='run the sealed #1442 network/popup/scoped-cosmetic smoke')
     ap.add_argument('--args-file',type=Path,default=stage.HERE.parent/'ci/args.gn')
     args=ap.parse_args(); src=args.src.resolve(strict=True)
     if Path(stage.git(src,'rev-parse','--show-toplevel').decode().strip()).resolve()!=src:
@@ -96,34 +98,54 @@ def main():
     out=Path(tempfile.mkdtemp(prefix='RawSHostSmoke-',dir=outroot))
     print('Diagnostic outputs (not a checkpoint):',out,flush=True)
     (out/'args.gn').write_bytes(settings)
-    rel=str(out.relative_to(src)); root='--root-target='+ROOT
+    root_target = ROOT + ('1442' if args.port1442 else '')
+    smoke_target = SMOKE + ('1442' if args.port1442 else '')
+    rel=str(out.relative_to(src)); root='--root-target='+root_target
     def cmd(argv, capture=False):
         print('+', *argv, flush=True)
         return subprocess.run(argv,cwd=src,check=True,text=True,
                               stdout=subprocess.PIPE if capture else None).stdout
     cmd([gn,'gen',rel,root,'--fail-on-unused-args'])
-    labels=cmd([gn,'desc',rel,ROOT,'deps',root],True).splitlines()
-    host=[x.strip() for x in labels if x.strip().startswith(SMOKE+'(')]
+    labels=cmd([gn,'desc',rel,root_target,'deps',root],True).splitlines()
+    host=[x.strip() for x in labels if x.strip().startswith(smoke_target+'(')]
     if len(host)!=1: raise ValueError('host toolchain target not uniquely identified')
-    graph=cmd([gn,'desc',rel,host[0],'deps','--all',root],True)
-    labels={x.strip().split('(')[0] for x in graph.splitlines()}
-    for name in ('//brave/third_party/rust/adblock/v0_13:lib',
-                 '//brave/components/brave_shields/core/common/adblock/rs:rust_lib'):
-        if name not in labels: raise ValueError('native dependency missing: '+name)
-    (out/'engine-graph.txt').write_text(graph)
-    cmd([gn,'check',rel,host[0],root]); cmd([autoninja,'-C',rel,ROOT[2:]])
-    # Use the output selected by GN, not a stale executable from a different configuration.
-    outputs=cmd([gn,'desc',rel,host[0],'outputs',root],True).splitlines()
-    candidates=[src/x.strip()[2:] for x in outputs if x.strip().startswith('//')
-                and Path(x.strip()).name=='engine_smoke']
-    if len(candidates)!=1: raise ValueError('ambiguous executable outputs: '+str(outputs))
-    exe=candidates[0].resolve(strict=True)
-    if out not in exe.parents: raise ValueError('executable outside new diagnostic output')
-    result=cmd([str(exe)],True); print(result,end=''); verify_output(result)
+    tests = [(host[0], smoke_target.split(':', 1)[1], args.port1442)]
+    if args.port1442:
+        baseline = [x.strip() for x in labels if x.strip().startswith(SMOKE+'(')]
+        if len(baseline) != 1:
+            raise ValueError('Original RawS smoke target must still be present')
+        tests.insert(0, (baseline[0], 'engine_smoke', False))
+    graphs = []
+    for label, _, _ in tests:
+        graph=cmd([gn,'desc',rel,label,'deps','--all',root],True)
+        dep_labels={x.strip().split('(')[0] for x in graph.splitlines()}
+        for name in ('//brave/third_party/rust/adblock/v0_13:lib',
+                     '//brave/components/brave_shields/core/common/adblock/rs:rust_lib'):
+            if name not in dep_labels: raise ValueError('native dependency missing: '+name)
+        graphs.append(label+'\n'+graph)
+        cmd([gn,'check',rel,label,root])
+    (out/'engine-graph.txt').write_text('\n'.join(graphs))
+    cmd([autoninja,'-C',rel,root_target[2:]])
+    hashes = {}
+    for label, executable, port_cases in tests:
+        outputs=cmd([gn,'desc',rel,label,'outputs',root],True).splitlines()
+        candidates=[src/x.strip()[2:] for x in outputs if x.strip().startswith('//')
+                    and Path(x.strip()).name==executable]
+        if len(candidates)!=1: raise ValueError('ambiguous executable outputs: '+str(outputs))
+        exe=candidates[0].resolve(strict=True)
+        if out not in exe.parents: raise ValueError('executable outside new diagnostic output')
+        result=cmd([str(exe)],True); print(result,end='')
+        if port_cases:
+            if result.splitlines() != ['RAWS_ENGINE_SMOKE_1442_PASS']:
+                raise ValueError('Unexpected #1442 native smoke output')
+        else:
+            verify_output(result)
+        hashes[executable] = hashlib.sha256(exe.read_bytes()).hexdigest()
     (out/'engine-result.json').write_text(json.dumps({'scope':'host Rust/CXX only; not APK or device parity',
         'source_receipt_sha256':receipt_hash,'host_label':host[0],'pins':stage.PINS,
-        'executable_sha256':hashlib.sha256(exe.read_bytes()).hexdigest(),
-        'cases':list(CASES),'apk_tested':False,'remote_execution_verified':False},indent=2)+'\n')
+        'executable_sha256':hashes[smoke_target.split(':', 1)[1]], 'executables_sha256':hashes,
+        'cases':list(CASES) + (['six-network', 'four-popup', 'scoped-hide', 'scoped-exception']
+                               if args.port1442 else []),'apk_tested':False,'remote_execution_verified':False},indent=2)+'\n')
 
 if __name__=='__main__':
     try: main()

@@ -107,7 +107,7 @@ def verify_apk_graph(src, gn, out, env, artifact, *, require_ui=False):
         verified+='verified UI sources:\n'+'\n'.join(sorted(checked))+'\n'
     artifact.write_text(verified)
 
-def run_native_gate(src, artifacts, env, budget):
+def run_native_gate(src, artifacts, env, budget, *, port1442=False):
     from ci_remote import run_logged
     import json
     if budget < 120:
@@ -115,9 +115,10 @@ def run_native_gate(src, artifacts, env, budget):
     before=set((src/'out').glob('RawSHostSmoke-*'))
     # Reuse the fresh, rehashed staged closure captured from reviewed Git objects.
     # Do not re-fetch or publish cache; keep one log and the exact test receipt.
+    flag = ['--port1442'] if port1442 else []
     run_logged(['timeout','--kill-after=20s',str(budget),sys.executable,
                 str(ROOT/'raws-adblock/native_smoke.py'),'--src',str(src),
-                '--verified-staged-tree',str(ROOT/'.raws-staged-engine')],
+                '--verified-staged-tree',str(ROOT/'.raws-staged-engine'),*flag],
                artifacts/'raws-engine-host-smoke.log',phase='raws-engine-host-smoke',
                cwd=ROOT,env=env,check=True)
     new=set((src/'out').glob('RawSHostSmoke-*'))-before
@@ -125,7 +126,7 @@ def run_native_gate(src, artifacts, env, budget):
         raise ValueError('Ambiguous newly generated native test receipt')
     result=(new.pop()/'engine-result.json').read_bytes()
     value=json.loads(result)
-    if len(value.get('cases',[]))!=9 or value.get('apk_tested') is not False:
+    if len(value.get('cases',[]))!=(13 if port1442 else 9) or value.get('apk_tested') is not False:
         raise ValueError('Incomplete real native smoke test')
     (artifacts/'raws-engine-host-result.json').write_bytes(result)
     return value

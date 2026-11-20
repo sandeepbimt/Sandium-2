@@ -87,6 +87,8 @@ def main(stage, *, feature=None):
     ident=fingerprint(); folder=ROOT/f'handoff/stage{stage}';folder.mkdir(parents=True,exist_ok=True)
     artifacts=ROOT/'artifacts';artifacts.mkdir(exist_ok=True)
     state={'stage':stage,'fingerprint':ident,'apk_produced':False}
+    from restore_only_port1442 import proof as port_proof
+    port1442 = feature is not None and port_proof() is not None
     if feature is not None:state['feature_recipe_sha256']=feature.identity
     try:
         receipt=json.loads((W/'source-ready.json').read_text())
@@ -122,7 +124,7 @@ def main(stage, *, feature=None):
             epoch=json.loads((ROOT/'.checkpoint-state/job-start.json').read_text())['epoch']
             # Leave time for the Android build, verification and the APK upload.
             native_budget=min(360,int(3300-(time.time()-epoch)-1060))
-            state['raws_engine_smoke']=run_native_gate(W/'src',artifacts,env,native_budget)
+            state['raws_engine_smoke']=run_native_gate(W/'src',artifacts,env,native_budget,port1442=port1442)
         apk=out/'apks/ChromePublic.apk'
         if apk.exists():apk.unlink()
         started=json.loads((ROOT/'.checkpoint-state/job-start.json').read_text())['epoch']
@@ -164,7 +166,9 @@ def main(stage, *, feature=None):
         if state['status']=='done':
             if feature is not None:source_verifier(W/'src',data)
             state.update(verify_apk(apk,W/'src',env))
-            name='RawSandium-EasyList-arm64.apk' if feature is not None else 'RawSandium-baseline-arm64.apk'
+            name = ('RawSandium-1442-Filters-arm64.apk' if port1442 else
+                    'RawSandium-EasyList-arm64.apk' if feature is not None else
+                    'RawSandium-baseline-arm64.apk')
             shutil.copy2(apk,(folder if feature is not None else artifacts)/name)
             state.update(apk_produced=True,apk_sha256=file_sha(apk),device_tested=False,branding='Chromium baseline')
         else:

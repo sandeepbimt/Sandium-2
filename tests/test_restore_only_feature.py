@@ -12,6 +12,7 @@ sys.path.insert(0, str(ROOT / 'tools'))
 
 import ci_restore_only as policy
 import restore_only_feature as feature
+import restore_only_port1442 as port
 
 BUILD = 'chrome/browser/BUILD.gn'
 CLIENT = 'chrome/browser/chrome_content_browser_client.cc'
@@ -45,6 +46,9 @@ class FeatureTransition(unittest.TestCase):
         self.source = root / 'src'
         self.source.mkdir()
         # Existing engine-only cases keep exercising the earlier admission.
+        base_only = patch.object(port, 'ADMISSION_SHA256', None)
+        base_only.start()
+        self.addCleanup(base_only.stop)
         digest = patch.object(feature, 'APPROVED_UI_MANIFEST_SHA256', None)
         digest.start()
         self.addCleanup(digest.stop)
@@ -363,9 +367,19 @@ class FrozenScope(unittest.TestCase):
         self.assertEqual(feature.sha(recipe.read_bytes()), feature.approved_manifest_sha256())
         actual = feature.load(ROOT, policy.FINGERPRINT,
                               json.loads((ROOT / 'upstream.lock.json').read_text())['chromium']['revision'])
-        self.assertEqual(feature.APPROVED_UI_TRACKED | feature.APPROVED_GN_COMPAT_TRACKED,
+        extra = port.proof()
+        extra_tracked = set(extra['extra_tracked']) if extra else set()
+        extra_generated = set(extra['extra_generated']) if extra else set()
+        self.assertEqual(feature.APPROVED_UI_TRACKED | feature.APPROVED_GN_COMPAT_TRACKED | extra_tracked,
                          actual.tracked_paths - feature.TRACKED)
-        self.assertEqual(feature.UI_GENERATED, actual.ui_files)
+        self.assertEqual(feature.UI_GENERATED | extra_generated, actual.ui_files)
+        if extra:
+            self.assertEqual(13, len(extra_tracked))
+            self.assertEqual(3, len(extra_generated))
+            for name, entry in extra['staged_vendor_delta'].items():
+                self.assertEqual(entry['after'], actual.files[name][1])
+                self.assertEqual(entry['after'],
+                                 feature.sha((ROOT / feature.POSTIMAGES / entry['after']).read_bytes()))
         self.assertLessEqual({UI_JAVA, UI_GN}, feature.APPROVED_UI_TRACKED)
         self.assertLessEqual({UI_DAY, UI_NIGHT}, actual.ui_files)
         self.assertTrue(actual.has_ui)

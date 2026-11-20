@@ -19,7 +19,7 @@ POSTIMAGES = 'raws-adblock/production-postimages'
 APPROVED_MANIFEST_SHA256 = '7081e486a25eb33a74cac59bec9e94b16030f9b7c091b1e5faab2fc95c977aeb'
 # A combined candidate, when pinned, replaces the engine-only admission.
 # It must not fall back to the older digest if the UI manifest is missing.
-APPROVED_UI_MANIFEST_SHA256 = '7c26fb17750a9d6ac54241d7d18aea52db2d420ddcefb478fe7f20e33ea98220'
+APPROVED_UI_MANIFEST_SHA256 = '2c3f73f34766bcabbbd29abb8d4471f1a26123c759379aad27a2f538e61b2fc9'
 APPROVED_UI_TRACKED = frozenset((
     'chrome/android/chrome_java_resources.gni',
     'chrome/android/chrome_java_sources.gni',
@@ -191,6 +191,13 @@ def load(recipe_root, base_fingerprint, chromium_revision):
     ui_enabled = APPROVED_UI_MANIFEST_SHA256 is not None
     tracked_paths = (TRACKED | APPROVED_UI_TRACKED | APPROVED_GN_COMPAT_TRACKED) if ui_enabled else TRACKED
     ui_files = UI_GENERATED if ui_enabled else frozenset()
+    from restore_only_port1442 import proof as reviewed_port
+    port = reviewed_port()
+    if port is not None:
+        if not ui_enabled or port["manifest_sha256"] != identity:
+            raise ValueError("Reviewed #1442 port must extend existing RawS feature")
+        tracked_paths |= frozenset(port["extra_tracked"])
+        ui_files |= frozenset(port["extra_generated"])
     files = {}
     for relative, entry in value['files'].items():
         safe(root, relative)

@@ -1,0 +1,182 @@
+[
+  {
+    "title": "uBlock filters – Ads",
+    "url": "https://ublockorigin.github.io/uAssets/filters/filters.txt",
+    "enabled_on_first_create": true,
+    "legacy_reenable_once": false
+  },
+  {
+    "title": "uBlock filters – Privacy",
+    "url": "https://ublockorigin.github.io/uAssets/filters/privacy.txt",
+    "enabled_on_first_create": true,
+    "legacy_reenable_once": false
+  },
+  {
+    "title": "uBlock filters – Quick fixes",
+    "url": "https://ublockorigin.github.io/uAssets/filters/quick-fixes.txt",
+    "enabled_on_first_create": true,
+    "legacy_reenable_once": false
+  },
+  {
+    "title": "uBlock filters – Unbreak",
+    "url": "https://ublockorigin.github.io/uAssets/filters/unbreak.txt",
+    "enabled_on_first_create": true,
+    "legacy_reenable_once": false
+  },
+  {
+    "title": "EasyList",
+    "url": "https://ublockorigin.github.io/uAssets/thirdparties/easylist.txt",
+    "enabled_on_first_create": true,
+    "legacy_reenable_once": false
+  },
+  {
+    "title": "AdGuard – Ads",
+    "url": "https://filters.adtidy.org/extension/ublock/filters/2_without_easylist.txt",
+    "enabled_on_first_create": true,
+    "legacy_reenable_once": false
+  },
+  {
+    "title": "AdGuard – Mobile Ads",
+    "url": "https://filters.adtidy.org/extension/ublock/filters/11.txt",
+    "enabled_on_first_create": true,
+    "legacy_reenable_once": false
+  },
+  {
+    "title": "EasyPrivacy",
+    "url": "https://ublockorigin.github.io/uAssets/thirdparties/easyprivacy.txt",
+    "enabled_on_first_create": true,
+    "legacy_reenable_once": false
+  },
+  {
+    "title": "AdGuard/uBO – URL Tracking Protection",
+    "url": "https://ublockorigin.github.io/uAssets/filters/privacy-removeparam.txt",
+    "enabled_on_first_create": true,
+    "legacy_reenable_once": false
+  },
+  {
+    "title": "Online Malicious URL Blocklist",
+    "url": "https://malware-filter.gitlab.io/urlhaus-filter/urlhaus-filter-vivaldi-online.txt",
+    "enabled_on_first_create": true,
+    "legacy_reenable_once": false
+  },
+  {
+    "title": "Phishing URL Blocklist",
+    "url": "https://malware-filter.gitlab.io/phishing-filter/phishing-filter.txt",
+    "enabled_on_first_create": true,
+    "legacy_reenable_once": false
+  },
+  {
+    "title": "Peter Lowe’s Ad and tracking server list",
+    "url": "https://pgl.yoyo.org/adservers/serverlist.php?hostformat=hosts&showintro=1&mimetype=plaintext",
+    "enabled_on_first_create": true,
+    "legacy_reenable_once": false
+  },
+  {
+    "title": "Dan Pollock’s hosts file",
+    "url": "https://someonewhocares.org/hosts/hosts",
+    "enabled_on_first_create": true,
+    "legacy_reenable_once": false
+  },
+  {
+    "title": "EasyList – Cookie Notices",
+    "url": "https://ublockorigin.github.io/uAssets/thirdparties/easylist-cookies.txt",
+    "enabled_on_first_create": true,
+    "legacy_reenable_once": false
+  },
+  {
+    "title": "AdGuard – Cookie Notices",
+    "url": "https://filters.adtidy.org/extension/ublock/filters/18.txt",
+    "enabled_on_first_create": true,
+    "legacy_reenable_once": false
+  },
+  {
+    "title": "uBlock filters – Cookie Notices",
+    "url": "https://ublockorigin.github.io/uAssets/filters/annoyances-cookies.txt",
+    "enabled_on_first_create": true,
+    "legacy_reenable_once": false
+  },
+  {
+    "title": "EasyList – Social Widgets",
+    "url": "https://ublockorigin.github.io/uAssets/thirdparties/easylist-social.txt",
+    "enabled_on_first_create": true,
+    "legacy_reenable_once": false
+  },
+  {
+    "title": "AdGuard – Social Widgets",
+    "url": "https://filters.adtidy.org/extension/ublock/filters/4.txt",
+    "enabled_on_first_create": true,
+    "legacy_reenable_once": false
+  },
+  {
+    "title": "Fanboy – Anti-Facebook",
+    "url": "https://secure.fanboy.co.nz/fanboy-antifacebook.txt",
+    "enabled_on_first_create": true,
+    "legacy_reenable_once": false
+  },
+  {
+    "title": "EasyList – AI Widgets",
+    "url": "https://ublockorigin.github.io/uAssets/thirdparties/easylist-ai.txt",
+    "enabled_on_first_create": true,
+    "legacy_reenable_once": false
+  },
+  {
+    "title": "EasyList – Chat Widgets",
+    "url": "https://ublockorigin.github.io/uAssets/thirdparties/easylist-chat.txt",
+    "enabled_on_first_create": true,
+    "legacy_reenable_once": false
+  },
+  {
+    "title": "EasyList – Newsletter Notices",
+    "url": "https://ublockorigin.github.io/uAssets/thirdparties/easylist-newsletters.txt",
+    "enabled_on_first_create": true,
+    "legacy_reenable_once": false
+  },
+  {
+    "title": "EasyList – Notifications",
+    "url": "https://ublockorigin.github.io/uAssets/thirdparties/easylist-notifications.txt",
+    "enabled_on_first_create": true,
+    "legacy_reenable_once": false
+  },
+  {
+    "title": "EasyList – Other Annoyances",
+    "url": "https://ublockorigin.github.io/uAssets/thirdparties/easylist-annoyances.txt",
+    "enabled_on_first_create": true,
+    "legacy_reenable_once": false
+  },
+  {
+    "title": "AdGuard – Mobile App Banners",
+    "url": "https://filters.adtidy.org/extension/ublock/filters/20.txt",
+    "enabled_on_first_create": true,
+    "legacy_reenable_once": true
+  },
+  {
+    "title": "AdGuard – Other Annoyances",
+    "url": "https://filters.adtidy.org/extension/ublock/filters/21.txt",
+    "enabled_on_first_create": true,
+    "legacy_reenable_once": true
+  },
+  {
+    "title": "AdGuard – Popup Overlays",
+    "url": "https://filters.adtidy.org/extension/ublock/filters/19.txt",
+    "enabled_on_first_create": true,
+    "legacy_reenable_once": true
+  },
+  {
+    "title": "AdGuard – Widgets",
+    "url": "https://filters.adtidy.org/extension/ublock/filters/22.txt",
+    "enabled_on_first_create": true,
+    "legacy_reenable_once": true
+  },
+  {
+    "title": "🇮🇳in 🇱🇰lk 🇳🇵np: IndianList",
+    "url": "https://easylist-downloads.adblockplus.org/indianlist.txt",
+    "enabled_on_first_create": true,
+    "legacy_reenable_once": false
+  },
+  {
+    "title": "uBlock filters – Annoyances",
+    "url": "https://ublockorigin.github.io/uAssets/filters/annoyances-others.txt",
+    "enabled_on_first_create": true,
+    "legacy_reenable_once": false
+  }
+]

@@ -1,0 +1,58 @@
+{
+  "delta_sha256": "7268d7f96c3714501ba13c70bfaee6dd1ae56eb1662374623fbea324fb71cbcf",
+  "extra_generated": [
+    "chrome/browser/raws/catalog_generated.h",
+    "chrome/browser/raws/subscription_policy.h",
+    "chrome/browser/raws/subscription_service.h"
+  ],
+  "extra_tracked": [
+    "chrome/browser/chrome_content_browser_client.h",
+    "chrome/common/chrome_render_frame.mojom",
+    "chrome/renderer/chrome_render_frame_observer.cc",
+    "chrome/renderer/chrome_render_frame_observer.h",
+    "content/browser/web_contents/web_contents_impl.cc",
+    "content/public/browser/content_browser_client.h",
+    "content/public/renderer/window_features_converter.cc",
+    "third_party/blink/public/mojom/window_features/window_features.mojom",
+    "third_party/blink/public/web/web_window_features.h",
+    "third_party/blink/renderer/core/frame/local_dom_window.cc",
+    "third_party/blink/renderer/core/html/media/html_media_element.cc",
+    "third_party/blink/renderer/core/html/media/html_media_element.h",
+    "third_party/blink/renderer/core/page/create_window.cc"
+  ],
+  "manifest_sha256": "2c3f73f34766bcabbbd29abb8d4471f1a26123c759379aad27a2f538e61b2fc9",
+  "staged_vendor_delta": {
+    "brave/third_party/rust/chromium_crates_io/vendor/adblock-v0_13/src/blocker.rs": {
+      "after": "ac368737ffb88855918f8e32ac0eb39a308c4e76f41e4a8193cf223c2a59a7cb",
+      "before": "fdcf2ce644e367e893eed336544a07a24a75db5283ac58b2946388a56b53bdb5"
+    },
+    "brave/third_party/rust/chromium_crates_io/vendor/adblock-v0_13/src/filters/abstract_network.rs": {
+      "after": "ab6ff20442f1245f1a75ff47948bf9f0467d03c3aa28514b2c6af0d0f535ffa6",
+      "before": "42cfcb9ea8ed42d3952ef9bb71c71804a47b682204f6a6d26e6bf3ab9d917cf1"
+    },
+    "brave/third_party/rust/chromium_crates_io/vendor/adblock-v0_13/src/filters/fb_network.rs": {
+      "after": "76c0a94fbe4a77c400131eebc97015972a5d18b3ef37b862cb668f26ed2a9f13",
+      "before": "c8c7be067a925445a56b1fbb6565041540b6a3d997f78105db40390f93a054dd"
+    },
+    "brave/third_party/rust/chromium_crates_io/vendor/adblock-v0_13/src/filters/fb_network_builder.rs": {
+      "after": "74f57b1a285c365c3fbbef941aee9396096df705a6cd23ad95561675463f5cb7",
+      "before": "7c777abe222853a1d219b78f0ffbad0e41e9ebda1a9e1b575a76628aad8581ad"
+    },
+    "brave/third_party/rust/chromium_crates_io/vendor/adblock-v0_13/src/filters/network.rs": {
+      "after": "8541e04acbeda3482eb545950a31951d8d13520ae593772e135fca5f1467688e",
+      "before": "33289b3556ade25d8ef4f5d28d7dd764db96b5f62931bbb90a36b5eedd60fd6b"
+    },
+    "brave/third_party/rust/chromium_crates_io/vendor/adblock-v0_13/src/network_filter_list.rs": {
+      "after": "2186489132ab7a4158d8120f5701e57fa9adcd8b47a5c443ed4895408a15e807",
+      "before": "770cfb07e7c274b72a5e7499078883fd09fccdaebee53bf4757fde9cc51a37ef"
+    },
+    "brave/third_party/rust/chromium_crates_io/vendor/adblock-v0_13/src/optimizer.rs": {
+      "after": "204a0befff0074c036836811f3985bb52b0ffd77c72e4a85afd15a158e5c47eb",
+      "before": "40fd436ed9244fc8459f5836ae74b2f124c6bd45373d7528462276e51cafbd43"
+    },
+    "brave/third_party/rust/chromium_crates_io/vendor/adblock-v0_13/src/request.rs": {
+      "after": "25ecdb777e76279d2d604f52cb40fc36c940185d76497062feadebea3098c442",
+      "before": "108c3c4f00c4bcab31930acceb78c60141766bdf32b49646a137083ba6babe55"
+    }
+  }
+}
