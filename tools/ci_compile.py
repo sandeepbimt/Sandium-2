@@ -40,6 +40,23 @@ def compile_budget(elapsed, fresh_seed):
     save_reserve=600 if fresh_seed else 300
     return min(1500, int(3300-elapsed-900-save_reserve-60-180))
 
+def restore_only_feature_budget(elapsed):
+    # No archive phase: keep the same job clock and APK verification/upload reserve.
+    return min(1800, int(3300-elapsed-180))
+
+def restore_only_feature_command(out, metrics, target, budget):
+    if not 1 <= budget <= 1800:
+        raise ValueError('Restore-only feature slice must fit the 30-minute cap')
+    cmd=remote_command(out,metrics,target,min(budget,1500))
+    if budget > 1500:
+        # Only the outer wall-clock limit changes. Keep the fingerprinted
+        # builder, strict-remote mode, and all build/metrics arguments intact.
+        prefix=['timeout','--signal=INT','--kill-after=60s','1500s','autoninja','-strict_remote']
+        if cmd[:len(prefix)] != prefix:
+            raise ValueError('Unexpected strict-remote timeout command prefix')
+        cmd[3]=f'{budget}s'
+    return cmd
+
 def verify_apk(apk, src, env):
     with zipfile.ZipFile(apk) as z:
         bad=z.testzip()
@@ -110,9 +127,7 @@ def main(stage, *, feature=None):
         if apk.exists():apk.unlink()
         started=json.loads((ROOT/'.checkpoint-state/job-start.json').read_text())['epoch']
         elapsed=time.time()-started
-        # Restore-only features have no archive phase. Preserve the one-hour
-        # clock and leave time for APK verification/upload, not checkpointing.
-        budget=(min(1500,int(3300-elapsed-180)) if feature is not None
+        budget=(restore_only_feature_budget(elapsed) if feature is not None
                 else compile_budget(elapsed,(ROOT/'.checkpoint-state/fresh.json').is_file()))
         if budget<120:raise ValueError('Insufficient job time for safe compile and publication')
         state['compile_budget_seconds']=budget
@@ -132,7 +147,8 @@ def main(stage, *, feature=None):
         else:
             metrics=f'raws-stage-{stage}-build.jsonl'
             (out/metrics).unlink(missing_ok=True)
-            code=run_logged(remote_command(out,metrics,data['target'],remaining),
+            command=remote_command if feature is None else restore_only_feature_command
+            code=run_logged(command(out,metrics,data['target'],remaining),
                 artifacts/f'compile-{stage}.log',phase=f'compile-{stage}',cwd=W/'src',env=env).returncode
             if code in (0,124):
                 # Audit real compilation, not merely configured flags. Time-slice

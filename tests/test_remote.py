@@ -46,6 +46,45 @@ class CompileValidationTests(unittest.TestCase):
         self.assertEqual(compile_budget(0,False),1500)
         self.assertEqual(compile_budget(684,True),876)
         self.assertLess(compile_budget(1500,True),120)
+    def test_restore_only_feature_budget_keeps_real_job_reserve(self):
+        from ci_compile import compile_budget, restore_only_feature_budget
+        for elapsed, expected in ((0,1800),(1320,1800),(1320.5,1799),
+                                  (1475,1645),(1620,1500),(3000,120),(3001,119)):
+            with self.subTest(elapsed=elapsed):
+                self.assertEqual(restore_only_feature_budget(elapsed),expected)
+        self.assertEqual(compile_budget(0,False),1500)
+        self.assertEqual(compile_budget(0,True),1500)
+
+    def test_restore_only_feature_changes_only_outer_timeout(self):
+        from ci_compile import restore_only_feature_command
+        args=(Path('/out with spaces'),'metrics.jsonl','chrome_public_apk')
+        original=remote_command(*args,1500)
+        for budget in (120,1499,1500,1501,1799,1800):
+            with self.subTest(budget=budget):
+                if budget <= 1500:
+                    expected=remote_command(*args,budget)
+                else:
+                    expected=original[:3]+[f'{budget}s']+original[4:]
+                self.assertEqual(restore_only_feature_command(*args,budget),expected)
+        for budget in (0,1801):
+            with self.assertRaisesRegex(ValueError,'30-minute cap'):
+                restore_only_feature_command(*args,budget)
+
+    def test_restore_only_feature_rejects_long_timeout_prefix_drift(self):
+        from unittest.mock import patch
+        from ci_compile import restore_only_feature_command
+        args=(Path('/out'),'metrics.jsonl','chrome_public_apk')
+        original=remote_command(*args,1500)
+        for i, replacement in enumerate(('other-timeout','--signal=TERM','--kill-after=90s',
+                                         '25m','ninja','-allow_local')):
+            with self.subTest(replacement=replacement):
+                drift=original[:i]+[replacement]+original[i+1:]
+                with patch('ci_compile.remote_command',return_value=drift) as build:
+                    with self.assertRaisesRegex(ValueError,'timeout command prefix'):
+                        restore_only_feature_command(*args,1800)
+                    build.assert_called_once_with(*args,1500)
+                    self.assertEqual(drift[i],replacement)
+
     def test_bad_apk_rejected_before_tools(self):
         import zipfile
         from ci_compile import verify_apk
