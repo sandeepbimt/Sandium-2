@@ -41,6 +41,14 @@ public final class SandiumMenuMetadata {
             catch (RuntimeException ignored) { /* Diagnostics must never break menu/save. */ }
         }
     }
+    // Set on the same live model list by the tabbed delegate, never inferred from URL text.
+    private static final WeakHashMap<ModelList, Boolean> RECENT_TABS = new WeakHashMap<>();
+    public static void recentTabs(ModelList models, boolean recentTabs) {
+        if (recentTabs) RECENT_TABS.put(models, true);
+        else RECENT_TABS.remove(models);
+    }
+    static boolean isRecentTabs(ModelList models) { return RECENT_TABS.containsKey(models); }
+
     // Frozen product IDs, NOT Android's unstable resource integers or user strings.
     private static final String[] DIAGNOSTIC_KEYS = {
         "add_to_group_menu_id",

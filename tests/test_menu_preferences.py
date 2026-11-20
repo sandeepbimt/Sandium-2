@@ -10,7 +10,7 @@ class MenuPreferences(unittest.TestCase):
    sources={
 'android/annotation/SuppressLint.java':'package android.annotation; public @interface SuppressLint { String[] value(); }',
 'android/content/SharedPreferences.java':'''package android.content;
-public interface SharedPreferences { boolean contains(String k); String getString(String k,String d); Editor edit(); interface Editor { Editor putString(String k,String v); boolean commit(); } }''',
+public interface SharedPreferences { boolean contains(String k); String getString(String k,String d); Editor edit(); interface Editor { Editor putString(String k,String v); Editor remove(String k); boolean commit(); } }''',
 'android/content/Context.java':'''package android.content;
 public abstract class Context { public static final int MODE_PRIVATE=0; public abstract Context getApplicationContext(); public abstract SharedPreferences getSharedPreferences(String n,int m); }''',
 'android/os/StrictMode.java':'''package android.os;
@@ -19,10 +19,23 @@ public class StrictMode { public static class ThreadPolicy {} public static Thre
 import android.content.*; import java.nio.file.*; import java.util.*;
 public class Restart {
  static class Disk implements SharedPreferences {
-  Path p; boolean fail; String memory; boolean loaded; Disk(Path p){this.p=p;}
-  public boolean contains(String k){return Files.exists(p);}
-  public String getString(String k,String d){try{if(!loaded){memory=contains(k)?Files.readString(p):null;loaded=true;}return memory==null?d:memory;}catch(Exception e){throw new RuntimeException(e);}}
-  public Editor edit(){return new Editor(){String value; public Editor putString(String k,String v){value=v;return this;} public boolean commit(){memory=value;loaded=true;if(fail)return false;try{Files.createDirectories(p.getParent());Files.writeString(p,value);return true;}catch(Exception e){return false;}}};}
+  Path p; boolean fail; Map<String,String> memory=new HashMap<>(); boolean loaded;
+  Disk(Path p){this.p=p;}
+  void load(){try{if(!loaded){if(Files.isDirectory(p))try(var files=Files.list(p)){
+      for(Path f:files.toList())memory.put(f.getFileName().toString(),Files.readString(f));}
+      loaded=true;}}catch(Exception e){throw new RuntimeException(e);}}
+  public boolean contains(String k){load();return memory.containsKey(k);}
+  public String getString(String k,String d){load();return memory.getOrDefault(k,d);}
+  public Editor edit(){return new Editor(){
+   Map<String,String> values=new HashMap<>();
+   public Editor putString(String k,String v){values.put(k,v);return this;}
+   public Editor remove(String k){values.put(k,null);return this;}
+   public boolean commit(){load();values.forEach((k,v)->{if(v==null)memory.remove(k);else memory.put(k,v);});
+    if(fail)return false;try{Files.createDirectories(p);
+     for(var entry:values.entrySet()){Path f=p.resolve(entry.getKey());if(entry.getValue()==null)
+      Files.deleteIfExists(f);else Files.writeString(f,entry.getValue());}
+      return true;}catch(Exception e){return false;}}
+  };}
  }
  static class C extends Context {Path root; Context app; Disk disk; C(Path p,Context a){root=p;app=a;}
   public Context getApplicationContext(){return app==null?this:app;}
@@ -35,6 +48,30 @@ public class Restart {
   if(args[0].equals("legacy")) {popup.getSharedPreferences("sandium.menu.layout.v1",0).edit().putString("layout","legacy").commit();}
   SandiumMenuPreferences store=new SandiumMenuPreferences(popup);
   switch(args[0]){
+   case "recentFresh":
+    eq("",store.load(true));eq("",store.load());
+    if(!store.save("sandium-menu-v1",false))throw new AssertionError();
+    eq("",store.load(true));eq("sandium-menu-v1",store.load());break;
+   case "recentLegacy":
+    app.disk.edit().putString("layout","sandium-menu-v1\\nold\\t0").commit();
+    eq("sandium-menu-v1\\nold\\t0",store.load(true));
+    eq(false,app.disk.contains("layout.recent-tabs"));
+    app.disk.fail=true;
+    eq(false,store.save("sandium-menu-v1",false));
+    eq(false,app.disk.contains("layout.recent-tabs"));
+    eq("sandium-menu-v1\\nold\\t0",store.load(true));
+    app.disk.fail=false;
+    eq(true,store.save("sandium-menu-v1",false));
+    eq("sandium-menu-v1\\nold\\t0",store.load(true));
+    eq(true,store.save("sandium-menu-v1\\nrecent\\t1",true));
+    eq("sandium-menu-v1",store.load());
+    app.disk.fail=true;
+    eq(false,store.save("sandium-menu-v1",true));
+    eq("sandium-menu-v1\\nrecent\\t1",store.load(true));
+    break;
+   case "recentRestart":
+    eq("sandium-menu-v1\\nrecent\\t1",store.load(true));
+    eq("sandium-menu-v1",store.load());break;
    case "legacy":eq("legacy",store.load());break;
    case "edit": SandiumMenuState state=SandiumMenuState.load(null,keys,Set.of());state.move("three",0,Set.copyOf(keys));state.hide("two");if(!store.save(state.serialize()))throw new AssertionError();break;
    case "read": SandiumMenuState restored=SandiumMenuState.load(store.load(),keys,Set.of());eq(List.of("three","one"),restored.visibleKeys(Set.copyOf(keys)));eq(List.of("two"),restored.hiddenKeys(Set.copyOf(keys)));break;
@@ -62,12 +99,14 @@ public class Restart {
    subprocess.run(['java','com.sun.tools.javac.Main','-d',str(root),*paths,str(JAVA/'SandiumMenuState.java'),str(JAVA/'SandiumMenuPreferences.java')],capture_output=True,check=True)
    for mode in ['legacy','edit','read','stale','read','isolation','fail','read','nativeRead','nativeAdd','readAdded','nativeRemove','readRemoved','nativeReadd','readAdded','upgrade','readAdded','nativeNew','readAdded','nativeFail','readAdded','invalid','full','corrupt']:
     subprocess.run(['java','-cp',str(root),'org.chromium.chrome.browser.ui.appmenu.Restart',mode,str(root/'data')],capture_output=True,check=True)
+   for mode, namespace in [('recentFresh','fresh'),('recentLegacy','legacy'),('recentRestart','legacy')]:
+    subprocess.run(['java','-cp',str(root),'org.chromium.chrome.browser.ui.appmenu.Restart',mode,str(root/namespace)],check=True)
  def test_presenter_reads_and_writes_one_store(self):
   source=(JAVA/'SandiumPagedMenu.java').read_text()
   self.assertIn('mPreferences = new SandiumMenuPreferences(context)',source)
-  self.assertIn('String loadedLayout = mPreferences.load();',source)
+  self.assertIn('String loadedLayout = mPreferences.load(mRecentTabs);',source)
   self.assertIn('SandiumMenuState.load(loadedLayout,',source)
-  self.assertIn('mPreferences.save(value.serialize())',source)
+  self.assertIn('mPreferences.save(value.serialize(), mRecentTabs)',source)
   self.assertNotIn('getSharedPreferences(',source)
  def test_overlay_registers_store(self):
   source=(ROOT/'.circleci/scripts/apply-sandium-paged-menu.py').read_text()

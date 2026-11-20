@@ -27,7 +27,7 @@ def run(audit, chromium, repo):
         }
         for destination, source in files.items():
             target = src / destination; target.parent.mkdir(parents=True, exist_ok=True); shutil.copyfile(source, target)
-        for relative in [patch.CUSTOMIZE, patch.CUSTOMIZE_SETTINGS,
+        for relative in [patch.CUSTOMIZE, patch.CUSTOMIZE_SETTINGS, patch.TABBED_DELEGATE,
                 'android/java/org/chromium/chrome/browser/app/BraveActivity.java',
                 'android/java/org/chromium/chrome/browser/app/appmenu/AppMenuIconRowFooter.java']:
             target = core / relative; target.parent.mkdir(parents=True, exist_ok=True); shutil.copyfile(audit / relative, target)
@@ -70,6 +70,10 @@ def run(audit, chromium, repo):
         else:
             raise AssertionError('contract missed drift')
         copy.write_bytes(original)
+        tabbed = (core / patch.TABBED_DELEGATE).read_text()
+        assert 'sandiumMenuTab.getNativePage()' in tabbed
+        assert 'UrlConstants.RECENT_TABS_HOST.equals(sandiumMenuPage.getHost())' in tabbed
+        assert 'SandiumMenuMetadata.recentTabs(modelList,' in tabbed
         custom = (core / patch.CUSTOMIZE).read_text()
         assert 'if (isRemovedBySandium(resources, menuItemId)' in custom
         assert 'SandiumMenuMetadata.record' in custom

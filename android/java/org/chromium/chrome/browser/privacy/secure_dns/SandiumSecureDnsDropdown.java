@@ -5,6 +5,7 @@ package org.chromium.chrome.browser.privacy.secure_dns;
 
 import android.content.Context;
 import android.graphics.drawable.GradientDrawable;
+import android.graphics.drawable.InsetDrawable;
 import android.text.TextUtils;
 import android.view.Gravity;
 import android.view.View;
@@ -88,7 +89,6 @@ public final class SandiumSecureDnsDropdown extends LinearLayout {
             row.addView(selector, choiceParams);
             mButton = selector;
         } else {
-            mChoice.setPaddingRelative(dp(10), 0, dp(10), 0);
             LayoutParams choiceParams = new LayoutParams(dp(112), dp(48));
             choiceParams.setMarginStart(dp(8));
             row.addView(mChoice, choiceParams);
@@ -114,9 +114,15 @@ public final class SandiumSecureDnsDropdown extends LinearLayout {
     private void paintPill(int surface, int accent) {
         GradientDrawable pill = new GradientDrawable();
         pill.setColor(surface);
-        pill.setCornerRadius(dp(mWelcomeStyle ? 28 : 22));
+        pill.setCornerRadius(dp(mWelcomeStyle ? 28 : 18));
         pill.setStroke(dp(1), accent);
-        mButton.setBackground(pill);
+        if (mWelcomeStyle) {
+            mButton.setBackground(pill);
+        } else {
+            // Shields paints a 36dp pill inside the existing 48dp touch target.
+            mButton.setBackground(new InsetDrawable(pill, 0, dp(6), 0, dp(6)));
+            mChoice.setPaddingRelative(dp(10), 0, dp(10), 0);
+        }
     }
 
     /** Welcome invokes this after receiving the first native Profile. */

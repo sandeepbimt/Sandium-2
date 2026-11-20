@@ -50,6 +50,14 @@ class CompactDnsUi(unittest.TestCase):
   self.assertIn('mWelcomeStyle ? selected',s)
   self.assertIn('mButton.setContentDescription',s)
   self.assertIn('dp(112), dp(48)',s) # Compact Shields retains a full-height touch target.
+ def test_shields_dns_pill_is_shorter_without_shrinking_touch_target(self):
+  s=JAVA.read_text()
+  shields=s.split('mButton = selector;',1)[1].split('paintPill(',1)[0]
+  self.assertIn('dp(112), dp(48)',shields)
+  paint=s.split('private void paintPill(',1)[1].split('public void finishNativeStartup()',1)[0]
+  self.assertIn('if (mWelcomeStyle) {\n            mButton.setBackground(pill);',paint)
+  self.assertIn('new InsetDrawable(pill, 0, dp(6), 0, dp(6))',paint)
+  self.assertIn('mChoice.setPaddingRelative(dp(10), 0, dp(10), 0)',paint)
  def test_android_api_compilation(self):
   jar=Path(os.environ.get('RAWS_ANDROID_API_JAR','/workspace/shared/raws-api/android15.jar'))
   if not jar.exists(): self.skipTest('Android SDK API jar unavailable')

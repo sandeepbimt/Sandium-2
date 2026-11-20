@@ -15,6 +15,54 @@ import java.util.Set;
 public final class SandiumMenuState {
     private static final String VERSION = "sandium-menu-v1";
     private static final int MAX_ENTRIES = 512;
+    // Resource entry names, not localized labels or build-specific resource numbers.
+    private static final String[] QUICK_DEFAULT_ORDER = {
+        "new_tab_menu_id", "new_incognito_tab_menu_id", "new_incognito_window_menu_id",
+        "find_in_page_id", "request_desktop_site_id", "sandium_add_home_shortcut",
+        "brave_shred_id", "reload_menu_id", "exit_id", "share_menu_id", "download_page_id",
+        "bookmark_this_page_id", "universal_install", "reader_mode_menu_id", "translate_id",
+        "add_to_group_menu_id", "info_menu_id", "recent_tabs_menu_id", "home_menu_id"
+    };
+    private static final String[] QUICK_DEFAULT_HIDDEN = {
+        "add_to_group_menu_id", "info_menu_id", "recent_tabs_menu_id", "home_menu_id"
+    };
+
+    private static final String[] RECENT_DEFAULT_ORDER = {
+        "new_tab_menu_id", "new_incognito_tab_menu_id", "new_incognito_window_menu_id",
+        "add_to_group_menu_id", "recent_tabs_menu_id", "home_menu_id", "reload_menu_id",
+        "info_menu_id", "exit_id", "sandium_add_home_shortcut", "bookmark_this_page_id",
+        "download_page_id", "share_menu_id"
+    };
+    private static final String[] RECENT_DEFAULT_HIDDEN = {
+        "sandium_add_home_shortcut", "bookmark_this_page_id", "download_page_id", "share_menu_id"
+    };
+
+    static List<String> quickDefaultOrder(Collection<String> available, boolean recentTabs) {
+        Set<String> remaining = new LinkedHashSet<>(available);
+        List<String> result = new ArrayList<>();
+        for (String key : recentTabs ? RECENT_DEFAULT_ORDER : QUICK_DEFAULT_ORDER) if (remaining.remove(key)) result.add(key);
+        result.addAll(remaining);
+        return result;
+    }
+
+    static Set<String> quickDefaultHidden(Set<String> legacyHidden, boolean recentTabs) {
+        Set<String> result = new HashSet<>(legacyHidden);
+        Collections.addAll(result, recentTabs ? RECENT_DEFAULT_HIDDEN : QUICK_DEFAULT_HIDDEN);
+        return result;
+    }
+
+    static SandiumMenuState loadQuickLayout(String saved, Collection<String> catalog,
+            Set<String> legacyHidden, boolean recentTabs) {
+        SandiumMenuState result = parse(saved);
+        Collection<String> defaults = catalog;
+        if (result == null) {
+            result = new SandiumMenuState();
+            defaults = quickDefaultOrder(catalog, recentTabs);
+        }
+        result.reconcile(defaults, quickDefaultHidden(legacyHidden, recentTabs));
+        return result;
+    }
+
     private final ArrayList<String> mOrder = new ArrayList<>();
     private final HashSet<String> mHidden = new HashSet<>();
 
@@ -135,9 +183,9 @@ public final class SandiumMenuState {
     }
 
     public String serialize() {
-        StringBuilder text = new StringBuilder(VERSION).append('\n');
+        StringBuilder text = new StringBuilder(VERSION);
         for (String key : mOrder) {
-            text.append(key).append('\t').append(mHidden.contains(key) ? '1' : '0').append('\n');
+            text.append('\n').append(key).append('\t').append(mHidden.contains(key) ? '1' : '0');
         }
         return text.toString();
     }
@@ -148,11 +196,13 @@ public final class SandiumMenuState {
     private static SandiumMenuState parse(String saved) {
         if (saved == null || saved.length() > 131072) return null;
         String[] lines = saved.split("\n", -1);
-        if (lines.length < 2 || !VERSION.equals(lines[0])) return null;
+        if (!VERSION.equals(lines[0])) return null;
         SandiumMenuState result = new SandiumMenuState();
         Set<String> seen = new LinkedHashSet<>();
         for (int i = 1; i < lines.length; i++) {
-            if (i == lines.length - 1 && lines[i].isEmpty()) continue;
+            // Legacy writes ended with a newline. SharedPreferences XML may
+            // contribute closing-tag indentation to that final line.
+            if (i == lines.length - 1 && lines[i].matches("[ \t]*")) continue;
             String[] fields = lines[i].split("\t", -1);
             if (fields.length != 2 || !validKey(fields[0])
                     || !(fields[1].equals("0") || fields[1].equals("1"))

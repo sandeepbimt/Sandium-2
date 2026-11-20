@@ -203,35 +203,49 @@ def compact_brand_java(text):
     return text
 
 
+DNS_MARKER = '// SANDIUM_SECURE_DNS_GLOBAL_UI'
+DNS_BLOCK = """
+        // SANDIUM_SECURE_DNS_GLOBAL_UI: independent of this site's Shields toggle.
+        // Android replaces the included layout's root ID with the <include> ID.
+        View sandiumContent = popupView.findViewById(R.id.shields_tab_content);
+        if (sandiumContent instanceof LinearLayout panel) {
+            int footerIndex = panel.indexOfChild(mBlockCountText);
+            if (footerIndex >= 0) {
+                org.chromium.chrome.browser.privacy.secure_dns.SandiumSecureDnsDropdown dns =
+                        new org.chromium.chrome.browser.privacy.secure_dns.SandiumSecureDnsDropdown(
+                                context, true);
+                dns.setBackgroundResource(R.drawable.advanced_options_bg);
+                LinearLayout.LayoutParams dnsParams =
+                        new LinearLayout.LayoutParams(
+                                android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                                android.view.ViewGroup.LayoutParams.WRAP_CONTENT);
+                dnsParams.topMargin =
+                        Math.round(8 * context.getResources().getDisplayMetrics().density);
+                panel.addView(dns, footerIndex, dnsParams);
+            }
+        }"""
+
+
 def dns_ui(text):
     text = compact_brand_java(text)
     # Cookie/data cards are root siblings so Dark Pages stays outside site controls.
     for control in ('cookies_item', 'shred_data_item'):
         text = text.replace('mAdvancedOptionsContent.findViewById(R.id.' + control + ')',
                             '((View) mAdvancedOptionsContent.getParent()).findViewById(R.id.' + control + ')')
-    marker = '// SANDIUM_SECURE_DNS_GLOBAL_UI'
-    if marker in text:
-        # Upgrade old checkpoint placement: DNS follows all three XML cards.
-        text = text.replace('            mAdvancedOptionsContent.addView(dns, dnsParams);',
-                            '            android.widget.LinearLayout panel = popupView.findViewById(R.id.shields_content_container);\n'
-                            '            panel.addView(dns, panel.getChildCount() - 2, dnsParams);')
-        return text
     anchor = '        setupAdvancedOptionsListeners();'
-    return once(text, anchor, anchor + """
-        // SANDIUM_SECURE_DNS_GLOBAL_UI: independent of this site's Shields toggle.
-        if (mAdvancedOptionsContent != null) {
-            org.chromium.chrome.browser.privacy.secure_dns.SandiumSecureDnsDropdown dns =
-                    new org.chromium.chrome.browser.privacy.secure_dns.SandiumSecureDnsDropdown(
-                            context, true);
-            dns.setBackgroundResource(R.drawable.advanced_options_bg);
-            android.widget.LinearLayout.LayoutParams dnsParams =
-                    new android.widget.LinearLayout.LayoutParams(
-                            android.view.ViewGroup.LayoutParams.MATCH_PARENT,
-                            android.view.ViewGroup.LayoutParams.WRAP_CONTENT);
-            dnsParams.topMargin = Math.round(8 * context.getResources().getDisplayMetrics().density);
-            android.widget.LinearLayout panel = popupView.findViewById(R.id.shields_content_container);
-            panel.addView(dns, panel.getChildCount() - 2, dnsParams);
-        }""")
+    if DNS_MARKER not in text:
+        return once(text, anchor, anchor + DNS_BLOCK)
+    if text.count(DNS_MARKER) == 1 and text.count(DNS_BLOCK) == 1:
+        return text
+    # Restore a previously composed checkpoint using either known placement.
+    start = text.index('\n        ' + DNS_MARKER)
+    end = text.index('\n        }', start) + len('\n        }')
+    old = text[start:end]
+    if text.count(DNS_MARKER) != 1 or not any(
+            s in old for s in ('mAdvancedOptionsContent.addView(dns, dnsParams);',
+                              'panel.addView(dns, panel.getChildCount() - 2, dnsParams);')):
+        raise ValueError('Unexpected prior Shields DNS binding')
+    return text[:start] + DNS_BLOCK + text[end:]
 
 
 def strings(text):

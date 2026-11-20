@@ -20,8 +20,8 @@ class MenuDiagnostics(unittest.TestCase):
 import java.nio.file.*;import java.util.*;
 public class DiagnosticTest {
  static class R {static class string {static int sandium_menu_save_failed=1;}}
- static class Store {Path path;Store(Path p){path=p;} boolean save(String s){try{Files.writeString(path,s);return true;}catch(Exception e){return false;}}}
- Store mPreferences;SandiumMenuState mSaved,mPersisted,mDraft;long mDiagnosticSequence;
+ static class Store {Path path;Store(Path p){path=p;} boolean save(String s,boolean recentTabs){try{Files.writeString(path,s);return true;}catch(Exception e){return false;}}}
+ boolean mRecentTabs;Store mPreferences;SandiumMenuState mSaved,mPersisted,mDraft;long mDiagnosticSequence;
  org.chromium.ui.modelutil.MVCListAdapter.ModelList mModels=new org.chromium.ui.modelutil.MVCListAdapter.ModelList();
  Object getContext(){return null;}
  DiagnosticTest(Path path)throws Exception {mPreferences=new Store(path);mSaved=SandiumMenuState.load(Files.exists(path)?Files.readString(path):null,List.of("exit_id","share_menu_id","print_id"),Set.of());mPersisted=mSaved.copy();}

@@ -44,12 +44,42 @@ class Compact(unittest.TestCase):
   self.assertEqual(out,p.dns_ui(out))
   expected=next(n.value for n in ast.walk(ast.parse((R/'.circleci/scripts/apply-sandium-branding-refresh.py').read_text())) if isinstance(n,ast.Constant) and isinstance(n.value,str) and 'private static final class SandiumShieldsTracer' in n.value)
   self.assertIn(expected,out)
-  self.assertIn('popupView.findViewById(R.id.shields_content_container)',out)
-  self.assertIn('panel.addView(dns, panel.getChildCount() - 2, dnsParams)',out)
+  self.assertIn('panel.addView(dns, footerIndex, dnsParams)',out)
   for control in ('cookies_item','shred_data_item'):
    self.assertIn('((View) mAdvancedOptionsContent.getParent()).findViewById(R.id.'+control+')',out)
   for write in ('setShieldsValue(', 'setShields(', 'setShieldsEnabled('):
    self.assertEqual(source.count(write),out.count(write))
+ def test_shields_tap_dns_binding_matches_actual_inflated_include(self):
+  A=e.A
+  parent=e.ET.parse(R/'tests/fixtures/brave_unified_panel_layout.44a84b1.xml').getroot()
+  outer_include=next(x for x in parent.iter('include')
+                    if x.get('layout')=='@layout/brave_shields_tab_content')
+  base=(R/'tests/fixtures/dark-pages/brave'/p.LAYOUT).read_text()
+  comp=e.ET.fromstring(e.layout(d.layout(p.layout(base))))
+  self.assertNotEqual(comp.get(A+'id'),outer_include.get(A+'id'))
+  # LayoutInflater applies the explicit <include> ID after inflating the content.
+  comp.set(A+'id',outer_include.get(A+'id'))
+  live={v.get(A+'id'):v for v in comp.iter() if v.get(A+'id')}
+  self.assertNotIn('@+id/shields_content_container',live)
+  target=re.search(r'popupView\.findViewById\(R\.id\.(\w+)\)',p.DNS_BLOCK)[1]
+  panel=live['@+id/'+target]
+  self.assertEqual(panel.tag,'LinearLayout')
+  footer=live['@+id/block_count_text']
+  self.assertEqual(list(panel).index(footer),4)
+  self.assertEqual(panel[3].get(A+'id'),'@+id/sandium_cookies_group')
+  self.assertIn('sandiumContent instanceof LinearLayout panel',p.DNS_BLOCK)
+  self.assertIn('panel.indexOfChild(mBlockCountText)',p.DNS_BLOCK)
+  self.assertIn('if (footerIndex >= 0)',p.DNS_BLOCK)
+ def test_dns_migrates_prior_placement_once(self):
+  base=(R/'tests/fixtures/dark-pages/brave'/p.JAVA).read_text()
+  out=p.dns_ui(p.java(base))
+  for line in ('mAdvancedOptionsContent.addView(dns, dnsParams);',
+               'panel.addView(dns, panel.getChildCount() - 2, dnsParams);'):
+   legacy=('\n        '+p.DNS_MARKER+": independent of this site's Shields toggle."
+           '\n        if (mAdvancedOptionsContent != null) {'
+           '\n            '+line+'\n        }')
+   self.assertEqual(p.dns_ui(out.replace(p.DNS_BLOCK,legacy)),out)
+  self.assertEqual(p.dns_ui(out),out)
  def test_shipping_dns_resource_and_settings_management(self):
   adapter=load('compact_dns','experiments/secure-dns/adapter.py')
   fixture=json.loads(gzip.decompress((R/'experiments/secure-dns/fixtures/pinned.json.gz').read_bytes()))

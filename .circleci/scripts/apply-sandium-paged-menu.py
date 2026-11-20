@@ -11,6 +11,7 @@ CHROMIUM_PIN = 'd331de35ca8ab1358c7a17e4bd41627d55eaef51'
 PACKAGE = 'org/chromium/chrome/browser/ui/appmenu/'
 INTERNAL = 'chrome/browser/ui/android/appmenu/internal/'
 PUBLIC = 'chrome/browser/ui/android/appmenu/'
+TABBED_DELEGATE = 'android/java/org/chromium/chrome/browser/tabbed_mode/BraveTabbedAppMenuPropertiesDelegate.java'
 CUSTOMIZE_SETTINGS = 'browser/customize_menu/android/java/src/org/chromium/brave/browser/customize_menu/settings/BraveCustomizeMenuPreferenceFragment.java'
 CUSTOMIZE = 'browser/customize_menu/android/java/src/org/chromium/brave/browser/customize_menu/CustomizeBraveMenu.java'
 
@@ -98,6 +99,16 @@ def appmenu(text):
 
 def handler(text):
     return once(text, '        mAppMenu.show(\n', '        mAppMenu.setSandiumModels(mModelList);\n        mAppMenu.show(\n')
+
+
+def recent_tabs_context(text):
+    return once(text, '        CustomizeBraveMenu.applyCustomization(mContext.getResources(), modelList);', '''        // Classify the displayed native page, not a matching URL or any other native page.
+        final Tab sandiumMenuTab = mActivityTabProvider.get();
+        final var sandiumMenuPage = sandiumMenuTab == null || sandiumMenuTab.isDestroyed()
+                ? null : sandiumMenuTab.getNativePage();
+        org.chromium.chrome.browser.ui.appmenu.SandiumMenuMetadata.recentTabs(modelList,
+                sandiumMenuPage != null && UrlConstants.RECENT_TABS_HOST.equals(sandiumMenuPage.getHost()));
+        CustomizeBraveMenu.applyCustomization(mContext.getResources(), modelList);''')
 
 
 def customize(text):
@@ -223,6 +234,7 @@ def apply(src, repo, verify_pin=True):
     edits = {
         src / INTERNAL / ('java/src/' + PACKAGE + 'AppMenu.java'): appmenu,
         src / INTERNAL / ('java/src/' + PACKAGE + 'AppMenuHandlerImpl.java'): handler,
+        core / TABBED_DELEGATE: recent_tabs_context,
         core / CUSTOMIZE: customize,
         core / CUSTOMIZE_SETTINGS: customize_settings,
         core / 'android/java/org/chromium/chrome/browser/app/appmenu/AppMenuIconRowFooter.java': footer,
@@ -259,6 +271,7 @@ def verify(src, repo, verify_pin=True):
     transforms = {
         src / INTERNAL / ('java/src/' + PACKAGE + 'AppMenu.java'): appmenu,
         src / INTERNAL / ('java/src/' + PACKAGE + 'AppMenuHandlerImpl.java'): handler,
+        core / TABBED_DELEGATE: recent_tabs_context,
         core / CUSTOMIZE: customize,
         core / CUSTOMIZE_SETTINGS: customize_settings,
         core / 'android/java/org/chromium/chrome/browser/app/appmenu/AppMenuIconRowFooter.java': footer,

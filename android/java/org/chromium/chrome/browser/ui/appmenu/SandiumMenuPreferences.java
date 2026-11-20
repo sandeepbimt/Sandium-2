@@ -8,6 +8,7 @@ import android.content.SharedPreferences;
 public final class SandiumMenuPreferences {
     private static final String FILE = "sandium.menu.layout.v1";
     private static final String KEY = "layout";
+    private static final String RECENT_KEY = "layout.recent-tabs";
     private final SharedPreferences mPreferences;
 
     public SandiumMenuPreferences(Context context) {
@@ -17,7 +18,7 @@ public final class SandiumMenuPreferences {
         // Never replace an existing application layout with a stale activity snapshot.
         if (!mPreferences.contains(KEY)) {
             String legacy = context.getSharedPreferences(FILE, Context.MODE_PRIVATE).getString(KEY, null);
-            if (legacy != null) save(legacy);
+            if (legacy != null) save(legacy, false, false);
         }
     }
 
@@ -43,16 +44,42 @@ public final class SandiumMenuPreferences {
 
     String load() { return mPreferences.getString(KEY, ""); }
 
-    // The caller needs the disk result before exit/restart; apply() cannot report failure.
+    String load(boolean recentTabs) {
+        if (!recentTabs) return load();
+        String recent = mPreferences.getString(RECENT_KEY, null);
+        if (recent != null) return recent;
+        String legacy = load();
+        return SandiumMenuState.isValidSavedLayout(legacy) ? legacy : "";
+    }
+
+    boolean save(String layout) { return save(layout, false); }
+
+    boolean save(String layout, boolean recentTabs) { return save(layout, recentTabs, true); }
+
+    // Freeze any actually inherited old global layout at the first new web write, without
+    // copying into the global key or writing anything just because the popup was opened.
     @android.annotation.SuppressLint("ApplySharedPref")
-    boolean save(String layout) {
+    private boolean save(String layout, boolean recentTabs, boolean userWrite) {
         android.os.StrictMode.ThreadPolicy policy = android.os.StrictMode.allowThreadDiskWrites();
         try {
-            String previous = load();
-            boolean committed = mPreferences.edit().putString(KEY, layout).commit();
-            // Android updates its process cache before the disk result. Restore that
-            // cache on failure, so reopening the menu cannot show an unsaved value.
-            if (!committed) mPreferences.edit().putString(KEY, previous).commit();
+            String key = recentTabs ? RECENT_KEY : KEY;
+            String previous = mPreferences.getString(key, null);
+            boolean freezeInherited = userWrite && !recentTabs && !mPreferences.contains(RECENT_KEY);
+            SharedPreferences.Editor editor = mPreferences.edit().putString(key, layout);
+            if (freezeInherited) {
+                editor.putString(RECENT_KEY,
+                        SandiumMenuState.isValidSavedLayout(previous) ? previous : "");
+            }
+            boolean committed = editor.commit();
+            // Android updates its process cache before the disk result. Restore both keys
+            // if the transaction failed, including the prior missing/inheriting state.
+            if (!committed) {
+                SharedPreferences.Editor restore = mPreferences.edit();
+                if (previous == null) restore.remove(key);
+                else restore.putString(key, previous);
+                if (freezeInherited) restore.remove(RECENT_KEY);
+                restore.commit();
+            }
             return committed;
         } finally {
             android.os.StrictMode.setThreadPolicy(policy);

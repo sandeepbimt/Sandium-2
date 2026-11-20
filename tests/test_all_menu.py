@@ -19,7 +19,10 @@ class AllMenu(unittest.TestCase):
   self.assertIn('if (mAllMenu)',header)
   self.assertIn('int screen = mDraft != null ? 2 : mAllMenu ? 1 : 0',S)
   self.assertIn('if (mAllMenu && !mNativeVisible)',S)
-  self.assertIn('for (String key : mSaved.knownKeys()) if (available.contains(key)) directory.add(key)',S)
+  self.assertIn('return mSaved.visibleKeys(editableKeys());',S)
+  self.assertIn('grid(actionsGroup, allMenuKeys(), false);',S)
+  self.assertIn('screen == 1 ? allMenuKeys() : quickKeys()',S)
+  self.assertIn('mDraft.hiddenKeys(editableKeys())',S)
  def test_page_boundaries(self):
   for n in range(201):
    actions=list(range(n))+['all']

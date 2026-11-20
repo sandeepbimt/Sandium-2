@@ -38,6 +38,7 @@ import java.util.Set;
 @SuppressWarnings("UseSharedPreferencesManagerFromChromeCheck") // Private versioned UI layout, not browser preferences.
 final class SandiumPagedMenu extends FrameLayout {
     private final SandiumMenuPreferences mPreferences;
+    private final boolean mRecentTabs;
     private static final int PAGE_SIZE = 8;
     private static final int EDITOR_AVAILABLE_ROWS = 4;
     private static final int ALL_MENU_ACTION_ROWS = 5;
@@ -138,6 +139,7 @@ final class SandiumPagedMenu extends FrameLayout {
     SandiumPagedMenu(Context context, ModelList models, View nativeContent, ListView nativeList, View footer) {
         super(context);
         mPreferences = new SandiumMenuPreferences(context);
+        mRecentTabs = SandiumMenuMetadata.isRecentTabs(models);
         mGroupColor = context.getColor(R.color.sandium_menu_group_surface);
         mPanelColor = shieldsMatchedPanel(context);
         mTextColor = context.getColor(R.color.sandium_menu_on_surface);
@@ -153,10 +155,10 @@ final class SandiumPagedMenu extends FrameLayout {
         refreshCatalog();
         Set<String> hidden = new HashSet<>();
         for (Map.Entry<String, Entry> e : mCatalog.entrySet()) {
-            if (!SandiumMenuMetadata.wasVisible(e.getValue().model)) hidden.add(e.getKey());
+            if (!mRecentTabs && !SandiumMenuMetadata.wasVisible(e.getValue().model)) hidden.add(e.getKey());
         }
-        String loadedLayout = mPreferences.load();
-        mSaved = SandiumMenuState.load(loadedLayout, mCatalog.keySet(), hidden);
+        String loadedLayout = mPreferences.load(mRecentTabs);
+        mSaved = SandiumMenuState.loadQuickLayout(loadedLayout, mCatalog.keySet(), hidden, mRecentTabs);
         SandiumMenuState stored = SandiumMenuState.load(loadedLayout,
                 java.util.Collections.emptyList(), java.util.Collections.emptySet());
         SandiumMenuMetadata.diagnostic(mModels, 16, mDiagnosticSequence, 1,
@@ -245,10 +247,11 @@ final class SandiumPagedMenu extends FrameLayout {
         refreshCatalog();
         Set<String> legacy = new HashSet<>();
         for (Map.Entry<String, Entry> e : mCatalog.entrySet()) {
-            if (!SandiumMenuMetadata.wasVisible(e.getValue().model)) legacy.add(e.getKey());
+            if (!mRecentTabs && !SandiumMenuMetadata.wasVisible(e.getValue().model)) legacy.add(e.getKey());
         }
-        mSaved.reconcile(mCatalog.keySet(), legacy);
-        if (mDraft != null) mDraft.reconcile(mCatalog.keySet(), legacy);
+        Set<String> hidden = SandiumMenuState.quickDefaultHidden(legacy, mRecentTabs);
+        mSaved.reconcile(mCatalog.keySet(), hidden);
+        if (mDraft != null) mDraft.reconcile(mCatalog.keySet(), hidden);
         if (!mNativeVisible) {
             int scrollY = mScroll == null ? 0 : mScroll.getScrollY();
             View focus = findFocus();
@@ -475,7 +478,7 @@ final class SandiumPagedMenu extends FrameLayout {
     // queues disk I/O, which can be lost when Exit/process termination follows an edit.
     // This bounded layout write is performed only on user edits, never during scrolling.
     private boolean writeLayout(SandiumMenuState value) {
-        boolean saved = mPreferences.save(value.serialize());
+        boolean saved = mPreferences.save(value.serialize(), mRecentTabs);
         SandiumMenuMetadata.diagnostic(mModels, 17, ++mDiagnosticSequence, 1, 1,
                 value.knownKeys().size(),
                 SandiumMenuMetadata.diagnosticFingerprint(value.knownKeys(), value), saved ? 1 : 0);
@@ -614,10 +617,7 @@ final class SandiumPagedMenu extends FrameLayout {
     private void render() {
         // Fade only actual navigation, never network/model updates or drag reorders.
         int screen = mDraft != null ? 2 : mAllMenu ? 1 : 0;
-        java.util.List<String> diagnosticKeys = new java.util.ArrayList<>();
-        if (screen == 1) {
-            for (String key : mSaved.knownKeys()) if (editableKeys().contains(key)) diagnosticKeys.add(key);
-        } else diagnosticKeys.addAll(quickKeys());
+        List<String> diagnosticKeys = screen == 1 ? allMenuKeys() : quickKeys();
         SandiumMenuMetadata.diagnostic(mModels, 18, mDiagnosticSequence, screen,
                 diagnosticKeys.size(), SandiumMenuMetadata.diagnosticFingerprint(diagnosticKeys, null), mPage);
         int pageDirection = Integer.compare(mPage, mRenderedPage);
@@ -711,16 +711,11 @@ final class SandiumPagedMenu extends FrameLayout {
             instructions.setMinHeight(dp(24)); actionsGroup.addView(instructions);
         }
         if (mAllMenu && mDraft == null) {
-            // Browse every catalogued action using its live enabled/managed state.
-            // Hidden means hidden from the quick pages, not removed from this directory.
-            List<String> directory = new ArrayList<>();
-            Set<String> available = editableKeys();
-            for (String key : mSaved.knownKeys()) if (available.contains(key)) directory.add(key);
             // Content fills the reserved five-row box without a scroll range on
             // supported portrait sizes. Preserve access, rather than clip actions,
             // if large text/landscape leaves less physical room than that envelope.
             actionsGroup.setMinimumHeight(2 * dp(4) + allMenuActionRows() * tileHeight());
-            grid(actionsGroup, directory, false);
+            grid(actionsGroup, allMenuKeys(), false);
             return;
         }
         mPageGestureArea = actionsGroup;
@@ -821,7 +816,9 @@ final class SandiumPagedMenu extends FrameLayout {
                     if (mDraft == null || mDraft != editing) return;
                     List<String> defaults = new ArrayList<>(mCatalog.keySet());
                     for (String known : mDraft.knownKeys()) if (!defaults.contains(known)) defaults.add(known);
-                    mDraft = SandiumMenuState.reset(defaults, new HashSet<>()); persistDraft(); mPage = 0; render();
+                    mDraft = SandiumMenuState.reset(SandiumMenuState.quickDefaultOrder(defaults, mRecentTabs),
+                            SandiumMenuState.quickDefaultHidden(java.util.Collections.emptySet(), mRecentTabs));
+                    persistDraft(); mPage = 0; render();
                 }).show();
     }
 
@@ -1060,6 +1057,11 @@ final class SandiumPagedMenu extends FrameLayout {
         addView(content, new LayoutParams(-1, -1));
         if (mResize != null && mDragging == null) post(mResize);
         if (row >= 0) mNativeList.setSelection(row + mNativeList.getHeaderViewsCount());
+    }
+
+    private List<String> allMenuKeys() {
+        // Hidden actions stay available to re-add in the editor, not in the displayed menu.
+        return mSaved.visibleKeys(editableKeys());
     }
 
     private Set<String> quickAvailable() { return editableKeys(); }
