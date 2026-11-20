@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- RawS native UI handoff 8243108b03825729498383557fb6bf8f62c16c55. -->
+<resources>
+    <color name="raws_welcome_field">#000000</color>
+    <color name="raws_welcome_ink">#F4F5F7</color>
+</resources>

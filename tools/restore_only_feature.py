@@ -1,7 +1,6 @@
 """Token-free, exact-file admission for a reviewed RawS restore-only source overlay.
 
-No recipe is admitted yet. The future release review must pin its manifest's
-SHA256 here. A manifest cannot run code, choose an engine, or alter a cache key.
+The exact combined UI and engine manifest is pinned here. A manifest cannot run code, choose an engine, or alter a cache key.
 """
 
 import hashlib
@@ -18,6 +17,55 @@ RECIPE = 'raws-adblock/production-restore-recipe.json'
 POSTIMAGES = 'raws-adblock/production-postimages'
 # Set only after independent production source review and exact bytes are final.
 APPROVED_MANIFEST_SHA256 = '7081e486a25eb33a74cac59bec9e94b16030f9b7c091b1e5faab2fc95c977aeb'
+# A combined candidate, when pinned, replaces the engine-only admission.
+# It must not fall back to the older digest if the UI manifest is missing.
+APPROVED_UI_MANIFEST_SHA256 = '4a57b00f4a852fe324267631c386ea73a9886f77451c31251870dd543439ecbe'
+APPROVED_UI_TRACKED = frozenset((
+    'chrome/android/chrome_java_resources.gni',
+    'chrome/android/chrome_java_sources.gni',
+    'chrome/android/java/res/xml/main_preferences.xml',
+    'chrome/android/java/src/org/chromium/chrome/browser/ChromeTabbedActivity.java',
+    'chrome/android/java/src/org/chromium/chrome/browser/settings/MainSettings.java',
+    'chrome/android/java/src/org/chromium/chrome/browser/signin/SigninFirstRunFragment.java',
+    'chrome/android/java/src/org/chromium/chrome/browser/tabbed_mode/TabbedAppMenuPropertiesDelegate.java',
+    'chrome/browser/ui/android/appmenu/internal/BUILD.gn',
+    'chrome/browser/ui/android/appmenu/internal/java/src/org/chromium/chrome/browser/ui/appmenu/AppMenuHandlerImpl.java',
+    'chrome/browser/ui/android/appmenu/java/src/org/chromium/chrome/browser/ui/appmenu/AppMenuHandler.java',
+    'chrome/browser/ui/android/appmenu/java/src/org/chromium/chrome/browser/ui/appmenu/AppMenuPropertiesDelegate.java',
+    'chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/ToolbarPhone.java',
+))
+APPROVED_GN_COMPAT_TRACKED = frozenset((
+    'third_party/rust/aho_corasick/v1/BUILD.gn',
+    'third_party/rust/bitflags/v2/BUILD.gn',
+    'third_party/rust/cfg_if/v1/BUILD.gn',
+    'third_party/rust/itoa/v1/BUILD.gn',
+    'third_party/rust/memchr/v2/BUILD.gn',
+    'third_party/rust/regex_automata/v0_4/BUILD.gn',
+    'third_party/rust/regex_syntax/v0_8/BUILD.gn',
+    'third_party/rust/serde/v1/BUILD.gn',
+    'third_party/rust/serde_core/v1/BUILD.gn',
+))
+UI_GENERATED = frozenset((
+    'chrome/android/java/res/drawable/raws_global_shield_icon.xml',
+    'chrome/android/java/res/layout/raws_global_shield_sheet.xml',
+    'chrome/android/java/res/values-night/raws_main_settings_palette.xml',
+    'chrome/android/java/res/values-night/raws_welcome_palette.xml',
+    'chrome/android/java/res/values/raws_global_shield_strings.xml',
+    'chrome/android/java/res/values/raws_main_settings_palette.xml',
+    'chrome/android/java/res/values/raws_main_settings_strings.xml',
+    'chrome/android/java/res/values/raws_welcome_palette.xml',
+    'chrome/android/java/res/xml/raws_protection_preferences.xml',
+    'chrome/android/java/src/org/chromium/chrome/browser/settings/RawsGlobalShieldSheet.java',
+    'chrome/android/java/src/org/chromium/chrome/browser/settings/RawsProtectionCopy.java',
+    'chrome/android/java/src/org/chromium/chrome/browser/settings/RawsProtectionSettings.java',
+    'chrome/browser/ui/android/appmenu/internal/java/res/values-hi/raws_menu.xml',
+    'chrome/browser/ui/android/appmenu/internal/java/res/values/raws_menu.xml',
+    'chrome/browser/ui/android/appmenu/internal/java/src/org/chromium/chrome/browser/ui/appmenu/RawSMenuModel.java',
+    'chrome/browser/ui/android/appmenu/internal/java/src/org/chromium/chrome/browser/ui/appmenu/RawSMenuStore.java',
+    'chrome/browser/ui/android/appmenu/internal/java/src/org/chromium/chrome/browser/ui/appmenu/RawSNativeMenu.java',
+))
+UI_RESOURCE_FILES = frozenset(name for name in UI_GENERATED if '/res/' in name)
+UI_RESOURCE_DIRS = frozenset(str(PurePosixPath(name).parent) for name in UI_RESOURCE_FILES)
 TRACKED = frozenset(('chrome/browser/BUILD.gn',
                      'chrome/browser/browser_resources.grd',
                      'chrome/browser/chrome_browser_main_android.cc',
@@ -93,17 +141,44 @@ def exact_tree(root, directory, files):
         raise ValueError('Generated feature inventory differs: ' + directory)
 
 
+def approved_manifest_sha256():
+    return (APPROVED_UI_MANIFEST_SHA256 if APPROVED_UI_MANIFEST_SHA256 is not None
+            else APPROVED_MANIFEST_SHA256)
+
+
+def exact_ui_resources(src, expected):
+    # These are shared Chromium directories, not overlay-owned subtrees. Check
+    # the reserved RawS namespace only; unrelated native resources stay intact.
+    found = set()
+    for relative in UI_RESOURCE_DIRS:
+        directory = safe(src, relative)
+        if not directory.exists() and not expected:
+            # The recipe may add a locale qualifier.
+            continue
+        if not directory.is_dir():
+            raise ValueError('Missing pinned Settings resource directory: ' + relative)
+        for entry in directory.glob('raws_*'):
+            name = entry.relative_to(src).as_posix()
+            safe(src, name)
+            if not stat.S_ISREG(entry.lstat().st_mode):
+                raise ValueError('Non-regular Settings generated resource: ' + name)
+            found.add(name)
+    if found != expected:
+        raise ValueError('Generated Settings resource inventory differs')
+
+
 def load(recipe_root, base_fingerprint, chromium_revision):
     """Return None for ordinary baseline; reject present but unreviewed manifests."""
     root = Path(recipe_root).resolve()
     path = safe(root, RECIPE)
+    approved = approved_manifest_sha256()
     if not path.exists():
-        if APPROVED_MANIFEST_SHA256 is not None:
+        if approved is not None:
             raise ValueError('Approved RawS production feature recipe is missing')
         return None
     raw = read_regular(path)
     identity = sha(raw)
-    if identity != APPROVED_MANIFEST_SHA256:
+    if identity != approved:
         raise ValueError('Unreviewed RawS production feature recipe')
     value = json.loads(raw)
     if (set(value) != {'schema', 'baseline_fingerprint', 'chromium_revision', 'files'}
@@ -112,16 +187,20 @@ def load(recipe_root, base_fingerprint, chromium_revision):
             or value['chromium_revision'] != chromium_revision or not isinstance(value['files'], dict)):
         raise ValueError('Feature recipe identity differs from verified baseline')
     scope = brave_inventory()
+    ui_enabled = APPROVED_UI_MANIFEST_SHA256 is not None
+    tracked_paths = (TRACKED | APPROVED_UI_TRACKED | APPROVED_GN_COMPAT_TRACKED) if ui_enabled else TRACKED
+    ui_files = UI_GENERATED if ui_enabled else frozenset()
     files = {}
     for relative, entry in value['files'].items():
         safe(root, relative)
-        tracked = relative in TRACKED
+        tracked = relative in tracked_paths
         brave = relative.startswith('brave/')
         if brave:
             allowed = relative in scope['standalone'] or any(
                 relative.startswith(prefix + '/') for prefix in scope['roots'])
         else:
-            allowed = tracked or relative in LIST_FILES or relative.startswith(COMPONENT + '/')
+            allowed = (tracked or relative in LIST_FILES or relative in ui_files
+                       or relative.startswith(COMPONENT + '/'))
         if not allowed:
             raise ValueError('Feature path outside reviewed scope: ' + relative)
         if (not isinstance(entry, dict) or
@@ -137,7 +216,7 @@ def load(recipe_root, base_fingerprint, chromium_revision):
                 or not isinstance(after, str) or not HEX.fullmatch(after) or before == after):
             raise ValueError('Invalid feature preimage/postimage digest: ' + relative)
         files[relative] = (before, after, mode)
-    if not (TRACKED | LIST_FILES) <= files.keys() or not any(
+    if not (tracked_paths | LIST_FILES | ui_files) <= files.keys() or not any(
             name.startswith(COMPONENT + '/') for name in files):
         raise ValueError('Incomplete production feature inventory')
     brave = {name: mode for name, (_, _, mode) in files.items() if name.startswith('brave/')}
@@ -146,7 +225,7 @@ def load(recipe_root, base_fingerprint, chromium_revision):
         raise ValueError('Brave source inventory differs from exact frozen stage.py closure')
     if any(name in files for directory in OWNED for name in dirs_for(files, directory)):
         raise ValueError('File and directory overlap in production feature inventory')
-    return Overlay(identity, files, root)
+    return Overlay(identity, files, root, tracked_paths, ui_files)
 
 
 def git(src, *args):
@@ -154,10 +233,13 @@ def git(src, *args):
 
 
 class Overlay:
-    def __init__(self, identity, files, recipe_root):
+    def __init__(self, identity, files, recipe_root, tracked_paths, ui_files):
         self.identity = identity
         self.files = files
         self.recipe_root = recipe_root
+        self.tracked_paths = tracked_paths
+        self.ui_files = ui_files
+        self.has_ui = bool(ui_files)
 
     def generated(self, directory):
         return {name for name in self.files if name.startswith(directory + '/')}
@@ -188,6 +270,8 @@ class Overlay:
                 if directory == 'brave':
                     raise ValueError('Brave directory present in clean baseline')
                 raise ValueError('Generated feature directory must not preexist: ' + directory)
+        if self.ui_files:
+            exact_ui_resources(src, frozenset())
         targets = {}
         for relative, (before, _, mode) in self.files.items():
             path = safe(src, relative)
@@ -232,7 +316,7 @@ class Overlay:
         if git(src, 'rev-parse', 'HEAD').decode().strip() != upstream['chromium']['revision']:
             raise ValueError('Wrong Chromium revision')
         changed = set(git(src, 'diff', 'HEAD', '--name-only', '-z').decode().split('\0')) - {''}
-        if not TRACKED <= changed or changed - TRACKED - {SISO_MAIN}:
+        if not self.tracked_paths <= changed or changed - self.tracked_paths - {SISO_MAIN}:
             raise ValueError('Unapproved tracked Chromium changes present')
         if git(src, 'diff', 'HEAD', '--diff-filter=T', '--name-only', '-z'):
             raise ValueError('Unreviewed tracked file type changes')
@@ -246,6 +330,8 @@ class Overlay:
             raise ValueError('Version does not match lock')
         for directory in OWNED:
             exact_tree(src, directory, self.generated(directory))
+        if self.ui_files:
+            exact_ui_resources(src, self.ui_files & UI_RESOURCE_FILES)
         for relative, (_, after, mode) in self.files.items():
             path = safe(src, relative)
             if sha(read_regular(path)) != after or stat.S_IMODE(path.stat().st_mode) != int(mode, 8):

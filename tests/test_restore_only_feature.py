@@ -21,6 +21,12 @@ START = 'chrome/browser/chrome_browser_main_android.cc'
 BRAVE = 'brave/components/brave_shields/core/common/adblock/BUILD.gn'
 EXEC = 'brave/third_party/rust/chromium_crates_io/vendor/adblock-v0_13/tool.sh'
 BRAVE_FILES = {BRAVE: '644', EXEC: '755'}
+UI_GN = 'chrome/android/chrome_java_resources.gni'
+UI_JAVA = 'chrome/android/java/src/org/chromium/chrome/browser/settings/MainSettings.java'
+UI_DAY = 'chrome/android/java/res/values/raws_main_settings_palette.xml'
+UI_NIGHT = 'chrome/android/java/res/values-night/raws_main_settings_palette.xml'
+UNRELATED_COLOR = 'chrome/android/java/res/values/colors.xml'
+UNRELATED_NIGHT = 'chrome/android/java/res/values-night/colors.xml'
 
 
 def put(root, relative, data):
@@ -38,9 +44,17 @@ class FeatureTransition(unittest.TestCase):
         self.product = root / 'product'
         self.source = root / 'src'
         self.source.mkdir()
+        # Existing engine-only cases keep exercising the earlier admission.
+        digest = patch.object(feature, 'APPROVED_UI_MANIFEST_SHA256', None)
+        digest.start()
+        self.addCleanup(digest.stop)
         self.baseline = {BUILD: b'clean gn', CLIENT: b'clean cc',
                          RESOURCE: b'resource xml', START: b'android init',
+                         UI_GN: b'clean android gn', UI_JAVA: b'clean settings',
+                         UNRELATED_COLOR: b'native color', UNRELATED_NIGHT: b'native night',
                          'chrome/VERSION': b'MAJOR=158\nMINOR=0\nBUILD=8127\nPATCH=42\n'}
+        for name in feature.APPROVED_UI_TRACKED | feature.APPROVED_GN_COMPAT_TRACKED:
+            self.baseline.setdefault(name, ('native ' + name).encode())
         for path, data in self.baseline.items():
             put(self.source, path, data).chmod(0o644)
         self.git('init', '-q')
@@ -220,6 +234,92 @@ class FeatureTransition(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, 'inventory differs'):
                 overlay.verify(self.source, self.upstream)
 
+    def add_ui(self):
+        for name in feature.APPROVED_UI_TRACKED | feature.APPROVED_GN_COMPAT_TRACKED | feature.UI_GENERATED:
+            self.edits[name] = ('approved ' + name).encode()
+        self.edits.update({UI_GN: b'include both palettes', UI_JAVA: b'grouped settings',
+                           UI_DAY: b'day palette', UI_NIGHT: b'night palette'})
+
+    def test_ui_pin_requires_every_ui_and_compatibility_path(self):
+        engine_only = self.admit()
+        self.add_ui()
+        combined = self.admit()
+        with patch.object(feature, 'APPROVED_MANIFEST_SHA256', engine_only), \
+                patch.object(feature, 'APPROVED_UI_MANIFEST_SHA256', combined):
+            self.assertEqual(combined, self.load().identity)
+            self.assertTrue(self.load().has_ui)
+            combined_paths = feature.APPROVED_UI_TRACKED | feature.APPROVED_GN_COMPAT_TRACKED | feature.UI_GENERATED
+            for missing in sorted(combined_paths):
+                with self.subTest(missing=missing):
+                    original = self.edits.pop(missing)
+                    incomplete = self.admit()
+                    with patch.object(feature, 'APPROVED_UI_MANIFEST_SHA256', incomplete):
+                        with self.assertRaisesRegex(ValueError, 'Incomplete production feature inventory'):
+                            self.load()
+                    self.edits[missing] = original
+            for path in combined_paths:
+                del self.edits[path]
+            self.assertEqual(engine_only, self.admit())
+            with self.assertRaisesRegex(ValueError, 'Unreviewed'):
+                self.load()
+
+    def test_ui_rejects_unreviewed_extra_path_in_shared_values_and_settings(self):
+        self.add_ui()
+        for path in (UNRELATED_COLOR, UI_JAVA.replace('MainSettings', 'OtherSettings')):
+            with self.subTest(path=path):
+                self.edits[path] = b'unreviewed change'
+                digest = self.admit()
+                with patch.object(feature, 'APPROVED_UI_MANIFEST_SHA256', digest):
+                    with self.assertRaisesRegex(ValueError, 'outside reviewed scope'):
+                        self.load()
+                del self.edits[path]
+
+    def test_ui_exact_preimages_group_write_and_generated_modes(self):
+        self.add_ui()
+        for name in (UI_JAVA, UI_GN):
+            (self.source / name).chmod(0o664)
+        digest = self.admit()
+        with patch.object(feature, 'APPROVED_UI_MANIFEST_SHA256', digest):
+            overlay = self.load()
+            overlay.preflight(self.source, self.upstream)
+            self.assertEqual(0o664, (self.source / UI_JAVA).stat().st_mode & 0o777)
+            overlay.apply(self.source, self.upstream)
+            overlay.verify(self.source, self.upstream)
+            self.assertEqual(b'native color', (self.source / UNRELATED_COLOR).read_bytes())
+            for name in (UI_JAVA, UI_GN, UI_DAY, UI_NIGHT):
+                self.assertEqual(0o644, (self.source / name).stat().st_mode & 0o777)
+            (self.source / UI_DAY).chmod(0o664)
+            with self.assertRaisesRegex(ValueError, 'Feature postimage changed'):
+                overlay.verify(self.source, self.upstream)
+            (self.source / UI_DAY).chmod(0o644)
+            put(self.source, UI_JAVA, b'unreviewed drift')
+            with self.assertRaisesRegex(ValueError, 'Feature postimage changed'):
+                overlay.verify(self.source, self.upstream)
+            put(self.source, UI_JAVA, self.edits[UI_JAVA])
+            put(self.source, UI_DAY.replace('palette', 'extra'), b'injected extra')
+            with self.assertRaisesRegex(ValueError, 'Settings resource inventory differs'):
+                overlay.verify(self.source, self.upstream)
+
+    def test_ui_preexisting_reserved_files_and_bad_preimage_fail_before_writes(self):
+        self.add_ui()
+        digest = self.admit()
+        with patch.object(feature, 'APPROVED_UI_MANIFEST_SHA256', digest):
+            overlay = self.load()
+            put(self.source, UI_NIGHT, b'stale generated')
+            with self.assertRaisesRegex(ValueError, 'Settings resource inventory differs'):
+                overlay.apply(self.source, self.upstream)
+            (self.source / UI_NIGHT).unlink()
+            (self.source / UI_NIGHT).symlink_to(self.source / UNRELATED_NIGHT)
+            with self.assertRaisesRegex(ValueError, 'symlink'):
+                overlay.apply(self.source, self.upstream)
+            (self.source / UI_NIGHT).unlink()
+        digest = self.admit(**{UI_JAVA: '0' * 64})
+        with patch.object(feature, 'APPROVED_UI_MANIFEST_SHA256', digest):
+            with self.assertRaisesRegex(ValueError, 'Feature preimage digest mismatch'):
+                self.load().apply(self.source, self.upstream)
+        self.assertEqual(b'clean gn', (self.source / BUILD).read_bytes())
+        self.assertFalse((self.source / UI_DAY).exists())
+
     def test_compile_dispatch_restores_before_overlay_and_rejects_on_failure(self):
         phase = Mock()
         candidate = Mock(identity='candidate')
@@ -260,7 +360,20 @@ class FrozenScope(unittest.TestCase):
         self.assertEqual('e49a8571c5a9285ac0837a06a3a2a6394f147f0fb7677e0362b3a472667d91f2',
                          data['leaf_path_mode_sha256'])
         recipe=Path(feature.__file__).resolve().parents[1]/feature.RECIPE
-        self.assertEqual(feature.sha(recipe.read_bytes()), feature.APPROVED_MANIFEST_SHA256)
+        self.assertEqual(feature.sha(recipe.read_bytes()), feature.approved_manifest_sha256())
+        actual = feature.load(ROOT, policy.FINGERPRINT,
+                              json.loads((ROOT / 'upstream.lock.json').read_text())['chromium']['revision'])
+        self.assertEqual(feature.APPROVED_UI_TRACKED | feature.APPROVED_GN_COMPAT_TRACKED,
+                         actual.tracked_paths - feature.TRACKED)
+        self.assertEqual(feature.UI_GENERATED, actual.ui_files)
+        self.assertLessEqual({UI_JAVA, UI_GN}, feature.APPROVED_UI_TRACKED)
+        self.assertLessEqual({UI_DAY, UI_NIGHT}, actual.ui_files)
+        self.assertTrue(actual.has_ui)
+        for name in actual.ui_files | feature.APPROVED_UI_TRACKED | feature.APPROVED_GN_COMPAT_TRACKED:
+            before, after, mode = actual.files[name]
+            self.assertEqual(name in actual.ui_files, before is None)
+            self.assertEqual('644', mode)
+            self.assertEqual(after, feature.sha((ROOT / feature.POSTIMAGES / after).read_bytes()))
 
 
 if __name__ == '__main__':

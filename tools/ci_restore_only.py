@@ -114,6 +114,8 @@ def completed():
     if feature is not None and (len(state.get('raws_engine_smoke',{}).get('cases',[]))!=9
                                 or state.get('raws_engine_apk_graph_verified') is not True):
         raise ValueError('Missing actual engine smoke or Android linkage proof')
+    if feature is not None and feature.has_ui and state.get('raws_ui_apk_graph_verified') is not True:
+        raise ValueError('Missing RawS Settings Android linkage proof')
     if state.get('feature_recipe_sha256') != expected_recipe:
         raise ValueError('APK does not match the selected feature recipe')
     if (state.get('status') != 'done' or state.get('stage') != 1

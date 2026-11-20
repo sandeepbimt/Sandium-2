@@ -99,8 +99,9 @@ def main(stage, *, feature=None):
             from ci_prepare_raws_engine import run_native_gate,verify_apk_graph
             source_verifier(W/'src',data)
             verify_apk_graph(W/'src', W/'depot_tools'/'gn',out,env,
-                             artifacts/'raws-engine-apk-graph.txt')
+                             artifacts/'raws-engine-apk-graph.txt',require_ui=feature.has_ui)
             state['raws_engine_apk_graph_verified']=True
+            if feature.has_ui:state['raws_ui_apk_graph_verified']=True
             epoch=json.loads((ROOT/'.checkpoint-state/job-start.json').read_text())['epoch']
             # Leave time for the Android build, verification and the APK upload.
             native_budget=min(360,int(3300-(time.time()-epoch)-1060))
