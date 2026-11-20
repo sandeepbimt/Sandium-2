@@ -53,8 +53,8 @@ def verify_catalog(source):
     return rows
 
 def catalog_header(rows):
-    out=['// Generated from Sandium #1442. Metadata only; no remote list is redistributed.', '#pragma once','namespace sandium::port1442 {', 'struct CatalogEntry { const char* url; const char* key; };','inline constexpr CatalogEntry kCatalog[] = {']
-    return '\n'.join(out+['  {'+json.dumps(r['url'])+', "'+sha(r['url'].encode())+'"},' for r in rows]+['};','}', ''])
+    out=['// Generated from Sandium #1442. Metadata only; no remote list is redistributed.', '#pragma once', '#include <array>', 'namespace sandium::port1442 {', 'struct CatalogEntry { const char* url; const char* key; };', f'inline constexpr std::array<CatalogEntry, {len(rows)}> kCatalog = {{{{']
+    return '\n'.join(out+['  {'+json.dumps(r['url'])+', "'+sha(r['url'].encode())+'"},' for r in rows]+['}};','}', ''])
 
 def factory(s,pre):
     s=once(s,'#include <vector>','#include <vector>\n#include <set>\n#include <string_view>\n#include "base/containers/span.h"\n#include "base/json/json_reader.h"\n#include "base/logging.h"\n#include "base/task/sequenced_task_runner.h"\n#include "components/sandium_adblock/policy.h"\n#include "components/sandium_adblock/style.h"\n#include "net/base/registry_controlled_domains/registry_controlled_domain.h"')
@@ -213,6 +213,9 @@ def compose(repo,src,core,out):
     change(ch,lambda s:once(s,'  bool CanCreateWindow(', '#if BUILDFLAG(IS_ANDROID)\n  void OnSandiumScriptedPopupCreated(content::RenderFrameHost*,content::WebContents*) override;\n#endif\n  bool CanCreateWindow('))
     main='chrome/browser/chrome_browser_main_android.cc'
     apply(main,[('#include "components/sandium_adblock/document_subresource_factory.h"','#include "components/sandium_adblock/document_subresource_factory.h"\n#include "chrome/browser/raws/subscription_service.h"'),('  ChromeBrowserMainParts::PostProfileInit(profile, is_initial_profile);','  if (is_initial_profile) sandium::port1442::StartSubscriptions(profile);\n  ChromeBrowserMainParts::PostProfileInit(profile, is_initial_profile);')])
+    # Keep the browser service's non-trivial constructor/destructor out of
+    # headers, using this existing sole Android translation unit.
+    apply(main,[('DEFINE_JNI(ChromeBackupWatcher)',local('subscription_service.cc.inc')+'\nDEFINE_JNI(ChromeBackupWatcher)')])
     apply('chrome/common/chrome_render_frame.mojom',[('interface ChromeRenderFrame {','interface ChromeRenderFrame {\n  [EnableIf=is_android] ApplyRawSHideStyles(url.mojom.Url document_url, string css);')])
     apply('chrome/renderer/chrome_render_frame_observer.h',[('  void SetCCTClientHeader(', '  void ApplyRawSHideStyles(const GURL&, const std::string&) override;\n  void SetCCTClientHeader(')])
     apply('chrome/renderer/chrome_render_frame_observer.cc',[('void ChromeRenderFrameObserver::SetCCTClientHeader(','''void ChromeRenderFrameObserver::ApplyRawSHideStyles(const GURL& url,

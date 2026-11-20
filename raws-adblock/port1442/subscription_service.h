@@ -59,7 +59,7 @@ class ListCache {
     size_t budget = kAllLimit;
     for (size_t i = 0; i < out.flags.size(); ++i) {
       auto& f = out.flags[i];
-      if (const auto* d = data ? data->FindDict(kCatalog[i].url) : nullptr) {
+      if (const auto* d = data ? data->FindDict(kCatalog.at(i).url) : nullptr) {
         f.enabled = d->FindBool("enabled").value_or(false);
         f.deleted = d->FindBool("deleted").value_or(false);
         f.expires_hours = std::clamp(d->FindInt("expires").value_or(kDefaultHours), 0, kMaxHours);
@@ -68,7 +68,7 @@ class ListCache {
       }
       if (!f.Available()) continue;
       std::string body;
-      if (!base::ReadFileToStringWithMaxSize(dir_.AppendASCII(kCatalog[i].key), &body, kListLimit) ||
+      if (!base::ReadFileToStringWithMaxSize(dir_.AppendASCII(kCatalog.at(i).key), &body, kListLimit) ||
           !Accept(body)) { out.missing.push_back(i); continue; }
       // Never install an arbitrary prefix of an oversized multi-list generation.
       if (body.size() > budget) { LOG(WARNING) << "RawS filter snapshot exceeds byte limit; retaining active rules"; out.valid=false;out.bodies.clear(); return out; }
@@ -89,7 +89,7 @@ class ListCache {
     const auto expiry = adblock_native::InspectSubscription(body);
     // A response with no parsed rules must never replace the last good file.
     if (!expiry || !base::CreateDirectory(dir_) ||
-        !base::ImportantFileWriter::WriteFileAtomically(dir_.AppendASCII(kCatalog[i].key), body))
+        !base::ImportantFileWriter::WriteFileAtomically(dir_.AppendASCII(kCatalog.at(i).key), body))
       return -1;
     return *expiry;
   }
@@ -99,7 +99,7 @@ class ListCache {
       const auto& f = flags[i]; base::DictValue v;
       v.Set("enabled", f.enabled); v.Set("deleted", f.deleted); v.Set("expires", f.expires_hours);
       v.Set("attempt", static_cast<double>(f.attempt)); v.Set("success", static_cast<double>(f.success));
-      all.Set(kCatalog[i].url, std::move(v));
+      all.Set(kCatalog.at(i).url, std::move(v));
     }
     if (auto s = base::WriteJson(all); s && base::CreateDirectory(dir_))
       base::ImportantFileWriter::WriteFileAtomically(dir_.AppendASCII("state.json"), *s);
@@ -109,12 +109,8 @@ class ListCache {
 };
 class UrlSubscriptions final : public base::SupportsUserData::Data {
  public:
-  explicit UrlSubscriptions(Profile* profile)
-      : factory_(profile->GetDefaultStoragePartition()->GetURLLoaderFactoryForBrowserProcess()),
-        cache_(base::ThreadPool::CreateSequencedTaskRunner({base::MayBlock(), base::TaskPriority::USER_VISIBLE}),
-               profile->GetPath().AppendASCII("RawS-1442-filter-cache")) {
-    cache_.AsyncCall(&ListCache::Read).Then(base::BindOnce(&UrlSubscriptions::Start, weak_.GetWeakPtr()));
-  }
+  explicit UrlSubscriptions(Profile* profile);
+  ~UrlSubscriptions() override;
   // Native control surface for the existing host; no UI, JNI, or extension is added.
   // Tombstones are persistent. Background replies never install a disabled list.
   void SetChoice(size_t i,bool enabled,bool deleted) {
@@ -149,7 +145,7 @@ class UrlSubscriptions final : public base::SupportsUserData::Data {
       size_t i=*queue_.begin();queue_.erase(i);
       if (!flags_[i].Available()) continue;
       busy_.insert(i);
-      auto req=std::make_unique<network::ResourceRequest>();req->url=GURL(kCatalog[i].url);
+      auto req=std::make_unique<network::ResourceRequest>();req->url=GURL(kCatalog.at(i).url);
       req->credentials_mode=network::mojom::CredentialsMode::kOmit;
       req->redirect_mode=network::mojom::RedirectMode::kFollow;
       auto tag=net::DefineNetworkTrafficAnnotation("raws_curated_filter_download", R"(
@@ -174,7 +170,7 @@ class UrlSubscriptions final : public base::SupportsUserData::Data {
     const GURL& u=info.new_url;
     // The catalog authorizes only the originally configured origin; do not
     // send even credential-free requests to arbitrary third parties or ports.
-    const url::Origin source = url::Origin::Create(GURL(kCatalog[i].url));
+    const url::Origin source = url::Origin::Create(GURL(kCatalog.at(i).url));
     if (!u.SchemeIs("https") || u.has_username() || u.has_password() ||
         url::Origin::Create(u) != source) {
       loads_.erase(i);flags_[i].attempt=Now();End(i,false,kDefaultHours);

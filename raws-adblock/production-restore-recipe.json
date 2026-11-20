@@ -8233,7 +8233,7 @@
       "mode": "644"
     },
     "chrome/browser/chrome_browser_main_android.cc": {
-      "after_sha256": "27c0d2a08107eaa839d5f2e209d2650c91c5a76f57b26af5211a3cd11c4649e3",
+      "after_sha256": "ef72c1440df37070be05923a15fb5f7f7cc8b4aa17ec6382e45ca7b0b018f079",
       "before_sha256": "3b1269f671ba6542ecdd1d7e973bbb6cda84bf5d47cb8126355b0b865940ec9b",
       "mode": "644"
     },
@@ -8247,7 +8247,7 @@
       "before_sha256": "1168aefbf9ceb95d02f9809681ae18292d84e73b452ecb37bb704cf04afd7a50"
     },
     "chrome/browser/raws/catalog_generated.h": {
-      "after_sha256": "9a9ec225f9a470a6a45c79733fbd02a5b1692680f18786edd7baa490ec6d9b19",
+      "after_sha256": "78b02589fb503538dd94e37c2233f9d21e5876d91a184079575ed78e659a7e50",
       "before_sha256": null
     },
     "chrome/browser/raws/subscription_policy.h": {
@@ -8255,7 +8255,7 @@
       "before_sha256": null
     },
     "chrome/browser/raws/subscription_service.h": {
-      "after_sha256": "e9f632afddfa944b5535a05de917bdf9598c03f76ab7e268cebf05761f277354",
+      "after_sha256": "699b1d4b66392f06bc2835e2553d0b82220c6b6c78c99d1bbdb3c5dcad904587",
       "before_sha256": null
     },
     "chrome/browser/resources/raws/NOTICE-EASYLIST.md": {

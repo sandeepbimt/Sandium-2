@@ -9,6 +9,7 @@
 #include <string_view>
 #include <utility>
 #include <vector>
+#include "catalog_generated.h"
 
 constexpr size_t kListLimit=5u<<20;
 constexpr size_t kMaxRulesBytes=8u<<20;
@@ -20,7 +21,8 @@ bool IsStringUTF8(const std::string& s) {return s.find('\xff')==s.npos;}
 struct Dir {const char* AppendASCII(const char* filename) {return filename;}};
 bool CreateDirectory(Dir) {return can_write;}
 struct ImportantFileWriter {
-  static bool WriteFileAtomically(const char*, const std::string& raw) {
+  static bool WriteFileAtomically(const char* path, const std::string& raw) {
+    assert(std::string_view(path) == sandium::port1442::kCatalog.at(0).key);
     last_good=raw;
     return true;
   }
@@ -66,8 +68,7 @@ void PruneSandiumSubscription(DATFileDataBuffer& bytes) {
 namespace adblock_native {
 #include "inspect_subscription_actual.inc"
 }
-struct Key {const char* key;};
-Key kCatalog[]={{"stable-cache-key"}};
+using sandium::port1442::kCatalog;
 class ListCache {
  public:
 #include "feed_store_actual.inc"

@@ -45,6 +45,26 @@ class Port(unittest.TestCase):
     rows=json.loads(compose.local('catalog.json'));self.assertEqual(len(rows),30);self.assertEqual(len({r['url'] for r in rows}),30)
     self.assertTrue(all(r['enabled_on_first_create'] for r in rows));self.assertEqual([r['url'].split('/')[-1] for r in rows if r['legacy_reenable_once']],['20.txt','21.txt','19.txt','22.txt'])
     self.assertTrue(rows[-1]['url'].endswith('/annoyances-others.txt'));self.assertTrue(all(r['url'].startswith('https://') for r in rows));self.assertEqual(compose.catalog_header(rows).count('  {'),30)
+ def test_subscription_catalog_and_chromium_style(self):
+    rows=json.loads(compose.local('catalog.json'))
+    header=compose.catalog_header(rows)
+    service=compose.local('subscription_service.h')
+    definitions=compose.local('subscription_service.cc.inc')
+    self.assertIn('explicit UrlSubscriptions(Profile* profile);',service)
+    self.assertIn('~UrlSubscriptions() override;',service)
+    self.assertNotIn('kCatalog[',service)
+    self.assertEqual(service.count('kCatalog.at(i)'),6)
+    self.assertIn('UrlSubscriptions::UrlSubscriptions(Profile* profile)',definitions)
+    self.assertIn('UrlSubscriptions::~UrlSubscriptions() = default;',definitions)
+    with tempfile.TemporaryDirectory() as d:
+        d=Path(d)
+        (d/'catalog_generated.h').write_text(header)
+        (d/'check.cc').write_text(
+            '#include "catalog_generated.h"\n'
+            'static_assert(sandium::port1442::kCatalog.size() == 30);\n'
+            'static_assert(sandium::port1442::kCatalog.at(29).key != nullptr);\n')
+        subprocess.run([os.getenv('CXX','c++'),'-std=c++20','-Wall','-Wextra','-Werror',
+                        '-fsyntax-only',str(d/'check.cc')],check=True)
  def test_drift(self):
     for bad in ['','abc xyz abc']:
         with self.assertRaises(ValueError):compose.once(bad,'abc','QRS')
@@ -88,6 +108,7 @@ class Port(unittest.TestCase):
         d=Path(d)
         (d/'inspect_subscription_actual.inc').write_text(inspect)
         (d/'feed_store_actual.inc').write_text(store)
+        (d/'catalog_generated.h').write_text(compose.catalog_header(json.loads(compose.local('catalog.json'))))
         exe=d/'feeds'
         subprocess.run([os.getenv('CXX','c++'),'-std=c++20','-Wall','-Wextra','-Werror','-I'+str(d),str(ROOT/'tests/feed_cache_harness.cc'),'-o',str(exe)],check=True)
         subprocess.run([exe],check=True)
