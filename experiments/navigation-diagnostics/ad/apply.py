@@ -2,6 +2,9 @@
 """Held, numeric UI request-result instrumentation. No engine behavior changes."""
 from pathlib import Path
 PATH='browser/net/brave_ad_block_tp_network_delegate_helper.cc'
+INACTIVE_GATE = '''  // Resolve the frame and consult Java only during an opt-in recording.
+  if (!brave_shields::AdBlockService::IsSandiumAdDiagnosticsRecording()) return diagnostic;
+'''
 HELPERS='''// SANDIUM_AD_DIAGNOSTICS_V1: anonymous numeric state only, never request URLs/rules.
 struct SandiumAdDiagnostic {
   int64_t epoch = 0;
@@ -38,7 +41,7 @@ void ReportSandiumAdLoadSnapshot(content::WebContents* contents, int64_t epoch) 
 template <template <typename> class T>
 SandiumAdDiagnostic BeginSandiumAdDiagnostic(T<BraveRequestInfo> ctx) {
   SandiumAdDiagnostic diagnostic;
-  if (!content::BrowserThread::CurrentlyOn(content::BrowserThread::UI) || !ctx) return diagnostic;
+'''+INACTIVE_GATE+'''  if (!content::BrowserThread::CurrentlyOn(content::BrowserThread::UI) || !ctx) return diagnostic;
   auto* frame = content::RenderFrameHost::FromFrameToken(ctx->render_frame_token());
   auto* contents = content::WebContents::FromRenderFrameHost(frame);
   const int64_t epoch = content::ContentBrowserClient::SandiumDiagnosticsEpoch(contents);
@@ -176,6 +179,10 @@ CHANGES.append(('''  if (ctx->resource_type() == blink::mojom::ResourceType::kMa
     ReportSandiumAdDiagnostic(BeginSandiumAdDiagnostic(ctx), 9, static_cast<int>(kNotBlocked), {});''',1))
 def transform(s):
  if 'SANDIUM_AD_DIAGNOSTICS_V1' in s:
+  # Accept the previous instrumentation from a restored source checkpoint.
+  legacy = HELPERS.replace(INACTIVE_GATE, '')
+  if legacy in s:
+   s = s.replace(legacy, HELPERS, 1)
   for old,new,count in reversed(CHANGES):
    if s.count(new)!=count:raise ValueError('Existing diagnostic drift: '+new[:90])
    s=s.replace(new,old)

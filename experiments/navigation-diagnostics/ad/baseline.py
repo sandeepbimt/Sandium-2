@@ -30,8 +30,16 @@ JAVA_METHOD='''    // SANDIUM_AD_START_BASELINE_V1: numeric shared load observat
     }
 
 '''
+GATE_JAVA = '''    public static void setSandiumAdDiagnosticsRecording(boolean recording) {
+        FilterListServiceFactoryJni.get().setSandiumAdDiagnosticsRecording(recording);
+    }
+
+'''
 def java(s):
+ s=once(s,'    @NativeMethods\n    interface Natives {','    @NativeMethods\n    interface Natives {\n        void setSandiumAdDiagnosticsRecording(boolean recording);')
+ gate_anchor='    // SANDIUM_AD_START_BASELINE_V1:'
  s=once(s,'    @NativeMethods\n    interface Natives {',JAVA_METHOD+'    @NativeMethods\n    interface Natives {')
+ s=once(s,gate_anchor,GATE_JAVA+gate_anchor)
  return once(s,'        long getInterfaceToFilterListService(Profile profile);','        double[] getSandiumDiagnosticLoadSnapshot(Profile profile);\n        long getInterfaceToFilterListService(Profile profile);')
 CPP_METHOD='''static base::android::ScopedJavaLocalRef<jdoubleArray>
 JNI_FilterListServiceFactory_GetSandiumDiagnosticLoadSnapshot(
@@ -55,6 +63,12 @@ JNI_FilterListServiceFactory_GetSandiumDiagnosticLoadSnapshot(
 }
 
 '''
+GATE_CPP = '''static void JNI_FilterListServiceFactory_SetSandiumAdDiagnosticsRecording(
+    JNIEnv*, jboolean recording) {
+  brave_shields::AdBlockService::SetSandiumAdDiagnosticsRecording(recording);
+}
+
+'''
 def cpp(s):
  s=once(s,'#include "base/android/jni_android.h"','''#include <vector>
 #include "base/android/jni_android.h"
@@ -63,4 +77,5 @@ def cpp(s):
 #include "brave/browser/brave_browser_process.h"
 #include "brave/components/brave_shields/content/browser/ad_block_service.h"
 #include "content/public/browser/browser_thread.h"''')
- return once(s,'static jlong JNI_FilterListServiceFactory_GetInterfaceToFilterListService(',CPP_METHOD+'static jlong JNI_FilterListServiceFactory_GetInterfaceToFilterListService(')
+ s=once(s,'static jlong JNI_FilterListServiceFactory_GetInterfaceToFilterListService(',CPP_METHOD+'static jlong JNI_FilterListServiceFactory_GetInterfaceToFilterListService(')
+ return once(s,CPP_METHOD, GATE_CPP+CPP_METHOD)

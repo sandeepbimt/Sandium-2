@@ -6,7 +6,9 @@ public class Harness {
         SandiumNavigationDiagnostics.clear();
         SandiumNavigationDiagnostics.record(Event.AD_WARNING_MARK, 0, false);
         check(SandiumNavigationDiagnostics.snapshotSummary().startsWith("0 events"));
-        check(SandiumNavigationDiagnostics.start());
+        var gateChanges = new java.util.ArrayList<Boolean>();
+        check(SandiumNavigationDiagnostics.start(gateChanges::add));
+        check(gateChanges.equals(java.util.List.of(true)));
         SandiumNavigationDiagnostics.record(Event.NAV_START, 987654, true, 0,0,0,0,0);
         check(SandiumNavigationDiagnostics.snapshotSummary().startsWith("0 events"));
         double[] values={1,2,3,4,5};
@@ -20,16 +22,25 @@ public class Harness {
         check(json.contains("\"invalid_events\":1"));
         SandiumNavigationDiagnostics.stop();SandiumNavigationDiagnostics.markAdWarning();
         check(SandiumNavigationDiagnostics.snapshotSummary().startsWith("3 events"));
-        SandiumNavigationDiagnostics.start();
+        check(gateChanges.equals(java.util.List.of(true, false)));
+        gateChanges.clear();
+        SandiumNavigationDiagnostics.start(gateChanges::add);
         for(int i=0;i<5100;i++)SandiumNavigationDiagnostics.markAdWarning();
         check(!SandiumNavigationDiagnostics.isRecording());
         check(SandiumNavigationDiagnostics.snapshotSummary().startsWith("5000 events; event_limit"));
-        SandiumNavigationDiagnostics.start();
+        check(gateChanges.equals(java.util.List.of(true, false)));
+        gateChanges.clear();
+        SandiumNavigationDiagnostics.start(gateChanges::add);
         var field=SandiumNavigationDiagnostics.class.getDeclaredField("sStartNs");field.setAccessible(true);field.setLong(null,System.nanoTime()-121_000_000_000L);
         SandiumNavigationDiagnostics.markAdWarning();
         check(SandiumNavigationDiagnostics.snapshotSummary().startsWith("0 events; time_limit"));
+        check(gateChanges.equals(java.util.List.of(true, false)));
+        gateChanges.clear();
         long oldEpoch=SandiumNavigationDiagnostics.sessionEpoch();
-        SandiumNavigationDiagnostics.start();long epoch=SandiumNavigationDiagnostics.sessionEpoch();
+        SandiumNavigationDiagnostics.start(gateChanges::add);
+        SandiumNavigationDiagnostics.start(gateChanges::add);
+        check(gateChanges.equals(java.util.List.of(true, false, true)));
+        long epoch=SandiumNavigationDiagnostics.sessionEpoch();
         check(epoch!=oldEpoch);
         SandiumNavigationDiagnostics.recordNativeForEpoch(oldEpoch,12,0,42,false,new double[0]);
         check(SandiumNavigationDiagnostics.snapshotSummary().startsWith("0 events"));
@@ -44,6 +55,7 @@ public class Harness {
         check(SandiumNavigationDiagnostics.snapshotJson().contains("\"source_browser_ticks_us\":-1"));
         SandiumNavigationDiagnostics.clear();
         check(SandiumNavigationDiagnostics.snapshotJson().contains("\"events\":[]"));
+        check(gateChanges.equals(java.util.List.of(true, false, true, false)));
         System.out.println("RECORDER_HOST_TESTS_PASS");
     }
 }

@@ -55,6 +55,12 @@ python3 .circleci/features/ad-redirects/android_ui.py "$CORE"
 python3 .circleci/features/ad-redirects/ad_resources.py "$CORE"
 python3 .circleci/features/ad-redirects/media_popup.py "$SRC"
 python3 .circleci/features/ad-redirects/popup.py "$CORE"
+python3 .circleci/features/filter-compat/subscriptions.py "$CORE"
+python3 .circleci/features/filter-compat/popup_matcher.py "$CORE"
+python3 .circleci/features/filter-compat/denyallow.py "$CORE"
+python3 .circleci/features/filter-compat/modifier.py "$CORE"
+python3 .circleci/features/filter-compat/token_index.py "$CORE"
+python3 .circleci/features/filter-compat/popup_navigation.py "$SRC"
 
 # Run every independent audit before failing, so one build reports all graph defects.
 python3 .circleci/scripts/precheck-graph.py --audits-only

@@ -5,6 +5,19 @@ def once(s,old,new):
  if new in s:return s
  if s.count(old)!=1:raise ValueError('Ad load snapshot drift: '+old[:90])
  return s.replace(old,new,1)
+GATE_METHODS = '''namespace {
+std::atomic<bool> g_sandium_ad_diagnostics_recording{false};
+}  // namespace
+
+bool AdBlockService::IsSandiumAdDiagnosticsRecording() {
+  return g_sandium_ad_diagnostics_recording.load(std::memory_order_relaxed);
+}
+
+void AdBlockService::SetSandiumAdDiagnosticsRecording(bool recording) {
+  g_sandium_ad_diagnostics_recording.store(recording, std::memory_order_relaxed);
+}
+
+'''
 def header(s):
  s=once(s,'#include <memory>','#include <array>\n#include <memory>')
  s=once(s,'  // Test accessors','''  // SANDIUM_AD_LOAD_OBSERVATIONS_V1: shared engine load completion outcomes.
@@ -13,11 +26,17 @@ def header(s):
   SandiumDiagnosticLoadSnapshot GetSandiumDiagnosticLoadSnapshot() const;
 
   // Test accessors''')
+ gate_anchor='  // SANDIUM_AD_LOAD_OBSERVATIONS_V1:'
+ s=once(s,gate_anchor,'''  static bool IsSandiumAdDiagnosticsRecording();
+  static void SetSandiumAdDiagnosticsRecording(bool recording);
+
+'''+gate_anchor)
  return once(s,'  raw_ptr<PrefService> local_state_;','''  std::array<int, 4> sandium_load_result_{{-1, -1, -1, -1}};
   std::array<int64_t, 4> sandium_load_sequence_{};
   int64_t sandium_next_load_sequence_ = 0;
   raw_ptr<PrefService> local_state_;''')
 def source(s):
+ s=once(s,'#include <memory>','#include <atomic>\n#include <memory>')
  s=once(s,'void AdBlockService::OnDATLoaded(bool is_default_engine, bool success) {\n  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);','''void AdBlockService::OnDATLoaded(bool is_default_engine, bool success) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   const size_t sandium_lane = is_default_engine ? 0 : 2;
@@ -27,7 +46,7 @@ def source(s):
   const size_t sandium_lane = is_default_engine ? 1 : 3;
   sandium_load_result_[sandium_lane] = static_cast<int>(load_result);
   sandium_load_sequence_[sandium_lane] = ++sandium_next_load_sequence_;''')
- return once(s,'void AdBlockService::OnDATLoaded(bool is_default_engine, bool success) {','''AdBlockService::SandiumDiagnosticLoadSnapshot
+ s=once(s,'void AdBlockService::OnDATLoaded(bool is_default_engine, bool success) {','''AdBlockService::SandiumDiagnosticLoadSnapshot
 AdBlockService::GetSandiumDiagnosticLoadSnapshot() const {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   SandiumDiagnosticLoadSnapshot snapshot{};
@@ -39,3 +58,6 @@ AdBlockService::GetSandiumDiagnosticLoadSnapshot() const {
 }
 
 void AdBlockService::OnDATLoaded(bool is_default_engine, bool success) {''')
+
+ gate_anchor='AdBlockService::SandiumDiagnosticLoadSnapshot\nAdBlockService::GetSandiumDiagnosticLoadSnapshot() const {'
+ return once(s,gate_anchor,GATE_METHODS+gate_anchor)

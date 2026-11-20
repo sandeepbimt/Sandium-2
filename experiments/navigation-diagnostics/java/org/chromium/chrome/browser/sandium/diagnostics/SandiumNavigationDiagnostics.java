@@ -13,6 +13,7 @@ import java.util.ArrayList;
 import java.util.ArrayDeque;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.function.Consumer;
 
 /** Opt-in, bounded, numeric-only diagnostic recording. No browsing content accepted. */
 public final class SandiumNavigationDiagnostics {
@@ -53,6 +54,8 @@ public final class SandiumNavigationDiagnostics {
     private static final ArrayList<Row> EVENTS = new ArrayList<>();
     private static final HashMap<Long, Long> NAV_IDS = new HashMap<>();
     private static boolean sRecording;
+    private static Consumer<Boolean> sRecordingListener;
+
     private static long sStartNs;
     private static File sDirectory;
     private static File sJournal;
@@ -91,11 +94,11 @@ public final class SandiumNavigationDiagnostics {
                     sWallStart = in.readLong(); sEpoch = in.readLong() + 1;
                     int recoveredSchema = in.readInt();
                     if ((recoveredSchema != 2 && recoveredSchema != JOURNAL_SCHEMA) || !BUILD_REVISION.equals(in.readUTF())) {
-                        sRecording = false; sStorage = "incompatible_recording";
+                        setRecording(false); sStorage = "incompatible_recording";
                         sEnd = "incompatible_recording"; return;
                     }
                     if (sWallStart <= 0 || sEpoch <= 0) throw new IOException();
-                    sRecording = true; sEnd = "recording";
+                    setRecording(true); sEnd = "recording";
                     while (in.available() > 0) {
                         try {
                             int length = in.readInt();
@@ -105,7 +108,7 @@ public final class SandiumNavigationDiagnostics {
                             if (crc.getValue() != expected) throw new IOException();
                             readRecord(new DataInputStream(new ByteArrayInputStream(bytes)));
                         } catch (IOException | RuntimeException invalid) {
-                            sRecoveredDiscarded++; sRecording = false; sEnd = "recovered_partial"; break;
+                            sRecoveredDiscarded++; setRecording(false); sEnd = "recovered_partial"; break;
                         }
                     }
                 }
@@ -114,23 +117,23 @@ public final class SandiumNavigationDiagnostics {
                 // A modest wall-clock rollback across process death must not reverse event order.
                 if (!EVENTS.isEmpty()) sOffsetUs = Math.max(sOffsetUs, EVENTS.get(EVENTS.size() - 1).micros);
                 sLastWall = now; sStartNs = System.nanoTime(); sSegment++; NAV_IDS.clear();
-                if (sRecording && (now < sWallStart || now - sWallStart >= 120000)) { sRecording = false; sEnd = "restart_time_limit_or_clock_change"; }
+                if (sRecording && (now < sWallStart || now - sWallStart >= 120000)) { setRecording(false); sEnd = "restart_time_limit_or_clock_change"; }
                 if (sRecording) {
                     // An asynchronous writer may have lost an unpersisted tail. Never
                     // silently resume and call a recovered prefix a complete session.
-                    sRecording = false; sEnd = "recovered_async_prefix";
+                    setRecording(false); sEnd = "recovered_async_prefix";
                     sRecoveredAsyncTailUnknown = true;
                 }
                 if (sEnd.equals("recovered_async_prefix")) sRecoveredAsyncTailUnknown = true;
                 JOURNAL.adopt(sEpoch);
-                if (EVENTS.size() >= MAX_EVENTS) { sRecording = false; sEnd = "event_limit"; persistState(); }
+                if (EVENTS.size() >= MAX_EVENTS) { setRecording(false); sEnd = "event_limit"; persistState(); }
                 if (sRecoveredDiscarded == 0) persistState();
                 else sStorage = "recovered_valid_prefix";
             } catch (IOException | RuntimeException failure) { storageError(); }
 
         }
     }
-    private static void storageError() { sStorage = "storage_error"; sRecording = false; sEnd = "storage_error"; }
+    private static void storageError() { sStorage = "storage_error"; setRecording(false); sEnd = "storage_error"; }
     private static void readRecord(DataInputStream in) throws IOException {
         int kind = in.readUnsignedByte();
         if (kind == 1) {
@@ -149,7 +152,7 @@ public final class SandiumNavigationDiagnostics {
         } else if (kind == 2) {
             boolean recording = in.readBoolean(); String end = in.readUTF(); int dropped = in.readInt(); long omitted = in.readLong(); int segment = in.readInt();
             if (!end.matches("[a-z_]{1,48}") || dropped < 0 || omitted < 0 || segment < 0 || in.available() != 0) throw new IOException();
-            sRecording = recording; sEnd = end; sDropped = dropped; sAdRequestOmitted = omitted; sSegment = segment;
+            setRecording(recording); sEnd = end; sDropped = dropped; sAdRequestOmitted = omitted; sSegment = segment;
         } else throw new IOException();
         if (in.available() != 0) throw new IOException();
     }
@@ -287,7 +290,7 @@ public final class SandiumNavigationDiagnostics {
                 out.writeInt(payload.length); out.write(payload); out.writeLong(crc.getValue());
             }
             if (!JOURNAL.enqueue(sEpoch, JournalCommand.APPEND, sJournal, framed.toByteArray())) {
-                sJournalRejected++; sRecording = false; sStorage = "queue_overflow"; sEnd = "persistence_queue_full";
+                sJournalRejected++; setRecording(false); sStorage = "queue_overflow"; sEnd = "persistence_queue_full";
             }
         } catch (IOException | RuntimeException failure) { storageError(); }
     }
@@ -326,24 +329,39 @@ public final class SandiumNavigationDiagnostics {
         }
     }
     private SandiumNavigationDiagnostics() {}
+    // Called under the recorder lock, including on journal write failure.
+    private static void setRecording(boolean recording) {
+        if (sRecording == recording) return;
+        sRecording = recording;
+        if (sRecordingListener != null) {
+            sRecordingListener.accept(recording);
+            if (!recording) sRecordingListener = null;
+        }
+    }
+
     public static boolean start() {
+        return start(null);
+    }
+    public static boolean start(Consumer<Boolean> recordingListener) {
         synchronized (SandiumNavigationDiagnostics.class) {
-            clear(); sEpoch++; sStartNs = System.nanoTime(); sWallStart = System.currentTimeMillis(); sLastWall = sWallStart;
+            clear();
+            sEpoch++; sStartNs = System.nanoTime(); sWallStart = System.currentTimeMillis(); sLastWall = sWallStart;
             sOffsetUs = 0; sNextNav = 0; sSegment = 0; sRecoveredDiscarded = 0;
             if (!replaceJournal()) return false;
-            sRecording = true; sEnd = "recording"; persistState(); return sRecording;
+            sRecordingListener = recordingListener;
+            setRecording(true); sEnd = "recording"; persistState(); return sRecording;
 
         }
     }
     public static void stop() {
         synchronized (SandiumNavigationDiagnostics.class) {
-            expire(); if (sRecording) { sRecording = false; sEnd = "user_stopped"; persistState(); }
+            expire(); if (sRecording) { setRecording(false); sEnd = "user_stopped"; persistState(); }
 
         }
     }
     public static void clear() {
         synchronized (SandiumNavigationDiagnostics.class) {
-            sRecording = false; sEpoch++; EVENTS.clear(); NAV_IDS.clear(); sDropped = 0; sAdRequestOmitted = 0; sEnd = sJournal == null ? "cleared" : "clearing"; sRecoveredDiscarded = 0;
+            setRecording(false); sEpoch++; EVENTS.clear(); NAV_IDS.clear(); sDropped = 0; sAdRequestOmitted = 0; sEnd = sJournal == null ? "cleared" : "clearing"; sRecoveredDiscarded = 0;
             sRecoveredAsyncTailUnknown = false; sJournalRejected = 0;
             if (sJournal != null) JOURNAL.replace(sEpoch, JournalCommand.DELETE, sJournal, new byte[0]);
             if (sDirectory != null) sStorage = "available";
@@ -353,7 +371,7 @@ public final class SandiumNavigationDiagnostics {
     private static void expire() {
         long now = System.currentTimeMillis();
         if (sRecording && (now < sLastWall || now - sWallStart >= 120000 || sOffsetUs * 1000 + System.nanoTime() - sStartNs >= MAX_NS)) {
-            sRecording = false; sEnd = "time_limit"; persistState();
+            setRecording(false); sEnd = "time_limit"; persistState();
         }
         sLastWall = now;
     }
@@ -406,7 +424,7 @@ public final class SandiumNavigationDiagnostics {
             if (values[0] == 1) sAdRequestOmitted++; else sDropped++;
             persistState(); return;
         }
-        if (EVENTS.size() >= MAX_EVENTS) { sRecording = false; sEnd = "event_limit"; persistState(); return; }
+        if (EVENTS.size() >= MAX_EVENTS) { setRecording(false); sEnd = "event_limit"; persistState(); return; }
         long nav = 0;
         if (nativeNavigationId > 0) {
             Long existing = NAV_IDS.get(nativeNavigationId);
@@ -416,7 +434,7 @@ public final class SandiumNavigationDiagnostics {
         Row row = new Row(sOffsetUs + (System.nanoTime() - sStartNs) / 1000, nav, event,
                 Arrays.copyOf(values, values.length), sourceTicksUs, sSegment);
         EVENTS.add(row); persistRow(row);
-        if (EVENTS.size() == MAX_EVENTS) { sRecording = false; sEnd = "event_limit"; persistState(); }
+        if (EVENTS.size() == MAX_EVENTS) { setRecording(false); sEnd = "event_limit"; persistState(); }
     }
     /** Explicit user report only; not an automatic ad-warning detector. */
     public static void markAdWarning() {

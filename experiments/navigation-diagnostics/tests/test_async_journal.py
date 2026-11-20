@@ -17,7 +17,8 @@ case "blocked":case "overflow":case "batch":{
  CountDownLatch entered=new CountDownLatch(1),release=new CountDownLatch(1);
  java.util.concurrent.atomic.AtomicInteger batches=new java.util.concurrent.atomic.AtomicInteger();
  hook(()->{batches.incrementAndGet();if(!Thread.currentThread().getName().equals("SandiumDiagnosticJournal"))throw new AssertionError("IO on caller");entered.countDown();try{release.await();}catch(InterruptedException e){throw new RuntimeException(e);}});
- SandiumNavigationDiagnostics.start();if(!entered.await(5,TimeUnit.SECONDS))throw new AssertionError("no worker");
+ java.util.concurrent.atomic.AtomicBoolean armed=new java.util.concurrent.atomic.AtomicBoolean();
+ SandiumNavigationDiagnostics.start(armed::set);if(!entered.await(5,TimeUnit.SECONDS))throw new AssertionError("no worker");
  if(a[0].equals("blocked")){
   for(int i=0;i<100;i++)row(987654321L+i);
   SandiumNavigationDiagnostics.record(SandiumNavigationDiagnostics.Event.NAV_REDIRECT,123456789L,true,1,0);
@@ -26,6 +27,7 @@ case "blocked":case "overflow":case "batch":{
   SandiumNavigationDiagnostics.start();row(42);SandiumNavigationDiagnostics.stop();
  }else if(a[0].equals("batch")){for(int i=0;i<100;i++)row(i+1);SandiumNavigationDiagnostics.stop();
  }else{for(int i=0;i<6000;i++)row(i+1);System.out.println(SandiumNavigationDiagnostics.snapshotJson());if(status()[1]>262144)throw new AssertionError("unbounded queue");}
+ if(armed.get())throw new AssertionError("recording gate still armed");
  release.countDown();drain();hook(null);if(a[0].equals("batch")&&batches.get()>5)throw new AssertionError("not batching");break;
 }
 case "write":SandiumNavigationDiagnostics.start();row(987654321);SandiumNavigationDiagnostics.record(SandiumNavigationDiagnostics.Event.NAV_REDIRECT,123456789,true,1,0);drain();System.out.println("READY");System.out.flush();Thread.sleep(60000);break;
@@ -33,7 +35,9 @@ case "stopped":SandiumNavigationDiagnostics.start();row(99);SandiumNavigationDia
 case "clear":SandiumNavigationDiagnostics.clear();drain();break;
 case "ioerror":
  if(!dir.delete()||!dir.createNewFile())throw new AssertionError("fault setup");
- SandiumNavigationDiagnostics.start();row(1);drain();
+ java.util.concurrent.atomic.AtomicBoolean failureGate=new java.util.concurrent.atomic.AtomicBoolean();
+ SandiumNavigationDiagnostics.start(failureGate::set);row(1);drain();
+ if(failureGate.get())throw new AssertionError("write failure kept gate armed");
  if(!SandiumNavigationDiagnostics.storageStatus().equals("storage_error"))throw new AssertionError("missing IO failure");break;
 case "read":drain();break;
 }

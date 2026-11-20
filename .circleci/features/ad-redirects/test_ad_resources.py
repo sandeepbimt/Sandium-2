@@ -20,11 +20,14 @@ class AdResourcesTest(unittest.TestCase):
             root = Path(directory)
             inputs = {
                 overlay.PROVIDER: "#include <string>\n" + overlay.ADD_USER_FILTERS,
-                overlay.CACHE: 'constexpr char kAdBlockEngine1DATCache[] = "engine1.dat";\n'
+                overlay.CACHE: 'constexpr char kAdBlockEngine0DATCache[] = "engine0.dat";\n'
+                               'constexpr char kAdBlockEngine1DATCache[] = "engine1.dat";\n'
                                + overlay.WRITE_DAT,
-                **{path: 'cache_dir.AppendASCII("engine1.dat")\n' * 3
+                **{path: ('cache_dir.AppendASCII("engine0.dat")\n'
+                          'cache_dir.AppendASCII("engine1.dat")\n') * 3
                    for path in overlay.CACHE_TESTS},
             }
+            inputs[overlay.CACHE_TESTS[0]] += '"adblock_cache/engine0.dat"\n'
             for name, source in inputs.items():
                 path = root / name
                 path.parent.mkdir(parents=True, exist_ok=True)
@@ -34,6 +37,17 @@ class AdResourcesTest(unittest.TestCase):
             for path, source in changes.items():
                 path.write_text(source)
             self.assertEqual(overlay.plan(root), {})
+
+            for path in (overlay.CACHE, *overlay.CACHE_TESTS):
+                previous = inputs[path].replace('"engine1.dat"', f'"{overlay.PREVIOUS_CACHE_NAME}"')
+                if path == overlay.CACHE:
+                    previous = previous.replace(overlay.WRITE_DAT, overlay.PREVIOUS_WRITE)
+                (root / path).write_text(previous)
+            restored = overlay.plan(root)
+            self.assertEqual(restored, {root / p: changes[root / p]
+                                        for p in (overlay.CACHE, *overlay.CACHE_TESTS)})
+            for path, source in restored.items():
+                path.write_text(source)
 
             # A partial/duplicated cache filename edit cannot pass verification.
             broken = root / overlay.CACHE_TESTS[0]
@@ -100,22 +114,30 @@ struct ImportantFileWriter {
   }
 };
 }
+constexpr char kAdBlockEngine0DATCache[] = "DEFAULT_NAME";
 constexpr char kAdBlockEngine1DATCache[] = "CACHE_NAME";
 void Write(base::FilePath cache_path, const std::string& dat) {
   EMIT_WRITE
 }
 int main() {
   std::ofstream("engine1.dat") << "legacy";
-  Write({"engine0.dat"}, "default");
-  assert(fs::exists("engine1.dat"));
+  std::ofstream("PREVIOUS_CACHE") << "previous";
+  std::ofstream("engine0.dat") << "old default";
+  Write({kAdBlockEngine0DATCache}, "");
+  assert(fs::exists("engine0.dat") && !fs::exists(kAdBlockEngine0DATCache));
+  Write({kAdBlockEngine0DATCache}, "default");
+  assert(!fs::exists("engine0.dat") && fs::exists(kAdBlockEngine0DATCache));
+  assert(fs::exists("engine1.dat") && fs::exists("PREVIOUS_CACHE"));
   Write({kAdBlockEngine1DATCache}, "");
-  assert(fs::exists("engine1.dat") && !fs::exists(kAdBlockEngine1DATCache));
+  assert(fs::exists("PREVIOUS_CACHE") && fs::exists("engine1.dat") && !fs::exists(kAdBlockEngine1DATCache));
   Write({kAdBlockEngine1DATCache}, "replacement");
-  assert(fs::exists(kAdBlockEngine1DATCache) && !fs::exists("engine1.dat"));
-  assert(fs::exists("engine0.dat"));
+  assert(!fs::exists("PREVIOUS_CACHE") && fs::exists(kAdBlockEngine1DATCache) && !fs::exists("engine1.dat"));
+  assert(fs::exists(kAdBlockEngine0DATCache));
 }
 '''
         self.run_native(native.replace("CACHE_NAME", overlay.CACHE_NAME)
+                        .replace("DEFAULT_NAME", overlay.DEFAULT_CACHE_NAME)
+                        .replace("PREVIOUS_CACHE", overlay.PREVIOUS_CACHE_NAME)
                         .replace("EMIT_WRITE", overlay.WRITE_AND_RETIRE_LEGACY))
 
 

@@ -10,6 +10,7 @@ class Tests(unittest.TestCase):
    self.assertIn(value,m.REPORT)
   self.assertNotIn('GetURL',m.REPORT)
   out=m.source(pinned(m.SOURCE))
+  self.assertEqual(m.source(out.replace(m.GATED_EPOCH, m.LEGACY_EPOCH)), out)
   for phase in (15,16,17,20,30,31,32):self.assertIn('ReportSandiumDomainDiagnostic('+str(phase),out)
   self.assertIn('is_1pes_enabled ? 18 : 19',out)
  def test_report_actual_body_epoch_and_id(self):

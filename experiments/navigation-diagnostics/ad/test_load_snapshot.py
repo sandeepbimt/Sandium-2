@@ -17,13 +17,14 @@ class Tests(unittest.TestCase):
   eng=source[source.index('  const size_t sandium_lane = is_default_engine ? 1 : 3;'):];eng=eng[:eng.index('\n\n')]
   with tempfile.TemporaryDirectory() as d:
    p=P(d)/'t.cc';p.write_text('''#include <array>
+#include <atomic>
 #include <cstdint>
 #include <cstddef>
 #include <cassert>
 #define DCHECK_CALLED_ON_VALID_SEQUENCE(x) ((void)0)
-class AdBlockService {public:using SandiumDiagnosticLoadSnapshot=std::array<std::array<int64_t,6>,4>;std::array<int,4> sandium_load_result_{{-1,-1,-1,-1}};std::array<int64_t,4> sandium_load_sequence_{};int64_t sandium_next_load_sequence_=0;SandiumDiagnosticLoadSnapshot GetSandiumDiagnosticLoadSnapshot() const;
+class AdBlockService {public:static bool IsSandiumAdDiagnosticsRecording();static void SetSandiumAdDiagnosticsRecording(bool);using SandiumDiagnosticLoadSnapshot=std::array<std::array<int64_t,6>,4>;std::array<int,4> sandium_load_result_{{-1,-1,-1,-1}};std::array<int64_t,4> sandium_load_sequence_{};int64_t sandium_next_load_sequence_=0;SandiumDiagnosticLoadSnapshot GetSandiumDiagnosticLoadSnapshot() const;
 void dat(bool is_default_engine,bool success){'''+dat+'''}void list(bool is_default_engine,int load_result){'''+eng+'''}};
-'''+getter+'''int main(){AdBlockService s;auto a=s.GetSandiumDiagnosticLoadSnapshot();for(auto row:a){assert(row[2]==-1&&row[3]==0&&row[4]==-1&&row[5]==1);}s.dat(true,false);s.list(true,0);s.list(false,1);s.list(false,2);a=s.GetSandiumDiagnosticLoadSnapshot();assert(a[0][2]==0&&a[0][3]==1);assert(a[1][2]==0&&a[1][3]==2);assert(a[3][2]==2&&a[3][3]==4);s.dat(false,true);a=s.GetSandiumDiagnosticLoadSnapshot();assert(a[2][2]==1&&a[2][3]==5);}
+'''+m.GATE_METHODS+getter+'''int main(){assert(!AdBlockService::IsSandiumAdDiagnosticsRecording());AdBlockService::SetSandiumAdDiagnosticsRecording(true);assert(AdBlockService::IsSandiumAdDiagnosticsRecording());AdBlockService::SetSandiumAdDiagnosticsRecording(false);assert(!AdBlockService::IsSandiumAdDiagnosticsRecording());AdBlockService s;auto a=s.GetSandiumDiagnosticLoadSnapshot();for(auto row:a){assert(row[2]==-1&&row[3]==0&&row[4]==-1&&row[5]==1);}s.dat(true,false);s.list(true,0);s.list(false,1);s.list(false,2);a=s.GetSandiumDiagnosticLoadSnapshot();assert(a[0][2]==0&&a[0][3]==1);assert(a[1][2]==0&&a[1][3]==2);assert(a[3][2]==2&&a[3][3]==4);s.dat(false,true);a=s.GetSandiumDiagnosticLoadSnapshot();assert(a[2][2]==1&&a[2][3]==5);}
 ''')
    subprocess.run(['g++','-std=c++20','-Wall','-Wextra','-Werror',str(p),'-o',str(p.with_suffix(''))],check=True);subprocess.run([str(p.with_suffix(''))],check=True)
 if __name__=='__main__':unittest.main()

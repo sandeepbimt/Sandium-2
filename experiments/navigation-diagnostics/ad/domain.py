@@ -28,11 +28,16 @@ REPORT='''void DomainBlockNavigationThrottle::ReportSandiumDomainDiagnostic(
 }
 
 '''
+LEGACY_EPOCH = '  sandium_diagnostic_epoch_ = content::ContentBrowserClient::SandiumDiagnosticsEpoch(web_contents);'
+GATED_EPOCH = '''  sandium_diagnostic_epoch_ =
+      AdBlockService::IsSandiumAdDiagnosticsRecording()
+          ? content::ContentBrowserClient::SandiumDiagnosticsEpoch(web_contents)
+          : 0;'''
 CHANGES=[
 ('#include "content/public/browser/browser_context.h"','#include "content/public/browser/browser_context.h"\n#include "content/public/browser/content_browser_client.h"'),
 ('''  content::WebContents* web_contents = handle->GetWebContents();
   // Maybe don't block''','''  content::WebContents* web_contents = handle->GetWebContents();
-  sandium_diagnostic_epoch_ = content::ContentBrowserClient::SandiumDiagnosticsEpoch(web_contents);
+'''+GATED_EPOCH+'''
   if (sandium_diagnostic_epoch_ > 0) sandium_diagnostic_started_ = base::TimeTicks::Now();
   // Maybe don't block'''),
 ('''  if (domain_blocking_type == DomainBlockingType::kNone) {
@@ -75,5 +80,6 @@ CHANGES=[
 ('''void DomainBlockNavigationThrottle::OnShouldBlockDomain(''',REPORT+'''void DomainBlockNavigationThrottle::OnShouldBlockDomain('''),
 ]
 def source(s):
+ s=s.replace(LEGACY_EPOCH,GATED_EPOCH,1)
  for old,new in CHANGES:s=once(s,old,new)
  return s

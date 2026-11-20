@@ -19,6 +19,7 @@ import org.chromium.base.supplier.MonotonicObservableSupplier;
 import org.chromium.base.supplier.ObservableSuppliers;
 import org.chromium.base.supplier.SettableMonotonicObservableSupplier;
 import org.chromium.chrome.browser.settings.BravePreferenceFragment;
+import org.chromium.chrome.browser.shields.FilterListServiceFactory;
 
 /** Explicit local recording controls. Never exports logcat or page content. */
 public class SandiumDiagnosticsPreferences extends BravePreferenceFragment {
@@ -70,11 +71,11 @@ public class SandiumDiagnosticsPreferences extends BravePreferenceFragment {
         mStart = row(screen, "Start recording", "Replaces the previous app-private saved session",
                 () -> {
                     SandiumDiagnosticsCapture.install();
-                    if (!SandiumNavigationDiagnostics.start()) {
+                    if (!SandiumNavigationDiagnostics.start(
+                            FilterListServiceFactory::setSandiumAdDiagnosticsRecording)) {
                         message("Recording is unavailable. Check Recording status.");
-                    } else if (!org.chromium.chrome.browser.shields.FilterListServiceFactory
-                            .captureSandiumDiagnosticLoadSnapshot(
-                                    getProfile(), SandiumNavigationDiagnostics.sessionEpoch())) {
+                    } else if (!FilterListServiceFactory.captureSandiumDiagnosticLoadSnapshot(
+                            getProfile(), SandiumNavigationDiagnostics.sessionEpoch())) {
                         message("Recording started; the ad-engine load baseline is unavailable.");
                     }
                 });
