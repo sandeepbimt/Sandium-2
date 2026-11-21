@@ -4,12 +4,14 @@ The exact combined UI and engine manifest is pinned here. A manifest cannot run 
 """
 
 import hashlib
+import io
 import json
 from pathlib import Path, PurePosixPath
 import re
 import stat
 import subprocess
 
+from ci_timing import prep_phase
 from raw import verify as verify_baseline
 from restore_only_menu_ui import (
     MENU_PARITY_TRACKED, MENU_PARITY_JAVA, MENU_PARITY_RESOURCES, MENU_RESOURCE_DIR,
@@ -22,7 +24,7 @@ POSTIMAGES = 'raws-adblock/production-postimages'
 APPROVED_MANIFEST_SHA256 = '7081e486a25eb33a74cac59bec9e94b16030f9b7c091b1e5faab2fc95c977aeb'
 # A combined candidate, when pinned, replaces the engine-only admission.
 # It must not fall back to the older digest if the UI manifest is missing.
-APPROVED_UI_MANIFEST_SHA256 = 'db708c1da1cfa5a45b6dd13e8a3d7c5268c6b188c42b58e6c4b48ceaed7bfc16'
+APPROVED_UI_MANIFEST_SHA256 = '1826704982cc89e80511198b82b5378a6eeae14fe7195faa82e0018ca8694fab'
 APPROVED_UI_TRACKED = frozenset((
     'chrome/android/chrome_java_resources.gni',
     'chrome/android/chrome_java_sources.gni',
@@ -248,8 +250,9 @@ def load(recipe_root, base_fingerprint, chromium_revision):
     return Overlay(identity, files, root, tracked_paths, ui_files)
 
 
-def git(src, *args):
-    return subprocess.check_output(['git', '--no-replace-objects', '-C', str(src), *args], timeout=600)
+def git(src, *args, input=None):
+    return subprocess.check_output(['git', '--no-replace-objects', '-C', str(src), *args],
+                                   input=input, timeout=600)
 
 
 class Overlay:
@@ -260,6 +263,9 @@ class Overlay:
         self.tracked_paths = tracked_paths
         self.ui_files = ui_files
         self.has_ui = bool(ui_files)
+        # Only immutable, manifest-verified Git preimages are reused. No live
+        # path, file content/mode, namespace or baseline check is cached.
+        self._pinned = None
 
     def generated(self, directory):
         return {name for name in self.files if name.startswith(directory + '/')}
@@ -280,11 +286,60 @@ class Overlay:
             result[relative] = data
         return result
 
+    def _pinned_preimages(self, src, revision):
+        expected = {name: before for name, (before, _, _) in self.files.items()
+                    if before is not None}
+        key = (src, revision, tuple(expected.items()))
+        if self._pinned is not None and self._pinned[0] == key:
+            return self._pinned[1]
+        if not expected:
+            return {}
+        paths = {name.encode(): name for name in expected}
+        objects = {}
+        # Explicit literal paths and commit, not the mutable working tree or
+        # an implicit HEAD which could move between the revision and blob reads.
+        records = git(src, '--literal-pathspecs', 'ls-tree', '-z', revision, '--', *expected)
+        for record in records.split(b'\0')[:-1]:
+            entry, sep, raw_path = record.partition(b'\t')
+            name = paths.get(raw_path)
+            info = re.fullmatch(rb'100644 blob ([0-9a-f]{40}|[0-9a-f]{64})', entry)
+            if not sep or name is None or name in objects or info is None:
+                raise ValueError('Feature preimage Git mode mismatch: ' + str(name or raw_path))
+            objects[name] = info.group(1)
+        if not records.endswith(b'\0') or objects.keys() != expected.keys():
+            raise ValueError('Feature preimage Git mode mismatch: ' +
+                             ', '.join(sorted(expected.keys() - objects.keys())))
+        # One bounded subprocess, no per-file Git startup. Headers bind each
+        # blob to its tree ID; SHA-256 binds its bytes to the reviewed recipe.
+        output = io.BytesIO(git(src, 'cat-file', '--batch',
+                                input=b''.join(oid + b'\n' for oid in objects.values())))
+        originals = {}
+        for name, oid in objects.items():
+            header = output.readline()
+            info = re.fullmatch(oid + rb' blob ([0-9]+)\n', header)
+            if info is None:
+                raise ValueError('Unexpected Git preimage response: ' + name)
+            size = int(info.group(1))
+            data = output.read(size)
+            if len(data) != size or output.read(1) != b'\n':
+                raise ValueError('Truncated Git preimage: ' + name)
+            actual = sha(data)
+            if actual != expected[name]:
+                raise ValueError(f'Feature preimage digest mismatch: {name}: '
+                                 f'pinned={actual} expected={expected[name]}')
+            originals[name] = data
+        if output.read(1):
+            raise ValueError('Unexpected trailing Git preimage response')
+        self._pinned = (key, originals)
+        return originals
+
     def preflight(self, source, upstream):
-        """Validate the restored baseline and every destination without writes."""
+        """Validate every live destination without writes."""
         src = Path(source).resolve()
-        if git(src, 'rev-parse', 'HEAD').decode().strip() != upstream['chromium']['revision']:
+        revision = upstream['chromium']['revision']
+        if git(src, 'rev-parse', 'HEAD').decode().strip() != revision:
             raise ValueError('Wrong Chromium revision')
+        originals = self._pinned_preimages(src, revision)
         for directory in OWNED:
             if safe(src, directory).exists():
                 if directory == 'brave':
@@ -296,14 +351,7 @@ class Overlay:
         for relative, (before, _, mode) in self.files.items():
             path = safe(src, relative)
             if before is not None:
-                tree = git(src, 'ls-tree', '-z', 'HEAD', '--', relative)
-                if not re.fullmatch(rb'100644 blob [0-9a-f]{40,64}\t'
-                                    + re.escape(relative.encode()) + rb'\x00', tree):
-                    raise ValueError('Feature preimage Git mode mismatch: ' + relative)
-                original = git(src, 'show', 'HEAD:' + relative)
-                if sha(original) != before:
-                    raise ValueError(f'Feature preimage digest mismatch: {relative}: '
-                                     f'pinned={sha(original)} expected={before}')
+                original = originals[relative]
                 restored = read_regular(path)
                 if restored != original:
                     raise ValueError(f'Feature preimage bytes mismatch: {relative}: '
@@ -321,14 +369,19 @@ class Overlay:
 
     def apply(self, source, upstream):
         """Verify exact preimages and payload again before writing any bytes."""
-        verify_baseline(Path(source).resolve(), upstream)
-        targets = self.preflight(source, upstream)
-        postimages = self.postimages()
-        for relative, (path, mode) in targets.items():
-            path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_bytes(postimages[relative])
-            path.chmod(int(mode, 8))
-        self.verify(source, upstream)
+        with prep_phase('feature-baseline-recheck'):
+            verify_baseline(Path(source).resolve(), upstream)
+        with prep_phase('feature-payload-verification'):
+            postimages = self.postimages()
+        with prep_phase('feature-live-destination-recheck'):
+            targets = self.preflight(source, upstream)
+        with prep_phase('feature-materialization'):
+            for relative, (path, mode) in targets.items():
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_bytes(postimages[relative])
+                path.chmod(int(mode, 8))
+        with prep_phase('feature-installed-verification'):
+            self.verify(source, upstream)
 
     def verify(self, source, upstream):
         """Check engine postimages without relaxing any original source guard."""

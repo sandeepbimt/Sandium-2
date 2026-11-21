@@ -38,7 +38,7 @@ class RestoreOnly(unittest.TestCase):
         self.assertEqual(old, new)
 
     def test_enabled_full_has_exact_read_only_transport_and_no_save_steps(self):
-        steps = generate()['jobs']['raws-full-stage-1']['steps'][-1]['when']['steps']
+        steps = generate(signed_test=False)['jobs']['raws-full-stage-1']['steps'][-1]['when']['steps']
         self.assertEqual([[policy.RECEIPT_CACHE], [policy.BASE_CACHE]],
                          [step['restore_cache']['keys'] for step in steps
                           if 'restore_cache' in step])

@@ -50,14 +50,28 @@ def run_identity(root):
     return checkout, workflow
 
 
+def verify_body_proof(proof):
+    from raws_unsigned_apk import JAVA_BODY_JAR
+    if (not isinstance(proof, dict) or set(proof) != {'output', 'sha256', 'passed'}
+            or proof['output'] != JAVA_BODY_JAR or proof['passed'] is not True
+            or not isinstance(proof['sha256'], str) or not HEX64.fullmatch(proof['sha256'])):
+        raise ValueError('Missing exact Android Java body compiler evidence')
+    return proof
+
+
 def build_receipt(root, state, apk):
     checkout, workflow = run_identity(root)
     digest = state.get('apk_sha256', '')
     smoke_cases = state.get('raws_engine_smoke', {}).get('cases', [])
+    from raws_unsigned_apk import mode as unsigned_mode, SIGN_FIELDS, verify_zip
+    unsigned = unsigned_mode()
+    sign_evidence = (tuple(k for k in EVIDENCE if k != 'apk_signature_verified') + SIGN_FIELDS
+                     if unsigned else EVIDENCE)
     if (state.get('stage') != 1 or state.get('status') != 'done'
             or state.get('apk_package') != APPLICATION_ID
             or state.get('apk_abis') != ['arm64-v8a']
-            or not all(state.get(k) is True for k in EVIDENCE)
+            or not all(state.get(k) is True for k in sign_evidence)
+            or (unsigned and state.get('apk_signature_verified') is not False)
             or not HEX64.fullmatch(state.get('feature_recipe_sha256') or '')
             or len(smoke_cases) != 14 or 'incident1471-player-rules' not in smoke_cases
             or not apk.is_file() or apk.is_symlink()
@@ -68,6 +82,12 @@ def build_receipt(root, state, apk):
         'input_sha256': digest, 'recipe_sha256': state['feature_recipe_sha256'],
         'package': APPLICATION_ID, 'device_tested': False,
     }
+    if unsigned:
+        verify_zip(apk, unsigned=True)
+        body = state.get('android_java_body_gate') or {}
+        proof['unsigned_packaging'] = {key: True for key in SIGN_FIELDS}
+        proof['android_java_body_gate'] = verify_body_proof(
+            {key: body.get(key) for key in ('output', 'sha256', 'passed')})
     from raws_codec_ci import mode as codec_mode, validate_proof
     if codec_mode():
         validate_proof(root, state.get('codec_trial'))
@@ -107,6 +127,9 @@ def input_receipt(root, source):
     fields = {'schema', 'commit', 'workflow', 'input_sha256', 'recipe_sha256', 'package', 'device_tested'}
     if trial:
         fields.add('codec_trial')
+    from raws_unsigned_apk import mode as unsigned_mode, SIGN_FIELDS, verify_zip
+    if unsigned_mode():
+        fields.update(('unsigned_packaging', 'android_java_body_gate'))
     if (not isinstance(proof, dict)
             or set(proof) != fields
             or proof['schema'] != 1 or proof['commit'] != checkout
@@ -116,6 +139,13 @@ def input_receipt(root, source):
             or not HEX64.fullmatch(proof['recipe_sha256'] or '')
             or proof['input_sha256'] != sha256(apk)):
         raise ValueError('RawS private signing receipt does not match the exact candidate')
+    if 'unsigned_packaging' in fields:
+        observed = proof['unsigned_packaging']
+        if (not isinstance(observed, dict) or set(observed) != set(SIGN_FIELDS)
+                or any(v is not True for v in observed.values())):
+            raise ValueError('Invalid RawS unsigned packaging evidence')
+        verify_zip(apk, unsigned=True)
+        verify_body_proof(proof['android_java_body_gate'])
     manifest = root / 'raws-adblock/production-restore-recipe.json'
     if sha256(manifest) != proof['recipe_sha256']:
         raise ValueError('RawS signing receipt does not match the checked out feature recipe')
@@ -153,6 +183,7 @@ def sign(root, source, sdk, output):
             result = sign_release_locally(
                 apk, stage / (TRIAL_APK if trial else APK_NAME), sdk, key, ALIAS, pin,
                 expected_input_sha256=proof['input_sha256'],
+                **({'unsigned_input': True} if 'unsigned_packaging' in proof else {}),
             )
             (stage / 'signing-receipt.json').write_text(json.dumps(
                 {**proof, **result, 'distribution_ready': not trial},

@@ -57,7 +57,25 @@ def restore_only_feature_command(out, metrics, target, budget):
         cmd[3]=f'{budget}s'
     return cmd
 
-def verify_apk(apk, src, env, *, distinct_test=False):
+def verify_apk(apk, src, env, *, distinct_test=False, unsigned=False):
+    if unsigned:
+        if not distinct_test:
+            raise ValueError('Unsigned APK is only valid for the distinct private RawS route')
+        from raws_unsigned_apk import verify_aligned, verify_zip
+        abi = verify_zip(apk, unsigned=True)
+        candidates=sorted((src/'third_party/android_sdk/public/build-tools').glob('*/zipalign'))
+        if not candidates:
+            raise ValueError('Pinned SDK zipalign unavailable for RawS private APK')
+        aligner=candidates[-1]
+        verify_aligned(apk, aligner, env)
+        from raws_release_identity import APPLICATION_ID, verify_package_metadata
+        badging=subprocess.check_output(
+            [str(aligner.parent/'aapt2'),'dump','badging',str(apk)],env=env,text=True,timeout=60)
+        verify_package_metadata(badging)
+        return {'apk_verified':True,'apk_sha256':file_sha(apk),'apk_package':APPLICATION_ID,
+                'apk_abis':abi,'apk_signature_verified':False,'apk_zip_verified':True,
+                'apk_unsigned_verified':True,'apk_zipalign_16k_verified':True}
+
     with zipfile.ZipFile(apk) as z:
         bad=z.testzip()
         if bad:raise ValueError('APK ZIP checksum failed: '+bad)
@@ -84,12 +102,58 @@ def verify_apk(apk, src, env, *, distinct_test=False):
     return {'apk_verified':True,'apk_sha256':file_sha(apk),'apk_package':match.group(1),
             'apk_abis':sorted(abis),'apk_signature_verified':True,'apk_zip_verified':True}
 
+def java_body_output(src, gn, out, env):
+    """Use the exact javac body target's output, not its Turbine header jar."""
+    label = '//chrome/android:chrome_java__compile_java'
+    result = subprocess.check_output([str(gn), 'desc', str(out), label, 'outputs'],
+                                    cwd=src, env=env, text=True, timeout=45)
+    prefix = '//' + out.relative_to(src).as_posix() + '/'
+    found = [line.strip()[len(prefix):] for line in result.splitlines()
+             if line.strip().startswith(prefix)
+             and line.strip().endswith('/chrome_java.javac.jar')]
+    from raws_unsigned_apk import JAVA_BODY_JAR
+    if found != [JAVA_BODY_JAR]:
+        raise ValueError('Could not identify the exact Android chrome_java javac output')
+    return found[0]
+
+
+def run_java_body_gate(src, gn, out, env, artifacts, stage, deadline):
+    target = java_body_output(src, gn, out, env)
+    remaining = int(deadline - time.monotonic())
+    if remaining < 1:
+        raise ValueError('No shared compile time left for Android Java body gate')
+    metrics = f'raws-stage-{stage}-java-body.jsonl'
+    path = out / metrics
+    path.unlink(missing_ok=True)
+    result = run_logged(restore_only_feature_command(out, metrics, target, remaining),
+                        artifacts / f'java-body-{stage}.log',
+                        phase=f'java-body-{stage}', cwd=src, env=env)
+    if result.returncode != 0:
+        raise ValueError(f'Android Java body gate failed ({result.returncode})')
+    jar = out / target
+    if not jar.is_file() or jar.is_symlink() or not jar.stat().st_size:
+        raise ValueError('Android Java body gate did not produce a javac JAR')
+    proof = {'output': target, 'sha256': file_sha(jar), 'passed': True}
+    if path.is_file() and path.stat().st_size:
+        records = [json.loads(line) for line in path.read_text().splitlines() if line.strip()]
+        if any(isinstance(row, dict) and row.get('step_id') for row in records):
+            proof['remote_audit'] = audit(path)
+        else:
+            proof['remote_audit'] = {'status': 'no new actions; GN output verified'}
+    return proof
+
+
 def main(stage, *, feature=None, distinct_test=False, codec_trial=False):
     if os.environ.get('CIRCLE_BRANCH')!='raw-sandium/official158' or stage not in (1,2,3,4,5):raise ValueError('Wrong build scope')
     if feature is not None and (stage != 1 or os.environ.get('RAWS_ALLOW_FRESH_SEED') != 'false'):
         raise ValueError('Feature build requires strict restore-only stage 1')
     if distinct_test and (stage != 1 or feature is None or not feature.has_ui):
         raise ValueError('Distinct RawS identity requires exact restore-only feature and UI')
+    from raws_unsigned_apk import mode as unsigned_mode
+    unsigned = unsigned_mode()
+    if unsigned and not distinct_test:
+        raise ValueError('Unsigned RawS packaging requires the distinct private signer lane')
+    overlay = None
     if codec_trial:
         from raws_codec_ci import verify_checkout
         from raws_codec_trial import FEATURE_SHA256
@@ -131,6 +195,14 @@ def main(stage, *, feature=None, distinct_test=False, codec_trial=False):
         elif distinct_test:
             from raws_release_identity import compose_gn_args
             gn_args = compose_gn_args(gn_args)
+            if unsigned:
+                from raws_unsigned_apk import append_arg
+                gn_args = append_arg(gn_args)
+        if unsigned:
+            source_verifier(W/'src',data)
+            from raws_unsigned_apk import PackagingOverlay
+            overlay = PackagingOverlay(W/'src')
+            overlay.apply()
         (out/'args.gn').write_text(gn_args)
         run_logged(['timeout','--kill-after=30s','5m',str(W/'depot_tools/gn'),'gen','out/RawSandium','--fail-on-unused-args'],
                    artifacts/f'gn-{stage}.log',phase=f'gn-generation-{stage}',cwd=W/'src',env=env,check=True)
@@ -142,9 +214,15 @@ def main(stage, *, feature=None, distinct_test=False, codec_trial=False):
             if state['official_build']['args_sha256'] != sha(gn_args.encode()):
                 raise ValueError('Official GN proof does not bind emitted codec trial args')
         state['gn_output_path_gate']=verify_graph_outputs(W/'src',W/'depot_tools',out,env,artifacts,stage)
+        if unsigned:
+            from raws_unsigned_apk import verify_graph
+            overlay.verify()
+            state['apk_unsigned_packaging_graph_verified'] = verify_graph(
+                W/'src', W/'depot_tools'/'gn', out, env)
         if feature is not None:
             from ci_prepare_raws_engine import run_native_gate,verify_apk_graph
-            source_verifier(W/'src',data)
+            if not unsigned:
+                source_verifier(W/'src',data)
             verify_apk_graph(W/'src', W/'depot_tools'/'gn',out,env,
                              artifacts/'raws-engine-apk-graph.txt',require_ui=feature.has_ui)
             state['raws_engine_apk_graph_verified']=True
@@ -155,6 +233,10 @@ def main(stage, *, feature=None, distinct_test=False, codec_trial=False):
             state['raws_engine_smoke']=run_native_gate(W/'src',artifacts,env,native_budget,port1442=port1442)
         apk=out/'apks/ChromePublic.apk'
         if apk.exists():apk.unlink()
+        if unsigned:
+            # Prior canonical output may contain v4 collateral even though this action
+            # does not declare or write it. Only remove it from the disposable worktree.
+            apk.with_name(apk.name + '.idsig').unlink(missing_ok=True)
         started=json.loads((ROOT/'.checkpoint-state/job-start.json').read_text())['epoch']
         elapsed=time.time()-started
         budget=(restore_only_feature_budget(elapsed) if feature is not None
@@ -171,6 +253,10 @@ def main(stage, *, feature=None, distinct_test=False, codec_trial=False):
                 # can exceed 10m. Real build stays strict remote and is audited.
                 state['remote_smoke']={'status':'timeout_warning','verified':False}
 
+        if unsigned:
+            state['android_java_body_gate'] = run_java_body_gate(
+                W/'src', W/'depot_tools'/'gn', out, env, artifacts, stage, deadline)
+            print('RAWS_ANDROID_JAVA_BODY_GATE=PASS', flush=True)
         remaining=int(deadline-time.monotonic())
         if remaining<1:
             code=124
@@ -190,10 +276,13 @@ def main(stage, *, feature=None, distinct_test=False, codec_trial=False):
                     raise ValueError('Successful build has no remote execution metrics')
                 else:
                     state['remote_audit']={'status':'no completed actions before slice expiry'}
+        if overlay is not None:
+            overlay.verify()
+            overlay.restore()
         state['status']=classify(code,apk)
         if state['status']=='done':
             if feature is not None:source_verifier(W/'src',data)
-            state.update(verify_apk(apk,W/'src',env,distinct_test=distinct_test))
+            state.update(verify_apk(apk,W/'src',env,distinct_test=distinct_test, unsigned=unsigned))
             if codec_trial:
                 from raws_codec_ci import compile_proof
                 state['codec_trial'] = compile_proof(
@@ -204,7 +293,7 @@ def main(stage, *, feature=None, distinct_test=False, codec_trial=False):
             shutil.copy2(apk,(folder if feature is not None else artifacts)/name)
             state.update(apk_produced=True,apk_sha256=file_sha(apk),device_tested=False,branding=(
                 'Sandium test identity (not release signed)' if distinct_test else 'Chromium baseline'))
-        elif codec_trial:
+        elif codec_trial or unsigned:
             # Restore-only trial may not save or continue modified build outputs.
             state['checkpoint_required'] = False
         else:
@@ -215,6 +304,8 @@ def main(stage, *, feature=None, distinct_test=False, codec_trial=False):
     except Exception as e:
         state.update(status='failed',error=str(e));return 1
     finally:
+        if overlay is not None and overlay.applied:
+            overlay.restore()
         for name in ('siso_output', 'siso_failed_commands.sh', 'siso.INFO'):
             diagnostic=W/'src/out/RawSandium'/name
             if diagnostic.is_file():

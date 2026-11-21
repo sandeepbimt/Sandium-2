@@ -141,6 +141,65 @@ class FeatureTransition(unittest.TestCase):
             self.assertEqual(b'clean gn', (self.source / BUILD).read_bytes())
             self.assertFalse((self.source / NEW).exists())
 
+    def test_read_pinned_git_preimages_in_one_batch_and_reuse_only_that_batch(self):
+        self.add_ui()
+        identity = self.admit()
+        with patch.object(feature, 'APPROVED_UI_MANIFEST_SHA256', identity), \
+                patch.object(feature, 'git', wraps=feature.git) as git:
+            overlay = self.load()
+            overlay.preflight(self.source, self.upstream)
+            overlay.apply(self.source, self.upstream)
+        trees = [args for args, _ in git.call_args_list if 'ls-tree' in args]
+        batches = [(args, kw) for args, kw in git.call_args_list if '--batch' in args]
+        self.assertEqual(1, len(trees))
+        self.assertEqual(1, len(batches))
+        self.assertEqual(self.pin, trees[0][4])
+        self.assertEqual(len(overlay.tracked_paths), len(batches[0][1]['input'].splitlines()))
+        # Git HEAD and every live destination are still checked later.
+        self.assertGreaterEqual(sum('rev-parse' in args for args, _ in git.call_args_list), 2)
+
+    def test_revalidation_rejects_post_preflight_mode_and_namespace_drift(self):
+        self.add_ui()
+        identity = self.admit()
+        self.git('config', 'core.filemode', 'false')
+        with patch.object(feature, 'APPROVED_UI_MANIFEST_SHA256', identity):
+            overlay = self.load()
+            overlay.preflight(self.source, self.upstream)
+            # A broad Git diff alone does not notice this with filemode=false.
+            (self.source / CLIENT).chmod(0o666)
+            with self.assertRaisesRegex(ValueError, 'disk mode mismatch'):
+                overlay.apply(self.source, self.upstream)
+            (self.source / CLIENT).chmod(0o644)
+            put(self.source, UI_DAY, b'generated path occupied during staging')
+            with self.assertRaisesRegex(ValueError, 'Settings resource inventory differs'):
+                overlay.apply(self.source, self.upstream)
+            (self.source / UI_DAY).unlink()
+            # Even when the broader baseline verifier's Git index/stat check
+            # does not report it, the exact live preimage must still match.
+            with patch.object(feature, 'verify_baseline', return_value=None):
+                put(self.source, CLIENT, b'payload changed after early validation')
+                with self.assertRaisesRegex(ValueError, 'preimage bytes mismatch'):
+                    overlay.apply(self.source, self.upstream)
+            self.assertEqual(b'clean gn', (self.source / BUILD).read_bytes())
+            self.assertFalse((self.source / NEW).exists())
+
+    def test_malformed_git_batch_fails_without_cached_preimages_or_writes(self):
+        identity = self.admit()
+        actual_git = feature.git
+
+        def git(*args, **kw):
+            result = actual_git(*args, **kw)
+            return result[:-1] if '--batch' in args else result
+
+        with patch.object(feature, 'APPROVED_MANIFEST_SHA256', identity), \
+                patch.object(feature, 'git', side_effect=git):
+            overlay = self.load()
+            with self.assertRaisesRegex(ValueError, 'Truncated Git preimage'):
+                overlay.preflight(self.source, self.upstream)
+            self.assertIsNone(overlay._pinned)
+            self.assertEqual(b'clean gn', (self.source / BUILD).read_bytes())
+            self.assertFalse((self.source / NEW).exists())
+
     def test_group_writable_restore_only_normalizes_reviewed_preimages(self):
         identity = self.admit()
         for name in feature.TRACKED | {'chrome/VERSION'}:

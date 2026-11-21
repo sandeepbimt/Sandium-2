@@ -8,6 +8,7 @@ import os
 import ci_full as full
 from ci_compile import file_sha, fingerprint
 from ci_restore_probe import validate_restore
+from ci_timing import prep_phase
 
 BASELINE = 'e7e782067daef429073e54c2bd8fbb91da7c8439'
 FINGERPRINT = 'b35abf73bb0a0a5998baeee4261715cbe73c8d55512c3a948cd6940590689843'
@@ -33,6 +34,9 @@ def gate():
         if not distinct_test_mode():
             raise ValueError('Codec mode is only available to the isolated signed test job')
         verify_checkout(full.ROOT)
+    from raws_unsigned_apk import mode as unsigned_mode
+    if unsigned_mode() and not distinct_test_mode():
+        raise ValueError('Unsigned packaging is only allowed in the distinct private signer lane')
     if distinct_test_mode():
         from ci_sign_raws_test import SIGNING_SECRETS
         if any(key in os.environ for key in SIGNING_SECRETS):
@@ -101,8 +105,10 @@ def active_feature():
 def compile_once():
     from ci_compile import main
     from raw import lock
-    restored()
-    feature = active_feature()
+    with prep_phase('restore-admission'):
+        restored()
+    with prep_phase('feature-admission'):
+        feature = active_feature()
     if feature is not None:
         import time
         from ci_prepare_raws_engine import prepare
@@ -111,11 +117,14 @@ def compile_once():
             raise ValueError('Not enough original RawS job budget to prepare and build')
         src = full.ROOT / 'work/source/src'
         upstream = lock()
-        feature.preflight(src, upstream)
+        with prep_phase('chromium-source-preflight'):
+            feature.preflight(src, upstream)
         prepare()
         from restore_only_port1442 import prepare_stage
-        prepare_stage(full.ROOT/'.raws-staged-engine', feature)
-        feature.apply(src, upstream)
+        with prep_phase('brave-candidate-deltas'):
+            prepare_stage(full.ROOT/'.raws-staged-engine', feature)
+        with prep_phase('feature-apply-and-verify'):
+            feature.apply(src, upstream)
     from raws_codec_ci import mode as codec_mode
     if codec_mode():
         return main(1, feature=feature, distinct_test=True, codec_trial=True)
@@ -146,10 +155,14 @@ def completed():
         raise ValueError('Missing RawS Settings Android linkage proof')
     if state.get('feature_recipe_sha256') != expected_recipe:
         raise ValueError('APK does not match the selected feature recipe')
+    from raws_unsigned_apk import mode as unsigned_mode, SIGN_FIELDS
+    unsigned = unsigned_mode()
     if (state.get('status') != 'done' or state.get('stage') != 1
             or state.get('fingerprint') != FINGERPRINT
             or not all(state.get(k) is True for k in (
-                'apk_produced', 'apk_verified', 'apk_zip_verified', 'apk_signature_verified'))
+                'apk_produced', 'apk_verified', 'apk_zip_verified',
+                *(SIGN_FIELDS if unsigned else ('apk_signature_verified',))))
+            or (unsigned and state.get('apk_signature_verified') is not False)
             or not apk.is_file() or state.get('apk_sha256') != file_sha(apk)):
         raise ValueError('Restore-only Full did not produce a verified APK')
     from raws_codec_ci import mode as codec_mode, validate_proof

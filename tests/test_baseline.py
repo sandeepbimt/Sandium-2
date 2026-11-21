@@ -140,8 +140,10 @@ class ReusableHandoff(unittest.TestCase):
         self.assertEqual(sorted(p for g in groups for p in g),sorted(str(i) for i in range(20)))
 class FiveStageWorkflow(unittest.TestCase):
     def test_full_protocol_and_completion_early_exit(self):
-        import yaml
-        config=yaml.safe_load((ROOT/'.circleci/config.yml').read_text())
+        from generate_full_config import generate
+        # Five-stage checkpoint behavior is an explicit historical template,
+        # not the checked-in day-to-day RawS route.
+        config=generate(restore_only=False)
         group=config['job-groups']['raws-full-chain']['jobs']
         self.assertEqual(len(group),5)
         for stage in range(1,6):

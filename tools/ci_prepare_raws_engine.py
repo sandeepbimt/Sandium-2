@@ -8,6 +8,7 @@ import tempfile
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT/'raws-adblock'))
 import stage
+from ci_timing import prep_phase
 from restore_only_menu_ui import (
     MENU_PARITY_TRACKED, MENU_PARITY_JAVA, MENU_PARITY_RESOURCES,
 )
@@ -27,14 +28,16 @@ def prepare():
         raise ValueError('Refusing pre-existing staged RawS engine source')
     with tempfile.TemporaryDirectory(prefix='raws-engine-source-') as tmp:
         repo=Path(tmp)/'input.git'
-        subprocess.run(['git','init','--bare',str(repo)],check=True,timeout=20)
-        env=dict(os.environ,GIT_TERMINAL_PROMPT='0')
-        subprocess.run(['git','-C',str(repo),'-c','protocol.version=2','fetch','--no-tags',
-                        '--depth=1',URL,BRAVE_PIN],
-                       check=True,env=env,timeout=240)
-        if stage.git(repo,'rev-parse','FETCH_HEAD').decode().strip() != BRAVE_PIN:
-            raise ValueError('Wrong fetched Brave pin')
-        stage_from_checkout(repo)
+        with prep_phase('brave-pinned-fetch'):
+            subprocess.run(['git','init','--bare',str(repo)],check=True,timeout=20)
+            env=dict(os.environ,GIT_TERMINAL_PROMPT='0')
+            subprocess.run(['git','-C',str(repo),'-c','protocol.version=2','fetch','--no-tags',
+                            '--depth=1',URL,BRAVE_PIN],
+                           check=True,env=env,timeout=240)
+            if stage.git(repo,'rev-parse','FETCH_HEAD').decode().strip() != BRAVE_PIN:
+                raise ValueError('Wrong fetched Brave pin')
+        with prep_phase('brave-extract-pinned-slice'):
+            stage_from_checkout(repo)
 
 def ui_source_targets():
     main = '//chrome/android'

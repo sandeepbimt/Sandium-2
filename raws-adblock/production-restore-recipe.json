@@ -8142,7 +8142,7 @@
       "mode": "644"
     },
     "chrome/android/feed/core/java/src/org/chromium/chrome/browser/feed/FeedSurfaceCoordinator.java": {
-      "after_sha256": "6449b378e47744b46a873ff1eab79bedb088f84b4466749b20fc1e65b12a3d54",
+      "after_sha256": "27b86be4549cf6c73337a8fe74851b3811b2a30f5eb4c385a4a02c4e08bc529b",
       "before_sha256": "e980d8fb0350a64ccfa8f11b5ebfa243387a5574c54710ee54e822592e1d14da"
     },
     "chrome/android/java/res/drawable-nodpi/raws_frozen_shields_mark.webp": {

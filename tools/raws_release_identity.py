@@ -75,7 +75,7 @@ def verify_release_identity(apk, aapt2, apksigner, expected_sha256, *, env=None)
 
 
 def sign_release_locally(apk, output, sdk, keystore, alias, expected_sha256, *,
-                         expected_input_sha256, env=None):
+                         expected_input_sha256, env=None, unsigned_input=False):
     """Use only on a trusted signer host, never as a remote build action.
 
     The caller must provision the project keystore and both passwords through
@@ -109,6 +109,9 @@ def sign_release_locally(apk, output, sdk, keystore, alias, expected_sha256, *,
                                        stderr=subprocess.STDOUT, timeout=180,
                                        env=signer_env if signing else public_env)
 
+    if unsigned_input:
+        from raws_unsigned_apk import verify_zip
+        verify_zip(apk, unsigned=True)
     verify_package_metadata(run(aapt2, "dump", "badging", apk))
     try:
         run(zipalign, "-c", "-P", "16", "4", apk)
@@ -124,6 +127,10 @@ def sign_release_locally(apk, output, sdk, keystore, alias, expected_sha256, *,
             with candidate.open("rb") as stream:
                 receipt["apk_sha256"] = hashlib.file_digest(stream, "sha256").hexdigest()
             receipt["apk_input_sha256"] = expected_input_sha256
+            if unsigned_input:
+                receipt.update(apk_abis=verify_zip(candidate, unsigned=False),
+                               apk_signature_verified=True, apk_zip_verified=True,
+                               apk_zipalign_16k_verified=True)
             # Atomic, exclusive promotion; unlike replace(), never overwrites.
             os.link(candidate, output)
             return receipt
