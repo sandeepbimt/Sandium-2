@@ -414,7 +414,7 @@ jobs:
             - raws-final-receipt-v1-1okrnzzf7a7dVnuYH3RZUQh3v8ABzZh4G4yc4YAiROY=
         - run:
             name: RawS Full restore-only select
-            command: RAWS_ALLOW_FRESH_SEED=false python3 -u tools/ci_restore_only.py select
+            command: RAWS_DISTINCT_TEST_IDENTITY=true RAWS_ALLOW_FRESH_SEED=false python3 -u tools/ci_restore_only.py select
             no_output_timeout: 55m
         - restore_cache:
             name: 'Restore exact verified RawS #1396 final archive'
@@ -430,11 +430,11 @@ jobs:
             no_output_timeout: 55m
         - run:
             name: RawS Full restore-only compile
-            command: RAWS_ALLOW_FRESH_SEED=false python3 -u tools/ci_restore_only.py compile
+            command: RAWS_DISTINCT_TEST_IDENTITY=true RAWS_ALLOW_FRESH_SEED=false python3 -u tools/ci_restore_only.py compile
             no_output_timeout: 55m
         - run:
             name: RawS Full restore-only completed
-            command: RAWS_ALLOW_FRESH_SEED=false python3 -u tools/ci_restore_only.py completed
+            command: RAWS_DISTINCT_TEST_IDENTITY=true RAWS_ALLOW_FRESH_SEED=false python3 -u tools/ci_restore_only.py completed
             no_output_timeout: 55m
         - *id001
   raws-full-stage-2:
@@ -2794,7 +2794,6 @@ jobs:
       RAWS_CHECKPOINT_REVIEWED: 'true'
       RAWS_ALLOW_FRESH_SEED: 'false'
       SISO_LIMITS: local=8,remote=80
-      RAWS_DISTINCT_TEST_IDENTITY: 'true'
     steps:
     - checkout
     - run:
@@ -2839,7 +2838,7 @@ jobs:
         - raws-final-receipt-v1-1okrnzzf7a7dVnuYH3RZUQh3v8ABzZh4G4yc4YAiROY=
     - run:
         name: RawS signed test select
-        command: RAWS_ALLOW_FRESH_SEED=false python3 -u tools/ci_restore_only.py select
+        command: RAWS_DISTINCT_TEST_IDENTITY=true RAWS_ALLOW_FRESH_SEED=false python3 -u tools/ci_restore_only.py select
         no_output_timeout: 55m
     - restore_cache:
         name: 'Restore exact verified RawS #1396 final archive'
@@ -2855,11 +2854,11 @@ jobs:
         no_output_timeout: 55m
     - run:
         name: RawS signed test compile
-        command: RAWS_ALLOW_FRESH_SEED=false python3 -u tools/ci_restore_only.py compile
+        command: RAWS_DISTINCT_TEST_IDENTITY=true RAWS_ALLOW_FRESH_SEED=false python3 -u tools/ci_restore_only.py compile
         no_output_timeout: 55m
     - run:
         name: RawS signed test completed
-        command: RAWS_ALLOW_FRESH_SEED=false python3 -u tools/ci_restore_only.py completed
+        command: RAWS_DISTINCT_TEST_IDENTITY=true RAWS_ALLOW_FRESH_SEED=false python3 -u tools/ci_restore_only.py completed
         no_output_timeout: 55m
     - persist_to_workspace:
         root: .raws-signing-input

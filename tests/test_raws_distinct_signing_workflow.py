@@ -53,13 +53,24 @@ class RawSDistinctSigningWorkflowTests(unittest.TestCase):
             {SIGN: {'requires': [COMPILE], 'filters': filt, 'context': 'RawS-Test-Signing'}},
         ])
         self.assertEqual(str(self.config).count('RawS-Test-Signing'), 2)
-        self.assertEqual(self.compile['environment']['RAWS_DISTINCT_TEST_IDENTITY'], 'true')
+        self.assertNotIn('RAWS_DISTINCT_TEST_IDENTITY', self.compile['environment'])
         self.assertEqual(self.compile['environment']['RAWS_ALLOW_FRESH_SEED'], 'false')
         for key in KEYS:
             self.assertNotIn(key, self.compile['environment'])
             self.assertIn('${' + key + '+x}', self.compile['steps'][1]['run']['command'])
         self.assertNotIn('context', self.compile)
         self.assertNotIn('environment', self.sign)
+
+    def test_identity_mode_applies_only_to_authenticated_policy_steps(self):
+        commands = [step.get('run', {}).get('command', '') for step in self.compile['steps']
+                    if isinstance(step, dict)]
+        selected = [cmd for cmd in commands if 'RAWS_DISTINCT_TEST_IDENTITY' in cmd]
+        self.assertEqual(3, len(selected))
+        for phase in ('select', 'compile', 'completed'):
+            self.assertIn('RAWS_DISTINCT_TEST_IDENTITY=true RAWS_ALLOW_FRESH_SEED=false '
+                          'python3 -u tools/ci_restore_only.py ' + phase, selected)
+        preflight = next(cmd for cmd in commands if 'unittest discover' in cmd)
+        self.assertNotIn('RAWS_DISTINCT_TEST_IDENTITY', preflight)
 
     def test_exact_restore_private_inputs_no_compile_cache_save_or_artifact(self):
         steps = self.compile['steps']

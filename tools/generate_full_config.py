@@ -37,7 +37,8 @@ def add_restore_only(result):
  startup=gate()
  def policy_phase(name):
   return run('RawS Full restore-only '+name,
-             'RAWS_ALLOW_FRESH_SEED=false python3 -u tools/ci_restore_only.py '+name)
+             'RAWS_DISTINCT_TEST_IDENTITY=true RAWS_ALLOW_FRESH_SEED=false '
+             'python3 -u tools/ci_restore_only.py '+name)
  source_steps=[
   restore(RECEIPT_CACHE,'Restore exact verified RawS #1396 receipt'),
   policy_phase('select'),
@@ -74,9 +75,10 @@ test -z "${RAWS_KEY_PASSWORD+x}"
 """
  def policy_phase(name):
   return run('RawS signed test '+name,
-             'RAWS_ALLOW_FRESH_SEED=false python3 -u tools/ci_restore_only.py '+name)
+             'RAWS_DISTINCT_TEST_IDENTITY=true RAWS_ALLOW_FRESH_SEED=false '
+             'python3 -u tools/ci_restore_only.py '+name)
  compile_job=common(1)
- compile_job['environment'].update(RAWS_DISTINCT_TEST_IDENTITY='true',RAWS_ALLOW_FRESH_SEED='false')
+ compile_job['environment'].update(RAWS_ALLOW_FRESH_SEED='false')
  compile_job['steps']=['checkout',
   run('Verify exact checkout and no signing material',guard+'\n'+no_key),
   *gate()[1:-1],
