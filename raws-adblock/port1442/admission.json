@@ -60,7 +60,7 @@
     "third_party/blink/renderer/core/html/media/html_media_element.h",
     "third_party/blink/renderer/core/page/create_window.cc"
   ],
-  "manifest_sha256": "83c18a1d362730fa59b7074b888d45447343c6f1461f96a812787ed31a2465ba",
+  "manifest_sha256": "89955be7b2876a2118dfd4d78391334fb1a65580c49f3e1061e012315f25b68d",
   "staged_vendor_delta": {
     "brave/third_party/rust/chromium_crates_io/vendor/adblock-v0_13/src/blocker.rs": {
       "after": "ac368737ffb88855918f8e32ac0eb39a308c4e76f41e4a8193cf223c2a59a7cb",
