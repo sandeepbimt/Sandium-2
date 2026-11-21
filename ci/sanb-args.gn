@@ -1,0 +1,13 @@
+# SanB-only Android Desktop release. No remote execution or package signing.
+target_os = "android"
+target_cpu = "arm64"
+is_debug = false
+is_component_build = false
+is_official_build = true
+is_desktop_android = true
+symbol_level = 0
+use_siso = true
+use_remoteexec = false
+use_reclient = false
+chrome_public_manifest_package = "io.github.sandeepbimt.sanb"
+sanb_unsigned_apk = true

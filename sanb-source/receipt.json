@@ -1,0 +1,16 @@
+{
+  "android_desktop": true,
+  "bare": "e4265e92c914765822bf31b6bb12afcb70bf7a77",
+  "chromium": "52bdd21723d5db0c9ab11716d38feac74828cf84",
+  "depot_tools": "fed8b43f48c4f4c2ac0c34aafbf0ec07a4e600cb",
+  "embedded_ublock": false,
+  "review_blockers": [
+    "No full canonical contextual replay on M158",
+    "No approved hunk-level disposition for mixed bundled-extension patches",
+    "No interface/compile and final APK package content proof"
+  ],
+  "schema": 1,
+  "status": "rebase-incomplete",
+  "unresolved_conflicts": null,
+  "version": "158.0.8127.42"
+}
