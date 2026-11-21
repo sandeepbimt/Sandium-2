@@ -28,7 +28,7 @@ INVENTORY = "sanb-source/canonical-inventory.json"
 INVENTORY_SHA = "ef39400e83b8f28a3f94627a4e5e72b58a8b4fd7daa89d61b07bffe08b322bb7"
 REPLAY = "tools/sanb_bulk_context.py"
 REPLAY_HELPER = "tools/sanb_replay_groups.py"
-DRIVER_SHA = "6a17976de2a19c0b47ce8e5bc68591b72d44cc8749538461e7b896c1fb7c2e35"
+DRIVER_SHA = "658b280f84389e24346456da7e2b5204c57e987815bd36515fe2889e1577aa62"
 HELPER_SHA = "a1b4b22be6ca02f24cd0c6fdb90e100857b233b39fa36849f69d77182a3e39d7"
 OID = re.compile(r"[0-9a-f]{40}")
 SHA = re.compile(r"[0-9a-f]{64}")
@@ -155,10 +155,12 @@ class Audit:
     def present(self, repo, ids):
         if not ids:
             return set()
-        buf = "".join(h+"\n" for h in sorted(ids)).encode()
-        res = self.git(repo, "cat-file", "--batch-check", data=buf, cap=55)
-        return {line.split()[0].decode() for line in res.stdout.splitlines()
-                if re.fullmatch(rb"[a-f0-9]{40} blob [0-9]+", line)}
+        # Do not directly query a missing promisor OID: some Git versions
+        # abort even with lazy fetch disabled. Enumerate local objects only.
+        res = self.git(repo, "cat-file", "--batch-all-objects", "--unordered",
+                       "--batch-check=%(objectname) %(objecttype) %(objectsize)", cap=55)
+        return ids & {line.split()[0].decode() for line in res.stdout.splitlines()
+                      if re.fullmatch(rb"[a-f0-9]{40} blob [0-9]+", line)}
 
     def tree_blobs(self, repo, rev, paths):
         all_ids = set()
@@ -306,6 +308,7 @@ def main(root, environ):
         a = Audit(root, environ)
         if environ.get("CIRCLE_BRANCH") != BRANCH:
             raise ValueError("Wrong SanB diagnostic branch")
+        status["git_version"] = a.git(root, "--version").stdout.decode().strip()
         status["checkout"] = a.rev(root,"HEAD")
         if environ.get("CIRCLE_SHA1") != status["checkout"]:
             raise ValueError("SanB diagnostic invoked on wrong checkout commit")

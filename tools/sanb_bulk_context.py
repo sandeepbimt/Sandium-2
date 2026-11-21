@@ -29,7 +29,7 @@ TARGET=helpers.PIN
 DONOR="e4265e92c914765822bf31b6bb12afcb70bf7a77"
 DONOR_TREE="3cd8b22de30883a9e6211ac9e02dcc9f9bddbee5"
 DONOR_TAG="fd861600035a4d34fb54c3f9e96f7a88af875f88"
-NO_NETWORK=dict(os.environ,GIT_NO_LAZY_FETCH="1")
+NO_NETWORK=dict(os.environ,GIT_ALLOW_PROTOCOL="",GIT_NO_LAZY_FETCH="1")
 
 def repository(repo,*args, **options):
     return helpers.git(repo,*args,**options)
@@ -60,10 +60,15 @@ def trees(pin,paths,repo=REPO):
     return out
 
 def in_git(objects,repo=REPO):
-    lines=subprocess.run(["git","-C",str(repo),"cat-file","--batch-check"],
-                         input="".join(x+"\n" for x in sorted(objects)).encode(), capture_output=True,
-                         check=True,env=NO_NETWORK).stdout
-    return set(m.group(1).decode() for m in re.finditer(rb"^([a-f0-9]{40}) blob ",lines,re.M))
+    if not objects:
+        return set()
+    # Promisor miss queries are fatal on some Git versions. Enumerate only
+    # physically local objects, then intersect with the exact requested set.
+    lines=subprocess.run(["git","-C",str(repo),"cat-file","--batch-all-objects",
+                          "--unordered","--batch-check=%(objectname) %(objecttype) %(objectsize)"],
+                         capture_output=True,check=True,env=NO_NETWORK).stdout
+    return objects & {m.group(1).decode()
+                      for m in re.finditer(rb"^([a-f0-9]{40}) blob [0-9]+$",lines,re.M)}
 
 def discover(blob_names, fixture_roots):
     by_name=collections.defaultdict(set)

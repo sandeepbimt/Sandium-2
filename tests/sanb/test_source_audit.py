@@ -13,6 +13,7 @@ from unittest import mock
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT/"tools"))
 import sanb_source_audit_ci as a
+import sanb_bulk_context as replay
 
 
 def blob(raw):
@@ -109,9 +110,35 @@ class SourceAudit(unittest.TestCase):
             good=blob(b"wanted");bad=blob(b"not wanted")
             self.assertEqual(x.tree_blobs(target,rev,["requested"]),{good})
             self.assertEqual(x.present(target,{good,bad}),set())
+            self.assertEqual(replay.in_git({good,bad},target),set())
             self.assertEqual(x.wanted(target,{good}),set())
             self.assertEqual(x.present(target,{good,bad}),{good})
+            self.assertEqual(replay.in_git({good,bad},target),{good})
             self.assertEqual(sorted(y.name for y in target.iterdir()),[".git"])
+
+    def test_availability_never_queries_missing_promisor_input(self):
+        good, missing, extra, tree = (c*40 for c in "abcd")
+        supplied = (
+            f"{good} blob 5\n{tree} tree 20\n{extra} blob 8\n"
+        ).encode()
+        def check_args(args):
+            self.assertIn("--batch-all-objects", args)
+            self.assertIn("--batch-check=%(objectname) %(objecttype) %(objectsize)", args)
+            self.assertFalse(any(missing in str(arg) for arg in args))
+        def wrapper_git(repo,*args,**kwargs):
+            check_args(args)
+            # The failing CircleCI style submitted absent OIDs via stdin.
+            self.assertNotIn("data", kwargs)
+            return subprocess.CompletedProcess(args,0,supplied,b"")
+        def replay_git(args,**kwargs):
+            check_args(args)
+            self.assertNotIn("input",kwargs)
+            self.assertEqual(kwargs["env"]["GIT_ALLOW_PROTOCOL"],"")
+            return subprocess.CompletedProcess(args,0,supplied,b"")
+        with mock.patch.object(a.Audit,"git",side_effect=wrapper_git):
+            self.assertEqual(a.Audit(ROOT,{}).present(ROOT,{good,missing,tree}),{good})
+        with mock.patch.object(replay.subprocess,"run",side_effect=replay_git):
+            self.assertEqual(replay.in_git({good,missing,tree},ROOT),{good})
 
     def test_wrong_branch_fail_does_not_call_remote(self):
         with tempfile.TemporaryDirectory() as tmp:
