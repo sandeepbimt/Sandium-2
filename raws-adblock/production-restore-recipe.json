@@ -9394,7 +9394,7 @@
       "before_sha256": "1620de48aae8c980194075c2569cca45ba23bc379240e174d34339bca2ac3591"
     },
     "third_party/blink/renderer/core/paint/image_painter.cc": {
-      "after_sha256": "635b8e0cf29c7738c9add05e605b5128bdb44ca11357dcc4c683a9cbe1c13a10",
+      "after_sha256": "8af22886571da865a70298f51ba4f00702080caedd07749013bd0320fdf1833b",
       "before_sha256": "5bd70857442afdcced3365e468d2c1bde44df1ea686c2fd7b2ad8037e0398705",
       "mode": "644"
     },

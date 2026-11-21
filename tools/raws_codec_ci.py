@@ -18,8 +18,7 @@ SCOPED_FILES = frozenset({
     '.circleci/config.yml', 'docs/raws-codec-trial.md',
     'tools/generate_full_config.py', 'tools/ci_compile.py',
     'tools/ci_restore_only.py', 'tools/ci_sign_raws_test.py',
-    'tools/raws_codec_ci.py', 'tools/raws_codec_trial.py', 'tools/raws_unsigned_apk.py',
-    'tools/raws_release_identity.py', 'tests/test_raws_unsigned_apk.py',
+    'tools/raws_codec_ci.py', 'tools/raws_codec_trial.py',
     'tests/test_raws_codec_ci.py', 'tests/test_raws_codec_trial.py',
     'tests/test_raws_distinct_signing_workflow.py',
 })
@@ -64,11 +63,7 @@ def verify_checkout(root):
 
 
 def expected_args(root):
-    args = compose((root/'ci/args.gn').read_bytes(), True)
-    from raws_unsigned_apk import append_arg, mode
-    if mode():
-        args = append_arg(args.decode()).encode()
-    return args
+    return compose((root/'ci/args.gn').read_bytes(), True)
 
 
 def read_generated_header(out):

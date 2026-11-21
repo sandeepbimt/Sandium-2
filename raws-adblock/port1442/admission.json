@@ -192,7 +192,7 @@
     "third_party/blink/renderer/core/style/computed_style_extra_fields.json5",
     "ui/android/java/src/org/chromium/ui/base/EventForwarder.java"
   ],
-  "manifest_sha256": "ce4b22dac3e0b2db1bda92dfbe8b7c01d70adcda1aa89ccd7f723bd33b4ee375",
+  "manifest_sha256": "51cc5ab6048c2c6fcd0cd1fd95f2eea1923fa4d354be34dde60f4dc334676a37",
   "staged_vendor_delta": {
     "brave/third_party/rust/chromium_crates_io/vendor/adblock-v0_13/src/blocker.rs": {
       "after": "ac368737ffb88855918f8e32ac0eb39a308c4e76f41e4a8193cf223c2a59a7cb",
