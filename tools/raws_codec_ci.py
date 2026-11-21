@@ -1,4 +1,4 @@
-"""Optional RawS #1477 codec-trial admission and private APK provenance."""
+"""Optional combined RawS codec-trial admission and private APK provenance."""
 import os
 from pathlib import Path
 import re
@@ -8,8 +8,8 @@ from raws_codec_trial import (
     ffmpeg_expected, git, media_settings, sha,
 )
 
-PROFILE = 'raws-1477-android-arm64-avc-aac-v1'
-TRIAL_APK = 'RawSandium-Codec-Trial-arm64.apk'
+PROFILE = 'raws-combined-1477-android-arm64-avc-aac-v1'
+TRIAL_APK = 'RawSandium-Combined-Codec-Test-arm64.apk'
 HEX64 = re.compile(r'[0-9a-f]{64}')
 # Every modified tracked file must be a trial control/tool or its test. In
 # particular, no Chromium overlay, APK identity, source pin or checkpoint
@@ -32,6 +32,15 @@ BUILD_FLAGS = {
 }
 
 
+# Exact order emitted by the admitted native smoke (both binaries have passed).
+NATIVE_SMOKE_CASES = (
+    'third-party', 'exception', 'important', 'type', 'ordinary-first-party',
+    'additional-first-party', 'youtube-initiator', 'not-fake-third-party',
+    'lookalike', 'six-network', 'four-popup', 'scoped-hide',
+    'scoped-exception', 'incident1471-player-rules',
+)
+
+
 def mode():
     text = os.environ.get('RAWS_CODEC_TRIAL', 'false')
     if text not in ('true', 'false'):
@@ -42,15 +51,15 @@ def mode():
 def verify_checkout(root):
     parent = git(root, 'show', '-s', '--format=%P', 'HEAD')
     if parent != BASELINE:
-        raise ValueError('Codec test requires a single isolated child of exact RawS #1477')
+        raise ValueError('Codec test requires a single isolated child of exact combined RawS candidate')
     # Validate original tree, all changed paths and absence of tracked dirty edits.
     changes = set(git(root, 'diff', '--name-only', '--no-renames', BASELINE, 'HEAD').splitlines())
     if (git(root, 'rev-parse', BASELINE + '^{tree}') != BASELINE_TREE
             or not changes <= SCOPED_FILES or not {'tools/raws_codec_ci.py', '.circleci/config.yml'} <= changes
             or git(root, 'diff', 'HEAD', '--name-only')):
-        raise ValueError('Codec trial checkout differs from the allowed #1477 A/B source')
+        raise ValueError('Codec trial checkout differs from the allowed combined RawS source')
     if sha((root/'raws-adblock/production-restore-recipe.json').read_bytes()) != FEATURE_SHA256:
-        raise ValueError('Codec trial requires the original #1477 browser overlay')
+        raise ValueError('Codec trial requires the exact combined RawS browser overlay')
 
 
 def expected_args(root):
@@ -70,7 +79,7 @@ def read_generated_header(out):
     return sha(data)
 
 
-def compile_proof(root, out, settings, ffmpeg_configs):
+def compile_proof(root, out, settings, ffmpeg_configs, native_smoke):
     args = expected_args(root)
     if (out/'args.gn').read_bytes() != args:
         raise ValueError('Generated codec input args changed before APK verification')
@@ -81,7 +90,7 @@ def compile_proof(root, out, settings, ffmpeg_configs):
         'resolved_media_args': settings, 'ffmpeg_profiles': ffmpeg_configs,
         'generated_media_header_sha256': read_generated_header(out),
         'generated_media_buildflags': BUILD_FLAGS,
-        'test_only': True,
+        'native_smoke_cases': native_smoke.get('cases'), 'test_only': True,
     }
     validate_proof(root, value)
     return value
@@ -93,7 +102,7 @@ def validate_proof(root, value):
         'chromium_revision': CHROMIUM, 'ffmpeg_revision': FFMPEG,
         'webrtc_revision': WEBRTC, 'generated_args_sha256': sha(expected_args(root)),
         'resolved_media_args': media_settings(True), 'generated_media_buildflags': BUILD_FLAGS,
-        'test_only': True,
+        'native_smoke_cases': list(NATIVE_SMOKE_CASES), 'test_only': True,
     }
     extra = {'ffmpeg_profiles', 'generated_media_header_sha256'}
     if (not isinstance(value, dict) or set(value) != set(expected) | extra

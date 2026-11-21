@@ -10,8 +10,8 @@ import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
 OPT = '<< pipeline.parameters.run_raw_signed_test >>'
-CODEC_OPT = '<< pipeline.parameters.run_raw_codec_trial >>'
-CODEC_WORKFLOW = 'RawS isolated codec trial'
+CODEC_OPT = '<< pipeline.parameters.run_raw_combined_codec_trial >>'
+CODEC_WORKFLOW = 'RawS combined signed codec trial'
 PROBE_OPT = '<< pipeline.parameters.run_raw_signing_probe >>'
 BRANCH = 'raw-sandium/official158'
 COMPILE = 'raws-test-identity-compile'
@@ -49,14 +49,14 @@ class RawSDistinctSigningWorkflowTests(unittest.TestCase):
                 self.assertIn({'not': CODEC_OPT}, other['when']['and'])
 
     def test_codec_workflow_reuses_exact_shared_signed_chain_and_is_exclusive(self):
-        self.assertEqual(self.config['parameters']['run_raw_codec_trial'],
+        self.assertEqual(self.config['parameters']['run_raw_combined_codec_trial'],
                          {'type': 'boolean', 'default': False})
         workflow = self.config['workflows'][CODEC_WORKFLOW]
         self.assertEqual(workflow['jobs'], self.config['workflows'][WORKFLOW]['jobs'])
         self.assertEqual(workflow['when']['and'], [
             CODEC_OPT, {'equal': [BRANCH, '<< pipeline.git.branch >>']},
             *({'not': f'<< pipeline.parameters.{key} >>'}
-              for key in self.config['parameters'] if key != 'run_raw_codec_trial'),
+              for key in self.config['parameters'] if key != 'run_raw_combined_codec_trial'),
         ])
         for job in (self.compile, self.sign):
             selected = [step['run']['command'] for step in job['steps']
