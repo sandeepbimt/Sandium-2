@@ -1,0 +1,377 @@
+// Copyright 2026 Sandium Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license.
+package org.chromium.chrome.browser.settings;
+
+import android.app.Activity;
+import android.graphics.Typeface;
+import android.content.ActivityNotFoundException;
+import android.content.ContentResolver;
+import android.content.Intent;
+import android.net.Uri;
+import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
+import android.view.View;
+import android.widget.ScrollView;
+import android.widget.TextView;
+import android.widget.Toast;
+
+import androidx.annotation.StringRes;
+import androidx.appcompat.app.AlertDialog;
+import androidx.preference.Preference;
+import androidx.preference.PreferenceScreen;
+
+import org.jni_zero.JniType;
+import org.jni_zero.NativeMethods;
+
+import org.chromium.base.Callback;
+import org.chromium.base.library_loader.LibraryLoader;
+import org.chromium.base.supplier.MonotonicObservableSupplier;
+import org.chromium.base.supplier.ObservableSuppliers;
+import org.chromium.base.supplier.SettableMonotonicObservableSupplier;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
+import org.chromium.chrome.R;
+import org.chromium.chrome.browser.profiles.Profile;
+
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.nio.ByteBuffer;
+import java.nio.charset.CodingErrorAction;
+import java.nio.charset.StandardCharsets;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
+/** Opt-in local archive handling. Validation and merge decisions stay in the native profile store. */
+@NullMarked
+public final class RawSAdRuleBackupSettings extends ChromeBaseSettingsFragment {
+    private static final int EXPORT = 9403;
+    private static final int IMPORT = 9404;
+    static final int MAX_BYTES = 256 * 1024;
+    private static final String STATE_REQUEST = "raws_ad_backup_request";
+    private final SettableMonotonicObservableSupplier<String> mTitle =
+            ObservableSuppliers.createMonotonic();
+    private final ExecutorService mFiles = Executors.newSingleThreadExecutor();
+    private final Handler mUi = new Handler(Looper.getMainLooper());
+    private @Nullable AlertDialog mDialog;
+    private boolean mBusy;
+    private boolean mDestroyed;
+    private boolean mAwaitingRestoreConfirmation;
+    private int mPickerRequest;
+
+    @Override
+    public MonotonicObservableSupplier<String> getPageTitle() { return mTitle; }
+
+    @Override
+    public @AnimationType int getAnimationType() {
+        return AnimationType.PROPERTY;
+    }
+
+    @Override
+    public void onCreatePreferences(@Nullable Bundle state, @Nullable String key) {
+        mTitle.set(getString(R.string.raws_ad_backup_title));
+        PreferenceScreen screen = getPreferenceManager().createPreferenceScreen(requireContext());
+        setPreferenceScreen(screen);
+        if (state != null) {
+            int request = state.getInt(STATE_REQUEST);
+            if (request == EXPORT || request == IMPORT) {
+                mBusy = true;
+                mPickerRequest = request;
+            }
+        }
+        if (!available(getProfile())) {
+            addRow(screen, R.string.raws_ad_backup_unavailable, 0, null);
+            return;
+        }
+        addRow(screen, R.string.raws_ad_backup_local_title,
+                R.string.raws_ad_backup_local_summary, null);
+        addRow(screen, R.string.raws_ad_backup_view,
+                R.string.raws_ad_backup_view_summary, this::viewRules);
+        addRow(screen, R.string.raws_ad_backup_export,
+                R.string.raws_ad_backup_export_summary, () -> choose(EXPORT));
+        addRow(screen, R.string.raws_ad_backup_import,
+                R.string.raws_ad_backup_import_summary, () -> choose(IMPORT));
+    }
+
+    @Override
+    public void onSaveInstanceState(Bundle state) {
+        state.putInt(STATE_REQUEST, mPickerRequest);
+        super.onSaveInstanceState(state);
+    }
+
+    @Override
+    public void onViewCreated(View view, @Nullable Bundle state) {
+        super.onViewCreated(view, state);
+        MainSettings.styleRawSSettingsList(getListView());
+    }
+
+    @Override
+    public void onDestroyView() {
+        if (mAwaitingRestoreConfirmation) {
+            mAwaitingRestoreConfirmation = false;
+            mBusy = false;
+        }
+        if (mDialog != null) {
+            mDialog.dismiss();
+            mDialog = null;
+        }
+        super.onDestroyView();
+    }
+
+    @Override
+    public void onDestroy() {
+        mDestroyed = true;
+        mFiles.shutdownNow();
+        mUi.removeCallbacksAndMessages(null);
+        super.onDestroy();
+    }
+
+    private void addRow(PreferenceScreen screen, @StringRes int title,
+            @StringRes int summary, @Nullable Runnable action) {
+        Preference row = new Preference(requireContext());
+        row.setTitle(title);
+        if (summary != 0) row.setSummary(summary);
+        row.setSelectable(action != null);
+        if (action != null) row.setOnPreferenceClickListener(preference -> {
+            if (mBusy) toast(R.string.raws_ad_backup_busy);
+            else if (available(getProfile())) action.run();
+            return true;
+        });
+        screen.addPreference(row);
+    }
+
+    private boolean available(Profile profile) {
+        return !mDestroyed && isAdded() && LibraryLoader.getInstance().isInitialized()
+                && profile.isNativeInitialized() && !profile.shutdownStarted()
+                && !profile.isOffTheRecord();
+    }
+
+    private boolean stillViewing(Profile profile) {
+        return available(profile) && getView() != null && getProfile() == profile;
+    }
+
+    private void toast(@StringRes int message) {
+        if (!mDestroyed && isAdded()) {
+            Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    @SuppressWarnings("deprecation")
+    private void choose(int request) {
+        boolean export = request == EXPORT;
+        Intent intent = new Intent(export ? Intent.ACTION_CREATE_DOCUMENT : Intent.ACTION_OPEN_DOCUMENT)
+                .addCategory(Intent.CATEGORY_OPENABLE)
+                .putExtra(Intent.EXTRA_LOCAL_ONLY, true)
+                .setType(export ? "application/json" : "*/*");
+        if (export) intent.putExtra(Intent.EXTRA_TITLE, "Sandium-custom-ad-rules.json");
+        mBusy = true;
+        mPickerRequest = request;
+        try {
+            startActivityForResult(intent, request);
+        } catch (ActivityNotFoundException | SecurityException fail) {
+            mBusy = false;
+            mPickerRequest = 0;
+            toast(R.string.raws_ad_backup_no_picker);
+        }
+    }
+
+    @Override
+    @SuppressWarnings("deprecation")
+    public void onActivityResult(int request, int result, @Nullable Intent data) {
+        super.onActivityResult(request, result, data);
+        if ((request != EXPORT && request != IMPORT) || request != mPickerRequest) return;
+        mPickerRequest = 0;
+        mBusy = false;
+        if (result != Activity.RESULT_OK || data == null || !isAdded()) return;
+        Profile profile = getProfile();
+        if (!available(profile)) return;
+        @Nullable Uri uri = data.getData();
+        if (uri == null || !ContentResolver.SCHEME_CONTENT.equals(uri.getScheme())) {
+            toast(R.string.raws_ad_backup_bad_file);
+            return;
+        }
+        ContentResolver resolver = requireContext().getContentResolver();
+        mBusy = true;
+        if (request == EXPORT) {
+            String archive = RawSAdRuleBackupSettingsJni.get().export(profile);
+            if (archive.isEmpty()) {
+                mBusy = false;
+                toast(R.string.raws_ad_backup_export_failed);
+                return;
+            }
+            mFiles.execute(() -> {
+                boolean success = false;
+                try {
+                    writeArchive(resolver, uri, archive);
+                    success = true;
+                } catch (IOException | SecurityException ignored) {
+                    // A document provider may have left a blank or partial file on failure.
+                }
+                boolean written = success;
+                mUi.post(() -> {
+                    mBusy = false;
+                    if (stillViewing(profile)) {
+                        toast(written ? R.string.raws_ad_backup_export_done
+                                : R.string.raws_ad_backup_export_failed);
+                    }
+                });
+            });
+        } else {
+            mFiles.execute(() -> {
+                String archive = "";
+                try (InputStream input = resolver.openInputStream(uri)) {
+                    if (input != null) archive = readArchive(input);
+                } catch (IOException | SecurityException ignored) {
+                    archive = "";
+                }
+                String file = archive;
+                mUi.post(() -> confirmRestore(profile, file));
+            });
+        }
+    }
+
+    static String readArchive(InputStream input) throws IOException {
+        ByteArrayOutputStream buffered = new ByteArrayOutputStream();
+        byte[] chunk = new byte[16384];
+        int count;
+        while ((count = input.read(chunk)) != -1) {
+            if (Thread.currentThread().isInterrupted() || count <= 0
+                    || count > MAX_BYTES - buffered.size()) {
+                throw new IOException("Backup read interrupted or over limit");
+            }
+            buffered.write(chunk, 0, count);
+        }
+        return StandardCharsets.UTF_8.newDecoder()
+                .onMalformedInput(CodingErrorAction.REPORT)
+                .onUnmappableCharacter(CodingErrorAction.REPORT)
+                .decode(ByteBuffer.wrap(buffered.toByteArray())).toString();
+    }
+
+    private static void writeArchive(ContentResolver resolver, Uri uri, String archive)
+            throws IOException {
+        byte[] bytes = archive.getBytes(StandardCharsets.UTF_8);
+        if (bytes.length == 0 || bytes.length > MAX_BYTES
+                || Thread.currentThread().isInterrupted()) throw new IOException("Bad archive");
+        try (OutputStream out = resolver.openOutputStream(uri, "wt")) {
+            if (out == null) throw new IOException("Document is not writable");
+            out.write(bytes);
+            out.flush();
+        }
+    }
+
+    private void confirmRestore(Profile profile, String archive) {
+        mBusy = false;
+        if (!stillViewing(profile)) return;
+        String dryRun = archive.isEmpty() ? ""
+                : RawSAdRuleBackupSettingsJni.get().planRestore(profile, archive);
+        if (dryRun.isEmpty()) {
+            toast(R.string.raws_ad_backup_bad_file);
+            return;
+        }
+        try {
+            JSONObject plan = new JSONObject(dryRun);
+            if (!plan.getBoolean("changed")) {
+                toast(R.string.raws_ad_backup_nothing_to_merge);
+                return;
+            }
+            String expected = plan.getString("expected");
+            if (mDialog != null) mDialog.dismiss();
+            mBusy = true;
+            mAwaitingRestoreConfirmation = true;
+            mDialog = new AlertDialog.Builder(requireContext())
+                    .setTitle(R.string.raws_ad_backup_import)
+                    .setMessage(getString(R.string.raws_ad_backup_import_confirm,
+                            plan.getInt("importedBytes")))
+                    .setNegativeButton(android.R.string.cancel, (dialog, which) -> cancelConfirmation())
+                    .setPositiveButton(R.string.raws_ad_backup_import_apply,
+                            (dialog, which) -> {
+                                mAwaitingRestoreConfirmation = false;
+                                restore(profile, archive, expected);
+                            })
+                    .setOnCancelListener(dialog -> cancelConfirmation())
+                    .show();
+        } catch (JSONException badPlan) {
+            toast(R.string.raws_ad_backup_bad_file);
+        }
+    }
+
+    private void cancelConfirmation() {
+        mAwaitingRestoreConfirmation = false;
+        mBusy = false;
+    }
+
+    private void restore(Profile profile, String archive, String expected) {
+        if (!stillViewing(profile) || !RawSAdRuleBackupSettingsJni.get().applyRestore(
+                profile, archive, expected, success -> {
+                    mBusy = false;
+                    if (stillViewing(profile)) {
+                        toast(success ? R.string.raws_ad_backup_import_done
+                                : R.string.raws_ad_backup_import_stale);
+                    }
+                })) {
+            mBusy = false;
+            toast(R.string.raws_ad_backup_import_stale);
+        }
+    }
+
+    private void viewRules() {
+        Profile profile = getProfile();
+        String archive = RawSAdRuleBackupSettingsJni.get().export(profile);
+        if (archive.isEmpty()) {
+            toast(R.string.raws_ad_backup_view_failed);
+            return;
+        }
+        mBusy = true;
+        mFiles.execute(() -> {
+            String list = "";
+            boolean parsed = false;
+            try {
+                list = new JSONObject(archive).getString("rules");
+                parsed = true;
+            } catch (JSONException ignored) {
+                // Do not present partial/invalid rule listings.
+            }
+            String summary = list;
+            boolean success = parsed;
+            mUi.post(() -> {
+                mBusy = false;
+                if (!stillViewing(profile)) return;
+                if (success) showList(summary);
+                else toast(R.string.raws_ad_backup_view_failed);
+            });
+        });
+    }
+
+    private void showList(String text) {
+        TextView body = new TextView(requireContext());
+        body.setText(text.isEmpty() ? getString(R.string.raws_ad_backup_empty) : text);
+        body.setTextIsSelectable(true);
+        body.setTypeface(Typeface.MONOSPACE);
+        body.setTextDirection(View.TEXT_DIRECTION_LTR);
+        int padding = Math.round(16 * getResources().getDisplayMetrics().density);
+        body.setPadding(padding, padding, padding, padding);
+        ScrollView content = new ScrollView(requireContext());
+        content.addView(body);
+        if (mDialog != null) mDialog.dismiss();
+        mDialog = new AlertDialog.Builder(requireContext())
+                .setTitle(R.string.raws_ad_backup_view)
+                .setView(content)
+                .setPositiveButton(android.R.string.ok, null)
+                .show();
+    }
+
+    @NativeMethods
+    interface Natives {
+        @JniType("std::string") String export(@JniType("Profile*") Profile profile);
+        @JniType("std::string") String planRestore(@JniType("Profile*") Profile profile,
+                @JniType("std::string") String archive);
+        boolean applyRestore(@JniType("Profile*") Profile profile,
+                @JniType("std::string") String archive, @JniType("std::string") String expected,
+                @JniType("base::OnceCallback<void(bool)>") Callback<Boolean> completion);
+    }
+}

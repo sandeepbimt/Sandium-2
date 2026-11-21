@@ -8142,7 +8142,7 @@
       "mode": "644"
     },
     "chrome/android/feed/core/java/src/org/chromium/chrome/browser/feed/FeedSurfaceCoordinator.java": {
-      "after_sha256": "269a37eada37905cda5d9460fe5c8924b249fb66f8f37f7d3fdfce0e79c863af",
+      "after_sha256": "f06544d333b93317dd9c3f5073a5d2b0ccf3d6bf3e40e1f8020864c2c0ac21c9",
       "before_sha256": "e980d8fb0350a64ccfa8f11b5ebfa243387a5574c54710ee54e822592e1d14da"
     },
     "chrome/android/java/res/anim/raws_settings_fade_in.xml": {
@@ -8370,7 +8370,7 @@
       "mode": "644"
     },
     "chrome/android/java/src/org/chromium/chrome/browser/firstrun/FirstRunActivityBase.java": {
-      "after_sha256": "10732287fdaad9b7009f47a5c44c852ecc2d9ae53900ec78245d7af6acf80833",
+      "after_sha256": "49a75246620454695a6f1811d47d0aea1192e79bc528fafc0e26198d133b7af7",
       "before_sha256": "86349a0c76706aab83fdac2ecb031b074dc3326506a02b121e5721b7cece20e1",
       "mode": "644"
     },
@@ -8442,7 +8442,7 @@
       "mode": "644"
     },
     "chrome/android/java/src/org/chromium/chrome/browser/settings/RawSAdRuleBackupSettings.java": {
-      "after_sha256": "89e63f13978b5058d9a0ff6e098ac49d4524855f3f28c1efbaf6f35dea22ea63",
+      "after_sha256": "971597475357d217439f562e1cba553c5e81c9c4d41e33811712bbfa65c00678",
       "before_sha256": null,
       "mode": "644"
     },
@@ -8457,7 +8457,7 @@
       "mode": "644"
     },
     "chrome/android/java/src/org/chromium/chrome/browser/settings/RawSColorRulesSettings.java": {
-      "after_sha256": "c9a0cab9c4f850ad794900cea15173df0c0620c448b22736edad6870842477ca",
+      "after_sha256": "c38143897d8671cb493f70f80b625910b584895951479beab01153599cd6ca6c",
       "before_sha256": null,
       "mode": "644"
     },
@@ -8472,12 +8472,12 @@
       "mode": "644"
     },
     "chrome/android/java/src/org/chromium/chrome/browser/settings/RawSNavigationDiagnosticsSettings.java": {
-      "after_sha256": "76d9907a9c8d944a85d882f01fbdfff435d4d25595209c17fd94af48edfd4f4a",
+      "after_sha256": "95149d08775dfbd75a99419bfd48eadd4d9c22adcebf97473c1317d1feaf2a7f",
       "before_sha256": null,
       "mode": "644"
     },
     "chrome/android/java/src/org/chromium/chrome/browser/settings/RawsGlobalShieldSheet.java": {
-      "after_sha256": "dd1a6086026df27790c76e4a398ab9f60723122f051d54344cfc00ce777700a9",
+      "after_sha256": "c94d55eee73fa0372a61c00d775caa3d78cceabef972cee68d64997e733a491a",
       "before_sha256": null,
       "mode": "644"
     },
