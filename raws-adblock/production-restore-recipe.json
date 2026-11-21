@@ -8588,7 +8588,7 @@
       "mode": "644"
     },
     "chrome/browser/chrome_content_browser_client.cc": {
-      "after_sha256": "914a920f816afe3a977e7b253234df47521b70ee9193fd873df3ea568e5a3fb4",
+      "after_sha256": "2ec799995625333c3ecee12a56f776795fa914da8f527823609aa02189416b41",
       "before_sha256": "235fbfdbfe13d7ce2833017f67d6a899dda5b14131e38e5f7177b62f8a4b981b",
       "mode": "644"
     },
@@ -8635,7 +8635,7 @@
       "before_sha256": null
     },
     "chrome/browser/raws/raw_element_picker_browser.h": {
-      "after_sha256": "552d2af0a5293396ba8a3833d348e55b597a1fec3d1ae64e3a4805fc8e6952d6",
+      "after_sha256": "f1782bb6e0bf9ddec7e3c650a13bf9d8c604173a290c005353e9377276fcb333",
       "before_sha256": null,
       "mode": "644"
     },
@@ -8650,7 +8650,7 @@
       "mode": "644"
     },
     "chrome/browser/raws/raw_user_network_rules_profile.h": {
-      "after_sha256": "d045c0214f0f0de445525596ed55d68f13a59383e725a0832c06b5fbacad8581",
+      "after_sha256": "30ce901a13c5e42a40d525619cf2653e3b22811c4903958787e9a2d120a4394f",
       "before_sha256": null,
       "mode": "644"
     },
@@ -8660,12 +8660,12 @@
       "mode": "644"
     },
     "chrome/browser/raws/raws_color_session.cc": {
-      "after_sha256": "416250b08163ff7431aa9cfede5599ef862d6cf862e46e034058a120bd2f93b6",
+      "after_sha256": "605d9ba21d4a35218288c9961f1357940e64e817bc6325016c6dbd669e8a2026",
       "before_sha256": null,
       "mode": "644"
     },
     "chrome/browser/raws/raws_color_session.h": {
-      "after_sha256": "e69de6c496d9522d1e619411272a785495f2b86c02bdb0f46a9ce608b9e9029b",
+      "after_sha256": "b0f97af7dd249d5e26adedaa701b333d91d76e38d51a81ba3483d449894ee158",
       "before_sha256": null,
       "mode": "644"
     },
@@ -8675,7 +8675,7 @@
       "mode": "644"
     },
     "chrome/browser/raws/raws_site_ads_policy.h": {
-      "after_sha256": "bcda2eb63ee485d3c975069f3e53f9743399ee2cf83062b4166852ad25aca677",
+      "after_sha256": "fd5fb81cb65ca03d91f05970e9edccc6730770107cbbfcbf73acf36850e5e7e4",
       "before_sha256": null,
       "mode": "644"
     },
@@ -9040,7 +9040,7 @@
       "mode": "644"
     },
     "chrome/renderer/chrome_render_frame_observer.cc": {
-      "after_sha256": "3ee61a36e5069ee6a7fb7020a53f6993cae813e99121677f66b5c5ddb965ed53",
+      "after_sha256": "56bd79604e5b3d71e890bdf82f03fb7d1b087f30ca83a9906d0a9ff73774fc11",
       "before_sha256": "193e6a0d88cd505eb683cba41d4509785e235310560d52b23c8bf394e0430972"
     },
     "chrome/renderer/chrome_render_frame_observer.h": {
@@ -9048,12 +9048,12 @@
       "before_sha256": "b3172f2b05944287a157906c16231ad457775525f314abad96d2d423af77d353"
     },
     "chrome/renderer/raws_color_locator.h": {
-      "after_sha256": "267da4ffb5d83ce3d4119b14097d1222ac01364dba26cfb87f58f538950a89dd",
+      "after_sha256": "249bf53215ec0f87051c353d616f4fc8d17316d74975a9bda3d87456d3a8cb40",
       "before_sha256": null,
       "mode": "644"
     },
     "chrome/renderer/raws_color_renderer.h": {
-      "after_sha256": "d8d0c1edff59024b733f8c34a437d00cbd0245a0fed7fc243096d1990efae325",
+      "after_sha256": "02ae31ebc1af4c06b8bb5573537798a976d3e2d24dd7435860a50cfedc7680f6",
       "before_sha256": null,
       "mode": "644"
     },
@@ -9173,7 +9173,7 @@
       "mode": "644"
     },
     "content/browser/loader/raws_document_block_count.h": {
-      "after_sha256": "7be5994409c4d56ca269444f803df465abe17395802b3d54d22a6a3864602e9b",
+      "after_sha256": "52a371ea1cfb7441fc572f63e77ec2a81adebae5a4ee4a3ad5aa0ff08ec575fc",
       "before_sha256": null,
       "mode": "644"
     },
@@ -9223,7 +9223,7 @@
       "mode": "644"
     },
     "content/browser/renderer_host/page_impl.cc": {
-      "after_sha256": "d2539b474d389657146fe7aaa90c6a865e26f24a094b5efef1c71206c88d5644",
+      "after_sha256": "1fecef2cbb71d0ff9ead028aa903be3d7ebc18c742af37378def00ae1760abdd",
       "before_sha256": "adf7fb46e15ec48e43f54fa08e105a356f88d3cc0c3614f8d0f5c76f579020b8",
       "mode": "644"
     },
@@ -9276,7 +9276,7 @@
       "before_sha256": "0568eeacb8184c3ec083bb0af1fc20131b7eaad27ba16e224a71484dfaf594f3"
     },
     "content/public/browser/page.h": {
-      "after_sha256": "bca2bfa1ecf198b696d02a1ad7b166a8c3cea3a03095247725bce928693ede6b",
+      "after_sha256": "2b2fbc9cb0f90c966de8c796b7466c4aff417ab539c3c71cdddfba66178cb6ed",
       "before_sha256": "cf0327b991cfd4b6a370fb4b323f61e60e47234190feefc2b9ea8b003259dea4",
       "mode": "644"
     },

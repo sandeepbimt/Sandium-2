@@ -1,0 +1,127 @@
+// Copyright 2026 Sandium Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license.
+#include "chrome/browser/raws/raws_color_session.h"
+
+#include <vector>
+
+namespace sandium::color_picker {
+
+WEB_CONTENTS_USER_DATA_KEY_IMPL(RawSColorSession);
+
+RawSColorSession::RawSColorSession(content::WebContents* contents)
+    : content::WebContentsObserver(contents),
+      content::WebContentsUserData<RawSColorSession>(*contents) {}
+
+RawSColorSession::~RawSColorSession() = default;
+
+void RawSColorSession::Cancel() {
+  request_weak_.InvalidateWeakPtrs();
+  deadline_.Stop();
+  if (remote_.is_bound() && embedding_ && request_) {
+    remote_->Cancel(*embedding_, *request_);
+  }
+  auto before = std::move(snapshot_before_);
+  auto after = std::move(snapshot_after_);
+  snapshot_before_.reset();
+  snapshot_after_.reset();
+  if (before && after && web_contents()) {
+    auto* profile = Profile::FromBrowserContext(web_contents()->GetBrowserContext());
+    if (profile) {
+      // Don't delete a concurrent writer's valid site update.
+      ElementColorRuleStore::ForProfile(*profile).CompareAndReplace(
+          origin_, snapshot_revision_, *after, *before);
+    }
+  }
+  remote_.reset();
+  request_.reset();
+  embedding_.reset();
+  document_.reset();
+  request_id_ = 0;
+  selected_identity_.reset();
+  selected_ = false;
+  image_ = false;
+  view_ = nullptr;
+  widget_ = nullptr;
+  Reply(std::move(pending_), "");
+}
+
+void RawSColorSession::BeginRestore() {
+  if (request_ || !DarkEligible(web_contents()) ||
+      web_contents()->GetVisibility() != content::Visibility::VISIBLE) return;
+  auto* frame = web_contents()->GetPrimaryMainFrame();
+  auto* profile = Profile::FromBrowserContext(frame->GetBrowserContext());
+  if (!profile || ElementColorRuleStore::ForProfile(*profile).Read(
+                      frame->GetLastCommittedOrigin()).empty()) return;
+  StopRestore();
+  restore_document_ = frame->GetWeakDocumentPtr();
+  restore_embedding_ = frame->GetEmbeddingToken();
+  restore_remaining_ = 4;
+  ++store_generation_;
+  SendRestore();
+}
+
+void RawSColorSession::SendRestore() {
+  if (request_ || !restore_document_ || !restore_embedding_ || !restore_remaining_ ||
+      !DarkEligible(web_contents()) ||
+      web_contents()->GetVisibility() != content::Visibility::VISIBLE) {
+    StopRestore();
+    return;
+  }
+  auto* frame = restore_document_->AsRenderFrameHostIfValid();
+  if (!frame || frame != web_contents()->GetPrimaryMainFrame() ||
+      frame->GetEmbeddingToken() != restore_embedding_) {
+    StopRestore();
+    return;
+  }
+  auto* profile = Profile::FromBrowserContext(frame->GetBrowserContext());
+  if (!profile) { StopRestore(); return; }
+  auto saved = ElementColorRuleStore::ForProfile(*profile).Read(frame->GetLastCommittedOrigin());
+  std::vector<wire::RawSColorRulePtr> rules;
+  for (const auto& item : saved) {
+    auto rule = DecodeRule(item.GetDict());
+    if (rule) rules.push_back(std::move(rule));
+  }
+  if (rules.empty()) { StopRestore(); return; }
+  mojo::AssociatedRemote<wire::RawSColorCorrector> remote;
+  frame->GetRemoteAssociatedInterfaces()->GetInterface(&remote);
+  remote->Restore(*restore_embedding_, store_generation_, std::move(rules));
+  if (--restore_remaining_ > 0) {
+    restore_timer_.Start(FROM_HERE, base::Milliseconds(650),
+        base::BindOnce(&RawSColorSession::SendRestore,lifetime_.GetWeakPtr()));
+  }
+}
+
+void RawSColorSession::StopRestore() {
+  restore_timer_.Stop();
+  restore_remaining_ = 0;
+  restore_document_.reset();
+  restore_embedding_.reset();
+}
+
+void RawSColorSession::DOMContentLoaded(content::RenderFrameHost* frame) {
+  if (frame == web_contents()->GetPrimaryMainFrame()) BeginRestore();
+}
+
+void RawSColorSession::PrimaryPageChanged(content::Page&) {
+  Cancel();
+  StopRestore();
+  BeginRestore();
+}
+
+void RawSColorSession::DidFinishNavigation(content::NavigationHandle* handle) {
+  if (handle->IsInPrimaryMainFrame() && handle->HasCommitted() &&
+      handle->IsSameDocument()) Cancel();
+}
+
+void RawSColorSession::OnVisibilityChanged(content::Visibility visibility) {
+  if (visibility != content::Visibility::VISIBLE) {
+    Cancel();
+    StopRestore();
+  } else {
+    BeginRestore();
+  }
+}
+
+void RawSColorSession::WebContentsDestroyed() { Cancel(); StopRestore(); }
+
+}  // namespace sandium::color_picker
