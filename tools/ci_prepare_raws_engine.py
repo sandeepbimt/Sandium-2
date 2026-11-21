@@ -8,6 +8,9 @@ import tempfile
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT/'raws-adblock'))
 import stage
+from restore_only_menu_ui import (
+    MENU_PARITY_TRACKED, MENU_PARITY_JAVA, MENU_PARITY_RESOURCES,
+)
 
 URL = 'https://github.com/brave/brave-core.git'
 BRAVE_PIN = 'bd6d26d1bced03c17a98baa86d2cd3425d543d1b'
@@ -49,6 +52,16 @@ def ui_source_targets():
           for name in ('app_icon.png', 'layered_app_icon.png')),
     }
     return {
+        '//chrome/browser/ui/android/omnibox:java__compile_java': ('inputs', {
+            '//chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/OmniboxSuggestionsDropdownEmbedderImpl.java',
+            '//chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/suggestions/GroupSeparatorDecoration.java',
+            '//chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/suggestions/HeaderDecoration.java',
+            '//chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/suggestions/OmniboxSuggestionsContainer.java',
+            '//chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/suggestions/OmniboxSuggestionsDropdown.java',
+            '//chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/suggestions/OmniboxSuggestionsDropdownEmbedder.java',
+            '//chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/suggestions/SuggestionHorizontalDivider.java',
+            '//chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/suggestions/base/BaseSuggestionView.java',
+        }),
         main+':chrome_jni_headers__action': ('inputs', {
             app_java+'/settings/RawsProtectionCopy.java',
         }),
@@ -67,9 +80,12 @@ def ui_source_targets():
         # internal_rules.gni:3067,4161 attach Java paths as javac action inputs.
         main+':chrome_java__compile_java': ('inputs', {app_java+'/'+name for name in (
             'ChromeTabbedActivity.java', 'tabbed_mode/TabbedAppMenuPropertiesDelegate.java',
-            'ntp/NewTabPageCoordinator.java',
+            'ntp/NewTabPageCoordinator.java', 'ntp/NewTabPage.java',
+            'suggestions/tile/MostVisitedTilesLayout.java',
+            'suggestions/tile/SuggestionsTileView.java',
             'signin/SigninFirstRunFragment.java', 'settings/MainSettings.java',
-            'settings/RawsGlobalShieldSheet.java', 'settings/RawsProtectionSettings.java',
+            'settings/RawsGlobalShieldSheet.java', 'settings/SandiumBalancedTracer.java',
+            'settings/RawsProtectionSettings.java',
             'settings/RawsProtectionCopy.java')}),
         # rules.gni:833 and internal_rules.gni:2042 forward resources into
         # the __prepare action's sources, not the public group.
@@ -78,17 +94,25 @@ def ui_source_targets():
             'values/raws_main_settings_strings.xml', 'xml/main_preferences.xml',
             'values/raws_welcome_palette.xml', 'values-night/raws_welcome_palette.xml',
             'drawable/raws_global_shield_icon.xml', 'layout/raws_global_shield_sheet.xml',
-            'values/raws_global_shield_strings.xml', 'xml/raws_protection_preferences.xml')}),
+            'values/raws_global_shield_strings.xml', 'xml/raws_protection_preferences.xml',
+            'drawable-nodpi/raws_frozen_shields_mark.webp',
+            'drawable/raws_frozen_shields_card.xml',
+            'drawable/raws_frozen_shields_dns_picker.xml',
+            'drawable/raws_frozen_shields_rim.xml',
+        )}),
         appmenu+':java__compile_java': ('inputs', {
             appmenu+'/java/src/org/chromium/chrome/browser/ui/appmenu/'+name
             for name in ('AppMenuHandler.java', 'AppMenuPropertiesDelegate.java')}),
         internal+':java__compile_java': ('inputs', {internal+'/java/src/org/chromium/chrome/browser/ui/appmenu/'+name
                            for name in ('AppMenuHandlerImpl.java', 'AppMenuDragHelper.java', 'RawSNativeMenu.java',
-                                        'RawSMenuModel.java', 'RawSMenuStore.java')}),
+                                        'RawSMenuModel.java', 'RawSMenuStore.java')}
+                                 | {'//' + path for path in MENU_PARITY_TRACKED | MENU_PARITY_JAVA}),
         internal+':java_resources__prepare': ('sources', {internal+'/java/res/'+name for name in (
-            'values/raws_menu.xml', 'values-hi/raws_menu.xml')}),
+            'values/raws_menu.xml', 'values-hi/raws_menu.xml')}
+                                      | {'//' + path for path in MENU_PARITY_RESOURCES}),
         toolbar+':core_java__compile_java': ('inputs', {
             toolbar+'/java/src/org/chromium/chrome/browser/toolbar/top/ToolbarPhone.java',
+            toolbar+'/java/src/org/chromium/chrome/browser/toolbar/ToolbarPositionController.java',
             toolbar+'/java/src/org/chromium/chrome/browser/toolbar/settings/AddressBarPreference.java',
         }),
     }
@@ -152,7 +176,10 @@ def run_native_gate(src, artifacts, env, budget, *, port1442=False):
         raise ValueError('Ambiguous newly generated native test receipt')
     result=(new.pop()/'engine-result.json').read_bytes()
     value=json.loads(result)
-    if len(value.get('cases',[]))!=(13 if port1442 else 9) or value.get('apk_tested') is not False:
+    cases = value.get('cases', [])
+    if (len(cases) != (14 if port1442 else 9)
+            or ('incident1471-player-rules' in cases) != port1442
+            or value.get('apk_tested') is not False):
         raise ValueError('Incomplete real native smoke test')
     (artifacts/'raws-engine-host-result.json').write_bytes(result)
     return value

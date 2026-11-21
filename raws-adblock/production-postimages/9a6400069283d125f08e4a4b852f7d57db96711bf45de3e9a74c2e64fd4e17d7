@@ -1,0 +1,82 @@
+// Copyright 2026 The Sandium Authors.
+// SPDX-License-Identifier: BSD-3-Clause
+
+package org.chromium.chrome.browser.ui.appmenu;
+
+import android.content.Context;
+import android.content.SharedPreferences;
+import android.os.Looper;
+
+/** Application-owned layout store. No browsing/profile contents are stored here. */
+@SuppressWarnings("UseSharedPreferencesManagerFromChromeCheck")
+final class RawSMenuStore implements RawSMenuModel.Store {
+    private static final Object WRITE_LOCK = new Object();
+    // Expose only a successfully committed layout while SharedPreferences updates its own cache
+    // before a worker's disk write finishes. This namespace has no other writers.
+    private static final String WEB = "layout";
+    private static final String RECENT = "layout.recent-tabs";
+    private static volatile String committed;
+    private static volatile @org.chromium.build.annotations.Nullable String committedRecent;
+    private final SharedPreferences preferences;
+    private final boolean recent;
+    RawSMenuStore(Context context) { this(context, false); }
+    RawSMenuStore(Context context, boolean recent) {
+        preferences = context.getApplicationContext().getSharedPreferences(
+                "raws.menu.layout.v1", Context.MODE_PRIVATE);
+        this.recent = recent;
+        if (committed == null) {
+            synchronized (WRITE_LOCK) {
+                if (committed == null) {
+                    committedRecent = preferences.getString(RECENT, null);
+                    committed = preferences.getString(WEB, "");
+                }
+            }
+        }
+    }
+    @Override public String read() {
+        String recentValue = committedRecent;
+        if (recent && recentValue != null) return recentValue;
+        return committed == null ? "" : committed;
+    }
+    @Override public boolean writeIfUnchanged(String expected, String value) {
+        // Never acquire a disk writer's lock from the UI thread.
+        if (Looper.myLooper() == Looper.getMainLooper())
+            throw new IllegalStateException("Menu disk commit must run off the UI thread");
+        synchronized (WRITE_LOCK) {
+            return read().equals(expected) && write(value);
+        }
+    }
+    @Override public boolean write(String value) {
+        if (Looper.myLooper() == Looper.getMainLooper())
+            throw new IllegalStateException("Menu disk commit must run off the UI thread");
+        synchronized (WRITE_LOCK) {
+            String key = recent ? RECENT : WEB;
+            String before = recent ? committedRecent : committed;
+            boolean freezeInheritedRecent = !recent && committedRecent == null;
+            try {
+                var transaction = preferences.edit().putString(key, value);
+                if (freezeInheritedRecent) transaction.putString(RECENT, read());
+                if (transaction.commit()) {
+                    if (recent) committedRecent = value;
+                    else {
+                        if (freezeInheritedRecent) committedRecent = before;
+                        committed = value;
+                    }
+                    return true;
+                }
+            } catch (RuntimeException failure) {
+                // Leave committed state and UI unchanged; editor can report failure/retry.
+            }
+            try {
+                var rollback = preferences.edit();
+                if (before == null) rollback.remove(key);
+                else rollback.putString(key, before);
+                if (freezeInheritedRecent) rollback.remove(RECENT);
+                rollback.commit();
+            } catch (RuntimeException rollbackFailure) {
+                // The visible snapshot still remains the last successful commit.
+            }
+            return false;
+        }
+    }
+}

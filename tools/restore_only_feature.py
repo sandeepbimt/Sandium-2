@@ -11,6 +11,9 @@ import stat
 import subprocess
 
 from raw import verify as verify_baseline
+from restore_only_menu_ui import (
+    MENU_PARITY_TRACKED, MENU_PARITY_JAVA, MENU_PARITY_RESOURCES, MENU_RESOURCE_DIR,
+)
 from source_compat import SISO_MAIN, patched_siso
 
 RECIPE = 'raws-adblock/production-restore-recipe.json'
@@ -19,7 +22,7 @@ POSTIMAGES = 'raws-adblock/production-postimages'
 APPROVED_MANIFEST_SHA256 = '7081e486a25eb33a74cac59bec9e94b16030f9b7c091b1e5faab2fc95c977aeb'
 # A combined candidate, when pinned, replaces the engine-only admission.
 # It must not fall back to the older digest if the UI manifest is missing.
-APPROVED_UI_MANIFEST_SHA256 = '3b92aee3f61c20278636238d21587f1a5de993e351fdb62e0d12fb94cf8a2d62'
+APPROVED_UI_MANIFEST_SHA256 = '0529826c813c93606147e434733da49a3baee5c43956633055a1b2687ab1c1b1'
 APPROVED_UI_TRACKED = frozenset((
     'chrome/android/chrome_java_resources.gni',
     'chrome/android/chrome_java_sources.gni',
@@ -33,7 +36,7 @@ APPROVED_UI_TRACKED = frozenset((
     'chrome/browser/ui/android/appmenu/java/src/org/chromium/chrome/browser/ui/appmenu/AppMenuHandler.java',
     'chrome/browser/ui/android/appmenu/java/src/org/chromium/chrome/browser/ui/appmenu/AppMenuPropertiesDelegate.java',
     'chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/ToolbarPhone.java',
-))
+)) | MENU_PARITY_TRACKED
 APPROVED_GN_COMPAT_TRACKED = frozenset((
     'third_party/rust/unicode_ident/v1/BUILD.gn',
     'third_party/rust/aho_corasick/v1/BUILD.gn',
@@ -47,6 +50,11 @@ APPROVED_GN_COMPAT_TRACKED = frozenset((
     'third_party/rust/serde_core/v1/BUILD.gn',
 ))
 UI_GENERATED = frozenset((
+    'chrome/android/java/res/drawable-nodpi/raws_frozen_shields_mark.webp',
+    'chrome/android/java/res/drawable/raws_frozen_shields_card.xml',
+    'chrome/android/java/res/drawable/raws_frozen_shields_dns_picker.xml',
+    'chrome/android/java/res/drawable/raws_frozen_shields_rim.xml',
+    'chrome/android/java/src/org/chromium/chrome/browser/settings/SandiumBalancedTracer.java',
     'chrome/android/java/res/drawable/raws_global_shield_icon.xml',
     'chrome/android/java/res/layout/raws_global_shield_sheet.xml',
     'chrome/android/java/res/values-night/raws_main_settings_palette.xml',
@@ -64,7 +72,7 @@ UI_GENERATED = frozenset((
     'chrome/browser/ui/android/appmenu/internal/java/src/org/chromium/chrome/browser/ui/appmenu/RawSMenuModel.java',
     'chrome/browser/ui/android/appmenu/internal/java/src/org/chromium/chrome/browser/ui/appmenu/RawSMenuStore.java',
     'chrome/browser/ui/android/appmenu/internal/java/src/org/chromium/chrome/browser/ui/appmenu/RawSNativeMenu.java',
-))
+)) | MENU_PARITY_JAVA | MENU_PARITY_RESOURCES
 UI_RESOURCE_FILES = frozenset(name for name in UI_GENERATED if '/res/' in name)
 UI_RESOURCE_DIRS = frozenset(str(PurePosixPath(name).parent) for name in UI_RESOURCE_FILES)
 TRACKED = frozenset(('chrome/browser/BUILD.gn',
@@ -158,12 +166,14 @@ def exact_ui_resources(src, expected):
             continue
         if not directory.is_dir():
             raise ValueError('Missing pinned Settings resource directory: ' + relative)
-        for entry in directory.glob('raws_*'):
-            name = entry.relative_to(src).as_posix()
-            safe(src, name)
-            if not stat.S_ISREG(entry.lstat().st_mode):
-                raise ValueError('Non-regular Settings generated resource: ' + name)
-            found.add(name)
+        patterns = ('raws_*', 'sandium_menu_*') if relative.startswith(MENU_RESOURCE_DIR) else ('raws_*',)
+        for pattern in patterns:
+            for entry in directory.glob(pattern):
+                name = entry.relative_to(src).as_posix()
+                safe(src, name)
+                if not stat.S_ISREG(entry.lstat().st_mode):
+                    raise ValueError('Non-regular Settings generated resource: ' + name)
+                found.add(name)
     if found != expected:
         raise ValueError('Generated Settings resource inventory differs')
 

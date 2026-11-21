@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="raws_main_settings_surface">#1A1A1A</color>
+    <color name="raws_shields_panel">#000000</color>
+    <color name="raws_shields_card">#1A1A1A</color>
+    <color name="raws_shields_text">#FAFAFA</color>
+    <color name="raws_shields_secondary">#BDBDBD</color>
+    <color name="raws_shields_disabled">#919191</color>
+    <color name="raws_shields_divider">#18F5F5F5</color>
+</resources>

@@ -40,6 +40,7 @@
       return true;
     };
     if (!add("! Title: Sandium player ad resources\n||ohjpfawpaap.in^$third-party,script,subdocument,image\n",false)) return false;
+    if (!add(::sandium::port1442::kPlayerIncidentRules, false)) return false;
     for (const auto& body : bodies) if (!add(body,true)) return false;
     auto result = adblock::engine_from_filter_set(std::move(fs));
     if (result.result_kind != adblock::ResultKind::Success) return false;

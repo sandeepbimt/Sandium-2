@@ -1,0 +1,63 @@
+// SPDX-License-Identifier: MPL-2.0
+package org.chromium.chrome.browser.settings;
+
+import android.os.Bundle;
+import android.widget.Toast;
+
+import androidx.preference.Preference;
+
+import org.chromium.base.supplier.MonotonicObservableSupplier;
+import org.chromium.base.supplier.ObservableSuppliers;
+import org.chromium.base.supplier.SettableMonotonicObservableSupplier;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
+import org.chromium.chrome.R;
+import org.chromium.components.browser_ui.settings.SettingsUtils;
+
+/** Native Protection settings with read-only status and a real filter refresh action. */
+@NullMarked
+public final class RawsProtectionSettings extends ChromeBaseSettingsFragment {
+    private final SettableMonotonicObservableSupplier<String> mPageTitle =
+            ObservableSuppliers.createMonotonic();
+
+    @Override
+    public void onCreatePreferences(@Nullable Bundle savedInstanceState, @Nullable String rootKey) {
+        mPageTitle.set(getString(R.string.raws_ui_shields_and_privacy));
+        SettingsUtils.addPreferencesFromResource(this, R.xml.raws_protection_preferences);
+        Preference refresh = findPreference("raws_refresh_filters");
+        if (refresh != null) {
+            refresh.setOnPreferenceClickListener(preference -> {
+                boolean accepted = RawsProtectionCopy.requestFilterRefresh(getProfile());
+                Toast.makeText(requireContext(),
+                        accepted ? R.string.raws_ui_refresh_requested
+                                 : R.string.raws_ui_refresh_not_started,
+                        Toast.LENGTH_SHORT).show();
+                return true;
+            });
+        }
+        updateStatus();
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        updateStatus();
+    }
+
+    private void updateStatus() {
+        Preference status = findPreference("raws_global_protection_status");
+        if (status != null) {
+            status.setSummary(RawsProtectionCopy.currentStatusStringId());
+        }
+    }
+
+    @Override
+    public @AnimationType int getAnimationType() {
+        return AnimationType.PROPERTY;
+    }
+
+    @Override
+    public MonotonicObservableSupplier<String> getPageTitle() {
+        return mPageTitle;
+    }
+}

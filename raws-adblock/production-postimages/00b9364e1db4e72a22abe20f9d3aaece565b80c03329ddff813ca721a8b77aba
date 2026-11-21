@@ -1,0 +1,74 @@
+// Copyright 2026 The Sandium Authors.
+// SPDX-License-Identifier: BSD-3-Clause
+package org.chromium.chrome.browser.ui.appmenu;
+
+import android.content.Context;
+import android.os.Handler;
+import android.os.Looper;
+import org.chromium.base.task.PostTask;
+import org.chromium.base.task.TaskTraits;
+import java.util.LinkedHashSet;
+import java.util.function.Consumer;
+
+/** Same RawS preference file and v1 web encoding, independent Recent Tabs slot. */
+final class RawSParityMenuPreferences {
+    private final RawSMenuStore store;
+    private final boolean recent;
+    private final Handler ui = new Handler(Looper.getMainLooper());
+    private String expected;
+
+    RawSParityMenuPreferences(Context context, boolean recent) {
+        this.store = new RawSMenuStore(context, recent);
+        this.recent = recent;
+        expected = store.read();
+    }
+
+    String load() {
+        return convert(expected);
+    }
+
+    // Only valid old states migrate in memory. Unknown entries remain known,
+    // including already-customized items not eligible in this menu context.
+    static String convert(String raw) {
+        RawSMenuModel<Object> legacy = new RawSMenuModel<>(raw);
+        if (raw.isEmpty() || !legacy.writable()) return "";
+        StringBuilder out = new StringBuilder("sandium-menu-v1");
+        var canonicalKeys = new LinkedHashSet<String>();
+        for (String key : legacy.orderedKeys()) {
+            String normalized = RawSParityMenuCatalog.canonical(key);
+            if (!canonicalKeys.add(normalized)) continue;
+            out.append('\n').append(normalized).append('\t')
+                    .append(legacy.isVisible(key) ? '0' : '1');
+        }
+        return out.toString();
+    }
+
+    static String encode(SandiumMenuState state) {
+        if (state.knownKeys().size() > 256) return "";
+        StringBuilder out = new StringBuilder("raws-menu-v1\n");
+        for (String key : state.knownKeys()) {
+            if (!key.matches("[a-z][a-z0-9_]{0,127}")) return "";
+            // Retain Chromium's old key for existing Settings editing and downgrade.
+            String oldKey = "home_menu_id".equals(key) ? "homepage_menu_id" : key;
+            out.append(oldKey).append('\t').append(state.isHidden(key) ? '0' : '1').append('\n');
+        }
+        String encoded = out.toString();
+        return new RawSMenuModel<>(encoded).writable() ? encoded : "";
+    }
+
+    void save(SandiumMenuState state, Consumer<Boolean> completion) {
+        String before = expected;
+        String encoded = encode(state);
+        if (encoded.isEmpty() || (!before.isEmpty() && convert(before).isEmpty())) {
+            ui.post(() -> completion.accept(false));
+            return;
+        }
+        PostTask.postTask(TaskTraits.USER_VISIBLE_MAY_BLOCK, () -> {
+            boolean ok = store.writeIfUnchanged(before, encoded);
+            ui.post(() -> {
+                if (ok) expected = encoded;
+                completion.accept(ok);
+            });
+        });
+    }
+}

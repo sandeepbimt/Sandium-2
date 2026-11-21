@@ -137,7 +137,9 @@ def completed():
     apk = (root / 'handoff/stage1' / name if feature is not None
            else root / 'artifacts/RawSandium-baseline-arm64.apk')
     expected_recipe = feature.identity if feature is not None else None
-    if feature is not None and (len(state.get('raws_engine_smoke',{}).get('cases',[]))!=(13 if port1442 else 9)
+    smoke_cases = state.get('raws_engine_smoke', {}).get('cases', [])
+    if feature is not None and (len(smoke_cases) != (14 if port1442 else 9)
+                                or ('incident1471-player-rules' in smoke_cases) != port1442
                                 or state.get('raws_engine_apk_graph_verified') is not True):
         raise ValueError('Missing actual engine smoke or Android linkage proof')
     if feature is not None and feature.has_ui and state.get('raws_ui_apk_graph_verified') is not True:

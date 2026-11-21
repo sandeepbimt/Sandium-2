@@ -53,12 +53,13 @@ def run_identity(root):
 def build_receipt(root, state, apk):
     checkout, workflow = run_identity(root)
     digest = state.get('apk_sha256', '')
+    smoke_cases = state.get('raws_engine_smoke', {}).get('cases', [])
     if (state.get('stage') != 1 or state.get('status') != 'done'
             or state.get('apk_package') != APPLICATION_ID
             or state.get('apk_abis') != ['arm64-v8a']
             or not all(state.get(k) is True for k in EVIDENCE)
             or not HEX64.fullmatch(state.get('feature_recipe_sha256') or '')
-            or len(state.get('raws_engine_smoke', {}).get('cases', [])) != 13
+            or len(smoke_cases) != 14 or 'incident1471-player-rules' not in smoke_cases
             or not apk.is_file() or apk.is_symlink()
             or not HEX64.fullmatch(digest) or sha256(apk) != digest):
         raise ValueError('Unverified candidate cannot enter the RawS signing workspace')

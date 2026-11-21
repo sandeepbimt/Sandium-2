@@ -37,6 +37,12 @@ def verify_output(text):
         raise ValueError('unexpected engine test output; no pass receipt')
 
 
+def verify_port_output(text):
+    expected = ['RAWS_1471_INCIDENT_RULES_PASS', 'RAWS_ENGINE_SMOKE_1442_PASS']
+    if text.splitlines() != expected:
+        raise ValueError('Unexpected #1442 and player incident native smoke output')
+
+
 def verify_tree(expected, src):
     """Compare installed regular files (including modes) with a fresh Git-object staging."""
     receipt = json.loads((expected/'source-receipt.json').read_bytes())
@@ -136,15 +142,15 @@ def main():
         if out not in exe.parents: raise ValueError('executable outside new diagnostic output')
         result=cmd([str(exe)],True); print(result,end='')
         if port_cases:
-            if result.splitlines() != ['RAWS_ENGINE_SMOKE_1442_PASS']:
-                raise ValueError('Unexpected #1442 native smoke output')
+            verify_port_output(result)
         else:
             verify_output(result)
         hashes[executable] = hashlib.sha256(exe.read_bytes()).hexdigest()
     (out/'engine-result.json').write_text(json.dumps({'scope':'host Rust/CXX only; not APK or device parity',
         'source_receipt_sha256':receipt_hash,'host_label':host[0],'pins':stage.PINS,
         'executable_sha256':hashes[smoke_target.split(':', 1)[1]], 'executables_sha256':hashes,
-        'cases':list(CASES) + (['six-network', 'four-popup', 'scoped-hide', 'scoped-exception']
+        'cases':list(CASES) + (['six-network', 'four-popup', 'scoped-hide',
+                                'scoped-exception', 'incident1471-player-rules']
                                if args.port1442 else []),'apk_tested':False,'remote_execution_verified':False},indent=2)+'\n')
 
 if __name__=='__main__':

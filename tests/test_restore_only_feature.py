@@ -278,6 +278,27 @@ class FeatureTransition(unittest.TestCase):
                         self.load()
                 del self.edits[path]
 
+    def test_menu_namespaces_reject_preexisting_and_unsealed_resource_files(self):
+        from restore_only_menu_ui import MENU_RESOURCE_DIR
+        self.add_ui()
+        digest = self.admit()
+        with patch.object(feature, 'APPROVED_UI_MANIFEST_SHA256', digest):
+            overlay = self.load()
+            for resource in ('values/sandium_menu_unreviewed.xml',
+                             'drawable/raws_sandium_menu_unreviewed.xml'):
+                with self.subTest(resource=resource):
+                    injected = put(self.source, MENU_RESOURCE_DIR + resource, b'unreviewed')
+                    with self.assertRaisesRegex(ValueError, 'resource inventory differs'):
+                        overlay.preflight(self.source, self.upstream)
+                    injected.unlink()
+            overlay.apply(self.source, self.upstream)
+            injected = put(self.source, MENU_RESOURCE_DIR + 'values/sandium_menu_unreviewed.xml',
+                           b'unreviewed')
+            with self.assertRaisesRegex(ValueError, 'resource inventory differs'):
+                overlay.verify(self.source, self.upstream)
+            injected.unlink()
+            overlay.verify(self.source, self.upstream)
+
     def test_ui_exact_preimages_group_write_and_generated_modes(self):
         self.add_ui()
         for name in (UI_JAVA, UI_GN):
@@ -374,7 +395,16 @@ class FrozenScope(unittest.TestCase):
                          actual.tracked_paths - feature.TRACKED)
         self.assertEqual(feature.UI_GENERATED | extra_generated, actual.ui_files)
         if extra:
-            self.assertEqual(32, len(extra_tracked))
+            self.assertEqual(44, len(extra_tracked))
+            self.assertLessEqual({
+                'chrome/android/java/src/org/chromium/chrome/browser/' + name
+                for name in ('ntp/NewTabPage.java', 'suggestions/tile/MostVisitedTilesLayout.java',
+                             'suggestions/tile/SuggestionsTileView.java')
+            }, extra_tracked)
+            self.assertEqual(8, sum(p.startswith('chrome/browser/ui/android/omnibox/')
+                                    for p in extra_tracked))
+            self.assertIn('chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/'
+                          'browser/toolbar/ToolbarPositionController.java', extra_tracked)
             self.assertEqual(3, len(extra_generated))
             for name, entry in extra['staged_vendor_delta'].items():
                 self.assertEqual(entry['after'], actual.files[name][1])
@@ -383,7 +413,7 @@ class FrozenScope(unittest.TestCase):
         self.assertLessEqual({UI_JAVA, UI_GN}, feature.APPROVED_UI_TRACKED)
         self.assertLessEqual({UI_DAY, UI_NIGHT}, actual.ui_files)
         self.assertTrue(actual.has_ui)
-        for name in actual.ui_files | feature.APPROVED_UI_TRACKED | feature.APPROVED_GN_COMPAT_TRACKED:
+        for name in actual.ui_files | (actual.tracked_paths - feature.TRACKED):
             before, after, mode = actual.files[name]
             self.assertEqual(name in actual.ui_files, before is None)
             self.assertEqual('644', mode)

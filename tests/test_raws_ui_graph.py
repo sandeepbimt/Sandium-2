@@ -40,6 +40,7 @@ ACTIONS = {
     INTERNAL + ':java' + JAVAC: 'inputs',
     INTERNAL + ':java_resources' + PREPARE: 'sources',
     TOOLBAR + JAVAC: 'inputs',
+    '//chrome/browser/ui/android/omnibox:java' + JAVAC: 'inputs',
 }
 
 
@@ -72,7 +73,7 @@ class NativeUiGraph(unittest.TestCase):
         intended = {'//' + name for name in files
                     if name.startswith(('chrome/android/', 'chrome/browser/ui/android/',
                                         'chrome/browser/feed/android/'))
-                    and name.endswith(('.java', '.xml', '.png'))}
+                    and name.endswith(('.java', '.xml', '.png', '.webp'))}
         self.assertEqual(intended, set().union(*(paths for field, paths in owners.values())))
         with tempfile.TemporaryDirectory() as tmp:
             receipt = Path(tmp) / 'graph.txt'
@@ -84,16 +85,40 @@ class NativeUiGraph(unittest.TestCase):
             self.assertNotIn((JAVA, 'sources'), [tuple(call.args[0][3:5]) for call in args])
             self.assertNotIn((RES, 'sources'), [tuple(call.args[0][3:5]) for call in args])
 
-    def test_quick_grid_registration_does_not_rebuild_parent_when_opening_a_flyout(self):
+    def test_paged_presenter_contained_in_root_native_popup_not_native_flyout(self):
         files = json.loads((ROOT / 'raws-adblock/production-restore-recipe.json').read_text())['files']
-        handler = ('chrome/browser/ui/android/appmenu/internal/java/src/org/chromium/chrome/'
-                   'browser/ui/appmenu/AppMenuHandlerImpl.java')
-        digest = files[handler]['after_sha256']
-        java = (ROOT / 'raws-adblock/production-postimages' / digest).read_text()
-        before_flyout, flyout = java.split('public AppMenuPopup createAndShowFlyoutPopup(', 1)
-        self.assertEqual(1, before_flyout.count('/* includeRawSGrid= */ true'))
-        self.assertIn('if (includeRawSGrid && rawSMenuEligible())', before_flyout)
-        self.assertIn('/* includeRawSGrid= */ false', flyout)
+        prefix = ('chrome/browser/ui/android/appmenu/internal/java/src/org/chromium/chrome/'
+                  'browser/ui/appmenu/')
+
+        def java(name):
+            digest = files[prefix + name + '.java']['after_sha256']
+            return (ROOT / 'raws-adblock/production-postimages' / digest).read_text()
+
+        handler = java('AppMenuHandlerImpl')
+        root_handler, flyout_handler = handler.split('public AppMenuPopup createAndShowFlyoutPopup(', 1)
+        self.assertEqual(1, root_handler.count('mAppMenu.setSandiumModels('))
+        self.assertIn('mModelList = mDelegate.getMenuItems();', root_handler)
+        self.assertIn('!startDragging && rawSMenuEligible() ? mModelList : null', root_handler)
+        self.assertNotIn('/* includeRawSGrid= */ true', handler)
+        self.assertNotIn('setSandiumModels(', flyout_handler)
+        self.assertIn('/* includeRawSGrid= */ false', flyout_handler)
+
+        app_menu = java('AppMenu')
+        main, flyout = app_menu.split('Creates, displays, and tracks a new flyout sub-menu.', 1)
+        self.assertEqual(1, main.count('new SandiumPagedMenu('))
+        self.assertEqual(1, main.count('popup.setContentView(contentView);'))
+        self.assertLess(main.index('contentView = menu;'),
+                        main.index('popup.setContentView(contentView);'))
+        self.assertIn('mHierarchicalMenuController.setupFlyoutController(', main)
+        self.assertIn('mSandiumMenu != menu', main)
+        self.assertNotIn('new SandiumPagedMenu(', flyout)
+
+        presenter = java('SandiumPagedMenu')
+        self.assertNotIn('new PopupWindow', presenter)
+        self.assertIn('entry.model != captured || !enabled(entry.model)', presenter)
+        self.assertIn('handler.onItemClick(entry.model, null);', presenter)
+        self.assertIn('.with(AppMenuItemProperties.MENU_ITEM_ID, 0)', presenter)
+        self.assertIn('.with(AppMenuItemProperties.ENABLED, false)', presenter)
 
     def test_missing_action_or_host_only_action_cannot_pass(self):
         for alternate in ('', TOOLBAR + JAVAC + '(//build/toolchain/linux:clang_x64)'):
@@ -114,6 +139,22 @@ class NativeUiGraph(unittest.TestCase):
                     response = self.responses()
                     response[key] = response[key].replace(DARK, '') if key[1] == 'sources' else ''
                     with self.assertRaisesRegex(ValueError, 'APK graph lacks RawS UI (sources|resource dependency)'):
+                        self.invoke(response, receipt)
+                    self.assertFalse(receipt.exists())
+
+    def test_missing_compiled_menu_presenter_or_donor_vector_fails(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            receipt = Path(tmp) / 'graph.txt'
+            for label, property_name, filename in (
+                    (INTERNAL + ':java' + JAVAC, 'inputs', 'SandiumPagedMenu.java'),
+                    (INTERNAL + ':java_resources' + PREPARE, 'sources',
+                     'raws_sandium_menu_shred.xml')):
+                with self.subTest(filename=filename):
+                    response = self.responses()
+                    key = (label, property_name)
+                    response[key] = '\n'.join(line for line in response[key].splitlines()
+                                               if not line.endswith('/' + filename))
+                    with self.assertRaisesRegex(ValueError, 'APK graph lacks RawS UI sources'):
                         self.invoke(response, receipt)
                     self.assertFalse(receipt.exists())
 

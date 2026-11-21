@@ -117,6 +117,39 @@ int main() {
     AppendSimpleGenericStyles(merged_css, true, selectors, {}, {});
     if (!merged_css.empty()) return 17;
   }
+  // Exercise the same compiled-in list used by Install(), not a copy of the rules.
+  auto incident = Build(sandium::port1442::kPlayerIncidentRules);
+  auto exceptions = Build("@@||atdzfavz.in/allowed.js$script,domain=caseyseemavoid.com\n");
+  if (incident.result_kind != adblock::ResultKind::Success ||
+      exceptions.result_kind != adblock::ResultKind::Success) return 18;
+  struct IncidentCase { const char* issuer; const char* url; R type; bool block; };
+  for (auto c : std::vector<IncidentCase>{
+       {"caseyseemavoid.com", "https://atdzfavz.in/rats/gfotkoqa/pkaasmj", R::kScript,true},
+       {"caseyseemavoid.com", "https://www.atdzfavz.in/static/image/pn/test.gif", R::kImage,true},
+       {"caseyseemavoid.com", "https://atdzfavz.in/nca/dik/ahxabqo", R::kSubFrame,true},
+       {"caseyseemavoid.com", "https://atdzfavz.in/pixel", R::kSubResource,true},
+       {"caseyseemavoid.com", "https://www.atdzfavz.in/tracker.ico", R::kFavicon,true},
+       {"caseyseemavoid.com", "https://player.test/favicon.ico", R::kFavicon,false},
+       {"caseyseemavoid.com", "https://atdzfavz.in/allowed.js", R::kScript,false},
+       {"caseyseemavoid.com", "https://atdzfavz.in/movie.mp4", R::kMedia,false},
+       {"caseyseemavoid.com", "https://video.cloudwindow-route.com/engine/mp4-proxy/test.mp4", R::kMedia,false},
+       {"unrelated.test", "https://atdzfavz.in/rats/gfotkoqa/pkaasmj", R::kScript,false}}) {
+    auto source = url::Origin::Create(GURL(std::string("https://") + c.issuer));
+    auto match = sandium::adblock_native::MatchStandard(*exceptions.value, *incident.value,
+        GURL(c.url), c.type, source, "GET");
+    if (sandium::adblock_native::ResolveDecision(match, {}, "GET", false).history.blocked()
+        != c.block) { std::cerr << "1471 network regression: " << c.url << '\n'; return 19; }
+  }
+  for (auto [url, block] : {std::pair{"https://cartographicalrunafoulstreet.com/5/0123456789abcdef0123456789abcdef?psid=12",true},
+                            std::pair{"https://ablelaunchshorts.com/2060440?psid=12",true},
+                            std::pair{"https://g2288.com/afu.php?id=12",true},
+                            std::pair{"https://pay.test/checkout",false}}) {
+    GURL target(url);
+    auto m = incident.value->matches(target.spec(),std::string(target.host()),
+        std::string("caseyseemavoid.com"),std::string("popup"),true,std::string("GET"),false,true);
+    if ((m.matched && !m.has_exception) != block) return 20;
+  }
+  std::cout << "RAWS_1471_INCIDENT_RULES_PASS\n";
   std::cout << "RAWS_ENGINE_SMOKE_1442_PASS\n";
   return 0;
 }

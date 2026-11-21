@@ -27,7 +27,7 @@ class SigningHandoffTest(unittest.TestCase):
         self.state.update(
             stage=1, status='done', apk_package=ci.APPLICATION_ID,
             apk_abis=['arm64-v8a'], feature_recipe_sha256=ci.sha256(manifest),
-            apk_sha256=ci.sha256(self.apk), raws_engine_smoke={'cases': list(range(13))},
+            apk_sha256=ci.sha256(self.apk), raws_engine_smoke={'cases': list(range(13)) + ['incident1471-player-rules']},
         )
 
     def stage(self):
