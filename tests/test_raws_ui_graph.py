@@ -12,6 +12,7 @@ import ci_prepare_raws_engine as graph
 
 APK = '//chrome/android:chrome_public_apk'
 JAVA = '//chrome/android:chrome_java'
+JNI = '//chrome/android:chrome_jni_headers__action'
 RES = '//chrome/android:chrome_app_java_resources'
 MENU = '//chrome/browser/ui/android/appmenu'
 INTERNAL = MENU + '/internal'
@@ -28,7 +29,12 @@ ENGINE = '\n'.join(('//components/sandium_adblock:document_subresource_factory',
 # prepare_resources actions expose sources. The default GN toolchain's
 # deps list uses unqualified labels, with explicit suffixes for other tools.
 ACTIONS = {
+    JNI: 'inputs',
     JAVA + JAVAC: 'inputs',
+    '//chrome/android:chrome_base_module_resources' + PREPARE: 'sources',
+    '//chrome/android:chrome_public_apk_base_module_resources' + PREPARE: 'sources',
+    '//chrome/android:new_tab_page_utils_java' + JAVAC: 'inputs',
+    '//chrome/browser/feed/android:java' + JAVAC: 'inputs',
     RES + PREPARE: 'sources',
     MENU + ':java' + JAVAC: 'inputs',
     INTERNAL + ':java' + JAVAC: 'inputs',
@@ -64,17 +70,30 @@ class NativeUiGraph(unittest.TestCase):
         owners = graph.ui_source_targets()
         files = json.loads((ROOT / 'raws-adblock/production-restore-recipe.json').read_text())['files']
         intended = {'//' + name for name in files
-                    if name.startswith(('chrome/android/', 'chrome/browser/ui/android/'))
-                    and name.endswith(('.java', '.xml'))}
+                    if name.startswith(('chrome/android/', 'chrome/browser/ui/android/',
+                                        'chrome/browser/feed/android/'))
+                    and name.endswith(('.java', '.xml', '.png'))}
         self.assertEqual(intended, set().union(*(paths for field, paths in owners.values())))
         with tempfile.TemporaryDirectory() as tmp:
             receipt = Path(tmp) / 'graph.txt'
             args = self.invoke(self.responses(), receipt)
             self.assertIn(DARK, receipt.read_text())
             self.assertIn(JAVA + JAVAC, receipt.read_text())
+            self.assertIn(JNI, receipt.read_text())
             self.assertEqual(1 + len(ACTIONS) + 2, len(args))
             self.assertNotIn((JAVA, 'sources'), [tuple(call.args[0][3:5]) for call in args])
             self.assertNotIn((RES, 'sources'), [tuple(call.args[0][3:5]) for call in args])
+
+    def test_quick_grid_registration_does_not_rebuild_parent_when_opening_a_flyout(self):
+        files = json.loads((ROOT / 'raws-adblock/production-restore-recipe.json').read_text())['files']
+        handler = ('chrome/browser/ui/android/appmenu/internal/java/src/org/chromium/chrome/'
+                   'browser/ui/appmenu/AppMenuHandlerImpl.java')
+        digest = files[handler]['after_sha256']
+        java = (ROOT / 'raws-adblock/production-postimages' / digest).read_text()
+        before_flyout, flyout = java.split('public AppMenuPopup createAndShowFlyoutPopup(', 1)
+        self.assertEqual(1, before_flyout.count('/* includeRawSGrid= */ true'))
+        self.assertIn('if (includeRawSGrid && rawSMenuEligible())', before_flyout)
+        self.assertIn('/* includeRawSGrid= */ false', flyout)
 
     def test_missing_action_or_host_only_action_cannot_pass(self):
         for alternate in ('', TOOLBAR + JAVAC + '(//build/toolchain/linux:clang_x64)'):
@@ -89,7 +108,7 @@ class NativeUiGraph(unittest.TestCase):
     def test_missing_actual_input_source_or_declared_resource_link_fails(self):
         with tempfile.TemporaryDirectory() as tmp:
             receipt = Path(tmp) / 'graph.txt'
-            for key in ((JAVA + JAVAC, 'inputs'), (JAVA, 'deps'),
+            for key in ((JAVA + JAVAC, 'inputs'), (JNI, 'inputs'), (JAVA, 'deps'),
                         (RES + PREPARE, 'sources'), (MENU + ':java' + JAVAC, 'inputs')):
                 with self.subTest(key=key):
                     response = self.responses()

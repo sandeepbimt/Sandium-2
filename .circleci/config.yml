@@ -19,6 +19,12 @@ parameters:
   raw_full_restore_only:
     type: boolean
     default: false
+  run_raw_signed_test:
+    type: boolean
+    default: false
+  run_raw_signing_probe:
+    type: boolean
+    default: false
 jobs:
   raw-bootstrap:
     machine:
@@ -2776,6 +2782,158 @@ jobs:
     - store_artifacts:
         path: .checkpoint-state
         destination: raws-fresh-restore-evidence
+  raws-test-identity-compile:
+    machine:
+      image: ubuntu-2404:current
+    resource_class: large
+    retention:
+      caches: 15d
+    environment:
+      RAWS_STAGE: '1'
+      RAWS_PIPELINE_NUMBER: << pipeline.number >>
+      RAWS_CHECKPOINT_REVIEWED: 'true'
+      RAWS_ALLOW_FRESH_SEED: 'false'
+      SISO_LIMITS: local=8,remote=80
+      RAWS_DISTINCT_TEST_IDENTITY: 'true'
+    steps:
+    - checkout
+    - run:
+        name: Verify exact checkout and no signing material
+        command: 'set -euo pipefail
+
+          test "$CIRCLE_BRANCH" = "raw-sandium/official158"
+
+          test "$(git rev-parse HEAD)" = "$CIRCLE_SHA1"
+
+          set +x
+
+          test -z "${RAWS_TEST_KEYSTORE_B64+x}"
+
+          test -z "${RAWS_KEYSTORE_PASSWORD+x}"
+
+          test -z "${RAWS_KEY_PASSWORD+x}"
+
+          '
+        no_output_timeout: 55m
+    - run:
+        name: Install CI validation and checkpoint tools
+        command: sudo apt-get update -qq && sudo apt-get install -y zstd python3-yaml
+        no_output_timeout: 55m
+    - run:
+        name: Guard isolated RawS checkout
+        command: 'test "$CIRCLE_BRANCH" = "raw-sandium/official158"
+
+          /usr/bin/python3 -m unittest discover -s tests -v'
+        no_output_timeout: 55m
+    - run:
+        name: RawS Full gate
+        command: python3 -u tools/ci_full.py gate
+        no_output_timeout: 55m
+    - run:
+        name: Ensure verified shard tools
+        command: command -v zstd >/dev/null || (sudo apt-get update -qq && sudo apt-get install -y zstd)
+        no_output_timeout: 55m
+    - restore_cache:
+        name: 'Restore exact verified RawS #1396 receipt'
+        keys:
+        - raws-final-receipt-v1-1okrnzzf7a7dVnuYH3RZUQh3v8ABzZh4G4yc4YAiROY=
+    - run:
+        name: RawS signed test select
+        command: RAWS_ALLOW_FRESH_SEED=false python3 -u tools/ci_restore_only.py select
+        no_output_timeout: 55m
+    - restore_cache:
+        name: 'Restore exact verified RawS #1396 final archive'
+        keys:
+        - raws-final-base-v1-xLg0fZPI+fw9SpoFza6mLhAhAB2lVxH6jMOzj9OmBBU=
+    - run:
+        name: RawS Full restore-base
+        command: python3 -u tools/ci_full.py restore-base
+        no_output_timeout: 55m
+    - run:
+        name: RawS Full restore-finish
+        command: python3 -u tools/ci_full.py restore-finish
+        no_output_timeout: 55m
+    - run:
+        name: RawS signed test compile
+        command: RAWS_ALLOW_FRESH_SEED=false python3 -u tools/ci_restore_only.py compile
+        no_output_timeout: 55m
+    - run:
+        name: RawS signed test completed
+        command: RAWS_ALLOW_FRESH_SEED=false python3 -u tools/ci_restore_only.py completed
+        no_output_timeout: 55m
+    - persist_to_workspace:
+        root: .raws-signing-input
+        paths:
+        - candidate.apk
+        - receipt.json
+  raws-test-identity-sign:
+    machine:
+      image: ubuntu-2404:current
+    resource_class: medium
+    steps:
+    - checkout
+    - run:
+        name: Verify exact signer source commit
+        command: 'set -euo pipefail
+
+          test "$CIRCLE_BRANCH" = "raw-sandium/official158"
+
+          test "$(git rev-parse HEAD)" = "$CIRCLE_SHA1"'
+        no_output_timeout: 55m
+    - run:
+        name: Install hash-pinned official Android Build Tools 36.0.0
+        command: "set +x\nset -euo pipefail\numask 077\nexpected=5d9ac77fb6ff43d9da518a337b4fcf8f9097113df531d99ccefe80ef7ce8250b\nsdk=/tmp/raws-signer-sdk\n\
+          mkdir -m 700 \"$sdk\"\narchive=$(mktemp /tmp/raws-build-tools.XXXXXX)\ntrap 'rm -f \"$archive\"' EXIT\ncurl --fail --silent --show-error --location\
+          \ --proto '=https' --proto-redir '=https' \\\n  --tlsv1.2 --retry 2 --connect-timeout 15 --max-time 180 \\\n  --output \"$archive\" https://dl.google.com/android/repository/build-tools_r36_linux.zip\n\
+          test \"$(wc -c < \"$archive\")\" -eq 63737259\nprintf '%s  %s\\n' \"$expected\" \"$archive\" | sha256sum --check --status\nunzip -q \"$archive\"\
+          \ -d \"$sdk\"\ntest -x \"$sdk/android-16/apksigner\"\ntest -x \"$sdk/android-16/zipalign\"\ntest -x \"$sdk/android-16/aapt2\"\ngrep -Eq '^[[:space:]]*Pkg.Revision[[:space:]]*=[[:space:]]*36\\\
+          .0\\.0[[:space:]]*$' \"$sdk/android-16/source.properties\"\nprintf 'RAWS_SIGNING_SDK_VERIFIED sha256=%s prefix=android-16 revision=36.0.0\\n'\
+          \ \"$expected\"\n"
+        no_output_timeout: 55m
+    - attach_workspace:
+        at: .raws-signing-input
+    - run:
+        name: Verify inputs, sign, and admit the final directory atomically
+        command: "set +x\nset -euo pipefail\numask 077\ntest ! -e .raws-signing-verified\ntest ! -L .raws-signing-verified\ntest ! -e artifacts/raws-signed\n\
+          test ! -L artifacts/raws-signed\ntest ! -L artifacts\npython3 -u tools/ci_sign_raws_test.py --input .raws-signing-input \\\n  --sdk /tmp/raws-signer-sdk/android-16\
+          \ --output-dir .raws-signing-verified\nmkdir -p artifacts\nmv -T .raws-signing-verified artifacts/raws-signed\n"
+        no_output_timeout: 55m
+    - store_artifacts:
+        path: artifacts/raws-signed
+        destination: raws-signed
+  raws-test-signing-context-probe:
+    machine:
+      image: ubuntu-2404:current
+    resource_class: medium
+    steps:
+    - run:
+        name: Verify only restricted nonsecret signing canary
+        command: 'set +x
+
+          set -euo pipefail
+
+          test "$CIRCLE_BRANCH" = "raw-sandium/official158"
+
+          set +x
+
+          test -z "${RAWS_TEST_KEYSTORE_B64+x}"
+
+          test -z "${RAWS_KEYSTORE_PASSWORD+x}"
+
+          test -z "${RAWS_KEY_PASSWORD+x}"
+
+          test "${RAWS_SIGNING_CONTEXT_CANARY:-}" = "raws-test-signing-probe-v1"'
+        no_output_timeout: 55m
+    - run:
+        name: Verify the official signer tools with no credentials present
+        command: "set +x\nset -euo pipefail\numask 077\nexpected=5d9ac77fb6ff43d9da518a337b4fcf8f9097113df531d99ccefe80ef7ce8250b\nsdk=/tmp/raws-signer-sdk\n\
+          mkdir -m 700 \"$sdk\"\narchive=$(mktemp /tmp/raws-build-tools.XXXXXX)\ntrap 'rm -f \"$archive\"' EXIT\ncurl --fail --silent --show-error --location\
+          \ --proto '=https' --proto-redir '=https' \\\n  --tlsv1.2 --retry 2 --connect-timeout 15 --max-time 180 \\\n  --output \"$archive\" https://dl.google.com/android/repository/build-tools_r36_linux.zip\n\
+          test \"$(wc -c < \"$archive\")\" -eq 63737259\nprintf '%s  %s\\n' \"$expected\" \"$archive\" | sha256sum --check --status\nunzip -q \"$archive\"\
+          \ -d \"$sdk\"\ntest -x \"$sdk/android-16/apksigner\"\ntest -x \"$sdk/android-16/zipalign\"\ntest -x \"$sdk/android-16/aapt2\"\ngrep -Eq '^[[:space:]]*Pkg.Revision[[:space:]]*=[[:space:]]*36\\\
+          .0\\.0[[:space:]]*$' \"$sdk/android-16/source.properties\"\nprintf 'RAWS_SIGNING_SDK_VERIFIED sha256=%s prefix=android-16 revision=36.0.0\\n'\
+          \ \"$expected\"\n"
+        no_output_timeout: 55m
 job-groups:
   raws-full-chain:
     jobs:
@@ -2817,28 +2975,57 @@ job-groups:
         filters:
           branches:
             only: raw-sandium/official158
+  raws-signed-test-chain:
+    jobs:
+    - raws-test-identity-compile:
+        filters: &id003
+          branches:
+            only: raw-sandium/official158
+    - raws-test-identity-sign:
+        requires:
+        - raws-test-identity-compile
+        filters:
+          branches:
+            only: raw-sandium/official158
+        context: RawS-Test-Signing
 workflows:
   raw-sandium-feasibility:
-    when: << pipeline.parameters.run_raw_preflight >>
+    when:
+      and:
+      - << pipeline.parameters.run_raw_preflight >>
+      - not: << pipeline.parameters.run_raw_signed_test >>
+      - not: << pipeline.parameters.run_raw_signing_probe >>
     jobs:
     - raw-preflight:
         filters:
           branches:
             only: raw-sandium/official158
   raw-sandium-bootstrap:
-    when: << pipeline.parameters.run_raw_bootstrap >>
+    when:
+      and:
+      - << pipeline.parameters.run_raw_bootstrap >>
+      - not: << pipeline.parameters.run_raw_signed_test >>
+      - not: << pipeline.parameters.run_raw_signing_probe >>
     jobs:
     - raw-bootstrap:
         filters:
           branches:
             only: raw-sandium/official158
   RawS full:
-    when: << pipeline.parameters.run_raw_full >>
+    when:
+      and:
+      - << pipeline.parameters.run_raw_full >>
+      - not: << pipeline.parameters.run_raw_signed_test >>
+      - not: << pipeline.parameters.run_raw_signing_probe >>
     jobs:
     - raws-full-chain:
         serial-group: << pipeline.project.slug >>/raws-full
   RawS checkpoint maintenance:
-    when: << pipeline.parameters.run_raw_maintenance >>
+    when:
+      and:
+      - << pipeline.parameters.run_raw_maintenance >>
+      - not: << pipeline.parameters.run_raw_signed_test >>
+      - not: << pipeline.parameters.run_raw_signing_probe >>
     jobs:
     - raws-maintenance:
         serial-group: << pipeline.project.slug >>/raws-full
@@ -2846,7 +3033,46 @@ workflows:
           branches:
             only: raw-sandium/official158
   RawS one-off final archive:
-    when: << pipeline.parameters.run_raw_final_archive >>
+    when:
+      and:
+      - << pipeline.parameters.run_raw_final_archive >>
+      - not: << pipeline.parameters.run_raw_signed_test >>
+      - not: << pipeline.parameters.run_raw_signing_probe >>
     jobs:
     - raws-final-chain:
         serial-group: << pipeline.project.slug >>/raws-full
+  RawS distinct signed test:
+    when:
+      and:
+      - << pipeline.parameters.run_raw_signed_test >>
+      - equal:
+        - raw-sandium/official158
+        - << pipeline.git.branch >>
+      - not: << pipeline.parameters.run_raw_preflight >>
+      - not: << pipeline.parameters.run_raw_bootstrap >>
+      - not: << pipeline.parameters.run_raw_full >>
+      - not: << pipeline.parameters.run_raw_maintenance >>
+      - not: << pipeline.parameters.run_raw_final_archive >>
+      - not: << pipeline.parameters.raw_full_restore_only >>
+      - not: << pipeline.parameters.run_raw_signing_probe >>
+    jobs:
+    - raws-signed-test-chain:
+        serial-group: << pipeline.project.slug >>/raws-full
+  RawS signing context probe:
+    when:
+      and:
+      - << pipeline.parameters.run_raw_signing_probe >>
+      - equal:
+        - raw-sandium/official158
+        - << pipeline.git.branch >>
+      - not: << pipeline.parameters.run_raw_preflight >>
+      - not: << pipeline.parameters.run_raw_bootstrap >>
+      - not: << pipeline.parameters.run_raw_full >>
+      - not: << pipeline.parameters.run_raw_maintenance >>
+      - not: << pipeline.parameters.run_raw_final_archive >>
+      - not: << pipeline.parameters.raw_full_restore_only >>
+      - not: << pipeline.parameters.run_raw_signed_test >>
+    jobs:
+    - raws-test-signing-context-probe:
+        filters: *id003
+        context: RawS-Test-Signing

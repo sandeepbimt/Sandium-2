@@ -54,7 +54,111 @@ def add_restore_only(result):
   invocation=next(iter(item.values()))
   invocation['filters']='pipeline.git.branch == "raw-sandium/official158" and not pipeline.parameters.'+key
 
-def generate(*, restore_only=True):
+def add_signed_test(result):
+ # Experimental distinct Android identity. APK compilation gets no signing
+ # context; only the exact candidate and receipt cross the private workspace.
+ from ci_restore_only import BASE_CACHE, RECEIPT_CACHE
+ key='run_raw_signed_test'
+ probe_key='run_raw_signing_probe'
+ selector='<< pipeline.parameters.'+key+' >>'
+ probe_selector='<< pipeline.parameters.'+probe_key+' >>'
+ result['parameters'][key]={'type':'boolean','default':False}
+ result['parameters'][probe_key]={'type':'boolean','default':False}
+ branch='raw-sandium/official158'
+ branch_filter={'branches':{'only':branch}}
+ guard='set -euo pipefail\ntest "$CIRCLE_BRANCH" = "'+branch+'"\ntest "$(git rev-parse HEAD)" = "$CIRCLE_SHA1"'
+ no_key=r"""set +x
+test -z "${RAWS_TEST_KEYSTORE_B64+x}"
+test -z "${RAWS_KEYSTORE_PASSWORD+x}"
+test -z "${RAWS_KEY_PASSWORD+x}"
+"""
+ def policy_phase(name):
+  return run('RawS signed test '+name,
+             'RAWS_ALLOW_FRESH_SEED=false python3 -u tools/ci_restore_only.py '+name)
+ compile_job=common(1)
+ compile_job['environment'].update(RAWS_DISTINCT_TEST_IDENTITY='true',RAWS_ALLOW_FRESH_SEED='false')
+ compile_job['steps']=['checkout',
+  run('Verify exact checkout and no signing material',guard+'\n'+no_key),
+  *gate()[1:-1],
+  restore(RECEIPT_CACHE,'Restore exact verified RawS #1396 receipt'),
+  policy_phase('select'),
+  restore(BASE_CACHE,'Restore exact verified RawS #1396 final archive'),
+  phase('restore-base'),phase('restore-finish'),
+  policy_phase('compile'),policy_phase('completed'),
+  {'persist_to_workspace':{'root':'.raws-signing-input','paths':['candidate.apk','receipt.json']}},
+ ]
+ install_sdk=r"""set +x
+set -euo pipefail
+umask 077
+expected=5d9ac77fb6ff43d9da518a337b4fcf8f9097113df531d99ccefe80ef7ce8250b
+sdk=/tmp/raws-signer-sdk
+mkdir -m 700 "$sdk"
+archive=$(mktemp /tmp/raws-build-tools.XXXXXX)
+trap 'rm -f "$archive"' EXIT
+curl --fail --silent --show-error --location --proto '=https' --proto-redir '=https' \
+  --tlsv1.2 --retry 2 --connect-timeout 15 --max-time 180 \
+  --output "$archive" https://dl.google.com/android/repository/build-tools_r36_linux.zip
+test "$(wc -c < "$archive")" -eq 63737259
+printf '%s  %s\n' "$expected" "$archive" | sha256sum --check --status
+unzip -q "$archive" -d "$sdk"
+test -x "$sdk/android-16/apksigner"
+test -x "$sdk/android-16/zipalign"
+test -x "$sdk/android-16/aapt2"
+grep -Eq '^[[:space:]]*Pkg.Revision[[:space:]]*=[[:space:]]*36\.0\.0[[:space:]]*$' "$sdk/android-16/source.properties"
+printf 'RAWS_SIGNING_SDK_VERIFIED sha256=%s prefix=android-16 revision=36.0.0\n' "$expected"
+"""
+ sign_job={'machine':{'image':'ubuntu-2404:current'},'resource_class':'medium','steps':[
+  'checkout',run('Verify exact signer source commit',guard),
+  run('Install hash-pinned official Android Build Tools 36.0.0',install_sdk),
+  {'attach_workspace':{'at':'.raws-signing-input'}},
+  run('Verify inputs, sign, and admit the final directory atomically',r"""set +x
+set -euo pipefail
+umask 077
+test ! -e .raws-signing-verified
+test ! -L .raws-signing-verified
+test ! -e artifacts/raws-signed
+test ! -L artifacts/raws-signed
+test ! -L artifacts
+python3 -u tools/ci_sign_raws_test.py --input .raws-signing-input \
+  --sdk /tmp/raws-signer-sdk/android-16 --output-dir .raws-signing-verified
+mkdir -p artifacts
+mv -T .raws-signing-verified artifacts/raws-signed
+"""),
+  {'store_artifacts':{'path':'artifacts/raws-signed','destination':'raws-signed'}},
+ ]}
+ probe_job={'machine':{'image':'ubuntu-2404:current'},'resource_class':'medium','steps':[
+  run('Verify only restricted nonsecret signing canary',
+      'set +x\nset -euo pipefail\ntest "$CIRCLE_BRANCH" = "'+branch+'"\n'+no_key+
+      'test "${RAWS_SIGNING_CONTEXT_CANARY:-}" = "raws-test-signing-probe-v1"'),
+  run('Verify the official signer tools with no credentials present',install_sdk),
+ ]}
+ result['jobs'].update({'raws-test-identity-compile':compile_job,'raws-test-identity-sign':sign_job,
+                        'raws-test-signing-context-probe':probe_job})
+ result['job-groups']['raws-signed-test-chain']={'jobs':[
+  {'raws-test-identity-compile':{'filters':branch_filter}},
+  {'raws-test-identity-sign':{'requires':['raws-test-identity-compile'],
+                            'filters':{'branches':{'only':branch}},'context':'RawS-Test-Signing'}},
+ ]}
+ # Miscombined trigger flags cannot accidentally publish a legacy artifact,
+ # sign a candidate, or schedule checkpoint maintenance. Default false keeps
+ # all historical workflows behaviorally unchanged.
+ for workflow in result['workflows'].values():
+  workflow['when']={'and':[workflow['when'],{'not':selector},{'not':probe_selector}]}
+ def exclusive(selected):
+  return {'and':['<< pipeline.parameters.'+selected+' >>',
+                 {'equal':[branch,'<< pipeline.git.branch >>']},
+                 *({'not':'<< pipeline.parameters.'+other+' >>'}
+                   for other in result['parameters'] if other!=selected)]}
+ result['workflows']['RawS distinct signed test']={
+  'when':exclusive(key),
+  'jobs':[{'raws-signed-test-chain':{'serial-group':'<< pipeline.project.slug >>/raws-full'}}],
+ }
+ result['workflows']['RawS signing context probe']={
+  'when':exclusive(probe_key),
+  'jobs':[{'raws-test-signing-context-probe':{'filters':branch_filter,'context':'RawS-Test-Signing'}}],
+ }
+
+def generate(*, restore_only=True, signed_test=True):
  old=yaml.safe_load((ROOT/'.circleci/config.yml').read_text())
  jobs={k:v for k,v in old['jobs'].items() if k in ('raw-preflight','raw-bootstrap')}
  params={k:v for k,v in old['parameters'].items() if k in ('run_raw_preflight','run_raw_bootstrap')}
@@ -82,6 +186,8 @@ def generate(*, restore_only=True):
   if n>1:item['requires']=[f'raws-full-stage-{n-1}']
   group.append({f'raws-full-stage-{n}':item})
  workflows={k:v for k,v in old['workflows'].items() if k in ('raw-sandium-feasibility','raw-sandium-bootstrap')}
+ workflows['raw-sandium-feasibility']['when']='<< pipeline.parameters.run_raw_preflight >>'
+ workflows['raw-sandium-bootstrap']['when']='<< pipeline.parameters.run_raw_bootstrap >>'
  workflows['RawS full']={'when':'<< pipeline.parameters.run_raw_full >>','jobs':[{'raws-full-chain':{'serial-group':'<< pipeline.project.slug >>/raws-full'}}]}
  workflows['RawS checkpoint maintenance']={'when':'<< pipeline.parameters.run_raw_maintenance >>','jobs':[{'raws-maintenance':{'serial-group':'<< pipeline.project.slug >>/raws-full','filters':{'branches':{'only':'raw-sandium/official158'}}}}]}
  result={'version':2.1,'parameters':params,'jobs':jobs,'job-groups':{'raws-full-chain':{'jobs':group}},'workflows':workflows}
@@ -89,6 +195,9 @@ def generate(*, restore_only=True):
  from generate_final_archive_config import generate_archive
  final=generate_archive(result)
  for section in ('parameters','jobs','workflows','job-groups'):result.setdefault(section,{}).update(final.get(section,{}))
- if restore_only:add_restore_only(result)
+ if restore_only:
+  add_restore_only(result)
+ if signed_test and restore_only:
+  add_signed_test(result)
  return result
 if __name__=='__main__':(ROOT/'.circleci/config.yml').write_text('# Generated by tools/generate_full_config.py; no Brave cache imports.\n'+yaml.safe_dump(generate(),sort_keys=False,width=150))

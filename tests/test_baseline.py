@@ -47,7 +47,22 @@ class CIIsolation(unittest.TestCase):
         preflight=str(yaml.safe_load(config)['jobs']['raw-preflight'])
         self.assertNotIn('restore_cache:',preflight)
         self.assertNotIn('save_cache:',preflight)
-        self.assertNotIn('context:',config)
+        self.assertNotIn('context:',preflight)
+        # The only contexts in RawS are the explicitly opt-in signer and the
+        # empty-context canary; ordinary builds must not inherit any of them.
+        parsed = yaml.safe_load(config)
+        contexts = []
+        for section in ('workflows', 'job-groups'):
+            for flow in parsed[section].values():
+                for job in flow['jobs']:
+                    if isinstance(job, dict):
+                        for name, invocation in job.items():
+                            if 'context' in invocation:
+                                contexts.append((name, invocation['context']))
+        self.assertEqual(sorted(contexts), [
+            ('raws-test-identity-sign', 'RawS-Test-Signing'),
+            ('raws-test-signing-context-probe', 'RawS-Test-Signing'),
+        ])
         self.assertIn('timeout 120s',config)
     def test_probe_has_no_compile_or_credentials(self):
         probe=(ROOT/'tools/ci_preflight.py').read_text()

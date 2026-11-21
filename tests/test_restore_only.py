@@ -21,7 +21,7 @@ FIXTURE = ROOT / 'tests/fixtures/restore-only-1396'
 class RestoreOnly(unittest.TestCase):
     def test_default_full_and_other_workflows_unchanged(self):
         old = generate(restore_only=False)
-        new = generate()
+        new = generate(signed_test=False)
         self.assertEqual({'type': 'boolean', 'default': False},
                          new['parameters'].pop('raw_full_restore_only'))
         stage1 = new['jobs']['raws-full-stage-1']['steps']

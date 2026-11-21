@@ -57,7 +57,7 @@ def restore_only_feature_command(out, metrics, target, budget):
         cmd[3]=f'{budget}s'
     return cmd
 
-def verify_apk(apk, src, env):
+def verify_apk(apk, src, env, *, distinct_test=False):
     with zipfile.ZipFile(apk) as z:
         bad=z.testzip()
         if bad:raise ValueError('APK ZIP checksum failed: '+bad)
@@ -74,15 +74,22 @@ def verify_apk(apk, src, env):
                    stdout=subprocess.PIPE,stderr=subprocess.PIPE)
     badging=subprocess.check_output([str(aapt),'dump','badging',str(apk)],env=env,text=True,timeout=60)
     match=re.search(r"^package: name='([^']+)'",badging,re.M)
-    if not match or match.group(1)!='org.chromium.chrome':
-        raise ValueError('Unexpected Chromium baseline APK package')
+    package = 'org.chromium.chrome'
+    if distinct_test:
+        from raws_release_identity import APPLICATION_ID, verify_package_metadata
+        verify_package_metadata(badging)
+        package = APPLICATION_ID
+    if not match or match.group(1) != package:
+        raise ValueError('Unexpected Android APK package')
     return {'apk_verified':True,'apk_sha256':file_sha(apk),'apk_package':match.group(1),
             'apk_abis':sorted(abis),'apk_signature_verified':True,'apk_zip_verified':True}
 
-def main(stage, *, feature=None):
+def main(stage, *, feature=None, distinct_test=False):
     if os.environ.get('CIRCLE_BRANCH')!='raw-sandium/official158' or stage not in (1,2,3,4,5):raise ValueError('Wrong build scope')
     if feature is not None and (stage != 1 or os.environ.get('RAWS_ALLOW_FRESH_SEED') != 'false'):
         raise ValueError('Feature build requires strict restore-only stage 1')
+    if distinct_test and (stage != 1 or feature is None or not feature.has_ui):
+        raise ValueError('Distinct RawS identity requires exact restore-only feature and UI')
     source_verifier = verify if feature is None else feature.verify
     ident=fingerprint(); folder=ROOT/f'handoff/stage{stage}';folder.mkdir(parents=True,exist_ok=True)
     artifacts=ROOT/'artifacts';artifacts.mkdir(exist_ok=True)
@@ -109,7 +116,11 @@ def main(stage, *, feature=None):
         # No legacy whole-output tar path may bypass its verified chain.
         state['restored_checkpoint']='managed by RawS Full driver'
         env, state['remote_config'] = configure(W/'src', W/'depot_tools', env)
-        (out/'args.gn').write_text((ROOT/'ci/args.gn').read_text())
+        gn_args = (ROOT/'ci/args.gn').read_text()
+        if distinct_test:
+            from raws_release_identity import compose_gn_args
+            gn_args = compose_gn_args(gn_args)
+        (out/'args.gn').write_text(gn_args)
         run_logged(['timeout','--kill-after=30s','5m',str(W/'depot_tools/gn'),'gen','out/RawSandium','--fail-on-unused-args'],
                    artifacts/f'gn-{stage}.log',phase=f'gn-generation-{stage}',cwd=W/'src',env=env,check=True)
         state['official_build']=verify_official(W/'src',W/'depot_tools',out,env,artifacts,stage)
@@ -165,12 +176,13 @@ def main(stage, *, feature=None):
         state['status']=classify(code,apk)
         if state['status']=='done':
             if feature is not None:source_verifier(W/'src',data)
-            state.update(verify_apk(apk,W/'src',env))
+            state.update(verify_apk(apk,W/'src',env,distinct_test=distinct_test))
             name = ('RawSandium-1442-Filters-arm64.apk' if port1442 else
                     'RawSandium-EasyList-arm64.apk' if feature is not None else
                     'RawSandium-baseline-arm64.apk')
             shutil.copy2(apk,(folder if feature is not None else artifacts)/name)
-            state.update(apk_produced=True,apk_sha256=file_sha(apk),device_tested=False,branding='Chromium baseline')
+            state.update(apk_produced=True,apk_sha256=file_sha(apk),device_tested=False,branding=(
+                'Sandium test identity (not release signed)' if distinct_test else 'Chromium baseline'))
         else:
             state['checkpoint_required']=True
             # The proven Full driver captures the immutable delta and receipt;

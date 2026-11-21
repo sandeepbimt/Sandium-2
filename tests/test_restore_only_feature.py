@@ -374,7 +374,7 @@ class FrozenScope(unittest.TestCase):
                          actual.tracked_paths - feature.TRACKED)
         self.assertEqual(feature.UI_GENERATED | extra_generated, actual.ui_files)
         if extra:
-            self.assertEqual(13, len(extra_tracked))
+            self.assertEqual(32, len(extra_tracked))
             self.assertEqual(3, len(extra_generated))
             for name, entry in extra['staged_vendor_delta'].items():
                 self.assertEqual(entry['after'], actual.files[name][1])

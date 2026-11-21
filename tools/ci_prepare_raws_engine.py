@@ -39,11 +39,35 @@ def ui_source_targets():
     appmenu = '//chrome/browser/ui/android/appmenu'
     internal = appmenu + '/internal'
     toolbar = '//chrome/browser/ui/android/toolbar'
+    feed = '//chrome/browser/feed/android'
+    # Chromium's base manifest resources and public APK branding overlay own
+    # these files; they are not sources of chrome_app_java_resources itself.
+    public_branding = {
+        main+'/java/res_chromium_base/values/channel_constants.xml',
+        *(main+'/java/res_chromium_base/mipmap-'+dpi+'/'+name
+          for dpi in ('mdpi', 'hdpi', 'xhdpi', 'xxhdpi', 'xxxhdpi')
+          for name in ('app_icon.png', 'layered_app_icon.png')),
+    }
     return {
+        main+':chrome_jni_headers__action': ('inputs', {
+            app_java+'/settings/RawsProtectionCopy.java',
+        }),
+        main+':chrome_base_module_resources__prepare': ('sources', public_branding | {
+            main+'/java/res_base/drawable/ic_launcher.xml',
+            main+'/java/res_base/drawable/ic_launcher_round.xml',
+        }),
+        main+':chrome_public_apk_base_module_resources__prepare': ('sources', public_branding),
+        main+':new_tab_page_utils_java__compile_java': ('inputs', {
+            app_java+'/ntp/NewTabPageUtils.java',
+        }),
+        feed+':java__compile_java': ('inputs', {
+            feed+'/java/src/org/chromium/chrome/browser/feed/FeedFeatures.java',
+        }),
         # Chromium 52bdd217: android_library() exposes a group with no files.
         # internal_rules.gni:3067,4161 attach Java paths as javac action inputs.
         main+':chrome_java__compile_java': ('inputs', {app_java+'/'+name for name in (
             'ChromeTabbedActivity.java', 'tabbed_mode/TabbedAppMenuPropertiesDelegate.java',
+            'ntp/NewTabPageCoordinator.java',
             'signin/SigninFirstRunFragment.java', 'settings/MainSettings.java',
             'settings/RawsGlobalShieldSheet.java', 'settings/RawsProtectionSettings.java',
             'settings/RawsProtectionCopy.java')}),
@@ -59,12 +83,14 @@ def ui_source_targets():
             appmenu+'/java/src/org/chromium/chrome/browser/ui/appmenu/'+name
             for name in ('AppMenuHandler.java', 'AppMenuPropertiesDelegate.java')}),
         internal+':java__compile_java': ('inputs', {internal+'/java/src/org/chromium/chrome/browser/ui/appmenu/'+name
-                           for name in ('AppMenuHandlerImpl.java', 'RawSNativeMenu.java',
+                           for name in ('AppMenuHandlerImpl.java', 'AppMenuDragHelper.java', 'RawSNativeMenu.java',
                                         'RawSMenuModel.java', 'RawSMenuStore.java')}),
         internal+':java_resources__prepare': ('sources', {internal+'/java/res/'+name for name in (
             'values/raws_menu.xml', 'values-hi/raws_menu.xml')}),
         toolbar+':core_java__compile_java': ('inputs', {
-            toolbar+'/java/src/org/chromium/chrome/browser/toolbar/top/ToolbarPhone.java'}),
+            toolbar+'/java/src/org/chromium/chrome/browser/toolbar/top/ToolbarPhone.java',
+            toolbar+'/java/src/org/chromium/chrome/browser/toolbar/settings/AddressBarPreference.java',
+        }),
     }
 
 
