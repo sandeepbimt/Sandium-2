@@ -5,7 +5,7 @@ parameters:
     default: false
   sanb_mode:
     type: enum
-    enum: [preflight, build, source-audit]
+    enum: [preflight, build, source-audit, capacity-audit]
     default: preflight
 
 jobs:
@@ -35,6 +35,27 @@ jobs:
       - store_artifacts:
           path: .sanb-source-audit-artifacts
           destination: sanb-source-audit
+
+  sanb-capacity-audit:
+    machine:
+      image: ubuntu-2404:current
+    resource_class: large
+    environment:
+      PYTHONUNBUFFERED: "1"
+    steps:
+      - checkout
+      - run:
+          name: Measure exact SanB build-worker workspace capacity only
+          command: |
+            set -euo pipefail
+            test "$CIRCLE_BRANCH" = "sanb/official158"
+            test "<< pipeline.parameters.run_sanb >>" = "true"
+            test "<< pipeline.parameters.sanb_mode >>" = "capacity-audit"
+            timeout --kill-after=5s 90s python3 -u tools/sanb_capacity_audit.py
+          no_output_timeout: 2m
+      - store_artifacts:
+          path: .sanb-capacity-audit-artifacts
+          destination: sanb-capacity-audit
 
   sanb-android-arm64:
     machine:
@@ -72,5 +93,7 @@ workflows:
     jobs:
       - sanb-source-audit:
           filters: pipeline.parameters.sanb_mode == "source-audit" and pipeline.git.branch == "sanb/official158"
+      - sanb-capacity-audit:
+          filters: pipeline.parameters.sanb_mode == "capacity-audit" and pipeline.git.branch == "sanb/official158"
       - sanb-android-arm64:
-          filters: pipeline.parameters.sanb_mode != "source-audit" and pipeline.git.branch == "sanb/official158"
+          filters: pipeline.parameters.sanb_mode != "source-audit" and pipeline.parameters.sanb_mode != "capacity-audit" and pipeline.git.branch == "sanb/official158"

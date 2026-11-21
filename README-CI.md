@@ -7,11 +7,12 @@ branch. The default push/tag event runs no workflow. Manual parameters:
 
 | Goal | Parameters | Deliverable |
 |---|---|---|
+| Build-worker capacity audit | `run_sanb: true`, `sanb_mode: capacity-audit` | Measured mount, CPU and memory only; no source sync or APK |
 | Public exact source audit | `run_sanb: true`, `sanb_mode: source-audit` | Pinned preimage evidence and strict chronological replay only; no APK |
 | Worker and exact source plan | `run_sanb: true`, `sanb_mode: preflight` | Static plan and worker resource report; no APK |
 | Actual Android build | `run_sanb: true`, `sanb_mode: build` | Exact generated APK if successful, otherwise the first failing phase and logs |
 
-The `SanB` graph selects exactly one of two machine jobs. Neither has a
+The `SanB` graph selects exactly one of three machine jobs. Neither has a
 protected context, workspace persistence, restore/cache key, external
 compiler service, signing secret or fallback build. Only the checked
 source-audit job can emit a compact public, hash-addressed diagnostic
@@ -77,6 +78,21 @@ bundled CRX, or donor repository), cross-validated against the request
 set. Transfer stays below a 64 MiB total / 56 MiB compressed archive cap;
 an over-limit archive is omitted rather than uploaded. First-preimage
 downloads and reports never describe a port as ready to build.
+
+## Capacity-audit mode
+
+The same Linux VM image, `large` resource class and default project directory
+as Android Build/Preflight. Uses only the trusted project checkout and one
+90-second-bounded measurement; it never fetches Chromium, Bare or deps.
+The measured numerator is user-available disk bytes, not nominal disk size
+or raw reserved space. Reports both statvfs and `df`, capacity/available
+inodes, CPU/affinity/cgroup quota and host/cgroup RAM. Only the exact mount
+and public runtime counters are written to `sanb-capacity-audit/status.json`
+and `df.txt`. A successful measurement below the threshold yields
+`measured=true, eligible_for_130_gib=false`; a measurement failure yields
+`measured=false, eligible_for_130_gib=null` and fails the job. Both results
+are distinct from source admission and from earning an APK, and an initial
+pass does not prove usable capacity after acquisition, GN or linking.
 
 ## Bounded cold-build decision
 

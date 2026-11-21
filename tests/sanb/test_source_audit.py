@@ -33,9 +33,9 @@ class SourceAudit(unittest.TestCase):
 
     def test_distinct_filtered_route_no_compile_or_retention(self):
         text=(ROOT/".circleci/config.yml").read_text()
-        self.assertIn('enum: [preflight, build, source-audit]',text)
+        self.assertIn('enum: [preflight, build, source-audit, capacity-audit]',text)
         self.assertIn('filters: pipeline.parameters.sanb_mode == "source-audit" and pipeline.git.branch == "sanb/official158"',text)
-        self.assertIn('filters: pipeline.parameters.sanb_mode != "source-audit" and pipeline.git.branch == "sanb/official158"',text)
+        self.assertIn('filters: pipeline.parameters.sanb_mode != "source-audit" and pipeline.parameters.sanb_mode != "capacity-audit" and pipeline.git.branch == "sanb/official158"',text)
         audit=text.split("  sanb-source-audit:\n",1)[1].split("  sanb-android-arm64:\n",1)[0]
         self.assertIn('test "<< pipeline.parameters.sanb_mode >>" = "source-audit"',audit)
         self.assertIn("destination: sanb-source-audit",audit)
