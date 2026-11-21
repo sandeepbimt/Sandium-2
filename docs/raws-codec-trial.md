@@ -8,12 +8,12 @@ known-good WebM produced a frame. This proves the current capability gap,
 not the codecs or validity of the reported website's original media.
 
 The combined product baseline is
-`7a80deeaac40702a4f9bc65e53c15a7fef045429` (tree
-`a18f44e8b6b259bab2d243463dec761cfadc2a93`). It carries the reviewed
+`db415984362805c61f83960883368ed696dfb933` (tree
+`063414bd9c9875a903f69d85e0c27f1ce4ad433f`). It carries the reviewed
 Sandium presentation/menu and Shields controls, ad filtering,
 and player popup/redirect rules. This change leaves those product sources
 and all overlay bytes unchanged and adds the scoped codec profile only
-when the optional private media profile is selected.
+when this separate test route is selected.
 
 [Chromium audio/video build flags](https://www.chromium.org/audio-video/) and
 [the pinned codec default](https://github.com/chromium/chromium/blob/52bdd21723d5db0c9ab11716d38feac74828cf84/build/config/features.gni)
@@ -44,7 +44,7 @@ change any signing identity setting.
 
 ## Generate the test graph
 
-Use exact combined baseline `7a80dea` with the extra local codec helper
+Use exact combined baseline `db41598` with the extra local codec helper
 unstaged/untracked (or copy it to a clean exact baseline checkout). Supply
 an independently prepared checkout carrying **the exact combined overlay** and
 pinned GN/depot_tools, dependency, platform and optimization-profile inputs.
@@ -68,12 +68,11 @@ on successful GN verification. It does not write `out/RawSandium`,
 ordinary tracked `ci/args.gn`, CI config, or any checkpoint. Existing trial
 output is rejected; use a fresh independent workspace for another attempt.
 
-## Regular RawS build
+## Isolated opt-in CI lane
 
-Run ordinary RawS with `run_raw_full=true` on `raw-sandium/official158`.
-Set `raws_h264_aac=true` only for the private AVC/AAC media profile.
-Both settings use the same checkpoint, compiler and isolated signer. Leave
-all bootstrap, maintenance and final archive selectors false.
+The exact combined baseline child with this change adds a mutually exclusive
+`run_raw_combined_codec_trial=true` selector on the existing `raw-sandium/official158`
+route. Leave every other selector false, including `run_raw_signed_test`.
 The trial verifies its sole direct parent and allows only its tool, workflow,
 documentation and test files to differ from the combined baseline.
 
@@ -88,11 +87,11 @@ media buildflag/FFmpeg changes and a native link can exceed that margin.
 
 The compiler verifies the resolved trial settings and the generated
 media buildflag header; the private signing handoff binds that scope and
-the compiler-verified unsigned APK hash to the exact workflow, candidate commit and
+the compiler-verified APK hash to the exact workflow, candidate commit and
 unchanged combined feature manifest. It also binds the exact 14 native
 smoke cases, including `incident1471-player-rules`. The existing separate
-signer rechecks the binding, signs once, and verifies the same independent
-package and certificate pins. Neither success nor failure writes an archive. It emits `RawSandium-Combined-Codec-Test-arm64.apk` and a receipt marked test-only and
+signer rechecks the binding and the same independent package/certificate
+pins. It emits `RawSandium-Combined-Codec-Test-arm64.apk` and a receipt marked test-only and
 `distribution_ready=false`; ordinary artifact names/receipts are unchanged.
 The build system does not infer on-device behavior or distribution rights.
 

@@ -8309,7 +8309,7 @@
       "mode": "644"
     },
     "chrome/android/java/src/org/chromium/chrome/browser/settings/SandiumBalancedTracer.java": {
-      "after_sha256": "b865511b9224a827ec4a520fdd8e26f369444660c88c45a1362bfcae62c5dad2",
+      "after_sha256": "1581f6f4470ffc8fda45d493a0fc8a10f5b3655a95a3faec726be4673e4f9e84",
       "before_sha256": null,
       "mode": "644"
     },
