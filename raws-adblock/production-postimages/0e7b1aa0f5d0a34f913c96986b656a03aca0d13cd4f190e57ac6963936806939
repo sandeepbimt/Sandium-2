@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <string name="raws_toolbar_shields">Sandium Shields</string>
+  <string name="raws_toolbar_tab_dual_action">New tab. Touch and hold to switch tabs. %1$s</string>
+</resources>

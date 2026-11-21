@@ -33,9 +33,7 @@ class CodecCIProofTest(unittest.TestCase):
         ffmpeg = self.root/'ffmpeg'
         local_trial.TrialTest.make_configs(None, ffmpeg)
         self.proof = codec.compile_proof(self.root, self.out, profile.media_settings(True),
-                                         profile.check_ffmpeg_configs(ffmpeg),
-                                         {'cases': list(codec.NATIVE_SMOKE_CASES)})
-        self.state['raws_engine_smoke']['cases'] = list(codec.NATIVE_SMOKE_CASES)
+                                         profile.check_ffmpeg_configs(ffmpeg))
         self.manifest = self.root/'raws-adblock/production-restore-recipe.json'
 
     def stage(self):
@@ -70,16 +68,6 @@ class CodecCIProofTest(unittest.TestCase):
                 (source/'receipt.json').write_text(json.dumps(mutated))
                 with self.assertRaisesRegex(ValueError, 'inconsistent private codec proof'):
                     signer.input_receipt(self.root, source)
-
-    def test_combined_native_player_incident_proof_cannot_be_replaced(self):
-        self.state['codec_trial'] = self.proof
-        with patch.object(codec, 'mode', return_value=True):
-            self.state['raws_engine_smoke']['cases'][0] = 'different-case'
-            with self.assertRaisesRegex(ValueError, 'actual native smoke receipt'):
-                self.stage()
-        del self.proof['native_smoke_cases'][-1]
-        with self.assertRaisesRegex(ValueError, 'inconsistent private codec proof'):
-            codec.validate_proof(self.root, self.proof)
 
     def test_codec_artifact_has_unique_name_and_test_only_receipt(self):
         self.state['codec_trial'] = self.proof
@@ -134,5 +122,5 @@ class CodecCIProofTest(unittest.TestCase):
                 return codec.BASELINE_TREE
             return '.circleci/config.yml\ntools/raws_codec_ci.py\nci/args.gn'
         with patch.object(codec, 'git', side_effect=commit):
-            with self.assertRaisesRegex(ValueError, 'allowed combined RawS'):
+            with self.assertRaisesRegex(ValueError, 'allowed #1477'):
                 codec.verify_checkout(self.root)

@@ -78,9 +78,12 @@ def ui_source_targets():
         }),
         # Chromium 52bdd217: android_library() exposes a group with no files.
         # internal_rules.gni:3067,4161 attach Java paths as javac action inputs.
-        main+':chrome_java__compile_java': ('inputs', {app_java+'/'+name for name in (
+        main+':chrome_java__compile_java': ('inputs', {
+            main+'/feed/core/java/src/org/chromium/chrome/browser/feed/FeedSurfaceCoordinator.java',
+        } | {app_java+'/'+name for name in (
             'ChromeTabbedActivity.java', 'tabbed_mode/TabbedAppMenuPropertiesDelegate.java',
             'ntp/NewTabPageCoordinator.java', 'ntp/NewTabPage.java',
+            'toolbar/ToolbarManager.java',
             'suggestions/tile/MostVisitedTilesLayout.java',
             'suggestions/tile/SuggestionsTileView.java',
             'signin/SigninFirstRunFragment.java', 'settings/MainSettings.java',
@@ -96,6 +99,7 @@ def ui_source_targets():
             'drawable/raws_global_shield_icon.xml', 'layout/raws_global_shield_sheet.xml',
             'values/raws_global_shield_strings.xml', 'xml/raws_protection_preferences.xml',
             'drawable-nodpi/raws_frozen_shields_mark.webp',
+            'drawable-nodpi/raws_home_wallpaper.webp',
             'drawable/raws_frozen_shields_card.xml',
             'drawable/raws_frozen_shields_dns_picker.xml',
             'drawable/raws_frozen_shields_rim.xml',
@@ -110,7 +114,19 @@ def ui_source_targets():
         internal+':java_resources__prepare': ('sources', {internal+'/java/res/'+name for name in (
             'values/raws_menu.xml', 'values-hi/raws_menu.xml')}
                                       | {'//' + path for path in MENU_PARITY_RESOURCES}),
+        '//chrome/browser/ui/android/bottombar:config_java__compile_java': ('inputs', {
+            '//chrome/browser/ui/android/bottombar/java/src/org/chromium/chrome/'
+            'browser/ui/bottombar/BottomBarConfigUtils.java',
+        }),
+        toolbar+':java_resources__prepare': ('sources', {
+            toolbar+'/java/res/layout/toolbar_phone.xml',
+            toolbar+'/java/res/values/raws_address_controls.xml',
+        }),
         toolbar+':core_java__compile_java': ('inputs', {
+            *(toolbar+'/java/src/org/chromium/chrome/browser/toolbar/top/'+name for name in (
+                'ToggleTabStackButton.java', 'ToggleTabStackButtonCoordinator.java',
+                'TopToolbarOverlayMediator.java')),
+
             toolbar+'/java/src/org/chromium/chrome/browser/toolbar/top/ToolbarPhone.java',
             toolbar+'/java/src/org/chromium/chrome/browser/toolbar/ToolbarPositionController.java',
             toolbar+'/java/src/org/chromium/chrome/browser/toolbar/settings/AddressBarPreference.java',
@@ -146,6 +162,8 @@ def verify_apk_graph(src, gn, out, env, artifact, *, require_ui=False):
             checked.update(paths)
         direct_linkage = {
             '//chrome/android:chrome_java':'//chrome/android:chrome_app_java_resources',
+            '//chrome/browser/ui/android/toolbar:core_java':
+                '//chrome/browser/ui/android/toolbar:java_resources',
             '//chrome/browser/ui/android/appmenu/internal:java':
                 '//chrome/browser/ui/android/appmenu/internal:java_resources',
         }

@@ -71,8 +71,6 @@ def build_receipt(root, state, apk):
     from raws_codec_ci import mode as codec_mode, validate_proof
     if codec_mode():
         validate_proof(root, state.get('codec_trial'))
-        if smoke_cases != state['codec_trial']['native_smoke_cases']:
-            raise ValueError('Combined codec proof does not match actual native smoke receipt')
         proof['codec_trial'] = state['codec_trial']
     elif 'codec_trial' in state:
         raise ValueError('Codec proof cannot enter ordinary test signing')

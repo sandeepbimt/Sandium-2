@@ -395,7 +395,7 @@ class FrozenScope(unittest.TestCase):
                          actual.tracked_paths - feature.TRACKED)
         self.assertEqual(feature.UI_GENERATED | extra_generated, actual.ui_files)
         if extra:
-            self.assertEqual(44, len(extra_tracked))
+            self.assertEqual(52, len(extra_tracked))
             self.assertLessEqual({
                 'chrome/android/java/src/org/chromium/chrome/browser/' + name
                 for name in ('ntp/NewTabPage.java', 'suggestions/tile/MostVisitedTilesLayout.java',

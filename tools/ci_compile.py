@@ -94,7 +94,7 @@ def main(stage, *, feature=None, distinct_test=False, codec_trial=False):
         from raws_codec_ci import verify_checkout
         from raws_codec_trial import FEATURE_SHA256
         if not distinct_test or feature is None or feature.identity != FEATURE_SHA256:
-            raise ValueError('Codec trial requires exactly the distinct signed combined RawS feature')
+            raise ValueError('Codec trial requires exactly the distinct signed #1477 test feature')
         verify_checkout(ROOT)
     source_verifier = verify if feature is None else feature.verify
     ident=fingerprint(); folder=ROOT/f'handoff/stage{stage}';folder.mkdir(parents=True,exist_ok=True)
@@ -196,8 +196,7 @@ def main(stage, *, feature=None, distinct_test=False, codec_trial=False):
             state.update(verify_apk(apk,W/'src',env,distinct_test=distinct_test))
             if codec_trial:
                 from raws_codec_ci import compile_proof
-                state['codec_trial'] = compile_proof(
-                    ROOT, out, codec_settings, ffmpeg_configs, state['raws_engine_smoke'])
+                state['codec_trial'] = compile_proof(ROOT, out, codec_settings, ffmpeg_configs)
             name = ('RawSandium-1442-Filters-arm64.apk' if port1442 else
                     'RawSandium-EasyList-arm64.apk' if feature is not None else
                     'RawSandium-baseline-arm64.apk')

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- SPDX-License-Identifier: MPL-2.0 -->
+<resources>
+    <string name="raws_ui_settings_section">Sandium</string>
+    <string name="raws_ui_customize_menu">Customize menu</string>
+    <string name="raws_ui_customize_menu_from_browser">Open a regular browser tab to customize the menu.</string>
+    <string name="raws_ui_address_bar_colors">Sandium address bar colors</string>
+    <string name="raws_ui_address_bar_colors_summary">Use Sandium colors for the default address bar. Applies when the browser is reopened.</string>
+    <string name="raws_ui_galaxy_wallpaper">Galaxy wallpaper</string>
+    <string name="raws_ui_galaxy_wallpaper_summary">Show the bundled Galaxy wallpaper on the dark Home screen when no custom background is selected.</string>
+</resources>

@@ -61,7 +61,7 @@ def add_signed_test(result):
  from ci_restore_only import BASE_CACHE, RECEIPT_CACHE
  key='run_raw_signed_test'
  probe_key='run_raw_signing_probe'
- codec_key='run_raw_combined_codec_trial'
+ codec_key='run_raw_codec_trial'
  selector='<< pipeline.parameters.'+key+' >>'
  probe_selector='<< pipeline.parameters.'+probe_key+' >>'
  codec_selector='<< pipeline.parameters.'+codec_key+' >>'
@@ -159,7 +159,7 @@ mv -T .raws-signing-verified artifacts/raws-signed
   'when':exclusive(key),
   'jobs':[{'raws-signed-test-chain':{'serial-group':'<< pipeline.project.slug >>/raws-full'}}],
  }
- result['workflows']['RawS combined signed codec trial']={
+ result['workflows']['RawS isolated codec trial']={
   'when':exclusive(codec_key),
   'jobs':[{'raws-signed-test-chain':{'serial-group':'<< pipeline.project.slug >>/raws-full'}}],
  }

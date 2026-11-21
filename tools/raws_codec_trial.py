@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Prepare an isolated, test-only GN graph for the verified combined RawS source.
+"""Prepare an isolated, test-only GN graph for the verified RawS #1477 source.
 
 No CI, checkpoint, signing, APK building, or distribution actions.
 """
@@ -15,10 +15,10 @@ import sys
 from raw import ROOT, lock
 from raws_release_identity import APPLICATION_ID, compose_gn_args
 
-BASELINE = 'f98c69e9feda45a9d4dd03922e0f74be89e6d16e'
-BASELINE_TREE = 'cac521e7d7289a6860d7a7ae74da398484a184b3'
+BASELINE = '45dc081ae5a40bbe69b869b98b80013c5f34afec'
+BASELINE_TREE = '9393be3eebdcf3ab0bf2e6060c2e06606b8054d7'
 BASE_ARGS_SHA256 = '978dbc344dde76631bb301585cf2b80d2020b45553a9757092fe24c32344e5d3'
-FEATURE_SHA256 = '0529826c813c93606147e434733da49a3baee5c43956633055a1b2687ab1c1b1'
+FEATURE_SHA256 = '3b92aee3f61c20278636238d21587f1a5de993e351fdb62e0d12fb94cf8a2d62'
 CHROMIUM = '52bdd21723d5db0c9ab11716d38feac74828cf84'
 WEBRTC = 'fb1c41a93d92d4188f068f437d80ef2c4b50c3a9'
 FFMPEG = '42a2a7a2b2ceb0b1554af1e99a8cdaae189404bb'
@@ -148,7 +148,7 @@ def prepare(src, depot, distinct_identity):
     # Additional untracked trial tool/tests do not change the exact tracked product baseline.
     if git(ROOT, 'rev-parse', 'HEAD') != BASELINE or git(ROOT, 'rev-parse', 'HEAD^{tree}') != BASELINE_TREE or git(
             ROOT, 'diff', 'HEAD', '--name-only', '-z'):
-        raise ValueError('Use a clean exact combined RawS project checkout to run the trial')
+        raise ValueError('Use a clean exact #1477 project checkout to run the trial')
     from ci_compile import fingerprint
     if fingerprint() != FINGERPRINT:
         raise ValueError('Ordinary restore fingerprint changed')
@@ -158,7 +158,7 @@ def prepare(src, depot, distinct_identity):
         raise ValueError('Wrong Chromium lock revision')
     feature = active_feature()
     if feature is None or feature.identity != FEATURE_SHA256 or not feature.has_ui:
-        raise ValueError('Exact combined RawS feature manifest is required')
+        raise ValueError('Exact #1477 feature manifest is required')
     feature.verify(src, data)
     if git(depot, 'rev-parse', 'HEAD') != data['depot_tools']['revision']:
         raise ValueError('Wrong depot_tools revision')
@@ -176,7 +176,7 @@ def prepare(src, depot, distinct_identity):
         raise ValueError('Trial args changed while generating GN')
     feature.verify(src, data)
     receipt = {
-        'schema': 1, 'purpose': 'Combined RawS test-only codec graph',
+        'schema': 1, 'purpose': 'RawS #1477 test-only codec graph',
         'status': 'gn_verified_not_compiled', 'apk_produced': False,
         'product_commit': BASELINE, 'product_tree': BASELINE_TREE,
         'chromium': CHROMIUM, 'ffmpeg': FFMPEG, 'webrtc': WEBRTC, 'depot_tools': data['depot_tools']['revision'],

@@ -40,6 +40,8 @@ ACTIONS = {
     INTERNAL + ':java' + JAVAC: 'inputs',
     INTERNAL + ':java_resources' + PREPARE: 'sources',
     TOOLBAR + JAVAC: 'inputs',
+    '//chrome/browser/ui/android/toolbar:java_resources' + PREPARE: 'sources',
+    '//chrome/browser/ui/android/bottombar:config_java' + JAVAC: 'inputs',
     '//chrome/browser/ui/android/omnibox:java' + JAVAC: 'inputs',
 }
 
@@ -52,6 +54,7 @@ class NativeUiGraph(unittest.TestCase):
             (APK, 'deps'): ENGINE + '\n' + '\n'.join('  ' + name for name in ACTIONS)
                            + '\n  //tools:helper(//build/toolchain/linux:clang_x64)\n',
             (JAVA, 'deps'): '  ' + RES + '\n',
+            (TOOLBAR, 'deps'): '//chrome/browser/ui/android/toolbar:java_resources\n',
             (INTERNAL + ':java', 'deps'): INTERNAL + ':java_resources\n',
         }
         for label, (field, paths) in ui.items():
@@ -81,7 +84,7 @@ class NativeUiGraph(unittest.TestCase):
             self.assertIn(DARK, receipt.read_text())
             self.assertIn(JAVA + JAVAC, receipt.read_text())
             self.assertIn(JNI, receipt.read_text())
-            self.assertEqual(1 + len(ACTIONS) + 2, len(args))
+            self.assertEqual(1 + len(ACTIONS) + 3, len(args))
             self.assertNotIn((JAVA, 'sources'), [tuple(call.args[0][3:5]) for call in args])
             self.assertNotIn((RES, 'sources'), [tuple(call.args[0][3:5]) for call in args])
 
