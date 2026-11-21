@@ -24,7 +24,7 @@ POSTIMAGES = 'raws-adblock/production-postimages'
 APPROVED_MANIFEST_SHA256 = '7081e486a25eb33a74cac59bec9e94b16030f9b7c091b1e5faab2fc95c977aeb'
 # A combined candidate, when pinned, replaces the engine-only admission.
 # It must not fall back to the older digest if the UI manifest is missing.
-APPROVED_UI_MANIFEST_SHA256 = '89955be7b2876a2118dfd4d78391334fb1a65580c49f3e1061e012315f25b68d'
+APPROVED_UI_MANIFEST_SHA256 = '3b3caa7341f03798f02af66d2f7e6d4ce92cee23392729de3b2b9f746e8d4bc6'
 APPROVED_UI_TRACKED = frozenset((
     'chrome/android/chrome_java_resources.gni',
     'chrome/android/chrome_java_sources.gni',
@@ -54,6 +54,8 @@ APPROVED_GN_COMPAT_TRACKED = frozenset((
 UI_GENERATED = frozenset((
     'chrome/android/java/res/drawable-nodpi/raws_home_wallpaper.webp',
     'chrome/browser/ui/android/toolbar/java/res/values/raws_address_controls.xml',
+    'chrome/browser/ui/android/toolbar/java/res/drawable/raws_page_toolbar_forward.xml',
+    'chrome/browser/ui/android/toolbar/java/res/drawable/raws_page_toolbar_menu.xml',
     'chrome/android/java/res/drawable-nodpi/raws_frozen_shields_mark.webp',
     'chrome/android/java/res/drawable/raws_frozen_shields_card.xml',
     'chrome/android/java/res/drawable/raws_frozen_shields_dns_picker.xml',

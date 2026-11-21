@@ -55,46 +55,37 @@ def add_restore_only(result):
   invocation=next(iter(item.values()))
   invocation['filters']='pipeline.git.branch == "raw-sandium/official158" and not pipeline.parameters.'+key
 
-def add_regular_raws(result):
- # One regular, restore-only RawS Full route. Keep the existing restricted
- # signer name and context; compile never gets signing material. The codec
- # choice changes build settings, not the workflow or access policy.
+def add_signed_test(result):
+ # Experimental distinct Android identity. APK compilation gets no signing
+ # context; only the exact candidate and receipt cross the private workspace.
  from ci_restore_only import BASE_CACHE, RECEIPT_CACHE
- key='run_raw_full'
+ key='run_raw_signed_test'
  probe_key='run_raw_signing_probe'
- codec_key='raws_h264_aac'
+ codec_key='run_raw_combined_codec_trial'
  selector='<< pipeline.parameters.'+key+' >>'
  probe_selector='<< pipeline.parameters.'+probe_key+' >>'
  codec_selector='<< pipeline.parameters.'+codec_key+' >>'
+ result['parameters'][key]={'type':'boolean','default':False}
  result['parameters'][probe_key]={'type':'boolean','default':False}
  result['parameters'][codec_key]={'type':'boolean','default':False}
  branch='raw-sandium/official158'
  branch_filter={'branches':{'only':branch}}
  guard='set -euo pipefail\ntest "$CIRCLE_BRANCH" = "'+branch+'"\ntest "$(git rev-parse HEAD)" = "$CIRCLE_SHA1"'
- # Check route requests before tools, receipt lookup, or archive restore.
- # Unknown old CircleCI parameters are not declared, so the API rejects them.
- other_routes=[other for other in result['parameters'] if other not in (key, codec_key)]
- guards=[
-  f'test "{selector}" = true || {{ echo "Request run_raw_full=true for a RawS build"; exit 2; }}',
-  *[f'test "<< pipeline.parameters.{other} >>" = false || '
-    f'{{ echo "RawS full cannot combine with {other}"; exit 2; }}' for other in other_routes],
- ]
  no_key=r"""set +x
 test -z "${RAWS_TEST_KEYSTORE_B64+x}"
 test -z "${RAWS_KEYSTORE_PASSWORD+x}"
 test -z "${RAWS_KEY_PASSWORD+x}"
 """
  def policy_phase(name):
-  return run('RawS restore-only '+name,
-             'RAWS_CODEC_TRIAL='+codec_selector+' RAWS_UNSIGNED_TEST_APK=true '
+  return run('RawS signed test '+name,
+             'RAWS_CODEC_TRIAL='+codec_selector+' '
              'RAWS_DISTINCT_TEST_IDENTITY=true RAWS_ALLOW_FRESH_SEED=false '
              'python3 -u tools/ci_restore_only.py '+name)
  compile_job=common(1)
  compile_job['environment'].update(RAWS_ALLOW_FRESH_SEED='false')
  compile_job['steps']=['checkout',
-  run('Verify exact checkout, request, and no signing material',guard+'\n'+'\n'.join(guards)+'\n'+no_key),
-  # zstd was installed by this same gate; do not run the legacy fallback again.
-  *gate()[1:-2],
+  run('Verify exact checkout and no signing material',guard+'\n'+no_key),
+  *gate()[1:-1],
   restore(RECEIPT_CACHE,'Restore exact verified RawS #1396 receipt'),
   policy_phase('select'),
   restore(BASE_CACHE,'Restore exact verified RawS #1396 final archive'),
@@ -134,7 +125,7 @@ test ! -L .raws-signing-verified
 test ! -e artifacts/raws-signed
 test ! -L artifacts/raws-signed
 test ! -L artifacts
-RAWS_CODEC_TRIAL=CODEC_SELECTOR RAWS_UNSIGNED_TEST_APK=true python3 -u tools/ci_sign_raws_test.py --input .raws-signing-input \
+RAWS_CODEC_TRIAL=CODEC_SELECTOR python3 -u tools/ci_sign_raws_test.py --input .raws-signing-input \
   --sdk /tmp/raws-signer-sdk/android-16 --output-dir .raws-signing-verified
 mkdir -p artifacts
 mv -T .raws-signing-verified artifacts/raws-signed
@@ -154,23 +145,22 @@ mv -T .raws-signing-verified artifacts/raws-signed
   {'raws-test-identity-sign':{'requires':['raws-test-identity-compile'],
                             'filters':{'branches':{'only':branch}},'context':'RawS-Test-Signing'}},
  ]}
- # The normal build selector and probe are exclusive, and turning on the
- # codec setting alone authorizes no route. Do not fall back to an archive or
- # preflight if someone combines the regular route with other trigger flags.
- for name, workflow in result['workflows'].items():
-  if name != 'RawS full':
-   workflow['when']={'and':[workflow['when'],{'not':selector},
-                           {'not':probe_selector},{'not':codec_selector}]}
+ # Miscombined trigger flags cannot accidentally publish a legacy artifact,
+ # sign a candidate, or schedule checkpoint maintenance. Default false keeps
+ # all historical workflows behaviorally unchanged.
+ for workflow in result['workflows'].values():
+  workflow['when']={'and':[workflow['when'],{'not':selector},{'not':probe_selector},{'not':codec_selector}]}
  def exclusive(selected):
   return {'and':['<< pipeline.parameters.'+selected+' >>',
                  {'equal':[branch,'<< pipeline.git.branch >>']},
                  *({'not':'<< pipeline.parameters.'+other+' >>'}
                    for other in result['parameters'] if other!=selected)]}
- result['workflows']['RawS full']={
-  # Route ambiguous requests through the same early refusing compile guard;
-  # never silently run an alternate archive/preflight or a second codec workflow.
-  'when':{'and':[{'or':[selector,codec_selector]},
-                 {'equal':[branch,'<< pipeline.git.branch >>']}]},
+ result['workflows']['RawS distinct signed test']={
+  'when':exclusive(key),
+  'jobs':[{'raws-signed-test-chain':{'serial-group':'<< pipeline.project.slug >>/raws-full'}}],
+ }
+ result['workflows']['RawS combined signed codec trial']={
+  'when':exclusive(codec_key),
   'jobs':[{'raws-signed-test-chain':{'serial-group':'<< pipeline.project.slug >>/raws-full'}}],
  }
  result['workflows']['RawS signing context probe']={
@@ -216,11 +206,8 @@ def generate(*, restore_only=True, signed_test=True):
  final=generate_archive(result)
  for section in ('parameters','jobs','workflows','job-groups'):result.setdefault(section,{}).update(final.get(section,{}))
  if restore_only:
-  if signed_test:
-   add_regular_raws(result)
-  else:
-   # Historical template for protocol regression checks only; the checked-in
-   # config always uses the regular fail-fast signed route above.
-   add_restore_only(result)
+  add_restore_only(result)
+ if signed_test and restore_only:
+  add_signed_test(result)
  return result
 if __name__=='__main__':(ROOT/'.circleci/config.yml').write_text('# Generated by tools/generate_full_config.py; no Brave cache imports.\n'+yaml.safe_dump(generate(),sort_keys=False,width=150))

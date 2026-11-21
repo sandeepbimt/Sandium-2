@@ -101,7 +101,13 @@ class NativeUiGraph(unittest.TestCase):
         root_handler, flyout_handler = handler.split('public AppMenuPopup createAndShowFlyoutPopup(', 1)
         self.assertEqual(1, root_handler.count('mAppMenu.setSandiumModels('))
         self.assertIn('mModelList = mDelegate.getMenuItems();', root_handler)
-        self.assertIn('!startDragging && rawSMenuEligible() ? mModelList : null', root_handler)
+        # Chromium opens on ACTION_DOWN even for an ordinary tap. The provisional
+        # drag flag cannot decide whether the Sandium presenter is activated.
+        self.assertIn('boolean useSandiumMenu = rawSMenuEligible() && mModelList != null;',
+                      root_handler)
+        self.assertIn('useSandiumMenu ? mModelList : null', root_handler)
+        self.assertIn('onShow(startDragging && !useSandiumMenu)', root_handler)
+        self.assertNotIn('!startDragging && rawSMenuEligible()', root_handler)
         self.assertNotIn('/* includeRawSGrid= */ true', handler)
         self.assertNotIn('setSandiumModels(', flyout_handler)
         self.assertIn('/* includeRawSGrid= */ false', flyout_handler)

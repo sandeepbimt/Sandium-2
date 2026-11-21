@@ -87,6 +87,7 @@ def ui_source_targets():
             'ChromeTabbedActivity.java', 'tabbed_mode/TabbedAppMenuPropertiesDelegate.java',
             'ntp/NewTabPageCoordinator.java', 'ntp/NewTabPage.java',
             'toolbar/ToolbarManager.java',
+            'appearance/settings/AppearanceSettingsFragment.java',
             'suggestions/tile/MostVisitedTilesLayout.java',
             'suggestions/tile/SuggestionsTileView.java',
             'signin/SigninFirstRunFragment.java', 'settings/MainSettings.java',
@@ -98,6 +99,7 @@ def ui_source_targets():
         main+':chrome_app_java_resources__prepare': ('sources', {main+'/java/res/'+name for name in (
             'values/raws_main_settings_palette.xml', 'values-night/raws_main_settings_palette.xml',
             'values/raws_main_settings_strings.xml', 'xml/main_preferences.xml',
+            'xml/appearance_preferences.xml',
             'values/raws_welcome_palette.xml', 'values-night/raws_welcome_palette.xml',
             'drawable/raws_global_shield_icon.xml', 'layout/raws_global_shield_sheet.xml',
             'values/raws_global_shield_strings.xml', 'xml/raws_protection_preferences.xml',
@@ -123,6 +125,8 @@ def ui_source_targets():
         }),
         toolbar+':java_resources__prepare': ('sources', {
             toolbar+'/java/res/layout/toolbar_phone.xml',
+            toolbar+'/java/res/drawable/raws_page_toolbar_forward.xml',
+            toolbar+'/java/res/drawable/raws_page_toolbar_menu.xml',
             toolbar+'/java/res/values/raws_address_controls.xml',
         }),
         toolbar+':core_java__compile_java': ('inputs', {
@@ -131,6 +135,7 @@ def ui_source_targets():
                 'TopToolbarOverlayMediator.java')),
 
             toolbar+'/java/src/org/chromium/chrome/browser/toolbar/top/ToolbarPhone.java',
+            toolbar+'/java/src/org/chromium/chrome/browser/toolbar/menu_button/MenuButton.java',
             toolbar+'/java/src/org/chromium/chrome/browser/toolbar/ToolbarPositionController.java',
             toolbar+'/java/src/org/chromium/chrome/browser/toolbar/settings/AddressBarPreference.java',
         }),

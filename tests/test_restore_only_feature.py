@@ -454,7 +454,14 @@ class FrozenScope(unittest.TestCase):
                          actual.tracked_paths - feature.TRACKED)
         self.assertEqual(feature.UI_GENERATED | extra_generated, actual.ui_files)
         if extra:
-            self.assertEqual(52, len(extra_tracked))
+            self.assertEqual(55, len(extra_tracked))
+            self.assertLessEqual({
+                'chrome/android/java/res/xml/appearance_preferences.xml',
+                'chrome/android/java/src/org/chromium/chrome/browser/appearance/settings/'
+                'AppearanceSettingsFragment.java',
+                'chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/'
+                'toolbar/menu_button/MenuButton.java',
+            }, extra_tracked)
             self.assertLessEqual({
                 'chrome/android/java/src/org/chromium/chrome/browser/' + name
                 for name in ('ntp/NewTabPage.java', 'suggestions/tile/MostVisitedTilesLayout.java',
@@ -464,7 +471,11 @@ class FrozenScope(unittest.TestCase):
                                     for p in extra_tracked))
             self.assertIn('chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/'
                           'browser/toolbar/ToolbarPositionController.java', extra_tracked)
-            self.assertEqual(3, len(extra_generated))
+            self.assertEqual(5, len(extra_generated))
+            self.assertLessEqual({
+                'chrome/browser/ui/android/toolbar/java/res/drawable/raws_page_toolbar_forward.xml',
+                'chrome/browser/ui/android/toolbar/java/res/drawable/raws_page_toolbar_menu.xml',
+            }, extra_generated)
             for name, entry in extra['staged_vendor_delta'].items():
                 self.assertEqual(entry['after'], actual.files[name][1])
                 self.assertEqual(entry['after'],

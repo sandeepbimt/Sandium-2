@@ -16,10 +16,16 @@ parameters:
   run_raw_final_archive:
     type: boolean
     default: false
+  raw_full_restore_only:
+    type: boolean
+    default: false
+  run_raw_signed_test:
+    type: boolean
+    default: false
   run_raw_signing_probe:
     type: boolean
     default: false
-  raws_h264_aac:
+  run_raw_combined_codec_trial:
     type: boolean
     default: false
 jobs:
@@ -98,306 +104,342 @@ jobs:
         name: Ensure verified shard tools
         command: command -v zstd >/dev/null || (sudo apt-get update -qq && sudo apt-get install -y zstd)
         no_output_timeout: 55m
-    - restore_cache:
-        name: Restore latest accepted RawS receipt only
-        keys:
-        - raws-full-head-v1-{{ checksum ".checkpoint-state/scope-key" }}-
-    - run:
-        name: RawS Full prepare
-        command: python3 -u tools/ci_full.py prepare
-        no_output_timeout: 55m
-    - restore_cache:
-        name: Restore exact RawS base
-        keys:
-        - raws-full-base-v1-{{ checksum ".checkpoint-state/base.key" }}
-    - run:
-        name: RawS Full restore-base
-        command: python3 -u tools/ci_full.py restore-base
-        no_output_timeout: 55m
-    - run:
-        name: Clear disposable incoming delta
-        command: rm -rf .checkpoint-incoming
-        no_output_timeout: 55m
-    - restore_cache:
-        name: Restore exact delta 0
-        keys:
-        - raws-full-delta-v1-{{ checksum ".checkpoint-state/slot-0.key" }}
-    - run:
-        name: RawS Full restore-layer --slot 0
-        command: python3 -u tools/ci_full.py restore-layer --slot 0
-        no_output_timeout: 55m
-    - run:
-        name: Clear disposable incoming delta
-        command: rm -rf .checkpoint-incoming
-        no_output_timeout: 55m
-    - restore_cache:
-        name: Restore exact delta 1
-        keys:
-        - raws-full-delta-v1-{{ checksum ".checkpoint-state/slot-1.key" }}
-    - run:
-        name: RawS Full restore-layer --slot 1
-        command: python3 -u tools/ci_full.py restore-layer --slot 1
-        no_output_timeout: 55m
-    - run:
-        name: Clear disposable incoming delta
-        command: rm -rf .checkpoint-incoming
-        no_output_timeout: 55m
-    - restore_cache:
-        name: Restore exact delta 2
-        keys:
-        - raws-full-delta-v1-{{ checksum ".checkpoint-state/slot-2.key" }}
-    - run:
-        name: RawS Full restore-layer --slot 2
-        command: python3 -u tools/ci_full.py restore-layer --slot 2
-        no_output_timeout: 55m
-    - run:
-        name: Clear disposable incoming delta
-        command: rm -rf .checkpoint-incoming
-        no_output_timeout: 55m
-    - restore_cache:
-        name: Restore exact delta 3
-        keys:
-        - raws-full-delta-v1-{{ checksum ".checkpoint-state/slot-3.key" }}
-    - run:
-        name: RawS Full restore-layer --slot 3
-        command: python3 -u tools/ci_full.py restore-layer --slot 3
-        no_output_timeout: 55m
-    - run:
-        name: Clear disposable incoming delta
-        command: rm -rf .checkpoint-incoming
-        no_output_timeout: 55m
-    - restore_cache:
-        name: Restore exact delta 4
-        keys:
-        - raws-full-delta-v1-{{ checksum ".checkpoint-state/slot-4.key" }}
-    - run:
-        name: RawS Full restore-layer --slot 4
-        command: python3 -u tools/ci_full.py restore-layer --slot 4
-        no_output_timeout: 55m
-    - run:
-        name: Clear disposable incoming delta
-        command: rm -rf .checkpoint-incoming
-        no_output_timeout: 55m
-    - restore_cache:
-        name: Restore exact delta 5
-        keys:
-        - raws-full-delta-v1-{{ checksum ".checkpoint-state/slot-5.key" }}
-    - run:
-        name: RawS Full restore-layer --slot 5
-        command: python3 -u tools/ci_full.py restore-layer --slot 5
-        no_output_timeout: 55m
-    - run:
-        name: Clear disposable incoming delta
-        command: rm -rf .checkpoint-incoming
-        no_output_timeout: 55m
-    - restore_cache:
-        name: Restore exact delta 6
-        keys:
-        - raws-full-delta-v1-{{ checksum ".checkpoint-state/slot-6.key" }}
-    - run:
-        name: RawS Full restore-layer --slot 6
-        command: python3 -u tools/ci_full.py restore-layer --slot 6
-        no_output_timeout: 55m
-    - run:
-        name: Clear disposable incoming delta
-        command: rm -rf .checkpoint-incoming
-        no_output_timeout: 55m
-    - restore_cache:
-        name: Restore exact delta 7
-        keys:
-        - raws-full-delta-v1-{{ checksum ".checkpoint-state/slot-7.key" }}
-    - run:
-        name: RawS Full restore-layer --slot 7
-        command: python3 -u tools/ci_full.py restore-layer --slot 7
-        no_output_timeout: 55m
-    - run:
-        name: Clear disposable incoming delta
-        command: rm -rf .checkpoint-incoming
-        no_output_timeout: 55m
-    - restore_cache:
-        name: Restore exact delta 8
-        keys:
-        - raws-full-delta-v1-{{ checksum ".checkpoint-state/slot-8.key" }}
-    - run:
-        name: RawS Full restore-layer --slot 8
-        command: python3 -u tools/ci_full.py restore-layer --slot 8
-        no_output_timeout: 55m
-    - run:
-        name: Clear disposable incoming delta
-        command: rm -rf .checkpoint-incoming
-        no_output_timeout: 55m
-    - restore_cache:
-        name: Restore exact delta 9
-        keys:
-        - raws-full-delta-v1-{{ checksum ".checkpoint-state/slot-9.key" }}
-    - run:
-        name: RawS Full restore-layer --slot 9
-        command: python3 -u tools/ci_full.py restore-layer --slot 9
-        no_output_timeout: 55m
-    - run:
-        name: Clear disposable incoming delta
-        command: rm -rf .checkpoint-incoming
-        no_output_timeout: 55m
-    - restore_cache:
-        name: Restore exact delta 10
-        keys:
-        - raws-full-delta-v1-{{ checksum ".checkpoint-state/slot-10.key" }}
-    - run:
-        name: RawS Full restore-layer --slot 10
-        command: python3 -u tools/ci_full.py restore-layer --slot 10
-        no_output_timeout: 55m
-    - run:
-        name: Clear disposable incoming delta
-        command: rm -rf .checkpoint-incoming
-        no_output_timeout: 55m
-    - restore_cache:
-        name: Restore exact delta 11
-        keys:
-        - raws-full-delta-v1-{{ checksum ".checkpoint-state/slot-11.key" }}
-    - run:
-        name: RawS Full restore-layer --slot 11
-        command: python3 -u tools/ci_full.py restore-layer --slot 11
-        no_output_timeout: 55m
-    - run:
-        name: Clear disposable incoming delta
-        command: rm -rf .checkpoint-incoming
-        no_output_timeout: 55m
-    - restore_cache:
-        name: Restore exact delta 12
-        keys:
-        - raws-full-delta-v1-{{ checksum ".checkpoint-state/slot-12.key" }}
-    - run:
-        name: RawS Full restore-layer --slot 12
-        command: python3 -u tools/ci_full.py restore-layer --slot 12
-        no_output_timeout: 55m
-    - run:
-        name: Clear disposable incoming delta
-        command: rm -rf .checkpoint-incoming
-        no_output_timeout: 55m
-    - restore_cache:
-        name: Restore exact delta 13
-        keys:
-        - raws-full-delta-v1-{{ checksum ".checkpoint-state/slot-13.key" }}
-    - run:
-        name: RawS Full restore-layer --slot 13
-        command: python3 -u tools/ci_full.py restore-layer --slot 13
-        no_output_timeout: 55m
-    - run:
-        name: Clear disposable incoming delta
-        command: rm -rf .checkpoint-incoming
-        no_output_timeout: 55m
-    - restore_cache:
-        name: Restore exact delta 14
-        keys:
-        - raws-full-delta-v1-{{ checksum ".checkpoint-state/slot-14.key" }}
-    - run:
-        name: RawS Full restore-layer --slot 14
-        command: python3 -u tools/ci_full.py restore-layer --slot 14
-        no_output_timeout: 55m
-    - run:
-        name: Clear disposable incoming delta
-        command: rm -rf .checkpoint-incoming
-        no_output_timeout: 55m
-    - restore_cache:
-        name: Restore exact delta 15
-        keys:
-        - raws-full-delta-v1-{{ checksum ".checkpoint-state/slot-15.key" }}
-    - run:
-        name: RawS Full restore-layer --slot 15
-        command: python3 -u tools/ci_full.py restore-layer --slot 15
-        no_output_timeout: 55m
-    - run:
-        name: RawS Full restore-finish
-        command: python3 -u tools/ci_full.py restore-finish
-        no_output_timeout: 55m
-    - run:
-        name: Ensure pinned fresh source or verify restored source
-        command: python3 -u tools/ci_source.py
-        no_output_timeout: 55m
-    - run:
-        name: RawS Full begin
-        command: python3 -u tools/ci_full.py begin
-        no_output_timeout: 55m
-    - restore_cache:
-        name: Restore independent RawS apt downloads
-        keys:
-        - raws-apt-v1-ubuntu2404-{{ checksum "upstream.lock.json" }}-
-    - run:
-        name: Configure independent RawS apt cache
-        command: bash tools/prepare_apt_cache.sh
-        no_output_timeout: 55m
-    - run:
-        name: Strict remote BuildBuddy ARM64 compile, maximum 25 minutes
-        command: python3 -u tools/ci_compile.py --stage 1
-        no_output_timeout: 55m
-    - save_cache:
-        name: Save RawS apt downloads
-        key: raws-apt-v1-ubuntu2404-{{ checksum "upstream.lock.json" }}-<< pipeline.id >>-1
-        paths:
-        - .raws-apt-cache/archives
-    - store_artifacts:
-        path: artifacts
-        destination: raws-arm64
-    - run:
-        name: RawS Full completion
-        command: python3 -u tools/ci_completion.py completion
-        no_output_timeout: 55m
-    - save_cache:
-        name: Save verified workflow APK completion
-        key: raws-full-apk-v1-<< pipeline.id >>-1
-        paths:
-        - .raws-completion
-    - run:
-        name: RawS Full halt-complete
-        command: python3 -u tools/ci_completion.py halt-complete
-        no_output_timeout: 55m
-    - run:
-        name: RawS Full capture
-        command: python3 -u tools/ci_full.py capture
-        no_output_timeout: 55m
-    - save_cache:
-        name: Save independent immutable base if new
-        key: raws-full-base-v1-{{ checksum ".checkpoint-state/base.key" }}
-        paths: &id001
-        - raw-workspace-checkpoint.manifest.json
-        - raw-workspace-checkpoint.shards
-    - save_cache:
-        name: Save new immutable delta
-        key: raws-full-delta-v1-{{ checksum ".checkpoint-state/outgoing.key" }}
-        paths:
-        - .checkpoint-incoming
-    - run:
-        name: RawS Full clear-readback
-        command: python3 -u tools/ci_full.py clear-readback
-        no_output_timeout: 55m
-    - restore_cache:
-        name: Read back new base only for fresh seed
-        keys:
-        - raws-full-base-v1-{{ checksum ".checkpoint-state/readback-base.key" }}
-    - restore_cache:
-        name: Read back new delta only
-        keys:
-        - raws-full-delta-v1-{{ checksum ".checkpoint-state/readback-delta.key" }}
-    - run:
-        name: RawS Full readback
-        command: python3 -u tools/ci_full.py readback
-        no_output_timeout: 55m
-    - run:
-        name: RawS Full publish
-        command: python3 -u tools/ci_full.py publish
-        no_output_timeout: 55m
-    - save_cache:
-        name: Publish receipt only after verified native cache readback
-        key: raws-full-head-v1-{{ checksum ".checkpoint-state/scope-key" }}-{{ checksum ".checkpoint-head/receipt.json" }}
-        paths:
-        - .checkpoint-head
-    - run:
-        name: RawS Full final
-        command: python3 -u tools/ci_full.py final
-        no_output_timeout: 55m
-    - store_artifacts:
-        path: .checkpoint-state
-        destination: raws-checkpoint-evidence
+    - unless:
+        condition: << pipeline.parameters.raw_full_restore_only >>
+        steps:
+        - restore_cache:
+            name: Restore latest accepted RawS receipt only
+            keys:
+            - raws-full-head-v1-{{ checksum ".checkpoint-state/scope-key" }}-
+        - run:
+            name: RawS Full prepare
+            command: python3 -u tools/ci_full.py prepare
+            no_output_timeout: 55m
+        - restore_cache:
+            name: Restore exact RawS base
+            keys:
+            - raws-full-base-v1-{{ checksum ".checkpoint-state/base.key" }}
+        - run:
+            name: RawS Full restore-base
+            command: python3 -u tools/ci_full.py restore-base
+            no_output_timeout: 55m
+        - run:
+            name: Clear disposable incoming delta
+            command: rm -rf .checkpoint-incoming
+            no_output_timeout: 55m
+        - restore_cache:
+            name: Restore exact delta 0
+            keys:
+            - raws-full-delta-v1-{{ checksum ".checkpoint-state/slot-0.key" }}
+        - run:
+            name: RawS Full restore-layer --slot 0
+            command: python3 -u tools/ci_full.py restore-layer --slot 0
+            no_output_timeout: 55m
+        - run:
+            name: Clear disposable incoming delta
+            command: rm -rf .checkpoint-incoming
+            no_output_timeout: 55m
+        - restore_cache:
+            name: Restore exact delta 1
+            keys:
+            - raws-full-delta-v1-{{ checksum ".checkpoint-state/slot-1.key" }}
+        - run:
+            name: RawS Full restore-layer --slot 1
+            command: python3 -u tools/ci_full.py restore-layer --slot 1
+            no_output_timeout: 55m
+        - run:
+            name: Clear disposable incoming delta
+            command: rm -rf .checkpoint-incoming
+            no_output_timeout: 55m
+        - restore_cache:
+            name: Restore exact delta 2
+            keys:
+            - raws-full-delta-v1-{{ checksum ".checkpoint-state/slot-2.key" }}
+        - run:
+            name: RawS Full restore-layer --slot 2
+            command: python3 -u tools/ci_full.py restore-layer --slot 2
+            no_output_timeout: 55m
+        - run:
+            name: Clear disposable incoming delta
+            command: rm -rf .checkpoint-incoming
+            no_output_timeout: 55m
+        - restore_cache:
+            name: Restore exact delta 3
+            keys:
+            - raws-full-delta-v1-{{ checksum ".checkpoint-state/slot-3.key" }}
+        - run:
+            name: RawS Full restore-layer --slot 3
+            command: python3 -u tools/ci_full.py restore-layer --slot 3
+            no_output_timeout: 55m
+        - run:
+            name: Clear disposable incoming delta
+            command: rm -rf .checkpoint-incoming
+            no_output_timeout: 55m
+        - restore_cache:
+            name: Restore exact delta 4
+            keys:
+            - raws-full-delta-v1-{{ checksum ".checkpoint-state/slot-4.key" }}
+        - run:
+            name: RawS Full restore-layer --slot 4
+            command: python3 -u tools/ci_full.py restore-layer --slot 4
+            no_output_timeout: 55m
+        - run:
+            name: Clear disposable incoming delta
+            command: rm -rf .checkpoint-incoming
+            no_output_timeout: 55m
+        - restore_cache:
+            name: Restore exact delta 5
+            keys:
+            - raws-full-delta-v1-{{ checksum ".checkpoint-state/slot-5.key" }}
+        - run:
+            name: RawS Full restore-layer --slot 5
+            command: python3 -u tools/ci_full.py restore-layer --slot 5
+            no_output_timeout: 55m
+        - run:
+            name: Clear disposable incoming delta
+            command: rm -rf .checkpoint-incoming
+            no_output_timeout: 55m
+        - restore_cache:
+            name: Restore exact delta 6
+            keys:
+            - raws-full-delta-v1-{{ checksum ".checkpoint-state/slot-6.key" }}
+        - run:
+            name: RawS Full restore-layer --slot 6
+            command: python3 -u tools/ci_full.py restore-layer --slot 6
+            no_output_timeout: 55m
+        - run:
+            name: Clear disposable incoming delta
+            command: rm -rf .checkpoint-incoming
+            no_output_timeout: 55m
+        - restore_cache:
+            name: Restore exact delta 7
+            keys:
+            - raws-full-delta-v1-{{ checksum ".checkpoint-state/slot-7.key" }}
+        - run:
+            name: RawS Full restore-layer --slot 7
+            command: python3 -u tools/ci_full.py restore-layer --slot 7
+            no_output_timeout: 55m
+        - run:
+            name: Clear disposable incoming delta
+            command: rm -rf .checkpoint-incoming
+            no_output_timeout: 55m
+        - restore_cache:
+            name: Restore exact delta 8
+            keys:
+            - raws-full-delta-v1-{{ checksum ".checkpoint-state/slot-8.key" }}
+        - run:
+            name: RawS Full restore-layer --slot 8
+            command: python3 -u tools/ci_full.py restore-layer --slot 8
+            no_output_timeout: 55m
+        - run:
+            name: Clear disposable incoming delta
+            command: rm -rf .checkpoint-incoming
+            no_output_timeout: 55m
+        - restore_cache:
+            name: Restore exact delta 9
+            keys:
+            - raws-full-delta-v1-{{ checksum ".checkpoint-state/slot-9.key" }}
+        - run:
+            name: RawS Full restore-layer --slot 9
+            command: python3 -u tools/ci_full.py restore-layer --slot 9
+            no_output_timeout: 55m
+        - run:
+            name: Clear disposable incoming delta
+            command: rm -rf .checkpoint-incoming
+            no_output_timeout: 55m
+        - restore_cache:
+            name: Restore exact delta 10
+            keys:
+            - raws-full-delta-v1-{{ checksum ".checkpoint-state/slot-10.key" }}
+        - run:
+            name: RawS Full restore-layer --slot 10
+            command: python3 -u tools/ci_full.py restore-layer --slot 10
+            no_output_timeout: 55m
+        - run:
+            name: Clear disposable incoming delta
+            command: rm -rf .checkpoint-incoming
+            no_output_timeout: 55m
+        - restore_cache:
+            name: Restore exact delta 11
+            keys:
+            - raws-full-delta-v1-{{ checksum ".checkpoint-state/slot-11.key" }}
+        - run:
+            name: RawS Full restore-layer --slot 11
+            command: python3 -u tools/ci_full.py restore-layer --slot 11
+            no_output_timeout: 55m
+        - run:
+            name: Clear disposable incoming delta
+            command: rm -rf .checkpoint-incoming
+            no_output_timeout: 55m
+        - restore_cache:
+            name: Restore exact delta 12
+            keys:
+            - raws-full-delta-v1-{{ checksum ".checkpoint-state/slot-12.key" }}
+        - run:
+            name: RawS Full restore-layer --slot 12
+            command: python3 -u tools/ci_full.py restore-layer --slot 12
+            no_output_timeout: 55m
+        - run:
+            name: Clear disposable incoming delta
+            command: rm -rf .checkpoint-incoming
+            no_output_timeout: 55m
+        - restore_cache:
+            name: Restore exact delta 13
+            keys:
+            - raws-full-delta-v1-{{ checksum ".checkpoint-state/slot-13.key" }}
+        - run:
+            name: RawS Full restore-layer --slot 13
+            command: python3 -u tools/ci_full.py restore-layer --slot 13
+            no_output_timeout: 55m
+        - run:
+            name: Clear disposable incoming delta
+            command: rm -rf .checkpoint-incoming
+            no_output_timeout: 55m
+        - restore_cache:
+            name: Restore exact delta 14
+            keys:
+            - raws-full-delta-v1-{{ checksum ".checkpoint-state/slot-14.key" }}
+        - run:
+            name: RawS Full restore-layer --slot 14
+            command: python3 -u tools/ci_full.py restore-layer --slot 14
+            no_output_timeout: 55m
+        - run:
+            name: Clear disposable incoming delta
+            command: rm -rf .checkpoint-incoming
+            no_output_timeout: 55m
+        - restore_cache:
+            name: Restore exact delta 15
+            keys:
+            - raws-full-delta-v1-{{ checksum ".checkpoint-state/slot-15.key" }}
+        - run:
+            name: RawS Full restore-layer --slot 15
+            command: python3 -u tools/ci_full.py restore-layer --slot 15
+            no_output_timeout: 55m
+        - run:
+            name: RawS Full restore-finish
+            command: python3 -u tools/ci_full.py restore-finish
+            no_output_timeout: 55m
+        - run:
+            name: Ensure pinned fresh source or verify restored source
+            command: python3 -u tools/ci_source.py
+            no_output_timeout: 55m
+        - run:
+            name: RawS Full begin
+            command: python3 -u tools/ci_full.py begin
+            no_output_timeout: 55m
+        - restore_cache:
+            name: Restore independent RawS apt downloads
+            keys:
+            - raws-apt-v1-ubuntu2404-{{ checksum "upstream.lock.json" }}-
+        - run:
+            name: Configure independent RawS apt cache
+            command: bash tools/prepare_apt_cache.sh
+            no_output_timeout: 55m
+        - run:
+            name: Strict remote BuildBuddy ARM64 compile, maximum 25 minutes
+            command: python3 -u tools/ci_compile.py --stage 1
+            no_output_timeout: 55m
+        - save_cache:
+            name: Save RawS apt downloads
+            key: raws-apt-v1-ubuntu2404-{{ checksum "upstream.lock.json" }}-<< pipeline.id >>-1
+            paths:
+            - .raws-apt-cache/archives
+        - &id001
+          store_artifacts:
+            path: artifacts
+            destination: raws-arm64
+        - run:
+            name: RawS Full completion
+            command: python3 -u tools/ci_completion.py completion
+            no_output_timeout: 55m
+        - save_cache:
+            name: Save verified workflow APK completion
+            key: raws-full-apk-v1-<< pipeline.id >>-1
+            paths:
+            - .raws-completion
+        - run:
+            name: RawS Full halt-complete
+            command: python3 -u tools/ci_completion.py halt-complete
+            no_output_timeout: 55m
+        - run:
+            name: RawS Full capture
+            command: python3 -u tools/ci_full.py capture
+            no_output_timeout: 55m
+        - save_cache:
+            name: Save independent immutable base if new
+            key: raws-full-base-v1-{{ checksum ".checkpoint-state/base.key" }}
+            paths: &id002
+            - raw-workspace-checkpoint.manifest.json
+            - raw-workspace-checkpoint.shards
+        - save_cache:
+            name: Save new immutable delta
+            key: raws-full-delta-v1-{{ checksum ".checkpoint-state/outgoing.key" }}
+            paths:
+            - .checkpoint-incoming
+        - run:
+            name: RawS Full clear-readback
+            command: python3 -u tools/ci_full.py clear-readback
+            no_output_timeout: 55m
+        - restore_cache:
+            name: Read back new base only for fresh seed
+            keys:
+            - raws-full-base-v1-{{ checksum ".checkpoint-state/readback-base.key" }}
+        - restore_cache:
+            name: Read back new delta only
+            keys:
+            - raws-full-delta-v1-{{ checksum ".checkpoint-state/readback-delta.key" }}
+        - run:
+            name: RawS Full readback
+            command: python3 -u tools/ci_full.py readback
+            no_output_timeout: 55m
+        - run:
+            name: RawS Full publish
+            command: python3 -u tools/ci_full.py publish
+            no_output_timeout: 55m
+        - save_cache:
+            name: Publish receipt only after verified native cache readback
+            key: raws-full-head-v1-{{ checksum ".checkpoint-state/scope-key" }}-{{ checksum ".checkpoint-head/receipt.json" }}
+            paths:
+            - .checkpoint-head
+        - run:
+            name: RawS Full final
+            command: python3 -u tools/ci_full.py final
+            no_output_timeout: 55m
+        - store_artifacts:
+            path: .checkpoint-state
+            destination: raws-checkpoint-evidence
+    - when:
+        condition: << pipeline.parameters.raw_full_restore_only >>
+        steps:
+        - restore_cache:
+            name: 'Restore exact verified RawS #1396 receipt'
+            keys:
+            - raws-final-receipt-v1-1okrnzzf7a7dVnuYH3RZUQh3v8ABzZh4G4yc4YAiROY=
+        - run:
+            name: RawS Full restore-only select
+            command: RAWS_DISTINCT_TEST_IDENTITY=true RAWS_ALLOW_FRESH_SEED=false python3 -u tools/ci_restore_only.py select
+            no_output_timeout: 55m
+        - restore_cache:
+            name: 'Restore exact verified RawS #1396 final archive'
+            keys:
+            - raws-final-base-v1-xLg0fZPI+fw9SpoFza6mLhAhAB2lVxH6jMOzj9OmBBU=
+        - run:
+            name: RawS Full restore-base
+            command: python3 -u tools/ci_full.py restore-base
+            no_output_timeout: 55m
+        - run:
+            name: RawS Full restore-finish
+            command: python3 -u tools/ci_full.py restore-finish
+            no_output_timeout: 55m
+        - run:
+            name: RawS Full restore-only compile
+            command: RAWS_DISTINCT_TEST_IDENTITY=true RAWS_ALLOW_FRESH_SEED=false python3 -u tools/ci_restore_only.py compile
+            no_output_timeout: 55m
+        - run:
+            name: RawS Full restore-only completed
+            command: RAWS_DISTINCT_TEST_IDENTITY=true RAWS_ALLOW_FRESH_SEED=false python3 -u tools/ci_restore_only.py completed
+            no_output_timeout: 55m
+        - *id001
   raws-full-stage-2:
     machine:
       image: ubuntu-2404:current
@@ -698,7 +740,7 @@ jobs:
     - save_cache:
         name: Save independent immutable base if new
         key: raws-full-base-v1-{{ checksum ".checkpoint-state/base.key" }}
-        paths: *id001
+        paths: *id002
     - save_cache:
         name: Save new immutable delta
         key: raws-full-delta-v1-{{ checksum ".checkpoint-state/outgoing.key" }}
@@ -1037,7 +1079,7 @@ jobs:
     - save_cache:
         name: Save independent immutable base if new
         key: raws-full-base-v1-{{ checksum ".checkpoint-state/base.key" }}
-        paths: *id001
+        paths: *id002
     - save_cache:
         name: Save new immutable delta
         key: raws-full-delta-v1-{{ checksum ".checkpoint-state/outgoing.key" }}
@@ -1377,7 +1419,7 @@ jobs:
     - save_cache:
         name: Save independent immutable base if new
         key: raws-full-base-v1-{{ checksum ".checkpoint-state/base.key" }}
-        paths: *id001
+        paths: *id002
     - save_cache:
         name: Save new immutable delta
         key: raws-full-delta-v1-{{ checksum ".checkpoint-state/outgoing.key" }}
@@ -1718,7 +1760,7 @@ jobs:
     - save_cache:
         name: Save independent immutable base if new
         key: raws-full-base-v1-{{ checksum ".checkpoint-state/base.key" }}
-        paths: *id001
+        paths: *id002
     - save_cache:
         name: Save new immutable delta
         key: raws-full-delta-v1-{{ checksum ".checkpoint-state/outgoing.key" }}
@@ -1999,7 +2041,7 @@ jobs:
     - save_cache:
         name: Save refreshed base under new immutable key
         key: raws-full-base-v1-{{ checksum ".checkpoint-state/base.key" }}
-        paths: *id001
+        paths: *id002
     - save_cache:
         name: Save refreshed overlay under new immutable key
         key: raws-full-delta-v1-{{ checksum ".checkpoint-state/outgoing.key" }}
@@ -2758,24 +2800,12 @@ jobs:
     steps:
     - checkout
     - run:
-        name: Verify exact checkout, request, and no signing material
+        name: Verify exact checkout and no signing material
         command: 'set -euo pipefail
 
           test "$CIRCLE_BRANCH" = "raw-sandium/official158"
 
           test "$(git rev-parse HEAD)" = "$CIRCLE_SHA1"
-
-          test "<< pipeline.parameters.run_raw_full >>" = true || { echo "Request run_raw_full=true for a RawS build"; exit 2; }
-
-          test "<< pipeline.parameters.run_raw_preflight >>" = false || { echo "RawS full cannot combine with run_raw_preflight"; exit 2; }
-
-          test "<< pipeline.parameters.run_raw_bootstrap >>" = false || { echo "RawS full cannot combine with run_raw_bootstrap"; exit 2; }
-
-          test "<< pipeline.parameters.run_raw_maintenance >>" = false || { echo "RawS full cannot combine with run_raw_maintenance"; exit 2; }
-
-          test "<< pipeline.parameters.run_raw_final_archive >>" = false || { echo "RawS full cannot combine with run_raw_final_archive"; exit 2; }
-
-          test "<< pipeline.parameters.run_raw_signing_probe >>" = false || { echo "RawS full cannot combine with run_raw_signing_probe"; exit 2; }
 
           set +x
 
@@ -2801,14 +2831,18 @@ jobs:
         name: RawS Full gate
         command: python3 -u tools/ci_full.py gate
         no_output_timeout: 55m
+    - run:
+        name: Ensure verified shard tools
+        command: command -v zstd >/dev/null || (sudo apt-get update -qq && sudo apt-get install -y zstd)
+        no_output_timeout: 55m
     - restore_cache:
         name: 'Restore exact verified RawS #1396 receipt'
         keys:
         - raws-final-receipt-v1-1okrnzzf7a7dVnuYH3RZUQh3v8ABzZh4G4yc4YAiROY=
     - run:
-        name: RawS restore-only select
-        command: RAWS_CODEC_TRIAL=<< pipeline.parameters.raws_h264_aac >> RAWS_UNSIGNED_TEST_APK=true RAWS_DISTINCT_TEST_IDENTITY=true RAWS_ALLOW_FRESH_SEED=false
-          python3 -u tools/ci_restore_only.py select
+        name: RawS signed test select
+        command: RAWS_CODEC_TRIAL=<< pipeline.parameters.run_raw_combined_codec_trial >> RAWS_DISTINCT_TEST_IDENTITY=true RAWS_ALLOW_FRESH_SEED=false python3
+          -u tools/ci_restore_only.py select
         no_output_timeout: 55m
     - restore_cache:
         name: 'Restore exact verified RawS #1396 final archive'
@@ -2823,14 +2857,14 @@ jobs:
         command: python3 -u tools/ci_full.py restore-finish
         no_output_timeout: 55m
     - run:
-        name: RawS restore-only compile
-        command: RAWS_CODEC_TRIAL=<< pipeline.parameters.raws_h264_aac >> RAWS_UNSIGNED_TEST_APK=true RAWS_DISTINCT_TEST_IDENTITY=true RAWS_ALLOW_FRESH_SEED=false
-          python3 -u tools/ci_restore_only.py compile
+        name: RawS signed test compile
+        command: RAWS_CODEC_TRIAL=<< pipeline.parameters.run_raw_combined_codec_trial >> RAWS_DISTINCT_TEST_IDENTITY=true RAWS_ALLOW_FRESH_SEED=false python3
+          -u tools/ci_restore_only.py compile
         no_output_timeout: 55m
     - run:
-        name: RawS restore-only completed
-        command: RAWS_CODEC_TRIAL=<< pipeline.parameters.raws_h264_aac >> RAWS_UNSIGNED_TEST_APK=true RAWS_DISTINCT_TEST_IDENTITY=true RAWS_ALLOW_FRESH_SEED=false
-          python3 -u tools/ci_restore_only.py completed
+        name: RawS signed test completed
+        command: RAWS_CODEC_TRIAL=<< pipeline.parameters.run_raw_combined_codec_trial >> RAWS_DISTINCT_TEST_IDENTITY=true RAWS_ALLOW_FRESH_SEED=false python3
+          -u tools/ci_restore_only.py completed
         no_output_timeout: 55m
     - persist_to_workspace:
         root: .raws-signing-input
@@ -2866,9 +2900,9 @@ jobs:
     - run:
         name: Verify inputs, sign, and admit the final directory atomically
         command: "set +x\nset -euo pipefail\numask 077\ntest ! -e .raws-signing-verified\ntest ! -L .raws-signing-verified\ntest ! -e artifacts/raws-signed\n\
-          test ! -L artifacts/raws-signed\ntest ! -L artifacts\nRAWS_CODEC_TRIAL=<< pipeline.parameters.raws_h264_aac >> RAWS_UNSIGNED_TEST_APK=true python3\
-          \ -u tools/ci_sign_raws_test.py --input .raws-signing-input \\\n  --sdk /tmp/raws-signer-sdk/android-16 --output-dir .raws-signing-verified\n\
-          mkdir -p artifacts\nmv -T .raws-signing-verified artifacts/raws-signed\n"
+          test ! -L artifacts/raws-signed\ntest ! -L artifacts\nRAWS_CODEC_TRIAL=<< pipeline.parameters.run_raw_combined_codec_trial >> python3 -u tools/ci_sign_raws_test.py\
+          \ --input .raws-signing-input \\\n  --sdk /tmp/raws-signer-sdk/android-16 --output-dir .raws-signing-verified\nmkdir -p artifacts\nmv -T .raws-signing-verified\
+          \ artifacts/raws-signed\n"
         no_output_timeout: 55m
     - store_artifacts:
         path: artifacts/raws-signed
@@ -2914,27 +2948,19 @@ job-groups:
           branches:
             only: raw-sandium/official158
     - raws-full-stage-2:
-        filters:
-          branches:
-            only: raw-sandium/official158
+        filters: pipeline.git.branch == "raw-sandium/official158" and not pipeline.parameters.raw_full_restore_only
         requires:
         - raws-full-stage-1
     - raws-full-stage-3:
-        filters:
-          branches:
-            only: raw-sandium/official158
+        filters: pipeline.git.branch == "raw-sandium/official158" and not pipeline.parameters.raw_full_restore_only
         requires:
         - raws-full-stage-2
     - raws-full-stage-4:
-        filters:
-          branches:
-            only: raw-sandium/official158
+        filters: pipeline.git.branch == "raw-sandium/official158" and not pipeline.parameters.raw_full_restore_only
         requires:
         - raws-full-stage-3
     - raws-full-stage-5:
-        filters:
-          branches:
-            only: raw-sandium/official158
+        filters: pipeline.git.branch == "raw-sandium/official158" and not pipeline.parameters.raw_full_restore_only
         requires:
         - raws-full-stage-4
   raws-final-chain:
@@ -2958,7 +2984,7 @@ job-groups:
   raws-signed-test-chain:
     jobs:
     - raws-test-identity-compile:
-        filters: &id002
+        filters: &id003
           branches:
             only: raw-sandium/official158
     - raws-test-identity-sign:
@@ -2973,9 +2999,9 @@ workflows:
     when:
       and:
       - << pipeline.parameters.run_raw_preflight >>
-      - not: << pipeline.parameters.run_raw_full >>
+      - not: << pipeline.parameters.run_raw_signed_test >>
       - not: << pipeline.parameters.run_raw_signing_probe >>
-      - not: << pipeline.parameters.raws_h264_aac >>
+      - not: << pipeline.parameters.run_raw_combined_codec_trial >>
     jobs:
     - raw-preflight:
         filters:
@@ -2985,9 +3011,9 @@ workflows:
     when:
       and:
       - << pipeline.parameters.run_raw_bootstrap >>
-      - not: << pipeline.parameters.run_raw_full >>
+      - not: << pipeline.parameters.run_raw_signed_test >>
       - not: << pipeline.parameters.run_raw_signing_probe >>
-      - not: << pipeline.parameters.raws_h264_aac >>
+      - not: << pipeline.parameters.run_raw_combined_codec_trial >>
     jobs:
     - raw-bootstrap:
         filters:
@@ -2996,22 +3022,20 @@ workflows:
   RawS full:
     when:
       and:
-      - or:
-        - << pipeline.parameters.run_raw_full >>
-        - << pipeline.parameters.raws_h264_aac >>
-      - equal:
-        - raw-sandium/official158
-        - << pipeline.git.branch >>
+      - << pipeline.parameters.run_raw_full >>
+      - not: << pipeline.parameters.run_raw_signed_test >>
+      - not: << pipeline.parameters.run_raw_signing_probe >>
+      - not: << pipeline.parameters.run_raw_combined_codec_trial >>
     jobs:
-    - raws-signed-test-chain:
+    - raws-full-chain:
         serial-group: << pipeline.project.slug >>/raws-full
   RawS checkpoint maintenance:
     when:
       and:
       - << pipeline.parameters.run_raw_maintenance >>
-      - not: << pipeline.parameters.run_raw_full >>
+      - not: << pipeline.parameters.run_raw_signed_test >>
       - not: << pipeline.parameters.run_raw_signing_probe >>
-      - not: << pipeline.parameters.raws_h264_aac >>
+      - not: << pipeline.parameters.run_raw_combined_codec_trial >>
     jobs:
     - raws-maintenance:
         serial-group: << pipeline.project.slug >>/raws-full
@@ -3022,11 +3046,47 @@ workflows:
     when:
       and:
       - << pipeline.parameters.run_raw_final_archive >>
-      - not: << pipeline.parameters.run_raw_full >>
+      - not: << pipeline.parameters.run_raw_signed_test >>
       - not: << pipeline.parameters.run_raw_signing_probe >>
-      - not: << pipeline.parameters.raws_h264_aac >>
+      - not: << pipeline.parameters.run_raw_combined_codec_trial >>
     jobs:
     - raws-final-chain:
+        serial-group: << pipeline.project.slug >>/raws-full
+  RawS distinct signed test:
+    when:
+      and:
+      - << pipeline.parameters.run_raw_signed_test >>
+      - equal:
+        - raw-sandium/official158
+        - << pipeline.git.branch >>
+      - not: << pipeline.parameters.run_raw_preflight >>
+      - not: << pipeline.parameters.run_raw_bootstrap >>
+      - not: << pipeline.parameters.run_raw_full >>
+      - not: << pipeline.parameters.run_raw_maintenance >>
+      - not: << pipeline.parameters.run_raw_final_archive >>
+      - not: << pipeline.parameters.raw_full_restore_only >>
+      - not: << pipeline.parameters.run_raw_signing_probe >>
+      - not: << pipeline.parameters.run_raw_combined_codec_trial >>
+    jobs:
+    - raws-signed-test-chain:
+        serial-group: << pipeline.project.slug >>/raws-full
+  RawS combined signed codec trial:
+    when:
+      and:
+      - << pipeline.parameters.run_raw_combined_codec_trial >>
+      - equal:
+        - raw-sandium/official158
+        - << pipeline.git.branch >>
+      - not: << pipeline.parameters.run_raw_preflight >>
+      - not: << pipeline.parameters.run_raw_bootstrap >>
+      - not: << pipeline.parameters.run_raw_full >>
+      - not: << pipeline.parameters.run_raw_maintenance >>
+      - not: << pipeline.parameters.run_raw_final_archive >>
+      - not: << pipeline.parameters.raw_full_restore_only >>
+      - not: << pipeline.parameters.run_raw_signed_test >>
+      - not: << pipeline.parameters.run_raw_signing_probe >>
+    jobs:
+    - raws-signed-test-chain:
         serial-group: << pipeline.project.slug >>/raws-full
   RawS signing context probe:
     when:
@@ -3040,8 +3100,10 @@ workflows:
       - not: << pipeline.parameters.run_raw_full >>
       - not: << pipeline.parameters.run_raw_maintenance >>
       - not: << pipeline.parameters.run_raw_final_archive >>
-      - not: << pipeline.parameters.raws_h264_aac >>
+      - not: << pipeline.parameters.raw_full_restore_only >>
+      - not: << pipeline.parameters.run_raw_signed_test >>
+      - not: << pipeline.parameters.run_raw_combined_codec_trial >>
     jobs:
     - raws-test-signing-context-probe:
-        filters: *id002
+        filters: *id003
         context: RawS-Test-Signing

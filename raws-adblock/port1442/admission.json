@@ -4,11 +4,14 @@
   "extra_generated": [
     "chrome/browser/raws/catalog_generated.h",
     "chrome/browser/raws/subscription_policy.h",
-    "chrome/browser/raws/subscription_service.h"
+    "chrome/browser/raws/subscription_service.h",
+    "chrome/browser/ui/android/toolbar/java/res/drawable/raws_page_toolbar_forward.xml",
+    "chrome/browser/ui/android/toolbar/java/res/drawable/raws_page_toolbar_menu.xml"
   ],
   "extra_tracked": [
     "chrome/android/BUILD.gn",
     "chrome/android/feed/core/java/src/org/chromium/chrome/browser/feed/FeedSurfaceCoordinator.java",
+    "chrome/android/java/res/xml/appearance_preferences.xml",
     "chrome/android/java/res_base/drawable/ic_launcher.xml",
     "chrome/android/java/res_base/drawable/ic_launcher_round.xml",
     "chrome/android/java/res_chromium_base/mipmap-hdpi/app_icon.png",
@@ -22,6 +25,7 @@
     "chrome/android/java/res_chromium_base/mipmap-xxxhdpi/app_icon.png",
     "chrome/android/java/res_chromium_base/mipmap-xxxhdpi/layered_app_icon.png",
     "chrome/android/java/res_chromium_base/values/channel_constants.xml",
+    "chrome/android/java/src/org/chromium/chrome/browser/appearance/settings/AppearanceSettingsFragment.java",
     "chrome/android/java/src/org/chromium/chrome/browser/ntp/NewTabPage.java",
     "chrome/android/java/src/org/chromium/chrome/browser/ntp/NewTabPageCoordinator.java",
     "chrome/android/java/src/org/chromium/chrome/browser/ntp/NewTabPageUtils.java",
@@ -43,6 +47,7 @@
     "chrome/browser/ui/android/toolbar/BUILD.gn",
     "chrome/browser/ui/android/toolbar/java/res/layout/toolbar_phone.xml",
     "chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/ToolbarPositionController.java",
+    "chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/menu_button/MenuButton.java",
     "chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/settings/AddressBarPreference.java",
     "chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/ToggleTabStackButton.java",
     "chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/ToggleTabStackButtonCoordinator.java",
@@ -60,7 +65,7 @@
     "third_party/blink/renderer/core/html/media/html_media_element.h",
     "third_party/blink/renderer/core/page/create_window.cc"
   ],
-  "manifest_sha256": "89955be7b2876a2118dfd4d78391334fb1a65580c49f3e1061e012315f25b68d",
+  "manifest_sha256": "3b3caa7341f03798f02af66d2f7e6d4ce92cee23392729de3b2b9f746e8d4bc6",
   "staged_vendor_delta": {
     "brave/third_party/rust/chromium_crates_io/vendor/adblock-v0_13/src/blocker.rs": {
       "after": "ac368737ffb88855918f8e32ac0eb39a308c4e76f41e4a8193cf223c2a59a7cb",
