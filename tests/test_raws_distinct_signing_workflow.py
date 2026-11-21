@@ -10,6 +10,8 @@ import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
 OPT = '<< pipeline.parameters.run_raw_signed_test >>'
+CODEC_OPT = '<< pipeline.parameters.run_raw_codec_trial >>'
+CODEC_WORKFLOW = 'RawS isolated codec trial'
 PROBE_OPT = '<< pipeline.parameters.run_raw_signing_probe >>'
 BRANCH = 'raw-sandium/official158'
 COMPILE = 'raws-test-identity-compile'
@@ -41,9 +43,28 @@ class RawSDistinctSigningWorkflowTests(unittest.TestCase):
               for key in self.config['parameters'] if key != 'run_raw_signed_test'),
         ])
         for name, other in self.config['workflows'].items():
-            if name not in (WORKFLOW, PROBE_WORKFLOW):
+            if name not in (WORKFLOW, PROBE_WORKFLOW, CODEC_WORKFLOW):
                 self.assertIn({'not': OPT}, other['when']['and'])
                 self.assertIn({'not': PROBE_OPT}, other['when']['and'])
+                self.assertIn({'not': CODEC_OPT}, other['when']['and'])
+
+    def test_codec_workflow_reuses_exact_shared_signed_chain_and_is_exclusive(self):
+        self.assertEqual(self.config['parameters']['run_raw_codec_trial'],
+                         {'type': 'boolean', 'default': False})
+        workflow = self.config['workflows'][CODEC_WORKFLOW]
+        self.assertEqual(workflow['jobs'], self.config['workflows'][WORKFLOW]['jobs'])
+        self.assertEqual(workflow['when']['and'], [
+            CODEC_OPT, {'equal': [BRANCH, '<< pipeline.git.branch >>']},
+            *({'not': f'<< pipeline.parameters.{key} >>'}
+              for key in self.config['parameters'] if key != 'run_raw_codec_trial'),
+        ])
+        for job in (self.compile, self.sign):
+            selected = [step['run']['command'] for step in job['steps']
+                        if isinstance(step, dict) and 'run' in step and
+                        'RAWS_CODEC_TRIAL' in step['run']['command']]
+            self.assertEqual(len(selected), 3 if job is self.compile else 1)
+            self.assertTrue(all('RAWS_CODEC_TRIAL='+CODEC_OPT in s for s in selected))
+        self.assertNotIn('RAWS_CODEC_TRIAL', str(self.config['jobs']['raws-full-stage-1']))
 
     def test_context_is_on_signer_only_and_compile_gets_no_secrets(self):
         chain = self.config['job-groups'][CHAIN]['jobs']
@@ -67,7 +88,7 @@ class RawSDistinctSigningWorkflowTests(unittest.TestCase):
         selected = [cmd for cmd in commands if 'RAWS_DISTINCT_TEST_IDENTITY' in cmd]
         self.assertEqual(3, len(selected))
         for phase in ('select', 'compile', 'completed'):
-            self.assertIn('RAWS_DISTINCT_TEST_IDENTITY=true RAWS_ALLOW_FRESH_SEED=false '
+            self.assertIn('RAWS_CODEC_TRIAL='+CODEC_OPT+' RAWS_DISTINCT_TEST_IDENTITY=true RAWS_ALLOW_FRESH_SEED=false '
                           'python3 -u tools/ci_restore_only.py ' + phase, selected)
         preflight = next(cmd for cmd in commands if 'unittest discover' in cmd)
         self.assertNotIn('RAWS_DISTINCT_TEST_IDENTITY', preflight)
@@ -102,7 +123,7 @@ class RawSDistinctSigningWorkflowTests(unittest.TestCase):
         self.assertNotIn('persist_to_workspace', str(steps))
 
     def test_failed_verifier_in_private_stage_cannot_publish_partial_candidate(self):
-        command = self.sign['steps'][4]['run']['command']
+        command = self.sign['steps'][4]['run']['command'].replace(CODEC_OPT, 'false')
         for result in (0, 1):
             with self.subTest(code=result), tempfile.TemporaryDirectory() as tmp:
                 cwd = Path(tmp)

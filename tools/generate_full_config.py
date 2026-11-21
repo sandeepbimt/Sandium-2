@@ -61,10 +61,13 @@ def add_signed_test(result):
  from ci_restore_only import BASE_CACHE, RECEIPT_CACHE
  key='run_raw_signed_test'
  probe_key='run_raw_signing_probe'
+ codec_key='run_raw_codec_trial'
  selector='<< pipeline.parameters.'+key+' >>'
  probe_selector='<< pipeline.parameters.'+probe_key+' >>'
+ codec_selector='<< pipeline.parameters.'+codec_key+' >>'
  result['parameters'][key]={'type':'boolean','default':False}
  result['parameters'][probe_key]={'type':'boolean','default':False}
+ result['parameters'][codec_key]={'type':'boolean','default':False}
  branch='raw-sandium/official158'
  branch_filter={'branches':{'only':branch}}
  guard='set -euo pipefail\ntest "$CIRCLE_BRANCH" = "'+branch+'"\ntest "$(git rev-parse HEAD)" = "$CIRCLE_SHA1"'
@@ -75,6 +78,7 @@ test -z "${RAWS_KEY_PASSWORD+x}"
 """
  def policy_phase(name):
   return run('RawS signed test '+name,
+             'RAWS_CODEC_TRIAL='+codec_selector+' '
              'RAWS_DISTINCT_TEST_IDENTITY=true RAWS_ALLOW_FRESH_SEED=false '
              'python3 -u tools/ci_restore_only.py '+name)
  compile_job=common(1)
@@ -121,11 +125,11 @@ test ! -L .raws-signing-verified
 test ! -e artifacts/raws-signed
 test ! -L artifacts/raws-signed
 test ! -L artifacts
-python3 -u tools/ci_sign_raws_test.py --input .raws-signing-input \
+RAWS_CODEC_TRIAL=CODEC_SELECTOR python3 -u tools/ci_sign_raws_test.py --input .raws-signing-input \
   --sdk /tmp/raws-signer-sdk/android-16 --output-dir .raws-signing-verified
 mkdir -p artifacts
 mv -T .raws-signing-verified artifacts/raws-signed
-"""),
+""".replace('CODEC_SELECTOR',codec_selector)),
   {'store_artifacts':{'path':'artifacts/raws-signed','destination':'raws-signed'}},
  ]}
  probe_job={'machine':{'image':'ubuntu-2404:current'},'resource_class':'medium','steps':[
@@ -145,7 +149,7 @@ mv -T .raws-signing-verified artifacts/raws-signed
  # sign a candidate, or schedule checkpoint maintenance. Default false keeps
  # all historical workflows behaviorally unchanged.
  for workflow in result['workflows'].values():
-  workflow['when']={'and':[workflow['when'],{'not':selector},{'not':probe_selector}]}
+  workflow['when']={'and':[workflow['when'],{'not':selector},{'not':probe_selector},{'not':codec_selector}]}
  def exclusive(selected):
   return {'and':['<< pipeline.parameters.'+selected+' >>',
                  {'equal':[branch,'<< pipeline.git.branch >>']},
@@ -153,6 +157,10 @@ mv -T .raws-signing-verified artifacts/raws-signed
                    for other in result['parameters'] if other!=selected)]}
  result['workflows']['RawS distinct signed test']={
   'when':exclusive(key),
+  'jobs':[{'raws-signed-test-chain':{'serial-group':'<< pipeline.project.slug >>/raws-full'}}],
+ }
+ result['workflows']['RawS isolated codec trial']={
+  'when':exclusive(codec_key),
   'jobs':[{'raws-signed-test-chain':{'serial-group':'<< pipeline.project.slug >>/raws-full'}}],
  }
  result['workflows']['RawS signing context probe']={

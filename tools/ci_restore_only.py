@@ -28,6 +28,11 @@ def distinct_test_mode():
 
 
 def gate():
+    from raws_codec_ci import mode as codec_mode, verify_checkout
+    if codec_mode():
+        if not distinct_test_mode():
+            raise ValueError('Codec mode is only available to the isolated signed test job')
+        verify_checkout(full.ROOT)
     if distinct_test_mode():
         from ci_sign_raws_test import SIGNING_SECRETS
         if any(key in os.environ for key in SIGNING_SECRETS):
@@ -111,6 +116,9 @@ def compile_once():
         from restore_only_port1442 import prepare_stage
         prepare_stage(full.ROOT/'.raws-staged-engine', feature)
         feature.apply(src, upstream)
+    from raws_codec_ci import mode as codec_mode
+    if codec_mode():
+        return main(1, feature=feature, distinct_test=True, codec_trial=True)
     if distinct_test_mode():
         return main(1, feature=feature, distinct_test=True)
     return main(1, feature=feature)
@@ -142,6 +150,11 @@ def completed():
                 'apk_produced', 'apk_verified', 'apk_zip_verified', 'apk_signature_verified'))
             or not apk.is_file() or state.get('apk_sha256') != file_sha(apk)):
         raise ValueError('Restore-only Full did not produce a verified APK')
+    from raws_codec_ci import mode as codec_mode, validate_proof
+    if codec_mode():
+        validate_proof(root, state.get('codec_trial'))
+    elif 'codec_trial' in state:
+        raise ValueError('Codec trial state cannot enter the ordinary test workflow')
     if distinct_test_mode():
         from ci_sign_raws_test import stage_private_input
         stage_private_input(root, state, apk)

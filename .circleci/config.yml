@@ -25,6 +25,9 @@ parameters:
   run_raw_signing_probe:
     type: boolean
     default: false
+  run_raw_codec_trial:
+    type: boolean
+    default: false
 jobs:
   raw-bootstrap:
     machine:
@@ -2838,7 +2841,8 @@ jobs:
         - raws-final-receipt-v1-1okrnzzf7a7dVnuYH3RZUQh3v8ABzZh4G4yc4YAiROY=
     - run:
         name: RawS signed test select
-        command: RAWS_DISTINCT_TEST_IDENTITY=true RAWS_ALLOW_FRESH_SEED=false python3 -u tools/ci_restore_only.py select
+        command: RAWS_CODEC_TRIAL=<< pipeline.parameters.run_raw_codec_trial >> RAWS_DISTINCT_TEST_IDENTITY=true RAWS_ALLOW_FRESH_SEED=false python3 -u
+          tools/ci_restore_only.py select
         no_output_timeout: 55m
     - restore_cache:
         name: 'Restore exact verified RawS #1396 final archive'
@@ -2854,11 +2858,13 @@ jobs:
         no_output_timeout: 55m
     - run:
         name: RawS signed test compile
-        command: RAWS_DISTINCT_TEST_IDENTITY=true RAWS_ALLOW_FRESH_SEED=false python3 -u tools/ci_restore_only.py compile
+        command: RAWS_CODEC_TRIAL=<< pipeline.parameters.run_raw_codec_trial >> RAWS_DISTINCT_TEST_IDENTITY=true RAWS_ALLOW_FRESH_SEED=false python3 -u
+          tools/ci_restore_only.py compile
         no_output_timeout: 55m
     - run:
         name: RawS signed test completed
-        command: RAWS_DISTINCT_TEST_IDENTITY=true RAWS_ALLOW_FRESH_SEED=false python3 -u tools/ci_restore_only.py completed
+        command: RAWS_CODEC_TRIAL=<< pipeline.parameters.run_raw_codec_trial >> RAWS_DISTINCT_TEST_IDENTITY=true RAWS_ALLOW_FRESH_SEED=false python3 -u
+          tools/ci_restore_only.py completed
         no_output_timeout: 55m
     - persist_to_workspace:
         root: .raws-signing-input
@@ -2894,8 +2900,9 @@ jobs:
     - run:
         name: Verify inputs, sign, and admit the final directory atomically
         command: "set +x\nset -euo pipefail\numask 077\ntest ! -e .raws-signing-verified\ntest ! -L .raws-signing-verified\ntest ! -e artifacts/raws-signed\n\
-          test ! -L artifacts/raws-signed\ntest ! -L artifacts\npython3 -u tools/ci_sign_raws_test.py --input .raws-signing-input \\\n  --sdk /tmp/raws-signer-sdk/android-16\
-          \ --output-dir .raws-signing-verified\nmkdir -p artifacts\nmv -T .raws-signing-verified artifacts/raws-signed\n"
+          test ! -L artifacts/raws-signed\ntest ! -L artifacts\nRAWS_CODEC_TRIAL=<< pipeline.parameters.run_raw_codec_trial >> python3 -u tools/ci_sign_raws_test.py\
+          \ --input .raws-signing-input \\\n  --sdk /tmp/raws-signer-sdk/android-16 --output-dir .raws-signing-verified\nmkdir -p artifacts\nmv -T .raws-signing-verified\
+          \ artifacts/raws-signed\n"
         no_output_timeout: 55m
     - store_artifacts:
         path: artifacts/raws-signed
@@ -2994,6 +3001,7 @@ workflows:
       - << pipeline.parameters.run_raw_preflight >>
       - not: << pipeline.parameters.run_raw_signed_test >>
       - not: << pipeline.parameters.run_raw_signing_probe >>
+      - not: << pipeline.parameters.run_raw_codec_trial >>
     jobs:
     - raw-preflight:
         filters:
@@ -3005,6 +3013,7 @@ workflows:
       - << pipeline.parameters.run_raw_bootstrap >>
       - not: << pipeline.parameters.run_raw_signed_test >>
       - not: << pipeline.parameters.run_raw_signing_probe >>
+      - not: << pipeline.parameters.run_raw_codec_trial >>
     jobs:
     - raw-bootstrap:
         filters:
@@ -3016,6 +3025,7 @@ workflows:
       - << pipeline.parameters.run_raw_full >>
       - not: << pipeline.parameters.run_raw_signed_test >>
       - not: << pipeline.parameters.run_raw_signing_probe >>
+      - not: << pipeline.parameters.run_raw_codec_trial >>
     jobs:
     - raws-full-chain:
         serial-group: << pipeline.project.slug >>/raws-full
@@ -3025,6 +3035,7 @@ workflows:
       - << pipeline.parameters.run_raw_maintenance >>
       - not: << pipeline.parameters.run_raw_signed_test >>
       - not: << pipeline.parameters.run_raw_signing_probe >>
+      - not: << pipeline.parameters.run_raw_codec_trial >>
     jobs:
     - raws-maintenance:
         serial-group: << pipeline.project.slug >>/raws-full
@@ -3037,6 +3048,7 @@ workflows:
       - << pipeline.parameters.run_raw_final_archive >>
       - not: << pipeline.parameters.run_raw_signed_test >>
       - not: << pipeline.parameters.run_raw_signing_probe >>
+      - not: << pipeline.parameters.run_raw_codec_trial >>
     jobs:
     - raws-final-chain:
         serial-group: << pipeline.project.slug >>/raws-full
@@ -3053,6 +3065,25 @@ workflows:
       - not: << pipeline.parameters.run_raw_maintenance >>
       - not: << pipeline.parameters.run_raw_final_archive >>
       - not: << pipeline.parameters.raw_full_restore_only >>
+      - not: << pipeline.parameters.run_raw_signing_probe >>
+      - not: << pipeline.parameters.run_raw_codec_trial >>
+    jobs:
+    - raws-signed-test-chain:
+        serial-group: << pipeline.project.slug >>/raws-full
+  RawS isolated codec trial:
+    when:
+      and:
+      - << pipeline.parameters.run_raw_codec_trial >>
+      - equal:
+        - raw-sandium/official158
+        - << pipeline.git.branch >>
+      - not: << pipeline.parameters.run_raw_preflight >>
+      - not: << pipeline.parameters.run_raw_bootstrap >>
+      - not: << pipeline.parameters.run_raw_full >>
+      - not: << pipeline.parameters.run_raw_maintenance >>
+      - not: << pipeline.parameters.run_raw_final_archive >>
+      - not: << pipeline.parameters.raw_full_restore_only >>
+      - not: << pipeline.parameters.run_raw_signed_test >>
       - not: << pipeline.parameters.run_raw_signing_probe >>
     jobs:
     - raws-signed-test-chain:
@@ -3071,6 +3102,7 @@ workflows:
       - not: << pipeline.parameters.run_raw_final_archive >>
       - not: << pipeline.parameters.raw_full_restore_only >>
       - not: << pipeline.parameters.run_raw_signed_test >>
+      - not: << pipeline.parameters.run_raw_codec_trial >>
     jobs:
     - raws-test-signing-context-probe:
         filters: *id003

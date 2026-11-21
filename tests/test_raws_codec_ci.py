@@ -1,0 +1,126 @@
+"""Deterministic local proof tests; no CI, signing keys, compiler or APK streams."""
+import copy
+import json
+from pathlib import Path
+import sys
+import unittest
+from unittest.mock import patch
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]/'tools'))
+import ci_restore_only
+import ci_sign_raws_test as signer
+import raws_codec_ci as codec
+import raws_codec_trial as profile
+import test_raws_signing_handoff as handoff
+import test_raws_codec_trial as local_trial
+
+
+class CodecCIProofTest(unittest.TestCase):
+    def setUp(self):
+        handoff.SigningHandoffTest.setUp(self)
+        self.repo = Path(__file__).resolve().parents[1]
+        self.out = self.root/'test-out'
+        self.out.mkdir()
+        ci = self.root/'ci'
+        ci.mkdir()
+        baseline = (self.repo/'ci/args.gn').read_bytes()
+        (ci/'args.gn').write_bytes(baseline)
+        (self.out/'args.gn').write_bytes(profile.compose(baseline, True))
+        self.header = self.out/'gen/media/media_buildflags.h'
+        self.header.parent.mkdir(parents=True)
+        self.header.write_text(''.join(f'#define BUILDFLAG_INTERNAL_{k}() ({v})\n'
+                                       for k, v in codec.BUILD_FLAGS.items()))
+        ffmpeg = self.root/'ffmpeg'
+        local_trial.TrialTest.make_configs(None, ffmpeg)
+        self.proof = codec.compile_proof(self.root, self.out, profile.media_settings(True),
+                                         profile.check_ffmpeg_configs(ffmpeg))
+        self.manifest = self.root/'raws-adblock/production-restore-recipe.json'
+
+    def stage(self):
+        return handoff.SigningHandoffTest.stage(self)
+
+    def test_generated_buildflag_header_rejects_missing_or_false(self):
+        self.header.write_text(self.header.read_text().replace('USE_PROPRIETARY_CODECS() (1)',
+                                                               'USE_PROPRIETARY_CODECS() (0)'))
+        with self.assertRaisesRegex(ValueError, 'USE_PROPRIETARY_CODECS'):
+            codec.read_generated_header(self.out)
+        self.header.unlink()
+        with self.assertRaisesRegex(ValueError, 'No generated media'):
+            codec.read_generated_header(self.out)
+
+    def test_mode_must_be_selected_at_both_ends(self):
+        self.state['codec_trial'] = self.proof
+        with patch.object(codec, 'mode', return_value=False):
+            with self.assertRaisesRegex(ValueError, 'ordinary test signing'):
+                self.stage()
+        with patch.object(codec, 'mode', return_value=True):
+            source = self.stage()
+            with patch.object(signer, 'run_identity', return_value=self.run), \
+                    patch.object(codec, 'verify_checkout'):
+                apk, proof = signer.input_receipt(self.root, source)
+                self.assertEqual(proof['codec_trial'], self.proof)
+                self.assertEqual(proof['input_sha256'], signer.sha256(apk))
+                with patch.object(codec, 'mode', return_value=False):
+                    with self.assertRaisesRegex(ValueError, 'exact candidate'):
+                        signer.input_receipt(self.root, source)
+                mutated = copy.deepcopy(proof)
+                mutated['codec_trial']['generated_media_buildflags']['ENABLE_HLS_DEMUXER'] = 1
+                (source/'receipt.json').write_text(json.dumps(mutated))
+                with self.assertRaisesRegex(ValueError, 'inconsistent private codec proof'):
+                    signer.input_receipt(self.root, source)
+
+    def test_codec_artifact_has_unique_name_and_test_only_receipt(self):
+        self.state['codec_trial'] = self.proof
+        dest = self.root/'artifact'
+        with patch.object(codec, 'mode', return_value=True):
+            source = self.stage()
+            def pretend_sign(apk, path, *args, **kwargs):
+                self.assertEqual(path.name, codec.TRIAL_APK)
+                self.assertEqual(kwargs['expected_input_sha256'], signer.sha256(apk))
+                path.write_bytes(b'synthetic signed apk')
+                return {'apk_sha256': signer.sha256(path)}
+            with patch.object(signer, 'run_identity', return_value=self.run), \
+                    patch.object(codec, 'verify_checkout'), \
+                    patch.object(signer, 'sign_release_locally', side_effect=pretend_sign), \
+                    patch.dict(signer.os.environ, {'RAWS_TEST_SIGNER_PIN_SHA256': 'a'*64,
+                                                  'RAWS_TEST_KEYSTORE_B64': 'YQ=='}, clear=True):
+                signer.sign(self.root, source, self.root/'sdk', dest)
+        receipt = json.loads((dest/'signing-receipt.json').read_text())
+        self.assertIs(receipt['distribution_ready'], False)
+        self.assertEqual(receipt['codec_trial'], self.proof)
+        self.assertEqual(receipt['apk_sha256'], signer.sha256(dest/codec.TRIAL_APK))
+        self.assertFalse((dest/signer.APK_NAME).exists())
+
+    def test_codec_profile_requires_isolated_signed_route(self):
+        with patch.object(codec, 'mode', return_value=True), patch.object(
+                ci_restore_only, 'distinct_test_mode', return_value=False):
+            with self.assertRaisesRegex(ValueError, 'isolated signed'):
+                ci_restore_only.gate()
+
+    def test_exact_control_parent_paths_and_manifest(self):
+        self.manifest.write_bytes((self.repo/self.manifest.relative_to(self.root)).read_bytes())
+        def commit(path, *args):
+            if args[0] == 'show':
+                return codec.BASELINE
+            if args[0] == 'rev-parse':
+                return codec.BASELINE_TREE
+            if args[-1] == 'HEAD':
+                return '.circleci/config.yml\ntools/raws_codec_ci.py'
+            return ''
+        with patch.object(codec, 'git', side_effect=commit):
+            codec.verify_checkout(self.root)
+        self.manifest.write_bytes(b'changed')
+        with patch.object(codec, 'git', side_effect=commit):
+            with self.assertRaisesRegex(ValueError, 'browser overlay'):
+                codec.verify_checkout(self.root)
+
+    def test_scope_disallows_an_extra_product_file(self):
+        def commit(path, *args):
+            if args[0] == 'show':
+                return codec.BASELINE
+            if args[0] == 'rev-parse':
+                return codec.BASELINE_TREE
+            return '.circleci/config.yml\ntools/raws_codec_ci.py\nci/args.gn'
+        with patch.object(codec, 'git', side_effect=commit):
+            with self.assertRaisesRegex(ValueError, 'allowed #1477'):
+                codec.verify_checkout(self.root)

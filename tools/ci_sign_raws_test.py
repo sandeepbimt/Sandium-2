@@ -62,11 +62,18 @@ def build_receipt(root, state, apk):
             or not apk.is_file() or apk.is_symlink()
             or not HEX64.fullmatch(digest) or sha256(apk) != digest):
         raise ValueError('Unverified candidate cannot enter the RawS signing workspace')
-    return {
+    proof = {
         'schema': 1, 'commit': checkout, 'workflow': workflow,
         'input_sha256': digest, 'recipe_sha256': state['feature_recipe_sha256'],
         'package': APPLICATION_ID, 'device_tested': False,
     }
+    from raws_codec_ci import mode as codec_mode, validate_proof
+    if codec_mode():
+        validate_proof(root, state.get('codec_trial'))
+        proof['codec_trial'] = state['codec_trial']
+    elif 'codec_trial' in state:
+        raise ValueError('Codec proof cannot enter ordinary test signing')
+    return proof
 
 
 def stage_private_input(root, state, apk):
@@ -92,9 +99,13 @@ def input_receipt(root, source):
     if receipt_file.stat().st_size > 4096:
         raise ValueError('Oversize RawS signing receipt')
     proof = json.loads(receipt_file.read_bytes())
+    from raws_codec_ci import mode as codec_mode, validate_proof, verify_checkout
+    trial = codec_mode()
+    fields = {'schema', 'commit', 'workflow', 'input_sha256', 'recipe_sha256', 'package', 'device_tested'}
+    if trial:
+        fields.add('codec_trial')
     if (not isinstance(proof, dict)
-            or set(proof) != {'schema', 'commit', 'workflow', 'input_sha256',
-                              'recipe_sha256', 'package', 'device_tested'}
+            or set(proof) != fields
             or proof['schema'] != 1 or proof['commit'] != checkout
             or proof['workflow'] != workflow or proof['package'] != APPLICATION_ID
             or proof['device_tested'] is not False
@@ -105,11 +116,16 @@ def input_receipt(root, source):
     manifest = root / 'raws-adblock/production-restore-recipe.json'
     if sha256(manifest) != proof['recipe_sha256']:
         raise ValueError('RawS signing receipt does not match the checked out feature recipe')
+    if trial:
+        verify_checkout(root)
+        validate_proof(root, proof['codec_trial'])
     return apk, proof
 
 
 def sign(root, source, sdk, output):
     apk, proof = input_receipt(root, source)
+    from raws_codec_ci import TRIAL_APK
+    trial = 'codec_trial' in proof
     pin = expected_fingerprint(os.environ.get('RAWS_TEST_SIGNER_PIN_SHA256'))
     try:
         b64 = os.environ.get('RAWS_TEST_KEYSTORE_B64', '')
@@ -132,11 +148,11 @@ def sign(root, source, sdk, output):
             stage = Path(scratch) / 'verified'
             stage.mkdir()
             result = sign_release_locally(
-                apk, stage / APK_NAME, sdk, key, ALIAS, pin,
+                apk, stage / (TRIAL_APK if trial else APK_NAME), sdk, key, ALIAS, pin,
                 expected_input_sha256=proof['input_sha256'],
             )
             (stage / 'signing-receipt.json').write_text(json.dumps(
-                {**proof, **result, 'distribution_ready': True},
+                {**proof, **result, 'distribution_ready': not trial},
                 sort_keys=True, indent=2,
             ) + '\n')
             stage.rename(output)

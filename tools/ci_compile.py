@@ -84,12 +84,18 @@ def verify_apk(apk, src, env, *, distinct_test=False):
     return {'apk_verified':True,'apk_sha256':file_sha(apk),'apk_package':match.group(1),
             'apk_abis':sorted(abis),'apk_signature_verified':True,'apk_zip_verified':True}
 
-def main(stage, *, feature=None, distinct_test=False):
+def main(stage, *, feature=None, distinct_test=False, codec_trial=False):
     if os.environ.get('CIRCLE_BRANCH')!='raw-sandium/official158' or stage not in (1,2,3,4,5):raise ValueError('Wrong build scope')
     if feature is not None and (stage != 1 or os.environ.get('RAWS_ALLOW_FRESH_SEED') != 'false'):
         raise ValueError('Feature build requires strict restore-only stage 1')
     if distinct_test and (stage != 1 or feature is None or not feature.has_ui):
         raise ValueError('Distinct RawS identity requires exact restore-only feature and UI')
+    if codec_trial:
+        from raws_codec_ci import verify_checkout
+        from raws_codec_trial import FEATURE_SHA256
+        if not distinct_test or feature is None or feature.identity != FEATURE_SHA256:
+            raise ValueError('Codec trial requires exactly the distinct signed #1477 test feature')
+        verify_checkout(ROOT)
     source_verifier = verify if feature is None else feature.verify
     ident=fingerprint(); folder=ROOT/f'handoff/stage{stage}';folder.mkdir(parents=True,exist_ok=True)
     artifacts=ROOT/'artifacts';artifacts.mkdir(exist_ok=True)
@@ -117,13 +123,24 @@ def main(stage, *, feature=None, distinct_test=False):
         state['restored_checkpoint']='managed by RawS Full driver'
         env, state['remote_config'] = configure(W/'src', W/'depot_tools', env)
         gn_args = (ROOT/'ci/args.gn').read_text()
-        if distinct_test:
+        if codec_trial:
+            from raws_codec_ci import expected_args
+            from raws_codec_trial import verify_media_dependencies
+            ffmpeg_configs = verify_media_dependencies(W/'src')
+            gn_args = expected_args(ROOT).decode()
+        elif distinct_test:
             from raws_release_identity import compose_gn_args
             gn_args = compose_gn_args(gn_args)
         (out/'args.gn').write_text(gn_args)
         run_logged(['timeout','--kill-after=30s','5m',str(W/'depot_tools/gn'),'gen','out/RawSandium','--fail-on-unused-args'],
                    artifacts/f'gn-{stage}.log',phase=f'gn-generation-{stage}',cwd=W/'src',env=env,check=True)
         state['official_build']=verify_official(W/'src',W/'depot_tools',out,env,artifacts,stage)
+        if codec_trial:
+            from raws_codec_trial import check_media_args, sha
+            codec_settings = check_media_args(
+                (artifacts/f'gn-effective-{stage}.txt').read_text(), True)
+            if state['official_build']['args_sha256'] != sha(gn_args.encode()):
+                raise ValueError('Official GN proof does not bind emitted codec trial args')
         state['gn_output_path_gate']=verify_graph_outputs(W/'src',W/'depot_tools',out,env,artifacts,stage)
         if feature is not None:
             from ci_prepare_raws_engine import run_native_gate,verify_apk_graph
@@ -177,12 +194,18 @@ def main(stage, *, feature=None, distinct_test=False):
         if state['status']=='done':
             if feature is not None:source_verifier(W/'src',data)
             state.update(verify_apk(apk,W/'src',env,distinct_test=distinct_test))
+            if codec_trial:
+                from raws_codec_ci import compile_proof
+                state['codec_trial'] = compile_proof(ROOT, out, codec_settings, ffmpeg_configs)
             name = ('RawSandium-1442-Filters-arm64.apk' if port1442 else
                     'RawSandium-EasyList-arm64.apk' if feature is not None else
                     'RawSandium-baseline-arm64.apk')
             shutil.copy2(apk,(folder if feature is not None else artifacts)/name)
             state.update(apk_produced=True,apk_sha256=file_sha(apk),device_tested=False,branding=(
                 'Sandium test identity (not release signed)' if distinct_test else 'Chromium baseline'))
+        elif codec_trial:
+            # Restore-only trial may not save or continue modified build outputs.
+            state['checkpoint_required'] = False
         else:
             state['checkpoint_required']=True
             # The proven Full driver captures the immutable delta and receipt;
