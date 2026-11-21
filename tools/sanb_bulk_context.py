@@ -196,18 +196,35 @@ def pack_preimages(out, repo, known):
             "crx_magic_excluded":excluded,"packed_blob_count":len(packed),"packed_blobs":packed}
 
 
-def pinned_inventory(chromium_repo, bare_repo, inventory):
+def pinned_inventory(chromium_repo, bare_repo, inventory, bare_patches=None):
     chromium_repo, bare_repo = chromium_repo.resolve(strict=True), bare_repo.resolve(strict=True)
     inventory = inventory.resolve(strict=True)
     for pin in (OLD,TARGET):
         actual=repository(chromium_repo,"rev-parse",pin+"^{commit}").stdout.decode().strip()
         if actual!=pin: raise ValueError("Wrong pinned Chromium input: "+actual)
-    proven=helpers.git(bare_repo,"rev-parse","HEAD","HEAD^{tree}","refs/tags/v2.0.7").stdout.decode().splitlines()
+    if bare_patches is None:
+        # Compatibility for locally acquired donor worktrees. The CI route
+        # never checks out Bare and supplies a separate, witnessed fixture.
+        identity=["HEAD","HEAD^{tree}","refs/tags/v2.0.7"]
+        patch_root=bare_repo/"patches"
+    else:
+        if (bare_patches.is_symlink() or not bare_patches.is_dir()
+                or helpers.git(bare_repo,"rev-parse","--is-bare-repository").stdout!=b"true\n"):
+            raise ValueError("Expected independent patch fixture and bare Git object store")
+        patch_root=bare_patches.resolve(strict=True)
+        if patch_root.is_relative_to(bare_repo) or bare_repo.is_relative_to(patch_root):
+            raise ValueError("Patch fixture must be outside Bare Git object storage")
+        identity=["refs/tags/v2.0.7^{commit}","refs/tags/v2.0.7^{tree}","refs/tags/v2.0.7"]
+    proven=helpers.git(bare_repo,"rev-parse",*identity).stdout.decode().splitlines()
     if proven!=[DONOR,DONOR_TREE,DONOR_TAG]:
         raise ValueError("Wrong annotated Bare v2.0.7 source provenance")
     exact=json.loads(inventory.read_text())
     if exact.get("schema")!=1 or exact.get("bare")!=DONOR or len(exact.get("chronology",[]))!=346:
         raise ValueError("Wrong canonical Bare source inventory")
+    if bare_patches is not None:
+        requested={row["id"]+".patch" for row in exact["chronology"]}
+        if {f.name for f in patch_root.iterdir()}!=requested:
+            raise ValueError("Unexpected notes, donor files or missing canonical patch in fixture")
     rows=[]
     last=""
     for row in exact["chronology"]:
@@ -215,7 +232,9 @@ def pinned_inventory(chromium_repo, bare_repo, inventory):
         if not re.fullmatch(r"[0-9]{7}",number) or number<=last:
             raise ValueError("Out-of-order/malformed canonical patch identity")
         last=number
-        patch=bare_repo/f"patches/{number}.patch"
+        patch=patch_root/f"{number}.patch"
+        if patch.is_symlink() or not patch.is_file() or patch.stat().st_size>2*2**20:
+            raise ValueError("Invalid canonical Bare patch fixture entry")
         b=patch.read_bytes()
         if hashlib.sha256(b).hexdigest()!=row["sha256"]:
             raise ValueError(f"Wrong donor patch contents: {patch}")
@@ -227,9 +246,9 @@ def pinned_inventory(chromium_repo, bare_repo, inventory):
 
 
 def run(out, fixture_roots, chromium_repo=REPO, bare_repo=ROOT/"bare",
-        inventory=ROOT/"sanb-source/canonical-inventory.json", write_pack=False):
+        inventory=ROOT/"sanb-source/canonical-inventory.json", write_pack=False, bare_patches=None):
     chromium_repo=chromium_repo.resolve(strict=True)
-    rows,scopes,trees_by_pin,unique=pinned_inventory(chromium_repo,bare_repo,inventory)
+    rows,scopes,trees_by_pin,unique=pinned_inventory(chromium_repo,bare_repo,inventory,bare_patches)
     discovered=discover(trees_by_pin.values(),fixture_roots)
     present=in_git(unique-set(discovered),chromium_repo)
     known=discovered|dict.fromkeys(present)
@@ -254,6 +273,7 @@ def main():
     parser.add_argument("--fixtures",action="append",type=Path,default=[])
     parser.add_argument("--chromium-repo",type=Path,default=REPO)
     parser.add_argument("--bare-repo",type=Path,default=ROOT/"bare")
+    parser.add_argument("--bare-patches-dir",type=Path)
     parser.add_argument("--inventory",type=Path,default=ROOT/"sanb-source/canonical-inventory.json")
     parser.add_argument("--require-all-preimages",action="store_true")
     parser.add_argument("--pack-preimages",action="store_true")
@@ -263,7 +283,7 @@ def main():
     if ns.emit_missing_wants:
         if ns.fixtures or ns.pack_preimages or ns.require_all_preimages:
             parser.error("Missing-wants mode inventories only upstream Git object availability")
-        _,_,_,unique=pinned_inventory(ns.chromium_repo,ns.bare_repo,ns.inventory)
+        _,_,_,unique=pinned_inventory(ns.chromium_repo,ns.bare_repo,ns.inventory,ns.bare_patches_dir)
         missing=sorted(unique-in_git(unique,ns.chromium_repo))
         with ns.emit_missing_wants.open("x") as f:
             for oid in missing: f.write(oid+"\n")
@@ -273,7 +293,7 @@ def main():
     fixture_roots=ns.fixtures
     if ns.chromium_repo.resolve()==REPO.resolve():
         fixture_roots=[ROOT/"pin-fixtures/new",ROOT/"pin-fixtures/old",*fixture_roots]
-    result=run(ns.output,fixture_roots,ns.chromium_repo,ns.bare_repo,ns.inventory,ns.pack_preimages)
+    result=run(ns.output,fixture_roots,ns.chromium_repo,ns.bare_repo,ns.inventory,ns.pack_preimages,ns.bare_patches_dir)
     print(json.dumps({k:(v["status_counts"]|{c:v[c] for c in (
         "tracked_paths","available_first_preimage_paths","available_first_preimage_unique_blobs",
         "unread_first_preimage_paths","unread_first_preimage_unique_blobs")})

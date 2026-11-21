@@ -140,6 +140,41 @@ class SourceAudit(unittest.TestCase):
         with mock.patch.object(replay.subprocess,"run",side_effect=replay_git):
             self.assertEqual(replay.in_git({good,missing,tree},ROOT),{good})
 
+    def test_bare_patch_extraction_never_reads_root_metadata_or_crx(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            p=Path(tmp); origin=p/"origin"; origin.mkdir()
+            x=a.Audit(p,os.environ)
+            x.online={**x.online,"GIT_ALLOW_PROTOCOL":"file"}
+            x.git(origin,"init","-q")
+            x.git(origin,"config","uploadpack.allowFilter","true")
+            x.git(origin,"config","uploadpack.allowAnySHA1InWant","true")
+            raw=b"canonical patch bytes\n"; ignore=b"known-ignore-object\n"; crx=b"Cr24known-excluded-bundle"
+            (origin/"patches").mkdir()
+            (origin/"patches/0000001.patch").write_bytes(raw)
+            (origin/".gitignore").write_bytes(ignore)
+            (origin/"bundled.crx").write_bytes(crx)
+            x.git(origin,"add","-A")
+            identity=("-c","user.email=test@example.test","-c","user.name=Test")
+            x.git(origin,*identity,"commit","-qm","fixture")
+            x.git(origin,*identity,"tag","-am","bare fixture","v2.0.7")
+            pins=dict(BARE_URL=origin.as_uri(),BARE_TAG=x.rev(origin,a.TAG),
+                      BARE_COMMIT=x.rev(origin,"HEAD"),BARE_TREE=x.rev(origin,"HEAD^{tree}"))
+            original=x.git
+            def no_checkout(repo,*args,**kwargs):
+                # Optionally absent root metadata must never be accessed by any
+                # checkout machinery, even if a particular Git version permits it.
+                self.assertFalse({"checkout","sparse-checkout","read-tree"}&set(args))
+                return original(repo,*args,**kwargs)
+            remote=p/"source.git"; fixture=p/"patch-fixture"
+            with mock.patch.multiple(a,**pins), mock.patch.object(x,"git",side_effect=no_checkout):
+                x.bare(remote,fixture,[{"id":"0000001","sha256":a.digest(raw)}])
+            self.assertEqual(x.git(remote,"rev-parse","--is-bare-repository").stdout,b"true\n")
+            self.assertEqual(x.present(remote,{blob(raw),blob(ignore),blob(crx)}),{blob(raw)})
+            self.assertEqual(sorted(f.name for f in fixture.iterdir()),["0000001.patch"])
+            self.assertEqual((fixture/"0000001.patch").read_bytes(),raw)
+            self.assertFalse((remote/"index").exists())
+            self.assertFalse((remote/".git").exists())
+
     def test_wrong_branch_fail_does_not_call_remote(self):
         with tempfile.TemporaryDirectory() as tmp:
             p=Path(tmp)

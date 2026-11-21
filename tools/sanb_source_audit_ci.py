@@ -28,7 +28,7 @@ INVENTORY = "sanb-source/canonical-inventory.json"
 INVENTORY_SHA = "ef39400e83b8f28a3f94627a4e5e72b58a8b4fd7daa89d61b07bffe08b322bb7"
 REPLAY = "tools/sanb_bulk_context.py"
 REPLAY_HELPER = "tools/sanb_replay_groups.py"
-DRIVER_SHA = "658b280f84389e24346456da7e2b5204c57e987815bd36515fe2889e1577aa62"
+DRIVER_SHA = "642e7596c24182d9024bbfd4db2d5b8b542a147a70f1ab3d516f006fbd04060c"
 HELPER_SHA = "a1b4b22be6ca02f24cd0c6fdb90e100857b233b39fa36849f69d77182a3e39d7"
 OID = re.compile(r"[0-9a-f]{40}")
 SHA = re.compile(r"[0-9a-f]{64}")
@@ -137,10 +137,10 @@ class Audit:
                    for line in out.stderr.splitlines()):
             raise ValueError("Public upstream did not advertise object filtering; refusing full fetch")
 
-    def prep_repo(self, repo, url):
+    def prep_repo(self, repo, url, *, bare=False):
         repo.mkdir()
         self.verify_transport(url)
-        self.git(repo, "init", "-q")
+        self.git(repo, "init", "-q", *(("--bare",) if bare else ()))
         self.git(repo, "remote", "add", "origin", url)
         self.git(repo, "config", "remote.origin.promisor", "true")
         self.git(repo, "config", "remote.origin.partialclonefilter", "blob:none")
@@ -152,19 +152,27 @@ class Audit:
             raise ValueError("Missing exact Git object identity")
         return out
 
-    def present(self, repo, ids):
+    def local_sizes(self, repo, ids):
         if not ids:
-            return set()
-        # Do not directly query a missing promisor OID: some Git versions
-        # abort even with lazy fetch disabled. Enumerate local objects only.
+            return {}
+        # Enumerate physically local objects, never query a missing promisor ID.
         res = self.git(repo, "cat-file", "--batch-all-objects", "--unordered",
                        "--batch-check=%(objectname) %(objecttype) %(objectsize)", cap=55)
-        return ids & {line.split()[0].decode() for line in res.stdout.splitlines()
-                      if re.fullmatch(rb"[a-f0-9]{40} blob [0-9]+", line)}
+        found = {}
+        for line in res.stdout.splitlines():
+            m = re.fullmatch(rb"([a-f0-9]{40}) blob ([0-9]+)", line)
+            if m is not None:
+                oid = m[1].decode()
+                if oid in ids:
+                    found[oid] = int(m[2])
+        return found
 
-    def tree_blobs(self, repo, rev, paths):
-        all_ids = set()
-        # Only these names, not a Chromium worktree. Keep process argv bounded.
+    def present(self, repo, ids):
+        return set(self.local_sizes(repo, ids))
+
+    def tree_records(self, repo, rev, paths):
+        records = {}
+        # Only these names, not a Chromium or Bare worktree.
         for offset in range(0, len(paths), 200):
             names = paths[offset:offset+200]
             match = set(names)
@@ -174,11 +182,15 @@ class Audit:
                     continue
                 left, right = entry.split(b"\t", 1)
                 mode, kind, oid = left.decode().split()
-                if right.decode() not in match:
+                path = right.decode()
+                if path not in match or path in records:
                     raise ValueError("Unexpected tree path outside exact inventory")
                 if mode in ("100644", "100755") and kind == "blob" and OID.fullmatch(oid):
-                    all_ids.add(oid)
-        return all_ids
+                    records[path] = (mode, oid)
+        return records
+
+    def tree_blobs(self, repo, rev, paths):
+        return {oid for _, oid in self.tree_records(repo, rev, paths).values()}
 
     def wanted(self, repo, ids):
         missing = sorted(ids - self.present(repo, ids))
@@ -196,27 +208,37 @@ class Audit:
             # the still-unread set for the chronology report.
         return ids - self.present(repo, ids)
 
-    def bare(self, repo, rows):
-        self.prep_repo(repo, BARE_URL)
+    def bare(self, repo, fixture, rows):
+        self.prep_repo(repo, BARE_URL, bare=True)
         self.git(repo, "fetch", "--depth=1", "--no-tags", "--no-recurse-submodules",
                  "--filter=blob:none", "origin", f"{TAG}:{TAG}", network=True, cap=120)
         for expr, sha in ((TAG, BARE_TAG), (TAG+"^{commit}", BARE_COMMIT),
                           (TAG+"^{tree}", BARE_TREE)):
             if self.rev(repo, expr) != sha:
                 raise ValueError("Bare v2.0.7 tag/commit/tree is not the exact reviewed object")
-        patch_paths = [f"patches/{row['id']}.patch" for row in rows]
-        ids = self.tree_blobs(repo, BARE_COMMIT, patch_paths)
-        if len(ids) != len(patch_paths) or self.wanted(repo, ids):
+        expected = {f"patches/{row['id']}.patch":row["sha256"] for row in rows}
+        records = self.tree_records(repo, BARE_COMMIT, list(expected))
+        ids = {oid for _, oid in records.values()}
+        if (records.keys() != expected.keys() or len(ids)!=len(expected)
+                or any(mode!="100644" for mode,_ in records.values()) or self.wanted(repo, ids)):
             raise ValueError("Did not hydrate exact canonical Bare patch objects")
-        # Only checked-in patch files and no donor hook/script are materialized.
-        config = "".join("/"+name+"\n" for name in patch_paths).encode()
-        self.git(repo, "sparse-checkout", "set", "--no-cone", "--stdin", data=config)
-        self.git(repo, "checkout", "--no-recurse-submodules", "--detach", BARE_COMMIT, cap=55)
-        if self.rev(repo, "HEAD") != BARE_COMMIT or self.git(repo, "status", "--porcelain").stdout:
-            raise ValueError("Bare sparse archive is not exactly pinned and clean")
-        for row, name in zip(rows, patch_paths):
-            if digest(file(repo, name).read_bytes()) != row["sha256"]:
+        sizes = self.local_sizes(repo, ids)
+        if (sizes.keys()!=ids or any(not 0<n<=2*2**20 for n in sizes.values())
+                or sum(sizes.values())>16*2**20):
+            raise ValueError("Unexpected Bare patch sizes")
+        # No checkout. Even a sparse checkout may read root ignore/attribute
+        # objects. Materialize only the pinned ordinary patch objects offline
+        # in a separate fixture. It is never a donor Git working tree.
+        fixture.mkdir(mode=0o700)
+        for name, expected_sha in expected.items():
+            oid = records[name][1]
+            body = self.git(repo, "cat-file", "blob", oid).stdout
+            obj = hashlib.sha1(f"blob {len(body)}\0".encode()+body, usedforsecurity=False).hexdigest()
+            if len(body)!=sizes[oid] or obj!=oid or digest(body)!=expected_sha:
                 raise ValueError("Canonical Bare patch bytes differ from inventory")
+            with (fixture/Path(name).name).open("xb") as out:
+                out.write(body)
+        print(f"SANB_AUDIT verified {len(ids)} exact patch blobs without a Bare checkout", flush=True)
 
     def chromium(self, repo, paths):
         self.prep_repo(repo, CHROMIUM_URL)
@@ -328,8 +350,10 @@ def main(root, environ):
         work.mkdir(mode=0o700)
         stage="bare-filtered-tag"
         print("SANB_AUDIT prepare exact Bare tag (patch files only)",flush=True)
-        bare=work/"bare"; chromium=work/"chromium"
-        a.bare(bare,rows)
+        bare=work/"bare.git"; patches=work/"bare-patches"; chromium=work/"chromium"
+        a.bare(bare,patches,rows)
+        status["bare_patch_count"]=len(rows)
+        status["bare_worktree_created"]=False
         stage="chromium-exact-preimages"
         print("SANB_AUDIT prepare exact M158 and provenance M157 Chromium trees",flush=True)
         total, missing=a.chromium(chromium,paths)
@@ -342,7 +366,7 @@ def main(root, environ):
         reports=work/"reports"
         p=command([sys.executable,"-u",str(script),"--output",str(reports),
                    "--chromium-repo",str(chromium),"--bare-repo",str(bare),
-                   "--inventory",str(inventory),"--require-all-preimages","--pack-preimages"],
+                   "--bare-patches-dir",str(patches),"--inventory",str(inventory),"--require-all-preimages","--pack-preimages"],
                   cwd=root,env=a.offline,deadline=a.deadline,cap=420,checked=False)
         if p.returncode not in (0,3):
             raise ValueError("Chronology replay could not emit report: "+p.stderr[-1600:].decode(errors="replace"))
