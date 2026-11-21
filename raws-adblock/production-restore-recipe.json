@@ -9048,7 +9048,7 @@
       "before_sha256": "b3172f2b05944287a157906c16231ad457775525f314abad96d2d423af77d353"
     },
     "chrome/renderer/raws_color_locator.h": {
-      "after_sha256": "249bf53215ec0f87051c353d616f4fc8d17316d74975a9bda3d87456d3a8cb40",
+      "after_sha256": "9cd84c53698d7c61ca15ab1736fe794cfc7e0cb54772f712d1a2b8a0e6f0ec9a",
       "before_sha256": null,
       "mode": "644"
     },
