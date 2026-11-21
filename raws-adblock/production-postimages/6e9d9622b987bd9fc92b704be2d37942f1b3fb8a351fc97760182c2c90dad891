@@ -1,0 +1,68 @@
+// SPDX-License-Identifier: MPL-2.0
+#ifndef CHROME_BROWSER_RAWS_RAW_ELEMENT_RULE_POLICY_H_
+#define CHROME_BROWSER_RAWS_RAW_ELEMENT_RULE_POLICY_H_
+
+#include <cstddef>
+#include <span>
+#include <string>
+#include <string_view>
+
+namespace sandium::adblock_native {
+
+inline constexpr size_t kMaxElementRuleOrigins = 256;
+inline constexpr size_t kMaxElementRulesPerOrigin = 32;
+inline constexpr size_t kMaxElementRuleTokenBytes = 64;
+inline constexpr size_t kMaxElementRulesOriginBytes = 512;
+
+constexpr bool IsElementRuleAsciiLetter(char ch) {
+  return ('A' <= ch && ch <= 'Z') || ('a' <= ch && ch <= 'z');
+}
+
+constexpr bool IsElementRuleIdentifier(std::string_view token) {
+  if (token.empty() || token.size() > kMaxElementRuleTokenBytes ||
+      !(IsElementRuleAsciiLetter(token.front()) || token.front() == '_')) {
+    return false;
+  }
+  for (const char ch : token) {
+    if (!IsElementRuleAsciiLetter(ch) && !(ch >= '0' && ch <= '9') &&
+        ch != '_' && ch != '-') {
+      return false;
+    }
+  }
+  return true;
+}
+
+// Picker output is a single stable ID or a tag and one class. The renderer
+// must preview actual matches, and the browser must still confirm separately.
+constexpr bool IsSafePickedSelector(std::string_view selector) {
+  if (selector.empty()) return false;
+  if (selector.starts_with('#')) {
+    return IsElementRuleIdentifier(selector.substr(1));
+  }
+  const size_t dot = selector.find('.');
+  if (dot == selector.npos || dot == 0 || dot >= 32) return false;
+  for (const char ch : selector.substr(0, dot)) {
+    if (!(ch >= 'a' && ch <= 'z') && !(ch >= '0' && ch <= '9') &&
+        ch != '-') {
+      return false;
+    }
+  }
+  return selector.front() >= 'a' && selector.front() <= 'z' &&
+         IsElementRuleIdentifier(selector.substr(dot + 1));
+}
+
+inline std::string BuildPickedSelectorStyles(
+    std::span<const std::string> selectors) {
+  std::string sheet;
+  size_t emitted = 0;
+  for (const auto& selector : selectors) {
+    if (emitted == kMaxElementRulesPerOrigin) break;
+    if (!IsSafePickedSelector(selector)) continue;
+    sheet.append(selector).append(" { display: none !important; }\n");
+    ++emitted;
+  }
+  return sheet;
+}
+
+}  // namespace sandium::adblock_native
+#endif  // CHROME_BROWSER_RAWS_RAW_ELEMENT_RULE_POLICY_H_

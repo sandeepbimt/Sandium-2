@@ -1,0 +1,147 @@
+// SPDX-License-Identifier: MPL-2.0
+#ifndef CHROME_BROWSER_RAWS_RAWS_BLOCKED_PAGE_EVENTS_H_
+#define CHROME_BROWSER_RAWS_RAWS_BLOCKED_PAGE_EVENTS_H_
+
+#include <cstdint>
+#include <limits>
+#include <memory>
+#include <optional>
+#include <utility>
+
+#include "base/supports_user_data.h"
+#include "content/public/browser/browser_thread.h"
+#include "content/public/browser/page.h"
+#include "content/public/browser/render_frame_host.h"
+#include "content/public/browser/visibility.h"
+#include "content/public/browser/web_contents.h"
+#include "content/public/browser/weak_document_ptr.h"
+#include "url/gurl.h"
+#include "url/origin.h"
+
+namespace sandium::adblock_native {
+
+// Only final RawS cancellation events, not a combined protections total.
+enum class PageBlockEvent {
+  kPopupOpen,
+  kPopupNavigation,
+  kPopupRedirect,
+  kEmbeddedFrameStart,
+  kEmbeddedFrameRedirect,
+};
+
+struct BlockedPageEventsSnapshot {
+  // Missing means no attributed terminal event. It is not a published zero.
+  std::optional<uint32_t> popup_opens;
+  std::optional<uint32_t> popup_navigations;
+  std::optional<uint32_t> popup_redirects;
+  std::optional<uint32_t> embedded_frame_navigations;
+  std::optional<uint32_t> embedded_frame_redirects;
+};
+
+struct CapturedBlockDocument final {
+  static std::optional<CapturedBlockDocument> ForIssuer(
+      content::RenderFrameHost* issuer) {
+    DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
+    if (!issuer || !issuer->IsActive()) {
+      return std::nullopt;
+    }
+    auto* root = issuer->GetOutermostMainFrame();
+    if (!root || !root->IsActive() || !root->IsInPrimaryMainFrame() ||
+        root->IsErrorDocument() ||
+        !root->GetLastCommittedURL().SchemeIsHTTPOrHTTPS() ||
+        root->GetLastCommittedOrigin().opaque() ||
+        root->GetBrowserContext() != issuer->GetBrowserContext()) {
+      return std::nullopt;
+    }
+    auto* contents = content::WebContents::FromRenderFrameHost(root);
+    if (!contents || contents->IsBeingDestroyed() ||
+        contents != content::WebContents::FromRenderFrameHost(issuer) ||
+        contents->GetPrimaryMainFrame() != root || !root->GetPage().IsPrimary()) {
+      return std::nullopt;
+    }
+    return CapturedBlockDocument{
+        .primary = root->GetWeakDocumentPtr(),
+        .issuer = issuer->GetWeakDocumentPtr(),
+    };
+  }
+
+  content::WeakDocumentPtr primary;
+  content::WeakDocumentPtr issuer;
+};
+
+namespace page_events_internal {
+inline constexpr char kPerPageEventsKey[] = "raws-page-blocked-terminal-events";
+
+class Store final : public base::SupportsUserData::Data {
+ public:
+  BlockedPageEventsSnapshot counts;
+};
+
+inline void Increment(std::optional<uint32_t>& count) {
+  constexpr auto kMax = static_cast<uint32_t>(std::numeric_limits<int32_t>::max());
+  if (count.value_or(0) < kMax) count = count.value_or(0) + 1;
+}
+}  // namespace page_events_internal
+
+// A Page can remain in BFCache or a background tab relative to a newly opened
+// popup. The weak document still resolves the original Page if it survives;
+// otherwise drop the event, never charge a new Page with the same URL or RFH.
+inline void RecordTerminalBlock(
+    const std::optional<CapturedBlockDocument>& captured,
+    PageBlockEvent event) {
+  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
+  if (!captured) return;
+  auto* owner = captured->primary.AsRenderFrameHostIfValid();
+  if (!owner) return;
+  auto* contents = content::WebContents::FromRenderFrameHost(owner);
+  if (!contents || contents->IsBeingDestroyed()) return;
+
+  auto& page = owner->GetPage();
+  using namespace page_events_internal;
+  auto* store = static_cast<Store*>(page.GetUserData(kPerPageEventsKey));
+  if (!store) {
+    auto state = std::make_unique<Store>();
+    store = state.get();
+    page.SetUserData(kPerPageEventsKey, std::move(state));
+  }
+  switch (event) {
+    case PageBlockEvent::kPopupOpen:
+      Increment(store->counts.popup_opens);
+      break;
+    case PageBlockEvent::kPopupNavigation:
+      Increment(store->counts.popup_navigations);
+      break;
+    case PageBlockEvent::kPopupRedirect:
+      Increment(store->counts.popup_redirects);
+      break;
+    case PageBlockEvent::kEmbeddedFrameStart:
+      Increment(store->counts.embedded_frame_navigations);
+      break;
+    case PageBlockEvent::kEmbeddedFrameRedirect:
+      Increment(store->counts.embedded_frame_redirects);
+      break;
+  }
+}
+
+// Unwired UI read proof: only the caller's currently active primary document;
+// cached/prerendered/supports-user-data state is never fetched by origin URL.
+inline std::optional<BlockedPageEventsSnapshot> ReadActivePageEvents(
+    content::WebContents& contents,
+    const content::WeakDocumentPtr& expected_primary) {
+  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
+  auto* root = expected_primary.AsRenderFrameHostIfValid();
+  if (!root || !root->IsActive() || !root->IsInPrimaryMainFrame() ||
+      !root->GetPage().IsPrimary() || contents.IsBeingDestroyed() ||
+      root != contents.GetPrimaryMainFrame() ||
+      content::WebContents::FromRenderFrameHost(root) != &contents ||
+      contents.GetVisibility() != content::Visibility::VISIBLE) {
+    return std::nullopt;
+  }
+  using namespace page_events_internal;
+  auto* store = static_cast<const Store*>(
+      root->GetPage().GetUserData(kPerPageEventsKey));
+  return store ? std::optional(store->counts) : std::nullopt;
+}
+
+}  // namespace sandium::adblock_native
+#endif  // CHROME_BROWSER_RAWS_RAWS_BLOCKED_PAGE_EVENTS_H_

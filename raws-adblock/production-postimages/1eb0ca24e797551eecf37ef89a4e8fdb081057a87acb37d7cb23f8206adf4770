@@ -1,0 +1,58 @@
+// Copyright 2026 Sandium Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license.
+
+package org.chromium.chrome.browser.appearance.settings;
+
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.chrome.browser.profiles.Profile;
+import org.chromium.components.user_prefs.UserPrefs;
+
+/** Profile-owned draft persistence. Applying a value never restyles a live document. */
+@NullMarked
+final class RawSPageText {
+    private static final String PREF = "sandium.page_text.policy_v2";
+    static final int MIN = 75;
+    static final int MAX = 150;
+    static final int STEP = 5;
+    static final int DEFAULT = 100;
+    private static final int JUSTIFY = 1 << 8;
+
+    private RawSPageText() {}
+
+    static int normalize(int packed) {
+        int scale = packed & 255;
+        return (packed & ~511) == 0 && scale >= MIN && scale <= MAX && scale % STEP == 0
+                ? packed
+                : DEFAULT;
+    }
+
+    static int scale(int packed) {
+        return normalize(packed) & 255;
+    }
+
+    static boolean justify(int packed) {
+        return (normalize(packed) & JUSTIFY) != 0;
+    }
+
+    static boolean canRead(Profile profile) {
+        return profile.isNativeInitialized() && !profile.shutdownStarted();
+    }
+
+    static boolean canWrite(Profile profile) {
+        return canRead(profile) && !UserPrefs.get(profile).isManagedPreference(PREF);
+    }
+
+    static int read(Profile profile) {
+        return canRead(profile) ? normalize(UserPrefs.get(profile).getInteger(PREF)) : DEFAULT;
+    }
+
+    static boolean save(Profile profile, int scale, boolean justify) {
+        if (scale < MIN || scale > MAX || scale % STEP != 0 || !canWrite(profile)) return false;
+
+        int packed = scale | (justify ? JUSTIFY : 0);
+        // The native incognito user-pref overlay owns any OTR changes. Never
+        // obtain or write the original regular profile for a private read/write.
+        UserPrefs.get(profile).setInteger(PREF, packed);
+        return read(profile) == packed;
+    }
+}

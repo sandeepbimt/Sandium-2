@@ -1,0 +1,243 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+Copyright 2015 The Chromium Authors
+Use of this source code is governed by a BSD-style license that can be
+found in the LICENSE file.
+-->
+
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:orderingFromXml="false">
+    <org.chromium.chrome.browser.ui.settings_promo_card.SettingsPromoCardPreference
+        android:key="settings_promo_card"
+        android:order="0" />
+
+    <org.chromium.components.browser_ui.settings.ChromeBasePreferenceCategory
+        android:key="account_and_google_services_section"
+        android:order="1"
+        android:title="@string/prefs_section_account_and_google_services"/>
+
+    <org.chromium.chrome.browser.sync.settings.SignInPreference
+        android:key="sign_in"
+        android:order="2"/>
+
+    <org.chromium.components.browser_ui.settings.ChromeBasePreference
+        android:key="google_services"
+        android:order="4"
+        android:layout="@layout/account_management_account_row"
+        android:title="@string/prefs_google_services"
+        android:icon="@drawable/ic_google_services_48dp_with_bg"
+        android:fragment="org.chromium.chrome.browser.sync.settings.GoogleServicesSettings"/>
+
+    <org.chromium.components.browser_ui.settings.ChromeBasePreferenceCategory
+        android:key="raws_parity_features"
+        android:order="10"
+        android:title="@string/raws_settings_features" />
+
+    <org.chromium.components.browser_ui.settings.ChromeBasePreference
+        android:fragment="org.chromium.chrome.browser.settings.RawsProtectionSettings"
+        android:key="raws_ui_protection_settings"
+        android:order="11"
+        android:title="@string/raws_ui_shields_and_privacy"/>
+
+    <org.chromium.components.browser_ui.settings.ChromeBasePreferenceCategory
+        android:key="basics_section"
+        android:order="20"
+        android:title="@string/raws_settings_general"/>
+
+    <org.chromium.components.browser_ui.settings.ChromeBasePreference
+        android:fragment="org.chromium.chrome.browser.search_engines.settings.SearchEngineSettings"
+        android:key="search_engine"
+        android:order="21"
+        android:title="@string/raws_settings_search_engines"/>
+
+    <org.chromium.components.browser_ui.settings.ChromeBasePreference
+        android:fragment="org.chromium.chrome.browser.privacy.settings.PrivacySettings"
+        android:key="privacy"
+        android:order="22"
+        android:title="@string/prefs_privacy_security"/>
+
+    <org.chromium.components.browser_ui.settings.ChromeBasePreference
+        android:fragment="org.chromium.chrome.browser.safety_hub.SafetyHubFragment"
+        android:key="safety_hub"
+        android:order="23"
+        android:title="@string/prefs_safety_check"/>
+
+    <org.chromium.components.browser_ui.settings.ChromeBasePreference
+        android:key="raws_parity_home_widget"
+        android:order="24"
+        android:title="@string/raws_settings_home_widget"
+        android:enabled="false"
+        android:selectable="false"
+        android:persistent="false"
+        android:summary="@string/raws_settings_not_available" />
+
+    <org.chromium.components.browser_ui.settings.ChromeBasePreference
+        android:key="notifications"
+        android:order="25"
+        android:title="@string/prefs_notifications"/>
+
+    <org.chromium.components.browser_ui.settings.ChromeBasePreference
+        android:fragment="org.chromium.components.browser_ui.site_settings.SiteSettings"
+        android:key="content_settings"
+        android:order="26"
+        android:title="@string/prefs_site_settings"/>
+
+    <org.chromium.components.browser_ui.settings.ChromeBasePreference
+        android:fragment="org.chromium.chrome.browser.download.settings.DownloadSettings"
+        android:key="downloads"
+        android:order="27"
+        android:title="@string/menu_downloads"/>
+
+    <org.chromium.components.browser_ui.settings.ChromeSwitchPreference
+        android:key="raws_parity_close_all"
+        android:order="28"
+        android:title="@string/raws_settings_close_all"
+        android:enabled="false"
+        android:selectable="false"
+        android:persistent="false"
+        android:summary="@string/raws_settings_not_available" />
+
+    <org.chromium.components.browser_ui.settings.ChromeBasePreference
+        android:key="default_browser"
+        android:order="29"
+        android:title="@string/default_browser_title" />
+
+    <org.chromium.components.browser_ui.settings.ChromeBasePreferenceCategory
+        android:key="advanced_section"
+        android:order="40"
+        android:title="@string/raws_settings_display"/>
+
+    <org.chromium.components.browser_ui.settings.ChromeBasePreference
+        android:fragment="org.chromium.chrome.browser.tasks.tab_management.TabsSettings"
+        android:key="tabs"
+        android:order="41"
+        android:title="@string/tabs_settings_title"/>
+
+    <org.chromium.components.browser_ui.settings.ChromeBasePreference
+        android:key="raws_parity_media"
+        android:order="42"
+        android:title="@string/raws_settings_media"
+        android:enabled="false"
+        android:selectable="false"
+        android:persistent="false"
+        android:summary="@string/raws_settings_not_available" />
+
+    <org.chromium.components.browser_ui.settings.ChromeBasePreference
+        android:fragment="org.chromium.chrome.browser.appearance.settings.AppearanceSettingsFragment"
+        android:key="appearance"
+        android:order="43"
+        android:title="@string/appearance_settings" />
+
+    <org.chromium.components.browser_ui.settings.ChromeBasePreference
+        android:fragment="org.chromium.chrome.browser.homepage.settings.HomepageSettings"
+        android:key="homepage"
+        android:order="44"
+        android:title="@string/options_homepage_title"/>
+
+    <org.chromium.components.browser_ui.settings.ChromeBasePreference
+        android:fragment="org.chromium.components.browser_ui.accessibility.AccessibilitySettings"
+        android:key="accessibility"
+        android:order="45"
+        android:title="@string/prefs_accessibility"/>
+
+    <org.chromium.components.browser_ui.settings.ChromeBasePreference
+        android:fragment="org.chromium.chrome.browser.language.settings.LanguageSettings"
+        android:key="languages"
+        android:order="46"
+        android:title="@string/language_settings"/>
+
+    <org.chromium.components.browser_ui.settings.ChromeBasePreferenceCategory
+        android:key="raws_parity_autofill"
+        android:order="61"
+        android:title="@string/raws_settings_autofill" />
+
+    <org.chromium.components.browser_ui.settings.ChromeBasePreference
+        android:fragment="org.chromium.chrome.browser.autofill.settings.AutofillAndPasswordsFragment"
+        android:key="autofill_and_passwords"
+        android:order="62"
+        android:title="@string/autofill_and_passwords_settings_title"/>
+
+    <org.chromium.components.browser_ui.settings.ChromeBasePreferenceCategory
+        android:key="raws_ui_section"
+        android:order="71"
+        android:title="@string/raws_ui_settings_section"/>
+
+    <org.chromium.components.browser_ui.settings.ChromeBasePreference
+        android:fragment="org.chromium.chrome.browser.toolbar.settings.AddressBarSettingsFragment"
+        android:key="address_bar"
+        android:order="72"
+        android:title="@string/address_bar_settings"/>
+
+    <org.chromium.components.browser_ui.settings.ChromeBasePreference
+        android:key="raws_ui_customize_menu"
+        android:order="73"
+        android:title="@string/raws_ui_customize_menu"/>
+
+    <org.chromium.components.browser_ui.settings.ChromeSwitchPreference
+        android:key="raws_ui_sandium_address_bar_color"
+        android:order="74"
+        android:persistent="false"
+        android:title="@string/raws_ui_address_bar_colors"
+        android:summary="@string/raws_ui_address_bar_colors_summary"/>
+
+    <org.chromium.components.browser_ui.settings.ChromeSwitchPreference
+        android:key="raws_ui_galaxy_wallpaper"
+        android:order="75"
+        android:persistent="false"
+        android:title="@string/raws_ui_galaxy_wallpaper"
+        android:summary="@string/raws_ui_galaxy_wallpaper_summary"/>
+
+    <org.chromium.components.browser_ui.settings.ChromeBasePreference
+        android:fragment="org.chromium.chrome.browser.settings.startup.OnStartupSettingsFragment"
+        android:key="on_startup"
+        android:order="76"
+        android:title="@string/on_startup_title" />
+
+    <org.chromium.components.browser_ui.settings.ChromeBasePreference
+        android:fragment=
+            "org.chromium.chrome.browser.glic.settings.GlicSettings"
+        android:key="glic"
+        android:order="77"
+        android:title="@string/glic_setting_label"/>
+
+    <org.chromium.components.browser_ui.settings.ChromeBasePreferenceCategory
+        android:key="raws_parity_support"
+        android:order="80"
+        android:title="@string/raws_settings_support" />
+
+    <org.chromium.components.browser_ui.settings.ChromeBasePreference
+        android:key="raws_parity_rate"
+        android:order="81"
+        android:title="@string/raws_settings_rate"
+        android:enabled="false"
+        android:selectable="false"
+        android:persistent="false"
+        android:summary="@string/raws_settings_not_available" />
+
+    <org.chromium.components.browser_ui.settings.ChromeBasePreferenceCategory
+        android:key="raws_parity_about"
+        android:order="91"
+        android:title="@string/raws_settings_about" />
+
+    <org.chromium.components.browser_ui.settings.ChromeBasePreference
+        android:fragment="org.chromium.chrome.browser.about_settings.AboutChromeSettings"
+        android:key="about_chrome"
+        android:order="92"
+        android:title="@string/prefs_about_chrome"/>
+
+    <org.chromium.components.browser_ui.settings.ChromeBasePreference
+        android:fragment="org.chromium.chrome.browser.tracing.settings.DeveloperSettings"
+        android:key="developer"
+        android:order="93"
+        android:title="Developer options"/>
+
+    <org.chromium.components.browser_ui.settings.ChromeBasePreference
+        android:fragment="org.chromium.chrome.browser.settings.RawSNavigationDiagnosticsSettings"
+        android:key="raws_navigation_diagnostics"
+        android:order="94"
+        android:title="@string/raws_nav_diag_title"
+        android:summary="@string/raws_nav_diag_title_summary"
+        android:persistent="false" />
+
+</PreferenceScreen>

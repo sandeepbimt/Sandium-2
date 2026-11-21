@@ -24,7 +24,7 @@ POSTIMAGES = 'raws-adblock/production-postimages'
 APPROVED_MANIFEST_SHA256 = '7081e486a25eb33a74cac59bec9e94b16030f9b7c091b1e5faab2fc95c977aeb'
 # A combined candidate, when pinned, replaces the engine-only admission.
 # It must not fall back to the older digest if the UI manifest is missing.
-APPROVED_UI_MANIFEST_SHA256 = '3b3caa7341f03798f02af66d2f7e6d4ce92cee23392729de3b2b9f746e8d4bc6'
+APPROVED_UI_MANIFEST_SHA256 = 'd90b7f478bc0db17c00bad85d6f3f083d1f2f7bb15b47b3634817e40069aa79b'
 APPROVED_UI_TRACKED = frozenset((
     'chrome/android/chrome_java_resources.gni',
     'chrome/android/chrome_java_sources.gni',
@@ -52,6 +52,13 @@ APPROVED_GN_COMPAT_TRACKED = frozenset((
     'third_party/rust/serde_core/v1/BUILD.gn',
 ))
 UI_GENERATED = frozenset((
+    'chrome/android/java/res/anim/raws_settings_fade_in.xml',
+    'chrome/android/java/res/anim/raws_settings_fade_out.xml',
+    'chrome/android/java/res/animator/raws_settings_fade_in.xml',
+    'chrome/android/java/res/animator/raws_settings_fade_out.xml',
+    'chrome/android/java/res/values/raws_video_strings.xml',
+    'components/browser_ui/styles/android/java/res/color/raws_sandium_switch_thumb.xml',
+    'components/browser_ui/styles/android/java/res/color/raws_sandium_switch_track.xml',
     'chrome/android/java/res/drawable-nodpi/raws_home_wallpaper.webp',
     'chrome/browser/ui/android/toolbar/java/res/values/raws_address_controls.xml',
     'chrome/browser/ui/android/toolbar/java/res/drawable/raws_page_toolbar_forward.xml',

@@ -1,0 +1,234 @@
+// Copyright 2026 Sandium Authors. All rights reserved.
+// Use governed by a BSD-style license in the Chromium LICENSE file.
+package org.chromium.chrome.browser.settings;
+
+import android.app.Activity;
+import android.content.ActivityNotFoundException;
+import android.content.ContentResolver;
+import android.content.Intent;
+import android.net.Uri;
+import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
+import android.view.View;
+import android.widget.Toast;
+
+import androidx.annotation.StringRes;
+import androidx.preference.Preference;
+import androidx.preference.PreferenceScreen;
+
+import org.chromium.base.supplier.MonotonicObservableSupplier;
+import org.chromium.base.supplier.ObservableSuppliers;
+import org.chromium.base.supplier.SettableMonotonicObservableSupplier;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
+import org.chromium.chrome.R;
+import org.chromium.chrome.browser.profiles.Profile;
+
+import java.io.File;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
+/** Opt-in, local navigation event journal. Not Android or Chromium tracing. */
+@NullMarked
+public final class RawSNavigationDiagnosticsSettings extends ChromeBaseSettingsFragment {
+    private static final int EXPORT = 9451;
+    private final SettableMonotonicObservableSupplier<String> mTitle =
+            ObservableSuppliers.createMonotonic();
+    private final Handler mUi = new Handler(Looper.getMainLooper());
+    private final ExecutorService mFiles = Executors.newSingleThreadExecutor();
+    private @Nullable Preference mStatus;
+    private @Nullable Preference mStart;
+    private @Nullable Preference mStop;
+    private @Nullable Preference mMark;
+    private @Nullable Preference mExport;
+    private @Nullable Preference mClear;
+    // Never retain exported bytes in saved state/preferences.
+    private byte @Nullable [] mPendingExport;
+    private boolean mBusy;
+    private boolean mDestroyed;
+
+    private final Runnable mRefresh = new Runnable() {
+        @Override public void run() {
+            if (!mDestroyed && isResumed()) {
+                refresh();
+                mUi.postDelayed(this, 1000);
+            }
+        }
+    };
+
+    @Override
+    public MonotonicObservableSupplier<String> getPageTitle() { return mTitle; }
+
+    @Override
+    public void onCreatePreferences(@Nullable Bundle state, @Nullable String key) {
+        mTitle.set(getString(R.string.raws_nav_diag_title));
+        PreferenceScreen screen = getPreferenceManager().createPreferenceScreen(requireContext());
+        setPreferenceScreen(screen);
+        if (!usable()) {
+            row(screen, R.string.raws_nav_diag_unavailable, 0, null);
+            return;
+        }
+        RawSNavigationDiagnostics.initialize(new File(
+                requireContext().getNoBackupFilesDir(), "raws-navigation-diagnostics"));
+        row(screen, R.string.raws_nav_diag_local, R.string.raws_nav_diag_scope, null);
+        row(screen, R.string.raws_nav_diag_limits, R.string.raws_nav_diag_limits_copy, null);
+        mStatus = row(screen, R.string.raws_nav_diag_status, 0, null);
+        mStart = row(screen, R.string.raws_nav_diag_start, R.string.raws_nav_diag_start_summary,
+                () -> {
+                    if (!RawSNavigationDiagnostics.start()) {
+                        toast(R.string.raws_nav_diag_unavailable);
+                    }
+                });
+        mStop = row(screen, R.string.raws_nav_diag_stop, 0, RawSNavigationDiagnostics::stop);
+        mMark = row(screen, R.string.raws_nav_diag_mark, R.string.raws_nav_diag_mark_summary,
+                RawSNavigationDiagnostics::markAdWarning);
+        mExport = row(screen, R.string.raws_nav_diag_export, R.string.raws_nav_diag_export_summary,
+                this::chooseExport);
+        mClear = row(screen, R.string.raws_nav_diag_clear, R.string.raws_nav_diag_clear_summary,
+                RawSNavigationDiagnostics::clear);
+        refresh();
+    }
+
+    @Override
+    public void onViewCreated(View view, @Nullable Bundle state) {
+        super.onViewCreated(view, state);
+        MainSettings.styleRawSSettingsList(getListView());
+    }
+
+    private Preference row(PreferenceScreen screen, @StringRes int title,
+            @StringRes int summary, @Nullable Runnable action) {
+        Preference row = new Preference(requireContext());
+        row.setTitle(title);
+        if (summary != 0) row.setSummary(summary);
+        row.setSelectable(action != null);
+        if (action != null) row.setOnPreferenceClickListener(item -> {
+            if (!mBusy && usable()) {
+                action.run();
+                refresh();
+            }
+            return true;
+        });
+        screen.addPreference(row);
+        return row;
+    }
+
+    private boolean usable() {
+        if (mDestroyed || !isAdded()) return false;
+        Profile profile = getProfile();
+        return profile.isNativeInitialized() && !profile.shutdownStarted()
+                && !profile.isOffTheRecord();
+    }
+
+    private void refresh() {
+        if (mStatus == null || mStart == null || mStop == null || mMark == null
+                || mExport == null || mClear == null) return;
+        boolean usable = usable();
+        boolean ready = usable && !mBusy;
+        boolean recording = usable && RawSNavigationDiagnostics.isRecording();
+        if (usable) mStatus.setSummary(RawSNavigationDiagnostics.snapshotSummary());
+        else mStatus.setSummary(R.string.raws_nav_diag_unavailable);
+        mStart.setEnabled(ready && !recording);
+        mStop.setEnabled(ready && recording);
+        mMark.setEnabled(ready && recording);
+        mExport.setEnabled(ready);
+        mClear.setEnabled(ready);
+    }
+
+    private void toast(@StringRes int message) {
+        if (!mDestroyed && isAdded()) {
+            Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    @SuppressWarnings("deprecation")
+    private void chooseExport() {
+        RawSNavigationDiagnostics.stop();
+        mPendingExport = RawSNavigationDiagnostics.snapshotJson().getBytes(StandardCharsets.UTF_8);
+        Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT)
+                .addCategory(Intent.CATEGORY_OPENABLE)
+                .setType("application/json")
+                .putExtra(Intent.EXTRA_LOCAL_ONLY, true)
+                .putExtra(Intent.EXTRA_TITLE, "Sandium-navigation-diagnostics.json");
+        mBusy = true;
+        try {
+            startActivityForResult(intent, EXPORT);
+        } catch (ActivityNotFoundException | SecurityException unavailable) {
+            mPendingExport = null;
+            mBusy = false;
+            toast(R.string.raws_nav_diag_no_picker);
+        }
+    }
+
+    @Override
+    @SuppressWarnings("deprecation")
+    public void onActivityResult(int request, int result, @Nullable Intent data) {
+        super.onActivityResult(request, result, data);
+        if (request != EXPORT) return;
+        byte @Nullable [] bytes = mPendingExport;
+        mPendingExport = null;
+        mBusy = false;
+        if (result != Activity.RESULT_OK) { refresh(); return; }
+        @Nullable Uri uri = data == null ? null : data.getData();
+        if (!usable() || bytes == null || uri == null) {
+            toast(R.string.raws_nav_diag_export_interrupted);
+            refresh();
+            return;
+        }
+        if (!ContentResolver.SCHEME_CONTENT.equals(uri.getScheme())) {
+            toast(R.string.raws_nav_diag_export_interrupted);
+            refresh();
+            return;
+        }
+        ContentResolver resolver = requireContext().getContentResolver();
+        mBusy = true;
+        refresh();
+        mFiles.execute(() -> {
+            boolean written = false;
+            try {
+                try (OutputStream output = resolver.openOutputStream(uri, "wt")) {
+                    if (output == null) throw new IOException();
+                    output.write(bytes);
+                    output.flush();
+                }
+                written = true; // Include a successful close.
+            } catch (IOException | SecurityException unavailable) {
+                // Provider details/URI do not become recorder data.
+            }
+            boolean success = written;
+            mUi.post(() -> {
+                if (mDestroyed) return;
+                mBusy = false;
+                if (usable()) {
+                    toast(success ? R.string.raws_nav_diag_saved : R.string.raws_nav_diag_failed);
+                    refresh();
+                }
+            });
+        });
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        mUi.removeCallbacks(mRefresh);
+        mRefresh.run();
+    }
+
+    @Override
+    public void onPause() {
+        mUi.removeCallbacks(mRefresh);
+        super.onPause();
+    }
+
+    @Override
+    public void onDestroy() {
+        mDestroyed = true;
+        mPendingExport = null;
+        mUi.removeCallbacksAndMessages(null);
+        mFiles.shutdownNow();
+        super.onDestroy();
+    }
+}

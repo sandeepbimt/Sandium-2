@@ -31,17 +31,21 @@ class CombinedFeedback(unittest.TestCase):
         self.assertEqual(hashlib.sha256(self.read("raws_home_wallpaper.webp")).hexdigest(),
                          "6ab6df2f4dab4ff2f9b6d516797564b629c680ca90522ef31f3f4bd3ab34e083")
 
-    def test_appearance_rows_are_visible_but_not_actions(self):
+    def test_appearance_rows_bind_native_configuration(self):
         prefs = ET.fromstring(self.read("appearance_preferences.xml"))
         rows = {row.get(ANDROID + "key"): row for row in prefs.iter()
                 if row.get(ANDROID + "key")}
         wanted = ["raws_parity_transition_blur", "raws_parity_darken_transition"]
         for key in wanted:
-            r = rows[key]
-            for field in ("enabled", "selectable", "persistent"):
-                self.assertEqual(r.get(ANDROID + field), "false")
-            self.assertIsNone(r.get(ANDROID + "fragment"))
-            self.assertFalse(r.findall("intent"))
+            row = rows[key]
+            # Programmatic handlers commit through the single startup owner;
+            # do not let Preference bootstrap persist a second value.
+            self.assertEqual(row.get(ANDROID + "persistent"), "false")
+            self.assertNotEqual(row.get(ANDROID + "enabled"), "false")
+            self.assertIsNone(row.get(ANDROID + "fragment"))
+            self.assertFalse(row.findall("intent"))
+        appearance = self.read("AppearanceSettingsFragment.java").decode()
+        self.assertIn("RawSNavigationAppearance", appearance)
         self.assertLess(int(rows[wanted[0]].get(ANDROID + "order")),
                         int(rows[wanted[1]].get(ANDROID + "order")))
         self.assertIn("defaultAddressBarColors", self.read("MainSettings.java").decode())

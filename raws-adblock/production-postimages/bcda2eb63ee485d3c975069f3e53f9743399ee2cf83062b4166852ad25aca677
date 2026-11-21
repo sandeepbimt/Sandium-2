@@ -1,0 +1,213 @@
+// SPDX-License-Identifier: MPL-2.0
+#ifndef CHROME_BROWSER_RAWS_RAWS_SITE_ADS_POLICY_H_
+#define CHROME_BROWSER_RAWS_RAWS_SITE_ADS_POLICY_H_
+
+#include <memory>
+#include <optional>
+#include <string>
+#include <utility>
+
+#include "base/functional/bind.h"
+#include "base/functional/callback.h"
+#include "base/memory/raw_ptr.h"
+#include "base/memory/weak_ptr.h"
+#include "base/supports_user_data.h"
+#include "base/values.h"
+#include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/raws/raw_element_rules.h"
+#include "chrome/browser/raws/raw_user_network_rules_profile.h"
+#include "chrome/common/chrome_render_frame.mojom.h"
+#include "components/sandium_adblock/document_subresource_factory.h"
+#include "components/prefs/pref_service.h"
+#include "components/prefs/scoped_user_pref_update.h"
+#include "content/public/browser/render_frame_host.h"
+#include "content/public/browser/web_contents.h"
+#include "content/public/browser/weak_document_ptr.h"
+#include "mojo/public/cpp/bindings/associated_remote.h"
+#include "third_party/blink/public/common/associated_interfaces/associated_interface_provider.h"
+#include "url/origin.h"
+
+namespace sandium::adblock_native {
+
+inline constexpr char kGlobalAdsEnabledPref[] = "sandium.global_ad_filtering_enabled";
+inline constexpr char kSiteAdsDisabledPref[] = "sandium.site_ad_filtering_disabled";
+inline constexpr char kSiteAdsControllerKey[] = "raws-site-ad-policy";
+
+class SiteAdsController final : public base::SupportsUserData::Data {
+ public:
+  static SiteAdsController& For(Profile& profile) {
+    auto* controller = static_cast<SiteAdsController*>(
+        profile.GetUserData(kSiteAdsControllerKey));
+    if (!controller) {
+      auto item = std::make_unique<SiteAdsController>(profile);
+      controller = item.get();
+      profile.SetUserData(kSiteAdsControllerKey, std::move(item));
+    }
+    return *controller;
+  }
+
+  explicit SiteAdsController(Profile& profile) : profile_(&profile) {}
+  ~SiteAdsController() override = default;
+
+  bool GlobalEnabled() const {
+    if (!profile_->IsOffTheRecord())
+      return profile_->GetPrefs()->GetBoolean(kGlobalAdsEnabledPref);
+    if (private_global_enabled_)
+      return *private_global_enabled_;
+    // An incognito session starts with the user's standing choice. Its own
+    // explicit choice never changes the original profile or a fresh session.
+    auto* original = profile_->GetOriginalProfile();
+    return !original || original->GetPrefs()->GetBoolean(kGlobalAdsEnabledPref);
+  }
+
+  bool InheritsGlobalFrom(Profile& original) const {
+    return profile_->IsOffTheRecord() && !private_global_enabled_ &&
+           profile_->GetOriginalProfile() == &original;
+  }
+
+  bool SetGlobalEnabled(bool enabled) {
+    if (profile_->IsOffTheRecord()) {
+      private_global_enabled_ = enabled;
+      return true;
+    }
+    auto* prefs = profile_->GetPrefs();
+    prefs->SetBoolean(kGlobalAdsEnabledPref, enabled);
+    return prefs->GetBoolean(kGlobalAdsEnabledPref) == enabled;
+  }
+
+  bool IsEnabled(const url::Origin& origin) const {
+    if (!GlobalEnabled()) return false;
+    auto key = ElementRulesOriginKey(origin);
+    if (!key) return true;  // Unscoped context cannot inherit an exception.
+    return !Exceptions().FindBool(*key).value_or(false);
+  }
+
+  bool SetEnabled(const url::Origin& origin, bool enabled) {
+    // A site exception cannot override the global master. Do not silently
+    // store a site preference in response to a contradictory UI action.
+    if (!GlobalEnabled()) return false;
+    auto key = ElementRulesOriginKey(origin);
+    if (!key) return false;
+    if (IsEnabled(origin) == enabled) return true;
+    if (!enabled && Exceptions().size() >= kMaxElementRuleOrigins) return false;
+    const auto update = [&](base::DictValue& exceptions) {
+      if (enabled)
+        exceptions.Remove(*key);
+      else
+        exceptions.Set(*key, true);
+    };
+    if (profile_->IsOffTheRecord()) {
+      update(private_exceptions_);
+    } else {
+      {
+        ScopedDictPrefUpdate dict(profile_->GetPrefs(), kSiteAdsDisabledPref);
+        update(dict.Get());
+      }
+      profile_->GetPrefs()->CommitPendingWrite();
+    }
+    return true;
+  }
+
+  base::RepeatingCallback<bool()> Gate(url::Origin top_origin) {
+    // This callback is invoked only on the browser UI sequence. It does not
+    // contain a raw Profile pointer, Mojo endpoint, or renderer-provided site.
+    return base::BindRepeating(
+        [](base::WeakPtr<SiteAdsController> controller,
+           const url::Origin& origin) {
+          return !controller || controller->IsEnabled(origin);
+        },
+        weak_.GetWeakPtr(), std::move(top_origin));
+  }
+
+ private:
+  const base::DictValue& Exceptions() const {
+    return profile_->IsOffTheRecord()
+               ? private_exceptions_
+               : profile_->GetPrefs()->GetDict(kSiteAdsDisabledPref);
+  }
+
+  const raw_ptr<Profile> profile_;
+  std::optional<bool> private_global_enabled_;
+  base::DictValue private_exceptions_;
+  base::WeakPtrFactory<SiteAdsController> weak_{this};
+};
+
+inline bool IsSiteAdsEnabled(content::BrowserContext* context,
+                             const url::Origin& top_origin) {
+  auto* profile = context ? Profile::FromBrowserContext(context) : nullptr;
+  return !profile || SiteAdsController::For(*profile).IsEnabled(top_origin);
+}
+
+inline bool IsFrameSiteAdsEnabled(content::RenderFrameHost& frame) {
+  return IsSiteAdsEnabled(
+      frame.GetBrowserContext(),
+      frame.GetOutermostMainFrame()->GetLastCommittedOrigin());
+}
+
+inline bool IsContentsSiteAdsEnabled(content::WebContents& contents) {
+  auto* top = contents.GetPrimaryMainFrame();
+  return !top || IsFrameSiteAdsEnabled(*top);
+}
+
+inline void SetAutomaticElementStyles(content::RenderFrameHost& frame,
+                                      const std::string& css) {
+  auto token = frame.GetEmbeddingToken();
+  if (frame.IsActive() && frame.IsRenderFrameLive() && token) {
+    mojo::AssociatedRemote<chrome::mojom::ChromeRenderFrame> remote;
+    frame.GetRemoteAssociatedInterfaces()->GetInterface(&remote);
+    remote->ApplyRawSHideStyles(*token, css);
+  }
+}
+
+inline void SetCustomCosmeticStyles(content::RenderFrameHost& frame,
+                                    const std::string& css) {
+  auto token = frame.GetEmbeddingToken();
+  if (frame.IsActive() && frame.IsRenderFrameLive() && token) {
+    mojo::AssociatedRemote<chrome::mojom::ChromeRenderFrame> remote;
+    frame.GetRemoteAssociatedInterfaces()->GetInterface(&remote);
+    remote->ApplyRawSMyFiltersStyles(*token, css);
+  }
+}
+
+inline void RefreshCustomCosmeticStyles(content::RenderFrameHost& frame) {
+  auto* profile = Profile::FromBrowserContext(frame.GetBrowserContext());
+  if (!profile || profile->ShutdownStarted()) return;
+  // For(*profile) is this exact regular or off-the-record profile instance;
+  // never pass GetOriginalProfile() or share a worker with another context.
+  ProfileUserNetworkRules::For(*profile).QueryStyles(
+      frame.GetLastCommittedURL(),
+      base::BindOnce(
+          [](content::WeakDocumentPtr document, const GURL& url, std::string css) {
+            auto* target = document.AsRenderFrameHostIfValid();
+            if (!target || target->GetLastCommittedURL() != url ||
+                !IsFrameSiteAdsEnabled(*target)) return;
+            SetCustomCosmeticStyles(*target, css);
+          },
+          frame.GetWeakDocumentPtr(), frame.GetLastCommittedURL()));
+}
+
+inline void RefreshAutomaticElementStyles(content::RenderFrameHost& frame) {
+  if (!frame.IsActive() || !frame.IsRenderFrameLive() ||
+      frame.IsErrorDocument() ||
+      !frame.GetLastCommittedURL().SchemeIsHTTPOrHTTPS()) return;
+  if (!IsFrameSiteAdsEnabled(frame)) {
+    SetAutomaticElementStyles(frame, {});
+    SetCustomCosmeticStyles(frame, {});
+    return;
+  }
+  RefreshCustomCosmeticStyles(frame);
+  QueryHideStyles(
+      frame.GetLastCommittedURL(),
+      base::BindOnce(
+          [](content::WeakDocumentPtr document, GURL url, std::string css) {
+            auto* target = document.AsRenderFrameHostIfValid();
+            if (!target || target->GetLastCommittedURL() != url ||
+                !IsFrameSiteAdsEnabled(*target)) return;
+            // Empty success is a real result and removes an older keyed sheet.
+            SetAutomaticElementStyles(*target, css);
+          },
+          frame.GetWeakDocumentPtr(), frame.GetLastCommittedURL()));
+}
+
+}  // namespace sandium::adblock_native
+#endif  // CHROME_BROWSER_RAWS_RAWS_SITE_ADS_POLICY_H_

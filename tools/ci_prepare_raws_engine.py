@@ -54,7 +54,7 @@ def ui_source_targets():
           for dpi in ('mdpi', 'hdpi', 'xhdpi', 'xxhdpi', 'xxxhdpi')
           for name in ('app_icon.png', 'layered_app_icon.png')),
     }
-    return {
+    targets = {
         '//chrome/browser/ui/android/omnibox:java__compile_java': ('inputs', {
             '//chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/OmniboxSuggestionsDropdownEmbedderImpl.java',
             '//chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/suggestions/GroupSeparatorDecoration.java',
@@ -140,6 +140,13 @@ def ui_source_targets():
             toolbar+'/java/src/org/chromium/chrome/browser/toolbar/settings/AddressBarPreference.java',
         }),
     }
+
+    parity = __import__('json').loads((ROOT/'tools/frozen_android_owners.json').read_text())
+    for label,(field,paths) in parity.items():
+        if label in targets and targets[label][0] != field:
+            raise ValueError('Source-owner field mismatch: '+label)
+        targets.setdefault(label, (field, set()))[1].update(paths)
+    return targets
 
 
 def verify_apk_graph(src, gn, out, env, artifact, *, require_ui=False):

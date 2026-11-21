@@ -1,0 +1,167 @@
+{
+  "//chrome/android:base_module_java__compile_java": [
+    "inputs",
+    [
+      "//chrome/android/java/src/org/chromium/chrome/browser/base/RawSNavigationAppearance.java",
+      "//chrome/android/java/src/org/chromium/chrome/browser/base/SplitCompatApplication.java"
+    ]
+  ],
+  "//chrome/android:chrome_app_java_resources__prepare": [
+    "sources",
+    [
+      "//chrome/android/java/res/anim/raws_settings_fade_in.xml",
+      "//chrome/android/java/res/anim/raws_settings_fade_out.xml",
+      "//chrome/android/java/res/animator/raws_settings_fade_in.xml",
+      "//chrome/android/java/res/animator/raws_settings_fade_out.xml",
+      "//chrome/android/java/res/values/raws_video_strings.xml",
+      "//chrome/android/java/res/xml/developer_preferences.xml"
+    ]
+  ],
+  "//chrome/android:chrome_base_module_resources__prepare": [
+    "sources",
+    [
+      "//chrome/android/java/res_chromium_base/drawable-nodpi/sandium_themed_app_icon.webp",
+      "//chrome/android/java/res_chromium_base/mipmap-nodpi/sandium_app_icon.webp",
+      "//chrome/android/java/res_base/drawable/sandium_app_icon_inset.xml"
+    ]
+  ],
+  "//chrome/android:chrome_java__compile_java": [
+    "inputs",
+    [
+      "//chrome/android/java/src/org/chromium/chrome/browser/ChromeBaseAppCompatActivity.java",
+      "//chrome/android/java/src/org/chromium/chrome/browser/about_settings/AboutChromeSettings.java",
+      "//chrome/android/java/src/org/chromium/chrome/browser/about_settings/LegalInformationSettings.java",
+      "//chrome/android/java/src/org/chromium/chrome/browser/appearance/settings/RawSPageText.java",
+      "//chrome/android/java/src/org/chromium/chrome/browser/appearance/settings/RawSPageTextDialog.java",
+      "//chrome/android/java/src/org/chromium/chrome/browser/firstrun/FirstRunActivity.java",
+      "//chrome/android/java/src/org/chromium/chrome/browser/firstrun/FirstRunActivityBase.java",
+      "//chrome/android/java/src/org/chromium/chrome/browser/firstrun/FirstRunFlowSequencer.java",
+      "//chrome/android/java/src/org/chromium/chrome/browser/firstrun/LightweightFirstRunActivity.java",
+      "//chrome/android/java/src/org/chromium/chrome/browser/firstrun/RawSSetupFirstRunFragment.java",
+      "//chrome/android/java/src/org/chromium/chrome/browser/multiwindow/MultiInstanceOrchestratorImpl.java",
+      "//chrome/android/java/src/org/chromium/chrome/browser/multiwindow/MultiWindowUtils.java",
+      "//chrome/android/java/src/org/chromium/chrome/browser/ntp/NewTabPageLayout.java",
+      "//chrome/android/java/src/org/chromium/chrome/browser/sandium/video/SandiumVideoController.java",
+      "//chrome/android/java/src/org/chromium/chrome/browser/sandium/video/SandiumVideoGestureState.java",
+      "//chrome/android/java/src/org/chromium/chrome/browser/sandium/video/SandiumVideoGestureView.java",
+      "//chrome/android/java/src/org/chromium/chrome/browser/sandium/video/SandiumVideoSessionAdapter.java",
+      "//chrome/android/java/src/org/chromium/chrome/browser/settings/RawSAdRuleBackupSettings.java",
+      "//chrome/android/java/src/org/chromium/chrome/browser/settings/RawSAppearanceActions.java",
+      "//chrome/android/java/src/org/chromium/chrome/browser/settings/RawSColorChooser.java",
+      "//chrome/android/java/src/org/chromium/chrome/browser/settings/RawSColorRulesSettings.java",
+      "//chrome/android/java/src/org/chromium/chrome/browser/settings/RawSElementColorController.java",
+      "//chrome/android/java/src/org/chromium/chrome/browser/settings/RawSNavigationDiagnostics.java",
+      "//chrome/android/java/src/org/chromium/chrome/browser/settings/RawSNavigationDiagnosticsSettings.java",
+      "//chrome/android/java/src/org/chromium/chrome/browser/settings/SettingsActivity.java",
+      "//chrome/android/java/src/org/chromium/chrome/browser/share/ShareDelegateImpl.java",
+      "//chrome/android/java/src/org/chromium/chrome/browser/tab/TabWebContentsObserver.java",
+      "//chrome/android/java/src/org/chromium/chrome/browser/tabbed_mode/TabbedRootUiCoordinator.java",
+      "//chrome/android/java/src/org/chromium/chrome/browser/tabmodel/TabCollectionTabModelImpl.java",
+      "//chrome/android/java/src/org/chromium/chrome/browser/ui/system/StatusBarColorController.java",
+      "//chrome/android/java/src/org/chromium/chrome/browser/undo_tab_close_snackbar/UndoBarController.java"
+    ]
+  ],
+  "//chrome/android:chrome_jni_headers__action": [
+    "inputs",
+    [
+      "//chrome/android/java/src/org/chromium/chrome/browser/settings/RawSAdRuleBackupSettings.java",
+      "//chrome/android/java/src/org/chromium/chrome/browser/settings/RawSColorRulesSettings.java",
+      "//chrome/android/java/src/org/chromium/chrome/browser/settings/RawSElementColorController.java",
+      "//chrome/android/java/src/org/chromium/chrome/browser/tabmodel/TabCollectionTabModelImpl.java"
+    ]
+  ],
+  "//chrome/android:chrome_public_apk_base_module_resources__prepare": [
+    "sources",
+    [
+      "//chrome/android/java/res_chromium_base/drawable-nodpi/sandium_themed_app_icon.webp",
+      "//chrome/android/java/res_chromium_base/mipmap-nodpi/sandium_app_icon.webp"
+    ]
+  ],
+  "//chrome/browser/autofill/android:java__compile_java": [
+    "inputs",
+    [
+      "//chrome/browser/autofill/android/java/src/org/chromium/chrome/browser/autofill/settings/options/AutofillOptionsFragment.java",
+      "//chrome/browser/autofill/android/java/src/org/chromium/chrome/browser/autofill/settings/options/AutofillOptionsViewBinder.java"
+    ]
+  ],
+  "//chrome/browser/autofill/android:java_resources__prepare": [
+    "sources",
+    [
+      "//chrome/browser/autofill/android/java/res/xml/autofill_options_preferences.xml"
+    ]
+  ],
+  "//chrome/browser/notifications:java__compile_java": [
+    "inputs",
+    [
+      "//chrome/browser/notifications/android/java/src/org/chromium/chrome/browser/notifications/permissions/NotificationPermissionController.java"
+    ]
+  ],
+  "//chrome/browser/privacy:java__compile_java": [
+    "inputs",
+    [
+      "//chrome/browser/privacy/java/src/org/chromium/chrome/browser/privacy/secure_dns/SecureDnsSettings.java"
+    ]
+  ],
+  "//chrome/browser/ui/android/night_mode:java__compile_java": [
+    "inputs",
+    [
+      "//chrome/browser/ui/android/night_mode/java/src/org/chromium/chrome/browser/night_mode/RawSDarkPages.java",
+      "//chrome/browser/ui/android/night_mode/java/src/org/chromium/chrome/browser/night_mode/WebContentsThemeClient.java"
+    ]
+  ],
+  "//chrome/browser/ui/android/omnibox:java__compile_java": [
+    "inputs",
+    [
+      "//chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/LocationBarBackgroundDrawable.java",
+      "//chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/suggestions/AutocompleteMediator.java",
+      "//chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/suggestions/DropdownItemViewInfoListBuilder.java"
+    ]
+  ],
+  "//chrome/browser/ui/android/strings:ui_strings_grd__grit_grit": [
+    "inputs",
+    [
+      "//chrome/browser/ui/android/strings/android_chrome_strings.grd"
+    ]
+  ],
+  "//chrome/browser/ui/android/toolbar:core_java__compile_java": [
+    "inputs",
+    [
+      "//chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/ToolbarProgressBar.java",
+      "//chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/ToolbarProgressBarAnimatingView.java",
+      "//chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/ToolbarProgressBarLayer.java"
+    ]
+  ],
+  "//components/browser_ui/styles/android:java_resources__prepare": [
+    "sources",
+    [
+      "//components/browser_ui/styles/android/java/res/values/styles.xml",
+      "//components/browser_ui/styles/android/java/res/color/raws_sandium_switch_thumb.xml",
+      "//components/browser_ui/styles/android/java/res/color/raws_sandium_switch_track.xml"
+    ]
+  ],
+  "//content/public/android:content_full_java__compile_java": [
+    "inputs",
+    [
+      "//content/public/android/java/src/org/chromium/content/browser/webcontents/WebContentsImpl.java",
+      "//content/public/android/java/src/org/chromium/content_public/browser/WebContents.java"
+    ]
+  ],
+  "//content/public/android:content_jni_headers__action": [
+    "inputs",
+    [
+      "//content/public/android/java/src/org/chromium/content/browser/webcontents/WebContentsImpl.java"
+    ]
+  ],
+  "//ui/android:ui_android_jni_headers__action": [
+    "inputs",
+    [
+      "//ui/android/java/src/org/chromium/ui/base/EventForwarder.java"
+    ]
+  ],
+  "//ui/android:ui_no_recycler_view_java__compile_java": [
+    "inputs",
+    [
+      "//ui/android/java/src/org/chromium/ui/base/EventForwarder.java"
+    ]
+  ]
+}

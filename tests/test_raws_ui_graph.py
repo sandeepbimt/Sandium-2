@@ -39,6 +39,18 @@ ACTIONS = {
     MENU + ':java' + JAVAC: 'inputs',
     INTERNAL + ':java' + JAVAC: 'inputs',
     INTERNAL + ':java_resources' + PREPARE: 'sources',
+    '//chrome/android:base_module_java__compile_java': 'inputs',
+    '//chrome/browser/autofill/android:java__compile_java': 'inputs',
+    '//chrome/browser/autofill/android:java_resources__prepare': 'sources',
+    '//chrome/browser/notifications:java__compile_java': 'inputs',
+    '//chrome/browser/privacy:java__compile_java': 'inputs',
+    '//chrome/browser/ui/android/night_mode:java__compile_java': 'inputs',
+    '//components/browser_ui/styles/android:java_resources__prepare': 'sources',
+    '//content/public/android:content_full_java__compile_java': 'inputs',
+    '//content/public/android:content_jni_headers__action': 'inputs',
+    '//ui/android:ui_no_recycler_view_java__compile_java': 'inputs',
+    '//ui/android:ui_android_jni_headers__action': 'inputs',
+    '//chrome/browser/ui/android/strings:ui_strings_grd__grit_grit': 'inputs',
     TOOLBAR + JAVAC: 'inputs',
     '//chrome/browser/ui/android/toolbar:java_resources' + PREPARE: 'sources',
     '//chrome/browser/ui/android/bottombar:config_java' + JAVAC: 'inputs',
@@ -75,8 +87,10 @@ class NativeUiGraph(unittest.TestCase):
         files = json.loads((ROOT / 'raws-adblock/production-restore-recipe.json').read_text())['files']
         intended = {'//' + name for name in files
                     if name.startswith(('chrome/android/', 'chrome/browser/ui/android/',
-                                        'chrome/browser/feed/android/'))
-                    and name.endswith(('.java', '.xml', '.png', '.webp'))}
+                                        'chrome/browser/feed/android/', 'chrome/browser/autofill/android/',
+                                        'chrome/browser/notifications/', 'chrome/browser/privacy/',
+                                        'content/public/android/', 'components/browser_ui/styles/android/', 'ui/android/'))
+                    and name.endswith(('.java', '.xml', '.png', '.webp', '.grd'))}
         self.assertEqual(intended, set().union(*(paths for field, paths in owners.values())))
         with tempfile.TemporaryDirectory() as tmp:
             receipt = Path(tmp) / 'graph.txt'

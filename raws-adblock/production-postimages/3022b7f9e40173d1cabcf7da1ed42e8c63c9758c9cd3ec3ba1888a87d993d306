@@ -1,0 +1,105 @@
+// Copyright 2026 Sandium Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license.
+#ifndef CHROME_BROWSER_RAWS_RAWS_COLOR_WIRE_CODEC_H_
+#define CHROME_BROWSER_RAWS_RAWS_COLOR_WIRE_CODEC_H_
+
+#include <cstdint>
+#include <utility>
+#include <vector>
+
+#include "base/values.h"
+#include "chrome/browser/sandium/element_color_rule_store.h"
+#include "chrome/common/chrome_render_frame.mojom.h"
+
+namespace sandium::color_picker {
+namespace wire = ::chrome::mojom;
+
+inline base::DictValue EncodeRule(const wire::RawSColorIdentity& identity,
+                                 wire::RawSColorProperty property, uint32_t rgb) {
+  if (identity.tag.size() > 64 || identity.id.size() > 128 ||
+      identity.role.size() > 64 || identity.ancestors.size() > 24 ||
+      rgb > 0xffffff) return {};
+  base::DictValue value;
+  value.Set("tag", identity.tag);
+  value.Set("id", identity.id);
+  value.Set("role", identity.role);
+  value.Set("property", static_cast<int>(property));
+  value.Set("rgb", static_cast<int>(rgb));
+  base::ListValue ancestors;
+  for (const auto& ancestor : identity.ancestors) {
+    if (!ancestor || ancestor->tag.size() > 64 || ancestor->id.size() > 128) return {};
+    base::DictValue item;
+    item.Set("tag", ancestor->tag);
+    item.Set("id", ancestor->id);
+    ancestors.Append(std::move(item));
+  }
+  value.Set("ancestors", std::move(ancestors));
+  if (identity.locator) {
+    if (identity.locator->anchor_id.size() > 128 || identity.locator->steps.empty() ||
+        identity.locator->steps.size() > 24)
+      return {};
+    base::DictValue locator;
+    locator.Set("anchor", identity.locator->anchor_id);
+    base::ListValue steps;
+    for (const auto& step : identity.locator->steps) {
+      if (!step || step->tag.size() > 64 || step->role.size() > 64 ||
+          step->classes.size() > 12 ||
+          step->ordinal > 4096 || step->sibling_count > 4096 ||
+          (!step->ordinal != !step->sibling_count)) return {};
+      base::DictValue item;
+      item.Set("tag", step->tag);
+      item.Set("role", step->role);
+      base::ListValue classes;
+      for (const auto& token : step->classes) {
+        if (token.size() > 64) return {};
+        classes.Append(token);
+      }
+      item.Set("classes", std::move(classes));
+      if (step->ordinal) {
+        item.Set("ordinal", static_cast<int>(step->ordinal));
+        item.Set("count", static_cast<int>(step->sibling_count));
+      }
+      steps.Append(std::move(item));
+    }
+    locator.Set("steps", std::move(steps));
+    value.Set("locator", std::move(locator));
+  }
+  if (!ElementColorRuleStore::ValidRule(value)) return {};
+  return value;
+}
+
+inline wire::RawSColorRulePtr DecodeRule(const base::DictValue& value) {
+  if (!ElementColorRuleStore::ValidRule(value)) return {};
+  auto result = wire::RawSColorRule::New();
+  result->property = static_cast<wire::RawSColorProperty>(*value.FindInt("property"));
+  result->rgb = static_cast<uint32_t>(*value.FindInt("rgb"));
+  auto& identity = result->identity;
+  identity = wire::RawSColorIdentity::New();
+  identity->tag = *value.FindString("tag");
+  identity->id = *value.FindString("id");
+  identity->role = *value.FindString("role");
+  for (const auto& item : *value.FindList("ancestors")) {
+    const auto& input = item.GetDict();
+    auto out = wire::RawSColorAncestor::New();
+    out->tag = *input.FindString("tag");
+    out->id = *input.FindString("id");
+    identity->ancestors.push_back(std::move(out));
+  }
+  if (const auto* saved = value.FindDict("locator")) {
+    identity->locator = wire::RawSColorLocator::New();
+    identity->locator->anchor_id = *saved->FindString("anchor");
+    for (const auto& item : *saved->FindList("steps")) {
+      const auto& input = item.GetDict();
+      auto step = wire::RawSColorStep::New();
+      step->tag = *input.FindString("tag");
+      step->role = *input.FindString("role");
+      for (const auto& name : *input.FindList("classes")) step->classes.push_back(name.GetString());
+      step->ordinal = static_cast<uint32_t>(input.FindInt("ordinal").value_or(0));
+      step->sibling_count = static_cast<uint32_t>(input.FindInt("count").value_or(0));
+      identity->locator->steps.push_back(std::move(step));
+    }
+  }
+  return result;
+}
+}  // namespace sandium::color_picker
+#endif  // CHROME_BROWSER_RAWS_RAWS_COLOR_WIRE_CODEC_H_

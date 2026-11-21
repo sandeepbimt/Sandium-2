@@ -1,0 +1,258 @@
+// Copyright 2026 Sandium Authors. BSD-style license.
+#include "chrome/browser/sandium/element_color_rule_store.h"
+#include "components/prefs/pref_registry_simple.h"
+#include "chrome/browser/profiles/profile.h"
+#include "base/supports_user_data.h"
+#include "base/json/json_reader.h"
+#include "base/json/json_writer.h"
+#include "url/gurl.h"
+#include <memory>
+#include "components/prefs/pref_service.h"
+#include "components/prefs/scoped_user_pref_update.h"
+
+namespace sandium {
+namespace {
+constexpr char kStoreKey[] = "sandium.element_colors.profile_store";
+class ProfileStore final : public base::SupportsUserData::Data {
+ public:
+  explicit ProfileStore(Profile& profile) : store(profile.GetPrefs(), profile.IsOffTheRecord()) {}
+  ElementColorRuleStore store;
+};
+constexpr char kPref[] = "sandium.element_colors.rules_v1";
+constexpr size_t kSites = 128;
+constexpr size_t kRules = 32;
+bool BoundedText(const std::string* text, size_t limit, bool allow_empty) {
+  if (!text || text->size() > limit || (!allow_empty && text->empty())) return false;
+  for (unsigned char ch : *text) if (ch < 32 || ch == 127) return false;
+  return true;
+}
+bool Tag(const std::string* text) {
+  if (!BoundedText(text, 64, false)) return false;
+  for (unsigned char ch : *text)
+    if (!((ch >= 'a' && ch <= 'z') || (ch >= '0' && ch <= '9') || ch == '-')) return false;
+  return true;
+}
+constexpr size_t kBackupBytes = 8 * 1024 * 1024;
+bool ValidRuleset(const base::DictValue& sites) {
+  if (sites.size() > kSites) return false;
+  for (const auto [key, value] : sites) {
+    const auto origin = url::Origin::Create(GURL(key));
+    // Canonical origins only: reject credentials, paths, query, fragments and
+    // aliases so an imported rule cannot silently move to a different scope.
+    if (origin.opaque() || !origin.GetURL().SchemeIsHTTPOrHTTPS() ||
+        origin.Serialize() != key) return false;
+    const auto* rules = value.GetIfList();
+    if (!rules || rules->size() > kRules) return false;
+    for (const auto& item : *rules) {
+      const auto* rule = item.GetIfDict();
+      if (!rule || !ElementColorRuleStore::ValidRule(*rule)) return false;
+    }
+  }
+  return true;
+}
+base::DictValue ImportResult(bool ok, int added, int conflicts, int duplicates,
+                             const std::string& error) {
+  base::DictValue result;
+  result.Set("ok", ok);
+  result.Set("added", added);
+  result.Set("conflicts", conflicts);
+  result.Set("duplicates", duplicates);
+  result.Set("error", error);
+  return result;
+}
+bool SameTarget(const base::DictValue& a, const base::DictValue& b) {
+  return a.FindString("id") && b.FindString("id") &&
+      *a.FindString("id") == *b.FindString("id") && a.FindInt("property") == b.FindInt("property") &&
+      ((!a.Find("locator") && !b.Find("locator")) ||
+       (a.Find("locator") && b.Find("locator") && *a.Find("locator") == *b.Find("locator")));
+}
+}  // namespace
+ElementColorRuleStore& ElementColorRuleStore::ForProfile(Profile& profile) {
+  auto* holder = static_cast<ProfileStore*>(profile.GetUserData(kStoreKey));
+  if (!holder) {
+    auto owned = std::make_unique<ProfileStore>(profile);
+    holder = owned.get();
+    profile.SetUserData(kStoreKey,std::move(owned));
+  }
+  return holder->store;
+}
+void ElementColorRuleStore::RegisterPrefs(PrefRegistrySimple* registry) {
+  registry->RegisterDictionaryPref(kPref);  // Non-syncable by construction.
+}
+ElementColorRuleStore::ElementColorRuleStore(PrefService* prefs, bool off_the_record)
+    : prefs_(off_the_record ? nullptr : prefs), private_(off_the_record) {}
+ElementColorRuleStore::~ElementColorRuleStore() = default;
+bool ElementColorRuleStore::EligibleOrigin(const url::Origin& origin) {
+  return !origin.opaque() && origin.GetURL().SchemeIsHTTPOrHTTPS();
+}
+bool ElementColorRuleStore::ValidRule(const base::DictValue& rule) {
+  // No CSS/JS, URLs, text content, or arbitrary nested data is accepted.
+  const auto* locator = rule.FindDict("locator");
+  if (rule.size() != (locator ? 7u : 6u) || !Tag(rule.FindString("tag")) ||
+      !BoundedText(rule.FindString("id"), 128, locator != nullptr) ||
+      !BoundedText(rule.FindString("role"), 64, true)) return false;
+  if (locator) {
+    if (!rule.FindString("id")->empty() || locator->size() != 2 ||
+        !BoundedText(locator->FindString("anchor"),128,true)) return false;
+    const auto* steps=locator->FindList("steps");
+    if (!steps || steps->empty() || steps->size()>24) return false;
+    for (const auto& item : *steps) {
+      const auto* step=item.GetIfDict();
+      if (!step || (step->size()!=3 && step->size()!=5) || !Tag(step->FindString("tag")) ||
+          !BoundedText(step->FindString("role"),64,true)) return false;
+      if (step->size()==5) {
+        auto ordinal=step->FindInt("ordinal"), count=step->FindInt("count");
+        if (!ordinal || !count || *ordinal<1 || *count<2 || *count>4096 || *ordinal>*count) return false;
+      }
+      const auto* classes=step->FindList("classes");
+      if (!classes || classes->size()>12) return false;
+      for (const auto& token : *classes) {
+        const auto* text=token.GetIfString();
+        if (!BoundedText(text,64,false)) return false;
+      }
+    }
+  }
+  auto property = rule.FindInt("property"), rgb = rule.FindInt("rgb");
+  if (!property || (*property != 0 && *property != 1 && *property != 2) || !rgb || *rgb < 0 || *rgb > 0xffffff) return false;
+  if (*property == 2 && *rule.FindString("tag") != "img") return false;
+  const auto* ancestors = rule.FindList("ancestors");
+  if (!ancestors || ancestors->size() > 24) return false;
+  for (const auto& item : *ancestors) {
+    const auto* entry = item.GetIfDict();
+    if (!entry || entry->size() != 2 || !Tag(entry->FindString("tag")) ||
+        !BoundedText(entry->FindString("id"),128,true)) return false;
+  }
+  return true;
+}
+base::ListValue ElementColorRuleStore::Read(const url::Origin& origin) const {
+  base::ListValue clean;
+  if (!EligibleOrigin(origin)) return clean;
+  const base::ListValue* list = nullptr;
+  if (private_) {
+    auto found = memory_.find(origin.Serialize());
+    if (found != memory_.end()) list = &found->second;
+  } else if (prefs_) {
+    list = prefs_->GetDict(kPref).FindList(origin.Serialize());
+  }
+  if (!list || list->size() > kRules) return clean;
+  for (const auto& item : *list) {
+    const auto* rule = item.GetIfDict();
+    if (rule && ValidRule(*rule)) clean.Append(rule->Clone());
+  }
+  return clean;
+}
+bool ElementColorRuleStore::Save(const url::Origin& origin, const base::DictValue& rule) {
+  if (!EligibleOrigin(origin) || !ValidRule(rule) || (!private_ && !prefs_)) return false;
+  const std::string key = origin.Serialize();
+  base::ListValue result;
+  for (const auto& item : Read(origin))
+    if (!SameTarget(item.GetDict(),rule)) result.Append(item.Clone());
+  if (result.size() >= kRules) return false;
+  result.Append(rule.Clone());
+  if (private_) {
+    if (!memory_.contains(key) && memory_.size() >= kSites) return false;
+    memory_.insert_or_assign(key,std::move(result));
+  } else {
+    if (!prefs_->GetDict(kPref).contains(key) && prefs_->GetDict(kPref).size() >= kSites) return false;
+    { ScopedDictPrefUpdate update(prefs_,kPref);
+      update->Set(key,std::move(result)); }
+    prefs_->CommitPendingWrite();
+  }
+  ++revision_;
+  return true;
+}
+std::string ElementColorRuleStore::ExportRules() const {
+  if (private_ || !prefs_) return {};
+  const auto& sites = prefs_->GetDict(kPref);
+  // Never silently omit corrupt/unknown records from a backup.
+  if (!ValidRuleset(sites)) return {};
+  auto json = base::WriteJson(sites);
+  return json && json->size() <= kBackupBytes ? *json : std::string();
+}
+base::DictValue ElementColorRuleStore::ImportRules(const std::string& json,
+                                                   bool apply) {
+  if (private_ || !prefs_)
+    return ImportResult(false,0,0,0,"Available only in a regular profile.");
+  if (json.empty() || json.size() > kBackupBytes)
+    return ImportResult(false,0,0,0,"Backup is empty or exceeds 8 MiB.");
+  auto incoming = base::JSONReader::ReadDict(json, base::JSON_PARSE_RFC);
+  if (!incoming || !ValidRuleset(*incoming))
+    return ImportResult(false,0,0,0,"Invalid dark colour rules backup.");
+  const auto& current = prefs_->GetDict(kPref);
+  if (!ValidRuleset(current))
+    return ImportResult(false,0,0,0,"Existing rules need repair; nothing was changed.");
+  auto merged = current.Clone();
+  int added = 0, conflicts = 0, duplicates = 0;
+  for (const auto [origin, value] : *incoming) {
+    const auto& rules = value.GetList();
+    if (rules.empty()) continue;
+    auto* target = merged.FindList(origin);
+    if (!target) {
+      if (merged.size() >= kSites)
+        return ImportResult(false,0,0,0,"Site limit exceeded; nothing was changed.");
+      merged.Set(origin,base::ListValue());
+      target = merged.FindList(origin);
+    }
+    for (const auto& item : rules) {
+      bool exists = false;
+      for (const auto& saved : *target) {
+        if (!SameTarget(saved.GetDict(),item.GetDict())) continue;
+        exists = true;
+        if (saved == item) ++duplicates; else ++conflicts;
+        break;
+      }
+      if (exists) continue;
+      if (target->size() >= kRules)
+        return ImportResult(false,0,0,0,"Rule limit exceeded; nothing was changed.");
+      target->Append(item.Clone());
+      ++added;
+    }
+  }
+  auto encoded = base::WriteJson(merged);
+  if (!encoded || encoded->size() > kBackupBytes)
+    return ImportResult(false,0,0,0,"Merged backup exceeds 8 MiB; nothing was changed.");
+  if (apply && added > 0) {
+    // One transaction, never Save() in a loop: failures leave all prefs intact.
+    prefs_->SetDict(kPref,std::move(merged));
+    prefs_->CommitPendingWrite();
+    ++revision_;
+  }
+  return ImportResult(true,added,conflicts,duplicates,"");
+}
+bool ElementColorRuleStore::CompareAndReplace(
+    const url::Origin& origin, uint64_t expected_revision,
+    const base::ListValue& expected, const base::ListValue& replacement) {
+  if (revision_ != expected_revision || !EligibleOrigin(origin) ||
+      replacement.size() > kRules ||
+      Read(origin) != expected || (!private_ && !prefs_)) return false;
+  for (const auto& item : replacement) {
+    const auto* value = item.GetIfDict();
+    if (!value || !ValidRule(*value)) return false;
+  }
+  if (replacement.empty()) return Reset(origin);
+  const std::string key = origin.Serialize();
+  if (private_) memory_.insert_or_assign(key, replacement.Clone());
+  else {
+    { ScopedDictPrefUpdate update(prefs_, kPref);
+      update->Set(key, replacement.Clone()); }
+    prefs_->CommitPendingWrite();
+  }
+  ++revision_;
+  return true;
+}
+bool ElementColorRuleStore::Reset(const url::Origin& origin) {
+  if (!EligibleOrigin(origin) || (!private_ && !prefs_)) return false;
+  if (private_) memory_.erase(origin.Serialize());
+  else {
+    { ScopedDictPrefUpdate update(prefs_,kPref); update->Remove(origin.Serialize()); }
+    prefs_->CommitPendingWrite();
+  }
+  ++revision_;
+  return true;
+}
+void ElementColorRuleStore::Clear() {
+  if (private_) memory_.clear();
+  else if (prefs_) { prefs_->ClearPref(kPref); prefs_->CommitPendingWrite(); }
+  ++revision_;
+}
+}  // namespace sandium

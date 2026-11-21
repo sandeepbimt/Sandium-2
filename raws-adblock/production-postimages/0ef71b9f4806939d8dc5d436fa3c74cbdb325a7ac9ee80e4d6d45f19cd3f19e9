@@ -1,0 +1,127 @@
+// SPDX-License-Identifier: MPL-2.0
+package org.chromium.chrome.browser.settings;
+
+import android.content.Context;
+import android.content.SharedPreferences;
+import android.os.Build;
+
+import com.google.android.material.color.DynamicColors;
+
+import org.chromium.base.ContextUtils;
+import org.chromium.base.DeviceInfo;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
+
+/** App-scoped Appearance controls consumed by the real Chromium action owners. */
+@NullMarked
+public final class RawSAppearanceActions {
+    private static final String SHARE_HUB = "raws_appearance_sharing_hub";
+    private static final String UNDO_ON_CLOSE = "raws_appearance_undo_on_close";
+    private static final String GROUP_LINKS = "raws_appearance_group_links";
+    private static final String DYNAMIC_COLORS = "raws_appearance_dynamic_colors";
+
+    private RawSAppearanceActions() {}
+
+    public static boolean isPrivateRawS(Context context) {
+        return "io.github.sandeepbimt.raws".equals(context.getPackageName());
+    }
+
+    public static boolean canConfigureSharingHub(Context context) {
+        return isPrivateRawS(context) && !DeviceInfo.isAutomotive()
+                && Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE
+                && preferences() != null;
+    }
+
+    public static boolean canConfigureUndoOnClose(Context context) {
+        return isPrivateRawS(context) && preferences() != null;
+    }
+
+    public static boolean usesSharingHub(Context context) {
+        return read(context, SHARE_HUB);
+    }
+
+    public static boolean showsUndoOnClose(Context context) {
+        return read(context, UNDO_ON_CLOSE);
+    }
+
+    public static boolean setSharingHub(Context context, boolean enabled) {
+        return canConfigureSharingHub(context) && write(SHARE_HUB, enabled);
+    }
+
+    public static boolean setUndoOnClose(Context context, boolean enabled) {
+        return canConfigureUndoOnClose(context) && write(UNDO_ON_CLOSE, enabled);
+    }
+
+    public static boolean canConfigureGroupLinks(Context context) {
+        return isPrivateRawS(context) && !DeviceInfo.isAutomotive() && preferences() != null;
+    }
+
+    public static boolean groupsLinksWithParent(Context context) {
+        if (!isPrivateRawS(context) || DeviceInfo.isAutomotive()) return false;
+        var prefs = preferences();
+        // Leave existing Chromium grouping unchanged unless the user enables the setting.
+        return prefs != null && prefs.getBoolean(GROUP_LINKS, false);
+    }
+
+    public static boolean setGroupsLinksWithParent(Context context, boolean enabled) {
+        return canConfigureGroupLinks(context) && write(GROUP_LINKS, enabled);
+    }
+
+    public static boolean canConfigureDynamicColors(Context context) {
+        return isPrivateRawS(context) && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+                && DynamicColors.isDynamicColorAvailable() && preferences() != null;
+    }
+
+    public static boolean usesDynamicColors(Context context) {
+        if (!canConfigureDynamicColors(context)) return false;
+        var prefs = preferences();
+        return prefs != null && readDynamicColors(prefs);
+    }
+
+    /** Stock Chromium retains its existing overlay; private RawS starts with Sandium colors. */
+    public static boolean allowsDynamicColorOverlay(Context context) {
+        return !isPrivateRawS(context) || usesDynamicColors(context);
+    }
+
+    private static boolean readDynamicColors(SharedPreferences prefs) {
+        try {
+            return prefs.getBoolean(DYNAMIC_COLORS, false);
+        } catch (ClassCastException malformedChoice) {
+            return false;
+        }
+    }
+
+    @android.annotation.SuppressLint("ApplySharedPref")
+    public static boolean setDynamicColors(Context context, boolean enabled) {
+        if (!canConfigureDynamicColors(context)) return false;
+        var prefs = preferences();
+        if (prefs == null) return false;
+        boolean hadChoice = prefs.contains(DYNAMIC_COLORS);
+        boolean previous = readDynamicColors(prefs);
+        // Persist before offering to restart. A failed commit may still modify process memory.
+        if (prefs.edit().putBoolean(DYNAMIC_COLORS, enabled).commit()) return true;
+        var restore = prefs.edit();
+        if (hadChoice) restore.putBoolean(DYNAMIC_COLORS, previous);
+        else restore.remove(DYNAMIC_COLORS);
+        restore.apply();
+        return false;
+    }
+
+    @SuppressWarnings("UseSharedPreferencesManagerFromChromeCheck")
+    private static @Nullable SharedPreferences preferences() {
+        return ContextUtils.getAppSharedPreferences();
+    }
+
+    private static boolean read(Context context, String name) {
+        if (!isPrivateRawS(context)) return true;
+        var prefs = preferences();
+        return prefs == null || prefs.getBoolean(name, true);
+    }
+
+    private static boolean write(String name, boolean value) {
+        var prefs = preferences();
+        if (prefs == null) return false;
+        prefs.edit().putBoolean(name, value).apply();
+        return true;
+    }
+}

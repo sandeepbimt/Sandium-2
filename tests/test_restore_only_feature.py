@@ -454,7 +454,8 @@ class FrozenScope(unittest.TestCase):
                          actual.tracked_paths - feature.TRACKED)
         self.assertEqual(feature.UI_GENERATED | extra_generated, actual.ui_files)
         if extra:
-            self.assertEqual(55, len(extra_tracked))
+            self.assertEqual(140, len(extra_tracked))
+            self.assertIn('chrome/android/java/src/org/chromium/chrome/browser/ntp/NewTabPageLayout.java', extra_tracked)
             self.assertLessEqual({
                 'chrome/android/java/res/xml/appearance_preferences.xml',
                 'chrome/android/java/src/org/chromium/chrome/browser/appearance/settings/'
@@ -467,11 +468,11 @@ class FrozenScope(unittest.TestCase):
                 for name in ('ntp/NewTabPage.java', 'suggestions/tile/MostVisitedTilesLayout.java',
                              'suggestions/tile/SuggestionsTileView.java')
             }, extra_tracked)
-            self.assertEqual(8, sum(p.startswith('chrome/browser/ui/android/omnibox/')
+            self.assertEqual(11, sum(p.startswith('chrome/browser/ui/android/omnibox/')
                                     for p in extra_tracked))
             self.assertIn('chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/'
                           'browser/toolbar/ToolbarPositionController.java', extra_tracked)
-            self.assertEqual(5, len(extra_generated))
+            self.assertEqual(47, len(extra_generated))
             self.assertLessEqual({
                 'chrome/browser/ui/android/toolbar/java/res/drawable/raws_page_toolbar_forward.xml',
                 'chrome/browser/ui/android/toolbar/java/res/drawable/raws_page_toolbar_menu.xml',

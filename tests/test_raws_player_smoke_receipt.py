@@ -9,12 +9,13 @@ from native_smoke import CASES, verify_output, verify_port_output
 
 
 class RawSPlayerSmokeReceipt(unittest.TestCase):
-    def test_extension_requires_both_exact_linked_markers(self):
+    def test_extension_requires_all_exact_linked_markers(self):
         player = 'RAWS_1471_INCIDENT_RULES_PASS'
         engine = 'RAWS_ENGINE_SMOKE_1442_PASS'
-        verify_port_output(f'{player}\n{engine}\n')
-        for wrong in (engine, player, f'{engine}\n{player}', f'{player}\n{player}\n{engine}',
-                      f'not {player}\n{engine}'):
+        rotated = 'RAWS_1483_ROTATING_PLAYER_PASS'
+        verify_port_output(f'{rotated}\n{player}\n{engine}\n')
+        for wrong in (engine, player, f'{player}\n{engine}', f'{player}\n{rotated}\n{engine}',
+                      f'{rotated}\n{player}\n{player}\n{engine}', f'not {rotated}\n{player}\n{engine}'):
             with self.subTest(output=wrong), self.assertRaises(ValueError):
                 verify_port_output(wrong)
 
