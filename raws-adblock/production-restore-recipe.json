@@ -8668,7 +8668,7 @@
       "mode": "644"
     },
     "chrome/browser/chrome_content_browser_client.cc": {
-      "after_sha256": "22d9152751f339d64270f94913d89e9161329a1b9507f0232a2f53d5c5983af6",
+      "after_sha256": "1127a25c0f0f51ab670f0aca1dd142e06107e505aeaee0687b60566c54fd9680",
       "before_sha256": "235fbfdbfe13d7ce2833017f67d6a899dda5b14131e38e5f7177b62f8a4b981b",
       "mode": "644"
     },
@@ -9298,11 +9298,11 @@
       "mode": "644"
     },
     "components/sandium_adblock/generic_style.cc": {
-      "after_sha256": "9b7658050ce424922bd9791ad2c3d21aa30b4124809e4d5b61818e2adec160f6",
+      "after_sha256": "a1ab9ba914d37fe6291df621242a2d5e205b8c0918ef576966d74d3875643a9e",
       "before_sha256": null
     },
     "components/sandium_adblock/generic_style.h": {
-      "after_sha256": "3c1bab998bf192d97e6db198eb8bedc2a566fedc47a91404869cdf6a437419f4",
+      "after_sha256": "7f1ffce82dc09f864ff0e9daa159ddb4f274bcd6089c764424a8b50cc2dc2332",
       "before_sha256": null
     },
     "components/sandium_adblock/network_decision.h": {
