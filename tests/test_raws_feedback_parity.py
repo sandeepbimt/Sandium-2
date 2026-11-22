@@ -29,7 +29,7 @@ class CombinedFeedback(unittest.TestCase):
         self.assertIn("centerRawSHomeWallpaper(width, height, mRawSHomeWallpaperCandidate)",
                       self.read("FeedSurfaceCoordinator.java").decode())
         self.assertEqual(hashlib.sha256(self.read("raws_home_wallpaper.webp")).hexdigest(),
-                         "6ab6df2f4dab4ff2f9b6d516797564b629c680ca90522ef31f3f4bd3ab34e083")
+                         "c4a3f16fc676e3202b68064dc5e526cec3d2985f513c44ddc202395dca03514f")
 
     def test_appearance_rows_bind_native_configuration(self):
         prefs = ET.fromstring(self.read("appearance_preferences.xml"))
@@ -48,7 +48,69 @@ class CombinedFeedback(unittest.TestCase):
         self.assertIn("RawSNavigationAppearance", appearance)
         self.assertLess(int(rows[wanted[0]].get(ANDROID + "order")),
                         int(rows[wanted[1]].get(ANDROID + "order")))
-        self.assertIn("defaultAddressBarColors", self.read("MainSettings.java").decode())
+        main = ET.fromstring(self.read("main_preferences.xml"))
+        self.assertFalse(any(row.get(ANDROID + "key") == "raws_ui_sandium_address_bar_color"
+                             for row in main.iter()))
+        self.assertIn("wallpaperIncludesBrand= */ false", self.read("NewTabPage.java").decode())
+        self.assertEqual(hashlib.sha256(self.read("raws_home_brand.png")).hexdigest(),
+                         "b4d37afa2feec195ea8e83f1825fd1aa5470d21bb4494f453373c692966fbdb2")
+
+
+    def test_global_shields_routes_to_native_cookie_settings_and_filter_page(self):
+        prefs = ET.fromstring(self.read("raws_protection_preferences.xml"))
+        rows = {x.get(ANDROID + "key"): x for x in prefs}
+        self.assertTrue(rows["raws_protection_third_party_cookies"].get(
+            ANDROID + "fragment").endswith("SingleCategorySettings"))
+        self.assertTrue(rows["raws_content_filters"].get(
+            ANDROID + "fragment").endswith("RawsProtectionSettings"))
+        self.assertFalse({"raws_refresh_filters", "raws_filter_list_details"} & rows.keys())
+        java = self.read("RawsProtectionSettings.java").decode()
+        self.assertIn("SingleCategorySettings.EXTRA_CATEGORY", java)
+        self.assertIn('"third_party_cookies"', java)
+        self.assertIn("SHOW_AS_ACTION_NEVER", java)
+        self.assertIn("mFilterStatusHandler.removeCallbacks(mFilterStatusPoll)", java)
+        self.assertIn("RawsProtectionCopy.setSubscriptionEnabled(", java)
+        service = self.read("subscription_service.h").decode()
+        self.assertIn('entry.Set("lastDownloadEpochSeconds"', service)
+        self.assertIn('entry.Set("cachedBytes"', service)
+        self.assertIn('flags_[i].success > 0', service)
+
+    def test_native_dns_off_retains_template_and_policy_guarded_selection(self):
+        java = self.read("SecureDnsSettings.java").decode()
+        start = java.index("private static boolean storePreferenceState")
+        off, rest = java[start:].split("} else if (!controlState.secure)", 1)
+        self.assertIn("setMode(SecureDnsMode.OFF)", off)
+        self.assertNotIn("setConfig", off)
+        self.assertIn("SecureDnsBridge.isConfigManaged()", java)
+        self.assertIn("SecureDnsBridge.isModeManaged()", java)
+        self.assertIn("QUAD9_TEMPLATE", java)
+        self.assertIn("SecureDnsBridge.isValidConfig", java)
+        self.assertIn("MAX_PROVIDERS = 12", java)
+        self.assertIn("selectInlineProvider(host,", self.read("RawSSetupFirstRunFragment.java").decode())
+
+    def test_deamp_preserves_the_native_request_owner(self):
+        client = self.read("chrome_content_browser_client.cc").decode()
+        self.assertIn("kRawSGoogleDeAmpPref, true", client)
+        self.assertIn("RawSGoogleAmpSwap::DidFinishNavigation", client)
+        scoped = client[client.index("GURL RawSGoogleAmpPublisher"):
+                        client.index("constexpr char kSandiumPendingPopupKey")]
+        self.assertNotIn(".path_piece()", scoped)
+        self.assertNotIn(".host_piece()", scoped)
+        self.assertIn("OpenURLParams::FromNavigationHandle", scoped)
+        self.assertIn("controller.GetPendingEntry()", scoped)
+        self.assertIn("GetResponseBody(", scoped)
+        self.assertIn("base::Milliseconds(80)", scoped)
+        self.assertIn("if (!sandium_popup && handle.IsInPrimaryMainFrame())", client)
+
+
+    def test_home_pill_keeps_native_search_handoff(self):
+        ntp = self.read("NewTabPage.java").decode()
+        self.assertIn("mNewTabPageCoordinator.usesRawSHomeSearchLauncher()", ntp)
+        self.assertIn("hasRawSNativeHomeOmniboxRoute()", ntp)
+        page = self.read("NewTabPageCoordinator.java").decode()
+        self.assertIn("mNtpSearchBox.getView()", page)
+        self.assertIn("launcher.useRawSHomeSearchLauncher", page)
+        self.assertIn("RawSHomeSearch", self.read("SearchBoxViewBinder.java").decode())
 
 
 if __name__ == "__main__":

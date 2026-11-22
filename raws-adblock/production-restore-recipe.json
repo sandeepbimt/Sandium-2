@@ -8132,7 +8132,7 @@
       "before_sha256": "f2721b2322b00da091676a5f08e9a0536a123bc7c80023f2b895a9d48478d578"
     },
     "chrome/android/chrome_java_resources.gni": {
-      "after_sha256": "02ebc5983448371f8adcc0ee868cb44e2a94eb7cf666f56d30b34c02bdae03b2",
+      "after_sha256": "d75aa8dc99ce759d3ee01e14e9b7ee9f5864c4bf6e6f66ba9bb4171fee5fa9dc",
       "before_sha256": "e7395e464d080d60332c61733a3c1a5cc207b3dc7683045740abb026f505dc31",
       "mode": "644"
     },
@@ -8142,8 +8142,13 @@
       "mode": "644"
     },
     "chrome/android/feed/core/java/src/org/chromium/chrome/browser/feed/FeedSurfaceCoordinator.java": {
-      "after_sha256": "f06544d333b93317dd9c3f5073a5d2b0ccf3d6bf3e40e1f8020864c2c0ac21c9",
+      "after_sha256": "257067a388b2f193232e27b2b8c4b3a97787da840aed2ab81a49e34752a9337e",
       "before_sha256": "e980d8fb0350a64ccfa8f11b5ebfa243387a5574c54710ee54e822592e1d14da"
+    },
+    "chrome/android/java/AndroidManifest.xml": {
+      "after_sha256": "a9a9fc6d5087e5594894a63765043386a78e2fe1b9e8cc67881eec01e3a4da25",
+      "before_sha256": "1f0738d12bbe01f6d131a352e6716899fde3aa7e76944a1c37d74ca5b6ba9c91",
+      "mode": "644"
     },
     "chrome/android/java/res/anim/raws_settings_fade_in.xml": {
       "after_sha256": "b0a3058547dda12c18a072fd46a2aedcd7131658f2fd700de3a9fd0aab3ce927",
@@ -8170,8 +8175,13 @@
       "before_sha256": null,
       "mode": "644"
     },
+    "chrome/android/java/res/drawable-nodpi/raws_home_brand.png": {
+      "after_sha256": "b4d37afa2feec195ea8e83f1825fd1aa5470d21bb4494f453373c692966fbdb2",
+      "before_sha256": null,
+      "mode": "644"
+    },
     "chrome/android/java/res/drawable-nodpi/raws_home_wallpaper.webp": {
-      "after_sha256": "6ab6df2f4dab4ff2f9b6d516797564b629c680ca90522ef31f3f4bd3ab34e083",
+      "after_sha256": "c4a3f16fc676e3202b68064dc5e526cec3d2985f513c44ddc202395dca03514f",
       "before_sha256": null
     },
     "chrome/android/java/res/drawable/raws_frozen_shields_card.xml": {
@@ -8210,7 +8220,12 @@
       "mode": "644"
     },
     "chrome/android/java/res/values/raws_global_shield_strings.xml": {
-      "after_sha256": "c03618873af9f60f0892974d5b5d76c9e18ad1dc387bf581d045cd9171c73747",
+      "after_sha256": "3d0e7fc928f26b8a925c94d3431c5fc3078b3e31f24c9294cdd264a2fdf39764",
+      "before_sha256": null,
+      "mode": "644"
+    },
+    "chrome/android/java/res/values/raws_home_search_strings.xml": {
+      "after_sha256": "0836f320392f4c3b303b4e2db654aa615ce98728b56edffa4672c38c0b6cd5cd",
       "before_sha256": null,
       "mode": "644"
     },
@@ -8220,7 +8235,7 @@
       "mode": "644"
     },
     "chrome/android/java/res/values/raws_main_settings_strings.xml": {
-      "after_sha256": "6fe6d76cc6578e3df97039b75e2cbc4e13fd324e40168720f2741b116cefcb1a",
+      "after_sha256": "b4bc0b392dae35301e8c1bc3c85666e9280dc70107bdc071e0f18db57b0a0b9c",
       "before_sha256": null,
       "mode": "644"
     },
@@ -8230,12 +8245,12 @@
       "mode": "644"
     },
     "chrome/android/java/res/values/raws_welcome_palette.xml": {
-      "after_sha256": "035e476031cc30cc93191587baa64b20d53a4b39a2cd20b8bbaed09686b5edc0",
+      "after_sha256": "fcc2b1fd925859c79b8df6d3cc028cd999b751b23b8541d25a1ccb98624de628",
       "before_sha256": null,
       "mode": "644"
     },
     "chrome/android/java/res/xml/appearance_preferences.xml": {
-      "after_sha256": "4061e40ad8b9e2c5cbd26dfc979ff8ee9b4a2e98f0d2445d6e190c955819f776",
+      "after_sha256": "0e5be5adff8b10f4ada1d45eb7a9fa73dabc6cc829143e168352c99a94aa2d9c",
       "before_sha256": "9cadce9cb6a36f093d0d57459389a2c5234e18a823a5eaff619c8af48621eecb"
     },
     "chrome/android/java/res/xml/developer_preferences.xml": {
@@ -8244,12 +8259,12 @@
       "mode": "644"
     },
     "chrome/android/java/res/xml/main_preferences.xml": {
-      "after_sha256": "79c9299033796e56c918c1db351c1398d4763895b486b24496dd9409d554e700",
+      "after_sha256": "3c904f0e0587aaa6e3de8ff233da50d4b2f2c0c454044cfe622d0f460480a827",
       "before_sha256": "c3e702fca7c33631d95a8e95fbb9c7ef5df5470099bbc49cc8b93e87bef12989",
       "mode": "644"
     },
     "chrome/android/java/res/xml/raws_protection_preferences.xml": {
-      "after_sha256": "906345deced214315cd3cdaeeeb7cf4d511cf32d688841158c6668b2dc163bfd",
+      "after_sha256": "86041b140e4f9aae7f3d7b4800542630bb05f2143b7ca878514a1d3c378c0fd3",
       "before_sha256": null,
       "mode": "644"
     },
@@ -8326,7 +8341,7 @@
       "mode": "644"
     },
     "chrome/android/java/src/org/chromium/chrome/browser/ChromeTabbedActivity.java": {
-      "after_sha256": "27a63e4e65610a82ee381bd764f2e76d44663397c9be4bb87d9a4000b48ecc41",
+      "after_sha256": "6c31aa1dad1774af3f35c169ed713e6375a11078cb4f3c40383a59cd75439ff4",
       "before_sha256": "c13888336f01167eb33eb439a77f0c24be2a1672e3bbc2b7aa41af941c520157",
       "mode": "644"
     },
@@ -8341,7 +8356,7 @@
       "mode": "644"
     },
     "chrome/android/java/src/org/chromium/chrome/browser/appearance/settings/AppearanceSettingsFragment.java": {
-      "after_sha256": "02b2a8d7f107adc1f5720400cd5186eedce8bbe6b2849f60069723eccbe3a6e8",
+      "after_sha256": "c7b571d52e0774093d00a60fd71941adc2d58b340dc8d600044f751b44a050e3",
       "before_sha256": "ae73eda18031c0248319eee144aff1b0cb7b7c657186277b7e4431fdd827ace9"
     },
     "chrome/android/java/src/org/chromium/chrome/browser/appearance/settings/RawSPageText.java": {
@@ -8354,8 +8369,13 @@
       "before_sha256": null,
       "mode": "644"
     },
+    "chrome/android/java/src/org/chromium/chrome/browser/autofill/settings/AutofillAndPasswordsFragment.java": {
+      "after_sha256": "593e16c041df2c5baeec30f61e23f02d021abbe689e5c33408be5516e6cc8be8",
+      "before_sha256": "b8c2362df5e690a1b1b23436f01336bd8c90cb31db7066db7f0848979c433023",
+      "mode": "644"
+    },
     "chrome/android/java/src/org/chromium/chrome/browser/base/RawSNavigationAppearance.java": {
-      "after_sha256": "91d654f1d2b1d1c268790c50e33f3c70909e25f68e5906929b87cb7207a652cb",
+      "after_sha256": "1544f66d64d5212268131e6c595b9dc12a8f227f8feed9dccfe5d39fc0971091",
       "before_sha256": null,
       "mode": "644"
     },
@@ -8364,8 +8384,18 @@
       "before_sha256": "8b1e104b02fa56760ce5c4489df8154a152e9b05aafface8b5af14cbd6773efd",
       "mode": "644"
     },
+    "chrome/android/java/src/org/chromium/chrome/browser/crash/ChromeMinidumpUploadJobServiceImpl.java": {
+      "after_sha256": "40c0bc17827cb32cb41eca6fc79350265f4b4131766aa156e2c72ecc2d1b490a",
+      "before_sha256": "33fc48ef3bdf115789c73dff4be9410a1927851b619b36b80e58654745a16f16",
+      "mode": "644"
+    },
+    "chrome/android/java/src/org/chromium/chrome/browser/crash/MinidumpUploadServiceImpl.java": {
+      "after_sha256": "de1ec05d7a7dee9d18bd85bc828ec6b43d99ba129666c5f3284b3245313b1022",
+      "before_sha256": "380b1a58ad1cec5d29bd8fdc85bdbdbf3a9c3ffe24215eaa443f71d4bd32e71b",
+      "mode": "644"
+    },
     "chrome/android/java/src/org/chromium/chrome/browser/firstrun/FirstRunActivity.java": {
-      "after_sha256": "dbfc2716ad4bf0774fe0ff0954aa28326d8476c49eeeb909ae2d7a5a191755bc",
+      "after_sha256": "5c55c2c63b226eaabaffb12ca1cf1bea5e651d85d34391bc4d2005e99aaab272",
       "before_sha256": "fa5dc04443af5d055cdab66d006fb6bbc3d64833b59f9b4bb3c92363335a2a11",
       "mode": "644"
     },
@@ -8385,8 +8415,13 @@
       "mode": "644"
     },
     "chrome/android/java/src/org/chromium/chrome/browser/firstrun/RawSSetupFirstRunFragment.java": {
-      "after_sha256": "3c738c89c8b5c755d50fb616b7d23a635f289ce7c36f9a69cbcd5f0c0e028bf9",
+      "after_sha256": "b82c4f0d69614c451d59756abc0e1ad9a11ed05ecb631e8a689b735cbb80744a",
       "before_sha256": null,
+      "mode": "644"
+    },
+    "chrome/android/java/src/org/chromium/chrome/browser/metrics/UmaSessionStats.java": {
+      "after_sha256": "7565b20a833ef60f79dd3f90fc9f7a50dde55aa68a225ca503553ade3bcd2367",
+      "before_sha256": "fc0f2cd0b3a390e973e6fabed2eb776a66cd5f06e049c957e48920350785ba8f",
       "mode": "644"
     },
     "chrome/android/java/src/org/chromium/chrome/browser/multiwindow/MultiInstanceOrchestratorImpl.java": {
@@ -8400,21 +8435,36 @@
       "mode": "644"
     },
     "chrome/android/java/src/org/chromium/chrome/browser/ntp/NewTabPage.java": {
-      "after_sha256": "413881798f6c03ed2919a985bf2f58a077c6d8525973c768c49d4eb07c6f4d56",
+      "after_sha256": "7748016761641e6b1708fc71527e7a88a708cbb43480b115a1224eb4986b9a40",
       "before_sha256": "041b02c93879d4883ac3768fada16659cf9f0cd5f16f1e23b84723611b4986fd"
     },
     "chrome/android/java/src/org/chromium/chrome/browser/ntp/NewTabPageCoordinator.java": {
-      "after_sha256": "1dfc169885982f75f5ca3d23a10b5431f8ded85c0e9c32ccc62500b9f15076ae",
+      "after_sha256": "49ad49312e1e05eec9ee63290fc4dc63f3df280645d90659c83b4172921f51f1",
       "before_sha256": "cb9d4661fd62c64130a825a9bf07d002ebc424f82b46fff2eb66598c090e472f"
     },
     "chrome/android/java/src/org/chromium/chrome/browser/ntp/NewTabPageLayout.java": {
-      "after_sha256": "04d1dc6603fa9986bf18e7070481d66f5a4a80137c064d171ae2aa7ba0ff9181",
+      "after_sha256": "24b29a1e9b238a59bc45594f84ae447acb266ec16ecd0a4e245397ee247c7169",
       "before_sha256": "cc9f1e50391b915153abf9ce56b6ef75496cf15ed4fd34cd6e1a58bbbc1d8fb5",
       "mode": "644"
     },
     "chrome/android/java/src/org/chromium/chrome/browser/ntp/NewTabPageUtils.java": {
       "after_sha256": "5577f19696162978e3a586ef6d616b5b23c168807c7fb1646e8333761f348e11",
       "before_sha256": "5cd4dac6f1404c7a4da2bed2c4a920727e12041f9aa7760cc45806ca4c24be5c"
+    },
+    "chrome/android/java/src/org/chromium/chrome/browser/ntp/search/SearchBoxContainerView.java": {
+      "after_sha256": "5d98c366613784b28f8f9ea87eed7ada7df7148e3d848ddd8e96fd76ea1fb1a5",
+      "before_sha256": "d28bd8a20c63b53e18afeb5482af3a01aefac4123f0a04f96c5ccb40332a4b01",
+      "mode": "644"
+    },
+    "chrome/android/java/src/org/chromium/chrome/browser/ntp/search/SearchBoxViewBinder.java": {
+      "after_sha256": "abd323c40ba02f6dd9828286305e0d635dcd5dc314b937bbed73f4c701ffdcaf",
+      "before_sha256": "2aba35c725b343acac96fa04a11e5813915452b5dffb31e09b56093d05190aa2",
+      "mode": "644"
+    },
+    "chrome/android/java/src/org/chromium/chrome/browser/privacy/settings/PrivacyPreferencesManagerImpl.java": {
+      "after_sha256": "d90a03773920628df1497a33a9653656e02eec5c895a91c47f5b8841bfe19cc7",
+      "before_sha256": "dc71449852646cc5edb32af3206b96b1c259b7b357b0417258ba3b2dea341bc1",
+      "mode": "644"
     },
     "chrome/android/java/src/org/chromium/chrome/browser/sandium/video/SandiumVideoController.java": {
       "after_sha256": "e8e72b06584f6dbba085aad491ced0d626620c890deb62ae31f3367d1f21d9b2",
@@ -8437,7 +8487,7 @@
       "mode": "644"
     },
     "chrome/android/java/src/org/chromium/chrome/browser/settings/MainSettings.java": {
-      "after_sha256": "22564faf2198cede4e81b4a39e100aa7ee32c4c04c39b9505209d68458326488",
+      "after_sha256": "8211b8397f4810542df9df2e27589c269409c563c5e8c4bcd2289ac9083263db",
       "before_sha256": "2f5579a222eced9a8323116aa9c7eb8be7911f4fdb54f93901ea14f2264f7595",
       "mode": "644"
     },
@@ -8452,7 +8502,7 @@
       "mode": "644"
     },
     "chrome/android/java/src/org/chromium/chrome/browser/settings/RawSColorChooser.java": {
-      "after_sha256": "676556a905f4b132c9993a420246b04fd2dde8b62a088e5969809ad130579d5d",
+      "after_sha256": "2b16a63435bb695c89b903bac1b1f9f85cbc90280c092288f296444bfd3ed067",
       "before_sha256": null,
       "mode": "644"
     },
@@ -8462,7 +8512,7 @@
       "mode": "644"
     },
     "chrome/android/java/src/org/chromium/chrome/browser/settings/RawSElementColorController.java": {
-      "after_sha256": "46d6585f158868cba5666b99fad950179d5411c06df7cf6fc28a6c0143c56cd9",
+      "after_sha256": "87b4ccdb8a8a6a214f58a07f80210862fd5d1ebc62c2d8db7cb2788f6b7c1313",
       "before_sha256": null,
       "mode": "644"
     },
@@ -8477,17 +8527,17 @@
       "mode": "644"
     },
     "chrome/android/java/src/org/chromium/chrome/browser/settings/RawsGlobalShieldSheet.java": {
-      "after_sha256": "c94d55eee73fa0372a61c00d775caa3d78cceabef972cee68d64997e733a491a",
+      "after_sha256": "f32803a098ac7064a2b5b7e48fac3d7997212593acd06439e9edf5b8a8e6d09e",
       "before_sha256": null,
       "mode": "644"
     },
     "chrome/android/java/src/org/chromium/chrome/browser/settings/RawsProtectionCopy.java": {
-      "after_sha256": "98bc8664733c6269d4d9114c35a8ef1f9c67d3f21f35ed3faf1586b04d487460",
+      "after_sha256": "049d083c2ba5b87ae218ca859139f8300046b00e869167a83ca9e39b12bb327e",
       "before_sha256": null,
       "mode": "644"
     },
     "chrome/android/java/src/org/chromium/chrome/browser/settings/RawsProtectionSettings.java": {
-      "after_sha256": "f04cc33d57ba281fce26083211844f5cc03c74fe2e2828b6714980bce7c53f7e",
+      "after_sha256": "0b349fde66aa8f7b7cfe2b83791341a6933e14a338777523e8187390a6822211",
       "before_sha256": null,
       "mode": "644"
     },
@@ -8507,7 +8557,7 @@
       "mode": "644"
     },
     "chrome/android/java/src/org/chromium/chrome/browser/signin/SigninFirstRunFragment.java": {
-      "after_sha256": "36e46a4acb0e26444b4a45233fbc63d443f2065ec54cd6844d80f426a70e87b3",
+      "after_sha256": "672f4e6eaa1e6cfd4de40409772f7c76192e784a21547513f5ccb82e8fce5e1f",
       "before_sha256": "bf33ff12e65773a5ddcedca555ffdc37f317fba47e3f97ab1ee35036088fe199",
       "mode": "644"
     },
@@ -8519,17 +8569,27 @@
       "after_sha256": "564fbf8d9f554377bd48ab432d74ba2e581704ec126ca2a9dba44a99961cffcf",
       "before_sha256": "7c21a918eac922db3025540dff9b4a4e4ed18505bdd9b2e85dbe17fae35dc15d"
     },
+    "chrome/android/java/src/org/chromium/chrome/browser/sync/settings/GoogleServicesSettings.java": {
+      "after_sha256": "f20c7a954a29054dbc3049005190801921562a82407cb2c79bc6e83386c93082",
+      "before_sha256": "c1b83fe6534a7697b72fd036bd4b812e064a481c9400ad01e1a73ef3c51cefc8",
+      "mode": "644"
+    },
+    "chrome/android/java/src/org/chromium/chrome/browser/sync/settings/SignInPreference.java": {
+      "after_sha256": "9f3c7c4c436377c0c3c6b730116497f697ae0477d296e20b3f7d68edd61d9d82",
+      "before_sha256": "40b608e9ebc04feae2da2c9b379b7fd54904f840e1e6caf61e308c41a8cf1083",
+      "mode": "644"
+    },
     "chrome/android/java/src/org/chromium/chrome/browser/tab/TabWebContentsObserver.java": {
       "after_sha256": "4621d6935a6782edb37a446bb0885545382dbe0dae3b880c125be3d28112277d",
       "before_sha256": "8d0cb671e86ed9d33646cfde4f4e20aceab8ac6af1f156286c04b8da1a6504c0",
       "mode": "644"
     },
     "chrome/android/java/src/org/chromium/chrome/browser/tabbed_mode/TabbedAppMenuPropertiesDelegate.java": {
-      "after_sha256": "c673a127cd786391f77db01344695855c482b2d412d94848f01975158888d475",
+      "after_sha256": "cfcb2dd55a75f7dad7e0e515dcf9caa9c7ae419dcc31e4912ad2ccf6e30880d6",
       "before_sha256": "6afce7188638077529cd43067bdf5be7e31815cd4cc11fa6f984e6569098f4f3"
     },
     "chrome/android/java/src/org/chromium/chrome/browser/tabbed_mode/TabbedRootUiCoordinator.java": {
-      "after_sha256": "b72b601180c1256ae5ccc7e554c1c7a909777b2d26e4f1104bfd8c3c5dee32c9",
+      "after_sha256": "9b692a7e8ee491cf777965710d1cce6ed790d6de18b2bad8f534f015e276e103",
       "before_sha256": "5b20b64e9bd8c0d0eb447ecd4ed824e10c4cb015fcce4511731dd48dc80a34a1",
       "mode": "644"
     },
@@ -8539,7 +8599,7 @@
       "mode": "644"
     },
     "chrome/android/java/src/org/chromium/chrome/browser/toolbar/ToolbarManager.java": {
-      "after_sha256": "1d06446aa36ecbc2fff8aed6ddb472be75d912c1b9ab0d8dcdc893be8f51edd0",
+      "after_sha256": "a563575b24f5906a3998f6b980c0a5347c547443e570aea040d6dbd3aa9a1206",
       "before_sha256": "45012d302123a5d60b223ca39acd69c83cef8b2221a3f70c0e9e23ec927f0465"
     },
     "chrome/android/java/src/org/chromium/chrome/browser/ui/system/StatusBarColorController.java": {
@@ -8583,12 +8643,12 @@
       "mode": "644"
     },
     "chrome/browser/chrome_browser_main_android.cc": {
-      "after_sha256": "efcd2a23c1231d935127ba71aead11a39e3b53d389be61eb88bdd2d94d8da714",
+      "after_sha256": "874eee8fd2ad92818dd34d52a389956f88cd20459252b1e895631485fe3867a9",
       "before_sha256": "3b1269f671ba6542ecdd1d7e973bbb6cda84bf5d47cb8126355b0b865940ec9b",
       "mode": "644"
     },
     "chrome/browser/chrome_content_browser_client.cc": {
-      "after_sha256": "2ec799995625333c3ecee12a56f776795fa914da8f527823609aa02189416b41",
+      "after_sha256": "f0c617e5e19be26cfcf5d29595c89e3464e191346736d225331fc6aed37633e9",
       "before_sha256": "235fbfdbfe13d7ce2833017f67d6a899dda5b14131e38e5f7177b62f8a4b981b",
       "mode": "644"
     },
@@ -8605,6 +8665,11 @@
       "before_sha256": "f492dc22b6beee1ad62af0046be920bf7bfb1c72d777eb049b69912387e26d83",
       "mode": "644"
     },
+    "chrome/browser/metrics/chrome_metrics_service_accessor.cc": {
+      "after_sha256": "2baa5c79bd573b69fa6672f4ade385ca89f0bcbd0cde03c861f6f223bda4b368",
+      "before_sha256": "2b715aad35616a672a527949bab4b190f80b4fe004462aa0c57dfcf6a902c695",
+      "mode": "644"
+    },
     "chrome/browser/net/default_dns_over_https_config_source.cc": {
       "after_sha256": "45f7e04a6923d785ac254608a602e51e60f8ea497520581ac99df08052cfa3ff",
       "before_sha256": "c7e5f41c8c2375a29a211523ff8d7d7d8264f82014454f5c7ebf9369bf83683a",
@@ -8613,6 +8678,11 @@
     "chrome/browser/notifications/android/java/src/org/chromium/chrome/browser/notifications/permissions/NotificationPermissionController.java": {
       "after_sha256": "88dafe1b8ff4cc9fb7921ecb5085a7ad05470fe87d6bcfb6e3eda705fac95255",
       "before_sha256": "bb8b3e4b891ddb8d4a9d6b73a2e93ad6c682347a4da6a766b85de3e2ccb6dbfb",
+      "mode": "644"
+    },
+    "chrome/browser/ntp_customization/java/src/org/chromium/chrome/browser/ntp_customization/theme/upload_image/UploadImagePreviewCoordinator.java": {
+      "after_sha256": "92520ebcbaa54e3c8c72dab9aa3051699e53c18af0e0f85791eb5ddb83ea8d48",
+      "before_sha256": "d028f886ac042ed47234445875ec80fe7179b8903110da7537f419417c7a41f1",
       "mode": "644"
     },
     "chrome/browser/password_manager/chrome_password_manager_client.cc": {
@@ -8625,9 +8695,19 @@
       "before_sha256": "380ab7f07fe47c5743f9799d5e864a1f487254cc8cefaac74642fbcb71181306",
       "mode": "644"
     },
+    "chrome/browser/privacy/java/src/org/chromium/chrome/browser/privacy/secure_dns/SecureDnsBridge.java": {
+      "after_sha256": "63f1596f631bbf18cf0342381a4a82febbfc4ad805e3d87e189b54dc2fd834d5",
+      "before_sha256": "0babc22209bc0c057808307940b0ff76b1816f25bd81de04d4177b1a61204a0e",
+      "mode": "644"
+    },
     "chrome/browser/privacy/java/src/org/chromium/chrome/browser/privacy/secure_dns/SecureDnsSettings.java": {
-      "after_sha256": "278d4211fc1fd9fdf29a21704fb13c46d9724372b46e41e7babe2f481c343225",
+      "after_sha256": "ab71238232cc37d1660abff26fca43ae0d2354280a0947fdabacaa10697b0d29",
       "before_sha256": "8f6d960cf439dd9128f9967b0a56cda0af23f15648cc0a681397830ceea57aea",
+      "mode": "644"
+    },
+    "chrome/browser/privacy/secure_dns_bridge.cc": {
+      "after_sha256": "122aca062e7b6eba6e9fb7aa22b5057aa7f20a64abd60a865844c697fa6dccb1",
+      "before_sha256": "d687dc1050100d0c642d2ad71a3305e3e40b805c6e5bff48245039c631c79852",
       "mode": "644"
     },
     "chrome/browser/raws/catalog_generated.h": {
@@ -8660,12 +8740,12 @@
       "mode": "644"
     },
     "chrome/browser/raws/raws_color_session.cc": {
-      "after_sha256": "605d9ba21d4a35218288c9961f1357940e64e817bc6325016c6dbd669e8a2026",
+      "after_sha256": "a2b84d814f939a6a92266251cb58ea3d8ec2584e1e9c3f209971f4ec5f9e2d51",
       "before_sha256": null,
       "mode": "644"
     },
     "chrome/browser/raws/raws_color_session.h": {
-      "after_sha256": "b0f97af7dd249d5e26adedaa701b333d91d76e38d51a81ba3483d449894ee158",
+      "after_sha256": "88398c20b9c5b8394841c0685af2c4db554e4aca8acb489ce9f2db631c01b78d",
       "before_sha256": null,
       "mode": "644"
     },
@@ -8675,7 +8755,7 @@
       "mode": "644"
     },
     "chrome/browser/raws/raws_site_ads_policy.h": {
-      "after_sha256": "fd5fb81cb65ca03d91f05970e9edccc6730770107cbbfcbf73acf36850e5e7e4",
+      "after_sha256": "52623ae368ad0ed74b7806e1b4cbee39e7319365e2394d9df4b44f91466a75b9",
       "before_sha256": null,
       "mode": "644"
     },
@@ -8684,7 +8764,7 @@
       "before_sha256": null
     },
     "chrome/browser/raws/subscription_service.h": {
-      "after_sha256": "58a625c7bc04c8f52ec7732172b88fa301bb75b7ccd2a9c91fecb056324c799b",
+      "after_sha256": "4cf2f7de0b4f0ca189418aca9aa7e7c8fde5700d30bf4fb1c6944b1c42d8ba80",
       "before_sha256": null
     },
     "chrome/browser/resources/raws/NOTICE-EASYLIST.md": {
@@ -8707,9 +8787,24 @@
       "before_sha256": null,
       "mode": "644"
     },
+    "chrome/browser/search_engines/android/java/src/org/chromium/chrome/browser/search_engines/settings/SearchEngineAdapter.java": {
+      "after_sha256": "e9115056b1f3a689e666cb48367c09981f0f4b84faad3858aa12d7897b011686",
+      "before_sha256": "3ca36d813e50e23c40062bb03b688b8094e676da90e64aec0051fd455572c3c3",
+      "mode": "644"
+    },
     "chrome/browser/ui/android/appmenu/internal/BUILD.gn": {
-      "after_sha256": "b1b9578db689a8f9268e5199b92d2ac3fd1121f7ecaa1eb5417067269ac6b945",
+      "after_sha256": "663b9019cdf2aa0c34d8d170fac7fd046f8da27d83175017235c4fa564ef6dcd",
       "before_sha256": "3a12ec0ae0912256b3a00c93e1380062a496d0d00211da19f5706790ec86703a"
+    },
+    "chrome/browser/ui/android/appmenu/internal/java/res/anim/raws_panel_enter.xml": {
+      "after_sha256": "11b71902401a3b398e906ed3f011a73f6cb2127e15281be436bcf70d30aa6e4b",
+      "before_sha256": null,
+      "mode": "644"
+    },
+    "chrome/browser/ui/android/appmenu/internal/java/res/anim/raws_panel_exit.xml": {
+      "after_sha256": "61c86b42467d550346a3814ed7e93a9e90d4fa52cd85b9f7e3b85daca0684943",
+      "before_sha256": null,
+      "mode": "644"
     },
     "chrome/browser/ui/android/appmenu/internal/java/res/drawable/raws_sandium_menu_add_home.xml": {
       "after_sha256": "39128d138ed95e12abc78815db974e482fa62ac7eaf8ee84048d6711ef54e64f",
@@ -8803,6 +8898,11 @@
       "after_sha256": "683e6c7dc56d3ccfcb4b106919bea21ece0b1d50e901e74be9ada2483e80e95a",
       "before_sha256": null
     },
+    "chrome/browser/ui/android/appmenu/internal/java/res/interpolator/raws_panel_emphasized.xml": {
+      "after_sha256": "bc5f59621e77bf1cebde8e303edb83831eb18aaa3bfde5e7dd1738b02b422a9c",
+      "before_sha256": null,
+      "mode": "644"
+    },
     "chrome/browser/ui/android/appmenu/internal/java/res/values-hi/raws_menu.xml": {
       "after_sha256": "e0b2d673ea6a1b6214eaa213a062bf8955139d812e4000d44be290e9483e6def",
       "before_sha256": null,
@@ -8817,6 +8917,11 @@
       "before_sha256": null,
       "mode": "644"
     },
+    "chrome/browser/ui/android/appmenu/internal/java/res/values/raws_panel_motion.xml": {
+      "after_sha256": "b34362e913ddfc5eb36178255ac917ed96e546b76cd7feee04e96e3dcb982052",
+      "before_sha256": null,
+      "mode": "644"
+    },
     "chrome/browser/ui/android/appmenu/internal/java/res/values/sandium_menu_colors.xml": {
       "after_sha256": "3c9efcdaf512005133b0c56c7b2376d6890225b72a7e6257a7cad54d8675efde",
       "before_sha256": null
@@ -8826,7 +8931,7 @@
       "before_sha256": null
     },
     "chrome/browser/ui/android/appmenu/internal/java/src/org/chromium/chrome/browser/ui/appmenu/AppMenu.java": {
-      "after_sha256": "598e083b637b017f04202e07627b897dac95702c736086990a18ae23f6a24233",
+      "after_sha256": "97437fc124b3ca906e2e654c07ca2811f6fc194a90b4fdd6a514a16799703b62",
       "before_sha256": "9b16b3ce3e18f17b698273fe5ff89bdab09be0a942327e212a26b48dce48066e"
     },
     "chrome/browser/ui/android/appmenu/internal/java/src/org/chromium/chrome/browser/ui/appmenu/AppMenuDragHelper.java": {
@@ -8834,7 +8939,7 @@
       "before_sha256": "c06c9d22e72c1a0c4e8f35cff9526e81aa8b95789903720ad9865c77dbc4cd02"
     },
     "chrome/browser/ui/android/appmenu/internal/java/src/org/chromium/chrome/browser/ui/appmenu/AppMenuHandlerImpl.java": {
-      "after_sha256": "a146fd31f32b8fe5dc0a3433afb49d07e7d56bbe77033bd6940a03263c75961f",
+      "after_sha256": "a3f8cbeca889eb163c64eae62b9c5a7aad164fe896e54acd868524bc7268d88a",
       "before_sha256": "fee19879a73bda8f974afd11bfa64fa462b25938d54df86471d5adfafafddb01"
     },
     "chrome/browser/ui/android/appmenu/internal/java/src/org/chromium/chrome/browser/ui/appmenu/RawSMenuModel.java": {
@@ -8852,7 +8957,7 @@
       "mode": "644"
     },
     "chrome/browser/ui/android/appmenu/internal/java/src/org/chromium/chrome/browser/ui/appmenu/RawSParityMenuCatalog.java": {
-      "after_sha256": "1378bc9b23b67ef0f6b84a60b743254ac05ab488467ffc533716c550d7053f4f",
+      "after_sha256": "b7071201fcdea5e9be253b00d1366bdc54242725248d5e03243a8cdc29c30413",
       "before_sha256": null
     },
     "chrome/browser/ui/android/appmenu/internal/java/src/org/chromium/chrome/browser/ui/appmenu/RawSParityMenuPreferences.java": {
@@ -8864,7 +8969,7 @@
       "before_sha256": null
     },
     "chrome/browser/ui/android/appmenu/internal/java/src/org/chromium/chrome/browser/ui/appmenu/SandiumPagedMenu.java": {
-      "after_sha256": "1904849129c3b0f8c935718a707fa4b1984a276751ec070006570769670810e6",
+      "after_sha256": "9a2cc3d3d98a228e9233a99de35cffbdd0d4e0306f753c9a393c1a3f89cccb01",
       "before_sha256": null
     },
     "chrome/browser/ui/android/appmenu/java/src/org/chromium/chrome/browser/ui/appmenu/AppMenuHandler.java": {
@@ -8900,9 +9005,24 @@
       "before_sha256": "a43198b10611f3f47ef8c03aef2da3615a661db94960f26c5a2f91bd4d47b105",
       "mode": "644"
     },
+    "chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/LocationBarPhone.java": {
+      "after_sha256": "eac46e5a7878a41cff2b03f4145ae5e7b37f697d5ad6fbb61dc39e8bc402de6b",
+      "before_sha256": "57017a8f72d7841b5ee47a74edf956b9ab2f20b795800f05d91cb146d4d9aa3d",
+      "mode": "644"
+    },
     "chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/OmniboxSuggestionsDropdownEmbedderImpl.java": {
       "after_sha256": "9738153be9e34ebfea512ce2f9ea8c79653246c7ae3ed78e9405a2a79545af56",
       "before_sha256": "170e5bbddf2b8af8cccec62d01331573b3a04ec45dda45ea9957a47979b10d92",
+      "mode": "644"
+    },
+    "chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/status/StatusCoordinator.java": {
+      "after_sha256": "98fbbbcc01ebb8149194e148efb48aed16d301c6d7267fe26e17377d7ea88232",
+      "before_sha256": "ebc1798adde67ba910f36a20452febf438a8212929b8e6fc681afbc0ecf2f5e6",
+      "mode": "644"
+    },
+    "chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/status/StatusMediator.java": {
+      "after_sha256": "d65972b328a1c2bdb30a0585063321c58e2e509adc9eb990a718697fa90a3ddd",
+      "before_sha256": "c74ad1067c496899615c558ff043995a7586d507fee628c9e7dc3958805d94d8",
       "mode": "644"
     },
     "chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/suggestions/AutocompleteMediator.java": {
@@ -8951,12 +9071,12 @@
       "mode": "644"
     },
     "chrome/browser/ui/android/strings/android_chrome_strings.grd": {
-      "after_sha256": "6f85a1d29a8de7ed5219669b3a208307210aac129e4e6098c70c3a1091a79855",
+      "after_sha256": "8d98e4dc44ea197c529927c17ab323954b823c7f36ce5eb2bc4e6f0509af68be",
       "before_sha256": "267e869f07c2aca4cd1fd5d44b329db40c1e59a451c6b85716b76feea48f1ed7",
       "mode": "644"
     },
     "chrome/browser/ui/android/toolbar/BUILD.gn": {
-      "after_sha256": "ca58ac78e95c40a031fdf2e0854207f03242c96d8e36f51d5616a906426b36b8",
+      "after_sha256": "400909a931b14a76e566e66fe3d6f064c6d45e4a5f6302b33e0d6800ce20d3b8",
       "before_sha256": "36b6f3edd95e81a18bbc66f2246b7946f7960bf52158b2a843cc1c1f36dfa8f8"
     },
     "chrome/browser/ui/android/toolbar/java/res/drawable/raws_page_toolbar_forward.xml": {
@@ -8968,12 +9088,17 @@
       "before_sha256": null
     },
     "chrome/browser/ui/android/toolbar/java/res/layout/toolbar_phone.xml": {
-      "after_sha256": "dc24405a9e7b9db4e26471b0f04cc4e649714ea95d7fd2a3ce5b71fb05297760",
+      "after_sha256": "4706fbf7bfd4f0774bc028e523f15a9a70adc14f77e0b05286586fd163006f70",
       "before_sha256": "e85721c57d57eb37bd17fbabf810261b465968156c7a64cb7cff0bf894bd7cda"
     },
     "chrome/browser/ui/android/toolbar/java/res/values/raws_address_controls.xml": {
       "after_sha256": "bea3d2e68e3f5d3c1231081e22e6addc06c4f5e122af2b34d3de38183d721cf9",
       "before_sha256": null
+    },
+    "chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/LocationBarModel.java": {
+      "after_sha256": "c9522d7e3c20545ecbe2867d311f504060d4adb646196b7c53cefea5ddca263e",
+      "before_sha256": "94a455d7bf990d1c532e135b7391e86f22d27179d95310f4f8044590e8b50482",
+      "mode": "644"
     },
     "chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/ToolbarPositionController.java": {
       "after_sha256": "8f70dafa4de15391fce146b7358d463b254b209f2068e86d3c31c3d95b31b29b",
@@ -9003,6 +9128,11 @@
       "after_sha256": "522da82c99f2af6cdec0b516b4ca727d61ffee556930e064e377086a58976eb0",
       "before_sha256": "68c5e2142f3bef08582362fa9c1c3b246ab2e36e02e597b9b4d2b5e3cbec8d75"
     },
+    "chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/signin_button/SigninButtonCoordinator.java": {
+      "after_sha256": "92793c8b552ee2d12bbc10aea8c3981a922503efb7b0faae9e5b9abc1381b0ca",
+      "before_sha256": "0a8afad05e4b980adb49d5ef763663c8b6e5308cb3edad22934d15049f756f9f",
+      "mode": "644"
+    },
     "chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/ToggleTabStackButton.java": {
       "after_sha256": "479dcc1856b76e5dcbf983361b3967db25f6a92c6637e4643a1687b4292edece",
       "before_sha256": "ccf523104ecb100873c8450549447573fce8581bdab371fa83d177e90d246d44"
@@ -9012,7 +9142,7 @@
       "before_sha256": "0c43968867822490a77053cef95c692bb98ebabad902b87cba09801648ae5c6d"
     },
     "chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/ToolbarPhone.java": {
-      "after_sha256": "9f57d83206ae8eed8d746fd0f71fe41142221592d08636fe0eddb994e6b554df",
+      "after_sha256": "e8183e21b25b94d0ee95ccd1ad9c373972a3f0c504d57bcc38654bb1c8df26e0",
       "before_sha256": "1d2c62ecbb9f7e24f47ea99b6303a9d245dfc0d3d0065b2fc0c65fb2eb88b507",
       "mode": "644"
     },
@@ -9030,21 +9160,31 @@
       "before_sha256": "834c86fd00ea0cfcbce82d530200c70ed2e16090481865d071cd562d46236e16",
       "mode": "644"
     },
+    "chrome/common/BUILD.gn": {
+      "after_sha256": "8c85d3d67c17f5401a4f2409c4628900c20287d7d786b452fc6512768b0e8bd1",
+      "before_sha256": "9fc88e8889adcd51e686221a709bda8b89fab9ba363f9765bfb2ae41166e6555",
+      "mode": "644"
+    },
     "chrome/common/chrome_render_frame.mojom": {
-      "after_sha256": "8a26c25ad10d7a0cc8379528635faea60aafd00936d6775554d147bd728fc012",
+      "after_sha256": "781989cf9fa2db7ecd53bcbe14b0473fae95b581f521e655c323c5de33713f71",
       "before_sha256": "59cd286429ad99590a8fbbd9e5dda837716a5ad7c244e9cbfa141468760a714f"
     },
+    "chrome/common/raws_procedural_cosmetic_rules.h": {
+      "after_sha256": "87063fcdfd73228b30ea88aa6d9cabbe5174ef9390d2fe4352fa2943d90b3d28",
+      "before_sha256": null,
+      "mode": "644"
+    },
     "chrome/renderer/BUILD.gn": {
-      "after_sha256": "a236ab40a0ed084a399bb50fd7a3305f3fa1aac15e594877c74d41a33a7ac6d3",
+      "after_sha256": "089ac4b6d48b29a75f1853b5e5351e4cba24eb025c90fb5ca4ebfa437917c72c",
       "before_sha256": "f25df03e4241f9fa16ea5d53060e124e175cff149c31e9d620237b4bb25a3da7",
       "mode": "644"
     },
     "chrome/renderer/chrome_render_frame_observer.cc": {
-      "after_sha256": "56bd79604e5b3d71e890bdf82f03fb7d1b087f30ca83a9906d0a9ff73774fc11",
+      "after_sha256": "1d84f0865ddce990eadca3104dd09181828172861933334c28157794fa3afd60",
       "before_sha256": "193e6a0d88cd505eb683cba41d4509785e235310560d52b23c8bf394e0430972"
     },
     "chrome/renderer/chrome_render_frame_observer.h": {
-      "after_sha256": "2d64c58237ff741a65506dec9081bce423e605e1a2a7a50bde4aa7bb167a50d3",
+      "after_sha256": "60c7e0104ed14b0457b9cd25a686867dfb3112497fb6c91b55b4143db5ea45ce",
       "before_sha256": "b3172f2b05944287a157906c16231ad457775525f314abad96d2d423af77d353"
     },
     "chrome/renderer/raws_color_locator.h": {
@@ -9053,7 +9193,22 @@
       "mode": "644"
     },
     "chrome/renderer/raws_color_renderer.h": {
-      "after_sha256": "02ae31ebc1af4c06b8bb5573537798a976d3e2d24dd7435860a50cfedc7680f6",
+      "after_sha256": "d72a9dc0038abf25fe21cd8be762ccf417ba0a15fc8c3fbb081e6e10364c19d0",
+      "before_sha256": null,
+      "mode": "644"
+    },
+    "chrome/renderer/raws_dynamic_cosmetic_scheduler.h": {
+      "after_sha256": "4503a93bc50e379ab77ce4ac00879a408987bbd3fac899a81b217f617c54472c",
+      "before_sha256": null,
+      "mode": "644"
+    },
+    "chrome/renderer/raws_procedural_cosmetic_binding.h": {
+      "after_sha256": "9800231b822539d1b642fafff6380df9572e1670f97d20e9bc0c78e6183cc442",
+      "before_sha256": null,
+      "mode": "644"
+    },
+    "chrome/renderer/raws_procedural_cosmetic_matcher.h": {
+      "after_sha256": "98d877f82153b9da8a8a958ea82ca772a040ae8d1427bfd6c422431a075d3aa3",
       "before_sha256": null,
       "mode": "644"
     },
@@ -9093,12 +9248,17 @@
       "mode": "644"
     },
     "components/sandium_adblock/BUILD.gn": {
-      "after_sha256": "edf089dc92d2cf3060e79101e68879d856abb9ca5a11db6d1b1f2231b07d2bfb",
+      "after_sha256": "fb22c20301ec09c910b61b2714de68a124b0b184b16f977bf769609f2b6ec549",
+      "before_sha256": null,
+      "mode": "644"
+    },
+    "components/sandium_adblock/brave_selected_ad_slots.h": {
+      "after_sha256": "049b92d22da27a012ffc810f1e2bec54d882fb3e51998d4365da30a8cf62f2ec",
       "before_sha256": null,
       "mode": "644"
     },
     "components/sandium_adblock/document_subresource_factory.cc": {
-      "after_sha256": "31e94a09e7c16560fe1a33d822c14190a1719a1377d95b50f6a7472e9ce96519",
+      "after_sha256": "521391ed237c125a5262df96b2f44b3b9c24c207246075de4d537026610d435c",
       "before_sha256": null,
       "mode": "644"
     },
@@ -9117,7 +9277,7 @@
       "before_sha256": null
     },
     "components/sandium_adblock/generic_style.h": {
-      "after_sha256": "becfda0ae6bb3e82c154e7167deb92ac98188c387f326c6730ee65fd2e722aeb",
+      "after_sha256": "bdd7e71a3bd9e94a6620dfc74d0d700746b2538e2d827d44a5d24ef67022767a",
       "before_sha256": null
     },
     "components/sandium_adblock/network_decision.h": {
@@ -9145,7 +9305,7 @@
       "mode": "644"
     },
     "components/sandium_adblock/smoke1442.cc": {
-      "after_sha256": "168f1ffaf2dce7bc735a57ed098e42cd6321ef420fcedaeac9096164f3286473",
+      "after_sha256": "fd0ef9c57b7a60af900e030f3498487241dd29e5bbba358c389917945b1b18fa",
       "before_sha256": null
     },
     "components/sandium_adblock/standard_merge.h": {
@@ -9165,6 +9325,11 @@
     "components/sandium_adblock/subresource_decision.h": {
       "after_sha256": "28b641fc593d0b12c9cf1d1efd8390079b28f3dfa114e3a333fe9e6d70e57e65",
       "before_sha256": null,
+      "mode": "644"
+    },
+    "components/search_engines/template_url_service.cc": {
+      "after_sha256": "857c5fab2f9610b13a47b92bf713fb6c7bda59f8975c97a6f51fe23d11aa7e6d",
+      "before_sha256": "95066d4e3b461ab6f266276b9eea9a24e4252aefa6920cf8590ce0c5effefd9a",
       "mode": "644"
     },
     "content/browser/BUILD.gn": {
@@ -9309,7 +9474,7 @@
       "before_sha256": "5c349c5bee1aaabe46d0f8ba800949625f1ae61a1567cd396a9f1285bd903b15"
     },
     "third_party/blink/public/web/web_document.h": {
-      "after_sha256": "c86baa5e7f72cc601f2ceab0a722c10a24edcaa24360a526cadd2809230ebec1",
+      "after_sha256": "cd324abbf077b49910e76197fbf02e897f881eaa37ce355259d116dd6d4533aa",
       "before_sha256": "0f6896f25b6091575f9b67394ca0fd655bc57af6eb529d0dd7776b561d4c8a6f",
       "mode": "644"
     },
@@ -9353,17 +9518,17 @@
       "mode": "644"
     },
     "third_party/blink/renderer/core/dom/sandium_element_colors.cc": {
-      "after_sha256": "5f0cad67d49af830f923905e044991bc529d4ad84181b6e4c4ef50333615a8e2",
+      "after_sha256": "21f684e9a02a936730d2fbcd16678a3f8c2d7aed68da133b615e303cb9c9ce0e",
       "before_sha256": null,
       "mode": "644"
     },
     "third_party/blink/renderer/core/dom/sandium_element_colors.h": {
-      "after_sha256": "6f0a6e60c71e52e3784ba833723a202f2669cf1eba9b334036ab35fe552d885b",
+      "after_sha256": "68dfd756171e4b2eb609b60ef55d1d6113a2ef6b7e10bbd8c6db8db90158040e",
       "before_sha256": null,
       "mode": "644"
     },
     "third_party/blink/renderer/core/exported/web_document.cc": {
-      "after_sha256": "e2dafd488c16f61c601ced2331cf32b0aef2fafbe91fb33fde66ad3c5b06aafe",
+      "after_sha256": "f2cd48c3415843f844572855e471b932b21a341296af89c3528e6701d5160dba",
       "before_sha256": "56c304e1c112758100bb5dc8ba3f8339076e8213c8fc0c508f5d1fcf3bd758ae",
       "mode": "644"
     },
@@ -9461,6 +9626,11 @@
     "ui/android/java/src/org/chromium/ui/base/EventForwarder.java": {
       "after_sha256": "97765847a43662fbbf77a1ff5c9d59a2ae7411481f1b2d08204b429a9982c5bd",
       "before_sha256": "b6fe10eaf46e181f376cda5ba41a19ff43ec930f46fdcb9036294dd032bba04d",
+      "mode": "644"
+    },
+    "ui/android/java/src/org/chromium/ui/hierarchicalmenu/HierarchicalMenuController.java": {
+      "after_sha256": "9983cdd5aa770db7af8f4797bfe5dfd665fa6b5360b9324ae8ced2b6d11c343f",
+      "before_sha256": "81f4e62a4cc9a1621c087565c36e8113d26c15147a3757cca6cabe3fe30c92eb",
       "mode": "644"
     }
   },

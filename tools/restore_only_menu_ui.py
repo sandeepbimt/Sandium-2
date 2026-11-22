@@ -12,6 +12,10 @@ MENU_PARITY_JAVA = frozenset(MENU_JAVA_DIR + name for name in (
     'RawSParityMenuCatalog.java', 'RawSParityMenuPreferences.java',
 ))
 MENU_PARITY_RESOURCES = frozenset(MENU_RESOURCE_DIR + name for name in (
+    'anim/raws_panel_enter.xml',
+    'anim/raws_panel_exit.xml',
+    'interpolator/raws_panel_emphasized.xml',
+    'values/raws_panel_motion.xml',
     'values/sandium_menu_colors.xml',
     'values-night/sandium_menu_colors.xml',
     'values/sandium_menu_strings.xml',

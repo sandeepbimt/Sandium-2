@@ -1,0 +1,142 @@
+// Copyright 2026 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+package org.chromium.chrome.browser.base;
+
+import android.content.SharedPreferences;
+
+import org.chromium.base.CommandLine;
+import org.chromium.base.ContextUtils;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
+
+/** Startup-only presentation options for Chromium's existing navigation blur. */
+@NullMarked
+@SuppressWarnings("UseSharedPreferencesManagerFromChromeCheck")
+public final class RawSNavigationAppearance {
+    private static final String BLUR_PREF = "sandium_page_transition_blur_level";
+    private static final String DARKEN_PREF = "sandium_page_transition_darken";
+    private static final String FEATURE = "AndroidNavigationBlurTransitionAnimation";
+    private static final String OFF = "off";
+    private static final String ON = "on";
+    private static final String ENABLE = "enable-features";
+    private static final String DISABLE = "disable-features";
+
+    private RawSNavigationAppearance() {}
+
+    private static SharedPreferences prefs() {
+        return ContextUtils.getAppSharedPreferences();
+    }
+
+    private static boolean validLevel(String level) {
+        return OFF.equals(level) || ON.equals(level);
+    }
+
+    /** Canonicalizes persisted and restored setup values; new writes only accept Off or On. */
+    public static @Nullable String normalizeStoredBlurLevel(@Nullable String level) {
+        if (level == null) return null;
+        return switch (level) {
+            case OFF, "0" -> OFF;
+            case ON, "low", "medium", "high", "1", "2", "3" -> ON;
+            default -> null;
+        };
+    }
+
+    private static String readBlurLevel(SharedPreferences store, boolean migrate) {
+        @Nullable String raw;
+        try {
+            // Missing on fresh installs is the stock Chromium On preset, not Off.
+            raw = store.getString(BLUR_PREF, ON);
+        } catch (ClassCastException e) {
+            // Older stored ordinal values are separate from the current string format.
+            try {
+                raw = Integer.toString(store.getInt(BLUR_PREF, -1));
+            } catch (ClassCastException malformed) {
+                return OFF;
+            }
+        }
+        @Nullable String level = normalizeStoredBlurLevel(raw);
+        if (level == null) return OFF;
+        if (migrate && !level.equals(raw)) {
+            // Canonicalize this alias in place only. Do not set any restart or
+            // setup-completion flags and do not materialize the fresh default.
+            store.edit().putString(BLUR_PREF, level).apply();
+        }
+        return level;
+    }
+
+    public static String getBlurLevel() {
+        return readBlurLevel(prefs(), false);
+    }
+
+    public static boolean isDarkenEnabled() {
+        SharedPreferences store = prefs();
+        return readDarkenEnabled(store, readBlurLevel(store, false));
+    }
+
+    private static boolean readDarkenEnabled(SharedPreferences store, String level) {
+        try {
+            return ON.equals(level) && store.getBoolean(DARKEN_PREF, false);
+        } catch (ClassCastException e) {
+            return false;
+        }
+    }
+
+    public static boolean setBlurLevel(String level) {
+        if (!validLevel(level)) return false;
+        SharedPreferences.Editor change = prefs().edit().putString(BLUR_PREF, level);
+        if (OFF.equals(level)) change.putBoolean(DARKEN_PREF, false);
+        change.apply();
+        return true;
+    }
+
+    public static boolean setDarkenEnabled(boolean enabled) {
+        if (enabled && OFF.equals(getBlurLevel())) return false;
+        prefs().edit().putBoolean(DARKEN_PREF, enabled).apply();
+        return true;
+    }
+
+    public static boolean setChoices(String level, boolean darken) {
+        if (!validLevel(level)) return false;
+        return prefs().edit().putString(BLUR_PREF, level)
+                .putBoolean(DARKEN_PREF, !OFF.equals(level) && darken).commit();
+    }
+
+    static void applyBeforeNativeFeatureList() {
+        SharedPreferences store = prefs();
+        String level = readBlurLevel(store, true);
+        CommandLine commandLine = CommandLine.getInstance();
+        String enable = commandLine.getSwitchValue(ENABLE, "");
+        String disable = commandLine.getSwitchValue(DISABLE, "");
+        // Respect explicit Chromium command-line/Finch test overrides.
+        if (containsFeature(enable) || containsFeature(disable)) return;
+
+        if (OFF.equals(level)) {
+            commandLine.appendSwitchWithValue(DISABLE, appendFeature(disable, FEATURE));
+            return;
+        }
+        // Leave native blur timing, opacity and sigma at Chromium defaults.
+        // This one parameter belongs only to the separate existing Darken choice.
+        String selected =
+                readDarkenEnabled(store, level) ? FEATURE + ":nav-animation-darken/true" : FEATURE;
+        commandLine.appendSwitchWithValue(ENABLE, appendFeature(enable, selected));
+    }
+
+    private static String appendFeature(String existing, String next) {
+        return existing.isEmpty() ? next : existing + "," + next;
+    }
+
+    private static boolean containsFeature(String features) {
+        for (String entry : features.split(",")) {
+            String name = entry.trim();
+            int stop = name.length();
+            int trial = name.indexOf('<');
+            int params = name.indexOf(':');
+            if (trial >= 0) stop = Math.min(stop, trial);
+            if (params >= 0) stop = Math.min(stop, params);
+            if (FEATURE.equals(name.substring(0, stop))) return true;
+        }
+        return false;
+    }
+}

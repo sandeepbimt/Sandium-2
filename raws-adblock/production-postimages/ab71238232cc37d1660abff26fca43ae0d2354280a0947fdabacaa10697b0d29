@@ -1,0 +1,428 @@
+// Copyright 2020 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+package org.chromium.chrome.browser.privacy.secure_dns;
+
+import android.content.Context;
+import android.os.Bundle;
+
+import androidx.preference.Preference;
+
+import org.chromium.base.supplier.MonotonicObservableSupplier;
+import org.chromium.base.supplier.ObservableSuppliers;
+import org.chromium.base.supplier.SettableMonotonicObservableSupplier;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
+import org.chromium.chrome.browser.net.SecureDnsManagementMode;
+import org.chromium.chrome.browser.privacy.secure_dns.SecureDnsProviderPreference.State;
+import org.chromium.chrome.browser.settings.ChromeBaseSettingsFragment;
+import org.chromium.chrome.browser.settings.ChromeManagedPreferenceDelegate;
+import org.chromium.chrome.browser.settings.search.ChromeBaseSearchIndexProvider;
+import org.chromium.components.browser_ui.settings.ChromeSwitchPreference;
+import org.chromium.components.browser_ui.settings.SettingsUtils;
+import org.chromium.net.SecureDnsMode;
+
+import java.util.List;
+
+/**
+ * Fragment to manage Secure DNS preference. It consists of a toggle switch and, if the switch is
+ * enabled, a SecureDnsControl.
+ */
+@NullMarked
+public class SecureDnsSettings extends ChromeBaseSettingsFragment {
+    // Must match keys in secure_dns_settings.xml.
+    private static final String PREF_SECURE_DNS_SWITCH = "secure_dns_switch";
+    private static final String PREF_SECURE_DNS_PROVIDER = "secure_dns_provider";
+
+    private ChromeSwitchPreference mSecureDnsSwitch;
+    private SecureDnsProviderPreference mSecureDnsProviderPreference;
+    private final SettableMonotonicObservableSupplier<String> mPageTitle =
+            ObservableSuppliers.createMonotonic();
+
+    /**
+     * @return A summary for use in the Preference that opens this fragment.
+     */
+    public static String getSummary(Context context) {
+        @SecureDnsMode int mode = SecureDnsBridge.getMode();
+        if (mode == SecureDnsMode.OFF) {
+            return context.getString(R.string.text_off);
+        } else if (mode == SecureDnsMode.AUTOMATIC) {
+            return context.getString(R.string.settings_automatic_mode_summary);
+        } else {
+            String config = SecureDnsBridge.getConfig();
+            List<SecureDnsBridge.Entry> providers = SecureDnsBridge.getProviders();
+            String serverName = getInlineProviderLabel(context);
+            for (int i = 0; i < providers.size(); i++) {
+                SecureDnsBridge.Entry entry = providers.get(i);
+                if (entry.config.equals(config)) {
+                    serverName = entry.name;
+                    break;
+                }
+            }
+            return String.format("%s - %s", context.getString(R.string.text_on), serverName);
+        }
+    }
+
+    /** Native DNS choice exposed to app-owned inline UI without accepting arbitrary templates. */
+    public static final class InlineProvider {
+        private final String mLabel;
+        private final @SecureDnsMode int mMode;
+        private final String mConfig;
+
+        private InlineProvider(String label, @SecureDnsMode int mode, String config) {
+            mLabel = label;
+            mMode = mode;
+            mConfig = config;
+        }
+
+        public String getLabel() {
+            return mLabel;
+        }
+    }
+
+    /** Only call on the UI thread after the browser's native startup. */
+    public static boolean canSelectInlineProvider() {
+        return !SecureDnsBridge.isModeManaged()
+                && !SecureDnsBridge.isConfigManaged()
+                && SecureDnsBridge.getManagementMode() == SecureDnsManagementMode.NO_OVERRIDE;
+    }
+
+    /** Off, Automatic and current upstream named providers. Custom edits stay in this Fragment. */
+    public static List<InlineProvider> getInlineProviders(Context context) {
+        var choices = new java.util.ArrayList<InlineProvider>();
+        choices.add(new InlineProvider(
+                context.getString(R.string.text_off), SecureDnsMode.OFF, ""));
+        choices.add(new InlineProvider(context.getString(R.string.settings_automatic_mode_label),
+                SecureDnsMode.AUTOMATIC, ""));
+        for (var provider : SecureDnsBridge.getProviders()) {
+            if (!provider.config.isEmpty()) {
+                choices.add(new InlineProvider(
+                        provider.name, SecureDnsMode.SECURE, provider.config));
+            }
+        }
+        if (choices.stream().noneMatch(row -> QUAD9_TEMPLATE.equals(row.mConfig))) {
+            choices.add(new InlineProvider("Quad9 (9.9.9.9)", SecureDnsMode.SECURE,
+                    QUAD9_TEMPLATE));
+        }
+        choices.addAll(savedProviders(context));
+        return List.copyOf(choices);
+    }
+
+    public static int getInlineSelectedProviderIndex(List<InlineProvider> choices) {
+        int mode = SecureDnsBridge.getMode();
+        String config = mode == SecureDnsMode.SECURE ? SecureDnsBridge.getConfig() : "";
+        for (int i = 0; i < choices.size(); i++) {
+            InlineProvider choice = choices.get(i);
+            if (choice.mMode == mode && choice.mConfig.equals(config)) return i;
+        }
+        // A custom or obsolete provider is never silently mapped to a built-in choice.
+        return -1;
+    }
+
+    public static String getInlineProviderLabel(Context context) {
+        List<InlineProvider> choices = getInlineProviders(context);
+        int selected = getInlineSelectedProviderIndex(choices);
+        return selected >= 0 ? choices.get(selected).getLabel()
+                             : context.getString(R.string.settings_custom);
+    }
+
+    /** Explicit built-in selection reuses the native Secure DNS screen's only writer. */
+    public static boolean selectInlineProvider(Context context, InlineProvider choice) {
+        if (!canSelectInlineProvider()) return false;
+        if (choice.mMode == SecureDnsMode.SECURE && !QUAD9_TEMPLATE.equals(choice.mConfig)
+                && SecureDnsBridge.getProviders().stream()
+                        .noneMatch(provider -> provider.config.equals(choice.mConfig))
+                && savedProviders(context).stream().noneMatch(row -> sameProvider(row, choice))) {
+            return false;
+        }
+        if (SecureDnsBridge.getMode() == choice.mMode
+                && (choice.mMode != SecureDnsMode.SECURE
+                        || SecureDnsBridge.getConfig().equals(choice.mConfig))) {
+            return true; // No write or clearing merely because the already-active item was tapped.
+        }
+        return storePreferenceState(choice.mMode != SecureDnsMode.OFF,
+                new State(choice.mMode == SecureDnsMode.SECURE, choice.mConfig, true));
+    }
+
+    private static final String PROVIDER_DATA_FILE = "raws_secure_dns_providers";
+    private static final String PROVIDERS = "saved";
+    private static final int MAX_PROVIDERS = 12;
+    // Chromium M158 DohProviderEntry Quad9Secure; explicit selector only.
+    private static final String QUAD9_TEMPLATE = "https://dns.quad9.net/dns-query";
+
+    private static List<InlineProvider> savedProviders(Context context) {
+        var rows = new java.util.ArrayList<InlineProvider>();
+        String serialized = context.getSharedPreferences(PROVIDER_DATA_FILE, Context.MODE_PRIVATE)
+                .getString(PROVIDERS, "[]");
+        if (serialized == null || serialized.length() > 32 * 1024) return rows;
+        try {
+            var json = new org.json.JSONArray(serialized);
+            if (json.length() > MAX_PROVIDERS) return rows;
+            for (int i = 0; i < json.length(); i++) {
+                var entry = json.getJSONObject(i);
+                String name = entry.getString("name");
+                String template = entry.getString("template");
+                if (!validProviderName(name) || template.length() > 2048
+                        || !SecureDnsBridge.isValidConfig(template)) continue;
+                rows.add(new InlineProvider(name, SecureDnsMode.SECURE, template));
+            }
+        } catch (org.json.JSONException invalid) {
+            rows.clear();
+        }
+        return rows;
+    }
+
+    private static boolean validProviderName(String name) {
+        return !name.isBlank() && name.length() <= 48
+                && name.codePoints().noneMatch(c -> Character.isISOControl(c)
+                        || Character.getType(c) == Character.FORMAT
+                        || c == 0x2028 || c == 0x2029);
+    }
+
+    private static void saveProviders(Context context, List<InlineProvider> rows) {
+        var json = new org.json.JSONArray();
+        for (var entry : rows) {
+            var object = new org.json.JSONObject();
+            try {
+                object.put("name", entry.mLabel);
+                object.put("template", entry.mConfig);
+            } catch (org.json.JSONException invalid) {
+                return;
+            }
+            json.put(object);
+        }
+        context.getSharedPreferences(PROVIDER_DATA_FILE, Context.MODE_PRIVATE).edit()
+                .putString(PROVIDERS, json.toString()).apply();
+    }
+
+    private void showSavedProviders() {
+        if (!canSelectInlineProvider() || !isAdded()) return;
+        Context context = requireContext();
+        var rows = savedProviders(context);
+        CharSequence[] actions = new CharSequence[rows.size() + (rows.size() < MAX_PROVIDERS ? 1 : 0)];
+        for (int i = 0; i < rows.size(); i++) actions[i] = rows.get(i).getLabel();
+        if (actions.length > rows.size()) {
+            actions[rows.size()] = getString(R.string.raws_dns_add_provider);
+        }
+        new android.app.AlertDialog.Builder(context)
+                .setTitle(R.string.raws_dns_saved_providers)
+                .setItems(actions, (dialog, which) -> {
+                    if (!isAdded() || !canSelectInlineProvider()) return;
+                    if (which == rows.size()) {
+                        editSavedProvider(null);
+                    } else {
+                        showSavedProviderActions(rows.get(which));
+                    }
+                })
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
+    }
+
+    private void showSavedProviderActions(InlineProvider selected) {
+        Context context = requireContext();
+        new android.app.AlertDialog.Builder(context)
+                .setTitle(selected.getLabel())
+                .setItems(new CharSequence[] {
+                    getString(R.string.raws_dns_use_provider),
+                    getString(R.string.raws_dns_edit_provider),
+                    getString(R.string.raws_dns_remove_provider)
+                }, (dialog, which) -> {
+                    if (!isAdded() || !canSelectInlineProvider()) return;
+                    if (which == 0) {
+                        if (selectInlineProvider(context, selected)) loadPreferenceState();
+                    } else if (which == 1) {
+                        editSavedProvider(selected);
+                    } else if (which == 2) {
+                        var rows = savedProviders(context);
+                        rows.removeIf(row -> sameProvider(row, selected));
+                        // Deleting a label must not silently change the active resolver.
+                        saveProviders(context, rows);
+                    }
+                }).setNegativeButton(android.R.string.cancel, null).show();
+    }
+
+    private static boolean sameProvider(InlineProvider a, InlineProvider b) {
+        return a.mLabel.equals(b.mLabel) && a.mConfig.equals(b.mConfig);
+    }
+
+    private void editSavedProvider(@Nullable InlineProvider previous) {
+        Context context = requireContext();
+        var fields = new android.widget.LinearLayout(context);
+        fields.setOrientation(android.widget.LinearLayout.VERTICAL);
+        int pad = Math.round(24 * getResources().getDisplayMetrics().density);
+        fields.setPadding(pad, 0, pad, 0);
+        var name = new android.widget.EditText(context);
+        name.setSingleLine(true);
+        name.setHint(R.string.raws_dns_provider_name);
+        name.setFilters(new android.text.InputFilter[] {new android.text.InputFilter.LengthFilter(48)});
+        var template = new android.widget.EditText(context);
+        template.setSingleLine(true);
+        template.setInputType(android.text.InputType.TYPE_CLASS_TEXT
+                | android.text.InputType.TYPE_TEXT_VARIATION_URI);
+        template.setHint(R.string.settings_secure_dns_custom_placeholder);
+        template.setFilters(
+                new android.text.InputFilter[] {new android.text.InputFilter.LengthFilter(2048)});
+        if (previous != null) {
+            name.setText(previous.mLabel);
+            template.setText(previous.mConfig);
+        }
+        fields.addView(name);
+        fields.addView(template);
+        var dialog = new android.app.AlertDialog.Builder(context)
+                .setTitle(previous == null ? R.string.raws_dns_add_provider
+                                          : R.string.raws_dns_edit_provider)
+                .setView(fields)
+                .setPositiveButton(R.string.raws_dns_save_provider, null)
+                .setNegativeButton(android.R.string.cancel, null).show();
+        dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener(view -> {
+            if (!isAdded() || !canSelectInlineProvider()) return;
+            String label = name.getText().toString().trim();
+            String config = template.getText().toString().trim();
+            var rows = savedProviders(context);
+            if (previous != null && !rows.removeIf(row -> sameProvider(row, previous))) {
+                dialog.dismiss();
+                return;
+            }
+            if (!validProviderName(label) || rows.size() >= MAX_PROVIDERS
+                    || rows.stream().anyMatch(row -> row.mLabel.equalsIgnoreCase(label))) {
+                name.setError(getString(R.string.raws_dns_invalid_name));
+                return;
+            }
+            if (!SecureDnsBridge.isValidConfig(config)) {
+                template.setError(getString(R.string.settings_secure_dns_custom_format_error));
+                return;
+            }
+            rows.add(new InlineProvider(label, SecureDnsMode.SECURE, config));
+            saveProviders(context, rows);
+            dialog.dismiss();
+        });
+    }
+
+    @Override
+    public void onCreatePreferences(@Nullable Bundle savedInstanceState, @Nullable String rootKey) {
+        mPageTitle.set(getString(R.string.settings_secure_dns_title));
+        SettingsUtils.addPreferencesFromResource(this, R.xml.secure_dns_settings);
+
+        // Set up preferences inside the activity.
+        mSecureDnsSwitch =
+                (ChromeSwitchPreference) findPreference(PREF_SECURE_DNS_SWITCH);
+        mSecureDnsSwitch.setManagedPreferenceDelegate(
+                new ChromeManagedPreferenceDelegate(getProfile()) {
+                    @Override
+                    public boolean isPreferenceControlledByPolicy(Preference preference) {
+                        return SecureDnsBridge.isModeManaged() || SecureDnsBridge.isConfigManaged();
+                    }
+                });
+        mSecureDnsSwitch.setOnPreferenceChangeListener(
+                (preference, enabled) -> {
+                    if (!canSelectInlineProvider()) return false;
+                    boolean saved = storePreferenceState(
+                            (boolean) enabled, mSecureDnsProviderPreference.getState());
+                    loadPreferenceState();
+                    return saved;
+                });
+
+        if (!SecureDnsBridge.isModeManaged()) {
+            // If the mode isn't managed directly, we still need to disable the controls
+            // if we detect a managed system configuration, or any parental control software.
+            // However, we don't want to show the managed setting icon in this case, because the
+            // setting is not directly controlled by a policy.
+            @SecureDnsManagementMode int managementMode = SecureDnsBridge.getManagementMode();
+            if (managementMode != SecureDnsManagementMode.NO_OVERRIDE) {
+                mSecureDnsSwitch.setEnabled(false);
+                boolean parentalControls =
+                        managementMode == SecureDnsManagementMode.DISABLED_PARENTAL_CONTROLS;
+                mSecureDnsSwitch.setSummaryOff(
+                        parentalControls
+                                ? R.string.settings_secure_dns_disabled_for_parental_control
+                                : R.string.settings_secure_dns_disabled_for_managed_environment);
+            }
+        }
+
+        mSecureDnsProviderPreference =
+                (SecureDnsProviderPreference)
+                        findPreference(PREF_SECURE_DNS_PROVIDER);
+        mSecureDnsProviderPreference.setOnPreferenceChangeListener(
+                (preference, value) -> {
+                    if (!canSelectInlineProvider()) return false;
+                    State controlState = (State) value;
+                    boolean valid =
+                            storePreferenceState(mSecureDnsSwitch.isChecked(), controlState);
+                    if (valid != controlState.valid) {
+                        mSecureDnsProviderPreference.setState(controlState.withValid(valid));
+                        // Cancel the change to controlState.
+                        return false;
+                    }
+                    return true;
+                });
+
+        // Update preference views and state.
+        var saved = new Preference(requireContext());
+        saved.setTitle(R.string.raws_dns_saved_providers);
+        saved.setPersistent(false);
+        saved.setEnabled(canSelectInlineProvider());
+        saved.setOnPreferenceClickListener(preference -> {
+            showSavedProviders();
+            return true;
+        });
+        var screen = getPreferenceScreen();
+        if (screen != null) screen.addPreference(saved);
+        loadPreferenceState();
+    }
+
+    @Override
+    public MonotonicObservableSupplier<String> getPageTitle() {
+        return mPageTitle;
+    }
+
+    /**
+     * @param enabled Whether the toggle switch is enabled
+     * @param controlState The state from SecureDnsControl.
+     * @return True if the state was successfully stored.
+     */
+    private static boolean storePreferenceState(boolean enabled, State controlState) {
+        if (!enabled) {
+            // OFF controls all traffic; retain the inactive native template for re-enable.
+            SecureDnsBridge.setMode(SecureDnsMode.OFF);
+        } else if (!controlState.secure) {
+            SecureDnsBridge.setMode(SecureDnsMode.AUTOMATIC);
+            SecureDnsBridge.setConfig("");
+        } else {
+            if (controlState.config.isEmpty() || !SecureDnsBridge.setConfig(controlState.config)) {
+                return false;
+            }
+            SecureDnsBridge.setMode(SecureDnsMode.SECURE);
+        }
+        return true;
+    }
+
+    private void loadPreferenceState() {
+        @SecureDnsMode int mode = SecureDnsBridge.getMode();
+        boolean enabled = mode != SecureDnsMode.OFF;
+        boolean enforced = !canSelectInlineProvider();
+        mSecureDnsSwitch.setChecked(enabled);
+        mSecureDnsProviderPreference.setEnabled(enabled && !enforced);
+
+        String config = SecureDnsBridge.getConfig();
+        boolean secure = mode == SecureDnsMode.SECURE
+                || (mode == SecureDnsMode.OFF && !config.isEmpty() && !enforced);
+        boolean valid = true; // States loaded from storage are presumed valid.
+        mSecureDnsProviderPreference.setState(new State(secure, config, valid));
+    }
+
+    @Override
+    public void onStart() {
+        super.onStart();
+        loadPreferenceState();
+    }
+
+    @Override
+    public @AnimationType int getAnimationType() {
+        return AnimationType.PROPERTY;
+    }
+
+    public static final ChromeBaseSearchIndexProvider SEARCH_INDEX_DATA_PROVIDER =
+            new ChromeBaseSearchIndexProvider(
+                    SecureDnsSettings.class.getName(), R.xml.secure_dns_settings);
+}

@@ -91,6 +91,7 @@ def ui_source_targets():
             'suggestions/tile/MostVisitedTilesLayout.java',
             'suggestions/tile/SuggestionsTileView.java',
             'signin/SigninFirstRunFragment.java', 'settings/MainSettings.java',
+            'sync/settings/SignInPreference.java',
             'settings/RawsGlobalShieldSheet.java', 'settings/SandiumBalancedTracer.java',
             'settings/RawsProtectionSettings.java',
             'settings/RawsProtectionCopy.java')}),

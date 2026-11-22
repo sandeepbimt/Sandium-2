@@ -1,0 +1,723 @@
+// SPDX-License-Identifier: MPL-2.0
+package org.chromium.chrome.browser.settings;
+
+import android.content.DialogInterface;
+import android.graphics.Typeface;
+import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
+import android.text.InputType;
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
+import android.view.ViewGroup;
+import android.widget.EditText;
+import android.widget.FrameLayout;
+import android.widget.TextView;
+import android.widget.Toast;
+
+import androidx.appcompat.app.AlertDialog;
+import androidx.preference.Preference;
+
+import org.chromium.base.supplier.MonotonicObservableSupplier;
+import org.chromium.base.supplier.ObservableSuppliers;
+import org.chromium.base.supplier.SettableMonotonicObservableSupplier;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
+import org.chromium.chrome.R;
+import org.chromium.chrome.browser.privacy.secure_dns.SecureDnsSettings;
+import org.chromium.chrome.browser.profiles.Profile;
+import org.chromium.components.browser_ui.settings.ChromeSwitchPreference;
+import org.chromium.components.browser_ui.settings.SettingsUtils;
+import org.chromium.components.browser_ui.site_settings.SingleCategorySettings;
+
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import java.nio.charset.StandardCharsets;
+
+/** Native Shields status, filter refresh and profile-owned custom network rules. */
+@NullMarked
+public final class RawsProtectionSettings extends ChromeBaseSettingsFragment {
+    private final SettableMonotonicObservableSupplier<String> mPageTitle =
+            ObservableSuppliers.createMonotonic();
+
+    private static final String EXTRA_CONTENT_FILTERS = "raws.open_content_filters";
+    private static final int REFRESH_CONTENT_FILTERS = 0x524657;
+    private boolean mContentFilters;
+    private int mFilterReadBudget;
+    private @Nullable String mRenderedFilterDetails;
+    private final Handler mFilterStatusHandler = new Handler(Looper.getMainLooper());
+    private final Runnable mFilterStatusPoll = this::updateContentFilters;
+    private @Nullable AlertDialog mFiltersEditor;
+    private @Nullable AlertDialog mSubscriptionDetails;
+    private @Nullable Object mSubscriptionSave;
+    private boolean mFiltersSaving;
+    private boolean mGlobalAdsPending;
+
+    @Override
+    public void onCreatePreferences(@Nullable Bundle savedInstanceState, @Nullable String rootKey) {
+        Bundle args = getArguments();
+        mContentFilters = args != null && args.getBoolean(EXTRA_CONTENT_FILTERS);
+        if (mContentFilters) {
+            mPageTitle.set(getString(R.string.raws_content_filters_title));
+            setHasOptionsMenu(true);
+            var manager = getPreferenceManager();
+            setPreferenceScreen(manager.createPreferenceScreen(requireContext()));
+            return;
+        }
+        mPageTitle.set(getString(R.string.raws_ui_shields_and_privacy));
+        SettingsUtils.addPreferencesFromResource(this, R.xml.raws_protection_preferences);
+        bindGlobalAdFiltering();
+        ChromeSwitchPreference deAmp = findPreference("raws_google_de_amp");
+        if (deAmp != null) {
+            Profile profile = getProfile();
+            deAmp.setEnabled(profile.isNativeInitialized() && !profile.isOffTheRecord());
+            deAmp.setChecked(RawsProtectionCopy.isGoogleDeAmpEnabled(profile));
+            deAmp.setOnPreferenceChangeListener((pref, value) ->
+                    getProfile() == profile
+                            && RawsProtectionCopy.setGoogleDeAmpEnabled(profile, (boolean) value));
+        }
+        Preference lists = findPreference("raws_content_filters");
+        if (lists != null) lists.getExtras().putBoolean(EXTRA_CONTENT_FILTERS, true);
+        Preference cookies = findPreference("raws_protection_third_party_cookies");
+        if (cookies != null) {
+            cookies.getExtras().putString(SingleCategorySettings.EXTRA_CATEGORY,
+                    "third_party_cookies");
+            cookies.getExtras().putString(SingleCategorySettings.EXTRA_TITLE,
+                    getString(R.string.raws_global_third_party_cookies));
+        }
+        Preference myFilters = findPreference("raws_my_filters");
+        if (myFilters != null) {
+            myFilters.setOnPreferenceClickListener(preference -> {
+                showFiltersEditor();
+                return true;
+            });
+        }
+        updateStatus();
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        if (mContentFilters) {
+            restartContentFilterReads();
+        } else {
+            updateStatus();
+        }
+    }
+
+    @Override
+    public void onCreateOptionsMenu(Menu menu, MenuInflater inflater) {
+        super.onCreateOptionsMenu(menu, inflater);
+        if (mContentFilters) {
+            menu.add(Menu.NONE, REFRESH_CONTENT_FILTERS, Menu.NONE, R.string.raws_ui_refresh_filters)
+                    .setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER);
+        }
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        if (mContentFilters && item.getItemId() == REFRESH_CONTENT_FILTERS) {
+            boolean accepted = isCurrentSubscriptionOwner(getProfile())
+                    && RawsProtectionCopy.requestFilterRefresh(getProfile());
+            Toast.makeText(requireContext(),
+                    accepted ? R.string.raws_ui_refresh_requested
+                             : R.string.raws_ui_refresh_not_started,
+                    Toast.LENGTH_SHORT).show();
+            restartContentFilterReads();
+            return true;
+        }
+        return super.onOptionsItemSelected(item);
+    }
+
+    private void restartContentFilterReads() {
+        mRenderedFilterDetails = null;
+        mFilterReadBudget = 120; // Visible-page status only: at most four minutes.
+        updateContentFilters();
+    }
+
+    private void updateContentFilters() {
+        var screen = getPreferenceScreen();
+        mFilterStatusHandler.removeCallbacks(mFilterStatusPoll);
+        if (!mContentFilters || screen == null || !isResumed()) return;
+        var profile = getProfile();
+        boolean readable = isCurrentSubscriptionOwner(profile);
+        String payload = readable ? RawsProtectionCopy.subscriptionDetails(profile) : "";
+        var snapshot = parseSubscriptionChoices(payload, /* mustBeWritable= */ false);
+        if (readable && (snapshot == null || snapshot.refreshInProgress())
+                && mFilterReadBudget > 0) {
+            mFilterReadBudget--;
+            mFilterStatusHandler.postDelayed(mFilterStatusPoll, 2000);
+        }
+        if (payload.equals(mRenderedFilterDetails)) return;
+        mRenderedFilterDetails = payload;
+        screen.removeAll();
+        var context = screen.getContext();
+        var custom = new Preference(context);
+        custom.setTitle(R.string.raws_my_filters_title);
+        custom.setSummary(R.string.raws_my_filters_summary);
+        custom.setOnPreferenceClickListener(pref -> {
+            showFiltersEditor();
+            return true;
+        });
+        screen.addPreference(custom);
+
+        if (!readable) return;
+        if (snapshot == null) {
+            var status = new Preference(context);
+            status.setTitle(R.string.raws_list_details_unavailable);
+            status.setSelectable(false);
+            screen.addPreference(status);
+            return;
+        }
+        try {
+            var root = new JSONObject(payload);
+            boolean writable = root.optBoolean("choiceWritable") && mSubscriptionSave == null;
+            var lists = root.getJSONArray("lists");
+            for (int i = 0; i < lists.length(); i++) {
+                var metadata = lists.getJSONObject(i);
+                long id = exactSubscriptionCount(metadata.opt("id"));
+                var row = snapshot.rows().stream().filter(r -> r.id() == id).findFirst().orElse(null);
+                if (row == null) {
+                    var readOnly = new Preference(context);
+                    readOnly.setTitle(metadata.getString("title"));
+                    readOnly.setSummary(formatSubscriptionRow(metadata));
+                    readOnly.setSelectable(false);
+                    screen.addPreference(readOnly);
+                    continue;
+                }
+                var toggle = new ChromeSwitchPreference(context, null);
+                toggle.setKey("raws_filter_choice_" + id);
+                toggle.setPersistent(false);
+                toggle.setTitle(row.title());
+                toggle.setSummary(formatSubscriptionRow(metadata));
+                toggle.setChecked(row.enabled());
+                toggle.setEnabled(writable);
+                toggle.setOnPreferenceChangeListener((pref, proposed) -> {
+                    confirmSubscriptionChoice(profile, snapshot.generation(), row);
+                    return false; // Change only after the native owner confirms persistence.
+                });
+                screen.addPreference(toggle);
+            }
+        } catch (JSONException ignored) {
+            screen.removeAll();
+            screen.addPreference(custom);
+            var status = new Preference(context);
+            status.setTitle(R.string.raws_list_details_unavailable);
+            status.setSelectable(false);
+            screen.addPreference(status);
+        }
+    }
+
+    private void showSubscriptionDetails() {
+        if (mSubscriptionDetails != null || !isResumed()) return;
+        Profile profile = getProfile();
+        if (!isCurrentSubscriptionOwner(profile)) return;
+        renderSubscriptionDetails(profile, RawsProtectionCopy.subscriptionDetails(profile));
+    }
+
+    private void renderSubscriptionDetails(Profile profile, String payload) {
+        if (mSubscriptionDetails != null || !isCurrentSubscriptionOwner(profile)) return;
+        var choices = parseSubscriptionChoices(payload);
+        boolean canEdit = mSubscriptionSave == null && choices != null && !choices.rows().isEmpty();
+        var builder =
+                new AlertDialog.Builder(
+                                requireContext(), R.style.ThemeOverlay_BrowserUI_AlertDialog)
+                        .setTitle(R.string.raws_list_details_title)
+                        .setMessage(formatSubscriptionDetails(payload))
+                        .setPositiveButton(android.R.string.ok, null);
+        if (canEdit) builder.setNeutralButton(R.string.raws_list_choice_title, null);
+        var dialog = builder.create();
+        showSubscriptionDialog(dialog);
+        @Nullable TextView message = dialog.findViewById(android.R.id.message);
+        if (message != null) message.setTextIsSelectable(true);
+        if (canEdit) {
+            dialog.getButton(DialogInterface.BUTTON_NEUTRAL).setOnClickListener(view -> {
+                if (mSubscriptionDetails != dialog || !isCurrentSubscriptionOwner(profile)) return;
+                dismissSubscriptionDetails();
+                showSubscriptionChoicePicker(profile);
+            });
+        }
+    }
+
+    private void showSubscriptionDialog(AlertDialog dialog) {
+        mSubscriptionDetails = dialog;
+        dialog.setOnDismissListener(ignored -> {
+            if (mSubscriptionDetails == dialog) mSubscriptionDetails = null;
+        });
+        dialog.show();
+    }
+
+    private record SubscriptionChoice(int id, String title, boolean enabled) {}
+
+    private record SubscriptionChoiceSnapshot(
+            String generation, java.util.List<SubscriptionChoice> rows,
+            boolean refreshInProgress) {}
+
+    private boolean isCurrentSubscriptionOwner(Profile profile) {
+        return isResumed() && getProfile() == profile
+                && profile.isNativeInitialized() && !profile.isOffTheRecord();
+    }
+
+    private void showSubscriptionChoicePicker(Profile profile) {
+        if (mSubscriptionDetails != null || mSubscriptionSave != null
+                || !isCurrentSubscriptionOwner(profile)) return;
+        var snapshot = parseSubscriptionChoices(RawsProtectionCopy.subscriptionDetails(profile));
+        if (!isCurrentSubscriptionOwner(profile)) return;
+        if (snapshot == null || snapshot.rows().isEmpty()) {
+            showSubscriptionDetails();
+            return;
+        }
+
+        CharSequence[] labels = new CharSequence[snapshot.rows().size()];
+        for (int i = 0; i < labels.length; i++) {
+            var row = snapshot.rows().get(i);
+            labels[i] = getString(R.string.raws_list_choice_item, row.title(), getString(
+                    row.enabled() ? R.string.raws_list_details_enabled
+                                  : R.string.raws_list_details_disabled));
+        }
+        var dialog =
+                new AlertDialog.Builder(
+                                requireContext(), R.style.ThemeOverlay_BrowserUI_AlertDialog)
+                        .setTitle(R.string.raws_list_choice_title)
+                        .setItems(labels, null)
+                        .setNegativeButton(android.R.string.cancel, null)
+                        .create();
+        showSubscriptionDialog(dialog);
+        var list = dialog.getListView();
+        if (list == null) return;
+        list.setOnItemClickListener((parent, view, position, id) -> {
+            if (mSubscriptionDetails != dialog || !isCurrentSubscriptionOwner(profile)) return;
+            dismissSubscriptionDetails();
+            confirmSubscriptionChoice(profile, snapshot.generation(), snapshot.rows().get(position));
+        });
+    }
+
+    private void confirmSubscriptionChoice(
+            Profile profile, String generation, SubscriptionChoice row) {
+        if (mSubscriptionDetails != null || mSubscriptionSave != null
+                || !isCurrentSubscriptionOwner(profile)) return;
+        boolean requested = !row.enabled();
+        int action = requested ? R.string.raws_list_choice_enable : R.string.raws_list_choice_disable;
+        var dialog =
+                new AlertDialog.Builder(
+                                requireContext(), R.style.ThemeOverlay_BrowserUI_AlertDialog)
+                        .setTitle(row.title())
+                        .setMessage(requested ? R.string.raws_list_choice_confirm_enable
+                                              : R.string.raws_list_choice_confirm_disable)
+                        .setPositiveButton(action, null)
+                        .setNegativeButton(android.R.string.cancel, null)
+                        .create();
+        showSubscriptionDialog(dialog);
+        dialog.getButton(DialogInterface.BUTTON_POSITIVE).setOnClickListener(view ->
+                saveSubscriptionChoice(dialog, profile, generation, row.id(), requested));
+    }
+
+    private void saveSubscriptionChoice(
+            AlertDialog dialog, Profile profile, String generation, int id, boolean requested) {
+        if (mSubscriptionDetails != dialog || mSubscriptionSave != null
+                || !isCurrentSubscriptionOwner(profile)) return;
+        final var operation = new Object();
+        mSubscriptionSave = operation;
+        dialog.getButton(DialogInterface.BUTTON_POSITIVE).setEnabled(false);
+        var owner = new java.lang.ref.WeakReference<>(this);
+        var ownedDialog = new java.lang.ref.WeakReference<>(dialog);
+        boolean accepted = RawsProtectionCopy.setSubscriptionEnabled(
+                profile, id, generation, requested, durable -> {
+                    var fragment = owner.get();
+                    var currentDialog = ownedDialog.get();
+                    if (fragment != null && currentDialog != null) {
+                        fragment.finishSubscriptionChoice(
+                                operation, currentDialog, profile, id, requested,
+                                Boolean.TRUE.equals(durable));
+                    } else if (fragment != null && fragment.mSubscriptionSave == operation) {
+                        fragment.mSubscriptionSave = null;
+                    }
+                });
+        if (!accepted) finishSubscriptionChoice(operation, dialog, profile, id, requested, false);
+    }
+
+    private void finishSubscriptionChoice(Object operation, AlertDialog dialog, Profile profile,
+            int id, boolean requested, boolean durable) {
+        if (mSubscriptionSave != operation) return;
+        mSubscriptionSave = null;
+        if (mSubscriptionDetails != dialog || !isCurrentSubscriptionOwner(profile)) return;
+        // Verify the saved choice, not the installed snapshot. Rebuild may still be pending.
+        String fresh = RawsProtectionCopy.subscriptionDetails(profile);
+        var rows = parseSubscriptionChoices(fresh, /* mustBeWritable= */ false);
+        if (mSubscriptionDetails != dialog || !isCurrentSubscriptionOwner(profile)) return;
+        boolean confirmed = durable && rows != null && rows.rows().stream()
+                .anyMatch(row -> row.id() == id && row.enabled() == requested);
+        dismissSubscriptionDetails();
+        if (mSubscriptionDetails != null || !isCurrentSubscriptionOwner(profile)) return;
+        Toast.makeText(requireContext(),
+                confirmed ? R.string.raws_list_choice_saved : R.string.raws_list_choice_failed,
+                Toast.LENGTH_SHORT).show();
+        if (mContentFilters) {
+            restartContentFilterReads();
+        } else {
+            renderSubscriptionDetails(profile, fresh);
+        }
+    }
+
+    private static @Nullable SubscriptionChoiceSnapshot parseSubscriptionChoices(String payload) {
+        return parseSubscriptionChoices(payload, /* mustBeWritable= */ true);
+    }
+
+    private static @Nullable SubscriptionChoiceSnapshot parseSubscriptionChoices(
+            String payload, boolean mustBeWritable) {
+        if (payload.isEmpty() || payload.length() > 128 * 1024) return null;
+        try {
+            var root = new JSONObject(payload);
+            if (!(root.opt("choiceWritable") instanceof Boolean writable)
+                    || (mustBeWritable && !writable)
+                    || !(root.opt("choiceGeneration") instanceof String generation)
+                    || generation.isEmpty() || generation.length() > 20
+                    || !generation.chars().allMatch(ch -> ch >= '0' && ch <= '9')) return null;
+            var entries = root.getJSONArray("lists");
+            if (entries.length() > 64) return null;
+            var seen = new java.util.HashSet<Integer>();
+            var rows = new java.util.ArrayList<SubscriptionChoice>();
+            for (int i = 0; i < entries.length(); i++) {
+                var row = entries.getJSONObject(i);
+                long rawId = exactSubscriptionCount(row.opt("id"));
+                if (rawId < 0 || rawId > Integer.MAX_VALUE || !seen.add((int) rawId)
+                        || !(row.opt("title") instanceof String title)
+                        || title.length() > 256 || title.trim().isEmpty()
+                        || !isSingleSubscriptionLine(title)
+                        || !(row.opt("editable") instanceof Boolean editable)
+                        || !(row.opt("enabled") instanceof Boolean enabled)) return null;
+                if (editable) rows.add(new SubscriptionChoice((int) rawId, title, enabled));
+            }
+            return new SubscriptionChoiceSnapshot(generation,
+                    java.util.Collections.unmodifiableList(rows),
+                    root.optBoolean("refreshInProgress"));
+        } catch (JSONException ignored) {
+            return null;
+        }
+    }
+
+    private void dismissSubscriptionDetails() {
+        var dialog = mSubscriptionDetails;
+        mSubscriptionDetails = null;
+        if (dialog != null) dialog.dismiss();
+    }
+
+    private String formatSubscriptionDetails(String payload) {
+        if (payload.isEmpty() || payload.length() > 128 * 1024) {
+            return getString(R.string.raws_list_details_unavailable);
+        }
+        try {
+            var rows = new JSONObject(payload).getJSONArray("lists");
+            if (rows.length() == 0) return getString(R.string.raws_list_details_empty);
+            if (rows.length() > 64) return getString(R.string.raws_list_details_unavailable);
+            var seen = new java.util.HashSet<Long>();
+            var out = new StringBuilder(getString(R.string.raws_list_details_scope));
+            for (int i = 0; i < rows.length(); i++) {
+                var row = rows.getJSONObject(i);
+                long id = exactSubscriptionCount(row.opt("id"));
+                @Nullable Object rawTitle = row.opt("title");
+                @Nullable Object rawUrl = row.opt("url");
+                @Nullable Object rawEnabled = row.opt("enabled");
+                @Nullable Object rawCached = row.opt("cached");
+                @Nullable Object rawActive = row.opt("active");
+                if (id < 0 || !seen.add(id) || !(rawTitle instanceof String title)
+                        || title.trim().isEmpty() || title.length() > 256
+                        || !isSingleSubscriptionLine(title) || !(rawUrl instanceof String url)
+                        || !(rawEnabled instanceof Boolean enabled)
+                        || !(rawCached instanceof Boolean cached)
+                        || !(rawActive instanceof Boolean installed)) {
+                    return getString(R.string.raws_list_details_unavailable);
+                }
+                out.append("\n\n").append(title);
+                out.append('\n').append(formatSubscriptionRow(row));
+            }
+            return out.toString();
+        } catch (JSONException ignored) {
+            return getString(R.string.raws_list_details_unavailable);
+        }
+    }
+
+    private String formatSubscriptionRow(JSONObject row) {
+        String url = row.optString("url");
+        boolean enabled = row.optBoolean("enabled");
+        boolean cached = row.optBoolean("cached");
+        boolean installed = row.optBoolean("active");
+        var out = new StringBuilder();
+        if (isPublicSubscriptionUrl(url)) out.append('\n').append(url);
+        out.append('\n').append(getString(
+                enabled
+                        ? R.string.raws_list_details_enabled
+                        : R.string.raws_list_details_disabled));
+        out.append('\n').append(getString(
+                cached
+                        ? R.string.raws_list_details_cached
+                        : R.string.raws_list_details_no_cache));
+        out.append('\n').append(getString(
+                installed
+                        ? R.string.raws_list_details_installed
+                        : R.string.raws_list_details_not_installed));
+        if (row.opt("activation") instanceof String activation) {
+            int label = switch (activation) {
+                case "applied" -> R.string.raws_list_choice_applied;
+                case "pending" -> R.string.raws_list_choice_pending;
+                case "not_applied" -> R.string.raws_list_choice_not_applied;
+                default -> 0;
+            };
+            if (label != 0) out.append('\n').append(getString(label));
+        }
+        if (cached) {
+            appendSubscriptionCount(out, row.opt("cachedBytes"),
+                    R.string.raws_list_details_cached_bytes);
+            double seconds = row.optDouble("lastDownloadEpochSeconds", 0);
+            if (seconds > 0 && seconds < 253402300800d) {
+                long now = System.currentTimeMillis();
+                long last = (long) (seconds * 1000);
+                if (last <= now) {
+                    out.append('\n').append(getString(R.string.raws_list_details_last_updated,
+                            android.text.format.DateUtils.getRelativeTimeSpanString(last, now,
+                                    android.text.format.DateUtils.MINUTE_IN_MILLIS)));
+                }
+            }
+        }
+        if (installed) {
+            appendSubscriptionCount(
+                    out, row.opt("activeBytes"), R.string.raws_list_details_bytes);
+            appendSubscriptionCount(
+                    out, row.opt("networkRules"), R.string.raws_list_details_network);
+            appendSubscriptionCount(
+                    out, row.opt("cosmeticRules"), R.string.raws_list_details_cosmetic);
+        }
+        return out.toString().stripLeading();
+    }
+
+    private static long exactSubscriptionCount(@Nullable Object value) {
+        if (value instanceof Integer count) return count.longValue();
+        if (value instanceof Long count) return count;
+        return -1;
+    }
+
+    private void appendSubscriptionCount(StringBuilder out, @Nullable Object rawCount, int label) {
+        long value = exactSubscriptionCount(rawCount);
+        if (value >= 0) out.append('\n').append(getString(label, value));
+    }
+
+    private static boolean isSingleSubscriptionLine(String value) {
+        return value.codePoints().noneMatch(cp -> Character.isISOControl(cp)
+                || cp == 0x2028 || cp == 0x2029
+                || (cp >= 0x202a && cp <= 0x202e) || (cp >= 0x2066 && cp <= 0x2069));
+    }
+
+    private static boolean isPublicSubscriptionUrl(String value) {
+        if (value.length() > 2048 || !isSingleSubscriptionLine(value)) return false;
+        try {
+            var uri = new java.net.URI(value);
+            return "https".equalsIgnoreCase(uri.getScheme())
+                    && uri.getHost() != null && uri.getRawUserInfo() == null;
+        } catch (java.net.URISyntaxException ignored) {
+            return false;
+        }
+    }
+
+    private void showFiltersEditor() {
+        if (mFiltersEditor != null || mFiltersSaving || !isResumed()) return;
+        Profile profile = getProfile();
+        if (!profile.isNativeInitialized()) return;
+        String original = RawsProtectionCopy.customNetworkRules(profile);
+        var context = requireContext();
+        var editor = new EditText(context);
+        editor.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_MULTI_LINE
+                | InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS);
+        editor.setMinLines(4);
+        editor.setMaxLines(8);
+        editor.setTypeface(Typeface.MONOSPACE);
+        editor.setHint(R.string.raws_my_filters_hint);
+        editor.setContentDescription(getString(R.string.raws_my_filters_title));
+        editor.setText(original);
+        var wrapped = new FrameLayout(context);
+        int margin = Math.round(20 * context.getResources().getDisplayMetrics().density);
+        var params = new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        params.setMarginStart(margin);
+        params.setMarginEnd(margin);
+        wrapped.addView(editor, params);
+
+        var dialog = new AlertDialog.Builder(context, R.style.ThemeOverlay_BrowserUI_AlertDialog)
+                .setTitle(R.string.raws_my_filters_title)
+                .setMessage(profile.isOffTheRecord()
+                        ? R.string.raws_my_filters_format_private
+                        : R.string.raws_my_filters_format)
+                .setView(wrapped)
+                .setPositiveButton(R.string.raws_my_filters_save, null)
+                .setNegativeButton(android.R.string.cancel, null)
+                .create();
+        mFiltersEditor = dialog;
+        dialog.setOnDismissListener(ignored -> {
+            if (mFiltersEditor == dialog) mFiltersEditor = null;
+        });
+        dialog.setOnShowListener(ignored -> dialog.getButton(DialogInterface.BUTTON_POSITIVE)
+                .setOnClickListener(view -> saveMyFilters(dialog, editor, profile, original)));
+        dialog.show();
+    }
+
+    private void saveMyFilters(
+            AlertDialog dialog, EditText editor, Profile profile, String original) {
+        if (mFiltersEditor != dialog || mFiltersSaving || !isResumed()
+                || getProfile() != profile || !profile.isNativeInitialized()) return;
+        var entered = editor.getText();
+        String rules = entered == null ? "" : entered.toString();
+        if (!withinMyFiltersLimits(rules)) {
+            editor.setError(getString(R.string.raws_my_filters_limits));
+            return;
+        }
+        // Do not overwrite another committed edit with a stale draft. The native
+        // profile owner separately refuses multiple concurrent replacements.
+        if (!original.equals(RawsProtectionCopy.customNetworkRules(profile))) {
+            editor.setError(getString(R.string.raws_my_filters_changed_elsewhere));
+            return;
+        }
+        if (rules.equals(original)) {
+            dialog.dismiss();
+            return;
+        }
+
+        mFiltersSaving = true;
+        setFiltersEditorBusy(dialog, editor, true);
+        boolean accepted = RawsProtectionCopy.replaceCustomNetworkRules(profile, rules, compiled -> {
+            mFiltersSaving = false;
+            if (mFiltersEditor != dialog || !isResumed() || getProfile() != profile
+                    || !profile.isNativeInitialized()) return;
+            if (!compiled || !rules.equals(RawsProtectionCopy.customNetworkRules(profile))) {
+                setFiltersEditorBusy(dialog, editor, false);
+                editor.setError(getString(R.string.raws_my_filters_not_verified));
+                return;
+            }
+            dialog.dismiss();
+            Toast.makeText(requireContext(), R.string.raws_my_filters_saved,
+                    Toast.LENGTH_SHORT).show();
+        });
+        if (!accepted) {
+            mFiltersSaving = false;
+            setFiltersEditorBusy(dialog, editor, false);
+            editor.setError(getString(R.string.raws_my_filters_not_accepted));
+        }
+    }
+
+    private static void setFiltersEditorBusy(AlertDialog dialog, EditText editor, boolean busy) {
+        editor.setEnabled(!busy);
+        dialog.setCancelable(!busy);
+        dialog.getButton(DialogInterface.BUTTON_POSITIVE).setEnabled(!busy);
+        dialog.getButton(DialogInterface.BUTTON_NEGATIVE).setEnabled(!busy);
+    }
+
+    private static boolean withinMyFiltersLimits(String rules) {
+        byte[] utf8 = rules.getBytes(StandardCharsets.UTF_8);
+        if (utf8.length > 32 * 1024) return false;
+        int line = 0;
+        int lines = 0;
+        for (byte value : utf8) {
+            if (value == 0) return false;
+            if (value == '\n') {
+                if (++lines > 256) return false;
+                line = 0;
+            } else if (++line > 512) {
+                return false;
+            }
+        }
+        return line == 0 || lines < 256;
+    }
+
+    @Override
+    public void onPause() {
+        mFilterStatusHandler.removeCallbacks(mFilterStatusPoll);
+        dismissSubscriptionDetails();
+        super.onPause();
+    }
+
+    @Override
+    public void onDestroyView() {
+        dismissSubscriptionDetails();
+        var dialog = mFiltersEditor;
+        mFiltersEditor = null;
+        if (dialog != null) dialog.dismiss();
+        super.onDestroyView();
+    }
+
+    private void bindGlobalAdFiltering() {
+        ChromeSwitchPreference master = findPreference("raws_global_ad_filtering");
+        if (master == null) return;
+        master.setOnPreferenceChangeListener((preference, value) -> {
+            if (!(value instanceof Boolean requested) || !isResumed() || mGlobalAdsPending) {
+                return false;
+            }
+            Profile profile = getProfile();
+            int before = RawsProtectionCopy.globalAdFilteringState(profile);
+            if (before < 0 || (before == 1) == requested) return false;
+            mGlobalAdsPending = true;
+            updateStatus();
+            boolean accepted = RawsProtectionCopy.setGlobalAdFilteringEnabled(
+                    profile, requested, persisted -> {
+                        mGlobalAdsPending = false;
+                        if (!isResumed() || getProfile() != profile) return;
+                        int after = RawsProtectionCopy.globalAdFilteringState(profile);
+                        updateStatus();
+                        if (!persisted || after != (requested ? 1 : 0)) {
+                            notifyGlobalAdsSaveFailure();
+                        }
+                    });
+            if (!accepted) {
+                mGlobalAdsPending = false;
+                if (isResumed() && getProfile() == profile) {
+                    updateStatus();
+                    notifyGlobalAdsSaveFailure();
+                }
+            }
+            // Native policy is the only owner (not the preference widget).
+            return false;
+        });
+    }
+
+    private void notifyGlobalAdsSaveFailure() {
+        Toast.makeText(requireContext(), R.string.raws_global_ads_change_unverified,
+                Toast.LENGTH_SHORT).show();
+    }
+
+    private void renderGlobalAdFiltering(Profile profile, int state) {
+        ChromeSwitchPreference master = findPreference("raws_global_ad_filtering");
+        if (master == null) return;
+        master.setChecked(state == 1);
+        master.setEnabled(!mGlobalAdsPending && state >= 0);
+        master.setSummary(profile.isOffTheRecord()
+                ? R.string.raws_global_ads_scope_private : R.string.raws_global_ads_scope);
+    }
+
+    private void updateStatus() {
+        Profile profile = getProfile();
+        Preference lists = findPreference("raws_filter_list_details");
+        if (lists != null) {
+            lists.setVisible(!profile.isOffTheRecord());
+            lists.setEnabled(profile.isNativeInitialized());
+        }
+        int globalAds = RawsProtectionCopy.globalAdFilteringState(profile);
+        renderGlobalAdFiltering(profile, globalAds);
+        Preference dns = findPreference("raws_protection_secure_dns");
+        if (dns != null) dns.setSummary(SecureDnsSettings.getSummary(requireContext()));
+        Preference status = findPreference("raws_global_protection_status");
+        if (status != null) {
+            status.setSummary(globalAds == 0 ? R.string.raws_global_ads_off
+                    : globalAds < 0 ? R.string.raws_ui_unknown
+                                    : RawsProtectionCopy.currentStatusStringId());
+        }
+    }
+
+    @Override
+    public @AnimationType int getAnimationType() {
+        return AnimationType.PROPERTY;
+    }
+
+    @Override
+    public MonotonicObservableSupplier<String> getPageTitle() {
+        return mPageTitle;
+    }
+}

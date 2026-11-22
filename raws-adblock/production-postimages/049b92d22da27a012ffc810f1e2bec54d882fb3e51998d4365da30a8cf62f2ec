@@ -1,0 +1,22 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+//
+// Two ad-slot selectors copied verbatim from Brave's MPL-2.0 list:
+// https://github.com/brave/adblock-lists/blob/ee162640cf8c99386c872385a3bac18c1f996128/brave-unbreak.txt#L342
+// https://github.com/brave/adblock-lists/blob/ee162640cf8c99386c872385a3bac18c1f996128/brave-unbreak.txt#L1220
+// This is not a subscription; no other Brave rules/resources are included.
+
+#ifndef COMPONENTS_SANDIUM_ADBLOCK_BRAVE_SELECTED_AD_SLOTS_H_
+#define COMPONENTS_SANDIUM_ADBLOCK_BRAVE_SELECTED_AD_SLOTS_H_
+
+namespace sandium::port1442 {
+
+inline constexpr char kBraveSelectedAdSlots[] = R"RAWSBRAVE(
+startpage.com###gcsa-top
+globalnews.ca##.l-headerAd__container
+)RAWSBRAVE";
+
+}  // namespace sandium::port1442
+
+#endif  // COMPONENTS_SANDIUM_ADBLOCK_BRAVE_SELECTED_AD_SLOTS_H_

@@ -454,7 +454,29 @@ class FrozenScope(unittest.TestCase):
                          actual.tracked_paths - feature.TRACKED)
         self.assertEqual(feature.UI_GENERATED | extra_generated, actual.ui_files)
         if extra:
-            self.assertEqual(140, len(extra_tracked))
+            self.assertEqual(163, len(extra_tracked))
+            self.assertIn('chrome/android/java/src/org/chromium/chrome/browser/sync/settings/SignInPreference.java', extra_tracked)
+            self.assertIn('chrome/common/BUILD.gn', extra_tracked)
+            self.assertLessEqual({
+                'chrome/android/java/src/org/chromium/chrome/browser/autofill/settings/AutofillAndPasswordsFragment.java',
+                'chrome/android/java/src/org/chromium/chrome/browser/crash/ChromeMinidumpUploadJobServiceImpl.java',
+                'chrome/android/java/src/org/chromium/chrome/browser/crash/MinidumpUploadServiceImpl.java',
+                'chrome/android/java/src/org/chromium/chrome/browser/metrics/UmaSessionStats.java',
+                'chrome/android/java/src/org/chromium/chrome/browser/privacy/settings/PrivacyPreferencesManagerImpl.java',
+                'chrome/android/java/src/org/chromium/chrome/browser/sync/settings/GoogleServicesSettings.java',
+                'chrome/browser/metrics/chrome_metrics_service_accessor.cc',
+                'chrome/browser/ntp_customization/java/src/org/chromium/chrome/browser/ntp_customization/theme/upload_image/UploadImagePreviewCoordinator.java',
+                'chrome/browser/privacy/java/src/org/chromium/chrome/browser/privacy/secure_dns/SecureDnsBridge.java',
+                'chrome/browser/privacy/secure_dns_bridge.cc',
+                'chrome/browser/search_engines/android/java/src/org/chromium/chrome/browser/search_engines/settings/SearchEngineAdapter.java',
+                'chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/LocationBarPhone.java',
+                'chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/status/StatusCoordinator.java',
+                'chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/status/StatusMediator.java',
+                'chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/LocationBarModel.java',
+                'chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/signin_button/SigninButtonCoordinator.java',
+                'components/search_engines/template_url_service.cc',
+                'ui/android/java/src/org/chromium/ui/hierarchicalmenu/HierarchicalMenuController.java',
+            }, extra_tracked)
             self.assertIn('chrome/android/java/src/org/chromium/chrome/browser/ntp/NewTabPageLayout.java', extra_tracked)
             self.assertLessEqual({
                 'chrome/android/java/res/xml/appearance_preferences.xml',
@@ -468,12 +490,26 @@ class FrozenScope(unittest.TestCase):
                 for name in ('ntp/NewTabPage.java', 'suggestions/tile/MostVisitedTilesLayout.java',
                              'suggestions/tile/SuggestionsTileView.java')
             }, extra_tracked)
-            self.assertEqual(11, sum(p.startswith('chrome/browser/ui/android/omnibox/')
+            self.assertEqual(14, sum(p.startswith('chrome/browser/ui/android/omnibox/')
                                     for p in extra_tracked))
             self.assertIn('chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/'
                           'browser/toolbar/ToolbarPositionController.java', extra_tracked)
-            self.assertEqual(47, len(extra_generated))
+            self.assertEqual(58, len(extra_generated))
+            self.assertTrue({
+                'chrome/browser/raws/raws_observed_ad_slots.h',
+                'components/sandium_adblock/observed_ad_slot_policy.h',
+                'components/sandium_adblock/observed_ad_slot_scope.h',
+                'components/sandium_adblock/brave_supplemental_ad_slots.h',
+                'components/sandium_adblock/scoped_supplemental_cosmetics.cc',
+                'components/sandium_adblock/scoped_supplemental_cosmetics.h',
+                'components/sandium_adblock/supplemental_passive_rules.h',
+            }.isdisjoint(actual.files))
             self.assertLessEqual({
+                'chrome/common/raws_procedural_cosmetic_rules.h',
+                'chrome/renderer/raws_dynamic_cosmetic_scheduler.h',
+                'chrome/renderer/raws_procedural_cosmetic_binding.h',
+                'chrome/renderer/raws_procedural_cosmetic_matcher.h',
+                'components/sandium_adblock/brave_selected_ad_slots.h',
                 'chrome/browser/ui/android/toolbar/java/res/drawable/raws_page_toolbar_forward.xml',
                 'chrome/browser/ui/android/toolbar/java/res/drawable/raws_page_toolbar_menu.xml',
             }, extra_generated)

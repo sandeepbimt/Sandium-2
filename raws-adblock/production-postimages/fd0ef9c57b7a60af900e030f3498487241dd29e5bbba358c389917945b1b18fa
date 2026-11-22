@@ -1,0 +1,272 @@
+// SPDX-License-Identifier: MPL-2.0
+// Must link the actual patched Rust/CXX library; no adapter doubles here.
+#include <cstdint>
+#include <iostream>
+#include <optional>
+#include <cstdlib>
+#include <string_view>
+#include <string>
+#include <utility>
+#include <vector>
+#include "base/json/json_reader.h"
+#include "components/sandium_adblock/generic_style.h"
+#include "components/sandium_adblock/network_decision.h"
+#include "components/sandium_adblock/policy.h"
+namespace {
+auto Build(const std::string& text) {
+  auto set=adblock::new_filter_set(false);
+  const std::vector<uint8_t> bytes(text.begin(),text.end());
+  auto parsed=set->add_filter_list_with_permissions(bytes,0);
+  if (parsed.result_kind!=adblock::ResultKind::Success) std::abort();
+  return adblock::engine_from_filter_set(std::move(set));
+}
+}
+int main() {
+  if (!adblock::set_domain_resolver()) return 1;
+  auto a=Build("||blocked.test^$script\n||popup.test^$popup\n||onlynetwork.test^\n");
+  auto b=Build("@@||blocked.test/allowed.js$script\n@@||popup.test/login$popup\n"
+               "||ohjpfawpaap.in^$third-party,script,subdocument,image\n"
+               "publisher.test##.empty-ad-slot\npublisher.test##.kept-slot\npublisher.test#@#.kept-slot\n");
+  if(a.result_kind!=adblock::ResultKind::Success||b.result_kind!=adblock::ResultKind::Success)return 2;
+  using R=blink::mojom::ResourceType;
+  auto origin=url::Origin::Create(GURL("https://publisher.test/"));
+  struct C{const char*url;R r;bool block;};
+  const C cases[]={{"https://blocked.test/ad.js",R::kScript,true},{"https://blocked.test/allowed.js",R::kScript,false},
+    {"https://safe.test/ad.js",R::kScript,false},{"https://ohjpfawpaap.in/a",R::kImage,true},
+    {"https://ohjpfawpaap.in/a",R::kSubFrame,true},{"https://ohjpfawpaap.in/a",R::kMedia,false}};
+  for(auto c:cases){auto m=sandium::adblock_native::MatchStandard(*a.value,*b.value,GURL(c.url),c.r,origin,"GET");
+    if(sandium::adblock_native::ResolveDecision(m,{},"GET",false).history.blocked()!=c.block){std::cerr << "network mismatch: " << c.url << '\n';return 3;}}
+  for(auto c : {std::pair{"https://popup.test/auction",true},std::pair{"https://popup.test/login",false},std::pair{"https://onlynetwork.test/",false},std::pair{"https://pay.test/return",false}}){
+    GURL target(c.first);auto pass=[&](const adblock::Engine& e,bool prior,bool except){return e.matches(target.spec(),std::string(target.host()),std::string("publisher.test"),std::string("popup"),true,std::string("GET"),prior,except);};
+    bool blocked=sandium::port1442::PopupMatch(pass(*a.value,false,true),[&](bool m,bool e){return pass(*b.value,m,e);});
+    if(blocked!=c.second){std::cerr << "popup mismatch: " << c.first << '\n';return 4;}}
+  auto raw=b.value->url_cosmetic_resources(std::string("https://publisher.test/"));
+  auto info=base::JSONReader::ReadDict(std::string_view(raw.data(),raw.size()),base::JSON_PARSE_RFC);
+  if(!info || !info->FindList("hide_selectors"))return 5;
+  bool hide=false;for(const auto& value:*info->FindList("hide_selectors")){if(!value.is_string())continue;if(value.GetString()==".kept-slot")return 6;hide|=value.GetString()==".empty-ad-slot";}
+  if (!hide) return 7;
+  auto generic = Build("##.ad-160x600\n###ad-728x90\n"
+                       "publisher.test#@#.ad-160x600\n"
+                       "@@||no-generic.test^$generichide\n");
+  if (generic.result_kind != adblock::ResultKind::Success) return 8;
+  auto plain = generic.value->hidden_class_id_selectors(
+      std::vector<std::string>{"ad-160x600"},
+      std::vector<std::string>{"ad-728x90"}, std::vector<std::string>{});
+  if (plain.result_kind != adblock::ResultKind::Success ||
+      plain.value.size() != 2) return 9;
+  auto excepted = generic.value->hidden_class_id_selectors(
+      std::vector<std::string>{"ad-160x600"},
+      std::vector<std::string>{"ad-728x90"}, std::vector<std::string>{".ad-160x600"});
+  if (excepted.result_kind != adblock::ResultKind::Success ||
+      excepted.value.size() != 1 ||
+      std::string(excepted.value[0]) != "#ad-728x90") return 10;
+  auto suppress_raw =
+      generic.value->url_cosmetic_resources(std::string("https://no-generic.test/"));
+  auto suppress = base::JSONReader::ReadDict(
+      std::string_view(suppress_raw.data(), suppress_raw.size()), base::JSON_PARSE_RFC);
+  if (!suppress || !suppress->FindBool("generichide").value_or(false)) return 11;
+  {
+    using namespace sandium::port1442;
+    const std::string package_rules = "##.cross-list-ad\n###late-ad-slot\n";
+    const std::string added_rules =
+        "##.extra-ad-slot\n##.extra-ad-slot > .complex-child\n"
+        "publisher.test#@#.cross-list-ad\n"
+        "@@||disable-generic.test^$generichide\n";
+    auto primary = Build(package_rules);
+    auto extra = Build(added_rules);
+    if (primary.result_kind != adblock::ResultKind::Success ||
+        extra.result_kind != adblock::ResultKind::Success) return 12;
+    auto resolve = [](const adblock::Engine& engine, const std::string& entry) {
+      SimpleGenericCensus keys(8);
+      keys.AddList(entry, 8);
+      return keys.Resolve([&](const auto& classes, const auto& ids) {
+        auto result = engine.hidden_class_id_selectors(
+            classes, ids, std::vector<std::string>{});
+        if (result.result_kind == adblock::ResultKind::Success) {
+          return std::move(result.value);
+        }
+        return decltype(result.value){};
+      });
+    };
+    auto selectors = MergeSimpleGeneric(resolve(*primary.value, package_rules),
+                                        resolve(*extra.value, added_rules));
+    if (selectors != (std::vector<std::string>{
+                         ".cross-list-ad", "#late-ad-slot", ".extra-ad-slot"})) return 13;
+    auto raw_exceptions = extra.value->url_cosmetic_resources(
+        std::string("https://publisher.test/"));
+    auto page = base::JSONReader::ReadDict(
+        std::string_view(raw_exceptions.data(), raw_exceptions.size()),
+        base::JSON_PARSE_RFC);
+    if (!page || !page->FindList("exceptions")) return 14;
+    std::set<std::string> exceptions;
+    for (const auto& exception : *page->FindList("exceptions")) {
+      if (exception.is_string()) {
+        exceptions.insert(exception.GetString());
+      }
+    }
+    std::string merged_css;
+    AppendSimpleGenericStyles(merged_css, false, selectors, {}, exceptions);
+    if (merged_css != "#late-ad-slot,.extra-ad-slot { display:none !important; }\n")
+      return 15;
+    auto raw_disabled = extra.value->url_cosmetic_resources(
+        std::string("https://disable-generic.test/"));
+    auto disabled = base::JSONReader::ReadDict(
+        std::string_view(raw_disabled.data(), raw_disabled.size()),
+        base::JSON_PARSE_RFC);
+    merged_css.clear();
+    if (!disabled || !disabled->FindBool("generichide").value_or(false)) return 16;
+    AppendSimpleGenericStyles(merged_css, true, selectors, {}, {});
+    if (!merged_css.empty()) return 17;
+  }
+  // Exercise the same compiled-in list used by Install(), not a copy of the rules.
+  auto incident = Build(sandium::port1442::kPlayerIncidentRules);
+  auto exceptions = Build("@@||atdzfavz.in/allowed.js$script,domain=caseyseemavoid.com\n");
+  if (incident.result_kind != adblock::ResultKind::Success ||
+      exceptions.result_kind != adblock::ResultKind::Success) return 18;
+  struct IncidentCase { const char* issuer; const char* url; R type; bool block; };
+  for (auto c : std::vector<IncidentCase>{
+       {"caseyseemavoid.com", "https://atdzfavz.in/rats/gfotkoqa/pkaasmj", R::kScript,true},
+       {"caseyseemavoid.com", "https://www.atdzfavz.in/static/image/pn/test.gif", R::kImage,true},
+       {"caseyseemavoid.com", "https://atdzfavz.in/nca/dik/ahxabqo", R::kSubFrame,true},
+       {"caseyseemavoid.com", "https://atdzfavz.in/pixel", R::kSubResource,true},
+       {"caseyseemavoid.com", "https://www.atdzfavz.in/tracker.ico", R::kFavicon,true},
+       {"caseyseemavoid.com", "https://player.test/favicon.ico", R::kFavicon,false},
+       {"caseyseemavoid.com", "https://atdzfavz.in/allowed.js", R::kScript,false},
+       {"caseyseemavoid.com", "https://atdzfavz.in/movie.mp4", R::kMedia,false},
+       {"caseyseemavoid.com", "https://video.cloudwindow-route.com/engine/mp4-proxy/test.mp4", R::kMedia,false},
+       {"unrelated.test", "https://atdzfavz.in/rats/gfotkoqa/pkaasmj", R::kScript,false}}) {
+    auto source = url::Origin::Create(GURL(std::string("https://") + c.issuer));
+    auto match = sandium::adblock_native::MatchStandard(*exceptions.value, *incident.value,
+        GURL(c.url), c.type, source, "GET");
+    if (sandium::adblock_native::ResolveDecision(match, {}, "GET", false).history.blocked()
+        != c.block) { std::cerr << "1471 network regression: " << c.url << '\n'; return 19; }
+  }
+  for (auto [url, block] : {std::pair{"https://cartographicalrunafoulstreet.com/5/0123456789abcdef0123456789abcdef?psid=12",true},
+                            std::pair{"https://ablelaunchshorts.com/2060440?psid=12",true},
+                            std::pair{"https://g2288.com/afu.php?id=12",true},
+                            std::pair{"https://pay.test/checkout",false}}) {
+    GURL target(url);
+    auto m = incident.value->matches(target.spec(),std::string(target.host()),
+        std::string("caseyseemavoid.com"),std::string("popup"),true,std::string("GET"),false,true);
+    if ((m.matched && !m.has_exception) != block) return 20;
+  }
+  // Source, third-party, type, cross-engine exceptions, and hostname rotation.
+  auto overrides = Build("@@||allowed.test/bilh/onx$script,domain=caseyseemavoid.com\n"
+                         "@@||pay.test/bha/avconcku$popup,domain=caseyseemavoid.com\n");
+  if (overrides.result_kind != adblock::ResultKind::Success) return 21;
+  for (auto c : std::vector<IncidentCase>{
+      {"caseyseemavoid.com","https://rotated.test/rats/gfotkoqa/pkaasmj",R::kScript,true},
+      {"caseyseemavoid.com","https://next.test/bilh/onx?i=2",R::kScript,true},
+      {"caseyseemavoid.com","https://other.test/nca/dik/ahxabqo",R::kSubFrame,true},
+      {"caseyseemavoid.com","https://img.test/static/image/pn/x.gif",R::kImage,true},
+      {"vidhost.pro","https://new.test/rmvJbZJ7ZsKV/138273",R::kScript,true},
+      {"caseyseemavoid.com","https://allowed.test/bilh/onx",R::kScript,false},
+      {"caseyseemavoid.com","https://caseyseemavoid.com/bilh/onx",R::kScript,false},
+      {"caseyseemavoid.com","https://cdn.test/engine/hls2-c/seg-1.ts",R::kMedia,false},
+      {"caseyseemavoid.com","https://cdn.test/bilh/onx",R::kMedia,false},
+      {"caseyseemavoid.com","https://good.test/echo?url=/bilh/onx",R::kScript,false},
+      {"chat.test","https://cdn.test/static/image/pn/avatar.gif",R::kImage,false}}) {
+    auto source = url::Origin::Create(GURL(std::string("https://") + c.issuer));
+    auto decision = sandium::adblock_native::MatchStandard(*overrides.value, *incident.value,
+        GURL(c.url), c.type, source, "GET");
+    if (sandium::adblock_native::ResolveDecision(decision, {}, "GET", false).history.blocked() != c.block) {
+      std::cerr << "#1483 resource mismatch: " << c.url << '\n'; return 22;
+    }
+  }
+  struct PopupCase {const char* from; const char* url; bool block;};
+  for (auto c : std::vector<PopupCase>{
+      {"vidhost.pro","https://rotated.test/cx/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa?md=a&pr=b&fc=c",true},
+      {"vidhost.pro","https://pxl-eu.rtb.tsyndicate.com/do2/direct?id=a",true},
+      {"caseyseemavoid.com","https://another.test/bha/avconcku?x=1",true},
+      {"caseyseemavoid.com","https://arrogancedanderuntruth.com/2146079/",true},
+      {"caseyseemavoid.com","https://pay.test/bha/avconcku?x=1",false},
+      {"vidhost.pro","https://pay.test/cx/checkout?md=a&pr=b&fc=c",false},
+      {"chat.test","https://new.test/bha/avconcku",false}}) {
+    GURL url(c.url);
+    auto match = [&](const adblock::Engine& e, bool prior, bool except) {
+      return e.matches(url.spec(),std::string(url.host()),std::string(c.from),"popup",true,"GET",prior,except);
+    };
+    if (sandium::port1442::PopupMatch(match(*overrides.value,false,true),
+          [&](bool m,bool e){return match(*incident.value,m,e);}) != c.block) {
+      std::cerr << "#1483 popup mismatch: " << c.url << '\n'; return 23;
+    }
+  }
+  {
+    using namespace sandium::port1442;
+    const std::string package = std::string(kUnfilledAdSlotRules) +
+        "##.rail > .ad-slot\n##.rail > .ad-unit\n"
+        "##.dialog > .subscribe\n##.modal:has(.ad-slot)\n";
+    const std::string added =
+        "##.extra > .adunit\n"
+        "protected.test#@#.rail > .ad-slot\n"
+        "protected.test#@#.ad-unit\n"
+        "@@||no-compounds.test^$generichide\n";
+    auto package_engine = Build(package);
+    auto added_engine = Build(added);
+    if (package_engine.result_kind != adblock::ResultKind::Success ||
+        added_engine.result_kind != adblock::ResultKind::Success) return 32;
+    AdCompoundCensus package_keys, added_keys;
+    package_keys.AddList(package, AdCompoundCensus::kLimit);
+    added_keys.AddList("##.non-engine-member > .ad-slot\n", 1);
+    added_keys.AddList(added, AdCompoundCensus::kPerSubscription);
+    const auto resolve = [](const adblock::Engine& engine,
+                            const AdCompoundCensus& census) {
+      return census.Resolve([&](const auto& classes, const auto& ids) {
+        std::vector<std::string> hits;
+        auto ret = engine.hidden_class_id_selectors(
+            classes, ids, std::vector<std::string>{});
+        if (ret.result_kind == adblock::ResultKind::Success)
+          for (const auto& hit : ret.value) hits.emplace_back(hit.data(), hit.size());
+        return hits;
+      });
+    };
+    const auto combined = MergeSimpleGeneric(
+        resolve(*package_engine.value, package_keys),
+        resolve(*added_engine.value, added_keys));
+    const std::vector<std::string> expected{
+        ".adsbygoogle[data-ad-status=\"unfilled\"]",
+        ".ad-slot[data-ad-status=\"unfilled\"]",
+        ".rail > .ad-slot", ".rail > .ad-unit", ".extra > .adunit"};
+    if (combined != expected) {
+      std::cerr << "bounded compound provenance mismatch\n";
+      return 33;
+    }
+    const auto style = [&](const std::string& url) -> std::optional<std::string> {
+      std::set<std::string> hide, except;
+      bool suppress = false;
+      for (const adblock::Engine* item : {&*package_engine.value, &*added_engine.value}) {
+        auto raw = item->url_cosmetic_resources(url);
+        auto page = base::JSONReader::ReadDict(
+            std::string_view(raw.data(), raw.size()), base::JSON_PARSE_RFC);
+        if (!page) return std::nullopt;
+        suppress |= page->FindBool("generichide").value_or(false);
+        for (auto pair : {std::pair{"hide_selectors", &hide},
+                          std::pair{"exceptions", &except}}) {
+          if (auto* selectors = page->FindList(pair.first))
+            for (const auto& selector : *selectors)
+              if (selector.is_string()) pair.second->insert(selector.GetString());
+        }
+      }
+      std::string css;
+      AppendAdCompoundStyles(css, suppress, combined, hide, except);
+      return css;
+    };
+    const auto regular = style("https://other.test/");
+    const auto protected_css = style("https://protected.test/");
+    const auto disabled = style("https://no-compounds.test/");
+    if (!regular || !protected_css || !disabled ||
+        regular->find(".rail > .ad-slot {") == std::string::npos ||
+        regular->find(".rail > .ad-unit {") == std::string::npos ||
+        protected_css->find(".rail > .ad-slot {") != std::string::npos ||
+        protected_css->find(".rail > .ad-unit {") != std::string::npos ||
+        protected_css->find(".extra > .adunit {") == std::string::npos ||
+        !disabled->empty()) {
+      std::cerr << "bounded compound document exception mismatch\n";
+      return 34;
+    }
+  }
+  std::cout << "RAWS_1483_ROTATING_PLAYER_PASS\n";
+  std::cout << "RAWS_1471_INCIDENT_RULES_PASS\n";
+  std::cout << "RAWS_ENGINE_SMOKE_1442_PASS\n";
+  return 0;
+}

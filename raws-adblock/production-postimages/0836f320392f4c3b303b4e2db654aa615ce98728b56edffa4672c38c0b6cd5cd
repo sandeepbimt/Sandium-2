@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="raws_home_google_search_hint">Search Google or type a URL</string>
+    <string name="raws_home_open_lens_app">Open Google Lens app</string>
+    <string name="raws_home_filters_loading">Preparing filters · %1$d/%2$d active</string>
+    <string name="raws_home_filters_applying">Applying filters…</string>
+</resources>

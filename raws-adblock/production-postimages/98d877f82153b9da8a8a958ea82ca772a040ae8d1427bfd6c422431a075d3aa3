@@ -1,0 +1,143 @@
+// SPDX-License-Identifier: MPL-2.0
+#ifndef CHROME_RENDERER_RAWS_PROCEDURAL_COSMETIC_MATCHER_H_
+#define CHROME_RENDERER_RAWS_PROCEDURAL_COSMETIC_MATCHER_H_
+
+namespace raws::cosmetic {
+
+// Fixed function in Chrome's existing isolated world. A future audited rule may
+// name one exact card and one direct-text sponsor marker, not supply JS or CSS.
+inline constexpr char kRawSProceduralCosmeticMatcher[] = R"RAWSJS(
+(doc, config, nonce) => {
+  if (!Array.isArray(config) || config.length !== 10 ||
+      typeof nonce !== 'string' || !/^[0-9A-Fa-f]{32}$/.test(nonce))
+    return null;
+  const [origin, path, rootId, cardTag, cardClass, containerTag,
+    containerClass, markerTag, markerClass, label] = config;
+  if (typeof origin !== 'string' || typeof path !== 'string' ||
+      ![cardTag, containerTag, markerTag].every(x =>
+        typeof x === 'string' && /^[a-z][a-z0-9-]{0,23}$/.test(x)) ||
+      ![rootId, cardClass, containerClass, markerClass].every(x =>
+        typeof x === 'string' && /^[a-zA-Z_][a-zA-Z0-9_-]{0,47}$/.test(x)) ||
+      typeof label !== 'string' || label.length === 0 || label.length > 32 ||
+      label.trim().toLowerCase() !== label)
+    return null;
+  const mark = 'data-raws-procedural-ad-card';
+  const hidden = new Set();
+  const lower = value => value.trim().toLowerCase();
+  const tagAndClass = (element, tag, name) =>
+    element.localName === tag && element.classList.contains(name);
+  const eligibleDocument = () => {
+    const loc = doc.location;
+    return doc.contentType === 'text/html' && loc &&
+      loc.origin === origin && loc.pathname === path && !loc.hash &&
+      loc.search.startsWith('?k=') && loc.search.length > 3 &&
+      loc.search.length <= 513 && !/[&;]/.test(loc.search);
+  };
+  const rootElement = () => doc.getElementById(rootId);
+  const unsafe = node => {
+    const tag = node.localName;
+    const role = node.getAttribute('role');
+    if (node.namespaceURI !== 'http://www.w3.org/1999/xhtml' ||
+        tag.includes('-') || node.shadowRoot ||
+        tag === 'form' || tag === 'input' || tag === 'select' ||
+        tag === 'textarea' || tag === 'button' || tag === 'dialog' ||
+        tag === 'iframe' ||
+        node.hasAttribute('contenteditable') || node.hasAttribute('aria-modal') ||
+        role === 'dialog' || role === 'alertdialog' || role === 'form')
+      return true;
+    // Conservative overblocking of matcher execution, never of a page: leave
+    // suspicious access controls or unknown overlong metadata visible.
+    for (const attr of ['id', 'class', 'action', 'href', 'aria-label', 'name']) {
+      const value = node.getAttribute(attr);
+      if (value && (value.length > 256 ||
+          /login|sign.?in|oauth|consent|cookie.?banner|paywall|checkout|payment|subscri|membership|register|piano|tinypass/i.test(value)))
+        return true;
+    }
+    return false;
+  };
+  function directText(marker) {
+    let text = '';
+    for (let child = marker.firstChild, n = 0; child;
+         child = child.nextSibling, ++n) {
+      if (n >= 4 || child.nodeType !== 3 || child.length > 48 - text.length)
+        return false;
+      text += child.data;
+    }
+    return lower(text) === label;
+  }
+  function enclosingCard(element) {
+    for (let n = 0; element && n <= 4; ++n, element = element.parentElement) {
+      if (tagAndClass(element, cardTag, cardClass)) return element;
+    }
+    return null;
+  }
+  function isAdCard(card) {
+    if (card.parentElement !== rootElement()) return false;
+    let container;
+    // Only an exact original result-body branch may contain the ad marker.
+    for (let child = card.firstElementChild, n = 0; child;
+         child = child.nextElementSibling, ++n) {
+      if (n >= 16) return false;
+      if (tagAndClass(child, containerTag, containerClass)) {
+        if (container) return false;
+        container = child;
+      }
+    }
+    if (!container) return false;
+    for (let parent = card.parentElement, n = 0; parent;
+         parent = parent.parentElement, ++n) {
+      if (n >= 16 || unsafe(parent)) return false;
+    }
+    // A bounded card-local walk, not document text or all descendants of body.
+    const walker = doc.createTreeWalker(card, 1); // SHOW_ELEMENT
+    let markers = 0;
+    let node = card;
+    for (let n = 0; node; node = walker.nextNode(), ++n) {
+      if (n >= 64 || unsafe(node)) return false;
+      if (node !== card && tagAndClass(node, cardTag, cardClass)) return false;
+      if (node !== card && tagAndClass(node, markerTag, markerClass)) {
+        if (!container.contains(node) || enclosingCard(node) !== card ||
+            !directText(node) || ++markers !== 1)
+          return false;
+      }
+    }
+    return markers === 1;
+  }
+  function forget(card) {
+    if (!hidden.delete(card)) return;
+    if (card.getAttribute(mark) === nonce) card.removeAttribute(mark);
+  }
+  return {
+    eligibleDocument,
+    rootElement,
+    recheckOwned() {
+      for (const card of hidden) {
+        if (!eligibleDocument() || !card.isConnected ||
+            !tagAndClass(card, cardTag, cardClass) || !isAdCard(card))
+          forget(card);
+      }
+    },
+    visitElement(element) {
+      // Former card class or DOM location may have changed.
+      if (hidden.has(element) &&
+          (!tagAndClass(element, cardTag, cardClass) || !element.isConnected))
+        forget(element);
+      const card = enclosingCard(element);
+      if (!card) return;
+      if (!eligibleDocument() || !card.isConnected || !isAdCard(card)) {
+        forget(card);
+      } else if (!hidden.has(card) && hidden.size < 16 && !card.hasAttribute(mark)) {
+        hidden.add(card);
+        card.setAttribute(mark, nonce);
+      }
+    },
+    reset() {
+      for (const card of hidden) forget(card);
+    }
+  };
+}
+)RAWSJS";
+
+}  // namespace raws::cosmetic
+
+#endif  // CHROME_RENDERER_RAWS_PROCEDURAL_COSMETIC_MATCHER_H_

@@ -1,0 +1,360 @@
+// Copyright 2020 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+package org.chromium.chrome.browser.ntp.search;
+
+import android.content.ActivityNotFoundException;
+import android.content.Context;
+import android.content.Intent;
+import android.content.pm.ApplicationInfo;
+import android.content.pm.PackageManager;
+import android.content.res.ColorStateList;
+import android.content.res.Resources;
+import android.graphics.Rect;
+import android.graphics.Typeface;
+import android.graphics.drawable.Drawable;
+import android.graphics.drawable.GradientDrawable;
+import android.graphics.drawable.LayerDrawable;
+import android.graphics.drawable.RippleDrawable;
+import android.util.AttributeSet;
+import android.view.MotionEvent;
+import android.view.TouchDelegate;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.ImageView;
+import android.widget.LinearLayout;
+import android.widget.TextView;
+
+import androidx.annotation.Px;
+import androidx.core.widget.ImageViewCompat;
+
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
+import org.chromium.chrome.R;
+import org.chromium.chrome.browser.ntp.NewTabPageUtils;
+import org.chromium.chrome.browser.ntp_customization.NtpCustomizationUtils;
+import org.chromium.chrome.browser.omnibox.GlifStrokeDrawable;
+import org.chromium.components.browser_ui.widget.RoundedCornerOutlineProvider;
+import org.chromium.components.browser_ui.widget.chips.ChipView;
+
+import java.util.function.BooleanSupplier;
+
+/** Provides the additional capabilities needed for the SearchBox container layout. */
+@NullMarked
+public class SearchBoxContainerView extends LinearLayout {
+    TextView mHintTextView;
+    ImageView mDseIconView;
+    View mSearchBoxView;
+    ImageView mVoiceSearchButton;
+    ImageView mLensButton;
+    ImageView mPlusButton;
+    ChipView mAiChip;
+    GlifStrokeDrawable mGlifStrokeDrawable;
+    boolean mIsNtpAuroraEnabled;
+
+    private static final String RAWS_GOOGLE_LENS = "com.google.ar.lens";
+    private static final String RAWS_GOOGLE_SEARCH = "com.google.android.googlequicksearchbox";
+    private static final String RAWS_GOOGLE_PLAY_SERVICES = "com.google.android.gms";
+
+    private @Nullable OnClickListener mNativeLensClickListener;
+    private boolean mRawSExternalLensSelected;
+    private boolean mUseRawSHomeSearchLauncher;
+    private boolean mRawSHomeSearchGoogle;
+
+    private @Nullable TouchDelegate mTouchDelegate;
+    private @Nullable Rect mLastTouchDelegateRect;
+
+    /** Constructor for inflating from XML. */
+    public SearchBoxContainerView(Context context, AttributeSet attrs) {
+        super(context, attrs);
+    }
+
+    @Override
+    protected void onFinishInflate() {
+        super.onFinishInflate();
+
+        mHintTextView = findViewById(R.id.search_box_text);
+        mDseIconView = findViewById(R.id.search_box_engine_icon);
+        mSearchBoxView = findViewById(R.id.search_box_shadow_container);
+        mVoiceSearchButton = findViewById(R.id.voice_search_button);
+        mLensButton = findViewById(R.id.lens_camera_button);
+        mPlusButton = findViewById(R.id.search_box_plus_button);
+        mAiChip = findViewById(R.id.search_box_ai_chip);
+        mPlusButton.addOnLayoutChangeListener((_, _, _, _, _, _, _, _, _) -> updateTouchDelegate());
+        mIsNtpAuroraEnabled = NewTabPageUtils.isNtpAuroraEnabled();
+
+        Resources res = getResources();
+        Typeface typeface = Typeface.create("google-sans-medium", Typeface.NORMAL);
+        mHintTextView.setTypeface(typeface);
+
+        @Px int size = res.getDimensionPixelSize(R.dimen.omnibox_search_engine_logo_composed_size);
+        @Px int radius = size / 2;
+        mDseIconView.setOutlineProvider(new RoundedCornerOutlineProvider(radius));
+        mDseIconView.setClipToOutline(true);
+        ImageViewCompat.setImageTintList(mDseIconView, /* tintList= */ null);
+        float cornerRadius = res.getDimension(R.dimen.ai_chip_corner_radius);
+        mGlifStrokeDrawable = new GlifStrokeDrawable(getContext(), cornerRadius);
+
+        LayerDrawable foreground = (LayerDrawable) mAiChip.getForeground();
+        foreground.setDrawableByLayerId(R.id.glif_border_layer, mGlifStrokeDrawable);
+        mAiChip.setOnHoverListener(
+                (_, event) -> {
+                    if (event.getAction() == MotionEvent.ACTION_HOVER_ENTER) {
+                        mGlifStrokeDrawable.start();
+                    }
+                    return false;
+                });
+
+        if (!mIsNtpAuroraEnabled) {
+            revertToLegacyLayoutConfiguration(res);
+        }
+    }
+
+    @Override
+    public boolean onInterceptTouchEvent(MotionEvent ev) {
+        if (ev.getActionMasked() == MotionEvent.ACTION_DOWN) {
+            if (getBackground() instanceof RippleDrawable) {
+                getBackground().setHotspot(ev.getX(), ev.getY());
+            }
+        }
+        return super.onInterceptTouchEvent(ev);
+    }
+
+    /** Keeps Chromium's own listeners; only the Home launcher's appearance is branded. */
+    public void useRawSHomeSearchLauncher(boolean googleIsDefault) {
+        if (!mUseRawSHomeSearchLauncher) {
+            mUseRawSHomeSearchLauncher = true;
+            float density = getResources().getDisplayMetrics().density;
+            var capsule = new GradientDrawable();
+            capsule.setColor(0xb827211d);
+            capsule.setStroke(Math.max(1, Math.round(density)), 0x82796f63);
+            capsule.setCornerRadius(999f);
+            mSearchBoxView.setBackground(capsule);
+            mSearchBoxView.setOnClickListener(view -> mHintTextView.performClick());
+            mSearchBoxView.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+            applyElevation(false);
+        }
+        mRawSHomeSearchGoogle = googleIsDefault;
+        applyRawSHomeSearchTextColors();
+        setAiChipVisible(false);
+        updateStartIconVisibility(false);
+    }
+
+    void setLensClickListener(@Nullable OnClickListener listener) {
+        mNativeLensClickListener = listener;
+        if (!mRawSExternalLensSelected) mLensButton.setOnClickListener(listener);
+    }
+
+    /** Adds no launcher for an absent or unverified Android app. Native Lens takes precedence. */
+    public boolean configureRawSExternalLens(boolean canOffer, BooleanSupplier stillAllowed) {
+        mRawSExternalLensSelected = mUseRawSHomeSearchLauncher && canOffer
+                && resolveRawSExternalLens(getContext().getPackageManager()) != null;
+        var label = getResources().getString(mRawSExternalLensSelected
+                ? R.string.raws_home_open_lens_app : R.string.accessibility_btn_lens_camera);
+        mLensButton.setContentDescription(label);
+        mLensButton.setTooltipText(label);
+        if (!mRawSExternalLensSelected) {
+            mLensButton.setOnClickListener(mNativeLensClickListener);
+            return false;
+        }
+        mLensButton.setOnClickListener(view -> {
+            if (!isAttachedToWindow() || !stillAllowed.getAsBoolean()) return;
+            Intent launch = resolveRawSExternalLens(getContext().getPackageManager());
+            if (launch == null) {
+                mLensButton.setVisibility(View.GONE);
+                return;
+            }
+            try {
+                getContext().startActivity(launch);
+            } catch (ActivityNotFoundException | SecurityException ignored) {
+                // Package, activity or policy changed between resolution and the explicit tap.
+                mLensButton.setVisibility(View.GONE);
+            }
+        });
+        return true;
+    }
+
+    private static @Nullable Intent resolveRawSExternalLens(PackageManager pm) {
+        // A package label/name alone is not trusted. Require an Android-verified signature
+        // match with a preinstalled Google app; false negatives are preferable to impostors.
+        if (!matchesRawSGoogleSystemAnchor(pm, RAWS_GOOGLE_SEARCH)
+                && !matchesRawSGoogleSystemAnchor(pm, RAWS_GOOGLE_PLAY_SERVICES)) {
+            return null;
+        }
+        Intent packageLaunch = pm.getLaunchIntentForPackage(RAWS_GOOGLE_LENS);
+        if (packageLaunch == null || !Intent.ACTION_MAIN.equals(packageLaunch.getAction())) {
+            return null;
+        }
+        var target = packageLaunch.getComponent();
+        if (target == null || !RAWS_GOOGLE_LENS.equals(target.getPackageName())) return null;
+        String category;
+        if (packageLaunch.hasCategory(Intent.CATEGORY_LAUNCHER)) {
+            category = Intent.CATEGORY_LAUNCHER;
+        } else if (packageLaunch.hasCategory(Intent.CATEGORY_INFO)) {
+            category = Intent.CATEGORY_INFO;
+        } else {
+            return null;
+        }
+
+        // Construct a fresh public main activity intent. No URI, ClipData, grant flag, or extras.
+        Intent intent = new Intent(Intent.ACTION_MAIN)
+                .addCategory(category)
+                .setComponent(target)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        var activity = intent.resolveActivityInfo(pm, 0);
+        if (activity == null || !RAWS_GOOGLE_LENS.equals(activity.packageName)
+                || !activity.enabled || !activity.exported
+                || activity.permission != null) {
+            return null;
+        }
+        return intent;
+    }
+
+    @SuppressWarnings("deprecation") // getApplicationInfo(String, int) also supports Android < 33.
+    private static boolean matchesRawSGoogleSystemAnchor(PackageManager pm, String packageName) {
+        try {
+            ApplicationInfo app = pm.getApplicationInfo(packageName, 0);
+            return (app.flags & (ApplicationInfo.FLAG_SYSTEM
+                            | ApplicationInfo.FLAG_UPDATED_SYSTEM_APP)) != 0
+                    && pm.checkSignatures(packageName, RAWS_GOOGLE_LENS)
+                            == PackageManager.SIGNATURE_MATCH;
+        } catch (PackageManager.NameNotFoundException ignored) {
+            return false;
+        }
+    }
+
+    void applyRawSHomeSearchTextColors() {
+        if (!mUseRawSHomeSearchLauncher) return;
+        mHintTextView.setTextColor(0xfff4ece4);
+        mHintTextView.setHintTextColor(0xffeee3d7);
+    }
+
+    void setAiChipVisible(boolean visible) {
+        mAiChip.setVisibility(visible && !mUseRawSHomeSearchLauncher ? View.VISIBLE : View.GONE);
+    }
+
+    void setDseIconDrawable(@Nullable Drawable drawable) {
+        mDseIconView.setImageDrawable(drawable);
+    }
+
+    void setPlusButtonClickListener(@Nullable OnClickListener listener) {
+        mPlusButton.setOnClickListener(listener);
+    }
+
+    /**
+     * Updates the visibility of the plus button and DSE icon, synchronizing the touch delegate.
+     *
+     * @param visible Whether the plus button should be visible.
+     */
+    void updateStartIconVisibility(boolean visible) {
+        if (mUseRawSHomeSearchLauncher) {
+            mPlusButton.setVisibility(View.GONE);
+            mDseIconView.setVisibility(mRawSHomeSearchGoogle ? View.VISIBLE : View.GONE);
+        } else {
+            mPlusButton.setVisibility(visible ? View.VISIBLE : View.GONE);
+            mDseIconView.setVisibility(visible ? View.GONE : View.VISIBLE);
+        }
+        updateTouchDelegate();
+    }
+
+    /**
+     * Applies or cleans up the white background for the search box.
+     *
+     * @param applyWhiteBackground Whether to apply a white background color to the fake search box.
+     */
+    void applyWhiteBackgroundAndShadow(boolean applyWhiteBackground) {
+        if (mUseRawSHomeSearchLauncher) return;
+        NtpCustomizationUtils.applyWhiteBackgroundAndShadow(
+                getContext(), this, mSearchBoxView, applyWhiteBackground);
+    }
+
+    /**
+     * Applies elevation to the search box.
+     *
+     * @param apply Whether to apply elevation to the search box.
+     */
+    void applyElevation(boolean apply) {
+        if (!apply || mUseRawSHomeSearchLauncher) {
+            mSearchBoxView.setElevation(0);
+            // Reset clipping to default to avoid unexpected behavior.
+            setClipToPadding(true);
+            setClipChildren(true);
+            return;
+        }
+
+        float elevation = getResources().getDimension(R.dimen.fake_search_box_elevation);
+        mSearchBoxView.setElevation(elevation);
+
+        // Disable clipping to allow the shadow to be drawn outside the view bounds. This provides a
+        // solution without adding margins to the top/bottom of the view.
+        setClipToPadding(false);
+        setClipChildren(false);
+    }
+
+    void setDseIconTint(@Nullable ColorStateList tint) {
+        ImageViewCompat.setImageTintList(mDseIconView, tint);
+    }
+
+    private void updateTouchDelegate() {
+        if (mPlusButton.getVisibility() != View.VISIBLE) {
+            if (mTouchDelegate != null) {
+                setTouchDelegate(null);
+                mTouchDelegate = null;
+                mLastTouchDelegateRect = null;
+            }
+            return;
+        }
+
+        Rect bounds = new Rect();
+        mPlusButton.getHitRect(bounds);
+        if (bounds.isEmpty()) return;
+
+        int minTargetSize = getResources().getDimensionPixelSize(R.dimen.min_touch_target_size);
+        int widthDelta = Math.max(0, minTargetSize - bounds.width()) / 2;
+        int heightDelta = Math.max(0, minTargetSize - bounds.height()) / 2;
+        bounds.inset(-widthDelta, -heightDelta);
+
+        if (bounds.equals(mLastTouchDelegateRect)) return;
+        mLastTouchDelegateRect = bounds;
+        mTouchDelegate = new TouchDelegate(bounds, mPlusButton);
+        setTouchDelegate(mTouchDelegate);
+    }
+
+    private void revertToLegacyLayoutConfiguration(Resources res) {
+        int startPadding = res.getDimensionPixelSize(R.dimen.fake_search_box_start_padding_legacy);
+        int endPadding = res.getDimensionPixelSize(R.dimen.fake_search_box_end_padding_legacy);
+        mSearchBoxView.setPaddingRelative(
+                startPadding,
+                mSearchBoxView.getPaddingTop(),
+                endPadding,
+                mSearchBoxView.getPaddingBottom());
+
+        int iconSize = res.getDimensionPixelSize(R.dimen.omnibox_search_engine_logo_composed_size);
+        setViewSize(mDseIconView, iconSize, iconSize);
+        setViewSize(mPlusButton, iconSize, iconSize);
+
+        int legacyMarginEnd =
+                res.getDimensionPixelSize(R.dimen.fake_search_box_start_padding_legacy);
+        setViewMarginEnd(mDseIconView, legacyMarginEnd);
+        setViewMarginEnd(mPlusButton, legacyMarginEnd);
+    }
+
+    private void setViewSize(View view, int width, int height) {
+        ViewGroup.LayoutParams layoutParams = view.getLayoutParams();
+        if (layoutParams != null) {
+            layoutParams.width = width;
+            layoutParams.height = height;
+            view.setLayoutParams(layoutParams);
+        }
+    }
+
+    private void setViewMarginEnd(View view, int marginEnd) {
+        ViewGroup.MarginLayoutParams layoutParams =
+                (ViewGroup.MarginLayoutParams) view.getLayoutParams();
+        if (layoutParams != null) {
+            layoutParams.setMarginEnd(marginEnd);
+            view.setLayoutParams(layoutParams);
+        }
+    }
+}

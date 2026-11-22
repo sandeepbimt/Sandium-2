@@ -1,0 +1,40 @@
+// SPDX-License-Identifier: MPL-2.0
+#ifndef CHROME_RENDERER_RAWS_PROCEDURAL_COSMETIC_BINDING_H_
+#define CHROME_RENDERER_RAWS_PROCEDURAL_COSMETIC_BINDING_H_
+
+namespace raws::cosmetic {
+
+inline constexpr char kStopRawSProceduralCosmetic[] =
+    "globalThis.__rawsStopProceduralCosmetic?.()";
+inline constexpr char kRawSProcedureCallBefore[] = R"RAWSJS(
+((doc, makeScheduler, makeMatcher, config, nonce) => {
+  globalThis.__rawsStopProceduralCosmetic?.();
+  const plan = makeMatcher(doc, config, nonce);
+  if (!plan || !plan.eligibleDocument()) return;
+  const defer = !doc.body && doc.readyState === 'loading';
+  const scheduler = makeScheduler(doc, plan);
+  const stop = () => {
+    doc.removeEventListener('DOMContentLoaded', start);
+    doc.defaultView?.removeEventListener('pagehide', stop);
+    scheduler.stop();
+    if (globalThis.__rawsStopProceduralCosmetic === stop)
+      delete globalThis.__rawsStopProceduralCosmetic;
+  };
+  const start = () => {
+    if (globalThis.__rawsStopProceduralCosmetic !== stop) return;
+    if (!scheduler.start()) stop();
+  };
+  globalThis.__rawsStopProceduralCosmetic = stop;
+  if (defer) {
+    doc.defaultView?.addEventListener('pagehide', stop, {once: true});
+    doc.addEventListener('DOMContentLoaded', start, {once: true});
+  } else {
+    start();
+  }
+})(document,
+)RAWSJS";
+inline constexpr char kRawSProcedureCallAfter[] = "");";
+
+}  // namespace raws::cosmetic
+
+#endif  // CHROME_RENDERER_RAWS_PROCEDURAL_COSMETIC_BINDING_H_

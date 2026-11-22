@@ -1,0 +1,945 @@
+// SPDX-License-Identifier: MPL-2.0
+package org.chromium.chrome.browser.firstrun;
+
+import static org.chromium.build.NullUtil.assumeNonNull;
+import static org.chromium.components.content_settings.PrefNames.COOKIE_CONTROLS_MODE;
+
+import android.Manifest;
+import android.animation.ValueAnimator;
+import android.content.SharedPreferences;
+import android.graphics.Color;
+import android.graphics.Paint;
+import android.graphics.Path;
+import android.graphics.Typeface;
+import android.graphics.drawable.ClipDrawable;
+import android.graphics.drawable.GradientDrawable;
+import android.graphics.drawable.ShapeDrawable;
+import android.graphics.drawable.shapes.PathShape;
+import android.os.Build;
+import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
+import android.os.SystemClock;
+import android.text.SpannableString;
+import android.text.method.LinkMovementMethod;
+import android.text.Spanned;
+import android.text.TextUtils;
+import android.text.style.ForegroundColorSpan;
+import android.view.Gravity;
+import android.view.LayoutInflater;
+import android.view.View;
+import android.view.ViewGroup;
+import android.view.accessibility.AccessibilityNodeInfo;
+import android.widget.Button;
+import android.widget.ImageView;
+import android.widget.LinearLayout;
+import android.widget.ScrollView;
+import android.widget.Switch;
+import android.widget.TextView;
+
+import androidx.appcompat.app.AlertDialog;
+import androidx.fragment.app.Fragment;
+
+import java.lang.ref.WeakReference;
+
+import org.chromium.base.ContextUtils;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
+import org.chromium.chrome.R;
+import org.chromium.chrome.browser.base.RawSNavigationAppearance;
+import org.chromium.chrome.browser.night_mode.RawSDarkPages;
+import org.chromium.chrome.browser.notifications.permissions.NotificationPermissionController;
+import org.chromium.chrome.browser.privacy.secure_dns.SecureDnsSettings;
+import org.chromium.chrome.browser.profiles.Profile;
+import org.chromium.chrome.browser.settings.RawsProtectionCopy;
+import org.chromium.chrome.browser.settings.RawsProtectionCopy.AdSubscriptionState;
+import org.chromium.chrome.browser.settings.SandiumBalancedTracer;
+import org.chromium.chrome.browser.settings.SettingsNavigationFactory;
+import org.chromium.components.content_settings.CookieControlsMode;
+import org.chromium.ui.text.ChromeClickableSpan;
+import org.chromium.ui.text.SpanApplier;
+import org.chromium.components.user_prefs.UserPrefs;
+
+/** Sandium setup after Chromium's real first-run pages, never an alternate legal gate. */
+@NullMarked
+public final class RawSSetupFirstRunFragment extends Fragment implements FirstRunFragment {
+    public static final String RESTART_PENDING = "raws_setup_restart_pending";
+    public static final String DEFAULT_ROLE_PENDING = "raws_setup_default_role_pending";
+    public static final String DEFAULT_ROLE_OFFERED = "raws_setup_default_role_offered";
+    private static final int BACKGROUND = 0xFF0F0C13;
+    private static final int CARD = 0xFF1A1A1A;
+    private static final int SEPARATOR = 0xFF454545;
+    private static final int PRIMARY = 0xFF198CFF;
+    private static final int TEXT = 0xFFFAFAFA;
+    private static final int SECONDARY = 0xFFBDBDBD;
+    private static final int START_READY = 0xFFEEECE5;
+    private static final int START_PROGRESS = 0xFFB6DCC1;
+    private static final int START_DISABLED = 0xFF373737;
+    private static final int PRIMARY_TEXT = 0xFF080F18;
+    private static final String[] BLUR_VALUES = {"off", "on"};
+    private static final int COUNTDOWN_STEPS = 5;
+    private static final long COUNTDOWN_STEP_MS = 300;
+    private static final long COUNTDOWN_MS = COUNTDOWN_STEPS * COUNTDOWN_STEP_MS;
+    private static final long DOT_STEP_MS = 300;
+    private static final int DIM_DOT = 0xFF878787;
+    private static final long AD_SAVE_TIMEOUT_MS = 15000;
+    private static final int ADS_UNAVAILABLE = -1;
+    private static final int ADS_OFF = 0;
+    private static final int ADS_ON = 1;
+
+    private final Handler mUi = new Handler(Looper.getMainLooper());
+    private final java.util.ArrayList<View> mFrozenControls = new java.util.ArrayList<>();
+    private @Nullable Profile mProfile;
+    private @Nullable TextView mHeader;
+    private @Nullable TextView mStatus;
+    private @Nullable Button mStart;
+    private @Nullable Button mRetry;
+    private long mLastRetryMs = -1000;
+    private boolean mSaveFailed;
+    private int mAdsStaged = ADS_UNAVAILABLE;
+    private int mAdsCommitted = ADS_UNAVAILABLE;
+    private boolean mAdsExplicit;
+    private int mAdsWriteToken;
+    private boolean mAdsWritePending;
+    private boolean mAdsSaveInterrupted;
+    private long mAdsSaveStarted;
+    private @Nullable LinearLayout mOptions;
+    private @Nullable Button mDnsChoice;
+    private android.widget.@Nullable PopupMenu mDnsPopup;
+    private @Nullable SandiumBalancedTracer mTracer;
+    private boolean mStagedDarkPages;
+    private String mStagedBlur = "on";
+    private boolean mStagedDarken;
+    private String mInitialBlur = "on";
+    private boolean mInitialDarken;
+    private boolean mRequestNotifications = true;
+    private boolean mBlockThirdPartyCookies;
+    private boolean mInitialBlockThirdPartyCookies;
+    private boolean mConfirmed;
+    private boolean mTermsDisclosureShown;
+    private long mCountdownEnd;
+    private @Nullable ClipDrawable mStartProgress;
+    private int mRenderedButtonText;
+    private final Runnable mPreparingDots = this::tickPreparingDots;
+    private boolean mDotScheduled;
+    private boolean mAnimatePreparing = true;
+    private int mDotPhase;
+
+    @Override
+    public View onCreateView(LayoutInflater inflater, @Nullable ViewGroup container,
+            @Nullable Bundle state) {
+        FirstRunActivity host = (FirstRunActivity) requireActivity();
+        Profile profile = assumeNonNull(host.getProfileProviderSupplier().get()).getOriginalProfile();
+        mProfile = profile;
+        mAdsStaged = RawsProtectionCopy.globalAdFilteringState(profile);
+        mAdsCommitted = ADS_UNAVAILABLE;
+        mAdsExplicit = false;
+        mStagedDarkPages = RawSDarkPages.getGlobal(profile);
+        mInitialBlur = RawSNavigationAppearance.getBlurLevel();
+        mInitialDarken = RawSNavigationAppearance.isDarkenEnabled();
+        mStagedBlur = mInitialBlur;
+        mStagedDarken = mInitialDarken;
+        var profilePrefs = UserPrefs.get(profile);
+        mInitialBlockThirdPartyCookies = profilePrefs.getInteger(COOKIE_CONTROLS_MODE)
+                == CookieControlsMode.BLOCK_THIRD_PARTY;
+        mBlockThirdPartyCookies = mInitialBlockThirdPartyCookies;
+        if (state != null) {
+            int restoredAds = state.getInt("explicit_ads_choice", ADS_UNAVAILABLE);
+            if (restoredAds == ADS_ON || restoredAds == ADS_OFF) {
+                mAdsStaged = restoredAds;
+                mAdsExplicit = true;
+            }
+            mStagedDarkPages = state.getBoolean("dark_pages", mStagedDarkPages);
+            @Nullable String restoredBlur = RawSNavigationAppearance.normalizeStoredBlurLevel(
+                    state.getString("blur", mStagedBlur));
+            if (restoredBlur != null) mStagedBlur = restoredBlur;
+            mStagedDarken = !"off".equals(mStagedBlur)
+                    && state.getBoolean("darken", mStagedDarken);
+            mRequestNotifications = state.getBoolean("notifications", true);
+            mBlockThirdPartyCookies = state.getBoolean("cookie_block", mBlockThirdPartyCookies);
+        }
+
+        ScrollView scroll = new ScrollView(host);
+        scroll.setFillViewport(true);
+        scroll.setBackgroundColor(BACKGROUND);
+        LinearLayout body = column();
+        body.setPadding(dp(16), dp(12), dp(16), dp(16));
+        scroll.addView(body);
+        LinearLayout heading = new LinearLayout(host);
+        heading.setGravity(Gravity.CENTER_VERTICAL);
+        heading.setPadding(dp(16), dp(8), dp(16), dp(8));
+        heading.setBackground(rounded(CARD, 24));
+        ImageView mark = new ImageView(host);
+        mark.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        mark.setPadding(dp(8), dp(8), dp(8), dp(8));
+        mark.setBackground(rounded(0xFF242424, 28));
+        mark.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+        var logo = host.getDrawable(R.drawable.raws_frozen_shields_mark);
+        if (logo != null) {
+            SandiumBalancedTracer tracer = new SandiumBalancedTracer(mark, logo);
+            mTracer = tracer;
+            mark.setImageDrawable(tracer);
+            tracer.setEnabled(true);
+        }
+        heading.addView(mark, new LinearLayout.LayoutParams(dp(56), dp(56)));
+        LinearLayout titleBlock = column();
+        titleBlock.setPaddingRelative(dp(14), 0, 0, 0);
+        TextView title = text(R.string.raws_setup_title, 24, TEXT);
+        title.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+        title.setAccessibilityHeading(true);
+        mHeader = title;
+        titleBlock.addView(title);
+        titleBlock.addView(text(R.string.raws_setup_choose, 13, SECONDARY));
+        heading.addView(titleBlock,
+                new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
+        body.addView(heading);
+
+        LinearLayout readiness = card(body);
+        TextView status = text(R.string.raws_setup_preparing, 15, TEXT);
+        status.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
+        status.setPadding(dp(12), dp(10), dp(12), dp(10));
+        readiness.addView(status);
+        mStatus = status;
+        Button retry = rowButton(readiness, R.string.raws_setup_retry, this::retryProtection);
+        retry.setVisibility(View.GONE);
+        mRetry = retry;
+
+        LinearLayout settings = card(body);
+        addSwitch(settings, R.string.raws_setup_ads, R.string.raws_setup_ads_summary,
+                mAdsStaged == ADS_ON,
+                RawsProtectionCopy.globalAdFilteringState(profile) != ADS_UNAVAILABLE,
+                checked -> {
+                    mAdsStaged = checked ? ADS_ON : ADS_OFF;
+                    mAdsExplicit = true;
+                });
+        divider(settings);
+        addSwitch(settings, R.string.raws_setup_night, R.string.raws_setup_night_summary,
+                mStagedDarkPages, RawSDarkPages.canManageGlobal(profile),
+                checked -> mStagedDarkPages = checked);
+        divider(settings);
+        Button blur = addInlineChoice(settings, R.string.raws_setup_blur, 0);
+        updateBlurLabel(blur);
+        divider(settings);
+        Switch darken = addSwitch(settings, R.string.raws_setup_darken,
+                R.string.raws_setup_darken_summary, mStagedDarken, !"off".equals(mStagedBlur),
+                checked -> { mStagedDarken = checked; updateButton(); });
+        blur.setOnClickListener(v -> showBlurPicker(blur, darken));
+        divider(settings);
+        Button more = rowButton(settings, R.string.raws_setup_more, () -> {});
+        LinearLayout options = column();
+        mOptions = options;
+        options.setVisibility(View.GONE);
+        settings.addView(options);
+        updateOptionsDisclosure(more, false);
+        more.setAccessibilityDelegate(new View.AccessibilityDelegate() {
+            @Override
+            public void onInitializeAccessibilityNodeInfo(
+                    View host, AccessibilityNodeInfo info) {
+                super.onInitializeAccessibilityNodeInfo(host, info);
+                boolean expanded = options.getVisibility() == View.VISIBLE;
+                if (host.isEnabled()) {
+                    info.addAction(expanded
+                            ? AccessibilityNodeInfo.AccessibilityAction.ACTION_COLLAPSE
+                            : AccessibilityNodeInfo.AccessibilityAction.ACTION_EXPAND);
+                }
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.BAKLAVA) {
+                    info.setExpandedState(expanded
+                            ? AccessibilityNodeInfo.EXPANDED_STATE_FULL
+                            : AccessibilityNodeInfo.EXPANDED_STATE_COLLAPSED);
+                }
+            }
+
+            @Override
+            public boolean performAccessibilityAction(
+                    View host, int action, @Nullable Bundle arguments) {
+                boolean expanded = options.getVisibility() == View.VISIBLE;
+                var disclosureAction = expanded
+                        ? AccessibilityNodeInfo.AccessibilityAction.ACTION_COLLAPSE
+                        : AccessibilityNodeInfo.AccessibilityAction.ACTION_EXPAND;
+                if (host.isEnabled() && action == disclosureAction.getId()) {
+                    return host.performClick();
+                }
+                return super.performAccessibilityAction(host, action, arguments);
+            }
+        });
+        more.setOnClickListener(v -> {
+            boolean show = options.getVisibility() != View.VISIBLE;
+            if (show) refreshInlineDnsPicker();
+            options.animate().cancel();
+            options.setVisibility(show ? View.VISIBLE : View.GONE);
+            options.setAlpha(show && ValueAnimator.areAnimatorsEnabled() ? 0f : 1f);
+            if (show && ValueAnimator.areAnimatorsEnabled()) {
+                options.animate().alpha(1f).setDuration(160).start();
+            }
+            updateOptionsDisclosure(more, show);
+        });
+        addInlineDnsPicker(options, host);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
+                && host.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)
+                        != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            divider(options);
+            addSwitch(options, R.string.raws_setup_notifications,
+                    R.string.raws_setup_notifications_summary, mRequestNotifications, true,
+                    enabled -> mRequestNotifications = enabled);
+        }
+
+        divider(options);
+        addSwitch(options, R.string.raws_setup_cookie_block, R.string.raws_setup_cookie_summary,
+                mBlockThirdPartyCookies, !profilePrefs.isManagedPreference(COOKIE_CONTROLS_MODE),
+                enabled -> mBlockThirdPartyCookies = enabled);
+
+        mTermsDisclosureShown = !FirstRunUtils.isFirstRunEulaAccepted();
+        if (mTermsDisclosureShown) {
+            TextView terms = text(R.string.raws_setup_terms_consent, 13, SECONDARY);
+            terms.setText(SpanApplier.applySpans(getString(R.string.raws_setup_terms_consent),
+                    new SpanApplier.SpanInfo("<TOS_LINK>", "</TOS_LINK>",
+                            new ChromeClickableSpan(host, view -> {
+                                var delegate = getPageDelegate();
+                                if (delegate != null) delegate.showInfoPage(
+                                        R.string.google_terms_of_service_dark_mode_url);
+                            }))));
+            terms.setMovementMethod(LinkMovementMethod.getInstance());
+            terms.setPadding(dp(4), dp(8), dp(4), dp(4));
+            body.addView(terms);
+        }
+
+        TextView later = text(R.string.raws_setup_later, 13, SECONDARY);
+        later.setPadding(dp(4), dp(10), dp(4), dp(4));
+        body.addView(later);
+        Button start = new Button(host);
+        start.setAllCaps(false);
+        start.setTextSize(16);
+        start.setMinimumHeight(dp(52));
+        start.setOnClickListener(v -> beginCountdown());
+        body.addView(start);
+        mStart = start;
+        start.addOnAttachStateChangeListener(new View.OnAttachStateChangeListener() {
+            @Override
+            public void onViewAttachedToWindow(View view) { updateButton(); }
+
+            @Override
+            public void onViewDetachedFromWindow(View view) { stopPreparingDots(); }
+        });
+        updateButton();
+        return scroll;
+    }
+
+    @Override
+    public void onSaveInstanceState(Bundle state) {
+        super.onSaveInstanceState(state);
+        if (mAdsExplicit) state.putInt("explicit_ads_choice", mAdsStaged);
+        state.putBoolean("dark_pages", mStagedDarkPages);
+        state.putString("blur", mStagedBlur);
+        state.putBoolean("darken", mStagedDarken);
+        state.putBoolean("notifications", mRequestNotifications);
+        state.putBoolean("cookie_block", mBlockThirdPartyCookies);
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        refreshInlineDnsPicker();
+        poll();
+    }
+
+    @Override
+    public void onPause() {
+        stopPreparingDots();
+        dismissInlineDnsPicker();
+        mUi.removeCallbacksAndMessages(null);
+        mCountdownEnd = 0;
+        mStartProgress = null;
+        mRenderedButtonText = 0;
+        if (mAdsWritePending) mAdsSaveInterrupted = true;
+        else restoreOptions();
+        super.onPause();
+    }
+
+    @Override
+    public void onDestroyView() {
+        mTermsDisclosureShown = false;
+        stopPreparingDots();
+        dismissInlineDnsPicker();
+        mDnsChoice = null;
+        ++mAdsWriteToken;
+        mAdsWritePending = false;
+        mFrozenControls.clear();
+        mUi.removeCallbacksAndMessages(null);
+        if (mOptions != null) mOptions.animate().cancel();
+        if (mTracer != null) mTracer.close();
+        mOptions = null;
+        mTracer = null;
+        mHeader = null;
+        mProfile = null;
+        mStatus = null;
+        mRetry = null;
+        mStart = null;
+        mStartProgress = null;
+        mRenderedButtonText = 0;
+        super.onDestroyView();
+    }
+
+    @Override
+    public void setInitialA11yFocus() {
+        TextView header = mHeader;
+        if (header != null) header.sendAccessibilityEvent(
+                android.view.accessibility.AccessibilityEvent.TYPE_VIEW_FOCUSED);
+    }
+
+    private boolean restartNeeded() {
+        return !mInitialBlur.equals(mStagedBlur)
+                || (!"off".equals(mStagedBlur) && mInitialDarken != mStagedDarken);
+    }
+
+    private static int blurIndex(String value) {
+        for (int i = 0; i < BLUR_VALUES.length; i++) if (BLUR_VALUES[i].equals(value)) return i;
+        return -1;
+    }
+
+    private static final int[] BLUR_LABELS = {
+            R.string.raws_setup_blur_off, R.string.raws_setup_blur_on};
+
+    private void updateBlurLabel(Button blur) {
+        String selected = getString(BLUR_LABELS[Math.max(0, blurIndex(mStagedBlur))]);
+        blur.setText(selected);
+        blur.setContentDescription(getString(R.string.raws_setup_blur_value, selected));
+    }
+
+    private void showBlurPicker(Button blur, Switch darken) {
+        CharSequence[] labels = new CharSequence[BLUR_VALUES.length];
+        for (int i = 0; i < labels.length; i++) labels[i] = getString(BLUR_LABELS[i]);
+        new AlertDialog.Builder(requireContext())
+                .setTitle(R.string.raws_setup_blur)
+                .setSingleChoiceItems(labels, blurIndex(mStagedBlur), (dialog, which) -> {
+                    mStagedBlur = BLUR_VALUES[which];
+                    updateBlurLabel(blur);
+                    boolean blurActive = !"off".equals(mStagedBlur);
+                    if (!blurActive) {
+                        mStagedDarken = false;
+                        darken.setChecked(false);
+                    }
+                    darken.setEnabled(blurActive);
+                    updateButton();
+                    dialog.dismiss();
+                })
+                .setNegativeButton(android.R.string.cancel, null).show();
+    }
+
+    private @Nullable AdSubscriptionState protectionState() {
+        Profile profile = mProfile;
+        return profile == null ? null : RawsProtectionCopy.adSubscriptionState(profile);
+    }
+
+    private boolean protectionReady() {
+        var state = protectionState();
+        return state != null && FirstRunActivityBase.isRawSProtectionReady(state);
+    }
+
+    private void retryProtection() {
+        Profile profile = mProfile;
+        if (!isResumed() || mConfirmed || mAdsWritePending || mCountdownEnd != 0 || profile == null
+                || SystemClock.uptimeMillis() - mLastRetryMs < 1000) return;
+        if (!((FirstRunActivity) requireActivity()).canRetryRawSProtection(
+                RawsProtectionCopy.adSubscriptionState(profile))) return;
+        mLastRetryMs = SystemClock.uptimeMillis();
+        if (!RawsProtectionCopy.retryAdSubscriptions(profile)) {
+            android.widget.Toast.makeText(requireContext(), R.string.raws_setup_retry_unavailable,
+                    android.widget.Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void poll() {
+        TextView status = mStatus;
+        if (!isResumed() || status == null || mConfirmed) return;
+        if (mAdsWritePending
+                && SystemClock.uptimeMillis() - mAdsSaveStarted >= AD_SAVE_TIMEOUT_MS) {
+            // An unacknowledged native write cannot release first run. Explicit retry re-flushes.
+            ++mAdsWriteToken;
+            mAdsWritePending = false;
+            showSaveFailure();
+        }
+        var state = protectionState();
+        boolean ready = state != null && FirstRunActivityBase.isRawSProtectionReady(state);
+        if (mCountdownEnd != 0 && !ready) {
+            // A replacement generation or failed backend invalidates the user's acceptance.
+            mCountdownEnd = 0;
+            mStartProgress = null;
+            mRenderedButtonText = 0;
+            restoreOptions();
+            refreshInlineDnsPicker();
+        }
+        var activity = (FirstRunActivity) requireActivity();
+        CharSequence label = ready && state != null && mAdsStaged == ADS_OFF
+                ? getString(R.string.raws_setup_lists_ready_ads_off, state.enabled)
+                : activity.rawSProtectionMessage(state);
+        if (mSaveFailed && ready) label = getString(R.string.raws_setup_save_failed);
+        if (mAdsWritePending) label = getString(R.string.raws_setup_saving_ads);
+        if (!android.text.TextUtils.equals(label, status.getText())) status.setText(label);
+        mAnimatePreparing = (state == null || state.phase != RawsProtectionCopy.AD_FILTER_FAILED)
+                && RawsProtectionCopy.adFilteringPhase() != RawsProtectionCopy.AD_FILTER_FAILED;
+        Button retry = mRetry;
+        if (retry != null) {
+            boolean canRetry = !mAdsWritePending && activity.canRetryRawSProtection(state);
+            retry.setVisibility(canRetry ? View.VISIBLE : View.GONE);
+            retry.setEnabled(canRetry && SystemClock.uptimeMillis() - mLastRetryMs >= 1000);
+        }
+        if (mCountdownEnd == 0) updateButton();
+        mUi.postDelayed(this::poll, 400);
+    }
+
+    private void updateButton() {
+        Button start = mStart;
+        if (start == null || mCountdownEnd != 0 || mConfirmed || mAdsWritePending) return;
+        boolean ready = protectionReady();
+        int label = ready ? (restartNeeded() ? R.string.raws_setup_restart
+                                            : R.string.raws_setup_start)
+                          : R.string.raws_setup_preparing_button;
+        if (label != mRenderedButtonText) {
+            int previous = mRenderedButtonText;
+            mRenderedButtonText = label;
+            start.setEnabled(ready);
+            start.setBackground(rounded(ready ? START_READY : START_DISABLED, 28));
+            start.setTextColor(ready ? PRIMARY_TEXT : SECONDARY);
+            start.setText(ready ? label : R.string.raws_setup_preparing_dots);
+            if (ready || previous != R.string.raws_setup_preparing_button) mDotPhase = 0;
+        }
+        TextView status = mStatus;
+        CharSequence description = ready || status == null ? getString(label) : status.getText();
+        if (!android.text.TextUtils.equals(description, start.getContentDescription())) {
+            start.setContentDescription(description);
+        }
+        if (ready) {
+            stopPreparingDots();
+        } else if (mAnimatePreparing && ValueAnimator.areAnimatorsEnabled()) {
+            if (!mDotScheduled) tickPreparingDots();
+        } else {
+            stopPreparingDots();
+            if (start.getText() instanceof Spanned) start.setText(R.string.raws_setup_preparing_dots);
+        }
+    }
+
+    private void stopPreparingDots() {
+        mUi.removeCallbacks(mPreparingDots);
+        mDotScheduled = false;
+    }
+
+    private void tickPreparingDots() {
+        mDotScheduled = false;
+        Button start = mStart;
+        if (!isResumed() || start == null || !start.isAttachedToWindow()
+                || mRenderedButtonText != R.string.raws_setup_preparing_button
+                || mCountdownEnd != 0 || mAdsWritePending || mConfirmed) return;
+        if (!mAnimatePreparing || !ValueAnimator.areAnimatorsEnabled()) {
+            start.setText(R.string.raws_setup_preparing_dots);
+            return;
+        }
+        SpannableString dots = new SpannableString(getString(R.string.raws_setup_preparing_dots));
+        for (int i = 0; i < 3; ++i) {
+            int index = i * 2;
+            dots.setSpan(new ForegroundColorSpan(i == mDotPhase ? SECONDARY : DIM_DOT),
+                    index, index + 1, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        }
+        start.setText(dots);
+        mDotPhase = (mDotPhase + 1) % 3;
+        mDotScheduled = mUi.postDelayed(mPreparingDots, DOT_STEP_MS);
+    }
+
+    private void beginCountdown() {
+        dismissInlineDnsPicker();
+        if (!isResumed() || mConfirmed || mAdsWritePending || mCountdownEnd != 0
+                || !protectionReady()) {
+            return;
+        }
+        Button start = mStart;
+        if (start == null) return;
+        mSaveFailed = false;
+        stopPreparingDots();
+        start.setEnabled(false);
+        // No settings capture after the user accepts the action.
+        View root = getView();
+        if (root != null) disableOptions(root, start);
+        if (!ValueAnimator.areAnimatorsEnabled()) {
+            finishSetup();
+            return;
+        }
+        mRenderedButtonText = 0;
+        android.graphics.drawable.ClipDrawable fill = new android.graphics.drawable.ClipDrawable(
+                rounded(START_PROGRESS, 28), Gravity.START,
+                android.graphics.drawable.ClipDrawable.HORIZONTAL);
+        mStartProgress = fill;
+        start.setBackground(new android.graphics.drawable.LayerDrawable(
+                new android.graphics.drawable.Drawable[] {rounded(START_READY, 28), fill}));
+        mCountdownEnd = SystemClock.uptimeMillis() + COUNTDOWN_MS;
+        tickCountdown();
+    }
+
+    private static int remainingCountdownSteps(long elapsed) {
+        return Math.max(1, COUNTDOWN_STEPS - (int) (Math.max(0, elapsed) / COUNTDOWN_STEP_MS));
+    }
+
+    private void tickCountdown() {
+        Button start = mStart;
+        if (!isResumed() || start == null || mCountdownEnd == 0) return;
+        long left = mCountdownEnd - SystemClock.uptimeMillis();
+        if (left > 0) {
+            long elapsed = COUNTDOWN_MS - left;
+            if (mStartProgress != null) {
+                mStartProgress.setLevel((int) Math.min(10000, (10000 * elapsed) / COUNTDOWN_MS));
+            }
+            String label = getString(restartNeeded() ? R.string.raws_setup_restarting
+                                                    : R.string.raws_setup_starting,
+                    remainingCountdownSteps(elapsed));
+            if (!label.contentEquals(start.getText())) {
+                start.setText(label);
+                start.setContentDescription(label);
+            }
+            long untilNextStep = COUNTDOWN_STEP_MS - elapsed % COUNTDOWN_STEP_MS;
+            mUi.postDelayed(this::tickCountdown, Math.min(left, Math.min(33, untilNextStep)));
+            return;
+        }
+        if (mStartProgress != null) mStartProgress.setLevel(10000);
+        mCountdownEnd = 0;
+        finishSetup();
+    }
+
+    private void persistAcceptedAdsChoice(Profile profile) {
+        mAdsWritePending = true;
+        TextView status = mStatus;
+        if (status != null) status.setText(R.string.raws_setup_saving_ads);
+        Button start = mStart;
+        if (start != null) {
+            start.setText(R.string.raws_setup_saving_ads);
+            start.setContentDescription(getString(R.string.raws_setup_saving_ads));
+        }
+        mAdsSaveInterrupted = false;
+        mAdsSaveStarted = SystemClock.uptimeMillis();
+        mAdsCommitted = ADS_UNAVAILABLE;
+        final int token = ++mAdsWriteToken;
+        final int wanted = mAdsStaged;
+        WeakReference<RawSSetupFirstRunFragment> reference = new WeakReference<>(this);
+        boolean accepted = RawsProtectionCopy.setGlobalAdFilteringEnabled(
+                profile, wanted == ADS_ON, success -> {
+                    RawSSetupFirstRunFragment fragment = reference.get();
+                    if (fragment != null) fragment.onAdsChoicePersisted(token, wanted, success);
+                });
+        if (!accepted) onAdsChoicePersisted(token, wanted, false);
+    }
+
+    private void onAdsChoicePersisted(int token, int wanted, boolean success) {
+        if (!mAdsWritePending || token != mAdsWriteToken) return;
+        mAdsWritePending = false;
+        Profile profile = mProfile;
+        boolean committed = success && profile != null
+                && RawsProtectionCopy.globalAdFilteringState(profile) == wanted;
+        mAdsCommitted = committed ? wanted : ADS_UNAVAILABLE;
+        if (mAdsSaveInterrupted || !isResumed()) {
+            // The explicit choice may already be saved, but don't resume an interrupted action.
+            mSaveFailed = !committed;
+            mRenderedButtonText = 0;
+            mStartProgress = null;
+            restoreOptions();
+            if (isResumed()) refreshInlineDnsPicker();
+            return;
+        }
+        if (!committed) {
+            showSaveFailure();
+            return;
+        }
+        finishSetup(); // Rechecks the generation and active page after the write callback.
+    }
+
+    // The existing legal acceptance and pending-intent launch stay in FirstRunActivity.
+    @android.annotation.SuppressLint("ApplySharedPref")
+    private void finishSetup() {
+        if (mAdsWritePending || mConfirmed) return;
+        var delegate = getPageDelegate();
+        Profile profile = mProfile;
+        var prefs = ContextUtils.getAppSharedPreferences();
+        if (delegate == null || profile == null || prefs == null
+                || !(getActivity() instanceof FirstRunActivity activity)
+                || !activity.isRawSSetupCurrent()) {
+            showSaveFailure();
+            return;
+        }
+        if (!FirstRunUtils.isFirstRunEulaAccepted() && !mTermsDisclosureShown) {
+            showSaveFailure();
+            return;
+        }
+        if (!protectionReady()) {
+            mRenderedButtonText = 0;
+            mStartProgress = null;
+            restoreOptions();
+            refreshInlineDnsPicker();
+            updateButton();
+            return;
+        }
+        if (mAdsExplicit) {
+            int currentAds = RawsProtectionCopy.globalAdFilteringState(profile);
+            if (profile.isOffTheRecord() || currentAds == ADS_UNAVAILABLE) {
+                showSaveFailure();
+                return;
+            }
+            if (mAdsCommitted != mAdsStaged || currentAds != mAdsStaged) {
+                persistAcceptedAdsChoice(profile);
+                return;
+            }
+        }
+        if (RawSDarkPages.canManageGlobal(profile)
+                && RawSDarkPages.getGlobal(profile) != mStagedDarkPages
+                && !RawSDarkPages.setGlobal(profile, mStagedDarkPages)) {
+            showSaveFailure();
+            return;
+        }
+        if ((!mInitialBlur.equals(mStagedBlur) || mInitialDarken != mStagedDarken)
+                && !RawSNavigationAppearance.setChoices(mStagedBlur, mStagedDarken)) {
+            showSaveFailure();
+            return;
+        }
+        var profilePrefs = UserPrefs.get(profile);
+        if (mInitialBlockThirdPartyCookies != mBlockThirdPartyCookies
+                && !profilePrefs.isManagedPreference(COOKIE_CONTROLS_MODE)) {
+            // Match Chromium's native cookie settings owner; keep incognito protection when
+            // the user explicitly turns off stricter blocking for ordinary tabs.
+            profilePrefs.setInteger(COOKIE_CONTROLS_MODE, mBlockThirdPartyCookies
+                    ? CookieControlsMode.BLOCK_THIRD_PARTY : CookieControlsMode.INCOGNITO_ONLY);
+        }
+        SharedPreferences.Editor next = prefs.edit();
+        NotificationPermissionController.putRawSSetupChoice(next, mRequestNotifications);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
+                && !prefs.getBoolean(DEFAULT_ROLE_OFFERED, false)) {
+            next.putBoolean(DEFAULT_ROLE_PENDING, true);
+        }
+        if (restartNeeded()) next.putBoolean(RESTART_PENDING, true);
+        else next.remove(RESTART_PENDING);
+        if (!next.commit()) { showSaveFailure(); return; }
+        if (!FirstRunUtils.isFirstRunEulaAccepted()) {
+            // Only the explicit, disclosed Start Browsing/Quick Restart action
+            // reaches here. Use Chromium's ToS owner, never infer consent on load.
+            delegate.acceptTermsOfService(/* allowMetricsAndCrashUploading= */ false);
+        }
+        mConfirmed = true;
+        delegate.advanceToNextPage();
+    }
+
+    private void showSaveFailure() {
+        mSaveFailed = true;
+        mRenderedButtonText = 0;
+        mStartProgress = null;
+        restoreOptions();
+        refreshInlineDnsPicker();
+        TextView status = mStatus;
+        if (status != null) status.setText(R.string.raws_setup_save_failed);
+        updateButton();
+    }
+
+    private void restoreOptions() {
+        for (View control : mFrozenControls) control.setEnabled(true);
+        mFrozenControls.clear();
+    }
+
+    private void disableOptions(View view, View except) {
+        if (view instanceof ViewGroup group) {
+            for (int i = 0; i < group.getChildCount(); i++) disableOptions(group.getChildAt(i), except);
+        } else if (view != except && view.isClickable() && view.isEnabled()) {
+            mFrozenControls.add(view);
+            view.setEnabled(false);
+        }
+    }
+
+    private int dp(float dp) {
+        return Math.round(dp * getResources().getDisplayMetrics().density);
+    }
+
+    private LinearLayout column() {
+        LinearLayout layout = new LinearLayout(requireContext());
+        layout.setOrientation(LinearLayout.VERTICAL);
+        return layout;
+    }
+
+    private LinearLayout card(LinearLayout parent) {
+        LinearLayout card = column();
+        card.setBackground(rounded(CARD, 24));
+        LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        p.topMargin = dp(8);
+        parent.addView(card, p);
+        return card;
+    }
+
+    private GradientDrawable rounded(int color, int radius) {
+        GradientDrawable drawable = new GradientDrawable();
+        drawable.setColor(color);
+        drawable.setCornerRadius(dp(radius));
+        return drawable;
+    }
+
+    private TextView text(int id, float size, int color) {
+        TextView t = new TextView(requireContext());
+        t.setText(id);
+        t.setTextSize(size);
+        t.setTextColor(color);
+        return t;
+    }
+
+    private Button addInlineChoice(LinearLayout parent, int title, int summary) {
+        LinearLayout row = new LinearLayout(parent.getContext());
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setPaddingRelative(dp(12), dp(4), dp(12), dp(4));
+        row.setMinimumHeight(dp(48));
+        LinearLayout labels = column();
+        labels.setPaddingRelative(0, 0, dp(8), 0);
+        labels.addView(text(title, 16, TEXT));
+        if (summary != 0) {
+            labels.addView(text(summary, 13, SECONDARY));
+        } else {
+            // The choice announces the full title and value together.
+            labels.setImportantForAccessibility(
+                    View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS);
+        }
+        row.addView(labels, new LinearLayout.LayoutParams(0,
+                ViewGroup.LayoutParams.WRAP_CONTENT, 1));
+        Button choice = new Button(parent.getContext(), null, android.R.attr.borderlessButtonStyle);
+        choice.setAllCaps(false);
+        choice.setGravity(Gravity.CENTER);
+        choice.setTextSize(13);
+        choice.setTextColor(TEXT);
+        choice.setPaddingRelative(dp(6), 0, dp(6), 0);
+        choice.setMaxLines(1);
+        choice.setEllipsize(TextUtils.TruncateAt.END);
+        choice.setBackground(rounded(0xFF242424, 12));
+        row.addView(choice, new LinearLayout.LayoutParams(dp(112), dp(48)));
+        parent.addView(row);
+        return choice;
+    }
+
+    private void addInlineDnsPicker(LinearLayout parent, FirstRunActivity host) {
+        Button choice =
+                addInlineChoice(parent, R.string.raws_setup_dns, R.string.raws_setup_dns_global);
+        mDnsChoice = choice;
+        refreshInlineDnsPicker();
+        choice.setOnClickListener(v -> {
+            refreshInlineDnsPicker();
+            if (mCountdownEnd != 0 || mConfirmed || !choice.isEnabled() || !isResumed()) return;
+            if (mDnsPopup != null) mDnsPopup.dismiss();
+            var choices = SecureDnsSettings.getInlineProviders(host);
+            int selected = SecureDnsSettings.getInlineSelectedProviderIndex(choices);
+            var popup = new android.widget.PopupMenu(host, choice);
+            mDnsPopup = popup;
+            for (int i = 0; i < choices.size(); i++) {
+                popup.getMenu().add(1, i + 1, i, choices.get(i).getLabel())
+                        .setCheckable(true).setChecked(i == selected);
+            }
+            popup.getMenu().setGroupCheckable(1, true, true);
+            popup.getMenu().add(0, choices.size() + 1, choices.size(),
+                    R.string.raws_setup_dns_custom);
+            popup.setOnMenuItemClickListener(item -> {
+                if (!isResumed() || mConfirmed || mCountdownEnd != 0) return true;
+                int index = item.getItemId() - 1;
+                if (index == choices.size() && SecureDnsSettings.canSelectInlineProvider()) {
+                    // Native screen owns custom template validation, probe and any policy copy.
+                    SettingsNavigationFactory.createSettingsNavigation(host)
+                            .startSettings(host, SecureDnsSettings.class);
+                } else if (index >= 0 && index < choices.size()
+                        && !SecureDnsSettings.selectInlineProvider(host, choices.get(index))) {
+                    android.widget.Toast.makeText(host, R.string.raws_setup_dns_failed,
+                            android.widget.Toast.LENGTH_SHORT).show();
+                }
+                refreshInlineDnsPicker();
+                return true;
+            });
+            popup.setOnDismissListener(dismissed -> {
+                if (mDnsPopup == dismissed) mDnsPopup = null;
+                if (isResumed()) refreshInlineDnsPicker();
+            });
+            popup.show();
+        });
+    }
+
+    private void refreshInlineDnsPicker() {
+        Button choice = mDnsChoice;
+        if (choice == null || mConfirmed || mCountdownEnd != 0) return;
+        var context = choice.getContext();
+        String label = SecureDnsSettings.getInlineProviderLabel(context);
+        choice.setText(label);
+        choice.setContentDescription(context.getString(R.string.raws_setup_dns_selected, label));
+        boolean allowed = SecureDnsSettings.canSelectInlineProvider();
+        choice.setEnabled(allowed);
+        choice.setAlpha(allowed ? 1f : 0.5f);
+    }
+
+    private void dismissInlineDnsPicker() {
+        var popup = mDnsPopup;
+        mDnsPopup = null;
+        if (popup != null) popup.dismiss();
+    }
+
+    private void divider(LinearLayout parent) {
+        View line = new View(requireContext());
+        line.setBackgroundColor(SEPARATOR);
+        line.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+        LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(1));
+        p.setMarginStart(dp(14));
+        p.setMarginEnd(dp(14));
+        parent.addView(line, p);
+    }
+
+    private void updateOptionsDisclosure(Button disclosure, boolean expanded) {
+        disclosure.setText(expanded ? R.string.raws_setup_fewer : R.string.raws_setup_more);
+        Path path = new Path();
+        path.moveTo(4f, expanded ? 10f : 6f);
+        path.lineTo(8f, expanded ? 6f : 10f);
+        path.lineTo(12f, expanded ? 10f : 6f);
+        ShapeDrawable chevron = new ShapeDrawable(new PathShape(path, 16f, 16f));
+        Paint paint = chevron.getPaint();
+        paint.setAntiAlias(true);
+        paint.setColor(SECONDARY);
+        paint.setStyle(Paint.Style.STROKE);
+        paint.setStrokeWidth(1.8f);
+        paint.setStrokeCap(Paint.Cap.ROUND);
+        paint.setStrokeJoin(Paint.Join.ROUND);
+        chevron.setIntrinsicWidth(dp(16));
+        chevron.setIntrinsicHeight(dp(16));
+        disclosure.setCompoundDrawablePadding(dp(8));
+        disclosure.setCompoundDrawablesRelativeWithIntrinsicBounds(
+                null, null, chevron, null);
+    }
+
+    private Button rowButton(LinearLayout parent, int title, Runnable action) {
+        Button button = new Button(requireContext(), null, android.R.attr.borderlessButtonStyle);
+        button.setAllCaps(false);
+        button.setGravity(Gravity.START | Gravity.CENTER_VERTICAL);
+        button.setPaddingRelative(dp(12), dp(4), dp(12), dp(4));
+        button.setMinHeight(dp(48));
+        button.setTextColor(TEXT);
+        button.setText(title);
+        button.setOnClickListener(v -> action.run());
+        parent.addView(button);
+        return button;
+    }
+
+    private Switch addSwitch(LinearLayout parent, int name, int summary, boolean checked,
+            boolean enabled, java.util.function.Consumer<Boolean> listener) {
+        LinearLayout row = new LinearLayout(requireContext());
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setPaddingRelative(dp(12), dp(5), dp(12), dp(5));
+        row.setMinimumHeight(dp(48));
+        LinearLayout labels = column();
+        labels.addView(text(name, 16, TEXT));
+        labels.addView(text(summary, 13, SECONDARY));
+        row.addView(labels, new LinearLayout.LayoutParams(0,
+                ViewGroup.LayoutParams.WRAP_CONTENT, 1));
+        Switch toggle = new Switch(requireContext());
+        toggle.setContentDescription(getString(name));
+        toggle.setChecked(checked);
+        toggle.setEnabled(enabled);
+        toggle.setThumbTintList(android.content.res.ColorStateList.valueOf(Color.WHITE));
+        toggle.setTrackTintList(new android.content.res.ColorStateList(
+                new int[][] {{-android.R.attr.state_enabled}, {android.R.attr.state_checked}, {}},
+                new int[] {START_DISABLED, PRIMARY, SEPARATOR}));
+        toggle.setOnCheckedChangeListener((view, on) -> listener.accept(on));
+        row.addView(toggle);
+        parent.addView(row);
+        return toggle;
+    }
+}

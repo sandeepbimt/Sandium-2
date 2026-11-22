@@ -29,6 +29,7 @@ ENGINE = '\n'.join(('//components/sandium_adblock:document_subresource_factory',
 # prepare_resources actions expose sources. The default GN toolchain's
 # deps list uses unqualified labels, with explicit suffixes for other tools.
 ACTIONS = {
+    APK + '__android_manifest': 'inputs',
     JNI: 'inputs',
     JAVA + JAVAC: 'inputs',
     '//chrome/android:chrome_base_module_resources' + PREPARE: 'sources',
@@ -44,6 +45,8 @@ ACTIONS = {
     '//chrome/browser/autofill/android:java_resources__prepare': 'sources',
     '//chrome/browser/notifications:java__compile_java': 'inputs',
     '//chrome/browser/privacy:java__compile_java': 'inputs',
+    '//chrome/browser/search_engines/android:java__compile_java': 'inputs',
+    '//chrome/browser/ntp_customization:java__compile_java': 'inputs',
     '//chrome/browser/ui/android/night_mode:java__compile_java': 'inputs',
     '//components/browser_ui/styles/android:java_resources__prepare': 'sources',
     '//content/public/android:content_full_java__compile_java': 'inputs',
@@ -89,6 +92,8 @@ class NativeUiGraph(unittest.TestCase):
                     if name.startswith(('chrome/android/', 'chrome/browser/ui/android/',
                                         'chrome/browser/feed/android/', 'chrome/browser/autofill/android/',
                                         'chrome/browser/notifications/', 'chrome/browser/privacy/',
+                                        'chrome/browser/search_engines/android/',
+                                        'chrome/browser/ntp_customization/',
                                         'content/public/android/', 'components/browser_ui/styles/android/', 'ui/android/'))
                     and name.endswith(('.java', '.xml', '.png', '.webp', '.grd'))}
         self.assertEqual(intended, set().union(*(paths for field, paths in owners.values())))
