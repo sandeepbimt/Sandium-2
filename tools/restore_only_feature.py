@@ -168,27 +168,48 @@ def approved_manifest_sha256():
             else APPROVED_MANIFEST_SHA256)
 
 
-def exact_ui_resources(src, expected):
-    # These are shared Chromium directories, not overlay-owned subtrees. Check
-    # the reserved RawS namespace only; unrelated native resources stay intact.
+def ui_resource_prefixes(directory):
+    return ('raws_', 'sandium_menu_') if directory.startswith(MENU_RESOURCE_DIR) else ('raws_',)
+
+
+def exact_ui_resources(src, ui_files, *, installed=True):
+    # These are shared Chromium directories, not overlay-owned subtrees. Derive
+    # the reserved files from the full approved UI inventory, including the
+    # exact port proof's extra_generated paths. Non-reserved native resources
+    # remain outside this namespace check.
+    expected = set()
+    directories = set(UI_RESOURCE_DIRS)
+    for relative in ui_files:
+        if '/res/' not in relative:
+            continue
+        resource = PurePosixPath(relative)
+        parent = resource.parent.as_posix()
+        if resource.name.startswith(ui_resource_prefixes(parent)):
+            directories.add(parent)
+            if installed:
+                expected.add(relative)
+
     found = set()
-    for relative in UI_RESOURCE_DIRS:
+    for relative in sorted(directories):
         directory = safe(src, relative)
         if not directory.exists() and not expected:
             # The recipe may add a locale qualifier.
             continue
         if not directory.is_dir():
             raise ValueError('Missing pinned Settings resource directory: ' + relative)
-        patterns = ('raws_*', 'sandium_menu_*') if relative.startswith(MENU_RESOURCE_DIR) else ('raws_*',)
-        for pattern in patterns:
-            for entry in directory.glob(pattern):
+        for prefix in ui_resource_prefixes(relative):
+            for entry in directory.glob(prefix + '*'):
                 name = entry.relative_to(src).as_posix()
                 safe(src, name)
                 if not stat.S_ISREG(entry.lstat().st_mode):
                     raise ValueError('Non-regular Settings generated resource: ' + name)
                 found.add(name)
     if found != expected:
-        raise ValueError('Generated Settings resource inventory differs')
+        missing = sorted(expected - found)
+        unexpected = sorted(found - expected)
+        raise ValueError('Generated Settings resource inventory differs: '
+                         f'missing ({len(missing)}) {missing[:8]}; '
+                         f'unexpected ({len(unexpected)}) {unexpected[:8]}')
 
 
 def load(recipe_root, base_fingerprint, chromium_revision):
@@ -355,7 +376,7 @@ class Overlay:
                     raise ValueError('Brave directory present in clean baseline')
                 raise ValueError('Generated feature directory must not preexist: ' + directory)
         if self.ui_files:
-            exact_ui_resources(src, frozenset())
+            exact_ui_resources(src, self.ui_files, installed=False)
         targets = {}
         for relative, (before, _, mode) in self.files.items():
             path = safe(src, relative)
@@ -413,7 +434,7 @@ class Overlay:
         for directory in OWNED:
             exact_tree(src, directory, self.generated(directory))
         if self.ui_files:
-            exact_ui_resources(src, self.ui_files & UI_RESOURCE_FILES)
+            exact_ui_resources(src, self.ui_files)
         for relative, (_, after, mode) in self.files.items():
             path = safe(src, relative)
             if sha(read_regular(path)) != after or stat.S_IMODE(path.stat().st_mode) != int(mode, 8):

@@ -358,6 +358,43 @@ class FeatureTransition(unittest.TestCase):
             injected.unlink()
             overlay.verify(self.source, self.upstream)
 
+    def test_port_generated_resources_in_existing_and_new_directories(self):
+        self.add_ui()
+        home = 'chrome/android/java/res/values/raws_home_search_strings.xml'
+        new_dir = 'chrome/android/java/res/values-zz'
+        locale = new_dir + '/raws_fixture_strings.xml'
+        self.assertNotIn(home, feature.UI_RESOURCE_FILES)
+        self.assertNotIn(new_dir, feature.UI_RESOURCE_DIRS)
+        self.edits.update({home: b'approved home strings', locale: b'approved locale'})
+        digest = self.admit()
+        proof = {'manifest_sha256': digest, 'extra_generated': [home, locale],
+                 'extra_tracked': []}
+        with patch.object(feature, 'APPROVED_UI_MANIFEST_SHA256', digest), \
+                patch.object(port, 'proof', return_value=proof):
+            overlay = self.load()
+            drift = put(self.source, new_dir + '/raws_unapproved.xml', b'stale')
+            with self.assertRaisesRegex(ValueError, 'unexpected.*raws_unapproved'):
+                overlay.apply(self.source, self.upstream)
+            self.assertEqual(b'clean gn', (self.source / BUILD).read_bytes())
+            self.assertFalse((self.source / home).exists())
+            drift.unlink()
+
+            overlay.apply(self.source, self.upstream)
+            overlay.verify(self.source, self.upstream)
+            self.assertEqual(b'approved home strings', (self.source / home).read_bytes())
+            self.assertEqual(b'approved locale', (self.source / locale).read_bytes())
+
+            drift = put(self.source, new_dir + '/raws_unapproved.xml', b'unapproved')
+            with self.assertRaisesRegex(ValueError, 'unexpected.*raws_unapproved'):
+                overlay.verify(self.source, self.upstream)
+            drift.unlink()
+            (self.source / locale).unlink()
+            with self.assertRaisesRegex(ValueError, 'missing.*raws_fixture_strings'):
+                overlay.verify(self.source, self.upstream)
+            (self.source / locale).symlink_to(self.source / home)
+            with self.assertRaisesRegex(ValueError, 'symlink.*raws_fixture_strings'):
+                overlay.verify(self.source, self.upstream)
+
     def test_ui_exact_preimages_group_write_and_generated_modes(self):
         self.add_ui()
         for name in (UI_JAVA, UI_GN):
@@ -434,6 +471,25 @@ class FeatureTransition(unittest.TestCase):
 
 
 class FrozenScope(unittest.TestCase):
+    def test_sealed_ui_resource_inventory_checks_installed_postimages(self):
+        revision = json.loads((ROOT / 'upstream.lock.json').read_text())['chromium']['revision']
+        overlay = feature.load(ROOT, policy.FINGERPRINT, revision)
+        with tempfile.TemporaryDirectory() as path:
+            stage = Path(path)
+            for name in sorted(overlay.ui_files):
+                if '/res/' not in name:
+                    continue
+                before, after, mode = overlay.files[name]
+                self.assertIsNone(before)
+                payload = (ROOT / feature.POSTIMAGES / after).read_bytes()
+                self.assertEqual(after, feature.sha(payload))
+                put(stage, name, payload).chmod(int(mode, 8))
+            feature.exact_ui_resources(stage, overlay.ui_files)
+            extra = 'chrome/android/java/res/values/raws_unapproved.xml'
+            put(stage, extra, b'stale')
+            with self.assertRaisesRegex(ValueError, 'unexpected.*raws_unapproved'):
+                feature.exact_ui_resources(stage, overlay.ui_files)
+
     def test_exact_inventory_source_and_size(self):
         data = feature.brave_inventory()
         self.assertEqual('bd6d26d1bced03c17a98baa86d2cd3425d543d1b', data['brave_core'])
