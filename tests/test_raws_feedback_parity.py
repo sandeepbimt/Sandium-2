@@ -103,6 +103,17 @@ class CombinedFeedback(unittest.TestCase):
         self.assertIn("if (!sandium_popup && handle.IsInPrimaryMainFrame())", client)
 
 
+    def test_element_color_observer_uses_pinned_blink_ascii_constructor(self):
+        cpp = self.read("sandium_element_colors.cc").decode()
+        # M158's WTF String exposes FromUtf8, not FromUTF8. These are literal
+        # ASCII HTML attribute names, so the direct String constructor avoids
+        # the byte-span conversion and preserves the observer's exact filter.
+        self.assertIn(
+            '#include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"', cpp)
+        self.assertIn(
+            'Vector<String>{String("id"), String("class"), String("role")}', cpp)
+        self.assertNotIn("String::FromUTF8", cpp)
+
     def test_wallpaper_picker_nullable_annotation_targets_nested_type(self):
         coordinator = self.read("FeedSurfaceCoordinator.java").decode()
         self.assertIn(
