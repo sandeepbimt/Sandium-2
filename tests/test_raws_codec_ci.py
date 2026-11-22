@@ -180,5 +180,5 @@ class CodecCIProofTest(unittest.TestCase):
         self.prepare_checkout_manifest()
         with patch.object(codec, "git", side_effect=self.checkout_git(
                 parent=codec.FROZEN_SOURCE_BASELINE)):
-            with self.assertRaisesRegex(ValueError, "exact RawS #1504"):
+            with self.assertRaisesRegex(ValueError, "exact RawS #1505"):
                 codec.verify_checkout(self.root)
