@@ -1,0 +1,805 @@
+// Copyright 2012 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include "chrome/browser/chrome_browser_main_android.h"
+
+#include <algorithm>
+#include <cstdint>
+#include <initializer_list>
+#include <limits>
+#include <memory>
+#include <string>
+
+#include "base/android/application_status_listener.h"
+#include "base/android/jni_android.h"
+#include "base/android/scudo_features.h"
+#include "base/android/scudo_purge_coordinator.h"
+#include "base/feature_list.h"
+#include "base/functional/bind.h"
+#include "base/path_service.h"
+#include "base/task/current_thread.h"
+#include "base/task/thread_pool.h"
+#include "base/trace_event/trace_event.h"
+#include "chrome/browser/android/metrics/android_atoms_logger.h"
+#include "chrome/browser/android/mojo/chrome_interface_registrar_android.h"
+#include "chrome/browser/android/preferences/clipboard_android.h"
+#include "chrome/browser/android/seccomp_support_detector.h"
+#include "chrome/browser/browser_process.h"
+#include "chrome/browser/data_saver/data_saver.h"
+#include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/ui/android/tab_model/tab_model.h"
+#include "chrome/browser/ui/android/tab_model/tab_model_list.h"
+#include "chrome/browser/webauthn/android/cable_module_android.h"
+#include "chrome/grit/browser_resources.h"
+#include "components/crash/content/browser/child_exit_observer_android.h"
+#include "components/crash/content/browser/child_process_crash_observer_android.h"
+#include "components/metrics/stability_metrics_helper.h"
+#include "components/sandium_adblock/document_subresource_factory.h"
+#include "chrome/browser/raws/subscription_service.h"
+#include "content/public/browser/android/compositor.h"
+#include "content/public/browser/browser_thread.h"
+#include "content/public/common/main_function_params.h"
+#include "device/fido/public/features.h"
+#include "net/base/network_change_notifier.h"
+#include "ui/base/resource/resource_bundle.h"
+#include "ui/base/resource/resource_bundle_android.h"
+#include "ui/base/ui_base_paths.h"
+
+// Must come after all headers that specialize FromJniType() / ToJniType().
+#include <optional>
+#include "base/json/json_reader.h"
+#include "base/json/json_writer.h"
+#include "base/strings/string_number_conversions.h"
+#include "chrome/browser/sandium/element_color_rule_store.h"
+#include "components/prefs/pref_service.h"
+#include <string_view>
+#include "base/strings/string_util.h"
+#include "components/sandium_adblock/raw_custom_network_rules_policy.h"
+#include "chrome/android/chrome_jni_headers/ChromeBackupWatcher_jni.h"
+#include "base/android/callback_android.h"
+#include "base/android/jni_string.h"
+#include "chrome/browser/raws/raw_element_picker_browser.h"
+#include "chrome/browser/raws/raw_element_rules.h"
+#include "chrome/browser/raws/raws_color_session.h"
+#include "chrome/browser/raws/raws_blocked_page_events.h"
+#include "chrome/browser/raws/raws_site_ads_policy.h"
+#include "chrome/browser/raws/raw_user_network_rules_profile.h"
+#include "chrome/android/chrome_jni_headers/RawsProtectionCopy_jni.h"
+#include "chrome/android/chrome_jni_headers/RawSAdRuleBackupSettings_jni.h"
+#include "chrome/android/chrome_jni_headers/RawSElementColorController_jni.h"
+#include "chrome/android/chrome_jni_headers/RawSColorRulesSettings_jni.h"
+
+ChromeBrowserMainPartsAndroid::ChromeBrowserMainPartsAndroid(
+    bool is_integration_test,
+    StartupData* startup_data)
+    : ChromeBrowserMainParts(is_integration_test, startup_data) {}
+
+ChromeBrowserMainPartsAndroid::~ChromeBrowserMainPartsAndroid() = default;
+
+int ChromeBrowserMainPartsAndroid::PreCreateThreads() {
+  TRACE_EVENT0("startup", "ChromeBrowserMainPartsAndroid::PreCreateThreads");
+
+  int result_code = ChromeBrowserMainParts::PreCreateThreads();
+
+  // The ChildExitObserver needs to be created before any child process is
+  // created because it needs to be notified during process creation.
+  child_exit_observer_ = std::make_unique<crash_reporter::ChildExitObserver>();
+  child_exit_observer_->RegisterClient(
+      std::make_unique<crash_reporter::ChildProcessCrashObserver>());
+
+  return result_code;
+}
+
+void ChromeBrowserMainPartsAndroid::PostProfileInit(Profile* profile,
+                                                    bool is_initial_profile) {
+  CHECK(is_initial_profile,
+        base::NotFatalUntil::M162);  // No multiprofile on Android, only the
+                                     // initial call should happen.
+
+  // Get the OS Data Saver setting. This will be needed later on, so we want to
+  // fetch this setting as soon as possible to avoid blocking on it.
+  data_saver::FetchDataSaverOSSettingAsynchronously();
+
+  // The packaged rules are immutable; engine initialization runs off the UI
+  // thread. Keep Chromium networking unchanged if the asset is missing.
+  if (ui::ResourceBundle::HasSharedInstance()) {
+    auto rules = ui::ResourceBundle::GetSharedInstance().GetRawDataResource(
+        IDR_RAWS_INITIAL_ADBLOCK_RULES);
+    if (!rules.empty()) {
+      sandium::adblock_native::InitializeDocumentSubresourceRules(
+          std::string(rules));
+    }
+  }
+
+  if (is_initial_profile) sandium::port1442::StartSubscriptions(profile);
+  if (is_initial_profile && profile && !profile->IsOffTheRecord())
+    sandium::adblock_native::ProfileUserNetworkRules::For(*profile);
+  ChromeBrowserMainParts::PostProfileInit(profile, is_initial_profile);
+
+  // Idempotent.  Needs to be called once on startup.  If
+  // InitializeClipboardAndroidFromLocalState() is called multiple times (e.g.,
+  // once per profile load), that's okay; the additional calls don't change
+  // anything.
+  android::InitClipboardAndroidFromLocalState(g_browser_process->local_state());
+
+  // Start watching the preferences that need to be backed up backup using
+  // Android backup, so that we create a new backup if they change.
+  base::android::ScopedJavaGlobalRef<jobject> watcher;
+  watcher.Reset(android::Java_ChromeBackupWatcher_Constructor(
+      base::android::AttachCurrentThread(), profile));
+  backup_watcher_runner_.ReplaceClosure(
+      base::BindOnce(&android::Java_ChromeBackupWatcher_destroy,
+                     base::android::AttachCurrentThread(), watcher));
+
+  // The GCM driver can be used at this point because the primary profile has
+  // been created. Register non-profile-specific things that use GCM so that no
+  // messages can be processed (and dropped) because the handler wasn't
+  // installed in time.
+  webauthn::authenticator::RegisterForCloudMessages();
+}
+
+int ChromeBrowserMainPartsAndroid::PreEarlyInitialization() {
+  TRACE_EVENT0("startup",
+               "ChromeBrowserMainPartsAndroid::PreEarlyInitialization");
+  content::Compositor::Initialize();
+
+  CHECK(base::CurrentThread::IsSet());
+
+  return ChromeBrowserMainParts::PreEarlyInitialization();
+}
+
+void ChromeBrowserMainPartsAndroid::PostBrowserStart() {
+  ChromeBrowserMainParts::PostBrowserStart();
+
+  // Initializes the logger that forwards allowed UMA histograms to Android
+  // Statsd (Westworld) as atoms.
+  // TODO: crbug.com/512252292 - Add link to the readme doc for more background
+  // and context after it's created.
+  chrome::android::westworld::AndroidAtomsLogger::Initialize();
+
+  base::ThreadPool::PostDelayedTask(
+      FROM_HERE, {base::MayBlock(), base::TaskPriority::BEST_EFFORT},
+      base::BindOnce(&ReportSeccompSupport), base::Minutes(1));
+
+  RegisterChromeJavaMojoInterfaces();
+
+  scudo_purge_coordinator_ =
+      base::android::ScudoPurgeCoordinator::CreateIfEnabled();
+
+  if (scudo_purge_coordinator_) {
+    scudo_purge_coordinator_->Start();
+
+    // `base::Unretained(this)` is safe because `app_status_listener_` is owned
+    // by `this` and unregisters the listener upon destruction, ensuring the
+    // callback cannot be invoked after `this` is destroyed.
+    app_status_listener_ = base::android::ApplicationStatusListener::New(
+        base::BindRepeating(
+            &ChromeBrowserMainPartsAndroid::OnApplicationStateChange,
+            base::Unretained(this)));
+
+    OnApplicationStateChange(
+        base::android::ApplicationStatusListener::GetState());
+  }
+}
+
+void ChromeBrowserMainPartsAndroid::ShowMissingLocaleMessageBox() {
+  NOTREACHED();
+}
+
+void ChromeBrowserMainPartsAndroid::OnApplicationStateChange(
+    base::android::ApplicationState state) {
+  CHECK_CURRENTLY_ON(content::BrowserThread::UI, base::NotFatalUntil::M162);
+  CHECK(scudo_purge_coordinator_);
+  switch (state) {
+    case base::android::APPLICATION_STATE_HAS_RUNNING_ACTIVITIES:
+    case base::android::APPLICATION_STATE_HAS_PAUSED_ACTIVITIES:
+      scudo_purge_coordinator_->OnForegrounded();
+      break;
+    case base::android::APPLICATION_STATE_HAS_STOPPED_ACTIVITIES:
+    case base::android::APPLICATION_STATE_HAS_DESTROYED_ACTIVITIES:
+      scudo_purge_coordinator_->OnBackgrounded();
+      break;
+    case base::android::APPLICATION_STATE_UNKNOWN:
+      break;
+  }
+}
+
+// SPDX-License-Identifier: MPL-2.0
+namespace sandium::port1442 {
+
+UrlSubscriptions::UrlSubscriptions(Profile* profile)
+    : factory_(profile->GetDefaultStoragePartition()
+                   ->GetURLLoaderFactoryForBrowserProcess()),
+      cache_(base::ThreadPool::CreateSequencedTaskRunner(
+                 {base::MayBlock(), base::TaskPriority::USER_VISIBLE}),
+             profile->GetPath().AppendASCII("RawS-1442-filter-cache")) {
+  cache_.AsyncCall(&ListCache::Read)
+      .Then(base::BindOnce(&UrlSubscriptions::Start, weak_.GetWeakPtr()));
+}
+
+UrlSubscriptions::~UrlSubscriptions() = default;
+
+}  // namespace sandium::port1442
+
+// SPDX-License-Identifier: MPL-2.0
+namespace android {
+
+static bool JNI_RawsProtectionCopy_IsGoogleDeAmpEnabled(Profile* profile) {
+  return profile &&
+         profile->GetPrefs()->GetBoolean(sandium::adblock_native::kRawSGoogleDeAmpPref);
+}
+
+static bool JNI_RawsProtectionCopy_SetGoogleDeAmpEnabled(Profile* profile, bool value) {
+  if (!profile || profile->IsOffTheRecord()) return false;
+  profile->GetPrefs()->SetBoolean(sandium::adblock_native::kRawSGoogleDeAmpPref, value);
+  return profile->GetPrefs()->GetBoolean(sandium::adblock_native::kRawSGoogleDeAmpPref) == value;
+}
+
+static jint JNI_RawsProtectionCopy_GetAdFilteringPhase() {
+  if (!content::BrowserThread::CurrentlyOn(content::BrowserThread::UI)) {
+    return static_cast<jint>(
+        sandium::adblock_native::OfflineRulesPhase::kUnknown);
+  }
+  return static_cast<jint>(sandium::adblock_native::GetOfflineRulesPhase());
+}
+
+static jint JNI_RawsProtectionCopy_GetAdSubscriptionState(Profile* profile) {
+  if (!content::BrowserThread::CurrentlyOn(content::BrowserThread::UI))
+    return 0;
+  const auto* service = sandium::port1442::GetSubscriptions(profile);
+  if (!service) return 0;
+  const auto state = service->GetReadiness();
+  static_assert(std::size(sandium::port1442::kCatalog) < 64);
+  return static_cast<jint>(static_cast<unsigned>(state.phase) |
+                           (state.enabled << 2) | (state.cached << 8) |
+                           (state.active << 14));
+}
+
+static bool JNI_RawsProtectionCopy_RetryAdSubscriptions(Profile* profile) {
+  if (!content::BrowserThread::CurrentlyOn(content::BrowserThread::UI))
+    return false;
+  auto* service = sandium::port1442::GetSubscriptions(profile);
+  return service && service->RetryReadiness();
+}
+
+namespace {
+
+using sandium::adblock_native::RawSElementPicker;
+using sandium::adblock_native::CanUseElementRules;
+
+bool CanAcceptElementControls(content::WebContents* contents) {
+  return content::BrowserThread::CurrentlyOn(content::BrowserThread::UI) &&
+         contents && !contents->IsBeingDestroyed();
+}
+
+RawSElementPicker* GetPicker(content::WebContents* contents, bool create) {
+  if (!CanAcceptElementControls(contents)) return nullptr;
+  if (create) RawSElementPicker::CreateForWebContents(contents);
+  return RawSElementPicker::FromWebContents(contents);
+}
+
+}  // namespace
+
+static std::string JNI_RawsProtectionCopy_ElementDocumentToken(
+    content::WebContents* contents) {
+  if (!CanAcceptElementControls(contents) ||
+      contents->GetVisibility() != content::Visibility::VISIBLE)
+    return {};
+  auto* frame = contents->GetPrimaryMainFrame();
+  return CanUseElementRules(frame) ? frame->GetEmbeddingToken()->ToString()
+                                   : std::string();
+}
+
+namespace {
+
+jint PositiveBlockCount(
+    std::initializer_list<std::optional<uint32_t>> counts) {
+  uint64_t result = 0;
+  for (const auto& count : counts) {
+    result += count.value_or(0);
+  }
+  if (result == 0) return -1;
+  return static_cast<jint>(
+      std::min<uint64_t>(result, std::numeric_limits<jint>::max()));
+}
+
+}  // namespace
+
+static jint JNI_RawsProtectionCopy_ReadTerminalBlockCount(
+    content::WebContents* contents,
+    const std::string& expected_document,
+    jint bucket) {
+  if (bucket < 0 || bucket > 2 || expected_document.empty() ||
+      expected_document != JNI_RawsProtectionCopy_ElementDocumentToken(contents)) {
+    return -1;
+  }
+  // The token method already checks Browser UI thread and live visible contents.
+  auto* root = contents->GetPrimaryMainFrame();
+  if (!root || !root->IsActive() || !root->IsInPrimaryMainFrame() ||
+      &root->GetPage() != &contents->GetPrimaryPage()) {
+    return -1;
+  }
+  if (bucket == 0) {
+    return root->GetPage().ReadRawSMainDocumentBlockedNetworkRequests().value_or(-1);
+  }
+  const auto events = sandium::adblock_native::ReadActivePageEvents(
+      *contents, root->GetWeakDocumentPtr());
+  if (!events) return -1;
+  if (bucket == 1) {
+    return PositiveBlockCount(
+        {events->popup_opens, events->popup_navigations, events->popup_redirects});
+  }
+  return PositiveBlockCount(
+      {events->embedded_frame_navigations, events->embedded_frame_redirects});
+}
+
+static bool JNI_RawsProtectionCopy_BeginElementPicker(
+    content::WebContents* contents,
+    base::OnceCallback<void(std::string)> reply) {
+  auto* picker = GetPicker(contents, true);
+  return picker && picker->Begin(std::move(reply));
+}
+
+static bool JNI_RawsProtectionCopy_WatchElementPicker(
+    content::WebContents* contents, const std::string& token,
+    base::OnceCallback<void(std::string)> changed) {
+  auto* picker = GetPicker(contents, false);
+  return picker && picker->Watch(token, std::move(changed));
+}
+
+static bool JNI_RawsProtectionCopy_CommitElementPicker(
+    content::WebContents* contents, const std::string& token,
+    base::OnceCallback<void(bool)> completion) {
+  auto* picker = GetPicker(contents, false);
+  return picker && picker->Commit(token, std::move(completion));
+}
+
+static void JNI_RawsProtectionCopy_CancelElementPicker(
+    content::WebContents* contents) {
+  if (auto* picker = GetPicker(contents, false)) picker->Cancel();
+}
+
+static bool JNI_RawsProtectionCopy_ClearElementRules(
+    content::WebContents* contents, const std::string& document_token) {
+  auto* picker = GetPicker(contents, true);
+  return picker && picker->Clear(document_token);
+}
+
+static jint JNI_RawsProtectionCopy_GlobalAdFilteringState(Profile* profile) {
+  if (!content::BrowserThread::CurrentlyOn(content::BrowserThread::UI) ||
+      !profile)
+    return -1;
+  return sandium::adblock_native::SiteAdsController::For(*profile)
+                 .GlobalEnabled()
+             ? 1
+             : 0;
+}
+
+namespace {
+
+void RefreshProfileAutomaticAdStyles(Profile& changed_profile) {
+  using sandium::adblock_native::SiteAdsController;
+  for (TabModel* model : TabModelList::models()) {
+    for (int i = 0; i < model->GetTabCount(); ++i) {
+      auto* contents = model->GetWebContentsAt(i);
+      if (!contents || contents->IsBeingDestroyed()) continue;
+      auto* candidate =
+          Profile::FromBrowserContext(contents->GetBrowserContext());
+      if (!candidate ||
+          (candidate != &changed_profile &&
+           !SiteAdsController::For(*candidate)
+                .InheritsGlobalFrom(changed_profile))) {
+        continue;
+      }
+      auto* root = contents->GetPrimaryMainFrame();
+      if (!root) continue;
+      root->ForEachRenderFrameHost([](content::RenderFrameHost* frame) {
+        sandium::adblock_native::RefreshAutomaticElementStyles(*frame);
+      });
+    }
+  }
+}
+
+}  // namespace
+
+static bool JNI_RawsProtectionCopy_SetGlobalAdFilteringEnabled(
+    Profile* profile, bool enabled, base::OnceCallback<void(bool)> completion) {
+  if (!content::BrowserThread::CurrentlyOn(content::BrowserThread::UI) ||
+      !profile || !completion)
+    return false;
+  auto& controller = sandium::adblock_native::SiteAdsController::For(*profile);
+  const bool was_enabled = controller.GlobalEnabled();
+  if (!controller.SetGlobalEnabled(enabled)) return false;
+  if (was_enabled != enabled) RefreshProfileAutomaticAdStyles(*profile);
+
+  if (profile->IsOffTheRecord()) {
+    std::move(completion).Run(true);
+  } else {
+    // Match the existing native settings persistence contract; callers that
+    // might relaunch immediately must wait for this posted write completion.
+    profile->GetPrefs()->CommitPendingWrite(
+        base::BindOnce(std::move(completion), true));
+  }
+  return true;
+}
+
+static jint JNI_RawsProtectionCopy_SiteAdFilteringState(
+    content::WebContents* contents, const std::string& expected_document) {
+  if (expected_document.empty() || expected_document !=
+      JNI_RawsProtectionCopy_ElementDocumentToken(contents)) return -1;
+  auto* frame = contents->GetPrimaryMainFrame();
+  return sandium::adblock_native::IsFrameSiteAdsEnabled(*frame) ? 1 : 0;
+}
+
+static bool JNI_RawsProtectionCopy_SetSiteAdFilteringEnabled(
+    content::WebContents* contents, const std::string& expected_document,
+    bool enabled) {
+  if (JNI_RawsProtectionCopy_SiteAdFilteringState(contents, expected_document) < 0)
+    return false;
+  auto* frame = contents->GetPrimaryMainFrame();
+  auto* profile = Profile::FromBrowserContext(frame->GetBrowserContext());
+  if (!profile ||
+      !sandium::adblock_native::SiteAdsController::For(*profile).SetEnabled(
+          frame->GetLastCommittedOrigin(), enabled)) return false;
+  frame->ForEachRenderFrameHost([](content::RenderFrameHost* candidate) {
+    sandium::adblock_native::RefreshAutomaticElementStyles(*candidate);
+  });
+  return true;
+}
+
+static std::string JNI_RawsProtectionCopy_CustomNetworkRules(Profile* profile) {
+  if (!content::BrowserThread::CurrentlyOn(content::BrowserThread::UI) ||
+      !profile)
+    return {};
+  return sandium::adblock_native::ProfileUserNetworkRules::For(*profile).CurrentText();
+}
+
+static bool JNI_RawsProtectionCopy_ReplaceCustomNetworkRules(
+    Profile* profile, const std::string& rules,
+    base::OnceCallback<void(bool)> completion) {
+  if (!content::BrowserThread::CurrentlyOn(content::BrowserThread::UI) ||
+      !profile || !completion) return false;
+  return sandium::adblock_native::ProfileUserNetworkRules::For(*profile).Replace(
+      rules, std::move(completion));
+}
+
+static std::string JNI_RawsProtectionCopy_SubscriptionDetails(Profile* profile) {
+  if (!content::BrowserThread::CurrentlyOn(content::BrowserThread::UI)) return {};
+  const auto* service = sandium::port1442::GetSubscriptions(profile);
+  return service ? service->GetDetails() : std::string();
+}
+
+static bool JNI_RawsProtectionCopy_SetSubscriptionEnabled(
+    Profile* profile, jint index, const std::string& expected_generation,
+    bool enabled, base::OnceCallback<void(bool)> persisted) {
+  if (!content::BrowserThread::CurrentlyOn(content::BrowserThread::UI) ||
+      index < 0 || expected_generation.size() > 20 || !persisted)
+    return false;
+  auto* service = sandium::port1442::GetSubscriptions(profile);
+  return service && service->SetEnabled(static_cast<size_t>(index),
+                                        expected_generation, enabled,
+                                        std::move(persisted));
+}
+
+static bool JNI_RawsProtectionCopy_RequestFilterRefresh(Profile* profile) {
+  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
+  if (!sandium::adblock_native::OfflineRulesReady()) {
+    return false;
+  }
+  auto* service = sandium::port1442::GetSubscriptions(profile);
+  return service && service->RequestManualRefresh();
+}
+
+}  // namespace android
+
+DEFINE_JNI(ChromeBackupWatcher)
+// One explicit local backup for My Filters plus regular-profile picker rules.
+// Keep private stores, subscriptions, engine state, and color rules excluded.
+namespace {
+using sandium::adblock_native::CountSupportedCustomRules;
+using sandium::adblock_native::kRawSElementRulesPref;
+using sandium::adblock_native::MergeAdBackupElementRules;
+using sandium::adblock_native::ProfileUserNetworkRules;
+using sandium::adblock_native::ValidateAdBackupElementRules;
+constexpr size_t kRawSAdArchiveLimit = 256u * 1024;
+
+bool CanAccessAdBackups(Profile* profile) {
+  return content::BrowserThread::CurrentlyOn(content::BrowserThread::UI) &&
+         profile && !profile->IsOffTheRecord() && !profile->ShutdownStarted();
+}
+
+bool IsSupportedAdBackupText(std::string_view text) {
+  return base::IsStringUTF8(text) &&
+         CountSupportedCustomRules(text).has_value();
+}
+
+struct AdBackupRules {
+  std::string my_filters;
+  std::optional<base::DictValue> elements;
+};
+
+std::optional<AdBackupRules> DecodeAdRuleBackup(const std::string& archive) {
+  if (archive.empty() || archive.size() > kRawSAdArchiveLimit ||
+      !base::IsStringUTF8(archive)) return std::nullopt;
+  auto root = base::JSONReader::ReadDict(archive, base::JSON_PARSE_RFC);
+  if (!root) {
+    // The donor My Filters preference is plaintext. Import only the subset
+    // independently admitted by RawS's passive rules parser, not a browser
+    // configuration package or unsupported scriptlets/procedural rules.
+    const auto count = CountSupportedCustomRules(archive);
+    if (!count || count->total() == 0)
+      return std::nullopt;
+    return AdBackupRules{archive, std::nullopt};
+  }
+  const auto version = root->FindInt("version");
+  if ((version != 1 && version != 2) || root->size() != (version == 1 ? 4u : 5u))
+    return std::nullopt;
+  const auto* format = root->FindString("format");
+  const auto* kind = root->FindString("kind");
+  const auto* rules = root->FindString("rules");
+  if (!format || *format != "sandium-rules" || !kind ||
+      *kind != "custom-ad-rules" || !rules || !IsSupportedAdBackupText(*rules)) {
+    return std::nullopt;
+  }
+  if (version == 1) return AdBackupRules{*rules, std::nullopt};
+  const auto* elements = root->FindDict("elementRules");
+  if (!elements || !ValidateAdBackupElementRules(*elements)) return std::nullopt;
+  return AdBackupRules{*rules, elements->Clone()};
+}
+
+std::optional<std::string> EncodeAdRuleBackup(
+    const std::string& rules, const base::DictValue* elements) {
+  if (!IsSupportedAdBackupText(rules) ||
+      (elements && !ValidateAdBackupElementRules(*elements))) return std::nullopt;
+  base::DictValue root;
+  root.Set("format", "sandium-rules");
+  root.Set("version", elements ? 2 : 1);
+  root.Set("kind", "custom-ad-rules");
+  root.Set("rules", rules);
+  if (elements) root.Set("elementRules", elements->Clone());
+  auto result = base::WriteJson(root);
+  if (!result || result->size() > kRawSAdArchiveLimit) return std::nullopt;
+  return result;
+}
+
+std::optional<std::string> MergeAdRuleTexts(
+    const std::string& current, const std::string& incoming) {
+  if (!IsSupportedAdBackupText(current) || !IsSupportedAdBackupText(incoming)) {
+    return std::nullopt;
+  }
+  if (incoming.empty() || current == incoming ||
+      (current.size() > incoming.size() && current.ends_with(incoming) &&
+       current[current.size() - incoming.size() - 1] == '\n')) {
+    return current;
+  }
+  std::string merged = current;
+  if (!merged.empty() && !merged.ends_with('\n')) merged += '\n';
+  merged += incoming;
+  if (!IsSupportedAdBackupText(merged)) return std::nullopt;
+  return merged;
+}
+
+bool CanWriteAdBackupPrefs(Profile* profile, bool elements) {
+  if (!CanAccessAdBackups(profile)) return false;
+  const auto* prefs = profile->GetPrefs();
+  const auto* rules =
+      prefs->FindPreference(sandium::adblock_native::kScopedUserNetworkRulesPref);
+  const auto* picked = prefs->FindPreference(kRawSElementRulesPref);
+  return rules && rules->IsUserModifiable() &&
+         (!elements || (picked && picked->IsUserModifiable()));
+}
+
+std::optional<std::string> AdBackupExpectedSnapshot(
+    Profile& profile, const std::string& current, bool with_elements) {
+  // Preserve v1's comparison contract. A v2 snapshot compares both stores.
+  if (!with_elements) return current;
+  return EncodeAdRuleBackup(current,
+                            &profile.GetPrefs()->GetDict(kRawSElementRulesPref));
+}
+}  // namespace
+
+static std::string JNI_RawSAdRuleBackupSettings_Export(Profile* profile) {
+  if (!CanAccessAdBackups(profile)) return {};
+  const auto& elements = profile->GetPrefs()->GetDict(kRawSElementRulesPref);
+  return EncodeAdRuleBackup(
+      ProfileUserNetworkRules::For(*profile).CurrentText(),
+      elements.empty() ? nullptr : &elements).value_or(std::string());
+}
+
+static std::string JNI_RawSAdRuleBackupSettings_PlanRestore(
+    Profile* profile, const std::string& archive) {
+  if (!CanAccessAdBackups(profile)) return {};
+  const auto incoming = DecodeAdRuleBackup(archive);
+  if (!incoming || !CanWriteAdBackupPrefs(profile, incoming->elements.has_value()))
+    return {};
+  const auto current = ProfileUserNetworkRules::For(*profile).CurrentText();
+  const auto merged = MergeAdRuleTexts(current, incoming->my_filters);
+  if (!merged) return {};
+  bool changed = *merged != current;
+  if (incoming->elements) {
+    const auto& existing = profile->GetPrefs()->GetDict(kRawSElementRulesPref);
+    const auto combined = MergeAdBackupElementRules(existing, *incoming->elements);
+    if (!combined || !EncodeAdRuleBackup(*merged, &*combined)) return {};
+    changed |= *combined != existing;
+  }
+  auto expected =
+      AdBackupExpectedSnapshot(*profile, current, incoming->elements.has_value());
+  if (!expected) return {};
+  base::DictValue response;
+  response.Set("changed", changed);
+  response.Set("importedBytes", static_cast<int>(
+      incoming->elements ? archive.size() : incoming->my_filters.size()));
+  response.Set("expected", std::move(*expected));
+  return base::WriteJson(response).value_or(std::string());
+}
+
+static bool JNI_RawSAdRuleBackupSettings_ApplyRestore(
+    Profile* profile, const std::string& archive, const std::string& expected,
+    base::OnceCallback<void(bool)> completion) {
+  if (!CanAccessAdBackups(profile) || !completion) return false;
+  const auto incoming = DecodeAdRuleBackup(archive);
+  if (!incoming || !CanWriteAdBackupPrefs(profile, incoming->elements.has_value()))
+    return false;
+  auto& owner = ProfileUserNetworkRules::For(*profile);
+  auto current = owner.CurrentText();
+  if (AdBackupExpectedSnapshot(*profile, current,
+                               incoming->elements.has_value()) != expected)
+    return false;
+  auto merged = MergeAdRuleTexts(current, incoming->my_filters);
+  if (!merged) return false;
+  if (!incoming->elements)
+    return *merged != current &&
+           owner.Replace(std::move(*merged), std::move(completion));
+
+  auto* prefs = profile->GetPrefs();
+  const auto& existing = prefs->GetDict(kRawSElementRulesPref);
+  auto elements = MergeAdBackupElementRules(existing, *incoming->elements);
+  if (!elements || !EncodeAdRuleBackup(*merged, &*elements)) return false;
+  if (*merged == current) {
+    if (*elements == existing) return false;
+    {
+      ScopedDictPrefUpdate update(prefs, kRawSElementRulesPref);
+      update.Get() = std::move(*elements);
+    }
+    prefs->CommitPendingWrite(base::BindOnce(std::move(completion), true));
+    return true;
+  }
+
+  // This callback is owned by the native matcher inside this Profile's user
+  // data; destruction invalidates the pending publish before the callback.
+  // A fresh picker edit or My Filters change must not be overwritten while
+  // the mixed import's candidate engine is being admitted on its worker.
+  return owner.ReplaceWithAdRuleBackup(
+      std::move(*merged), std::move(*elements),
+      base::BindOnce(
+          [](Profile* profile, std::string text, base::DictValue picked) {
+            return CanWriteAdBackupPrefs(profile, /*elements=*/true) &&
+                   ProfileUserNetworkRules::For(*profile).CurrentText() == text &&
+                   profile->GetPrefs()->GetDict(kRawSElementRulesPref) == picked;
+          },
+          base::Unretained(profile), std::move(current), existing.Clone()),
+      std::move(completion));
+}
+
+DEFINE_JNI(RawSAdRuleBackupSettings)
+
+// Browser JNI callbacks contain status only; site URL/rule identity never cross Java.
+namespace {
+using sandium::color_picker::RawSColorSession;
+using sandium::color_picker::Status;
+
+RawSColorSession* ColorSession(content::WebContents* contents) {
+  if (!content::BrowserThread::CurrentlyOn(content::BrowserThread::UI) ||
+      !contents || contents->IsBeingDestroyed()) return nullptr;
+  RawSColorSession::CreateForWebContents(contents);
+  return RawSColorSession::FromWebContents(contents);
+}
+}  // namespace
+
+static void JNI_RawSElementColorController_OnDarkPolicyChanged(
+    content::WebContents* contents) {
+  if (auto* picker = ColorSession(contents)) picker->OnDarkPolicyChanged();
+}
+static bool JNI_RawSElementColorController_CanStart(content::WebContents* contents) {
+  auto* picker = ColorSession(contents);
+  return picker && picker->CanStart();
+}
+static bool JNI_RawSElementColorController_Begin(content::WebContents* contents, int64_t id) {
+  auto* picker = ColorSession(contents);
+  return picker && picker->Begin(id);
+}
+static void JNI_RawSElementColorController_Select(content::WebContents* contents, int64_t id,
+                                                  Status reply) {
+  if (auto* picker = ColorSession(contents)) picker->Select(id, std::move(reply));
+  else if (reply) std::move(reply).Run("");
+}
+static void JNI_RawSElementColorController_Preview(content::WebContents* contents, int64_t id,
+                                                   int property, int rgb, Status reply) {
+  if (auto* picker = ColorSession(contents)) picker->Preview(id, property, rgb, std::move(reply));
+  else if (reply) std::move(reply).Run("0");
+}
+static void JNI_RawSElementColorController_Save(content::WebContents* contents, int64_t id,
+                                                int property, int rgb, Status reply) {
+  if (auto* picker = ColorSession(contents)) picker->Save(id, property, rgb, std::move(reply));
+  else if (reply) std::move(reply).Run("0");
+}
+static void JNI_RawSElementColorController_Cancel(content::WebContents* contents, int64_t id) {
+  if (auto* picker = ColorSession(contents)) picker->CancelRequest(id);
+}
+static void JNI_RawSElementColorController_Clear(content::WebContents* contents,
+                                                int64_t id, Status reply) {
+  if (auto* picker = ColorSession(contents))
+    picker->ClearCurrentSite(id, std::move(reply));
+  else if (reply) std::move(reply).Run("0");
+}
+
+DEFINE_JNI(RawsProtectionCopy)
+DEFINE_JNI(RawSElementColorController)
+// Read or edit saved colors only from the local regular-profile settings UI.
+namespace {
+constexpr size_t kRawSColorBackupLimit = 8u * 1024 * 1024;
+
+bool CanAccessColorBackups(Profile* profile) {
+  return content::BrowserThread::CurrentlyOn(content::BrowserThread::UI) &&
+         profile && !profile->IsOffTheRecord() && !profile->ShutdownStarted();
+}
+
+std::optional<std::string> UnwrapColorBackup(const std::string& archive) {
+  if (archive.empty() || archive.size() > kRawSColorBackupLimit) {
+    return std::nullopt;
+  }
+  auto root = base::JSONReader::ReadDict(archive, base::JSON_PARSE_RFC);
+  if (!root || root->size() != 4 || root->FindInt("version") != 1) {
+    return std::nullopt;
+  }
+  const auto* format = root->FindString("format");
+  const auto* kind = root->FindString("kind");
+  const auto* rules = root->FindDict("rules");
+  if (!format || *format != "sandium-rules" || !kind ||
+      *kind != "element-colors" || !rules) {
+    return std::nullopt;
+  }
+  return base::WriteJson(*rules);
+}
+}  // namespace
+
+static std::string JNI_RawSColorRulesSettings_Export(Profile* profile) {
+  if (!CanAccessColorBackups(profile)) return {};
+  auto& store = sandium::ElementColorRuleStore::ForProfile(*profile);
+  auto rules = base::JSONReader::ReadDict(store.ExportRules(), base::JSON_PARSE_RFC);
+  if (!rules) return {};
+  base::DictValue archive;
+  archive.Set("format", "sandium-rules");
+  archive.Set("version", 1);
+  archive.Set("kind", "element-colors");
+  archive.Set("rules", std::move(*rules));
+  auto encoded = base::WriteJson(archive);
+  return encoded && encoded->size() <= kRawSColorBackupLimit ? *encoded : std::string();
+}
+
+static std::string JNI_RawSColorRulesSettings_PlanRestore(
+    Profile* profile, const std::string& archive) {
+  if (!CanAccessColorBackups(profile)) return {};
+  auto rules = UnwrapColorBackup(archive);
+  if (!rules) return {};
+  auto& store = sandium::ElementColorRuleStore::ForProfile(*profile);
+  auto plan = store.ImportRules(*rules, false);
+  if (plan.FindBool("ok") != true) return {};
+  plan.Set("revision", base::NumberToString(store.revision()));
+  return base::WriteJson(plan).value_or(std::string());
+}
+
+static bool JNI_RawSColorRulesSettings_ApplyRestore(
+    Profile* profile, const std::string& archive, const std::string& expected_revision,
+    base::OnceCallback<void(bool)> completion) {
+  if (!CanAccessColorBackups(profile) || !completion) return false;
+  auto& store = sandium::ElementColorRuleStore::ForProfile(*profile);
+  if (expected_revision != base::NumberToString(store.revision())) return false;
+  auto rules = UnwrapColorBackup(archive);
+  if (!rules || store.ImportRules(*rules, true).FindBool("ok") != true) return false;
+  profile->GetPrefs()->CommitPendingWrite(base::BindOnce(std::move(completion), true));
+  return true;
+}
+
+DEFINE_JNI(RawSColorRulesSettings)

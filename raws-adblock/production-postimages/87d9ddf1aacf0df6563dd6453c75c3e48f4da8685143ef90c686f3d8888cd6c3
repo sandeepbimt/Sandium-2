@@ -1,0 +1,337 @@
+// Copyright 2026 Sandium Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license.
+#ifndef CHROME_BROWSER_RAWS_RAWS_COLOR_SESSION_H_
+#define CHROME_BROWSER_RAWS_RAWS_COLOR_SESSION_H_
+
+#include <optional>
+#include <string>
+#include <utility>
+
+#include "base/functional/bind.h"
+#include "base/functional/callback.h"
+#include "base/memory/raw_ptr.h"
+#include "base/memory/weak_ptr.h"
+#include "base/task/sequenced_task_runner.h"
+#include "base/time/time.h"
+#include "base/timer/timer.h"
+#include "base/unguessable_token.h"
+#include "chrome/browser/android/web_contents_theme_client.h"
+#include "chrome/browser/content_settings/host_content_settings_map_factory.h"
+#include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/raws/raws_color_wire_codec.h"
+#include "components/content_settings/core/browser/host_content_settings_map.h"
+#include "components/prefs/pref_service.h"
+#include "content/public/browser/navigation_handle.h"
+#include "content/public/browser/render_frame_host.h"
+#include "content/public/browser/visibility.h"
+#include "content/public/browser/web_contents.h"
+#include "content/public/browser/web_contents_observer.h"
+#include "content/public/browser/web_contents_user_data.h"
+#include "content/public/browser/weak_document_ptr.h"
+#include "mojo/public/cpp/bindings/associated_remote.h"
+#include "third_party/blink/public/common/associated_interfaces/associated_interface_provider.h"
+#include "ui/gfx/geometry/point_f.h"
+#include "ui/native_theme/native_theme.h"
+
+namespace sandium::color_picker {
+using Status = base::OnceCallback<void(std::string)>;
+
+class RawSColorSession final
+    : public content::WebContentsObserver,
+      public content::WebContentsUserData<RawSColorSession> {
+ public:
+  ~RawSColorSession() override;
+  void OnDarkPolicyChanged();
+
+  static bool DarkEligible(content::WebContents* contents) {
+    if (!contents || contents->IsBeingDestroyed() ||
+        ui::NativeTheme::GetInstanceForWeb()->forced_colors() !=
+            ui::ColorProviderKey::ForcedColors::kNone) return false;
+    auto* frame = contents->GetPrimaryMainFrame();
+    if (!frame || !frame->IsActive() || !frame->IsRenderFrameLive() ||
+        frame->IsErrorDocument() || !frame->GetEmbeddingToken() ||
+        !frame->GetLastCommittedURL().SchemeIsHTTPOrHTTPS() ||
+        frame->GetLastCommittedOrigin().opaque() ||
+        contents->GetVisibleURL() != frame->GetLastCommittedURL()) {
+      return false;
+    }
+    auto* profile = Profile::FromBrowserContext(frame->GetBrowserContext());
+    auto* theme = night_mode::WebContentsThemeClient::FromWebContents(contents);
+    auto* map = profile ? HostContentSettingsMapFactory::GetForProfile(profile) : nullptr;
+    const GURL& url = frame->GetLastCommittedURL();
+    return map && theme &&
+        map->GetContentSetting(url, url, ContentSettingsType::AUTO_DARK_WEB_CONTENT) ==
+            CONTENT_SETTING_ALLOW && theme->IsForceDarkWebContentEnabled();
+  }
+
+  bool CanStart() const {
+    return !request_ && web_contents()->GetVisibility() == content::Visibility::VISIBLE &&
+        DarkEligible(web_contents());
+  }
+
+  bool Begin(int64_t id) {
+    if (id <= 0 || !CanStart()) return false;
+    StopRestore();
+    auto* frame = web_contents()->GetPrimaryMainFrame();
+    // Origin comes from the committed browser document, never JS or IPC.
+    request_id_ = id;
+    request_ = base::UnguessableToken::Create();
+    embedding_ = frame->GetEmbeddingToken();
+    document_ = frame->GetWeakDocumentPtr();
+    origin_ = frame->GetLastCommittedOrigin();
+    frame->GetRemoteAssociatedInterfaces()->GetInterface(&remote_);
+    remote_.set_disconnect_handler(
+        base::BindOnce(&RawSColorSession::Cancel, request_weak_.GetWeakPtr()));
+    ResetTimeout(base::Seconds(60));
+    return true;
+  }
+
+  void Select(int64_t id, Status reply) {
+    if (!Current(id) || pending_ || selected_) {
+      Reply(std::move(reply), "closed");
+      return;
+    }
+    pending_ = std::move(reply);
+    // Compatibility-only wire field. No coordinates cross this boundary.
+    remote_->Select(*embedding_, *request_, gfx::PointF(), base::BindOnce(
+        &RawSColorSession::OnSelection, request_weak_.GetWeakPtr(), id));
+  }
+
+  void Preview(int64_t id, int property, int rgb, Status reply) {
+    if (!Current(id) || pending_ || !selected_ || !ChoiceAllowed(property, rgb)) {
+      Reply(std::move(reply), "0");
+      return;
+    }
+    pending_ = std::move(reply);
+    remote_->Preview(*embedding_, *request_, static_cast<wire::RawSColorProperty>(property),
+        static_cast<uint32_t>(rgb), base::BindOnce(&RawSColorSession::OnPreview,
+        request_weak_.GetWeakPtr(), id));
+  }
+
+  void Save(int64_t id, int property, int rgb, Status reply) {
+    if (!Current(id) || pending_ || !selected_ || !ChoiceAllowed(property,rgb)) {
+      Reply(std::move(reply), "0");
+      return;
+    }
+    const auto mode = static_cast<wire::RawSColorProperty>(property);
+    pending_ = std::move(reply);
+    ResetTimeout(base::Seconds(6));
+    if (!selected_identity_) {
+      CommitForVisit(id, mode, static_cast<uint32_t>(rgb));
+      return;
+    }
+    remote_->ConfirmIdentity(*embedding_, *request_, mode, static_cast<uint32_t>(rgb),
+        base::BindOnce(&RawSColorSession::OnSaveConfirmed, request_weak_.GetWeakPtr(),
+        id, mode, static_cast<uint32_t>(rgb)));
+  }
+
+  void CancelRequest(int64_t id) {
+    if (id == request_id_) Cancel();
+  }
+
+  void ClearCurrentSite(int64_t id, Status reply) {
+    auto* frame = Current(id);
+    if (!frame || pending_ || !selected_) {
+      Reply(std::move(reply), "0");
+      return;
+    }
+    auto* profile = Profile::FromBrowserContext(frame->GetBrowserContext());
+    if (!profile) { Reply(std::move(reply), "0"); return; }
+    pending_ = std::move(reply);
+    ResetTimeout(base::Seconds(6));
+    auto& store = ElementColorRuleStore::ForProfile(*profile);
+    snapshot_before_ = store.Read(origin_);
+    if (!store.Reset(origin_)) {
+      snapshot_before_.reset();
+      Reply(std::move(pending_), "0");
+      ResetTimeout(base::Minutes(2));
+      return;
+    }
+    snapshot_after_ = store.Read(origin_);
+    snapshot_revision_ = store.revision();
+    Flush(profile, base::BindOnce(&RawSColorSession::OnClearStored,
+                                  request_weak_.GetWeakPtr(), id));
+  }
+
+ private:
+  friend class content::WebContentsUserData<RawSColorSession>;
+  explicit RawSColorSession(content::WebContents*);
+  static void Reply(Status callback, std::string result) {
+    if (callback) base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+        FROM_HERE, base::BindOnce(std::move(callback), std::move(result)));
+  }
+
+  void ResetTimeout(base::TimeDelta duration) {
+    deadline_.Start(FROM_HERE,duration,
+        base::BindOnce(&RawSColorSession::Cancel, request_weak_.GetWeakPtr()));
+  }
+
+  bool ChoiceAllowed(int property, int rgb) const {
+    return property >= 0 && property <= 2 && rgb >= 0 && rgb <= 0xffffff &&
+        (property != 2 || image_);
+  }
+
+  content::RenderFrameHost* Current(int64_t id) const {
+    if (id != request_id_ || !request_ || !document_ || !embedding_ ||
+        web_contents()->GetVisibility() != content::Visibility::VISIBLE ||
+        !DarkEligible(web_contents())) return nullptr;
+    auto* frame = document_->AsRenderFrameHostIfValid();
+    return frame && frame == web_contents()->GetPrimaryMainFrame() &&
+        frame->GetLastCommittedOrigin() == origin_ &&
+        frame->GetEmbeddingToken() == embedding_ ? frame : nullptr;
+  }
+
+  void OnSelection(int64_t id, wire::RawSColorIdentityPtr candidate,
+                   bool visit_only, bool artwork) {
+    if (!Current(id)) {
+      Cancel();
+      return;
+    }
+    // Exactly one kind of target: typed persistent identity or exact live
+    // renderer node. The latter can never reach EncodeRule or the profile store.
+    if (visit_only == !!candidate ||
+        (candidate && (EncodeRule(*candidate, wire::RawSColorProperty::kForeground,
+                                  0).empty() || artwork != (candidate->tag == "img")))) {
+      // Ineligible DOM taps are rejected in the renderer without ending
+      // selection. A null final result here is explicit cancel/teardown.
+      Reply(std::move(pending_), "closed");
+      Cancel();
+      return;
+    }
+    image_ = artwork;
+    selected_ = true;
+    selected_identity_ = std::move(candidate);
+    ResetTimeout(base::Minutes(2));
+    Reply(std::move(pending_),image_ ? "image" : "surface");
+  }
+
+  void OnPreview(int64_t id, bool success) {
+    if (!Current(id)) { Cancel(); return; }
+    ResetTimeout(base::Minutes(2));
+    Reply(std::move(pending_),success ? "1" : "0");
+  }
+
+  void OnSaveConfirmed(int64_t id, wire::RawSColorProperty property, uint32_t rgb,
+                       wire::RawSColorIdentityPtr confirmed) {
+    auto* frame = Current(id);
+    if (!frame || !confirmed || !selected_identity_) { Cancel(); return; }
+    auto rule = EncodeRule(*confirmed,property,rgb);
+    auto expected = EncodeRule(*selected_identity_,property,rgb);
+    if (rule.empty() || rule != expected) {
+      ResetTimeout(base::Minutes(2));
+      Reply(std::move(pending_),"0");
+      return;
+    }
+    auto* profile = Profile::FromBrowserContext(frame->GetBrowserContext());
+    if (!profile) { Cancel(); return; }
+    auto& store = ElementColorRuleStore::ForProfile(*profile);
+    snapshot_before_ = store.Read(origin_);
+    if (!store.Save(origin_,rule)) {
+      snapshot_before_.reset();
+      CommitForVisit(id, property, rgb);
+      return;
+    }
+    snapshot_after_ = store.Read(origin_);
+    snapshot_revision_ = store.revision();
+    Flush(profile, base::BindOnce(&RawSColorSession::OnSaveStored,
+                                  request_weak_.GetWeakPtr(), id, property, rgb));
+  }
+
+  void CommitForVisit(int64_t id, wire::RawSColorProperty property, uint32_t rgb) {
+    // Current() and the renderer apply path each revalidate their document lease.
+    if (!Current(id)) { Cancel(); return; }
+    remote_->CommitForVisit(*embedding_, *request_, property, rgb,
+        base::BindOnce(&RawSColorSession::OnVisitCommitted,
+                       request_weak_.GetWeakPtr(), id));
+  }
+
+  void OnVisitCommitted(int64_t id, bool success) {
+    if (!Current(id)) { Cancel(); return; }
+    auto callback = std::move(pending_);
+    Cancel();
+    // Do not reload rules on top of the user's exact-node visit correction.
+    Reply(std::move(callback), success ? "visit" : "closed");
+  }
+
+  static void Flush(Profile* profile, base::OnceClosure callback) {
+    if (!profile->IsOffTheRecord()) {
+      profile->GetPrefs()->CommitPendingWrite(std::move(callback));
+    } else {
+      base::SequencedTaskRunner::GetCurrentDefault()->PostTask(FROM_HERE, std::move(callback));
+    }
+  }
+
+  bool PersistedStillCurrent(int64_t id) const {
+    auto* frame = Current(id);
+    auto* profile = frame ? Profile::FromBrowserContext(frame->GetBrowserContext()) : nullptr;
+    if (!profile || !snapshot_after_) return false;
+    const auto& store = ElementColorRuleStore::ForProfile(*profile);
+    return store.revision() == snapshot_revision_ && store.Read(origin_) == *snapshot_after_;
+  }
+
+  void OnSaveStored(int64_t id, wire::RawSColorProperty property, uint32_t rgb) {
+    if (!PersistedStillCurrent(id)) { Cancel(); return; }
+    remote_->Commit(*embedding_, *request_, property, rgb,
+        base::BindOnce(&RawSColorSession::OnCommitted,request_weak_.GetWeakPtr(),id));
+  }
+
+  void OnClearStored(int64_t id) {
+    if (!PersistedStillCurrent(id)) { Cancel(); return; }
+    StopRestore();
+    remote_->Clear(*embedding_, ++store_generation_,
+        base::BindOnce(&RawSColorSession::OnCommitted,request_weak_.GetWeakPtr(),id));
+  }
+
+  void OnCommitted(int64_t id, bool success) {
+    if (!success || !PersistedStillCurrent(id)) { Cancel(); return; }
+    snapshot_before_.reset();
+    snapshot_after_.reset();
+    auto callback = std::move(pending_);
+    Cancel();
+    BeginRestore();
+    Reply(std::move(callback),"1");
+  }
+
+  void Cancel();
+
+  // Apply promptly to committed pages and BFCache/visible activations, but only
+  // issue small bounded retries for an origin with valid saved corrections.
+  void DOMContentLoaded(content::RenderFrameHost* frame) override;
+  void PrimaryPageChanged(content::Page&) override;
+  void DidFinishNavigation(content::NavigationHandle* handle) override;
+  void OnVisibilityChanged(content::Visibility visibility) override;
+  void WebContentsDestroyed() override;
+  void BeginRestore();
+  void SendRestore();
+  void StopRestore();
+  void PauseRendererRestore();
+
+  int64_t request_id_ = 0;
+  std::optional<base::UnguessableToken> request_;
+  std::optional<base::UnguessableToken> embedding_;
+  std::optional<content::WeakDocumentPtr> document_;
+  url::Origin origin_;
+  wire::RawSColorIdentityPtr selected_identity_;
+  bool selected_ = false;
+  bool image_ = false;
+  Status pending_;
+  std::optional<base::ListValue> snapshot_before_;
+  std::optional<base::ListValue> snapshot_after_;
+  uint64_t snapshot_revision_ = 0;
+  base::OneShotTimer deadline_;
+  mojo::AssociatedRemote<wire::RawSColorCorrector> remote_;
+  uint64_t store_generation_ = 0;
+  std::optional<content::WeakDocumentPtr> renderer_restore_document_;
+  std::optional<base::UnguessableToken> renderer_restore_embedding_;
+  int restore_remaining_ = 0;
+  std::optional<base::UnguessableToken> restore_embedding_;
+  std::optional<content::WeakDocumentPtr> restore_document_;
+  base::OneShotTimer restore_timer_;
+  base::WeakPtrFactory<RawSColorSession> request_weak_{this};
+  base::WeakPtrFactory<RawSColorSession> lifetime_{this};
+
+  WEB_CONTENTS_USER_DATA_KEY_DECL();
+};
+
+}  // namespace sandium::color_picker
+#endif  // CHROME_BROWSER_RAWS_RAWS_COLOR_SESSION_H_

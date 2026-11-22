@@ -1,0 +1,244 @@
+// Copyright 2026 Sandium Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license.
+package org.chromium.chrome.browser.settings;
+
+import android.app.Activity;
+import android.app.Application;
+import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
+import android.widget.Toast;
+
+import org.jni_zero.JniType;
+import org.jni_zero.NativeMethods;
+
+import org.chromium.base.Callback;
+import org.chromium.base.ThreadUtils;
+import org.chromium.base.library_loader.LibraryLoader;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
+import org.chromium.chrome.R;
+import org.chromium.chrome.browser.settings.RawSColorChooser.Handle;
+import org.chromium.chrome.browser.tab.Tab;
+import org.chromium.chrome.browser.tab.TabObserver;
+import org.chromium.chrome.browser.tab.TabHidingType;
+import org.chromium.content_public.browser.NavigationHandle;
+import org.chromium.content_public.browser.WebContents;
+import org.chromium.ui.base.WindowAndroid;
+
+import java.util.IdentityHashMap;
+import java.util.Map;
+
+/** Native chooser coordinator. It receives no webpage URLs, selectors, or script. */
+@NullMarked
+public final class RawSElementColorController {
+    private static final Map<Tab, Request> ACTIVE = new IdentityHashMap<>();
+    private static final Handler HANDLER = new Handler(Looper.getMainLooper());
+    private static final long PICK_TIMEOUT_MS = 60_000;
+    private static long sNextRequest;
+
+    private RawSElementColorController() {}
+
+    public static boolean canStart(Tab tab) {
+        ThreadUtils.assertOnUiThread();
+        @Nullable WebContents contents = tab.getWebContents();
+        return contents != null
+                && !contents.isDestroyed()
+                && LibraryLoader.getInstance().isInitialized()
+                && !ACTIVE.containsKey(tab)
+                && RawSElementColorControllerJni.get().canStart(contents);
+    }
+
+    public static boolean start(Tab tab, Activity activity) {
+        ThreadUtils.assertOnUiThread();
+        if (activity.isDestroyed() || activity.isFinishing() || !canStart(tab)) return false;
+        @Nullable WebContents contents = tab.getWebContents();
+        if (contents == null || contents.isDestroyed()) return false;
+        long id = ++sNextRequest;
+        if (id <= 0 || !RawSElementColorControllerJni.get().begin(contents, id)) return false;
+        Request request = new Request(tab, activity, contents, id);
+        ACTIVE.put(tab, request);
+        request.observe();
+        request.resetExpiry(PICK_TIMEOUT_MS);
+        request.select();
+        Toast.makeText(activity, R.string.raws_color_tap_prompt, Toast.LENGTH_SHORT).show();
+        return true;
+    }
+
+    public static void onDarkPolicyChanged(Tab tab) {
+        ThreadUtils.assertOnUiThread();
+        cancelForTab(tab);
+        @Nullable WebContents contents = tab.getWebContents();
+        if (contents != null && !contents.isDestroyed()) {
+            RawSElementColorControllerJni.get().onDarkPolicyChanged(contents);
+        }
+    }
+
+    public static void cancelForTab(Tab tab) {
+        ThreadUtils.assertOnUiThread();
+        @Nullable Request request = ACTIVE.get(tab);
+        if (request != null) request.finish();
+    }
+
+    private static final class Request implements TabObserver, RawSColorChooser.Actions,
+            Application.ActivityLifecycleCallbacks {
+        private final Tab mTab;
+        private final Activity mActivity;
+        private final WebContents mContents;
+        private final long mId;
+        private final Runnable mTimeout = this::expire;
+        private @Nullable Handle mChooser;
+        private boolean mFinished;
+
+        Request(Tab tab, Activity activity, WebContents contents, long id) {
+            mTab = tab;
+            mActivity = activity;
+            mContents = contents;
+            mId = id;
+        }
+
+        void observe() {
+            mTab.addObserver(this);
+            mActivity.getApplication().registerActivityLifecycleCallbacks(this);
+        }
+
+        private boolean active() {
+            return !mFinished && ACTIVE.get(mTab) == this && !mActivity.isDestroyed()
+                    && !mActivity.isFinishing() && !mContents.isDestroyed()
+                    && mTab.getWebContents() == mContents;
+        }
+
+        void resetExpiry(long milliseconds) {
+            HANDLER.removeCallbacks(mTimeout);
+            HANDLER.postDelayed(mTimeout, milliseconds);
+        }
+
+        private void expire() {
+            if (active() && mChooser == null)
+                Toast.makeText(mActivity, R.string.raws_color_target_unavailable,
+                               Toast.LENGTH_SHORT).show();
+            finish();
+        }
+
+        private void select() {
+            if (!active()) {
+                finish();
+                return;
+            }
+            RawSElementColorControllerJni.get().select(mContents, mId, result -> {
+                if (!active()) {
+                    finish();
+                    return;
+                }
+                if (!"image".equals(result) && !"surface".equals(result)) {
+                    finish();
+                    return;
+                }
+                mChooser = RawSColorChooser.show(mActivity, "image".equals(result), this);
+                resetExpiry(120_000);
+            });
+        }
+
+        @Override public void preview(int property, int rgb) {
+            @Nullable Handle chooser = mChooser;
+            if (chooser == null) return;
+            if (!active()) { finish(); return; }
+            RawSElementColorControllerJni.get().preview(mContents, mId, property, rgb, result -> {
+                if (!active() || mChooser != chooser) return;
+                if (result.isEmpty()) { finish(); return; }
+                resetExpiry(120_000);
+                chooser.onPreviewResult("1".equals(result));
+            });
+        }
+
+        @Override public void save(int property, int rgb) {
+            @Nullable Handle chooser = mChooser;
+            if (chooser == null) return;
+            if (!active()) { finish(); return; }
+            RawSElementColorControllerJni.get().save(mContents, mId, property, rgb, result -> {
+                if (!active() || mChooser != chooser) return;
+                if (result.isEmpty()) { finish(); return; }
+                boolean saved = "1".equals(result);
+                if ("closed".equals(result)) {
+                    Toast.makeText(mActivity, R.string.raws_shields_color_reselect,
+                            Toast.LENGTH_SHORT).show();
+                    finish();
+                    return;
+                }
+                boolean visitOnly = "visit".equals(result);
+                chooser.onSaveResult(saved, visitOnly);
+                if (saved || visitOnly) finish();
+            });
+        }
+
+        @Override public void clear() {
+            @Nullable Handle chooser = mChooser;
+            if (chooser == null) return;
+            if (!active()) { finish(); return; }
+            RawSElementColorControllerJni.get().clear(mContents, mId, result -> {
+                if (!active() || mChooser != chooser) return;
+                if (result.isEmpty()) { finish(); return; }
+                boolean cleared = "1".equals(result);
+                chooser.onClearResult(cleared);
+                if (cleared) finish();
+            });
+        }
+
+        @Override public void cancel() { finish(); }
+
+        void finish() {
+            if (mFinished) return;
+            mFinished = true;
+            if (ACTIVE.get(mTab) == this) ACTIVE.remove(mTab);
+            HANDLER.removeCallbacks(mTimeout);
+            mTab.removeObserver(this);
+            mActivity.getApplication().unregisterActivityLifecycleCallbacks(this);
+            if (!mContents.isDestroyed())
+                RawSElementColorControllerJni.get().cancel(mContents, mId);
+            @Nullable Handle chooser = mChooser;
+            mChooser = null;
+            if (chooser != null) chooser.close();
+        }
+
+        @Override public void onHidden(Tab tab, @TabHidingType int type) { finish(); }
+        @Override public void onDestroyed(Tab tab) { finish(); }
+        @Override public void onContentChanged(Tab tab) { finish(); }
+        @Override public void onActivityAttachmentChanged(Tab tab, @Nullable WindowAndroid window) {
+            finish();
+        }
+        @Override public void onDidStartNavigationInPrimaryMainFrame(
+                Tab tab, NavigationHandle navigation) {
+            // Match the donor: even an aborted or same-document navigation retires selection.
+            finish();
+        }
+        @Override public void onActivityStopped(Activity owner) {
+            if (owner == mActivity) finish();
+        }
+        @Override public void onActivityDestroyed(Activity owner) {
+            if (owner == mActivity) finish();
+        }
+        @Override public void onActivityCreated(Activity owner, @Nullable Bundle savedState) {}
+        @Override public void onActivityStarted(Activity owner) {}
+        @Override public void onActivityResumed(Activity owner) {}
+        @Override public void onActivityPaused(Activity owner) {}
+        @Override public void onActivitySaveInstanceState(Activity owner, Bundle outState) {}
+    }
+
+    @NativeMethods
+    interface Natives {
+        void onDarkPolicyChanged(@JniType("content::WebContents*") WebContents contents);
+        boolean canStart(@JniType("content::WebContents*") WebContents contents);
+        boolean begin(@JniType("content::WebContents*") WebContents contents, long id);
+        void select(@JniType("content::WebContents*") WebContents contents, long id,
+                @JniType("base::OnceCallback<void(std::string)>") Callback<String> result);
+        void preview(@JniType("content::WebContents*") WebContents contents, long id,
+                int property, int rgb,
+                @JniType("base::OnceCallback<void(std::string)>") Callback<String> result);
+        void save(@JniType("content::WebContents*") WebContents contents, long id,
+                int property, int rgb,
+                @JniType("base::OnceCallback<void(std::string)>") Callback<String> result);
+        void clear(@JniType("content::WebContents*") WebContents contents, long id,
+                @JniType("base::OnceCallback<void(std::string)>") Callback<String> result);
+        void cancel(@JniType("content::WebContents*") WebContents contents, long id);
+    }
+}

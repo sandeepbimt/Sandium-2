@@ -1,0 +1,366 @@
+// SPDX-License-Identifier: MPL-2.0
+package org.chromium.chrome.browser.settings;
+
+import android.animation.Animator;
+import android.animation.AnimatorListenerAdapter;
+import android.animation.ValueAnimator;
+import android.app.Activity;
+import android.app.AlertDialog;
+import android.graphics.Color;
+import android.graphics.drawable.GradientDrawable;
+import android.os.Handler;
+import android.os.Looper;
+import android.text.InputFilter;
+import android.view.Gravity;
+import android.view.View;
+import android.view.inputmethod.InputMethodManager;
+import android.widget.Button;
+import android.widget.EditText;
+import android.widget.LinearLayout;
+import android.widget.RadioButton;
+import android.widget.RadioGroup;
+import android.widget.ScrollView;
+import android.widget.TextView;
+import android.widget.Toast;
+
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
+import org.chromium.chrome.R;
+
+/** Chrome-owned view for a single typed, immutable live element selection. */
+@NullMarked
+public final class RawSColorChooser {
+    public interface Actions {
+        void preview(int property, int rgb);
+        void save(int property, int rgb);
+        void clear();
+        void cancel();
+    }
+
+    private RawSColorChooser() {}
+
+    /** After authoritative native hit-test and identity validation of the selected node. */
+    public static Handle show(Activity activity, boolean artwork, Actions callbacks) {
+        LinearLayout body=new LinearLayout(activity);body.setOrientation(LinearLayout.VERTICAL);
+        body.setPadding(dp(activity,20),dp(activity,12),dp(activity,20),dp(activity,16));
+        GradientDrawable background=new GradientDrawable();background.setColor(0xff1a1a1a);
+        background.setCornerRadius(dp(activity,16));body.setBackground(background);
+        body.addView(label(activity,R.string.raws_shields_color_editor_help));
+        RadioGroup property=new RadioGroup(activity);property.setOrientation(RadioGroup.VERTICAL);
+        RadioButton foreground=new RadioButton(activity);foreground.setId(View.generateViewId());
+        foreground.setText(R.string.raws_shields_color_text);foreground.setTextColor(0xffeeeeee);
+        RadioButton surface=new RadioButton(activity);surface.setId(View.generateViewId());
+        surface.setText(R.string.raws_shields_color_background);surface.setTextColor(0xffeeeeee);
+        RadioButton image=new RadioButton(activity);image.setId(View.generateViewId());
+        image.setText(R.string.raws_shields_color_artwork);image.setTextColor(0xffeeeeee);
+        image.setTag(2);
+        property.addView(foreground);property.addView(surface);property.addView(image);property.check(surface.getId());
+        // Native property0 foreground,1 background,2 image artwork. Only these typed constants cross JNI.
+        foreground.setTag(0);surface.setTag(1);body.addView(property);
+        EditText color=new EditText(activity);color.setSingleLine(true);color.setTextColor(0xffeeeeee);
+        color.setHint(R.string.raws_shields_color_hex);color.setHintTextColor(0xffaaaaaa);
+        color.setFilters(new InputFilter[]{new InputFilter.LengthFilter(7)});
+        color.setText("#EEEEEE");color.setContentDescription(activity.getString(R.string.raws_shields_color_hex));
+        body.addView(color);
+        LinearLayout presets=new LinearLayout(activity);presets.setOrientation(LinearLayout.HORIZONTAL);
+        for (String hex : new String[]{"#EEEEEE","#1A1A1A","#000000","#408CFF"}) {
+            Button swatch=new Button(activity);swatch.setText("●");swatch.setTextColor(Color.parseColor(hex));
+            swatch.setContentDescription(activity.getString(R.string.raws_shields_color_preset,hex));
+            swatch.setMinWidth(0);swatch.setMinHeight(dp(activity,48));
+            swatch.setOnClickListener(v->color.setText(hex));
+            presets.addView(swatch,new LinearLayout.LayoutParams(0,dp(activity,48),1));
+        }
+        body.addView(presets);
+        LinearLayout actions=new LinearLayout(activity);actions.setOrientation(LinearLayout.HORIZONTAL);
+        Button preview=button(activity,R.string.raws_shields_color_preview);
+        Button save=button(activity,R.string.raws_shields_color_save);
+        actions.addView(preview,new LinearLayout.LayoutParams(0,dp(activity,48),1));
+        actions.addView(save,new LinearLayout.LayoutParams(0,dp(activity,48),1));body.addView(actions);
+        Button reset=button(activity,R.string.raws_shields_color_reset);
+        body.addView(reset);
+        ScrollView scroll=new ScrollView(activity);scroll.addView(body);
+        AlertDialog dialog=new AlertDialog.Builder(activity)
+                .setTitle(R.string.raws_shields_correct_colors).setView(scroll)
+                .setNegativeButton(android.R.string.cancel,null).create();
+        var handle = new Handle(activity, artwork, dialog, property, color,
+                presets, preview, save, reset, callbacks);
+        preview.setOnClickListener(view -> handle.submit(false));
+        save.setOnClickListener(view -> handle.submit(true));
+        reset.setOnClickListener(view -> handle.confirmClear());
+        dialog.setOnDismissListener(ignored -> handle.onDismiss());
+        dialog.setCanceledOnTouchOutside(true);
+        dialog.show();
+        var window = dialog.getWindow();
+        if (window != null) window.setGravity(Gravity.BOTTOM);
+        return handle;
+    }
+
+    private static int dp(Activity activity, int value) {
+        return Math.round(value * activity.getResources().getDisplayMetrics().density);
+    }
+
+    private static TextView label(Activity activity, int text) {
+        TextView view = new TextView(activity);
+        view.setText(text);
+        view.setTextColor(0xffeeeeee);
+        view.setTextSize(14);
+        view.setPadding(0, dp(activity, 8), 0, dp(activity, 8));
+        return view;
+    }
+
+    private static Button button(Activity activity, int text) {
+        Button view = new Button(activity);
+        view.setText(text);
+        view.setAllCaps(false);
+        view.setMinHeight(dp(activity, 48));
+        return view;
+    }
+
+    public static final class Handle {
+        private final Activity mActivity;
+        private final boolean mArtworkAllowed;
+        private final AlertDialog mDialog;
+        private final RadioGroup mTarget;
+        private final EditText mField;
+        private final Button mPreview;
+        private final Button mSave;
+        private final LinearLayout mPresets;
+        private final Button mReset;
+        private final Actions mActions;
+        private boolean mClosed;
+        private boolean mInFlight;
+        private boolean mSaving;
+        private boolean mClearing;
+        private @Nullable AlertDialog mClearDialog;
+        private boolean mShowingPreview;
+        private float mPreviewDim;
+        private @Nullable ValueAnimator mPreviewAnimator;
+        private final Handler mHandler = new Handler(Looper.getMainLooper());
+        private final Runnable mRestorePreviewWindow = this::restorePreviewWindow;
+
+        private Handle(Activity activity, boolean image, AlertDialog dialog,
+                RadioGroup target, EditText field, LinearLayout presets,
+                Button preview, Button save, Button reset, Actions actions) {
+            mActivity = activity;
+            mArtworkAllowed = image;
+            mDialog = dialog;
+            mTarget = target;
+            mField = field;
+            mPreview = preview;
+            mSave = save;
+            mPresets = presets;
+            mReset = reset;
+            mActions = actions;
+        }
+
+        private void submit(boolean save) {
+            if (mClosed || mInFlight || mClearDialog != null) return;
+            var selected = mTarget.findViewById(mTarget.getCheckedRadioButtonId());
+            if (selected == null || !(selected.getTag() instanceof Integer property)
+                    || property < 0 || property > 2) return;
+            if (property == 2 && !mArtworkAllowed) {
+                mField.setError(mActivity.getString(R.string.raws_shields_color_preview_failed));
+                return;
+            }
+            var input = mField.getText();
+            int rgb = input == null ? -1 : parseEditorRgb(input.toString());
+            if (rgb < 0) {
+                mField.setError(mActivity.getString(R.string.raws_shields_color_invalid));
+                return;
+            }
+            setBusy(true, save);
+            if (save) {
+                mActions.save(property, rgb);
+            } else {
+                mActions.preview(property, rgb);
+            }
+        }
+
+        private void setBusy(boolean busy, boolean saving) {
+            mInFlight = busy;
+            mSaving = busy && saving;
+            if (!busy) mClearing = false;
+            mDialog.setCancelable(!mSaving);
+            mPreview.setEnabled(!busy);
+            mSave.setEnabled(!busy);
+            mDialog.getButton(AlertDialog.BUTTON_NEGATIVE).setEnabled(!mSaving);
+            mField.setEnabled(!busy);
+            mReset.setEnabled(!busy);
+            for (int i = 0; i < mTarget.getChildCount(); ++i) {
+                var choice = mTarget.getChildAt(i);
+                choice.setEnabled(!busy);
+            }
+            for (int i = 0; i < mPresets.getChildCount(); ++i) {
+                mPresets.getChildAt(i).setEnabled(!busy);
+            }
+        }
+
+        /** Called only by the authoritative same-session native preview callback. */
+        public void onPreviewResult(boolean applied) {
+            if (mClosed || !mInFlight || mSaving || mShowingPreview) return;
+            if (!applied) {
+                setBusy(false, false);
+                mField.setError(mActivity.getString(R.string.raws_shields_color_preview_failed));
+                return;
+            }
+            var window = mDialog.getWindow();
+            if (window == null) {
+                setBusy(false, false);
+                return;
+            }
+            // The browser dialog keeps the touch stream, but the live result is
+            // visible. Never show a fake preview or let a tap through to the site.
+            mShowingPreview = true;
+            var ime = mActivity.getSystemService(InputMethodManager.class);
+            if (ime != null) ime.hideSoftInputFromWindow(mField.getWindowToken(), 0);
+            mPreviewDim = window.getAttributes().dimAmount;
+            mField.clearFocus();
+            mDialog.setCanceledOnTouchOutside(false);
+            animatePreviewWindow(0f, () ->
+                    mHandler.postDelayed(mRestorePreviewWindow, 2_000));
+        }
+
+        private void restorePreviewWindow() {
+            if (mClosed || !mShowingPreview) return;
+            animatePreviewWindow(1f, () -> {
+                mShowingPreview = false;
+                mDialog.setCanceledOnTouchOutside(true);
+                setBusy(false, false);
+            });
+        }
+
+        private void cancelPreviewAnimation() {
+            var animator = mPreviewAnimator;
+            mPreviewAnimator = null;
+            if (animator != null) animator.cancel();
+        }
+
+        private void animatePreviewWindow(float target, Runnable complete) {
+            cancelPreviewAnimation();
+            var window = mDialog.getWindow();
+            if (window == null) return;
+            var decor = window.getDecorView();
+            if (!ValueAnimator.areAnimatorsEnabled()) {
+                decor.setAlpha(target);
+                window.setDimAmount(target * mPreviewDim);
+                complete.run();
+                return;
+            }
+            var animator = ValueAnimator.ofFloat(decor.getAlpha(), target);
+            mPreviewAnimator = animator;
+            animator.setDuration(160);
+            animator.addUpdateListener(update -> {
+                if (mClosed || mPreviewAnimator != update) return;
+                float alpha = (float) update.getAnimatedValue();
+                decor.setAlpha(alpha);
+                window.setDimAmount(alpha * mPreviewDim);
+            });
+            animator.addListener(new AnimatorListenerAdapter() {
+                @Override
+                public void onAnimationEnd(Animator animation) {
+                    // Cancellation clears ownership before Android's cancel/end callbacks.
+                    if (mClosed || mPreviewAnimator != animation) return;
+                    mPreviewAnimator = null;
+                    complete.run();
+                }
+            });
+            animator.start();
+        }
+
+        /** The caller must pass true only once native verified durable persistence. */
+        public void onSaveResult(boolean persisted, boolean visitOnly) {
+            if (mClosed || !mInFlight || !mSaving || mClearing) return;
+            if (!persisted && !visitOnly) {
+                setBusy(false, false);
+                mField.setError(mActivity.getString(R.string.raws_shields_color_save_failed));
+                return;
+            }
+            close();
+            Toast.makeText(mActivity, visitOnly ? R.string.raws_shields_color_visit_only
+                    : R.string.raws_shields_color_saved, Toast.LENGTH_SHORT).show();
+        }
+
+        private void confirmClear() {
+            if (mClosed || mInFlight || mClearDialog != null) return;
+            var confirmation =
+                    new AlertDialog.Builder(mActivity)
+                            .setTitle(R.string.raws_shields_color_reset)
+                            .setMessage(R.string.raws_shields_color_reset_question)
+                            .setPositiveButton(R.string.raws_shields_color_reset,
+                                    (ignored, which) -> requestClear())
+                            .setNegativeButton(android.R.string.cancel, null)
+                            .create();
+            mClearDialog = confirmation;
+            confirmation.setOnDismissListener(ignored -> {
+                if (mClearDialog == confirmation) mClearDialog = null;
+            });
+            confirmation.show();
+        }
+
+        private void requestClear() {
+            if (mClosed || mInFlight) return;
+            setBusy(true, true);
+            mClearing = true;
+            mActions.clear();
+        }
+
+        /** True only when the exact owning native rule store confirmed durable clear. */
+        public void onClearResult(boolean persisted) {
+            if (mClosed || !mInFlight || !mClearing) return;
+            if (!persisted) {
+                setBusy(false, false);
+                mField.setError(mActivity.getString(R.string.raws_shields_color_reset_failed));
+                return;
+            }
+            close();
+            Toast.makeText(mActivity, R.string.raws_shields_color_reset_done,
+                    Toast.LENGTH_SHORT).show();
+        }
+
+        private void dismissClearConfirmation() {
+            var clear = mClearDialog;
+            mClearDialog = null;
+            if (clear != null) clear.dismiss();
+        }
+
+        /** Lifecycle/controller-owned dismissal. Controller handles native cleanup. */
+        public void close() {
+            if (mClosed) return;
+            mClosed = true;
+            mHandler.removeCallbacks(mRestorePreviewWindow);
+            cancelPreviewAnimation();
+            dismissClearConfirmation();
+            mDialog.dismiss();
+        }
+
+        private void onDismiss() {
+            if (mClosed) return;
+            mClosed = true;
+            mHandler.removeCallbacks(mRestorePreviewWindow);
+            cancelPreviewAnimation();
+            dismissClearConfirmation();
+            mActions.cancel();
+        }
+    }
+
+    static int parseEditorRgb(String text) {
+        String hex = text.trim();
+        return hex.startsWith("#") ? parseOpaqueRgb(hex) : -1;
+    }
+
+    // Fixed six ASCII hex digits, with optional '#'. No CSS, alpha or named colors.
+    static int parseOpaqueRgb(String value) {
+        int start = value.startsWith("#") ? 1 : 0;
+        if (value.length() != start + 6) return -1;
+        int rgb = 0;
+        for (int i = start; i < value.length(); ++i) {
+            char c = value.charAt(i);
+            int digit = c >= '0' && c <= '9' ? c - '0'
+                    : c >= 'A' && c <= 'F' ? c - 'A' + 10
+                    : c >= 'a' && c <= 'f' ? c - 'a' + 10 : -1;
+            if (digit < 0) return -1;
+            rgb = (rgb << 4) | digit;
+        }
+        return rgb;
+    }
+}

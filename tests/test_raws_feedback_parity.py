@@ -26,8 +26,10 @@ class CombinedFeedback(unittest.TestCase):
         self.assertIn("mRawSPageActionsActive", toolbar)
         self.assertIn("getRawSUnifiedPaintBounds(", toolbar)
         self.assertIn("tab.canGoForward()", toolbar)
-        self.assertIn("centerRawSHomeWallpaper(width, height, mRawSHomeWallpaperCandidate)",
-                      self.read("FeedSurfaceCoordinator.java").decode())
+        feed = self.read("FeedSurfaceCoordinator.java").decode()
+        self.assertIn("if (!mRawSHomeWallpaperIncludesBrand", feed)
+        self.assertIn("width, height, wallpaper.getWidth(), wallpaper.getHeight()", feed)
+        self.assertIn("mRawSHomeWallpaperIncludesBrand, mRawSHomeWallpaperCandidate", feed)
         self.assertEqual(hashlib.sha256(self.read("raws_home_wallpaper.webp")).hexdigest(),
                          "c4a3f16fc676e3202b68064dc5e526cec3d2985f513c44ddc202395dca03514f")
 
@@ -98,8 +100,12 @@ class CombinedFeedback(unittest.TestCase):
         self.assertNotIn(".host_piece()", scoped)
         self.assertIn("OpenURLParams::FromNavigationHandle", scoped)
         self.assertIn("controller.GetPendingEntry()", scoped)
-        self.assertIn("GetResponseBody(", scoped)
-        self.assertIn("base::Milliseconds(80)", scoped)
+        self.assertNotIn("GetResponseBody(", scoped)
+        self.assertIn("swap->GetInspection(*navigation_id, frame_tree_node_id)", client)
+        self.assertIn("std::make_unique<body_sniffer::BodySnifferThrottle>", client)
+        transport = self.read("body_sniffer_url_loader.cc").decode()
+        self.assertIn("base::Milliseconds(80)", transport)
+        self.assertIn("ForwardBodyToClient()", transport)
         self.assertIn("if (!sandium_popup && handle.IsInPrimaryMainFrame())", client)
 
 

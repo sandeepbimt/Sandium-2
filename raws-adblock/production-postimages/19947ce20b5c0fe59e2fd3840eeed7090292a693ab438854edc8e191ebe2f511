@@ -1,0 +1,118 @@
+// SPDX-License-Identifier: MPL-2.0
+#ifndef CHROME_BROWSER_RAWS_RAW_USER_NETWORK_RULES_PROFILE_H_
+#define CHROME_BROWSER_RAWS_RAW_USER_NETWORK_RULES_PROFILE_H_
+
+#include <memory>
+#include <optional>
+#include <string>
+#include <utility>
+
+#include "base/functional/bind.h"
+#include "base/memory/raw_ptr.h"
+#include "base/memory/weak_ptr.h"
+#include "base/supports_user_data.h"
+#include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/raws/raw_element_rules.h"
+#include "components/prefs/pref_service.h"
+#include "components/sandium_adblock/document_subresource_factory.h"
+#include "url/origin.h"
+
+namespace sandium::adblock_native {
+inline constexpr char kScopedUserNetworkRulesPref[] = "sandium.user_network_filters";
+inline constexpr char kScopedUserNetworkRulesKey[] = "raws-user-network-filter-controller";
+
+class ProfileUserNetworkRules final : public base::SupportsUserData::Data {
+ public:
+  static ProfileUserNetworkRules& For(Profile& profile) {
+    auto* entry = static_cast<ProfileUserNetworkRules*>(
+        profile.GetUserData(kScopedUserNetworkRulesKey));
+    if (!entry) {
+      auto owned = std::make_unique<ProfileUserNetworkRules>(profile);
+      entry = owned.get();
+      profile.SetUserData(kScopedUserNetworkRulesKey, std::move(owned));
+    }
+    return *entry;
+  }
+
+  explicit ProfileUserNetworkRules(Profile& profile);
+
+  ~ProfileUserNetworkRules() override;
+
+  std::string CurrentText() const {
+    return profile_->IsOffTheRecord()
+               ? private_text_
+               : profile_->GetPrefs()->GetString(kScopedUserNetworkRulesPref);
+  }
+
+  bool Replace(std::string text, base::OnceCallback<void(bool)> done) {
+    // Keep persisted text exactly equal to a successfully admitted snapshot.
+    return rules_.Replace(
+        text, base::BindOnce(&ProfileUserNetworkRules::OnPublished,
+                             weak_.GetWeakPtr(), text,
+                             std::optional<base::DictValue>(),
+                             std::move(done)));
+  }
+
+  // Import prepares both stores, then rechecks them again after asynchronous
+  // matcher admission. No writes or active swap occur on a stale snapshot.
+  bool ReplaceWithAdRuleBackup(std::string text, base::DictValue elements,
+                               base::OnceCallback<bool()> may_publish,
+                               base::OnceCallback<void(bool)> done) {
+    if (profile_->IsOffTheRecord() || profile_->ShutdownStarted() ||
+        !may_publish || !done) return false;
+    return rules_.ReplaceIf(
+        text, std::move(may_publish),
+        base::BindOnce(&ProfileUserNetworkRules::OnPublished,
+                       weak_.GetWeakPtr(), text,
+                       std::optional<base::DictValue>(std::move(elements)),
+                       std::move(done)));
+  }
+
+  void QueryStyles(GURL url, base::OnceCallback<void(std::string)> reply) {
+    rules_.QueryStyles(std::move(url), std::move(reply));
+  }
+
+  ScopedUserRuleQuery BindQuery() {
+    return base::BindRepeating(
+        [](base::WeakPtr<ProfileUserNetworkRules> owner, GURL url, int resource,
+           url::Origin initiator, std::string method,
+           base::OnceCallback<void(bool)> result) {
+          return owner && owner->rules_.Query(std::move(url), resource,
+                                              std::move(initiator),
+                                              std::move(method),
+                                              std::move(result));
+        },
+        weak_.GetWeakPtr());
+  }
+
+ private:
+  void OnPublished(std::string text, std::optional<base::DictValue> elements,
+                   base::OnceCallback<void(bool)> done, bool ready) {
+    if (ready) {
+      if (profile_->IsOffTheRecord()) {
+        private_text_ = std::move(text);
+      } else {
+        auto* prefs = profile_->GetPrefs();
+        // Both values share the same regular profile Preferences store. Stage
+        // both synchronous UI-sequence changes before requesting its one flush.
+        if (elements) {
+          ScopedDictPrefUpdate update(prefs, kRawSElementRulesPref);
+          update.Get() = std::move(*elements);
+          prefs->SetString(kScopedUserNetworkRulesPref, text);
+        } else {
+          prefs->SetString(kScopedUserNetworkRulesPref, text);
+        }
+        prefs->CommitPendingWrite(base::BindOnce(std::move(done), true));
+        return;
+      }
+    }
+    std::move(done).Run(ready);
+  }
+
+  const raw_ptr<Profile> profile_;
+  ScopedUserRules rules_;
+  std::string private_text_;
+  base::WeakPtrFactory<ProfileUserNetworkRules> weak_{this};
+};
+}  // namespace sandium::adblock_native
+#endif  // CHROME_BROWSER_RAWS_RAW_USER_NETWORK_RULES_PROFILE_H_

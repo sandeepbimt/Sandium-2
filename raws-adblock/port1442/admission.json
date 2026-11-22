@@ -52,6 +52,7 @@
     "chrome/renderer/raws_color_locator.h",
     "chrome/renderer/raws_color_renderer.h",
     "chrome/renderer/raws_dynamic_cosmetic_scheduler.h",
+    "chrome/renderer/raws_element_picker_donor.h",
     "chrome/renderer/raws_procedural_cosmetic_binding.h",
     "chrome/renderer/raws_procedural_cosmetic_matcher.h",
     "components/browser_ui/styles/android/java/res/color/raws_sandium_switch_thumb.xml",
@@ -105,6 +106,8 @@
     "chrome/android/java/src/org/chromium/chrome/browser/ntp/search/SearchBoxViewBinder.java",
     "chrome/android/java/src/org/chromium/chrome/browser/privacy/settings/PrivacyPreferencesManagerImpl.java",
     "chrome/android/java/src/org/chromium/chrome/browser/settings/SettingsActivity.java",
+    "chrome/android/java/src/org/chromium/chrome/browser/settings/SettingsContainmentHelper.java",
+    "chrome/android/java/src/org/chromium/chrome/browser/settings/search/SettingsSearchCoordinator.java",
     "chrome/android/java/src/org/chromium/chrome/browser/share/ShareDelegateImpl.java",
     "chrome/android/java/src/org/chromium/chrome/browser/suggestions/tile/MostVisitedTilesLayout.java",
     "chrome/android/java/src/org/chromium/chrome/browser/suggestions/tile/SuggestionsTileView.java",
@@ -143,6 +146,7 @@
     "chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/LocationBarLayout.java",
     "chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/LocationBarPhone.java",
     "chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/OmniboxSuggestionsDropdownEmbedderImpl.java",
+    "chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/SearchEngineService.java",
     "chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/status/StatusCoordinator.java",
     "chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/status/StatusMediator.java",
     "chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/suggestions/AutocompleteMediator.java",
@@ -231,7 +235,7 @@
     "ui/android/java/src/org/chromium/ui/base/EventForwarder.java",
     "ui/android/java/src/org/chromium/ui/hierarchicalmenu/HierarchicalMenuController.java"
   ],
-  "manifest_sha256": "c3ae115190cc210addb22e9f83233db9f4b6024983e3d6e979f172b6310cf6d8",
+  "manifest_sha256": "662094b9a1d821b9758ea2bf94bf7990fd56fd054a83cae26b2ba79df8339364",
   "staged_vendor_delta": {
     "brave/third_party/rust/chromium_crates_io/vendor/adblock-v0_13/src/blocker.rs": {
       "after": "ac368737ffb88855918f8e32ac0eb39a308c4e76f41e4a8193cf223c2a59a7cb",

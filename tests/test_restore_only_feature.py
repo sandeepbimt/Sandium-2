@@ -526,7 +526,12 @@ class FrozenScope(unittest.TestCase):
                          actual.tracked_paths - feature.TRACKED)
         self.assertEqual(feature.UI_GENERATED | extra_generated, actual.ui_files)
         if extra:
-            self.assertEqual(168, len(extra_tracked))
+            self.assertEqual(171, len(extra_tracked))
+            self.assertLessEqual({
+                'chrome/android/java/src/org/chromium/chrome/browser/settings/SettingsContainmentHelper.java',
+                'chrome/android/java/src/org/chromium/chrome/browser/settings/search/SettingsSearchCoordinator.java',
+                'chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/SearchEngineService.java',
+            }, extra_tracked)
             self.assertLessEqual({
                 'chrome/android/java/src/org/chromium/chrome/browser/compositor/CompositorView.java',
                 'chrome/android/java/src/org/chromium/chrome/browser/compositor/layouts/StaticLayout.java',
@@ -569,11 +574,12 @@ class FrozenScope(unittest.TestCase):
                 for name in ('ntp/NewTabPage.java', 'suggestions/tile/MostVisitedTilesLayout.java',
                              'suggestions/tile/SuggestionsTileView.java')
             }, extra_tracked)
-            self.assertEqual(15, sum(p.startswith('chrome/browser/ui/android/omnibox/')
+            self.assertEqual(16, sum(p.startswith('chrome/browser/ui/android/omnibox/')
                                     for p in extra_tracked))
             self.assertIn('chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/'
                           'browser/toolbar/ToolbarPositionController.java', extra_tracked)
-            self.assertEqual(58, len(extra_generated))
+            self.assertEqual(59, len(extra_generated))
+            self.assertIn('chrome/renderer/raws_element_picker_donor.h', extra_generated)
             self.assertTrue({
                 'chrome/browser/raws/raws_observed_ad_slots.h',
                 'components/sandium_adblock/observed_ad_slot_policy.h',
