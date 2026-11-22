@@ -471,6 +471,22 @@ class FeatureTransition(unittest.TestCase):
 
 
 class FrozenScope(unittest.TestCase):
+    def test_complex_generic_censuses_have_out_of_line_lifecycle(self):
+        revision = json.loads((ROOT / 'upstream.lock.json').read_text())['chromium']['revision']
+        overlay = feature.load(ROOT, policy.FINGERPRINT, revision)
+        def source(name):
+            path = f'components/sandium_adblock/{name}'
+            _, digest, _ = overlay.files[path]
+            content = (ROOT / feature.POSTIMAGES / digest).read_bytes()
+            self.assertEqual(digest, feature.sha(content))
+            return content.decode()
+        header, implementation = source('generic_style.h'), source('generic_style.cc')
+        body = header.split('class AdCompoundCensus {', 1)[1].split('};', 1)[0]
+        self.assertRegex(body, r'(?m)^  AdCompoundCensus\(\);$')
+        self.assertRegex(body, r'(?m)^  ~AdCompoundCensus\(\);$')
+        self.assertRegex(implementation, r'(?m)^AdCompoundCensus::AdCompoundCensus\(\) = default;$')
+        self.assertRegex(implementation, r'(?m)^AdCompoundCensus::~AdCompoundCensus\(\) = default;$')
+
     def test_sealed_ui_resource_inventory_checks_installed_postimages(self):
         revision = json.loads((ROOT / 'upstream.lock.json').read_text())['chromium']['revision']
         overlay = feature.load(ROOT, policy.FINGERPRINT, revision)

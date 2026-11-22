@@ -9273,11 +9273,11 @@
       "mode": "644"
     },
     "components/sandium_adblock/generic_style.cc": {
-      "after_sha256": "82572478e3eb2ae9cf5812df6ed0c40636bc18db0f4901f530de86c72e64a6ff",
+      "after_sha256": "9b7658050ce424922bd9791ad2c3d21aa30b4124809e4d5b61818e2adec160f6",
       "before_sha256": null
     },
     "components/sandium_adblock/generic_style.h": {
-      "after_sha256": "bdd7e71a3bd9e94a6620dfc74d0d700746b2538e2d827d44a5d24ef67022767a",
+      "after_sha256": "922ef38335a9a6219fe1839f66aa143f34cdba810b015c03babcb710023fe028",
       "before_sha256": null
     },
     "components/sandium_adblock/network_decision.h": {

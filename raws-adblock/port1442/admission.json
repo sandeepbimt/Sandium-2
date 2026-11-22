@@ -1,6 +1,6 @@
 {
   "ad_ui_receipt_sha256": "617ac4138ef587b4de3496486aaaf73e36795e602c0f4cbc60f90afdfc0d9e57",
-  "delta_sha256": "6b9b175d1fd9199b42ade386731e0caaad89630a96eb4e132de757defe0630e1",
+  "delta_sha256": "9eefdd138dda6b823523bbe2b1ae973dca13031e0d7066fa3b2ede273d90570c",
   "extra_generated": [
     "chrome/android/java/res/anim/raws_settings_fade_in.xml",
     "chrome/android/java/res/anim/raws_settings_fade_out.xml",
@@ -226,7 +226,7 @@
     "ui/android/java/src/org/chromium/ui/base/EventForwarder.java",
     "ui/android/java/src/org/chromium/ui/hierarchicalmenu/HierarchicalMenuController.java"
   ],
-  "manifest_sha256": "19d9e736d2bbc13c4cadc369da7af02fca7312f5f119b9c9e28d118766974c97",
+  "manifest_sha256": "df7c255ade395a7017dec00bf26902299cc619fa80cafc5e9503b9a885ca8bde",
   "staged_vendor_delta": {
     "brave/third_party/rust/chromium_crates_io/vendor/adblock-v0_13/src/blocker.rs": {
       "after": "ac368737ffb88855918f8e32ac0eb39a308c4e76f41e4a8193cf223c2a59a7cb",
