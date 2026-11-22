@@ -8142,7 +8142,7 @@
       "mode": "644"
     },
     "chrome/android/feed/core/java/src/org/chromium/chrome/browser/feed/FeedSurfaceCoordinator.java": {
-      "after_sha256": "257067a388b2f193232e27b2b8c4b3a97787da840aed2ab81a49e34752a9337e",
+      "after_sha256": "6b9132b310908fdd28a8233bc0c37286235313d77973cf4ec72ad2a7eecfedb7",
       "before_sha256": "e980d8fb0350a64ccfa8f11b5ebfa243387a5574c54710ee54e822592e1d14da"
     },
     "chrome/android/java/AndroidManifest.xml": {

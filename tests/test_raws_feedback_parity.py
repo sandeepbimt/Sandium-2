@@ -103,6 +103,13 @@ class CombinedFeedback(unittest.TestCase):
         self.assertIn("if (!sandium_popup && handle.IsInPrimaryMainFrame())", client)
 
 
+    def test_wallpaper_picker_nullable_annotation_targets_nested_type(self):
+        coordinator = self.read("FeedSurfaceCoordinator.java").decode()
+        self.assertIn(
+            "private WindowAndroid.@Nullable IntentCallback mRawSImagePickerCallback;",
+            coordinator)
+        self.assertNotIn("private @Nullable WindowAndroid.IntentCallback", coordinator)
+
     def test_home_pill_keeps_native_search_handoff(self):
         ntp = self.read("NewTabPage.java").decode()
         self.assertIn("mNewTabPageCoordinator.usesRawSHomeSearchLauncher()", ntp)
