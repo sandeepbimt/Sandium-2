@@ -175,3 +175,10 @@ class CodecCIProofTest(unittest.TestCase):
         with patch.object(codec, 'BASELINE', 'malformed'):
             with self.assertRaisesRegex(ValueError, 'Malformed'):
                 codec.verify_checkout(self.root)
+
+    def test_failed_predecessor_cannot_be_used_as_codec_child(self):
+        self.prepare_checkout_manifest()
+        with patch.object(codec, "git", side_effect=self.checkout_git(
+                parent=codec.FROZEN_SOURCE_BASELINE)):
+            with self.assertRaisesRegex(ValueError, "exact RawS #1496"):
+                codec.verify_checkout(self.root)
