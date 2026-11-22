@@ -103,6 +103,15 @@ class CombinedFeedback(unittest.TestCase):
         self.assertIn("if (!sandium_popup && handle.IsInPrimaryMainFrame())", client)
 
 
+    def test_procedural_cosmetic_binding_closes_the_native_quoted_nonce(self):
+        binding = self.read("raws_procedural_cosmetic_binding.h").decode()
+        observer = self.read("chrome_render_frame_observer.cc").decode()
+        # StrCat opens the final JavaScript string argument before the nonce.
+        # The header must escape the C++ quote so emitted JS can close it.
+        self.assertIn(r'kRawSProcedureCallAfter[] = "\");";', binding)
+        self.assertIn(r'cosmetic::kAmazonRuleConfig, ",\"", nonce,', observer)
+        self.assertIn("cosmetic::kRawSProcedureCallAfter});", observer)
+
     def test_element_color_observer_uses_pinned_blink_ascii_constructor(self):
         cpp = self.read("sandium_element_colors.cc").decode()
         # M158's WTF String exposes FromUtf8, not FromUTF8. These are literal
