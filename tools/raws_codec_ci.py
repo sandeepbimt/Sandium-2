@@ -11,17 +11,14 @@ from raws_codec_trial import (
 PROFILE = 'raws-combined-1477-android-arm64-avc-aac-v1'
 TRIAL_APK = 'RawSandium-Combined-Codec-Test-arm64.apk'
 HEX64 = re.compile(r'[0-9a-f]{64}')
-# Every modified tracked file must be a trial control/tool or its test. In
-# particular, no Chromium overlay, APK identity, source pin or checkpoint
-# routine can be changed as part of this controlled A/B.
+# This regular lane already includes the isolated codec compile/sign route.
+# Keep the complete #1495 CI tree byte-identical in both descendants.
+FROZEN_SOURCE_BASELINE = 'cd418b955555f323c4078e4933b93f84a6134459'
+FROZEN_SOURCE_TREE = 'efefb645567e87eb174e21635ed58f0154fb53f6'
+FROZEN_CI_TREE = '1f02e32a5a2ccf823e3f4609ded821298f52db0c'
+GIT_SHA = re.compile(r'[0-9a-f]{40}')
 SCOPED_FILES = frozenset({
-    '.circleci/config.yml', 'docs/raws-codec-trial.md',
-    'tools/generate_full_config.py', 'tools/ci_compile.py',
-    'tools/ci_restore_only.py', 'tools/ci_sign_raws_test.py',
-    'tools/raws_codec_ci.py', 'tools/raws_codec_trial.py', 'tools/raws_unsigned_apk.py',
-    'tools/raws_release_identity.py', 'tests/test_raws_unsigned_apk.py',
-    'tests/test_raws_codec_ci.py', 'tests/test_raws_codec_trial.py',
-    'tests/test_raws_distinct_signing_workflow.py',
+    'tools/raws_codec_ci.py', 'tools/raws_codec_trial.py', 'tests/test_raws_codec_ci.py',
 })
 BUILD_FLAGS = {
     'USE_PROPRIETARY_CODECS': 1, 'ENABLE_FFMPEG': 1,
@@ -50,16 +47,32 @@ def mode():
 
 
 def verify_checkout(root):
+    if any(not GIT_SHA.fullmatch(pin) for pin in
+           (BASELINE, BASELINE_TREE, FROZEN_SOURCE_BASELINE,
+            FROZEN_SOURCE_TREE, FROZEN_CI_TREE)) or not HEX64.fullmatch(FEATURE_SHA256):
+        raise ValueError('Malformed RawS codec source pins')
     parent = git(root, 'show', '-s', '--format=%P', 'HEAD')
-    if parent != BASELINE:
-        raise ValueError('Codec test requires a single isolated child of exact combined RawS candidate')
-    # Validate original tree, all changed paths and absence of tracked dirty edits.
-    changes = set(git(root, 'diff', '--name-only', '--no-renames', BASELINE, 'HEAD').splitlines())
-    if (git(root, 'rev-parse', BASELINE + '^{tree}') != BASELINE_TREE
-            or not changes <= SCOPED_FILES or not {'tools/raws_codec_ci.py', '.circleci/config.yml'} <= changes
+    if (parent != BASELINE or
+            git(root, 'show', '-s', '--format=%P', BASELINE) != FROZEN_SOURCE_BASELINE):
+        raise ValueError('Codec test requires the isolated two-commit child of exact RawS #1495')
+    if (git(root, 'rev-parse', FROZEN_SOURCE_BASELINE + '^{tree}') != FROZEN_SOURCE_TREE
+            or git(root, 'rev-parse', BASELINE + '^{tree}') != BASELINE_TREE):
+        raise ValueError('Codec trial checkout differs from the allowed combined RawS source')
+    if any(git(root, 'rev-parse', commit + ':.circleci') != FROZEN_CI_TREE
+           for commit in (FROZEN_SOURCE_BASELINE, BASELINE, 'HEAD')):
+        raise ValueError('Codec trial requires the unchanged #1495 CI contract')
+    changes = git(root, 'diff', '--name-only', '-z', '--no-renames', BASELINE, 'HEAD')
+    changed_paths = changes.split('\0')
+    if (changed_paths[-1] != '' or len(changed_paths) != len(SCOPED_FILES) + 1
+            or set(changed_paths[:-1]) != SCOPED_FILES
             or git(root, 'diff', 'HEAD', '--name-only')):
         raise ValueError('Codec trial checkout differs from the allowed combined RawS source')
-    if sha((root/'raws-adblock/production-restore-recipe.json').read_bytes()) != FEATURE_SHA256:
+    for path in sorted(SCOPED_FILES):
+        entry = git(root, 'ls-tree', 'HEAD', '--', path)
+        if not re.fullmatch(r'100644 blob [0-9a-f]{40}\t' + re.escape(path), entry):
+            raise ValueError('Codec trial checkout contains an invalid control file')
+    manifest = root/'raws-adblock/production-restore-recipe.json'
+    if manifest.is_symlink() or not manifest.is_file() or sha(manifest.read_bytes()) != FEATURE_SHA256:
         raise ValueError('Codec trial requires the exact combined RawS browser overlay')
 
 

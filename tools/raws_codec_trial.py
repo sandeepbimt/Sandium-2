@@ -15,8 +15,8 @@ import sys
 from raw import ROOT, lock
 from raws_release_identity import APPLICATION_ID, compose_gn_args
 
-BASELINE = '031ccfd385ae445a99f75edd5f94f33dcfa2646c'
-BASELINE_TREE = '1bab91d2317ff0c2702054969c98f6f1182b1db9'
+BASELINE = '030fab6753c020845b14eed760099670675df765'
+BASELINE_TREE = '85b702db5eaa64652952a0acdea140f264e82889'
 BASE_ARGS_SHA256 = '978dbc344dde76631bb301585cf2b80d2020b45553a9757092fe24c32344e5d3'
 FEATURE_SHA256 = '19d9e736d2bbc13c4cadc369da7af02fca7312f5f119b9c9e28d118766974c97'
 CHROMIUM = '52bdd21723d5db0c9ab11716d38feac74828cf84'
@@ -115,7 +115,7 @@ def local_env(depot=None):
 
 
 def git(path, *args):
-    return subprocess.check_output(['git', '-C', str(path), *args], text=True, env=local_env(),
+    return subprocess.check_output(['git', '--no-replace-objects', '-C', str(path), *args], text=True, env=local_env(),
                                    timeout=120).strip()
 
 

@@ -109,30 +109,69 @@ class CodecCIProofTest(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, 'isolated signed'):
                 ci_restore_only.gate()
 
-    def test_exact_control_parent_paths_and_manifest(self):
-        self.manifest.write_bytes((self.repo/self.manifest.relative_to(self.root)).read_bytes())
+    def checkout_git(self, *, parent=None, source_parent=None, control_tree=None,
+                     ci_tree=None, changes=None, dirty='', mode='100644'):
         def commit(path, *args):
             if args[0] == 'show':
-                return codec.BASELINE
+                return (codec.BASELINE if parent is None else parent) if args[-1] == 'HEAD' else (
+                    codec.FROZEN_SOURCE_BASELINE if source_parent is None else source_parent)
             if args[0] == 'rev-parse':
-                return codec.BASELINE_TREE
-            if args[-1] == 'HEAD':
-                return '.circleci/config.yml\ntools/raws_codec_ci.py'
-            return ''
-        with patch.object(codec, 'git', side_effect=commit):
+                requested = args[-1]
+                if requested.endswith(':.circleci'):
+                    return codec.FROZEN_CI_TREE if ci_tree is None else ci_tree
+                if requested == codec.BASELINE + '^{tree}':
+                    return codec.BASELINE_TREE if control_tree is None else control_tree
+                self.assertEqual(requested, codec.FROZEN_SOURCE_BASELINE + '^{tree}')
+                return codec.FROZEN_SOURCE_TREE
+            if args[0] == 'ls-tree':
+                return mode + ' blob ' + 'a'*40 + '\t' + args[-1]
+            if '-z' in args:
+                return '\0'.join(sorted(codec.SCOPED_FILES)) + '\0' if changes is None else changes
+            self.assertEqual(args, ('diff', 'HEAD', '--name-only'))
+            return dirty
+        return commit
+
+    def prepare_checkout_manifest(self):
+        self.manifest.write_bytes((self.repo/self.manifest.relative_to(self.root)).read_bytes())
+
+    def test_exact_control_parents_paths_and_manifest(self):
+        self.prepare_checkout_manifest()
+        with patch.object(codec, 'git', side_effect=self.checkout_git()):
             codec.verify_checkout(self.root)
         self.manifest.write_bytes(b'changed')
-        with patch.object(codec, 'git', side_effect=commit):
+        with patch.object(codec, 'git', side_effect=self.checkout_git()):
             with self.assertRaisesRegex(ValueError, 'browser overlay'):
                 codec.verify_checkout(self.root)
 
-    def test_scope_disallows_an_extra_product_file(self):
-        def commit(path, *args):
-            if args[0] == 'show':
-                return codec.BASELINE
-            if args[0] == 'rev-parse':
-                return codec.BASELINE_TREE
-            return '.circleci/config.yml\ntools/raws_codec_ci.py\nci/args.gn'
-        with patch.object(codec, 'git', side_effect=commit):
-            with self.assertRaisesRegex(ValueError, 'allowed combined RawS'):
+    def test_unchanged_ci_contract_required(self):
+        self.prepare_checkout_manifest()
+        with patch.object(codec, 'git', side_effect=self.checkout_git(ci_tree='a'*40)):
+            with self.assertRaisesRegex(ValueError, 'unchanged #1495 CI'):
+                codec.verify_checkout(self.root)
+
+    def test_scope_rejects_extra_missing_and_malformed_control_files(self):
+        self.prepare_checkout_manifest()
+        allowed = '\0'.join(sorted(codec.SCOPED_FILES)) + '\0'
+        for change in (allowed + 'ci/args.gn\0', allowed[:-1], 'tools/raws_codec_ci.py\0',
+                       allowed.replace('tools/raws_codec_trial.py', 'tools/"raws_codec_trial.py"'),
+                       allowed.replace('tools/raws_codec_trial.py', 'tools/raws_codec_trial.py\n'),
+                       allowed.replace('tools/raws_codec_trial.py', 'tools/raws_codec_ci.py')):
+            with self.subTest(change=change), patch.object(
+                    codec, 'git', side_effect=self.checkout_git(changes=change)):
+                with self.assertRaisesRegex(ValueError, 'allowed combined RawS'):
+                    codec.verify_checkout(self.root)
+        with patch.object(codec, 'git', side_effect=self.checkout_git(mode='120000')):
+            with self.assertRaisesRegex(ValueError, 'invalid control file'):
+                codec.verify_checkout(self.root)
+
+    def test_parent_trees_pins_and_tracked_dirty_checkout_are_rejected(self):
+        self.prepare_checkout_manifest()
+        for overrides in ({'parent':'a'*40}, {'source_parent':'b'*40}, {'control_tree':'c'*40},
+                          {'dirty':'tools/raws_codec_ci.py'}):
+            with self.subTest(overrides=overrides), patch.object(
+                    codec, 'git', side_effect=self.checkout_git(**overrides)):
+                with self.assertRaises(ValueError):
+                    codec.verify_checkout(self.root)
+        with patch.object(codec, 'BASELINE', 'malformed'):
+            with self.assertRaisesRegex(ValueError, 'Malformed'):
                 codec.verify_checkout(self.root)
