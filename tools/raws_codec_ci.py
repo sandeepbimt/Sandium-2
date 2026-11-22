@@ -13,8 +13,8 @@ TRIAL_APK = 'RawSandium-Combined-Codec-Test-arm64.apk'
 HEX64 = re.compile(r'[0-9a-f]{64}')
 # This regular lane already includes the isolated codec compile/sign route.
 # Keep the complete #1495 CI tree byte-identical in both descendants.
-FROZEN_SOURCE_BASELINE = 'c4be02e9ec3b38aa4fb3aae41bbcfbf38d3c0994'
-FROZEN_SOURCE_TREE = '20c64d2670105efc736cd4c36dec5966fda0da4e'
+FROZEN_SOURCE_BASELINE = 'aa1364de994467760c6786881fb80c066b63667e'
+FROZEN_SOURCE_TREE = '9c45b4145a7cd112977b493713b12604c0dad8d4'
 FROZEN_CI_TREE = '1f02e32a5a2ccf823e3f4609ded821298f52db0c'
 GIT_SHA = re.compile(r'[0-9a-f]{40}')
 SCOPED_FILES = frozenset({
@@ -54,7 +54,7 @@ def verify_checkout(root):
     parent = git(root, 'show', '-s', '--format=%P', 'HEAD')
     if (parent != BASELINE or
             git(root, 'show', '-s', '--format=%P', BASELINE) != FROZEN_SOURCE_BASELINE):
-        raise ValueError('Codec test requires the isolated recovery child of exact RawS #1502')
+        raise ValueError('Codec test requires the isolated recovery child of exact RawS #1503')
     if (git(root, 'rev-parse', FROZEN_SOURCE_BASELINE + '^{tree}') != FROZEN_SOURCE_TREE
             or git(root, 'rev-parse', BASELINE + '^{tree}') != BASELINE_TREE):
         raise ValueError('Codec trial checkout differs from the allowed combined RawS source')
