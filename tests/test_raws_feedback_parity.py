@@ -103,6 +103,18 @@ class CombinedFeedback(unittest.TestCase):
         self.assertIn("if (!sandium_popup && handle.IsInPrimaryMainFrame())", client)
 
 
+    def test_popup_marker_uses_native_mutable_handle_before_consumption(self):
+        client = self.read("chrome_content_browser_client.cc").decode()
+        method = client.split(
+            "void ChromeContentBrowserClient::CreateThrottlesForNavigation(", 1
+        )[1].split("void ChromeContentBrowserClient::CreateThrottlesForCommitWithoutUrlLoader(", 1)[0]
+        self.assertIn("  auto& handle = registry.GetNavigationHandle();", method)
+        marker = method.index("handle.GetWebContents()->GetUserData(kSandiumPendingPopupKey)")
+        consume = method.index("SandiumPopupNavigationThrottle::MaybeCreateAndAdd(registry)")
+        deamp = method.index("if (!sandium_popup && handle.IsInPrimaryMainFrame())")
+        self.assertLess(marker, consume)
+        self.assertLess(consume, deamp)
+
     def test_procedural_cosmetic_binding_closes_the_native_quoted_nonce(self):
         binding = self.read("raws_procedural_cosmetic_binding.h").decode()
         observer = self.read("chrome_render_frame_observer.cc").decode()

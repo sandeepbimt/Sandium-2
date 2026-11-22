@@ -8648,7 +8648,7 @@
       "mode": "644"
     },
     "chrome/browser/chrome_content_browser_client.cc": {
-      "after_sha256": "f0c617e5e19be26cfcf5d29595c89e3464e191346736d225331fc6aed37633e9",
+      "after_sha256": "180b2b8d1691c25f7fbb4e4b28592be476c66efde3eafa85dbc68b4283fab284",
       "before_sha256": "235fbfdbfe13d7ce2833017f67d6a899dda5b14131e38e5f7177b62f8a4b981b",
       "mode": "644"
     },
