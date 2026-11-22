@@ -526,7 +526,7 @@ class FrozenScope(unittest.TestCase):
                          actual.tracked_paths - feature.TRACKED)
         self.assertEqual(feature.UI_GENERATED | extra_generated, actual.ui_files)
         if extra:
-            self.assertEqual(163, len(extra_tracked))
+            self.assertEqual(164, len(extra_tracked))
             self.assertIn('chrome/android/java/src/org/chromium/chrome/browser/sync/settings/SignInPreference.java', extra_tracked)
             self.assertIn('chrome/common/BUILD.gn', extra_tracked)
             self.assertLessEqual({
@@ -541,6 +541,7 @@ class FrozenScope(unittest.TestCase):
                 'chrome/browser/privacy/java/src/org/chromium/chrome/browser/privacy/secure_dns/SecureDnsBridge.java',
                 'chrome/browser/privacy/secure_dns_bridge.cc',
                 'chrome/browser/search_engines/android/java/src/org/chromium/chrome/browser/search_engines/settings/SearchEngineAdapter.java',
+                'chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/LocationBarLayout.java',
                 'chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/LocationBarPhone.java',
                 'chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/status/StatusCoordinator.java',
                 'chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/status/StatusMediator.java',
@@ -562,7 +563,7 @@ class FrozenScope(unittest.TestCase):
                 for name in ('ntp/NewTabPage.java', 'suggestions/tile/MostVisitedTilesLayout.java',
                              'suggestions/tile/SuggestionsTileView.java')
             }, extra_tracked)
-            self.assertEqual(14, sum(p.startswith('chrome/browser/ui/android/omnibox/')
+            self.assertEqual(15, sum(p.startswith('chrome/browser/ui/android/omnibox/')
                                     for p in extra_tracked))
             self.assertIn('chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/'
                           'browser/toolbar/ToolbarPositionController.java', extra_tracked)

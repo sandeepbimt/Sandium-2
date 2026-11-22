@@ -110,6 +110,21 @@ class CombinedFeedback(unittest.TestCase):
             coordinator)
         self.assertNotIn("private @Nullable WindowAndroid.IntentCallback", coordinator)
 
+    def test_unified_toolbar_uses_existing_accessible_java_owners(self):
+        model = self.read("LocationBarModel.java").decode()
+        toolbar = self.read("ToolbarPhone.java").decode()
+        layout = self.read("LocationBarLayout.java").decode()
+        phone = self.read("LocationBarPhone.java").decode()
+        gate = "org.chromium.chrome.browser.ui.bottombar.BottomBarConfigUtils;"
+        self.assertIn("import " + gate, model)
+        self.assertIn("import " + gate, toolbar)
+        self.assertNotIn("toolbar.bottom.BottomBarConfigUtils", model)
+        self.assertIn("instanceof LocationBarLayout layout", toolbar)
+        self.assertNotIn("import org.chromium.chrome.browser.omnibox.LocationBarPhone;", toolbar)
+        self.assertIn("class LocationBarPhone extends LocationBarLayout", phone)
+        self.assertIn("public void setRawSUnifiedRowMode(boolean shared, boolean home) {}", layout)
+        self.assertIn("@Override\n    public void setRawSUnifiedRowMode", phone)
+
     def test_home_pill_keeps_native_search_handoff(self):
         ntp = self.read("NewTabPage.java").decode()
         self.assertIn("mNewTabPageCoordinator.usesRawSHomeSearchLauncher()", ntp)

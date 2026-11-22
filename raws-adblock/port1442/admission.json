@@ -1,6 +1,6 @@
 {
   "ad_ui_receipt_sha256": "617ac4138ef587b4de3496486aaaf73e36795e602c0f4cbc60f90afdfc0d9e57",
-  "delta_sha256": "799f8b7a4b36e791286a55a6494d89c86111adfd1029ef656e5523b9a6c60944",
+  "delta_sha256": "38608f66f45b177bde98ef8f948dafe6d938a643369db4e5bf69487b4eec0ecc",
   "extra_generated": [
     "chrome/android/java/res/anim/raws_settings_fade_in.xml",
     "chrome/android/java/res/anim/raws_settings_fade_out.xml",
@@ -136,6 +136,7 @@
     "chrome/browser/ui/android/night_mode/BUILD.gn",
     "chrome/browser/ui/android/night_mode/java/src/org/chromium/chrome/browser/night_mode/WebContentsThemeClient.java",
     "chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/LocationBarBackgroundDrawable.java",
+    "chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/LocationBarLayout.java",
     "chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/LocationBarPhone.java",
     "chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/OmniboxSuggestionsDropdownEmbedderImpl.java",
     "chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/status/StatusCoordinator.java",
@@ -226,7 +227,7 @@
     "ui/android/java/src/org/chromium/ui/base/EventForwarder.java",
     "ui/android/java/src/org/chromium/ui/hierarchicalmenu/HierarchicalMenuController.java"
   ],
-  "manifest_sha256": "91614c7162eaa79f654d9783bad4b8f51cadb6ad21e3e3efedf0e2f3572bc18a",
+  "manifest_sha256": "8097cd66fa9696901050331ab1d6cd4a65deb45da6dbcee3c92060d8dc7e89d3",
   "staged_vendor_delta": {
     "brave/third_party/rust/chromium_crates_io/vendor/adblock-v0_13/src/blocker.rs": {
       "after": "ac368737ffb88855918f8e32ac0eb39a308c4e76f41e4a8193cf223c2a59a7cb",

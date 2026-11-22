@@ -9005,8 +9005,13 @@
       "before_sha256": "a43198b10611f3f47ef8c03aef2da3615a661db94960f26c5a2f91bd4d47b105",
       "mode": "644"
     },
+    "chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/LocationBarLayout.java": {
+      "after_sha256": "08cbc951f4ed89c5c3ceb912db9b40d0f5d92fb25e7f0b0531fc5b9a039ce158",
+      "before_sha256": "aed9074719bfdf0886030d33944ba4c5df7ae1f2f3c17eb947428d740fec18d5",
+      "mode": "644"
+    },
     "chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/LocationBarPhone.java": {
-      "after_sha256": "eac46e5a7878a41cff2b03f4145ae5e7b37f697d5ad6fbb61dc39e8bc402de6b",
+      "after_sha256": "94f4bc91d2338fb21f2a87c905a419b7e06731462229ae7aef0ca50b32549d7d",
       "before_sha256": "57017a8f72d7841b5ee47a74edf956b9ab2f20b795800f05d91cb146d4d9aa3d",
       "mode": "644"
     },
@@ -9096,7 +9101,7 @@
       "before_sha256": null
     },
     "chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/LocationBarModel.java": {
-      "after_sha256": "c9522d7e3c20545ecbe2867d311f504060d4adb646196b7c53cefea5ddca263e",
+      "after_sha256": "431f3a5e04eb39a6a19676df035faa12ee8975ab879f57b14038b4ace78e42a3",
       "before_sha256": "94a455d7bf990d1c532e135b7391e86f22d27179d95310f4f8044590e8b50482",
       "mode": "644"
     },
@@ -9142,7 +9147,7 @@
       "before_sha256": "0c43968867822490a77053cef95c692bb98ebabad902b87cba09801648ae5c6d"
     },
     "chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/ToolbarPhone.java": {
-      "after_sha256": "e8183e21b25b94d0ee95ccd1ad9c373972a3f0c504d57bcc38654bb1c8df26e0",
+      "after_sha256": "133ddb7c4a92100a36b4aa3aa09c578e026d191f9cfbc64b331dea70e61db9e5",
       "before_sha256": "1d2c62ecbb9f7e24f47ea99b6303a9d245dfc0d3d0065b2fc0c65fb2eb88b507",
       "mode": "644"
     },
