@@ -54,6 +54,8 @@ def prepare_stage(stage, feature):
             writes.append((path, data))
         hashes[rel] = expect
     for path, data in writes:
+        # The pinned slice can lack directories for new native overlay files.
+        path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(data)
         path.chmod(0o644)
     receipt_path.write_text(json.dumps(receipt, sort_keys=True, indent=2) + "\n")
