@@ -36,6 +36,8 @@
       "//chrome/android/java/src/org/chromium/chrome/browser/appearance/settings/RawSPageText.java",
       "//chrome/android/java/src/org/chromium/chrome/browser/appearance/settings/RawSPageTextDialog.java",
       "//chrome/android/java/src/org/chromium/chrome/browser/autofill/settings/AutofillAndPasswordsFragment.java",
+      "//chrome/android/java/src/org/chromium/chrome/browser/compositor/CompositorView.java",
+      "//chrome/android/java/src/org/chromium/chrome/browser/compositor/layouts/StaticLayout.java",
       "//chrome/android/java/src/org/chromium/chrome/browser/crash/ChromeMinidumpUploadJobServiceImpl.java",
       "//chrome/android/java/src/org/chromium/chrome/browser/crash/MinidumpUploadServiceImpl.java",
       "//chrome/android/java/src/org/chromium/chrome/browser/firstrun/FirstRunActivity.java",
@@ -74,6 +76,7 @@
   "//chrome/android:chrome_jni_headers__action": [
     "inputs",
     [
+      "//chrome/android/java/src/org/chromium/chrome/browser/compositor/CompositorView.java",
       "//chrome/android/java/src/org/chromium/chrome/browser/settings/RawSAdRuleBackupSettings.java",
       "//chrome/android/java/src/org/chromium/chrome/browser/settings/RawSColorRulesSettings.java",
       "//chrome/android/java/src/org/chromium/chrome/browser/settings/RawSElementColorController.java",

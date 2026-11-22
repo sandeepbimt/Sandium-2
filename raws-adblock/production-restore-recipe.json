@@ -8384,6 +8384,16 @@
       "before_sha256": "8b1e104b02fa56760ce5c4489df8154a152e9b05aafface8b5af14cbd6773efd",
       "mode": "644"
     },
+    "chrome/android/java/src/org/chromium/chrome/browser/compositor/CompositorView.java": {
+      "after_sha256": "676181a52253d7cf69a60a5d147eceaba4f8045fe9d44ed26d7e582c5a15ac73",
+      "before_sha256": "eca530507d4447a6e5578324e54b113c9bb3ded0b1c7064785c514b410bf5e32",
+      "mode": "644"
+    },
+    "chrome/android/java/src/org/chromium/chrome/browser/compositor/layouts/StaticLayout.java": {
+      "after_sha256": "9ef36f08e755881782f0d971928aaaafd97a723edcc375895551dde030d8d3e2",
+      "before_sha256": "9fa277f984e0f486ef21430f50122d89d3d76027b73b6ca9db9c5fec7313ca8a",
+      "mode": "644"
+    },
     "chrome/android/java/src/org/chromium/chrome/browser/crash/ChromeMinidumpUploadJobServiceImpl.java": {
       "after_sha256": "40c0bc17827cb32cb41eca6fc79350265f4b4131766aa156e2c72ecc2d1b490a",
       "before_sha256": "33fc48ef3bdf115789c73dff4be9410a1927851b619b36b80e58654745a16f16",
@@ -8435,7 +8445,7 @@
       "mode": "644"
     },
     "chrome/android/java/src/org/chromium/chrome/browser/ntp/NewTabPage.java": {
-      "after_sha256": "7748016761641e6b1708fc71527e7a88a708cbb43480b115a1224eb4986b9a40",
+      "after_sha256": "15b9dd5a2297dc2a0e3eba0273fb65f78ad9fbc0dda8eba24baeaee3a0a1578b",
       "before_sha256": "041b02c93879d4883ac3768fada16659cf9f0cd5f16f1e23b84723611b4986fd"
     },
     "chrome/android/java/src/org/chromium/chrome/browser/ntp/NewTabPageCoordinator.java": {
@@ -8512,7 +8522,7 @@
       "mode": "644"
     },
     "chrome/android/java/src/org/chromium/chrome/browser/settings/RawSElementColorController.java": {
-      "after_sha256": "87b4ccdb8a8a6a214f58a07f80210862fd5d1ebc62c2d8db7cb2788f6b7c1313",
+      "after_sha256": "43c40ede7e5641decb927a2dbb5127082b5f0fd05a7f1274de9b64320af09aa7",
       "before_sha256": null,
       "mode": "644"
     },
@@ -8527,7 +8537,7 @@
       "mode": "644"
     },
     "chrome/android/java/src/org/chromium/chrome/browser/settings/RawsGlobalShieldSheet.java": {
-      "after_sha256": "f32803a098ac7064a2b5b7e48fac3d7997212593acd06439e9edf5b8a8e6d09e",
+      "after_sha256": "c6dcc03cbde1761b952c7d81dcf64a48a831c9e419defa5144a4c1fc09420059",
       "before_sha256": null,
       "mode": "644"
     },
@@ -8617,6 +8627,16 @@
       "before_sha256": "e4098a876ac02db4ab67a4ce1ab3261545d1a4cd4b13433fa0b4bc03969baac3",
       "mode": "644"
     },
+    "chrome/browser/android/compositor/compositor_view.cc": {
+      "after_sha256": "876cd43fec7c3a4b57b481de168a83a1d28f6b1aa323cd5bf2fcc41c1846f77a",
+      "before_sha256": "5969d8a71af4f86556973c345dea01d0d550684d5f38701c8853a33b07bec1f0",
+      "mode": "644"
+    },
+    "chrome/browser/android/compositor/compositor_view.h": {
+      "after_sha256": "ac3cdac891992f286a07de7307d94c1ef1a310ad27dac521a5fcffa1953a70da",
+      "before_sha256": "d8afd22e7c1917a968466da5b342d8a316fbcb99fdb4edf7fcfff2314050f452",
+      "mode": "644"
+    },
     "chrome/browser/android/tab_android.cc": {
       "after_sha256": "8564d3b86c099071474a86e1b2aebd39082bb54669a51a452de9eb7e633f98f3",
       "before_sha256": "d6081568aa7cec166f8914229d3f0b2fa83c7b10aa625ebed1400a8806fd973d",
@@ -8643,12 +8663,12 @@
       "mode": "644"
     },
     "chrome/browser/chrome_browser_main_android.cc": {
-      "after_sha256": "874eee8fd2ad92818dd34d52a389956f88cd20459252b1e895631485fe3867a9",
+      "after_sha256": "2c51e8975cbcbba0b8df0d23bf181789056a901e770487654ca1cd60011a0805",
       "before_sha256": "3b1269f671ba6542ecdd1d7e973bbb6cda84bf5d47cb8126355b0b865940ec9b",
       "mode": "644"
     },
     "chrome/browser/chrome_content_browser_client.cc": {
-      "after_sha256": "180b2b8d1691c25f7fbb4e4b28592be476c66efde3eafa85dbc68b4283fab284",
+      "after_sha256": "22d9152751f339d64270f94913d89e9161329a1b9507f0232a2f53d5c5983af6",
       "before_sha256": "235fbfdbfe13d7ce2833017f67d6a899dda5b14131e38e5f7177b62f8a4b981b",
       "mode": "644"
     },
@@ -8715,7 +8735,7 @@
       "before_sha256": null
     },
     "chrome/browser/raws/raw_element_picker_browser.h": {
-      "after_sha256": "f1782bb6e0bf9ddec7e3c650a13bf9d8c604173a290c005353e9377276fcb333",
+      "after_sha256": "4a6171d3e93d696284f59b872246ffe8a9ee0ce5ac48277141067ede715a4722",
       "before_sha256": null,
       "mode": "644"
     },
@@ -8740,12 +8760,12 @@
       "mode": "644"
     },
     "chrome/browser/raws/raws_color_session.cc": {
-      "after_sha256": "a2b84d814f939a6a92266251cb58ea3d8ec2584e1e9c3f209971f4ec5f9e2d51",
+      "after_sha256": "8788c1589cf720fa80a91e59684c275db7c3899410390b16200f8b5542d74f7e",
       "before_sha256": null,
       "mode": "644"
     },
     "chrome/browser/raws/raws_color_session.h": {
-      "after_sha256": "88398c20b9c5b8394841c0685af2c4db554e4aca8acb489ce9f2db631c01b78d",
+      "after_sha256": "bdfb1afd16505d72db22e635994f8a1b2789d28f2c2e297f2458bd99711ddd09",
       "before_sha256": null,
       "mode": "644"
     },
@@ -8755,7 +8775,7 @@
       "mode": "644"
     },
     "chrome/browser/raws/raws_site_ads_policy.h": {
-      "after_sha256": "2dba8370a6d2c7f2d7005971f7060329002ba2eecd676a39e00972b22f616d5e",
+      "after_sha256": "49b2cb04a2d6e381666153ae9fffaed5ef79d9c3e0726cf33426580d6a3d1271",
       "before_sha256": null,
       "mode": "644"
     },
@@ -9171,7 +9191,7 @@
       "mode": "644"
     },
     "chrome/common/chrome_render_frame.mojom": {
-      "after_sha256": "781989cf9fa2db7ecd53bcbe14b0473fae95b581f521e655c323c5de33713f71",
+      "after_sha256": "42f37c93fda9bb08c071f589f2701df31080db5bc878b6fd31610ca8eaac59cf",
       "before_sha256": "59cd286429ad99590a8fbbd9e5dda837716a5ad7c244e9cbfa141468760a714f"
     },
     "chrome/common/raws_procedural_cosmetic_rules.h": {
@@ -9185,11 +9205,11 @@
       "mode": "644"
     },
     "chrome/renderer/chrome_render_frame_observer.cc": {
-      "after_sha256": "559621768a9d86d6d54159ebfbe4d166b33816a68be74f0ddfc24a3e9aeba36c",
+      "after_sha256": "be6f58ceecdef5616c7974e364c8008470d2bdcdf00a9fd376865146bc16241e",
       "before_sha256": "193e6a0d88cd505eb683cba41d4509785e235310560d52b23c8bf394e0430972"
     },
     "chrome/renderer/chrome_render_frame_observer.h": {
-      "after_sha256": "60c7e0104ed14b0457b9cd25a686867dfb3112497fb6c91b55b4143db5ea45ce",
+      "after_sha256": "db8c9535fe980c601f6d32fabacec1d868a56bc026d7c7fd269e45aef880e5cf",
       "before_sha256": "b3172f2b05944287a157906c16231ad457775525f314abad96d2d423af77d353"
     },
     "chrome/renderer/raws_color_locator.h": {
@@ -9198,7 +9218,7 @@
       "mode": "644"
     },
     "chrome/renderer/raws_color_renderer.h": {
-      "after_sha256": "d72a9dc0038abf25fe21cd8be762ccf417ba0a15fc8c3fbb081e6e10364c19d0",
+      "after_sha256": "59d2edefa7a9c1e272fca3418bcf0f28353f41d96294ca3da4a5a0f6ba08c420",
       "before_sha256": null,
       "mode": "644"
     },
@@ -9263,12 +9283,12 @@
       "mode": "644"
     },
     "components/sandium_adblock/document_subresource_factory.cc": {
-      "after_sha256": "b9ec05f057cf87dcaa9a33cbef0811c9aec26cd2077ad4a4bd711428080e19ce",
+      "after_sha256": "15e9d8833aa5fdae3b532eb04d4554d0d967f510dedf8fcf7bf7991c5305f664",
       "before_sha256": null,
       "mode": "644"
     },
     "components/sandium_adblock/document_subresource_factory.h": {
-      "after_sha256": "0550aa01eb1b29a7b9b2727db5ae064f863eb3a67cfd5cbc0e92f4dc70830559",
+      "after_sha256": "40b91627865c4203997e41157349ae52992259c3713fed1ddfc9fbbcc53d45ad",
       "before_sha256": null,
       "mode": "644"
     },
@@ -9282,7 +9302,7 @@
       "before_sha256": null
     },
     "components/sandium_adblock/generic_style.h": {
-      "after_sha256": "922ef38335a9a6219fe1839f66aa143f34cdba810b015c03babcb710023fe028",
+      "after_sha256": "3c1bab998bf192d97e6db198eb8bedc2a566fedc47a91404869cdf6a437419f4",
       "before_sha256": null
     },
     "components/sandium_adblock/network_decision.h": {
@@ -9368,7 +9388,7 @@
       "mode": "644"
     },
     "content/browser/navigation_transitions/blur_transition_animation_manager.cc": {
-      "after_sha256": "569890dfad19cdc48d2a5b624595a800cb1e4f3b7c064b9f0964d108cdd42c4c",
+      "after_sha256": "26fc78ed6c63008781d50245dce3838429e325d262de3371c9fd480b41fcaef2",
       "before_sha256": "e2d29e590f30f9d53bd45073bb2e78a5911124d41357d469042628e4f3431252",
       "mode": "644"
     },

@@ -526,7 +526,13 @@ class FrozenScope(unittest.TestCase):
                          actual.tracked_paths - feature.TRACKED)
         self.assertEqual(feature.UI_GENERATED | extra_generated, actual.ui_files)
         if extra:
-            self.assertEqual(164, len(extra_tracked))
+            self.assertEqual(168, len(extra_tracked))
+            self.assertLessEqual({
+                'chrome/android/java/src/org/chromium/chrome/browser/compositor/CompositorView.java',
+                'chrome/android/java/src/org/chromium/chrome/browser/compositor/layouts/StaticLayout.java',
+                'chrome/browser/android/compositor/compositor_view.cc',
+                'chrome/browser/android/compositor/compositor_view.h',
+            }, extra_tracked)
             self.assertIn('chrome/android/java/src/org/chromium/chrome/browser/sync/settings/SignInPreference.java', extra_tracked)
             self.assertIn('chrome/common/BUILD.gn', extra_tracked)
             self.assertLessEqual({
