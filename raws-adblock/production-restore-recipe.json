@@ -8684,7 +8684,7 @@
       "before_sha256": null
     },
     "chrome/browser/raws/subscription_service.h": {
-      "after_sha256": "f299fbcb2e05e8ce06681279e963af6d886cf5f1bffe0d7c78b646c325203d4c",
+      "after_sha256": "58a625c7bc04c8f52ec7732172b88fa301bb75b7ccd2a9c91fecb056324c799b",
       "before_sha256": null
     },
     "chrome/browser/resources/raws/NOTICE-EASYLIST.md": {
@@ -9098,12 +9098,12 @@
       "mode": "644"
     },
     "components/sandium_adblock/document_subresource_factory.cc": {
-      "after_sha256": "af05ced2b56f55c0058845c193ee8ba384f00a6925f56ad2bdefbc43d06edaa8",
+      "after_sha256": "31e94a09e7c16560fe1a33d822c14190a1719a1377d95b50f6a7472e9ce96519",
       "before_sha256": null,
       "mode": "644"
     },
     "components/sandium_adblock/document_subresource_factory.h": {
-      "after_sha256": "4367ecde086766abb6bda117ff5f3a21ca3dcb5d8d52047e75c0f592c056134e",
+      "after_sha256": "065e62c0292295d048953ff89a965aa4d3d4fe3af92218ee4dd0f5c7e720f2a5",
       "before_sha256": null,
       "mode": "644"
     },
