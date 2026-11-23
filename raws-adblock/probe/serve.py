@@ -12,7 +12,7 @@ class Site(BaseHTTPRequestHandler):
         host=(self.headers.get('Host') or '').split(':',1)[0].lower()
         if host not in {'raws-news.test','raws-ads.test'}: self.send_error(400); return
         path=urlsplit(self.path).path
-        if host=='raws-news.test' and path=='/':
+        if host=='raws-news.test' and path in {'/', '/cosmetic-parity'}:
             mime='text/html; charset=utf-8'; data=(ROOT/'index.html').read_bytes()
         elif path in {'/raws-fixture/banner.js','/raws-fixture/shim.js','/raws-fixture/clean.js'}:
             mime='application/javascript';data=b'window.rawsExecutions=(window.rawsExecutions||0)+1;'

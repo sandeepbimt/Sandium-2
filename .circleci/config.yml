@@ -2787,9 +2787,18 @@ jobs:
 
           '
         no_output_timeout: 55m
+    - restore_cache:
+        name: 'PPBAS: restore RawS host package downloads'
+        keys:
+        - raws-signed-apt-v1-ubuntu2404-amd64-{{ checksum "upstream.lock.json" }}-{{ checksum "tools/prepare_apt_cache.sh" }}
     - run:
-        name: Install CI validation and checkpoint tools
-        command: sudo apt-get update -qq && sudo apt-get install -y zstd python3-yaml
+        name: 'PPBAS: configure RawS host package cache'
+        command: bash tools/prepare_apt_cache.sh
+        no_output_timeout: 55m
+    - run:
+        name: 'PPBAS: verify CI tools, install if missing'
+        command: "set -euo pipefail\nif ! command -v zstd >/dev/null || ! /usr/bin/python3 -c 'import yaml'; then\n  sudo apt-get update -qq\n  sudo apt-get\
+          \ install -y zstd python3-yaml\nfi\ncommand -v zstd >/dev/null\n/usr/bin/python3 -c 'import yaml'\necho RAWS_PPBAS_CI_TOOLS=PASS\n"
         no_output_timeout: 55m
     - run:
         name: Guard isolated RawS checkout
@@ -2823,12 +2832,22 @@ jobs:
         command: python3 -u tools/ci_full.py restore-finish
         no_output_timeout: 55m
     - run:
-        name: RawS restore-only compile
+        name: 'PPBAS: verify source, install host dependencies and run hooks'
         command: RAWS_CODEC_TRIAL=<< pipeline.parameters.raws_h264_aac >> RAWS_UNSIGNED_TEST_APK=true RAWS_DISTINCT_TEST_IDENTITY=true RAWS_ALLOW_FRESH_SEED=false
-          python3 -u tools/ci_restore_only.py compile
+          python3 -u tools/ci_restore_only.py prepare-signed
+        no_output_timeout: 55m
+    - save_cache:
+        name: 'PPBAS: save verified-scope RawS host package downloads'
+        key: raws-signed-apt-v1-ubuntu2404-amd64-{{ checksum "upstream.lock.json" }}-{{ checksum "tools/prepare_apt_cache.sh" }}
+        paths:
+        - .raws-apt-cache/archives
+    - run:
+        name: 'Build slice: GN and verified ARM64 APK'
+        command: RAWS_CODEC_TRIAL=<< pipeline.parameters.raws_h264_aac >> RAWS_UNSIGNED_TEST_APK=true RAWS_DISTINCT_TEST_IDENTITY=true RAWS_ALLOW_FRESH_SEED=false
+          python3 -u tools/ci_restore_only.py compile-prepared
         no_output_timeout: 55m
     - run:
-        name: RawS restore-only completed
+        name: Verify unsigned APK and stage private signing input
         command: RAWS_CODEC_TRIAL=<< pipeline.parameters.raws_h264_aac >> RAWS_UNSIGNED_TEST_APK=true RAWS_DISTINCT_TEST_IDENTITY=true RAWS_ALLOW_FRESH_SEED=false
           python3 -u tools/ci_restore_only.py completed
         no_output_timeout: 55m

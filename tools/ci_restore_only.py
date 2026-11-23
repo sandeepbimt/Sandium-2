@@ -4,6 +4,8 @@
 import argparse
 import hashlib
 import os
+import uuid
+from pathlib import Path
 
 import ci_full as full
 from ci_compile import file_sha, fingerprint
@@ -102,8 +104,7 @@ def active_feature():
     return load(full.ROOT, FINGERPRINT, data['chromium']['revision'])
 
 
-def compile_once():
-    from ci_compile import main
+def materialize_feature():
     from raw import lock
     with prep_phase('restore-admission'):
         restored()
@@ -125,6 +126,76 @@ def compile_once():
             prepare_stage(full.ROOT/'.raws-staged-engine', feature)
         with prep_phase('feature-apply-and-verify'):
             feature.apply(src, upstream)
+    return feature
+
+
+def prepared_contract(feature):
+    from raws_codec_ci import mode as codec_mode
+    from raws_unsigned_apk import mode as unsigned_mode
+    if (feature is None or not feature.has_ui or not distinct_test_mode()
+            or not unsigned_mode()
+            or os.environ.get('CIRCLE_JOB') != 'raws-test-identity-compile'):
+        raise ValueError('PPBAS split is restricted to the signed RawS compile job')
+    from raws_codec_trial import git
+    root = full.ROOT
+    checkout = git(root, 'rev-parse', 'HEAD')
+    if checkout != os.environ['CIRCLE_SHA1']:
+        raise ValueError('Wrong RawS PPBAS checkout')
+    workflow = str(uuid.UUID(os.environ['CIRCLE_WORKFLOW_ID']))
+    boot = str(uuid.UUID(Path('/proc/sys/kernel/random/boot_id').read_text().strip()))
+    return {
+        'schema': 1, 'head': checkout, 'workflow': workflow, 'boot': boot,
+        'job': os.environ['CIRCLE_BUILD_NUM'],
+        'start_epoch': full.D.c.read(full.D.STATE/'job-start.json')['epoch'],
+        'checkpoint_receipt': RECEIPT_ID, 'checkpoint_fingerprint': FINGERPRINT,
+        'recipe': feature.identity, 'codec': codec_mode(),
+        'source_ready': file_sha(root/'work/source/source-ready.json'),
+        'lock': file_sha(root/'upstream.lock.json'),
+        'dependencies_and_hooks_complete': True,
+    }
+
+
+def prepare_signed():
+    from ci_compile import install_host_and_hooks, verified_source_env
+    gate()
+    receipt = full.D.STATE/'signed-ppbas.json'
+    if receipt.exists() or receipt.is_symlink():
+        raise ValueError('Refusing existing RawS PPBAS proof')
+    selected = active_feature()
+    expected = prepared_contract(selected)
+    feature = materialize_feature()
+    if prepared_contract(feature) != expected:
+        raise ValueError('RawS PPBAS identity changed during feature preparation')
+    _, env = verified_source_env(feature.verify)
+    artifacts = full.ROOT/'artifacts'
+    artifacts.mkdir(exist_ok=True)
+    install_host_and_hooks(1, env, artifacts)
+    if prepared_contract(feature) != expected:
+        raise ValueError('RawS PPBAS identity changed during host preparation')
+    full.D.c.save(receipt, expected)
+    print('RAWS_SIGNED_PPBAS_HOST_AND_HOOKS_VERIFIED=PASS', flush=True)
+
+
+def require_prepared(feature):
+    receipt = full.D.STATE/'signed-ppbas.json'
+    if (not receipt.is_file() or receipt.is_symlink()
+            or full.D.c.read(receipt) != prepared_contract(feature)):
+        raise ValueError('Missing or invalid same-job RawS PPBAS proof')
+
+
+def compile_prepared():
+    from ci_compile import main
+    with prep_phase('prepared-restore-admission'):
+        restored()
+    feature = active_feature()
+    require_prepared(feature)
+    from raws_codec_ci import mode as codec_mode
+    return main(1, feature=feature, distinct_test=True, codec_trial=codec_mode(), prepared=True)
+
+
+def compile_once():
+    from ci_compile import main
+    feature = materialize_feature()
     from raws_codec_ci import mode as codec_mode
     if codec_mode():
         return main(1, feature=feature, distinct_test=True, codec_trial=True)
@@ -179,7 +250,8 @@ def completed():
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('phase', choices=('select', 'restored', 'compile', 'completed'))
+    parser.add_argument('phase', choices=('select', 'restored', 'prepare-signed', 'compile-prepared', 'compile', 'completed'))
     args = parser.parse_args()
     raise SystemExit({'select': select, 'restored': restored, 'compile': compile_once,
+                      'prepare-signed': prepare_signed, 'compile-prepared': compile_prepared,
                       'completed': completed}[args.phase]())

@@ -2,6 +2,7 @@
 <h1>Native blocking fixture</h1><p class="raws-sponsor">Synthetic sponsor</p><p class="raws-allowed-sponsor">Allowed sponsor</p><pre id="report">Running…</pre>
 <script>
 (async () => {
+  const v2 = location.pathname === "/cosmetic-parity";
   const result = {}; const source = location.origin, ads = new URL(source); ads.hostname = 'raws-ads.test';
   if (location.hostname !== 'raws-news.test') throw Error('Use the fixture hostname');
   const one = async (origin, path) => {
@@ -26,6 +27,30 @@
   for(let n=0;n<20 && show('.raws-sponsor')!=='hidden';n++) await new Promise(r=>setTimeout(r,100));
   result.cosmetic=show('.raws-sponsor');result.cosmeticException=show('.raws-allowed-sponsor');
   result.scriptlet=window.rawsParityMarker === true?'applied':'absent';
-  document.querySelector('#report').textContent=JSON.stringify({suite:'raws-native-probe/1',outcomes:result},null,2);
+  if (v2) {
+    // These nodes arrive after the initial static cosmetic pass.
+    await new Promise(r => setTimeout(r, 300));
+    const node = document.createElement('section');
+    node.innerHTML = `
+      <p class="raws-late-sponsor">Late scoped</p>
+      <p class="raws-late-global">Late generic</p>
+      <p class="raws-late-exception">Late allowed</p>
+      <p class="raws-procedural">Synthetic sponsored content</p>
+      <p class="raws-procedural" id="procedural-control">Editorial content</p>
+      <p class="raws-untouched">Untouched</p>
+    `;
+    document.body.append(node);
+    const observed = {
+      lateScoped: '.raws-late-sponsor', lateGeneric: '.raws-late-global',
+      lateException: '.raws-late-exception', procedural: '.raws-procedural',
+      proceduralControl: '#procedural-control', ordinaryControl: '.raws-untouched'
+    };
+    // Use the same observation deadline for positive and negative cases.
+    await new Promise(r => setTimeout(r, 2500));
+    for (const [key, selector] of Object.entries(observed)) result[key] = show(selector);
+  }
+  document.querySelector('#report').textContent=JSON.stringify({
+    suite:'raws-native-probe/'+(v2?2:1),outcomes:result
+  },null,2);
 })().catch(e=>document.querySelector('#report').textContent='INVALID RUN: '+e.message);
 </script>

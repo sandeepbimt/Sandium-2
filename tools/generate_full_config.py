@@ -55,6 +55,20 @@ def add_restore_only(result):
   invocation=next(iter(item.values()))
   invocation['filters']='pipeline.git.branch == "raw-sandium/official158" and not pipeline.parameters.'+key
 
+# New, stable cache namespace apart from earlier RawS modes and Brave.
+SIGNED_APT_CACHE = ('raws-signed-apt-v1-ubuntu2404-amd64-'
+                    '{{ checksum "upstream.lock.json" }}-'
+                    '{{ checksum "tools/prepare_apt_cache.sh" }}')
+signed_build_tools = '''set -euo pipefail
+if ! command -v zstd >/dev/null || ! /usr/bin/python3 -c 'import yaml'; then
+  sudo apt-get update -qq
+  sudo apt-get install -y zstd python3-yaml
+fi
+command -v zstd >/dev/null
+/usr/bin/python3 -c 'import yaml'
+echo RAWS_PPBAS_CI_TOOLS=PASS
+'''
+
 def add_regular_raws(result):
  # One regular, restore-only RawS Full route. Keep the existing restricted
  # signer name and context; compile never gets signing material. The codec
@@ -84,8 +98,8 @@ test -z "${RAWS_TEST_KEYSTORE_B64+x}"
 test -z "${RAWS_KEYSTORE_PASSWORD+x}"
 test -z "${RAWS_KEY_PASSWORD+x}"
 """
- def policy_phase(name):
-  return run('RawS restore-only '+name,
+ def policy_phase(name,label=None):
+  return run(label or ('RawS restore-only '+name),
              'RAWS_CODEC_TRIAL='+codec_selector+' RAWS_UNSIGNED_TEST_APK=true '
              'RAWS_DISTINCT_TEST_IDENTITY=true RAWS_ALLOW_FRESH_SEED=false '
              'python3 -u tools/ci_restore_only.py '+name)
@@ -93,13 +107,19 @@ test -z "${RAWS_KEY_PASSWORD+x}"
  compile_job['environment'].update(RAWS_ALLOW_FRESH_SEED='false')
  compile_job['steps']=['checkout',
   run('Verify exact checkout, request, and no signing material',guard+'\n'+'\n'.join(guards)+'\n'+no_key),
-  # zstd was installed by this same gate; do not run the legacy fallback again.
-  *gate()[1:-2],
+  # Package downloads only: the installed package database stays VM-local.
+  restore(SIGNED_APT_CACHE,'PPBAS: restore RawS host package downloads'),
+  run('PPBAS: configure RawS host package cache','bash tools/prepare_apt_cache.sh'),
+  run('PPBAS: verify CI tools, install if missing',signed_build_tools),
+  *gate()[2:-2],
   restore(RECEIPT_CACHE,'Restore exact verified RawS #1396 receipt'),
   policy_phase('select'),
   restore(BASE_CACHE,'Restore exact verified RawS #1396 final archive'),
   phase('restore-base'),phase('restore-finish'),
-  policy_phase('compile'),policy_phase('completed'),
+  policy_phase('prepare-signed','PPBAS: verify source, install host dependencies and run hooks'),
+  save(SIGNED_APT_CACHE,['.raws-apt-cache/archives'],'PPBAS: save verified-scope RawS host package downloads'),
+  policy_phase('compile-prepared','Build slice: GN and verified ARM64 APK'),
+  policy_phase('completed','Verify unsigned APK and stage private signing input'),
   {'persist_to_workspace':{'root':'.raws-signing-input','paths':['candidate.apk','receipt.json']}},
  ]
  install_sdk=r"""set +x

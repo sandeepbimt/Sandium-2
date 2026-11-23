@@ -101,7 +101,7 @@ class RawSDistinctSigningWorkflowTests(unittest.TestCase):
             selected = [step['run']['command'] for step in job['steps']
                         if isinstance(step, dict) and 'run' in step and
                         'RAWS_CODEC_TRIAL=' in step['run']['command']]
-            self.assertEqual(len(selected), 3 if job is self.compile else 1)
+            self.assertEqual(len(selected), 4 if job is self.compile else 1)
             self.assertTrue(all('RAWS_CODEC_TRIAL='+CODEC_OPT+' RAWS_UNSIGNED_TEST_APK=true' in s for s in selected))
         self.assertNotIn('RAWS_CODEC_TRIAL', str(self.config['jobs']['raws-full-stage-1']))
         self.assertNotIn('RAWS_UNSIGNED_TEST_APK', self.config['parameters'])
@@ -130,30 +130,40 @@ class RawSDistinctSigningWorkflowTests(unittest.TestCase):
         commands = [step.get('run', {}).get('command', '') for step in self.compile['steps']
                     if isinstance(step, dict)]
         selected = [cmd for cmd in commands if 'RAWS_DISTINCT_TEST_IDENTITY' in cmd]
-        self.assertEqual(3, len(selected))
-        for phase in ('select', 'compile', 'completed'):
+        self.assertEqual(4, len(selected))
+        for phase in ('select', 'prepare-signed', 'compile-prepared', 'completed'):
             self.assertIn('RAWS_CODEC_TRIAL='+CODEC_OPT+' RAWS_UNSIGNED_TEST_APK=true RAWS_DISTINCT_TEST_IDENTITY=true RAWS_ALLOW_FRESH_SEED=false '
                           'python3 -u tools/ci_restore_only.py ' + phase, selected)
         preflight = next(cmd for cmd in commands if 'unittest discover' in cmd)
         self.assertNotIn('RAWS_DISTINCT_TEST_IDENTITY', preflight)
 
-    def test_exact_restore_private_inputs_no_compile_cache_save_or_artifact(self):
+    def test_exact_restore_and_only_independent_host_cache(self):
         steps = self.compile['steps']
         from ci_restore_only import BASE_CACHE, RECEIPT_CACHE
         self.assertTrue(any('ci_restore_only.py completed' in s.get('run', {}).get('command', '')
                             for s in steps if isinstance(s, dict)))
         restored = [s['restore_cache']['keys'] for s in steps
                     if isinstance(s, dict) and 'restore_cache' in s]
-        self.assertEqual(restored, [[RECEIPT_CACHE], [BASE_CACHE]])
+        from generate_full_config import SIGNED_APT_CACHE
+        self.assertEqual(restored, [[SIGNED_APT_CACHE], [RECEIPT_CACHE], [BASE_CACHE]])
+        saved = [s['save_cache'] for s in steps if isinstance(s, dict) and 'save_cache' in s]
+        self.assertEqual(saved, [{
+            'name': 'PPBAS: save verified-scope RawS host package downloads',
+            'key': SIGNED_APT_CACHE, 'paths': ['.raws-apt-cache/archives'],
+        }])
+        self.assertNotIn('pipeline.id', SIGNED_APT_CACHE)
+        self.assertIn('checksum "upstream.lock.json"', SIGNED_APT_CACHE)
         names = str(steps)
         for before, after in (('ci_restore_only.py select', 'Restore exact verified RawS #1396 final archive'),
-                              ('ci_full.py restore-finish', 'ci_restore_only.py compile'),
-                              ('ci_restore_only.py compile', 'ci_restore_only.py completed'),
+                              ('ci_full.py restore-finish', 'ci_restore_only.py prepare-signed'),
+                              ('ci_restore_only.py prepare-signed', 'save_cache'),
+                              ('save_cache', 'ci_restore_only.py compile-prepared'),
+                              ('ci_restore_only.py compile-prepared', 'ci_restore_only.py completed'),
                               ('ci_restore_only.py completed', 'persist_to_workspace')):
             self.assertLess(names.index(before), names.index(after))
         self.assertEqual(steps[-1], {'persist_to_workspace': {
             'root': '.raws-signing-input', 'paths': ['candidate.apk', 'receipt.json']}})
-        for forbidden in ('store_artifacts', 'save_cache', 'attach_workspace', 'fresh source'):
+        for forbidden in ('store_artifacts', 'attach_workspace', 'fresh source'):
             self.assertNotIn(forbidden, str(steps))
 
     def test_signer_installs_hash_pinned_sdk_before_private_attach(self):

@@ -7,3 +7,9 @@ raws-news.test##.raws-sponsor
 raws-news.test##.raws-allowed-sponsor
 raws-news.test#@#.raws-allowed-sponsor
 raws-news.test##+js(set-constant, rawsParityMarker, true)
+! Deterministic, cross-site cosmetic checks for /cosmetic-parity.
+raws-news.test##.raws-late-sponsor
+##.raws-late-global
+##.raws-late-exception
+raws-news.test#@#.raws-late-exception
+raws-news.test##.raws-procedural:has-text(Synthetic sponsored content)

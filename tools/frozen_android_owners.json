@@ -67,6 +67,8 @@
       "//chrome/android/java/src/org/chromium/chrome/browser/settings/SettingsContainmentHelper.java",
       "//chrome/android/java/src/org/chromium/chrome/browser/settings/search/SettingsSearchCoordinator.java",
       "//chrome/android/java/src/org/chromium/chrome/browser/share/ShareDelegateImpl.java",
+      "//chrome/android/java/src/org/chromium/chrome/browser/suggestions/mostvisited/MostVisitedSitesBridge.java",
+      "//chrome/android/java/src/org/chromium/chrome/browser/suggestions/tile/TileRenderer.java",
       "//chrome/android/java/src/org/chromium/chrome/browser/sync/settings/GoogleServicesSettings.java",
       "//chrome/android/java/src/org/chromium/chrome/browser/tab/TabImpl.java",
       "//chrome/android/java/src/org/chromium/chrome/browser/tab/TabWebContentsObserver.java",
@@ -83,6 +85,7 @@
       "//chrome/android/java/src/org/chromium/chrome/browser/settings/RawSAdRuleBackupSettings.java",
       "//chrome/android/java/src/org/chromium/chrome/browser/settings/RawSColorRulesSettings.java",
       "//chrome/android/java/src/org/chromium/chrome/browser/settings/RawSElementColorController.java",
+      "//chrome/android/java/src/org/chromium/chrome/browser/suggestions/mostvisited/MostVisitedSitesBridge.java",
       "//chrome/android/java/src/org/chromium/chrome/browser/tab/TabImpl.java",
       "//chrome/android/java/src/org/chromium/chrome/browser/tabmodel/TabCollectionTabModelImpl.java"
     ]

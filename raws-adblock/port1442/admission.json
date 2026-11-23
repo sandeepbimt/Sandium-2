@@ -110,8 +110,10 @@
     "chrome/android/java/src/org/chromium/chrome/browser/settings/SettingsContainmentHelper.java",
     "chrome/android/java/src/org/chromium/chrome/browser/settings/search/SettingsSearchCoordinator.java",
     "chrome/android/java/src/org/chromium/chrome/browser/share/ShareDelegateImpl.java",
+    "chrome/android/java/src/org/chromium/chrome/browser/suggestions/mostvisited/MostVisitedSitesBridge.java",
     "chrome/android/java/src/org/chromium/chrome/browser/suggestions/tile/MostVisitedTilesLayout.java",
     "chrome/android/java/src/org/chromium/chrome/browser/suggestions/tile/SuggestionsTileView.java",
+    "chrome/android/java/src/org/chromium/chrome/browser/suggestions/tile/TileRenderer.java",
     "chrome/android/java/src/org/chromium/chrome/browser/sync/settings/GoogleServicesSettings.java",
     "chrome/android/java/src/org/chromium/chrome/browser/sync/settings/SignInPreference.java",
     "chrome/android/java/src/org/chromium/chrome/browser/tab/TabImpl.java",
@@ -201,6 +203,8 @@
     "components/ntp_tiles/custom_links_manager.h",
     "components/ntp_tiles/custom_links_manager_impl.cc",
     "components/ntp_tiles/custom_links_manager_impl.h",
+    "components/ntp_tiles/custom_links_store.cc",
+    "components/ntp_tiles/custom_links_store.h",
     "components/ntp_tiles/most_visited_sites.cc",
     "components/ntp_tiles/most_visited_sites.h",
     "components/optimization_guide/core/hints/hints_fetcher.cc",
@@ -258,7 +262,7 @@
     "ui/android/java/src/org/chromium/ui/base/EventForwarder.java",
     "ui/android/java/src/org/chromium/ui/hierarchicalmenu/HierarchicalMenuController.java"
   ],
-  "manifest_sha256": "fcfd5f06a0eaee536d810b33c1903736e0f0d9f29c131288aa62a0452149f24b",
+  "manifest_sha256": "ff3fb5f39be74101524656646430da387a028023c74ee8e6f4262342ca9df285",
   "staged_vendor_delta": {
     "brave/third_party/rust/chromium_crates_io/vendor/adblock-v0_13/src/blocker.rs": {
       "after": "ac368737ffb88855918f8e32ac0eb39a308c4e76f41e4a8193cf223c2a59a7cb",

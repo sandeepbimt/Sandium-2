@@ -587,9 +587,21 @@ class FrozenScope(unittest.TestCase):
                 self.assertIsNotNone(before)
                 self.assertNotEqual(before, after)
                 self.assertEqual('644', chmod)
+            home_favicon_owners = {
+                'chrome/android/java/src/org/chromium/chrome/browser/suggestions/mostvisited/MostVisitedSitesBridge.java',
+                'chrome/android/java/src/org/chromium/chrome/browser/suggestions/tile/TileRenderer.java',
+                'components/ntp_tiles/custom_links_store.cc',
+                'components/ntp_tiles/custom_links_store.h',
+            }
+            self.assertLessEqual(home_favicon_owners, extra_tracked)
+            for path in home_favicon_owners:
+                before, after, mode = actual.files[path]
+                self.assertIsNotNone(before)
+                self.assertNotEqual(before, after)
+                self.assertEqual('644', mode)
             self.assertEqual(173, len(
                 extra_tracked - mobile_player_owners - manual_shortcut_owners
-                - {flash_owner} - soft_backing_owners - home_history_capture))
+                - {flash_owner} - soft_backing_owners - home_history_capture - home_favicon_owners))
             self.assertLessEqual({
                 'chrome/common/chrome_isolated_world_ids.h',
                 'chrome/android/java/src/org/chromium/chrome/browser/common/ChromeIsolatedWorldIds.java',

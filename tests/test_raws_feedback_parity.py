@@ -98,7 +98,8 @@ class CombinedFeedback(unittest.TestCase):
         prefs = ET.fromstring(self.read("appearance_preferences.xml"))
         rows = {row.get(ANDROID + "key"): row for row in prefs.iter()
                 if row.get(ANDROID + "key")}
-        wanted = ["raws_parity_transition_blur", "raws_parity_darken_transition"]
+        wanted = ["raws_parity_transition_blur", "raws_parity_night_mode"]
+        self.assertNotIn("raws_parity_darken_transition", rows)
         for key in wanted:
             row = rows[key]
             # Programmatic handlers commit through the single startup owner;
@@ -109,8 +110,8 @@ class CombinedFeedback(unittest.TestCase):
             self.assertFalse(row.findall("intent"))
         appearance = self.read("AppearanceSettingsFragment.java").decode()
         self.assertIn("RawSNavigationAppearance", appearance)
-        self.assertLess(int(rows[wanted[0]].get(ANDROID + "order")),
-                        int(rows[wanted[1]].get(ANDROID + "order")))
+        self.assertLess(int(rows[wanted[1]].get(ANDROID + "order")),
+                        int(rows[wanted[0]].get(ANDROID + "order")))
         main = ET.fromstring(self.read("main_preferences.xml"))
         self.assertFalse(any(row.get(ANDROID + "key") == "raws_ui_sandium_address_bar_color"
                              for row in main.iter()))

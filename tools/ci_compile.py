@@ -143,7 +143,26 @@ def run_java_body_gate(src, gn, out, env, artifacts, stage, deadline):
     return proof
 
 
-def main(stage, *, feature=None, distinct_test=False, codec_trial=False):
+def verified_source_env(source_verifier):
+    receipt=json.loads((W/'source-ready.json').read_text())
+    expected=hashlib.sha256((ROOT/'upstream.lock.json').read_bytes()).hexdigest()
+    if not receipt['ready'] or receipt['lock_sha256']!=expected:raise ValueError('Unverified source handoff')
+    data=lock();source_verifier(W/'src',data)
+    actual=subprocess.check_output(['git','-C',str(W/'depot_tools'),'rev-parse','HEAD'],text=True).strip()
+    if actual!=data['depot_tools']['revision']:raise ValueError('Wrong tool revision')
+    if shutil.disk_usage(ROOT).free<20*1024**3:raise ValueError('Need 20 GiB free before compile')
+    env=dict(os.environ,PATH=str(W/'depot_tools')+os.pathsep+os.environ['PATH'],DEPOT_TOOLS_UPDATE='0')
+    return data, env
+
+
+def install_host_and_hooks(stage, env, artifacts):
+    run_logged(host_dependency_command(W/'src'),
+               artifacts/f'prepare-{stage}.log',phase=f'install-dependencies-{stage}',check=True,env=env,stdin=subprocess.DEVNULL)
+    run_logged(['timeout','--kill-after=30s','10m','gclient','runhooks'],
+               artifacts/f'prepare-{stage}.log',phase=f'runhooks-{stage}',append=True,cwd=W,check=True,env=env)
+
+
+def main(stage, *, feature=None, distinct_test=False, codec_trial=False, prepared=False):
     if os.environ.get('CIRCLE_BRANCH')!='raw-sandium/official158' or stage not in (1,2,3,4,5):raise ValueError('Wrong build scope')
     if feature is not None and (stage != 1 or os.environ.get('RAWS_ALLOW_FRESH_SEED') != 'false'):
         raise ValueError('Feature build requires strict restore-only stage 1')
@@ -168,18 +187,12 @@ def main(stage, *, feature=None, distinct_test=False, codec_trial=False):
     port1442 = feature is not None and port_proof() is not None
     if feature is not None:state['feature_recipe_sha256']=feature.identity
     try:
-        receipt=json.loads((W/'source-ready.json').read_text())
-        expected=hashlib.sha256((ROOT/'upstream.lock.json').read_bytes()).hexdigest()
-        if not receipt['ready'] or receipt['lock_sha256']!=expected:raise ValueError('Unverified source handoff')
-        data=lock();source_verifier(W/'src',data)
-        actual=subprocess.check_output(['git','-C',str(W/'depot_tools'),'rev-parse','HEAD'],text=True).strip()
-        if actual!=data['depot_tools']['revision']:raise ValueError('Wrong tool revision')
-        if shutil.disk_usage(ROOT).free<20*1024**3:raise ValueError('Need 20 GiB free before compile')
-        env=dict(os.environ,PATH=str(W/'depot_tools')+os.pathsep+os.environ['PATH'],DEPOT_TOOLS_UPDATE='0')
-        run_logged(host_dependency_command(W/'src'),
-                   artifacts/f'prepare-{stage}.log',phase=f'install-dependencies-{stage}',check=True,env=env,stdin=subprocess.DEVNULL)
-        run_logged(['timeout','--kill-after=30s','10m','gclient','runhooks'],
-                   artifacts/f'prepare-{stage}.log',phase=f'runhooks-{stage}',append=True,cwd=W,check=True,env=env)
+        data, env = verified_source_env(source_verifier)
+        if prepared:
+            from ci_restore_only import require_prepared
+            require_prepared(feature)
+        else:
+            install_host_and_hooks(stage, env, artifacts)
         env=bootstrap_depot(W/'depot_tools',data['depot_tools']['revision'],env,artifacts,stage)
         out=W/'src/out/RawSandium';out.mkdir(parents=True,exist_ok=True)
         # Full checkpoint driver restores source and output together before this step.
