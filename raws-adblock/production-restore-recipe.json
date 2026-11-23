@@ -9243,7 +9243,7 @@
       "before_sha256": "8dd315c90f7401201d7a40c44e7ae1d9370f3967a635f528bba282b98bec1ddb"
     },
     "chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/ToolbarPhone.java": {
-      "after_sha256": "8e399d8289237eded9b509a475e8ea5e1e6fdff64c3bc81f67d2d936c554e2f8",
+      "after_sha256": "830dc2f46b9f349faed77d9f822ed3dc02df6d531e49522d8fcd413deb40bc98",
       "before_sha256": "1d2c62ecbb9f7e24f47ea99b6303a9d245dfc0d3d0065b2fc0c65fb2eb88b507",
       "mode": "644"
     },

@@ -154,7 +154,7 @@ def transform(path, raw):
         t = once(t, anchor, anchor + '''
     private final GradientDrawable mRawSHomeToolbarScrim = new GradientDrawable(
             GradientDrawable.Orientation.TOP_BOTTOM, new int[] {0x00000000, 0x16000000});
-    private @Nullable java.util.function.BiPredicate<Canvas, View> mRawSHomeToolbarBackingPainter;''')
+    private java.util.function.@Nullable BiPredicate<Canvas, View> mRawSHomeToolbarBackingPainter;''')
         anchor = '    @Override\n    protected void dispatchDraw(Canvas canvas) {\n        int rawSBackingColor'
         t = once(t, anchor, '''    public void setRawSHomeToolbarBackingPainter(
             java.util.function.BiPredicate<Canvas, View> painter) {
