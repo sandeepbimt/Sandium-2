@@ -1,9 +1,0 @@
-{
-  "raws_parent": "35bc6dc0a57cca9cc3dd4fd799434130a831e159",
-  "chromium": "52bdd21723d5db0c9ab11716d38feac74828cf84",
-  "chromium_version": "158.0.8127.42",
-  "brave_core": "bd6d26d1bced03c17a98baa86d2cd3425d543d1b",
-  "brave_version": "1.100.58",
-  "adblock_vendored_version": "0.13.3",
-  "adblock_upstream": "886d45dcf5283ce8eddc6d961e7dd27966ab23f2"
-}

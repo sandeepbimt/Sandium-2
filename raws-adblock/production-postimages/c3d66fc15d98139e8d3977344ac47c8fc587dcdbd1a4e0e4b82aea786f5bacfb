@@ -1,4 +1,0 @@
-<!-- Derived from exact Brave Leo source. SPDX-License-Identifier: MPL-2.0 -->
-<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="24dp" android:height="24dp" android:viewportWidth="24" android:viewportHeight="24">
-  <path android:pathData="M6.872 2A2.864 2.864 0 0 0 4 4.857v14.286A2.864 2.864 0 0 0 6.872 22h10.256A2.864 2.864 0 0 0 20 19.143V4.857A2.864 2.864 0 0 0 17.128 2zM5.64 4.857c0-.676.551-1.224 1.23-1.224h10.257c.68 0 1.231.548 1.231 1.224v14.286c0 .676-.551 1.224-1.23 1.224H6.871c-.68 0-1.231-.548-1.231-1.224zm9.436 3.878c.453 0 .82-.366.82-.817a.82.82 0 0 0-.82-.816H8.923a.82.82 0 0 0-.82.816c0 .451.367.817.82.817zm.82 3.265c0 .45-.367.816-.82.816H8.923a.82.82 0 0 1-.82-.816c0-.45.367-.816.82-.816h6.154c.453 0 .82.365.82.816m-.82 4.898c.453 0 .82-.366.82-.816a.82.82 0 0 0-.82-.817H8.923a.82.82 0 0 0-.82.817c0 .45.367.816.82.816z" android:fillColor="@color/sandium_menu_on_surface" android:fillType="evenOdd" />
-</vector>

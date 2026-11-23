@@ -1,0 +1,243 @@
+{
+  "aggregate_receipt_sha256": "c9785b7ae364a67242d53da28908fdbff8d21304b67fa5f645db955056e1bc12",
+  "apk_produced": false,
+  "bare": "e4265e92c914765822bf31b6bb12afcb70bf7a77",
+  "bundled_ublock_activation_admitted": false,
+  "candidate_kind": "upstream-bare-m158-graph-only",
+  "compile_started": false,
+  "held_paths": [],
+  "patch_sha256": "2429168b2874e4d86f976718e3fbf64c2ecef654050a23717de68d5f5fda52f5",
+  "patched_clean_paths": 1112,
+  "reviewed_fragments": {
+    "chrome/android/BUILD.gn": {
+      "after": "59b9a5605a49cd3e7b7e8942a810dc8c198406bc37c952314c7807e17e178efe",
+      "after_git_blob": "9e72a40d4fc625f10f1489b155a04695b76978bb",
+      "before": "f2721b2322b00da091676a5f08e9a0536a123bc7c80023f2b895a9d48478d578"
+    },
+    "chrome/android/chrome_java_resources.gni": {
+      "after": "6a844e7814b2da786c911bedb9473857dcf91eafe71d486060572002b9b24e99",
+      "after_git_blob": "4d33d1a3e53547ef4b0bfb917defa138ccfc1518",
+      "before": "e7395e464d080d60332c61733a3c1a5cc207b3dc7683045740abb026f505dc31"
+    },
+    "chrome/android/java/res/values/dimens.xml": {
+      "after": "225afff0913470cacf84bd1c92a1c80199c2414a719c843a2f965984c23605b6",
+      "after_git_blob": "160afe9aa9886d9e52df34a2e29aa565ab687bf3",
+      "before": "b6b708fccf9cdbbced42f7471ce1a1294ebcaa6c04e26eebed5645cf83f36c6a"
+    },
+    "chrome/android/java/src/org/chromium/chrome/browser/appearance/settings/AppearanceSettingsFragment.java": {
+      "after": "670ba29f2e1d402f47ab359e01cc0e3919d7d69553f5b7f73610692c398e4b28",
+      "after_git_blob": "1dea53febdffbcbfb6a0614c85d2936223417628",
+      "before": "ae73eda18031c0248319eee144aff1b0cb7b7c657186277b7e4431fdd827ace9"
+    },
+    "chrome/android/java/src/org/chromium/chrome/browser/autofill/settings/AutofillAiDelegate.java": {
+      "after": "50e32cf3f4603cf8a96313f91a361dc03e3f2c460c42dc3efcc3f9618cee4b50",
+      "after_git_blob": "3352fb8345755f93b554a54253d101bb1e2fbd42",
+      "before": "9e7aa151ed79abe47290b7fc31439628143bfcb4e6b66d8853958459e129e954"
+    },
+    "chrome/android/java/src/org/chromium/chrome/browser/compositor/layouts/LayoutManagerChrome.java": {
+      "after": "3cdefc5eb1bc49e3248a6328b44200dd3a3905cbbe596489a99a31709f0069ac",
+      "after_git_blob": "31d1cf7f9174ac36a09942d9f6d985435086496f",
+      "before": "3e64ff2a855a1f9e9664d4918d3cd0e526239b4a7b4454a419d7345f1e5f0d07"
+    },
+    "chrome/android/java/src/org/chromium/chrome/browser/contextmenu/ChromeContextMenuPopulator.java": {
+      "after": "d12ef49a8c544f721500634dd5dfa89f5c45ff585118d3426b38b615b78334eb",
+      "after_git_blob": "942aba1466d6386d9d7925a9b729d5d7ac68f45f",
+      "before": "cd80eaccf248a02502def816dcb9393f595a36ebf8f87fcdf28528c44987c6b7"
+    },
+    "chrome/android/java/src/org/chromium/chrome/browser/externalnav/ExternalNavigationDelegateImpl.java": {
+      "after": "0aaf566e2944767733e4f64c3685d2d7794e1c0d60bf545183558ad0a8ebdb3f",
+      "after_git_blob": "ec1baf2e2d4bc6f1f19dbf9882028bf0403ec39a",
+      "before": "936cda11a3c82104ef1a9513d2ac792f59e97be7ab080a5aed7e0ceed2573ce6"
+    },
+    "chrome/android/java/src/org/chromium/chrome/browser/ntp/search/SearchBoxMediator.java": {
+      "after": "95c399beb5121f3ca6d935141dfdb4f5dbb8b117d17c6268c973ff9d056f07e9",
+      "after_git_blob": "d8796cd87c2c54e463d75bd37cd295923a4befdd",
+      "before": "971748fa0c306115790b39d4abc05f40ba7ae174d2969da0f80a8d98c49a6e01"
+    },
+    "chrome/android/java/src/org/chromium/chrome/browser/settings/MainSettings.java": {
+      "after": "8d46ffa7a27d90a7cd8ace5bbd8728ccbdcb9ee641a0c92ded0ad6b6b208a3f5",
+      "after_git_blob": "97f2531d2b6df57fb0c6f98ef8ad1752584be6c1",
+      "before": "2f5579a222eced9a8323116aa9c7eb8be7911f4fdb54f93901ea14f2264f7595"
+    },
+    "chrome/android/java/src/org/chromium/chrome/browser/settings/SettingsFragmentRegistry.java": {
+      "after": "bb871bf2e94b86d12a5b05e6061e44e66bf96570197f3104f34a2f9828768131",
+      "after_git_blob": "69f6d8efd114ea89bbd91c0fe5b52002ba6817bb",
+      "before": "b1cad2845355012cbc9777d81e796803dfd85932cccc930b03b5a6286e61152a"
+    },
+    "chrome/android/java/src/org/chromium/chrome/browser/ui/system/StatusBarColorController.java": {
+      "after": "a071ec000915ad1718180062ea9a479bf21af763e34bb11da44b157309b3d576",
+      "after_git_blob": "c60aebf08d0a60a2856d6e98e81ec83c6dc12ff7",
+      "before": "338587d1553e770203e3259679692ba2f8a10bdec1b958361864753f5da352c8"
+    },
+    "chrome/android/junit/src/org/chromium/chrome/browser/tabbed_mode/TabbedAppMenuPropertiesDelegateUnitTest.java": {
+      "after": "b5ea6de16fc2eea92936bad3fbf326a9024f619547348759265e80f60d73989a",
+      "after_git_blob": "afc1702458f7e015de0331ae1f31244984e01aed",
+      "before": "1fdaec05ce4d33343a35b6ec9d65d9fc5e7c9121a1c17393bafff54acbccfd99"
+    },
+    "chrome/app/chromium_strings.grd": {
+      "after": "b9e963dfa079c196acee0d896422d6d34a99737e06d92da8748c812e82f2a9ce",
+      "after_git_blob": "d868b8987daa555b1da2bbc1871b339bee85086f",
+      "before": "c75030548d52a2fdaab334ef10f1ce1e13dcc6ac1e53267a1fc2cea756aa011e"
+    },
+    "chrome/app/settings_chromium_strings.grdp": {
+      "after": "1a332e378f87fe9b14180d46b8c42ce665a08ef841d4c791578d78d14b5899a2",
+      "after_git_blob": "c61bffc00dad18268a9ceeef9035b38f0f1cccfa",
+      "before": "c4aa5ec9408b125bcb2a5d37d0ead22e52c7283c01b5e5b6009ace2109d8fa15"
+    },
+    "chrome/browser/BUILD.gn": {
+      "after": "7af8e90cb0d9433b75b315e7e4aa8c113b8fa4338860b78927f5809fa528fdb0",
+      "after_git_blob": "62396c638bb1327cd578208faadac564c5094d1f",
+      "before": "e4098a876ac02db4ab67a4ce1ab3261545d1a4cd4b13433fa0b4bc03969baac3"
+    },
+    "chrome/browser/autofill/android/java/src/org/chromium/chrome/browser/autofill/settings/options/AutofillOptionsFragment.java": {
+      "after": "5908aedeeb33589ea0cfac806fbf9d3ba639dc1560556fbec4e7a8a50b320e7b",
+      "after_git_blob": "7eea5c9e31054e11bc88603ab230aa3bb1dacb4a",
+      "before": "f7a7e327f872b9390111d18e3d5fd66eebd3aaecef7b831875d57e939f531f92"
+    },
+    "chrome/browser/component_updater/registration.cc": {
+      "after": "a9ef6851b48528ffdffa3327e397f23577288c224c90826729819a33d76b6751",
+      "after_git_blob": "ff72bb2fdc96529fdb2645b761a69cad85a95843",
+      "before": "778cb4ed92916438e35e0b5a51ad846ba0ba15c9bb203a9d8ed4fbdab1d72321"
+    },
+    "chrome/browser/download/android/java/src/org/chromium/chrome/browser/download/settings/DownloadSettings.java": {
+      "after": "0689766d64c23b1a2baf066a67d5cc2633aa3a299ab13d583752ab1619a73faa",
+      "after_git_blob": "a8e1178721122d737c220ce44eaa2c95b0327a00",
+      "before": "eb4187997a81bbe72ba360eb724e14f3f93cd6cfff8d6968333cb9c406cd0f00"
+    },
+    "chrome/browser/extensions/extension_service.cc": {
+      "after": "88b8e487548c210ca1119736d0ba0729768ad3950cee10c56d874796a104a632",
+      "after_git_blob": "923d265949d90cadde2f380fb5d68e78db254209",
+      "before": "f9db1e460aa4f45907ba2b2c3fda89cd18a193f5440aaf071bda485f42010952"
+    },
+    "chrome/browser/flags/android/chrome_feature_list.cc": {
+      "after": "388980ac1d8b3a710ed6b59bbb706216d69dc809e36432f6006a26d81aceb6b8",
+      "after_git_blob": "742a577642ff58d743431003f3e23ce229c69e93",
+      "before": "57ea6b8bf56ee6ab74b5f51dd7c1cf6e59f11149ae8edea2e0a2ff710fcfb06f"
+    },
+    "chrome/browser/safety_hub/android/java/src/org/chromium/chrome/browser/safety_hub/SafetyHubFragment.java": {
+      "after": "af2b42550eeb1b91678beb8cb4dd9258e4e80a4a1a18d23b4c1750d2690c4481",
+      "after_git_blob": "18fe7a8376eb9039b06f6a75df9fb3755b53e707",
+      "before": "43818e9f8e58df183b8c98e32378ef925bdb1a37ea6ee0ebca2b43a80326992b"
+    },
+    "chrome/browser/ui/android/BUILD.gn": {
+      "after": "15473091d2ecb7ce93e637987273b883cf109c73f405227cdc464cab8b6689b2",
+      "after_git_blob": "f2342114bb25af060812fe84ccf3f710f69edb7b",
+      "before": "f8345ace2ed4a4ba080a27e3fa1c719ba081df45c4de7f01183ce1a5b0fc22b9"
+    },
+    "chrome/browser/ui/android/bottombar/java/src/org/chromium/chrome/browser/ui/bottombar/BottomBarCoordinator.java": {
+      "after": "5f4fa04e23263e1337bbebf621faf31423069a2ddc5e03cbf1a07626b8fc6e40",
+      "after_git_blob": "944a6bd1486a96f1597c5e5449ec305cd5b058c7",
+      "before": "644dde15139cd4410d37c6d24bb049b4071f98478e2d640a227337baa4058974"
+    },
+    "chrome/browser/ui/android/bottombar/java/src/org/chromium/chrome/browser/ui/bottombar/BottomBarView.java": {
+      "after": "df1948a745cb30e7ca4d9f3668e1a8b830a18faa886124bf71b9425572f4b6d8",
+      "after_git_blob": "9f2340dadb19a5f4e5b6072024c7943c373915df",
+      "before": "1a39a74d51b68d26221f7cea92374269b8b2b87803c5796cecbeee312de17408"
+    },
+    "chrome/browser/ui/android/bottombar/java/src/org/chromium/chrome/browser/ui/bottombar/BottomBarViewBinder.java": {
+      "after": "c40ad7d4a355cea166ec25d1790f394329813fbcc3aae055ec2a800d3e23c3a3",
+      "after_git_blob": "d54aa9f3623284c3e30017499ffefcee8f843835",
+      "before": "f15a883cd575254a095b3df59a7343a829cb7bac599d6d557f6998b0dd7c1bd3"
+    },
+    "chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/HintTextUpdater.java": {
+      "after": "30631b3344d7169cc2c189b51fecaf644e9a7d84d549c18922e61026347e3a60",
+      "after_git_blob": "41768ece9b33b4a11657d4755c7862b1117b71aa",
+      "before": "48565d3932d72957a430c05a698f9838c210d9f12043ec94a7c2353b0f4e898e"
+    },
+    "chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/suggestions/AutocompleteMediator.java": {
+      "after": "376ac7609660de1c64426cd4c7181e85a944a06e8c01473548cb291108b669ba",
+      "after_git_blob": "99cdc5cc9a47bb8aba404261a3e004215df508a5",
+      "before": "c646beb896da415ec5b6f8bf992ec1c16f851f1b19ed1857f3db80f308b76e8b"
+    },
+    "chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/suggestions/OmniboxSuggestionsDropdown.java": {
+      "after": "b1da40c1f7979542f791990ac28fc8d60eef3efc91b9b5be850f467c60dfbcf8",
+      "after_git_blob": "7b589577499896ee6d50cbb5fb81dbae06a8fa89",
+      "before": "36b8acf1b0725c37827b8ef1b2957149370323bfc1d6064b286be0971ae5d0d4"
+    },
+    "chrome/browser/ui/android/strings/android_chrome_strings.grd": {
+      "after": "a38fb9b4b540800fdd6750ac59abcd6c688fb1b3f9adf91df727ab938df614fb",
+      "after_git_blob": "cc76862ee157eea11f89ba310dea5ad5b80655cc",
+      "before": "267e869f07c2aca4cd1fd5d44b329db40c1e59a451c6b85716b76feea48f1ed7"
+    },
+    "chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/ToolbarLongPressMenuHandler.java": {
+      "after": "57743df2374a6e5a34f630252deb581a8192b05bcb98fa34b0ee6b8cc5f4418d",
+      "after_git_blob": "078e8cfbfa5391b348cec997035c7d5cf7ad2496",
+      "before": "29d751d59b0b652e2ca15e1cf30d3e6f1017b17a4d33e44bbb871e01823db263"
+    },
+    "chrome/browser/ui/webui/devtools/devtools_ui_data_source.cc": {
+      "after": "9ff36c94a6999f9318d0675574a97e53b9b5f1cf900afb14ed8f9a35a7cab241",
+      "after_git_blob": "ae364ae06f38019ffa5567b7b1ff53f959d6b063",
+      "before": "db44eaf723561d324ba0edaf255399aed141894c0ff3365ea4b52e9434c1c086"
+    },
+    "components/autofill_strings.grdp": {
+      "after": "821f989b8a58c746845476b3adba964a0f10298ac435ea0d96e8ca5a66d08986",
+      "after_git_blob": "a82b0bed35b73a81f439ca36c46c2deaa5f11297",
+      "before": "72fb377b7c8756b825ba9c87d98860694d280626a51e8d8939649e34c2e4eff3"
+    },
+    "components/browser_ui/strings/android/browser_ui_strings.grd": {
+      "after": "e48fe278a18c1db942cdc00a40de2d640d7fa99d0e71d4b26f2e82c0c18e10c9",
+      "after_git_blob": "48125e2beceb94df55162c55922e440ef5083c59",
+      "before": "8d5a1f68823b22ce67153451534cb2794a79b15b9d15bbfee0afdaeb7f4e783b"
+    },
+    "components/external_intents/android/java/src/org/chromium/components/external_intents/ExternalNavigationHandler.java": {
+      "after": "ac40db92c44465d8ab0e9f7ee55cb6281bf8116e1147681405e216a01007aecc",
+      "after_git_blob": "8456bb7b94f0ee75238a77a2fbc5825ea3035696",
+      "before": "391083b03b6cadf4868a29d087cb1d5e0995458f0fbcbec96bbf8cf7bf75fe44"
+    },
+    "components/management_strings.grdp": {
+      "after": "a843d14e09bd52144d1301bda3f12a1a32f705dbc85cffe4112ffc3937a8f1f0",
+      "after_git_blob": "3462e47b33e54ca6e3e9e4a8c051f19b0a98b7a1",
+      "before": "d9d0566efb1869f4c0083ab1f4e6fece74580f2635e6b4deaebffedcf772fa4e"
+    },
+    "components/omnibox/common/omnibox_features.cc": {
+      "after": "661b9653a959b03d952b519b8015468a14cfd5d3eff6b8e8539cbd58a3bd8710",
+      "after_git_blob": "705711be1b04b8e34c662b3987b71c05332248e0",
+      "before": "70d3d34c79dd6a82e44b49ffd88222bbbe5413f48b9a27699ed06085e1d099f1"
+    },
+    "components/signin/public/base/signin_switches.cc": {
+      "after": "32d02089e1a4754bf3c9304d91ac4a7043d75e6a76d6edf0ccf2f9565934511f",
+      "after_git_blob": "1a979582c02ca1e68edeec7aab103dbdfdce2d8f",
+      "before": "0e14dfdb0e670b92680d81d9339648af540ae80979e20bc2cdc92453bb4b669c"
+    },
+    "content/browser/renderer_host/navigation_controller_impl.cc": {
+      "after": "50a5068e5e0043e7b36623fe9318800f7d992b640e762ed7e60a97918e0f90e8",
+      "after_git_blob": "6a865f5c813864f9cf636410324695be464bcd22",
+      "before": "30b66fb718e98cf26b73b941531eb28309d9269f87a7b203f02e915f2f7b1774"
+    },
+    "content/browser/renderer_host/navigation_entry_impl.cc": {
+      "after": "38894f1dc4868f7ec10052c9ab5ccfb19fb39b3c0bca68b639b90da70974337b",
+      "after_git_blob": "700c0e3f399dec24a926770a043cc0193bf2f54b",
+      "before": "de96a0448ebe18decc839a6092013a8490251ac60e34c79938a5c7e9f06f43b5"
+    },
+    "content/browser/renderer_host/navigation_request.cc": {
+      "after": "abc7573738e4299f4912696e3ab3e1d4289e0c18011e3db9db14e6bc7a684859",
+      "after_git_blob": "5749c08549141d1506c27053387207fc674f7ccf",
+      "before": "db7a020a1b2387a4027fab8d4e0d71ad7adab3045feb83b2df3dbc0e99ed7154"
+    },
+    "extensions/browser/extension_function_histogram_value.h": {
+      "after": "353ef6b706445261a3f691dbca89c6e1320be8e153ac911f9da2f955ab8866e3",
+      "after_git_blob": "b34a37828a33aa3ff24d15adba712e03c8ee3865",
+      "before": "32b0103db393a88299eb0f30148193ba408246c07bc24c891b6bcebfce9866b8"
+    },
+    "sandbox/policy/linux/landlock_gpu_policy_android.cc": {
+      "after": "5c1edaaf42750b00c7ff365f195406bd060b68f934d8a8647d3365e76c4cc68e",
+      "after_git_blob": "28f03f218595a6e8e56a4fef73aef24f6ad322ab",
+      "before": "679f401dd3dd2f34e539afa523a0a58e37eaa847bbe4c473bcc7f8262f951997"
+    },
+    "third_party/blink/public/mojom/navigation/navigation_params.mojom": {
+      "after": "dcd198c6513b1a067cb3c49cd0f5d5e23bb2043e1afded8446bd49f9a158e797",
+      "after_git_blob": "a1b55542bc267b26856e6f0df1a09751c769f21a",
+      "before": "0b86b2aa22e3c109ec66c6022e091eab07d6a9ff25a1302caa982ada79618c64"
+    },
+    "tools/metrics/histograms/metadata/extensions/enums.xml": {
+      "after": "e2d55f64bfa43fdffe39745818b75a8085a9b5dcc6918f3cc9247a46164bfecb",
+      "after_git_blob": "2a5b373ae59221314cfb158f428b751556a526e3",
+      "before": "a2e1bf9c85f053ad48df0096b8bcc3abee04948cd8e269e459a2d628fb744b9d"
+    }
+  },
+  "security_layers": {},
+  "source_admitted": false,
+  "synthetic_index_tree": "3463fd4f562a2df6773cd56fee59e8b7a95890af",
+  "target": "52bdd21723d5db0c9ab11716d38feac74828cf84",
+  "unresolved_paths": []
+}

@@ -1,9 +1,0 @@
-! Sandium synthetic lab fixture. Not a shipping filter list.
-! Load identically in a test-only source on RawS and the reference lab profile.
-/raws-fixture/banner.js$script,third-party,domain=raws-news.test
-@@/raws-fixture/banner.js?keep=yes$script,third-party,domain=raws-news.test
-/raws-fixture/shim.js$script,redirect=noopjs,third-party,domain=raws-news.test
-raws-news.test##.raws-sponsor
-raws-news.test##.raws-allowed-sponsor
-raws-news.test#@#.raws-allowed-sponsor
-raws-news.test##+js(set-constant, rawsParityMarker, true)

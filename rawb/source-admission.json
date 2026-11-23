@@ -1,0 +1,19 @@
+{
+  "bare": "e4265e92c914765822bf31b6bb12afcb70bf7a77",
+  "bundled_ublock_sha256": "d688ed3f0262ec4f8bdcd4c8f65987c5444c560aeb387a9e02aca1facdfa7046",
+  "chromium": "52bdd21723d5db0c9ab11716d38feac74828cf84",
+  "contains_1442_port": false,
+  "contains_brave_adblock": false,
+  "contains_raws_overlay": false,
+  "depot_tools": "fed8b43f48c4f4c2ac0c34aafbf0ec07a4e600cb",
+  "gn_args_sha256": "1fcfb2d84adb4c7eb2ba6ae9d72e62f84607b42fd96cc54ce34f2ac69062d7e5",
+  "graph_only": true,
+  "patch_count": 346,
+  "patch_sha256": "2429168b2874e4d86f976718e3fbf64c2ecef654050a23717de68d5f5fda52f5",
+  "patch_zstd_sha256": "90f80fe2b2e1fb2b0dea53b99fc113b481738426a5674127c73fdc1e287f59b0",
+  "remaining_holds": 0,
+  "replay_evidence_sha256": "6b055ccfae7cb271c898cd2c1dbc55194e88c2b76cf3ee66186422cc53f1fc0a",
+  "scope": "Bare v2.0.7 M158 source/GN graph candidate only; no compilation, signing, install, runtime proof, or release claim",
+  "source_admitted_for_graph": true,
+  "upstream_bare_extension_policy": true
+}
