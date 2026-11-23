@@ -12,10 +12,12 @@ PROFILE = 'raws-combined-1477-android-arm64-avc-aac-v1'
 TRIAL_APK = 'RawSandium-Combined-Codec-Test-arm64.apk'
 HEX64 = re.compile(r'[0-9a-f]{64}')
 # This regular lane already includes the isolated codec compile/sign route.
-# Keep the complete #1495 CI tree byte-identical in both descendants.
-FROZEN_SOURCE_BASELINE = '125ae4a75a0eeb3a8e21fbdd15df0e0b34ff2089'
-FROZEN_SOURCE_TREE = '27aaed048010e6573f4cff0e5fa7a223b0cdf08c'
-FROZEN_CI_TREE = '1f02e32a5a2ccf823e3f4609ded821298f52db0c'
+# Keep the exact historical #1495 tree on the predecessor; allow only the
+# reviewed PPBAS tree on both descendants.
+FROZEN_SOURCE_BASELINE = 'aa8a8f63eb541a2c2dbac9cb810935bceb982e0b'
+FROZEN_SOURCE_TREE = '3ac0004a29f4988af91b4de75cb494cf4448770f'
+FROZEN_PREDECESSOR_CI_TREE = '1f02e32a5a2ccf823e3f4609ded821298f52db0c'
+FROZEN_CI_TREE = '9b7322603ba926268eb8b122b61ba7f5ca15a2e7'
 GIT_SHA = re.compile(r'[0-9a-f]{40}')
 SCOPED_FILES = frozenset({
     'tools/raws_codec_ci.py', 'tools/raws_codec_trial.py', 'tests/test_raws_codec_ci.py',
@@ -49,18 +51,20 @@ def mode():
 def verify_checkout(root):
     if any(not GIT_SHA.fullmatch(pin) for pin in
            (BASELINE, BASELINE_TREE, FROZEN_SOURCE_BASELINE,
-            FROZEN_SOURCE_TREE, FROZEN_CI_TREE)) or not HEX64.fullmatch(FEATURE_SHA256):
+            FROZEN_SOURCE_TREE, FROZEN_PREDECESSOR_CI_TREE, FROZEN_CI_TREE)) or not HEX64.fullmatch(FEATURE_SHA256):
         raise ValueError('Malformed RawS codec source pins')
     parent = git(root, 'show', '-s', '--format=%P', 'HEAD')
     if (parent != BASELINE or
             git(root, 'show', '-s', '--format=%P', BASELINE) != FROZEN_SOURCE_BASELINE):
-        raise ValueError('Codec test requires the isolated recovery child of exact held RawS Home candidate')
+        raise ValueError('Codec test requires the isolated PPBAS child of exact #1517 source')
     if (git(root, 'rev-parse', FROZEN_SOURCE_BASELINE + '^{tree}') != FROZEN_SOURCE_TREE
             or git(root, 'rev-parse', BASELINE + '^{tree}') != BASELINE_TREE):
         raise ValueError('Codec trial checkout differs from the allowed combined RawS source')
+    if git(root, 'rev-parse', FROZEN_SOURCE_BASELINE + ':.circleci') != FROZEN_PREDECESSOR_CI_TREE:
+        raise ValueError('Codec trial requires the unchanged #1495 CI predecessor')
     if any(git(root, 'rev-parse', commit + ':.circleci') != FROZEN_CI_TREE
-           for commit in (FROZEN_SOURCE_BASELINE, BASELINE, 'HEAD')):
-        raise ValueError('Codec trial requires the unchanged #1495 CI contract')
+           for commit in (BASELINE, 'HEAD')):
+        raise ValueError('Codec trial requires the exact reviewed PPBAS CI contract')
     changes = git(root, 'diff', '--name-only', '-z', '--no-renames', BASELINE, 'HEAD')
     changed_paths = changes.split('\0')
     if (changed_paths[-1] != '' or len(changed_paths) != len(SCOPED_FILES) + 1

@@ -110,13 +110,15 @@ class CodecCIProofTest(unittest.TestCase):
                 ci_restore_only.gate()
 
     def checkout_git(self, *, parent=None, source_parent=None, control_tree=None,
-                     ci_tree=None, changes=None, dirty='', mode='100644'):
+                     ci_tree=None, prior_ci_tree=None, changes=None, dirty='', mode='100644'):
         def commit(path, *args):
             if args[0] == 'show':
                 return (codec.BASELINE if parent is None else parent) if args[-1] == 'HEAD' else (
                     codec.FROZEN_SOURCE_BASELINE if source_parent is None else source_parent)
             if args[0] == 'rev-parse':
                 requested = args[-1]
+                if requested == codec.FROZEN_SOURCE_BASELINE + ':.circleci':
+                    return codec.FROZEN_PREDECESSOR_CI_TREE if prior_ci_tree is None else prior_ci_tree
                 if requested.endswith(':.circleci'):
                     return codec.FROZEN_CI_TREE if ci_tree is None else ci_tree
                 if requested == codec.BASELINE + '^{tree}':
@@ -145,9 +147,11 @@ class CodecCIProofTest(unittest.TestCase):
 
     def test_unchanged_ci_contract_required(self):
         self.prepare_checkout_manifest()
-        with patch.object(codec, 'git', side_effect=self.checkout_git(ci_tree='a'*40)):
-            with self.assertRaisesRegex(ValueError, 'unchanged #1495 CI'):
-                codec.verify_checkout(self.root)
+        for field, expected in [('prior_ci_tree', 'unchanged #1495 CI'),
+                                ('ci_tree', 'exact reviewed PPBAS CI')]:
+            with patch.object(codec, 'git', side_effect=self.checkout_git(**{field: 'a'*40})):
+                with self.assertRaisesRegex(ValueError, expected):
+                    codec.verify_checkout(self.root)
 
     def test_scope_rejects_extra_missing_and_malformed_control_files(self):
         self.prepare_checkout_manifest()
@@ -180,5 +184,5 @@ class CodecCIProofTest(unittest.TestCase):
         self.prepare_checkout_manifest()
         with patch.object(codec, "git", side_effect=self.checkout_git(
                 parent=codec.FROZEN_SOURCE_BASELINE)):
-            with self.assertRaisesRegex(ValueError, "exact held RawS Home candidate"):
+            with self.assertRaisesRegex(ValueError, "exact #1517 source"):
                 codec.verify_checkout(self.root)
