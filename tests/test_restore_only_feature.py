@@ -538,7 +538,48 @@ class FrozenScope(unittest.TestCase):
                     self.assertIsNotNone(before)
                     self.assertNotEqual(before, after)
                     self.assertEqual('644', chmod)
-            self.assertEqual(173, len(extra_tracked - mobile_player_owners))
+            manual_shortcut_owners = {
+                'chrome/browser/android/ntp/most_visited_sites_bridge.cc',
+                'components/ntp_tiles/most_visited_sites.cc',
+                'components/ntp_tiles/most_visited_sites.h',
+                'components/ntp_tiles/custom_links_manager.h',
+                'components/ntp_tiles/custom_links_manager_impl.cc',
+                'components/ntp_tiles/custom_links_manager_impl.h',
+            }
+            if manual_shortcut_owners.intersection(extra_tracked):
+                self.assertLessEqual(manual_shortcut_owners, extra_tracked)
+                for path in manual_shortcut_owners:
+                    before, after, chmod = actual.files[path]
+                    self.assertIsNotNone(before)
+                    self.assertNotEqual(before, after)
+                    self.assertEqual('644', chmod)
+            flash_owner = 'chrome/android/java/src/org/chromium/chrome/browser/tab/TabImpl.java'
+            if flash_owner in extra_tracked:
+                before, after, chmod = actual.files[flash_owner]
+                self.assertIsNotNone(before)
+                self.assertNotEqual(before, after)
+                self.assertEqual('644', chmod)
+            toolbar_top = ('chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/'
+                           'browser/toolbar/top/')
+            compositor = 'chrome/browser/android/compositor/'
+            soft_backing_owners = {
+                toolbar_top + 'Toolbar.java', toolbar_top + 'TopToolbarCoordinator.java',
+                toolbar_top + 'ToolbarControlContainer.java', toolbar_top + 'ResourceFactory.java',
+                compositor + 'resources/resource_factory.cc',
+                compositor + 'resources/toolbar_resource.cc',
+                compositor + 'resources/toolbar_resource.h',
+                compositor + 'layer/toolbar_layer.cc', compositor + 'layer/toolbar_layer.h',
+            }
+            if soft_backing_owners.intersection(extra_tracked):
+                self.assertLessEqual(soft_backing_owners, extra_tracked)
+                for path in soft_backing_owners:
+                    before, after, chmod = actual.files[path]
+                    self.assertIsNotNone(before)
+                    self.assertNotEqual(before, after)
+                    self.assertEqual('644', chmod)
+            self.assertEqual(173, len(
+                extra_tracked - mobile_player_owners - manual_shortcut_owners
+                - {flash_owner} - soft_backing_owners))
             self.assertLessEqual({
                 'chrome/common/chrome_isolated_world_ids.h',
                 'chrome/android/java/src/org/chromium/chrome/browser/common/ChromeIsolatedWorldIds.java',

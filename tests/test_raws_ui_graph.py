@@ -55,6 +55,7 @@ ACTIONS = {
     '//ui/android:ui_android_jni_headers__action': 'inputs',
     '//chrome/browser/ui/android/strings:ui_strings_grd__grit_grit': 'inputs',
     TOOLBAR + JAVAC: 'inputs',
+    '//chrome/browser/ui/android/toolbar:jni_headers__action': 'inputs',
     '//chrome/browser/ui/android/toolbar:java_resources' + PREPARE: 'sources',
     '//chrome/browser/ui/android/bottombar:config_java' + JAVAC: 'inputs',
     '//chrome/browser/ui/android/omnibox:java' + JAVAC: 'inputs',

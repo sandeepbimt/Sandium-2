@@ -68,6 +68,7 @@
       "//chrome/android/java/src/org/chromium/chrome/browser/settings/search/SettingsSearchCoordinator.java",
       "//chrome/android/java/src/org/chromium/chrome/browser/share/ShareDelegateImpl.java",
       "//chrome/android/java/src/org/chromium/chrome/browser/sync/settings/GoogleServicesSettings.java",
+      "//chrome/android/java/src/org/chromium/chrome/browser/tab/TabImpl.java",
       "//chrome/android/java/src/org/chromium/chrome/browser/tab/TabWebContentsObserver.java",
       "//chrome/android/java/src/org/chromium/chrome/browser/tabbed_mode/TabbedRootUiCoordinator.java",
       "//chrome/android/java/src/org/chromium/chrome/browser/tabmodel/TabCollectionTabModelImpl.java",
@@ -82,6 +83,7 @@
       "//chrome/android/java/src/org/chromium/chrome/browser/settings/RawSAdRuleBackupSettings.java",
       "//chrome/android/java/src/org/chromium/chrome/browser/settings/RawSColorRulesSettings.java",
       "//chrome/android/java/src/org/chromium/chrome/browser/settings/RawSElementColorController.java",
+      "//chrome/android/java/src/org/chromium/chrome/browser/tab/TabImpl.java",
       "//chrome/android/java/src/org/chromium/chrome/browser/tabmodel/TabCollectionTabModelImpl.java"
     ]
   ],
@@ -169,7 +171,17 @@
       "//chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/ToolbarProgressBar.java",
       "//chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/ToolbarProgressBarAnimatingView.java",
       "//chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/ToolbarProgressBarLayer.java",
-      "//chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/signin_button/SigninButtonCoordinator.java"
+      "//chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/signin_button/SigninButtonCoordinator.java",
+      "//chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/ResourceFactory.java",
+      "//chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/Toolbar.java",
+      "//chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/ToolbarControlContainer.java",
+      "//chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/TopToolbarCoordinator.java"
+    ]
+  ],
+  "//chrome/browser/ui/android/toolbar:jni_headers__action": [
+    "inputs",
+    [
+      "//chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/ResourceFactory.java"
     ]
   ],
   "//components/browser_ui/styles/android:java_resources__prepare": [
