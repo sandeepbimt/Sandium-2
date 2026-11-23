@@ -90,36 +90,44 @@ class CombinedFeedback(unittest.TestCase):
         self.assertIn("MAX_PROVIDERS = 12", java)
         self.assertIn("selectInlineProvider(host,", self.read("RawSSetupFirstRunFragment.java").decode())
 
-    def test_deamp_preserves_the_native_request_owner(self):
+    def test_deamp_routes_existing_pref_to_script_only_on_fresh_primary_documents(self):
         client = self.read("chrome_content_browser_client.cc").decode()
         self.assertIn("kRawSGoogleDeAmpPref, true", client)
-        self.assertIn("RawSGoogleAmpSwap::DidFinishNavigation", client)
-        scoped = client[client.index("GURL RawSGoogleAmpPublisher"):
-                        client.index("constexpr char kSandiumPendingPopupKey")]
-        self.assertNotIn(".path_piece()", scoped)
-        self.assertNotIn(".host_piece()", scoped)
-        self.assertIn("OpenURLParams::FromNavigationHandle", scoped)
-        self.assertIn("controller.GetPendingEntry()", scoped)
-        self.assertNotIn("GetResponseBody(", scoped)
-        self.assertIn("swap->GetInspection(*navigation_id, frame_tree_node_id)", client)
-        self.assertIn("std::make_unique<body_sniffer::BodySnifferThrottle>", client)
-        transport = self.read("body_sniffer_url_loader.cc").decode()
-        self.assertIn("base::Milliseconds(80)", transport)
-        self.assertIn("ForwardBodyToClient()", transport)
-        self.assertIn("if (!sandium_popup && handle.IsInPrimaryMainFrame())", client)
+        for owner in ("RawSGoogleAmpSwap", "RawSGoogleAmpNavigationThrottle",
+                      "RawSBraveDeAmpBodyHandler", "BodySnifferThrottle"):
+            self.assertNotIn(owner, client)
+        scoped = client.split("class RawSDisableAmpObserver", 1)[1].split(
+            "constexpr char kSandiumPendingPopupKey", 1)[0]
+        self.assertIn("RawSDisableAmpObserver::DOMContentLoaded", scoped)
+        self.assertIn("frame != web_contents()->GetPrimaryMainFrame()", scoped)
+        self.assertIn("kRawSGoogleDeAmpPref", scoped)
+        self.assertNotIn("PrefChangeRegistrar", scoped)
+        self.assertNotIn("OpenURL(", scoped)
+        self.assertLess(scoped.index("if (mode == AmpMode::kOff)"),
+                        scoped.index("endpoint->SetRawSDisableAmp("))
+        renderer = self.read("chrome_render_frame_observer.cc").decode()
+        scoped = renderer.split("void ChromeRenderFrameObserver::SetRawSDisableAmp(", 1)[1]
+        scoped = scoped.split("void ChromeRenderFrameObserver::SetRawSProceduralCosmetic(", 1)[0]
+        self.assertIn("frame->GetEmbeddingToken() != token", scoped)
+        self.assertIn("GURL(doc.Url()) != expected_url", scoped)
+        self.assertIn("ISOLATED_WORLD_ID_RAWS_DISABLE_AMP", scoped)
+        self.assertNotIn("ISOLATED_WORLD_ID_CHROME_INTERNAL", scoped)
 
 
     def test_popup_marker_uses_native_mutable_handle_before_consumption(self):
         client = self.read("chrome_content_browser_client.cc").decode()
-        method = client.split(
-            "void ChromeContentBrowserClient::CreateThrottlesForNavigation(", 1
-        )[1].split("void ChromeContentBrowserClient::CreateThrottlesForCommitWithoutUrlLoader(", 1)[0]
-        self.assertIn("  auto& handle = registry.GetNavigationHandle();", method)
-        marker = method.index("handle.GetWebContents()->GetUserData(kSandiumPendingPopupKey)")
-        consume = method.index("SandiumPopupNavigationThrottle::MaybeCreateAndAdd(registry)")
-        deamp = method.index("if (!sandium_popup && handle.IsInPrimaryMainFrame())")
-        self.assertLess(marker, consume)
-        self.assertLess(consume, deamp)
+        popup = client.split("class SandiumPopupNavigationThrottle final", 1)[1]
+        popup = popup.split("  SandiumPopupNavigationThrottle(", 1)[0]
+        self.assertIn("auto& handle = registry.GetNavigationHandle();", popup)
+        marker = popup.index("contents->GetUserData(kSandiumPendingPopupKey)")
+        create = popup.index("registry.AddThrottle(std::make_unique<SandiumPopupNavigationThrottle>")
+        consume = popup.index("contents->RemoveUserData(kSandiumPendingPopupKey)")
+        self.assertLess(marker, create)
+        self.assertLess(create, consume)
+        registry = client.split("void ChromeContentBrowserClient::CreateThrottlesForNavigation(", 1)[1]
+        registry = registry.split("void ChromeContentBrowserClient::CreateThrottlesForCommitWithoutUrlLoader(", 1)[0]
+        self.assertEqual(1, registry.count("SandiumPopupNavigationThrottle::MaybeCreateAndAdd(registry)"))
+
 
     def test_procedural_cosmetic_binding_closes_the_native_quoted_nonce(self):
         binding = self.read("raws_procedural_cosmetic_binding.h").decode()

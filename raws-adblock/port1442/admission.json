@@ -87,6 +87,7 @@
     "chrome/android/java/src/org/chromium/chrome/browser/appearance/settings/AppearanceSettingsFragment.java",
     "chrome/android/java/src/org/chromium/chrome/browser/autofill/settings/AutofillAndPasswordsFragment.java",
     "chrome/android/java/src/org/chromium/chrome/browser/base/SplitCompatApplication.java",
+    "chrome/android/java/src/org/chromium/chrome/browser/common/ChromeIsolatedWorldIds.java",
     "chrome/android/java/src/org/chromium/chrome/browser/compositor/CompositorView.java",
     "chrome/android/java/src/org/chromium/chrome/browser/compositor/layouts/StaticLayout.java",
     "chrome/android/java/src/org/chromium/chrome/browser/crash/ChromeMinidumpUploadJobServiceImpl.java",
@@ -175,6 +176,7 @@
     "chrome/browser/ui/autofill/chrome_autofill_client.cc",
     "chrome/browser/ui/autofill/payments/chrome_payments_autofill_client.cc",
     "chrome/common/BUILD.gn",
+    "chrome/common/chrome_isolated_world_ids.h",
     "chrome/common/chrome_render_frame.mojom",
     "chrome/renderer/BUILD.gn",
     "chrome/renderer/chrome_render_frame_observer.cc",
@@ -235,7 +237,7 @@
     "ui/android/java/src/org/chromium/ui/base/EventForwarder.java",
     "ui/android/java/src/org/chromium/ui/hierarchicalmenu/HierarchicalMenuController.java"
   ],
-  "manifest_sha256": "43b1a204eaca39773af3b719c168a6b1a1f17594d17334715bfc12ce192f35a0",
+  "manifest_sha256": "1f1ed3e382d82e61e1d4179874c5ccd172bb0451fc1e3c3958b74d7e9b8129c1",
   "staged_vendor_delta": {
     "brave/third_party/rust/chromium_crates_io/vendor/adblock-v0_13/src/blocker.rs": {
       "after": "ac368737ffb88855918f8e32ac0eb39a308c4e76f41e4a8193cf223c2a59a7cb",

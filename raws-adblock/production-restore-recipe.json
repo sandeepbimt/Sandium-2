@@ -8220,7 +8220,7 @@
       "mode": "644"
     },
     "chrome/android/java/res/values/raws_global_shield_strings.xml": {
-      "after_sha256": "e4e99de14f5e585466ecdddab3d775c9f135049a5bd314a12cd5545442c23327",
+      "after_sha256": "3b59e31aaeb9e253f5765635d6f8a4224d37a2a2bf08009c09e2c6303d342576",
       "before_sha256": null,
       "mode": "644"
     },
@@ -8384,6 +8384,11 @@
       "before_sha256": "8b1e104b02fa56760ce5c4489df8154a152e9b05aafface8b5af14cbd6773efd",
       "mode": "644"
     },
+    "chrome/android/java/src/org/chromium/chrome/browser/common/ChromeIsolatedWorldIds.java": {
+      "after_sha256": "84229a39ef028e6da49f4c13f8dc147fb03a44590673561f3b6ee380c1408563",
+      "before_sha256": "fac8c3f2c9c3603068452fb14892e5f2df510375441a95cede80d118c9a4d12b",
+      "mode": "644"
+    },
     "chrome/android/java/src/org/chromium/chrome/browser/compositor/CompositorView.java": {
       "after_sha256": "676181a52253d7cf69a60a5d147eceaba4f8045fe9d44ed26d7e582c5a15ac73",
       "before_sha256": "eca530507d4447a6e5578324e54b113c9bb3ded0b1c7064785c514b410bf5e32",
@@ -8512,7 +8517,7 @@
       "mode": "644"
     },
     "chrome/android/java/src/org/chromium/chrome/browser/settings/RawSColorChooser.java": {
-      "after_sha256": "79f44dafab84473d60645fe528ffee18b7079f181c666845c605d7e8c1c945d9",
+      "after_sha256": "ca49181f7d6726c51b016558ee32903f14ef4669d1e53974fa52f63b1c7c3089",
       "before_sha256": null,
       "mode": "644"
     },
@@ -8633,7 +8638,7 @@
       "mode": "644"
     },
     "chrome/browser/BUILD.gn": {
-      "after_sha256": "14266572ad53f3beba6be157119d8e772a14d4dc06c35a90f84e1232733f0be9",
+      "after_sha256": "2a16ae7ebca301e86e712740c96a35783284accce7964f453a214c428bfd4f3d",
       "before_sha256": "e4098a876ac02db4ab67a4ce1ab3261545d1a4cd4b13433fa0b4bc03969baac3",
       "mode": "644"
     },
@@ -8678,7 +8683,7 @@
       "mode": "644"
     },
     "chrome/browser/chrome_content_browser_client.cc": {
-      "after_sha256": "070b8ddd8082816a7e75bd2855d4ec69846c81c8a578ae9c028795ad65031749",
+      "after_sha256": "869364b0e1db476ff4683a29d3172f97cb507a404692075175b5aa365be76cba",
       "before_sha256": "235fbfdbfe13d7ce2833017f67d6a899dda5b14131e38e5f7177b62f8a4b981b",
       "mode": "644"
     },
@@ -9205,8 +9210,13 @@
       "before_sha256": "9fc88e8889adcd51e686221a709bda8b89fab9ba363f9765bfb2ae41166e6555",
       "mode": "644"
     },
+    "chrome/common/chrome_isolated_world_ids.h": {
+      "after_sha256": "b9cafb3ea4884c5d14e085d3c7cbbd00dbd6737d0d484d272898fc86822c35ce",
+      "before_sha256": "6b5384da3ab0cb04ff100b19b8981e8846d51d0d405acf595ccbaf048d1e219a",
+      "mode": "644"
+    },
     "chrome/common/chrome_render_frame.mojom": {
-      "after_sha256": "6dbfa36df87bb0bc6d56abbd97c3c3608694665ea63b557f8cd14cafcd702a0e",
+      "after_sha256": "e0dba842888e641ec8f1de710378f158770da67c21916a5a7f76b0b2937e3f39",
       "before_sha256": "59cd286429ad99590a8fbbd9e5dda837716a5ad7c244e9cbfa141468760a714f"
     },
     "chrome/common/raws_procedural_cosmetic_rules.h": {
@@ -9220,11 +9230,11 @@
       "mode": "644"
     },
     "chrome/renderer/chrome_render_frame_observer.cc": {
-      "after_sha256": "9beb1534f27dd82e4be06ae8edefcfe5dc928a5ffc5144dd8bbb1a4f1819487f",
+      "after_sha256": "266b7b0069b04f7deca6fe87f25d50c72e1bd6807e05d825a7c9f729d96af9ac",
       "before_sha256": "193e6a0d88cd505eb683cba41d4509785e235310560d52b23c8bf394e0430972"
     },
     "chrome/renderer/chrome_render_frame_observer.h": {
-      "after_sha256": "11d9b26eb49bfb5431656d488cb613bbad344987c8828d3fef0c16cadf778f26",
+      "after_sha256": "bd1fafdca493cbd0c73689f075a89b3c0693aa5b8dee5fbd13a1ded814efcbf9",
       "before_sha256": "b3172f2b05944287a157906c16231ad457775525f314abad96d2d423af77d353"
     },
     "chrome/renderer/raws_color_locator.h": {
@@ -9243,7 +9253,7 @@
       "mode": "644"
     },
     "chrome/renderer/raws_element_picker_donor.h": {
-      "after_sha256": "0a0ec47d80f073dbe2e5aa9e8a56e4989ae7ba123dbeb05ec1de178fa8972c2b",
+      "after_sha256": "d2483e071fae0ba82c153e2f6360502675a2ada56df7193499a04190e1b402bd",
       "before_sha256": null,
       "mode": "644"
     },
@@ -9643,7 +9653,7 @@
       "mode": "644"
     },
     "third_party/blink/renderer/core/dom/sandium_element_colors.cc": {
-      "after_sha256": "ad8a8e347efafa9e31d369cb237262315e2078ab60cf73e2bd9c1dbcb043d055",
+      "after_sha256": "620a1db8a67d0d6c6c789f1e263cf9a4f946721223ec61bba6fc920d3d7000af",
       "before_sha256": null,
       "mode": "644"
     },

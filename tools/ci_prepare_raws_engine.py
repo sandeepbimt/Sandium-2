@@ -84,6 +84,7 @@ def ui_source_targets():
         main+':chrome_java__compile_java': ('inputs', {
             main+'/feed/core/java/src/org/chromium/chrome/browser/feed/FeedSurfaceCoordinator.java',
         } | {app_java+'/'+name for name in (
+            'common/ChromeIsolatedWorldIds.java',
             'ChromeTabbedActivity.java', 'tabbed_mode/TabbedAppMenuPropertiesDelegate.java',
             'ntp/NewTabPageCoordinator.java', 'ntp/NewTabPage.java',
             'toolbar/ToolbarManager.java',

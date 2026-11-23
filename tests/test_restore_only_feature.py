@@ -526,7 +526,11 @@ class FrozenScope(unittest.TestCase):
                          actual.tracked_paths - feature.TRACKED)
         self.assertEqual(feature.UI_GENERATED | extra_generated, actual.ui_files)
         if extra:
-            self.assertEqual(171, len(extra_tracked))
+            self.assertEqual(173, len(extra_tracked))
+            self.assertLessEqual({
+                'chrome/common/chrome_isolated_world_ids.h',
+                'chrome/android/java/src/org/chromium/chrome/browser/common/ChromeIsolatedWorldIds.java',
+            }, extra_tracked)
             self.assertLessEqual({
                 'chrome/android/java/src/org/chromium/chrome/browser/settings/SettingsContainmentHelper.java',
                 'chrome/android/java/src/org/chromium/chrome/browser/settings/search/SettingsSearchCoordinator.java',
