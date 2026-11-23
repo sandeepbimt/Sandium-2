@@ -21,6 +21,13 @@ def factory():
 
 
 class RedirectHopTest(unittest.TestCase):
+    def test_redirect_callbacks_include_complete_mojo_structs(self):
+        source = factory()
+        for mojom, name in (('early_hints', 'EarlyHints'),
+                            ('url_response_head', 'URLResponseHead')):
+            self.assertIn(f'network::mojom::{name}Ptr', source)
+            self.assertIn(f'#include "services/network/public/mojom/{mojom}.mojom.h"', source)
+
     def test_merged_attachment_leaves_early_native_path_alone(self):
         source = factory()
         initial = source[source.index('class RequestFactory final'):
