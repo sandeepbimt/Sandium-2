@@ -1,0 +1,102 @@
+// SPDX-License-Identifier: MPL-2.0
+#ifndef CHROME_BROWSER_RAWS_RAW_ELEMENT_RULE_POLICY_H_
+#define CHROME_BROWSER_RAWS_RAW_ELEMENT_RULE_POLICY_H_
+
+#include <cstddef>
+#include <span>
+#include <string>
+#include <string_view>
+
+namespace sandium::adblock_native {
+
+inline constexpr size_t kMaxElementRuleOrigins = 256;
+inline constexpr size_t kMaxElementRulesPerOrigin = 32;
+inline constexpr size_t kMaxElementRuleTokenBytes = 64;
+inline constexpr size_t kMaxElementRulesOriginBytes = 512;
+
+constexpr bool IsElementRuleAsciiLetter(char ch) {
+  return ('A' <= ch && ch <= 'Z') || ('a' <= ch && ch <= 'z');
+}
+
+constexpr bool IsElementRuleIdentifier(std::string_view token) {
+  if (token.empty() || token.size() > kMaxElementRuleTokenBytes ||
+      !(IsElementRuleAsciiLetter(token.front()) || token.front() == '_')) {
+    return false;
+  }
+  for (const char ch : token) {
+    if (!IsElementRuleAsciiLetter(ch) && !(ch >= '0' && ch <= '9') &&
+        ch != '_' && ch != '-') {
+      return false;
+    }
+  }
+  return true;
+}
+
+inline constexpr size_t kMaxPickedSelectorBytes = 4096;
+
+constexpr bool IsPickerTag(std::string_view tag) {
+  if (tag.empty() || tag.size() >= 32 ||
+      tag.front() < 'a' || tag.front() > 'z') return false;
+  for (char ch : tag) {
+    if (!(ch >= 'a' && ch <= 'z') && !(ch >= '0' && ch <= '9') &&
+        ch != '-') return false;
+  }
+  return true;
+}
+
+constexpr bool IsPickerPath(std::string_view selector) {
+  constexpr std::string_view separator = " > ";
+  constexpr std::string_view nth = ":nth-child(";
+  const auto first = selector.find(separator);
+  const auto anchor = selector.substr(0, first);
+  if (anchor != ":root" &&
+      (!anchor.starts_with('#') || !IsElementRuleIdentifier(anchor.substr(1))))
+    return false;
+  if (first == selector.npos) return anchor == ":root";
+  selector.remove_prefix(first + separator.size());
+  for (size_t steps = 0; steps < 128; ++steps) {
+    const auto end = selector.find(separator);
+    const auto step = selector.substr(0, end);
+    const auto marker = step.find(nth);
+    if (marker == step.npos || !step.ends_with(')')) return false;
+    const auto tag = step.substr(0, marker);
+    if (tag != "*" && !IsPickerTag(tag)) return false;
+    const auto number = step.substr(marker + nth.size(),
+                                    step.size() - marker - nth.size() - 1);
+    if (number.empty() || number.size() > 7 || number.front() == '0' ||
+        (number.size() == 7 && number != "1000000")) return false;
+    for (char ch : number)
+      if (ch < '0' || ch > '9') return false;
+    if (end == selector.npos) return true;
+    selector.remove_prefix(end + separator.size());
+  }
+  return false;
+}
+
+// Accept existing ID/class saves plus canonical exact structural locators.
+// Never allow declarations, arbitrary CSS, commas or arbitrary pseudo-classes.
+constexpr bool IsSafePickedSelector(std::string_view selector) {
+  if (selector.empty() || selector.size() > kMaxPickedSelectorBytes) return false;
+  if (selector.starts_with(":root") || selector.find(" > ") != selector.npos)
+    return IsPickerPath(selector);
+  if (selector.starts_with('#')) return IsElementRuleIdentifier(selector.substr(1));
+  const auto dot = selector.find('.');
+  return dot != selector.npos && IsPickerTag(selector.substr(0, dot)) &&
+         IsElementRuleIdentifier(selector.substr(dot + 1));
+}
+
+inline std::string BuildPickedSelectorStyles(
+    std::span<const std::string> selectors) {
+  std::string sheet;
+  size_t emitted = 0;
+  for (const auto& selector : selectors) {
+    if (emitted == kMaxElementRulesPerOrigin) break;
+    if (!IsSafePickedSelector(selector)) continue;
+    sheet.append(selector).append(" { display: none !important; }\n");
+    ++emitted;
+  }
+  return sheet;
+}
+
+}  // namespace sandium::adblock_native
+#endif  // CHROME_BROWSER_RAWS_RAW_ELEMENT_RULE_POLICY_H_

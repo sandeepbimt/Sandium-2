@@ -526,7 +526,19 @@ class FrozenScope(unittest.TestCase):
                          actual.tracked_paths - feature.TRACKED)
         self.assertEqual(feature.UI_GENERATED | extra_generated, actual.ui_files)
         if extra:
-            self.assertEqual(173, len(extra_tracked))
+            mobile_player_owners = {
+                'third_party/blink/public/web/web_document_loader.h',
+                'third_party/blink/renderer/core/loader/document_loader.cc',
+                'third_party/blink/renderer/core/loader/document_loader.h',
+            }
+            if mobile_player_owners.intersection(extra_tracked):
+                self.assertLessEqual(mobile_player_owners, extra_tracked)
+                for path in mobile_player_owners:
+                    before, after, chmod = actual.files[path]
+                    self.assertIsNotNone(before)
+                    self.assertNotEqual(before, after)
+                    self.assertEqual('644', chmod)
+            self.assertEqual(173, len(extra_tracked - mobile_player_owners))
             self.assertLessEqual({
                 'chrome/common/chrome_isolated_world_ids.h',
                 'chrome/android/java/src/org/chromium/chrome/browser/common/ChromeIsolatedWorldIds.java',

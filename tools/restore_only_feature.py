@@ -24,7 +24,7 @@ POSTIMAGES = 'raws-adblock/production-postimages'
 APPROVED_MANIFEST_SHA256 = '7081e486a25eb33a74cac59bec9e94b16030f9b7c091b1e5faab2fc95c977aeb'
 # A combined candidate, when pinned, replaces the engine-only admission.
 # It must not fall back to the older digest if the UI manifest is missing.
-APPROVED_UI_MANIFEST_SHA256 = '743271dd5252003ecd18a25596c13deb95e48d9eca6a70323e9e05c5f8cd0824'
+APPROVED_UI_MANIFEST_SHA256 = '4e75d55dfa00f37b80a0d64715c2434c9554473ecaabc40c8a65c637c9130b7c'
 APPROVED_UI_TRACKED = frozenset((
     'chrome/android/chrome_java_resources.gni',
     'chrome/android/chrome_java_sources.gni',
