@@ -101,6 +101,10 @@ class CombinedFeedback(unittest.TestCase):
         self.assertIn("RawSDisableAmpObserver::DOMContentLoaded", scoped)
         self.assertIn("frame != web_contents()->GetPrimaryMainFrame()", scoped)
         self.assertIn("kRawSGoogleDeAmpPref", scoped)
+        # BrowserContext::ShutdownStarted() is not const in M158.
+        self.assertIn("auto* profile = Profile::FromBrowserContext(frame->GetBrowserContext());", scoped)
+        self.assertNotIn("const auto* profile", scoped)
+        self.assertIn("profile->ShutdownStarted()", scoped)
         self.assertNotIn("PrefChangeRegistrar", scoped)
         self.assertNotIn("OpenURL(", scoped)
         self.assertLess(scoped.index("if (mode == AmpMode::kOff)"),
