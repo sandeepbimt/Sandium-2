@@ -33,6 +33,67 @@ class CombinedFeedback(unittest.TestCase):
         self.assertEqual(hashlib.sha256(self.read("raws_home_wallpaper.webp")).hexdigest(),
                          "c4a3f16fc676e3202b68064dc5e526cec3d2985f513c44ddc202395dca03514f")
 
+    def test_home_chrome_paint_never_changes_geometry_or_shortcut_state(self):
+        home = self.read("NewTabPage.java").decode()
+        tray = home[home.index("// Same alpha as the Google search pill"):]
+        tray = tray[:tray.index("coordinator.useRawSHomeWallpaper")]
+        self.assertIn("tray.setBackgroundTintList(ColorStateList.valueOf(0xb81c1815))", tray)
+        self.assertNotIn("setBackground(", tray)
+        self.assertNotIn("setLayoutParams", tray)
+        self.assertNotIn("setPadding", tray)
+        self.assertIn("0xb827211d", self.read("SearchBoxContainerView.java").decode())
+        tile = self.read("SuggestionsTileView.java").decode()
+        self.assertIn("return mData.isCustomLink() || mData.isAiMode();", tile)
+        self.assertRegex(tile, r'showPinnedShortcutBadge =\s+\(!"io.github.sandeepbimt.raws"')
+        feed = self.read("FeedSurfaceCoordinator.java").decode()
+        publish = feed.split("private boolean updateRawSHomeWallpaper()", 1)[1]
+        publish = publish.split("private boolean updateRawSHomeWallpaperGeometry()", 1)[0]
+        self.assertIn("mRawSHomePublishedWallpaperPainting != mRawSHomeWallpaperPainting", publish)
+        self.assertIn("invalidate.run()", publish)
+        self.assertIn("? 0xff020202 : nativeColor", publish)
+        for method in ("requestLayout(", "setLayoutParams(", "setPadding(", "postDelayed("):
+            self.assertNotIn(method, publish)
+
+    def test_exit_and_save_are_native_menu_actions(self):
+        ids = ET.fromstring(self.read("raws_main_settings_strings.xml"))
+        self.assertIsNotNone(ids.find("item[@name='raws_exit_menu_id']"))
+        delegate = self.read("TabbedAppMenuPropertiesDelegate.java").decode()
+        self.assertLess(delegate.index("R.id.raws_exit_menu_id"),
+                        delegate.index("if (NewTabPage.isRawSHomeMenu(mContext, currentTab))"))
+        self.assertIn("iconModels.add(buildDownloadActionModel(currentTab))", delegate)
+        self.assertIn("if (shouldShowTranslateMenuItem(currentTab))", delegate)
+        browser = self.read("ChromeTabbedActivity.java").decode()
+        exit_case = browser.split("if (id == R.id.raws_exit_menu_id)", 1)[1]
+        exit_case = exit_case.split("final Tab currentTab = getActivityTab()", 1)[0]
+        self.assertIn("fromMenu", exit_case)
+        self.assertIn("finishAndRemoveTask()", exit_case)
+        self.assertNotIn("killProcess", exit_case)
+        catalog = self.read("RawSParityMenuCatalog.java").decode()
+        self.assertIn('case "raws_exit_menu_id" -> "exit_id";', catalog)
+        self.assertIn('case "offline_page_id" -> "download_page_id";', catalog)
+        panel = self.read("SandiumPagedMenu.java").decode()
+        self.assertIn("if (hasFixedExit()) keys.remove(EXIT)", panel)
+        self.assertIn("PAGE_SIZE - 1, EMPTY_SLOT", panel)
+        self.assertIn("return pinExit(mSaved.visibleKeys(editableKeys()));", panel)
+        self.assertIn("entry.model != captured || !enabled(entry.model)", panel)
+
+    def test_status_bar_uses_existing_surface_owners(self):
+        home = self.read("NewTabPage.java").decode()
+        change = home.split("private void updateRawSHomeStatusBarColor()", 1)[1]
+        change = change.split("public @ColorInt int getRawSHomeStatusBarColor", 1)[0]
+        self.assertIn("mActivityTabProvider.get() != mTab", change)
+        self.assertIn("mTab.getNativePage() != this", change)
+        self.assertIn("getStatusBarColorController().updateStatusBarColor()", change)
+        controller = self.read("StatusBarColorController.java").decode()
+        self.assertIn("page.getRawSHomeStatusBarColor(mBackgroundColorForNtp)", controller)
+        self.assertIn("return rawsOpaqueStatusColor(tab.getBackgroundColor())", controller)
+        self.assertNotIn("requestLayout(", controller)
+        settings = self.read("SettingsActivity.java").decode()
+        self.assertEqual(settings.count("getRawSSettingsTopSurfaceColor()"), 4)
+        self.assertIn("helper.setStatusBarColor(getRawSSettingsTopSurfaceColor())", settings)
+        self.assertIn("findViewById(R.id.app_bar_layout).setBackgroundColor(backgroundColor)",
+                      settings)
+
     def test_appearance_rows_bind_native_configuration(self):
         prefs = ET.fromstring(self.read("appearance_preferences.xml"))
         rows = {row.get(ANDROID + "key"): row for row in prefs.iter()

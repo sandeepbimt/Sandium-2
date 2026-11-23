@@ -1,0 +1,1269 @@
+// SPDX-License-Identifier: MPL-2.0
+package org.chromium.chrome.browser.settings;
+
+import android.app.Activity;
+import android.content.Context;
+import android.content.res.ColorStateList;
+import android.content.res.Configuration;
+import android.graphics.Color;
+import android.graphics.Typeface;
+import android.graphics.drawable.GradientDrawable;
+import android.graphics.drawable.InsetDrawable;
+import android.graphics.drawable.RippleDrawable;
+import android.os.Handler;
+import android.os.Looper;
+import android.os.SystemClock;
+import android.view.Gravity;
+import android.view.LayoutInflater;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.Button;
+import android.widget.FrameLayout;
+import android.widget.LinearLayout;
+import android.widget.ScrollView;
+import android.widget.TextView;
+import android.widget.Toast;
+
+import androidx.activity.ComponentActivity;
+import androidx.activity.OnBackPressedCallback;
+import androidx.appcompat.app.AlertDialog;
+import androidx.appcompat.widget.SwitchCompat;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
+
+import org.chromium.base.ActivityState;
+import org.chromium.base.ApplicationStatus;
+import org.chromium.base.ContextUtils;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
+import org.chromium.chrome.R;
+import org.chromium.chrome.browser.night_mode.RawSDarkPages;
+import org.chromium.chrome.browser.privacy.secure_dns.SecureDnsSettings;
+import org.chromium.chrome.browser.profiles.Profile;
+import org.chromium.chrome.browser.site_settings.ChromeSiteSettingsDelegate;
+import org.chromium.chrome.browser.tab.Tab;
+import org.chromium.chrome.browser.tab.TabHidingType;
+import org.chromium.chrome.browser.tab.TabObserver;
+import org.chromium.components.browser_ui.bottomsheet.BottomSheetContent;
+import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
+import org.chromium.components.browser_ui.site_settings.SingleWebsiteSettings;
+import org.chromium.components.browser_ui.site_settings.SiteDataCleaner;
+import org.chromium.components.browser_ui.site_settings.SiteSettingsCategory;
+import org.chromium.components.browser_ui.site_settings.WebsiteAddress;
+import org.chromium.components.browser_ui.site_settings.WebsitePermissionsFetcher;
+import org.chromium.components.browser_ui.site_settings.WebsitePreferenceBridge;
+import org.chromium.components.browser_ui.styles.SemanticColorUtils;
+import org.chromium.components.content_settings.CookieControlsBridge;
+import org.chromium.components.content_settings.CookieControlsEnforcement;
+import org.chromium.components.content_settings.CookieControlsObserver;
+import org.chromium.components.content_settings.CookieControlsState;
+import org.chromium.components.embedder_support.util.Origin;
+import org.chromium.content_public.browser.NavigationHandle;
+import org.chromium.content_public.browser.WebContents;
+import org.chromium.url.GURL;
+
+import java.lang.ref.WeakReference;
+import java.util.WeakHashMap;
+import java.util.function.BooleanSupplier;
+import java.util.function.Supplier;
+
+/** RawS Shields in the browser's existing sheet host, with native privacy owners. */
+@NullMarked
+public final class RawsGlobalShieldSheet implements BottomSheetContent {
+    // UI-thread-only. Neither the controller nor the content is retained by this registry.
+    private static final WeakHashMap<BottomSheetController, WeakReference<RawsGlobalShieldSheet>>
+            sOpen = new WeakHashMap<>();
+    private final BottomSheetController mController;
+    private final @Nullable Tab mSiteTab;
+    private final @Nullable WebContents mSiteWebContents;
+    private final @Nullable GURL mCommittedSiteUrl;
+    private final @Nullable Tab mOpeningTab;
+    private boolean mDestroyed;
+    private boolean mPrivateAdsPending;
+    private @Nullable CookieControlsBridge mCookieBridge;
+    private int mCookieState = -1;
+    private int mCookieEnforcement = -1;
+    private final SwitchCompat mCookieSwitch;
+    private final SwitchCompat mDarkSwitch;
+    private final TextView mClearSiteData;
+    private @Nullable AlertDialog mClearConfirmation;
+    private @Nullable AlertDialog mDnsProviderDialog;
+    private boolean mClearPending;
+    private final TabObserver mOpeningTabLifetime =
+            new TabObserver() {
+                @Override public void onHidden(Tab tab, @TabHidingType int type) { close(); }
+                @Override public void onDestroyed(Tab tab) { close(); }
+                @Override
+                public void onDidFinishNavigationInPrimaryMainFrame(
+                        Tab tab, NavigationHandle navigation) {
+                    if (navigation.hasCommitted() && !navigation.isSameDocument()) close();
+                }
+            };
+    private final ScrollView mContent;
+    private final SandiumBalancedTracer mHeaderTracer;
+    private final View.OnAttachStateChangeListener mHeaderLifetime =
+            new View.OnAttachStateChangeListener() {
+                @Override public void onViewAttachedToWindow(View view) {}
+                @Override public void onViewDetachedFromWindow(View view) {
+                    // This sheet is created per presentation and is never reused.
+                    destroy();
+                }
+            };
+
+    private RawsGlobalShieldSheet(
+            Context context, BottomSheetController controller, @Nullable Tab tab) {
+        mController = controller;
+        mOpeningTab = tab != null && !tab.isDestroyed() && !tab.isHidden() ? tab : null;
+        WebContents currentContents = mOpeningTab == null ? null : mOpeningTab.getWebContents();
+        GURL committed = currentContents == null || currentContents.isDestroyed()
+                ? GURL.emptyGURL() : currentContents.getLastCommittedUrl();
+        boolean scoped = mOpeningTab != null && !mOpeningTab.isNativePage()
+                && !mOpeningTab.isShowingErrorPage() && isWebUrl(committed);
+        mSiteTab = scoped ? mOpeningTab : null;
+        mSiteWebContents = scoped ? currentContents : null;
+        mCommittedSiteUrl = scoped ? committed : null;
+        mContent = (ScrollView) LayoutInflater.from(context).inflate(
+                R.layout.raws_global_shield_sheet, null);
+        android.widget.ImageView mark =
+                mContent.findViewById(R.id.raws_frozen_shields_header_mark);
+        mHeaderTracer = new SandiumBalancedTracer(mark,
+                java.util.Objects.requireNonNull(mark.getDrawable()));
+        mark.setImageDrawable(mHeaderTracer);
+        // Decorative branding, not a protection/readiness indicator.
+        mHeaderTracer.setEnabled(true);
+        mContent.addOnAttachStateChangeListener(mHeaderLifetime);
+        TextView status = mContent.findViewById(R.id.raws_global_shield_status);
+        int globalAds = mOpeningTab == null ? -1
+                : RawsProtectionCopy.globalAdFilteringState(mOpeningTab.getProfile());
+        status.setText(globalAds == 0 ? R.string.raws_global_ads_off
+                : globalAds < 0 ? R.string.raws_ui_unknown
+                                : RawsProtectionCopy.currentStatusStringId());
+        configureSiteAdFiltering(status);
+        configurePrivateAdFiltering(status);
+        configureTerminalBlockCounts();
+
+        Button dns = mContent.findViewById(R.id.raws_global_shield_dns_picker);
+        refreshDnsProvider(dns);
+        dns.setOnClickListener(view -> showDnsProviderDialog(dns));
+
+        mDarkSwitch = mContent.findViewById(R.id.raws_shields_dark_pages);
+        configureDarkPages();
+        mCookieSwitch = mContent.findViewById(R.id.raws_shields_block_cookies);
+        configureCookies();
+        mClearSiteData = mContent.findViewById(R.id.raws_shields_shred);
+        configureClearSiteData();
+        configureElementActions();
+        configureColorCorrection();
+        if (mOpeningTab != null) mOpeningTab.addObserver(mOpeningTabLifetime);
+
+        Button settings = mContent.findViewById(R.id.raws_global_shield_settings);
+        if (scoped) {
+            status.setVisibility(View.GONE);
+            settings.setVisibility(View.GONE);
+        }
+        settings.setOnClickListener(view -> {
+            if (!isCurrent()) return;
+            settings.setEnabled(false);
+            close(true);
+            SettingsNavigationFactory.createSettingsNavigation(view.getContext())
+                    .startSettings(view.getContext(), RawsProtectionSettings.class);
+        });
+    }
+
+    private void refreshDnsProvider(Button dns) {
+        Context context = dns.getContext();
+        dns.setText(SecureDnsSettings.getInlineProviderLabel(context));
+        dns.setContentDescription(context.getString(
+                R.string.raws_shields_dns_button_description, dns.getText()));
+    }
+
+    private void showDnsProviderDialog(Button dns) {
+        if (!isCurrent() || !dns.isEnabled() || mDnsProviderDialog != null) return;
+        Context context = dns.getContext();
+        if (!SecureDnsSettings.canSelectInlineProvider()) {
+            openNativeDnsSettings(context);
+            return;
+        }
+        var choices = SecureDnsSettings.getInlineProviders(context);
+        if (choices.isEmpty()) return;
+        var labels = choices.stream().map(SecureDnsSettings.InlineProvider::getLabel)
+                .toArray(CharSequence[]::new);
+        int selected = SecureDnsSettings.getInlineSelectedProviderIndex(choices);
+        var dialog = new AlertDialog.Builder(context)
+                .setTitle(R.string.settings_secure_dns_title)
+                .setSingleChoiceItems(labels, selected, (whichDialog, index) -> {
+                    if (whichDialog != mDnsProviderDialog || !isCurrent()
+                            || index < 0 || index >= choices.size()) return;
+                    boolean changed = SecureDnsSettings.selectInlineProvider(context, choices.get(index));
+                    whichDialog.dismiss();
+                    if (!changed && isCurrent()) {
+                        Toast.makeText(context, R.string.raws_shields_dns_not_changed,
+                                Toast.LENGTH_SHORT).show();
+                    }
+                })
+                .setNegativeButton(android.R.string.cancel, null)
+                .setNeutralButton(R.string.raws_shields_dns_manage, (whichDialog, index) -> {
+                    if (whichDialog == mDnsProviderDialog) openNativeDnsSettings(context);
+                }).create();
+        mDnsProviderDialog = dialog;
+        dialog.setOnDismissListener(whichDialog -> {
+            if (whichDialog != mDnsProviderDialog) return;
+            mDnsProviderDialog = null;
+            if (isCurrent()) refreshDnsProvider(dns);
+        });
+        dialog.show();
+    }
+
+    private void openNativeDnsSettings(Context context) {
+        if (!isCurrent()) return;
+        close(true);
+        SettingsNavigationFactory.createSettingsNavigation(context)
+                .startSettings(context, SecureDnsSettings.class);
+    }
+
+    private static boolean isWebUrl(GURL url) {
+        return url.isValid() && ("http".equals(url.getScheme()) || "https".equals(url.getScheme()));
+    }
+
+    private boolean isCurrent() {
+        return !mDestroyed && mController.getCurrentSheetContent() == this;
+    }
+
+    private boolean stillOwnsSite() {
+        return !mDestroyed
+                && mSiteTab != null && !mSiteTab.isDestroyed() && !mSiteTab.isHidden()
+                && !mSiteTab.isNativePage() && !mSiteTab.isShowingErrorPage()
+                && mSiteWebContents != null && !mSiteWebContents.isDestroyed()
+                && mSiteWebContents == mSiteTab.getWebContents()
+                && mCommittedSiteUrl != null
+                && mCommittedSiteUrl.equals(mSiteWebContents.getLastCommittedUrl());
+    }
+
+    private void configureDarkPages() {
+        var tab = mSiteTab;
+        var contents = mSiteWebContents;
+        var url = mCommittedSiteUrl;
+        if (tab == null || contents == null || url == null || !stillOwnsSite()) return;
+        var profile = tab.getProfile();
+        if (!profile.isNativeInitialized()) return;
+        mDarkSwitch.setChecked(RawSDarkPages.isDarkForSite(profile, url));
+        boolean editable = RawSDarkPages.canManageSite(profile, url);
+        renderSiteSwitchEditability(mDarkSwitch, R.id.raws_shields_dark_pages_label, editable);
+        mDarkSwitch.setOnClickListener(view -> {
+            if (!isCurrent() || !stillOwnsSite()) return;
+            // ThemeClient resolves the visible URL. Do not apply a pref to a page when
+            // provisional navigation has already switched which URL drives WebPreferences.
+            if (url.equals(contents.getVisibleUrl())
+                    && RawSDarkPages.setSite(profile, url, mDarkSwitch.isChecked())
+                    && isCurrent()
+                    && stillOwnsSite()
+                    && url.equals(contents.getVisibleUrl())) {
+                // Recompute native Blink preferences in the existing document; never reload it.
+                contents.notifyRendererPreferenceUpdate();
+                RawSElementColorController.onDarkPolicyChanged(tab);
+            }
+            if (!isCurrent() || !stillOwnsSite()) return;
+            mDarkSwitch.setChecked(RawSDarkPages.isDarkForSite(profile, url));
+            configureColorCorrection();
+        });
+    }
+
+    private void configureCookies() {
+        if (mSiteTab == null || mSiteWebContents == null || !stillOwnsSite()) return;
+        var profile = mSiteTab.getProfile();
+        // CookieControlsBridge is the same owner as Chromium Page Info. A site can only
+        // change its third-party exception when this profile participates in that system.
+        if (!profile.isNativeInitialized() || !CookieControlsBridge.isCookieControlsEnabled(profile)) {
+            return;
+        }
+        mCookieBridge = new CookieControlsBridge(
+                new CookieControlsObserver() {
+                    @Override
+                    public void onStatusChanged(int state, int enforcement, long expiration) {
+                        if (mDestroyed) return;
+                        mCookieState = state;
+                        mCookieEnforcement = enforcement;
+                        renderCookies();
+                    }
+                }, mSiteWebContents,
+                profile.isOffTheRecord() ? profile.getOriginalProfile() : null,
+                profile.isIncognitoBranded());
+        renderCookies();
+        mCookieSwitch.setOnClickListener(view -> {
+            var bridge = mCookieBridge;
+            if (bridge != null && isCurrent() && stillOwnsSite() && canEditCookies()) {
+                bridge.setThirdPartyCookieBlockingEnabledForSite(mCookieSwitch.isChecked());
+            }
+            renderCookies();
+        });
+    }
+
+    private boolean canEditCookies() {
+        return (mCookieState == CookieControlsState.BLOCKED3PC
+                        || mCookieState == CookieControlsState.ALLOWED3PC)
+                && mCookieEnforcement == CookieControlsEnforcement.NO_ENFORCEMENT;
+    }
+
+    private void renderCookies() {
+        mCookieSwitch.setChecked(mCookieState == CookieControlsState.BLOCKED3PC);
+        boolean editable = stillOwnsSite() && canEditCookies();
+        renderSiteSwitchEditability(mCookieSwitch, R.id.raws_shields_block_cookies_label, editable);
+    }
+
+    private static boolean canClearSiteData(Tab tab, GURL url) {
+        var profile = tab.getProfile();
+        return profile.isNativeInitialized() && !profile.isOffTheRecord()
+                && !WebsitePreferenceBridge.isCookieDeletionDisabled(profile, url.getSpec());
+    }
+
+    private boolean canClearSiteData() {
+        var tab = mSiteTab;
+        var url = mCommittedSiteUrl;
+        return stillOwnsSite() && tab != null && url != null && canClearSiteData(tab, url);
+    }
+
+    private void configureClearSiteData() {
+        if (!canClearSiteData()) return;
+        mClearSiteData.setEnabled(true);
+        mClearSiteData.setTextColor(mContent.getContext().getColor(R.color.raws_shields_text));
+        mClearSiteData.setFocusable(true);
+        mClearSiteData.setOnClickListener(view -> confirmClearSiteData());
+    }
+
+    private static AlertDialog buildClearSiteConfirmation(Context context, GURL url, Runnable clear) {
+        return new AlertDialog.Builder(context, R.style.ThemeOverlay_BrowserUI_AlertDialog)
+                .setTitle(R.string.raws_shields_clear_site_data_title)
+                .setMessage(context.getString(
+                        R.string.raws_shields_clear_site_data_message,
+                        Origin.createOrThrow(url.getSpec()).toString()))
+                .setPositiveButton(R.string.raws_shields_clear_site_data_confirm,
+                        (dialog, which) -> clear.run())
+                .setNegativeButton(android.R.string.cancel, null)
+                .create();
+    }
+
+    private void confirmClearSiteData() {
+        var url = mCommittedSiteUrl;
+        if (!isCurrent() || !canClearSiteData() || url == null
+                || mClearConfirmation != null || mClearPending) {
+            return;
+        }
+        AlertDialog confirmation =
+                buildClearSiteConfirmation(mContent.getContext(), url, this::clearConfirmedSiteData);
+        mClearConfirmation = confirmation;
+        confirmation.setOnDismissListener(dialog -> mClearConfirmation = null);
+        confirmation.show();
+    }
+
+    private void refreshAfterClearSiteData() {
+        if (!isCurrent()) return;
+        mClearPending = false;
+        mClearSiteData.setEnabled(canClearSiteData());
+    }
+
+    private void clearConfirmedSiteData() {
+        var tab = mSiteTab;
+        var url = mCommittedSiteUrl;
+        if (!isCurrent() || !canClearSiteData() || tab == null || url == null || mClearPending) {
+            return;
+        }
+        var context = mContent.getContext();
+        mClearPending = true;
+        mClearSiteData.setEnabled(false);
+        clearSiteData(context, tab, url, () -> isCurrent() && canClearSiteData(),
+                () -> {
+                    refreshAfterClearSiteData();
+                    Toast.makeText(context, R.string.raws_shields_clear_site_data_done,
+                            Toast.LENGTH_SHORT).show();
+                }, this::refreshAfterClearSiteData);
+    }
+
+    // The shared destructive operation is the native explicit current-origin clear, not
+    // Brave's broader TLD or automatic shred. Neither entry point has an unconfirmed path.
+    private static void clearSiteData(Context context, Tab tab, GURL url, BooleanSupplier ownsSite,
+            Runnable done, Runnable aborted) {
+        var address = WebsiteAddress.create(Origin.createOrThrow(url.getSpec()).toString());
+        if (address == null || !ownsSite.getAsBoolean()) {
+            aborted.run();
+            return;
+        }
+        var profile = tab.getProfile();
+        var delegate = new ChromeSiteSettingsDelegate(context, profile);
+        var category = SiteSettingsCategory.createFromType(profile, SiteSettingsCategory.Type.USE_STORAGE);
+        new WebsitePermissionsFetcher(delegate).fetchPreferencesForCategoryAndPopulateRwsInfo(
+                category, result -> {
+                    if (!ownsSite.getAsBoolean()) {
+                        aborted.run();
+                        return;
+                    }
+                    var website = SingleWebsiteSettings
+                            .mergePermissionAndStorageInfoForTopLevelOrigin(address, result);
+                    SiteDataCleaner.clearData(delegate, website, () -> {
+                        if (ownsSite.getAsBoolean()) done.run();
+                        else aborted.run();
+                    });
+                });
+    }
+
+    private static @Nullable WebContents getMenuClearContents(@Nullable Tab tab) {
+        if (tab == null || tab.isDestroyed() || tab.isHidden() || tab.isNativePage()
+                || tab.isShowingErrorPage()) {
+            return null;
+        }
+        var contents = tab.getWebContents();
+        return contents == null || contents.isDestroyed() ? null : contents;
+    }
+
+    /** Return false for private, internal, stale or policy-restricted targets. */
+    public static boolean canOfferMenuClearSiteData(@Nullable Tab tab) {
+        var contents = getMenuClearContents(tab);
+        if (contents == null || tab == null) return false;
+        var url = contents.getLastCommittedUrl();
+        return isWebUrl(url) && canClearSiteData(tab, url);
+    }
+
+    public static void confirmMenuClearSiteData(
+            Activity activity, @Nullable Tab tab, Supplier<@Nullable Tab> activeTab) {
+        var contents = getMenuClearContents(tab);
+        if (contents == null || tab == null) return;
+        var url = contents.getLastCommittedUrl();
+        if (!isWebUrl(url) || !canClearSiteData(tab, url) || !ElementAction.isResumed(activity)
+                || activeTab.get() != tab) {
+            return;
+        }
+        new MenuSiteClear(activity, tab, contents, url, activeTab).show();
+    }
+
+    /** Permanently retires the menu confirmation on any tab or document lifetime change. */
+    private static final class MenuSiteClear {
+        private static final Handler sHandler = new Handler(Looper.getMainLooper());
+        private static final long MAX_ACTION_MS = 30000;
+        private static final WeakHashMap<Activity, MenuSiteClear> sActive = new WeakHashMap<>();
+        private final Activity mActivity;
+        private final Tab mTab;
+        private final WebContents mContents;
+        private final GURL mUrl;
+        private final Supplier<@Nullable Tab> mActiveTab;
+        private boolean mDone;
+        private boolean mConfirmed;
+        private @Nullable AlertDialog mDialog;
+        private final Runnable mExpire = this::finish;
+        private final ApplicationStatus.ActivityStateListener mActivityLifetime =
+                (activity, state) -> {
+                    if (state != ActivityState.RESUMED) finish();
+                };
+        private final TabObserver mTabLifetime = new TabObserver() {
+            @Override public void onHidden(Tab tab, @TabHidingType int type) { finish(); }
+            @Override public void onDestroyed(Tab tab) { finish(); }
+            @Override public void onDidFinishNavigationInPrimaryMainFrame(
+                    Tab tab, NavigationHandle nav) {
+                if (nav.hasCommitted() && !nav.isSameDocument()) finish();
+            }
+        };
+
+        MenuSiteClear(Activity activity, Tab tab, WebContents contents, GURL url,
+                Supplier<@Nullable Tab> activeTab) {
+            mActivity = activity;
+            mTab = tab;
+            mContents = contents;
+            mUrl = url;
+            mActiveTab = activeTab;
+        }
+
+        private boolean stillOwnsSite() {
+            return !mDone && ElementAction.isResumed(mActivity) && mActiveTab.get() == mTab
+                    && getMenuClearContents(mTab) == mContents
+                    && mUrl.equals(mContents.getLastCommittedUrl())
+                    && canClearSiteData(mTab, mUrl);
+        }
+
+        void show() {
+            if (!stillOwnsSite() || sActive.containsKey(mActivity)) return;
+            sActive.put(mActivity, this);
+            mTab.addObserver(mTabLifetime);
+            ApplicationStatus.registerStateListenerForActivity(mActivityLifetime, mActivity);
+            sHandler.postDelayed(mExpire, MAX_ACTION_MS);
+            var dialog = buildClearSiteConfirmation(mActivity, mUrl, this::confirm);
+            mDialog = dialog;
+            dialog.setOnDismissListener(ignored -> {
+                mDialog = null;
+                if (!mConfirmed) finish();
+            });
+            dialog.show();
+        }
+
+        private void confirm() {
+            if (!stillOwnsSite() || mConfirmed) {
+                finish();
+                return;
+            }
+            mConfirmed = true;
+            clearSiteData(mActivity, mTab, mUrl, this::stillOwnsSite,
+                    () -> {
+                        Toast.makeText(mActivity, R.string.raws_shields_clear_site_data_done,
+                                Toast.LENGTH_SHORT).show();
+                        finish();
+                    }, this::finish);
+        }
+
+        private void finish() {
+            if (mDone) return;
+            mDone = true;
+            sHandler.removeCallbacks(mExpire);
+            sActive.remove(mActivity, this);
+            mTab.removeObserver(mTabLifetime);
+            ApplicationStatus.unregisterActivityStateListener(mActivityLifetime);
+            var dialog = mDialog;
+            mDialog = null;
+            if (dialog != null) dialog.dismiss();
+        }
+    }
+
+    private void configureTerminalBlockCounts() {
+        var contents = mSiteWebContents;
+        if (contents == null || !stillOwnsSite()) return;
+        String document = RawsProtectionCopy.elementDocumentToken(contents);
+        if (document.isEmpty()) return;
+        // A snapshot at sheet open, not a continuously changing number. The
+        // existing tab observer closes the sheet at a new committed document.
+        boolean network = setTerminalBlockRow(
+                contents, document, RawsProtectionCopy.MAIN_PAGE_NETWORK_BLOCKS,
+                R.id.raws_shields_network_count, R.string.raws_shields_network_count);
+        if (network) {
+            mContent.findViewById(R.id.raws_shields_native_count_group).setVisibility(View.VISIBLE);
+        }
+    }
+
+    private boolean setTerminalBlockRow(WebContents contents, String document, int bucket,
+            int viewId, int format) {
+        int count = RawsProtectionCopy.readTerminalBlockCount(contents, document, bucket);
+        if (count <= 0) return false;
+        TextView row = mContent.findViewById(viewId);
+        row.setText(row.getContext().getString(format, count));
+        row.setVisibility(View.VISIBLE);
+        return true;
+    }
+
+    private void configurePrivateAdFiltering(TextView status) {
+        var tab = mOpeningTab;
+        if (tab == null || !tab.getProfile().isOffTheRecord()) return;
+        Profile profile = tab.getProfile();
+        SwitchCompat row = mContent.findViewById(R.id.raws_shields_private_ads);
+        row.setVisibility(View.VISIBLE);
+        renderPrivateAdFiltering(row, status, profile);
+        row.setOnClickListener(view -> {
+            if (!isCurrent() || tab.isDestroyed() || tab.isHidden() || mPrivateAdsPending) {
+                return;
+            }
+            int before = RawsProtectionCopy.globalAdFilteringState(profile);
+            boolean requested = row.isChecked();
+            if (before < 0 || (before == 1) == requested) {
+                renderPrivateAdFiltering(row, status, profile);
+                return;
+            }
+            mPrivateAdsPending = true;
+            renderPrivateAdFiltering(row, status, profile);
+            boolean accepted = RawsProtectionCopy.setGlobalAdFilteringEnabled(
+                    profile, requested, applied -> {
+                        mPrivateAdsPending = false;
+                        if (!isCurrent() || tab.isDestroyed() || tab.isHidden()) return;
+                        renderPrivateAdFiltering(row, status, profile);
+                        if (!applied || RawsProtectionCopy.globalAdFilteringState(profile)
+                                != (requested ? 1 : 0)) {
+                            notifyPrivateAdFilteringFailure();
+                        }
+                    });
+            if (!accepted) {
+                mPrivateAdsPending = false;
+                if (isCurrent()) {
+                    renderPrivateAdFiltering(row, status, profile);
+                    notifyPrivateAdFilteringFailure();
+                }
+            }
+        });
+    }
+
+    private void renderPrivateAdFiltering(SwitchCompat row, TextView status, Profile profile) {
+        int nativeState = RawsProtectionCopy.globalAdFilteringState(profile);
+        row.setChecked(nativeState == 1);
+        row.setEnabled(nativeState >= 0 && !mPrivateAdsPending);
+        row.setAlpha(nativeState >= 0 && !mPrivateAdsPending ? 1f : .55f);
+        status.setText(nativeState == 0 ? R.string.raws_global_ads_off
+                : nativeState < 0 ? R.string.raws_ui_unknown
+                                  : RawsProtectionCopy.currentStatusStringId());
+        configureSiteAdFiltering(status);
+    }
+
+    private void notifyPrivateAdFilteringFailure() {
+        Toast.makeText(mContent.getContext(), R.string.raws_global_ads_change_unverified,
+                Toast.LENGTH_SHORT).show();
+    }
+
+    private void configureSiteAdFiltering(TextView status) {
+        var tab = mSiteTab;
+        var contents = mSiteWebContents;
+        if (tab == null || contents == null || !stillOwnsSite()) return;
+        Profile profile = tab.getProfile();
+        if (!profile.isNativeInitialized()) return;
+        String document = RawsProtectionCopy.elementDocumentToken(contents);
+        if (document.isEmpty()) return;
+        SwitchCompat row = mContent.findViewById(R.id.raws_shields_ads);
+        renderSiteAdFiltering(row, status, profile, contents, document);
+        row.setOnClickListener(view -> {
+            if (!isCurrent() || !stillOwnsSite()) return;
+            int nativeState = RawsProtectionCopy.siteAdFilteringState(contents, document);
+            if (nativeState >= 0 && RawsProtectionCopy.globalAdFilteringState(profile) == 1
+                    && RawsProtectionCopy.adFilteringPhase() == RawsProtectionCopy.AD_FILTER_READY) {
+                boolean requested = row.isChecked();
+                if ((nativeState == 1) != requested
+                        && !RawsProtectionCopy.setSiteAdFilteringEnabled(
+                                contents, document, requested)) {
+                    Toast.makeText(view.getContext(), R.string.raws_shields_site_ads_not_changed,
+                            Toast.LENGTH_SHORT).show();
+                }
+            }
+            // Never leave the optimistic switch on a value not accepted by native.
+            renderSiteAdFiltering(row, status, profile, contents, document);
+        });
+    }
+
+    private void renderSiteAdFiltering(
+            SwitchCompat row, TextView status, Profile profile,
+            WebContents contents, String document) {
+        int state = stillOwnsSite()
+                ? RawsProtectionCopy.siteAdFilteringState(contents, document) : -1;
+        int global = RawsProtectionCopy.globalAdFilteringState(profile);
+        boolean editable = global == 1 && state >= 0
+                && RawsProtectionCopy.adFilteringPhase() == RawsProtectionCopy.AD_FILTER_READY;
+        row.setChecked(global == 1 && state == 1);
+        renderSiteSwitchEditability(row, R.id.raws_shields_ads_label, editable);
+        status.setText(global == 0 ? R.string.raws_global_ads_off
+                : global < 0 ? R.string.raws_ui_unknown
+                : state == 0 ? R.string.raws_shields_site_ads_off
+                             : RawsProtectionCopy.currentStatusStringId());
+    }
+
+    private void renderSiteSwitchEditability(SwitchCompat row, int labelId, boolean editable) {
+        row.setEnabled(editable);
+        float alpha = editable ? 1f : .55f;
+        row.setAlpha(alpha);
+        mContent.findViewById(labelId).setAlpha(alpha);
+    }
+
+    private void configureColorCorrection() {
+        var tab = mSiteTab;
+        var contents = mSiteWebContents;
+        var activity = ContextUtils.activityFromContext(mContent.getContext());
+        TextView row = mContent.findViewById(R.id.raws_shields_correct_colors);
+        if (tab == null || contents == null || activity == null || !stillOwnsSite()
+                || !RawSElementColorController.canStart(tab)) {
+            row.setOnClickListener(null);
+            row.setClickable(false);
+            row.setEnabled(false);
+            row.setFocusable(false);
+            row.setTextColor(mContent.getContext().getColor(R.color.raws_shields_disabled));
+            return;
+        }
+        row.setEnabled(true);
+        row.setFocusable(true);
+        row.setTextColor(mContent.getContext().getColor(R.color.raws_shields_text));
+        row.setOnClickListener(view -> {
+            if (!isCurrent() || !stillOwnsSite() || !ElementAction.isResumed(activity)
+                    || !RawSElementColorController.canStart(tab)) return;
+            String document = RawsProtectionCopy.elementDocumentToken(contents);
+            if (document.isEmpty()) return;
+            BottomSheetController controller = mController;
+            row.setEnabled(false);
+            close();
+            long deadline = SystemClock.uptimeMillis() + 500;
+            ElementAction.sHandler.post(() ->
+                    startColorAfterClose(activity, controller, tab, contents, document, deadline));
+        });
+    }
+
+    private static void startColorAfterClose(Activity activity, BottomSheetController controller,
+            Tab tab, WebContents contents, String document, long deadline) {
+        if (!ElementAction.isResumed(activity) || !activity.hasWindowFocus()
+                || tab.isHidden() || tab.isDestroyed() || tab.getWebContents() != contents
+                || contents.isDestroyed()
+                || !document.equals(RawsProtectionCopy.elementDocumentToken(contents))) return;
+        if (controller.getCurrentSheetContent() != null
+                || controller.getSheetState() != BottomSheetController.SheetState.HIDDEN) {
+            if (SystemClock.uptimeMillis() < deadline) {
+                ElementAction.sHandler.postDelayed(() ->
+                        startColorAfterClose(activity, controller, tab, contents, document, deadline),
+                        16);
+            }
+            return;
+        }
+        if (RawSElementColorController.canStart(tab)) {
+            // A color selection and ad-element selection must never intercept the same tap.
+            var element = ElementAction.sActions.get(contents);
+            if (element != null) element.finish(false);
+            RawSElementColorController.start(tab, activity);
+        }
+    }
+
+    private void configureElementActions() {
+        var tab = mSiteTab;
+        var contents = mSiteWebContents;
+        var url = mCommittedSiteUrl;
+        var activity = ContextUtils.activityFromContext(mContent.getContext());
+        if (tab == null || contents == null || url == null || activity == null
+                || !stillOwnsSite() || !tab.getProfile().isNativeInitialized()
+                || RawsProtectionCopy.elementDocumentToken(contents).isEmpty()) {
+            return;
+        }
+        enableElementAction(R.id.raws_shields_block_element, activity, tab, contents, url, true);
+        enableElementAction(R.id.raws_shields_clear_elements, activity, tab, contents, url, false);
+    }
+
+    private void enableElementAction(
+            int viewId, Activity activity, Tab tab, WebContents contents, GURL url, boolean picker) {
+        TextView row = mContent.findViewById(viewId);
+        row.setEnabled(true);
+        row.setTextColor(mContent.getContext().getColor(R.color.raws_shields_text));
+        row.setFocusable(true);
+        row.setOnClickListener(view -> {
+            if (!isCurrent() || !stillOwnsSite() || !ElementAction.isResumed(activity)) return;
+            String document = RawsProtectionCopy.elementDocumentToken(contents);
+            if (document.isEmpty()) return;
+            RawSElementColorController.cancelForTab(tab);
+            var action =
+                    new ElementAction(activity, mController, tab, contents, document, url.getHost());
+            // Release the sheet before making the WebContents selectable or showing a dialog.
+            close();
+            action.startAfterSheetCloses(picker);
+        });
+    }
+
+    /** Trusted native actions for one visible main document, never renderer-owned commits. */
+    private static final class ElementAction {
+        private static final long SHEET_CLOSE_LIMIT_MS = 500;
+        private static final long CONFIRM_LIMIT_MS = 28000;
+        private static final Handler sHandler = new Handler(Looper.getMainLooper());
+        // UI-thread-only: explicit new user actions can replace an unfinished previous one.
+        private static final WeakHashMap<WebContents, ElementAction> sActions = new WeakHashMap<>();
+
+        private final Activity mActivity;
+        private final BottomSheetController mSheetController;
+        private final Tab mTab;
+        private final WebContents mContents;
+        private final String mDocument;
+        private final String mSite;
+        private boolean mDone;
+        private boolean mPickerActive;
+        private boolean mPickerHasState;
+        private String mPickerSession = "";
+        private @Nullable PickerPanel mPickerPanel;
+        private @Nullable OnBackPressedCallback mPickerBackCallback;
+        private @Nullable AlertDialog mDialog;
+        private final Runnable mExpire = () -> finish(false);
+        private final ApplicationStatus.ActivityStateListener mActivityLifetime =
+                (activity, state) -> {
+                    if (state != ActivityState.RESUMED) finish(false);
+                };
+        private final TabObserver mTabLifetime =
+                new TabObserver() {
+                    @Override public void onHidden(Tab tab, @TabHidingType int type) {
+                        finish(false);
+                    }
+                    @Override public void onDestroyed(Tab tab) { finish(false); }
+                    @Override
+                    public void onDidFinishNavigationInPrimaryMainFrame(
+                            Tab tab, NavigationHandle nav) {
+                        if (nav.hasCommitted() && !nav.isSameDocument()) finish(false);
+                    }
+                };
+
+        ElementAction(Activity activity, BottomSheetController controller, Tab tab,
+                WebContents contents, String document, String site) {
+            mActivity = activity;
+            mSheetController = controller;
+            mTab = tab;
+            mContents = contents;
+            mDocument = document;
+            mSite = site;
+        }
+
+        static boolean isResumed(Activity activity) {
+            return !activity.isFinishing() && !activity.isDestroyed()
+                    && ApplicationStatus.getStateForActivity(activity) == ActivityState.RESUMED;
+        }
+
+        private boolean stillOwnsDocument() {
+            return !mDone && isResumed(mActivity) && !mTab.isHidden() && !mTab.isDestroyed()
+                    && !mTab.isNativePage() && !mTab.isShowingErrorPage()
+                    && !mContents.isDestroyed() && mTab.getWebContents() == mContents
+                    && mDocument.equals(RawsProtectionCopy.elementDocumentToken(mContents));
+        }
+
+        void startAfterSheetCloses(boolean picker) {
+            if (!stillOwnsDocument()) return;
+            var previous = sActions.get(mContents);
+            if (previous != null) previous.finish(false);
+            sActions.put(mContents, this);
+            mTab.addObserver(mTabLifetime);
+            ApplicationStatus.registerStateListenerForActivity(mActivityLifetime, mActivity);
+            long limit = SystemClock.uptimeMillis() + SHEET_CLOSE_LIMIT_MS;
+            // The request may be finishing synchronously or queued through the native host.
+            sHandler.post(() -> startWhenSheetIsHidden(picker, limit));
+        }
+
+        private void startWhenSheetIsHidden(boolean picker, long limit) {
+            if (!stillOwnsDocument() || !mActivity.hasWindowFocus()) {
+                finish(false);
+                return;
+            }
+            if (mSheetController.getCurrentSheetContent() != null
+                    || mSheetController.getSheetState()
+                            != BottomSheetController.SheetState.HIDDEN) {
+                if (SystemClock.uptimeMillis() < limit) {
+                    sHandler.postDelayed(() -> startWhenSheetIsHidden(picker, limit), 16);
+                } else {
+                    finish(false);
+                }
+                return;
+            }
+
+            if (!picker) {
+                showClearConfirmation();
+                return;
+            }
+
+            // Mark before JNI: native may deliver an inline cancellation.
+            mPickerActive = true;
+            if (!RawsProtectionCopy.beginElementPicker(mContents, this::onPickerStarted)) {
+                mPickerActive = false;
+                if (!mDone) notifyResult(false, true);
+                finish(false);
+                return;
+            }
+            if (!mDone) sHandler.postDelayed(mExpire, 63_000);
+        }
+
+        private boolean ownsPickerUi() {
+            return stillOwnsDocument() && mActivity.hasWindowFocus()
+                    && mSheetController.getCurrentSheetContent() == null;
+        }
+
+        private void onPickerStarted(String session) {
+            if (session.isEmpty() || !ownsPickerUi()
+                    || !(mActivity instanceof ComponentActivity owner)) {
+                finish(false);
+                return;
+            }
+            FrameLayout host = mActivity.findViewById(android.R.id.content);
+            if (host == null || !host.isAttachedToWindow()) {
+                finish(false);
+                return;
+            }
+            mPickerSession = session;
+            mPickerPanel = new PickerPanel(mActivity, host,
+                    () -> finish(false), this::openBlockingRules, this::confirmBlock);
+            var back = new OnBackPressedCallback(true) {
+                @Override public void handleOnBackPressed() { finish(false); }
+            };
+            mPickerBackCallback = back;
+            owner.getOnBackPressedDispatcher().addCallback(back);
+            watchPicker();
+        }
+
+        private void watchPicker() {
+            if (mDone) return;
+            if (!RawsProtectionCopy.watchElementPicker(
+                    mContents, mPickerSession, this::onPickerChanged)) {
+                finish(false);
+            }
+        }
+
+        private void onPickerChanged(String ready) {
+            var panel = mPickerPanel;
+            if (panel == null || !ownsPickerUi() || (!ready.equals("0") && !ready.equals("1"))) {
+                finish(false);
+                return;
+            }
+            panel.setSelectionReady(ready.equals("1"));
+            if (mPickerHasState) panel.setExpanded(true); // Donor: a new target expands the card.
+            mPickerHasState = true;
+            watchPicker();
+        }
+
+        private void openBlockingRules() {
+            if (!ownsPickerUi()) {
+                finish(false);
+                return;
+            }
+            finish(false);
+            SettingsNavigationFactory.createSettingsNavigation(mActivity)
+                    .startSettings(mActivity, RawSAdRuleBackupSettings.class);
+        }
+
+        private void confirmBlock() {
+            var panel = mPickerPanel;
+            if (panel == null || !ownsPickerUi() || !panel.beginCommit()) return;
+            // This Browser-owned control is the only sender allowed to authorize a write.
+            // A renderer state or selector callback never calls this method.
+            if (!RawsProtectionCopy.commitElementPicker(
+                    mContents, mPickerSession, this::onBlockResult)) {
+                onBlockResult(false);
+            }
+        }
+
+        private void onBlockResult(boolean changed) {
+            if (mDone) return;
+            if (!stillOwnsDocument()) {
+                finish(changed);
+                return;
+            }
+            if (changed) {
+                finish(true);
+            } else if (mPickerPanel != null) {
+                mPickerPanel.endCommit();
+            }
+            notifyResult(changed, true);
+        }
+
+        private void showClearConfirmation() {
+            var dialog = new AlertDialog.Builder(
+                    mActivity, R.style.ThemeOverlay_BrowserUI_AlertDialog)
+                    .setTitle(R.string.raws_shields_confirm_clear_elements_title)
+                    .setMessage(mActivity.getString(
+                            R.string.raws_shields_confirm_clear_elements_message, mSite))
+                    .setPositiveButton(R.string.raws_shields_remove_elements_confirm,
+                            (ignored, which) -> confirmClear())
+                    .setNegativeButton(android.R.string.cancel, null)
+                    .create();
+            mDialog = dialog;
+            dialog.setOnDismissListener(ignored -> finish(false));
+            sHandler.removeCallbacks(mExpire);
+            sHandler.postDelayed(mExpire, CONFIRM_LIMIT_MS);
+            dialog.show();
+        }
+
+        private void confirmClear() {
+            if (!stillOwnsDocument()) {
+                finish(false);
+                return;
+            }
+            boolean changed = RawsProtectionCopy.clearElementRules(mContents, mDocument);
+            finish(changed);
+            notifyResult(changed, false);
+        }
+
+        private void notifyResult(boolean changed, boolean picker) {
+            Toast.makeText(mActivity, changed
+                            ? (picker ? R.string.raws_shields_element_blocked
+                                    : R.string.raws_shields_elements_cleared)
+                            : R.string.raws_shields_element_change_unavailable,
+                    Toast.LENGTH_SHORT).show();
+        }
+
+        private void finish(boolean nativeFinished) {
+            if (mDone) return;
+            mDone = true;
+            boolean ownsAction = sActions.get(mContents) == this;
+            if (ownsAction) sActions.remove(mContents);
+            sHandler.removeCallbacks(mExpire);
+            mTab.removeObserver(mTabLifetime);
+            ApplicationStatus.unregisterActivityStateListener(mActivityLifetime);
+            if (ownsAction && mPickerActive && !nativeFinished && !mContents.isDestroyed()) {
+                RawsProtectionCopy.cancelElementPicker(mContents);
+            }
+            var panel = mPickerPanel;
+            mPickerPanel = null;
+            if (panel != null) panel.destroy();
+            var back = mPickerBackCallback;
+            mPickerBackCallback = null;
+            if (back != null) back.remove();
+            var dialog = mDialog;
+            mDialog = null;
+            if (dialog != null) dialog.dismiss();
+        }
+    }
+
+    /**
+     * Android projection of Brave 44a84b1 element_picker.html's mobile card.
+     * Only the matching and highlight live in the closed isolated renderer shadow.
+     * Browser-owned buttons preserve a single explicit Block action without giving the
+     * WebContents a path to authorize a persistent user rule.
+     */
+    private static final class PickerPanel {
+        private static final int HEIGHT_MIN_DP = 36;
+        private final FrameLayout mHost;
+        private final @Nullable View mToolbar;
+        private final LinearLayout mCard;
+        private final Button mChevron;
+        private final LinearLayout mButtons;
+        private final Button mBlock;
+        private final boolean mDark;
+        private final int mBackground;
+        private final int mPrimary;
+        private final int[] mHostLocation = new int[2];
+        private final int[] mToolbarLocation = new int[2];
+        private final View.OnLayoutChangeListener mRelayout =
+                (v, l, t, r, b, oldL, oldT, oldR, oldB) -> updateBounds();
+        private boolean mExpanded = true;
+        private boolean mReady;
+        private boolean mCommitting;
+        private int mAppliedShape = -1;
+
+        PickerPanel(Activity activity, FrameLayout host, Runnable cancel, Runnable manage,
+                Runnable block) {
+            mHost = host;
+            mToolbar = activity.findViewById(R.id.control_container);
+            mDark = (activity.getResources().getConfiguration().uiMode
+                    & Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES;
+            mBackground = SemanticColorUtils.getDefaultBgColor(activity);
+            mPrimary = mDark ? 0xffc1c4ff : 0xff3e37d4;
+            mCard = new LinearLayout(activity);
+            mCard.setOrientation(LinearLayout.VERTICAL);
+            mCard.setClickable(true); // Don't forward dead space in the card to the page.
+            mCard.setFilterTouchesWhenObscured(true);
+            mChevron = button(activity, 0, mPrimary, mBackground, false);
+            mChevron.setText("⌄");
+            mChevron.setContentDescription(activity.getString(R.string.raws_ad_picker_minimize));
+            mChevron.setOnClickListener(ignored -> setExpanded(!mExpanded));
+            var chevronParams = new LinearLayout.LayoutParams(dp(48), dp(41));
+            chevronParams.gravity = Gravity.CENTER_HORIZONTAL;
+            mCard.addView(mChevron, chevronParams);
+            mButtons = new LinearLayout(activity);
+            mButtons.setOrientation(LinearLayout.VERTICAL);
+            mButtons.setPadding(dp(16), 0, dp(16), dp(13));
+            mCard.addView(mButtons, new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+
+            mBlock = button(activity, R.string.raws_ad_picker_select, Color.WHITE, mPrimary, false);
+            mBlock.setOnClickListener(ignored -> block.run());
+            var primaryParams = new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            primaryParams.setMargins(dp(3), dp(3), dp(3), dp(16));
+            mButtons.addView(mBlock, primaryParams);
+            var secondary = new LinearLayout(activity);
+            secondary.setOrientation(LinearLayout.HORIZONTAL);
+            var cancelButton = button(activity, android.R.string.cancel, mPrimary, mBackground, true);
+            cancelButton.setOnClickListener(ignored -> cancel.run());
+            var manageButton = button(activity, R.string.raws_ad_picker_manage,
+                    mPrimary, mBackground, false);
+            manageButton.setOnClickListener(ignored -> manage.run());
+            for (Button button : new Button[] {cancelButton, manageButton}) {
+                var params = new LinearLayout.LayoutParams(
+                        0, ViewGroup.LayoutParams.WRAP_CONTENT, 1);
+                params.setMargins(dp(3), 0, dp(3), dp(3));
+                secondary.addView(button, params);
+            }
+            mButtons.addView(secondary, new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+            mHost.addView(mCard, new FrameLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT,
+                    Gravity.END | Gravity.BOTTOM));
+            mHost.addOnLayoutChangeListener(mRelayout);
+            if (mToolbar != null) mToolbar.addOnLayoutChangeListener(mRelayout);
+            updateBlockButton();
+            updateBounds();
+        }
+
+        private int dp(float amount) {
+            return Math.round(amount * mHost.getResources().getDisplayMetrics().density);
+        }
+
+        private Button button(Context context, int text, int foreground, int background,
+                boolean border) {
+            var button = new Button(context);
+            if (text != 0) button.setText(text);
+            button.setAllCaps(false);
+            button.setTextSize(12);
+            button.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
+            button.setTextColor(foreground);
+            button.setMinimumHeight(dp(HEIGHT_MIN_DP));
+            button.setMinHeight(dp(HEIGHT_MIN_DP));
+            button.setPaddingRelative(dp(8), 0, dp(8), 0);
+            button.setFilterTouchesWhenObscured(true);
+            button.setBackground(ripple(background, border));
+            return button;
+        }
+
+        private RippleDrawable ripple(int background, boolean border) {
+            var color = new GradientDrawable();
+            color.setColor(background);
+            color.setCornerRadius(dp(16));
+            if (border) color.setStroke(dp(1), mPrimary);
+            return new RippleDrawable(ColorStateList.valueOf(mDark ? 0x33ffffff : 0x20000000),
+                    color, null);
+        }
+
+        void setExpanded(boolean expanded) {
+            if (mExpanded == expanded) return;
+            mExpanded = expanded;
+            mButtons.setVisibility(expanded ? View.VISIBLE : View.GONE);
+            mChevron.setText(expanded ? "⌄" : "⌃");
+            mChevron.setContentDescription(mCard.getContext().getString(expanded
+                    ? R.string.raws_ad_picker_minimize : R.string.raws_ad_picker_restore));
+            updateBounds();
+        }
+
+        void setSelectionReady(boolean ready) {
+            mReady = ready;
+            updateBlockButton();
+        }
+
+        boolean beginCommit() {
+            if (!mReady || mCommitting) return false;
+            mCommitting = true;
+            updateBlockButton();
+            return true;
+        }
+
+        void endCommit() {
+            mCommitting = false;
+            updateBlockButton();
+        }
+
+        private void updateBlockButton() {
+            boolean enabled = mReady && !mCommitting;
+            mBlock.setEnabled(enabled);
+            mBlock.setText(mReady ? R.string.raws_ad_picker_block : R.string.raws_ad_picker_select);
+            mBlock.setTextColor(enabled ? (mDark ? 0xff251491 : Color.WHITE)
+                    : (mDark ? 0x80ebeef0 : 0x8021272a));
+            mBlock.setBackground(ripple(enabled ? mPrimary : (mDark ? 0x33ebeef0 : 0x3346464a),
+                    false));
+        }
+
+        private void updateBounds() {
+            if (mHost.getWidth() <= 0 || mHost.getHeight() <= 0) return;
+            boolean portrait = mHost.getResources().getConfiguration().orientation
+                    == Configuration.ORIENTATION_PORTRAIT;
+            var params = (FrameLayout.LayoutParams) mCard.getLayoutParams();
+            int width = mExpanded
+                    ? portrait ? ViewGroup.LayoutParams.MATCH_PARENT
+                            : Math.max(dp(48), Math.min(dp(360), mHost.getWidth() - dp(32)))
+                    : dp(48);
+            int end = mExpanded ? (portrait ? 0 : dp(4)) : dp(24);
+            int bottom = 0;
+            var insets = ViewCompat.getRootWindowInsets(mHost);
+            if (insets != null) {
+                bottom = Math.max(0, insets.getInsets(WindowInsetsCompat.Type.systemBars()).bottom
+                        - mHost.getPaddingBottom());
+            }
+            if (mToolbar != null && mToolbar.isShown() && mToolbar.getHeight() > 0) {
+                mHost.getLocationInWindow(mHostLocation);
+                mToolbar.getLocationInWindow(mToolbarLocation);
+                int y = mToolbarLocation[1] - mHostLocation[1];
+                if (y > mHost.getHeight() / 2) {
+                    bottom = Math.max(bottom, mHost.getHeight() - mHost.getPaddingBottom() - y);
+                }
+            }
+            bottom += mExpanded ? (portrait ? 0 : dp(4)) : dp(24);
+            if (params.width != width || params.getMarginEnd() != end
+                    || params.bottomMargin != bottom) {
+                params.width = width;
+                params.setMarginEnd(end);
+                params.bottomMargin = bottom;
+                mCard.setLayoutParams(params);
+            }
+            int shape = mExpanded ? (portrait ? 2 : 1) : 0;
+            if (mAppliedShape == shape) return;
+            mAppliedShape = shape;
+            // Drawing radius and collapsed size come from the donor. The invisible
+            // collapsed hit area remains large enough for native accessibility.
+            var chevronParams = mChevron.getLayoutParams();
+            chevronParams.height = dp(mExpanded ? (portrait ? 41 : 36) : 48);
+            mChevron.setLayoutParams(chevronParams);
+            if (!mExpanded) {
+                mCard.setBackground(null);
+                mChevron.setBackground(new InsetDrawable(ripple(mBackground, true), dp(9)));
+                return;
+            }
+            mChevron.setBackground(ripple(mBackground, false));
+            float radius = dp(portrait ? 28 : 16);
+            var panel = new GradientDrawable();
+            panel.setColor(mBackground);
+            float floorRadius = portrait ? 0 : radius;
+            panel.setCornerRadii(new float[] {
+                    radius, radius, radius, radius, floorRadius, floorRadius, floorRadius, floorRadius
+            });
+            mCard.setBackground(panel);
+        }
+
+        void destroy() {
+            mHost.removeOnLayoutChangeListener(mRelayout);
+            if (mToolbar != null) mToolbar.removeOnLayoutChangeListener(mRelayout);
+            mHost.removeView(mCard);
+        }
+    }
+
+    private void close() {
+        // Lifetime, rejected show and picker handoffs must settle synchronously.
+        close(false);
+    }
+
+    private void close(boolean animate) {
+        if (mDestroyed) return;
+        destroy();
+        mController.hideContent(this, animate);
+    }
+
+    public static void show(Context context, BottomSheetController controller) {
+        show(context, controller, null);
+    }
+
+    public static void show(
+            Context context, BottomSheetController controller, @Nullable Tab activeTab) {
+        if (activeTab != null && (activeTab.isDestroyed() || activeTab.isHidden())) return;
+        if (controller.getCurrentSheetContent() != null
+                || controller.getSheetState() != BottomSheetController.SheetState.HIDDEN) {
+            return;
+        }
+        var open = sOpen.get(controller);
+        if (open != null && open.get() != null) return;
+        RawsGlobalShieldSheet sheet = new RawsGlobalShieldSheet(context, controller, activeTab);
+        sOpen.put(controller, new WeakReference<>(sheet));
+        // Native can accept a queued request before it becomes current. Retract only
+        // a genuine refusal, not an accepted first tap between native content swaps.
+        if (!controller.requestShowContent(sheet, true)) sheet.close();
+    }
+
+    @Override
+    public int getSheetBackgroundColorOverride() {
+        // Blend the native host into our surface, leaving only the existing soft rim visible.
+        return mContent.getContext().getColor(R.color.raws_shields_panel);
+    }
+
+    @Override public View getContentView() { return mContent; }
+    @Override public @Nullable View getToolbarView() { return null; }
+    @Override public int getVerticalScrollOffset() { return mContent.getScrollY(); }
+    @Override public int getPriority() { return ContentPriority.LOW; }
+    @Override public boolean swipeToDismissEnabled() { return true; }
+    @Override public float getFullHeightRatio() { return HeightMode.WRAP_CONTENT; }
+    @Override public int getSheetHalfHeightAccessibilityStringId() {
+        return R.string.raws_ui_protection;
+    }
+    @Override public int getSheetFullHeightAccessibilityStringId() {
+        return R.string.raws_ui_protection;
+    }
+    @Override public int getSheetClosedAccessibilityStringId() {
+        return R.string.raws_global_shield_closed;
+    }
+    @Override public void destroy() {
+        if (mDestroyed) return;
+        boolean siteIsCurrent = stillOwnsSite();
+        mDestroyed = true;
+        var dns = mDnsProviderDialog;
+        mDnsProviderDialog = null;
+        if (dns != null) dns.dismiss();
+        var confirmation = mClearConfirmation;
+        mClearConfirmation = null;
+        if (confirmation != null) confirmation.dismiss();
+        var open = sOpen.get(mController);
+        if (open != null && open.get() == this) sOpen.remove(mController);
+        if (mOpeningTab != null) mOpeningTab.removeObserver(mOpeningTabLifetime);
+        var bridge = mCookieBridge;
+        mCookieBridge = null;
+        if (bridge != null) {
+            if (siteIsCurrent) bridge.onUiClosing();
+            bridge.destroy();
+        }
+        mHeaderTracer.close();
+        mContent.removeOnAttachStateChangeListener(mHeaderLifetime);
+    }
+}

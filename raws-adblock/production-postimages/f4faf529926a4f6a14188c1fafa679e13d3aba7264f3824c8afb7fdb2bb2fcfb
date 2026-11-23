@@ -1,0 +1,1961 @@
+// Copyright 2018 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+package org.chromium.chrome.browser.feed;
+
+import static org.chromium.build.NullUtil.assumeNonNull;
+
+import android.app.Activity;
+import android.content.Context;
+import android.content.Intent;
+import android.content.SharedPreferences;
+import android.content.res.Configuration;
+import android.content.res.Resources;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.graphics.BlurMaskFilter;
+import android.graphics.Canvas;
+import android.graphics.Color;
+import android.graphics.Paint;
+import android.graphics.Rect;
+import android.graphics.RectF;
+import android.os.Handler;
+import android.os.Looper;
+import android.os.SystemClock;
+import android.view.LayoutInflater;
+import android.view.MotionEvent;
+import android.view.View;
+import android.view.ViewGroup;
+import android.view.ViewTreeObserver;
+import android.widget.FrameLayout;
+import android.widget.ImageButton;
+import android.widget.TextView;
+
+import androidx.annotation.ColorInt;
+import androidx.annotation.Px;
+import androidx.appcompat.content.res.AppCompatResources;
+import androidx.recyclerview.widget.RecyclerView;
+import androidx.recyclerview.widget.RecyclerView.ItemDecoration;
+import androidx.recyclerview.widget.RecyclerView.OnScrollListener;
+
+import org.chromium.base.Callback;
+import org.chromium.base.CommandLine;
+import org.chromium.base.ContextUtils;
+import org.chromium.base.DeviceInfo;
+import org.chromium.base.ObserverList;
+import org.chromium.base.ResettersForTesting;
+import org.chromium.base.TraceEvent;
+import org.chromium.base.metrics.RecordUserAction;
+import org.chromium.base.supplier.MonotonicObservableSupplier;
+import org.chromium.base.supplier.NonNullObservableSupplier;
+import org.chromium.base.task.PostTask;
+import org.chromium.base.task.TaskTraits;
+import org.chromium.build.annotations.Initializer;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
+import org.chromium.chrome.R;
+import org.chromium.chrome.browser.feature_engagement.TrackerFactory;
+import org.chromium.chrome.browser.feed.componentinterfaces.SurfaceCoordinator;
+import org.chromium.chrome.browser.flags.ChromeFeatureList;
+import org.chromium.chrome.browser.magic_stack.ModuleRegistry;
+import org.chromium.chrome.browser.ntp.NewTabPageLayout;
+import org.chromium.chrome.browser.ntp.NewTabPageUtils;
+import org.chromium.chrome.browser.ntp_customization.NtpCustomizationConfigManager;
+import org.chromium.chrome.browser.ntp_customization.NtpCustomizationConfigManager.HomepageStateListener;
+import org.chromium.chrome.browser.ntp_customization.NtpCustomizationCoordinator;
+import org.chromium.chrome.browser.ntp_customization.NtpCustomizationCoordinatorFactory;
+import org.chromium.chrome.browser.ntp_customization.NtpCustomizationMetricsUtils;
+import org.chromium.chrome.browser.ntp_customization.NtpCustomizationUtils;
+import org.chromium.chrome.browser.ntp_customization.NtpCustomizationUtils.NtpBackgroundType;
+import org.chromium.chrome.browser.ntp_customization.theme.NtpBackgroundImageCoordinator;
+import org.chromium.chrome.browser.ntp_customization.theme.chrome_colors.NtpThemeColorInfo;
+import org.chromium.chrome.browser.ntp_customization.theme.upload_image.BackgroundImageInfo;
+import org.chromium.chrome.browser.ntp_customization.theme.upload_image.UploadImagePreviewCoordinator;
+import org.chromium.chrome.browser.preferences.ChromePreferenceKeys;
+import org.chromium.chrome.browser.preferences.ChromeSharedPreferences;
+import org.chromium.chrome.browser.privacy.settings.PrivacyPreferencesManagerImpl;
+import org.chromium.chrome.browser.profiles.Profile;
+import org.chromium.chrome.browser.share.ShareDelegate;
+import org.chromium.chrome.browser.toolbar.top.Toolbar;
+import org.chromium.chrome.browser.ui.edge_to_edge.EdgeToEdgeController;
+import org.chromium.chrome.browser.ui.edge_to_edge.EdgeToEdgeControllerFactory;
+import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager;
+import org.chromium.chrome.browser.ui.native_page.TouchEnabledDelegate;
+import org.chromium.chrome.browser.ui.theme.ChromeSemanticColorUtils;
+import org.chromium.chrome.browser.user_education.UserEducationHelper;
+import org.chromium.chrome.browser.xsurface.HybridListRenderer;
+import org.chromium.chrome.browser.xsurface.ProcessScope;
+import org.chromium.chrome.browser.xsurface.feed.FeedCardOpeningReliabilityLogger;
+import org.chromium.chrome.browser.xsurface.feed.FeedLaunchReliabilityLogger;
+import org.chromium.chrome.browser.xsurface.feed.FeedLaunchReliabilityLogger.SurfaceType;
+import org.chromium.chrome.browser.xsurface.feed.FeedSurfaceScope;
+import org.chromium.chrome.browser.xsurface.feed.FeedUserInteractionReliabilityLogger;
+import org.chromium.chrome.browser.xsurface.feed.FeedUserInteractionReliabilityLogger.ClosedReason;
+import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
+import org.chromium.components.browser_ui.widget.displaystyle.UiConfig;
+import org.chromium.components.feature_engagement.EventConstants;
+import org.chromium.components.feature_engagement.Tracker;
+import org.chromium.third_party.android.swiperefresh.SwipeRefreshLayout;
+import org.chromium.ui.base.DeviceFormFactor;
+import org.chromium.ui.base.DeviceInput;
+import org.chromium.ui.base.ViewUtils;
+import org.chromium.ui.base.WindowAndroid;
+import org.chromium.ui.edge_to_edge.EdgeToEdgePadAdjuster;
+
+import java.lang.ref.WeakReference;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.function.BooleanSupplier;
+import java.util.function.Supplier;
+
+/** Provides a surface that displays an interest feed rendered list of content suggestions. */
+@NullMarked
+public class FeedSurfaceCoordinator
+        implements FeedSurfaceProvider,
+                FeedBubbleDelegate,
+                SwipeRefreshLayout.OnRefreshListener,
+                SurfaceCoordinator {
+    protected final Activity mActivity;
+    private final SnackbarManager mSnackbarManager;
+    private final @Nullable View mNtpHeader;
+    private final boolean mShowDarkBackground;
+    private final FeedSurfaceDelegate mDelegate;
+    private final BottomSheetController mBottomSheetController;
+    private final WindowAndroid mWindowAndroid;
+    private final Supplier<@Nullable ShareDelegate> mShareSupplier;
+    private final Handler mHandler;
+    private final boolean mOverScrollDisabled;
+    private final ObserverList<SurfaceCoordinator.Observer> mObservers = new ObserverList<>();
+    private final FeedActionDelegate mActionDelegate;
+    private final boolean mUseStaggeredLayout;
+
+    /** Factory for creating {@link FeedActionDelegate}. */
+    public interface ActionDelegateFactory {
+        FeedActionDelegate createActionDelegate();
+    }
+
+    private final int mDefaultBackgroundColor;
+
+    // FeedReliabilityLogger params.
+    private final long mEmbeddingSurfaceCreatedTimeNs;
+
+    private FeedSurfaceMediator mMediator;
+    private final boolean mIsNtpCustomizationV2Enabled;
+    private final UiConfig mUiConfig;
+    private final FrameLayout mRootView;
+    private boolean mIsActive;
+    private int mHeaderCount;
+    private int mHeaderIndex;
+    private final View mHeaderView;
+
+    // Used when Feed is enabled.
+    private final Profile mProfile;
+    private @Nullable FeedSurfaceLifecycleManager mFeedSurfaceLifecycleManager;
+    // Feed RecyclerView/xSurface fields.
+    private FeedListContentManager mContentManager;
+    private final RecyclerView mRecyclerView;
+    private final FeedStreamViewResizer mFeedStreamViewResizer;
+    private @Nullable FeedSurfaceScope mSurfaceScope;
+    private @Nullable FeedSurfaceScopeDependencyProviderImpl mDependencyProvider;
+    private HybridListRenderer mHybridListRenderer;
+
+    // Used to handle things related to the main scrollable container of NTP surface.
+    // In start surface, it does not track scrolling events - only the header offset.
+    // In New Tab Page, it does not track the header offset (no header) - instead, it
+    // tracks scrolling events.
+    private @Nullable ScrollableContainerDelegate mScrollableContainerDelegate;
+    private @Nullable RefreshIphScrollListener mRefreshIphScrollListener;
+    private @Nullable FeedReliabilityLogger mReliabilityLogger;
+    private final PrivacyPreferencesManagerImpl mPrivacyPreferencesManager;
+
+    private final Supplier<Toolbar> mToolbarSupplier;
+
+    private FeedSwipeRefreshLayout mSwipeRefreshLayout;
+    private final NonNullObservableSupplier<Integer> mTabStripHeightSupplier;
+    private final Callback<Integer> mTabStripHeightChangeCallback;
+
+    // Used to handle padding adjustment when edge to edge is enabled.
+    private final EdgeToEdgePadAdjuster mEdgePadAdjuster;
+    private final boolean mIsNewTabPageCustomizationV2Enabled;
+    private @Nullable ImageButton mNtpCustomizationButton;
+    private @Nullable NtpCustomizationConfigManager mNtpCustomizationConfigManager;
+    private @Nullable NtpBackgroundImageCoordinator mNtpBackgroundImageCoordinator;
+    private @Nullable HomepageStateListener mHomepageStateListener;
+    private @Nullable ItemDecoration mItemDecoration;
+    private @Nullable OnScrollListener mOnScrollListener;
+    private boolean mHasDrawnFrame;
+    private WindowAndroid.@Nullable IntentCallback mRawSImagePickerCallback;
+    private @Nullable UploadImagePreviewCoordinator mRawSImagePreview;
+    private int mRawSImagePickerRequest = -1;
+    private long mRawSImagePickerGeneration;
+    private boolean mRawSImageDecoding;
+    public static final String RAWS_HOME_WALLPAPER_PREFERENCE = "raws_ui_galaxy_wallpaper";
+
+    // The selected, unbranded horizon art has a different aspect ratio from the Galaxy donor.
+    private static final int RAWS_HOME_WALLPAPER_WIDTH = 822;
+    private static final int RAWS_HOME_WALLPAPER_HEIGHT = 1914;
+    private static final int RAWS_LEGACY_BRANDED_WALLPAPER_WIDTH = 819;
+    private static final int RAWS_LEGACY_BRANDED_WALLPAPER_HEIGHT = 1920;
+    private static @Nullable Bitmap sRawSHomeWallpaperBitmap;
+    private static @Nullable RawSHomeBrandAsset sRawSHomeBrand;
+    private @Nullable RawSHomeBrandAsset mRawSHomeBrand;
+    private final Paint mRawSHomeBrandShadowPaint = new Paint(Paint.FILTER_BITMAP_FLAG);
+    // The supplied sheet has an isolated 2px export edge, beyond the lettering.
+    // Clip only those two source columns; the packaged PNG stays byte-for-byte intact.
+    private static final int RAWS_HOME_BRAND_SOURCE_WIDTH = 388;
+    private static final int RAWS_HOME_BRAND_SOURCE_HEIGHT = 112;
+    private final Rect mRawSHomeBrandSource =
+            new Rect(0, 0, RAWS_HOME_BRAND_SOURCE_WIDTH, RAWS_HOME_BRAND_SOURCE_HEIGHT);
+    private boolean mRawSHomeWallpaperIncludesBrand = true;
+    private final RectF mRawSHomeBrandDest = new RectF();
+    private final RectF mRawSHomeBrandShadowDest = new RectF();
+    private final RectF mRawSHomeBrandCandidate = new RectF();
+    private boolean mRawSHomeBrandPainting;
+    private int mRawSHomeBrandViewportWidth;
+    private int mRawSHomeBrandViewportHeight;
+    private boolean mRawSHomeSolidBackdropMoved;
+    private boolean mRawSHomeNativeImageActive;
+    private @ColorInt int mRawSHomeNativeBackdropColor;
+
+    private record RawSHomeBrandAsset(
+            Bitmap image, @Nullable Bitmap shadow, int shadowOffsetX, int shadowOffsetY) {}
+    private @Nullable Bitmap mRawSHomeWallpaperBitmap;
+    private @Nullable View mRawSHomeWallpaperSearch;
+    private @Nullable View mRawSHomeWallpaperTiles;
+    private @Nullable SharedPreferences mRawSHomeWallpaperPreferences;
+    private final SharedPreferences.OnSharedPreferenceChangeListener mRawSHomeWallpaperPrefListener =
+            (prefs, key) -> {
+                if (RAWS_HOME_WALLPAPER_PREFERENCE.equals(key)) invalidateRawSHomeWallpaper();
+            };
+    private @Nullable ViewTreeObserver mRawSHomeWallpaperObserver;
+    private final Paint mRawSHomeWallpaperPaint = new Paint(Paint.FILTER_BITMAP_FLAG);
+    private final Rect mRawSHomeWallpaperVisible = new Rect();
+    private final RectF mRawSHomeWallpaperDest = new RectF();
+    private final RectF mRawSHomeWallpaperCandidate = new RectF();
+    private final int[] mRawSHomeRootLocation = new int[2];
+    private final int[] mRawSHomeSearchLocation = new int[2];
+    private final ViewTreeObserver.OnPreDrawListener mRawSHomeWallpaperPreDraw =
+            this::updateRawSHomeWallpaper;
+    private boolean mRawSHomeWallpaperPainting;
+    private boolean mRawSHomePublishedWallpaperPainting;
+    private @Nullable Runnable mRawSHomeStatusBarInvalidator;
+    private boolean mRawSHomeWallpaperDirty;
+    private int mRawSHomeWallpaperWidth;
+    private int mRawSHomeWallpaperHeight;
+
+
+    /** Provides the additional capabilities needed for the container view. */
+    private class RootView extends FrameLayout {
+        /**
+         * @param context The context of the application.
+         */
+        RootView(Context context) {
+            super(context);
+            setFocusable(true);
+            setFocusableInTouchMode(true);
+        }
+
+        private void updateRawSLowerShortcutsViewport(int heightMeasureSpec) {
+            if (mNtpHeader instanceof NewTabPageLayout header) {
+                int viewportHeight = 0;
+                boolean imeVisible = false;
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+                    var insets = getRootWindowInsets();
+                    imeVisible = insets != null && insets.isVisible(android.view.WindowInsets.Type.ime());
+                }
+                if (!imeVisible && MeasureSpec.getMode(heightMeasureSpec) == MeasureSpec.EXACTLY
+                        && getResources().getConfiguration().orientation
+                                == Configuration.ORIENTATION_PORTRAIT) {
+                    viewportHeight = MeasureSpec.getSize(heightMeasureSpec);
+                }
+                if (header.setRawSLowerShortcutsViewport(viewportHeight)) {
+                    // RecyclerView can reuse child measurement when width is unchanged.
+                    // Flag the existing header/wrappers inside this measure pass, not a
+                    // second posted layout or translation of its hit/accessibility bounds.
+                    for (View current = header; current != this; ) {
+                        current.forceLayout();
+                        if (!(current.getParent() instanceof View parent)) break;
+                        current = parent;
+                    }
+                }
+            }
+        }
+
+        @Override
+        protected void onAttachedToWindow() {
+            super.onAttachedToWindow();
+            connectRawSHomeWallpaper();
+        }
+
+        @Override
+        protected void onDetachedFromWindow() {
+            disconnectRawSHomeWallpaper();
+            cancelRawSHomeImageUpload();
+            super.onDetachedFromWindow();
+        }
+
+        @Override
+        protected void dispatchDraw(Canvas canvas) {
+            super.dispatchDraw(canvas);
+            mHasDrawnFrame = true;
+        }
+
+        @Override
+        protected boolean drawChild(Canvas canvas, View child, long drawingTime) {
+            // Chromium's full-size, opaque NTP background child has already been drawn.
+            // Keep the Galaxy painter above it and below the real scrolling/input controls.
+            if (child == mRecyclerView || child == mSwipeRefreshLayout) {
+                drawRawSHomeWallpaper(canvas);
+                drawRawSHomeBrand(canvas);
+            }
+            return super.drawChild(canvas, child, drawingTime);
+        }
+
+        @Override
+        protected void onConfigurationChanged(Configuration newConfig) {
+            super.onConfigurationChanged(newConfig);
+            mUiConfig.updateDisplayStyle();
+        }
+
+        @Override
+        protected void onSizeChanged(int width, int height, int oldWidth, int oldHeight) {
+            super.onSizeChanged(width, height, oldWidth, oldHeight);
+            if (ChromeFeatureList.isEnabled(ChromeFeatureList.FEED_CONTAINMENT)) {
+                mRecyclerView.post(mRecyclerView::invalidateItemDecorations);
+                updateNtpHeaderMargins();
+            }
+            if (mUseStaggeredLayout) {
+                updateNtpCustomizationButtonVisibility();
+            }
+            if (mUiConfig != null) mUiConfig.updateDisplayStyle();
+        }
+
+        @Override
+        public boolean onInterceptTouchEvent(MotionEvent ev) {
+            // This is for caching the last touch position on the NTP. {@link
+            // ViewGroup#onInterceptTouchEvent} is called for every motion event that will be
+            // consumed by this view or any of its child views. This location allows us to cache
+            // the last touch before any views actually perform an intercept or handle the touch
+            // event. Placing this call later in the method would mean at least a subset of events
+            // would be missed.
+            mDelegate.sendMotionEventForInputTracking(ev);
+            // Defocus any other view (such as the Omnibox / UrlBar) when tapping on the empty
+            // background surface.
+            if (ev.getActionMasked() == MotionEvent.ACTION_DOWN) {
+                requestFocus();
+            }
+
+            if (super.onInterceptTouchEvent(ev)) return true;
+            if (mMediator != null && !mMediator.getTouchEnabled()) return true;
+
+            return mDelegate.onInterceptTouchEvent(ev);
+        }
+
+        @Override
+        public void onMeasure(int x, int y) {
+            try (TraceEvent e = TraceEvent.scoped("Feed.RootView.onMeasure")) {
+                updateRawSLowerShortcutsViewport(y);
+                super.onMeasure(x, y);
+            }
+        }
+
+        @Override
+        public void onLayout(boolean a, int b, int c, int d, int e) {
+            try (TraceEvent e1 = TraceEvent.scoped("Feed.RootView.onLayout")) {
+                super.onLayout(a, b, c, d, e);
+            }
+        }
+
+        @Override
+        public void onDraw(Canvas canvas) {
+            try (TraceEvent e = TraceEvent.scoped("Feed.RootView.onDraw")) {
+                super.onDraw(canvas);
+            }
+        }
+    }
+
+    private class ScrollableContainerDelegateImpl implements ScrollableContainerDelegate {
+        @Override
+        public void addScrollListener(ScrollListener listener) {
+            if (mRecyclerView == null) return;
+
+            mMediator.addScrollListener(listener);
+        }
+
+        @Override
+        public void removeScrollListener(ScrollListener listener) {
+            if (mRecyclerView == null) return;
+
+            mMediator.removeScrollListener(listener);
+        }
+
+        @Override
+        public int getVerticalScrollOffset() {
+            return mMediator.getVerticalScrollOffset();
+        }
+
+        @Override
+        public int getRootViewHeight() {
+            return mRootView.getHeight();
+        }
+
+        @Override
+        public int getTopPositionRelativeToContainerView(View childView) {
+            int[] pos = new int[2];
+            ViewUtils.getRelativeLayoutPosition(mRootView, childView, pos);
+            return pos[1];
+        }
+    }
+
+    // TracingAndPerfScrollListener is explicitly not a ScrollListener due to the fact that the
+    // ScrollableContainerDelegate could be null if we are tracking scrolling. However for looking
+    // at performance metrics of scrolling we always want to know when feed is scrolling.
+    static class TracingAndPerfScrollListener extends OnScrollListener {
+        @Override
+        public void onScrollStateChanged(RecyclerView view, int newState) {
+            switch (mPrevState) {
+                case -1:
+                    {
+                        if (newState == RecyclerView.SCROLL_STATE_DRAGGING) {
+                            startScroll();
+                        } else if (newState == RecyclerView.SCROLL_STATE_SETTLING) {
+                            startFling();
+                        }
+                        // else IDLE
+                        break;
+                    }
+                case RecyclerView.SCROLL_STATE_IDLE:
+                    {
+                        if (newState == RecyclerView.SCROLL_STATE_DRAGGING) {
+                            startScroll();
+                        } else if (newState == RecyclerView.SCROLL_STATE_SETTLING) {
+                            startFling();
+                        }
+                        break;
+                    }
+                case RecyclerView.SCROLL_STATE_DRAGGING:
+                    {
+                        endScroll();
+                        if (newState == RecyclerView.SCROLL_STATE_SETTLING) {
+                            startFling();
+                        }
+                        break;
+                    }
+                case RecyclerView.SCROLL_STATE_SETTLING:
+                    {
+                        endFling();
+                        if (newState == RecyclerView.SCROLL_STATE_DRAGGING) {
+                            startScroll();
+                        }
+                        break;
+                    }
+                default:
+                    {
+                        mPrevState = -1;
+                        break;
+                    }
+            }
+            mPrevState = newState;
+        }
+
+        @Override
+        public void onScrolled(RecyclerView view, int dx, int dy) {}
+
+        private void startScroll() {
+            // TODO(nuskos): These next two are just a "hack" to get a nice track name
+            // in the UI (it uses the first event it hits). Eventually with the Perfetto
+            // SDK we could just explicitly title the track instead.
+            TraceEvent.startAsync("Feed.ScrollState", hashCode());
+            TraceEvent.finishAsync("Feed.ScrollState", hashCode());
+            TraceEvent.startAsync("Feed.TouchScrollStarted", hashCode());
+        }
+
+        private void endScroll() {
+            TraceEvent.finishAsync("Feed.TouchScrollEnded", hashCode());
+        }
+
+        private void startFling() {
+            TraceEvent.startAsync("Feed.FlingScrollStarted", hashCode());
+        }
+
+        private void endFling() {
+            TraceEvent.finishAsync("Feed.FlingScrollEnded", hashCode());
+        }
+
+        private int mPrevState = -1;
+    }
+
+    // Returns the index of the header if it is visible. Otherwise returns the index after the
+    // invisible header.
+    int getHeaderPosition() {
+        return mHeaderIndex + (mHeaderView.getVisibility() != View.VISIBLE ? 1 : 0);
+    }
+
+    boolean useStaggeredLayout() {
+        return mUseStaggeredLayout;
+    }
+
+    /**
+     * Constructs a new FeedSurfaceCoordinator.
+     *
+     * @param activity The containing {@link Activity}.
+     * @param snackbarManager The {@link SnackbarManager} displaying Snackbar UI.
+     * @param windowAndroid The window of the page.
+     * @param snapScrollHelper The {@link SnapScrollHelper} for the New Tab Page.
+     * @param ntpHeader The extra header on top of the feeds for the New Tab Page.
+     * @param toolbarHeight The height of the toolbar which overlaps Feed content at the top of the
+     *     view.
+     * @param showDarkBackground Whether is shown on dark background.
+     * @param delegate The constructing {@link FeedSurfaceDelegate}.
+     * @param profile The current user profile.
+     * @param bottomSheetController The bottom sheet controller.
+     * @param shareDelegateSupplier The supplier for the share delegate used to share articles.
+     * @param privacyPreferencesManager Manages the privacy preferences.
+     * @param toolbarSupplier Supplies the {@link Toolbar}.
+     * @param embeddingSurfaceCreatedTimeNs Timestamp of creation of the UI surface.
+     * @param swipeRefreshLayout The layout to support pull-to-refresh.
+     * @param overScrollDisabled Whether the overscroll effect is disabled.
+     * @param createActionDelegate Factory for creating the implementation of Feed actions.
+     * @param tabStripHeightSupplier Supplier for the tab strip height.
+     * @param edgeToEdgeControllerSupplier Supplier for the {@link EdgeToEdgeController} instance.
+     * @param moduleRegistry The instance of {@link ModuleRegistry}.
+     */
+    public FeedSurfaceCoordinator(
+            Activity activity,
+            SnackbarManager snackbarManager,
+            WindowAndroid windowAndroid,
+            @Nullable SnapScrollHelper snapScrollHelper,
+            @Nullable View ntpHeader,
+            @Px int toolbarHeight,
+            boolean showDarkBackground,
+            FeedSurfaceDelegate delegate,
+            Profile profile,
+            BottomSheetController bottomSheetController,
+            Supplier<@Nullable ShareDelegate> shareDelegateSupplier,
+            @Nullable ScrollableContainerDelegate externalScrollableContainerDelegate,
+            PrivacyPreferencesManagerImpl privacyPreferencesManager,
+            Supplier<Toolbar> toolbarSupplier,
+            long embeddingSurfaceCreatedTimeNs,
+            FeedSwipeRefreshLayout swipeRefreshLayout,
+            boolean overScrollDisabled,
+            ActionDelegateFactory createActionDelegate,
+            NonNullObservableSupplier<Integer> tabStripHeightSupplier,
+            MonotonicObservableSupplier<EdgeToEdgeController> edgeToEdgeControllerSupplier,
+            @Nullable ModuleRegistry moduleRegistry) {
+        mActivity = activity;
+        mSnackbarManager = snackbarManager;
+        mNtpHeader = ntpHeader;
+        mShowDarkBackground = showDarkBackground;
+        mDelegate = delegate;
+        mBottomSheetController = bottomSheetController;
+        mProfile = profile;
+        mWindowAndroid = windowAndroid;
+        mShareSupplier = shareDelegateSupplier;
+        mScrollableContainerDelegate = externalScrollableContainerDelegate;
+        mPrivacyPreferencesManager = privacyPreferencesManager;
+        mToolbarSupplier = toolbarSupplier;
+        mSwipeRefreshLayout = swipeRefreshLayout;
+        mOverScrollDisabled = overScrollDisabled;
+        mActionDelegate = createActionDelegate.createActionDelegate();
+        mEmbeddingSurfaceCreatedTimeNs = embeddingSurfaceCreatedTimeNs;
+        mHeaderIndex = 0;
+        mTabStripHeightSupplier = tabStripHeightSupplier;
+        mUseStaggeredLayout = DeviceFormFactor.isNonMultiDisplayContextOnTablet(mActivity);
+        mIsNewTabPageCustomizationV2Enabled =
+                NtpCustomizationUtils.isNtpThemeCustomizationEnabled();
+        mDefaultBackgroundColor = ChromeSemanticColorUtils.getHomeSurfaceBackgroundColor(mActivity);
+
+        mRawSHomeNativeBackdropColor = mDefaultBackgroundColor;
+        mRawSHomeBrandShadowPaint.setColor(Color.BLACK);
+        mRawSHomeBrandShadowPaint.setAlpha(52);
+
+        mRootView = new RootView(mActivity);
+        mRootView.setPadding(0, mTabStripHeightSupplier.get(), 0, 0);
+
+        mTabStripHeightChangeCallback =
+                newHeight ->
+                        mRootView.setPadding(
+                                mRootView.getPaddingLeft(),
+                                newHeight,
+                                mRootView.getPaddingRight(),
+                                mRootView.getPaddingBottom());
+        mTabStripHeightSupplier.addSyncObserverAndPostIfNonNull(mTabStripHeightChangeCallback);
+
+        mUiConfig = new UiConfig(mRootView);
+        mRecyclerView = setUpView();
+        mFeedStreamViewResizer =
+                FeedStreamViewResizer.createAndAttach(mActivity, mRecyclerView, mUiConfig);
+
+        mIsNtpCustomizationV2Enabled = NtpCustomizationUtils.isNtpThemeCustomizationEnabled();
+        if (mIsNewTabPageCustomizationV2Enabled) {
+            mNtpBackgroundImageCoordinator =
+                    new NtpBackgroundImageCoordinator(
+                            mActivity, mRootView, mUiConfig, mDefaultBackgroundColor);
+        }
+
+        // Pull-to-refresh set up.
+        if (mSwipeRefreshLayout != null && mSwipeRefreshLayout.getParent() == null) {
+            mSwipeRefreshLayout.addView(mRecyclerView);
+            mRootView.addView(mSwipeRefreshLayout);
+        } else {
+            mRootView.addView(mRecyclerView);
+        }
+        if (mSwipeRefreshLayout != null) {
+            mSwipeRefreshLayout.addOnRefreshListener(this);
+        }
+
+        // The NTP customization button needs to be added after the RecyclerView to make it float
+        // above the RecyclerView.
+        if (mUseStaggeredLayout) {
+            mNtpCustomizationButton =
+                    NtpCustomizationUtils.createNtpCustomizationButton(
+                            mActivity,
+                            v -> {
+                                showNtpCustomizationBottomSheet(moduleRegistry);
+                            });
+            mRootView.addView(mNtpCustomizationButton);
+        }
+
+        if (mIsNtpCustomizationV2Enabled) {
+            mNtpCustomizationConfigManager = NtpCustomizationConfigManager.getInstance();
+            mHomepageStateListener =
+                    new HomepageStateListener() {
+                        @Override
+                        public void onBackgroundImageChanged(
+                                Bitmap originalBitmap,
+                                BackgroundImageInfo backgroundImageInfo,
+                                boolean fromInitialization,
+                                @NtpBackgroundType int oldType,
+                                @NtpBackgroundType int newType) {
+                            setBackground(originalBitmap, backgroundImageInfo, newType);
+                        }
+
+                        @Override
+                        public void onBackgroundColorChanged(
+                                @Nullable NtpThemeColorInfo ntpThemeColorInfo,
+                                @ColorInt int backgroundColor,
+                                boolean fromInitialization,
+                                @NtpBackgroundType int oldType,
+                                @NtpBackgroundType int newType) {
+                            setBackgroundColor(backgroundColor);
+                        }
+
+                        @Override
+                        public void onBackgroundReset(@NtpBackgroundType int oldType) {
+                            setBackgroundColor(mDefaultBackgroundColor);
+                        }
+                    };
+
+            mNtpCustomizationConfigManager.addListener(
+                    mHomepageStateListener, activity, /* skipNotify= */ false);
+        } else {
+            setBackgroundColor(mDefaultBackgroundColor);
+        }
+
+        mHandler = new Handler(Looper.getMainLooper());
+
+        // MVC setup for feed header.
+        mHeaderView =
+                LayoutInflater.from(mActivity)
+                        .inflate(R.layout.new_tab_page_feed_header, null, false);
+        mHeaderView.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
+
+        if (mNtpHeader != null && ChromeFeatureList.isEnabled(ChromeFeatureList.FEED_CONTAINMENT)) {
+            int bottomPadding = NewTabPageUtils.getNtpSectionPaddingPx(activity.getResources());
+            mNtpHeader.setPadding(
+                    mNtpHeader.getPaddingLeft(),
+                    mNtpHeader.getPaddingTop(),
+                    mNtpHeader.getPaddingRight(),
+                    bottomPadding);
+
+            updateNtpHeaderMargins();
+        }
+
+        // Mediator should be created before any Stream changes.
+        mMediator =
+                new FeedSurfaceMediator(
+                        this, mActivity, snapScrollHelper, mActionDelegate, profile);
+
+        FeedSurfaceTracker.getInstance().trackSurface(this);
+
+        // Set up edge to edge
+        mEdgePadAdjuster =
+                EdgeToEdgeControllerFactory.createForViewAndObserveSupplier(
+                        mRecyclerView, edgeToEdgeControllerSupplier);
+
+        // Creates streams, initiates content changes.
+        mMediator.updateContent();
+    }
+
+    /** Decorative default only; never intercepts touch, changes geometry or sets a theme pref. */
+    @SuppressWarnings("UseSharedPreferencesManagerFromChromeCheck")
+    public void useRawSHomeWallpaper(
+            View nativeSearch,
+            @Nullable View nativeTiles,
+            int drawable,
+            int brandDrawable,
+            boolean wallpaperIncludesBrand,
+            Runnable invalidateStatusBarColor) {
+        if (mRawSHomeWallpaperSearch != null || mNtpHeader == null
+                || mUseStaggeredLayout || mProfile.isOffTheRecord()) {
+            return;
+        }
+        SharedPreferences preferences = ContextUtils.getAppSharedPreferences();
+        if (preferences == null) return;
+        mRawSHomeWallpaperPreferences = preferences;
+        preferences.registerOnSharedPreferenceChangeListener(mRawSHomeWallpaperPrefListener);
+        mRawSHomeWallpaperSearch = nativeSearch;
+        mRawSHomeWallpaperTiles = nativeTiles;
+        mRawSHomeWallpaperIncludesBrand = wallpaperIncludesBrand;
+        mRawSHomeStatusBarInvalidator = invalidateStatusBarColor;
+        connectRawSHomeWallpaper();
+        Resources resources = mActivity.getApplicationContext().getResources();
+        Handler ui = mHandler;
+        WeakReference<FeedSurfaceCoordinator> weakOwner = new WeakReference<>(this);
+        PostTask.postTask(
+                TaskTraits.USER_VISIBLE_MAY_BLOCK,
+                () -> {
+                    Bitmap bitmap =
+                            decodeRawSHomeWallpaper(resources, drawable, wallpaperIncludesBrand);
+                    RawSHomeBrandAsset brand = decodeRawSHomeBrand(resources, brandDrawable);
+                    if (bitmap == null && brand == null) return;
+                    ui.post(() -> {
+                        FeedSurfaceCoordinator owner = weakOwner.get();
+                        if (owner == null || owner.mRawSHomeWallpaperSearch == null) return;
+                        owner.mRawSHomeWallpaperBitmap = bitmap;
+                        owner.mRawSHomeBrand = brand;
+                        owner.mRootView.invalidate();
+                    });
+                });
+    }
+
+    public boolean canOfferRawSHomeImageUpload() {
+        return !mActivity.isFinishing() && !mActivity.isDestroyed()
+                && !mProfile.isOffTheRecord() && mRootView.isAttachedToWindow()
+                && NtpCustomizationUtils.isNtpThemeCustomizationEnabled(
+                        mWindowAndroid, /* isLff= */ false);
+    }
+
+    /** Starts the standard Android image picker and Chromium's own crop-and-Apply dialog. */
+    public boolean startRawSHomeImageUpload(BooleanSupplier stillCurrentHome) {
+        if (!canOfferRawSHomeImageUpload() || !stillCurrentHome.getAsBoolean()
+                || mRawSImagePickerCallback != null || mRawSImageDecoding
+                || mRawSImagePreview != null) {
+            return false;
+        }
+
+        long generation = ++mRawSImagePickerGeneration;
+        BooleanSupplier ownsHome = () -> generation == mRawSImagePickerGeneration
+                && canOfferRawSHomeImageUpload() && stillCurrentHome.getAsBoolean();
+        WindowAndroid.IntentCallback callback = (resultCode, data) -> {
+            if (generation != mRawSImagePickerGeneration) return;
+            mRawSImagePickerCallback = null;
+            mRawSImagePickerRequest = -1;
+            if (!ownsHome.getAsBoolean() || resultCode != Activity.RESULT_OK || data == null) {
+                return;
+            }
+            var uri = data.getData();
+            if (uri == null) return;
+            mRawSImageDecoding = true;
+            NtpCustomizationUtils.getBitmapFromUriAsync(
+                    mActivity, uri, (bitmap, fileIdHash) -> {
+                        if (generation != mRawSImagePickerGeneration) return;
+                        mRawSImageDecoding = false;
+                        if (bitmap == null || !ownsHome.getAsBoolean()) return;
+                        mRawSImagePreview = new UploadImagePreviewCoordinator(
+                                mActivity,
+                                mProfile,
+                                bitmap,
+                                ChromeFeatureList.sNewTabPageCustomizationThemeSync.isEnabled()
+                                        ? fileIdHash : null,
+                                (applied, differentTheme) -> {});
+                        mRawSImagePreview.setRawSHomeUploadLifecycle(
+                                ownsHome, () -> mHandler.post(() -> {
+                                    if (generation == mRawSImagePickerGeneration) {
+                                        cancelRawSHomeImageUpload();
+                                    }
+                                }));
+                    });
+        };
+        mRawSImagePickerCallback = callback;
+        Intent picker = new Intent(Intent.ACTION_GET_CONTENT)
+                .addCategory(Intent.CATEGORY_OPENABLE)
+                .setType("image/*");
+        int request = mWindowAndroid.showCancelableIntent(picker, callback, /* errorId= */ null);
+        if (request < 0) {
+            cancelRawSHomeImageUpload();
+            return false;
+        }
+        if (mRawSImagePickerCallback == callback) mRawSImagePickerRequest = request;
+        return true;
+    }
+
+    private void cancelRawSHomeImageUpload() {
+        mRawSImagePickerGeneration++;
+        var callback = mRawSImagePickerCallback;
+        mRawSImagePickerCallback = null;
+        int request = mRawSImagePickerRequest;
+        mRawSImagePickerRequest = -1;
+        if (callback != null) mWindowAndroid.removeIntentCallback(callback);
+        if (request >= 0) mWindowAndroid.cancelIntent(request);
+        mRawSImageDecoding = false;
+        var preview = mRawSImagePreview;
+        mRawSImagePreview = null;
+        if (preview != null) preview.destroy();
+    }
+
+    private static synchronized @Nullable Bitmap decodeRawSHomeWallpaper(
+            Resources resources, int drawable, boolean wallpaperIncludesBrand) {
+        int expectedWidth =
+                wallpaperIncludesBrand
+                        ? RAWS_LEGACY_BRANDED_WALLPAPER_WIDTH
+                        : RAWS_HOME_WALLPAPER_WIDTH;
+        int expectedHeight =
+                wallpaperIncludesBrand
+                        ? RAWS_LEGACY_BRANDED_WALLPAPER_HEIGHT
+                        : RAWS_HOME_WALLPAPER_HEIGHT;
+        Bitmap cached = sRawSHomeWallpaperBitmap;
+        if (cached != null && cached.getWidth() == expectedWidth
+                && cached.getHeight() == expectedHeight) {
+            return cached;
+        }
+        Bitmap decoded = BitmapFactory.decodeResource(resources, drawable);
+        if (decoded == null || decoded.getWidth() != expectedWidth
+                || decoded.getHeight() != expectedHeight) {
+            return null;
+        }
+        sRawSHomeWallpaperBitmap = decoded;
+        return decoded;
+    }
+
+    private static synchronized @Nullable RawSHomeBrandAsset decodeRawSHomeBrand(
+            Resources resources, int drawable) {
+        if (sRawSHomeBrand == null) {
+            Bitmap bitmap = BitmapFactory.decodeResource(resources, drawable);
+            if (bitmap != null && bitmap.getWidth() == RAWS_HOME_BRAND_SOURCE_WIDTH + 2
+                    && bitmap.getHeight() == RAWS_HOME_BRAND_SOURCE_HEIGHT) {
+                // Derive a tiny soft draw layer from alpha only. Keep the supplied RGBA pixels
+                // unchanged, including their raised relief and color. Cached off the UI thread.
+                Paint mask = new Paint();
+                mask.setMaskFilter(new BlurMaskFilter(4f, BlurMaskFilter.Blur.NORMAL));
+                int[] offset = new int[2];
+                Bitmap clipped = Bitmap.createBitmap(bitmap, 0, 0,
+                        RAWS_HOME_BRAND_SOURCE_WIDTH, RAWS_HOME_BRAND_SOURCE_HEIGHT);
+                Bitmap shadow = clipped.extractAlpha(mask, offset);
+                sRawSHomeBrand = new RawSHomeBrandAsset(bitmap, shadow, offset[0], offset[1]);
+            }
+        }
+        return sRawSHomeBrand;
+    }
+
+    private void connectRawSHomeWallpaper() {
+        if (mRawSHomeWallpaperSearch == null || mRawSHomeWallpaperObserver != null
+                || !mRootView.isAttachedToWindow()) {
+            return;
+        }
+        ViewTreeObserver observer = mRootView.getViewTreeObserver();
+        observer.addOnPreDrawListener(mRawSHomeWallpaperPreDraw);
+        mRawSHomeWallpaperObserver = observer;
+    }
+
+    private void disconnectRawSHomeWallpaper() {
+        ViewTreeObserver observer = mRawSHomeWallpaperObserver;
+        mRawSHomeWallpaperObserver = null;
+        if (observer != null && observer.isAlive()) {
+            observer.removeOnPreDrawListener(mRawSHomeWallpaperPreDraw);
+        }
+    }
+
+    private void invalidateRawSHomeWallpaper() {
+        mRootView.invalidate();
+    }
+
+    private void disposeRawSHomeWallpaper() {
+        mRawSHomeStatusBarInvalidator = null;
+        disconnectRawSHomeWallpaper();
+        mRawSHomeWallpaperSearch = null;
+        mRawSHomeWallpaperTiles = null;
+        SharedPreferences preferences = mRawSHomeWallpaperPreferences;
+        mRawSHomeWallpaperPreferences = null;
+        if (preferences != null) {
+            preferences.unregisterOnSharedPreferenceChangeListener(
+                    mRawSHomeWallpaperPrefListener);
+        }
+        mRawSHomeWallpaperBitmap = null;
+        mRawSHomeBrand = null;
+        stopPaintingRawSHomeWallpaper();
+        updateRawSHomeBrand();
+    }
+
+    /** Don't paint over Chromium's current or still-loading custom color or image. */
+    private boolean canUseRawSDefaultWallpaper() {
+        if (!mShowDarkBackground || !NtpCustomizationUtils.isNtpThemeCustomizationEnabled()) {
+            return false;
+        }
+        NtpCustomizationConfigManager manager = mNtpCustomizationConfigManager;
+        if (manager != null && manager.getBackgroundType() != NtpBackgroundType.DEFAULT) {
+            return false;
+        }
+        return NtpCustomizationUtils.getNtpBackgroundType() == NtpBackgroundType.DEFAULT;
+    }
+
+    private void stopPaintingRawSHomeWallpaper() {
+        if (!mRawSHomeWallpaperPainting) return;
+        mRawSHomeWallpaperPainting = false;
+        mRawSHomeWallpaperDirty = true;
+        mRootView.invalidate();
+    }
+
+    private void setPaintingRawSHomeWallpaper(boolean show) {
+        if (show == mRawSHomeWallpaperPainting) return;
+        if (show) {
+            mRawSHomeWallpaperPainting = true;
+            mRawSHomeWallpaperDirty = true;
+            mRecyclerView.setBackgroundColor(Color.TRANSPARENT);
+            if (mNtpHeader != null) mNtpHeader.setBackgroundColor(Color.TRANSPARENT);
+        } else {
+            stopPaintingRawSHomeWallpaper();
+            // The caller only restores the default in the default theme. Native color/image
+            // callbacks always remain the exclusive owner of custom theme layers.
+            restoreRawSHomeNativeBackdrop();
+        }
+        mRootView.invalidate();
+    }
+
+    private boolean updateRawSHomeWallpaper() {
+        updateRawSHomeWallpaperGeometry();
+        updateRawSHomeBrand();
+        if (mRawSHomePublishedWallpaperPainting != mRawSHomeWallpaperPainting) {
+            mRawSHomePublishedWallpaperPainting = mRawSHomeWallpaperPainting;
+            Runnable invalidate = mRawSHomeStatusBarInvalidator;
+            if (invalidate != null) invalidate.run();
+        }
+        return true;
+    }
+
+    /** Companion paint for the top edge of the bundled horizon artwork. */
+    public @ColorInt int getRawSHomeStatusBarColor(@ColorInt int nativeColor) {
+        // The darkest upper band of the packaged art is effectively uniform (#020202).
+        // No screenshot, image decoding, layout work or scroll tracking is used here.
+        return mRawSHomeWallpaperPainting && !mRawSHomeWallpaperIncludesBrand
+                ? 0xff020202 : nativeColor;
+    }
+
+    private boolean updateRawSHomeWallpaperGeometry() {
+        View search = mRawSHomeWallpaperSearch;
+        Bitmap wallpaper = mRawSHomeWallpaperBitmap;
+        if (search == null || wallpaper == null) return true;
+        if (!canUseRawSDefaultWallpaper()) {
+            // Chromium's custom image/color callbacks own their backing layers. Suppress the
+            // bundled paint without ever restoring a default color over a known custom theme.
+            stopPaintingRawSHomeWallpaper();
+            return true;
+        }
+        if (!isRawSHomeWallpaperEnabled()) {
+            setPaintingRawSHomeWallpaper(false);
+            return true;
+        }
+        int width = mRootView.getWidth();
+        int height = mRootView.getHeight();
+        boolean sameViewport = width == mRawSHomeWallpaperWidth
+                && height == mRawSHomeWallpaperHeight;
+        if (width <= 0 || height <= width) {
+            setPaintingRawSHomeWallpaper(false);
+            return true;
+        }
+
+        // Do not repaint the authored artwork when scrolling or changing focus in the
+        // same viewport. A restored scroll position must still be able to paint its first frame.
+        if (sameViewport && mRawSHomeWallpaperPainting
+                && (mRecyclerView.canScrollVertically(-1) || search.isLayoutRequested())) {
+            return true;
+        }
+
+        // The bundled background is not a Navigation or Toolbar state. In particular, a
+        // GONE/INVISIBLE fakebox does not occupy a rectangle just because the browser hasn't
+        // reported that its previously attached URL field committed the native handoff.
+        mRawSHomeWallpaperVisible.set(0, 0, width, height);
+        float searchTop = height;
+        float tilesTop = height;
+        float tilesBottom = height;
+        View tiles = mRawSHomeWallpaperTiles;
+        if (mRootView.getLocalVisibleRect(mRawSHomeWallpaperVisible)) {
+            mRootView.getLocationInWindow(mRawSHomeRootLocation);
+            if (search.isShown() && search.isLaidOut() && !search.isLayoutRequested()) {
+                search.getLocationInWindow(mRawSHomeSearchLocation);
+                searchTop = Math.min(height, mRawSHomeSearchLocation[1] - mRawSHomeRootLocation[1]);
+            }
+            if (tiles != null && tiles.isShown() && tiles.isLaidOut()) {
+                tiles.getLocationInWindow(mRawSHomeSearchLocation);
+                tilesTop = mRawSHomeSearchLocation[1] - mRawSHomeRootLocation[1];
+                tilesBottom = tilesTop + tiles.getHeight();
+            }
+        }
+        float gap = 12f * mRootView.getResources().getDisplayMetrics().density;
+        if (!mRawSHomeWallpaperIncludesBrand
+                || !chooseRawSHomeWallpaper(
+                        width, height, mRawSHomeWallpaperVisible, searchTop, tilesTop,
+                        tilesBottom, gap, mRawSHomeWallpaperCandidate)) {
+            // Center-cover unbranded artwork without the old baked-wordmark crop constraints.
+            // A bundled image never changes the native search, tray or inset geometry.
+            centerRawSHomeWallpaper(
+                    width, height, wallpaper.getWidth(), wallpaper.getHeight(),
+                    mRawSHomeWallpaperIncludesBrand, mRawSHomeWallpaperCandidate);
+        }
+
+        if (!mRawSHomeWallpaperCandidate.equals(mRawSHomeWallpaperDest)) {
+            mRawSHomeWallpaperDest.set(mRawSHomeWallpaperCandidate);
+            mRawSHomeWallpaperDirty = true;
+            mRootView.invalidate();
+        }
+        mRawSHomeWallpaperWidth = width;
+        mRawSHomeWallpaperHeight = height;
+        setPaintingRawSHomeWallpaper(true);
+        return true;
+    }
+
+    // The shipped bitmap is untouched. Choose the closest center-cover crop that keeps the
+    // entire baked wordmark away from the existing native tray, within visible artwork,
+    // and above the separate input only on configurations where Chromium must retain it.
+    // Shift only the bitmap's drawing rectangle and never any native view or reserved inset.
+    private static boolean chooseRawSHomeWallpaper(
+            int width, int height, Rect visible, float searchTop, float tilesTop,
+            float tilesBottom, float gap, RectF out) {
+        if (width <= 0 || height <= width || searchTop <= gap || gap <= 0) return false;
+        float scale = Math.max(width / 819f, height / 1920f);
+        float x = Math.max(width - 819f * scale, Math.min(0f, width / 2f - 409f * scale));
+        if (x + 207 * scale < visible.left || x + 638 * scale > visible.right) return false;
+        float minY = Math.max(height - 1920 * scale, visible.top + gap - 381 * scale);
+        float maxY = Math.min(0f, Math.min(searchTop - gap, visible.bottom - gap) - 491 * scale);
+        if (maxY < minY) return false;
+        float centeredY = height / 2f - 960 * scale;
+        float y = Math.max(minY, Math.min(centeredY, maxY));
+        if (tilesBottom > tilesTop && y + 491 * scale > tilesTop - gap
+                && y + 381 * scale < tilesBottom + gap) {
+            float above = Math.min(maxY, tilesTop - gap - 491 * scale);
+            float below = Math.max(minY, tilesBottom + gap - 381 * scale);
+            if (above < minY && below > maxY) return false;
+            if (above >= minY
+                    && (below > maxY || Math.abs(above - centeredY) <= Math.abs(below - centeredY))) {
+                y = above;
+            } else {
+                y = below;
+            }
+        }
+        out.set(x, y, x + 819 * scale, y + 1920 * scale);
+        return true;
+    }
+
+    private static void centerRawSHomeWallpaper(
+            int width, int height, int sourceWidth, int sourceHeight,
+            boolean wallpaperIncludesBrand, RectF out) {
+        float scale = Math.max((float) width / sourceWidth, (float) height / sourceHeight);
+        float focalX = wallpaperIncludesBrand ? 409f : sourceWidth / 2f;
+        float x = Math.max(width - sourceWidth * scale, Math.min(0f, width / 2f - focalX * scale));
+        float y = (height - sourceHeight * scale) / 2f;
+        out.set(x, y, x + sourceWidth * scale, y + sourceHeight * scale);
+    }
+
+    private boolean isRawSHomeWallpaperEnabled() {
+        SharedPreferences preferences = mRawSHomeWallpaperPreferences;
+        return preferences != null && preferences.getBoolean(RAWS_HOME_WALLPAPER_PREFERENCE, true);
+    }
+
+    private void drawRawSHomeWallpaper(Canvas canvas) {
+        Bitmap bitmap = mRawSHomeWallpaperBitmap;
+        if (!mRawSHomeWallpaperPainting || bitmap == null) return;
+        canvas.drawBitmap(bitmap, null, mRawSHomeWallpaperDest, mRawSHomeWallpaperPaint);
+    }
+
+    private void updateRawSHomeBrand() {
+        var brand = mRawSHomeBrand;
+        View search = mRawSHomeWallpaperSearch;
+        int width = mRootView.getWidth();
+        int height = mRootView.getHeight();
+        boolean show = brand != null && search != null && width > 0 && height > width
+                && !(mRawSHomeWallpaperPainting && mRawSHomeWallpaperIncludesBrand);
+        boolean keepGeometry = mRawSHomeBrandPainting && width == mRawSHomeBrandViewportWidth
+                && height == mRawSHomeBrandViewportHeight
+                && (mRecyclerView.canScrollVertically(-1)
+                        || (search != null && search.isLayoutRequested()));
+        if (show && search != null && brand != null && !keepGeometry) {
+            mRawSHomeBrandViewportWidth = width;
+            mRawSHomeBrandViewportHeight = height;
+            float gap = 12f * mRootView.getResources().getDisplayMetrics().density;
+            mRootView.getLocationInWindow(mRawSHomeRootLocation);
+            float end = height;
+            if (search.isShown() && search.isLaidOut()) {
+                search.getLocationInWindow(mRawSHomeSearchLocation);
+                end = Math.min(end, mRawSHomeSearchLocation[1] - mRawSHomeRootLocation[1]);
+            }
+            View tiles = mRawSHomeWallpaperTiles;
+            if (tiles != null && tiles.isShown() && tiles.isLaidOut()) {
+                tiles.getLocationInWindow(mRawSHomeSearchLocation);
+                end = Math.min(end, mRawSHomeSearchLocation[1] - mRawSHomeRootLocation[1]);
+            }
+            show = placeRawSHomeBrand(width, height, end, gap, mRawSHomeBrandCandidate);
+            if (show && !mRawSHomeBrandCandidate.equals(mRawSHomeBrandDest)) {
+                mRawSHomeBrandDest.set(mRawSHomeBrandCandidate);
+                Bitmap shadow = brand.shadow();
+                if (shadow != null) {
+                    float scale = mRawSHomeBrandDest.width() / RAWS_HOME_BRAND_SOURCE_WIDTH;
+                    float left = mRawSHomeBrandDest.left + brand.shadowOffsetX() * scale;
+                    float top = mRawSHomeBrandDest.top + brand.shadowOffsetY() * scale
+                            + 1.5f * mRootView.getResources().getDisplayMetrics().density;
+                    mRawSHomeBrandShadowDest.set(left, top,
+                            left + shadow.getWidth() * scale, top + shadow.getHeight() * scale);
+                }
+                mRawSHomeWallpaperDirty = true;
+                mRootView.invalidate();
+            }
+        }
+
+        if (show != mRawSHomeBrandPainting) {
+            mRawSHomeBrandPainting = show;
+            mRawSHomeWallpaperDirty = true;
+            mRootView.invalidate();
+        }
+        if (show && !mRawSHomeWallpaperPainting
+                && !mRawSHomeNativeImageActive && !mRawSHomeSolidBackdropMoved) {
+            // In solid themes the existing content containers are opaque. Move only those same
+            // flat pixels to the background stage, so our mark remains below real controls.
+            mRawSHomeSolidBackdropMoved = true;
+            mRecyclerView.setBackgroundColor(Color.TRANSPARENT);
+            if (mNtpHeader != null) mNtpHeader.setBackgroundColor(Color.TRANSPARENT);
+        } else if ((!show || mRawSHomeWallpaperPainting) && mRawSHomeSolidBackdropMoved) {
+            mRawSHomeSolidBackdropMoved = false;
+            if (!mRawSHomeWallpaperPainting) restoreRawSHomeNativeBackdrop();
+        }
+    }
+
+    private void restoreRawSHomeNativeBackdrop() {
+        int color = mRawSHomeNativeImageActive ? Color.TRANSPARENT : mRawSHomeNativeBackdropColor;
+        mRawSHomeSolidBackdropMoved = false;
+        mRecyclerView.setBackgroundColor(color);
+        if (mNtpHeader != null) {
+            mNtpHeader.setBackgroundColor(color == mDefaultBackgroundColor
+                    ? mDefaultBackgroundColor : Color.TRANSPARENT);
+        }
+    }
+
+    private static boolean placeRawSHomeBrand(
+            int width, int height, float bottomLimit, float gap, RectF out) {
+        if (width <= 0 || height <= width || gap <= 0 || bottomLimit <= 2 * gap) return false;
+        // Match the donor horizon layout; keep the 353px-wide strong-alpha mark centered.
+        float cover = Math.max(width / 819f, height / 1920f);
+        float scale = Math.min(431f * cover, width * .57f) / 353f;
+        scale = Math.min(scale, (bottomLimit - 2 * gap) / RAWS_HOME_BRAND_SOURCE_HEIGHT);
+        if (scale <= 0) return false;
+        float left = width / 2f - 176.5f * scale;
+        float top = height / 2f - 524f * cover - 55f * scale;
+        float brandHeight = RAWS_HOME_BRAND_SOURCE_HEIGHT * scale;
+        top = Math.max(gap, Math.min(top, bottomLimit - gap - brandHeight));
+        out.set(left, top, left + RAWS_HOME_BRAND_SOURCE_WIDTH * scale, top + brandHeight);
+        return true;
+    }
+
+    private void drawRawSHomeBrand(Canvas canvas) {
+        var brand = mRawSHomeBrand;
+        if (!mRawSHomeBrandPainting || brand == null
+                || (mRawSHomeWallpaperPainting && mRawSHomeWallpaperIncludesBrand)) return;
+        if (mRawSHomeSolidBackdropMoved) canvas.drawColor(mRawSHomeNativeBackdropColor);
+        Bitmap shadow = brand.shadow();
+        if (shadow != null) canvas.drawBitmap(shadow, null, mRawSHomeBrandShadowDest,
+                mRawSHomeBrandShadowPaint);
+        canvas.drawBitmap(brand.image(), mRawSHomeBrandSource, mRawSHomeBrandDest,
+                mRawSHomeWallpaperPaint);
+    }
+
+    // Sets the background image for the embedder NTP.
+    private void setBackground(
+            Bitmap originalBitmap,
+            BackgroundImageInfo backgroundImageInfo,
+            @NtpBackgroundType int backgroundType) {
+        stopPaintingRawSHomeWallpaper();
+        mRawSHomeNativeImageActive = true;
+        mRawSHomeSolidBackdropMoved = false;
+        if (mRawSHomeWallpaperSearch != null) mRawSHomeWallpaperDirty = true;
+        if (mNtpHeader != null) {
+            mNtpHeader.setBackgroundColor(Color.TRANSPARENT);
+        }
+
+        mRecyclerView.setBackgroundColor(Color.TRANSPARENT);
+        assumeNonNull(mNtpBackgroundImageCoordinator)
+                .setBackground(originalBitmap, backgroundImageInfo, backgroundType);
+    }
+
+    /**
+     * Sets the background color for the embedder NTP.
+     *
+     * @param backgroundColor The customized background color.
+     */
+    private void setBackgroundColor(@ColorInt int backgroundColor) {
+        stopPaintingRawSHomeWallpaper();
+        mRawSHomeNativeImageActive = false;
+        mRawSHomeNativeBackdropColor = backgroundColor;
+        mRawSHomeSolidBackdropMoved = false;
+        if (mRawSHomeWallpaperSearch != null) mRawSHomeWallpaperDirty = true;
+        mRecyclerView.setBackgroundColor(backgroundColor);
+        if (mNtpBackgroundImageCoordinator != null) {
+            mNtpBackgroundImageCoordinator.clearBackground();
+        }
+
+        if (mNtpHeader != null) {
+            if (backgroundColor != mDefaultBackgroundColor) {
+                mNtpHeader.setBackgroundColor(Color.TRANSPARENT);
+            } else {
+                mNtpHeader.setBackgroundColor(mDefaultBackgroundColor);
+            }
+        }
+    }
+
+    void updateNtpHeaderMargins() {
+        if (mNtpHeader == null) {
+            return;
+        }
+
+        int margin =
+                FeedStreamViewResizerUtils.getFeedNtpCompensationMargin(
+                        mRootView.getResources(), mUiConfig);
+
+        FrameLayout.LayoutParams layoutParams =
+                new FrameLayout.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        layoutParams.setMarginStart(margin);
+        layoutParams.setMarginEnd(margin);
+        mNtpHeader.setLayoutParams(layoutParams);
+    }
+
+    void updateNtpCustomizationButtonVisibility() {
+        int minMargin =
+                mActivity
+                        .getResources()
+                        .getDimensionPixelSize(R.dimen.min_margin_for_ntp_customization_button);
+        assumeNonNull(mNtpCustomizationButton);
+        mNtpCustomizationButton.setVisibility(
+                mRecyclerView.getPaddingLeft() >= minMargin ? View.VISIBLE : View.GONE);
+    }
+
+    void showNtpCustomizationBottomSheet(@Nullable ModuleRegistry moduleRegistry) {
+        NtpCustomizationCoordinatorFactory.getInstance()
+                .create(
+                        mActivity,
+                        mBottomSheetController,
+                        () -> mProfile,
+                        NtpCustomizationCoordinator.BottomSheetType.MAIN,
+                        mWindowAndroid,
+                        moduleRegistry,
+                        mSnackbarManager)
+                .showBottomSheet();
+        NtpCustomizationMetricsUtils.recordOpenBottomSheetEntry(
+                NtpCustomizationCoordinator.EntryPointType.NEW_TAB_PAGE);
+        RecordUserAction.record("MobileNewTabPageNtpCustomization");
+    }
+
+    private void stopScrollTracking() {
+        if (mScrollableContainerDelegate != null) {
+            if (mDependencyProvider != null) {
+                mScrollableContainerDelegate.removeScrollListener(mDependencyProvider);
+            }
+            mScrollableContainerDelegate = null;
+        }
+    }
+
+    @Override
+    @SuppressWarnings("NullAway")
+    public void destroy() {
+        cancelRawSHomeImageUpload();
+        disposeRawSHomeWallpaper();
+        // Untracks first to stop global interactions immediately.
+        FeedSurfaceTracker.getInstance().untrackSurface(this);
+
+        // Removes observers that capture 'this' or 'mRootView'.
+        mTabStripHeightSupplier.removeObserver(mTabStripHeightChangeCallback);
+
+        // Stops animations and UI listeners.
+        mRecyclerView.setItemAnimator(null);
+        if (mItemDecoration != null) {
+            mRecyclerView.removeItemDecoration(mItemDecoration);
+            mItemDecoration = null;
+        }
+        if (mOnScrollListener != null) {
+            mRecyclerView.removeOnScrollListener(mOnScrollListener);
+            mOnScrollListener = null;
+        }
+
+        if (mSwipeRefreshLayout != null) {
+            if (mSwipeRefreshLayout.isRefreshing()) {
+                mSwipeRefreshLayout.setRefreshing(false);
+                updateReloadButtonVisibility(/* isReloading= */ false);
+            }
+            mSwipeRefreshLayout.removeOnRefreshListener(this);
+            mSwipeRefreshLayout.disableSwipe();
+            mSwipeRefreshLayout = null;
+        }
+
+        // Stops logic and observers.
+        stopBubbleTriggering(); // Already calls stopScrollTracking().
+
+        if (mFeedSurfaceLifecycleManager != null) {
+            mFeedSurfaceLifecycleManager.destroy();
+            mFeedSurfaceLifecycleManager = null;
+        }
+
+        // Destroys Mediator (unbinds streams).
+        if (mMediator != null) {
+            mMediator.destroy();
+            mMediator = null;
+        }
+
+        // Unbinds Renderer and clean up UI hierarchy.
+        if (mHybridListRenderer != null) {
+            mHybridListRenderer.unbind();
+            mHybridListRenderer = null;
+        }
+
+        mRootView.removeAllViews();
+
+        // Final cleanups of remaining components.
+        if (mEdgePadAdjuster != null) {
+            mEdgePadAdjuster.destroy();
+        }
+
+        if (mNtpCustomizationConfigManager != null) {
+            mNtpCustomizationConfigManager.removeListener(mHomepageStateListener);
+            mHomepageStateListener = null;
+            mNtpCustomizationConfigManager = null;
+        }
+
+        if (mNtpBackgroundImageCoordinator != null) {
+            mNtpBackgroundImageCoordinator.destroy();
+            mNtpBackgroundImageCoordinator = null;
+        }
+
+        mFeedStreamViewResizer.destroy();
+        mContentManager.destroy();
+        mUiConfig.destroy();
+        mActionDelegate.destroy();
+
+        mObservers.clear();
+
+        // Null remaining objects.
+        mReliabilityLogger = null;
+        mSurfaceScope = null;
+        mDependencyProvider = null;
+    }
+
+    /**
+     * Enables/disables the pull-to-refresh.
+     *
+     * @param enabled Whether the pull-to-refresh should be enabled.
+     */
+    public void enableSwipeRefresh(boolean enabled) {
+        if (mSwipeRefreshLayout != null) {
+            if (enabled) {
+                mSwipeRefreshLayout.enableSwipe(null);
+            } else {
+                mSwipeRefreshLayout.disableSwipe();
+            }
+        }
+    }
+
+    @Override
+    public TouchEnabledDelegate getTouchEnabledDelegate() {
+        return mMediator;
+    }
+
+    @Override
+    public FeedSurfaceScrollDelegate getScrollDelegate() {
+        return mMediator;
+    }
+
+    @Override
+    public UiConfig getUiConfig() {
+        return mUiConfig;
+    }
+
+    @Override
+    public View getView() {
+        return mRootView;
+    }
+
+    @Override
+    public boolean shouldCaptureThumbnail() {
+        return mRawSHomeWallpaperDirty || mMediator.shouldCaptureThumbnail();
+    }
+
+    @Override
+    public void captureThumbnail(Canvas canvas) {
+        ViewUtils.captureBitmap(mRootView, canvas);
+        mRawSHomeWallpaperDirty = false;
+        mMediator.onThumbnailCaptured();
+    }
+
+    @Override
+    public boolean hasDrawnFrame() {
+        return mHasDrawnFrame;
+    }
+
+    @Override
+    public void reload() {
+        manualRefresh();
+    }
+
+    /** Implements SwipeRefreshLayout.OnRefreshListener to be used only for pull to refresh. */
+    @Override
+    public void onRefresh() {
+        manualRefresh();
+        getFeatureEngagementTracker().notifyEvent(EventConstants.FEED_SWIPE_REFRESHED);
+    }
+
+    public void nonSwipeRefresh() {
+        if (mSwipeRefreshLayout != null) {
+            mSwipeRefreshLayout.startRefreshingAtTheBottom();
+        }
+        manualRefresh();
+    }
+
+    private void manualRefresh() {
+        updateReloadButtonVisibility(/* isReloading= */ true);
+        if (mReliabilityLogger != null) {
+            mReliabilityLogger
+                    .getLaunchLogger()
+                    .logManualRefresh(SystemClock.elapsedRealtimeNanos());
+        }
+        mMediator.manualRefresh(
+                (Boolean v) -> {
+                    updateReloadButtonVisibility(/* isReloading= */ false);
+                    if (mSwipeRefreshLayout == null) return;
+                    mSwipeRefreshLayout.setRefreshing(false);
+                    mSwipeRefreshLayout.setAccessibilityLiveRegion(
+                            View.ACCESSIBILITY_LIVE_REGION_NONE);
+                    mSwipeRefreshLayout.setContentDescription("");
+                });
+    }
+
+    void updateReloadButtonVisibility(boolean isReloading) {
+        Toolbar toolbar = mToolbarSupplier.get();
+        if (toolbar != null) {
+            toolbar.updateReloadButtonVisibility(isReloading);
+        }
+    }
+
+    /**
+     * @return The {@link FeedSurfaceLifecycleManager} that manages the lifecycle of the {@link
+     *     Stream}.
+     */
+    @Nullable FeedSurfaceLifecycleManager getSurfaceLifecycleManager() {
+        return mFeedSurfaceLifecycleManager;
+    }
+
+    /**
+     * @return whether this coordinator is currently active.
+     */
+    @Override
+    public boolean isActive() {
+        return mIsActive;
+    }
+
+    /** Shows the feed. */
+    @Override
+    public void onSurfaceOpened() {
+        // Guard on isStartupCalled.
+        if (!FeedSurfaceTracker.getInstance().isStartupCalled()) return;
+        mIsActive = true;
+        for (Observer observer : mObservers) {
+            observer.surfaceOpened();
+        }
+        mMediator.onSurfaceOpened();
+
+        // Reload the feed for the first time when a user enrolls into the widescreen experiment
+        // (or unenrolled from the experiment). If the cache is not invalidated upon enrollment, the
+        // user will see cached non-widescreen cards forced into a single column layout, resulting
+        // in disproportionately large, square-shaped cards being displayed, until the feed is
+        // refreshed.
+        if (hasWideScreenChanged()) {
+            manualRefresh();
+        }
+    }
+
+    /** Hides the feed. */
+    @Override
+    public void onSurfaceClosed() {
+        if (!FeedSurfaceTracker.getInstance().isStartupCalled()) return;
+        mIsActive = false;
+        mMediator.onSurfaceClosed();
+    }
+
+    /** Returns a string usable for restoring the UI to current state. */
+    @Override
+    public String getSavedInstanceStateString() {
+        return mMediator.getSavedInstanceString();
+    }
+
+    /** Restores the UI to a previously saved state. */
+    @Override
+    public void restoreInstanceState(@Nullable String state) {
+        mMediator.restoreSavedInstanceState(state);
+    }
+
+    @Initializer
+    private RecyclerView setUpView() {
+        mContentManager = new FeedListContentManager();
+        ProcessScope processScope = FeedSurfaceTracker.getInstance().getXSurfaceProcessScope();
+        if (processScope != null) {
+            mDependencyProvider =
+                    new FeedSurfaceScopeDependencyProviderImpl(
+                            mActivity, mActivity, mShowDarkBackground);
+
+            mSurfaceScope = processScope.obtainFeedSurfaceScope(mDependencyProvider);
+            if (mScrollableContainerDelegate != null) {
+                mScrollableContainerDelegate.addScrollListener(mDependencyProvider);
+            }
+        } else {
+            mDependencyProvider = null;
+            mSurfaceScope = null;
+        }
+        if (mSurfaceScope != null) {
+            mHybridListRenderer = mSurfaceScope.provideListRenderer();
+
+            if (mPrivacyPreferencesManager.isMetricsReportingEnabled()
+                    || CommandLine.getInstance()
+                            .hasSwitch("force-enable-feed-reliability-logging")) {
+                FeedLaunchReliabilityLogger launchLogger =
+                        mSurfaceScope.getLaunchReliabilityLogger();
+                FeedUserInteractionReliabilityLogger userInteractionLogger =
+                        mSurfaceScope.getUserInteractionReliabilityLogger();
+                FeedCardOpeningReliabilityLogger cardOpeningLogger =
+                        mSurfaceScope.getCardOpeningReliabilityLogger();
+                mReliabilityLogger =
+                        new FeedReliabilityLogger(
+                                launchLogger, userInteractionLogger, cardOpeningLogger);
+                launchLogger.logUiStarting(
+                        SurfaceType.NEW_TAB_PAGE, mEmbeddingSurfaceCreatedTimeNs);
+            }
+
+        } else {
+            mHybridListRenderer = new NativeViewListRenderer(mActivity);
+        }
+
+        int gutterPadding = -1;
+        if (mUseStaggeredLayout) {
+            gutterPadding =
+                    mActivity
+                            .getResources()
+                            .getDimensionPixelSize(
+                                    ChromeFeatureList.isEnabled(ChromeFeatureList.FEED_CONTAINMENT)
+                                            ? R.dimen.feed_containment_gutter_padding_per_column
+                                            : R.dimen.feed_gutter_padding_per_column);
+        }
+        // XSurface returns a View, but it should be a RecyclerView.
+        RecyclerView view =
+                (RecyclerView)
+                        mHybridListRenderer.bind(
+                                mContentManager, /* viewport= */ null, gutterPadding);
+        assumeNonNull(view);
+        view.setId(R.id.feed_stream_recycler_view);
+        view.setClipToPadding(false);
+
+        RecyclerView.ItemAnimator animator = view.getItemAnimator();
+        if (animator != null) {
+            // Prevents Feeds flickering when bring Chrome to the background and move to foreground
+            // again.
+            animator.setAddDuration(0);
+        }
+
+        if (ChromeFeatureList.isEnabled(ChromeFeatureList.FEED_CONTAINMENT)) {
+            // Used to draw containment background.
+            mItemDecoration =
+                    new FeedItemDecoration(
+                            mActivity,
+                            this,
+                            (resId) -> {
+                                return AppCompatResources.getDrawable(mActivity, resId);
+                            },
+                            gutterPadding);
+            view.addItemDecoration(mItemDecoration);
+        }
+
+        // Work around https://crbug.com/41447943 where default focus highlight shows up after
+        // toggling dark mode.
+        view.setDefaultFocusHighlightEnabled(false);
+        if (mOverScrollDisabled) {
+            view.setOverScrollMode(View.OVER_SCROLL_NEVER);
+        }
+        // Always add the TracingAndPerfScrollListener so debugging traces and metrics continue
+        // to work.
+        mOnScrollListener = new TracingAndPerfScrollListener();
+        view.addOnScrollListener(mOnScrollListener);
+        return view;
+    }
+
+    /**
+     * Checks if the widescreen experiment flag state has changed since the last feed load. Updates
+     * the shared preference to the current state if a change is detected.
+     */
+    private boolean hasWideScreenChanged() {
+        boolean currWideScreenValue =
+                DeviceInfo.isFoldable()
+                        && ChromeFeatureList.isEnabled(
+                                ChromeFeatureList.WIDE_SCREEN_FEED_FOR_FOLDABLES);
+        boolean prevWideScreenValue =
+                ChromeSharedPreferences.getInstance()
+                        .readBoolean(ChromePreferenceKeys.FEED_PREVIOUS_WIDESCREEN_STATE, false);
+
+        if (currWideScreenValue != prevWideScreenValue) {
+            ChromeSharedPreferences.getInstance()
+                    .writeBoolean(
+                            ChromePreferenceKeys.FEED_PREVIOUS_WIDESCREEN_STATE,
+                            currWideScreenValue);
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * @return The {@link RecyclerView} associated with this feed.
+     */
+    public RecyclerView getRecyclerView() {
+        return mRecyclerView;
+    }
+
+    /**
+     * @return The {@link FeedSurfaceScope} used to create this feed.
+     */
+    @Nullable FeedSurfaceScope getSurfaceScope() {
+        return mSurfaceScope;
+    }
+
+    /**
+     * @return The {@link HybridListRenderer} used to render this feed.
+     */
+    HybridListRenderer getHybridListRenderer() {
+        return mHybridListRenderer;
+    }
+
+    /**
+     * @return The {@link FeedListContentManager} managing the contents of this feed.
+     */
+    FeedListContentManager getContentManager() {
+        return mContentManager;
+    }
+
+    /**
+     * @return This surface's {@link FeedReliabilityLogger}.
+     */
+    @Override
+    public @Nullable FeedReliabilityLogger getReliabilityLogger() {
+        return mReliabilityLogger;
+    }
+
+    /**
+     * Configures header views and properties for feed: Adds the feed headers, creates the feed
+     * lifecycle manager, adds swipe-to-refresh if needed.
+     */
+    void setupHeaders(boolean feedEnabled) {
+        // Directly add header views to content manager.
+        List<View> headerList = new ArrayList<>();
+        if (mNtpHeader != null) {
+            headerList.add(mNtpHeader);
+        }
+
+        if (feedEnabled) {
+            mActionDelegate.onStreamCreated();
+            mFeedSurfaceLifecycleManager =
+                    mDelegate.createStreamLifecycleManager(mActivity, this, mProfile);
+            headerList.add(mHeaderView);
+            if (mSwipeRefreshLayout != null) {
+                mSwipeRefreshLayout.enableSwipe(mScrollableContainerDelegate);
+            }
+        } else {
+            if (mFeedSurfaceLifecycleManager != null) {
+                mFeedSurfaceLifecycleManager.destroy();
+                mFeedSurfaceLifecycleManager = null;
+            }
+            if (mSwipeRefreshLayout != null) {
+                mSwipeRefreshLayout.disableSwipe();
+            }
+        }
+        setHeaders(headerList);
+
+        // Explicitly request focus on the scroll container to avoid UrlBar being focused after
+        // mRootView containers are refreshed, unless a physical keyboard is attached and UrlBar
+        // is expected to remain focused.
+        if (!DeviceInput.supportsAlphabeticKeyboard()) mRecyclerView.requestFocus();
+    }
+
+    /**
+     * Creates a flavor {@link FeedStream} without any other side-effects.
+     *
+     * @param kind Kind of stream being created.
+     * @return The FeedStream created.
+     */
+    FeedStream createFeedStream(@StreamKind int kind, Stream.StreamsMediator streamsMediator) {
+        return new FeedStream(
+                mActivity,
+                mProfile,
+                mSnackbarManager,
+                mBottomSheetController,
+                mWindowAndroid,
+                mShareSupplier,
+                kind,
+                mActionDelegate,
+                streamsMediator,
+                new FeedSurfaceRendererBridge.Factory() {});
+    }
+
+    private void setHeaders(List<View> headerViews) {
+        // Build the list of headers we want, and then replace existing headers.
+        List<FeedListContentManager.FeedContent> headerList = new ArrayList<>();
+        for (View header : headerViews) {
+            // Feed header view in multi does not need padding added.
+            int lateralPaddingsPx = getLateralPaddingsPx();
+
+            if (header instanceof NewTabPageLayout) {
+                lateralPaddingsPx = 0;
+            } else if (header == mHeaderView) {
+                lateralPaddingsPx = 0;
+                if (!ChromeFeatureList.isEnabled(ChromeFeatureList.FEED_CONTAINMENT)) {
+                    mHeaderView.setBackgroundColor(mDefaultBackgroundColor);
+                }
+            }
+
+            FeedListContentManager.NativeViewContent content =
+                    new FeedListContentManager.NativeViewContent(
+                            lateralPaddingsPx, "Header" + header.hashCode(), header);
+            headerList.add(content);
+        }
+        if (mContentManager.replaceRange(0, mHeaderCount, headerList)) {
+            mHeaderCount = headerList.size();
+            mMediator.notifyHeadersChanged(mHeaderCount);
+        }
+        // The section header is the last header to be added, save its index.
+        mHeaderIndex = headerViews.size() - 1;
+    }
+
+    /** Update header views in the Feed. */
+    void updateHeaderViews() {
+        if (!mMediator.hasStreams()) return;
+
+        List<View> headers = new ArrayList<>();
+        if (mNtpHeader != null) {
+            headers.add(mNtpHeader);
+        }
+
+        if (mMediator.isFeedEnabled()) {
+            headers.add(mHeaderView);
+        }
+
+        setHeaders(headers);
+    }
+
+    void updateHeaderText(@Nullable String headerText) {
+        if (headerText == null) {
+            mHeaderView.setVisibility(View.GONE);
+        } else {
+            mHeaderView.setVisibility(View.VISIBLE);
+            TextView titleView = mHeaderView.findViewById(R.id.header_title);
+            if (titleView != null) {
+                titleView.setText(headerText);
+            }
+        }
+    }
+
+    public boolean isHeaderVisible() {
+        return mHeaderView.getVisibility() == View.VISIBLE;
+    }
+
+    public FeedSurfaceMediator getMediatorForTesting() {
+        return mMediator;
+    }
+
+    public void setMediatorForTesting(FeedSurfaceMediator mediator) {
+        mMediator = mediator;
+    }
+
+    public View getHeaderViewForTesting() {
+        return mHeaderView;
+    }
+
+    /**
+     * Initializes things related to the bubbles which will start listening to scroll events to
+     * determine whether a bubble should be triggered.
+     *
+     * <p>You must stop the IPH with #stopBubbleTriggering before tearing down feed components,
+     * e.g., on #destroy. This also applies for the case where the feed stream is deleted when
+     * disabled (e.g., by policy).
+     */
+    void initializeBubbleTriggering() {
+        // Don't do anything when there is no feed stream because the bubble isn't needed in
+        // that case.
+        if (!mMediator.hasStreams()) return;
+
+        // Provide a delegate for the container of the feed surface that is handled by the feed
+        // coordinator itself when not provided externally (e.g., by the NewTabPage).
+        if (mScrollableContainerDelegate == null) {
+            mScrollableContainerDelegate = new ScrollableContainerDelegateImpl();
+        }
+
+        createRefreshIphScrollListener();
+    }
+
+    private void createRefreshIphScrollListener() {
+        assumeNonNull(mScrollableContainerDelegate);
+        mRefreshIphScrollListener =
+                new RefreshIphScrollListener(
+                        this,
+                        mScrollableContainerDelegate,
+                        () -> {
+                            UserEducationHelper helper =
+                                    new UserEducationHelper(mActivity, mProfile, mHandler);
+                            mSwipeRefreshLayout.showIph(helper);
+                        });
+        mScrollableContainerDelegate.addScrollListener(mRefreshIphScrollListener);
+    }
+
+    /**
+     * Stops and deletes things related to the bubbles. Must be called before tearing down feed
+     * components, e.g., on #destroy. This also applies for the case where the feed stream is
+     * deleted when disabled (e.g., by policy).
+     */
+    private void stopBubbleTriggering() {
+        if (mMediator.hasStreams() && mScrollableContainerDelegate != null) {
+            if (mRefreshIphScrollListener != null) {
+                mScrollableContainerDelegate.removeScrollListener(mRefreshIphScrollListener);
+                mRefreshIphScrollListener = null;
+            }
+        }
+        stopScrollTracking();
+    }
+
+    @Override
+    public Tracker getFeatureEngagementTracker() {
+        return TrackerFactory.getTrackerForProfile(mProfile);
+    }
+
+    @Override
+    public boolean isFeedExpanded() {
+        return mMediator.isSuggestionsVisible();
+    }
+
+    @Override
+    public boolean isSignedIn() {
+        return FeedServiceBridge.isSignedIn();
+    }
+
+    @Override
+    public boolean isFeedHeaderPositionInContainerSuitableForIph(float headerMaxPosFraction) {
+        assert headerMaxPosFraction >= 0.0f && headerMaxPosFraction <= 1.0f
+                : "Max position fraction should be ranging between 0.0 and 1.0";
+
+        assumeNonNull(mScrollableContainerDelegate);
+        int topPosInStream =
+                mScrollableContainerDelegate.getTopPositionRelativeToContainerView(mHeaderView);
+        if (topPosInStream < 0) return false;
+        if (topPosInStream
+                > headerMaxPosFraction * mScrollableContainerDelegate.getRootViewHeight()) {
+            return false;
+        }
+
+        return true;
+    }
+
+    @Override
+    public long getCurrentTimeMs() {
+        return System.currentTimeMillis();
+    }
+
+    @Override
+    public long getLastFetchTimeMs() {
+        return mMediator.getLastFetchTimeMsForCurrentStream();
+    }
+
+    @Override
+    public boolean canScrollUp() {
+        // mSwipeRefreshLayout is set to NULL when this instance is destroyed, but
+        // RefreshIphScrollListener.onHeaderOffsetChanged may still be triggered which will call
+        // into this method.
+        return (mSwipeRefreshLayout == null) ? true : mSwipeRefreshLayout.canScrollVertically(-1);
+    }
+
+    @Override
+    public void addObserver(SurfaceCoordinator.Observer observer) {
+        mObservers.addObserver(observer);
+    }
+
+    @Override
+    public void removeObserver(SurfaceCoordinator.Observer observer) {
+        mObservers.removeObserver(observer);
+    }
+
+    @Override
+    public void onActivityPaused() {
+        if (mReliabilityLogger != null) {
+            mReliabilityLogger.onActivityPaused();
+        }
+    }
+
+    @Override
+    public void onActivityResumed() {
+        if (mReliabilityLogger != null) {
+            mReliabilityLogger.onActivityResumed();
+        }
+    }
+
+    public boolean isLoadingFeed() {
+        return mMediator.isLoadingFeed();
+    }
+
+    @Override
+    public NonNullObservableSupplier<Integer> getRestoringStateSupplier() {
+        return mMediator.getRestoringStateSupplier();
+    }
+
+    @Override
+    public List<String> getFeedUrls() {
+        return mMediator.getFeedUrls();
+    }
+
+    private int getLateralPaddingsPx() {
+        return mActivity
+                .getResources()
+                .getDimensionPixelSize(R.dimen.ntp_header_lateral_paddings_v2);
+    }
+
+    @Override
+    public @ClosedReason int getClosedReason() {
+        return mMediator.getClosedReason();
+    }
+
+    public void setReliabilityLoggerForTesting(FeedReliabilityLogger logger) {
+        var oldValue = mReliabilityLogger;
+        mReliabilityLogger = logger;
+        ResettersForTesting.register(() -> mReliabilityLogger = oldValue);
+    }
+
+    public void clearScrollableContainerDelegateForTesting() {
+        mScrollableContainerDelegate = null;
+    }
+
+    public FeedActionDelegate getActionDelegateForTesting() {
+        return mActionDelegate;
+    }
+
+    FrameLayout getRootViewForTesting() {
+        return mRootView;
+    }
+
+    public void setBackgroundImageCoordinatorForTesting(
+            NtpBackgroundImageCoordinator backgroundImageCoordinator) {
+        mNtpBackgroundImageCoordinator = backgroundImageCoordinator;
+    }
+
+    public @Nullable NtpBackgroundImageCoordinator getNtpBackgroundImageCoordinatorForTesting() {
+        return mNtpBackgroundImageCoordinator;
+    }
+
+    @Nullable ImageButton getNtpCustomizationButtonForTesting() {
+        return mNtpCustomizationButton;
+    }
+}
