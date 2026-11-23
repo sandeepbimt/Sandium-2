@@ -12,9 +12,9 @@ PROFILE = 'raws-combined-1477-android-arm64-avc-aac-v1'
 TRIAL_APK = 'RawSandium-Combined-Codec-Test-arm64.apk'
 HEX64 = re.compile(r'[0-9a-f]{64}')
 # This regular lane already includes the isolated codec compile/sign route.
-# Keep the exact reviewed PPBAS configuration on #1518 and both descendants.
-FROZEN_SOURCE_BASELINE = 'c1fb96e01b38214ac4aa50bf1cc56df2989d944f'
-FROZEN_SOURCE_TREE = '04d4cc282c875a315258466b141dd3e49a08dfea'
+# Keep the exact reviewed PPBAS configuration on #1519 and both descendants.
+FROZEN_SOURCE_BASELINE = '133c9426647b797a9dc3e96a6957f7cfbed3a584'
+FROZEN_SOURCE_TREE = '0d676fb099807b4ba0d161467dcd7b24be1f422d'
 FROZEN_PREDECESSOR_CI_TREE = '9b7322603ba926268eb8b122b61ba7f5ca15a2e7'
 FROZEN_CI_TREE = '9b7322603ba926268eb8b122b61ba7f5ca15a2e7'
 GIT_SHA = re.compile(r'[0-9a-f]{40}')
@@ -55,12 +55,12 @@ def verify_checkout(root):
     parent = git(root, 'show', '-s', '--format=%P', 'HEAD')
     if (parent != BASELINE or
             git(root, 'show', '-s', '--format=%P', BASELINE) != FROZEN_SOURCE_BASELINE):
-        raise ValueError('Codec test requires the isolated PPBAS child of exact #1518 source')
+        raise ValueError('Codec test requires the isolated PPBAS child of exact #1519 source')
     if (git(root, 'rev-parse', FROZEN_SOURCE_BASELINE + '^{tree}') != FROZEN_SOURCE_TREE
             or git(root, 'rev-parse', BASELINE + '^{tree}') != BASELINE_TREE):
         raise ValueError('Codec trial checkout differs from the allowed combined RawS source')
     if git(root, 'rev-parse', FROZEN_SOURCE_BASELINE + ':.circleci') != FROZEN_PREDECESSOR_CI_TREE:
-        raise ValueError('Codec trial requires the unchanged #1518 CI predecessor')
+        raise ValueError('Codec trial requires the unchanged #1519 CI predecessor')
     if any(git(root, 'rev-parse', commit + ':.circleci') != FROZEN_CI_TREE
            for commit in (BASELINE, 'HEAD')):
         raise ValueError('Codec trial requires the exact reviewed PPBAS CI contract')
