@@ -59,6 +59,8 @@ ACTIONS = {
     '//chrome/browser/ui/android/toolbar:java_resources' + PREPARE: 'sources',
     '//chrome/browser/ui/android/bottombar:config_java' + JAVAC: 'inputs',
     '//chrome/browser/ui/android/omnibox:java' + JAVAC: 'inputs',
+    '//chrome/browser/gesturenav/android:java' + JAVAC: 'inputs',
+    '//chrome/browser/ui/android/native_page:java' + JAVAC: 'inputs',
 }
 
 
@@ -91,6 +93,7 @@ class NativeUiGraph(unittest.TestCase):
         files = json.loads((ROOT / 'raws-adblock/production-restore-recipe.json').read_text())['files']
         intended = {'//' + name for name in files
                     if name.startswith(('chrome/android/', 'chrome/browser/ui/android/',
+                                        'chrome/browser/gesturenav/android/',
                                         'chrome/browser/feed/android/', 'chrome/browser/autofill/android/',
                                         'chrome/browser/notifications/', 'chrome/browser/privacy/',
                                         'chrome/browser/search_engines/android/',

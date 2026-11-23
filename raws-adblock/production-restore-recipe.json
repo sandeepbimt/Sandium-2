@@ -8450,7 +8450,7 @@
       "mode": "644"
     },
     "chrome/android/java/src/org/chromium/chrome/browser/ntp/NewTabPage.java": {
-      "after_sha256": "15b9dd5a2297dc2a0e3eba0273fb65f78ad9fbc0dda8eba24baeaee3a0a1578b",
+      "after_sha256": "2e079030e3a1d30b8f75ababc46d905f920b7119b5b0bdf5d584ef6b29803592",
       "before_sha256": "041b02c93879d4883ac3768fada16659cf9f0cd5f16f1e23b84723611b4986fd"
     },
     "chrome/android/java/src/org/chromium/chrome/browser/ntp/NewTabPageCoordinator.java": {
@@ -8722,6 +8722,10 @@
     "chrome/browser/feed/android/java/src/org/chromium/chrome/browser/feed/FeedFeatures.java": {
       "after_sha256": "57de4c0c8e2d40e00adc71c31527308160530f263962c3e989727704e38bedb7",
       "before_sha256": "a5156353fb145c747db29b8482cd2e6f4239bc1dc025d944fd6ca83a625e0402"
+    },
+    "chrome/browser/gesturenav/android/java/src/org/chromium/chrome/browser/gesturenav/NativePageBitmapCapturer.java": {
+      "after_sha256": "89ec7b3f3ec7b6e3e35d0d2d1bc1d0ed391bb61c73cc2cf626f35365a9bfe2f7",
+      "before_sha256": "b2dcf0b188c6892953f964fb83126048386c1eab843ca0fd71fa4cecbadb8474"
     },
     "chrome/browser/keyboard_accessory/android/manual_filling_controller_impl.cc": {
       "after_sha256": "bee895ad5fd09f5630ec88a1267c5071a507180291e65437e24486b9cbd1358b",
@@ -9047,6 +9051,10 @@
     "chrome/browser/ui/android/bottombar/java/src/org/chromium/chrome/browser/ui/bottombar/BottomBarConfigUtils.java": {
       "after_sha256": "fbd10fa7f313ae432f6386f6c266fc7b58ef8ec1bfa6bf33dba0e57b889af325",
       "before_sha256": "4f72af4eefe66b03b219d506753a7e5710925e3d26a6f9c878bb9867f401f20d"
+    },
+    "chrome/browser/ui/android/native_page/java/src/org/chromium/chrome/browser/ui/native_page/NativePage.java": {
+      "after_sha256": "548537f13521e97e4dad00d46a2cf2f821b0e44ce595b17d01e10b5234b7f502",
+      "before_sha256": "52a7d5b84ef91be9a2f60c8f75ebbfe396eabaf6cfa3962944d15bbdcb7c6d38"
     },
     "chrome/browser/ui/android/night_mode/BUILD.gn": {
       "after_sha256": "d756a1515920f3def603be3b068ec44d0f53011f99dfe278c6c2713e41d6fe36",

@@ -577,9 +577,19 @@ class FrozenScope(unittest.TestCase):
                     self.assertIsNotNone(before)
                     self.assertNotEqual(before, after)
                     self.assertEqual('644', chmod)
+            home_history_capture = {
+                'chrome/browser/gesturenav/android/java/src/org/chromium/chrome/browser/gesturenav/NativePageBitmapCapturer.java',
+                'chrome/browser/ui/android/native_page/java/src/org/chromium/chrome/browser/ui/native_page/NativePage.java',
+            }
+            self.assertLessEqual(home_history_capture, extra_tracked)
+            for path in home_history_capture:
+                before, after, chmod = actual.files[path]
+                self.assertIsNotNone(before)
+                self.assertNotEqual(before, after)
+                self.assertEqual('644', chmod)
             self.assertEqual(173, len(
                 extra_tracked - mobile_player_owners - manual_shortcut_owners
-                - {flash_owner} - soft_backing_owners))
+                - {flash_owner} - soft_backing_owners - home_history_capture))
             self.assertLessEqual({
                 'chrome/common/chrome_isolated_world_ids.h',
                 'chrome/android/java/src/org/chromium/chrome/browser/common/ChromeIsolatedWorldIds.java',

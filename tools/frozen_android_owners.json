@@ -113,6 +113,12 @@
       "//chrome/browser/autofill/android/java/res/xml/autofill_options_preferences.xml"
     ]
   ],
+  "//chrome/browser/gesturenav/android:java__compile_java": [
+    "inputs",
+    [
+      "//chrome/browser/gesturenav/android/java/src/org/chromium/chrome/browser/gesturenav/NativePageBitmapCapturer.java"
+    ]
+  ],
   "//chrome/browser/notifications:java__compile_java": [
     "inputs",
     [
@@ -136,6 +142,12 @@
     "inputs",
     [
       "//chrome/browser/search_engines/android/java/src/org/chromium/chrome/browser/search_engines/settings/SearchEngineAdapter.java"
+    ]
+  ],
+  "//chrome/browser/ui/android/native_page:java__compile_java": [
+    "inputs",
+    [
+      "//chrome/browser/ui/android/native_page/java/src/org/chromium/chrome/browser/ui/native_page/NativePage.java"
     ]
   ],
   "//chrome/browser/ui/android/night_mode:java__compile_java": [
