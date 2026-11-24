@@ -125,6 +125,7 @@
   "//chrome/browser/download/internal/android:java__compile_java": [
     "inputs",
     [
+      "//chrome/browser/download/internal/android/java/src/org/chromium/chrome/browser/download/home/DownloadManagerCoordinatorImpl.java",
       "//chrome/browser/download/internal/android/java/src/org/chromium/chrome/browser/download/home/list/DateOrderedListCoordinator.java",
       "//chrome/browser/download/internal/android/java/src/org/chromium/chrome/browser/download/home/list/DateOrderedListMediator.java",
       "//chrome/browser/download/internal/android/java/src/org/chromium/chrome/browser/download/home/list/holder/InProgressViewHolder.java"
@@ -133,6 +134,7 @@
   "//chrome/browser/download/internal/android:java_resources__prepare": [
     "sources",
     [
+      "//chrome/browser/download/internal/android/java/res/values-night/raws_download_palette.xml",
       "//chrome/browser/download/internal/android/java/res/values/raws_download_status.xml"
     ]
   ],
@@ -219,6 +221,12 @@
       "//chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/ResourceFactory.java"
     ]
   ],
+  "//components/browser_ui/modaldialog/android:java__compile_java": [
+    "inputs",
+    [
+      "//components/browser_ui/modaldialog/android/java/src/org/chromium/components/browser_ui/modaldialog/TabModalPresenter.java"
+    ]
+  ],
   "//components/browser_ui/styles/android:java_resources__prepare": [
     "sources",
     [
@@ -268,7 +276,8 @@
     "inputs",
     [
       "//ui/android/java/src/org/chromium/ui/base/EventForwarder.java",
-      "//ui/android/java/src/org/chromium/ui/hierarchicalmenu/HierarchicalMenuController.java"
+      "//ui/android/java/src/org/chromium/ui/hierarchicalmenu/HierarchicalMenuController.java",
+      "//ui/android/java/src/org/chromium/ui/modaldialog/ModalDialogProperties.java"
     ]
   ]
 }

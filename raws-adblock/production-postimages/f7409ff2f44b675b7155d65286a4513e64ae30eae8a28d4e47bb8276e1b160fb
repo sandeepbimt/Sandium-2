@@ -1,0 +1,261 @@
+// Copyright 2018 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+package org.chromium.chrome.browser.download.home.list.holder;
+
+import android.content.Context;
+import android.graphics.Typeface;
+import android.graphics.drawable.Drawable;
+import android.graphics.drawable.GradientDrawable;
+import android.graphics.drawable.LayerDrawable;
+import android.os.SystemClock;
+import android.text.SpannableString;
+import android.text.Spanned;
+import android.text.TextUtils;
+import android.text.style.ForegroundColorSpan;
+import android.text.style.StyleSpan;
+import android.util.TypedValue;
+import android.view.View;
+import android.widget.ImageButton;
+import android.widget.TextView;
+
+import androidx.annotation.CallSuper;
+
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
+import org.chromium.chrome.browser.download.home.list.ListItem;
+import org.chromium.chrome.browser.download.home.list.ListProperties;
+import org.chromium.chrome.browser.download.home.list.UiUtils;
+import org.chromium.chrome.browser.download.home.list.view.CircularProgressView;
+import org.chromium.chrome.browser.download.internal.R;
+import org.chromium.components.download.DownloadDangerType;
+import org.chromium.components.offline_items_collection.ContentId;
+import org.chromium.components.offline_items_collection.LegacyHelpers;
+import org.chromium.components.offline_items_collection.OfflineItem;
+import org.chromium.components.offline_items_collection.OfflineItemProgressUnit;
+import org.chromium.components.offline_items_collection.OfflineItemState;
+import org.chromium.ui.modelutil.PropertyModel;
+
+import java.text.NumberFormat;
+
+/**
+ * A {@link RecyclerView.ViewHolder} specifically meant to display an in-progress {@code
+ * OfflineItem}.
+ */
+@NullMarked
+public abstract class InProgressViewHolder extends ListItemViewHolder {
+    private static final long MIN_SAMPLE_MS = 500;
+    private static final long MAX_SAMPLE_MS = 5_000;
+
+    private final boolean mConstrainCaption;
+    private final boolean mUseRawSStyle;
+
+    private final TextView mCaption;
+    private final CircularProgressView mActionButton;
+    private final ImageButton mCancelButton;
+
+    private final NumberFormat mSpeedFormat = NumberFormat.getNumberInstance();
+    private final Runnable mExpireSpeed;
+    private CharSequence mBaseCaption = "";
+    private @Nullable ContentId mSampleId;
+    private long mSampleBytes;
+    private long mSampleAtMs;
+    private long mLastRateAtMs;
+    private double mMegabytesPerSecond;
+    private boolean mHasMeasuredRate;
+    private @Nullable OfflineItem mLastObservedSnapshot;
+
+    /** Constructor. */
+    public InProgressViewHolder(View view, boolean constrainCaption) {
+        super(view);
+
+        mConstrainCaption = constrainCaption;
+        mCaption = view.findViewById(R.id.caption);
+        mActionButton = view.findViewById(R.id.action_button);
+        mCancelButton = view.findViewById(R.id.cancel_button);
+        mUseRawSStyle = "io.github.sandeepbimt.raws".equals(view.getContext().getPackageName());
+        if (mUseRawSStyle && !mConstrainCaption) {
+            // Width-aware within the original caption cell; respect font scaling and preserve the
+            // full accessible text if a very narrow/large-font layout must middle-ellipsize.
+            mCaption.setMaxLines(1);
+            mCaption.setHorizontallyScrolling(false);
+            mCaption.setEllipsize(TextUtils.TruncateAt.MIDDLE);
+            mCaption.setAutoSizeTextTypeUniformWithConfiguration(11, 13, 1, TypedValue.COMPLEX_UNIT_SP);
+            mCaption.setTextColor(view.getContext().getColor(R.color.raws_download_secondary));
+            styleRawSProgressCard(view);
+        }
+        mSpeedFormat.setMinimumFractionDigits(2);
+        mSpeedFormat.setMaximumFractionDigits(2);
+        mExpireSpeed = this::clearSpeedReadout;
+        view.addOnAttachStateChangeListener(
+                new View.OnAttachStateChangeListener() {
+                    @Override
+                    public void onViewAttachedToWindow(View attachedView) {}
+
+                    @Override
+                    public void onViewDetachedFromWindow(View detachedView) {
+                        clearSpeedReadout();
+                    }
+                });
+    }
+
+    private static void styleRawSProgressCard(View view) {
+        Context context = view.getContext();
+        float density = context.getResources().getDisplayMetrics().density;
+        GradientDrawable card = new GradientDrawable();
+        card.setColor(context.getColor(R.color.raws_download_card));
+        card.setCornerRadius(Math.round(12 * density));
+        card.setStroke(Math.round(density), context.getColor(R.color.raws_download_outline));
+        Drawable nativeBackground = view.getBackground();
+        LayerDrawable layered = new LayerDrawable(nativeBackground == null
+                ? new Drawable[] {card} : new Drawable[] {card, nativeBackground});
+        layered.setPaddingMode(LayerDrawable.PADDING_MODE_STACK);
+        int side = Math.round(8 * density);
+        int vertical = Math.round(3 * density);
+        layered.setLayerInset(0, side, vertical, side, vertical);
+        if (nativeBackground != null) layered.setLayerInset(1, side, vertical, side, vertical);
+        int start = view.getPaddingStart();
+        int top = view.getPaddingTop();
+        int end = view.getPaddingEnd();
+        int bottom = view.getPaddingBottom();
+        view.setBackground(layered);
+        view.setPaddingRelative(start, top, end, bottom);
+    }
+
+    private void setCaption(CharSequence caption) {
+        mCaption.setText(caption);
+        if (mUseRawSStyle && !mConstrainCaption) {
+            mCaption.setContentDescription(caption.toString());
+        }
+    }
+
+    // ListItemViewHolder implementation.
+    @Override
+    @CallSuper
+    public void bind(PropertyModel properties, ListItem item) {
+        OfflineItem offlineItem = ((ListItem.OfflineItemListItem) item).item;
+
+        updateCaption(offlineItem);
+        UiUtils.setProgressForOfflineItem(mActionButton, offlineItem);
+        mCancelButton.setOnClickListener(
+                v -> {
+                    clearSpeedReadout();
+                    properties.get(ListProperties.CALLBACK_CANCEL).onResult(offlineItem);
+                });
+        mCancelButton.setVisibility(
+                offlineItem.state == OfflineItemState.CANCELLED ? View.INVISIBLE : View.VISIBLE);
+        mActionButton.setOnClickListener(
+                view -> {
+                    switch (offlineItem.state) {
+                        case OfflineItemState.IN_PROGRESS:
+                            if (UiUtils.shouldShowScanningStateOnUI(offlineItem)) {
+                                break;
+                            }
+                        // Intentional fallthrough.
+                        case OfflineItemState.PENDING:
+                            clearSpeedReadout();
+                            properties.get(ListProperties.CALLBACK_PAUSE).onResult(offlineItem);
+                            break;
+                        case OfflineItemState.PAUSED: // Intentional fallthrough.
+                        case OfflineItemState.FAILED: // Intentional fallthrough.
+                        case OfflineItemState.INTERRUPTED: // Intentional fallthrough.
+                        case OfflineItemState.CANCELLED: // Intentional fallthrough.
+                            clearSpeedReadout();
+                            properties.get(ListProperties.CALLBACK_RESUME).onResult(offlineItem);
+                            break;
+                        case OfflineItemState.COMPLETE: // Intentional fallthrough.
+                        default:
+                            assert false : "Unexpected state for progress bar.";
+                            break;
+                    }
+                });
+    }
+
+    private void resetSpeed() {
+        mCaption.removeCallbacks(mExpireSpeed);
+        mSampleId = null;
+        mLastObservedSnapshot = null;
+        mHasMeasuredRate = false;
+        mMegabytesPerSecond = 0;
+    }
+
+    private void clearSpeedReadout() {
+        resetSpeed();
+        setCaption(mBaseCaption);
+    }
+
+    private void updateCaption(OfflineItem item) {
+        mBaseCaption = UiUtils.generateInProgressCaption(item, mConstrainCaption);
+        ContentId id = item.id;
+        OfflineItem.Progress progress = item.progress;
+        if (id == null
+                || TextUtils.isEmpty(id.id)
+                || !LegacyHelpers.isLegacyDownload(id)
+                || item.state != OfflineItemState.IN_PROGRESS
+                || item.isDangerous
+                || item.dangerType == DownloadDangerType.ASYNC_SCANNING
+                || progress == null
+                || progress.unit != OfflineItemProgressUnit.BYTES
+                || item.receivedBytes < 0) {
+            clearSpeedReadout();
+            return;
+        }
+
+        boolean freshSnapshot = mLastObservedSnapshot != item;
+        mLastObservedSnapshot = item;
+        long now = SystemClock.elapsedRealtime();
+        long elapsed = now - mSampleAtMs;
+        if (!id.equals(mSampleId)
+                || item.receivedBytes < mSampleBytes
+                || elapsed < 0
+                || elapsed >= MAX_SAMPLE_MS
+                || (mHasMeasuredRate && now - mLastRateAtMs >= MAX_SAMPLE_MS)) {
+            // Reset for a different row, restarted counter or gap rather than counting old bytes.
+            resetSpeed();
+            mSampleId = new ContentId(id.namespace, id.id);
+            mLastObservedSnapshot = item;
+            mSampleBytes = item.receivedBytes;
+            mSampleAtMs = now;
+        } else if (elapsed >= MIN_SAMPLE_MS
+                && (item.receivedBytes > mSampleBytes || (mUseRawSStyle && freshSnapshot))) {
+            // bytes / (1000 * ms) gives decimal megabytes per second.
+            mMegabytesPerSecond = (item.receivedBytes - mSampleBytes) / (1_000.0 * elapsed);
+            mSampleBytes = item.receivedBytes;
+            mSampleAtMs = now;
+            mLastRateAtMs = now;
+            mHasMeasuredRate = true;
+            mCaption.removeCallbacks(mExpireSpeed);
+            mCaption.postDelayed(mExpireSpeed, MAX_SAMPLE_MS);
+        }
+
+        if (!mHasMeasuredRate) {
+            setCaption(mBaseCaption);
+            return;
+        }
+        setCaption(formatMeasuredCaption());
+    }
+
+    private CharSequence formatMeasuredCaption() {
+        Context context = mCaption.getContext();
+        boolean zero = mMegabytesPerSecond == 0;
+        String rate = zero ? NumberFormat.getIntegerInstance().format(0)
+                : mMegabytesPerSecond < 0.01
+                        ? context.getString(
+                                R.string.raws_download_speed_below, mSpeedFormat.format(0.01))
+                        : mSpeedFormat.format(mMegabytesPerSecond);
+        String speed = context.getString(R.string.raws_download_speed_mb_s, rate);
+        String text = context.getString(
+                R.string.download_manager_in_progress_description, mBaseCaption, speed);
+        if (!mUseRawSStyle) return text;
+        int from = text.lastIndexOf(speed);
+        if (from < 0) return text;
+        int to = from + speed.length();
+        SpannableString caption = new SpannableString(text);
+        caption.setSpan(new ForegroundColorSpan(context.getColor(zero
+                        ? R.color.raws_download_speed_zero : R.color.raws_download_speed_positive)),
+                from, to, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        caption.setSpan(new StyleSpan(Typeface.BOLD), from, to, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        return caption;
+    }
+}

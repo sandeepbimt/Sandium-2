@@ -606,6 +606,7 @@ class FrozenScope(unittest.TestCase):
                 download_java + 'DateOrderedListCoordinator.java',
                 download_java + 'DateOrderedListMediator.java',
                 download_java + 'holder/InProgressViewHolder.java',
+                downloads + 'java/src/org/chromium/chrome/browser/download/home/DownloadManagerCoordinatorImpl.java',
             }
             self.assertLessEqual(download_owners, extra_tracked)
             for path in download_owners:
@@ -630,6 +631,7 @@ class FrozenScope(unittest.TestCase):
                 browser_java + 'browserservices/ui/splashscreen/webapps/WebappSplashController.java',
                 'content/browser/renderer_host/render_widget_host_view_android.cc',
                 'content/browser/renderer_host/render_widget_host_view_android.h',
+                'chrome/browser/ntp_tiles/chrome_custom_links_manager_factory.cc',
                 webapps_android + 'add_to_homescreen_mediator.cc',
                 webapps_android + 'add_to_homescreen_mediator.h',
                 webapps_java + 'AddToHomescreenCoordinator.java',
@@ -637,6 +639,8 @@ class FrozenScope(unittest.TestCase):
                 webapps_java + 'AddToHomescreenMediator.java',
                 webapps_java + 'AddToHomescreenViewDelegate.java',
                 webapps_java + 'bottomsheet/PwaBottomSheetController.java',
+                'ui/android/java/src/org/chromium/ui/modaldialog/ModalDialogProperties.java',
+                'components/browser_ui/modaldialog/android/java/src/org/chromium/components/browser_ui/modaldialog/TabModalPresenter.java',
             }
             self.assertLessEqual(additional_tracked, extra_tracked)
             for path in additional_tracked:
@@ -704,7 +708,10 @@ class FrozenScope(unittest.TestCase):
             self.assertIn('chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/'
                           'browser/toolbar/ToolbarPositionController.java', extra_tracked)
             self.assertIn(resource, extra_generated)
-            self.assertEqual(59, len(extra_generated - {resource}))
+            night_palette = downloads + 'java/res/values-night/raws_download_palette.xml'
+            self.assertIn(night_palette, extra_generated)
+            self.assertEqual((None, '644'), (actual.files[night_palette][0], actual.files[night_palette][2]))
+            self.assertEqual(59, len(extra_generated - {resource, night_palette}))
             self.assertIn('chrome/renderer/raws_element_picker_donor.h', extra_generated)
             self.assertTrue({
                 'chrome/browser/raws/raws_observed_ad_slots.h',

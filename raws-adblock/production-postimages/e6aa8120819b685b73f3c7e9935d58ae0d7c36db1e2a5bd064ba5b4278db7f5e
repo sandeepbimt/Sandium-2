@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="raws_download_status_all">All</string>
+    <string name="raws_download_status_active">Active</string>
+    <string name="raws_download_status_completed">Completed</string>
+    <string name="raws_download_speed_below">&lt;%1$s</string>
+    <string name="raws_download_speed_mb_s">%1$s MB/s</string>
+    <color name="raws_download_surface">#F1F3F5</color>
+    <color name="raws_download_card">#FCFCFC</color>
+    <color name="raws_download_outline">#DADDE2</color>
+    <color name="raws_download_text">#1A1A1A</color>
+    <color name="raws_download_secondary">#474747</color>
+    <color name="raws_download_selected">#BED5FA</color>
+    <color name="raws_download_selected_text">#112137</color>
+    <color name="raws_download_speed_positive">#176535</color>
+    <color name="raws_download_speed_zero">#A52327</color>
+    <color name="raws_download_ripple">#261A1A1A</color>
+</resources>

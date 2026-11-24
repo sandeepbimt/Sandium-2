@@ -30,6 +30,7 @@ ENGINE = '\n'.join(('//components/sandium_adblock:document_subresource_factory',
 # deps list uses unqualified labels, with explicit suffixes for other tools.
 ACTIONS = {
     '//components/webapps/browser/android:webapps_jni_headers__action': 'inputs',
+    '//components/browser_ui/modaldialog/android:java__compile_java': 'inputs',
     '//components/webapps/browser/android:java__compile_java': 'inputs',
     '//chrome/browser/download/internal/android:java_resources__prepare': 'sources',
     '//chrome/browser/download/internal/android:java__compile_java': 'inputs',
@@ -103,6 +104,7 @@ class NativeUiGraph(unittest.TestCase):
                                         'chrome/browser/search_engines/android/',
                                         'chrome/browser/ntp_customization/',
                                         'content/public/android/', 'components/browser_ui/styles/android/',
+                                        'components/browser_ui/modaldialog/android/',
                                         'chrome/browser/download/internal/android/',
                                         'components/webapps/browser/android/java/', 'ui/android/'))
                     and name.endswith(('.java', '.xml', '.png', '.webp', '.grd'))}

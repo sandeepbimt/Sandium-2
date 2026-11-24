@@ -1,0 +1,445 @@
+// Copyright 2021 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+package org.chromium.chrome.browser.suggestions.tile;
+
+import android.content.Context;
+import android.content.res.Resources;
+import android.graphics.Rect;
+import android.util.AttributeSet;
+import android.view.View;
+import android.widget.Button;
+import android.widget.HorizontalScrollView;
+
+import androidx.annotation.Px;
+
+import org.chromium.build.annotations.Initializer;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
+import org.chromium.chrome.R;
+import org.chromium.chrome.browser.suggestions.SiteSuggestion;
+import org.chromium.chrome.browser.user_education.IphCommand;
+import org.chromium.chrome.browser.user_education.IphCommandBuilder;
+import org.chromium.chrome.browser.user_education.UserEducationHelper;
+import org.chromium.components.browser_ui.widget.tile.TileView;
+import org.chromium.components.feature_engagement.FeatureConstants;
+import org.chromium.ui.base.DeviceFormFactor;
+
+import java.util.Arrays;
+
+/** The most visited tiles layout. */
+@NullMarked
+public class MostVisitedTilesLayout extends TilesLinearLayout {
+
+    private final boolean mIsLff;
+    private boolean mUseRawSHomeTilePaint;
+    private boolean mRawSGrid;
+    private int mRawSGridWidth;
+    private int mRawSGridPage;
+    private int mRawSGridColumns = 1;
+    private int mRawSGridItemCount;
+    private int mRawSGridPageItems;
+    private int mRawSGridPagerLabel;
+    private final int[] mRawSGridHeights = new int[4];
+    private @Nullable Button mRawSGridPager;
+    private final @Px int mTileViewWidth;
+    private final @Px int mIntervalPaddingsTablet;
+    private final @Px int mEdgePaddingsTablet;
+    private final @Px int mTileViewDividerWidth;
+    private @Nullable Integer mTileToMoveInViewIdx;
+    private @Nullable Runnable mTriggerIphTask;
+    private @Nullable SuggestionsTileVerticalDivider mDivider;
+    private @Nullable Integer mDividerIndex;
+
+    /** Constructor for inflating from XML. */
+    public MostVisitedTilesLayout(Context context, AttributeSet attrs) {
+        super(context, attrs);
+        mIsLff = DeviceFormFactor.isNonMultiDisplayContextOnTablet(context);
+
+        Resources resources = getResources();
+        mTileViewWidth =
+                resources.getDimensionPixelSize(
+                        mIsLff ? R.dimen.tile_view_width_condensed : R.dimen.tile_view_width);
+        mIntervalPaddingsTablet =
+                resources.getDimensionPixelSize(R.dimen.tile_view_padding_interval_tablet);
+        mEdgePaddingsTablet =
+                resources.getDimensionPixelSize(R.dimen.tile_view_padding_edge_tablet);
+        mTileViewDividerWidth = resources.getDimensionPixelSize(R.dimen.tile_view_divider_width);
+    }
+
+    /** Keeps Chromium's actual TileViews, editor, callbacks and profile store. */
+    public void useRawSHomeShortcutGrid() {
+        if (mIsLff || mRawSGrid || !(getParent() instanceof HorizontalScrollView row)) return;
+        mRawSGrid = true;
+        row.setFillViewport(true);
+        row.setHorizontalScrollBarEnabled(false);
+        row.scrollTo(0, 0);
+        installRawSGridPager();
+    }
+
+    public boolean isRawSHomeShortcutGrid() {
+        return mRawSGrid;
+    }
+
+    public int getRawSGridPage() {
+        return mRawSGridPage;
+    }
+
+    public void restoreRawSGridPage(int page) {
+        if (!mRawSGrid || page < 0) return;
+        mRawSGridPage = page;
+        requestLayout();
+    }
+
+    public void setRawSGridWidth(int width) {
+        if (mRawSGridWidth == width) return;
+        mRawSGridWidth = width;
+        forceLayout();
+    }
+
+    private int dp(int value) {
+        return Math.round(getResources().getDisplayMetrics().density * value);
+    }
+
+    void finishRawSGridRefresh() {
+        if (mRawSGrid && mRawSGridPager == null) installRawSGridPager();
+    }
+
+    private void installRawSGridPager() {
+        if (!mRawSGrid) return;
+        Button pager = new Button(getContext(), null, android.R.attr.borderlessButtonStyle);
+        pager.setAllCaps(false);
+        pager.setVisibility(INVISIBLE);
+        pager.setOnClickListener(view -> {
+            int pages = rawSPageCount(mRawSGridItemCount, mRawSGridColumns);
+            mRawSGridPage = (mRawSGridPage + 1) % pages;
+            requestLayout();
+        });
+        mRawSGridPager = pager;
+        super.addView(pager, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT));
+    }
+
+    static int rawSColumns(int width, int minimumCell) {
+        return Math.max(1, Math.min(5, width / Math.max(1, minimumCell)));
+    }
+
+    static int rawSPageCount(int total, int columns) {
+        int slots = 4 * columns;
+        return Math.max(1, (total + slots - 1) / slots);
+    }
+
+    static int rawSGridRow(int index, int count, int columns) {
+        int first = (count - 1) % columns + 1;
+        return index < first ? 0 : 1 + (index - first) / columns;
+    }
+
+    static int rawSGridColumn(int index, int count, int columns) {
+        int first = (count - 1) % columns + 1;
+        return index < first ? index : (index - first) % columns;
+    }
+
+    private void measureRawSGrid(int width) {
+        int available = Math.max(1, width - getPaddingLeft() - getPaddingRight());
+        int columns = rawSColumns(available, dp(52));
+        int total = 0;
+        for (int i = 0; i < getChildCount(); ++i) {
+            // The existing Add shortcut is also a TileView, but not an entry in the model.
+            if (getChildAt(i) instanceof TileView) total++;
+        }
+        int pages = rawSPageCount(total, columns);
+        mRawSGridPage = Math.min(mRawSGridPage, pages - 1);
+        mRawSGridColumns = columns;
+        mRawSGridItemCount = total;
+        int start = mRawSGridPage * 4 * columns;
+        int count = Math.max(0, Math.min(4 * columns, total - start));
+        mRawSGridPageItems = count;
+        int[] heights = mRawSGridHeights;
+        Arrays.fill(heights, 0);
+        int ordinal = 0;
+        var pager = mRawSGridPager;
+        for (int i = 0; i < getChildCount(); ++i) {
+            View child = getChildAt(i);
+            if (child == pager) continue;
+            int index = child instanceof TileView ? ordinal++ - start : -1;
+            boolean shown = index >= 0 && index < count;
+            int visibility = shown ? VISIBLE : INVISIBLE;
+            if (child.getVisibility() != visibility) child.setVisibility(visibility);
+            if (!shown) continue;
+            int row = rawSGridRow(index, count, columns);
+            int column = rawSGridColumn(index, count, columns);
+            int widthHere = (column + 1) * available / columns - column * available / columns;
+            var lp = child.getLayoutParams();
+            int heightSpec = lp.height > 0
+                    ? MeasureSpec.makeMeasureSpec(lp.height, MeasureSpec.EXACTLY)
+                    : MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED);
+            child.measure(MeasureSpec.makeMeasureSpec(widthHere, MeasureSpec.EXACTLY), heightSpec);
+            heights[row] = Math.max(heights[row], Math.max(dp(48), child.getMeasuredHeight()));
+        }
+        int gridHeight = getPaddingTop() + getPaddingBottom();
+        for (int h : heights) gridHeight += h;
+        if (pager != null) {
+            int label = mRawSGridPage == pages - 1
+                    ? R.string.raws_home_first_shortcuts : R.string.raws_home_more_shortcuts;
+            if (mRawSGridPagerLabel != label) {
+                mRawSGridPagerLabel = label;
+                pager.setText(label);
+            }
+            int visibility = pages > 1 ? VISIBLE : INVISIBLE;
+            if (pager.getVisibility() != visibility) pager.setVisibility(visibility);
+            pager.measure(MeasureSpec.makeMeasureSpec(available, MeasureSpec.EXACTLY),
+                    MeasureSpec.makeMeasureSpec(dp(48), MeasureSpec.EXACTLY));
+            gridHeight += pager.getMeasuredHeight();
+        }
+        setMeasuredDimension(width, gridHeight);
+    }
+
+    private void layoutRawSGrid(int width) {
+        int available = Math.max(1, width - getPaddingLeft() - getPaddingRight());
+        boolean rtl = getLayoutDirection() == View.LAYOUT_DIRECTION_RTL;
+        int columns = mRawSGridColumns;
+        int count = mRawSGridPageItems;
+        int start = mRawSGridPage * 4 * columns;
+        int ordinal = 0;
+        var pager = mRawSGridPager;
+        for (int i = 0; i < getChildCount(); ++i) {
+            View child = getChildAt(i);
+            if (child == pager) continue;
+            int index = child instanceof TileView ? ordinal++ - start : -1;
+            if (index < 0 || index >= count) {
+                child.layout(0, 0, 0, 0);
+                continue;
+            }
+            int row = rawSGridRow(index, count, columns);
+            int column = rawSGridColumn(index, count, columns);
+            int x = column * available / columns;
+            if (rtl) x = available - (column + 1) * available / columns;
+            x += getPaddingLeft();
+            int y = getPaddingTop();
+            for (int r = 0; r < row; ++r) y += mRawSGridHeights[r];
+            child.layout(x, y, x + child.getMeasuredWidth(), y + child.getMeasuredHeight());
+        }
+        if (pager != null) {
+            int footer = getMeasuredHeight() - getPaddingBottom() - pager.getMeasuredHeight();
+            pager.layout(getPaddingLeft(), footer, width - getPaddingRight(),
+                    footer + pager.getMeasuredHeight());
+        }
+    }
+
+    /** Styles only icons in this regular Home surface, including later native tile refreshes. */
+    public void useRawSHomeTilePaint() {
+        if (mIsLff || mUseRawSHomeTilePaint) return;
+        mUseRawSHomeTilePaint = true;
+        for (int i = 0; i < getTileCount(); i++) {
+            styleRawSHomeTile(getTileAt(i));
+        }
+    }
+
+    private static void styleRawSHomeTile(TileView tile) {
+        if (tile instanceof SuggestionsTileView suggestion) {
+            suggestion.useRawSHomeTilePaint();
+        }
+    }
+
+    @Override
+    public void addTile(TileView tile) {
+        if (mUseRawSHomeTilePaint) styleRawSHomeTile(tile);
+        super.addTile(tile);
+    }
+
+    @Override
+    public void removeAllViews() {
+        super.removeAllViews();
+        mDivider = null;
+        mDividerIndex = null;
+        mRawSGridPager = null;
+        mRawSGridPagerLabel = 0;
+    }
+
+    @Override
+    void setIntervalMargins(@Px int margin) {
+        if (mRawSGrid) return;
+        super.setIntervalMargins(margin);
+
+        if (mDivider != null) {
+            assert mDividerIndex != null;
+            // Let M = margin, W = divider width, A = adjusted margin. Desired apparent margin that
+            // pretends divider absence is M = A + W + A, so A = (M - W) / 2.
+            @Px int adjustedMargin = (margin - mTileViewDividerWidth) / 2;
+            // Update the start margins of the divider and its next sibling.
+            updateViewStartMargin(mDivider, adjustedMargin);
+            View childAfterDivider = getChildAt(mDividerIndex + 1);
+            if (childAfterDivider != null) {
+                updateViewStartMargin(childAfterDivider, adjustedMargin);
+            }
+        }
+    }
+
+    @Override
+    public void addDivider(SuggestionsTileVerticalDivider divider) {
+        super.addDivider(divider);
+        if (mDivider != null) return;
+
+        // Take the first divider found and assume it's the only one.
+        mDivider = divider;
+        mDividerIndex = getChildCount() - 1;
+        mDivider.hide(/* isAnimated= */ false);
+    }
+
+    void destroy() {
+        for (int i = 0; i < getTileCount(); i++) {
+            TileView tileView = getTileAt(i);
+            tileView.setOnClickListener(null);
+            tileView.setOnCreateContextMenuListener(null);
+        }
+        removeAllViews();
+    }
+
+    public SiteSuggestion getTileViewData(TileView tileView) {
+        return ((SuggestionsTileView) tileView).getData();
+    }
+
+    /**
+     * Returns whether all the tiles and non-tiles, with a small margin would fit within a container
+     * with the given {@code totalWidth} without the need to scroll. For large form factors (LFF)
+     * only.
+     */
+    public boolean contentFitsOnLff(int totalWidth) {
+        return totalWidth >= 2 * mEdgePaddingsTablet + getTabletContentWidth();
+    }
+
+    /** Returns the total width of tiles, UI Views, and interval paddings. */
+    @Px
+    int getTabletContentWidth() {
+        return (int)
+                (mTileViewWidth * getTileCount()
+                        + mUiViewsTotalWidth
+                        + mIntervalPaddingsTablet * (mTileAndUiViewCount - 1));
+    }
+
+    /**
+     * Adjusts the edge margin of the tile elements when they are displayed in the center of the NTP
+     * on large form factor (LFF) devices.
+     *
+     * @param totalWidth The width of the mv tiles container.
+     */
+    void updateEdgeMarginLff(int totalWidth) {
+        // If content fits within `totalWidth`, then return the required margin to center it. Else
+        // scrolling would be needed, so return a fixed margin for the scrolled content.
+        int edgeMargin =
+                contentFitsOnLff(totalWidth)
+                        ? (totalWidth - getTabletContentWidth()) / 2
+                        : mEdgePaddingsTablet;
+        setEdgeMargins(edgeMargin);
+    }
+
+    /**
+     * Tags the {@link TileView} at {@code tileIdx} so that on next Layout, minimal scroll is
+     * performed to ensure it's in-view.
+     */
+    void ensureTileIsInViewOnNextLayout(int tileIdx) {
+        if (mRawSGrid) {
+            if (tileIdx >= 0) mRawSGridPage = tileIdx / (4 * mRawSGridColumns);
+            requestLayout();
+            return;
+        }
+        // If a value exists, simply overwrite it since the old value is likely new irrelevant.
+        mTileToMoveInViewIdx = tileIdx;
+    }
+
+    /**
+     * Attempts to show the in-product help for MVT Customization "Pin this shortcut" feature. At
+     * least one tile must exist, since help is anchored on the first. Must be called before layout
+     * takes place.
+     */
+    public void triggerCustomizationIph(UserEducationHelper userEducationHelper) {
+        if (getTileCount() == 0) return;
+
+        // Defer until layout, so that the first TileView can be used as the the anchor.
+        mTriggerIphTask =
+                () -> {
+                    TileView firstTileView = getTileAt(0);
+                    IphCommand command =
+                            new IphCommandBuilder(
+                                            getResources(),
+                                            FeatureConstants.MOST_VISITED_TILES_CUSTOMIZATION_PIN,
+                                            R.string.ntp_custom_links_help_pin,
+                                            R.string.ntp_custom_links_help_pin)
+                                    .setAnchorView(firstTileView)
+                                    .setInsetRect(new Rect(0, 0, 0, 0))
+                                    .build();
+                    userEducationHelper.requestShowIph(command);
+                };
+    }
+
+    @Override
+    @Initializer
+    protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
+        if (mRawSGrid && mRawSGridWidth > 0) {
+            measureRawSGrid(mRawSGridWidth);
+            return;
+        }
+        if (mIsLff) {
+            updateEdgeMarginLff(MeasureSpec.getSize(widthMeasureSpec));
+        }
+        super.onMeasure(widthMeasureSpec, heightMeasureSpec);
+    }
+
+    @Override
+    public void onLayout(boolean changed, int left, int top, int right, int bottom) {
+        if (mRawSGrid && mRawSGridWidth > 0) {
+            layoutRawSGrid(right - left);
+            mTileToMoveInViewIdx = null;
+            if (mTriggerIphTask != null) {
+                mTriggerIphTask.run();
+                mTriggerIphTask = null;
+            }
+            return;
+        }
+        super.onLayout(changed, left, top, right, bottom);
+        if (mTileToMoveInViewIdx != null) {
+            Integer scrollXPx = getScrollXToMakeTileVisible(mTileToMoveInViewIdx);
+            if (scrollXPx != null) {
+                HorizontalScrollView parent = (HorizontalScrollView) getParent();
+                parent.smoothScrollTo(scrollXPx.intValue(), 0);
+            }
+            mTileToMoveInViewIdx = null;
+        }
+
+        if (mTriggerIphTask != null) {
+            mTriggerIphTask.run();
+            mTriggerIphTask = null;
+        }
+    }
+
+    public HorizontalScrollView getScrollView() {
+        return (HorizontalScrollView) getParent();
+    }
+
+    public @Nullable SuggestionsTileVerticalDivider getDividerMaybeNull() {
+        return mDivider;
+    }
+
+    private @Nullable Integer getScrollXToMakeTileVisible(int tileIdx) {
+        if (tileIdx >= getTileCount()) {
+            return null;
+        }
+        HorizontalScrollView scrollView = getScrollView();
+        @Px float tileXPx = getTileAt(tileIdx).getX();
+        @Px int scrollXPx = scrollView.getScrollX();
+        // If scroll position is too high so that the tile is out-of-view / truncated, scroll left
+        // so that the tile appears on the left edge (RTL doesn't matter).
+        @Px int scrollXHiPx = (int) tileXPx;
+        if (scrollXPx > scrollXHiPx) {
+            return scrollXHiPx;
+        }
+        // If scroll position is too low so that the tile is out-of-view / truncated, scroll right
+        // so that the tile appears on the right edge (RTL doesn't matter).
+        @Px int scrollXLoPx = (int) (tileXPx + mTileViewWidth - scrollView.getWidth());
+        if (scrollXPx < scrollXLoPx) {
+            return scrollXLoPx;
+        }
+        // Entire tile is in-view; no scroll is needed.
+        return null;
+    }
+}

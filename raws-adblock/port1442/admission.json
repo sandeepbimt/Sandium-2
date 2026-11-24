@@ -27,6 +27,7 @@
     "chrome/android/java/src/org/chromium/chrome/browser/settings/RawSElementColorController.java",
     "chrome/android/java/src/org/chromium/chrome/browser/settings/RawSNavigationDiagnostics.java",
     "chrome/android/java/src/org/chromium/chrome/browser/settings/RawSNavigationDiagnosticsSettings.java",
+    "chrome/browser/download/internal/android/java/res/values-night/raws_download_palette.xml",
     "chrome/browser/download/internal/android/java/res/values/raws_download_status.xml",
     "chrome/browser/raws/catalog_generated.h",
     "chrome/browser/raws/raw_element_picker_browser.h",
@@ -144,6 +145,7 @@
     "chrome/browser/autofill/android/java/src/org/chromium/chrome/browser/autofill/settings/options/AutofillOptionsViewBinder.java",
     "chrome/browser/chrome_content_browser_client.h",
     "chrome/browser/download/internal/android/BUILD.gn",
+    "chrome/browser/download/internal/android/java/src/org/chromium/chrome/browser/download/home/DownloadManagerCoordinatorImpl.java",
     "chrome/browser/download/internal/android/java/src/org/chromium/chrome/browser/download/home/list/DateOrderedListCoordinator.java",
     "chrome/browser/download/internal/android/java/src/org/chromium/chrome/browser/download/home/list/DateOrderedListMediator.java",
     "chrome/browser/download/internal/android/java/src/org/chromium/chrome/browser/download/home/list/holder/InProgressViewHolder.java",
@@ -154,6 +156,7 @@
     "chrome/browser/net/default_dns_over_https_config_source.cc",
     "chrome/browser/notifications/android/java/src/org/chromium/chrome/browser/notifications/permissions/NotificationPermissionController.java",
     "chrome/browser/ntp_customization/java/src/org/chromium/chrome/browser/ntp_customization/theme/upload_image/UploadImagePreviewCoordinator.java",
+    "chrome/browser/ntp_tiles/chrome_custom_links_manager_factory.cc",
     "chrome/browser/password_manager/chrome_password_manager_client.cc",
     "chrome/browser/prefs/browser_prefs.cc",
     "chrome/browser/privacy/java/src/org/chromium/chrome/browser/privacy/secure_dns/SecureDnsBridge.java",
@@ -208,6 +211,7 @@
     "chrome/renderer/chrome_render_frame_observer.cc",
     "chrome/renderer/chrome_render_frame_observer.h",
     "components/autofill/core/browser/foundations/browser_autofill_manager.cc",
+    "components/browser_ui/modaldialog/android/java/src/org/chromium/components/browser_ui/modaldialog/TabModalPresenter.java",
     "components/browser_ui/styles/android/BUILD.gn",
     "components/browser_ui/styles/android/java/res/values/styles.xml",
     "components/content_settings/core/browser/content_settings_registry.cc",
@@ -280,9 +284,10 @@
     "third_party/blink/renderer/core/style/computed_style.h",
     "third_party/blink/renderer/core/style/computed_style_extra_fields.json5",
     "ui/android/java/src/org/chromium/ui/base/EventForwarder.java",
-    "ui/android/java/src/org/chromium/ui/hierarchicalmenu/HierarchicalMenuController.java"
+    "ui/android/java/src/org/chromium/ui/hierarchicalmenu/HierarchicalMenuController.java",
+    "ui/android/java/src/org/chromium/ui/modaldialog/ModalDialogProperties.java"
   ],
-  "manifest_sha256": "67a660999ddf1324e209450ba9d5e11e5839d0ad517e61e11ba2845e89031a20",
+  "manifest_sha256": "29d89ae81d6ac51b6618839ea2b19abe20896ec53d01bff673f238e014ee5eba",
   "staged_vendor_delta": {
     "brave/third_party/rust/chromium_crates_io/vendor/adblock-v0_13/src/blocker.rs": {
       "after": "ac368737ffb88855918f8e32ac0eb39a308c4e76f41e4a8193cf223c2a59a7cb",

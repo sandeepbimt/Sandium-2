@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="raws_download_surface">#121315</color>
+    <color name="raws_download_card">#1D1E20</color>
+    <color name="raws_download_outline">#2E3034</color>
+    <color name="raws_download_text">#E8E8EA</color>
+    <color name="raws_download_secondary">#C4C7CD</color>
+    <color name="raws_download_selected">#A9C6F5</color>
+    <color name="raws_download_selected_text">#12223B</color>
+    <color name="raws_download_speed_positive">#91DDA5</color>
+    <color name="raws_download_speed_zero">#FF9C9C</color>
+    <color name="raws_download_ripple">#36FFFFFF</color>
+</resources>
