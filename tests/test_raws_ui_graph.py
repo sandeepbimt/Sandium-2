@@ -29,6 +29,10 @@ ENGINE = '\n'.join(('//components/sandium_adblock:document_subresource_factory',
 # prepare_resources actions expose sources. The default GN toolchain's
 # deps list uses unqualified labels, with explicit suffixes for other tools.
 ACTIONS = {
+    '//components/webapps/browser/android:webapps_jni_headers__action': 'inputs',
+    '//components/webapps/browser/android:java__compile_java': 'inputs',
+    '//chrome/browser/download/internal/android:java_resources__prepare': 'sources',
+    '//chrome/browser/download/internal/android:java__compile_java': 'inputs',
     APK + '__android_manifest': 'inputs',
     JNI: 'inputs',
     JAVA + JAVAC: 'inputs',
@@ -98,7 +102,9 @@ class NativeUiGraph(unittest.TestCase):
                                         'chrome/browser/notifications/', 'chrome/browser/privacy/',
                                         'chrome/browser/search_engines/android/',
                                         'chrome/browser/ntp_customization/',
-                                        'content/public/android/', 'components/browser_ui/styles/android/', 'ui/android/'))
+                                        'content/public/android/', 'components/browser_ui/styles/android/',
+                                        'chrome/browser/download/internal/android/',
+                                        'components/webapps/browser/android/java/', 'ui/android/'))
                     and name.endswith(('.java', '.xml', '.png', '.webp', '.grd'))}
         self.assertEqual(intended, set().union(*(paths for field, paths in owners.values())))
         with tempfile.TemporaryDirectory() as tmp:
@@ -126,7 +132,7 @@ class NativeUiGraph(unittest.TestCase):
         self.assertIn('mModelList = mDelegate.getMenuItems();', root_handler)
         # Chromium opens on ACTION_DOWN even for an ordinary tap. The provisional
         # drag flag cannot decide whether the Sandium presenter is activated.
-        self.assertIn('boolean useSandiumMenu = rawSMenuEligible() && mModelList != null;',
+        self.assertIn('boolean useSandiumMenu = (rawSMenuEligible() || readOnlyPrivateMenu) && mModelList != null;',
                       root_handler)
         self.assertIn('useSandiumMenu ? mModelList : null', root_handler)
         self.assertIn('onShow(startDragging && !useSandiumMenu)', root_handler)

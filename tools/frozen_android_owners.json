@@ -22,9 +22,9 @@
   "//chrome/android:chrome_base_module_resources__prepare": [
     "sources",
     [
+      "//chrome/android/java/res_base/drawable/sandium_app_icon_inset.xml",
       "//chrome/android/java/res_chromium_base/drawable-nodpi/sandium_themed_app_icon.webp",
-      "//chrome/android/java/res_chromium_base/mipmap-nodpi/sandium_app_icon.webp",
-      "//chrome/android/java/res_base/drawable/sandium_app_icon_inset.xml"
+      "//chrome/android/java/res_chromium_base/mipmap-nodpi/sandium_app_icon.webp"
     ]
   ],
   "//chrome/android:chrome_java__compile_java": [
@@ -36,10 +36,12 @@
       "//chrome/android/java/src/org/chromium/chrome/browser/appearance/settings/RawSPageText.java",
       "//chrome/android/java/src/org/chromium/chrome/browser/appearance/settings/RawSPageTextDialog.java",
       "//chrome/android/java/src/org/chromium/chrome/browser/autofill/settings/AutofillAndPasswordsFragment.java",
+      "//chrome/android/java/src/org/chromium/chrome/browser/browserservices/ui/splashscreen/webapps/WebappSplashController.java",
       "//chrome/android/java/src/org/chromium/chrome/browser/compositor/CompositorView.java",
       "//chrome/android/java/src/org/chromium/chrome/browser/compositor/layouts/StaticLayout.java",
       "//chrome/android/java/src/org/chromium/chrome/browser/crash/ChromeMinidumpUploadJobServiceImpl.java",
       "//chrome/android/java/src/org/chromium/chrome/browser/crash/MinidumpUploadServiceImpl.java",
+      "//chrome/android/java/src/org/chromium/chrome/browser/customtabs/BaseCustomTabActivity.java",
       "//chrome/android/java/src/org/chromium/chrome/browser/firstrun/FirstRunActivity.java",
       "//chrome/android/java/src/org/chromium/chrome/browser/firstrun/FirstRunActivityBase.java",
       "//chrome/android/java/src/org/chromium/chrome/browser/firstrun/FirstRunFlowSequencer.java",
@@ -48,6 +50,8 @@
       "//chrome/android/java/src/org/chromium/chrome/browser/metrics/UmaSessionStats.java",
       "//chrome/android/java/src/org/chromium/chrome/browser/multiwindow/MultiInstanceOrchestratorImpl.java",
       "//chrome/android/java/src/org/chromium/chrome/browser/multiwindow/MultiWindowUtils.java",
+      "//chrome/android/java/src/org/chromium/chrome/browser/ntp/IncognitoNewTabPage.java",
+      "//chrome/android/java/src/org/chromium/chrome/browser/ntp/IncognitoNewTabPageView.java",
       "//chrome/android/java/src/org/chromium/chrome/browser/ntp/NewTabPageLayout.java",
       "//chrome/android/java/src/org/chromium/chrome/browser/ntp/search/SearchBoxContainerView.java",
       "//chrome/android/java/src/org/chromium/chrome/browser/ntp/search/SearchBoxViewBinder.java",
@@ -75,7 +79,9 @@
       "//chrome/android/java/src/org/chromium/chrome/browser/tabbed_mode/TabbedRootUiCoordinator.java",
       "//chrome/android/java/src/org/chromium/chrome/browser/tabmodel/TabCollectionTabModelImpl.java",
       "//chrome/android/java/src/org/chromium/chrome/browser/ui/system/StatusBarColorController.java",
-      "//chrome/android/java/src/org/chromium/chrome/browser/undo_tab_close_snackbar/UndoBarController.java"
+      "//chrome/android/java/src/org/chromium/chrome/browser/undo_tab_close_snackbar/UndoBarController.java",
+      "//chrome/android/java/src/org/chromium/chrome/browser/webapps/AppInstallMenuHandler.java",
+      "//chrome/android/java/src/org/chromium/chrome/browser/webapps/WebappActivity.java"
     ]
   ],
   "//chrome/android:chrome_jni_headers__action": [
@@ -114,6 +120,19 @@
     "sources",
     [
       "//chrome/browser/autofill/android/java/res/xml/autofill_options_preferences.xml"
+    ]
+  ],
+  "//chrome/browser/download/internal/android:java__compile_java": [
+    "inputs",
+    [
+      "//chrome/browser/download/internal/android/java/src/org/chromium/chrome/browser/download/home/list/DateOrderedListCoordinator.java",
+      "//chrome/browser/download/internal/android/java/src/org/chromium/chrome/browser/download/home/list/DateOrderedListMediator.java"
+    ]
+  ],
+  "//chrome/browser/download/internal/android:java_resources__prepare": [
+    "sources",
+    [
+      "//chrome/browser/download/internal/android/java/res/values/raws_download_status.xml"
     ]
   ],
   "//chrome/browser/gesturenav/android:java__compile_java": [
@@ -202,9 +221,27 @@
   "//components/browser_ui/styles/android:java_resources__prepare": [
     "sources",
     [
-      "//components/browser_ui/styles/android/java/res/values/styles.xml",
       "//components/browser_ui/styles/android/java/res/color/raws_sandium_switch_thumb.xml",
-      "//components/browser_ui/styles/android/java/res/color/raws_sandium_switch_track.xml"
+      "//components/browser_ui/styles/android/java/res/color/raws_sandium_switch_track.xml",
+      "//components/browser_ui/styles/android/java/res/values/styles.xml"
+    ]
+  ],
+  "//components/webapps/browser/android:java__compile_java": [
+    "inputs",
+    [
+      "//components/webapps/browser/android/java/src/org/chromium/components/webapps/AddToHomescreenCoordinator.java",
+      "//components/webapps/browser/android/java/src/org/chromium/components/webapps/AddToHomescreenDialogView.java",
+      "//components/webapps/browser/android/java/src/org/chromium/components/webapps/AddToHomescreenMediator.java",
+      "//components/webapps/browser/android/java/src/org/chromium/components/webapps/AddToHomescreenViewDelegate.java",
+      "//components/webapps/browser/android/java/src/org/chromium/components/webapps/bottomsheet/PwaBottomSheetController.java"
+    ]
+  ],
+  "//components/webapps/browser/android:webapps_jni_headers__action": [
+    "inputs",
+    [
+      "//components/webapps/browser/android/java/src/org/chromium/components/webapps/AddToHomescreenCoordinator.java",
+      "//components/webapps/browser/android/java/src/org/chromium/components/webapps/AddToHomescreenMediator.java",
+      "//components/webapps/browser/android/java/src/org/chromium/components/webapps/bottomsheet/PwaBottomSheetController.java"
     ]
   ],
   "//content/public/android:content_full_java__compile_java": [

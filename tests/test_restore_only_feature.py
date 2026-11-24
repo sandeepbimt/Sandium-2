@@ -599,9 +599,54 @@ class FrozenScope(unittest.TestCase):
                 self.assertIsNotNone(before)
                 self.assertNotEqual(before, after)
                 self.assertEqual('644', mode)
+            downloads = 'chrome/browser/download/internal/android/'
+            download_java = downloads + 'java/src/org/chromium/chrome/browser/download/home/list/'
+            download_owners = {
+                downloads + 'BUILD.gn',
+                download_java + 'DateOrderedListCoordinator.java',
+                download_java + 'DateOrderedListMediator.java',
+            }
+            self.assertLessEqual(download_owners, extra_tracked)
+            for path in download_owners:
+                before, after, mode = actual.files[path]
+                self.assertIsNotNone(before)
+                self.assertNotEqual(before, after)
+                self.assertEqual('644', mode)
+            resource = downloads + 'java/res/values/raws_download_status.xml'
+            self.assertIn(resource, actual.ui_files)
+            before, _, mode = actual.files[resource]
+            self.assertIsNone(before)
+            self.assertEqual('644', mode)
+            browser_java = 'chrome/android/java/src/org/chromium/chrome/browser/'
+            webapps_android = 'components/webapps/browser/android/'
+            webapps_java = webapps_android + 'java/src/org/chromium/components/webapps/'
+            additional_tracked = {
+                browser_java + 'ntp/IncognitoNewTabPage.java',
+                browser_java + 'ntp/IncognitoNewTabPageView.java',
+                browser_java + 'webapps/AppInstallMenuHandler.java',
+                browser_java + 'webapps/WebappActivity.java',
+                browser_java + 'customtabs/BaseCustomTabActivity.java',
+                browser_java + 'browserservices/ui/splashscreen/webapps/WebappSplashController.java',
+                'content/browser/renderer_host/render_widget_host_view_android.cc',
+                'content/browser/renderer_host/render_widget_host_view_android.h',
+                webapps_android + 'add_to_homescreen_mediator.cc',
+                webapps_android + 'add_to_homescreen_mediator.h',
+                webapps_java + 'AddToHomescreenCoordinator.java',
+                webapps_java + 'AddToHomescreenDialogView.java',
+                webapps_java + 'AddToHomescreenMediator.java',
+                webapps_java + 'AddToHomescreenViewDelegate.java',
+                webapps_java + 'bottomsheet/PwaBottomSheetController.java',
+            }
+            self.assertLessEqual(additional_tracked, extra_tracked)
+            for path in additional_tracked:
+                before, after, mode = actual.files[path]
+                self.assertIsNotNone(before)
+                self.assertNotEqual(before, after)
+                self.assertEqual('644', mode)
             self.assertEqual(173, len(
                 extra_tracked - mobile_player_owners - manual_shortcut_owners
-                - {flash_owner} - soft_backing_owners - home_history_capture - home_favicon_owners))
+                - {flash_owner} - soft_backing_owners - home_history_capture - home_favicon_owners
+                - download_owners - additional_tracked))
             self.assertLessEqual({
                 'chrome/common/chrome_isolated_world_ids.h',
                 'chrome/android/java/src/org/chromium/chrome/browser/common/ChromeIsolatedWorldIds.java',
@@ -657,7 +702,8 @@ class FrozenScope(unittest.TestCase):
                                     for p in extra_tracked))
             self.assertIn('chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/'
                           'browser/toolbar/ToolbarPositionController.java', extra_tracked)
-            self.assertEqual(59, len(extra_generated))
+            self.assertIn(resource, extra_generated)
+            self.assertEqual(59, len(extra_generated - {resource}))
             self.assertIn('chrome/renderer/raws_element_picker_donor.h', extra_generated)
             self.assertTrue({
                 'chrome/browser/raws/raws_observed_ad_slots.h',
