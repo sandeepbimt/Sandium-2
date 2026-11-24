@@ -9184,7 +9184,7 @@
       "mode": "644"
     },
     "chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/OmniboxSuggestionsDropdownEmbedderImpl.java": {
-      "after_sha256": "1c5bfdd3dbdce961fd4ee6050f08d651a296bc16ad726fd8ccacc973057282b7",
+      "after_sha256": "4785d9e478d8bc552467f17772755d741792df8bf816eb92e7a425c664ec6323",
       "before_sha256": "170e5bbddf2b8af8cccec62d01331573b3a04ec45dda45ea9957a47979b10d92",
       "mode": "644"
     },
@@ -9228,7 +9228,7 @@
       "mode": "644"
     },
     "chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/suggestions/OmniboxSuggestionsContainer.java": {
-      "after_sha256": "983390488bbf90c07892580c979c41a3d779861482092730428e3ef050aac542",
+      "after_sha256": "ecd04032ec857ca668c9371afb1d45ba9175f6a0a899b28ca4c15c4f2180ad72",
       "before_sha256": "b7932bbf6eeb36975757e2c00f488ade638cceaa659c56cf9e7a242de1449c9b",
       "mode": "644"
     },
@@ -9238,7 +9238,7 @@
       "mode": "644"
     },
     "chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/suggestions/OmniboxSuggestionsDropdownEmbedder.java": {
-      "after_sha256": "487ae5dd69740a0b5ee25b1fe1f65b0b784bd3a0cc4316f7c9c178032b69ea6e",
+      "after_sha256": "3cb9cd0ae96a3ef12d85cb87c2502a1ca7d1b50c9aa3b292bedd0d8e0038cf9d",
       "before_sha256": "6cd63fbb3b00377fd195bd22df7f45b4d3ae51d8b4f8ffa1c91cbe210abc011a",
       "mode": "644"
     },

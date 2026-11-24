@@ -293,7 +293,7 @@
     "ui/android/java/src/org/chromium/ui/hierarchicalmenu/HierarchicalMenuController.java",
     "ui/android/java/src/org/chromium/ui/modaldialog/ModalDialogProperties.java"
   ],
-  "manifest_sha256": "d7d93ad0e149bba45dc0516780a81e14894daaf30f7f0ed326cc6c84e04fcc10",
+  "manifest_sha256": "10eb8766dff6936b6812986e4494198099e501ef6ab61c7d48d64a1986e64389",
   "staged_vendor_delta": {
     "brave/third_party/rust/chromium_crates_io/vendor/adblock-v0_13/src/blocker.rs": {
       "after": "ac368737ffb88855918f8e32ac0eb39a308c4e76f41e4a8193cf223c2a59a7cb",
