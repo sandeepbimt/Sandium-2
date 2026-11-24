@@ -147,7 +147,7 @@ class CodecCIProofTest(unittest.TestCase):
 
     def test_unchanged_ci_contract_required(self):
         self.prepare_checkout_manifest()
-        for field, expected in [('prior_ci_tree', 'unchanged #1520 CI'),
+        for field, expected in [('prior_ci_tree', 'unchanged #1523 CI'),
                                 ('ci_tree', 'exact reviewed PPBAS CI')]:
             with patch.object(codec, 'git', side_effect=self.checkout_git(**{field: 'a'*40})):
                 with self.assertRaisesRegex(ValueError, expected):
@@ -184,5 +184,5 @@ class CodecCIProofTest(unittest.TestCase):
         self.prepare_checkout_manifest()
         with patch.object(codec, "git", side_effect=self.checkout_git(
                 parent=codec.FROZEN_SOURCE_BASELINE)):
-            with self.assertRaisesRegex(ValueError, "exact #1520 source"):
+            with self.assertRaisesRegex(ValueError, "exact #1523 source"):
                 codec.verify_checkout(self.root)
