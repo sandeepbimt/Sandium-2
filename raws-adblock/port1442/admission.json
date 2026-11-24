@@ -281,7 +281,7 @@
     "ui/android/java/src/org/chromium/ui/base/EventForwarder.java",
     "ui/android/java/src/org/chromium/ui/hierarchicalmenu/HierarchicalMenuController.java"
   ],
-  "manifest_sha256": "c7495205c1c83f704fde9adc2d86a0196cbfe46ac3a10c51faeea0818838d6b7",
+  "manifest_sha256": "99630aa50d2fb8cb985973e07186027bc2590291222b0793703bef5bf543dde0",
   "staged_vendor_delta": {
     "brave/third_party/rust/chromium_crates_io/vendor/adblock-v0_13/src/blocker.rs": {
       "after": "ac368737ffb88855918f8e32ac0eb39a308c4e76f41e4a8193cf223c2a59a7cb",

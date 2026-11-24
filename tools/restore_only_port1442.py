@@ -8,7 +8,7 @@ ROOT = Path(__file__).resolve().parents[1]
 PROOF = "raws-adblock/port1442/admission.json"
 VENDOR = "brave/third_party/rust/chromium_crates_io/vendor/adblock-v0_13/src/"
 # A candidate must set this to the SHA of the independently reviewed admission.
-ADMISSION_SHA256 = 'aaa02cf048e21719c5b0304dc4312d34c9a57270e03d3f53911ecaaef689fa84'
+ADMISSION_SHA256 = '47c0c3714b20ab0b4de07c071ef0077ea69b3a4debb0d50c03149e60c66c148b'
 
 def proof():
     if ADMISSION_SHA256 is None:

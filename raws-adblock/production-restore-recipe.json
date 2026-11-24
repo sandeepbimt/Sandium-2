@@ -8668,7 +8668,7 @@
       "mode": "644"
     },
     "chrome/android/java/src/org/chromium/chrome/browser/webapps/AppInstallMenuHandler.java": {
-      "after_sha256": "5bb5604de4a59a95a8e4d0b99a9c69c480f5b376741244bcd0922334156cfe7c",
+      "after_sha256": "7781077dca2aaf1b6d0166907ca9eaf0e4d34acf193d1d01449308052847c93f",
       "before_sha256": "39362143dbacdcd46b34719dc39daec4f79cbc190999600bd192624121369903",
       "mode": "644"
     },
@@ -9624,7 +9624,7 @@
       "mode": "644"
     },
     "components/webapps/browser/android/java/src/org/chromium/components/webapps/AddToHomescreenMediator.java": {
-      "after_sha256": "1ef4bf4555d65233f1aca95d81e1fddf6219c0b9c9994cd5728fe83e29eabe4f",
+      "after_sha256": "c5e4b1781320a570a0610381636b7223f22ec8bef83a5eb6f49e5a87546c595e",
       "before_sha256": "93eb0480dc5115c37e2489d3f65f7b4831f2f860b776728ed95fdc2cbc0db209",
       "mode": "644"
     },

@@ -1,0 +1,431 @@
+// Copyright 2019 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+package org.chromium.components.webapps;
+
+import static org.chromium.build.NullUtil.assumeNonNull;
+
+import android.app.Activity;
+import android.content.ActivityNotFoundException;
+import android.content.ContentResolver;
+import android.content.Intent;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.graphics.Canvas;
+import android.graphics.Paint;
+import android.graphics.RectF;
+import android.net.Uri;
+import android.os.CancellationSignal;
+import android.os.Process;
+import android.util.Pair;
+
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
+import org.jni_zero.NativeMethods;
+
+import org.chromium.base.ContextUtils;
+import org.chromium.base.task.PostTask;
+import org.chromium.base.task.TaskTraits;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
+import org.chromium.content_public.browser.WebContents;
+import org.chromium.ui.base.WindowAndroid;
+import org.chromium.ui.modelutil.PropertyModel;
+
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.lang.ref.WeakReference;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Consumer;
+
+/**
+ * The mediator class in the MVC architecture of the add-to-homescreen component. The C++
+ * counterpart of this class calls various Java set methods ({@link #setIcon}, {@link
+ * #setWebAppInfo}, {@link #setWebAppInfoWithIcon}, and {@link #setNativeAppInfo}) when more
+ * information about the app is available. These methods modify the model that lives on the Java
+ * side.
+ */
+@JNINamespace("webapps")
+@NullMarked
+class AddToHomescreenMediator implements AddToHomescreenViewDelegate {
+    private long mNativeAddToHomescreenMediator;
+    private final PropertyModel mModel;
+    private final WindowAndroid mWindowAndroid;
+    private @Nullable AppData mNativeAppData;
+    private final Runnable mOnFlowCompleted;
+
+    AddToHomescreenMediator(
+            PropertyModel model,
+            WindowAndroid windowAndroid,
+            WebContents webContents,
+            Runnable onFlowCompleted) {
+        mModel = model;
+        mWindowAndroid = windowAndroid;
+        mNativeAddToHomescreenMediator =
+                AddToHomescreenMediatorJni.get().initialize(this, webContents);
+        mOnFlowCompleted = onFlowCompleted;
+    }
+
+    private @Nullable LocalIconFactory mLocalIconFactory;
+    private @Nullable Consumer<LocalIconState> mLocalIconRender;
+    private @Nullable Bitmap mLocalIcon;
+    private WindowAndroid.@Nullable IntentCallback mLocalIconIntent;
+    private @Nullable CancellationSignal mLocalIconCancellation;
+    private int mLocalIconRequestCode = -1;
+    private long mLocalIconGeneration;
+    private boolean mLocalIconBusy;
+    private boolean mLocalIconFailed;
+    private boolean mLocalIconRevoked;
+
+    /** Tracks one decode process-wide; reset/cancel invalidates delivery, not the provider read. */
+    private static final AtomicBoolean sLocalIconDecoderBusy = new AtomicBoolean();
+    private static final int MAX_LOCAL_ICON_FILE = 8 * 1024 * 1024;
+    private static final int MAX_LOCAL_ICON_DIMENSION = 8192;
+    private static final int LOCAL_ICON_SIZE = 192;
+
+    void bindLocalIconFactory(LocalIconFactory factory) {
+        mLocalIconFactory = factory;
+    }
+
+    @Override
+    public void attachLocalIconUi(Consumer<LocalIconState> render) {
+        mLocalIconRender = render;
+        renderLocalIcon();
+    }
+
+    private boolean isLocalIconEligible() {
+        var factory = mLocalIconFactory;
+        return factory != null && canDecodeLocalIcon() && factory.canUse();
+    }
+
+    private void renderLocalIcon() {
+        var render = mLocalIconRender;
+        if (render != null) {
+            // Keep reset/error reachable after a choice is invalidated, with no default submit.
+            render.accept(new LocalIconState(
+                    canDecodeLocalIcon() || mLocalIcon != null || mLocalIconFailed,
+                    mLocalIconBusy, mLocalIcon, mLocalIconFailed));
+        }
+    }
+
+    @Override
+    public void chooseLocalIcon() {
+        if (!isLocalIconEligible() || mLocalIconBusy
+                || !AddToHomescreenMediatorJni.get().beginRawSLocalIconSelection(
+                        mNativeAddToHomescreenMediator)) {
+            return;
+        }
+        long generation = ++mLocalIconGeneration;
+        mLocalIconBusy = true;
+        mLocalIconFailed = false;
+        renderLocalIcon();
+        Intent pick = new Intent(Intent.ACTION_OPEN_DOCUMENT)
+                .addCategory(Intent.CATEGORY_OPENABLE)
+                .setType("image/*")
+                .putExtra(Intent.EXTRA_LOCAL_ONLY, true)
+                .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        mLocalIconIntent = (result, data) -> onLocalIconPicked(generation, result, data);
+        int request;
+        try {
+            request = mWindowAndroid.showCancelableIntent(pick, mLocalIconIntent, null);
+        } catch (ActivityNotFoundException | SecurityException e) {
+            finishLocalIcon(generation, null, true);
+            return;
+        }
+        if (generation == mLocalIconGeneration && mLocalIconIntent != null) {
+            mLocalIconRequestCode = request;
+            if (request < 0) finishLocalIcon(generation, null, true);
+        }
+    }
+
+    private void onLocalIconPicked(long generation, int result, @Nullable Intent data) {
+        if (generation != mLocalIconGeneration || mLocalIconIntent == null) return;
+        mLocalIconRequestCode = -1;
+        mLocalIconIntent = null;
+        if (result != Activity.RESULT_OK) {
+            finishLocalIcon(generation, null, false);
+            return;
+        }
+        Uri uri = data == null ? null : data.getData();
+        if (uri == null || !"content".equals(uri.getScheme())
+                || data == null
+                || (data.getFlags() & Intent.FLAG_GRANT_READ_URI_PERMISSION) == 0
+                || ContextUtils.getApplicationContext().checkUriPermission(uri, Process.myPid(),
+                           Process.myUid(), Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                          != android.content.pm.PackageManager.PERMISSION_GRANTED
+                || !canDecodeLocalIcon()
+                || !sLocalIconDecoderBusy.compareAndSet(false, true)) {
+            finishLocalIcon(generation, null, true);
+            return;
+        }
+        var resolver = ContextUtils.getApplicationContext().getContentResolver();
+        var cancellation = new CancellationSignal();
+        mLocalIconCancellation = cancellation;
+        var owner = new WeakReference<>(this);
+        PostTask.postTask(TaskTraits.USER_VISIBLE_MAY_BLOCK, () -> {
+            @Nullable Bitmap icon;
+            try {
+                icon = decodeLocalIcon(resolver, uri, cancellation);
+            } finally {
+                sLocalIconDecoderBusy.set(false);
+            }
+            PostTask.postTask(TaskTraits.UI_DEFAULT, () -> {
+                var live = owner.get();
+                if (live == null) {
+                    if (icon != null) icon.recycle();
+                    return;
+                }
+                live.finishLocalIcon(generation, icon, icon == null);
+            });
+        });
+    }
+
+    private boolean canDecodeLocalIcon() {
+        // No Android tab-visibility requirement during external picker activity. Native lease
+        // and Java navigation observer still reject a changed originating document.
+        return !mLocalIconRevoked && mLocalIconFactory != null
+                && mNativeAddToHomescreenMediator != 0
+                && AddToHomescreenMediatorJni.get().canChooseRawSLocalIcon(
+                        mNativeAddToHomescreenMediator);
+    }
+
+    private void finishLocalIcon(long generation, @Nullable Bitmap icon, boolean failed) {
+        if (generation != mLocalIconGeneration || !canDecodeLocalIcon()) {
+            if (icon != null) icon.recycle();
+            if (generation == mLocalIconGeneration) {
+                cancelLocalIconRequest();
+                mLocalIconFailed = true;
+                renderLocalIcon();
+            }
+            return;
+        }
+        mLocalIconIntent = null;
+        mLocalIconCancellation = null;
+        mLocalIconRequestCode = -1;
+        mLocalIconBusy = false;
+        mLocalIconFailed = failed;
+        if (icon != null) mLocalIcon = icon;
+        renderLocalIcon();
+    }
+
+    private void cancelLocalIconRequest() {
+        ++mLocalIconGeneration;
+        var cancellation = mLocalIconCancellation;
+        mLocalIconCancellation = null;
+        var callback = mLocalIconIntent;
+        int code = mLocalIconRequestCode;
+        mLocalIconIntent = null;
+        mLocalIconRequestCode = -1;
+        mLocalIconBusy = false;
+        if (cancellation != null) cancellation.cancel();
+        if (callback != null) mWindowAndroid.removeIntentCallback(callback);
+        if (code >= 0) mWindowAndroid.cancelIntent(code);
+    }
+
+    @Override
+    public void resetLocalIcon() {
+        cancelLocalIconRequest();
+        mLocalIcon = null;
+        // A reset is not permission to install against a stale departing document.
+        mLocalIconFailed = mLocalIconRevoked && mLocalIconFailed;
+        renderLocalIcon();
+    }
+
+    void revokeLocalIcon() {
+        mLocalIconRevoked = true;
+        boolean wasSelected = mLocalIconBusy || mLocalIcon != null;
+        cancelLocalIconRequest();
+        mLocalIconFailed |= wasSelected;
+        renderLocalIcon();
+    }
+
+    @Override
+    public boolean trySubmit(String title) {
+        if (mLocalIconBusy) return false;
+        Bitmap icon = mLocalIcon;
+        if (icon == null) {
+            if (mLocalIconFailed) return false;
+            onAddToHomescreen(title);
+            return true;
+        }
+        if (!isLocalIconEligible()
+                || !AddToHomescreenMediatorJni.get().installRawSLocalIcon(
+                        mNativeAddToHomescreenMediator, icon)) {
+            mLocalIconFailed = true;
+            renderLocalIcon();
+            return false;
+        }
+        onFlowCompleted();
+        return true;
+    }
+
+    private static @Nullable Bitmap decodeLocalIcon(
+            ContentResolver resolver, Uri uri, CancellationSignal cancellation) {
+        try (var descriptor = resolver.openAssetFileDescriptor(uri, "r", cancellation)) {
+            if (descriptor == null || descriptor.getLength() > MAX_LOCAL_ICON_FILE) return null;
+            try (InputStream in = descriptor.createInputStream()) {
+                return decodeLocalIconStream(in, cancellation);
+            }
+        } catch (IOException | RuntimeException e) {
+            return null;
+        }
+    }
+
+    private static @Nullable Bitmap decodeLocalIconStream(
+            InputStream in, CancellationSignal cancellation) throws IOException {
+        byte[] buffer = new byte[16384];
+        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+        for (int n; (n = in.read(buffer)) != -1; ) {
+            cancellation.throwIfCanceled();
+            if (n <= 0 || bytes.size() > MAX_LOCAL_ICON_FILE - n) return null;
+            bytes.write(buffer, 0, n);
+        }
+        cancellation.throwIfCanceled();
+        byte[] source = bytes.toByteArray();
+        var bounds = new BitmapFactory.Options();
+        bounds.inJustDecodeBounds = true;
+        BitmapFactory.decodeByteArray(source, 0, source.length, bounds);
+        int width = bounds.outWidth;
+        int height = bounds.outHeight;
+        if (width < 1 || height < 1
+                || width > MAX_LOCAL_ICON_DIMENSION || height > MAX_LOCAL_ICON_DIMENSION) {
+            return null;
+        }
+
+        var options = new BitmapFactory.Options();
+        options.inPreferredConfig = Bitmap.Config.ARGB_8888;
+        options.inSampleSize = 1;
+        while (Math.max(width, height) / options.inSampleSize > 384) {
+            options.inSampleSize *= 2;
+        }
+        Bitmap sampled = BitmapFactory.decodeByteArray(source, 0, source.length, options);
+        if (sampled == null) return null;
+        try {
+            cancellation.throwIfCanceled();
+            if (sampled.getWidth() > 768 || sampled.getHeight() > 768) return null;
+            Bitmap result = Bitmap.createBitmap(
+                    LOCAL_ICON_SIZE, LOCAL_ICON_SIZE, Bitmap.Config.ARGB_8888);
+            // Letterbox rather than crop a user's chosen artwork. All photos remain local.
+            float scale = Math.min(
+                    (float) LOCAL_ICON_SIZE / sampled.getWidth(),
+                    (float) LOCAL_ICON_SIZE / sampled.getHeight());
+            float w = sampled.getWidth() * scale;
+            float h = sampled.getHeight() * scale;
+            float x = (LOCAL_ICON_SIZE - w) / 2f;
+            float y = (LOCAL_ICON_SIZE - h) / 2f;
+            new Canvas(result).drawBitmap(sampled, null, new RectF(x, y, x + w, y + h),
+                    new Paint(Paint.FILTER_BITMAP_FLAG));
+            int[] pixels = new int[LOCAL_ICON_SIZE * LOCAL_ICON_SIZE];
+            result.getPixels(pixels, 0, LOCAL_ICON_SIZE, 0, 0,
+                    LOCAL_ICON_SIZE, LOCAL_ICON_SIZE);
+            for (int pixel : pixels) {
+                if ((pixel >>> 24) != 0) return result;
+            }
+            result.recycle();
+            return null;
+        } finally {
+            sampled.recycle();
+        }
+    }
+
+    @CalledByNative
+    void setIcon(Bitmap icon, boolean isAdaptive) {
+        Bitmap iconToShow = icon;
+        if (isAdaptive) {
+            iconToShow =
+                    WebappsIconUtils.createHomeScreenIconFromWebIcon(icon, /* maskable= */ true);
+        }
+
+        mModel.set(AddToHomescreenProperties.ICON, new Pair<>(iconToShow, isAdaptive));
+        mModel.set(AddToHomescreenProperties.CAN_SUBMIT, true);
+        renderLocalIcon();
+    }
+
+    @CalledByNative
+    void setWebAppInfo(String title, String url, @AppType int appType) {
+        mModel.set(AddToHomescreenProperties.TITLE, title);
+        mModel.set(AddToHomescreenProperties.URL, url);
+        mModel.set(AddToHomescreenProperties.TYPE, appType);
+    }
+
+    @CalledByNative
+    void setNativeAppInfo(AppData nativeAppData) {
+        mNativeAppData = nativeAppData;
+        mModel.set(AddToHomescreenProperties.TITLE, nativeAppData.title());
+        mModel.set(AddToHomescreenProperties.TYPE, AppType.NATIVE);
+        mModel.set(AddToHomescreenProperties.NATIVE_APP_RATING, nativeAppData.rating());
+        mModel.set(AddToHomescreenProperties.CAN_SUBMIT, true);
+        mModel.set(
+                AddToHomescreenProperties.NATIVE_INSTALL_BUTTON_TEXT,
+                nativeAppData.installButtonText());
+    }
+
+    long getNativeMediator() {
+        return mNativeAddToHomescreenMediator;
+    }
+
+    @Override
+    public void onAddToHomescreen(String title) {
+        if (mNativeAddToHomescreenMediator == 0) return;
+
+        AddToHomescreenMediatorJni.get().addToHomescreen(mNativeAddToHomescreenMediator, title);
+        onFlowCompleted();
+    }
+
+    @Override
+    public boolean onAppDetailsRequested() {
+        if (mModel.get(AddToHomescreenProperties.TYPE) != AppType.NATIVE) {
+            return false;
+        }
+
+        assumeNonNull(mNativeAppData);
+        mWindowAndroid.showIntent(mNativeAppData.detailsIntent(), null, null);
+
+        if (mNativeAddToHomescreenMediator != 0) {
+            AddToHomescreenMediatorJni.get().onNativeDetailsShown(mNativeAddToHomescreenMediator);
+        }
+        return true;
+    }
+
+    @Override
+    public void onViewDismissed() {
+        if (mNativeAddToHomescreenMediator == 0) return;
+
+        AddToHomescreenMediatorJni.get().onUiDismissed(mNativeAddToHomescreenMediator);
+        onFlowCompleted();
+    }
+
+    private void onFlowCompleted() {
+        mLocalIconRender = null;
+        mLocalIconFactory = null;
+        mLocalIcon = null;
+        cancelLocalIconRequest();
+        if (mNativeAddToHomescreenMediator != 0) {
+            AddToHomescreenMediatorJni.get().destroy(mNativeAddToHomescreenMediator);
+            mNativeAddToHomescreenMediator = 0;
+        }
+
+        mOnFlowCompleted.run();
+    }
+
+    @NativeMethods
+    interface Natives {
+        long initialize(AddToHomescreenMediator instance, WebContents webContents);
+
+        void addToHomescreen(long nativeAddToHomescreenMediator, String title);
+
+        boolean canChooseRawSLocalIcon(long nativeAddToHomescreenMediator);
+
+        boolean beginRawSLocalIconSelection(long nativeAddToHomescreenMediator);
+
+        boolean installRawSLocalIcon(long nativeAddToHomescreenMediator, Bitmap icon);
+
+        void onNativeDetailsShown(long nativeAddToHomescreenMediator);
+
+        void onUiDismissed(long nativeAddToHomescreenMediator);
+
+        void destroy(long nativeAddToHomescreenMediator);
+    }
+}
