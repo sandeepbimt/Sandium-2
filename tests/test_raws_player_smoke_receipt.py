@@ -13,11 +13,19 @@ class RawSPlayerSmokeReceipt(unittest.TestCase):
         player = 'RAWS_1471_INCIDENT_RULES_PASS'
         engine = 'RAWS_ENGINE_SMOKE_1442_PASS'
         rotated = 'RAWS_1483_ROTATING_PLAYER_PASS'
-        verify_port_output(f'{rotated}\n{player}\n{engine}\n')
-        for wrong in (engine, player, f'{player}\n{engine}', f'{player}\n{rotated}\n{engine}',
-                      f'{rotated}\n{player}\n{player}\n{engine}', f'not {rotated}\n{player}\n{engine}'):
+        passive = 'RAWS_PASSIVE_SCRIPTLET_NATIVE_PASS'
+        good = [rotated, player, passive, engine]
+        verify_port_output('\n'.join(good) + '\n')
+        wrong_sequences = [
+            [engine], [player], [player, engine], [rotated, player, engine],
+            [player, rotated, passive, engine], [rotated, player, engine, passive],
+            [rotated, player, passive, passive, engine],
+            [rotated, player, f'not {passive}', engine],
+            [rotated, player, passive, engine, 'extra output'],
+        ]
+        for wrong in wrong_sequences:
             with self.subTest(output=wrong), self.assertRaises(ValueError):
-                verify_port_output(wrong)
+                verify_port_output('\n'.join(wrong) + '\n')
 
     def test_unchanged_original_smoke_still_required(self):
         verify_output('\n'.join([f'ok {case}' for case in CASES] + ['RAWS_ENGINE_SMOKE_V2_PASS']))

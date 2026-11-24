@@ -39,7 +39,7 @@ def verify_output(text):
 
 def verify_port_output(text):
     expected = ['RAWS_1483_ROTATING_PLAYER_PASS', 'RAWS_1471_INCIDENT_RULES_PASS',
-                'RAWS_ENGINE_SMOKE_1442_PASS']
+                'RAWS_PASSIVE_SCRIPTLET_NATIVE_PASS', 'RAWS_ENGINE_SMOKE_1442_PASS']
     if text.splitlines() != expected:
         raise ValueError('Unexpected #1442 and player incident native smoke output')
 
