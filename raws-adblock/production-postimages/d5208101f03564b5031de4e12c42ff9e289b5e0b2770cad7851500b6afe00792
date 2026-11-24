@@ -1,0 +1,485 @@
+// Copyright 2021 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+package org.chromium.chrome.browser.suggestions.tile;
+
+import android.content.Context;
+import android.content.res.Resources;
+import android.graphics.Rect;
+import android.util.AttributeSet;
+import android.view.MotionEvent;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.FrameLayout;
+import android.widget.HorizontalScrollView;
+import android.widget.ScrollView;
+
+import androidx.annotation.Px;
+
+import org.chromium.build.annotations.Initializer;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
+import org.chromium.chrome.R;
+import org.chromium.chrome.browser.suggestions.SiteSuggestion;
+import org.chromium.chrome.browser.user_education.IphCommand;
+import org.chromium.chrome.browser.user_education.IphCommandBuilder;
+import org.chromium.chrome.browser.user_education.UserEducationHelper;
+import org.chromium.components.browser_ui.widget.tile.TileView;
+import org.chromium.components.feature_engagement.FeatureConstants;
+import org.chromium.ui.base.DeviceFormFactor;
+
+/** The most visited tiles layout. */
+@NullMarked
+public class MostVisitedTilesLayout extends TilesLinearLayout {
+
+    private final boolean mIsLff;
+    private boolean mUseRawSHomeTilePaint;
+    private static final int RAWS_GRID_COLUMNS = 4;
+    private static final int RAWS_VISIBLE_ROWS = 4;
+    private @Nullable RawSGridScrollView mRawSGridHost;
+    private int[] mRawSGridHeights = new int[0];
+    private final @Px int mTileViewWidth;
+    private final @Px int mIntervalPaddingsTablet;
+    private final @Px int mEdgePaddingsTablet;
+    private final @Px int mTileViewDividerWidth;
+    private @Nullable Integer mTileToMoveInViewIdx;
+    private @Nullable Runnable mTriggerIphTask;
+    private @Nullable SuggestionsTileVerticalDivider mDivider;
+    private @Nullable Integer mDividerIndex;
+
+    /** Constructor for inflating from XML. */
+    public MostVisitedTilesLayout(Context context, AttributeSet attrs) {
+        super(context, attrs);
+        mIsLff = DeviceFormFactor.isNonMultiDisplayContextOnTablet(context);
+
+        Resources resources = getResources();
+        mTileViewWidth =
+                resources.getDimensionPixelSize(
+                        mIsLff ? R.dimen.tile_view_width_condensed : R.dimen.tile_view_width);
+        mIntervalPaddingsTablet =
+                resources.getDimensionPixelSize(R.dimen.tile_view_padding_interval_tablet);
+        mEdgePaddingsTablet =
+                resources.getDimensionPixelSize(R.dimen.tile_view_padding_edge_tablet);
+        mTileViewDividerWidth = resources.getDimensionPixelSize(R.dimen.tile_view_divider_width);
+    }
+
+    /**
+     * Installs the vertical host before the native tile coordinator binds the tray.
+     * TileViews retain their original model and listeners; only the viewport changes.
+     */
+    public boolean useRawSHomeShortcutGrid() {
+        if (mIsLff || !(getParent() instanceof HorizontalScrollView old)
+                || !(old.getParent() instanceof ViewGroup outer)
+                || old.getId() != R.id.mv_tiles_container || old.getChildCount() != 1
+                || old.isAttachedToWindow()) {
+            return false;
+        }
+        var host = new RawSGridScrollView(getContext(), this);
+        var parentParams = old.getLayoutParams();
+        int position = outer.indexOfChild(old);
+        host.setId(old.getId());
+        host.setVisibility(old.getVisibility());
+        host.setPaddingRelative(old.getPaddingStart(), old.getPaddingTop(),
+                old.getPaddingEnd(), old.getPaddingBottom());
+        // Avoid restoring HorizontalScrollView.SavedState under the recycled layout id.
+        host.setSaveFromParentEnabled(false);
+        old.removeView(this);
+        outer.removeViewAt(position);
+        host.addView(this, new FrameLayout.LayoutParams(
+                LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT));
+        mRawSGridHost = host;
+        outer.addView(host, position, parentParams);
+        return true;
+    }
+
+    public boolean isRawSHomeShortcutGrid() {
+        return mRawSGridHost != null;
+    }
+
+    public float getRawSGridDistanceFromBottomDp() {
+        var host = mRawSGridHost;
+        return host == null ? 0f
+                : host.distanceFromBottom() / getResources().getDisplayMetrics().density;
+    }
+
+    public void restoreRawSGridDistanceFromBottom(float dp) {
+        var host = mRawSGridHost;
+        if (host == null || !Float.isFinite(dp) || dp < 0f) return;
+        host.restoreDistanceFromBottom(
+                Math.round(dp * getResources().getDisplayMetrics().density));
+    }
+
+    private int dp(int value) {
+        return Math.round(getResources().getDisplayMetrics().density * value);
+    }
+
+    static int rawSGridRow(int index, int count) {
+        int first = (count - 1) % RAWS_GRID_COLUMNS + 1;
+        return index < first ? 0 : 1 + (index - first) / RAWS_GRID_COLUMNS;
+    }
+
+    static int rawSGridColumn(int index, int count) {
+        int first = (count - 1) % RAWS_GRID_COLUMNS + 1;
+        return index < first ? index : (index - first) % RAWS_GRID_COLUMNS;
+    }
+
+    static int rawSGridScrollY(int range, int fromBottom) {
+        return Math.max(0, range - Math.max(0, fromBottom));
+    }
+
+    private void measureRawSGrid(int width) {
+        int available = Math.max(1, width - getPaddingLeft() - getPaddingRight());
+        int count = getTileCount();
+        int rows = (count + RAWS_GRID_COLUMNS - 1) / RAWS_GRID_COLUMNS;
+        mRawSGridHeights = new int[rows];
+        for (int i = 0; i < count; ++i) {
+            TileView tile = getTileAt(i);
+            int row = rawSGridRow(i, count);
+            int column = rawSGridColumn(i, count);
+            int widthHere = (column + 1) * available / RAWS_GRID_COLUMNS
+                    - column * available / RAWS_GRID_COLUMNS;
+            var lp = tile.getLayoutParams();
+            int heightSpec = lp.height > 0
+                    ? MeasureSpec.makeMeasureSpec(lp.height, MeasureSpec.EXACTLY)
+                    : MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED);
+            tile.measure(MeasureSpec.makeMeasureSpec(widthHere, MeasureSpec.EXACTLY), heightSpec);
+            mRawSGridHeights[row] = Math.max(mRawSGridHeights[row],
+                    Math.max(dp(48), tile.getMeasuredHeight()));
+        }
+        int gridHeight = count == 0 ? 0 : getPaddingTop() + getPaddingBottom();
+        for (int h : mRawSGridHeights) gridHeight += h;
+        setMeasuredDimension(width, gridHeight);
+    }
+
+    private int visibleGridHeight() {
+        int rows = mRawSGridHeights.length;
+        if (rows == 0) return 0;
+        int height = getPaddingTop() + getPaddingBottom();
+        for (int i = Math.max(0, rows - RAWS_VISIBLE_ROWS); i < rows; ++i) {
+            height += mRawSGridHeights[i];
+        }
+        return height;
+    }
+
+    private void layoutRawSGrid(int width) {
+        int available = Math.max(1, width - getPaddingLeft() - getPaddingRight());
+        boolean rtl = getLayoutDirection() == View.LAYOUT_DIRECTION_RTL;
+        int count = getTileCount();
+        int rowTop = getPaddingTop();
+        int previousRow = 0;
+        for (int i = 0; i < count; ++i) {
+            TileView tile = getTileAt(i);
+            int row = rawSGridRow(i, count);
+            if (row > previousRow) rowTop += mRawSGridHeights[previousRow];
+            previousRow = row;
+            int column = rawSGridColumn(i, count);
+            int x = column * available / RAWS_GRID_COLUMNS;
+            if (rtl) x = available - (column + 1) * available / RAWS_GRID_COLUMNS;
+            x += getPaddingLeft();
+            tile.layout(x, rowTop, x + tile.getMeasuredWidth(), rowTop + tile.getMeasuredHeight());
+        }
+    }
+
+    private static final class RawSGridScrollView extends ScrollView {
+        private final MostVisitedTilesLayout mGrid;
+        private int mLaidOutRange;
+        private boolean mLaidOutGrid;
+        private int mPendingDistance = -1;
+
+        RawSGridScrollView(Context context, MostVisitedTilesLayout grid) {
+            super(context);
+            mGrid = grid;
+            setFillViewport(false);
+            setHorizontalScrollBarEnabled(false);
+            setVerticalScrollBarEnabled(true);
+            setNestedScrollingEnabled(false);
+            setOverScrollMode(OVER_SCROLL_IF_CONTENT_SCROLLS);
+        }
+
+        @Override
+        protected void onMeasure(int widthSpec, int heightSpec) {
+            super.onMeasure(widthSpec, heightSpec);
+            int content = mGrid.visibleGridHeight();
+            if (content == 0) {
+                setMeasuredDimension(getMeasuredWidth(), 0);
+                return;
+            }
+            int desired = content + getPaddingTop() + getPaddingBottom();
+            int mode = MeasureSpec.getMode(heightSpec);
+            if (mode != MeasureSpec.UNSPECIFIED) {
+                desired = Math.min(desired, MeasureSpec.getSize(heightSpec));
+            }
+            setMeasuredDimension(getMeasuredWidth(), desired);
+        }
+
+        int distanceFromBottom() {
+            return Math.max(0, mLaidOutRange - getScrollY());
+        }
+
+        void restoreDistanceFromBottom(int pixels) {
+            mPendingDistance = Math.max(0, pixels);
+            requestLayout();
+        }
+
+        @Override
+        public boolean dispatchTouchEvent(MotionEvent event) {
+            int action = event.getActionMasked();
+            var parent = getParent();
+            if (action == MotionEvent.ACTION_DOWN && mLaidOutRange > 0 && parent != null) {
+                // A swipe begun on the scrollable tray owns the gesture instead of
+                // dragging the surrounding RecyclerView and its browser controls.
+                parent.requestDisallowInterceptTouchEvent(true);
+            }
+            boolean handled = super.dispatchTouchEvent(event);
+            if (parent != null && (!handled || action == MotionEvent.ACTION_UP
+                                          || action == MotionEvent.ACTION_CANCEL)) {
+                parent.requestDisallowInterceptTouchEvent(false);
+            }
+            return handled;
+        }
+
+        @Override
+        protected void onLayout(boolean changed, int l, int t, int r, int b) {
+            // Read the previous geometry before super can clamp scrollY on resize.
+            boolean restoring = mPendingDistance >= 0;
+            int fromBottom = restoring ? mPendingDistance : distanceFromBottom();
+            int oldRange = mLaidOutRange;
+            super.onLayout(changed, l, t, r, b);
+            int count = mGrid.getTileCount();
+            mLaidOutRange = Math.max(0,
+                    mGrid.getHeight() + getPaddingTop() + getPaddingBottom() - getHeight());
+            if (count == 0) {
+                mLaidOutGrid = false;
+                return;
+            }
+            mPendingDistance = -1;
+            Integer reveal = mGrid.mTileToMoveInViewIdx;
+            mGrid.mTileToMoveInViewIdx = null;
+            boolean position = !mLaidOutGrid || restoring || oldRange != mLaidOutRange || reveal != null;
+            mLaidOutGrid = true;
+            // Keep Android's own keyboard/accessible focus reveal on an ordinary relayout.
+            if (!position) return;
+            int y = rawSGridScrollY(mLaidOutRange, fromBottom);
+            if (reveal != null && reveal >= 0 && reveal < count) {
+                TileView tile = mGrid.getTileAt(reveal);
+                int height = getHeight() - getPaddingTop() - getPaddingBottom();
+                if (tile.getTop() < y) y = tile.getTop();
+                if (tile.getBottom() > y + height) y = tile.getBottom() - height;
+            }
+            // No smooth scroll/posted jump on first display or Back.
+            scrollTo(0, Math.max(0, Math.min(y, mLaidOutRange)));
+        }
+    }
+
+    /** Styles only icons in this regular Home surface, including later native tile refreshes. */
+    public void useRawSHomeTilePaint() {
+        if (mIsLff || mUseRawSHomeTilePaint) return;
+        mUseRawSHomeTilePaint = true;
+        for (int i = 0; i < getTileCount(); i++) {
+            styleRawSHomeTile(getTileAt(i));
+        }
+    }
+
+    private void styleRawSHomeTile(TileView tile) {
+        if (tile instanceof SuggestionsTileView suggestion) {
+            suggestion.useRawSHomeTilePaint(isRawSHomeShortcutGrid());
+        }
+    }
+
+    @Override
+    public void addTile(TileView tile) {
+        if (mUseRawSHomeTilePaint) styleRawSHomeTile(tile);
+        super.addTile(tile);
+    }
+
+    @Override
+    public void removeAllViews() {
+        super.removeAllViews();
+        mDivider = null;
+        mDividerIndex = null;
+    }
+
+    @Override
+    void setIntervalMargins(@Px int margin) {
+        if (isRawSHomeShortcutGrid()) return;
+        super.setIntervalMargins(margin);
+
+        if (mDivider != null) {
+            assert mDividerIndex != null;
+            // Let M = margin, W = divider width, A = adjusted margin. Desired apparent margin that
+            // pretends divider absence is M = A + W + A, so A = (M - W) / 2.
+            @Px int adjustedMargin = (margin - mTileViewDividerWidth) / 2;
+            // Update the start margins of the divider and its next sibling.
+            updateViewStartMargin(mDivider, adjustedMargin);
+            View childAfterDivider = getChildAt(mDividerIndex + 1);
+            if (childAfterDivider != null) {
+                updateViewStartMargin(childAfterDivider, adjustedMargin);
+            }
+        }
+    }
+
+    @Override
+    public void addDivider(SuggestionsTileVerticalDivider divider) {
+        if (isRawSHomeShortcutGrid()) return;
+        super.addDivider(divider);
+        if (mDivider != null) return;
+
+        // Take the first divider found and assume it's the only one.
+        mDivider = divider;
+        mDividerIndex = getChildCount() - 1;
+        mDivider.hide(/* isAnimated= */ false);
+    }
+
+    void destroy() {
+        for (int i = 0; i < getTileCount(); i++) {
+            TileView tileView = getTileAt(i);
+            tileView.setOnClickListener(null);
+            tileView.setOnCreateContextMenuListener(null);
+        }
+        removeAllViews();
+    }
+
+    public SiteSuggestion getTileViewData(TileView tileView) {
+        return ((SuggestionsTileView) tileView).getData();
+    }
+
+    /**
+     * Returns whether all the tiles and non-tiles, with a small margin would fit within a container
+     * with the given {@code totalWidth} without the need to scroll. For large form factors (LFF)
+     * only.
+     */
+    public boolean contentFitsOnLff(int totalWidth) {
+        return totalWidth >= 2 * mEdgePaddingsTablet + getTabletContentWidth();
+    }
+
+    /** Returns the total width of tiles, UI Views, and interval paddings. */
+    @Px
+    int getTabletContentWidth() {
+        return (int)
+                (mTileViewWidth * getTileCount()
+                        + mUiViewsTotalWidth
+                        + mIntervalPaddingsTablet * (mTileAndUiViewCount - 1));
+    }
+
+    /**
+     * Adjusts the edge margin of the tile elements when they are displayed in the center of the NTP
+     * on large form factor (LFF) devices.
+     *
+     * @param totalWidth The width of the mv tiles container.
+     */
+    void updateEdgeMarginLff(int totalWidth) {
+        // If content fits within `totalWidth`, then return the required margin to center it. Else
+        // scrolling would be needed, so return a fixed margin for the scrolled content.
+        int edgeMargin =
+                contentFitsOnLff(totalWidth)
+                        ? (totalWidth - getTabletContentWidth()) / 2
+                        : mEdgePaddingsTablet;
+        setEdgeMargins(edgeMargin);
+    }
+
+    /**
+     * Tags the {@link TileView} at {@code tileIdx} so that on next Layout, minimal scroll is
+     * performed to ensure it's in-view.
+     */
+    void ensureTileIsInViewOnNextLayout(int tileIdx) {
+        if (isRawSHomeShortcutGrid()) requestLayout();
+        // If a value exists, simply overwrite it since the old value is likely new irrelevant.
+        mTileToMoveInViewIdx = tileIdx;
+    }
+
+    /**
+     * Attempts to show the in-product help for MVT Customization "Pin this shortcut" feature. At
+     * least one tile must exist, since help is anchored on the first. Must be called before layout
+     * takes place.
+     */
+    public void triggerCustomizationIph(UserEducationHelper userEducationHelper) {
+        if (getTileCount() == 0) return;
+
+        // Defer until layout, so that the first TileView can be used as the the anchor.
+        mTriggerIphTask =
+                () -> {
+                    TileView firstTileView = getTileAt(0);
+                    IphCommand command =
+                            new IphCommandBuilder(
+                                            getResources(),
+                                            FeatureConstants.MOST_VISITED_TILES_CUSTOMIZATION_PIN,
+                                            R.string.ntp_custom_links_help_pin,
+                                            R.string.ntp_custom_links_help_pin)
+                                    .setAnchorView(firstTileView)
+                                    .setInsetRect(new Rect(0, 0, 0, 0))
+                                    .build();
+                    userEducationHelper.requestShowIph(command);
+                };
+    }
+
+    @Override
+    @Initializer
+    protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
+        if (isRawSHomeShortcutGrid()) {
+            measureRawSGrid(MeasureSpec.getSize(widthMeasureSpec));
+            return;
+        }
+        if (mIsLff) {
+            updateEdgeMarginLff(MeasureSpec.getSize(widthMeasureSpec));
+        }
+        super.onMeasure(widthMeasureSpec, heightMeasureSpec);
+    }
+
+    @Override
+    public void onLayout(boolean changed, int left, int top, int right, int bottom) {
+        if (isRawSHomeShortcutGrid()) {
+            layoutRawSGrid(right - left);
+            if (mTriggerIphTask != null) {
+                mTriggerIphTask.run();
+                mTriggerIphTask = null;
+            }
+            return;
+        }
+        super.onLayout(changed, left, top, right, bottom);
+        if (mTileToMoveInViewIdx != null) {
+            Integer scrollXPx = getScrollXToMakeTileVisible(mTileToMoveInViewIdx);
+            if (scrollXPx != null) {
+                HorizontalScrollView parent = (HorizontalScrollView) getParent();
+                parent.smoothScrollTo(scrollXPx.intValue(), 0);
+            }
+            mTileToMoveInViewIdx = null;
+        }
+
+        if (mTriggerIphTask != null) {
+            mTriggerIphTask.run();
+            mTriggerIphTask = null;
+        }
+    }
+
+    public HorizontalScrollView getScrollView() {
+        return (HorizontalScrollView) getParent();
+    }
+
+    public @Nullable SuggestionsTileVerticalDivider getDividerMaybeNull() {
+        return mDivider;
+    }
+
+    private @Nullable Integer getScrollXToMakeTileVisible(int tileIdx) {
+        if (tileIdx >= getTileCount()) {
+            return null;
+        }
+        HorizontalScrollView scrollView = getScrollView();
+        @Px float tileXPx = getTileAt(tileIdx).getX();
+        @Px int scrollXPx = scrollView.getScrollX();
+        // If scroll position is too high so that the tile is out-of-view / truncated, scroll left
+        // so that the tile appears on the left edge (RTL doesn't matter).
+        @Px int scrollXHiPx = (int) tileXPx;
+        if (scrollXPx > scrollXHiPx) {
+            return scrollXHiPx;
+        }
+        // If scroll position is too low so that the tile is out-of-view / truncated, scroll right
+        // so that the tile appears on the right edge (RTL doesn't matter).
+        @Px int scrollXLoPx = (int) (tileXPx + mTileViewWidth - scrollView.getWidth());
+        if (scrollXPx < scrollXLoPx) {
+            return scrollXLoPx;
+        }
+        // Entire tile is in-view; no scroll is needed.
+        return null;
+    }
+}

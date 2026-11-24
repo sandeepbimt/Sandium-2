@@ -103,6 +103,7 @@
     "chrome/android/java/src/org/chromium/chrome/browser/metrics/UmaSessionStats.java",
     "chrome/android/java/src/org/chromium/chrome/browser/multiwindow/MultiInstanceOrchestratorImpl.java",
     "chrome/android/java/src/org/chromium/chrome/browser/multiwindow/MultiWindowUtils.java",
+    "chrome/android/java/src/org/chromium/chrome/browser/native_page/ContextMenuManager.java",
     "chrome/android/java/src/org/chromium/chrome/browser/ntp/IncognitoNewTabPage.java",
     "chrome/android/java/src/org/chromium/chrome/browser/ntp/IncognitoNewTabPageView.java",
     "chrome/android/java/src/org/chromium/chrome/browser/ntp/NewTabPage.java",
@@ -119,6 +120,7 @@
     "chrome/android/java/src/org/chromium/chrome/browser/suggestions/mostvisited/MostVisitedSitesBridge.java",
     "chrome/android/java/src/org/chromium/chrome/browser/suggestions/tile/MostVisitedTilesLayout.java",
     "chrome/android/java/src/org/chromium/chrome/browser/suggestions/tile/SuggestionsTileView.java",
+    "chrome/android/java/src/org/chromium/chrome/browser/suggestions/tile/TileInteractionDelegateImpl.java",
     "chrome/android/java/src/org/chromium/chrome/browser/suggestions/tile/TileRenderer.java",
     "chrome/android/java/src/org/chromium/chrome/browser/sync/settings/GoogleServicesSettings.java",
     "chrome/android/java/src/org/chromium/chrome/browser/sync/settings/SignInPreference.java",
@@ -168,6 +170,7 @@
     "chrome/browser/ui/android/native_page/java/src/org/chromium/chrome/browser/ui/native_page/NativePage.java",
     "chrome/browser/ui/android/night_mode/BUILD.gn",
     "chrome/browser/ui/android/night_mode/java/src/org/chromium/chrome/browser/night_mode/WebContentsThemeClient.java",
+    "chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/HintTextUpdater.java",
     "chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/LocationBarBackgroundDrawable.java",
     "chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/LocationBarLayout.java",
     "chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/LocationBarPhone.java",
@@ -287,7 +290,7 @@
     "ui/android/java/src/org/chromium/ui/hierarchicalmenu/HierarchicalMenuController.java",
     "ui/android/java/src/org/chromium/ui/modaldialog/ModalDialogProperties.java"
   ],
-  "manifest_sha256": "29d89ae81d6ac51b6618839ea2b19abe20896ec53d01bff673f238e014ee5eba",
+  "manifest_sha256": "c6d6bb7e8a01fdfd0767332c38e2e2b7ad2aad7102164b7de32c2af77e197912",
   "staged_vendor_delta": {
     "brave/third_party/rust/chromium_crates_io/vendor/adblock-v0_13/src/blocker.rs": {
       "after": "ac368737ffb88855918f8e32ac0eb39a308c4e76f41e4a8193cf223c2a59a7cb",

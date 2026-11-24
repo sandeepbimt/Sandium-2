@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- SPDX-License-Identifier: MPL-2.0 -->
+<resources>
+    <string name="raws_ui_settings_section">Sandium</string>
+    <string name="raws_ui_customize_menu">Customize menu</string>
+    <string name="raws_ui_customize_menu_from_browser">Open a regular browser tab to customize the menu.</string>
+    <string name="raws_ui_address_bar_colors">Sandium address bar colors</string>
+    <string name="raws_ui_address_bar_colors_summary">Use Sandium colors for the default address bar. Applies when the browser is reopened.</string>
+    <string name="raws_ui_galaxy_wallpaper">Galaxy wallpaper</string>
+    <string name="raws_ui_galaxy_wallpaper_summary">Show the bundled Galaxy wallpaper on the dark Home screen when no custom background is selected.</string>
+    <string name="raws_settings_not_available">Not available in this RawS test build</string>
+    <string name="raws_settings_search_engines">Search engines</string>
+    <string name="raws_settings_features">Features</string>
+    <string name="raws_settings_general">General</string>
+    <string name="raws_settings_display">Display</string>
+    <string name="raws_settings_support">Support</string>
+    <string name="raws_settings_about">About</string>
+    <string name="raws_settings_autofill">Passwords and autofill</string>
+    <string name="raws_settings_navigation">Navigation</string>
+    <string name="raws_settings_home_widget">Home screen widget</string>
+    <string name="raws_settings_close_all">Closing all tabs closes Sandium</string>
+    <string name="raws_settings_media">Media</string>
+    <string name="raws_settings_rate">Rate Sandium</string>
+    <string name="raws_settings_dynamic_colors">Dynamic colors</string>
+    <string name="raws_dynamic_colors_summary">Use Android’s system palette unless you set a custom New Tab color. Restart Sandium to apply.</string>
+    <string name="raws_dynamic_colors_restart">Restart Sandium to apply your color choice?</string>
+    <string name="raws_dynamic_colors_later">Later</string>
+    <string name="raws_dynamic_colors_restart_now">Restart now</string>
+    <string name="raws_settings_nav_toolbar">Bottom navigation toolbar</string>
+    <string name="raws_settings_multiple_windows">Multiple windows</string>
+    <string name="raws_settings_night_mode">Dark pages</string>
+    <string name="raws_settings_transition_blur">Page transition blur</string>
+    <string name="raws_settings_sharing_hub">Sharing Hub</string>
+    <string name="raws_settings_open_group">Only open links in current tab group</string>
+    <string name="raws_settings_undo_tabs">Show undo button when tabs are closed</string>
+    <string name="raws_settings_native_options">Other appearance settings</string>
+    <string-array name="raws_settings_blur_entries"><item>Off</item><item>On</item></string-array>
+    <string-array name="raws_settings_blur_values" translatable="false"><item>off</item><item>on</item></string-array>
+    <item name="sandium_add_home_shortcut" type="id"/>
+    <string name="raws_add_current_page_to_sandium_home">Add to Sandium home</string>
+    <string name="raws_add_current_page_to_sandium_home_ok">Added to Sandium home</string>
+    <string name="raws_add_current_page_to_sandium_home_unavailable">Could not add this shortcut. It may already be saved or Home may be full.</string>
+    <string name="raws_dark_pages_next_load">Applies when a page loads. Sites can override this in Sandium Lens.</string>
+    <string name="raws_transition_restart">Applies after restarting Sandium.</string>
+    <string name="raws_transition_blur_restart_value">%1$s · Applies after restarting Sandium.</string>
+    <string name="raws_page_text_title">Webpage text</string>
+    <string name="raws_page_text_summary">Text size and article justification</string>
+    <string name="raws_page_text_scale_label">Webpage text size</string>
+    <string name="raws_page_text_size_default" formatted="false">Text size · Website default (100%)</string>
+    <string name="raws_page_text_size_value">Text size · %1$d%%</string>
+    <string name="raws_page_text_justify">Justify article text</string>
+    <string name="raws_page_text_sample">Sandium keeps reading comfortable. Adjust the text size and alignment to find a style that feels right. This sample changes instantly while your open webpages stay unchanged.</string>
+    <string name="raws_page_text_private">Private session only. Changes are not saved to your regular profile.</string>
+    <string name="raws_page_text_save">Save</string>
+    <string name="raws_page_text_next_load">Saved. Applies on the next page load.</string>
+    <string name="raws_page_text_save_error">Could not save text settings. Try again.</string>
+    <string name="raws_settings_sharing_hub_action">Use the in-browser Sharing Hub instead of the Android share sheet.</string>
+    <string name="raws_settings_undo_tabs_action">Show Undo after closing tabs.</string>
+    <string name="raws_settings_group_links_action">Group links and foreground link tabs with their opener. Native explicit group actions remain available.</string>
+    <string name="raws_windows_allow_summary">Allow opening new browser windows. Existing windows and tabs are kept.</string>
+    <string name="raws_windows_active_title">Multiple windows are open</string>
+    <string name="raws_windows_active_message">Move tabs to another window or close other windows first. Then return here to turn off Multiple windows.</string>
+    <string name="raws_windows_review">Review windows</string>
+    <string name="raws_windows_review_fallback">Return to the browser and choose Manage windows from the menu. No windows or tabs have been closed.</string>
+    <item name="raws_exit_menu_id" type="id" />
+    <string name="raws_exit_menu_title">Exit</string>
+    <item name="raws_home_toggle_shortcuts" type="id" />
+    <item name="raws_home_upload_image" type="id" />
+    <string name="raws_home_hide_shortcuts">Hide My shortcuts</string>
+    <string name="raws_home_show_shortcuts">Show My shortcuts</string>
+    <string name="raws_home_upload_image">Upload an image</string>
+    <string name="raws_autofill_passwords_row">Passwords</string>
+    <string name="raws_autofill_payments_row">Payment methods</string>
+    <string name="raws_autofill_addresses_row">Addresses</string>
+    <string name="raws_setup_terms_consent">To continue, read and agree to the Google &lt;TOS_LINK&gt;Terms of Service&lt;/TOS_LINK&gt;.</string>
+</resources>

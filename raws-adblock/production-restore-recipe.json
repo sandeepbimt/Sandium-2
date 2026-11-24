@@ -8142,7 +8142,7 @@
       "mode": "644"
     },
     "chrome/android/feed/core/java/src/org/chromium/chrome/browser/feed/FeedSurfaceCoordinator.java": {
-      "after_sha256": "e9c5fe200e9f2bd8df2ef9f82b4e5f34ac5352e55479db21f0b43ddf6519f4a6",
+      "after_sha256": "50b8477daf5e1f3130c662eb8c4fbdac4fa53eae27066997c04864cde2cc000d",
       "before_sha256": "e980d8fb0350a64ccfa8f11b5ebfa243387a5574c54710ee54e822592e1d14da"
     },
     "chrome/android/java/AndroidManifest.xml": {
@@ -8220,7 +8220,7 @@
       "mode": "644"
     },
     "chrome/android/java/res/values/raws_global_shield_strings.xml": {
-      "after_sha256": "2d93a24b1373c1d59f355fe33d5dcdca7a98d4eef3e29fa4cc8d8af65859e322",
+      "after_sha256": "9f8214580154ad9597fe1294bd5e8b089a8f95933ef41b2a7fee61ad193699d2",
       "before_sha256": null,
       "mode": "644"
     },
@@ -8235,7 +8235,7 @@
       "mode": "644"
     },
     "chrome/android/java/res/values/raws_main_settings_strings.xml": {
-      "after_sha256": "93f1f0a812263123b2acc9e250174bcd0982b21b843362ce60df3cc4fc0ac907",
+      "after_sha256": "79ba6e9bb5d5ec4dfb6b1c19c1acf56b89386850917423ff7abea3e17dbbfc6d",
       "before_sha256": null,
       "mode": "644"
     },
@@ -8459,6 +8459,10 @@
       "before_sha256": "e48e92157e9f75d2af2af3ba043a987c58ed6c7842c4273ef9eb036cc17a667f",
       "mode": "644"
     },
+    "chrome/android/java/src/org/chromium/chrome/browser/native_page/ContextMenuManager.java": {
+      "after_sha256": "64c6ff8210d7ec186727ead5916950c3d43ba56f097310db5d156660d71d8ef5",
+      "before_sha256": "fe9b04a041d56391d9df920b4f064f8cb1de8c5cef7c66a2415dd370e0a43818"
+    },
     "chrome/android/java/src/org/chromium/chrome/browser/ntp/IncognitoNewTabPage.java": {
       "after_sha256": "30a804f37bf143e25e4750e7c26b794b8df7f750379f75b596abc9181f621ec3",
       "before_sha256": "f6cb21f2e62d3a671c7544da3abd6563c01e146c8396532e7ab20fc465af0ab2"
@@ -8468,7 +8472,7 @@
       "before_sha256": "adbaa027b6a773aa99c098f3e165e710520ce80ddf10e0f9dc1834b70695e45a"
     },
     "chrome/android/java/src/org/chromium/chrome/browser/ntp/NewTabPage.java": {
-      "after_sha256": "354f392562266366bc2db7841f8ae9b906d9c3c8a9fb3e9ac4c7feebc4cc64a7",
+      "after_sha256": "3d13335b9cd6956dcba0634038f48e547f1f25d2a472e63bee5a1e7f26c6836e",
       "before_sha256": "041b02c93879d4883ac3768fada16659cf9f0cd5f16f1e23b84723611b4986fd"
     },
     "chrome/android/java/src/org/chromium/chrome/browser/ntp/NewTabPageCoordinator.java": {
@@ -8476,7 +8480,7 @@
       "before_sha256": "cb9d4661fd62c64130a825a9bf07d002ebc424f82b46fff2eb66598c090e472f"
     },
     "chrome/android/java/src/org/chromium/chrome/browser/ntp/NewTabPageLayout.java": {
-      "after_sha256": "422bc663524eae2adc6b9e4aaafd85751fd5654d4df0400e09ae582b71566971",
+      "after_sha256": "f9d27bf3b5fd4e229a16696d81059457a4eb32097efc6b65511dd3704fee2ef1",
       "before_sha256": "cc9f1e50391b915153abf9ce56b6ef75496cf15ed4fd34cd6e1a58bbbc1d8fb5",
       "mode": "644"
     },
@@ -8485,7 +8489,7 @@
       "before_sha256": "5cd4dac6f1404c7a4da2bed2c4a920727e12041f9aa7760cc45806ca4c24be5c"
     },
     "chrome/android/java/src/org/chromium/chrome/browser/ntp/search/SearchBoxContainerView.java": {
-      "after_sha256": "dc81843083098bde08e1f2118f4525e5e795b8c90d3cc5edb9fb4943b4c0f6a8",
+      "after_sha256": "aeb2b457a4ad07ab1284b57e17d067a1ce8979a5e2d83bd3ef19197b9e5fee83",
       "before_sha256": "d28bd8a20c63b53e18afeb5482af3a01aefac4123f0a04f96c5ccb40332a4b01",
       "mode": "644"
     },
@@ -8535,7 +8539,7 @@
       "mode": "644"
     },
     "chrome/android/java/src/org/chromium/chrome/browser/settings/RawSColorChooser.java": {
-      "after_sha256": "af2518e56955046275439a3aedd66c03483c6b60389f24d08f0451270ff7b15b",
+      "after_sha256": "215f658139c916d6b2f239a1204ffc6d1234d9c53919ada0020c3fbe62a85484",
       "before_sha256": null,
       "mode": "644"
     },
@@ -8609,15 +8613,19 @@
       "before_sha256": "f46f39f7afd4b77d54d5268b45179ef3f2ef415ec741f8e1256049d7ece35207"
     },
     "chrome/android/java/src/org/chromium/chrome/browser/suggestions/tile/MostVisitedTilesLayout.java": {
-      "after_sha256": "71eacdf017ce1258484c95cd21c8565ed97ed87a58c8f41eb8d4463b111921a8",
+      "after_sha256": "d5208101f03564b5031de4e12c42ff9e289b5e0b2770cad7851500b6afe00792",
       "before_sha256": "caabc813b9defaf9e171986d462ea472f74fdc0d9669bd31b6c89fa152a9217a"
     },
     "chrome/android/java/src/org/chromium/chrome/browser/suggestions/tile/SuggestionsTileView.java": {
-      "after_sha256": "bff7b40f31ba60f264d42e20f1c9afb71cd99911277d3472a7bb4ef40b46700b",
+      "after_sha256": "ea55de322d26e31ef4d7e5b760736b52aceea4284db4bb1e76da52f9dc94e1d0",
       "before_sha256": "7c21a918eac922db3025540dff9b4a4e4ed18505bdd9b2e85dbe17fae35dc15d"
     },
+    "chrome/android/java/src/org/chromium/chrome/browser/suggestions/tile/TileInteractionDelegateImpl.java": {
+      "after_sha256": "6eb2d599f92788785c979cd09f140ce483cdbc81b750f43c37693494131d2430",
+      "before_sha256": "c0902cb53f128e65206dc254e34af5ff3e0380cb8f7ca2de603d0c62bcc428e6"
+    },
     "chrome/android/java/src/org/chromium/chrome/browser/suggestions/tile/TileRenderer.java": {
-      "after_sha256": "fe6851529d0745e326ba12ca1e3ac793d833e017ef35a9bea254ca77e402c9d1",
+      "after_sha256": "176bb605339e7e0b71c88be0d83ad6b8ba92a0851bf0ab358a3d964561bac6a9",
       "before_sha256": "8b0e8dd40d9d2940bcf688d0af4891fc8d385bcbbb36af965352a6fb7bbab73a"
     },
     "chrome/android/java/src/org/chromium/chrome/browser/sync/settings/GoogleServicesSettings.java": {
@@ -8668,7 +8676,7 @@
       "mode": "644"
     },
     "chrome/android/java/src/org/chromium/chrome/browser/webapps/AppInstallMenuHandler.java": {
-      "after_sha256": "3d518c7a3324243fef0e376a22dfc0fd769a0006bb0bc87dec735c35f965cf92",
+      "after_sha256": "c2cd7ad7bfc8dc01bc01753fa4cd4d678f5b07c3e12d6c0a533e4fb738fc8373",
       "before_sha256": "39362143dbacdcd46b34719dc39daec4f79cbc190999600bd192624121369903",
       "mode": "644"
     },
@@ -8823,7 +8831,7 @@
       "mode": "644"
     },
     "chrome/browser/ntp_tiles/chrome_custom_links_manager_factory.cc": {
-      "after_sha256": "5c7edb53758a48d94085cf9ec359914d1b5cfa708b7b2fda4c171a1a5266b38c",
+      "after_sha256": "c1119216cf482e794efb3b00878ac4e021eb97da247c41b00724d71d93cb2723",
       "before_sha256": "e5ebe3e983fcf4ed63987f05cc0c08694f167b8ac7e3592d7f6a2e621c32246d",
       "mode": "644"
     },
@@ -8882,12 +8890,12 @@
       "mode": "644"
     },
     "chrome/browser/raws/raws_color_session.cc": {
-      "after_sha256": "8788c1589cf720fa80a91e59684c275db7c3899410390b16200f8b5542d74f7e",
+      "after_sha256": "cec231d5e05227d5f11692eef5c83d03f52c766aa055a949725c4852f61a64fe",
       "before_sha256": null,
       "mode": "644"
     },
     "chrome/browser/raws/raws_color_session.h": {
-      "after_sha256": "87d9ddf1aacf0df6563dd6453c75c3e48f4da8685143ef90c686f3d8888cd6c3",
+      "after_sha256": "c9020d28ac457cef3aef9bebb9a10722211ecb7cae43acf16d6d15d5211d104a",
       "before_sha256": null,
       "mode": "644"
     },
@@ -8920,7 +8928,7 @@
       "mode": "644"
     },
     "chrome/browser/sandium/element_color_rule_store.cc": {
-      "after_sha256": "330c8359b5f8ad3e978e33214888dfbef18409c9cfa71c1272f545322427034b",
+      "after_sha256": "2009075459288d235c3f5582324e370398c0bf40c52c52fc1b4a98bca98740f1",
       "before_sha256": null,
       "mode": "644"
     },
@@ -9146,6 +9154,11 @@
       "before_sha256": "6c90a59d8d3237c24ce2c3eabba64ed3320da6b957b4192e7f8304a1a6d41eee",
       "mode": "644"
     },
+    "chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/HintTextUpdater.java": {
+      "after_sha256": "49435f37cf83beca2ffb40653fde9da4a8bdb91387290e90b489774ff4327a29",
+      "before_sha256": "48565d3932d72957a430c05a698f9838c210d9f12043ec94a7c2353b0f4e898e",
+      "mode": "644"
+    },
     "chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/LocationBarBackgroundDrawable.java": {
       "after_sha256": "ac707a79b50c1d556fbf3f850e9fac860bb0938aa83e0a04319db0ab8ba109bc",
       "before_sha256": "a43198b10611f3f47ef8c03aef2da3615a661db94960f26c5a2f91bd4d47b105",
@@ -9248,7 +9261,7 @@
       "before_sha256": "e85721c57d57eb37bd17fbabf810261b465968156c7a64cb7cff0bf894bd7cda"
     },
     "chrome/browser/ui/android/toolbar/java/res/values/raws_address_controls.xml": {
-      "after_sha256": "bea3d2e68e3f5d3c1231081e22e6addc06c4f5e122af2b34d3de38183d721cf9",
+      "after_sha256": "9bf1786f4d63adb8f16f7433bf650be5cf4d2356d848f631cac230e01ae61b2c",
       "before_sha256": null
     },
     "chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/LocationBarModel.java": {
@@ -9357,7 +9370,7 @@
       "mode": "644"
     },
     "chrome/renderer/chrome_render_frame_observer.cc": {
-      "after_sha256": "bfe3dec3a1502fe7b79337a21f541d32508824e0528c17ebac4fda3aabd67b81",
+      "after_sha256": "2f93f4a5ce31432a86a93b0285aefe13eddd8e47da7fd5a922224ba5af51326a",
       "before_sha256": "193e6a0d88cd505eb683cba41d4509785e235310560d52b23c8bf394e0430972"
     },
     "chrome/renderer/chrome_render_frame_observer.h": {
@@ -9365,7 +9378,7 @@
       "before_sha256": "b3172f2b05944287a157906c16231ad457775525f314abad96d2d423af77d353"
     },
     "chrome/renderer/raws_color_locator.h": {
-      "after_sha256": "656bb757d5ea9d37357c8714463b9f683d03a08d40d665fac87d10388e077d8d",
+      "after_sha256": "4fe8f4d33eb6dfc8701e2c0226f85969493f35b2feb215ace6531f21113210c8",
       "before_sha256": null,
       "mode": "644"
     },
@@ -9857,17 +9870,17 @@
       "mode": "644"
     },
     "third_party/blink/renderer/core/dom/element.cc": {
-      "after_sha256": "f08cb39f80bbcccb0944cbc359efc168df3a48dc731f28c00879ca5cce3ace2e",
+      "after_sha256": "47cba1243326af5ffa7bafd1efe069061ecf0b6597150009c46aaab580a5c79a",
       "before_sha256": "048bb22cf1c3a89cf62ca83334b4ddb179ddde8a1563dea9f499ebe06d4597fb",
       "mode": "644"
     },
     "third_party/blink/renderer/core/dom/sandium_element_colors.cc": {
-      "after_sha256": "5057626fd735f061a7e63059540aecef174772ad7c43ae7b57d20db48497aafd",
+      "after_sha256": "a08a764f3ee3a74cab8a0fb73a3f7d4a88f119fd4e0c1b08b7f2396c37424b05",
       "before_sha256": null,
       "mode": "644"
     },
     "third_party/blink/renderer/core/dom/sandium_element_colors.h": {
-      "after_sha256": "68dfd756171e4b2eb609b60ef55d1d6113a2ef6b7e10bbd8c6db8db90158040e",
+      "after_sha256": "2fcc245ab1179fb8b3edba98c84eff635f17bf4226159f807b3f4c57c6e6c917",
       "before_sha256": null,
       "mode": "644"
     },

@@ -50,6 +50,7 @@
       "//chrome/android/java/src/org/chromium/chrome/browser/metrics/UmaSessionStats.java",
       "//chrome/android/java/src/org/chromium/chrome/browser/multiwindow/MultiInstanceOrchestratorImpl.java",
       "//chrome/android/java/src/org/chromium/chrome/browser/multiwindow/MultiWindowUtils.java",
+      "//chrome/android/java/src/org/chromium/chrome/browser/native_page/ContextMenuManager.java",
       "//chrome/android/java/src/org/chromium/chrome/browser/ntp/IncognitoNewTabPage.java",
       "//chrome/android/java/src/org/chromium/chrome/browser/ntp/IncognitoNewTabPageView.java",
       "//chrome/android/java/src/org/chromium/chrome/browser/ntp/NewTabPageLayout.java",
@@ -72,6 +73,7 @@
       "//chrome/android/java/src/org/chromium/chrome/browser/settings/search/SettingsSearchCoordinator.java",
       "//chrome/android/java/src/org/chromium/chrome/browser/share/ShareDelegateImpl.java",
       "//chrome/android/java/src/org/chromium/chrome/browser/suggestions/mostvisited/MostVisitedSitesBridge.java",
+      "//chrome/android/java/src/org/chromium/chrome/browser/suggestions/tile/TileInteractionDelegateImpl.java",
       "//chrome/android/java/src/org/chromium/chrome/browser/suggestions/tile/TileRenderer.java",
       "//chrome/android/java/src/org/chromium/chrome/browser/sync/settings/GoogleServicesSettings.java",
       "//chrome/android/java/src/org/chromium/chrome/browser/tab/TabImpl.java",
@@ -185,6 +187,7 @@
   "//chrome/browser/ui/android/omnibox:java__compile_java": [
     "inputs",
     [
+      "//chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/HintTextUpdater.java",
       "//chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/LocationBarBackgroundDrawable.java",
       "//chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/LocationBarLayout.java",
       "//chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/LocationBarPhone.java",
