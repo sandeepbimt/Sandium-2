@@ -1,0 +1,383 @@
+// Copyright 2026 The Sandium Authors
+// SPDX-License-Identifier: MPL-2.0
+
+#ifndef CHROME_RENDERER_RAWS_DYNAMIC_COSMETIC_SCHEDULER_H_
+#define CHROME_RENDERER_RAWS_DYNAMIC_COSMETIC_SCHEDULER_H_
+
+namespace raws::cosmetic {
+
+// Fixed isolated-world code, not a parser for filter-supplied JavaScript.
+// Admission and generation belong to the caller. Start only on the admitted
+// document. rootElement() returns the audited root (or null until inserted).
+// The bounded matcher owns reversible paint. recheckOwned(), if supplied,
+// revalidates only its bounded live marks; reset() must undo only owned paint.
+// adMarkerAttributes, if supplied, can add only bounded exact ad markers
+// or one of the three typed rule anchor names. anchorAncestorDepth can
+// opt in to revisiting the child levels of modified ancestor id/class
+// selectors, without scanning an unbounded descendant subtree.
+inline constexpr char kRawSDynamicCosmeticScheduler[] = R"RAWSJS(
+((doc, plan) => {
+  const delayMs = 125;
+  const maxStepsPerTurn = 40;
+  const maxDomSteps = 2400;
+  const maxInputSteps = 3200;
+  const maxInputPerCallback = 160;
+  const maxQueuedRoots = 48;
+  const maxDepth = 24;
+  const maxAncestors = 4;
+  // Procedural owner: <=12 plans x <=3 operators, three structural and
+  // three deduplicated anchor names. Existing caller limits stay unchanged.
+  const maxAdMarkerAttributes = 42;
+  const extraAttributes = plan.adMarkerAttributes;
+  const anchorAncestorDepth = plan.anchorAncestorDepth === 2 ? 2 :
+      plan.anchorAncestorDepth === 1 ? 1 : 0;
+  const attributeFilter = new Set([
+    'id', 'class', 'role', 'aria-modal', 'open', 'aria-hidden', 'hidden',
+    'type', 'autocomplete', 'contenteditable', 'href', 'action', 'name',
+    'aria-label',
+  ]);
+  if (Array.isArray(extraAttributes) &&
+      extraAttributes.length <= maxAdMarkerAttributes) {
+    for (const name of extraAttributes) {
+      if (typeof name === 'string' && name.length <= 42 &&
+          /^(?:data-ad-[a-z][a-z0-9-]{0,32}|data-sponsored|data-test|data-testid|data-cmp)$/.test(name))
+        attributeFilter.add(name);
+    }
+  }
+  const sensitive =
+      /(?:^|[^a-z0-9])(?:account|auth|authenticate|authentication|authorize|billing|cart|checkout|consent|identity|login|log-in|oauth|payment|register|registration|signin|sign-in|signup|sign-up|sso|subscribe|subscription|verify)(?:$|[^a-z0-9])/i;
+  const modal = 'dialog[open],[aria-modal="true" i],' +
+      '[role="dialog" i]:not([aria-hidden="true" i]):not([hidden]),' +
+      '[role="alertdialog" i]:not([aria-hidden="true" i]):not([hidden]),' +
+      'input[type="password" i],[autocomplete^="cc-" i]';
+  const interactive = 'form,input,button,select,textarea,option,iframe,dialog,' +
+      '[role="dialog" i],[role="alertdialog" i],[aria-modal="true" i],' +
+      '[contenteditable]:not([contenteditable="false" i]),' +
+      '[autocomplete^="cc-" i]';
+  const host = doc.defaultView;
+  const roots = new Map();
+  let observer;
+  let timer;
+  let scope;
+  let needsRecheck = false;
+  let inputSteps = 0;
+  let domSteps = 0;
+  let started = false;
+  let terminal = false;
+
+  function eligible() {
+    if (!host || host.top !== host || host.document !== doc ||
+        doc.contentType !== 'text/html' || !doc.body || !doc.documentElement)
+      return false;
+    const url = doc.location;
+    if (!url || (url.protocol !== 'https:' && url.protocol !== 'http:'))
+      return false;
+    if (/(?:^|\.)(?:thehindu\.com|tinypass\.com|piano\.io)\.?$/i.test(url.hostname))
+      return false;
+    // Check ordinary and single-encoded application routes. Ambiguous double
+    // encodings or malformed escapes fail open to the page without matching.
+    const route = url.pathname + url.search + url.hash;
+    if (route.length > 2048)
+      return false;
+    try {
+      const decoded = decodeURIComponent(route);
+      if (decoded.includes('%') || sensitive.test(decoded))
+        return false;
+    } catch (_) {
+      return false;
+    }
+    return plan.eligibleDocument();
+  }
+
+  function cancelTimer() {
+    if (timer !== undefined) {
+      host.clearTimeout(timer);
+      timer = undefined;
+    }
+  }
+
+  function stop() {
+    if (terminal)
+      return;
+    terminal = true;
+    cancelTimer();
+    observer?.disconnect();
+    roots.clear();
+    if (!started)
+      return;
+    doc.removeEventListener('visibilitychange', onVisibility);
+    doc.removeEventListener('focusin', onFocus, true);
+    host.removeEventListener('pagehide', stop);
+    host.removeEventListener('popstate', onRouteChange);
+    host.removeEventListener('hashchange', onRouteChange);
+    host.navigation?.removeEventListener('currententrychange', onRouteChange);
+    plan.reset();
+  }
+
+  function onFocus(event) {
+    const element = event.target;
+    // Stop this plan for this document if an interactive authentication,
+    // payment or native dialog gets focus. Ordinary unfocused form controls
+    // are still excluded from candidate traversal below.
+    let current = element?.nodeType === 1 ? element : null;
+    for (let i = 0; current && i <= maxDepth; ++i, current = current.parentElement) {
+      if (current.matches(modal)) {
+        stop();
+        return;
+      }
+      if (current === doc.body)
+        return;
+    }
+    if (current)
+      stop();
+  }
+
+  function onRouteChange() {
+    try {
+      if (!eligible())
+        stop();
+    } catch (_) {
+      stop();
+    }
+  }
+
+  function isWithin(ancestor, element) {
+    for (let depth = 0; ancestor && element && depth <= maxDepth;
+         ++depth, element = element.parentElement) {
+      if (element === ancestor)
+        return true;
+    }
+    return false;
+  }
+
+  function enqueue(element, depthLimit) {
+    if (!scope || !element || element.nodeType !== 1 || !element.isConnected ||
+        element.ownerDocument !== doc || !isWithin(scope, element))
+      return;
+    const previous = roots.get(element);
+    if (previous && previous.depthLimit >= depthLimit)
+      return;
+    if (roots.size >= maxQueuedRoots && !previous) {
+      stop();
+      return;
+    }
+    roots.set(element, {
+      root: element, next: element, depth: 0, depthLimit,
+    });
+  }
+
+  function refreshScope() {
+    const root = plan.rootElement();
+    if (scope && root !== scope) {
+      stop();  // A replaced root is not the previously approved instance.
+      return false;
+    }
+    if (root && (!root.isConnected || root.ownerDocument !== doc ||
+                 !isWithin(doc.body, root))) {
+      stop();
+      return false;
+    }
+    if (root && !scope) {
+      scope = root;
+      enqueue(root, maxDepth);
+    }
+    return true;
+  }
+
+  // Bounded ancestor walk. Unsure about ancestry at the bound? Do not visit.
+  function belowSafeBody(element) {
+    for (let i = 0; element && i <= maxDepth; ++i, element = element.parentElement) {
+      if (element.matches(interactive))
+        return false;
+      if (element === doc.body)
+        return true;
+    }
+    return false;
+  }
+
+  // One cursor per root, retaining only depth and current element. Never
+  // querySelectorAll, materialize every child, or walk a whole document turn.
+  function nextNode(cursor, element, canDescend) {
+    if (canDescend && cursor.depth < cursor.depthLimit &&
+        element.firstElementChild) {
+      ++cursor.depth;
+      return element.firstElementChild;
+    }
+    while (element && element !== cursor.root && cursor.depth > 0) {
+      if (element.nextElementSibling)
+        return element.nextElementSibling;
+      element = element.parentElement;
+      --cursor.depth;
+    }
+    return null;
+  }
+
+  function schedule() {
+    if (!terminal && timer === undefined && !doc.hidden &&
+        (roots.size || needsRecheck))
+      timer = host.setTimeout(flush, delayMs);
+  }
+
+  function flush() {
+    timer = undefined;
+    if (terminal || doc.hidden)
+      return;
+    try {
+      if (!eligible() || !refreshScope()) {
+        stop();
+        return;
+      }
+      const timeLimit = host.performance.now() + 4;
+      if (needsRecheck) {
+        needsRecheck = false;
+        plan.recheckOwned?.();
+      }
+      for (let i = 0; roots.size && i < maxStepsPerTurn && !terminal &&
+               host.performance.now() < timeLimit; ++i) {
+        if (++domSteps > maxDomSteps) {
+          stop();
+          return;
+        }
+        const cursor = roots.values().next().value;
+        const element = cursor.next;
+        if (!element?.isConnected || element.ownerDocument !== doc ||
+            !isWithin(cursor.root, element)) {
+          roots.delete(cursor.root);
+          continue;
+        }
+        if (element.matches(modal)) {
+          stop();
+          return;
+        }
+        const safe = belowSafeBody(element);
+        // Advance before visit: subsequent page mutations will be queued by
+        // the observer, and a removed node cannot jump our cursor outside root.
+        // Rotate cursors so a pending large subtree cannot starve later roots.
+        cursor.next = nextNode(cursor, element, safe);
+        roots.delete(cursor.root);
+        if (cursor.next)
+          roots.set(cursor.root, cursor);
+        if (safe && element !== doc.body)
+          plan.visitElement(element);
+      }
+      schedule();
+    } catch (_) {
+      stop();
+    }
+  }
+
+  function onVisibility() {
+    if (doc.hidden)
+      cancelTimer();
+    else
+      schedule();
+  }
+
+  function onMutations(records) {
+    if (terminal)
+      return;
+    let steps = 0;
+    function consume() {
+      if (++steps <= maxInputPerCallback && ++inputSteps <= maxInputSteps)
+        return true;
+      stop();
+      return false;
+    }
+    try {
+      if (!eligible() || !refreshScope()) {
+        stop();
+        return;
+      }
+      for (const record of records) {
+        if (!consume() || terminal)
+          return;
+        let target = record.target;
+        if (record.type === 'characterData')
+          target = target.parentElement;
+        if (target?.nodeType === 1 && target.matches(modal)) {
+          stop();
+          return;
+        }
+        if (isWithin(scope, target))
+          needsRecheck = true;
+        // A changed id/class can affect the descendant subject of a
+        // validated child-combinator anchor. Reuse the same bounded queue,
+        // timing and work budgets as ordinary DOM traversal.
+        if (anchorAncestorDepth && record.type === 'attributes' &&
+            (record.attributeName === 'id' || record.attributeName === 'class')) {
+          if (target === doc.documentElement && scope === doc.body &&
+              anchorAncestorDepth === 2) {
+            // A class-only first compound may match html; its only path
+            // into this scoped search is html > body > candidate.
+            needsRecheck = true;
+            enqueue(scope, 1);
+          } else {
+            enqueue(target, anchorAncestorDepth);
+          }
+        }
+        // A changed marker can affect a small fixed number of containing cards.
+        for (let i = 0; target && i <= maxAncestors && target !== doc.body;
+             ++i, target = target.parentElement) {
+          if (!consume() || terminal)
+            return;
+          if (!isWithin(scope, target))
+            break;
+          enqueue(target, 0);
+        }
+        // An inserted container can hold existing descendant markup. Walk it
+        // lazily; iterating the mutation's node list itself is capped too.
+        for (const added of record.addedNodes) {
+          if (!consume() || terminal)
+            return;
+          if (added.nodeType === 1 && added.matches(modal)) {
+            stop();
+            return;
+          }
+          enqueue(added, maxDepth);
+        }
+      }
+      schedule();
+    } catch (_) {
+      stop();
+    }
+  }
+
+  function start() {
+    if (started || terminal)
+      return false;
+    try {
+      if (!eligible()) {
+        stop();
+        return false;
+      }
+      started = true;
+      observer = new host.MutationObserver(onMutations);
+      observer.observe(doc.documentElement, {
+        subtree: true, childList: true, characterData: true, attributes: true,
+        attributeFilter: [...attributeFilter],
+      });
+      doc.addEventListener('visibilitychange', onVisibility);
+      doc.addEventListener('focusin', onFocus, true);
+      host.addEventListener('pagehide', stop, {once: true});
+      host.addEventListener('popstate', onRouteChange);
+      host.addEventListener('hashchange', onRouteChange);
+      // Chromium Navigation API also signals same-document push/replaceState;
+      // unlike a page wrapper, this never changes native navigation behavior.
+      host.navigation?.addEventListener('currententrychange', onRouteChange);
+      if (!refreshScope())
+        return false;
+      schedule();
+      return true;
+    } catch (_) {
+      stop();
+      return false;
+    }
+  }
+
+  return {start, stop};
+})
+)RAWSJS";
+
+}  // namespace raws::cosmetic
+
+#endif  // CHROME_RENDERER_RAWS_DYNAMIC_COSMETIC_SCHEDULER_H_

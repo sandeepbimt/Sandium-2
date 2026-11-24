@@ -42,6 +42,74 @@ class RedirectHopTest(unittest.TestCase):
         self.assertIn("loader.is_valid() && client.is_valid()", finish)
         self.assertEqual(source.count('&RuleSnapshot::StyleForObservedEngineKeys'), 1)
 
+    def test_object_factory_and_decision_match_without_widening_methods(self):
+        source = factory()
+        gate = source[source.index('std::optional<Resource> GetResourceType'):
+                      source.index('class ScopedUserRulesSnapshot')]
+        owner = 'components/sandium_adblock/subresource_decision.cc'
+        sha = json.loads(RECIPE.read_text())['files'][owner]['after_sha256']
+        data = (ROOT / 'raws-adblock/production-postimages' / sha).read_bytes()
+        self.assertEqual(hashlib.sha256(data).hexdigest(), sha)
+        from test_request_gate import H
+        bridge = H.replace('kFontResource,kMainFrame',
+                           'kFontResource,kMainFrame,kObject')
+        bridge = bridge.replace('inline unsigned calls=0;',
+                                'inline unsigned calls=0; inline bool deny=false;')
+        bridge = bridge.replace('bool blocked()const{return false;}',
+                                'bool blocked()const{return deny;}')
+        bridge = bridge.replace('bool SchemeIsHTTPOrHTTPS()const{return true;}',
+                                'bool SchemeIsHTTPOrHTTPS()const{return path.starts_with("https://");}')
+        fixture = r"""
+#include <cassert>
+int main() {
+  using namespace sandium::adblock_native;
+  using T = blink::mojom::ResourceType;
+  const auto object = GetResourceType(static_cast<int>(T::kObject));
+  assert(object == T::kObject);
+  assert(!GetResourceType(static_cast<int>(T::kMainFrame)));
+  assert(!GetResourceType(static_cast<int>(T::kSubFrame)));
+  const GURL url{"https://third-party.test/embedded"};
+  const url::Origin initiator;
+  const adblock::Engine engine;
+  for (const auto* method : {"GET", "HEAD", "POST", "OPTIONS"}) {
+    const bool eligible = std::string_view(method) == "GET" ||
+                          std::string_view(method) == "HEAD";
+    calls = 0;
+    assert(DecideDocumentSubresource(&engine, &engine, url, *object, initiator,
+                                    method) ==
+           (eligible ? SubresourceAction::kAllow :
+                       SubresourceAction::kNotEvaluated));
+    assert(calls == (eligible ? 1u : 0u));
+  }
+  deny = true;
+  assert(DecideDocumentSubresource(&engine, &engine, url, *object, initiator,
+                                  "GET") == SubresourceAction::kBlock);
+  deny = false;
+  assert(DecideDocumentSubresource(&engine, &engine,
+      GURL{"https://first-party.test/document.pdf"}, *object, initiator, "GET") ==
+      SubresourceAction::kAllow);
+  calls = 0;
+  assert(DecideDocumentSubresource(&engine, &engine,
+      GURL{"chrome-extension://viewer/index.html"}, *object, initiator, "GET") ==
+      SubresourceAction::kNotEvaluated);
+  assert(calls == 0);
+}
+"""
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            header = root / 'components/sandium_adblock/subresource_decision.h'
+            header.parent.mkdir(parents=True)
+            header.write_text(bridge)
+            src = root / 'test.cc'
+            binary = root / 'test'
+            src.write_text(data.decode() +
+                           '\n#include <optional>\n#include <string_view>\n' +
+                           'using Resource = blink::mojom::ResourceType;\n' +
+                           gate + fixture)
+            subprocess.run(['g++', '-std=c++20', '-Wall', '-Wextra', '-Werror',
+                            '-I', td, str(src), '-o', str(binary)], check=True)
+            subprocess.run([str(binary)], check=True, cwd=td)
+
     def test_exact_proxy_timeout_block_lifetime_and_native_passthrough(self):
         source = factory()
         seam = source[source.index('class ScopedRedirectHop final'):

@@ -1,0 +1,53 @@
+// SPDX-License-Identifier: MPL-2.0
+#ifndef CHROME_RENDERER_RAWS_PASSIVE_SCRIPTLET_PROGRAM_H_
+#define CHROME_RENDERER_RAWS_PASSIVE_SCRIPTLET_PROGRAM_H_
+
+#include <cstdint>
+#include <string_view>
+
+namespace raws::passive_scriptlets {
+
+// Never compose code from rule arguments, page data, or a downloaded resource.
+// One-shot phase: avoid main-world globals, branch timers and observers.
+// Selector and mutated attribute are distinct fixed reviewed strings.
+inline constexpr char kRemovePopunderUrl[] = R"RAWSREMOVE(
+(() => {
+  const doc = document;
+  if (!doc.documentElement || doc.readyState === 'loading') return;
+  const it = doc.createNodeIterator(doc.documentElement, NodeFilter.SHOW_ELEMENT);
+  let seen = 0, changed = 0, node;
+  while (seen++ < 4096 && changed < 16 && (node = it.nextNode())) {
+    if (node.namespaceURI === 'http://www.w3.org/1999/xhtml' &&
+        !node.localName.includes('-') && !node.hasAttribute('is') &&
+        node.hasAttribute('data-popunder-url')) {
+      node.removeAttribute('data-popunder-url');
+      ++changed;
+    }
+  }
+})();
+)RAWSREMOVE";
+
+inline constexpr char kRemoveAdCounter[] = R"RAWSREMOVE(
+(() => {
+  const doc = document;
+  if (!doc.documentElement || doc.readyState === 'loading') return;
+  const it = doc.createNodeIterator(doc.documentElement, NodeFilter.SHOW_ELEMENT);
+  let seen = 0, changed = 0, node;
+  while (seen++ < 4096 && changed < 16 && (node = it.nextNode())) {
+    if (node.localName === 'main' &&
+        node.namespaceURI === 'http://www.w3.org/1999/xhtml' &&
+        !node.hasAttribute('is') && node.hasAttribute('onclick') &&
+        node.hasAttribute('data-ppcnt_ads')) {
+      node.removeAttribute('data-ppcnt_ads');
+      ++changed;
+    }
+  }
+})();
+)RAWSREMOVE";
+
+constexpr bool ValidPrograms(uint32_t programs) {
+  return programs != 0 && (programs & ~uint32_t{3}) == 0;
+}
+
+}  // namespace raws::passive_scriptlets
+#endif  // CHROME_RENDERER_RAWS_PASSIVE_SCRIPTLET_PROGRAM_H_

@@ -1,0 +1,69 @@
+// SPDX-License-Identifier: MPL-2.0
+#ifndef COMPONENTS_SANDIUM_ADBLOCK_OBSERVED_AD_CONJUNCTION_H_
+#define COMPONENTS_SANDIUM_ADBLOCK_OBSERVED_AD_CONJUNCTION_H_
+
+#include <array>
+#include <cstddef>
+#include <string_view>
+
+namespace sandium::adblock_native::observed_cosmetic {
+
+// Return the tokens of a two/three-token conjunction on one explicitly
+// ad-marked subject. This is not a general CSS validator. No attributes,
+// combinators, pseudos, groups, escapes, declarations, or whitespace.
+inline std::array<std::string_view, 3> AdConjunctionTokens(
+    std::string_view selector) {
+  if (selector.size() > 160) return {};
+  auto letter = [](char c) {
+    return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_';
+  };
+  std::array<std::string_view, 3> keys{};
+  size_t count = 0;
+  bool has_id = false;
+  bool ad_marker = false;
+  while (!selector.empty()) {
+    if (count == keys.size() ||
+        (selector.front() != '.' && selector.front() != '#')) return {};
+    if (selector.front() == '#') {
+      if (has_id) return {};
+      has_id = true;
+    }
+    const auto token = selector.substr(0, selector.find_first_of(".#", 1));
+    if (token.size() < 2 || token.size() > 65 || !letter(token[1])) return {};
+    for (char c : token.substr(2)) {
+      if (!letter(c) && !(c >= '0' && c <= '9') && c != '-') return {};
+    }
+    for (size_t i = 0; i < count; ++i) if (keys[i] == token) return {};
+    if (token == ".ad" || token == ".Ad" || token == ".ads" ||
+        token == ".advert" || token == ".advertisement" ||
+        token == ".ad-slot" || token == ".ad-unit" || token == ".adunit" ||
+        token == ".ads__slot" || token == ".adsbygoogle") ad_marker = true;
+    keys[count++] = token;
+    selector.remove_prefix(token.size());
+  }
+  return count >= 2 && ad_marker ? keys : decltype(keys){};
+}
+inline std::string_view AdConjunctionKey(std::string_view selector) {
+  return AdConjunctionTokens(selector)[0];
+}
+
+inline constexpr size_t kSelectorGroupSize = 64;
+inline constexpr size_t kSpecificityBuckets = 6;
+inline constexpr size_t kSelectorCountBudget = 4096;
+inline constexpr size_t kRawSelectorByteBudget = 256 * 1024;
+
+// Only call after validating the simple or conjunction grammar. Grouping
+// within one bucket preserves :is() specificity exactly: no types or
+// pseudo selectors are present, and at most one ID is permitted.
+inline size_t SpecificityBucket(std::string_view validated) {
+  size_t classes = 0;
+  bool has_id = false;
+  for (char c : validated) {
+    if (c == '.') ++classes;
+    else if (c == '#') has_id = true;
+  }
+  return has_id ? 3 + classes : classes - 1;
+}
+
+}  // namespace sandium::adblock_native::observed_cosmetic
+#endif  // COMPONENTS_SANDIUM_ADBLOCK_OBSERVED_AD_CONJUNCTION_H_

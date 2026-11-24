@@ -162,7 +162,7 @@ struct URLLoaderFactory {
 };
 }
 }
-enum class Resource {kImage,kScript};
+enum class Resource {kImage,kScript,kObject};
 enum class Action {kAllow,kBlock,kUnsupportedAction};
 constexpr auto kCheckTimeout=base::Milliseconds(50);
 constexpr int kMaxPendingChecks=32;

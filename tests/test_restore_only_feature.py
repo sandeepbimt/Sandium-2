@@ -720,7 +720,13 @@ class FrozenScope(unittest.TestCase):
             night_palette = downloads + 'java/res/values-night/raws_download_palette.xml'
             self.assertIn(night_palette, extra_generated)
             self.assertEqual((None, '644'), (actual.files[night_palette][0], actual.files[night_palette][2]))
-            self.assertEqual(59, len(extra_generated - {resource, night_palette}))
+            self.assertEqual(61, len(extra_generated - {resource, night_palette}))
+            bridge = extra.get('staged_bridge_delta', {})
+            scriptlets = 'chrome/renderer/raws_passive_scriptlet_program.h'
+            self.assertIn(scriptlets, extra_generated)
+            if bridge:
+                self.assertEqual(port.BRIDGE, bridge.keys())
+                self.assertIn('chrome/renderer/raws_passive_procedural_runtime.h', extra_generated)
             self.assertIn('chrome/renderer/raws_element_picker_donor.h', extra_generated)
             self.assertTrue({
                 'chrome/browser/raws/raws_observed_ad_slots.h',
@@ -740,7 +746,7 @@ class FrozenScope(unittest.TestCase):
                 'chrome/browser/ui/android/toolbar/java/res/drawable/raws_page_toolbar_forward.xml',
                 'chrome/browser/ui/android/toolbar/java/res/drawable/raws_page_toolbar_menu.xml',
             }, extra_generated)
-            for name, entry in extra['staged_vendor_delta'].items():
+            for name, entry in port.staged_deltas(extra).items():
                 self.assertEqual(entry['after'], actual.files[name][1])
                 self.assertEqual(entry['after'],
                                  feature.sha((ROOT / feature.POSTIMAGES / entry['after']).read_bytes()))

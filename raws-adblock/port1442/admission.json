@@ -55,6 +55,8 @@
     "chrome/renderer/raws_color_renderer.h",
     "chrome/renderer/raws_dynamic_cosmetic_scheduler.h",
     "chrome/renderer/raws_element_picker_donor.h",
+    "chrome/renderer/raws_passive_procedural_runtime.h",
+    "chrome/renderer/raws_passive_scriptlet_program.h",
     "chrome/renderer/raws_procedural_cosmetic_binding.h",
     "chrome/renderer/raws_procedural_cosmetic_matcher.h",
     "components/browser_ui/styles/android/java/res/color/raws_sandium_switch_thumb.xml",
@@ -293,11 +295,25 @@
     "ui/android/java/src/org/chromium/ui/hierarchicalmenu/HierarchicalMenuController.java",
     "ui/android/java/src/org/chromium/ui/modaldialog/ModalDialogProperties.java"
   ],
-  "manifest_sha256": "10eb8766dff6936b6812986e4494198099e501ef6ab61c7d48d64a1986e64389",
+  "manifest_sha256": "1d26ad8e7c374d233ac93641472fe9a7814da3a70d0aff8bcc15a5a3c61fe914",
+  "staged_bridge_delta": {
+    "brave/components/brave_shields/core/common/adblock/rs/src/engine.rs": {
+      "after": "8cf25c05da32cb11e06cfc385ca8673540a0431680b5e4fb1a3f402322739135",
+      "before": "77951a5522df2809dbf45c1a38d507658cb9bb5dde83080b28f8cf5b017c4bf3"
+    },
+    "brave/components/brave_shields/core/common/adblock/rs/src/lib.rs": {
+      "after": "58d31d1c51ad6f466b2d3861a2cc37ac689d3a346e575b0f3132391cf4ef9301",
+      "before": "1f2549773004402e8597c82d8bea8efddf23a3fc79bd183fd69e1e8ff1757594"
+    }
+  },
   "staged_vendor_delta": {
     "brave/third_party/rust/chromium_crates_io/vendor/adblock-v0_13/src/blocker.rs": {
       "after": "ac368737ffb88855918f8e32ac0eb39a308c4e76f41e4a8193cf223c2a59a7cb",
       "before": "fdcf2ce644e367e893eed336544a07a24a75db5283ac58b2946388a56b53bdb5"
+    },
+    "brave/third_party/rust/chromium_crates_io/vendor/adblock-v0_13/src/cosmetic_filter_cache.rs": {
+      "after": "49a600cfd4ca97233a2fe58da2409f652af40d6e70d816a4456d7efc9ef95ff7",
+      "before": "03c7b3c430a2c578b643973117317f3684612b2cf9d2d17b9d519356df7dac61"
     },
     "brave/third_party/rust/chromium_crates_io/vendor/adblock-v0_13/src/filters/abstract_network.rs": {
       "after": "ab6ff20442f1245f1a75ff47948bf9f0467d03c3aa28514b2c6af0d0f535ffa6",

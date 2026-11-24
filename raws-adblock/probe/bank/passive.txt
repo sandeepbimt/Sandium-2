@@ -1,0 +1,10 @@
+! Local fixture only: synthetic rule input, never add to shipping 30 lists
+/bank-image/blocked-target.png$image,third-party,domain=raws-news.test
+/bank-image/excepted-target.png$image,third-party,domain=raws-news.test
+@@/bank-image/excepted-target.png$image,third-party,domain=raws-news.test
+raws-news.test##.bank-static
+raws-news.test#@#.bank-static-allowed
+raws-news.test##.bank-static-allowed
+##.bank-late
+##.bank-late-allowed
+raws-news.test#@#.bank-late-allowed

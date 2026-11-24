@@ -1,0 +1,4 @@
+! Neutral fixture only: exact reviewed unprivileged behavior, not a grant
+raws-news.test##+js(remove-attr, data-ppcnt_ads, main[onclick])
+raws-news.test##+js(remove-attr, data-popunder-url)
+raws-news.test#@#+js(remove-attr, data-popunder-url)

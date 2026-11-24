@@ -1,0 +1,205 @@
+// SPDX-License-Identifier: MPL-2.0
+#ifndef CHROME_RENDERER_RAWS_PASSIVE_PROCEDURAL_RUNTIME_H_
+#define CHROME_RENDERER_RAWS_PASSIVE_PROCEDURAL_RUNTIME_H_
+namespace raws::cosmetic {
+inline constexpr char kRawSPassiveProceduralRuntime[] = R"RAWSPASS(
+// SPDX-License-Identifier: MPL-2.0
+// Fixed isolated page runtime. Serialized engine results are data, never code.
+((makeScheduler, wire, expected, nonce) => {
+  'use strict';
+  const stopKey = '__rawsStopPassiveProceduralPlan';
+  globalThis[stopKey]?.();
+  if (!wire) return;
+  const doc = document;
+  const host = doc.defaultView;
+  if (!host || host.top !== host || doc.location.href !== expected ||
+      doc.contentType !== 'text/html' || wire.length > 16384) return;
+  let batch;
+  try { batch = JSON.parse(wire); } catch (_) { return; }
+  if (!batch || batch.schema !== 1 || batch.exceptions_complete !== true ||
+      typeof batch.suppress_generic !== 'boolean' || !Array.isArray(batch.rules) ||
+      !Array.isArray(batch.exceptions) ||
+      batch.rules.length > 64 || batch.exceptions.length > 64) return;
+  // The browser worker supplies only Rust-selected site-scoped procedures;
+  // suppress_generic is CSS policy metadata, not a gate for this lane.
+  const skip = new Set(batch.exceptions);
+  const atom = '(?:(?:div|aside|section|article|span|p|h[1-6]|li|ul|ol)?' +
+    '(?:[.#][A-Za-z_][A-Za-z_0-9-]{0,47}){1,3})';
+  const baseCss = new RegExp('^' + atom + '(?: > ' + atom + '){0,2}$');
+  // Brave's native initial CSS selector can be an attribute anchor. Admit a
+  // small literal subset without accepting selectors for quoted syntax,
+  // state, paths, unvalidated attributes, or adjacent/sibling targets.
+  const targetAttribute = new RegExp('^(?:' + atom + ' > ){0,2}' +
+    '(?:(?:div|aside|section|article|span|p|h[1-6]|li|ul|ol)?' +
+    '(?:[.#][A-Za-z_][A-Za-z_0-9-]{0,47}){0,3})' +
+    '\\[(data-test|data-testid|data-cmp)(\\^?=)(["\'])' +
+    '([A-Za-z0-9_-]{1,64})\\3\\]$');
+  function classifyAnchor(selector) {
+    if (baseCss.test(selector)) return '';
+    const match = targetAttribute.exec(selector);
+    if (!match || (match[2] === '^=' && match[4].length < 4)) return null;
+    return match[1];
+  }
+  const typedAttr = /^((?:data-ad-[a-z][a-z0-9-]{0,32}|data-sponsored|aria-label))(?:=([a-zA-Z0-9_-][a-zA-Z0-9_ -]{0,47}))?$/;
+  // Only plain ad-disclosure text is admitted in this first reversible lane.
+  const text = /^(?:ad(?:vert(?:isement)?)?s?|sponsored(?: content| ad)?)$/i;
+  const adMarker = /(?:^|[-_\s])(?:ad|ads|advert|advertisement|sponsored)(?:$|[-_\s])/i;
+  const hazard = /(?:check.?out|paywall|sign.?in|log.?in|consent|subscri|register|authenticat|access.?gate|account|payment)/i;
+  const protectedNode = 'button,input,textarea,select,form,iframe,frame,object,embed,' +
+    'video,audio,dialog,[contenteditable],[role="dialog" i],[role="alertdialog" i],[aria-modal]';
+  const attrs = ['id','class','role','href','aria-label','action'];
+  const plans = [];
+  for (const row of batch.rules) {
+    if (typeof row !== 'string' || row.length > 1024 || skip.has(row)) continue;
+    let data;
+    try { data = JSON.parse(row); } catch (_) { continue; }
+    if (!data || data.action !== null || !Array.isArray(data.selector) ||
+        data.selector.length < 2 || data.selector.length > 4) continue;
+    const [base, ...ops] = data.selector;
+    if (base?.type !== 'css-selector' || typeof base.arg !== 'string') continue;
+    const observedAnchor = classifyAnchor(base.arg);
+    if (observedAnchor === null) continue;
+    const steps = [];
+    let adSignal = false;
+    for (const op of ops) {
+      if (typeof op?.arg !== 'string' || op.arg.length > 64) break;
+      if (op.type === 'has-text' && text.test(op.arg)) {
+        adSignal = true;
+        steps.push(['text', op.arg]);
+      } else if (op.type === 'min-text-length' && /^[1-9][0-9]{0,2}$/.test(op.arg)) {
+        steps.push(['min', Number(op.arg)]);
+      } else if (op.type === 'matches-attr') {
+        const a = typedAttr.exec(op.arg);
+        if (!a || a[1] === 'aria-label' && (!a[2] || !text.test(a[2]))) break;
+        adSignal = true;
+        steps.push(['attr', a[1], a[2] ?? null]);
+      } else break;
+    }
+    if (steps.length === ops.length && adSignal)
+      plans.push([base.arg, steps, observedAnchor]);
+    if (plans.length === 12) break;
+  }
+  if (!plans.length || !/^[0-9A-F]{32}$/.test(nonce)) return;
+  const mark = 'data-raws-passive-ad';
+  const owned = new Map();
+  // All admitted anchors allow at most two literal CSS child combinators.
+  // Only class and id predicates in validated ancestor compounds can change.
+  const anchorAncestorDepth = Math.max(...plans.map(([anchor]) =>
+    anchor.split(' > ').length - 1));
+  const matchedAttrs = [...new Set(plans.flatMap(([, steps]) =>
+    steps.filter(([kind]) => kind === 'attr').map(([, attr]) => attr)))];
+  const adMarkerAttributes = [...new Set([
+    ...matchedAttrs, ...plans.map(([, , attr]) => attr).filter(Boolean),
+    'data-ad-slot', 'data-ad-unit', 'data-sponsored',
+  ])];
+  let reads = 0;
+  let scheduler;
+  let stopped = false;
+  function safe(node) {
+    return !node.matches(protectedNode) && attrs.every(key => {
+      const value = node.getAttribute(key);
+      return value === null || value.length <= 384 && !hazard.test(value);
+    });
+  }
+  function ad(node) {
+    return attrs.slice(0,2).some(name => {
+      const value = node.getAttribute(name) ?? '';
+      return value.length <= 384 && adMarker.test(value);
+    }) ||
+      ['data-ad-slot','data-ad-unit','data-sponsored'].some(name => {
+        const value = node.getAttribute(name);
+        return value && value.length <= 64 && !/^(?:0|false|none|off)$/i.test(value);
+      });
+  }
+  function within(node) {
+    if (!node?.isConnected || node.ownerDocument !== doc ||
+        !doc.body?.contains(node) || !ad(node)) return false;
+    for (let p = node, depth = 0; p && depth < 24; p = p.parentElement, ++depth) {
+      if (!safe(p)) return false;
+      if (p === doc.body) break;
+      if (depth === 23) return false;
+    }
+    const iterator = doc.createTreeWalker(node, 1 /* SHOW_ELEMENT */);
+    for (let child, count = 0; (child = iterator.nextNode()); ++count) {
+      if (count === 48 || !safe(child)) return false;
+    }
+    return true;
+  }
+  function release(node) {
+    const observer = owned.get(node);
+    if (!observer) return;
+    observer.handle.disconnect();
+    owned.delete(node);
+    if (node.getAttribute(mark) === nonce) node.removeAttribute(mark);
+  }
+  function stop() {
+    if (stopped) return;
+    stopped = true;
+    doc.removeEventListener('DOMContentLoaded', start);
+    host.removeEventListener('pagehide', stop);
+    scheduler?.stop();
+    for (const node of [...owned.keys()]) release(node);
+    if (globalThis[stopKey] === stop) delete globalThis[stopKey];
+  }
+  function inertRecheck() {
+    // Previously marked nodes never re-read innerText: display:none would
+    // make it fall back to raw text. Structural loss only revokes.
+    for (const [node, proof] of [...owned.entries()]) {
+      if (node.getAttribute(mark) !== nonce || !node.matches(proof.anchor) ||
+          !within(node)) release(node);
+    }
+  }
+  function visitElement(node) {
+    if (owned.size >= 16 || owned.has(node) || node.hasAttribute(mark) ||
+        !plans.some(([anchor]) => node.matches(anchor)) || !within(node)) return;
+    let tightText;
+    function read() {
+      if (tightText !== undefined) return tightText;
+      if (reads >= 32 || node.getClientRects().length === 0) return '';
+      ++reads;
+      let volume = 0;
+      const it = doc.createTreeWalker(node, 4 /* SHOW_TEXT */);
+      for (let t, count = 0; (t = it.nextNode()); ++count) {
+        if (count === 48 || (volume += t.length) > 768) return '';
+      }
+      return tightText = (node.innerText ?? '').slice(0, 769);
+    }
+    const match = plans.find(([anchor, steps]) => node.matches(anchor) &&
+      steps.every(([kind, arg, expectedValue]) => {
+        if (kind !== 'attr') {
+          const value = read();
+          return value.length <= 768 && (kind === 'text' ?
+            value.includes(arg) : value.trim().length >= arg);
+        }
+        const value = node.getAttribute(arg);
+        return typeof value === 'string' && value.length <= 64 &&
+          (expectedValue === null || value === expectedValue);
+      }));
+    if (!match) return;
+    const observer = new host.MutationObserver(() => release(node));
+    // Any authored change to marked content loses the positive proof before
+    // rechecking. Don't observe our own attribute (and no reads while hidden).
+    observer.observe(node, {subtree: true, characterData: true, childList: true,
+      attributes: true, attributeFilter: [...new Set([...attrs, ...adMarkerAttributes,
+        'hidden', 'style', 'title', 'value', 'name'])]});
+    owned.set(node, {handle: observer, anchor: match[0]});
+    node.setAttribute(mark, nonce);
+  }
+  function start() {
+    if (stopped || doc.location.href !== expected || !doc.body) { stop(); return; }
+    scheduler = makeScheduler(doc, {visitElement, reset: stop,
+      eligibleDocument: () => doc.location.href === expected,
+      recheckOwned: inertRecheck, rootElement: () => doc.body,
+      adMarkerAttributes, anchorAncestorDepth});
+    if (!scheduler.start()) stop();
+  }
+  globalThis[stopKey] = stop;
+  if (doc.body) start();
+  else {
+    doc.addEventListener('DOMContentLoaded', start, {once: true});
+    host.addEventListener('pagehide', stop, {once: true});
+  }
+})
+)RAWSPASS";
+}  // namespace raws::cosmetic
+#endif  // CHROME_RENDERER_RAWS_PASSIVE_PROCEDURAL_RUNTIME_H_

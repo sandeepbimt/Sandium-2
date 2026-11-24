@@ -1,0 +1,142 @@
+// SPDX-License-Identifier: MPL-2.0
+#ifndef COMPONENTS_SANDIUM_ADBLOCK_1442_STYLE_H_
+#define COMPONENTS_SANDIUM_ADBLOCK_1442_STYLE_H_
+#include <array>
+#include <set>
+#include <string>
+#include <string_view>
+#include <vector>
+namespace sandium::port1442 {
+// Narrow static subset of the pinned, bundled EasyList's generic rules. Keep
+// these exact simple ad-slot selectors; a returned compound selector matched
+// through one of the same class/ID keys is deliberately not accepted.
+inline constexpr std::array<std::string_view, 10> kPackagedGenericAdSlots = {
+    ".Ad728x90", ".Advert300x250", ".ad-160x600", ".ad-300x250",
+    ".ad-728x90", ".ad-970x250", "#Adsense300x250", "#ad-160x600",
+    "#ad-300x250", "#ad-728x90",
+};
+
+template <typename QueryPackagedEngine>
+void AppendPackagedGenericHide(
+    bool suppress_generic,
+    const std::set<std::string>& exceptions,
+    std::set<std::string>& hide,
+    QueryPackagedEngine query) {
+  if (suppress_generic) {
+    return;
+  }
+  std::vector<std::string> classes, ids;
+  for (auto selector : kPackagedGenericAdSlots) {
+    (selector.front() == '.' ? classes : ids).emplace_back(selector.substr(1));
+  }
+  std::vector<std::string> exception_list(exceptions.begin(), exceptions.end());
+  for (const auto& match : query(classes, ids, exception_list)) {
+    for (auto selector : kPackagedGenericAdSlots) {
+      if (match == selector && !exceptions.contains(match)) {
+        hide.insert(match);
+        break;
+      }
+    }
+  }
+}
+
+// This scanner grants an exception only to the legacy semicolon denylist.
+// It is not a CSS parser and does not admit other previously denied bytes.
+inline bool HasOnlyQuotedAttributeSemicolons(std::string_view selector) {
+  size_t pos = 0;
+  auto take = [&](char expected) {
+    if (pos == selector.size() || selector[pos] != expected) return false;
+    ++pos;
+    return true;
+  };
+  auto spaces = [&] {
+    while (pos != selector.size() &&
+           (selector[pos] == ' ' || selector[pos] == '\t')) ++pos;
+  };
+  const auto letter = [](char ch) {
+    return (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') ||
+           ch == '_' || ch == '-';
+  };
+  auto ident = [&] {
+    if (pos == selector.size() || !letter(selector[pos]) ||
+        (selector[pos] == '-' &&
+         (pos + 1 == selector.size() || !letter(selector[pos + 1])))) {
+      return false;
+    }
+    do {
+      ++pos;
+    } while (pos != selector.size() &&
+             (letter(selector[pos]) ||
+              (selector[pos] >= '0' && selector[pos] <= '9')));
+    return true;
+  };
+  size_t parens = 0;
+  while (pos != selector.size()) {
+    const char ch = selector[pos++];
+    if (ch == ';' || ch == '\'' || ch == '"' || ch == ']') return false;
+    if (ch == '(') {
+      ++parens;
+    } else if (ch == ')') {
+      if (parens == 0) return false;
+      --parens;
+    } else if (ch == '[') {
+      spaces();
+      if (!ident()) return false;
+      spaces();
+      if (take(']')) continue;
+      if (pos != selector.size() &&
+          std::string_view("~|^$*").find(selector[pos]) !=
+              std::string_view::npos) {
+        ++pos;
+      }
+      if (!take('=')) return false;
+      spaces();
+      if (pos == selector.size()) return false;
+      const char quote = selector[pos];
+      if (quote == '\'' || quote == '"') {
+        ++pos;
+        while (pos != selector.size() && selector[pos] != quote) ++pos;
+        if (!take(quote)) return false;
+      } else if (!ident()) {
+        return false;
+      }
+      const size_t value_end = pos;
+      spaces();
+      if (pos != value_end && pos != selector.size() &&
+          std::string_view("iIsS").find(selector[pos]) !=
+              std::string_view::npos) {
+        ++pos;
+        spaces();
+      }
+      if (!take(']')) return false;
+    }
+  }
+  return parens == 0;
+}
+
+inline bool IsAdmittedScopedHideSelector(std::string_view selector) {
+  if (selector.empty() || selector.size() > 2048 ||
+      selector.find_first_of("{}@\\\r\n") != selector.npos ||
+      selector.find('\0') != selector.npos ||
+      selector.find("/*") != selector.npos) return false;
+  if (selector.find(';') == selector.npos) return true;
+  for (char raw : selector) {
+    const auto ch = static_cast<unsigned char>(raw);
+    if ((ch < 0x20 && ch != '\t') || ch == 0x7f) return false;
+  }
+  return HasOnlyQuotedAttributeSemicolons(selector);
+}
+
+// Only immutable declarations; do not embed styles, scripts, at-rules or network
+// loads supplied by a list. Invalid selectors are isolated in individual rules.
+inline std::string HideStyles(const std::set<std::string>& hide,const std::set<std::string>& exceptions) {
+  std::string css;
+  for (const auto& s : hide) {
+    if (!IsAdmittedScopedHideSelector(s) || exceptions.contains(s)) continue;
+    if (css.size()+s.size()+32 > 256*1024) break;
+    css+=s;css+=" { display:none !important; }\n";
+  }
+  return css;
+}
+}
+#endif

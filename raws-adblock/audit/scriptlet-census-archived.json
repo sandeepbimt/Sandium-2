@@ -1,0 +1,480 @@
+{
+  "ads_revision": "a21816ca2ebafbc46cfe5191f2fccaeb5286fb2e",
+  "live_other_catalog_slot_bodies_verified": 0,
+  "live_other_catalog_slots_not_measured": 29,
+  "production_phase": "disabled by default; experimental DOMContentLoaded only",
+  "sources": {
+    "archived_slot0_ads_root": {
+      "preprocessed": {
+        "adguard_exception": {
+          "by_family": {},
+          "families": 0,
+          "lines": 0
+        },
+        "adguard_positive": {
+          "by_family": {},
+          "families": 0,
+          "lines": 0
+        },
+        "exception": {
+          "by_family": {
+            "aopr": 1,
+            "noeval": 1,
+            "set": 1
+          },
+          "families": 3,
+          "lines": 3
+        },
+        "other_shaped_lines": 0,
+        "positive": {
+          "by_family": {
+            "acs": 342,
+            "aeld": 197,
+            "aopr": 633,
+            "aopw": 181,
+            "aost": 22,
+            "cookie-remover": 2,
+            "disable-newtab-links": 2,
+            "href-sanitizer": 1,
+            "json-edit": 1,
+            "json-edit-fetch-response": 1,
+            "json-prune": 19,
+            "json-prune-fetch-response": 1,
+            "json-prune-xhr-response": 1,
+            "jsonl-edit-xhr-response": 1,
+            "nano-sib": 50,
+            "nano-stb": 31,
+            "no-fetch-if": 22,
+            "no-xhr-if": 22,
+            "nobab": 15,
+            "noeval": 23,
+            "noeval-if": 5,
+            "nofab": 10,
+            "norafif": 1,
+            "nosiif": 26,
+            "nostif": 188,
+            "nowebrtc": 47,
+            "nowoif": 176,
+            "popads-dummy": 18,
+            "popads.net": 3,
+            "ra": 28,
+            "refresh-defuser": 2,
+            "rmnt": 25,
+            "rpnt": 11,
+            "set": 296,
+            "set-cookie": 6,
+            "set-local-storage-item": 1,
+            "trusted-prevent-fetch": 2,
+            "trusted-replace-xhr-response": 7,
+            "trusted-rpfr": 2
+          },
+          "families": 39,
+          "lines": 2421
+        },
+        "remove_attr_first_argument_categories": {
+          "custom_html_metadata": 2,
+          "event_handler_attribute": 9,
+          "link_or_frame_behavior": 15,
+          "other_dom_semantics": 2
+        }
+      },
+      "preprocessed_sha256": "bba94d451f1dc65bea6dbadcd74366fc92aa77f1ac89d1803588c461d447682b",
+      "raw": {
+        "adguard_exception": {
+          "by_family": {},
+          "families": 0,
+          "lines": 0
+        },
+        "adguard_positive": {
+          "by_family": {},
+          "families": 0,
+          "lines": 0
+        },
+        "exception": {
+          "by_family": {
+            "aopr": 1,
+            "noeval": 1,
+            "set": 1
+          },
+          "families": 3,
+          "lines": 3
+        },
+        "other_shaped_lines": 0,
+        "positive": {
+          "by_family": {
+            "acs": 342,
+            "aeld": 198,
+            "aopr": 633,
+            "aopw": 181,
+            "aost": 22,
+            "cookie-remover": 2,
+            "disable-newtab-links": 2,
+            "href-sanitizer": 1,
+            "json-edit": 2,
+            "json-edit-fetch-response": 1,
+            "json-prune": 19,
+            "json-prune-fetch-response": 1,
+            "json-prune-xhr-response": 1,
+            "jsonl-edit-xhr-response": 1,
+            "nano-sib": 50,
+            "nano-stb": 31,
+            "no-fetch-if": 23,
+            "no-xhr-if": 22,
+            "nobab": 15,
+            "noeval": 23,
+            "noeval-if": 5,
+            "nofab": 10,
+            "norafif": 1,
+            "nosiif": 26,
+            "nostif": 188,
+            "nowebrtc": 47,
+            "nowoif": 176,
+            "popads-dummy": 18,
+            "popads.net": 3,
+            "ra": 28,
+            "refresh-defuser": 2,
+            "rmnt": 25,
+            "rpnt": 11,
+            "set": 296,
+            "set-cookie": 6,
+            "set-local-storage-item": 1,
+            "trusted-prevent-fetch": 2,
+            "trusted-replace-argument": 1,
+            "trusted-replace-xhr-response": 7,
+            "trusted-rpfr": 2
+          },
+          "families": 40,
+          "lines": 2425
+        },
+        "remove_attr_first_argument_categories": {
+          "custom_html_metadata": 2,
+          "event_handler_attribute": 9,
+          "link_or_frame_behavior": 15,
+          "other_dom_semantics": 2
+        }
+      },
+      "slot0_syntax_projection_lines": 2,
+      "source_bytes": 469751
+    },
+    "not_installed_expanded_ads_counterfactual": {
+      "preprocessed": {
+        "adguard_exception": {
+          "by_family": {},
+          "families": 0,
+          "lines": 0
+        },
+        "adguard_positive": {
+          "by_family": {
+            "trusted-set-local-storage-item": 1
+          },
+          "families": 1,
+          "lines": 1
+        },
+        "exception": {
+          "by_family": {
+            "acis": 1,
+            "acs": 3,
+            "adjust-setInterval": 1,
+            "adjust-setTimeout": 1,
+            "aopr": 5,
+            "aost": 2,
+            "google-ima": 1,
+            "json-prune": 1,
+            "json-prune-fetch-response": 1,
+            "nano-sib": 1,
+            "noeval": 1,
+            "nostif": 3,
+            "prevent-clipboard-write": 1,
+            "prevent-fetch": 1,
+            "rpnt": 1,
+            "set": 7
+          },
+          "families": 16,
+          "lines": 31
+        },
+        "other_shaped_lines": 0,
+        "positive": {
+          "by_family": {
+            "acis": 2,
+            "acs": 1144,
+            "adjust-setInterval": 2,
+            "adjust-setTimeout": 1,
+            "aeld": 667,
+            "alert-buster": 1,
+            "aopr": 1251,
+            "aopw": 292,
+            "aost": 192,
+            "cookie-remover": 9,
+            "disable-newtab-links": 5,
+            "edit-object-on-setter": 5,
+            "href-sanitizer": 7,
+            "json-edit": 17,
+            "json-edit-fetch-response": 7,
+            "json-edit-xhr-response": 3,
+            "json-prune": 114,
+            "json-prune-fetch-response": 48,
+            "json-prune-xhr-response": 20,
+            "jsonl-edit-xhr-response": 1,
+            "m3u-prune": 7,
+            "mpegdash-prune": 1,
+            "multiup": 1,
+            "nano-sib": 195,
+            "nano-stb": 112,
+            "no-fetch-if": 367,
+            "no-xhr-if": 199,
+            "nobab": 21,
+            "noeval": 29,
+            "noeval-if": 144,
+            "nofab": 17,
+            "norafif": 6,
+            "nosiif": 142,
+            "nostif": 809,
+            "nowebrtc": 59,
+            "nowoif": 856,
+            "popads-dummy": 19,
+            "popads.net": 3,
+            "prevent-canvas": 2,
+            "prevent-clipboard-write": 2,
+            "prevent-fetch": 7,
+            "prevent-innerHTML": 7,
+            "prevent-navigation": 1,
+            "prevent-xhr": 2,
+            "ra": 107,
+            "rc": 15,
+            "refresh-defuser": 11,
+            "remove-cookie": 10,
+            "rmnt": 804,
+            "rpnt": 235,
+            "set": 1145,
+            "set-attr": 5,
+            "set-cookie": 49,
+            "set-local-storage-item": 20,
+            "set-session-storage-item": 11,
+            "spoof-css": 4,
+            "trusted-click-element": 14,
+            "trusted-create-html": 12,
+            "trusted-edit-inbound-object": 1,
+            "trusted-json-edit": 22,
+            "trusted-json-edit-fetch-response": 20,
+            "trusted-json-edit-xhr-response": 10,
+            "trusted-override-element-method": 6,
+            "trusted-prevent-fetch": 8,
+            "trusted-prevent-xhr": 12,
+            "trusted-replace-argument": 73,
+            "trusted-replace-node-text": 3,
+            "trusted-replace-outbound-text": 18,
+            "trusted-replace-xhr-response": 11,
+            "trusted-rpfr": 15,
+            "trusted-rpnt": 18,
+            "trusted-set": 18,
+            "trusted-set-attr": 8,
+            "trusted-set-constant": 1,
+            "trusted-set-cookie": 8,
+            "trusted-set-cookie-reload": 2,
+            "trusted-set-local-storage-item": 10,
+            "trusted-set-session-storage-item": 6,
+            "trusted-suppress-native-method": 14,
+            "window-close-if": 1,
+            "window.open-defuser": 3,
+            "xml-prune": 19
+          },
+          "families": 82,
+          "lines": 9545
+        },
+        "remove_attr_first_argument_categories": {
+          "custom_html_metadata": 7,
+          "event_handler_attribute": 41,
+          "link_or_frame_behavior": 37,
+          "other_dom_semantics": 22
+        }
+      },
+      "preprocessed_sha256": "209c58aac63ce03b796c07942a76b9b8df0fc8509e3306f743ed73f6c123d60b",
+      "raw": {
+        "adguard_exception": {
+          "by_family": {},
+          "families": 0,
+          "lines": 0
+        },
+        "adguard_positive": {
+          "by_family": {
+            "trusted-set-local-storage-item": 1
+          },
+          "families": 1,
+          "lines": 1
+        },
+        "exception": {
+          "by_family": {
+            "acis": 1,
+            "acs": 3,
+            "adjust-setInterval": 1,
+            "adjust-setTimeout": 1,
+            "aopr": 5,
+            "aost": 2,
+            "google-ima": 1,
+            "json-prune": 1,
+            "json-prune-fetch-response": 1,
+            "nano-sib": 1,
+            "noeval": 1,
+            "nostif": 3,
+            "prevent-clipboard-write": 1,
+            "prevent-fetch": 1,
+            "rpnt": 1,
+            "set": 7
+          },
+          "families": 16,
+          "lines": 31
+        },
+        "other_shaped_lines": 0,
+        "positive": {
+          "by_family": {
+            "acis": 2,
+            "acs": 1144,
+            "adjust-setInterval": 2,
+            "adjust-setTimeout": 1,
+            "aeld": 668,
+            "alert-buster": 1,
+            "aopr": 1251,
+            "aopw": 292,
+            "aost": 192,
+            "cookie-remover": 9,
+            "disable-newtab-links": 5,
+            "edit-object-on-setter": 5,
+            "href-sanitizer": 7,
+            "json-edit": 18,
+            "json-edit-fetch-response": 7,
+            "json-edit-xhr-response": 3,
+            "json-prune": 114,
+            "json-prune-fetch-response": 48,
+            "json-prune-xhr-response": 20,
+            "jsonl-edit-xhr-response": 1,
+            "m3u-prune": 7,
+            "mpegdash-prune": 1,
+            "multiup": 1,
+            "nano-sib": 195,
+            "nano-stb": 112,
+            "no-fetch-if": 368,
+            "no-xhr-if": 199,
+            "nobab": 21,
+            "noeval": 29,
+            "noeval-if": 144,
+            "nofab": 17,
+            "norafif": 6,
+            "nosiif": 143,
+            "nostif": 809,
+            "nowebrtc": 59,
+            "nowoif": 856,
+            "popads-dummy": 19,
+            "popads.net": 3,
+            "prevent-canvas": 2,
+            "prevent-clipboard-write": 2,
+            "prevent-fetch": 7,
+            "prevent-innerHTML": 8,
+            "prevent-navigation": 1,
+            "prevent-xhr": 2,
+            "ra": 107,
+            "rc": 15,
+            "refresh-defuser": 11,
+            "remove-cookie": 10,
+            "rmnt": 804,
+            "rpnt": 236,
+            "set": 1149,
+            "set-attr": 5,
+            "set-cookie": 49,
+            "set-local-storage-item": 20,
+            "set-session-storage-item": 11,
+            "spoof-css": 4,
+            "trusted-click-element": 14,
+            "trusted-create-html": 12,
+            "trusted-edit-inbound-object": 1,
+            "trusted-json-edit": 22,
+            "trusted-json-edit-fetch-response": 20,
+            "trusted-json-edit-xhr-response": 10,
+            "trusted-override-element-method": 6,
+            "trusted-prevent-fetch": 8,
+            "trusted-prevent-xhr": 13,
+            "trusted-replace-argument": 74,
+            "trusted-replace-node-text": 3,
+            "trusted-replace-outbound-text": 18,
+            "trusted-replace-xhr-response": 11,
+            "trusted-rpfr": 15,
+            "trusted-rpnt": 18,
+            "trusted-set": 18,
+            "trusted-set-attr": 8,
+            "trusted-set-constant": 1,
+            "trusted-set-cookie": 8,
+            "trusted-set-cookie-reload": 2,
+            "trusted-set-local-storage-item": 10,
+            "trusted-set-session-storage-item": 6,
+            "trusted-suppress-native-method": 14,
+            "window-close-if": 1,
+            "window.open-defuser": 3,
+            "xml-prune": 21
+          },
+          "families": 82,
+          "lines": 9559
+        },
+        "remove_attr_first_argument_categories": {
+          "custom_html_metadata": 7,
+          "event_handler_attribute": 41,
+          "link_or_frame_behavior": 37,
+          "other_dom_semantics": 22
+        }
+      },
+      "slot0_syntax_projection_lines": null,
+      "source_bytes": 2512028
+    },
+    "packaged_easylist": {
+      "preprocessed": {
+        "adguard_exception": {
+          "by_family": {},
+          "families": 0,
+          "lines": 0
+        },
+        "adguard_positive": {
+          "by_family": {},
+          "families": 0,
+          "lines": 0
+        },
+        "exception": {
+          "by_family": {},
+          "families": 0,
+          "lines": 0
+        },
+        "other_shaped_lines": 0,
+        "positive": {
+          "by_family": {},
+          "families": 0,
+          "lines": 0
+        },
+        "remove_attr_first_argument_categories": {}
+      },
+      "preprocessed_sha256": "2d0f3968f88ded9441bfddf2284c3819d8de3018150fbd175afc49e2f116050a",
+      "raw": {
+        "adguard_exception": {
+          "by_family": {},
+          "families": 0,
+          "lines": 0
+        },
+        "adguard_positive": {
+          "by_family": {},
+          "families": 0,
+          "lines": 0
+        },
+        "exception": {
+          "by_family": {},
+          "families": 0,
+          "lines": 0
+        },
+        "other_shaped_lines": 0,
+        "positive": {
+          "by_family": {},
+          "families": 0,
+          "lines": 0
+        },
+        "remove_attr_first_argument_categories": {}
+      },
+      "slot0_syntax_projection_lines": null,
+      "source_bytes": 2069581
+    }
+  }
+}

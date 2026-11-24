@@ -39,22 +39,51 @@ class ObservedFullEngines(unittest.TestCase):
         self.assertEqual(seal.digest(old_blob), d.OWNERS[d.FACTORY])
         old = old_blob.decode()
         expected_header = (ROOT / seal.IMAGE / d.OWNERS[d.GENERIC]).read_bytes()
-        self.assertEqual(active[d.GENERIC].encode(), d.transform(d.GENERIC, expected_header))
-        # The independent redirect adapter lives outside this engine sequence.
-        left = 'class RuleSnapshot {'
-        right = '// A small block-only adapter for the server redirect'
+        expected_generic = d.transform(d.GENERIC, expected_header).decode()
+        current_header = active[d.GENERIC].replace(
+            '#include "components/sandium_adblock/observed_ad_conjunction.h"\n', '', 1)
+        # The independent closed conjunction grammar extends only the tail
+        # after the prior simple selector intersection and fixed budgets.
+        change_start = current_header.index('    auto css = batch.MatchCss(')
+        change_end = current_header.index('    return css;', change_start) + len('    return css;')
+        prior = expected_generic.index('    return batch.MatchCss(')
+        prior_end = expected_generic.index(');', prior) + len(');')
+        self.assertIn('const PackagedGenericDomIndex batch', current_header[:change_start])
+        self.assertEqual(current_header[:change_start] +
+                         expected_generic[prior:prior_end] +
+                         current_header[change_end:], expected_generic)
+        # The independent passive actions add another Install-side matcher
+        # and adjacent methods; the only new observed worker body change is
+        # the bounded pass-through into the closed C++ intersection. Network
+        # and other observed policy remain the exact reviewed source.
+        def method(text, signature, close):
+            idx = text.index(signature)
+            return text[idx:text.index(close, idx) + len(close)]
         transformed = d.transform(d.FACTORY, old_blob).decode()
-        self.assertEqual(factory[factory.index(left):factory.index(right)],
-                         transformed[transformed.index(left):transformed.index('class RequestFactory final')])
+        for signature in ('  std::optional<std::string> StyleForObservedEngineKeys(',
+                          '  Action Evaluate('):
+            actual_method = method(factory, signature, '\n  }')
+            expected_method = method(transformed, signature, '\n  }')
+            if signature.startswith('  std::optional'):
+                old_hit = expected_method.index('            // Reject complex,')
+                old_end = expected_method.index('\n          }\n', old_hit)
+                new_hit = actual_method.index('            // Do not serialize a Rust hit')
+                new_end = actual_method.index('\n          }\n', new_hit)
+                self.assertIn('if (hit.size() <= 160)', actual_method[new_hit:new_end])
+                self.assertEqual(actual_method[:new_hit] + actual_method[new_end:],
+                                 expected_method[:old_hit] + expected_method[old_end:])
+            else:
+                self.assertEqual(actual_method, expected_method)
         before = factory.index('  std::string Style(GURL url)')
         after = factory.index('  // The browser requests only bounded keys', before)
         start = old.index('  std::string Style(GURL url)')
         end = old.index('  // This detached adapter', start)
         self.assertEqual(factory[before:after], old[start:end])  # untouched static lane
-        p = factory.index('bool QueryObservedPackagedStyles(')
-        q = old.index('bool QueryObservedPackagedStyles(')
-        self.assertEqual(factory[p:], old[q:].replace('StyleForObservedPackagedKeys',
-                                                     'StyleForObservedEngineKeys'))
+        signature = 'bool QueryObservedPackagedStyles('
+        self.assertEqual(method(factory, signature, '\n}'),
+                         method(old, signature, '\n}').replace(
+                             'StyleForObservedPackagedKeys',
+                             'StyleForObservedEngineKeys'))
         browser_path = 'chrome/browser/chrome_content_browser_client.cc'
         browser = (ROOT / seal.IMAGE / r[browser_path]['after_sha256']).read_text()
         self.assertIn('#define RAWS_EXPERIMENTAL_GENERIC_COSMETICS 1', browser)
@@ -155,6 +184,11 @@ int main() {
             temp = Path(path)
             (temp / 'generic_style.h').write_text(active[d.GENERIC])
             (temp / 'generic_style.cc').write_bytes(cc)
+            grammar = 'components/sandium_adblock/observed_ad_conjunction.h'
+            (temp / grammar).parent.mkdir(parents=True)
+            payload = (ROOT / seal.IMAGE / recipe[grammar]['after_sha256']).read_bytes()
+            self.assertEqual(recipe[grammar]['after_sha256'], seal.digest(payload))
+            (temp / grammar).write_bytes(payload)
             (temp / 'test.cc').write_text(fixture)
             subprocess.run([cxx, '-std=c++23', '-Wall', '-Wextra', '-Werror',
                             '-I'+str(temp), str(temp/'test.cc'), str(temp/'generic_style.cc'),

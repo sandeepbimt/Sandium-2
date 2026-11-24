@@ -123,5 +123,24 @@ int main() {
     p.FollowRedirect({102},std::nullopt);
     assert(s.pending==0&&down.follows==7);
   }
+  {
+    // An eligible object loads normally after one allowed hop, but a later
+    // exact network deny still applies. No decision follows a previous URL.
+    const auto completions = up.completed;
+    ScopedRedirectHop p({&up,{{&closed}}},Resource::kObject,{},
+                         [&]{return gate;},{},[&]{blocks++;});
+    p.downstream_.ptr=&down;
+    p.OnReceiveRedirect({{"https://first-party.test/document.pdf"},"GET"},{});
+    p.FollowRedirect({111},std::nullopt);
+    assert(s.targets.back()=="https://first-party.test/document.pdf");
+    s.Reply(Action::kAllow);
+    assert(down.follows==8&&down.original_headers==111&&up.completed==completions);
+    p.OnReceiveRedirect({{"https://third-party.test/embedded"},"HEAD"},{});
+    p.FollowRedirect({112},std::nullopt);
+    assert(s.targets.back()=="https://third-party.test/embedded");
+    s.Reply(Action::kBlock);
+    assert(s.pending==0&&down.follows==8&&up.completed==completions+1&&
+           up.error==net::ERR_BLOCKED_BY_CLIENT&&!up.collapse&&blocks==3);
+  }
   std::cout<<"PASS exact native redirect-hop methods: deny, unchanged forwarding, native cross-origin override, site disable, deadline, bounded late result, cancellation, custom rule and overload/unlive metrics\n";
 }

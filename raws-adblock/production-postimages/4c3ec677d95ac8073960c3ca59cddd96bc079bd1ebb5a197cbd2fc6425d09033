@@ -1,0 +1,86 @@
+// SPDX-License-Identifier: MPL-2.0
+#ifndef COMPONENTS_SANDIUM_ADBLOCK_PASSIVE_SCRIPTLET_POLICY_H_
+#define COMPONENTS_SANDIUM_ADBLOCK_PASSIVE_SCRIPTLET_POLICY_H_
+
+#include <cstddef>
+#include <cstdint>
+#include <optional>
+#include <string>
+#include <string_view>
+
+namespace sandium::adblock_native::passive_scriptlets {
+
+inline constexpr uint32_t kKnownPrograms = 3;
+inline constexpr uint32_t kBlockAll = 4;
+
+constexpr uint32_t EffectivePrograms(uint32_t source_allow,
+                                     uint32_t merged_allow,
+                                     uint32_t all_deny) {
+  if ((source_allow & ~kKnownPrograms) || (merged_allow & ~kKnownPrograms) ||
+      (all_deny & ~(kKnownPrograms | kBlockAll)) || (all_deny & kBlockAll)) {
+    return 0;
+  }
+  return source_allow & merged_allow & ~all_deny;
+}
+
+constexpr bool IsPlainDomainList(std::string_view domain) {
+  if (domain.empty() || domain.size() > 512) {
+    return false;
+  }
+  // Domains are subsequently parsed by the exact native rules engine.
+  // Exclude wildcards, regexes, negations and entities from the positive lane.
+  std::size_t labels = 0;
+  std::size_t label_len = 0;
+  bool label_has_letter = false;
+  bool last_alnum = false;
+  for (char c : domain) {
+    const bool letter = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z');
+    const bool alnum = letter || (c >= '0' && c <= '9');
+    if (c == '.' || c == ',') {
+      if (!last_alnum || (c == ',' && (labels == 0 || !label_has_letter)))
+        return false;
+      labels = c == ',' ? 0 : labels + 1;
+      label_len = 0;
+      label_has_letter = false;
+      last_alnum = false;
+      continue;
+    }
+    if (++label_len > 63 || (!alnum && (c != '-' || label_len == 1)))
+      return false;
+    label_has_letter = label_has_letter || letter;
+    last_alnum = alnum;
+  }
+  return labels != 0 && last_alnum && label_has_letter;
+}
+
+// Project exact, already-preprocessed invocations out of the active Ads row.
+// No authored fallback rules or hostnames. This tiny shadow matcher isolates
+// positive source attribution; normal aggregate engines own global vetoes.
+inline std::optional<std::string> ReviewedSourceRules(std::string_view text) {
+  constexpr std::size_t kMaxSourceBytes = 8u << 20;
+  constexpr std::size_t kMaxBoundedRules = 16;
+  if (text.size() > kMaxSourceBytes) return std::nullopt;
+  std::string rules;
+  std::size_t kept = 0;
+  while (!text.empty()) {
+    const std::size_t end = text.find('\n');
+    auto row = text.substr(0, end);
+    text.remove_prefix(end == text.npos ? text.size() : end + 1);
+    if (row.ends_with('\r')) row.remove_suffix(1);
+    const std::size_t sep = row.find("##+js(");
+    if (sep == row.npos || !IsPlainDomainList(row.substr(0, sep))) continue;
+    const auto invocation = row.substr(sep);
+    if (invocation != "##+js(ra, data-popunder-url)" &&
+        invocation != "##+js(remove-attr, data-popunder-url)" &&
+        invocation != "##+js(ra, data-ppcnt_ads, main[onclick])" &&
+        invocation != "##+js(remove-attr, data-ppcnt_ads, main[onclick])") {
+      continue;
+    }
+    if (++kept > kMaxBoundedRules) return std::nullopt;
+    rules.append(row).push_back('\n');
+  }
+  return rules;
+}
+
+}  // namespace sandium::adblock_native::passive_scriptlets
+#endif  // COMPONENTS_SANDIUM_ADBLOCK_PASSIVE_SCRIPTLET_POLICY_H_

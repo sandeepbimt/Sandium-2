@@ -48,7 +48,7 @@
       "mode": "644"
     },
     "brave/components/brave_shields/core/common/adblock/rs/src/engine.rs": {
-      "after_sha256": "77951a5522df2809dbf45c1a38d507658cb9bb5dde83080b28f8cf5b017c4bf3",
+      "after_sha256": "8cf25c05da32cb11e06cfc385ca8673540a0431680b5e4fb1a3f402322739135",
       "before_sha256": null,
       "mode": "644"
     },
@@ -58,7 +58,7 @@
       "mode": "644"
     },
     "brave/components/brave_shields/core/common/adblock/rs/src/lib.rs": {
-      "after_sha256": "1f2549773004402e8597c82d8bea8efddf23a3fc79bd183fd69e1e8ff1757594",
+      "after_sha256": "58d31d1c51ad6f466b2d3861a2cc37ac689d3a346e575b0f3132391cf4ef9301",
       "before_sha256": null,
       "mode": "644"
     },
@@ -238,7 +238,7 @@
       "mode": "644"
     },
     "brave/third_party/rust/chromium_crates_io/vendor/adblock-v0_13/src/cosmetic_filter_cache.rs": {
-      "after_sha256": "03c7b3c430a2c578b643973117317f3684612b2cf9d2d17b9d519356df7dac61",
+      "after_sha256": "49a600cfd4ca97233a2fe58da2409f652af40d6e70d816a4456d7efc9ef95ff7",
       "before_sha256": null,
       "mode": "644"
     },
@@ -8390,7 +8390,7 @@
       "mode": "644"
     },
     "chrome/android/java/src/org/chromium/chrome/browser/common/ChromeIsolatedWorldIds.java": {
-      "after_sha256": "8705002c0c83139e0e6c39dfd987e9aef20fc269ef157294b1467d1e065441e2",
+      "after_sha256": "94786bf52e41f297407673dc70717bcd3657c41258fd3a68151b8db990779091",
       "before_sha256": "fac8c3f2c9c3603068452fb14892e5f2df510375441a95cede80d118c9a4d12b",
       "mode": "644"
     },
@@ -8691,7 +8691,7 @@
       "mode": "644"
     },
     "chrome/browser/BUILD.gn": {
-      "after_sha256": "2a16ae7ebca301e86e712740c96a35783284accce7964f453a214c428bfd4f3d",
+      "after_sha256": "1c81a4ffd859e79cea52a37e6276bd4a09a4f57e320d912a9cab4b399daaed91",
       "before_sha256": "e4098a876ac02db4ab67a4ce1ab3261545d1a4cd4b13433fa0b4bc03969baac3",
       "mode": "644"
     },
@@ -8760,7 +8760,7 @@
       "mode": "644"
     },
     "chrome/browser/chrome_content_browser_client.cc": {
-      "after_sha256": "fc1d770e60c0e60076bb190f407f90e619d3ed9648ac48affd5f949dba74cb9e",
+      "after_sha256": "b93e45bd63f1d71ef9e74ca509e8e2a8a68d3a53308ecb3ca59bd3b9e43e8c21",
       "before_sha256": "235fbfdbfe13d7ce2833017f67d6a899dda5b14131e38e5f7177b62f8a4b981b",
       "mode": "644"
     },
@@ -8910,7 +8910,7 @@
       "mode": "644"
     },
     "chrome/browser/raws/raws_site_ads_policy.h": {
-      "after_sha256": "b67324b63190a3fc2727aae4b638c5129cea3a36d6b890c41d2ccaa8737adefc",
+      "after_sha256": "8b7fe51d4e1a9410650a03ed5a03dc58a2bd26285f4eebc5574727832347dd0b",
       "before_sha256": null,
       "mode": "644"
     },
@@ -8919,7 +8919,7 @@
       "before_sha256": null
     },
     "chrome/browser/raws/subscription_service.h": {
-      "after_sha256": "4cf2f7de0b4f0ca189418aca9aa7e7c8fde5700d30bf4fb1c6944b1c42d8ba80",
+      "after_sha256": "6d0cd74c2c47e8c705b7879844147a0196ae01270c6e37d79f22c4cc15225048",
       "before_sha256": null
     },
     "chrome/browser/resources/raws/NOTICE-EASYLIST.md": {
@@ -9364,12 +9364,12 @@
       "mode": "644"
     },
     "chrome/common/chrome_isolated_world_ids.h": {
-      "after_sha256": "52bd86b92430319e737621798dea419e729ec141efbc49e990825639efd5843e",
+      "after_sha256": "71b0e1b0b540a7980fa8e4202a56fdafae45488e774026261c9dffc54366a1d7",
       "before_sha256": "6b5384da3ab0cb04ff100b19b8981e8846d51d0d405acf595ccbaf048d1e219a",
       "mode": "644"
     },
     "chrome/common/chrome_render_frame.mojom": {
-      "after_sha256": "fde4e4acce93101de31e09d59d0591a93e970d9c9a40f0e33131a3a7314cb782",
+      "after_sha256": "6fe3650329c058bba93df17a1b922a9164d5bd75aee090e936f67190342a3451",
       "before_sha256": "59cd286429ad99590a8fbbd9e5dda837716a5ad7c244e9cbfa141468760a714f"
     },
     "chrome/common/raws_procedural_cosmetic_rules.h": {
@@ -9378,16 +9378,16 @@
       "mode": "644"
     },
     "chrome/renderer/BUILD.gn": {
-      "after_sha256": "089ac4b6d48b29a75f1853b5e5351e4cba24eb025c90fb5ca4ebfa437917c72c",
+      "after_sha256": "c9c1633079b122f5fcbcb913130830f4129a86108eb5d2635d480b14a0fbc5a0",
       "before_sha256": "f25df03e4241f9fa16ea5d53060e124e175cff149c31e9d620237b4bb25a3da7",
       "mode": "644"
     },
     "chrome/renderer/chrome_render_frame_observer.cc": {
-      "after_sha256": "2f93f4a5ce31432a86a93b0285aefe13eddd8e47da7fd5a922224ba5af51326a",
+      "after_sha256": "c7b9bf91fb4a4f93657ed4524ffa65e0bbf49a5fe7ee80254a98d078aa150d9c",
       "before_sha256": "193e6a0d88cd505eb683cba41d4509785e235310560d52b23c8bf394e0430972"
     },
     "chrome/renderer/chrome_render_frame_observer.h": {
-      "after_sha256": "5364769e4edb2d2644d236105f39ac8ff0d9a73f4c7337b3f689052ffb95bb78",
+      "after_sha256": "28b986df2c596db7e5e6a92d2731b75e4fb1818edcc1eb41b558dd815e25c791",
       "before_sha256": "b3172f2b05944287a157906c16231ad457775525f314abad96d2d423af77d353"
     },
     "chrome/renderer/raws_color_locator.h": {
@@ -9401,7 +9401,7 @@
       "mode": "644"
     },
     "chrome/renderer/raws_dynamic_cosmetic_scheduler.h": {
-      "after_sha256": "4503a93bc50e379ab77ce4ac00879a408987bbd3fac899a81b217f617c54472c",
+      "after_sha256": "61d8d968baa14d58a31111e4472c577d30229121f767ef6ccca8c924276586ea",
       "before_sha256": null,
       "mode": "644"
     },
@@ -9409,6 +9409,14 @@
       "after_sha256": "2f2cca87ebb8bdf2a7cd271db43a3f964f4fadad0936606b756b2e2c49f3a42e",
       "before_sha256": null,
       "mode": "644"
+    },
+    "chrome/renderer/raws_passive_procedural_runtime.h": {
+      "after_sha256": "b53198d506f2fd0e5992bcc8f587b80cb7b00212b523eb6ea66e1e1b8cf14ce7",
+      "before_sha256": null
+    },
+    "chrome/renderer/raws_passive_scriptlet_program.h": {
+      "after_sha256": "fb2d586652542d9e613e44c6d46df09bd34f1ac2b0f350eef9432bf2504d1678",
+      "before_sha256": null
     },
     "chrome/renderer/raws_procedural_cosmetic_binding.h": {
       "after_sha256": "48e377d4df40fbab1b3d9eb4442e043389c01d4b996c2554ad42d5546f7ae3fc",
@@ -9489,7 +9497,7 @@
       "mode": "644"
     },
     "components/sandium_adblock/BUILD.gn": {
-      "after_sha256": "fb22c20301ec09c910b61b2714de68a124b0b184b16f977bf769609f2b6ec549",
+      "after_sha256": "90a5911f37057cebf4d7c0381872680a1240c87cddd80c73ebfef247bbc5d557",
       "before_sha256": null,
       "mode": "644"
     },
@@ -9579,12 +9587,12 @@
       "mode": "644"
     },
     "components/sandium_adblock/document_subresource_factory.cc": {
-      "after_sha256": "dfab0fd9533d35d1ae4ff5f71f131d85045e2ca1a4f66b269d308399d4e526a0",
+      "after_sha256": "64c87de7e2e6610b8e8b18fdfbe328226dff6dbbb1a69b90fb27ff4f549e560f",
       "before_sha256": null,
       "mode": "644"
     },
     "components/sandium_adblock/document_subresource_factory.h": {
-      "after_sha256": "45a18af65e32448b1dd0a2f0f7e29d96e4f20a24221658dac7d22bd080c59776",
+      "after_sha256": "fb92c388e61f9062ece44535f212aa9755fb86f02c11edb5b2f5d202f854bc06",
       "before_sha256": null,
       "mode": "644"
     },
@@ -9598,13 +9606,22 @@
       "before_sha256": null
     },
     "components/sandium_adblock/generic_style.h": {
-      "after_sha256": "383a205627a2289567d38390f582175ea0e9ad3d3405a3e28836d2159b778ae5",
+      "after_sha256": "2f2b2dc5fcb8c1dd1d2fe8b8d43380ce152ce0fb46e3d058af4364ddb75bd9b1",
       "before_sha256": null
     },
     "components/sandium_adblock/network_decision.h": {
       "after_sha256": "c732c7068ae65a288a38d8920d4a90689b74a9e13b84b321ef75b2e3fba9be53",
       "before_sha256": null,
       "mode": "644"
+    },
+    "components/sandium_adblock/observed_ad_conjunction.h": {
+      "after_sha256": "ee6a6bdf9ff9bb0fe19591308a31d0c70e02044e2b09934a7af5d558037bd8f1",
+      "before_sha256": null,
+      "mode": "644"
+    },
+    "components/sandium_adblock/passive_scriptlet_policy.h": {
+      "after_sha256": "4c3ec677d95ac8073960c3ca59cddd96bc079bd1ebb5a197cbd2fc6425d09033",
+      "before_sha256": null
     },
     "components/sandium_adblock/policy.h": {
       "after_sha256": "c8930d7c90da1813f97ca498364f4ae6ab081185f4a6b0ccbeef96b032095d4c",
@@ -9626,7 +9643,7 @@
       "mode": "644"
     },
     "components/sandium_adblock/smoke1442.cc": {
-      "after_sha256": "fd0ef9c57b7a60af900e030f3498487241dd29e5bbba358c389917945b1b18fa",
+      "after_sha256": "840089b12506d22df08876a4da4696f1d27bd6e0b8be3570c8cceafe2f3ad844",
       "before_sha256": null
     },
     "components/sandium_adblock/standard_merge.h": {
@@ -9635,11 +9652,11 @@
       "mode": "644"
     },
     "components/sandium_adblock/style.h": {
-      "after_sha256": "b96338066556601c066c83fa9d9c5baed131d343f9a4620403ba7c3fb87d58f2",
+      "after_sha256": "ccb3d41e165478d2c783fa82903c6d63e87090dadb8125608e877a3b7a6891d4",
       "before_sha256": null
     },
     "components/sandium_adblock/subresource_decision.cc": {
-      "after_sha256": "9e7fa353b10b7df6ae1fec8c6c019da0d06b76099663c2319e1633c069fe8210",
+      "after_sha256": "338e66e1cd32977d3f358481c188d177b9b1f233509bbc1096505a1e29b23d4c",
       "before_sha256": null,
       "mode": "644"
     },

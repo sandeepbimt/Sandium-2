@@ -180,7 +180,7 @@ class CombinedFeedback(unittest.TestCase):
                         scoped.index("endpoint->SetRawSDisableAmp("))
         renderer = self.read("chrome_render_frame_observer.cc").decode()
         scoped = renderer.split("void ChromeRenderFrameObserver::SetRawSDisableAmp(", 1)[1]
-        scoped = scoped.split("void ChromeRenderFrameObserver::SetRawSProceduralCosmetic(", 1)[0]
+        scoped = scoped.split("void ChromeRenderFrameObserver::StopRawSMobilePlayerFiltering(", 1)[0]
         self.assertIn("frame->GetEmbeddingToken() != token", scoped)
         self.assertIn("GURL(doc.Url()) != expected_url", scoped)
         self.assertIn("ISOLATED_WORLD_ID_RAWS_DISABLE_AMP", scoped)

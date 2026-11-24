@@ -1,0 +1,17 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src http://raws-ads.test:* https://raws-ads.test:*; script-src 'self' 'unsafe-inline'; style-src 'self'">
+<title>RawS / Brave local fixture bank</title>
+<h1>Neutral browser filtering fixture</h1>
+<main id="bank-positive" onclick="" data-ppcnt_ads="Synthetic marker">
+<p class="bank-static">Synthetic static sponsor</p>
+<p class="bank-static-allowed">Synthetic static exception</p>
+<p class="bank-editorial">Editorial control</p>
+<div>Positive marker: main element</div>
+<div id="bank-negative" onclick="" data-popunder-url="Other marker">Exception marker</div>
+<form id="bank-form"><label>Search this fixture <input id="bank-input" type="search"></label>
+<button id="bank-button" type="button">Test local interaction</button></form>
+<p><a id="bank-link" href="#bank-form">Normal navigation control</a></p>
+<div aria-live="polite"><pre id="bank-report">running</pre></div>
+</main>
+<script src="/bank.js"></script>
