@@ -126,7 +126,8 @@
     "inputs",
     [
       "//chrome/browser/download/internal/android/java/src/org/chromium/chrome/browser/download/home/list/DateOrderedListCoordinator.java",
-      "//chrome/browser/download/internal/android/java/src/org/chromium/chrome/browser/download/home/list/DateOrderedListMediator.java"
+      "//chrome/browser/download/internal/android/java/src/org/chromium/chrome/browser/download/home/list/DateOrderedListMediator.java",
+      "//chrome/browser/download/internal/android/java/src/org/chromium/chrome/browser/download/home/list/holder/InProgressViewHolder.java"
     ]
   ],
   "//chrome/browser/download/internal/android:java_resources__prepare": [

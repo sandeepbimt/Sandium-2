@@ -1,0 +1,185 @@
+// Copyright 2018 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+package org.chromium.chrome.browser.download.home.list.holder;
+
+import android.os.SystemClock;
+import android.text.TextUtils;
+import android.view.View;
+import android.widget.ImageButton;
+import android.widget.TextView;
+
+import androidx.annotation.CallSuper;
+
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
+import org.chromium.chrome.browser.download.home.list.ListItem;
+import org.chromium.chrome.browser.download.home.list.ListProperties;
+import org.chromium.chrome.browser.download.home.list.UiUtils;
+import org.chromium.chrome.browser.download.home.list.view.CircularProgressView;
+import org.chromium.chrome.browser.download.internal.R;
+import org.chromium.components.download.DownloadDangerType;
+import org.chromium.components.offline_items_collection.ContentId;
+import org.chromium.components.offline_items_collection.LegacyHelpers;
+import org.chromium.components.offline_items_collection.OfflineItem;
+import org.chromium.components.offline_items_collection.OfflineItemProgressUnit;
+import org.chromium.components.offline_items_collection.OfflineItemState;
+import org.chromium.ui.modelutil.PropertyModel;
+
+import java.text.NumberFormat;
+
+/**
+ * A {@link RecyclerView.ViewHolder} specifically meant to display an in-progress {@code
+ * OfflineItem}.
+ */
+@NullMarked
+public abstract class InProgressViewHolder extends ListItemViewHolder {
+    private static final long MIN_SAMPLE_MS = 500;
+    private static final long MAX_SAMPLE_MS = 5_000;
+
+    private final boolean mConstrainCaption;
+
+    private final TextView mCaption;
+    private final CircularProgressView mActionButton;
+    private final ImageButton mCancelButton;
+
+    private final NumberFormat mSpeedFormat = NumberFormat.getNumberInstance();
+    private final Runnable mExpireSpeed;
+    private CharSequence mBaseCaption = "";
+    private @Nullable ContentId mSampleId;
+    private long mSampleBytes;
+    private long mSampleAtMs;
+    private long mLastRateAtMs;
+    private double mMegabytesPerSecond;
+
+    /** Constructor. */
+    public InProgressViewHolder(View view, boolean constrainCaption) {
+        super(view);
+
+        mConstrainCaption = constrainCaption;
+        mCaption = view.findViewById(R.id.caption);
+        mActionButton = view.findViewById(R.id.action_button);
+        mCancelButton = view.findViewById(R.id.cancel_button);
+        mSpeedFormat.setMinimumFractionDigits(2);
+        mSpeedFormat.setMaximumFractionDigits(2);
+        mExpireSpeed = this::clearSpeedReadout;
+        view.addOnAttachStateChangeListener(
+                new View.OnAttachStateChangeListener() {
+                    @Override
+                    public void onViewAttachedToWindow(View attachedView) {}
+
+                    @Override
+                    public void onViewDetachedFromWindow(View detachedView) {
+                        clearSpeedReadout();
+                    }
+                });
+    }
+
+    // ListItemViewHolder implementation.
+    @Override
+    @CallSuper
+    public void bind(PropertyModel properties, ListItem item) {
+        OfflineItem offlineItem = ((ListItem.OfflineItemListItem) item).item;
+
+        updateCaption(offlineItem);
+        UiUtils.setProgressForOfflineItem(mActionButton, offlineItem);
+        mCancelButton.setOnClickListener(
+                v -> {
+                    clearSpeedReadout();
+                    properties.get(ListProperties.CALLBACK_CANCEL).onResult(offlineItem);
+                });
+        mCancelButton.setVisibility(
+                offlineItem.state == OfflineItemState.CANCELLED ? View.INVISIBLE : View.VISIBLE);
+        mActionButton.setOnClickListener(
+                view -> {
+                    switch (offlineItem.state) {
+                        case OfflineItemState.IN_PROGRESS:
+                            if (UiUtils.shouldShowScanningStateOnUI(offlineItem)) {
+                                break;
+                            }
+                        // Intentional fallthrough.
+                        case OfflineItemState.PENDING:
+                            clearSpeedReadout();
+                            properties.get(ListProperties.CALLBACK_PAUSE).onResult(offlineItem);
+                            break;
+                        case OfflineItemState.PAUSED: // Intentional fallthrough.
+                        case OfflineItemState.FAILED: // Intentional fallthrough.
+                        case OfflineItemState.INTERRUPTED: // Intentional fallthrough.
+                        case OfflineItemState.CANCELLED: // Intentional fallthrough.
+                            clearSpeedReadout();
+                            properties.get(ListProperties.CALLBACK_RESUME).onResult(offlineItem);
+                            break;
+                        case OfflineItemState.COMPLETE: // Intentional fallthrough.
+                        default:
+                            assert false : "Unexpected state for progress bar.";
+                            break;
+                    }
+                });
+    }
+
+    private void resetSpeed() {
+        mCaption.removeCallbacks(mExpireSpeed);
+        mSampleId = null;
+        mMegabytesPerSecond = 0;
+    }
+
+    private void clearSpeedReadout() {
+        resetSpeed();
+        mCaption.setText(mBaseCaption);
+    }
+
+    private void updateCaption(OfflineItem item) {
+        mBaseCaption = UiUtils.generateInProgressCaption(item, mConstrainCaption);
+        ContentId id = item.id;
+        OfflineItem.Progress progress = item.progress;
+        if (id == null
+                || TextUtils.isEmpty(id.id)
+                || !LegacyHelpers.isLegacyDownload(id)
+                || item.state != OfflineItemState.IN_PROGRESS
+                || item.isDangerous
+                || item.dangerType == DownloadDangerType.ASYNC_SCANNING
+                || progress == null
+                || progress.unit != OfflineItemProgressUnit.BYTES
+                || item.receivedBytes < 0) {
+            clearSpeedReadout();
+            return;
+        }
+
+        long now = SystemClock.elapsedRealtime();
+        long elapsed = now - mSampleAtMs;
+        if (!id.equals(mSampleId)
+                || item.receivedBytes < mSampleBytes
+                || elapsed < 0
+                || elapsed >= MAX_SAMPLE_MS
+                || (mMegabytesPerSecond > 0 && now - mLastRateAtMs >= MAX_SAMPLE_MS)) {
+            // Reset for a different row, restarted counter or gap rather than counting old bytes.
+            resetSpeed();
+            mSampleId = new ContentId(id.namespace, id.id);
+            mSampleBytes = item.receivedBytes;
+            mSampleAtMs = now;
+        } else if (elapsed >= MIN_SAMPLE_MS && item.receivedBytes > mSampleBytes) {
+            // bytes / (1000 * ms) gives decimal megabytes per second.
+            mMegabytesPerSecond = (item.receivedBytes - mSampleBytes) / (1_000.0 * elapsed);
+            mSampleBytes = item.receivedBytes;
+            mSampleAtMs = now;
+            mLastRateAtMs = now;
+            mCaption.removeCallbacks(mExpireSpeed);
+            mCaption.postDelayed(mExpireSpeed, MAX_SAMPLE_MS);
+        }
+
+        if (mMegabytesPerSecond <= 0) {
+            mCaption.setText(mBaseCaption);
+            return;
+        }
+        String rate =
+                mMegabytesPerSecond < 0.01
+                        ? mCaption.getContext().getString(
+                                R.string.raws_download_speed_below, mSpeedFormat.format(0.01))
+                        : mSpeedFormat.format(mMegabytesPerSecond);
+        String speed = mCaption.getContext().getString(R.string.raws_download_speed_mb_s, rate);
+        mCaption.setText(
+                mCaption.getContext().getString(
+                        R.string.download_manager_in_progress_description, mBaseCaption, speed));
+    }
+}

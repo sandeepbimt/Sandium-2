@@ -605,6 +605,7 @@ class FrozenScope(unittest.TestCase):
                 downloads + 'BUILD.gn',
                 download_java + 'DateOrderedListCoordinator.java',
                 download_java + 'DateOrderedListMediator.java',
+                download_java + 'holder/InProgressViewHolder.java',
             }
             self.assertLessEqual(download_owners, extra_tracked)
             for path in download_owners:
