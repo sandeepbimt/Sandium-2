@@ -34,7 +34,6 @@ class TallerCapsuleTests(unittest.TestCase):
         methods = [
             '    private void updateLocationBarBackgroundBounds(',
             '    private int calculateOnFocusHeightIncrease(',
-            '    private boolean drawRawSLegacyCapsuleBehindControls(',
             '    public void getLocationBarContentRect(',
             '    private boolean canUseRawSPageActions(',
             '    private boolean isRawSUnifiedPrivateNtp(',
@@ -46,8 +45,15 @@ class TallerCapsuleTests(unittest.TestCase):
         self.assertEqual(method(before, bounds).replace(
             'getRawSUnifiedCapsuleVerticalExtra(inset, rest)',
             'getRawSUnifiedCapsuleVerticalExtra(rest)'), method(now, bounds))
-        self.assertIn('getRawSUnifiedPaintBounds(', method(now, methods[2]))
-        self.assertIn('getRawSUnifiedPaintBounds(outRect, outRect)', method(now, methods[3]))
+        capsule = '    private boolean drawRawSLegacyCapsuleBehindControls('
+        # Only the paint color travels through this path; keep its exact guard and bounds.
+        old_capsule = method(before, capsule)
+        expected = old_capsule.replace('(Canvas canvas)', '(Canvas canvas, int slimPillColor)')
+        expected = expected.replace('mLocationBarBackground.draw(canvas);',
+                                    'mLocationBarBackground.drawWithRawSFill(canvas, slimPillColor);')
+        self.assertEqual(expected, method(now, capsule))
+        self.assertIn('getRawSUnifiedPaintBounds(', method(now, capsule))
+        self.assertIn('getRawSUnifiedPaintBounds(outRect, outRect)', method(now, methods[2]))
 
     def test_exact_geometry_executes_at_multiple_densities_and_focus(self):
         changed = method(source(t.PHONE), '    private int getRawSUnifiedCapsuleVerticalExtra(')
@@ -103,7 +109,7 @@ class Geometry {
                            'setRawSHomeToolbarBackingPainter'):
                 self.assertNotIn(symbol, source(p))
         phone = source(t.PHONE)
-        self.assertIn('drawRawSLegacyCapsuleBehindControls(canvas)', phone)
+        self.assertIn('drawRawSLegacyCapsuleBehindControls(canvas, slimPillColor)', phone)
         self.assertIn('mRawSSoftBacking.draw(canvas);', phone)
         self.assertIn('mRawSCapturedSoftBackingColor = getRawSSoftBackingColor();', phone)
         self.assertIn('Color.alpha(homeColor) == 255 ? homeColor : fallback | 0xff000000', phone)

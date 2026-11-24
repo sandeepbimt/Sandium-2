@@ -8142,7 +8142,7 @@
       "mode": "644"
     },
     "chrome/android/feed/core/java/src/org/chromium/chrome/browser/feed/FeedSurfaceCoordinator.java": {
-      "after_sha256": "7b317329ace3756f530a5e3442d106357e15189bc2cda501499936b3149ef68a",
+      "after_sha256": "8136a90328a9cef554f29df509863d66222376e3e9d8f9711e7cf90c98f8e64e",
       "before_sha256": "e980d8fb0350a64ccfa8f11b5ebfa243387a5574c54710ee54e822592e1d14da"
     },
     "chrome/android/java/AndroidManifest.xml": {
@@ -8520,7 +8520,7 @@
       "mode": "644"
     },
     "chrome/android/java/src/org/chromium/chrome/browser/settings/MainSettings.java": {
-      "after_sha256": "df3a33480246be216bf5490dfd8285d9d1d3582c313cf056742aa2c9a2f2f177",
+      "after_sha256": "6ab3f6ae977f02aac18192beed21be47c92bcf1726b9364471f6f5f05c027038",
       "before_sha256": "2f5579a222eced9a8323116aa9c7eb8be7911f4fdb54f93901ea14f2264f7595",
       "mode": "644"
     },
@@ -8535,7 +8535,7 @@
       "mode": "644"
     },
     "chrome/android/java/src/org/chromium/chrome/browser/settings/RawSColorChooser.java": {
-      "after_sha256": "ca49181f7d6726c51b016558ee32903f14ef4669d1e53974fa52f63b1c7c3089",
+      "after_sha256": "73996e29cdb5e3576eee0d7e5f84b6c957fb36359cea63084d406ef43c1c14a8",
       "before_sha256": null,
       "mode": "644"
     },
@@ -8560,7 +8560,7 @@
       "mode": "644"
     },
     "chrome/android/java/src/org/chromium/chrome/browser/settings/RawsGlobalShieldSheet.java": {
-      "after_sha256": "d22aa4e8570fc06d6decbf1403c4892b28d4b90ef3409001cc28b19e121f28cb",
+      "after_sha256": "46584e0fcc4a64b8666824f9f98809899e1c2dddf5c70ee272cfa33750b40289",
       "before_sha256": null,
       "mode": "644"
     },
@@ -8658,7 +8658,7 @@
       "before_sha256": "45012d302123a5d60b223ca39acd69c83cef8b2221a3f70c0e9e23ec927f0465"
     },
     "chrome/android/java/src/org/chromium/chrome/browser/ui/system/StatusBarColorController.java": {
-      "after_sha256": "a52d96095b2a3da21592de1ca286117f84f8be9829ad54a08777779021c3c02c",
+      "after_sha256": "2448c556555432fc92aeaad631946a9da1260168271b770bdcd996dddaad0275",
       "before_sha256": "338587d1553e770203e3259679692ba2f8a10bdec1b958361864753f5da352c8",
       "mode": "644"
     },
@@ -8693,7 +8693,7 @@
       "mode": "644"
     },
     "chrome/browser/android/compositor/layer/toolbar_layer.cc": {
-      "after_sha256": "84537a9d75e75a874cb6e73a520a72a478d61c7db454af8bdac4504b648a8c29",
+      "after_sha256": "75bd7d6c26d3490795e79cd6ab111ae2cc479c4c21624d417d24021ea8956eaf",
       "before_sha256": "8202315d5014e9d850b351feca77a6430a7d9668cfaa950402d704e478f68471"
     },
     "chrome/browser/android/compositor/layer/toolbar_layer.h": {
@@ -8701,15 +8701,15 @@
       "before_sha256": "81011a23067bcfefe133005a25e028b029587cfedf3b1099516510fbaec43f93"
     },
     "chrome/browser/android/compositor/resources/resource_factory.cc": {
-      "after_sha256": "c6150569614a69e5b332aa8a5fcd0703d46026b103354a6ca7146b36ec218cd1",
+      "after_sha256": "8a1cb876d92973889f1b52429db6f0b828a80577dcda4dd70502d55687a26653",
       "before_sha256": "9d8b2c618f9c057a16e97134a9c6b306b119e992e620abac0a75ab1f5189c206"
     },
     "chrome/browser/android/compositor/resources/toolbar_resource.cc": {
-      "after_sha256": "5c7932d095af97c501858103ca83235554ff9cf1d9af5a06defdd414ffa16252",
+      "after_sha256": "c649bd74312c0b2b53431d434e2805790f738dcef00e25a7836f9236f8e062fa",
       "before_sha256": "eba3440d02888bc1440611856509132c6f9e7d9fb10dd03e7983c85c185ed4eb"
     },
     "chrome/browser/android/compositor/resources/toolbar_resource.h": {
-      "after_sha256": "74b762c87577e8b3033bc5da7c4ed6b38af0fc2a5cbb4b43bba28becfe1c367f",
+      "after_sha256": "3ea63c0a83d8ceada0121d5acd946db836b27c76b40f624e8c6776139c492895",
       "before_sha256": "ea87fd2b1a4ccab4bb90b0465d4dcf3f1ca1764ed5a57d3378f9df41a5f158c5"
     },
     "chrome/browser/android/ntp/most_visited_sites_bridge.cc": {
@@ -9037,7 +9037,7 @@
       "mode": "644"
     },
     "chrome/browser/ui/android/appmenu/internal/java/res/values-night/sandium_menu_colors.xml": {
-      "after_sha256": "f27fa7dfce1f671ff7029c2a6b29b8c0afa30a029bf93520dbbaf0b4989310a7",
+      "after_sha256": "723d1b9ddd3d126734a4c6e9884c0f8e36f298e9bd0accfafdb07a36f944678c",
       "before_sha256": null
     },
     "chrome/browser/ui/android/appmenu/internal/java/res/values/raws_menu.xml": {
@@ -9051,7 +9051,7 @@
       "mode": "644"
     },
     "chrome/browser/ui/android/appmenu/internal/java/res/values/sandium_menu_colors.xml": {
-      "after_sha256": "3c9efcdaf512005133b0c56c7b2376d6890225b72a7e6257a7cad54d8675efde",
+      "after_sha256": "57275d93e593dcaab52aea398825791844a87c860b1fa5b7480e8e27d373b8d2",
       "before_sha256": null
     },
     "chrome/browser/ui/android/appmenu/internal/java/res/values/sandium_menu_strings.xml": {
@@ -9097,7 +9097,7 @@
       "before_sha256": null
     },
     "chrome/browser/ui/android/appmenu/internal/java/src/org/chromium/chrome/browser/ui/appmenu/SandiumPagedMenu.java": {
-      "after_sha256": "20c7b75e2af272feef00c8f266251662b0ee7bfee1967edaab0674a775a2b440",
+      "after_sha256": "01715cebb49949e07e8b1384e36b84cb132f4577c1c1ab55e3a6c4531cabeb19",
       "before_sha256": null
     },
     "chrome/browser/ui/android/appmenu/java/src/org/chromium/chrome/browser/ui/appmenu/AppMenuHandler.java": {
@@ -9133,7 +9133,7 @@
       "mode": "644"
     },
     "chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/LocationBarBackgroundDrawable.java": {
-      "after_sha256": "ac692d8c5408eee66e85ed4f5c7ddae818de1e8250c47079fcf10b8fc5be5b37",
+      "after_sha256": "ac707a79b50c1d556fbf3f850e9fac860bb0938aa83e0a04319db0ab8ba109bc",
       "before_sha256": "a43198b10611f3f47ef8c03aef2da3615a661db94960f26c5a2f91bd4d47b105",
       "mode": "644"
     },
@@ -9276,7 +9276,7 @@
       "mode": "644"
     },
     "chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/ResourceFactory.java": {
-      "after_sha256": "ae81c1585b80e34d0d3a9fb25bbb7ce2bcd6f26723e07e5370173cedcffb4bb9",
+      "after_sha256": "99d3cc0efad45ec3732117620486767ab4c5c9be85e4160ce05ffc8706358a3f",
       "before_sha256": "9115db100cf2c72f11d35db8a50c5786715647bdce1081a8e26364b4b0cd86e8"
     },
     "chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/ToggleTabStackButton.java": {
@@ -9288,20 +9288,20 @@
       "before_sha256": "0c43968867822490a77053cef95c692bb98ebabad902b87cba09801648ae5c6d"
     },
     "chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/Toolbar.java": {
-      "after_sha256": "94ddaf0ab88ddd9779702610ab4bb59bfa62ed4b93ff33fe6a17d953a6be497e",
+      "after_sha256": "04e8ee2918ab3e1013ad72c43fb1dd241d5aa717dcf55624128ea69f4a6efa8a",
       "before_sha256": "1c605e4debd209fb43308f0cdc2ec72730d159bd742e84a9246864762d441eff"
     },
     "chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/ToolbarControlContainer.java": {
-      "after_sha256": "c2d4e13813c59b2de0388861916a317a16d4576d09f981f0da56e07369557494",
+      "after_sha256": "85a135c44a0c5d017ff59d6ac8cab8256f7c1761f40ef33d178a20f9c1be3363",
       "before_sha256": "8dd315c90f7401201d7a40c44e7ae1d9370f3967a635f528bba282b98bec1ddb"
     },
     "chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/ToolbarPhone.java": {
-      "after_sha256": "aa63616728ee913d67bdd40baba4c8d241a328b01b564d78e6acac4ba466629c",
+      "after_sha256": "a1da8908322b304f49457c012684c31d05b36941b67c71c46fc60d6342f7a38d",
       "before_sha256": "1d2c62ecbb9f7e24f47ea99b6303a9d245dfc0d3d0065b2fc0c65fb2eb88b507",
       "mode": "644"
     },
     "chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/TopToolbarCoordinator.java": {
-      "after_sha256": "5fee760611ac35ac9e9888eff18b5ea3068d686c5346881187910ce638d802a6",
+      "after_sha256": "d644ada862ad66ebaf02a3bbdcd1effc43e33065ad001925b17cdfb93e26ae4c",
       "before_sha256": "94217f96c9a7845518c6bb7be49d89ec64e4d6157bac918774ec971314406a86"
     },
     "chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/TopToolbarOverlayMediator.java": {

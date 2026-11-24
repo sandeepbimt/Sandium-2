@@ -139,7 +139,11 @@ class ToolbarPolicy {
         self.assertEqual(2, pager.count('mDraft = mSaved.copy(); render();'))
         self.assertEqual(2, pager.count('if (!mReadOnlyPrivateMenu) {\n')-1)
         self.assertIn('if (mReadOnlyPrivateMenu || mDraft == null || mWriteInFlight) return;', pager)
-        self.assertIn('if (mReadOnlyPrivateMenu || mUncataloguedNativeRow >= 0)', pager)
+        self.assertIn('if (!mReadOnlyPrivateMenu && mUncataloguedNativeRow >= 0)', pager)
+        self.assertIn('() -> showNative(mUncataloguedNativeRow)', pager)
+        self.assertIn('() -> { mAllMenu = false; render(); }', pager)
+        self.assertIn('if (mReadOnlyPrivateMenu && mAllMenu)', pager)
+        self.assertIn('titleParams.setMarginEnd(backWidth)', pager)
         self.assertIn('handler.onItemClick(entry.model, null);', pager)
         self.assertIn('Configuration.UI_MODE_NIGHT_YES', pager)
 

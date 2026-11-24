@@ -48,9 +48,16 @@ class CombinedFeedback(unittest.TestCase):
         feed = self.read("FeedSurfaceCoordinator.java").decode()
         publish = feed.split("private boolean updateRawSHomeWallpaper()", 1)[1]
         publish = publish.split("private boolean updateRawSHomeWallpaperGeometry()", 1)[0]
-        self.assertIn("mRawSHomePublishedWallpaperPainting != mRawSHomeWallpaperPainting", publish)
-        self.assertIn("invalidate.run()", publish)
-        self.assertIn("? 0xff020202 : nativeColor", publish)
+        self.assertIn("updateRawSHomeStatusPaintColor();", publish)
+        # Notify the existing status owner only when the visible wallpaper color changes.
+        self.assertLess(publish.index("if (mRawSHomeStatusPaintColor == color) return;"),
+                        publish.index("invalidate.run()"))
+        self.assertIn("mRootView.isAttachedToWindow()", publish)
+        self.assertIn("? mRawSHomeStatusPaintColor", publish)
+        self.assertIn(": nativeColor", publish)
+        self.assertIn("mRawSHomeStatusSampledCrop.equals(mRawSHomeWallpaperDest)", publish)
+        self.assertIn("setRawSHomeStatusPaintColor(averageRawSHomeStatusStrip(sample))", publish)
+        self.assertNotIn("0xff020202", publish)
         for method in ("requestLayout(", "setLayoutParams(", "setPadding(", "postDelayed("):
             self.assertNotIn(method, publish)
 

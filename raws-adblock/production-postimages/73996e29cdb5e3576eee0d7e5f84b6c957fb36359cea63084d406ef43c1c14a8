@@ -1,0 +1,508 @@
+// SPDX-License-Identifier: MPL-2.0
+package org.chromium.chrome.browser.settings;
+
+import android.animation.Animator;
+import android.animation.AnimatorListenerAdapter;
+import android.animation.ValueAnimator;
+import android.app.Activity;
+import android.app.AlertDialog;
+import android.content.res.ColorStateList;
+import android.graphics.Color;
+import android.graphics.Typeface;
+import android.graphics.drawable.ColorDrawable;
+import android.os.Handler;
+import android.os.Looper;
+import android.view.Gravity;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.Button;
+import android.widget.LinearLayout;
+import android.widget.RadioButton;
+import android.widget.ScrollView;
+import android.widget.TextView;
+import android.widget.Toast;
+
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
+import org.chromium.chrome.R;
+
+/** Chrome-owned view for a single typed, immutable live element selection. */
+@NullMarked
+public final class RawSColorChooser {
+    public interface Actions {
+        void preview(int property, int rgb);
+        void save(int property, int rgb);
+        void clear();
+        void cancel();
+    }
+
+    private RawSColorChooser() {}
+
+    /** After authoritative native hit-test and identity validation of the selected node. */
+    public static Handle show(Activity activity, boolean artwork, Actions callbacks) {
+        LinearLayout body=new LinearLayout(activity);body.setOrientation(LinearLayout.VERTICAL);
+        int inset = dp(activity, 16);
+        body.setPaddingRelative(inset, dp(activity, 8), inset, dp(activity, 4));
+        body.setBackgroundResource(R.drawable.raws_frozen_shields_card);
+        TextView title = label(activity, R.string.raws_shields_correct_colors);
+        title.setTextSize(20);
+        title.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
+        title.setTextColor(activity.getColor(R.color.raws_shields_text));
+        title.setMinHeight(dp(activity, 48));
+        title.setGravity(Gravity.CENTER_VERTICAL);
+        title.setAccessibilityHeading(true);
+        body.addView(title);
+        RawsGlobalShieldSheet.addPickerDivider(body);
+        var choices = new ModePicker(activity, body, artwork);
+        TextView feedback = label(activity, R.string.raws_shields_color_preview_failed);
+        feedback.setVisibility(View.GONE);
+        feedback.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
+        body.addView(feedback);
+        LinearLayout actions=new LinearLayout(activity);actions.setOrientation(LinearLayout.HORIZONTAL);
+        Button preview = button(activity, R.string.raws_shields_color_preview, false, false);
+        Button save = button(activity, R.string.raws_shields_color_save, true, false);
+        actions.addView(preview, weightedAction(activity));
+        actions.addView(save, weightedAction(activity));
+        body.addView(actions);
+        Button reset = button(activity, R.string.raws_shields_color_reset, false, false);
+        var resetParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        resetParams.bottomMargin = dp(activity, 8);
+        body.addView(reset, resetParams);
+        RawsGlobalShieldSheet.addPickerDivider(body);
+        Button cancel = button(activity, android.R.string.cancel, false, true);
+        var cancelParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        cancelParams.gravity = Gravity.END;
+        body.addView(cancel, cancelParams);
+        ScrollView scroll = new ScrollView(activity);
+        scroll.setBackgroundResource(R.drawable.raws_frozen_shields_rim);
+        int rim = dp(activity, 10);
+        scroll.setPaddingRelative(rim, rim, rim, rim);
+        scroll.addView(body);
+        AlertDialog dialog = new AlertDialog.Builder(activity).setView(scroll).create();
+        var handle = new Handle(activity, dialog, choices, preview, save, reset, cancel,
+                feedback, callbacks);
+        preview.setOnClickListener(view -> handle.submit(false));
+        save.setOnClickListener(view -> handle.submit(true));
+        reset.setOnClickListener(view -> handle.confirmClear());
+        cancel.setOnClickListener(view -> dialog.dismiss());
+        dialog.setOnDismissListener(ignored -> handle.onDismiss());
+        dialog.setCanceledOnTouchOutside(true);
+        dialog.show();
+        var window = dialog.getWindow();
+        if (window != null) {
+            window.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+            window.setGravity(Gravity.BOTTOM);
+        }
+        return handle;
+    }
+
+    private static int dp(Activity activity, int value) {
+        return Math.round(value * activity.getResources().getDisplayMetrics().density);
+    }
+
+    private static TextView label(Activity activity, int text) {
+        TextView view = new TextView(activity);
+        view.setText(text);
+        view.setTextColor(activity.getColor(R.color.raws_shields_secondary));
+        view.setTextSize(14);
+        view.setPadding(0, dp(activity, 8), 0, dp(activity, 8));
+        return view;
+    }
+
+    private static Button button(Activity activity, int text, boolean primary, boolean flat) {
+        Button view = new Button(activity);
+        if (text != 0) view.setText(text);
+        RawsGlobalShieldSheet.stylePickerAction(view, primary, flat);
+        return view;
+    }
+
+    private static LinearLayout.LayoutParams weightedAction(Activity activity) {
+        var params = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1);
+        params.setMarginStart(dp(activity, 3));
+        params.setMarginEnd(dp(activity, 3));
+        params.bottomMargin = dp(activity, 6);
+        return params;
+    }
+
+    /** The visible modes are exactly the immutable hit-test capabilities, with one preset group. */
+    private static final class ModePicker {
+        // Same native property IDs: text=0, background=1, image artwork=2.
+        private static final String[] HEX = {"#EEEEEE", "#000000", "#408CFF"};
+        private final Activity mActivity;
+        private final LinearLayout mModes;
+        private final int[] mProperties;
+        private final LinearLayout[] mRows;
+        private final RadioButton[] mRadios;
+        private final Button[] mSwatches = new Button[HEX.length];
+        private final LinearLayout mPresets;
+        private int mSelectedMode;
+        private final int[] mSelectedColors;
+        private int mColumns;
+        private boolean mInline;
+
+        ModePicker(Activity activity, LinearLayout body, boolean artwork) {
+            mActivity = activity;
+            mProperties = artwork ? new int[] {2, 0, 1} : new int[] {0, 1};
+            mSelectedColors = new int[mProperties.length]; // Preset one starts each eligible mode.
+            mRows = new LinearLayout[mProperties.length];
+            mRadios = new RadioButton[mProperties.length];
+            mModes = new LinearLayout(activity);
+            mModes.setOrientation(LinearLayout.VERTICAL);
+            mPresets = new LinearLayout(activity);
+            mPresets.setOrientation(LinearLayout.VERTICAL);
+            var states = new int[][] {
+                    {-android.R.attr.state_enabled}, {android.R.attr.state_checked}, {}
+            };
+            var radioTint = new ColorStateList(states, new int[] {
+                    activity.getColor(R.color.raws_shields_disabled),
+                    RawsGlobalShieldSheet.pickerAccent(activity),
+                    activity.getColor(R.color.raws_shields_secondary)
+            });
+            var textTint = new ColorStateList(new int[][] {{-android.R.attr.state_enabled}, {}},
+                    new int[] {activity.getColor(R.color.raws_shields_disabled),
+                            activity.getColor(R.color.raws_shields_text)});
+            for (int i = 0; i < mProperties.length; i++) {
+                var row = new LinearLayout(activity);
+                row.setOrientation(LinearLayout.VERTICAL);
+                mRows[i] = row;
+                var radio = new RadioButton(activity);
+                mRadios[i] = radio;
+                radio.setText(switch (mProperties[i]) {
+                    case 2 -> R.string.raws_shields_color_artwork;
+                    case 0 -> R.string.raws_shields_color_text;
+                    default -> R.string.raws_shields_color_background;
+                });
+                radio.setTextColor(textTint);
+                radio.setTextSize(16);
+                radio.setMinHeight(dp(activity, 48));
+                radio.setButtonTintList(radioTint);
+                int mode = i;
+                radio.setOnClickListener(ignored -> selectMode(mode));
+                row.addView(radio, fullRow());
+                mModes.addView(row, fullRow());
+            }
+            for (int i = 0; i < HEX.length; i++) {
+                String hex = HEX[i];
+                Button swatch = button(activity, 0, false, false);
+                swatch.setText("●");
+                swatch.setTextColor(Color.parseColor(hex));
+                swatch.setContentDescription(
+                        activity.getString(R.string.raws_shields_color_preset, hex));
+                int color = i;
+                swatch.setOnClickListener(ignored -> selectColor(color));
+                mSwatches[i] = swatch;
+            }
+            // Start adjacent on the narrow-safe two-column grid; width chooses inline or wrapped.
+            selectMode(0);
+            mModes.addOnLayoutChangeListener(
+                    (v, l, t, r, b, oldL, oldT, oldR, oldB) -> fitPresets());
+            body.addView(mModes, fullRow());
+        }
+
+        private static LinearLayout.LayoutParams fullRow() {
+            return new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        }
+
+        private void selectMode(int index) {
+            LinearLayout oldRow = mRows[mSelectedMode];
+            oldRow.removeView(mPresets);
+            oldRow.setOrientation(LinearLayout.VERTICAL);
+            mRadios[mSelectedMode].setLayoutParams(fullRow());
+            mSelectedMode = index;
+            for (int i = 0; i < mRadios.length; i++) mRadios[i].setChecked(i == index);
+            mInline = false;
+            mRows[index].addView(mPresets, fullRow());
+            refreshSwatches();
+            fitPresets();
+        }
+
+        private void selectColor(int index) {
+            mSelectedColors[mSelectedMode] = index;
+            refreshSwatches();
+        }
+
+        private void refreshSwatches() {
+            for (int i = 0; i < mSwatches.length; i++) {
+                mSwatches[i].setSelected(i == mSelectedColors[mSelectedMode]);
+            }
+        }
+
+        private void fitPresets() {
+            int width = mModes.getWidth();
+            int cellWidth = dp(mActivity, 54); // 48dp touch target plus two 3dp gutters.
+            int fullWidth = cellWidth * mSwatches.length;
+            RadioButton radio = mRadios[mSelectedMode];
+            int labelWidth = (int) Math.ceil(radio.getPaint().measureText(radio.getText().toString()))
+                    + radio.getCompoundPaddingLeft() + radio.getCompoundPaddingRight()
+                    + dp(mActivity, 12);
+            boolean inline = width >= fullWidth + labelWidth;
+            int columns = width >= fullWidth ? mSwatches.length
+                    : width == 0 || width >= 2 * cellWidth ? 2 : 1;
+            if (columns != mColumns) {
+                mColumns = columns;
+                for (var swatch : mSwatches) {
+                    if (swatch.getParent() instanceof ViewGroup parent) parent.removeView(swatch);
+                }
+                mPresets.removeAllViews();
+                for (int start = 0; start < mSwatches.length; start += columns) {
+                    var strip = new LinearLayout(mActivity);
+                    strip.setOrientation(LinearLayout.HORIZONTAL);
+                    for (int i = start; i < Math.min(start + columns, mSwatches.length); i++) {
+                        strip.addView(mSwatches[i], weightedAction(mActivity));
+                    }
+                    mPresets.addView(strip, fullRow());
+                }
+            }
+            if (inline != mInline) {
+                mInline = inline;
+                LinearLayout row = mRows[mSelectedMode];
+                row.setOrientation(inline ? LinearLayout.HORIZONTAL : LinearLayout.VERTICAL);
+                row.setGravity(Gravity.CENTER_VERTICAL);
+                radio.setLayoutParams(inline
+                        ? new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1)
+                        : fullRow());
+                mPresets.setLayoutParams(inline
+                        ? new LinearLayout.LayoutParams(fullWidth, ViewGroup.LayoutParams.WRAP_CONTENT)
+                        : fullRow());
+            }
+        }
+
+        int property() { return mProperties[mSelectedMode]; }
+
+        int rgb() { return parseOpaqueRgb(HEX[mSelectedColors[mSelectedMode]]); }
+
+        void setEnabled(boolean enabled) {
+            for (var radio : mRadios) radio.setEnabled(enabled);
+            for (var swatch : mSwatches) swatch.setEnabled(enabled);
+        }
+    }
+
+    public static final class Handle {
+        private final Activity mActivity;
+        private final AlertDialog mDialog;
+        private final ModePicker mChoices;
+        private final Button mPreview;
+        private final Button mSave;
+        private final Button mReset;
+        private final Button mCancel;
+        private final TextView mFeedback;
+        private final Actions mActions;
+        private boolean mClosed;
+        private boolean mInFlight;
+        private boolean mSaving;
+        private boolean mClearing;
+        private @Nullable AlertDialog mClearDialog;
+        private boolean mShowingPreview;
+        private float mPreviewDim;
+        private @Nullable ValueAnimator mPreviewAnimator;
+        private final Handler mHandler = new Handler(Looper.getMainLooper());
+        private final Runnable mRestorePreviewWindow = this::restorePreviewWindow;
+
+        private Handle(Activity activity, AlertDialog dialog, ModePicker choices, Button preview,
+                Button save, Button reset, Button cancel, TextView feedback, Actions actions) {
+            mActivity = activity;
+            mDialog = dialog;
+            mChoices = choices;
+            mPreview = preview;
+            mSave = save;
+            mReset = reset;
+            mCancel = cancel;
+            mFeedback = feedback;
+            mActions = actions;
+        }
+
+        private void submit(boolean save) {
+            if (mClosed || mInFlight || mClearDialog != null) return;
+            mFeedback.setVisibility(View.GONE);
+            int property = mChoices.property();
+            int rgb = mChoices.rgb();
+            setBusy(true, save);
+            if (save) {
+                mActions.save(property, rgb);
+            } else {
+                mActions.preview(property, rgb);
+            }
+        }
+
+        private void setBusy(boolean busy, boolean saving) {
+            mInFlight = busy;
+            mSaving = busy && saving;
+            if (!busy) mClearing = false;
+            mDialog.setCancelable(!mSaving);
+            mPreview.setEnabled(!busy);
+            mSave.setEnabled(!busy);
+            mCancel.setEnabled(!mSaving);
+            mReset.setEnabled(!busy);
+            mChoices.setEnabled(!busy);
+        }
+
+        private void showOperationFeedback(int message) {
+            mFeedback.setText(message);
+            mFeedback.setVisibility(View.VISIBLE);
+        }
+
+        /** Called only by the authoritative same-session native preview callback. */
+        public void onPreviewResult(boolean applied) {
+            if (mClosed || !mInFlight || mSaving || mShowingPreview) return;
+            if (!applied) {
+                setBusy(false, false);
+                showOperationFeedback(R.string.raws_shields_color_preview_failed);
+                return;
+            }
+            var window = mDialog.getWindow();
+            if (window == null) {
+                setBusy(false, false);
+                return;
+            }
+            // The browser dialog keeps the touch stream, but the live result is
+            // visible. Never show a fake preview or let a tap through to the site.
+            mShowingPreview = true;
+            mPreviewDim = window.getAttributes().dimAmount;
+            mDialog.setCanceledOnTouchOutside(false);
+            animatePreviewWindow(0f, () ->
+                    mHandler.postDelayed(mRestorePreviewWindow, 2_000));
+        }
+
+        private void restorePreviewWindow() {
+            if (mClosed || !mShowingPreview) return;
+            animatePreviewWindow(1f, () -> {
+                mShowingPreview = false;
+                mDialog.setCanceledOnTouchOutside(true);
+                setBusy(false, false);
+            });
+        }
+
+        private void cancelPreviewAnimation() {
+            var animator = mPreviewAnimator;
+            mPreviewAnimator = null;
+            if (animator != null) animator.cancel();
+        }
+
+        private void animatePreviewWindow(float target, Runnable complete) {
+            cancelPreviewAnimation();
+            var window = mDialog.getWindow();
+            if (window == null) return;
+            var decor = window.getDecorView();
+            if (!ValueAnimator.areAnimatorsEnabled()) {
+                decor.setAlpha(target);
+                window.setDimAmount(target * mPreviewDim);
+                complete.run();
+                return;
+            }
+            var animator = ValueAnimator.ofFloat(decor.getAlpha(), target);
+            mPreviewAnimator = animator;
+            animator.setDuration(160);
+            animator.addUpdateListener(update -> {
+                if (mClosed || mPreviewAnimator != update) return;
+                float alpha = (float) update.getAnimatedValue();
+                decor.setAlpha(alpha);
+                window.setDimAmount(alpha * mPreviewDim);
+            });
+            animator.addListener(new AnimatorListenerAdapter() {
+                @Override
+                public void onAnimationEnd(Animator animation) {
+                    // Cancellation clears ownership before Android's cancel/end callbacks.
+                    if (mClosed || mPreviewAnimator != animation) return;
+                    mPreviewAnimator = null;
+                    complete.run();
+                }
+            });
+            animator.start();
+        }
+
+        /** The caller must pass true only once native verified durable persistence. */
+        public void onSaveResult(boolean persisted, boolean visitOnly) {
+            if (mClosed || !mInFlight || !mSaving || mClearing) return;
+            if (!persisted && !visitOnly) {
+                setBusy(false, false);
+                showOperationFeedback(R.string.raws_shields_color_save_failed);
+                return;
+            }
+            close();
+            Toast.makeText(mActivity, visitOnly ? R.string.raws_shields_color_visit_only
+                    : R.string.raws_shields_color_saved, Toast.LENGTH_SHORT).show();
+        }
+
+        private void confirmClear() {
+            if (mClosed || mInFlight || mClearDialog != null) return;
+            var confirmation =
+                    new AlertDialog.Builder(mActivity)
+                            .setTitle(R.string.raws_shields_color_reset)
+                            .setMessage(R.string.raws_shields_color_reset_question)
+                            .setPositiveButton(R.string.raws_shields_color_reset,
+                                    (ignored, which) -> requestClear())
+                            .setNegativeButton(android.R.string.cancel, null)
+                            .create();
+            mClearDialog = confirmation;
+            confirmation.setOnDismissListener(ignored -> {
+                if (mClearDialog == confirmation) mClearDialog = null;
+            });
+            confirmation.show();
+        }
+
+        private void requestClear() {
+            if (mClosed || mInFlight) return;
+            mFeedback.setVisibility(View.GONE);
+            setBusy(true, true);
+            mClearing = true;
+            mActions.clear();
+        }
+
+        /** True only when the exact owning native rule store confirmed durable clear. */
+        public void onClearResult(boolean persisted) {
+            if (mClosed || !mInFlight || !mClearing) return;
+            if (!persisted) {
+                setBusy(false, false);
+                showOperationFeedback(R.string.raws_shields_color_reset_failed);
+                return;
+            }
+            close();
+            Toast.makeText(mActivity, R.string.raws_shields_color_reset_done,
+                    Toast.LENGTH_SHORT).show();
+        }
+
+        private void dismissClearConfirmation() {
+            var clear = mClearDialog;
+            mClearDialog = null;
+            if (clear != null) clear.dismiss();
+        }
+
+        /** Lifecycle/controller-owned dismissal. Controller handles native cleanup. */
+        public void close() {
+            if (mClosed) return;
+            mClosed = true;
+            mHandler.removeCallbacks(mRestorePreviewWindow);
+            cancelPreviewAnimation();
+            dismissClearConfirmation();
+            mDialog.dismiss();
+        }
+
+        private void onDismiss() {
+            if (mClosed) return;
+            mClosed = true;
+            mHandler.removeCallbacks(mRestorePreviewWindow);
+            cancelPreviewAnimation();
+            dismissClearConfirmation();
+            mActions.cancel();
+        }
+    }
+
+    // Fixed six ASCII hex digits, with optional '#'. No CSS, alpha or named colors.
+    static int parseOpaqueRgb(String value) {
+        int start = value.startsWith("#") ? 1 : 0;
+        if (value.length() != start + 6) return -1;
+        int rgb = 0;
+        for (int i = start; i < value.length(); ++i) {
+            char c = value.charAt(i);
+            int digit = c >= '0' && c <= '9' ? c - '0'
+                    : c >= 'A' && c <= 'F' ? c - 'A' + 10
+                    : c >= 'a' && c <= 'f' ? c - 'a' + 10 : -1;
+            if (digit < 0) return -1;
+            rgb = (rgb << 4) | digit;
+        }
+        return rgb;
+    }
+}
