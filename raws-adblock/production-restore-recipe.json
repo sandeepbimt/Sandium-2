@@ -8142,7 +8142,7 @@
       "mode": "644"
     },
     "chrome/android/feed/core/java/src/org/chromium/chrome/browser/feed/FeedSurfaceCoordinator.java": {
-      "after_sha256": "50b8477daf5e1f3130c662eb8c4fbdac4fa53eae27066997c04864cde2cc000d",
+      "after_sha256": "e3c127064d265008955818f71010516fe26b7090d6b83e81c837bd4fa036625b",
       "before_sha256": "e980d8fb0350a64ccfa8f11b5ebfa243387a5574c54710ee54e822592e1d14da"
     },
     "chrome/android/java/AndroidManifest.xml": {
@@ -8417,6 +8417,11 @@
     "chrome/android/java/src/org/chromium/chrome/browser/customtabs/BaseCustomTabActivity.java": {
       "after_sha256": "19cb3b75a36b74efc381bead7e4b5b0324a2cf4f1a80e81030775f8893885790",
       "before_sha256": "4b07b51a06ad369f5b313a855b9250ca6d78926a461808bae23d30e11e95f76a",
+      "mode": "644"
+    },
+    "chrome/android/java/src/org/chromium/chrome/browser/download/DownloadNotificationFactory.java": {
+      "after_sha256": "4de2f451f3332ef338d3dfd00c444ddfd8754ccd8983aeb84575d7c0df3b715a",
+      "before_sha256": "2e20e4139d18a9f8f332eac822ed4798037dbede9db20a70f43cb838dfc87c51",
       "mode": "644"
     },
     "chrome/android/java/src/org/chromium/chrome/browser/firstrun/FirstRunActivity.java": {
@@ -9154,6 +9159,10 @@
       "before_sha256": "6c90a59d8d3237c24ce2c3eabba64ed3320da6b957b4192e7f8304a1a6d41eee",
       "mode": "644"
     },
+    "chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/DeferredIMEWindowInsetApplicationCallback.java": {
+      "after_sha256": "327d24b4908ecc8e8dbcad694107acab9c236ac814a22c3334424561fb8fe71b",
+      "before_sha256": "c0e6b460a1c99425e48160dbd4488bbe9f2fef167d480feddaeaaeb137e1323f"
+    },
     "chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/HintTextUpdater.java": {
       "after_sha256": "49435f37cf83beca2ffb40653fde9da4a8bdb91387290e90b489774ff4327a29",
       "before_sha256": "48565d3932d72957a430c05a698f9838c210d9f12043ec94a7c2353b0f4e898e",
@@ -9175,7 +9184,7 @@
       "mode": "644"
     },
     "chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/OmniboxSuggestionsDropdownEmbedderImpl.java": {
-      "after_sha256": "9738153be9e34ebfea512ce2f9ea8c79653246c7ae3ed78e9405a2a79545af56",
+      "after_sha256": "1c5bfdd3dbdce961fd4ee6050f08d651a296bc16ad726fd8ccacc973057282b7",
       "before_sha256": "170e5bbddf2b8af8cccec62d01331573b3a04ec45dda45ea9957a47979b10d92",
       "mode": "644"
     },
@@ -9193,6 +9202,10 @@
       "after_sha256": "df9b42192a7f041bc517ef6136cbaa0fb04d4fe3cfd5876b62d4f5e00bca53d5",
       "before_sha256": "c74ad1067c496899615c558ff043995a7586d507fee628c9e7dc3958805d94d8",
       "mode": "644"
+    },
+    "chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/suggestions/AutocompleteCoordinator.java": {
+      "after_sha256": "a83be1f1925902979cf65d0324399ac9efafbabd0df4102cad0ff2982cadbd07",
+      "before_sha256": "eecd299f52b8e2128035e955d7af3abffe0b85b0985c56e575a3996bdad6d084"
     },
     "chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/suggestions/AutocompleteMediator.java": {
       "after_sha256": "32873eaa530bb0dff5e4c041af469c36a5cd2547c40e5e40f393411d7e88914b",
@@ -9215,7 +9228,7 @@
       "mode": "644"
     },
     "chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/suggestions/OmniboxSuggestionsContainer.java": {
-      "after_sha256": "e3b6516b75587268ab1763032ee478da0b1acddf1c4c3cea1f9aaf06e45a037a",
+      "after_sha256": "983390488bbf90c07892580c979c41a3d779861482092730428e3ef050aac542",
       "before_sha256": "b7932bbf6eeb36975757e2c00f488ade638cceaa659c56cf9e7a242de1449c9b",
       "mode": "644"
     },

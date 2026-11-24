@@ -628,6 +628,7 @@ class FrozenScope(unittest.TestCase):
                 browser_java + 'native_page/ContextMenuManager.java',
                 browser_java + 'suggestions/tile/TileInteractionDelegateImpl.java',
                 browser_java + 'webapps/AppInstallMenuHandler.java',
+                browser_java + 'download/DownloadNotificationFactory.java',
                 browser_java + 'webapps/WebappActivity.java',
                 browser_java + 'customtabs/BaseCustomTabActivity.java',
                 browser_java + 'browserservices/ui/splashscreen/webapps/WebappSplashController.java',
@@ -636,6 +637,10 @@ class FrozenScope(unittest.TestCase):
                 'chrome/browser/ntp_tiles/chrome_custom_links_manager_factory.cc',
                 'chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/'
                 'omnibox/HintTextUpdater.java',
+                'chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/'
+                'omnibox/DeferredIMEWindowInsetApplicationCallback.java',
+                'chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/'
+                'omnibox/suggestions/AutocompleteCoordinator.java',
                 webapps_android + 'add_to_homescreen_mediator.cc',
                 webapps_android + 'add_to_homescreen_mediator.h',
                 webapps_java + 'AddToHomescreenCoordinator.java',
@@ -707,7 +712,7 @@ class FrozenScope(unittest.TestCase):
                 for name in ('ntp/NewTabPage.java', 'suggestions/tile/MostVisitedTilesLayout.java',
                              'suggestions/tile/SuggestionsTileView.java')
             }, extra_tracked)
-            self.assertEqual(17, sum(p.startswith('chrome/browser/ui/android/omnibox/')
+            self.assertEqual(19, sum(p.startswith('chrome/browser/ui/android/omnibox/')
                                     for p in extra_tracked))
             self.assertIn('chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/'
                           'browser/toolbar/ToolbarPositionController.java', extra_tracked)

@@ -42,6 +42,7 @@
       "//chrome/android/java/src/org/chromium/chrome/browser/crash/ChromeMinidumpUploadJobServiceImpl.java",
       "//chrome/android/java/src/org/chromium/chrome/browser/crash/MinidumpUploadServiceImpl.java",
       "//chrome/android/java/src/org/chromium/chrome/browser/customtabs/BaseCustomTabActivity.java",
+      "//chrome/android/java/src/org/chromium/chrome/browser/download/DownloadNotificationFactory.java",
       "//chrome/android/java/src/org/chromium/chrome/browser/firstrun/FirstRunActivity.java",
       "//chrome/android/java/src/org/chromium/chrome/browser/firstrun/FirstRunActivityBase.java",
       "//chrome/android/java/src/org/chromium/chrome/browser/firstrun/FirstRunFlowSequencer.java",
@@ -187,6 +188,7 @@
   "//chrome/browser/ui/android/omnibox:java__compile_java": [
     "inputs",
     [
+      "//chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/DeferredIMEWindowInsetApplicationCallback.java",
       "//chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/HintTextUpdater.java",
       "//chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/LocationBarBackgroundDrawable.java",
       "//chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/LocationBarLayout.java",
@@ -194,6 +196,7 @@
       "//chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/SearchEngineService.java",
       "//chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/status/StatusCoordinator.java",
       "//chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/status/StatusMediator.java",
+      "//chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/suggestions/AutocompleteCoordinator.java",
       "//chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/suggestions/AutocompleteMediator.java",
       "//chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/suggestions/DropdownItemViewInfoListBuilder.java"
     ]

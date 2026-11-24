@@ -96,6 +96,7 @@
     "chrome/android/java/src/org/chromium/chrome/browser/crash/ChromeMinidumpUploadJobServiceImpl.java",
     "chrome/android/java/src/org/chromium/chrome/browser/crash/MinidumpUploadServiceImpl.java",
     "chrome/android/java/src/org/chromium/chrome/browser/customtabs/BaseCustomTabActivity.java",
+    "chrome/android/java/src/org/chromium/chrome/browser/download/DownloadNotificationFactory.java",
     "chrome/android/java/src/org/chromium/chrome/browser/firstrun/FirstRunActivity.java",
     "chrome/android/java/src/org/chromium/chrome/browser/firstrun/FirstRunActivityBase.java",
     "chrome/android/java/src/org/chromium/chrome/browser/firstrun/FirstRunFlowSequencer.java",
@@ -170,6 +171,7 @@
     "chrome/browser/ui/android/native_page/java/src/org/chromium/chrome/browser/ui/native_page/NativePage.java",
     "chrome/browser/ui/android/night_mode/BUILD.gn",
     "chrome/browser/ui/android/night_mode/java/src/org/chromium/chrome/browser/night_mode/WebContentsThemeClient.java",
+    "chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/DeferredIMEWindowInsetApplicationCallback.java",
     "chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/HintTextUpdater.java",
     "chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/LocationBarBackgroundDrawable.java",
     "chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/LocationBarLayout.java",
@@ -178,6 +180,7 @@
     "chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/SearchEngineService.java",
     "chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/status/StatusCoordinator.java",
     "chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/status/StatusMediator.java",
+    "chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/suggestions/AutocompleteCoordinator.java",
     "chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/suggestions/AutocompleteMediator.java",
     "chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/suggestions/DropdownItemViewInfoListBuilder.java",
     "chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/suggestions/GroupSeparatorDecoration.java",
@@ -290,7 +293,7 @@
     "ui/android/java/src/org/chromium/ui/hierarchicalmenu/HierarchicalMenuController.java",
     "ui/android/java/src/org/chromium/ui/modaldialog/ModalDialogProperties.java"
   ],
-  "manifest_sha256": "c6d6bb7e8a01fdfd0767332c38e2e2b7ad2aad7102164b7de32c2af77e197912",
+  "manifest_sha256": "d072165fddfd9b12b13509c012bae08464e8e09091f9b0fa8741ba935c421af1",
   "staged_vendor_delta": {
     "brave/third_party/rust/chromium_crates_io/vendor/adblock-v0_13/src/blocker.rs": {
       "after": "ac368737ffb88855918f8e32ac0eb39a308c4e76f41e4a8193cf223c2a59a7cb",
