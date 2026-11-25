@@ -40,7 +40,7 @@ index e66e2aa..9514905 100644
 +  const GURL& page = web_contents->GetLastCommittedURL();
 +  Profile* profile = Profile::FromBrowserContext(browser_context());
 +  if (!profile || profile->IsOffTheRecord() || !user_gesture() ||
-+      !page.SchemeIs("chrome") || page.host_piece() != "extensions") {
++      !page.SchemeIs("chrome") || page.host() != "extensions") {
 +    return RespondNow(Error("Use Install from CRX in a regular Extensions tab."));
 +  }
 +  if (supervised_user::AreExtensionsPermissionsEnabled(profile)) {
@@ -146,7 +146,7 @@ index e66e2aa..9514905 100644
 +  }
 +
 +  const GURL& page = web_contents->GetLastCommittedURL();
-+  if (!page.SchemeIs("chrome") || page.host_piece() != "extensions") {
++  if (!page.SchemeIs("chrome") || page.host() != "extensions") {
 +    Finish(Error("The Extensions page is no longer open."));
 +    return;
 +  }

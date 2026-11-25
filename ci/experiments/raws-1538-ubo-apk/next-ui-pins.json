@@ -6,7 +6,7 @@
     },
     {
       "name": "raws-1544-file-crx.patch",
-      "sha256": "943adec5b60215521f29a5648198935aca8136aeaccc39f7e26798656f48d85a"
+      "sha256": "d4a40ba780e3cac0340cbb07504c054b74fcfba2f7e95e24d67a788323ddeece"
     },
     {
       "name": "raws1544-blur-four.patch",
@@ -59,7 +59,7 @@
       "before": "1dd1bbf9f26014b7e03127acb94f1e874d7d75361ac3df0c3e6ea724c88d5599"
     },
     "chrome/browser/extensions/api/developer_private/developer_private_functions.cc": {
-      "after": "e648a2425b5a629bf92b900a37517932a98e74a7aaa325cefce50d5bcffeb723",
+      "after": "4821e14c7974a996d2797b931714e848280ff99c3acfddfe376a616c5c7f9e50",
       "before": "a15138f672f73903b49e0798c15177525311cc09b7e5d1b98545c65cacab48af"
     },
     "chrome/browser/extensions/api/developer_private/developer_private_functions.h": {
