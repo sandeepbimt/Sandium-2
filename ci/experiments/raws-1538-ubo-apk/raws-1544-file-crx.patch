@@ -1,0 +1,406 @@
+diff --git a/chrome/browser/extensions/api/developer_private/developer_private_functions.cc b/chrome/browser/extensions/api/developer_private/developer_private_functions.cc
+index e66e2aa..9514905 100644
+--- a/chrome/browser/extensions/api/developer_private/developer_private_functions.cc
++++ b/chrome/browser/extensions/api/developer_private/developer_private_functions.cc
+@@ -87,7 +87,14 @@
+ #include "ui/base/window_open_disposition.h"
+ 
+ #if BUILDFLAG(IS_ANDROID)
++#include "base/files/file.h"
++#include "base/task/sequenced_task_runner.h"
++#include "chrome/browser/platform_util.h"
+ #include "chrome/browser/ui/android/extensions/extension_site_settings_android.h"
++#include "chrome/browser/extensions/extension_install_prompt.h"
++#include "components/crx_file/crx_verifier.h"
++#include "content/public/browser/web_contents.h"
++#include "url/gurl.h"
+ #include "chrome/common/extensions/api/developer_private.h"
+ #include "extensions/browser/extension_function.h"
+ #else  // BUILDFLAG(IS_ANDROID)
+@@ -1058,6 +1065,186 @@ void DeveloperPrivateLoadUnpackedFunction::Finish(
+   Release();  // Balanced in Run().
+ }
+ 
++#if BUILDFLAG(IS_ANDROID)
++DeveloperPrivateLoadCrxFunction::DeveloperPrivateLoadCrxFunction() = default;
++
++DeveloperPrivateLoadCrxFunction::~DeveloperPrivateLoadCrxFunction() {
++  // There may be pending file dialogs. Tell them we've gone away so they don't
++  // call back to us.
++  if (select_file_dialog_.get()) {
++    select_file_dialog_->ListenerDestroyed();
++  }
++}
++
++ExtensionFunction::ResponseAction DeveloperPrivateLoadCrxFunction::Run() {
++  content::WebContents* web_contents = GetSenderWebContents();
++  if (!web_contents) {
++    return RespondNow(Error(kCouldNotFindWebContentsError));
++  }
++  const GURL& page = web_contents->GetLastCommittedURL();
++  Profile* profile = Profile::FromBrowserContext(browser_context());
++  if (!profile || profile->IsOffTheRecord() || !user_gesture() ||
++      !page.SchemeIs("chrome") || page.host_piece() != "extensions") {
++    return RespondNow(Error("Use Install from CRX in a regular Extensions tab."));
++  }
++  if (supervised_user::AreExtensionsPermissionsEnabled(profile)) {
++    return RespondNow(Error("Child account users cannot install extensions."));
++  }
++  if (ExtensionManagementFactory::GetForBrowserContext(browser_context())
++          ->BlocklistedByDefault()) {
++    return RespondNow(Error("Extension installation is blocked by policy."));
++  }
++
++  select_file_dialog_ = ui::SelectFileDialog::Create(
++      this, std::make_unique<ChromeSelectFilePolicy>(web_contents));
++  // Android has no type for .crx and lists every file whatever is asked for,
++  // so the contents are checked instead. Naming the extension still matters: it
++  // keeps the picker from offering the camera and asking for that permission.
++  // A plain open, not a writable one, so the picker grants one read rather than
++  // lasting access to the file.
++  select_file_dialog_->SetAcceptTypes({u".crx"});
++  // Before SelectFile(): on Android a picker that cannot open cancels from
++  // inside it, and the cancel responds and releases.
++  AddRef();  // Balanced in Finish().
++  ui::SelectFileDialog::FileTypeInfo file_type_info;
++  select_file_dialog_->SelectFile(
++      ui::SelectFileDialog::SELECT_OPEN_FILE,
++      /*title=*/std::u16string(),
++      base::FilePath(), &file_type_info, 0, base::FilePath::StringType(),
++      platform_util::GetTopLevel(web_contents->GetNativeView()));
++  return did_respond() ? AlreadyResponded() : RespondLater();
++}
++
++void DeveloperPrivateLoadCrxFunction::FileSelected(
++    const ui::SelectedFileInfo& file,
++    int index) {
++  select_file_dialog_.reset();
++  base::ThreadPool::PostTaskAndReplyWithResult(
++      FROM_HERE, {base::MayBlock(), base::TaskPriority::USER_VISIBLE},
++      base::BindOnce(&DeveloperPrivateLoadCrxFunction::CheckFile,
++                     file.path()),
++      base::BindOnce(&DeveloperPrivateLoadCrxFunction::OnChecked, this,
++                     file.path()));
++}
++
++void DeveloperPrivateLoadCrxFunction::FileSelectionCanceled() {
++  // Bare: on Android this can run inside the dialog's own SelectFile(), when
++  // a picker is already showing and the new one cannot open. Let the dialog go
++  // once that call has returned rather than destroying it under itself.
++  if (select_file_dialog_) {
++    select_file_dialog_->ListenerDestroyed();
++    base::SequencedTaskRunner::GetCurrentDefault()->ReleaseSoon(
++        FROM_HERE, std::move(select_file_dialog_));
++  }
++  Finish(NoArguments());
++}
++
++// static
++DeveloperPrivateLoadCrxFunction::Checked
++DeveloperPrivateLoadCrxFunction::CheckFile(const base::FilePath& path) {
++  // Larger than any extension RawS expects to see, and small enough that the
++  // installer's own copy of the file does not fill the disk.
++  constexpr int64_t kMaxCrxBytes = 256 * 1024 * 1024;
++  Checked checked;
++  base::File file(path, base::File::FLAG_OPEN | base::File::FLAG_READ);
++  if (!file.IsValid()) {
++    checked.error = "RawS could not read that file.";
++    return checked;
++  }
++  int64_t length = file.GetLength();
++  if (length < 0) {
++    checked.error = "RawS could not read that file.";
++    return checked;
++  }
++  if (length > kMaxCrxBytes) {
++    checked.error = "That file is too large to be an extension.";
++    return checked;
++  }
++  file.Close();
++  // The format and signature, as the installer will check them again. Doing it
++  // here gives a plain answer for a file that is not an extension at all, and
++  // the id the file would install under.
++  std::string public_key;
++  crx_file::VerifierResult result = crx_file::Verify(
++      path, crx_file::VerifierFormat::CRX3, {}, {}, &public_key,
++      &checked.crx_id, /*compressed_verified_contents=*/nullptr);
++  if (result != crx_file::VerifierResult::OK_FULL) {
++    checked.error =
++        "That file is not a packed extension, or it is damaged. RawS installs "
++        "signed .crx files only.";
++    checked.crx_id.clear();
++  }
++  return checked;
++}
++
++void DeveloperPrivateLoadCrxFunction::OnChecked(const base::FilePath& path,
++                                                Checked checked) {
++  if (!checked.error.empty()) {
++    Finish(WithArguments(checked.error));
++    return;
++  }
++  content::WebContents* web_contents = GetSenderWebContents();
++  if (!web_contents) {
++    Finish(Error(kCouldNotFindWebContentsError));
++    return;
++  }
++
++  const GURL& page = web_contents->GetLastCommittedURL();
++  if (!page.SchemeIs("chrome") || page.host_piece() != "extensions") {
++    Finish(Error("The Extensions page is no longer open."));
++    return;
++  }
++  // Do not replace the admitted publisher pin through a different source.
++  if (checked.crx_id == "fkgkibajhfbepljeaefdnfnegdcjomkh") {
++    Finish(WithArguments("Use the existing approved uBlock Origin install route."));
++    return;
++  }
++  auto prompt = std::make_unique<ExtensionInstallPrompt>(
++      web_contents, std::make_unique<extensions::InstallPromptData>(
++                        extensions::InstallPromptData::UNSET_PROMPT_TYPE));
++  scoped_refptr<CrxInstaller> crx_installer =
++      CrxInstaller::Create(browser_context(), std::move(prompt));
++  crx_installer->set_expected_id(checked.crx_id);
++  crx_installer->set_error_on_unsupported_requirements(true);
++  crx_installer->set_off_store_install_allow_reason(
++      CrxInstaller::OffStoreInstallAllowedFromSettingsPage);
++  crx_installer->set_install_immediately(true);
++  crx_installer->AddInstallerCallback(
++      base::BindOnce(&DeveloperPrivateLoadCrxFunction::OnInstalled, this));
++  installer_ = crx_installer;
++  // The picked document itself, never deleted: the installer copies it into a
++  // temporary directory of its own before unpacking.
++  crx_installer->InstallCrx(path);
++}
++
++void DeveloperPrivateLoadCrxFunction::OnInstalled(
++    const std::optional<CrxInstallError>& error) {
++  scoped_refptr<CrxInstaller> installer = std::move(installer_);
++  if (!error || (error->type() == CrxInstallErrorType::OTHER &&
++                 (error->detail() == CrxInstallErrorDetail::USER_CANCELED ||
++                  error->detail() == CrxInstallErrorDetail::USER_ABORTED))) {
++    Finish(NoArguments());
++    return;
++  }
++  Finish(WithArguments(base::UTF16ToUTF8(error->message())));
++}
++
++void DeveloperPrivateLoadCrxFunction::Finish(ResponseValue response_value) {
++  Respond(std::move(response_value));
++  Release();  // Balanced in Run().
++}
++
++#else
++DeveloperPrivateLoadCrxFunction::DeveloperPrivateLoadCrxFunction() = default;
++DeveloperPrivateLoadCrxFunction::~DeveloperPrivateLoadCrxFunction() = default;
++ExtensionFunction::ResponseAction DeveloperPrivateLoadCrxFunction::Run() {
++  return RespondNow(Error("Install from CRX is only available on Android."));
++}
++void DeveloperPrivateLoadCrxFunction::FileSelected(
++    const ui::SelectedFileInfo&, int) {}
++void DeveloperPrivateLoadCrxFunction::FileSelectionCanceled() {}
++#endif
++
+ DeveloperPrivateInstallDroppedFileFunction::
+     DeveloperPrivateInstallDroppedFileFunction() = default;
+ DeveloperPrivateInstallDroppedFileFunction::
+diff --git a/chrome/browser/extensions/api/developer_private/developer_private_functions.h b/chrome/browser/extensions/api/developer_private/developer_private_functions.h
+index 187c9cf..15cddd0 100644
+--- a/chrome/browser/extensions/api/developer_private/developer_private_functions.h
++++ b/chrome/browser/extensions/api/developer_private/developer_private_functions.h
+@@ -16,6 +16,7 @@
+ #include "extensions/browser/extension_creator.h"
+ #include "extensions/browser/extension_function.h"
+ #include "extensions/browser/extension_registry_observer.h"
++#include "extensions/browser/install/crx_install_error.h"
+ #include "extensions/browser/load_error_reporter.h"
+ #include "extensions/browser/webstore_install_result.h"
+ #include "extensions/buildflags/buildflags.h"
+@@ -41,6 +42,10 @@
+ 
+ static_assert(BUILDFLAG(ENABLE_EXTENSIONS_CORE));
+ 
++namespace extensions {
++class CrxInstaller;
++}  // namespace extensions
++
+ namespace extensions::api {
+ 
+ class DeveloperPrivateAPIFunction : public ExtensionFunction {
+@@ -373,6 +378,51 @@ class DeveloperPrivateLoadUnpackedFunction
+   std::optional<ui::SelectedFileInfo> selected_file_for_testing_;
+ };
+ 
++class DeveloperPrivateLoadCrxFunction : public DeveloperPrivateAPIFunction,
++                                        public ui::SelectFileDialog::Listener {
++ public:
++  DECLARE_EXTENSION_FUNCTION("developerPrivate.loadCrx",
++                             DEVELOPERPRIVATE_LOADCRX)
++  DeveloperPrivateLoadCrxFunction();
++
++  DeveloperPrivateLoadCrxFunction(const DeveloperPrivateLoadCrxFunction&) =
++      delete;
++  DeveloperPrivateLoadCrxFunction& operator=(
++      const DeveloperPrivateLoadCrxFunction&) = delete;
++
++  // ui::SelectFileDialog::Listener:
++  void FileSelected(const ui::SelectedFileInfo& file, int index) override;
++  void FileSelectionCanceled() override;
++
++ protected:
++  ~DeveloperPrivateLoadCrxFunction() override;
++
++  // DeveloperPrivateAPIFunction:
++  ResponseAction Run() override;
++
++ private:
++  struct Checked {
++    std::string error;
++    std::string crx_id;
++  };
++
++  // Reads and verifies the picked file off the UI thread.
++  static Checked CheckFile(const base::FilePath& path);
++
++  void OnChecked(const base::FilePath& path, Checked checked);
++  void OnInstalled(const std::optional<CrxInstallError>& error);
++
++  // Responds, and drops the reference taken in Run().
++  void Finish(ResponseValue response_value);
++
++  scoped_refptr<ui::SelectFileDialog> select_file_dialog_;
++
++  // Keep the install alive until its result is delivered.
++  scoped_refptr<CrxInstaller> installer_;
++
++};
++
++
+ class DeveloperPrivateInstallDroppedFileFunction
+     : public DeveloperPrivateAPIFunction {
+  public:
+diff --git a/chrome/browser/resources/extensions/toolbar.css b/chrome/browser/resources/extensions/toolbar.css
+index 881317e..901a599 100644
+--- a/chrome/browser/resources/extensions/toolbar.css
++++ b/chrome/browser/resources/extensions/toolbar.css
+@@ -97,3 +97,12 @@ picture[slot='product-logo'] img {
+   width: 100%;
+ }
+ 
++
++.raws-extension-install-actions {
++  display: flex;
++  padding: 8px 14px;
++}
++
++.raws-extension-install-actions cr-button {
++  min-height: 44px;
++}
+diff --git a/chrome/browser/resources/extensions/toolbar.html.ts b/chrome/browser/resources/extensions/toolbar.html.ts
+index f2de5b0..c9c7f1f 100644
+--- a/chrome/browser/resources/extensions/toolbar.html.ts
++++ b/chrome/browser/resources/extensions/toolbar.html.ts
+@@ -34,6 +34,13 @@ export function getHtml(this: ToolbarElement) {
+   </picture>
+ </if>
+ </cr-toolbar>
++<if expr="is_android">
++  <div class="raws-extension-install-actions">
++    <cr-button id="loadCrx" @click="${this.onLoadCrxClick_}">
++      $i18n{rawsToolbarInstallCrx}
++    </cr-button>
++  </div>
++</if>
+ ${this.showPackDialog_ ? html`
+   <extensions-pack-dialog .delegate="${this.delegate as ServiceInterface}"
+       @close="${this.onPackDialogClose_}">
+diff --git a/chrome/browser/resources/extensions/toolbar.ts b/chrome/browser/resources/extensions/toolbar.ts
+index 178a09a..98cafbd 100644
+--- a/chrome/browser/resources/extensions/toolbar.ts
++++ b/chrome/browser/resources/extensions/toolbar.ts
+@@ -179,6 +179,22 @@ export class ExtensionsToolbarElement extends ExtensionsToolbarElementBase {
+     this.expanded_ = !this.expanded_;
+   }
+ 
++  protected async onLoadCrxClick_() {
++    try {
++      const error = await chrome.developerPrivate.loadCrx();
++      if (!error) {
++        return;
++      }
++      const toast = getToastManager();
++      toast.duration = TOAST_DURATION_MS;
++      toast.show(error);
++    } catch (error) {
++      const toast = getToastManager();
++      toast.duration = TOAST_DURATION_MS;
++      toast.show(error instanceof Error ? error.message : String(error));
++    }
++  }
++
+   protected onLoadUnpackedClick_() {
+     this.delegate.loadUnpacked()
+         .then((success) => {
+diff --git a/chrome/browser/ui/webui/extensions/extensions_ui.cc b/chrome/browser/ui/webui/extensions/extensions_ui.cc
+index 453c88c..43d76ef 100644
+--- a/chrome/browser/ui/webui/extensions/extensions_ui.cc
++++ b/chrome/browser/ui/webui/extensions/extensions_ui.cc
+@@ -436,6 +436,7 @@ content::WebUIDataSource* CreateAndAddExtensionsSource(Profile* profile,
+       {"pendingChangeWarning", IDS_PENDING_CHANGE_WARNING},
+   };
+   source->AddLocalizedStrings(kLocalizedStrings);
++  source->AddString("rawsToolbarInstallCrx", u"Install from CRX");
+ 
+   // Add localized generic strings that need '&' to be removed from them.
+   webui::AddLocalizedString(source, "edit", IDS_EDIT);
+diff --git a/chrome/common/extensions/api/developer_private.webidl b/chrome/common/extensions/api/developer_private.webidl
+index 7969e26..e3d1bf9 100644
+--- a/chrome/common/extensions/api/developer_private.webidl
++++ b/chrome/common/extensions/api/developer_private.webidl
+@@ -674,6 +674,10 @@ interface DeveloperPrivate {
+   // page.
+   static Promise<undefined> installDroppedFile();
+ 
++  // Android Extensions UI: pick a signed CRX and request normal installation.
++  // |PromiseValue|: error
++  static Promise<DOMString?> loadCrx();
++
+   // Notifies the browser that a user began a drag in order to install an
+   // extension.
+   static undefined notifyDragInstallInProgress();
+diff --git a/extensions/browser/extension_function_histogram_value.h b/extensions/browser/extension_function_histogram_value.h
+index f90a2d4..b34a378 100644
+--- a/extensions/browser/extension_function_histogram_value.h
++++ b/extensions/browser/extension_function_histogram_value.h
+@@ -2056,6 +2056,7 @@ enum HistogramValue {
+   AUTOFILLPRIVATE_PRELOADDETAILSFORUPSERTPASS = 1991,
+   EXPERIMENTALAIDATA_GETAPCSNAPSHOT = 1992,
+   EXPERIMENTALAIDATA_GETTEXTSURROUNDINGSELECTION = 1993,
++  DEVELOPERPRIVATE_LOADCRX = 1994,
+   // Last entry: Add new entries above, then run:
+   // tools/metrics/histograms/update_extension_histograms.py
+   ENUM_BOUNDARY
+diff --git a/tools/metrics/histograms/metadata/extensions/enums.xml b/tools/metrics/histograms/metadata/extensions/enums.xml
+index 4bcc6c1..2a5b373 100644
+--- a/tools/metrics/histograms/metadata/extensions/enums.xml
++++ b/tools/metrics/histograms/metadata/extensions/enums.xml
+@@ -2952,6 +2952,7 @@ Called by update_extension_histograms.py.-->
+   <int value="1991" label="AUTOFILLPRIVATE_PRELOADDETAILSFORUPSERTPASS"/>
+   <int value="1992" label="EXPERIMENTALAIDATA_GETAPCSNAPSHOT"/>
+   <int value="1993" label="EXPERIMENTALAIDATA_GETTEXTSURROUNDINGSELECTION"/>
++  <int value="1994" label="DEVELOPERPRIVATE_LOADCRX"/>
+ </enum>
+ 
+ <!-- LINT.ThenChange(//extensions/browser/extension_function_histogram_value.h:HistogramValue) -->
+diff --git a/tools/typescript/definitions/developer_private.d.ts b/tools/typescript/definitions/developer_private.d.ts
+index 7e7fbc9..85c8f2d 100644
+--- a/tools/typescript/definitions/developer_private.d.ts
++++ b/tools/typescript/definitions/developer_private.d.ts
+@@ -455,6 +455,7 @@ declare global {
+       export function getExtensionSize(id: string): Promise<string>;
+       export function getProfileConfiguration(): Promise<ProfileInfo>;
+       export function installDroppedFile(): Promise<void>;
++      export function loadCrx(): Promise<string|null>;
+       export function loadUnpacked(options: LoadUnpackedOptions):
+           Promise<LoadError|null>;
+       export function notifyDragInstallInProgress(): void;

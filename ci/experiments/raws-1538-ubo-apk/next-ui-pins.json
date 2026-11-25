@@ -1,0 +1,87 @@
+{
+  "patches": [
+    {
+      "name": "raws-1544-extension-ui.patch",
+      "sha256": "97ffe925fb4f298ea6360d61b41e676a3fecafae6f3e965c6362716c24d5d1bd"
+    },
+    {
+      "name": "raws-1544-file-crx.patch",
+      "sha256": "943adec5b60215521f29a5648198935aca8136aeaccc39f7e26798656f48d85a"
+    },
+    {
+      "name": "raws1544-blur-four.patch",
+      "sha256": "2a459f84a64744f1fafb3c7a1550f81336a91fc26b490e26db76084acd238feb"
+    }
+  ],
+  "paths": {
+    "chrome/android/java/res/values/raws_main_settings_strings.xml": {
+      "after": "bf2670b334ddd78415414b97696ee5e84c753d8fabb4de3592f100805745ba48",
+      "before": "79ba6e9bb5d5ec4dfb6b1c19c1acf56b89386850917423ff7abea3e17dbbfc6d"
+    },
+    "chrome/android/java/res/values/raws_welcome_palette.xml": {
+      "after": "4b5df89a4c564f032b46dca9cba2050d046db36bb66490de5d66814fa9256327",
+      "before": "8ddfbb553350d0662d97a2367e5269c4622eeea55c2192212e3c3a7564a098eb"
+    },
+    "chrome/android/java/src/org/chromium/chrome/browser/base/RawSNavigationAppearance.java": {
+      "after": "86254d729327dfd9ca29a67c47a615836efa69d619155aba0cae21c381f925e1",
+      "before": "104a9d71d3943017b06b2bf68dfde9d2d77ab5edfdb0cf075f008dc2de778576"
+    },
+    "chrome/android/java/src/org/chromium/chrome/browser/firstrun/RawSSetupFirstRunFragment.java": {
+      "after": "2b76629230db8409313b1a8758866fbb0ebd5c5366dfdf86e4ac49f6102df6ab",
+      "before": "1d9737a69850964b39d9bf48099430425df36c77a7e0e88ad5695875cefbedf9"
+    },
+    "chrome/android/java/src/org/chromium/chrome/browser/tabbed_mode/TabbedAppMenuPropertiesDelegate.java": {
+      "after": "4886f0cb61b71ea197e5454ae0433c7d6c42a6d6db258d0bc85efeab221ab323",
+      "before": "1dd1bbf9f26014b7e03127acb94f1e874d7d75361ac3df0c3e6ea724c88d5599"
+    },
+    "chrome/browser/extensions/api/developer_private/developer_private_functions.cc": {
+      "after": "e648a2425b5a629bf92b900a37517932a98e74a7aaa325cefce50d5bcffeb723",
+      "before": "a15138f672f73903b49e0798c15177525311cc09b7e5d1b98545c65cacab48af"
+    },
+    "chrome/browser/extensions/api/developer_private/developer_private_functions.h": {
+      "after": "4c2c5508ed402c6f1897b782feed15402e21cb4aa3838c85bbded0d0413bbeb5",
+      "before": "a730445eaa54c66a94a66d3241ef936eb346c65fdf19a5d396404798f5e1d729"
+    },
+    "chrome/browser/resources/extensions/item_list.css": {
+      "after": "0c6a4e23e425d8ac8a7e405260d33463e67bec61261be3e056d6d6dc3bedc1cb",
+      "before": "a02f7be73bc20f0061b21511c8f579e8714d574c2942090074b67f090f7cb21f"
+    },
+    "chrome/browser/resources/extensions/manager.css": {
+      "after": "302d6f2181bf34495873b260c88a85530f1400c5cf50cd912c6a3217837a0aa0",
+      "before": "5afeaa5500aa4fcbc611177d094fd0f3da6421bdf1101aaee696cc12e62efa6c"
+    },
+    "chrome/browser/resources/extensions/toolbar.css": {
+      "after": "58b1bf556c7ad3c7334b5f647471e8cc900ea42ee175df1864077ba0dcca6c27",
+      "before": "f517ac11689fe06ad60dc532a8633c0f8e35547b0b0436a926342e253be66487"
+    },
+    "chrome/browser/resources/extensions/toolbar.html.ts": {
+      "after": "1d810dc6483f0a9b5d9629d1b06f69bc2cc5f6230830080a5f1ea487d52b4a52",
+      "before": "d1607653965b8e3cf1ddcfeffb112a08653fc3269f7f1338fa9764db9d4bf7a8"
+    },
+    "chrome/browser/resources/extensions/toolbar.ts": {
+      "after": "ea369b3c5aff6b9cfec4a36aac7d60df3f6ef3371b35e0107de5f996f9d61c4f",
+      "before": "10ab3e3c5ffbb855e4f8054ebd39a0538164518a2de6f91b6ff56b604a1e0dbe"
+    },
+    "chrome/browser/ui/webui/extensions/extensions_ui.cc": {
+      "after": "8e0450e1dd924a9fedb597f20fa475e8534258e60b45596aaeb8f2b4815982cb",
+      "before": "c658afbaf78d6344616e416f94c8e961e5654022bc7cd56b4d099cadb1c7a6eb"
+    },
+    "chrome/common/extensions/api/developer_private.webidl": {
+      "after": "bd79ba4d634a7a595a980be54cd3f7a5abb6c61ba250730b38afbab406f4b113",
+      "before": "03379c897a3b5ccf68e1e19bf06fa81e207732e4d3e3b37bd50ea23f0b2311ea"
+    },
+    "extensions/browser/extension_function_histogram_value.h": {
+      "after": "353ef6b706445261a3f691dbca89c6e1320be8e153ac911f9da2f955ab8866e3",
+      "before": "32b0103db393a88299eb0f30148193ba408246c07bc24c891b6bcebfce9866b8"
+    },
+    "tools/metrics/histograms/metadata/extensions/enums.xml": {
+      "after": "e2d55f64bfa43fdffe39745818b75a8085a9b5dcc6918f3cc9247a46164bfecb",
+      "before": "a2e1bf9c85f053ad48df0096b8bcc3abee04948cd8e269e459a2d628fb744b9d"
+    },
+    "tools/typescript/definitions/developer_private.d.ts": {
+      "after": "261ebddd7667c39aca3c73f48a1a27256a4c096d8ca5b762556482c3f239182a",
+      "before": "89939f220ef56bd98ed2cd5904140c19e0b3a74e76519dba309e33b9b4569c14"
+    }
+  },
+  "producer": "d98f0dda5f43ea7cb6cf8ab2d8e76c58bc75c9e3"
+}

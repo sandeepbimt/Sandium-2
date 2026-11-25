@@ -21,6 +21,8 @@ import slice_state
 
 BASE = 'a274d3f2e250aad22c8ca4309ba75841f9db65dd'
 BRANCH = 'experiment/raws-1538-ubo-apk'
+PARENT = 'd98f0dda5f43ea7cb6cf8ab2d8e76c58bc75c9e3'
+UI_MANIFEST = '57823a4e4d4b24f1662e22cffada5d221acebacdfa11a526d8c70f8e0ee9413f'
 JOB = 'raws-1538-ubo-apk'
 RECIPE = 'ba0755150c15aba8ed53278aef717dcace3239235e7f6ae352fd74b768d79774'
 PATCH = '98711eb0f37e3111af828ca27bd7779946b3794433c7dcca3325c966c6c3d9b8'
@@ -28,7 +30,7 @@ WORK = ROOT/'work/source'
 ART = ROOT/'artifacts'
 HANDOFF = ROOT/'.ubo-slices'
 COMPLETED = ROOT/'.ubo-completed'
-APK_NAME = 'RawS-1538-uBO-MV2-test.apk'
+APK_NAME = 'RawS-Extensions-MV2-test.apk'
 LAST = 4
 
 def slice_index():
@@ -57,16 +59,17 @@ def gate():
            for k in os.environ):
         raise ValueError('Experiment must not receive RawS signing credentials')
     head = git(ROOT,'rev-parse','HEAD')
-    parent = '56ac4f20c2dc806285c77568a552f46e5395a2fb'
-    if (head != os.environ.get('CIRCLE_SHA1') or git(ROOT,'rev-parse','HEAD^') != parent
-            or git(ROOT,'rev-parse','HEAD^^^^^') != BASE):
-        raise ValueError('Expected exact #1543 experiment as the candidate parent')
+    if (head != os.environ.get('CIRCLE_SHA1') or git(ROOT,'rev-parse','HEAD^') != PARENT
+            or git(ROOT,'rev-parse','HEAD^^^^^^') != BASE):
+        raise ValueError('Expected exact #1544 experiment as the candidate parent')
     if fingerprint() != ro.FINGERPRINT or ro.full.fresh():
         raise ValueError('Unexpected baseline fingerprint or fresh seed')
     if ro.active_feature().identity != RECIPE:
         raise ValueError('Corrected #1538 recipe required')
     if file_sha(KIT/'pinned-ubo.patch') != PATCH:
         raise ValueError('Wrong reviewed package-admission patch')
+    if file_sha(KIT/'next-ui-pins.json') != UI_MANIFEST:
+        raise ValueError('Wrong reviewed extension and blur patch manifest')
     ro.full.D.gate()
 
 
@@ -78,7 +81,7 @@ def completed_identity(checkout, args):
 
 def verify_completed_seed():
     producer = os.environ.get('RAWS_UBO_COMPLETED_SEED','')
-    if (not re.fullmatch(r'[0-9a-f]{40}', producer)
+    if (producer != PARENT
             or producer == os.environ['CIRCLE_SHA1']
             or subprocess.run(['git','-C',str(ROOT),'merge-base','--is-ancestor',
                                producer,os.environ['CIRCLE_SHA1']],check=False).returncode):
@@ -106,6 +109,7 @@ def save_completed():
             receipt.get('checkout') != os.environ['CIRCLE_SHA1'] or
             receipt.get('base') != BASE or receipt.get('recipe_sha256') != RECIPE or
             receipt.get('experimental_patch_sha256') != PATCH or
+            receipt.get('next_ui_manifest_sha256') != UI_MANIFEST or
             receipt.get('apk_sha256') != file_sha(apk)):
         raise ValueError('Completed checkpoint APK provenance mismatch')
     out = (WORK/'src'/OUTPUT).parent
@@ -169,6 +173,24 @@ def check_pins(src, field):
             raise ValueError(f'uBlock patch {field} mismatch: {name}')
 
 
+def apply_next_ui(src):
+    manifest = json.loads((KIT/'next-ui-pins.json').read_text())
+    if manifest['producer'] != PARENT:
+        raise ValueError('Invalid UI producer')
+    for name, pins in manifest['paths'].items():
+        if file_sha(safe_path(src, name)) != pins['before']:
+            raise ValueError('UI patch preimage mismatch: '+name)
+    for patch in manifest['patches']:
+        source = KIT/patch['name']
+        if file_sha(source) != patch['sha256']:
+            raise ValueError('UI patch digest mismatch: '+patch['name'])
+        git(src,'apply','--check',str(source))
+        git(src,'apply','--whitespace=error',str(source))
+    for name, pins in manifest['paths'].items():
+        if file_sha(safe_path(src, name)) != pins['after']:
+            raise ValueError('UI patch postimage mismatch: '+name)
+
+
 def compile_apk():
     d=ro.full.D
     from ci_restore_probe import validate_restore
@@ -200,6 +222,9 @@ def compile_apk():
     for name,pins in feature_pins.items():
         if file_sha(safe_path(src,name)) != pins['after']:
             raise ValueError('Wrong Afterbird postimage: '+name)
+    apply_next_ui(src)
+    import shutil
+    shutil.copyfile(KIT/'LICENSE-Bare-extensions',ART/'LICENSE-Bare-extensions.txt')
     if (src/OUTPUT).read_bytes() != args:
         raise ValueError('Unexpected experimental build args')
     env=dict(os.environ, PATH=str(depot)+os.pathsep+os.environ['PATH'], DEPOT_TOOLS_UPDATE='0')
@@ -213,7 +238,7 @@ def compile_apk():
         proof=slice_state.receipt_at(previous,slice_identity(n-1))
         slice_state.restore(out,previous,proof,args,WORK)
         print(f'RESTORED_EXPERIMENT_SLICE={n-1}',flush=True)
-    elif os.environ.get('RAWS_UBO_COMPLETED_SEED'):
+    else:
         producer = verify_completed_seed()
         proof = slice_state.receipt_at(COMPLETED,completed_identity(producer,args))
         if proof['status'] != 'compiled_apk':
@@ -259,7 +284,8 @@ def compile_apk():
     shutil.copyfile(apk,ART/APK_NAME)
     (ART/'apk-receipt.json').write_text(json.dumps({
         'checkout':git(ROOT,'rev-parse','HEAD'),'base':BASE,'recipe_sha256':RECIPE,
-        'experimental_patch_sha256':PATCH,'apk_sha256':file_sha(apk),
+        'experimental_patch_sha256':PATCH,'next_ui_manifest_sha256':UI_MANIFEST,
+        'apk_sha256':file_sha(apk),
         'apk_signature_verified':True,'android_runtime_verified':False,
         'official_release':False,'regular_update':False,
     }, indent=2)+'\n')

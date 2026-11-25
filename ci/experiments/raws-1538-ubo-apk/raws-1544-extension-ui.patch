@@ -1,0 +1,70 @@
+diff --git a/chrome/android/java/src/org/chromium/chrome/browser/tabbed_mode/TabbedAppMenuPropertiesDelegate.java b/chrome/android/java/src/org/chromium/chrome/browser/tabbed_mode/TabbedAppMenuPropertiesDelegate.java
+index 8d2e1d7..e032dcc 100644
+--- a/chrome/android/java/src/org/chromium/chrome/browser/tabbed_mode/TabbedAppMenuPropertiesDelegate.java
++++ b/chrome/android/java/src/org/chromium/chrome/browser/tabbed_mode/TabbedAppMenuPropertiesDelegate.java
+@@ -481,9 +481,16 @@ public class TabbedAppMenuPropertiesDelegate extends AppMenuPropertiesDelegateIm
+             modelList.add(mHistoryItemBuilder.buildRecentTabsItem(shouldShowIconBeforeItem));
+         }
+ 
+-        // Extensions
++        // Preserve Chromium's native action popup for the current tab.
+         if (shouldShowExtensionsItem()) {
+             modelList.add(buildExtensionsMenuItem(shouldShowIconBeforeItem));
++            if (!isIncognito && "io.github.sandeepbimt.raws".equals(mContext.getPackageName())) {
++                // RawS phones use the compact menu without Chromium's Extensions submenu.
++                modelList.add(buildRawSHomeMenuItem(
++                        R.id.manage_extensions_menu_id, R.string.menu_manage_extensions));
++                modelList.add(buildRawSHomeMenuItem(
++                        R.id.extensions_webstore_menu_id, R.string.menu_chrome_webstore));
++            }
+         }
+ 
+         // Divider
+diff --git a/chrome/browser/resources/extensions/item_list.css b/chrome/browser/resources/extensions/item_list.css
+index 05cc88e..5c4e378 100644
+--- a/chrome/browser/resources/extensions/item_list.css
++++ b/chrome/browser/resources/extensions/item_list.css
+@@ -120,3 +120,27 @@ managed-footnote {
+    * is clickable. */
+   z-index: 1;
+ }
++
++/* Match RawS phone surfaces without changing Chromium's card actions. */
++@media (max-width: 600px) {
++  #content-wrapper {
++    min-width: 0;
++    padding: 12px 14px 32px;
++    --cr-card-border-radius: 18px;
++  }
++
++  .items-container {
++    grid-template-columns: minmax(0, 1fr);
++    max-width: none;
++  }
++
++  extensions-item {
++    display: block;
++    min-width: 0;
++  }
++
++  .section-header-contents {
++    flex-wrap: wrap;
++    gap: 8px;
++  }
++}
+diff --git a/chrome/browser/resources/extensions/manager.css b/chrome/browser/resources/extensions/manager.css
+index e13459c..d4c35a7 100644
+--- a/chrome/browser/resources/extensions/manager.css
++++ b/chrome/browser/resources/extensions/manager.css
+@@ -87,3 +87,11 @@ picture[slot='header-icon'] img {
+   width: 100%;
+ }
+ 
++
++@media (max-width: 600px) {
++  #viewManager,
++  #viewManager:has(extensions-item-list.active) {
++    flex: 1 1 0;
++    min-width: 0;
++  }
++}

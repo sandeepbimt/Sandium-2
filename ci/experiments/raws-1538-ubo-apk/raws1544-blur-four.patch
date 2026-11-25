@@ -1,0 +1,139 @@
+--- a/chrome/android/java/res/values/raws_main_settings_strings.xml
++++ b/chrome/android/java/res/values/raws_main_settings_strings.xml
+@@ -34,8 +34,8 @@
+     <string name="raws_settings_open_group">Only open links in current tab group</string>
+     <string name="raws_settings_undo_tabs">Show undo button when tabs are closed</string>
+     <string name="raws_settings_native_options">Other appearance settings</string>
+-    <string-array name="raws_settings_blur_entries"><item>Off</item><item>On</item></string-array>
+-    <string-array name="raws_settings_blur_values" translatable="false"><item>off</item><item>on</item></string-array>
++    <string-array name="raws_settings_blur_entries"><item>Off</item><item>Low</item><item>Medium</item><item>High</item></string-array>
++    <string-array name="raws_settings_blur_values" translatable="false"><item>off</item><item>low</item><item>medium</item><item>high</item></string-array>
+     <item name="sandium_add_home_shortcut" type="id"/>
+     <string name="raws_add_current_page_to_sandium_home">Add to Sandium home</string>
+     <string name="raws_add_current_page_to_sandium_home_ok">Added to Sandium home</string>
+--- a/chrome/android/java/res/values/raws_welcome_palette.xml
++++ b/chrome/android/java/res/values/raws_welcome_palette.xml
+@@ -25,7 +25,9 @@
+     <string name="raws_setup_blur">Page transition blur</string>
+     <string name="raws_setup_blur_value">Page transition blur: %1$s</string>
+     <string name="raws_setup_blur_off">Off</string>
+-    <string name="raws_setup_blur_on">On</string>
++    <string name="raws_setup_blur_low">Low</string>
++    <string name="raws_setup_blur_medium">Medium</string>
++    <string name="raws_setup_blur_high">High</string>
+     <string name="raws_setup_dns">Secure DNS</string>
+     <string name="raws_setup_dns_global">Applies to all sites</string>
+     <string name="raws_setup_dns_custom">Custom provider…</string>
+--- a/chrome/android/java/src/org/chromium/chrome/browser/base/RawSNavigationAppearance.java
++++ b/chrome/android/java/src/org/chromium/chrome/browser/base/RawSNavigationAppearance.java
+@@ -18,7 +18,9 @@
+     private static final String BLUR_PREF = "sandium_page_transition_blur_level";
+     private static final String FEATURE = "AndroidNavigationBlurTransitionAnimation";
+     private static final String OFF = "off";
+-    private static final String ON = "on";
++    private static final String LOW = "low";
++    private static final String MEDIUM = "medium";
++    private static final String HIGH = "high";
+     private static final String ENABLE = "enable-features";
+     private static final String DISABLE = "disable-features";
+ 
+@@ -29,35 +31,40 @@
+     }
+ 
+     private static boolean validLevel(String level) {
+-        return OFF.equals(level) || ON.equals(level);
++        return OFF.equals(level) || LOW.equals(level)
++                || MEDIUM.equals(level) || HIGH.equals(level);
+     }
+ 
+-    /** Canonicalizes persisted and restored setup values; new writes only accept Off or On. */
++    /** Canonicalizes stored preferences and restored Welcome choices to the four presets. */
+     public static @Nullable String normalizeStoredBlurLevel(@Nullable String level) {
+         if (level == null) return null;
+         return switch (level) {
+             case OFF, "0" -> OFF;
+-            case ON, "low", "medium", "high", "1", "2", "3" -> ON;
++            case LOW, "on", "1" -> LOW;
++            case MEDIUM, "2" -> MEDIUM;
++            case HIGH, "3" -> HIGH;
+             default -> null;
+         };
+     }
+ 
+     private static String readBlurLevel(SharedPreferences store, boolean migrate) {
+         @Nullable String raw;
++        boolean storedAsInt = false;
+         try {
+-            // Missing on fresh installs is the stock Chromium On preset, not Off.
+-            raw = store.getString(BLUR_PREF, ON);
++            // Fresh installs use Low, the native Chromium preset.
++            raw = store.getString(BLUR_PREF, LOW);
+         } catch (ClassCastException e) {
+             // Older stored ordinal values are separate from the current string format.
+             try {
+                 raw = Integer.toString(store.getInt(BLUR_PREF, -1));
++                storedAsInt = true;
+             } catch (ClassCastException malformed) {
+                 return OFF;
+             }
+         }
+         @Nullable String level = normalizeStoredBlurLevel(raw);
+         if (level == null) return OFF;
+-        if (migrate && !level.equals(raw)) {
++        if (migrate && (storedAsInt || !level.equals(raw))) {
+             // Canonicalize this alias in place only. Do not set any restart or
+             // setup-completion flags and do not materialize the fresh default.
+             store.edit().putString(BLUR_PREF, level).apply();
+@@ -94,8 +101,18 @@
+             commandLine.appendSwitchWithValue(DISABLE, appendFeature(disable, FEATURE));
+             return;
+         }
+-        // Leave native blur, opacity, and timing at Chromium defaults.
+-        commandLine.appendSwitchWithValue(ENABLE, appendFeature(enable, FEATURE));
++        // Low is stock Chromium. Medium and High keep its lifecycle/blur radius
++        // and use the previously supported longer hold and fade timings.
++        String selected = switch (level) {
++            case MEDIUM -> FEATURE
++                    + ":nav-animation-fade-hold-duration-ms/450"
++                    + "/nav-animation-fade-out-duration-ms/225";
++            case HIGH -> FEATURE
++                    + ":nav-animation-fade-hold-duration-ms/675"
++                    + "/nav-animation-fade-out-duration-ms/300";
++            default -> FEATURE;
++        };
++        commandLine.appendSwitchWithValue(ENABLE, appendFeature(enable, selected));
+     }
+ 
+     private static String appendFeature(String existing, String next) {
+--- a/chrome/android/java/src/org/chromium/chrome/browser/firstrun/RawSSetupFirstRunFragment.java
++++ b/chrome/android/java/src/org/chromium/chrome/browser/firstrun/RawSSetupFirstRunFragment.java
+@@ -71,7 +71,7 @@
+     private static final int START_PROGRESS = 0xFFB6DCC1;
+     private static final int START_DISABLED = 0xFF373737;
+     private static final int PRIMARY_TEXT = 0xFF080F18;
+-    private static final String[] BLUR_VALUES = {"off", "on"};
++    private static final String[] BLUR_VALUES = {"off", "low", "medium", "high"};
+     private static final int COUNTDOWN_STEPS = 5;
+     private static final long COUNTDOWN_STEP_MS = 300;
+     private static final long COUNTDOWN_MS = COUNTDOWN_STEPS * COUNTDOWN_STEP_MS;
+@@ -102,8 +102,8 @@
+     private android.widget.@Nullable PopupMenu mDnsPopup;
+     private @Nullable SandiumBalancedTracer mTracer;
+     private boolean mStagedDarkPages;
+-    private String mStagedBlur = "on";
+-    private String mInitialBlur = "on";
++    private String mStagedBlur = "low";
++    private String mInitialBlur = "low";
+     private boolean mRequestNotifications = true;
+     private boolean mBlockThirdPartyCookies;
+     private boolean mInitialBlockThirdPartyCookies;
+@@ -320,7 +320,8 @@
+     }
+ 
+     private static final int[] BLUR_LABELS = {
+-            R.string.raws_setup_blur_off, R.string.raws_setup_blur_on};
++            R.string.raws_setup_blur_off, R.string.raws_setup_blur_low,
++            R.string.raws_setup_blur_medium, R.string.raws_setup_blur_high};
+ 
+     private void updateBlurLabel(Button blur) {
+         String selected = getString(BLUR_LABELS[Math.max(0, blurIndex(mStagedBlur))]);
