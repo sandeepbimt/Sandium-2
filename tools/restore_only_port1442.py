@@ -12,7 +12,7 @@ BRIDGE = frozenset(
     for name in ("engine.rs", "lib.rs")
 )
 # A candidate must set this to the SHA of the independently reviewed admission.
-ADMISSION_SHA256 = '1fcd801fb69fbe781099da9ee29cabd1f69f8599310c0482c6ddea8490fe0807'
+ADMISSION_SHA256 = '665a482b900c44f49b4dc1480a4253556328dfdcac659a6341b13f0df89b3287'
 
 def proof():
     if ADMISSION_SHA256 is None:
