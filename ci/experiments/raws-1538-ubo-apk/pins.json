@@ -1,0 +1,30 @@
+{
+  "extensions/browser/raws_pinned_ubo.h": {
+    "before": null,
+    "after": "9c80a048457d4e4468542c93fbfad3f2272a5a3a40a38bddfa2637f0219c479e"
+  },
+  "extensions/browser/BUILD.gn": {
+    "before": "3e6c5c27f119f5f07b66b6b3f1bb702da4c860876dcedd0dd0356df18bea3aa9",
+    "after": "88ec859fcf5fc20f47ad7b5df5f28987a04affad64949d57815db40e35648d2a"
+  },
+  "extensions/browser/manifest_v2_handler.cc": {
+    "before": "8ce631c10e207acb2dd20ce3481e2173ee2dfd37688e04d7a5fff40e9a7076ab",
+    "after": "4fa0d22b759978f668b182886a0644bd6019569804202f2d3c6c56b95262ab01"
+  },
+  "extensions/browser/sandboxed_unpacker.cc": {
+    "before": "fd8b78684909c89476f525612e7b80e7e45b678db703dec37e512759cad8a256",
+    "after": "d451d91b3bb6181108489826da85d16d22c9cf59fbdce052638c7508053ea2f2"
+  },
+  "extensions/browser/crx_installer.h": {
+    "before": "192be040932cdb2b7a95492c40440508af7160fa560a105e346024dd714af9a4",
+    "after": "1a253f5a356f1bc93c490dd029f7fbd2790819bec98857eb7c89ba84b5917324"
+  },
+  "extensions/browser/crx_installer.cc": {
+    "before": "4d1f3181aa07a0181b8b60617cf557bacab38e1a2d0d6362a94db8dcebb713ea",
+    "after": "851afba36138da31c98710099d72a01d9c38391e52ee660aed6f45fd832d7772"
+  },
+  "chrome/browser/download/chrome_download_manager_delegate.cc": {
+    "before": "257e953c4722e64e3b3f5d245fffd162b0c9456ba4b83b7323d2c5eceaba53d1",
+    "after": "1afc799577275ef8e1871069e00e5e35c415a3abfeb030adb3963d3edae8e5f6"
+  }
+}

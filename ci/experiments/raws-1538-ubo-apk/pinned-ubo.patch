@@ -1,0 +1,260 @@
+diff --git a/extensions/browser/raws_pinned_ubo.h b/extensions/browser/raws_pinned_ubo.h
+new file mode 100644
+--- /dev/null
++++ b/extensions/browser/raws_pinned_ubo.h
+@@ -0,0 +1,40 @@
++// Copyright 2026 Sandium Authors
++// Use of this source code is governed by a BSD-style license.
++
++#ifndef EXTENSIONS_BROWSER_RAWS_PINNED_UBO_H_
++#define EXTENSIONS_BROWSER_RAWS_PINNED_UBO_H_
++
++#include <string_view>
++
++namespace extensions::raws_pinned_ubo {
++
++// This is the self-distributed upstream CRX, not the store build.
++inline constexpr char kExtensionId[] = "fkgkibajhfbepljeaefdnfnegdcjomkh";
++inline constexpr char kVersion[] = "1.75.0";
++inline constexpr char kCrxSha256[] =
++    "d688ed3f0262ec4f8bdcd4c8f65987c5444c560aeb387a9e02aca1facdfa7046";
++inline constexpr char kDownloadUrl[] =
++    "https://github.com/gorhill/uBlock/releases/download/1.75.0/"
++    "uBlock0_1.75.0.chromium.crx";
++inline constexpr char kSigningPublicKey[] =
++    "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAsgdkJHEX8xHAytYy3Rihqn5FoU"
++    "/cbPKhoorkCCsgF8HR2y2OSWGM1Ojrmnr0ebgM9WA1pl1hr1CmOH7DjgQVKRhzBjK7/Zb6"
++    "RVJNPVGEQvV9CdCUwOTKsu1qQGRbjm9Z/DkYxgu6B2sLo0ZpQ/IBsmBvs+FGR4CqrWra8G"
++    "ZPwn7n3FibeoxcArWiAx85N2Oyiaef2Geytoog4hS+I5Fs3ymKkEeTYM3tzeC0U5nZ010L"
++    "CnlQe0cQ3UDOro8VzLosuhaxAsrPFErIOfIUfvV3sNhQJrySqgii9Xv6RWT8TI3pHL1yje"
++    "vKKTxNb2VbPlTOi5MyzPowWV8hHJEOkwq2dQIDAQAB";
++
++// This predicate alone is *not* proof of signature. It may only recognize an
++// installed internal extension whose packed path checked the exact signed CRX.
++constexpr bool IsPinnedManifest(int manifest_version,
++                                bool is_internal_extension,
++                                std::string_view id,
++                                std::string_view version,
++                                std::string_view key) {
++  return manifest_version == 2 && is_internal_extension && id == kExtensionId &&
++         version == kVersion && key == kSigningPublicKey;
++}
++
++}  // namespace extensions::raws_pinned_ubo
++
++#endif  // EXTENSIONS_BROWSER_RAWS_PINNED_UBO_H_
+diff --git a/extensions/browser/BUILD.gn b/extensions/browser/BUILD.gn
+--- a/extensions/browser/BUILD.gn
++++ b/extensions/browser/BUILD.gn
+@@ -264,6 +264,7 @@
+     "content_verifier/scoped_uma_recorder.h",
+     "crx_file_info.cc",
+     "crx_file_info.h",
++    "raws_pinned_ubo.h",
+     "cws_info_service.cc",
+     "cws_info_service.h",
+     "deferred_start_render_host.h",
+diff --git a/extensions/browser/manifest_v2_handler.cc b/extensions/browser/manifest_v2_handler.cc
+--- a/extensions/browser/manifest_v2_handler.cc
++++ b/extensions/browser/manifest_v2_handler.cc
+@@ -9,6 +9,7 @@
+ #include "base/one_shot_event.h"
+ #include "base/strings/stringprintf.h"
+ #include "base/types/pass_key.h"
++#include "build/build_config.h"
+ #include "components/keyed_service/content/browser_context_dependency_manager.h"
+ #include "content/public/browser/browser_context.h"
+ #include "extensions/browser/disable_reason.h"
+@@ -22,6 +23,7 @@
+ #include "extensions/browser/extensions_browser_client.h"
+ #include "extensions/browser/manifest_v2_util.h"
+ #include "extensions/browser/pref_types.h"
++#include "extensions/browser/raws_pinned_ubo.h"
+ #include "extensions/buildflags/buildflags.h"
+ #include "extensions/common/extension.h"
+ 
+@@ -151,6 +153,16 @@
+ }
+ 
+ bool ManifestV2Handler::IsExtensionAffected(const Extension& extension) {
++#if BUILDFLAG(IS_ANDROID)
++  if (raws_pinned_ubo::IsPinnedManifest(
++          extension.manifest_version(),
++          extension.is_extension() &&
++              extension.location() == mojom::ManifestLocation::kInternal,
++          extension.id(), extension.version().GetString(),
++          extension.public_key())) {
++    return false;
++  }
++#endif
+   return manifest_v2_util::IsExtensionAffected(extension);
+ }
+ 
+@@ -211,7 +223,7 @@
+ 
+   // Disable all applicable MV2 extensions.
+   for (const auto& extension : extension_registry->enabled_extensions()) {
+-    if (!manifest_v2_util::IsExtensionAffected(*extension)) {
++    if (!IsExtensionAffected(*extension)) {
+       continue;
+     }
+ 
+@@ -252,8 +264,7 @@
+   // still one in which extensions should be disabled. It's possible the global
+   // state changed (e.g. in testing), in which case extensions should be
+   // re-enabled.
+-  if (manifest_v2_util::IsExtensionAffected(extension) &&
+-      ShouldDisableLegacyExtensions()) {
++  if (IsExtensionAffected(extension) && ShouldDisableLegacyExtensions()) {
+     return;
+   }
+ 
+diff --git a/extensions/browser/sandboxed_unpacker.cc b/extensions/browser/sandboxed_unpacker.cc
+--- a/extensions/browser/sandboxed_unpacker.cc
++++ b/extensions/browser/sandboxed_unpacker.cc
+@@ -46,6 +46,7 @@
+ #include "extensions/browser/install/sandboxed_unpacker_failure_reason.h"
+ #include "extensions/browser/install_stage.h"
+ #include "extensions/browser/json_file_sanitizer.h"
++#include "extensions/browser/raws_pinned_ubo.h"
+ #include "extensions/browser/ruleset_parse_result.h"
+ #include "extensions/browser/verified_contents.h"
+ #include "extensions/browser/zipfile_installer.h"
+@@ -332,6 +333,18 @@
+     return;  // ValidateSignature() already reported the error.
+   }
+ 
++#if BUILDFLAG(IS_ANDROID)
++  // Never grant the installed MV2 exception for an unpinned payload. Reuse
++  // normal CRX3 verification on the same private temporary file, with the
++  // exact archive SHA required independently of the legacy hash-check switch.
++  if (extension_id_ == raws_pinned_ubo::kExtensionId &&
++      !ValidateSignature(
++          temp_crx_path, raws_pinned_ubo::kCrxSha256,
++          format_verifier_override_.value_or(crx_info.required_format))) {
++    return;
++  }
++#endif
++
+   base::FilePath normalized_crx_path = NormalizeFilePath(temp_crx_path);
+   client_->OnStageChanged(InstallationStage::kUnpacking);
+   // Make sure to create the directory where the extension will be unzipped, as
+@@ -357,6 +370,15 @@
+   // to do file IO on.
+   DCHECK(unpacker_io_task_runner_->RunsTasksInCurrentSequence());
+ 
++#if BUILDFLAG(IS_ANDROID)
++  // An unpacked directory can declare any public key without owning it.
++  if (extension_id == raws_pinned_ubo::kExtensionId ||
++      public_key == raws_pinned_ubo::kSigningPublicKey) {
++    FailWithPackageError(
++        SandboxedUnpackerFailureReason::CRX_SIGNATURE_INVALID);
++    return;
++  }
++#endif
+   extension_id_ = extension_id;
+   public_key_ = public_key;
+   if (!CreateTempDirectory()) {
+diff --git a/extensions/browser/crx_installer.h b/extensions/browser/crx_installer.h
+--- a/extensions/browser/crx_installer.h
++++ b/extensions/browser/crx_installer.h
+@@ -193,6 +193,9 @@
+   const ExtensionId& expected_id() const { return expected_id_; }
+   void set_expected_id(const ExtensionId& val) { expected_id_ = val; }
+ 
++  // Explicit browser-owned request for the pinned RawS Android package.
++  void SetRawSPinnedUboDownload();
++
+   // Expected SHA256 hash sum for the package.
+   const std::string& expected_hash() const { return expected_hash_; }
+   void set_expected_hash(const std::string& val) { expected_hash_ = val; }
+@@ -545,6 +548,7 @@
+ 
+   // Whether to allow off store installation.
+   OffStoreInstallAllowReason off_store_install_allow_reason_;
++  bool raws_pinned_ubo_download_ = false;
+ 
+   // Whether the installation was handled successfully. This is used to
+   // indicate to the client whether the file should be removed and any UI
+diff --git a/extensions/browser/crx_installer.cc b/extensions/browser/crx_installer.cc
+--- a/extensions/browser/crx_installer.cc
++++ b/extensions/browser/crx_installer.cc
+@@ -53,6 +53,7 @@
+ #include "extensions/browser/install/sandboxed_unpacker_failure_reason.h"
+ #include "extensions/browser/install_approval.h"
+ #include "extensions/browser/install_flag.h"
++#include "extensions/browser/raws_pinned_ubo.h"
+ #include "extensions/browser/install_stage.h"
+ #include "extensions/browser/install_tracker.h"
+ #include "extensions/browser/load_error_reporter.h"
+@@ -233,9 +234,23 @@
+   // on the same thread that created it.
+ }
+ 
++void CrxInstaller::SetRawSPinnedUboDownload() {
++#if BUILDFLAG(IS_ANDROID)
++  DCHECK_CURRENTLY_ON(BrowserThread::UI);
++  // Neither this entry point nor missing prompt UI can permit silent install.
++  if (!client_ || !was_triggered_by_user_download() || approved_) {
++    return;
++  }
++  expected_id_ = raws_pinned_ubo::kExtensionId;
++  set_expected_version(base::Version(raws_pinned_ubo::kVersion), true);
++  raws_pinned_ubo_download_ = true;
++#endif
++}
++
+ void CrxInstaller::InstallCrx(const base::FilePath& source_file) {
+   crx_file::VerifierFormat format =
+-      off_store_install_allow_reason_ == OffStoreInstallDisallowed
++      !raws_pinned_ubo_download_ &&
++              off_store_install_allow_reason_ == OffStoreInstallDisallowed
+           ? GetWebstoreVerifierFormat(
+                 base::CommandLine::ForCurrentProcess()->HasSwitch(
+                     switches::kAppsGalleryURL))
+@@ -420,6 +435,7 @@
+   }
+ 
+   if (was_triggered_by_user_download() && !is_gallery_install() &&
++      !raws_pinned_ubo_download_ &&
+       off_store_install_allow_reason_ == OffStoreInstallDisallowed) {
+     // Don't delete source in this case so that the user can install
+     // manually if they want.
+diff --git a/chrome/browser/download/chrome_download_manager_delegate.cc b/chrome/browser/download/chrome_download_manager_delegate.cc
+--- a/chrome/browser/download/chrome_download_manager_delegate.cc
++++ b/chrome/browser/download/chrome_download_manager_delegate.cc
+@@ -145,6 +145,7 @@
+ #if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
+ #include "chrome/browser/extensions/api/downloads/downloads_api.h"
+ #include "extensions/browser/crx_installer.h"
++#include "extensions/browser/raws_pinned_ubo.h"
+ #include "extensions/browser/extension_util.h"
+ #include "extensions/browser/webstore_installer.h"
+ #include "extensions/common/constants.h"
+@@ -1204,13 +1205,24 @@
+     DownloadItem* item,
+     content::DownloadOpenDelayedCallback callback) {
+ #if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
+-  if (extensions::util::IsExtensionDownload(*item) &&
++  bool is_raws_pinned_ubo_download = false;
++#if BUILDFLAG(IS_ANDROID)
++  // This is only an install entry point. Do not mark this download safe,
++  // skip file warnings, silently install it, or change Web Store behavior.
++  is_raws_pinned_ubo_download =
++      item->HasUserGesture() &&
++      item->GetOriginalUrl() == GURL(extensions::raws_pinned_ubo::kDownloadUrl) &&
++      item->GetTargetFilePath().MatchesExtension(extensions::kExtensionFileExtension);
++#endif
++  if ((is_raws_pinned_ubo_download || extensions::util::IsExtensionDownload(*item)) &&
+       !extensions::WebstoreInstaller::GetAssociatedApproval(*item) &&
+       !profile_->IsOffTheRecord()) {
+     scoped_refptr<CrxInstaller> installer(
+         download_crx_util::CreateCrxInstaller(profile_, *item));
+ 
+-    if (download_crx_util::OffStoreInstallAllowedByPrefs(profile_, *item)) {
++    if (is_raws_pinned_ubo_download) {
++      installer->SetRawSPinnedUboDownload();
++    } else if (download_crx_util::OffStoreInstallAllowedByPrefs(profile_, *item)) {
+       installer->set_off_store_install_allow_reason(
+           CrxInstaller::OffStoreInstallAllowedBecausePref);
+     }

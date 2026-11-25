@@ -211,7 +211,7 @@ public abstract class BaseCustomTabActivity extends ChromeActivity {
     private int mRawSPwaStatusAttempts;
     private boolean mRawSPwaStatusPending;
     private @Nullable CustomTabTabObserver mRawSPwaStatusTabObserver;
-    private @Nullable BrowserControlsStateProvider.Observer mRawSPwaControlsObserver;
+    private BrowserControlsStateProvider.@Nullable Observer mRawSPwaControlsObserver;
     private boolean mRawSPwaTopControlsOwnStatus;
     private @Nullable CustomTabActivityTabFactory mTabFactory;
     private @MonotonicNonNull CustomTabIntentHandler mCustomTabIntentHandler;

@@ -295,7 +295,7 @@
     "ui/android/java/src/org/chromium/ui/hierarchicalmenu/HierarchicalMenuController.java",
     "ui/android/java/src/org/chromium/ui/modaldialog/ModalDialogProperties.java"
   ],
-  "manifest_sha256": "146c57ab1eddf9b9218f4e42863ffe532ec6b93a5adb8d9d80ac2192b1d6d14e",
+  "manifest_sha256": "4056f5936653bdc9a540e1c42fadd77e56680aaf519f3b38736ebcac9d617156",
   "staged_bridge_delta": {
     "brave/components/brave_shields/core/common/adblock/rs/src/engine.rs": {
       "after": "8cf25c05da32cb11e06cfc385ca8673540a0431680b5e4fb1a3f402322739135",

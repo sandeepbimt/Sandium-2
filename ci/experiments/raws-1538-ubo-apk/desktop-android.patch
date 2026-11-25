@@ -1,0 +1,54 @@
+--- a/chrome/android/java/src/org/chromium/chrome/browser/ChromeTabbedActivity.java
++++ b/chrome/android/java/src/org/chromium/chrome/browser/ChromeTabbedActivity.java
+@@ -4958,8 +4958,19 @@
+         } else if (id == R.id.extensions_menu_menu_id) {
+             ExtensionsToolbarCoordinator coordinator =
+                     assumeNonNull(getToolbarManager()).getExtensionsToolbarCoordinator();
+-            assumeNonNull(coordinator);
+-            coordinator.showExtensionsMenu();
++            if (coordinator != null) {
++                coordinator.showExtensionsMenu();
++            } else {
++                // Phones may have the extension engine but no desktop toolbar coordinator.
++                // Use the same regular-profile manager route as Manage Extensions.
++                LoadUrlParams params = new LoadUrlParams(
++                        UrlConstants.CHROME_EXTENSIONS_URL, PageTransition.AUTO_TOPLEVEL);
++                getTabCreator(/* incognito= */ false)
++                        .createNewTab(
++                                params,
++                                TabLaunchType.FROM_CHROME_UI,
++                                getCurrentTabModel().isIncognito() ? null : currentTab);
++            }
+             RecordUserAction.record("MobileMenuExtensionsMenu");
+         } else if (id == R.id.manage_extensions_menu_id) {
+             LoadUrlParams params =
+--- a/chrome/common/extensions/api/api_sources.gni
++++ b/chrome/common/extensions/api/api_sources.gni
+@@ -69,6 +69,15 @@
+ # Some APIs rely on types and headers from other APIs.
+ types_only_schema_sources_ = []
+ 
++# Legacy toolbar schemas are needed by the Desktop Android bindings too.
++# Schema registration does not change the separate manifest admission policy.
++if (enable_extensions || enable_desktop_android_extensions) {
++  uncompiled_sources_ += [
++    "browser_action.json",
++    "page_action.json",
++  ]
++}
++
+ if (enable_extensions) {
+   types_only_schema_sources_ += [
+     "accessibility_features.json",
+@@ -136,11 +145,6 @@
+     schema_sources_ += [ "pdf_viewer_private.idl" ]
+   }
+ 
+-  uncompiled_sources_ += [
+-    "browser_action.json",
+-    "page_action.json",
+-  ]
+-
+   if (is_chromeos) {
+     uncompiled_sources_ += [
+       "chromeos_info_private.json",

@@ -8415,7 +8415,7 @@
       "mode": "644"
     },
     "chrome/android/java/src/org/chromium/chrome/browser/customtabs/BaseCustomTabActivity.java": {
-      "after_sha256": "6ea17e9db8f974da4cedf9e90ad6f1d336d9a3f9b33be54123707af6c73648c3",
+      "after_sha256": "405dc027f043242d1b3a1d0a016952825055f2d4041a308670697c14c146ac33",
       "before_sha256": "4b07b51a06ad369f5b313a855b9250ca6d78926a461808bae23d30e11e95f76a",
       "mode": "644"
     },
