@@ -1,0 +1,172 @@
+// Copyright 2026 Sandium Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license.
+package org.chromium.chrome.browser.sandium.video;
+
+import android.app.Activity;
+import android.content.Context;
+import android.media.AudioManager;
+import android.os.SystemClock;
+import android.provider.Settings;
+import android.view.WindowManager;
+
+import org.chromium.content_public.browser.WebContents;
+import org.chromium.services.media_session.MediaPosition;
+
+
+/** Native host bridge; retains Chromium decoding, URL handling, cookies, DRM and audio focus. */
+public final class SandiumVideoSessionAdapter implements SandiumVideoGestureView.Host {
+    public interface Owner {
+        // Verify current tab/document, focused/resumed activity, fullscreen,
+        // not PiP, and the exact active fullscreen video token.
+        boolean eligible(WebContents contents, long token);
+        long generation();
+        void feedback(SandiumVideoGestureState.Kind kind, double delta);
+        void clearFeedback();
+        void playbackChanged();
+        void controlsTapped();
+    }
+    private final Activity mActivity;
+    private final Owner mOwner;
+    private final WebContents mContents;
+    private final long mToken;
+    private static final int TOGGLE_PLAYBACK = 0;
+    private static final int SEEK_TO = 1;
+    private static final int SEEK_RELATIVE = 2;
+    private final AudioManager mAudio;
+    private final float mOriginalBrightness;
+    private boolean mClosed;
+    private boolean mBrightnessChanged;
+    private float mBrightnessAtDown;
+    private int mVolumeAtDown;
+
+    public SandiumVideoSessionAdapter(
+            Activity activity, WebContents contents, long token, Owner owner) {
+        mActivity = activity;
+        mOwner = owner;
+        mContents = contents;
+        mToken = token;
+        mAudio = (AudioManager) activity.getSystemService(Context.AUDIO_SERVICE);
+        mOriginalBrightness = activity.getWindow().getAttributes().screenBrightness;
+    }
+
+    @Override public boolean isEligible() {
+        return !mClosed && !mActivity.isFinishing() && !mActivity.isDestroyed()
+                && !mActivity.isInPictureInPictureMode() && !mContents.isDestroyed()
+                && mOwner.eligible(mContents, mToken);
+    }
+    @Override public long generation() { return mOwner.generation(); }
+    @Override public void onTap() {
+        if (isEligible()) mOwner.controlsTapped();
+    }
+    public boolean isPaused() {
+        return !isEligible() || !mContents.isRawSFullscreenMediaPlaying(mToken);
+    }
+    private MediaPosition seekablePosition() {
+        if (!isEligible()) return null;
+        MediaPosition p = mContents.getRawSFullscreenMediaPosition(mToken);
+        if (p == null || p.getDuration() <= 0 || p.getDuration() >= 7L * 24 * 60 * 60 * 1000
+                || p.getPosition() < 0 || p.getPosition() > p.getDuration()
+                || !Float.isFinite(p.getPlaybackRate())
+                || p.getLastUpdatedTime() > SystemClock.elapsedRealtime()) return null;
+        return p;
+    }
+    public long durationMillis() {
+        MediaPosition p = seekablePosition();
+        return p == null ? -1 : p.getDuration();
+    }
+    private long currentPositionMillis(MediaPosition p) {
+        double elapsed = isPaused() ? 0 : Math.max(0,
+                SystemClock.elapsedRealtime() - p.getLastUpdatedTime()) * p.getPlaybackRate();
+        return (long) SandiumVideoGestureState.clamp(p.getPosition() + elapsed, 0, p.getDuration());
+    }
+
+    public long positionMillis() {
+        MediaPosition p = seekablePosition();
+        return p == null ? -1 : currentPositionMillis(p);
+    }
+
+    public void seekToPosition(long millis) {
+        MediaPosition p = seekablePosition();
+        if (p != null) dispatchAbsoluteSeek(p, millis);
+    }
+
+    private void dispatchAbsoluteSeek(MediaPosition p, long millis) {
+        mContents.runRawSFullscreenMediaAction(mToken, SEEK_TO,
+                (long) SandiumVideoGestureState.clamp(millis, 0, p.getDuration()));
+    }
+
+    @Override public boolean canSeek() { return seekablePosition() != null; }
+    @Override public void togglePlayback() {
+        if (isEligible()) mContents.runRawSFullscreenMediaAction(mToken, TOGGLE_PLAYBACK, 0);
+    }
+    @Override public void seekBy(long millis) {
+        MediaPosition p = seekablePosition();
+        if (p == null || millis == 0) return;
+        if (millis == -10_000 || millis == 10_000) {
+            // Keep Chromium's existing double-tap command.
+            mContents.runRawSFullscreenMediaAction(mToken, SEEK_RELATIVE, millis);
+            return;
+        }
+        // Drag releases carry variable offsets, not the native ten-second action.
+        // Apply them through the same existing seek action as the timeline, using
+        // the exact active player snapshot and the direction the user chose.
+        long boundedDelta = Math.max(-120_000L, Math.min(120_000L, millis));
+        dispatchAbsoluteSeek(p, currentPositionMillis(p) + boundedDelta);
+    }
+    @Override public void beginAdjustment() {
+        if (!isEligible()) return;
+        float brightness = mActivity.getWindow().getAttributes().screenBrightness;
+        if (brightness < 0) {
+            try {
+                brightness = Settings.System.getInt(mActivity.getContentResolver(),
+                        Settings.System.SCREEN_BRIGHTNESS, 128) / 255f;
+            } catch (SecurityException ignored) {
+                brightness = .5f; // Window-only fallback, never change global settings.
+            }
+        }
+        mBrightnessAtDown = brightness;
+        try {
+            mVolumeAtDown = mAudio == null ? 0 : mAudio.getStreamVolume(AudioManager.STREAM_MUSIC);
+        } catch (SecurityException ignored) {
+            mVolumeAtDown = -1;
+        }
+    }
+    @Override public void preview(SandiumVideoGestureState.Kind kind, double delta) {
+        if (isEligible()) mOwner.feedback(kind, delta);
+    }
+    @Override public void adjustBrightness(double fraction) {
+        if (!isEligible()) return;
+        WindowManager.LayoutParams params = mActivity.getWindow().getAttributes();
+        params.screenBrightness = (float) SandiumVideoGestureState.clamp(
+                mBrightnessAtDown + fraction, .02, 1);
+        mActivity.getWindow().setAttributes(params);
+        mBrightnessChanged = true;
+    }
+    @Override public void adjustVolume(double fraction) {
+        if (!isEligible() || mAudio == null || mVolumeAtDown < 0) return;
+        try {
+            if (mAudio.isVolumeFixed()) return;
+            int max = mAudio.getStreamMaxVolume(AudioManager.STREAM_MUSIC);
+            int min = mAudio.getStreamMinVolume(AudioManager.STREAM_MUSIC);
+            int target = (int) Math.round(SandiumVideoGestureState.clamp(
+                    mVolumeAtDown + fraction * (max - min), min, max));
+            mAudio.setStreamVolume(AudioManager.STREAM_MUSIC, target, 0);
+        } catch (SecurityException ignored) {
+            // Managed-device/audio-policy restrictions keep system behavior; no bypass.
+        }
+    }
+    @Override public void clearPreview() { mOwner.clearFeedback(); }
+
+    /** Owner calls on opt-out, tab switch, navigation, fullscreen exit, pause, PiP or destruction. */
+    public void close() {
+        if (mClosed) return;
+        mClosed = true;
+        if (mBrightnessChanged && !mActivity.isDestroyed()) {
+            WindowManager.LayoutParams params = mActivity.getWindow().getAttributes();
+            params.screenBrightness = mOriginalBrightness;
+            mActivity.getWindow().setAttributes(params);
+        }
+        mOwner.clearFeedback();
+        // Volume is an explicit user change, not restored on exit. Playback is never restarted.
+    }
+}
