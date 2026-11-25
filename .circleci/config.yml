@@ -1,11 +1,15 @@
 version: 2.1
 jobs:
   raws-1538-ubo-apk:
+    parameters:
+      slice:
+        type: integer
     machine:
       image: ubuntu-2404:current
     resource_class: large
     environment:
       RAWS_STAGE: '1'
+      RAWS_UBO_SLICE: '<< parameters.slice >>'
       RAWS_PIPELINE_NUMBER: << pipeline.number >>
       RAWS_CHECKPOINT_REVIEWED: 'true'
       RAWS_ALLOW_FRESH_SEED: 'false'
@@ -21,6 +25,16 @@ jobs:
               sudo apt-get update -qq
               sudo apt-get install -y zstd python3-yaml
             fi
+      - when:
+          condition:
+            not:
+              equal: [1, << parameters.slice >>]
+          steps:
+            - attach_workspace:
+                at: .ubo-slices
+            - run:
+                name: Stop cleanly if the APK already exists
+                command: python3 -u ci/experiments/raws-1538-ubo-apk/build.py skip-if-done
       - restore_cache:
           name: Restore exact read-only RawS baseline receipt
           keys:
@@ -41,6 +55,15 @@ jobs:
           name: Apply corrected #1538 and build isolated ARM64 APK
           command: python3 -u ci/experiments/raws-1538-ubo-apk/build.py compile
           no_output_timeout: 45m
+      - when:
+          condition:
+            not:
+              equal: [4, << parameters.slice >>]
+          steps:
+            - persist_to_workspace:
+                root: .ubo-slices
+                paths:
+                  - stage-<< parameters.slice >>
       - store_artifacts:
           path: artifacts
           destination: raws-1538-ubo-experiment
@@ -48,6 +71,32 @@ workflows:
   RawS 1538 uBO experiment:
     jobs:
       - raws-1538-ubo-apk:
+          name: raws-1538-ubo-apk-1
+          slice: 1
           filters:
             branches:
               only: experiment/raws-1538-ubo-apk
+      - raws-1538-ubo-apk:
+          name: raws-1538-ubo-apk-2
+          slice: 2
+          filters:
+            branches:
+              only: experiment/raws-1538-ubo-apk
+          requires:
+            - raws-1538-ubo-apk-1
+      - raws-1538-ubo-apk:
+          name: raws-1538-ubo-apk-3
+          slice: 3
+          filters:
+            branches:
+              only: experiment/raws-1538-ubo-apk
+          requires:
+            - raws-1538-ubo-apk-2
+      - raws-1538-ubo-apk:
+          name: raws-1538-ubo-apk-4
+          slice: 4
+          filters:
+            branches:
+              only: experiment/raws-1538-ubo-apk
+          requires:
+            - raws-1538-ubo-apk-3

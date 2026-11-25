@@ -17,6 +17,7 @@ import ci_restore_only as ro
 from ci_prepare_raws_engine import prepare as stage_engine
 from prepare import prepare as desktop_prepare, OUTPUT, safe_path
 from raw import lock
+import slice_state
 
 BASE = 'a274d3f2e250aad22c8ca4309ba75841f9db65dd'
 BRANCH = 'experiment/raws-1538-ubo-apk'
@@ -25,6 +26,19 @@ RECIPE = '4056f5936653bdc9a540e1c42fadd77e56680aaf519f3b38736ebcac9d617156'
 PATCH = 'a1f1ebc640782583b4d45780d2184969e57a68da82ff0fd113a7b055558b73bc'
 WORK = ROOT/'work/source'
 ART = ROOT/'artifacts'
+HANDOFF = ROOT/'.ubo-slices'
+LAST = 4
+
+def slice_index():
+    n=int(os.environ['RAWS_UBO_SLICE'])
+    if n not in range(1,LAST+1):
+        raise ValueError('Invalid experiment slice')
+    return n
+
+def slice_identity(n):
+    return dict(schema=1, stage=n, workflow=os.environ['CIRCLE_WORKFLOW_ID'],
+                checkout=os.environ['CIRCLE_SHA1'], base=BASE, recipe=RECIPE, patch=PATCH,
+                args_fragment=file_sha(KIT/'args.gn.fragment'))
 
 
 def git(cwd, *args):
@@ -33,14 +47,18 @@ def git(cwd, *args):
 
 def gate():
     if (os.environ.get('CIRCLE_BRANCH'), os.environ.get('CIRCLE_JOB'),
-        os.environ.get('CIRCLE_PROJECT_REPONAME')) != (BRANCH, JOB, 'Sandium-2'):
+        os.environ.get('CIRCLE_PROJECT_REPONAME')) not in (
+            (BRANCH, JOB, 'Sandium-2'),
+            (BRANCH, f'{JOB}-{slice_index()}', 'Sandium-2')):
         raise ValueError('Wrong project, branch, or job')
     if any(k.startswith('RAWS_') and any(t in k for t in ('KEYSTORE','KEY_PASSWORD','SIGNING'))
            for k in os.environ):
         raise ValueError('Experiment must not receive RawS signing credentials')
     head = git(ROOT,'rev-parse','HEAD')
-    if head != os.environ.get('CIRCLE_SHA1') or git(ROOT,'rev-parse','HEAD^') != BASE:
-        raise ValueError('Experimental build must be one commit on exact #1538')
+    first = 'af9b1600b4be4eaa9740f4c0c93ad2fd633e0091'
+    if (head != os.environ.get('CIRCLE_SHA1') or git(ROOT,'rev-parse','HEAD^') != first
+            or git(ROOT,'rev-parse','HEAD^^') != BASE):
+        raise ValueError('Expected #1539 continuation fix on exact #1538')
     if fingerprint() != ro.FINGERPRINT or ro.full.fresh():
         raise ValueError('Unexpected baseline fingerprint or fresh seed')
     if ro.active_feature().identity != RECIPE:
@@ -48,6 +66,23 @@ def gate():
     if file_sha(KIT/'pinned-ubo.patch') != PATCH:
         raise ValueError('Wrong reviewed package-admission patch')
     ro.full.D.gate()
+
+
+def already_done():
+    n=slice_index()
+    if n == 1:
+        return False
+    # A preceding job may have halted because an even earlier job built the APK.
+    for i in range(n-1,0,-1):
+        folder=HANDOFF/f'stage-{i}'
+        if (folder/'receipt.json').is_file():
+            receipt=slice_state.receipt_at(folder,slice_identity(i))
+            if receipt['status']=='done':
+                return True
+            if i != n-1:
+                raise ValueError('Immediate prior slice lost its handoff')
+            return False
+    raise ValueError('No prior slice receipt')
 
 
 def select():
@@ -109,13 +144,30 @@ def compile_apk():
     env=bootstrap_depot(depot,data['depot_tools']['revision'],env,ART,1)
     env,_=configure(src,depot,env)
     out=(src/OUTPUT).parent
+    n=slice_index()
+    if n>1:
+        previous=HANDOFF/f'stage-{n-1}'
+        proof=slice_state.receipt_at(previous,slice_identity(n-1))
+        slice_state.restore(out,previous,proof,args)
+        print(f'RESTORED_EXPERIMENT_SLICE={n-1}',flush=True)
     run_logged(['timeout','--kill-after=30s','5m',str(depot/'gn'),'gen',str(out),
                 '--fail-on-unused-args'],ART/'gn.log',phase='ubo-gn',cwd=src,env=env,check=True)
-    budget=min(1500,int(3300-(time.time()-d.c.read(d.STATE/'job-start.json')['epoch'])-150))
+    budget=min(1380,int(3300-(time.time()-d.c.read(d.STATE/'job-start.json')['epoch'])-850))
     if budget < 120:
         raise ValueError('Insufficient compile budget after setup; GN generation passed')
-    run_logged(remote_command(out,str(ART/'metrics.json'),'chrome_public_apk',budget),
-               ART/'compile.log',phase='ubo-apk',cwd=src,env=env,check=True)
+    result=run_logged(remote_command(out,str(ART/'metrics.json'),'chrome_public_apk',budget),
+                      ART/'compile.log',phase='ubo-apk',cwd=src,env=env)
+    target=HANDOFF/f'stage-{n}'
+    if result.returncode == 124:
+        if n == LAST:
+            raise ValueError('Final isolated slice expired before a verified APK')
+        text=(ART/'compile.log').read_text()
+        if not re.search(r'\d+ done, 0 failed, [1-9]\d* remaining',text):
+            raise ValueError('Cannot prove a clean time limit interruption')
+        slice_state.save(out,target,slice_identity(n),'slice_expired')
+        print(f'SAVED_EXPERIMENT_SLICE={n}',flush=True)
+        return
+    result.check_returncode()
     apk=out/'apks/ChromePublic.apk'
     import zipfile
     with zipfile.ZipFile(apk) as z:
@@ -137,12 +189,17 @@ def compile_apk():
         'apk_signature_verified':True,'android_runtime_verified':False,
         'official_release':False,'regular_update':False,
     }, indent=2)+'\n')
+    slice_state.save(out,target,slice_identity(n),'done')
 
 
 if __name__ == '__main__':
     gate()
     d=ro.full.D
     d.operation_budget=1100
+    if sys.argv[1] == 'skip-if-done':
+        if already_done():
+            subprocess.run(['circleci-agent','step','halt'],check=True)
+        raise SystemExit(0)
     actions={'select':select,'restore':ro.full.f.restore_base,
              'finish':ro.full.f.restore_finish,'compile':compile_apk}
     actions[sys.argv[1]]()
