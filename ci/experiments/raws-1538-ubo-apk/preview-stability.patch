@@ -1,0 +1,177 @@
+--- a/chrome/renderer/chrome_render_frame_observer.cc
++++ b/chrome/renderer/chrome_render_frame_observer.cc
+@@ -1508,7 +1508,7 @@
+   let running = false, frame = 0, clock = 0, host = null, video = null;
+   let observer = null, scan = null, refresh = false, generation = 0;
+   let videos = new Set(), roots = new Set();
+-  let tapped = null, down = null;
++  let tapped = null, down = null, press = null, fullscreenAttempt = null;
+   // Respect the frame's delegated fullscreen permission. The standard trusted
+   // click / requestFullscreen path additionally enforces Chromium activation
+   // and sandbox policy, including nested cross-origin documents.
+@@ -1604,24 +1604,22 @@
+     button.setAttribute('aria-label', 'Fullscreen video');
+     // Bind touch to the video shown under the pill when the press began.
+     // Media events or feed recycling can change the choice before click.
+-    let pressedVideo = null;
+-    let pressedGeneration = -1;
+     button.addEventListener('pointerdown', e => {
+-      if (!e.isTrusted || !e.isPrimary || e.button !== 0) return;
+-      pressedVideo = video;
+-      pressedGeneration = generation;
++      press = e.isTrusted && e.isPrimary && e.button === 0
++          ? selectVideo(video) : null;
+     });
+-    button.addEventListener('pointercancel', () => {
+-      pressedVideo = null;
+-      pressedGeneration = -1;
+-    });
++    button.addEventListener('pointercancel', () => { press = null; });
+     button.addEventListener('click', e => {
+       e.preventDefault(); e.stopImmediatePropagation();
++      const previous = press;
++      press = null;
+       if (!e.isTrusted || !running) return;
+-      // Keyboard and assistive-technology clicks need no pointer snapshot.
+-      const selected = e.detail > 0 && pressedGeneration === generation ? pressedVideo : video;
+-      pressedVideo = null;
+-      pressedGeneration = -1;
++      // A stale pointer press must not target a newly selected feed item.
++      // Keyboard and assistive-technology clicks still use the shown video.
++      const selected = e.detail > 0
++          ? (previous?.element === video && performance.now() - previous.time < 1000
++              ? previous : null)
++          : selectVideo(video);
+       void enterFullscreen(selected);
+     });
+     shadow.append(style, button);
+@@ -1656,28 +1654,86 @@
+     host.style.top = `${Math.round(Math.max(6, Math.min(innerHeight - 55, y)))}px`;
+     host.style.display = 'block';
+   }
++  function selectVideo(element) {
++    if (!element || !visible(element) || !hasMedia(element)) return null;
++    const child = element.firstElementChild?.localName === 'source'
++        ? element.firstElementChild : null;
++    return {element, generation, time:performance.now(),
++      root:element.getRootNode(), stream:element.srcObject,
++      url:element.currentSrc || element.src || child?.src || '',
++      declared:element.src, child, childUrl:child?.src};
++  }
++  function sameVideo(selected) {
++    const element = selected.element;
++    const child = element.firstElementChild?.localName === 'source'
++        ? element.firstElementChild : null;
++    return running && !document.hidden && selected.generation === generation &&
++        element.ownerDocument === document && element.getRootNode() === selected.root &&
++        !!visible(element) && !!hasMedia(element) &&
++        element.srcObject === selected.stream && element.src === selected.declared &&
++        child === selected.child && child?.src === selected.childUrl &&
++        (element.currentSrc || element.src || child?.src || '') === selected.url;
++  }
++  function cancelFullscreenAttempt(attempt) {
++    if (!attempt || fullscreenAttempt !== attempt) return;
++    fullscreenAttempt = null;
++    attempt.abort.abort();
++    clearTimeout(attempt.timer);
++    if (attempt.paint) cancelAnimationFrame(attempt.paint);
++  }
++  function ownsFullscreen(attempt) {
++    return fullscreenAttempt === attempt && sameVideo(attempt.selected) &&
++        !!document.fullscreenElement &&
++        attempt.wanted.getRootNode().fullscreenElement === attempt.wanted &&
++        (attempt.wanted === attempt.selected.element ||
++            playerContainer(attempt.selected.element) === attempt.wanted);
++  }
++  function videoOrientation(element) {
++    const width = element.videoWidth, height = element.videoHeight;
++    return width && height && width !== height
++        ? (width > height ? 'landscape' : 'portrait') : null;
++  }
+   async function enterFullscreen(selected) {
+-    const requestedGeneration = generation;
+-    if (!selected || !visible(selected) || !hasMedia(selected) ||
+-        document.fullscreenElement) return;
+-    // Intrinsic media dimensions only. Leave Chrome's orientation unchanged
+-    // when metadata is absent, square, or device orientation policy denies lock.
+-    const width = selected.videoWidth, height = selected.videoHeight;
+-    const orientation = width && height && width !== height
+-        ? (width > height ? 'landscape' : 'portrait') : null;
++    if (!selected || !sameVideo(selected) || document.fullscreenElement ||
++        document.webkitFullscreenElement) return;
++    const wanted = playerContainer(selected.element) || selected.element;
++    if (!document.fullscreenEnabled || typeof wanted.requestFullscreen !== 'function') return;
++    cancelFullscreenAttempt(fullscreenAttempt);
++    const attempt = {selected, wanted, abort:new AbortController(), timer:0, paint:0, entered:false};
++    fullscreenAttempt = attempt;
++    const reset = e => { if (e.isTrusted) cancelFullscreenAttempt(attempt); };
++    for (const type of ['loadstart','emptied']) {
++      selected.element.addEventListener(type, reset, {signal:attempt.abort.signal});
++    }
+     try {
+-      const wanted = playerContainer(selected) || selected;
+-      if (!document.fullscreenEnabled || typeof wanted.requestFullscreen !== 'function') return;
+-      // Exactly one request per trusted click. If policy disallows it or
+-      // activation expires, leave the site alone rather than force fullscreen.
++      // Start the single native request directly in the trusted activation.
+       await wanted.requestFullscreen({navigationUI:'hide'});
+-      if (running && generation === requestedGeneration && selected.isConnected &&
+-          wanted.getRootNode().fullscreenElement === wanted && orientation &&
+-          typeof screen.orientation?.lock === 'function') {
+-        await screen.orientation.lock(orientation);
+-      }
+-    } catch (_) { /* Keep native site controls/orientation if denied. */ }
++    } catch (_) {
++      cancelFullscreenAttempt(attempt);
++      scheduleLayout();
++      return;
++    }
+     scheduleLayout();
++    const orientation = videoOrientation(selected.element);
++    if (!ownsFullscreen(attempt) || (!selected.url && !selected.stream) ||
++        !orientation || typeof screen.orientation?.lock !== 'function') {
++      cancelFullscreenAttempt(attempt);
++      return;
++    }
++    // The native request may resolve just before a short-lifetime feed player
++    // replaces its preview or exits. Wait for a real paint after a bounded
++    // stability window, then check the same exact media and fullscreen owner.
++    attempt.timer = setTimeout(() => {
++      if (!ownsFullscreen(attempt)) { cancelFullscreenAttempt(attempt); return; }
++      attempt.paint = requestAnimationFrame(() => {
++        if (ownsFullscreen(attempt) && videoOrientation(selected.element) === orientation) {
++          try {
++            Promise.resolve(screen.orientation.lock(orientation)).catch(() => {});
++          } catch (_) { /* Keep native orientation if denied. */ }
++        }
++        cancelFullscreenAttempt(attempt);
++      });
++    }, 180);
+   }
+   function observe(root) {
+     observer?.observe(root, {subtree:true,childList:true,attributes:true,
+@@ -1750,6 +1806,8 @@
+   function stop() {
+     running = false; // Set BEFORE cancelling: stale callbacks cannot recreate host.
+     ++generation;
++    press = null;
++    cancelFullscreenAttempt(fullscreenAttempt);
+     observer?.disconnect(); observer = null;
+     if (frame) cancelAnimationFrame(frame);
+     clearInterval(clock);
+@@ -1787,7 +1845,14 @@
+   });
+   for (const name of ['play','pause','loadedmetadata','emptied','fullscreenchange',
+                       'webkitbeginfullscreen','webkitendfullscreen','resize','scroll']) {
+-    addEventListener(name, () => {
++    addEventListener(name, e => {
++      if (name === 'fullscreenchange' && e.isTrusted && fullscreenAttempt) {
++        const attempt = fullscreenAttempt;
++        // A second native transition is not part of this click, even if the
++        // same wrapper re-enters before the queued event is delivered.
++        if (attempt.entered || !ownsFullscreen(attempt)) cancelFullscreenAttempt(attempt);
++        else attempt.entered = true;
++      }
+       if (name === 'resize' || name === 'loadedmetadata' || name === 'play') beginScan();
+       scheduleLayout();
+     }, {capture:true,passive:true});

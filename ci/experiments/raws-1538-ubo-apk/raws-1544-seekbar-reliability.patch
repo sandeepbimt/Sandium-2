@@ -1,0 +1,349 @@
+--- a/chrome/android/java/src/org/chromium/chrome/browser/sandium/video/SandiumVideoController.java
++++ b/chrome/android/java/src/org/chromium/chrome/browser/sandium/video/SandiumVideoController.java
+@@ -59,7 +59,6 @@
+     private final SeekBar mSwipeTimeline;
+     private boolean mSwipePreviewActive;
+     private boolean mControlsVisible;
+-    private boolean mAutoEnabling;
+     private boolean mWasPaused;
+     private long mSiteControlsToken;
+     private boolean mLocked;
+@@ -72,17 +71,12 @@
+                     && !mSwipePreviewActive && !requiresPersistentControls()) {
+                 mControlsVisible = false;
+                 mControls.setVisibility(View.GONE);
+-                mControls.removeCallbacks(mProgressTick);
+             }
+         }
+     };
+-    private final Runnable mProgressTick = new Runnable() {
+-        @Override public void run() {
+-            if (mClosed || mAdapter == null || !mControlsVisible || !available()) return;
+-            playbackChanged();
+-            mControls.postDelayed(this, 500);
+-        }
+-    };
++    // Renderer position/token updates can arrive after the fullscreen event or
++    // after a source changes inside the same fullscreen wrapper.
++    private final Runnable mFullscreenRefresh = this::refresh;
+     private final ActivityTabProvider.ActivityTabTabObserver mTabObserver;
+     private final ViewTreeObserver.OnWindowFocusChangeListener mFocusListener;
+     private WebContentsObserver mObserver;
+@@ -93,7 +87,7 @@
+     private boolean mInPicture;
+     private boolean mClosed;
+     private long mGesturePlayerToken;
+-    private long mFullscreenSessionToken;
++    private boolean mExitingFullscreen;
+     private boolean mResumed = true;
+     private long mGeneration;
+ 
+@@ -417,7 +411,7 @@
+                     mFullscreen = entered;
+                     if (!entered) {
+                         mSiteControlsToken = 0;
+-                        mFullscreenSessionToken = 0;
++                        mExitingFullscreen = false;
+                         disable();
+                     }
+                     refresh();
+@@ -426,83 +420,78 @@
+                     if (navigation.isSameDocument()) return;
+                     disable();
+                     mFullscreen = false;
+-                    mFullscreenSessionToken = 0;
++                    mExitingFullscreen = false;
+                     refresh();
+                 }
+                 @Override public void webContentsDestroyed() { bind(null); }
+             };
+         }
+         mSiteControlsToken = 0;
+-        mFullscreenSessionToken = 0;
++        mExitingFullscreen = false;
+         refresh();
+     }
+ 
++    private boolean activeFullscreenContext() {
++        Tab tab = mTabs.get();
++        return !mClosed && mResumed && mContents != null && !mContents.isDestroyed()
++                && tab != null && !tab.isDestroyed() && !tab.isIncognito()
++                && tab.getWebContents() == mContents && mFullscreen && !mExitingFullscreen
++                && !mActivity.isFinishing() && !mActivity.isDestroyed()
++                && mActivity.hasWindowFocus() && !mInPicture
++                && !mActivity.isInPictureInPictureMode()
++                && mContents.isFullscreenForCurrentTab();
++    }
++
+     private boolean available() {
+-        Tab tab = mTabs.get();
+-        if (mClosed || !mResumed || mContents == null || mContents.isDestroyed()
+-                || tab == null || tab.isDestroyed() || tab.isIncognito()
+-                || tab.getWebContents() != mContents || !mFullscreen || mActivity.isFinishing()
+-                || mActivity.isDestroyed() || !mActivity.hasWindowFocus() || mInPicture
+-                || mActivity.isInPictureInPictureMode()
+-                || !mContents.isFullscreenForCurrentTab()) {
+-            return false;
+-        }
+-        long currentToken = mContents.getRawSFullscreenMediaToken();
+-        return currentToken != 0
+-                && (mFullscreenSessionToken == 0 || currentToken == mFullscreenSessionToken)
+-                && (mGesturePlayerToken == 0 || currentToken == mGesturePlayerToken);
++        return activeFullscreenContext() && mGesturePlayerToken != 0
++                && mContents.getRawSFullscreenMediaToken() == mGesturePlayerToken;
+     }
+ 
+     private void refresh() {
++        mRoot.removeCallbacks(mFullscreenRefresh);
+         if (mClosed) return;
+-        if (!available()) {
++        if (!activeFullscreenContext()) {
+             if (!mFullscreen || mContents == null || mContents.isDestroyed()
+                     || !mContents.isFullscreenForCurrentTab()) {
+                 mSiteControlsToken = 0;
++                mExitingFullscreen = false;
+             }
+             if (mAdapter != null) disable();
+             mRoot.setVisibility(View.GONE);
+             return;
+         }
++
+         long token = mContents.getRawSFullscreenMediaToken();
+-        if (token == mSiteControlsToken) {
+-            mRoot.setVisibility(View.GONE);
+-            return;
+-        }
+-        mSiteControlsToken = 0;
+-        if (mAdapter == null && !mAutoEnabling) {
+-            mAutoEnabling = true;
+-            try { enable(); } finally { mAutoEnabling = false; }
+-        }
+-        // Never show a dummy Enable button on unknown or unsupported media.
+-        if (mAdapter == null) { mRoot.setVisibility(View.GONE); return; }
+-        mRoot.setVisibility(View.VISIBLE);
++        // Cancel and detach the old generation before considering a replacement.
++        // A zero or opt-out token never hands an in-flight gesture to another player.
++        if (mAdapter != null && token != mGesturePlayerToken) disable();
++        if (token != 0 && token != mSiteControlsToken && mAdapter == null) enable(token);
++
++        mRoot.setVisibility(mAdapter == null ? View.GONE : View.VISIBLE);
+         mControls.setVisibility(mAdapter != null && mControlsVisible && !mLocked
+                 ? View.VISIBLE : View.GONE);
+         mLockCurtain.setVisibility(mAdapter != null && mLocked ? View.VISIBLE : View.GONE);
+         mUnlock.setVisibility(mAdapter != null && mLocked ? View.VISIBLE : View.GONE);
+-        playbackChanged();
+-    }
+-
+-    private void enable() {
+-        if (!available() || mAdapter != null) return;
+-        mGesturePlayerToken = mContents.getRawSFullscreenMediaToken();
+-        if (mGesturePlayerToken == 0) return;
++        if (mAdapter != null && mControlsVisible) playbackChanged();
++        mRoot.postDelayed(mFullscreenRefresh, 500);
++    }
++
++    private void enable(long token) {
++        if (token == 0 || mAdapter != null || !activeFullscreenContext()
++                || token != mContents.getRawSFullscreenMediaToken()) return;
+         ++mGeneration;
+-        mFullscreenSessionToken = mGesturePlayerToken;
+-        mAdapter = new SandiumVideoSessionAdapter(mActivity, mContents, mGesturePlayerToken, this);
+-        if (!mAdapter.isEligible()) { disable(); refresh(); return; }
++        mGesturePlayerToken = token;
++        mAdapter = new SandiumVideoSessionAdapter(mActivity, mContents, token, this);
++        if (!mAdapter.isEligible()) { disable(); return; }
+         mGestures = new SandiumVideoGestureView(mActivity, mAdapter);
+         mRoot.addView(mGestures, 0, new FrameLayout.LayoutParams(-1, -1));
+         mLocked = false;
+         showControls();
+-        refresh();
+         mControls.announceForAccessibility(mActivity.getString(R.string.sandium_video_enabled));
+     }
+ 
+     private void disable() {
+         mControls.removeCallbacks(mAutoHide);
+-        mControls.removeCallbacks(mProgressTick);
+         mLocked = false;
+         mControlsVisible = false;
+         mScrubbing = false;
+@@ -569,10 +558,8 @@
+         mTitle.setText(tab == null ? "" : tab.getTitle());
+         mControls.setVisibility(View.VISIBLE);
+         mControls.removeCallbacks(mAutoHide);
+-        mControls.removeCallbacks(mProgressTick);
+         mWasPaused = mAdapter.isPaused();
+         playbackChanged();
+-        mControls.postDelayed(mProgressTick, 500);
+         armControlsHide();
+     }
+ 
+@@ -582,7 +569,6 @@
+         clearFeedback();
+         mControlsVisible = false;
+         mControls.removeCallbacks(mAutoHide);
+-        mControls.removeCallbacks(mProgressTick);
+         mControls.setVisibility(View.GONE);
+         mLockCurtain.setVisibility(View.VISIBLE);
+         mUnlock.setVisibility(View.VISIBLE);
+@@ -609,6 +595,7 @@
+     private void exitFullscreen() {
+         if (mAdapter == null || !available()) return;
+         mSiteControlsToken = mGesturePlayerToken;
++        mExitingFullscreen = true;
+         disable();
+         // Do not re-enable while Chromium asynchronously unwinds fullscreen.
+         // Explicitly exit Chromium's renderer fullscreen without navigating history.
+@@ -631,7 +618,7 @@
+     @Override public void playbackChanged() {
+         if (mAdapter != null && !available()) {
+             disable();
+-            refresh();
++            mRoot.setVisibility(View.GONE);
+             return;
+         }
+         boolean seekable = mAdapter != null && mAdapter.canSeek();
+@@ -654,12 +641,10 @@
+         if (kind == SandiumVideoGestureState.Kind.NONE) { clearFeedback(); return; }
+         if (kind == SandiumVideoGestureState.Kind.SEEK && !mScrubbing && !mLocked
+                 && mAdapter != null && mAdapter.canSeek()) {
+-            long position = mAdapter.positionMillis();
+             long duration = mAdapter.durationMillis();
+-            if (position >= 0 && duration > 0) {
+-                // GestureState bounds the offset before sending it here. Only
+-                // the projection changes on MOVE; release still owns the seek.
+-                long target = Math.max(0L, Math.min(duration, position + Math.round(delta)));
++            long target = mAdapter.previewDragTarget(Math.round(delta));
++            if (target >= 0 && duration > 0) {
++                // MOVE projects onto the same timeline as the release action.
+                 int progress = (int) Math.round((double) TIMELINE_STEPS * target / duration);
+                 mSwipePreviewActive = true;
+                 mPositionLabel.setText(timeLabelText(target));
+@@ -716,6 +701,7 @@
+     public void close() {
+         if (mClosed) return;
+         mClosed = true;
++        mRoot.removeCallbacks(mFullscreenRefresh);
+         disable();
+         if (mObserver != null) { mObserver.observe(null); mObserver = null; }
+         mTabObserver.destroy();
+--- a/chrome/android/java/src/org/chromium/chrome/browser/sandium/video/SandiumVideoGestureState.java
++++ b/chrome/android/java/src/org/chromium/chrome/browser/sandium/video/SandiumVideoGestureState.java
+@@ -4,7 +4,7 @@
+ 
+ /** Pure gesture policy. The native host owns eligibility, playback and window/audio state. */
+ public final class SandiumVideoGestureState {
+-    public enum Kind { NONE, TAP, SEEK, BRIGHTNESS, VOLUME }
++    public enum Kind { NONE, TAP, SEEK, DOUBLE_TAP_SEEK, BRIGHTNESS, VOLUME }
+     public static final class Result {
+         public final Kind kind;
+         // SEEK is relative milliseconds; brightness/volume are relative fractions of range.
+@@ -102,7 +102,7 @@
+                 && Math.abs(y - mPreviousTapY) < Math.max(mSlop * 7, 96);
+         Result result;
+         if (doubleTap) {
+-            result = new Result(Kind.SEEK, zone * 10_000, true);
++            result = new Result(Kind.DOUBLE_TAP_SEEK, zone * 10_000, true);
+             forgetTap();
+         } else if (singleTap) {
+             result = new Result(Kind.TAP, 0, true);
+--- a/chrome/android/java/src/org/chromium/chrome/browser/sandium/video/SandiumVideoGestureView.java
++++ b/chrome/android/java/src/org/chromium/chrome/browser/sandium/video/SandiumVideoGestureView.java
+@@ -24,6 +24,7 @@
+         /** Tap wakes the controls. Play/pause remains an explicit accessible button. */
+         void onTap();
+         void seekBy(long milliseconds);
++        void seekDraggedBy(long milliseconds);
+         /** Capture window brightness and STREAM_MUSIC volume once per gesture. */
+         void beginAdjustment();
+         /** Preview only: called on moves; no playback seeks or setting writes until release. */
+@@ -79,20 +80,24 @@
+                 var result = mState.up(event.getX(), event.getY(), event.getEventTime(),
+                         mHost.canSeek());
+                 mTracking = false;
+-                mHost.clearPreview();
+                 if (!result.commit || !mHost.isEligible() || mGeneration != mHost.generation()) {
++                    mHost.clearPreview();
+                     return true;
+                 }
+                 switch (result.kind) {
+                     case TAP: performClick(); break;
+                     case SEEK:
+                         long delta = Math.round(result.delta);
+-                        if (delta != 0 && mHost.canSeek()) mHost.seekBy(delta);
++                        if (delta != 0 && mHost.canSeek()) mHost.seekDraggedBy(delta);
++                        break;
++                    case DOUBLE_TAP_SEEK:
++                        if (mHost.canSeek()) mHost.seekBy(Math.round(result.delta));
+                         break;
+                     case BRIGHTNESS: mHost.adjustBrightness(result.delta); break;
+                     case VOLUME: mHost.adjustVolume(result.delta); break;
+                     default: break;
+                 }
++                mHost.clearPreview();
+                 return true;
+             default:
+                 return mTracking;
+--- a/chrome/android/java/src/org/chromium/chrome/browser/sandium/video/SandiumVideoSessionAdapter.java
++++ b/chrome/android/java/src/org/chromium/chrome/browser/sandium/video/SandiumVideoSessionAdapter.java
+@@ -35,6 +35,7 @@
+     private final AudioManager mAudio;
+     private final float mOriginalBrightness;
+     private boolean mClosed;
++    private long mDragStartMillis = -1;
+     private boolean mBrightnessChanged;
+     private float mBrightnessAtDown;
+     private int mVolumeAtDown;
+@@ -100,21 +101,32 @@
+         if (isEligible()) mContents.runRawSFullscreenMediaAction(mToken, TOGGLE_PLAYBACK, 0);
+     }
+     @Override public void seekBy(long millis) {
+-        MediaPosition p = seekablePosition();
+-        if (p == null || millis == 0) return;
+-        if (millis == -10_000 || millis == 10_000) {
+-            // Keep Chromium's existing double-tap command.
++        if (seekablePosition() != null && (millis == -10_000 || millis == 10_000)) {
+             mContents.runRawSFullscreenMediaAction(mToken, SEEK_RELATIVE, millis);
+-            return;
+         }
+-        // Drag releases carry variable offsets, not the native ten-second action.
+-        // Apply them through the same existing seek action as the timeline, using
+-        // the exact active player snapshot and the direction the user chose.
++    }
++
++    private long dragTarget(MediaPosition position, long millis) {
++        if (mDragStartMillis < 0) mDragStartMillis = currentPositionMillis(position);
+         long boundedDelta = Math.max(-120_000L, Math.min(120_000L, millis));
+-        dispatchAbsoluteSeek(p, currentPositionMillis(p) + boundedDelta);
++        return (long) SandiumVideoGestureState.clamp(
++                mDragStartMillis + boundedDelta, 0, position.getDuration());
++    }
++
++    public long previewDragTarget(long millis) {
++        MediaPosition position = seekablePosition();
++        return position == null ? -1 : dragTarget(position, millis);
++    }
++
++    @Override public void seekDraggedBy(long millis) {
++        MediaPosition position = seekablePosition();
++        if (position != null && millis != 0) {
++            dispatchAbsoluteSeek(position, dragTarget(position, millis));
++        }
+     }
+     @Override public void beginAdjustment() {
+         if (!isEligible()) return;
++        mDragStartMillis = -1;
+         float brightness = mActivity.getWindow().getAttributes().screenBrightness;
+         if (brightness < 0) {
+             try {
+@@ -155,7 +167,10 @@
+             // Managed-device/audio-policy restrictions keep system behavior; no bypass.
+         }
+     }
+-    @Override public void clearPreview() { mOwner.clearFeedback(); }
++    @Override public void clearPreview() {
++        mDragStartMillis = -1;
++        mOwner.clearFeedback();
++    }
+ 
+     /** Owner calls on opt-out, tab switch, navigation, fullscreen exit, pause, PiP or destruction. */
+     public void close() {

@@ -21,8 +21,9 @@ import slice_state
 
 BASE = 'a274d3f2e250aad22c8ca4309ba75841f9db65dd'
 BRANCH = 'experiment/raws-1538-ubo-apk'
-PARENT = 'd98f0dda5f43ea7cb6cf8ab2d8e76c58bc75c9e3'
-UI_MANIFEST = '57823a4e4d4b24f1662e22cffada5d221acebacdfa11a526d8c70f8e0ee9413f'
+PARENT = '3cc3520b0c648b2db776104acfc8325d7356e682'
+COMPLETED_PRODUCER = 'd98f0dda5f43ea7cb6cf8ab2d8e76c58bc75c9e3'
+UI_MANIFEST = '1fe8ca117c8f6b24ab0c64e2c91de09fadabc7ea95aab568fe0607a2f3b6b949'
 JOB = 'raws-1538-ubo-apk'
 RECIPE = 'ba0755150c15aba8ed53278aef717dcace3239235e7f6ae352fd74b768d79774'
 PATCH = '98711eb0f37e3111af828ca27bd7779946b3794433c7dcca3325c966c6c3d9b8'
@@ -60,8 +61,8 @@ def gate():
         raise ValueError('Experiment must not receive RawS signing credentials')
     head = git(ROOT,'rev-parse','HEAD')
     if (head != os.environ.get('CIRCLE_SHA1') or git(ROOT,'rev-parse','HEAD^') != PARENT
-            or git(ROOT,'rev-parse','HEAD^^^^^^') != BASE):
-        raise ValueError('Expected exact #1544 experiment as the candidate parent')
+            or git(ROOT,'rev-parse','HEAD^^^^^^^') != BASE):
+        raise ValueError('Expected exact Extensions candidate as the immediate parent')
     if fingerprint() != ro.FINGERPRINT or ro.full.fresh():
         raise ValueError('Unexpected baseline fingerprint or fresh seed')
     if ro.active_feature().identity != RECIPE:
@@ -81,7 +82,7 @@ def completed_identity(checkout, args):
 
 def verify_completed_seed():
     producer = os.environ.get('RAWS_UBO_COMPLETED_SEED','')
-    if (producer != PARENT
+    if (producer != COMPLETED_PRODUCER
             or producer == os.environ['CIRCLE_SHA1']
             or subprocess.run(['git','-C',str(ROOT),'merge-base','--is-ancestor',
                                producer,os.environ['CIRCLE_SHA1']],check=False).returncode):
@@ -175,7 +176,7 @@ def check_pins(src, field):
 
 def apply_next_ui(src):
     manifest = json.loads((KIT/'next-ui-pins.json').read_text())
-    if manifest['producer'] != PARENT:
+    if manifest['producer'] != COMPLETED_PRODUCER:
         raise ValueError('Invalid UI producer')
     for name, pins in manifest['paths'].items():
         if file_sha(safe_path(src, name)) != pins['before']:

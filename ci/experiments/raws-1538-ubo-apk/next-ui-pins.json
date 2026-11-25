@@ -11,6 +11,14 @@
     {
       "name": "raws1544-blur-four.patch",
       "sha256": "2a459f84a64744f1fafb3c7a1550f81336a91fc26b490e26db76084acd238feb"
+    },
+    {
+      "name": "raws-1544-seekbar-reliability.patch",
+      "sha256": "a33e576af0ea8bc392bfbeb0af5f6bacdd752a496a6fb81302aba1d3e9aebfab"
+    },
+    {
+      "name": "preview-stability.patch",
+      "sha256": "0a51df7d78a812df9aac82eabc7eaf642256a009191273234e3c36032a2b5eb0"
     }
   ],
   "paths": {
@@ -29,6 +37,22 @@
     "chrome/android/java/src/org/chromium/chrome/browser/firstrun/RawSSetupFirstRunFragment.java": {
       "after": "2b76629230db8409313b1a8758866fbb0ebd5c5366dfdf86e4ac49f6102df6ab",
       "before": "1d9737a69850964b39d9bf48099430425df36c77a7e0e88ad5695875cefbedf9"
+    },
+    "chrome/android/java/src/org/chromium/chrome/browser/sandium/video/SandiumVideoController.java": {
+      "after": "a4c83e16690d6519d32a163fb575e517da2d77ade1fec6df75761e8030e95804",
+      "before": "422b640b3ef12f2b2e9adcdb2d3ffd4e22701cfae1a46571c561f20c0d203047"
+    },
+    "chrome/android/java/src/org/chromium/chrome/browser/sandium/video/SandiumVideoGestureState.java": {
+      "after": "8b7a64dae4d30ca49a71112f4f77cec8559552f8878c230f91cb354a62765af7",
+      "before": "8f40dd6f2a56706877081b9b080ce4bef9aa90200306b4853432786cca4b2d16"
+    },
+    "chrome/android/java/src/org/chromium/chrome/browser/sandium/video/SandiumVideoGestureView.java": {
+      "after": "76f02d808167181fa78ee996f77b416cba3cce15ce1a5243415221e738a0cc2d",
+      "before": "15c430ef8b68c756c14d5e47578bf20010d17657d3be5466849b4ab6d86915bc"
+    },
+    "chrome/android/java/src/org/chromium/chrome/browser/sandium/video/SandiumVideoSessionAdapter.java": {
+      "after": "66fa74a0575ceb59e617a59f2db97505074224077ac4cfed7d3bc33ae6d1597d",
+      "before": "3ca7b7a0e6ef349bb6f9c3513c7bbaca8e2dad644b322dc1614b1cb0b45cd097"
     },
     "chrome/android/java/src/org/chromium/chrome/browser/tabbed_mode/TabbedAppMenuPropertiesDelegate.java": {
       "after": "4886f0cb61b71ea197e5454ae0433c7d6c42a6d6db258d0bc85efeab221ab323",
@@ -69,6 +93,10 @@
     "chrome/common/extensions/api/developer_private.webidl": {
       "after": "bd79ba4d634a7a595a980be54cd3f7a5abb6c61ba250730b38afbab406f4b113",
       "before": "03379c897a3b5ccf68e1e19bf06fa81e207732e4d3e3b37bd50ea23f0b2311ea"
+    },
+    "chrome/renderer/chrome_render_frame_observer.cc": {
+      "after": "2b4e78e9757863f92bc309a85e8e2035ccc56f1bc8a62ac3cbf95e50c684d0ca",
+      "before": "791fd989d1fc93cba298822e530b0b698dddabebc8a1cfd2946f8d343ede2dca"
     },
     "extensions/browser/extension_function_histogram_value.h": {
       "after": "353ef6b706445261a3f691dbca89c6e1320be8e153ac911f9da2f955ab8866e3",
