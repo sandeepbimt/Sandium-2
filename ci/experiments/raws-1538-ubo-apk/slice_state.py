@@ -3,6 +3,7 @@ from decimal import Decimal
 import hashlib
 import json
 import os
+import re
 from pathlib import Path
 import shutil
 import subprocess
@@ -12,12 +13,25 @@ def digest(p):
     with p.open('rb') as f:
         return hashlib.file_digest(f,'sha256').hexdigest()
 
+SISO_LOG_NAMES = {f'siso.{level}' for level in ('INFO', 'WARNING', 'ERROR', 'FATAL')}
+
+def transient_log(out, p):
+    if p.parent != out or p.name not in SISO_LOG_NAMES or not p.is_symlink():
+        return False
+    raw = Path(os.readlink(p))
+    level = p.suffix[1:]
+    return raw.parent == Path('/tmp') and re.fullmatch(
+        rf'siso\.[^/]+\.log\.{level}\.\d{{8}}-\d{{6}}\.\d+', raw.name) is not None
+
 def outside_links(out, source):
     # Chromium can generate links to checkout files from its output tree.
     # Transfer those links as validated metadata, never as tar entries.
-    links = []
+    links, ignored_logs = [], []
     for p in sorted(out.rglob('*')):
         if not p.is_symlink():
+            continue
+        if transient_log(out, p):
+            ignored_logs.append(p.name)
             continue
         target = p.resolve()
         if target.is_relative_to(out) and not Path(os.readlink(p)).is_absolute():
@@ -27,7 +41,7 @@ def outside_links(out, source):
         links.append(dict(path=p.relative_to(out).as_posix(), link=os.readlink(p),
                           target=target.relative_to(source).as_posix(),
                           mtime_ns=p.lstat().st_mtime_ns))
-    return links
+    return links, ignored_logs
 
 def carry(out):
     if not (out/'obj').is_dir() or not any(out.glob('.siso*')):
@@ -41,11 +55,13 @@ def save(out, target, identity, status, source):
     receipt={**identity,'status':status}
     if status=='slice_expired':
         carry(out)
-        links=outside_links(out,source)
+        links, ignored_logs=outside_links(out,source)
         archive=target/'output.tar.zst'
         if shutil.disk_usage(target).free < 8*1024**3:
             raise ValueError('Under 8 GiB free for experiment checkpoint')
-        exclude=['--exclude='+out.name+'/'+link['path'] for link in links]
+        exclude=['--exclude='+out.name+'/'+name for name in [*ignored_logs, *(link['path'] for link in links)]]
+        if ignored_logs:
+            print('EXPERIMENT_CHECKPOINT_IGNORED_RUNNER_LOGS='+','.join(ignored_logs),flush=True)
         print(f'EXPERIMENT_CHECKPOINT_CHECKOUT_LINKS={len(links)}',flush=True)
         subprocess.run(['timeout','--kill-after=30s','7m','tar','--format=pax','--use-compress-program=zstd -1 -T4',
                         '-cf',str(archive),'--no-wildcards',*exclude,'-C',str(out.parent),out.name],check=True)

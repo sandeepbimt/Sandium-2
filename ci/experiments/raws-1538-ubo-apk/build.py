@@ -36,7 +36,7 @@ def slice_index():
     return n
 
 def slice_identity(n):
-    return dict(schema=2, stage=n, workflow=os.environ['CIRCLE_WORKFLOW_ID'],
+    return dict(schema=3, stage=n, workflow=os.environ['CIRCLE_WORKFLOW_ID'],
                 checkout=os.environ['CIRCLE_SHA1'], base=BASE, recipe=RECIPE, patch=PATCH,
                 args_fragment=file_sha(KIT/'args.gn.fragment'))
 
@@ -55,10 +55,10 @@ def gate():
            for k in os.environ):
         raise ValueError('Experiment must not receive RawS signing credentials')
     head = git(ROOT,'rev-parse','HEAD')
-    first = 'a52b76720e2177e569cd3b9cbd6f1ce490421f56'
+    first = '64413be8245ac9b7401c5cb45f49c2b1e95d8f39'
     if (head != os.environ.get('CIRCLE_SHA1') or git(ROOT,'rev-parse','HEAD^') != first
-            or git(ROOT,'rev-parse','HEAD^^^') != BASE):
-        raise ValueError('Expected #1541 checkpoint fix on exact #1538')
+            or git(ROOT,'rev-parse','HEAD^^^^') != BASE):
+        raise ValueError('Expected #1542 runner-log fix on exact #1538')
     if fingerprint() != ro.FINGERPRINT or ro.full.fresh():
         raise ValueError('Unexpected baseline fingerprint or fresh seed')
     if ro.active_feature().identity != RECIPE:
