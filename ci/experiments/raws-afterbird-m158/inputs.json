@@ -1,0 +1,23 @@
+{
+  "args_fragment_sha256": "dc5497bc93f9374632951f1d001369d9f6f05529aa5d877d0bf2b7d5460b758d",
+  "args_sha256": "978dbc344dde76631bb301585cf2b80d2020b45553a9757092fe24c32344e5d3",
+  "chromium_commit": "52bdd21723d5db0c9ab11716d38feac74828cf84",
+  "desktop_patch_sha256": "71d50714b4f4b4d26fee8127b2bf019e4f93059647baff6c590f59bd1ee88cab",
+  "donor_commit": "5ff224f9ef8f8a0792abd2babc9f7164e8dcdb3e",
+  "paths": {
+    "chrome/android/java/src/org/chromium/chrome/browser/ChromeTabbedActivity.java": {
+      "after": "36f5295bd7bcb532b94a22e98e681a36b13a74857484b75b87f157730a386089",
+      "before": "8b3b09807729bbedb75d7148d2f686ab04df77782c9fdaf0ce0b64be561ace4f"
+    },
+    "chrome/common/extensions/api/api_sources.gni": {
+      "after": "a3cad5cd6e46915b29f238750ea16ccdd37faa883401e58875514879b243339e",
+      "before": "d46f5dfed6d3d849d9823a313ff41e54278e7b1913d80f758bcaf0f6ec213034"
+    }
+  },
+  "raws_base": "07aef07e2bd41583ac2e0590b51384027f6b193c",
+  "unchanged": {
+    "extensions/browser/manifest_v2_handler.cc": "8ce631c10e207acb2dd20ce3481e2173ee2dfd37688e04d7a5fff40e9a7076ab",
+    "extensions/browser/manifest_v2_util.cc": "c93867d533f1d3b939d3f0214963974bdf420a59c7a4008a2399f07ab3d5e413",
+    "extensions/buildflags/buildflags.gni": "8878977b3fb7a98e0c75dd275d4bf8b36eaf0017bdb7e16f14481b6d39e33006"
+  }
+}
