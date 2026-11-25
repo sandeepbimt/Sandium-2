@@ -1,0 +1,2853 @@
+// Copyright 2013 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include "chrome/renderer/chrome_render_frame_observer.h"
+
+#if BUILDFLAG(IS_ANDROID)
+#include "base/json/string_escape.h"
+#include "base/strings/strcat.h"
+#include "chrome/common/raws_procedural_cosmetic_rules.h"
+#include "chrome/renderer/raws_passive_scriptlet_program.h"
+#include "chrome/renderer/raws_color_renderer.h"
+#include "chrome/renderer/raws_dynamic_cosmetic_scheduler.h"
+#include "chrome/renderer/raws_passive_procedural_runtime.h"
+#include "chrome/renderer/raws_element_picker_donor.h"
+#include "chrome/renderer/raws_procedural_cosmetic_binding.h"
+#include "chrome/renderer/raws_procedural_cosmetic_matcher.h"
+#include "components/sandium_adblock/observed_ad_conjunction.h"
+#include "gin/converter.h"
+#include "gin/function_template.h"
+#include "v8/include/v8-context.h"
+#include "v8/include/v8-function.h"
+#include "v8/include/v8-isolate.h"
+#include "v8/include/v8-object.h"
+#endif
+
+#include <stddef.h>
+#include <string.h>
+
+#include <algorithm>
+#include <limits>
+#include <map>
+#include <memory>
+#include <set>
+#include <string_view>
+#include <utility>
+
+#include "base/base_switches.h"
+#include "base/command_line.h"
+#include "base/functional/bind.h"
+#include "base/no_destructor.h"
+#include "base/strings/string_number_conversions.h"
+#include "base/strings/string_util.h"
+#include "base/strings/utf_string_conversions.h"
+#include "base/synchronization/lock.h"
+#include "base/time/time.h"
+#include "base/values.h"
+#include "third_party/blink/public/mojom/script/script_evaluation_params.mojom.h"
+#include "third_party/blink/public/web/web_script_source.h"
+#include "base/trace_event/trace_event.h"
+#include "build/build_config.h"
+#include "chrome/common/chrome_constants.h"
+#include "chrome/common/chrome_features.h"
+#include "chrome/common/chrome_isolated_world_ids.h"
+#include "chrome/common/chrome_switches.h"
+#include "chrome/common/open_search_description_document_handler.mojom.h"
+#include "chrome/common/webui_url_constants.h"
+#include "chrome/renderer/actor/chrome_page_stability_monitor_delegate.h"
+#include "chrome/renderer/actor/journal.h"
+#include "chrome/renderer/actor/tool_executor.h"
+#include "chrome/renderer/benchmarking_bindings.h"
+#include "chrome/renderer/chrome_content_settings_agent_delegate.h"
+#include "chrome/renderer/loadtimes_bindings.h"
+#include "chrome/renderer/media/media_feeds.h"
+#include "chrome/renderer/process_state.h"
+#include "components/actor/core/actor_features.h"
+#include "components/crash/core/common/crash_key.h"
+#include "components/guest_view/buildflags/buildflags.h"
+#include "components/guest_view/renderer/slim_web_view/slim_web_view_bindings.h"
+#include "components/lens/lens_metadata.mojom.h"
+#include "components/no_state_prefetch/renderer/no_state_prefetch_helper.h"
+#include "components/no_state_prefetch/renderer/no_state_prefetch_utils.h"
+#include "components/offline_pages/buildflags/buildflags.h"
+#include "components/optimization_guide/content/renderer/page_text_agent.h"
+#include "components/page_content_annotations/content/renderer/page_stability_monitor.h"
+#include "components/translate/content/renderer/translate_agent.h"
+#include "components/translate/core/common/translate_util.h"
+#include "components/variations/variations_switches.h"
+#include "components/web_cache/renderer/web_cache_impl.h"
+#include "content/public/common/bindings_policy.h"
+#include "content/public/common/buildflags.h"
+#include "content/public/common/content_features.h"
+#include "content/public/common/content_switches.h"
+#include "content/public/renderer/render_frame.h"
+#include "content/public/renderer/render_frame_visitor.h"
+#include "content/public/renderer/render_thread.h"
+#include "content/public/renderer/window_features_converter.h"
+#include "extensions/buildflags/buildflags.h"
+#include "printing/buildflags/buildflags.h"
+#include "services/service_manager/public/cpp/binder_registry.h"
+#include "skia/ext/image_operations.h"
+#include "third_party/blink/public/common/associated_interfaces/associated_interface_provider.h"
+#include "third_party/blink/public/platform/browser_interface_broker_proxy.h"
+#include "third_party/blink/public/platform/web_url_request.h"
+#include "third_party/blink/public/web/web_console_message.h"
+#include "third_party/blink/public/web/web_document.h"
+#include "third_party/blink/public/web/web_document_loader.h"
+#include "third_party/blink/public/web/web_element.h"
+#include "third_party/blink/public/web/web_frame_content_dumper.h"
+#include "third_party/blink/public/web/web_local_frame.h"
+#include "third_party/blink/public/web/web_local_frame_client.h"
+#include "third_party/blink/public/web/web_node.h"
+#include "third_party/blink/public/web/web_security_policy.h"
+#include "third_party/blink/public/web/web_view.h"
+#include "third_party/libwebp/src/src/webp/decode.h"
+#include "third_party/skia/include/core/SkBitmap.h"
+#include "ui/base/page_transition_types.h"
+#include "ui/gfx/codec/jpeg_codec.h"
+#include "ui/gfx/codec/png_codec.h"
+#include "ui/gfx/codec/webp_codec.h"
+#include "ui/gfx/geometry/size_f.h"
+#include "ui/webui/buildflags.h"
+#include "url/gurl.h"
+#include "url/url_constants.h"
+
+#if !BUILDFLAG(IS_ANDROID)
+#include "chrome/renderer/accessibility/read_anything/read_anything_app_controller.h"
+#endif  // !BUILDFLAG(IS_ANDROID)
+
+#if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
+#include "components/safe_browsing/content/renderer/phishing_classifier/content_phishing_classifier_delegate.h"
+#include "components/safe_browsing/content/renderer/phishing_classifier/content_phishing_image_embedder_delegate.h"
+#endif
+
+#if BUILDFLAG(ENABLE_OFFLINE_PAGES)
+#include "chrome/common/mhtml_page_notifier.mojom.h"
+#endif
+
+#if BUILDFLAG(ENABLE_PLUGINS)
+#include "chrome/renderer/plugins/chrome_plugin_placeholder.h"
+#endif
+
+#if BUILDFLAG(ENABLE_WEBUI_NTP)
+#include "chrome/renderer/searchbox/searchbox_extension.h"
+#endif
+
+using blink::WebDocumentLoader;
+using blink::WebElement;
+using blink::WebFrameContentDumper;
+using blink::WebLocalFrame;
+using blink::WebNode;
+using blink::WebString;
+using content::RenderFrame;
+
+// Maximum number of characters in the document to index.
+// Any text beyond this point will be clipped.
+static const size_t kMaxIndexChars = 65535;
+
+
+// For a page that auto-refreshes, we still show the bubble, if
+// the refresh delay is less than this value (in seconds).
+static constexpr base::TimeDelta kLocationChangeInterval = base::Seconds(10);
+
+// For the context menu, we want to keep transparency as is instead of
+// replacing transparent pixels with black ones
+static const bool kDiscardTransparencyForContextMenu = false;
+
+namespace {
+
+const char kImageGif[] = "image/gif";
+const char kImageJpeg[] = "image/jpeg";
+const char kImagePng[] = "image/png";
+const char kImageWebp[] = "image/webp";
+
+#if BUILDFLAG(IS_ANDROID)
+base::Lock& GetFrameHeaderMapLock() {
+  static base::NoDestructor<base::Lock> s;
+  return *s;
+}
+
+using FrameHeaderMap = std::map<blink::LocalFrameToken, std::string>;
+
+FrameHeaderMap& GetFrameHeaderMap() {
+  GetFrameHeaderMapLock().AssertAcquired();
+  static base::NoDestructor<FrameHeaderMap> s;
+  return *s;
+}
+#endif
+
+// Renderers can handle multiple pages, especially in low-memory conditions.
+// Record crash keys for a few origins, in the hope of finding more culprit
+// origins for OOM crashes. Keys are recorded here and not via
+// ChromeContentClient::SetActiveURL() because that method is only invoked in
+// response to IPC messages and most OOMs do not occur in response to an IPC.
+// https://crbug.com/40830140
+void UpdateLoadedOriginCrashKeys() {
+  // Capture the origin for each RenderFrame.
+  struct Visitor : public content::RenderFrameVisitor {
+    bool Visit(RenderFrame* render_frame) override {
+      if (render_frame) {
+        WebLocalFrame* web_frame = render_frame->GetWebFrame();
+        if (web_frame) {
+          frame_count_++;
+          origins_.insert(web_frame->GetSecurityOrigin().ToString().Utf8());
+        }
+      }
+      return true;  // Keep going.
+    }
+    int frame_count_ = 0;
+    std::set<std::string> origins_;  // Use set to collapse duplicate origins.
+  } visitor;
+  RenderFrame::ForEach(&visitor);
+
+  static crash_reporter::CrashKeyString<8> frame_count("web-frame-count");
+  frame_count.Set(base::NumberToString(visitor.frame_count_));
+
+  // Record 3 recently-loaded origins in crash keys (which 3 is arbitrary).
+  using ArrayItemKey = crash_reporter::CrashKeyString<64>;
+  static ArrayItemKey crash_keys[] = {
+      {"loaded-origin-0", ArrayItemKey::Tag::kArray},
+      {"loaded-origin-1", ArrayItemKey::Tag::kArray},
+      {"loaded-origin-2", ArrayItemKey::Tag::kArray},
+  };
+  for (auto& crash_key : crash_keys) {
+    if (!visitor.origins_.empty()) {
+      auto origin_it = visitor.origins_.begin();
+      crash_key.Set(*origin_it);
+      visitor.origins_.erase(origin_it);
+    } else {
+      // If there are fewer than 3 origins, clear the remaining keys.
+      crash_key.Clear();
+    }
+  }
+}
+
+bool ShouldForceTranslateAgentCreation(const GURL& url) {
+#if !BUILDFLAG(IS_ANDROID)
+  // The Reading Mode side panel is a Top Chrome WebUI, but it exceptionally
+  // requires a TranslateAgent to support PDF translation.
+  return url.SchemeIs("chrome-untrusted") &&
+         url.host() == chrome::kChromeUIUntrustedReadAnythingSidePanelHost;
+#else
+  return false;
+#endif
+}
+
+#if BUILDFLAG(ENABLE_PDF)
+bool IsLocalPage(const GURL& url) {
+  return url.SchemeIs(url::kFileScheme) || url.SchemeIs(url::kContentScheme);
+}
+#endif  // BUILDFLAG(ENABLE_PDF)
+
+}  // namespace
+
+#if BUILDFLAG(IS_ANDROID)
+sandium::color_picker::RawSColorRenderer::RawSColorRenderer(
+    content::RenderFrame* frame) : frame_(frame) {}
+sandium::color_picker::RawSColorRenderer::~RawSColorRenderer() {
+  StopObservingTargets();
+}
+
+namespace sandium::color_picker {
+
+IdIndex::IdIndex(const blink::WebDocument& document) : document_(document) {}
+
+blink::WebElement IdIndex::Unique(const std::string& id) const {
+  if (!Text(id, 128, false)) return blink::WebElement();
+  const auto it = nodes_.find(id);
+  if (it != nodes_.end()) return it->second;
+  constexpr size_t kMaxIdsPerRequest = kMaxDepth * kMaxRules * 2;
+  if (nodes_.size() >= kMaxIdsPerRequest) return blink::WebElement();
+  auto element = document_.GetUniqueElementByIdForSandiumColor(
+      blink::WebString::FromUtf8(id));
+  nodes_.try_emplace(id, element);
+  return element;
+}
+
+IdIndex::IdIndex(const IdIndex&) = default;
+IdIndex::IdIndex(IdIndex&&) noexcept = default;
+IdIndex& IdIndex::operator=(const IdIndex&) = default;
+IdIndex& IdIndex::operator=(IdIndex&&) noexcept = default;
+IdIndex::~IdIndex() = default;
+
+namespace {
+constexpr char kRawSColorDomPicker[] = R"COLORJS(// Adapted from Sandium #1442's trusted isolated document color picker.
+(() => {
+  const cancelKey = '__rawsCancelColorPicker';
+  const select = globalThis.__rawsPickColorNode;
+  if (typeof globalThis[cancelKey] === 'function') globalThis[cancelKey]();
+  if (typeof select !== 'function' || !document.documentElement ||
+      document.contentType !== 'text/html') return;
+  const stop = event => {
+    event.preventDefault();
+    event.stopImmediatePropagation();
+  };
+  const cover = document.createElement('div');
+  cover.style.cssText = 'position:fixed!important;inset:0!important;z-index:2147483647!important;display:block!important;pointer-events:auto!important;';
+  const root = cover.attachShadow({mode:'closed'});
+  const panel = document.createElement('div');
+  panel.style.cssText = 'position:fixed;inset:0;pointer-events:auto;background:rgba(0,0,0,.08);cursor:crosshair;touch-action:none;';
+  const hint = document.createElement('span');
+  hint.setAttribute('role', 'status');
+  hint.style.cssText = 'position:fixed;bottom:18px;left:16px;right:82px;max-width:max-content;padding:8px 12px;border-radius:10px;pointer-events:none;color:white;background:#202124;font:14px system-ui;';
+  hint.textContent = 'Tap the element to correct';
+  const quit = document.createElement('button');
+  quit.type = 'button';
+  quit.textContent = 'Cancel';
+  quit.style.cssText = 'position:fixed;right:16px;bottom:12px;min-height:44px;padding:0 12px;border-radius:7px;font:14px system-ui;';
+  root.append(panel, hint, quit);
+  let timer, closed = false;
+  const close = () => {
+    if (closed) return;
+    closed = true;
+    clearTimeout(timer);
+    cover.remove();
+    window.removeEventListener('pagehide', close);
+    window.removeEventListener('keydown', escape, true);
+    if (globalThis[cancelKey] === close) delete globalThis[cancelKey];
+  };
+  const escape = event => {
+    if (!event.isTrusted || event.key !== 'Escape') return;
+    stop(event);
+    select(null);
+    close();
+  };
+  quit.addEventListener('click', event => {
+    stop(event);
+    if (!event.isTrusted) return;
+    select(null);
+    close();
+  });
+  // The renderer overlay occupies the viewport and consumes its own
+  // gestures; selection never forwards input to the selected node.
+  for (const type of ['pointerdown', 'pointerup', 'pointercancel',
+                      'mousedown', 'mouseup', 'contextmenu']) {
+    panel.addEventListener(type, stop, true);
+  }
+  panel.addEventListener('click', event => {
+    stop(event);
+    if (!event.isTrusted) return;
+    cover.style.setProperty('display', 'none', 'important');
+    const hit = document.elementFromPoint(event.clientX, event.clientY);
+    cover.style.setProperty('display', 'block', 'important');
+    if (!hit || !select(hit)) {
+      hint.textContent = 'This element cannot be remembered. Tap another.';
+      return;
+    }
+    close();
+  }, true);
+  // Keep control input usable but out of the page's bubble listeners.
+  for (const type of ['pointerdown', 'pointerup', 'click', 'input']) {
+    root.addEventListener(type, event => event.stopPropagation());
+  }
+  window.addEventListener('pagehide', close, {once:true});
+  window.addEventListener('keydown', escape, true);
+  globalThis[cancelKey] = close;
+  timer = setTimeout(close, 60000);
+  document.documentElement.appendChild(cover);
+})()
+)COLORJS";
+}  // namespace
+
+void RawSColorRenderer::InstallIsolatedSelectionBinding(
+    v8::Local<v8::Context> context) {
+  // Blink calls DidCreateScriptContext inside its entered ScriptState::Scope.
+  auto* isolate = v8::Isolate::TryGetCurrent();
+  if (!isolate) return;
+  v8::Context::Scope scope(context);
+  v8::Local<v8::Function> function;
+  if (!gin::CreateFunctionTemplate(
+          isolate,
+          base::BindRepeating(
+              [](base::WeakPtr<RawSColorRenderer> self, v8::Isolate* isolate,
+                 v8::Local<v8::Value> value) {
+                return self && self->OnDomSelection(isolate, value);
+              },
+              weak_.GetWeakPtr()))
+           ->GetFunction(context).ToLocal(&function)) {
+    return;
+  }
+  [[maybe_unused]] const bool installed =
+      context->Global()
+          ->DefineOwnProperty(
+              context, gin::StringToSymbol(isolate, "__rawsPickColorNode"),
+              function, static_cast<v8::PropertyAttribute>(v8::ReadOnly | v8::DontDelete))
+          .FromMaybe(false);
+}
+
+void RawSColorRenderer::Select(const base::UnguessableToken& embedding,
+                               const base::UnguessableToken& request,
+                               const gfx::PointF& /*reserved_wire_point*/,
+                               SelectCallback reply) {
+  auto current = Current(embedding);
+  if (!current || request.is_empty() || request_ || picking_) {
+    std::move(reply).Run(nullptr, false, false);
+    return;
+  }
+  selected_document_ = *current;
+  request_ = request;
+  picking_ = std::move(reply);
+  frame_->GetWebFrame()->ExecuteScriptInIsolatedWorld(
+      ISOLATED_WORLD_ID_CHROME_INTERNAL,
+      blink::WebScriptSource(blink::WebString::FromUtf8(kRawSColorDomPicker)),
+      blink::BackForwardCacheAware::kAllow);
+}
+
+bool RawSColorRenderer::OnDomSelection(v8::Isolate* isolate,
+                                      v8::Local<v8::Value> value) {
+  if (!picking_ || !selected_document_ || !request_) return false;
+  if (value->IsNull()) {
+    auto callback = std::move(picking_);
+    EndSelection();
+    std::move(callback).Run(nullptr, false, false);
+    return true;
+  }
+  const auto* frame = frame_->GetWebFrame();
+  if (!frame || frame->IsProvisional() || !selected_document_->IsActive() ||
+      frame->GetDocument() != *selected_document_)
+    return false;
+  auto node = blink::WebElement::FromV8Value(isolate, value);
+  if (node.IsNull() || !node.IsConnected() ||
+      node.GetDocument() != *selected_document_ || !node.CanSandiumCorrectColor())
+    return false;
+  auto candidate = Describe(node, *selected_document_, IdIndex(*selected_document_));
+  // Blink checks document and shadow boundaries, not the element's type.
+  // Without a verified durable identity, keep this exact node for this visit.
+  selected_ = node;
+  visit_only_ = !candidate;
+  identity_ = std::move(candidate);
+  const bool artwork = node.HasHTMLTagName(blink::WebString::FromUtf8("img"));
+  std::move(picking_).Run(identity_ ? identity_.Clone() : nullptr, visit_only_, artwork);
+  return true;
+}
+
+bool RawSColorRenderer::ValidVisitChoice(wire::RawSColorProperty property,
+                                        uint32_t rgb) const {
+  return rgb <= 0xffffff && selected_.CanSandiumCorrectColor() &&
+      (property == wire::RawSColorProperty::kForeground ||
+       property == wire::RawSColorProperty::kBackground ||
+       property == wire::RawSColorProperty::kImageArtwork);
+}
+
+void RawSColorRenderer::CloseDomSelectionOverlay() {
+  frame_->GetWebFrame()->ExecuteScriptInIsolatedWorld(
+      ISOLATED_WORLD_ID_CHROME_INTERNAL,
+      blink::WebScriptSource(blink::WebString::FromUtf8(
+          "globalThis.__rawsCancelColorPicker?.()")),
+      blink::BackForwardCacheAware::kAllow);
+}
+
+void RawSColorRenderer::Preview(const base::UnguessableToken& embedding,
+             const base::UnguessableToken& request,
+             wire::RawSColorProperty property, uint32_t rgb,
+             PreviewCallback reply) {
+  auto current = MatchingSelection(embedding, request);
+  bool applied = current &&
+      (visit_only_ ? ValidVisitChoice(property, rgb) : ValidColor(property, rgb, *identity_)) &&
+      selected_.SandiumPreviewColor(static_cast<int>(property), rgb);
+  if (current) confirmed_.reset();
+  std::move(reply).Run(applied);
+}
+
+void RawSColorRenderer::ConfirmIdentity(const base::UnguessableToken& embedding,
+                     const base::UnguessableToken& request,
+                     wire::RawSColorProperty property, uint32_t rgb,
+                     ConfirmIdentityCallback reply) {
+  auto current = MatchingSelection(embedding, request);
+  if (!current || !identity_ || !ValidColor(property, rgb, *identity_) ||
+      !selected_.CanSandiumCorrectColor()) {
+    std::move(reply).Run(nullptr);
+    return;
+  }
+  const auto actual = Describe(selected_, *current, IdIndex(*current));
+  if (!actual || !SameIdentity(*identity_, *actual)) {
+    EndSelection();
+    std::move(reply).Run(nullptr);
+    return;
+  }
+  confirmed_ = property;
+  confirmed_rgb_ = rgb;
+  std::move(reply).Run(identity_.Clone());
+}
+
+void RawSColorRenderer::Commit(const base::UnguessableToken& embedding,
+            const base::UnguessableToken& request,
+            wire::RawSColorProperty property, uint32_t rgb,
+            CommitCallback reply) {
+  auto current = MatchingSelection(embedding, request);
+  if (!current || !identity_ || confirmed_ != property ||
+      confirmed_rgb_ != rgb || !ValidColor(property, rgb, *identity_)) {
+    std::move(reply).Run(false);
+    return;
+  }
+  const auto actual = Describe(selected_, *current, IdIndex(*current));
+  bool applied = actual && SameIdentity(*actual, *identity_) &&
+      selected_.SandiumCommitColor(static_cast<int>(property), rgb);
+  if (applied) MarkBound(*identity_, property, selected_, rgb);
+  EndSelection();
+  std::move(reply).Run(applied);
+}
+
+void RawSColorRenderer::CommitForVisit(
+    const base::UnguessableToken& embedding,
+    const base::UnguessableToken& request, wire::RawSColorProperty property,
+    uint32_t rgb, CommitForVisitCallback reply) {
+  auto current = MatchingSelection(embedding, request);
+  if (!current || !ValidVisitChoice(property, rgb)) {
+    std::move(reply).Run(false);
+    return;
+  }
+  if (!visit_only_) {
+    // The only durable-to-visit fallback is after exact confirmation and
+    // browser store refusal, never a changed node or stale serialized locator.
+    const auto actual = Describe(selected_, *current, IdIndex(*current));
+    if (!identity_ || confirmed_ != property || confirmed_rgb_ != rgb ||
+        !actual || !SameIdentity(*actual, *identity_)) {
+      EndSelection();
+      std::move(reply).Run(false);
+      return;
+    }
+  }
+  // Avoid a delayed old restore overwriting the new visit-only correction.
+  // There is no future matching for this correction; Blink holds only a weak
+  // exact node reference in the existing document-owned color supplement.
+  const bool applied = selected_.SandiumCommitColor(static_cast<int>(property), rgb);
+  if (applied) StopObservingTargets();
+  EndSelection();
+  std::move(reply).Run(applied);
+}
+
+void RawSColorRenderer::Cancel(const base::UnguessableToken& embedding,
+            const base::UnguessableToken& request) {
+  if (Current(embedding) && request_ == request) {
+    const bool was_picking = !!picking_;
+    auto callback = std::move(picking_);
+    EndSelection();
+    if (was_picking) CloseDomSelectionOverlay();
+    if (callback) std::move(callback).Run(nullptr, false, false);
+  }
+}
+
+bool RawSColorRenderer::AlreadyBound(const wire::RawSColorIdentity& id,
+                                     wire::RawSColorProperty property,
+                                     const blink::WebElement& node,
+                                     uint32_t rgb) const {
+  return std::ranges::any_of(bound_, [&](const auto& value) {
+    if (value.property != property || !SameIdentity(*value.identity, id)) {
+      return false;
+    }
+    if (value.node_id == node.GetDomNodeId()) return value.rgb == rgb;
+    // Rebind only if the previously confirmed element is genuinely gone.
+    // Blink's node-id registry is weak, so detached trees are not held.
+    const auto prior = blink::WebNode::FromDomNodeId(value.node_id);
+    return !prior.IsNull() && prior.IsConnected() &&
+           prior.GetDocument() == node.GetDocument();
+  });
+}
+
+void RawSColorRenderer::MarkBound(const wire::RawSColorIdentity& id,
+                                wire::RawSColorProperty property,
+                                const blink::WebElement& node,
+                                uint32_t rgb) {
+  // Replace a detached or superseded binding rather than accumulating nodes.
+  for (auto& binding : bound_) {
+    if (binding.property == property && SameIdentity(*binding.identity, id)) {
+      binding.node_id = node.GetDomNodeId();
+      binding.rgb = rgb;
+      return;
+    }
+  }
+  if (bound_.size() < kMaxRules * 3) {
+    bound_.push_back({id.Clone(), property, node.GetDomNodeId(), rgb});
+  }
+}
+
+void RawSColorRenderer::ApplyRestoreRules(blink::WebDocument& current) {
+  if (request_ || restore_rules_.empty()) return;
+  const IdIndex index(current);
+  for (const auto& rule : restore_rules_) {
+    auto node = Match(*rule->identity, current, index);
+    if (node.IsNull() || AlreadyBound(*rule->identity, rule->property,
+                                      node, rule->rgb)) continue;
+    if (node.SandiumCommitColor(static_cast<int>(rule->property), rule->rgb)) {
+      MarkBound(*rule->identity, rule->property, node, rule->rgb);
+    }
+  }
+}
+
+void RawSColorRenderer::StopObservingTargets() {
+  rebind_timer_.Stop();
+  observation_deadline_.Stop();
+  if (observed_document_) observed_document_->SandiumStopObservingElementColorTargets();
+  observed_document_.reset();
+  restore_embedding_.reset();
+  restore_rules_.clear();
+  rebinds_remaining_ = 0;
+}
+
+void RawSColorRenderer::ScheduleTargetRebind() {
+  if (!observed_document_ || !rebinds_remaining_ || rebind_timer_.IsRunning()) {
+    return;
+  }
+  rebind_timer_.Start(FROM_HERE, base::Milliseconds(400),
+      base::BindOnce(&RawSColorRenderer::RebindTargets, GetWeakPtr()));
+}
+
+void RawSColorRenderer::RebindTargets() {
+  if (!restore_embedding_ || !observed_document_ || !rebinds_remaining_) return;
+  // Current() may tear down the observation if the token no longer owns it.
+  auto embedding = *restore_embedding_;
+  auto current = Current(embedding);
+  if (!current || !observed_document_ || *current != *observed_document_) {
+    StopObservingTargets();
+    return;
+  }
+  ApplyRestoreRules(*current);
+  if (--rebinds_remaining_ == 0) StopObservingTargets();
+}
+
+void RawSColorRenderer::Restore(const base::UnguessableToken& embedding,
+                               uint64_t generation,
+                               std::vector<wire::RawSColorRulePtr> rules) {
+  auto current = Current(embedding);
+  if (!current || !generation || generation < generation_ ||
+      rules.empty() || rules.size() > kMaxRules ||
+      !std::ranges::all_of(rules, [](const auto& rule) {
+        return rule && rule->identity && ValidIdentity(*rule->identity) &&
+               ValidColor(rule->property, rule->rgb, *rule->identity);
+      })) {
+    return;
+  }
+
+  if (generation != generation_) StopObservingTargets();
+  generation_ = generation;
+  restore_rules_ = std::move(rules);
+  ApplyRestoreRules(*current);
+  if (!observed_document_ &&
+      current->SandiumObserveElementColorTargets(base::BindRepeating(
+          &RawSColorRenderer::ScheduleTargetRebind, GetWeakPtr()))) {
+    observed_document_ = *current;
+    restore_embedding_ = embedding;
+    rebinds_remaining_ = 24;
+    observation_deadline_.Start(FROM_HERE, base::Seconds(60),
+        base::BindOnce(&RawSColorRenderer::StopObservingTargets, GetWeakPtr()));
+  }
+}
+
+void RawSColorRenderer::PauseRestore(const base::UnguessableToken& embedding,
+                                    uint64_t generation) {
+  if (!Current(embedding) || !generation || generation < generation_) return;
+  generation_ = generation;
+  StopObservingTargets();
+}
+
+void RawSColorRenderer::Clear(const base::UnguessableToken& embedding, uint64_t generation,
+           ClearCallback reply) {
+  auto current = Current(embedding);
+  if (!current || !generation || generation < generation_) {
+    std::move(reply).Run(false);
+    return;
+  }
+  generation_ = generation;
+  StopObservingTargets();
+  EndSelection();
+  current->SandiumClearElementColors();
+  bound_.clear();
+  std::move(reply).Run(true);
+}
+
+}  // namespace sandium::color_picker
+#endif
+
+ChromeRenderFrameObserver::ChromeRenderFrameObserver(
+    content::RenderFrame* render_frame,
+    web_cache::WebCacheImpl* web_cache_impl)
+    : content::RenderFrameObserver(render_frame),
+      translate_agent_(nullptr),
+      page_text_agent_(new optimization_guide::PageTextAgent(render_frame)),
+      actor_journal_(std::make_unique<actor::Journal>()),
+      web_cache_impl_(web_cache_impl) {
+  render_frame->GetAssociatedInterfaceRegistry()
+      ->AddInterface<chrome::mojom::ChromeRenderFrame>(base::BindRepeating(
+          &ChromeRenderFrameObserver::OnRenderFrameObserverRequest,
+          base::Unretained(this)));
+
+  // Don't do anything else for subframes.
+  if (!render_frame->IsMainFrame())
+    return;
+
+#if BUILDFLAG(IS_ANDROID)
+  raws_color_renderer_ =
+      std::make_unique<sandium::color_picker::RawSColorRenderer>(render_frame);
+  render_frame->GetAssociatedInterfaceRegistry()
+      ->AddInterface<chrome::mojom::RawSColorCorrector>(base::BindRepeating(
+          &sandium::color_picker::RawSColorRenderer::Bind,
+          raws_color_renderer_->GetWeakPtr()));
+#endif
+
+#if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
+  SetClientSidePhishingDetection();
+#endif
+
+  bool skip_translate =
+      (base::FeatureList::IsEnabled(features::kInitialWebUI) &&
+       features::kInitialWebUIWithoutTranslate.Get() &&
+       base::CommandLine::ForCurrentProcess()->HasSwitch(
+           switches::kTopChromeWebUI)) ||
+      (base::FeatureList::IsEnabled(
+           features::kInitialWebUIWithoutTranslateForNtp) &&
+       base::CommandLine::ForCurrentProcess()->HasSwitch(
+           switches::kNtpProcess));
+
+  if (!skip_translate) {
+    translate_agent_ = new translate::TranslateAgent(
+        render_frame, ISOLATED_WORLD_ID_TRANSLATE);
+  }
+}
+
+ChromeRenderFrameObserver::~ChromeRenderFrameObserver() = default;
+
+#if BUILDFLAG(IS_ANDROID)
+std::string ChromeRenderFrameObserver::GetCCTClientHeader(
+    const blink::LocalFrameToken& frame_token) {
+  base::AutoLock auto_lock(GetFrameHeaderMapLock());
+  auto frame_map = GetFrameHeaderMap();
+  auto iter = frame_map.find(frame_token);
+  return iter == frame_map.end() ? std::string() : iter->second;
+}
+#endif
+
+void ChromeRenderFrameObserver::OnInterfaceRequestForFrame(
+    const std::string& interface_name,
+    mojo::ScopedMessagePipeHandle* interface_pipe) {
+  registry_.TryBindInterface(interface_name, interface_pipe);
+}
+
+bool ChromeRenderFrameObserver::OnAssociatedInterfaceRequestForFrame(
+    const std::string& interface_name,
+    mojo::ScopedInterfaceEndpointHandle* handle) {
+  return associated_interfaces_.TryBindInterface(interface_name, handle);
+}
+
+#if BUILDFLAG(IS_ANDROID)
+namespace {
+void RunRawSMobilePlayerFiltering(blink::WebLocalFrame& frame, bool enabled) {
+  if (frame.Parent() || frame.IsInFencedFrameTree() || frame.IsProvisional())
+    return;
+  const auto doc = frame.GetDocument();
+  if (doc.IsNull() || !doc.IsActive() || !doc.IsHTMLDocument()) return;
+  const GURL url(doc.Url());
+  if (!url.SchemeIs("https") || url.host() != "m.youtube.com" ||
+      url.has_username() || url.has_password() || url.has_port()) return;
+  static constexpr char kPlayer[] = R"RAWSMW(// SPDX-License-Identifier: MPL-2.0
+// Fixed, unprivileged page-world code. No list text, URLs from IPC or user data
+// are interpolated. The native caller supplies one compiled origin and the site-policy boolean.
+((enabled, expectedOrigin) => {
+  'use strict';
+  if (self !== top || location.origin !== expectedOrigin ||
+      document.contentType !== 'text/html') return;
+  const key = Symbol.for('raws.mweb.player-json.v1');
+  const existing = Object.getOwnPropertyDescriptor(self, key);
+  if (existing) {
+    if (!enabled && typeof existing.value === 'function') existing.value();
+    return;
+  }
+  if (!enabled) return;
+
+  const parse = Object.getOwnPropertyDescriptor(JSON, 'parse');
+  const body = Object.getOwnPropertyDescriptor(Response.prototype, 'json');
+  if (!parse?.configurable || !body?.configurable ||
+      typeof parse.value !== 'function' || typeof body.value !== 'function') return;
+  const own = Object.hasOwn;
+  const array = Array.isArray;
+  let active = true;
+  // Both callers supply freshly decoded JSON without a reviver. Never recurse
+  // through unrelated objects, inspect a media URL, or change an access error.
+  function scrub(p) {
+    if (!p || typeof p !== 'object' || !own(p, 'playabilityStatus') ||
+        p.playabilityStatus?.status !== 'OK' || !own(p, 'videoDetails') ||
+        typeof p.videoDetails?.videoId !== 'string' || !p.videoDetails.videoId ||
+        !own(p, 'streamingData')) return;
+    const streams = p.streamingData;
+    if (!(array(streams?.formats) && streams.formats.length) &&
+        !(array(streams?.adaptiveFormats) && streams.adaptiveFormats.length) &&
+        !(typeof streams?.serverAbrStreamingUrl === 'string' && streams.serverAbrStreamingUrl)) return;
+    for (const k of ['adPlacements', 'playerAds', 'adSlots']) {
+      if (own(p, k) && array(p[k])) Reflect.deleteProperty(p, k);
+    }
+  }
+  function after(obj) {
+    if (active && obj && typeof obj === 'object') {
+      scrub(obj);
+      if (own(obj, 'playerResponse')) scrub(obj.playerResponse);
+    }
+    return obj;
+  }
+  const parsed = new Proxy(parse.value, { apply(fn, receiver, args) {
+    const obj = Reflect.apply(fn, receiver, args); // native exceptions/reviver semantics
+    return active && typeof args[1] !== 'function' ? after(obj) : obj;
+  }});
+  const decoded = new Proxy(body.value, { apply(fn, receiver, args) {
+    const result = Reflect.apply(fn, receiver, args);
+    // Do not fetch, clone or read a second time. Non-target calls even retain
+    // their original promise. Non-HTTP synthetic responses have an empty URL.
+    if (!active || !(receiver instanceof Response) || !receiver.ok ||
+        receiver.redirected || !/^application\/json(?:\s*;|$)/i.test(receiver.headers.get('content-type') || '') ||
+        receiver.url.split(/[?#]/, 1)[0] !== expectedOrigin + '/youtubei/v1/player') return result;
+    return result.then(after);
+  }});
+  // Only watch a not-yet-owned bootstrap global. Leave existing page
+  // descriptors and lexical variables alone. Disabling stops future pruning;
+  // it cannot restore fields already consumed by the current player.
+  const bootstrap = 'ytInitialPlayerResponse';
+  let bootstrapValue, bootstrapWritten = false;
+  const getBootstrap = () => bootstrapValue;
+  const setBootstrap = value => {
+    bootstrapWritten = true;
+    if (active) {
+      try { scrub(value); } catch { /* Preserve the page's assignment. */ }
+    }
+    bootstrapValue = value;
+  };
+  const stop = () => {
+    active = false; // also covers saved wrappers and pending body reads
+    if (JSON.parse === parsed) Object.defineProperty(JSON, 'parse', parse);
+    if (Response.prototype.json === decoded) Object.defineProperty(Response.prototype, 'json', body);
+    const currentBootstrap = Object.getOwnPropertyDescriptor(self, bootstrap);
+    if (currentBootstrap?.configurable &&
+        currentBootstrap.get === getBootstrap && currentBootstrap.set === setBootstrap) {
+      if (bootstrapWritten) {
+        Object.defineProperty(self, bootstrap, {
+          value: bootstrapValue, configurable: true, enumerable: true, writable: true
+        });
+      } else {
+        delete self[bootstrap];
+      }
+    }
+    if (Object.getOwnPropertyDescriptor(self, key)?.value === stop) delete self[key];
+  };
+  try {
+    Object.defineProperty(self, key, {value: stop, configurable: true});
+    Object.defineProperty(JSON, 'parse', {...parse, value: parsed});
+    Object.defineProperty(Response.prototype, 'json', {...body, value: decoded});
+    if (!Object.getOwnPropertyDescriptor(self, bootstrap)) {
+      Object.defineProperty(self, bootstrap, {
+        get: getBootstrap, set: setBootstrap, configurable: true, enumerable: true
+      });
+    }
+  } catch { stop(); }
+})
+)RAWSMW";
+  const blink::WebScriptSource sources[] = {blink::WebScriptSource(
+      blink::WebString::FromUtf8(base::StrCat(
+          {kPlayer, enabled ? "(true," : "(false,", "'https://m.youtube.com')"})))};
+  frame.RequestExecuteScript(
+      0, sources, blink::mojom::UserActivationOption::kDoNotActivate,
+      blink::mojom::EvaluationTiming::kSynchronous,
+      blink::mojom::LoadEventBlockingOption::kDoNotBlock,
+      blink::WebScriptExecutionCallback(), blink::BackForwardCacheAware::kAllow,
+      blink::mojom::WantResultOption::kNoResult,
+      blink::mojom::PromiseResultOption::kDoNotWait, blink::WebString());
+}
+}  // namespace
+#endif  // BUILDFLAG(IS_ANDROID)
+
+void ChromeRenderFrameObserver::ReadyToCommitNavigation(
+    WebDocumentLoader* document_loader) {
+#if BUILDFLAG(IS_ANDROID)
+  // DispatchDidCommitLoad reaches this renderer observer before Blink opens
+  // the response parser. This decision belongs to this exact loader.
+  if (document_loader && document_loader->RawSMobilePlayerFiltering() &&
+      render_frame()->IsMainFrame()) {
+    auto* frame = render_frame()->GetWebFrame();
+    if (frame && frame->GetDocumentLoader() == document_loader)
+      RunRawSMobilePlayerFiltering(*frame, /*enabled=*/true);
+  }
+#endif
+  // Execute cache clear operations that were postponed until a navigation
+  // event (including tab reload).
+  if (render_frame()->IsMainFrame() && web_cache_impl_)
+    web_cache_impl_->ExecutePendingClearCache();
+
+  // Dynamically instantiate TranslateAgent on-the-fly if this WebUI
+  // exceptionally requires it.
+  if (!translate_agent_ && render_frame()->IsMainFrame() && document_loader) {
+    GURL url = GURL(document_loader->GetUrl());
+    if (ShouldForceTranslateAgentCreation(url)) {
+      translate_agent_ = new translate::TranslateAgent(
+          render_frame(), ISOLATED_WORLD_ID_TRANSLATE);
+    }
+  }
+
+  // Let translate_agent do any preparatory work before the new document loads.
+  if (translate_agent_) {
+    translate_agent_->PrepareForNewDocument();
+  }
+}
+
+void ChromeRenderFrameObserver::DidSetPageLifecycleState(
+    blink::BFCacheStateChange bfcache_change) {
+  if (bfcache_change == blink::BFCacheStateChange::kRestoredFromBFCache &&
+      translate_agent_) {
+    translate_agent_->RenewPageRegistration();
+  }
+  if (bfcache_change == blink::BFCacheStateChange::kStoredToBFCache) {
+    // Reset actor state if entering the BFCache
+    page_stability_monitor_.reset();
+    tool_executor_.reset();
+
+    // Flush any remaining log entries which may have been added in the
+    // destructors above. Don't reset the actor journal since it is only created
+    // from the constructor.
+    actor_journal_->SendLogBuffer();
+  }
+}
+
+void ChromeRenderFrameObserver::DidFinishLoad() {
+  WebLocalFrame* frame = render_frame()->GetWebFrame();
+  // Don't do anything for subframes.
+  if (frame->Parent() || frame->IsInFencedFrameTree())
+    return;
+
+  GURL osdd_url = frame->GetDocument().OpenSearchDescriptionURL();
+  if (!osdd_url.is_empty()) {
+    mojo::Remote<chrome::mojom::OpenSearchDescriptionDocumentHandler>
+        osdd_handler;
+    render_frame()->GetBrowserInterfaceBroker().GetInterface(
+        osdd_handler.BindNewPipeAndPassReceiver());
+    osdd_handler->PageHasOpenSearchDescriptionDocument(
+        frame->GetDocument().Url(), osdd_url);
+  }
+}
+
+void ChromeRenderFrameObserver::DidCreateNewDocument() {
+#if BUILDFLAG(IS_ANDROID)
+  if (raws_color_renderer_) raws_color_renderer_->ResetForNewDocument();
+#endif
+#if BUILDFLAG(ENABLE_OFFLINE_PAGES)
+  DCHECK(render_frame());
+  if (!render_frame()->IsMainFrame())
+    return;
+
+  DCHECK(render_frame()->GetWebFrame());
+  blink::WebDocumentLoader* doc_loader =
+      render_frame()->GetWebFrame()->GetDocumentLoader();
+  DCHECK(doc_loader);
+
+  if (!doc_loader->HasBeenLoadedAsWebArchive())
+    return;
+
+  // Connect to Mojo service on browser to notify it of the page's archive
+  // properties.
+  mojo::AssociatedRemote<offline_pages::mojom::MhtmlPageNotifier>
+      mhtml_notifier;
+  render_frame()->GetRemoteAssociatedInterfaces()->GetInterface(
+      &mhtml_notifier);
+  DCHECK(mhtml_notifier);
+  blink::WebArchiveInfo info = doc_loader->GetArchiveInfo();
+
+  mhtml_notifier->NotifyMhtmlPageLoadAttempted(info.load_result, info.url,
+                                               info.date);
+#endif
+}
+
+void ChromeRenderFrameObserver::DidCommitProvisionalLoad(
+    ui::PageTransition transition) {
+  // Update crash keys on any frame transition, not just the main frame.
+  UpdateLoadedOriginCrashKeys();
+
+  WebLocalFrame* frame = render_frame()->GetWebFrame();
+
+  // Don't do anything for subframes.
+  if (frame->Parent())
+    return;
+
+  static crash_reporter::CrashKeyString<8> view_count_key("view-count");
+  view_count_key.Set(base::NumberToString(blink::WebView::GetWebViewCount()));
+
+#if !BUILDFLAG(IS_ANDROID)
+  if (render_frame()->GetEnabledBindings().HasAny(
+          content::kWebUIBindingsPolicySet)) {
+    for (const auto& script : webui_javascript_)
+      render_frame()->ExecuteJavaScript(script);
+    webui_javascript_.clear();
+  }
+#endif
+}
+
+void ChromeRenderFrameObserver::DidClearWindowObject() {
+#if BUILDFLAG(ENABLE_WEBUI_NTP)
+  if (process_state::IsInstantProcess()) {
+    SearchBoxExtension::Install(render_frame()->GetWebFrame());
+  }
+#endif
+
+#if !BUILDFLAG(IS_ANDROID)
+  // Install ReadAnythingAppController on render frames with the Read Anything
+  // url, which is chrome-untrusted. ReadAnythingAppController installs v8
+  // bindings in the chrome.readingMode namespace which are consumed by
+  // read_anything/app.ts, the resource of the Read Anything WebUI.
+  if (render_frame()->GetWebFrame()->GetDocument().Url() ==
+      chrome::kChromeUIUntrustedReadAnythingSidePanelURL) {
+    ReadAnythingAppController::Install(render_frame());
+  }
+#endif  // !BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(ENABLE_GUEST_VIEW) && !BUILDFLAG(ENABLE_EXTENSIONS_CORE)
+  guest_view::SlimWebViewBindings::MaybeInstall(*render_frame());
+#endif  // BUILDFLAG(ENABLE_GUEST_VIEW) && !BUILDFLAG(ENABLE_EXTENSIONS_CORE)
+}
+
+void ChromeRenderFrameObserver::DidCreateScriptContext(
+    v8::Local<v8::Context> context,
+    int32_t world_id) {
+  BenchmarkingBindings::InstallConditionally(context);
+  LoadTimesBindings::Install(context);
+#if BUILDFLAG(IS_ANDROID)
+  if (world_id == ISOLATED_WORLD_ID_CHROME_INTERNAL &&
+      render_frame()->IsMainFrame() && raws_color_renderer_) {
+    raws_color_renderer_->InstallIsolatedSelectionBinding(context);
+  }
+#endif
+}
+
+void ChromeRenderFrameObserver::DidMeaningfulLayout(
+    blink::WebMeaningfulLayout layout_type) {
+  CapturePageText(layout_type);
+}
+
+void ChromeRenderFrameObserver::OnDestruct() {
+  delete this;
+}
+
+void ChromeRenderFrameObserver::WillDetach(blink::DetachReason detach_reason) {
+#if BUILDFLAG(IS_ANDROID)
+  base::AutoLock auto_lock(GetFrameHeaderMapLock());
+  GetFrameHeaderMap().erase(
+      render_frame()->GetWebFrame()->GetLocalFrameToken());
+#endif
+}
+
+void ChromeRenderFrameObserver::SetWindowFeatures(
+    blink::mojom::WindowFeaturesPtr window_features) {
+  render_frame()->GetWebView()->SetWindowFeatures(
+      content::ConvertMojoWindowFeaturesToWebWindowFeatures(*window_features));
+}
+
+void ChromeRenderFrameObserver::ExecuteWebUIJavaScript(
+    const std::u16string& javascript) {
+#if !BUILDFLAG(IS_ANDROID)
+  webui_javascript_.push_back(javascript);
+#endif
+}
+
+void ChromeRenderFrameObserver::RequestImageForContextNode(
+    int32_t thumbnail_min_area_pixels,
+    const gfx::Size& thumbnail_max_size_pixels,
+    chrome::mojom::ImageFormat image_format,
+    int32_t quality,
+    RequestImageForContextNodeCallback callback) {
+  WebNode context_node = render_frame()->GetWebFrame()->ContextMenuImageNode();
+  std::vector<uint8_t> image_data;
+  gfx::Size original_size;
+  std::string mime_type;
+  std::vector<lens::mojom::LatencyLogPtr> latency_logs;
+
+  // Map for converting between multiple mojom ImageFormat structures to
+  // prevent a circular dependency (go/lens-logging-in-chromium)
+  // TODO(shivpatel): add default value UNKNOWN for if ImageFormat is updated
+  const std::map<chrome::mojom::ImageFormat, lens::mojom::ImageFormat>
+      image_format_conversion = {
+          {chrome::mojom::ImageFormat::ORIGINAL,
+           lens::mojom::ImageFormat::ORIGINAL},
+          {chrome::mojom::ImageFormat::PNG, lens::mojom::ImageFormat::PNG},
+          {chrome::mojom::ImageFormat::JPEG, lens::mojom::ImageFormat::JPEG},
+          {chrome::mojom::ImageFormat::WEBP, lens::mojom::ImageFormat::WEBP},
+      };
+
+  if (context_node.IsNull() || !context_node.IsElementNode()) {
+    // The downscaled size is the original size, since no downscaling was
+    // required.
+    std::move(callback).Run(image_data, original_size,
+                            /*downscaled_size=*/original_size, mime_type,
+                            std::move(latency_logs));
+    return;
+  }
+
+  WebElement web_element = context_node.To<WebElement>();
+  original_size = web_element.GetImageSize();
+  mime_type = web_element.ImageMimeType().Utf8();
+  bool needs_downscale = NeedsDownscale(
+      original_size, thumbnail_min_area_pixels, thumbnail_max_size_pixels);
+  bool needs_encode = NeedsEncodeImage(mime_type, image_format) ||
+                      IsAnimatedWebp(web_element.CopyOfImageData());
+  if (!needs_encode && !needs_downscale) {
+    image_data = web_element.CopyOfImageData();
+    // The downscaled size is the original size, since no downscaling was
+    // required.
+    std::move(callback).Run(std::move(image_data), original_size,
+                            /*downscaled_size=*/original_size, mime_type,
+                            std::move(latency_logs));
+    return;
+  }
+  SkBitmap image = web_element.ImageContents();
+  if (needs_downscale) {
+    latency_logs.push_back(lens::mojom::LatencyLog::New(
+        lens::mojom::Phase::DOWNSCALE_START, original_size, gfx::Size(),
+        image_format_conversion.at(image_format), base::Time::Now(),
+        /*encoded_size_bytes=*/0));
+  }
+  SkBitmap thumbnail =
+      Downscale(image, thumbnail_min_area_pixels, thumbnail_max_size_pixels);
+  gfx::Size downscaled_size = gfx::Size(thumbnail.width(), thumbnail.height());
+  if (needs_downscale) {
+    latency_logs.push_back(lens::mojom::LatencyLog::New(
+        lens::mojom::Phase::DOWNSCALE_END, original_size, downscaled_size,
+        image_format_conversion.at(image_format), base::Time::Now(),
+        /*encoded_size_bytes=*/0));
+  }
+
+  SkBitmap bitmap;
+  if (thumbnail.colorType() == kN32_SkColorType) {
+    bitmap = thumbnail;
+  } else {
+    SkImageInfo info = thumbnail.info().makeColorType(kN32_SkColorType);
+    if (bitmap.tryAllocPixels(info)) {
+      thumbnail.readPixels(info, bitmap.getPixels(), bitmap.rowBytes(), 0, 0);
+    }
+  }
+
+  if (image_format == chrome::mojom::ImageFormat::ORIGINAL) {
+    // ORIGINAL will only fall back to here if the image needs to downscale.
+    // Let's PNG downscale to PNG and JEPG downscale to JPEG.
+    if (mime_type == kImagePng) {
+      image_format = chrome::mojom::ImageFormat::PNG;
+    } else if (mime_type == kImageJpeg) {
+      image_format = chrome::mojom::ImageFormat::JPEG;
+    }
+  }
+
+  if (needs_encode) {
+    latency_logs.push_back(lens::mojom::LatencyLog::New(
+        lens::mojom::Phase::ENCODE_START, original_size, downscaled_size,
+        image_format_conversion.at(image_format), base::Time::Now(),
+        /*encoded_size_bytes=*/0));
+  }
+  std::optional<std::vector<uint8_t>> data;
+  switch (image_format) {
+    case chrome::mojom::ImageFormat::PNG:
+      data = gfx::PNGCodec::EncodeBGRASkBitmap(
+          bitmap, kDiscardTransparencyForContextMenu);
+      if (data) {
+        image_data.swap(data.value());
+        mime_type = kImagePng;
+      }
+      break;
+    case chrome::mojom::ImageFormat::WEBP:
+      data = gfx::WebpCodec::Encode(bitmap, quality);
+      if (data) {
+        image_data.swap(data.value());
+        mime_type = kImageWebp;
+      }
+      break;
+    case chrome::mojom::ImageFormat::ORIGINAL:
+    // Any format other than PNG and JPEG fall back to here.
+    case chrome::mojom::ImageFormat::JPEG:
+      data = gfx::JPEGCodec::Encode(bitmap, quality);
+      if (data) {
+        image_data.swap(data.value());
+        mime_type = kImageJpeg;
+      }
+      break;
+  }
+  if (needs_encode) {
+    latency_logs.push_back(lens::mojom::LatencyLog::New(
+        lens::mojom::Phase::ENCODE_END, original_size, downscaled_size,
+        image_format_conversion.at(image_format), base::Time::Now(),
+        sizeof(uint8_t) * image_data.size()));
+  }
+
+  std::move(callback).Run(image_data, original_size, downscaled_size, mime_type,
+                          std::move(latency_logs));
+}
+
+void ChromeRenderFrameObserver::RequestBitmapForContextNode(
+    RequestBitmapForContextNodeCallback callback) {
+  WebNode context_node = render_frame()->GetWebFrame()->ContextMenuImageNode();
+  SkBitmap image;
+  if (context_node.IsNull() || !context_node.IsElementNode()) {
+    std::move(callback).Run(image);
+    return;
+  }
+
+  WebElement web_element = context_node.To<WebElement>();
+  image = web_element.ImageContents();
+  std::move(callback).Run(image);
+}
+
+void ChromeRenderFrameObserver::RequestBitmapForContextNodeWithBoundsHint(
+    RequestBitmapForContextNodeWithBoundsHintCallback callback) {
+  WebNode context_node = render_frame()->GetWebFrame()->ContextMenuImageNode();
+  SkBitmap image;
+  gfx::Rect bounds;
+  if (context_node.IsNull() || !context_node.IsElementNode()) {
+    std::move(callback).Run(image, bounds);
+    return;
+  }
+
+  WebElement web_element = context_node.To<WebElement>();
+  image = web_element.ImageContents();
+  bounds = web_element.BoundsInWidget();
+  std::move(callback).Run(image, bounds);
+}
+
+void ChromeRenderFrameObserver::RequestBoundsHintForAllImages(
+    RequestBoundsHintForAllImagesCallback callback) {
+  std::vector<blink::WebElement> image_elements;
+  std::vector<gfx::Rect> all_bounds;
+  const blink::WebDocument doc = render_frame()->GetWebFrame()->GetDocument();
+  if (doc.IsNull() || doc.Body().IsNull()) {
+    return;
+  }
+  FindImageElements(doc.Body(), image_elements);
+
+  for (auto& element : image_elements) {
+    all_bounds.emplace_back(
+        render_frame()->ConvertViewportToWindow(element.BoundsInWidget()));
+  }
+  std::move(callback).Run(all_bounds);
+}
+
+// Depth-first search for recursively traversing DOM elements and pulling out
+// references for images.
+void ChromeRenderFrameObserver::FindImageElements(
+    blink::WebElement element,
+    std::vector<blink::WebElement>& images) {
+  if (element.ImageContents().isNull()) {
+    for (blink::WebNode child = element.FirstChild(); !child.IsNull();
+         child = child.NextSibling()) {
+      if (child.IsElementNode()) {
+        FindImageElements(child.To<blink::WebElement>(), images);
+      }
+    }
+  } else {
+    images.emplace_back(element);
+  }
+}
+
+void ChromeRenderFrameObserver::RequestReloadImageForContextNode() {
+  WebLocalFrame* frame = render_frame()->GetWebFrame();
+  // TODO(dglazkov): This code is clearly in the wrong place. Need
+  // to investigate what it is doing and fix (http://crbug.com/41250588).
+  WebNode context_node = frame->ContextMenuImageNode();
+  if (!context_node.IsNull()) {
+    frame->ReloadImage(context_node);
+  }
+}
+
+#if BUILDFLAG(IS_ANDROID)
+namespace {
+constexpr char kRawSDisableAmp[] = R"DISABLEAMP(
+// SPDX-License-Identifier: LGPL-3.0-only
+// RawS adapter derived from AdGuard Disable AMP v1.0.76 (AdguardTeam).
+// This source is embedded verbatim in a dedicated, unprivileged isolated world.
+// Original paste and candidate edits are retained in the corresponding source.
+(mode => {
+  'use strict';
+  const here = new URL(document.URL);
+  if (here.protocol !== 'https:' || here.username || here.password || here.port ||
+      window.top !== window.self || document.contentType !== 'text/html') return;
+  const host = here.hostname;
+  const path = here.pathname;
+  const excluded = new Set([
+    'translated.turbopages.org', 'www.eurasiantimes.com', 'www.orfonline.org',
+    'tehnichka.pro', 'www.teluguone.com', 'teluguone.com', 'www.onmanorama.com',
+    'xn----7sbbeeptbfadjdvm5ab9bqj.xn--p1ai', 'amp.dev'
+  ]);
+  if (excluded.has(host) ||
+      (host === 'yandex.ru' && path.startsWith('/turbo/s/terrnews.com/'))) return;
+
+  // Mirror user-script include routes, with the nested numeric amp leaf used
+  // by public Mint articles. A URL shape alone never triggers direct navigation.
+  const isAmpShape = u => u.hostname.startsWith('amp.') ||
+    u.hostname.endsWith('.cdn.ampproject.org') ||
+    /(?:\/amp(?:\/|$)|\/amp-[^/]+\/|\/amp-\d+\.html?$|\.amp|[-_]amp|=amp|[?&]amp|\/amp_articleshow\/|\/ampNews\/|\/NewsViewAmp\/|\/articleViewAmp|\/lite\/|\/articleAmp\/|\/\?noamp=)/.test(u.pathname + u.search);
+  const parse = value => {
+    if (typeof value !== 'string' || value.length > 4096) return null;
+    try {
+      const u = new URL(value);
+      if (u.protocol !== 'https:' || u.username || u.password || u.port ||
+          !u.hostname.includes('.') || !/[a-z]/i.test(u.hostname) ||
+          u.hostname.endsWith('.') || u.hostname.endsWith('.localhost') ||
+          u.hostname.startsWith('[') || /^\d+(\.\d+)+$/.test(u.hostname)) return null;
+      return u;
+    } catch { return null; }
+  };
+  const samePublisher = (from, to) => {
+    if (from.origin === to.origin) return true;
+    if (!from.hostname.startsWith('amp.')) return false;
+    const rest = from.hostname.slice(4);
+    return to.hostname === rest || to.hostname === 'www.' + rest;
+  };
+  const normal = candidate => {
+    const dst = parse(candidate);
+    if (!dst) return null;
+    if (dst.searchParams.has('amp')) dst.searchParams.delete('amp');
+    return isAmpShape(dst) ? null : dst;
+  };
+  if (mode === 3 || mode === 4) {
+    const explicit = mode === 3 && isAmpShape(here) &&
+        document.querySelector('script[src^="https://cdn.ampproject.org/"]');
+    const turbo = mode === 4 && ((host === 'yandex.ru' && path.startsWith('/turbo/')) ||
+        host.endsWith('.turbopages.org'));
+    if (explicit || turbo) {
+      const switcher = document.querySelector('#amp-mobile-version-switcher > a');
+      const links = document.querySelectorAll('head > link[rel="canonical"]');
+      const el = switcher || (links.length === 1 ? links[0] : null);
+      const dst = normal(el?.href);
+      if (dst && dst.href !== here.href &&
+          (samePublisher(here, dst) || (turbo && switcher &&
+              samePublisher(parse('https://' + (host === 'yandex.ru' ?
+                  path.split('/')[3] : host.slice(0, -'.turbopages.org'.length))) || here, dst)))) {
+        // Do not add a Back-loop entry; this is ordinary renderer navigation.
+        location.replace(dst.href);
+        return;
+      }
+    }
+    if (!isAmpShape(here) && !turbo) return;
+  }
+
+  const modified = new WeakSet();
+  let modifiedCount = 0;
+  const mapped = new WeakMap();
+  const observations = [];
+  const stripped = ['ping', 'data-ved', 'data-amp-cur', 'data-amp-title',
+                    'data-amp', 'data-amp-vgi', 'jsaction'];
+  const patch = (node, attr, value) => {
+    if (node.getAttribute(attr) === value) return;
+    if (!modified.has(node)) {
+      if (modifiedCount >= 4096) return;
+      modified.add(node);
+      modifiedCount++;
+    }
+    if (value === null) node.removeAttribute(attr); else node.setAttribute(attr, value);
+  };
+  // Accept only actual client AMP-cache encodings (no fuzzy host substrings).
+  const decodeCache = url => {
+    if (!url) return null;
+    if (url.hostname.endsWith('.cdn.ampproject.org') ||
+        url.hostname === 'cdn.ampproject.org') {
+      const m = /^\/(?:c|v|wp)\/s\/(.+)$/.exec(url.pathname);
+      return m ? parse('https://' + m[1] + url.search + url.hash) : null;
+    }
+    if (url.hostname.startsWith('amp.')) {
+      url.hostname = url.hostname.slice(4);
+      return url;
+    }
+    return parse(url.href.replace('?amp&', '?'));
+  };
+  const bindLink = (a, dst) => {
+    if (!dst || dst.href === a.href || a.hasAttribute('download') ||
+        ![null, '', '_self'].includes(a.getAttribute('target')) ||
+        (!modified.has(a) && modifiedCount >= 4096)) return;
+    patch(a, 'href', dst.href);
+    mapped.set(a, dst.href);
+    const logo = a.querySelector('[aria-label="AMP logo"], [aria-label="Logo AMP"]');
+    if (logo) patch(logo, 'hidden', '');
+  };
+  const news = a => {
+    const metadata = a.getAttribute('jslog') || '';
+    if (metadata.length > 8192) return;
+    const m = /^[^:]*:([^;]+); track:click,vis/.exec(metadata);
+    if (!m) return;
+    let list;
+    try { list = JSON.parse(atob(m[1].trim())); } catch { return; }
+    if (!Array.isArray(list) || list.length > 128) return;
+    const urls = list.map(parse).filter(Boolean);
+    const alt = urls.find(isAmpShape);
+    const dst = urls.find(u => !isAmpShape(u));
+    // The page supplies both links, but may not use this adapter to silently
+    // map a publisher AMP article to a totally unrelated host.
+    const unwrapped = decodeCache(alt);
+    if (alt && dst && (samePublisher(alt, dst) ||
+        (unwrapped && samePublisher(unwrapped, dst)))) bindLink(a, dst);
+  };
+  const searchShape = 'a[data-ved]:has(> div[class] > span + svg)';
+  const selector = mode === 1 ?
+      'a[data-amp],a[data-amp-vgi],a[data-amp-cdn],' + searchShape :
+                   mode === 2 ? 'a[jslog]' : 'a[data-amp-cdn]';
+  const boundAnchors = root => {
+    if (root.nodeType === 1 && root.matches(selector)) processAnchor(root);
+    // Query only bounded batch roots, not the full body on every mutation.
+    const all = root.querySelectorAll?.(selector);
+    if (all) for (let i = 0; i < Math.min(all.length, 4096); i++) processAnchor(all[i]);
+  };
+  function processAnchor(a) {
+    if (mode === 2) { news(a); return; }
+    if (a.hasAttribute('data-amp-cdn')) {
+      const old = parse(a.href);
+      const dst = decodeCache(old);
+      if (dst && !isAmpShape(dst)) bindLink(a, dst);
+    }
+    if (mode === 1) {
+      const isSearchShape = a.matches(searchShape);
+      if (isSearchShape || a.hasAttribute('data-amp') || a.hasAttribute('data-amp-vgi')) {
+        const previous = a.previousElementSibling;
+        for (const attr of stripped) patch(a, attr, null);
+        if (isSearchShape && previous?.matches('a[data-ved]')) {
+          for (const attr of stripped) patch(previous, attr, null);
+        }
+      }
+    }
+  }
+  const click = event => {
+    if (!event.isTrusted || event.defaultPrevented || event.button ||
+        event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+    const a = event.target?.closest?.('a');
+    const dst = a && mapped.get(a);
+    if (!dst || a.href !== dst || a.hasAttribute('download') ||
+        ![null, '', '_self'].includes(a.getAttribute('target'))) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    location.assign(dst);
+  };
+  const observer = new MutationObserver(records => {
+    if (observations.length >= 1024) return;
+    for (const record of records) {
+      if (observations.length >= 1024) break;
+      if (record.type === 'attributes') observations.push(record.target);
+      for (const node of record.addedNodes) {
+        if (observations.length >= 1024) break;
+        if (node.nodeType === 1) observations.push(node);
+      }
+    }
+    if (!queued && observations.length) queued = setTimeout(flush, 0);
+  });
+  let queued = 0;
+  function flush() {
+    queued = 0;
+    for (const node of observations.splice(0, 64)) if (node.isConnected) boundAnchors(node);
+    if (observations.length) queued = setTimeout(flush, 0);
+  }
+  boundAnchors(document);
+  document.addEventListener('click', click, true);
+  observer.observe(document, {childList: true, subtree: true, attributes: true,
+      attributeFilter: ['jslog', 'href', 'data-amp', 'data-amp-vgi', 'data-amp-cdn']});
+})
+)DISABLEAMP";
+}  // namespace
+
+void ChromeRenderFrameObserver::SetRawSDisableAmp(
+    const base::UnguessableToken& token,
+    const GURL& expected_url,
+    chrome::mojom::RawSDisableAmpMode mode) {
+  using Mode = chrome::mojom::RawSDisableAmpMode;
+  auto* frame = render_frame()->GetWebFrame();
+  if (!frame || !render_frame()->IsMainFrame() || frame->Parent() ||
+      frame->IsInFencedFrameTree() || frame->IsProvisional() ||
+      frame->GetEmbeddingToken() != token) {
+    return;
+  }
+  auto doc = frame->GetDocument();
+  if (doc.IsNull() || !doc.IsActive() || !doc.IsHTMLDocument() ||
+      !GURL(doc.Url()).SchemeIs(url::kHttpsScheme)) {
+    return;
+  }
+  if (GURL(doc.Url()) != expected_url ||
+      raws_disable_amp_document_ == token) {
+    return;
+  }
+  std::string_view invocation;
+  switch (mode) {
+    case Mode::kGoogleSearch: invocation = "(1)"; break;
+    case Mode::kGoogleNews: invocation = "(2)"; break;
+    case Mode::kPublisher: invocation = "(3)"; break;
+    case Mode::kTurbo: invocation = "(4)"; break;
+    case Mode::kOff: return;
+  }
+  raws_disable_amp_document_ = token;
+  frame->ExecuteScriptInIsolatedWorld(
+      ISOLATED_WORLD_ID_RAWS_DISABLE_AMP,
+      blink::WebScriptSource(
+          blink::WebString::FromUtf8(base::StrCat({kRawSDisableAmp, invocation}))),
+      blink::BackForwardCacheAware::kAllow);
+}
+
+void ChromeRenderFrameObserver::InstallRawSFullscreenPill(
+    const base::UnguessableToken& token,
+    const GURL& expected_url) {
+  auto* frame = render_frame()->GetWebFrame();
+  if (!frame || frame->IsInFencedFrameTree() || frame->IsProvisional() ||
+      frame->GetEmbeddingToken() != token) {
+    return;
+  }
+  const auto doc = frame->GetDocument();
+  if (doc.IsNull() || !doc.IsActive() || !doc.IsHTMLDocument() ||
+      !expected_url.SchemeIsHTTPOrHTTPS() || GURL(doc.Url()) != expected_url) {
+    return;
+  }
+  frame->ExecuteScriptInIsolatedWorld(
+      ISOLATED_WORLD_ID_RAWS_FULLSCREEN_PILL,
+      blink::WebScriptSource(blink::WebString::FromUtf8(R"RAWSVIDEO(// BSD-3-Clause. Runs only after a regular-profile active primary-page document admission.
+(() => {
+  'use strict';
+  if (globalThis.__rawsFullscreenPill || !/^https?:$/.test(location.protocol) ||
+      document.contentType !== 'text/html') return;
+  globalThis.__rawsFullscreenPill = true;
+
+  const limits = {depth: 6, roots: 32, videos: 64, total: 12000, frame: 320, retryMs: 2500};
+  const styles = `
+    :host { all:initial; position:fixed; pointer-events:none; display:none;
+      z-index:2147483000; font:500 13px system-ui,sans-serif; color-scheme:dark; }
+    button { appearance:none; pointer-events:auto; display:grid; place-items:center;
+      touch-action:manipulation; min-width:52px; min-height:48px; border-radius:24px;
+      color:#f1ddad; background:rgba(43,45,52,.55); border:1px solid #e9dcbb55;
+      box-shadow:0 4px 15px #0005; backdrop-filter:blur(12px);
+      font:600 25px system-ui,sans-serif; cursor:pointer; }
+    button:focus-visible { outline:2px solid #f3dfa0; outline-offset:1px; }`;
+  let running = false, frame = 0, clock = 0, host = null, video = null;
+  let observer = null, scan = null, refresh = false, generation = 0;
+  let videos = new Set(), roots = new Set();
+  let tapped = null, down = null;
+  // Respect the frame's delegated fullscreen permission. The standard trusted
+  // click / requestFullscreen path additionally enforces Chromium activation
+  // and sandbox policy, including nested cross-origin documents.
+  if (document.fullscreenEnabled === false) return;
+  const visible = v => {
+    if (!v.isConnected || v.closest('[hidden], [aria-hidden="true"]')) return null;
+    const r = v.getBoundingClientRect();
+    if (r.width < 140 || r.height < 80 || r.right <= 0 || r.bottom <= 0 ||
+        r.left >= innerWidth || r.top >= innerHeight) return null;
+    const style = getComputedStyle(v);
+    return style.display === 'none' || style.visibility === 'hidden' ||
+        Number(style.opacity) <= .05 ? null : r;
+  };
+  function hasMedia(v) {
+    return v.currentSrc || v.srcObject || v.src || v.firstElementChild?.localName === 'source' ||
+        v.poster || v.videoWidth > 0;
+  }
+  function videoAt(e) {
+    // Trust neither page attributes nor any cross-frame data. Open roots live
+    // in this document; do not traverse iframe DOM or retarget another frame.
+    const path = e.composedPath().slice(0, 24);
+    for (const candidate of path) {
+      if (candidate instanceof HTMLVideoElement && visible(candidate) && hasMedia(candidate)) {
+        return candidate;
+      }
+    }
+    if (path.some(node => node?.localName === 'raws-video-pill')) return null;
+    const interactive = 'a[href], button, input, select, textarea, summary, [role="button"], [role="link"]';
+    const interactiveTarget = path.find(node => node instanceof Element && node.matches(interactive));
+    const acceptsHit = (v, first) => (first && !interactiveTarget) || path.includes(playerContainer(v));
+    const hits = document.elementsFromPoint(e.clientX, e.clientY).slice(0, 12);
+    for (const [index, hit] of hits.entries()) {
+      if (hit.localName === 'iframe') break;
+      if (hit instanceof HTMLVideoElement && visible(hit) && hasMedia(hit) &&
+          acceptsHit(hit, index === 0)) return hit;
+      // On a shadow host, ask that open root for the actual hit (bounded).
+      let root = hit.shadowRoot;
+      for (let depth = 0; root && depth < 4; ++depth) {
+        const inner = root.elementFromPoint(e.clientX, e.clientY);
+        if (inner instanceof HTMLVideoElement && visible(inner) && hasMedia(inner) &&
+            acceptsHit(inner, index === 0)) return inner;
+        if (!inner || inner === root.host || inner.localName === 'iframe') break;
+        root = inner.shadowRoot;
+      }
+    }
+    // Overlay controls are often siblings of the video. Require a nearby
+    // matching player in the input path and an actual geometric overlap.
+    for (const candidate of videos) {
+      const r = visible(candidate), owner = playerContainer(candidate);
+      if (r && owner && path.includes(owner) && hasMedia(candidate) &&
+          e.clientX >= r.left && e.clientX < r.right && e.clientY >= r.top && e.clientY < r.bottom) {
+        return candidate;
+      }
+    }
+    return null;
+  }
+  function playerContainer(v) {
+    let parent = v.parentElement;
+    // An explicit, nearby player wrapper preserves the site's own UI. Do not
+    // fullscreen generic article wrappers or a container with another video.
+    for (let i = 0; parent && i < 4; ++i, parent = parent.parentElement) {
+      if (parent === document.body || parent === document.documentElement) break;
+      if (!parent.matches('[data-player], [data-plyr], .video-player, .player-container, ' +
+              '.html5-video-player, .video-js, .jwplayer, .plyr, .dplayer, .art-video-player, ' +
+              '.xgplayer, .shaka-video-container')) continue;
+      if (typeof parent.requestFullscreen !== 'function') continue;
+      const walker = document.createTreeWalker(parent, NodeFilter.SHOW_ELEMENT);
+      let lone = null;
+      // Be conservative about shadow trees and nested browsing contexts in
+      // the wrapper; choosing the bare video avoids fullscreening other media.
+      for (let work = 0; work < 128; work++) {
+        const node = walker.nextNode();
+        if (!node) { if (lone === v) return parent; break; }
+        if (node.shadowRoot || node.localName === 'iframe' || node.localName === 'audio') break;
+        if (node instanceof HTMLVideoElement) {
+          if (lone || node !== v) break;
+          lone = node;
+        }
+      }
+    }
+    return null;
+  }
+  function ensureHost() {
+    if (host?.isConnected || !document.documentElement) return;
+    host = document.createElement('raws-video-pill');
+    const shadow = host.attachShadow({mode:'closed'});
+    const style = document.createElement('style');
+    style.textContent = styles;
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.textContent = '⛶';
+    button.title = 'Fullscreen video';
+    button.setAttribute('aria-label', 'Fullscreen video');
+    // Bind touch to the video shown under the pill when the press began.
+    // Media events or feed recycling can change the choice before click.
+    let pressedVideo = null;
+    let pressedGeneration = -1;
+    button.addEventListener('pointerdown', e => {
+      if (!e.isTrusted || !e.isPrimary || e.button !== 0) return;
+      pressedVideo = video;
+      pressedGeneration = generation;
+    });
+    button.addEventListener('pointercancel', () => {
+      pressedVideo = null;
+      pressedGeneration = -1;
+    });
+    button.addEventListener('click', e => {
+      e.preventDefault(); e.stopImmediatePropagation();
+      if (!e.isTrusted || !running) return;
+      // Keyboard and assistive-technology clicks need no pointer snapshot.
+      const selected = e.detail > 0 && pressedGeneration === generation ? pressedVideo : video;
+      pressedVideo = null;
+      pressedGeneration = -1;
+      void enterFullscreen(selected);
+    });
+    shadow.append(style, button);
+    document.documentElement.append(host);
+  }
+  function layout() {
+    refresh = false;
+    ensureHost();
+    if (!host) return;
+    let best = null, bestRect, bestScore = 0;
+    for (const v of videos) {
+      const r = visible(v);
+      if (!r || !hasMedia(v)) continue;
+      const w = Math.max(0, Math.min(innerWidth, r.right) - Math.max(0, r.left));
+      const h = Math.max(0, Math.min(innerHeight, r.bottom) - Math.max(0, r.top));
+      const short = Number.isFinite(v.duration) && v.duration > 0 && v.duration <= 30;
+      const playing = !v.paused && !v.ended && v.currentTime > 0;
+      const score = w * h * (playing ? 1.5 : 1) * (short ? .25 : 1) *
+          (v === video ? 1.06 : 1);
+      if (score > bestScore) { best = v; bestRect = r; bestScore = score; }
+    }
+    // Honor the most recent direct interaction while that player is visible.
+    const tappedRect = tapped && visible(tapped);
+    if (tappedRect && hasMedia(tapped)) { best = tapped; bestRect = tappedRect; }
+    if (tapped && !tapped.isConnected) tapped = null;
+    video = best;
+    if (!best || document.fullscreenElement || document.webkitFullscreenElement) {
+      host.style.display = 'none'; return;
+    }
+    host.style.left = `${Math.round(Math.max(6, Math.min(innerWidth - 58, bestRect.right - 58)))}px`;
+    const y = bestRect.bottom + 5 <= innerHeight - 56 ? bestRect.bottom + 5 : bestRect.bottom - 55;
+    host.style.top = `${Math.round(Math.max(6, Math.min(innerHeight - 55, y)))}px`;
+    host.style.display = 'block';
+  }
+  async function enterFullscreen(selected) {
+    const requestedGeneration = generation;
+    if (!selected || !visible(selected) || !hasMedia(selected) ||
+        document.fullscreenElement) return;
+    // Intrinsic media dimensions only. Leave Chrome's orientation unchanged
+    // when metadata is absent, square, or device orientation policy denies lock.
+    const width = selected.videoWidth, height = selected.videoHeight;
+    const orientation = width && height && width !== height
+        ? (width > height ? 'landscape' : 'portrait') : null;
+    try {
+      const wanted = playerContainer(selected) || selected;
+      if (!document.fullscreenEnabled || typeof wanted.requestFullscreen !== 'function') return;
+      // Exactly one request per trusted click. If policy disallows it or
+      // activation expires, leave the site alone rather than force fullscreen.
+      await wanted.requestFullscreen({navigationUI:'hide'});
+      if (running && generation === requestedGeneration && selected.isConnected &&
+          wanted.getRootNode().fullscreenElement === wanted && orientation &&
+          typeof screen.orientation?.lock === 'function') {
+        await screen.orientation.lock(orientation);
+      }
+    } catch (_) { /* Keep native site controls/orientation if denied. */ }
+    scheduleLayout();
+  }
+  function observe(root) {
+    observer?.observe(root, {subtree:true,childList:true,attributes:true,
+      attributeFilter:['src','poster','hidden','style','class','aria-hidden']});
+  }
+  function beginScan() {
+    if (!running || scan || !document.documentElement ||
+        (window !== top && (innerWidth < 140 || innerHeight < 80))) return;
+    scan = {count:0, nextVideos:new Set(), nextRoots:new Set(),
+      todo:[{walker:document.createTreeWalker(document, NodeFilter.SHOW_ELEMENT),depth:0}]};
+    scheduleFrame();
+  }
+  function scanFrame() {
+    const s = scan;
+    if (!s) return;
+    for (let n = 0; n < limits.frame && s.count < limits.total && s.todo.length; ++n) {
+      const current = s.todo.at(-1);
+      const node = current.walker.nextNode();
+      if (!node) { s.todo.pop(); continue; }
+      ++s.count;
+      if (node.localName === 'video' && node instanceof HTMLVideoElement &&
+          s.nextVideos.size < limits.videos) s.nextVideos.add(node);
+      const shadow = node.shadowRoot;
+      if (shadow && current.depth < limits.depth && s.nextRoots.size < limits.roots) {
+        s.nextRoots.add(shadow);
+        if (!roots.has(shadow)) observe(shadow);
+        s.todo.push({walker:document.createTreeWalker(shadow, NodeFilter.SHOW_ELEMENT),
+          depth:current.depth + 1});
+      }
+    }
+    if (s.todo.length && s.count < limits.total) return;
+    videos = s.nextVideos; roots = s.nextRoots; scan = null; refresh = true;
+    // Drop observers for detached/replaced shadow trees.
+    observer?.disconnect();
+    observe(document); for (const root of roots) observe(root);
+  }
+  function scheduleFrame() {
+    if (!running || frame) return;
+    const queuedGeneration = generation;
+    frame = requestAnimationFrame(() => {
+      if (generation !== queuedGeneration) return;
+      frame = 0;
+      if (!running) return;
+      scanFrame();
+      if (refresh) layout();
+      if (scan) scheduleFrame();
+    });
+  }
+  function scheduleLayout() { if (running) { refresh = true; scheduleFrame(); } }
+  function start() {
+    if (running || document.hidden || !document.documentElement) return;
+    running = true;
+    const observerGeneration = ++generation;
+    observer = new MutationObserver(records => {
+      if (!running || generation !== observerGeneration) return;
+      // Ignore only our own host changes, not publisher DOM updates. A capped
+      // prefix keeps heavy mutation bursts bounded; the periodic scan catches misses.
+      for (let i = 0; i < Math.min(records.length, 64); i++) {
+        if (records[i].target === host) continue;
+        if (records[i].type === 'childList') { beginScan(); return; }
+        scheduleLayout();
+      }
+    });
+    observe(document);
+    beginScan();
+    // A mutation, media event or viewport resize triggers discovery in
+    // embeds. Only the primary page does periodic late-shadow discovery.
+    if (window === top) clock = setInterval(beginScan, limits.retryMs);
+  }
+  function stop() {
+    running = false; // Set BEFORE cancelling: stale callbacks cannot recreate host.
+    ++generation;
+    observer?.disconnect(); observer = null;
+    if (frame) cancelAnimationFrame(frame);
+    clearInterval(clock);
+    frame = clock = 0; refresh = false; scan = null;
+    videos.clear(); roots.clear(); video = null; tapped = null; down = null;
+    host?.remove(); host = null;
+  }
+  // A page press remains a page press: no preventDefault, propagation stop,
+  // synthetic click, or drag interception. Commit only a short trusted tap.
+  addEventListener('pointerdown', e => {
+    if (running && e.isTrusted && e.isPrimary && e.button === 0 &&
+        !document.fullscreenElement) {
+      down = {id:e.pointerId, x:e.clientX, y:e.clientY, target:videoAt(e), time:performance.now()};
+    }
+  }, {capture:true,passive:true});
+  addEventListener('pointerup', e => {
+    const press = down;
+    if (!e.isTrusted || !press || press.id !== e.pointerId) return;
+    down = null;
+    if (running && press.target && performance.now() - press.time < 500 &&
+        Math.hypot(press.x - e.clientX, press.y - e.clientY) < 12 &&
+        videoAt(e) === press.target) {
+      tapped = press.target;
+      scheduleLayout();
+    }
+  }, {capture:true,passive:true});
+  addEventListener('pointercancel', e => {
+    if (e.isTrusted && down?.id === e.pointerId) down = null;
+  }, {capture:true,passive:true});
+  let hiddenForPage = false;
+  addEventListener('pagehide', () => { hiddenForPage = true; stop(); });
+  addEventListener('pageshow', () => { hiddenForPage = false; start(); });
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden || hiddenForPage) stop(); else start();
+  });
+  for (const name of ['play','pause','loadedmetadata','emptied','fullscreenchange',
+                      'webkitbeginfullscreen','webkitendfullscreen','resize','scroll']) {
+    addEventListener(name, () => {
+      if (name === 'resize' || name === 'loadedmetadata' || name === 'play') beginScan();
+      scheduleLayout();
+    }, {capture:true,passive:true});
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => { if (!hiddenForPage) start(); }, {once:true});
+  } else { start(); }
+})();
+)RAWSVIDEO")),
+      blink::BackForwardCacheAware::kAllow);
+}
+
+void ChromeRenderFrameObserver::StopRawSMobilePlayerFiltering(
+    const base::UnguessableToken& token) {
+  auto* frame = render_frame()->GetWebFrame();
+  if (frame && render_frame()->IsMainFrame() &&
+      frame->GetEmbeddingToken() == token &&
+      frame->GetDocumentLoader() &&
+      frame->GetDocumentLoader()->RawSMobilePlayerFiltering()) {
+    RunRawSMobilePlayerFiltering(*frame, /*enabled=*/false);
+  }
+}
+
+void ChromeRenderFrameObserver::RunRawSReviewedPassiveScriptlets(
+    const base::UnguessableToken& token,
+    const GURL& expected_url,
+    uint32_t programs) {
+  namespace passive = ::raws::passive_scriptlets;
+  auto* frame = render_frame()->GetWebFrame();
+  if (!frame || !render_frame()->IsMainFrame() || frame->Parent() ||
+      frame->IsInFencedFrameTree() || frame->IsProvisional() ||
+      frame->GetEmbeddingToken() != token ||
+      raws_passive_scriptlet_document_ == token ||
+      !passive::ValidPrograms(programs)) {
+    return;
+  }
+  const auto doc = frame->GetDocument();
+  if (doc.IsNull() || !doc.IsActive() || !doc.IsHTMLDocument() ||
+      !doc.IsSecureContext() || doc.GetSecurityOrigin().IsOpaque() ||
+      GURL(doc.Url()) != expected_url || !expected_url.SchemeIs("https")) {
+    return;
+  }
+  raws_passive_scriptlet_document_ = token;
+  std::string fixed_code;
+  if (programs & 1u)
+    fixed_code.append(passive::kRemovePopunderUrl);
+  if (programs & 2u)
+    fixed_code.append(passive::kRemoveAdCounter);
+  // One JS entry even with both bits. Never use the frame pointer again after
+  // running Blink script, which may arrange page lifecycle callbacks.
+  frame->ExecuteScriptInIsolatedWorld(
+      ISOLATED_WORLD_ID_RAWS_PASSIVE_SCRIPTLETS,
+      blink::WebScriptSource(blink::WebString::FromUtf8(fixed_code)),
+      blink::BackForwardCacheAware::kAllow);
+}
+
+void ChromeRenderFrameObserver::SetRawSPassiveProcedures(
+    const base::UnguessableToken& token, const GURL& expected,
+    const std::string& verified_data) {
+  auto* frame = render_frame()->GetWebFrame();
+  if (!frame || !render_frame()->IsMainFrame() || frame->Parent() ||
+      frame->IsProvisional() || frame->IsInFencedFrameTree() ||
+      frame->GetEmbeddingToken() != token || verified_data.size() > 16 * 1024)
+    return;
+  auto doc = frame->GetDocument();
+  if (doc.IsNull() || !doc.IsActive() || !doc.IsHTMLDocument() ||
+      GURL(doc.Url()) != expected || !expected.SchemeIs("https")) return;
+  const auto key = blink::WebString::FromUtf8("raws-passive-procedural-v1");
+  doc.RemoveInsertedStyleSheet(key, blink::WebCssOrigin::kUser);
+  std::string quoted_data, quoted_url;
+  if (!base::EscapeJSONString(verified_data, true, &quoted_data) ||
+      !base::EscapeJSONString(expected.spec(), true, &quoted_url)) return;
+  const auto nonce =
+      base::ToUpperASCII(base::UnguessableToken::Create().ToString());
+  if (!verified_data.empty()) {
+    doc.InsertStyleSheet(blink::WebString::FromUtf8(base::StrCat(
+        {"[data-raws-passive-ad=\"", nonce,
+         "\"]:not(:has(form,button,input,select,textarea,iframe,dialog,"
+         "[aria-modal],[contenteditable])){display:none!important;}"})),
+        &key, blink::WebCssOrigin::kUser);
+  }
+  // Escape both data inputs as string literals. The executable program and
+  // native CSS are fixed; isolated world exposes no function to the page.
+  auto source = base::StrCat({::raws::cosmetic::kRawSPassiveProceduralRuntime,
+                             "(", ::raws::cosmetic::kRawSDynamicCosmeticScheduler,
+                             ",", quoted_data, ",", quoted_url, ",\"", nonce, "\")"});
+  frame->ExecuteScriptInIsolatedWorld(
+      ISOLATED_WORLD_ID_RAWS_PASSIVE_SCRIPTLETS,
+      blink::WebScriptSource(blink::WebString::FromUtf8(source)),
+      blink::BackForwardCacheAware::kAllow);
+}
+
+void ChromeRenderFrameObserver::SetRawSProceduralCosmetic(
+    const base::UnguessableToken& token, uint32_t audited_rule) {
+  namespace cosmetic = ::raws::cosmetic;
+  auto* frame = render_frame()->GetWebFrame();
+  if (!frame || frame->Parent() || frame->IsInFencedFrameTree() ||
+      frame->IsProvisional() || frame->GetEmbeddingToken() != token)
+    return;
+  auto doc = frame->GetDocument();
+  if (doc.IsNull() || !doc.IsActive() || !doc.IsHTMLDocument()) return;
+
+  // Use a separate user-origin key; no other ad rules or site DOM are altered.
+  const auto key = blink::WebString::FromUtf8("raws-procedural-cosmetic-v1");
+  doc.RemoveInsertedStyleSheet(key, blink::WebCssOrigin::kUser);
+  std::string script = cosmetic::kStopRawSProceduralCosmetic;
+  if (audited_rule == cosmetic::kAmazonSearchSponsoredCard &&
+      cosmetic::RuleForDocument(GURL(doc.Url())) == audited_rule) {
+    // Blink receives only compiled text plus this random upper-hex token.
+    // Publisher DOM, search strings and filter lists cannot become JS or CSS.
+    const auto nonce = base::UnguessableToken::Create().ToString();
+    script = base::StrCat({cosmetic::kRawSProcedureCallBefore,
+                           cosmetic::kRawSDynamicCosmeticScheduler, ",",
+                           cosmetic::kRawSProceduralCosmeticMatcher, ",",
+                           cosmetic::kAmazonRuleConfig, ",\"", nonce,
+                           cosmetic::kRawSProcedureCallAfter});
+    doc.InsertStyleSheet(
+        blink::WebString::FromUtf8(
+            base::StrCat({cosmetic::kAmazonRuleCssBeforeNonce, nonce,
+                          cosmetic::kAmazonRuleCssAfterNonce})),
+        &key, blink::WebCssOrigin::kUser);
+  }
+  const blink::WebScriptSource sources[] = {
+      blink::WebScriptSource(blink::WebString::FromUtf8(script))};
+  frame->RequestExecuteScript(
+      ISOLATED_WORLD_ID_CHROME_INTERNAL, sources,
+      blink::mojom::UserActivationOption::kDoNotActivate,
+      blink::mojom::EvaluationTiming::kAsynchronous,
+      blink::mojom::LoadEventBlockingOption::kDoNotBlock,
+      blink::WebScriptExecutionCallback(), blink::BackForwardCacheAware::kAllow,
+      blink::mojom::WantResultOption::kNoResult,
+      blink::mojom::PromiseResultOption::kDoNotWait, blink::WebString());
+}
+
+namespace {
+constexpr char kRawSGenericDiscoveryRound[] = R"RAWSGEN(
+(() => {
+  // A packaged Chrome-private script. It reads only the bounded attributes
+  // needed for exact class/ID lookup. No styles, network, DOM changes, or
+  // application-provided code/data enter this script.
+  const key = '__rawsGenericDiscoveryV1';
+  const protectedAttributes = ['role', 'tabindex', 'contenteditable'];
+  const valid = /^[A-Za-z_][A-Za-z0-9_-]{0,63}$/;
+  if (document.hidden) return '';
+  // Parser body may not yet be ready; allow a bounded follow-up.
+  if (!document.body || !document.documentElement) return '1';
+  if (!globalThis[key]) {
+    const pendingLimit = 128;
+    const seenLimit = 4096;
+    const maxDepth = 32;
+    const subtree = root => [{node: root, root: true}];
+    const state = {
+      body: document.body,
+      start: subtree(document.body),
+      active: null,
+      pending: [],
+      queued: new WeakSet(),
+      seen: new Set(),
+      overflow: false,
+      stopped: false,
+      observer: null,
+      timer: null
+    };
+    const enqueue = node => {
+      if (!node || node.nodeType !== 1 || !node.isConnected ||
+          state.queued.has(node)) return;
+      if (state.pending.length >= pendingLimit) {
+        state.overflow = true;
+        return;
+      }
+      state.pending.push(node);
+      state.queued.add(node);
+    };
+    state.stop = () => {
+      if (state.stopped) return;
+      state.stopped = true;
+      state.observer.disconnect();
+      clearTimeout(state.timer);
+      removeEventListener('pagehide', state.stop, true);
+      document.removeEventListener('visibilitychange', state.onVisibility);
+      state.pending.length = 0;
+      state.start.length = 0;
+      state.active = null;
+      state.seen.clear();
+      // Leave a tombstone until browser-owned Cancel explicitly resets it.
+      // A late browser round cannot restart observation after expiry/pagehide.
+    };
+    state.onVisibility = () => {
+      if (document.hidden) state.stop();
+    };
+    state.observer = new MutationObserver(records => {
+      if (state.stopped) return;
+      if (document.hidden) {
+        state.stop();
+        return;
+      }
+      let visited = 0;
+      for (const record of records) {
+        if (++visited > pendingLimit) {
+          state.overflow = true;
+          break;
+        }
+        if (record.type === 'attributes') {
+          const name = record.attributeName;
+          // Revisit unchanged class/ID keys if a previously guarded subtree
+          // becomes eligible. Read only presence of the existing guards.
+          // Current-state, subtree, and ancestry validation still run at
+          // discovery time. Additions or value changes do not requeue.
+          if (name === 'class' || name === 'id' ||
+              (protectedAttributes.includes(name) &&
+               !record.target.hasAttribute(name))) {
+            enqueue(record.target);
+          }
+        } else {
+          for (let i = 0; i < record.addedNodes.length; ++i) {
+            if (++visited > pendingLimit) {
+              state.overflow = true;
+              break;
+            }
+            enqueue(record.addedNodes[i]);
+          }
+        }
+      }
+    });
+    state.observer.observe(document.documentElement, {
+      subtree: true, childList: true, attributes: true,
+      attributeFilter: ['class', 'id', ...protectedAttributes]
+    });
+    addEventListener('pagehide', state.stop, true);
+    document.addEventListener('visibilitychange', state.onVisibility);
+    state.timer = setTimeout(state.stop, 30000);
+    globalThis[key] = state;
+  }
+  const s = globalThis[key];
+  if (s.stopped) return '0';
+  if (s.body !== document.body) {
+    // Body replacement is uncommon but should not keep scanning detached DOM.
+    s.body = document.body;
+    s.start = [{node: s.body, root: true}];
+    s.active = null;
+  }
+  const protectedTags = new Set([
+    'form', 'dialog', 'input', 'textarea', 'button', 'a', 'select', 'iframe',
+    'video', 'audio'
+  ]);
+  const protectedElement = e => protectedTags.has(e.localName) ||
+    e.hasAttribute('role') || e.hasAttribute('tabindex') ||
+    e.hasAttribute('contenteditable');
+  const allowedLateRoot = e => {
+    let p = e;
+    let depth = 0;
+    while (p && depth++ < 32) {
+      if (protectedElement(p)) return false;
+      if (p === document.body) return true;
+      p = p.parentElement;
+    }
+    return false;
+  };
+  // A retained cursor may have been moved beneath a newly protected
+  // ancestor since the previous round. Each saved level points into one
+  // sibling sequence; discard blocked levels without reading their keys.
+  const pruneBlockedCursors = stack => {
+    while (stack?.length) {
+      const node = stack[stack.length - 1].node;
+      if (node === document.body ||
+          (node?.isConnected && allowedLateRoot(node.parentElement))) return;
+      stack.pop();
+    }
+  };
+  pruneBlockedCursors(s.start);
+  pruneBlockedCursors(s.active);
+  const batch = [];
+  const maxKeys = 64;
+  const maxNodes = 160;
+  const queue = (kind, token) => {
+    if (batch.length >= maxKeys || s.seen.size >= 4096 ||
+        !valid.test(token)) return false;
+    const entry = kind + token;
+    if (!s.seen.has(entry)) {
+      batch.push(entry);
+      s.seen.add(entry);
+    }
+    return true;
+  };
+  const attrs = e => {
+    const id = e.getAttribute('id');
+    if (id && id.length <= 64 && !queue('#', id) && batch.length >= maxKeys)
+      return false;
+    const cls = e.getAttribute('class');
+    if (!cls || cls.length > 2048) return true;
+    for (const token of cls.split(/[ \t\n\r\f]+/)) {
+      if (!queue('.', token) && batch.length >= maxKeys) return false;
+    }
+    return true;
+  };
+  const walkOne = stack => {
+    const top = stack[stack.length - 1];
+    const e = top.node;
+    if (!e) {
+      stack.pop();
+      return true;
+    }
+    const safe = e.isConnected && !protectedElement(e);
+    if (safe && e !== document.body && !attrs(e)) return false;
+    top.node = top.root ? null : e.nextElementSibling;
+    if (safe && e.firstElementChild && stack.length < 32) {
+      stack.push({node: e.firstElementChild, root: false});
+    }
+    return true;
+  };
+  let initialBudget = 100;
+  for (let worked = 0; worked < maxNodes && batch.length < maxKeys; ++worked) {
+    if (s.start.length && (initialBudget-- > 0 || (!s.active && !s.pending.length))) {
+      if (!walkOne(s.start)) break;
+      continue;
+    }
+    if (s.active?.length) {
+      if (!walkOne(s.active)) break;
+      continue;
+    }
+    s.active = null;
+    if (s.pending.length) {
+      const root = s.pending.shift();
+      s.queued.delete(root);
+      if (root.isConnected && allowedLateRoot(root)) {
+        s.active = [{node: root, root: true}];
+      }
+      continue;
+    }
+    if (!s.start.length && s.overflow) {
+      // Backpressure: drain bounded queues before an incremental repair scan.
+      // Deduplication survives the repair, so it does not flood the browser.
+      s.overflow = false;
+      s.start = [{node: s.body, root: true}];
+      initialBudget = 100;
+      continue;
+    }
+    break;
+  }
+  const more = s.start.length || s.active?.length || s.pending.length || s.overflow;
+  if (s.seen.size >= 4096) s.stop();
+  return (s.stopped ? '0' : more ? '2' : '1') +
+      (batch.length ? '\n' + batch.join('\n') : '');
+})()
+)RAWSGEN";
+}  // namespace
+
+namespace {
+constexpr size_t kRawSGenericRecords = 64;
+constexpr size_t kRawSGenericToken = 64;
+constexpr size_t kRawSGenericRecord = 1 + kRawSGenericToken;
+constexpr size_t kRawSGenericHeader = 2;
+constexpr size_t kRawSGenericWire =
+    kRawSGenericHeader + kRawSGenericRecords * kRawSGenericRecord;
+
+bool IsRawSGenericDiscoveryKey(std::string_view key) {
+  const auto initial = [](char c) {
+    return (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || c == '_';
+  };
+  return key.size() >= 2 && key.size() <= kRawSGenericRecord &&
+         (key[0] == '.' || key[0] == '#') && initial(key[1]) &&
+         std::all_of(key.begin() + 2, key.end(), [&](char c) {
+           return initial(c) || (c >= '0' && c <= '9') || c == '-';
+         });
+}
+
+std::vector<uint8_t> PackRawSGenericDiscoveryRound(std::string_view text) {
+  // Browser must independently validate this canonical fixed-size wire before
+  // using keys. Neither the JS nor native renderer is a trusted authority.
+  std::vector<uint8_t> wire(kRawSGenericWire);
+  const auto reject = [] { return std::vector<uint8_t>(kRawSGenericWire); };
+  constexpr size_t kMaxText = 1 + kRawSGenericRecords * (1 + kRawSGenericRecord);
+  if (text.empty() || text.size() > kMaxText ||
+      text[0] < '0' || text[0] > '2') {
+    return wire;
+  }
+  wire[0] = static_cast<uint8_t>(text[0] - '0');
+  text.remove_prefix(1);
+  std::set<std::string_view> used;
+  while (!text.empty()) {
+    if (text[0] != '\n' || wire[1] >= kRawSGenericRecords) return reject();
+    text.remove_prefix(1);
+    const auto next = text.find('\n');
+    const auto key = text.substr(0, next);
+    if (!IsRawSGenericDiscoveryKey(key) || !used.insert(key).second)
+      return reject();
+    const size_t pos =
+        kRawSGenericHeader + wire[1] * kRawSGenericRecord;
+    for (size_t i = 0; i < key.size(); ++i)
+      wire[pos + i] = static_cast<uint8_t>(key[i]);
+    ++wire[1];
+    text.remove_prefix(key.size());
+  }
+  return wire;
+}
+
+std::optional<std::string> RawSGuardObservedGenericStyle(std::string_view css) {
+  namespace packing = ::sandium::adblock_native::observed_cosmetic;
+  // Keep the canonical grammar in lockstep with the native worker: each
+  // key has matched an admitted engine against the current document's typed
+  // batch. Like #1442 On/Aggressive, match nonempty containers as well. No
+  // website text, ad-vendor heuristics, selectors, or script are executed.
+  constexpr std::string_view kDeclaration = " { display:none !important; }\n";
+  constexpr std::string_view kEligible = ":where(div,aside,section,ins)";
+  // RawS intentionally retains stronger explicit content/interaction guards
+  // than the donor's unqualified CSS. Marker terms refer only to tag names
+  // and authored attributes, not rendered text or targeted-site names.
+  constexpr std::string_view kContent =
+      ":is(article,main,header,footer,nav,h1,h2,h3,h4,h5,h6,p,pre,"
+      "blockquote,ol,ul,table,figure,figcaption,img,picture,svg,canvas,iframe,"
+      "frame,embed,object,[aria-modal],[aria-live])";
+  constexpr std::string_view kAccess =
+      ":is([class*=\"paywall\" i],[id*=\"paywall\" i],"
+      "[class*=\"checkout\" i],[id*=\"checkout\" i],"
+      "[class*=\"consent\" i],[id*=\"consent\" i],"
+      "[class*=\"subscription\" i],[id*=\"subscription\" i],"
+      "[class*=\"subscribe\" i],[id*=\"subscribe\" i],"
+      "[class*=\"sign-in\" i],[id*=\"sign-in\" i],"
+      "[class*=\"login\" i],[id*=\"login\" i])";
+  constexpr std::string_view kInteractive =
+      ":is(a,button,dialog,details,summary,form,fieldset,input,textarea,"
+      "select,label,video,audio,[role],[tabindex],[contenteditable],[inert],"
+      "[aria-label],[aria-labelledby],[aria-describedby],[aria-expanded],"
+      "[aria-controls],[onclick],[onkeydown],[onkeyup],[onpointerdown],"
+      "[onpointerup])";
+  constexpr size_t kOutputBudget = 512 * 1024;
+  constexpr size_t kMaximumGuardBytes = 64 + kEligible.size() +
+      3 * kInteractive.size() + 3 * kAccess.size() + 2 * kContent.size() +
+      kDeclaration.size();
+  constexpr size_t kMaxGroups =
+      (packing::kSelectorCountBudget + packing::kSelectorGroupSize - 1) /
+          packing::kSelectorGroupSize + packing::kSpecificityBuckets - 1;
+  // Every well-formed browser accumulation has room for all wrappers.
+  static_assert(packing::kRawSelectorByteBudget + kMaxGroups * kMaximumGuardBytes
+                <= kOutputBudget);
+  if (css.size() > packing::kRawSelectorByteBudget) return std::nullopt;
+  std::string out;
+  while (!css.empty()) {
+    const size_t end = css.find(kDeclaration);
+    if (end == std::string_view::npos || !end) return std::nullopt;
+    const std::string_view group = css.substr(0, end);
+    std::string_view keys = group;
+    size_t count = 0;
+    std::optional<size_t> specificity_bucket;
+    while (true) {
+      const size_t comma = keys.find(',');
+      const auto key = keys.substr(0, comma);
+      if (++count > packing::kSelectorGroupSize ||
+          (!IsRawSGenericDiscoveryKey(key) &&
+           packing::AdConjunctionKey(key).empty())) return std::nullopt;
+      const size_t bucket = packing::SpecificityBucket(key);
+      if (specificity_bucket && *specificity_bucket != bucket)
+        return std::nullopt;
+      specificity_bucket = bucket;
+      if (comma == std::string_view::npos) break;
+      keys.remove_prefix(comma + 1);
+    }
+    // Fixed wrappers plus explicit disallowed ancestors/descendants are
+    // bounded before any stylesheet bytes are appended.
+    if (out.size() + group.size() + kMaximumGuardBytes > kOutputBudget) {
+      return std::nullopt;
+    }
+    out.append(":is(").append(group).append(")").append(kEligible);
+    out.append(":not(").append(kInteractive).append(",");
+    out.append(kInteractive).append(" *,").append(kAccess).append(",");
+    out.append(kAccess).append(" *,").append(kContent).append(")");
+    // Do not remove a wrapper that contains a legitimate control, access
+    // prompt, article/media content, or unknown embedded document.
+    out.append(":not(:has(").append(kInteractive).append(",");
+    out.append(kAccess).append(",").append(kContent).append("))");
+    out.append(kDeclaration);
+    css.remove_prefix(end + kDeclaration.size());
+  }
+  return out;
+}
+
+WebLocalFrame* RawSGenericDiscoveryFrame(
+    RenderFrame* render_frame, const base::UnguessableToken& token) {
+  auto* frame = render_frame->GetWebFrame();
+  if (!frame || !render_frame->IsMainFrame() || frame->Parent() ||
+      frame->IsInFencedFrameTree() || frame->IsProvisional() ||
+      frame->GetEmbeddingToken() != token) {
+    return nullptr;
+  }
+  const auto doc = frame->GetDocument();
+  if (doc.IsNull() || !doc.IsActive() || !doc.IsHTMLDocument() ||
+      !GURL(doc.Url()).SchemeIsHTTPOrHTTPS()) {
+    return nullptr;
+  }
+  return frame;
+}
+}  // namespace
+
+void ChromeRenderFrameObserver::CollectRawSGenericDiscoveryRound(
+    const base::UnguessableToken& token,
+    CollectRawSGenericDiscoveryRoundCallback callback) {
+  auto* frame = RawSGenericDiscoveryFrame(render_frame(), token);
+  if (!frame) {
+    std::move(callback).Run(std::vector<uint8_t>(kRawSGenericWire));
+    return;
+  }
+  const blink::WebScriptSource sources[] = {blink::WebScriptSource(
+      blink::WebString::FromUtf8(kRawSGenericDiscoveryRound))};
+  frame->RequestExecuteScript(
+      ISOLATED_WORLD_ID_CHROME_INTERNAL, sources,
+      blink::mojom::UserActivationOption::kDoNotActivate,
+      blink::mojom::EvaluationTiming::kAsynchronous,
+      blink::mojom::LoadEventBlockingOption::kDoNotBlock,
+      base::BindOnce(
+          [](CollectRawSGenericDiscoveryRoundCallback done,
+             std::optional<base::Value> result, base::TimeTicks) {
+            const std::string* text = result ? result->GetIfString() : nullptr;
+            std::move(done).Run(PackRawSGenericDiscoveryRound(
+                text ? std::string_view(*text) : std::string_view()));
+          },
+          std::move(callback)),
+      blink::BackForwardCacheAware::kAllow,
+      blink::mojom::WantResultOption::kWantResult,
+      blink::mojom::PromiseResultOption::kDoNotWait, blink::WebString());
+}
+
+void ChromeRenderFrameObserver::StopRawSGenericDiscovery(
+    const base::UnguessableToken& token) {
+  auto* frame = RawSGenericDiscoveryFrame(render_frame(), token);
+  if (!frame) return;
+  const blink::WebScriptSource sources[] = {blink::WebScriptSource(
+      blink::WebString::FromUtf8(
+          "globalThis.__rawsGenericDiscoveryV1?.stop();"
+          "delete globalThis.__rawsGenericDiscoveryV1;"))};
+  frame->RequestExecuteScript(
+      ISOLATED_WORLD_ID_CHROME_INTERNAL, sources,
+      blink::mojom::UserActivationOption::kDoNotActivate,
+      blink::mojom::EvaluationTiming::kAsynchronous,
+      blink::mojom::LoadEventBlockingOption::kDoNotBlock,
+      blink::WebScriptExecutionCallback(), blink::BackForwardCacheAware::kAllow,
+      blink::mojom::WantResultOption::kNoResult,
+      blink::mojom::PromiseResultOption::kDoNotWait, blink::WebString());
+}
+
+
+void ChromeRenderFrameObserver::ApplyRawSObservedGenericStyles(
+    const base::UnguessableToken& token, const GURL& expected_url,
+    const std::string& css) {
+  if (css.size() > 256 * 1024) return;
+  auto* frame = RawSGenericDiscoveryFrame(render_frame(), token);
+  if (!frame) return;
+  auto doc = frame->GetDocument();
+  // PushState preserves the embedding token. Nonempty payload must additionally
+  // identify the exact committed URL, including path/query/fragment. Empty
+  // payloads may remove stale keyed CSS from this document after a route change.
+  if (!css.empty() && GURL(doc.Url()) != expected_url) return;
+  const auto guarded = RawSGuardObservedGenericStyle(css);
+  if (!guarded) return;
+  const auto key =
+      blink::WebString::FromUtf8("sandium-observed-generic-rules-v1");
+  doc.RemoveInsertedStyleSheet(key, blink::WebCssOrigin::kUser);
+  if (!guarded->empty())
+    doc.InsertStyleSheet(blink::WebString::FromUtf8(*guarded), &key,
+                         blink::WebCssOrigin::kUser);
+}
+
+void ChromeRenderFrameObserver::ApplyRawSHideStyles(
+    const base::UnguessableToken& token, const std::string& css) {
+  auto* frame = render_frame()->GetWebFrame();
+  if (!frame || frame->IsProvisional() || frame->GetEmbeddingToken() != token ||
+      css.size() > 512 * 1024) return;
+  auto doc = frame->GetDocument();
+  if (doc.IsNull() || !doc.IsActive() || !doc.IsHTMLDocument()) return;
+  const auto key = blink::WebString::FromUtf8("sandium-automatic-element-rules-v1");
+  doc.RemoveInsertedStyleSheet(key, blink::WebCssOrigin::kUser);
+  if (!css.empty())
+    doc.InsertStyleSheet(blink::WebString::FromUtf8(css), &key,
+                         blink::WebCssOrigin::kUser);
+  if (render_frame()->IsMainFrame()) {
+    TRACE_EVENT_INSTANT("navigation", "RawS.StaticCosmeticRendererSheet",
+                        "has_css", !css.empty());
+  }
+}
+
+void ChromeRenderFrameObserver::ApplyRawSMyFiltersStyles(
+    const base::UnguessableToken& token, const std::string& css) {
+  auto* frame = render_frame()->GetWebFrame();
+  if (!frame || frame->IsProvisional() || frame->GetEmbeddingToken() != token ||
+      css.size() > 256 * 1024) return;
+  auto doc = frame->GetDocument();
+  if (doc.IsNull() || !doc.IsActive() || !doc.IsHTMLDocument()) return;
+  const auto key = blink::WebString::FromUtf8("sandium-my-filters-css-v1");
+  doc.RemoveInsertedStyleSheet(key, blink::WebCssOrigin::kUser);
+  if (!css.empty())
+    doc.InsertStyleSheet(blink::WebString::FromUtf8(css), &key,
+                         blink::WebCssOrigin::kUser);
+}
+
+void ChromeRenderFrameObserver::BeginRawSElementPicker(
+    const base::UnguessableToken& token,
+    BeginRawSElementPickerCallback callback) {
+  auto* frame = render_frame()->GetWebFrame();
+  if (!frame || frame->Parent() || frame->IsInFencedFrameTree() ||
+      frame->IsProvisional() || frame->GetEmbeddingToken() != token) {
+    std::move(callback).Run(false);
+    return;
+  }
+  auto doc = frame->GetDocument();
+  if (doc.IsNull() || !doc.IsActive() || !doc.IsHTMLDocument()) {
+    std::move(callback).Run(false);
+    return;
+  }
+  const blink::WebScriptSource sources[] = {
+      blink::WebScriptSource(blink::WebString::FromUtf8(raws::cosmetic::kRawSElementPicker))};
+  frame->RequestExecuteScript(
+      ISOLATED_WORLD_ID_CHROME_INTERNAL, sources,
+      blink::mojom::UserActivationOption::kDoNotActivate,
+      blink::mojom::EvaluationTiming::kAsynchronous,
+      blink::mojom::LoadEventBlockingOption::kDoNotBlock,
+      base::BindOnce(
+          [](BeginRawSElementPickerCallback done,
+             std::optional<base::Value> value, base::TimeTicks) {
+            std::move(done).Run(value && value->GetIfBool().value_or(false));
+          },
+          std::move(callback)),
+      blink::BackForwardCacheAware::kAllow,
+      blink::mojom::WantResultOption::kWantResult,
+      blink::mojom::PromiseResultOption::kDoNotWait, blink::WebString());
+}
+
+void ChromeRenderFrameObserver::WatchRawSElementPicker(
+    const base::UnguessableToken& token,
+    uint32_t after_revision,
+    WatchRawSElementPickerCallback callback) {
+  auto* frame = render_frame()->GetWebFrame();
+  if (!frame || frame->Parent() || frame->IsInFencedFrameTree() ||
+      frame->IsProvisional() || frame->GetEmbeddingToken() != token ||
+      after_revision > 65535) {
+    std::move(callback).Run(0, "");
+    return;
+  }
+  auto doc = frame->GetDocument();
+  if (doc.IsNull() || !doc.IsActive() || !doc.IsHTMLDocument()) {
+    std::move(callback).Run(0, "");
+    return;
+  }
+  const std::string script = base::StrCat({
+      "globalThis.__rawsWatchElementPicker?.(",
+      base::NumberToString(after_revision), ") ?? 0"});
+  const blink::WebScriptSource sources[] = {
+      blink::WebScriptSource(blink::WebString::FromUtf8(script))};
+  frame->RequestExecuteScript(
+      ISOLATED_WORLD_ID_CHROME_INTERNAL, sources,
+      blink::mojom::UserActivationOption::kDoNotActivate,
+      blink::mojom::EvaluationTiming::kAsynchronous,
+      blink::mojom::LoadEventBlockingOption::kDoNotBlock,
+      base::BindOnce(
+          [](WatchRawSElementPickerCallback done, uint32_t after_revision,
+             std::optional<base::Value> value, base::TimeTicks) {
+            const auto* status = value ? value->GetIfList() : nullptr;
+            if (!status || status->size() != 2) {
+              std::move(done).Run(0, "");
+              return;
+            }
+            const int revision = (*status)[0].GetIfInt().value_or(0);
+            const std::string* selector = (*status)[1].GetIfString();
+            if (revision < 1 || revision > 65535 || !selector ||
+                selector->size() > 4096 ||
+                static_cast<uint32_t>(revision) <= after_revision) {
+              std::move(done).Run(0, "");
+              return;
+            }
+            std::move(done).Run(revision, *selector);
+          },
+          std::move(callback), after_revision),
+      blink::BackForwardCacheAware::kAllow,
+      blink::mojom::WantResultOption::kWantResult,
+      blink::mojom::PromiseResultOption::kAwait, blink::WebString());
+}
+
+void ChromeRenderFrameObserver::ReadRawSElementPickerSelection(
+    const base::UnguessableToken& token,
+    ReadRawSElementPickerSelectionCallback callback) {
+  auto* frame = render_frame()->GetWebFrame();
+  if (!frame || frame->Parent() || frame->IsInFencedFrameTree() ||
+      frame->IsProvisional() || frame->GetEmbeddingToken() != token) {
+    std::move(callback).Run("");
+    return;
+  }
+  auto doc = frame->GetDocument();
+  if (doc.IsNull() || !doc.IsActive() || !doc.IsHTMLDocument()) {
+    std::move(callback).Run("");
+    return;
+  }
+  const blink::WebScriptSource sources[] = {blink::WebScriptSource(
+      blink::WebString::FromUtf8("globalThis.__rawsReadElementPicker?.() ?? ''"))};
+  frame->RequestExecuteScript(
+      ISOLATED_WORLD_ID_CHROME_INTERNAL, sources,
+      blink::mojom::UserActivationOption::kDoNotActivate,
+      blink::mojom::EvaluationTiming::kAsynchronous,
+      blink::mojom::LoadEventBlockingOption::kDoNotBlock,
+      base::BindOnce(
+          [](ReadRawSElementPickerSelectionCallback done,
+             std::optional<base::Value> value, base::TimeTicks) {
+            const std::string* selector = value ? value->GetIfString() : nullptr;
+            std::move(done).Run(selector && selector->size() <= 4096
+                                    ? *selector
+                                    : std::string());
+          },
+          std::move(callback)),
+      blink::BackForwardCacheAware::kAllow,
+      blink::mojom::WantResultOption::kWantResult,
+      blink::mojom::PromiseResultOption::kDoNotWait, blink::WebString());
+}
+
+void ChromeRenderFrameObserver::CancelRawSElementPicker(
+    const base::UnguessableToken& token) {
+  auto* frame = render_frame()->GetWebFrame();
+  if (!frame || frame->IsProvisional() ||
+      frame->GetEmbeddingToken() != token) return;
+  const blink::WebScriptSource sources[] = {blink::WebScriptSource(
+      blink::WebString::FromUtf8(
+          "if (typeof globalThis.__rawsCancelElementPicker === 'function') "
+          "globalThis.__rawsCancelElementPicker();"))};
+  frame->RequestExecuteScript(
+      ISOLATED_WORLD_ID_CHROME_INTERNAL, sources,
+      blink::mojom::UserActivationOption::kDoNotActivate,
+      blink::mojom::EvaluationTiming::kAsynchronous,
+      blink::mojom::LoadEventBlockingOption::kDoNotBlock,
+      blink::WebScriptExecutionCallback(), blink::BackForwardCacheAware::kAllow,
+      blink::mojom::WantResultOption::kNoResult,
+      blink::mojom::PromiseResultOption::kDoNotWait, blink::WebString());
+}
+
+void ChromeRenderFrameObserver::ApplyRawSUserElementRules(
+    const base::UnguessableToken& token, const std::string& css) {
+  auto* frame = render_frame()->GetWebFrame();
+  if (!frame || frame->IsProvisional() ||
+      // At most 32 validated 4096-byte paths plus fixed CSS declarations.
+      frame->GetEmbeddingToken() != token || css.size() > 132096) return;
+  auto doc = frame->GetDocument();
+  if (doc.IsNull() || !doc.IsActive() || !doc.IsHTMLDocument()) return;
+  const auto key = blink::WebString::FromUtf8("sandium-user-element-rules-v1");
+  doc.RemoveInsertedStyleSheet(key, blink::WebCssOrigin::kUser);
+  if (!css.empty()) {
+    doc.InsertStyleSheet(blink::WebString::FromUtf8(css), &key,
+                         blink::WebCssOrigin::kUser);
+  }
+}
+
+void ChromeRenderFrameObserver::SetCCTClientHeader(const std::string& header) {
+  auto* web_frame = render_frame()->GetWebFrame();
+  if (!web_frame) {
+    return;
+  }
+  base::AutoLock auto_lock(GetFrameHeaderMapLock());
+  GetFrameHeaderMap()[web_frame->GetLocalFrameToken()] = header;
+}
+#endif
+
+void ChromeRenderFrameObserver::GetMediaFeedURL(
+    GetMediaFeedURLCallback callback) {
+  std::move(callback).Run(MediaFeeds::GetMediaFeedURL(render_frame()));
+}
+
+void ChromeRenderFrameObserver::LoadBlockedPlugins(
+    const std::string& identifier) {
+  // Record that this plugin is temporarily allowed and notify all placeholders.
+
+  ChromeContentSettingsAgentDelegate::Get(render_frame())
+      ->AllowPluginTemporarily(identifier);
+
+#if BUILDFLAG(ENABLE_PLUGINS)
+  ChromePluginPlaceholder::ForEach(
+      render_frame(), base::BindRepeating(
+                          [](const std::string& identifier,
+                             ChromePluginPlaceholder* placeholder) {
+                            placeholder->MaybeLoadBlockedPlugin(identifier);
+                          },
+                          identifier));
+#endif  // BUILDFLAG(ENABLE_PLUGINS)
+}
+
+void ChromeRenderFrameObserver::SetShouldDeferMediaLoad(bool should_defer) {
+  prerender::SetShouldDeferMediaLoad(render_frame(), should_defer);
+}
+
+void ChromeRenderFrameObserver::InitializeTool(
+    actor::mojom::ToolInvocationPtr request,
+    InitializeToolCallback callback) {
+  if (!tool_executor_) {
+    tool_executor_ =
+        std::make_unique<actor::ToolExecutor>(render_frame(), *actor_journal_);
+  }
+
+  actor::mojom::InitializeToolResultPtr result =
+      tool_executor_->InitializeTool(std::move(request));
+  std::move(callback).Run(std::move(result));
+}
+
+void ChromeRenderFrameObserver::ExecuteTool(const actor::TaskId& task_id,
+                                            ExecuteToolCallback callback) {
+  CHECK(tool_executor_) << "ExecuteTool was called before InitializeTool";
+  tool_executor_->ExecuteTool(task_id, std::move(callback));
+}
+
+void ChromeRenderFrameObserver::InvokeTool(
+    actor::mojom::ToolInvocationPtr request,
+    InvokeToolCallback callback) {
+  if (!tool_executor_) {
+    tool_executor_ =
+        std::make_unique<actor::ToolExecutor>(render_frame(), *actor_journal_);
+  }
+
+  tool_executor_->InvokeTool(std::move(request), std::move(callback));
+}
+
+void ChromeRenderFrameObserver::CancelTool(const actor::TaskId& task_id) {
+  if (tool_executor_) {
+    tool_executor_->CancelTool(task_id);
+  }
+}
+
+void ChromeRenderFrameObserver::StartActorJournal(
+    mojo::PendingAssociatedRemote<actor::mojom::JournalClient> client) {
+  actor_journal_->Bind(std::move(client));
+}
+
+void ChromeRenderFrameObserver::GetCrossDocumentScriptToolResult(
+    const blink::ToolInvocationToken& execution_id,
+    GetCrossDocumentScriptToolResultCallback callback) {
+  render_frame()->GetWebFrame()->GetDocument().GetCrossDocumentScriptToolResult(
+      execution_id,
+      base::BindOnce(
+          [](GetCrossDocumentScriptToolResultCallback cb,
+             blink::WebString result) { std::move(cb).Run(result.Utf8()); },
+          std::move(callback)));
+}
+
+void ChromeRenderFrameObserver::CreatePageStabilityMonitor(
+    mojo::PendingReceiver<page_content_annotations::mojom::PageStabilityMonitor>
+        monitor,
+    const actor::TaskId& task_id,
+    bool supports_paint_stability) {
+  page_stability_monitor_ =
+      std::make_unique<page_content_annotations::PageStabilityMonitor>(
+          *render_frame(), supports_paint_stability,
+          std::make_unique<actor::ChromePageStabilityMonitorDelegate>(
+              task_id, *actor_journal_,
+              actor::PageStabilityMonitorDelegate::Thresholds{
+                  .timeout_delay = actor::kActorPageStabilityTimeout.Get(),
+                  .min_wait = actor::kActorPageStabilityMinWait.Get(),
+                  .initial_paint_timeout =
+                      actor::kActorPaintStabilityInitialPaintTimeout.Get(),
+                  .subsequent_paint_timeout =
+                      actor::kActorPaintStabilitySubsequentPaintTimeout.Get(),
+              }));
+  page_stability_monitor_->Bind(std::move(monitor));
+}
+
+void ChromeRenderFrameObserver::SetClientSidePhishingDetection() {
+#if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
+  phishing_classifier_ =
+      safe_browsing::ContentPhishingClassifierDelegate::Create(render_frame(),
+                                                               nullptr);
+  phishing_image_embedder_ =
+      safe_browsing::ContentPhishingImageEmbedderDelegate::Create(
+          render_frame());
+#endif
+}
+
+#if BUILDFLAG(ENABLE_PDF)
+void ChromeRenderFrameObserver::PdfPageCaptured(const std::u16string& contents,
+                                                const std::string& pdf_lang,
+                                                const GURL& page_url) {
+  if (translate_agent_ && !IsLocalPage(page_url)) {
+    translate_agent_->PdfPageCaptured(contents, pdf_lang, page_url);
+  }
+}
+#endif
+
+void ChromeRenderFrameObserver::OnRenderFrameObserverRequest(
+    mojo::PendingAssociatedReceiver<chrome::mojom::ChromeRenderFrame>
+        receiver) {
+  receivers_.Add(this, std::move(receiver));
+}
+
+bool ChromeRenderFrameObserver::ShouldCapturePageTextForTranslateOrPhishing(
+    blink::WebMeaningfulLayout layout_type) const {
+  WebLocalFrame* frame = render_frame()->GetWebFrame();
+  if (!frame) {
+    return false;
+  }
+
+  //////////////////////////////////////////////////////////////////////////////
+  // Check |frame| for conditions shared by both Translate and Phishing.
+
+  if (!render_frame()->IsMainFrame()) {
+    return false;
+  }
+
+  // |kVisuallyNonEmpty| is ignored by Translate and Phishing.
+  switch (layout_type) {
+    case blink::WebMeaningfulLayout::kFinishedParsing:
+    case blink::WebMeaningfulLayout::kFinishedLoading:
+      break;
+    case blink::WebMeaningfulLayout::kVisuallyNonEmpty:
+    default:
+      return false;
+  }
+
+  // Don't capture pages that have pending redirect or location change.
+  if (frame->IsNavigationScheduledWithin(kLocationChangeInterval)) {
+    return false;
+  }
+
+  // Don't capture pages that are in view source mode.
+  if (frame->IsViewSourceModeEnabled()) {
+    return false;
+  }
+
+  // Don't capture text of the error pages.
+  WebDocumentLoader* document_loader = frame->GetDocumentLoader();
+  if (document_loader && document_loader->HasUnreachableURL()) {
+    return false;
+  }
+
+  // Don't capture pages that are being no-state prefetched.
+  if (prerender::NoStatePrefetchHelper::IsPrefetching(render_frame())) {
+    return false;
+  }
+
+  //////////////////////////////////////////////////////////////////////////////
+  // Translate specific checks.
+  bool should_capture_for_translate = !!translate_agent_;
+
+  //////////////////////////////////////////////////////////////////////////////
+  // Phishing specific checks.
+  bool should_capture_for_phishing = false;
+
+#if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
+  should_capture_for_phishing = phishing_classifier_->is_ready();
+#endif
+
+  return should_capture_for_translate || should_capture_for_phishing;
+}
+
+void ChromeRenderFrameObserver::CapturePageText(
+    blink::WebMeaningfulLayout layout_type) {
+  bool capture_for_translate_phishing =
+      ShouldCapturePageTextForTranslateOrPhishing(layout_type);
+
+  uint32_t capture_max_size =
+      capture_for_translate_phishing ? kMaxIndexChars : 0;
+  auto text_callback = page_text_agent_->MaybeRequestTextDumpOnLayoutEvent(
+      layout_type, &capture_max_size);
+  bool capture_for_opt_guide = !!text_callback;
+
+  if (!capture_for_translate_phishing && !capture_for_opt_guide) {
+    return;
+  }
+  DCHECK_GT(capture_max_size, 0U);
+
+  scoped_refptr<const base::RefCountedString16> contents;
+
+  {
+    TRACE_EVENT0("renderer", "ChromeRenderFrameObserver::CapturePageText");
+    contents = base::MakeRefCounted<const base::RefCountedString16>(
+        WebFrameContentDumper::DumpFrameTreeAsText(
+            render_frame()->GetWebFrame(), capture_max_size)
+            .Utf16());
+  }
+
+  // Language detection should run only once. Parsing finishes before the page
+  // loads, so attempt detection here first.
+  if (translate_agent_ &&
+      (layout_type == blink::WebMeaningfulLayout::kFinishedParsing)) {
+    translate_agent_->PageCaptured(contents);
+  }
+
+  if (text_callback) {
+    std::move(text_callback).Run(contents);
+  }
+
+#if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
+  // Will swap out the string.
+  if (phishing_classifier_) {
+    phishing_classifier_->PageCaptured(
+        layout_type == blink::WebMeaningfulLayout::kFinishedParsing);
+  }
+  if (phishing_image_embedder_) {
+    phishing_image_embedder_->PageCaptured(
+        layout_type == blink::WebMeaningfulLayout::kFinishedParsing);
+  }
+#endif
+}
+
+// static
+bool ChromeRenderFrameObserver::NeedsDownscale(
+    const gfx::Size& original_image_size,
+    int32_t requested_image_min_area_pixels,
+    const gfx::Size& requested_image_max_size) {
+  if (original_image_size.GetArea() < requested_image_min_area_pixels)
+    return false;
+  if (original_image_size.width() <= requested_image_max_size.width() &&
+      original_image_size.height() <= requested_image_max_size.height())
+    return false;
+  return true;
+}
+
+// static
+SkBitmap ChromeRenderFrameObserver::Downscale(
+    const SkBitmap& image,
+    int requested_image_min_area_pixels,
+    const gfx::Size& requested_image_max_size) {
+  if (image.isNull())
+    return SkBitmap();
+
+  gfx::Size image_size(image.width(), image.height());
+
+  if (!NeedsDownscale(image_size, requested_image_min_area_pixels,
+                      requested_image_max_size))
+    return image;
+
+  gfx::SizeF scaled_size = gfx::SizeF(image_size);
+
+  if (scaled_size.width() > requested_image_max_size.width()) {
+    scaled_size.Scale(requested_image_max_size.width() / scaled_size.width());
+  }
+
+  if (scaled_size.height() > requested_image_max_size.height()) {
+    scaled_size.Scale(requested_image_max_size.height() / scaled_size.height());
+  }
+
+  return skia::ImageOperations::Resize(image,
+                                       skia::ImageOperations::RESIZE_GOOD,
+                                       static_cast<int>(scaled_size.width()),
+                                       static_cast<int>(scaled_size.height()));
+}
+
+// static
+bool ChromeRenderFrameObserver::NeedsEncodeImage(
+    const std::string& mime_type,
+    chrome::mojom::ImageFormat image_format) {
+  switch (image_format) {
+    case chrome::mojom::ImageFormat::PNG:
+      return mime_type != kImagePng;
+    case chrome::mojom::ImageFormat::WEBP:
+      return mime_type != kImageWebp;
+    case chrome::mojom::ImageFormat::JPEG:
+      return mime_type != kImageJpeg;
+    case chrome::mojom::ImageFormat::ORIGINAL:
+      return mime_type != kImageGif && mime_type != kImageJpeg &&
+             mime_type != kImagePng;
+  }
+
+  // Should never hit this code since all cases were handled above.
+  NOTREACHED();
+}
+
+// static
+bool ChromeRenderFrameObserver::IsAnimatedWebp(
+    const std::vector<uint8_t>& image_data) {
+  WebPBitstreamFeatures features{};
+  VP8StatusCode status =
+      WebPGetFeatures(image_data.data(), image_data.size(), &features);
+  return status == VP8_STATUS_OK && features.has_animation;
+}

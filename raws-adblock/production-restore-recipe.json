@@ -8509,7 +8509,7 @@
       "mode": "644"
     },
     "chrome/android/java/src/org/chromium/chrome/browser/sandium/video/SandiumVideoController.java": {
-      "after_sha256": "b5aae2f4c682facaa1795a6561188416bca6225bbe3cf74456d3efa2c7c4fc79",
+      "after_sha256": "422b640b3ef12f2b2e9adcdb2d3ffd4e22701cfae1a46571c561f20c0d203047",
       "before_sha256": null,
       "mode": "644"
     },
@@ -9278,7 +9278,7 @@
       "before_sha256": null
     },
     "chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/LocationBarModel.java": {
-      "after_sha256": "431f3a5e04eb39a6a19676df035faa12ee8975ab879f57b14038b4ace78e42a3",
+      "after_sha256": "2ec48fba95b30ca27caf48a3af62479ff40e44b114fbd7c76e4fde9e2be65475",
       "before_sha256": "94a455d7bf990d1c532e135b7391e86f22d27179d95310f4f8044590e8b50482",
       "mode": "644"
     },
@@ -9336,7 +9336,7 @@
       "before_sha256": "8dd315c90f7401201d7a40c44e7ae1d9370f3967a635f528bba282b98bec1ddb"
     },
     "chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/ToolbarPhone.java": {
-      "after_sha256": "03662939dd23ef17684c8f81f08b84b3b0751592fdfe4953a606051f31f49797",
+      "after_sha256": "e4953634a3e54169b419bc84f5517fc62a0af4023bcec057343f2312abc317b5",
       "before_sha256": "1d2c62ecbb9f7e24f47ea99b6303a9d245dfc0d3d0065b2fc0c65fb2eb88b507",
       "mode": "644"
     },
@@ -9383,7 +9383,7 @@
       "mode": "644"
     },
     "chrome/renderer/chrome_render_frame_observer.cc": {
-      "after_sha256": "c7b9bf91fb4a4f93657ed4524ffa65e0bbf49a5fe7ee80254a98d078aa150d9c",
+      "after_sha256": "791fd989d1fc93cba298822e530b0b698dddabebc8a1cfd2946f8d343ede2dca",
       "before_sha256": "193e6a0d88cd505eb683cba41d4509785e235310560d52b23c8bf394e0430972"
     },
     "chrome/renderer/chrome_render_frame_observer.h": {

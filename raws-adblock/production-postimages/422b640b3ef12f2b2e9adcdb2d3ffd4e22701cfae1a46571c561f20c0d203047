@@ -1,0 +1,728 @@
+// Copyright 2026 Sandium Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license.
+package org.chromium.chrome.browser.sandium.video;
+
+import android.app.Activity;
+import android.content.Context;
+import android.util.TypedValue;
+import android.graphics.drawable.GradientDrawable;
+import android.view.Gravity;
+import android.view.MotionEvent;
+import android.view.accessibility.AccessibilityManager;
+import android.widget.ImageButton;
+import android.view.View;
+import android.view.ViewGroup;
+import android.view.ViewTreeObserver;
+import android.widget.Button;
+import android.widget.FrameLayout;
+import android.widget.SeekBar;
+import java.util.Locale;
+import android.widget.LinearLayout;
+import android.widget.TextView;
+
+import org.chromium.chrome.R;
+import org.chromium.chrome.browser.ActivityTabProvider;
+import org.chromium.chrome.browser.tab.Tab;
+import org.chromium.content_public.browser.NavigationHandle;
+import org.chromium.content_public.browser.WebContents;
+import org.chromium.content_public.browser.WebContentsObserver;
+
+
+/** Explicit opt-in Chromium fullscreen controls. No video source extraction or new player. */
+public final class SandiumVideoController implements SandiumVideoSessionAdapter.Owner {
+    // Resolve the application theme at surface creation, not a separate player palette.
+    static int themeColor(Context context, int attribute, int fallback) {
+        TypedValue value = new TypedValue();
+        if (!context.getTheme().resolveAttribute(attribute, value, true)) return fallback;
+        if (value.resourceId != 0) {
+            try { return context.getColor(value.resourceId); }
+            catch (android.content.res.Resources.NotFoundException ignored) { return fallback; }
+        }
+        return value.type >= TypedValue.TYPE_FIRST_COLOR_INT
+                && value.type <= TypedValue.TYPE_LAST_COLOR_INT ? value.data : fallback;
+    }
+
+    private final Activity mActivity;
+    private final ActivityTabProvider mTabs;
+    private final FrameLayout mRoot;
+    private static final long CONTROLS_HIDE_MS = 3_000;
+    private static final int TIMELINE_STEPS = 1_000;
+    private final FrameLayout mControls;
+    private final Button mPlayPause;
+    private final ImageButton mUnlock;
+    private final View mLockCurtain;
+    private final TextView mTitle;
+    private final TextView mPositionLabel;
+    private final TextView mDurationLabel;
+    private final SeekBar mTimeline;
+    private final TextView mFeedback;
+    private final SeekBar mSwipeTimeline;
+    private boolean mSwipePreviewActive;
+    private boolean mControlsVisible;
+    private boolean mAutoEnabling;
+    private boolean mWasPaused;
+    private long mSiteControlsToken;
+    private boolean mLocked;
+    private boolean mScrubbing;
+    private int mTimelinePointer = -1;
+    private long mScrubGeneration;
+    private final Runnable mAutoHide = new Runnable() {
+        @Override public void run() {
+            if (mAdapter != null && available() && !mLocked && !mScrubbing
+                    && !mSwipePreviewActive && !requiresPersistentControls()) {
+                mControlsVisible = false;
+                mControls.setVisibility(View.GONE);
+                mControls.removeCallbacks(mProgressTick);
+            }
+        }
+    };
+    private final Runnable mProgressTick = new Runnable() {
+        @Override public void run() {
+            if (mClosed || mAdapter == null || !mControlsVisible || !available()) return;
+            playbackChanged();
+            mControls.postDelayed(this, 500);
+        }
+    };
+    private final ActivityTabProvider.ActivityTabTabObserver mTabObserver;
+    private final ViewTreeObserver.OnWindowFocusChangeListener mFocusListener;
+    private WebContentsObserver mObserver;
+    private WebContents mContents;
+    private SandiumVideoSessionAdapter mAdapter;
+    private SandiumVideoGestureView mGestures;
+    private boolean mFullscreen;
+    private boolean mInPicture;
+    private boolean mClosed;
+    private long mGesturePlayerToken;
+    private long mFullscreenSessionToken;
+    private boolean mResumed = true;
+    private long mGeneration;
+
+    public SandiumVideoController(Activity activity, ActivityTabProvider tabs) {
+        mActivity = activity;
+        mTabs = tabs;
+        mRoot = new FrameLayout(activity);
+        // With no opt-in surface, only the small button consumes touches; site controls remain native.
+        mRoot.setClipChildren(false);
+        // Chromium remains the media owner. This overlay never accesses media URLs,
+        // replaces the video element, or changes playback/DRM/network policy.
+        mControls = new FrameLayout(activity);
+        LinearLayout header = new LinearLayout(activity);
+        // Keep the requested physical order and top-right placement in RTL as well.
+        header.setLayoutDirection(View.LAYOUT_DIRECTION_LTR);
+        header.setGravity(Gravity.CENTER_VERTICAL);
+        header.setPadding(dp(8), 0, dp(8), 0);
+        GradientDrawable topFade = new GradientDrawable(
+                GradientDrawable.Orientation.TOP_BOTTOM,
+                new int[] {0xd9000000, 0x4b101319, 0x00000000});
+        header.setBackground(topFade);
+        // System Back still exits renderer fullscreen; reserve a keyboard/TalkBack action.
+        header.setAccessibilityDelegate(new View.AccessibilityDelegate() {
+            @Override public void onInitializeAccessibilityNodeInfo(
+                    View view, android.view.accessibility.AccessibilityNodeInfo info) {
+                super.onInitializeAccessibilityNodeInfo(view, info);
+                info.addAction(new android.view.accessibility.AccessibilityNodeInfo
+                        .AccessibilityAction(
+                                android.view.accessibility.AccessibilityNodeInfo.AccessibilityAction
+                                        .ACTION_DISMISS.getId(),
+                                mActivity.getString(R.string.accessibility_exit_full_screen)));
+            }
+            @Override public boolean performAccessibilityAction(
+                    View view, int action, android.os.Bundle arguments) {
+                if (action != android.view.accessibility.AccessibilityNodeInfo.AccessibilityAction
+                        .ACTION_DISMISS.getId()) {
+                    return super.performAccessibilityAction(view, action, arguments);
+                }
+                if (mAdapter == null || !available()) return false;
+                exitFullscreen();
+                return true;
+            }
+        });
+        header.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_YES);
+        mTitle = new TextView(activity);
+        mTitle.setTextColor(0xffffffff);
+        mTitle.setTextSize(14);
+        mTitle.setTextDirection(View.TEXT_DIRECTION_FIRST_STRONG);
+        mTitle.setSingleLine(true);
+        mTitle.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        mTitle.setGravity(Gravity.CENTER_VERTICAL);
+        header.addView(mTitle, new LinearLayout.LayoutParams(0, dp(48), 1));
+        header.addView(iconButton(android.R.drawable.ic_lock_lock, "Lock", this::lockControls),
+                new LinearLayout.LayoutParams(dp(48), dp(48)));
+        header.addView(iconButton(android.R.drawable.ic_menu_preferences,
+                        mActivity.getString(R.string.sandium_video_site_controls),
+                        this::returnToSiteControls),
+                new LinearLayout.LayoutParams(dp(48), dp(48)));
+        mControls.addView(header, new FrameLayout.LayoutParams(-1, dp(56), Gravity.TOP));
+
+        mPlayPause = button("Ⅱ", () -> {
+            if (mAdapter != null && mAdapter.isEligible()) mAdapter.togglePlayback();
+            showControls();
+        });
+        mPlayPause.setTextSize(22);
+        mPlayPause.setAlpha(.72f);
+        mPlayPause.setOnFocusChangeListener((view, focused) -> armControlsHide());
+        mControls.addView(mPlayPause,
+                new FrameLayout.LayoutParams(dp(64), dp(64), Gravity.CENTER));
+
+        LinearLayout footer = new LinearLayout(activity);
+        footer.setOrientation(LinearLayout.VERTICAL);
+        footer.setPadding(dp(10), 0, dp(10), dp(6));
+        GradientDrawable bottomFade = new GradientDrawable(
+                GradientDrawable.Orientation.TOP_BOTTOM,
+                new int[] {0x00000000, 0x6b101319, 0xd9000000});
+        footer.setBackground(bottomFade);
+        LinearLayout progress = new LinearLayout(activity);
+        progress.setGravity(Gravity.CENTER_VERTICAL);
+        mPositionLabel = timeLabel("00:00");
+        mDurationLabel = timeLabel("--:--");
+        mTimeline = new SeekBar(activity);
+        mTimeline.setMax(TIMELINE_STEPS);
+        mTimeline.setEnabled(false);
+        android.content.res.ColorStateList sandGold =
+                android.content.res.ColorStateList.valueOf(0xffddc69b);
+        mTimeline.setProgressTintList(sandGold);
+        mTimeline.setThumbTintList(sandGold);
+        mTimeline.setProgressBackgroundTintList(
+                android.content.res.ColorStateList.valueOf(0x88d2d2d2));
+        mTimeline.setOnTouchListener((view, event) -> handleTimelineTouch(mTimeline, event));
+        mTimeline.setOnFocusChangeListener((view, focused) -> armControlsHide());
+        mTimeline.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override public void onStartTrackingTouch(SeekBar bar) {}
+            @Override public void onProgressChanged(SeekBar bar, int value, boolean fromUser) {
+                if (fromUser && !mScrubbing) {
+                    // Standard keyboard/TalkBack actions still use the native SeekBar.
+                    commitTimelineSeek(bar, mGeneration);
+                    armControlsHide();
+                }
+            }
+            @Override public void onStopTrackingTouch(SeekBar bar) {}
+        });
+        progress.addView(mPositionLabel, new LinearLayout.LayoutParams(-2, dp(42)));
+        progress.addView(mTimeline, new LinearLayout.LayoutParams(0, dp(42), 1));
+        progress.addView(mDurationLabel, new LinearLayout.LayoutParams(-2, dp(42)));
+        footer.addView(progress);
+        mControls.addView(footer,
+                new FrameLayout.LayoutParams(-1, dp(102), Gravity.BOTTOM));
+        mRoot.addView(mControls, new FrameLayout.LayoutParams(-1, -1));
+
+        // Use a display-only copy while the interactive controls are hidden. It must
+        // not capture the swipe or change which controls appear after release.
+        mSwipeTimeline = new SeekBar(activity) {
+            @Override
+            public boolean dispatchTouchEvent(MotionEvent event) {
+                return false;
+            }
+        };
+        mSwipeTimeline.setMax(TIMELINE_STEPS);
+        mSwipeTimeline.setProgressTintList(sandGold);
+        mSwipeTimeline.setThumbTintList(sandGold);
+        mSwipeTimeline.setProgressBackgroundTintList(mTimeline.getProgressBackgroundTintList());
+        mSwipeTimeline.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+        mSwipeTimeline.setFocusable(false);
+        mSwipeTimeline.setClickable(false);
+        mSwipeTimeline.setVisibility(View.GONE);
+        FrameLayout.LayoutParams swipeTimeline =
+                new FrameLayout.LayoutParams(-1, dp(42), Gravity.BOTTOM);
+        swipeTimeline.setMargins(dp(10), 0, dp(10), dp(60));
+        mRoot.addView(mSwipeTimeline, swipeTimeline);
+
+        // Lock consumes ordinary video taps, not system Back/edge gestures.
+        mLockCurtain = new View(activity);
+        mLockCurtain.setClickable(true);
+        mLockCurtain.setVisibility(View.GONE);
+        mRoot.addView(mLockCurtain, new FrameLayout.LayoutParams(-1, -1));
+        mUnlock = iconButton(android.R.drawable.ic_lock_idle_lock, "Unlock", this::unlockControls);
+        mUnlock.setVisibility(View.GONE);
+        FrameLayout.LayoutParams unlock = new FrameLayout.LayoutParams(
+                dp(48), dp(48), Gravity.CENTER_VERTICAL | Gravity.END);
+        unlock.rightMargin = dp(10);
+        mRoot.addView(mUnlock, unlock);
+        mFeedback = new TextView(activity);
+        mFeedback.setTextColor(themeColor(activity, android.R.attr.textColorPrimary, 0xfff0f0f0));
+        GradientDrawable feedbackBackground = new GradientDrawable();
+        int surface = themeColor(activity, android.R.attr.colorBackground, 0xff080808);
+        feedbackBackground.setColor((surface & 0x00ffffff) | 0xa6000000);
+        feedbackBackground.setCornerRadius(dp(8));
+        mFeedback.setBackground(feedbackBackground);
+        mFeedback.setPadding(dp(12), dp(8), dp(12), dp(8));
+        mFeedback.setGravity(Gravity.CENTER);
+        mFeedback.setTextSize(18);
+        mFeedback.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+        mRoot.addView(mFeedback, new FrameLayout.LayoutParams(-2, -2, Gravity.CENTER));
+        mFeedback.setVisibility(View.GONE);
+        mRoot.setOnApplyWindowInsetsListener((view, insets) -> {
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+                android.graphics.Insets safe = insets.getInsets(
+                        android.view.WindowInsets.Type.systemBars() | android.view.WindowInsets.Type.displayCutout());
+                view.setPadding(safe.left, safe.top, safe.right, safe.bottom);
+            } else {
+                view.setPadding(insets.getSystemWindowInsetLeft(), insets.getSystemWindowInsetTop(),
+                        insets.getSystemWindowInsetRight(), insets.getSystemWindowInsetBottom());
+            }
+            return insets; // Never consume insets intended for Chromium content.
+        });
+        ((ViewGroup) activity.getWindow().getDecorView()).addView(
+                mRoot, new ViewGroup.LayoutParams(-1, -1));
+        mRoot.requestApplyInsets();
+        mFocusListener = focus -> {
+            if (!focus) disable();
+            refresh();
+        };
+        mRoot.getViewTreeObserver().addOnWindowFocusChangeListener(mFocusListener);
+        mTabObserver = new ActivityTabProvider.ActivityTabTabObserver(tabs, true) {
+            @Override protected void onObservingDifferentTab(Tab tab) { bind(tab); }
+            @Override public void onContentChanged(Tab tab) { bind(tab); }
+            @Override public void onDestroyed(Tab tab) { bind(null); }
+        };
+        refresh();
+    }
+
+    private int dp(int value) { return Math.round(value * mActivity.getResources().getDisplayMetrics().density); }
+    private Button button(String title, Runnable action) {
+        Button b = new Button(mActivity);
+        b.setText(title);
+        b.setContentDescription(title);
+        b.setAllCaps(false);
+        b.setTextSize(12);
+        b.setTextColor(themeColor(mActivity, android.R.attr.colorAccent, 0xff6e8eb5));
+        b.setMinHeight(dp(48));
+        GradientDrawable bg = new GradientDrawable();
+        bg.setColor(themeColor(mActivity, android.R.attr.colorBackground, 0xff080808));
+        bg.setCornerRadius(dp(8));
+        b.setBackground(bg);
+        b.setOnClickListener(v -> action.run());
+        return b;
+    }
+
+    private ImageButton iconButton(int icon, String description, Runnable action) {
+        var button = new ImageButton(mActivity);
+        button.setImageResource(icon);
+        button.setImageTintList(android.content.res.ColorStateList.valueOf(0xb3ffffff));
+        button.setScaleType(android.widget.ImageView.ScaleType.CENTER_INSIDE);
+        button.setPadding(dp(12), dp(12), dp(12), dp(12));
+        button.setBackgroundColor(android.graphics.Color.TRANSPARENT);
+        button.setContentDescription(description);
+        button.setOnClickListener(ignored -> action.run());
+        button.setOnFocusChangeListener((view, focused) -> armControlsHide());
+        return button;
+    }
+
+    private boolean requiresPersistentControls() {
+        var accessibility = mActivity.getSystemService(AccessibilityManager.class);
+        return mControls.hasFocus()
+                || (accessibility != null && accessibility.isTouchExplorationEnabled());
+    }
+
+    private void armControlsHide() {
+        mControls.removeCallbacks(mAutoHide);
+        if (mControlsVisible && !mLocked && !mScrubbing && !mSwipePreviewActive
+                && !requiresPersistentControls()) {
+            mControls.postDelayed(mAutoHide, CONTROLS_HIDE_MS);
+        }
+    }
+
+    static long timelineTarget(long duration, int progress, int steps) {
+        if (duration <= 0 || steps <= 0) return -1;
+        return Math.round((double) duration * Math.max(0, Math.min(progress, steps)) / steps);
+    }
+
+    static int timelineProgress(float x, int width, int left, int right, int steps, boolean rtl) {
+        if (!Float.isFinite(x) || (long) width - left - right <= 0 || steps <= 0) return -1;
+        float fraction = Math.max(0, Math.min(1, (x - left) / (width - left - right)));
+        return Math.round((rtl ? 1 - fraction : fraction) * steps);
+    }
+
+    private boolean handleTimelineTouch(SeekBar bar, MotionEvent event) {
+        int action = event.getActionMasked();
+        if (action == MotionEvent.ACTION_DOWN) {
+            if (!bar.isEnabled() || mLocked || mAdapter == null || !mAdapter.canSeek()) return false;
+            mTimelinePointer = event.getPointerId(0);
+            mScrubGeneration = mGeneration;
+            mScrubbing = true;
+            bar.setPressed(true);
+            if (bar.getParent() != null) bar.getParent().requestDisallowInterceptTouchEvent(true);
+            mControls.removeCallbacks(mAutoHide);
+        }
+        if (!mScrubbing) return false;
+        if (action == MotionEvent.ACTION_CANCEL || mScrubGeneration != mGeneration) {
+            finishTimelineTouch(bar);
+            return true;
+        }
+        if (action == MotionEvent.ACTION_POINTER_UP
+                && event.getPointerId(event.getActionIndex()) == mTimelinePointer) {
+            // Never hand an in-flight seek to a different finger/player generation.
+            finishTimelineTouch(bar);
+            return true;
+        }
+        int index = event.findPointerIndex(mTimelinePointer);
+        if (index < 0) {
+            finishTimelineTouch(bar);
+            return true;
+        }
+        if (action == MotionEvent.ACTION_DOWN || action == MotionEvent.ACTION_MOVE
+                || action == MotionEvent.ACTION_UP) {
+            int progress = timelineProgress(event.getX(index), bar.getWidth(),
+                    bar.getPaddingLeft(), bar.getPaddingRight(), bar.getMax(),
+                    bar.getLayoutDirection() == View.LAYOUT_DIRECTION_RTL);
+            if (progress >= 0 && mAdapter != null && mAdapter.canSeek()) {
+                bar.setProgress(progress);
+                mPositionLabel.setText(timeLabelText(
+                        timelineTarget(mAdapter.durationMillis(), progress, bar.getMax())));
+                if (action == MotionEvent.ACTION_UP) {
+                    commitTimelineSeek(bar, mScrubGeneration);
+                    bar.performClick();
+                }
+            }
+            if (action == MotionEvent.ACTION_UP) finishTimelineTouch(bar);
+        }
+        return true;
+    }
+
+    private void finishTimelineTouch(SeekBar bar) {
+        mScrubbing = false;
+        mTimelinePointer = -1;
+        bar.setPressed(false);
+        if (bar.getParent() != null) bar.getParent().requestDisallowInterceptTouchEvent(false);
+        showControls();
+    }
+
+    private void commitTimelineSeek(SeekBar bar, long generation) {
+        var adapter = mAdapter;
+        if (generation != mGeneration || mLocked || adapter == null || !adapter.canSeek()) return;
+        long target = timelineTarget(adapter.durationMillis(), bar.getProgress(), bar.getMax());
+        if (target >= 0) adapter.seekToPosition(target);
+    }
+
+    private void bind(Tab tab) {
+        if (mClosed) return;
+        WebContents next = tab == null || tab.isDestroyed() || tab.isIncognito()
+                ? null : tab.getWebContents();
+        if (next == mContents) return;
+        disable();
+        if (mObserver != null) mObserver.observe(null);
+        mObserver = null;
+        mContents = next;
+        mFullscreen = next != null && next.isFullscreenForCurrentTab();
+        if (next != null) {
+            mObserver = new WebContentsObserver(next) {
+                @Override public void mediaStartedPlaying(int id, boolean audio, boolean video) {
+                    refresh();
+                }
+                @Override public void mediaStoppedPlaying(int id) { refresh(); }
+                @Override public void hasEffectivelyFullscreenVideoChange(boolean fullscreen) {
+                    // The browser token, not the event argument or other frames' playback, decides.
+                    refresh();
+                }
+                @Override public void didToggleFullscreenModeForTab(boolean entered, boolean resize) {
+                    mFullscreen = entered;
+                    if (!entered) {
+                        mSiteControlsToken = 0;
+                        mFullscreenSessionToken = 0;
+                        disable();
+                    }
+                    refresh();
+                }
+                @Override public void didStartNavigationInPrimaryMainFrame(NavigationHandle navigation) {
+                    if (navigation.isSameDocument()) return;
+                    disable();
+                    mFullscreen = false;
+                    mFullscreenSessionToken = 0;
+                    refresh();
+                }
+                @Override public void webContentsDestroyed() { bind(null); }
+            };
+        }
+        mSiteControlsToken = 0;
+        mFullscreenSessionToken = 0;
+        refresh();
+    }
+
+    private boolean available() {
+        Tab tab = mTabs.get();
+        if (mClosed || !mResumed || mContents == null || mContents.isDestroyed()
+                || tab == null || tab.isDestroyed() || tab.isIncognito()
+                || tab.getWebContents() != mContents || !mFullscreen || mActivity.isFinishing()
+                || mActivity.isDestroyed() || !mActivity.hasWindowFocus() || mInPicture
+                || mActivity.isInPictureInPictureMode()
+                || !mContents.isFullscreenForCurrentTab()) {
+            return false;
+        }
+        long currentToken = mContents.getRawSFullscreenMediaToken();
+        return currentToken != 0
+                && (mFullscreenSessionToken == 0 || currentToken == mFullscreenSessionToken)
+                && (mGesturePlayerToken == 0 || currentToken == mGesturePlayerToken);
+    }
+
+    private void refresh() {
+        if (mClosed) return;
+        if (!available()) {
+            if (!mFullscreen || mContents == null || mContents.isDestroyed()
+                    || !mContents.isFullscreenForCurrentTab()) {
+                mSiteControlsToken = 0;
+            }
+            if (mAdapter != null) disable();
+            mRoot.setVisibility(View.GONE);
+            return;
+        }
+        long token = mContents.getRawSFullscreenMediaToken();
+        if (token == mSiteControlsToken) {
+            mRoot.setVisibility(View.GONE);
+            return;
+        }
+        mSiteControlsToken = 0;
+        if (mAdapter == null && !mAutoEnabling) {
+            mAutoEnabling = true;
+            try { enable(); } finally { mAutoEnabling = false; }
+        }
+        // Never show a dummy Enable button on unknown or unsupported media.
+        if (mAdapter == null) { mRoot.setVisibility(View.GONE); return; }
+        mRoot.setVisibility(View.VISIBLE);
+        mControls.setVisibility(mAdapter != null && mControlsVisible && !mLocked
+                ? View.VISIBLE : View.GONE);
+        mLockCurtain.setVisibility(mAdapter != null && mLocked ? View.VISIBLE : View.GONE);
+        mUnlock.setVisibility(mAdapter != null && mLocked ? View.VISIBLE : View.GONE);
+        playbackChanged();
+    }
+
+    private void enable() {
+        if (!available() || mAdapter != null) return;
+        mGesturePlayerToken = mContents.getRawSFullscreenMediaToken();
+        if (mGesturePlayerToken == 0) return;
+        ++mGeneration;
+        mFullscreenSessionToken = mGesturePlayerToken;
+        mAdapter = new SandiumVideoSessionAdapter(mActivity, mContents, mGesturePlayerToken, this);
+        if (!mAdapter.isEligible()) { disable(); refresh(); return; }
+        mGestures = new SandiumVideoGestureView(mActivity, mAdapter);
+        mRoot.addView(mGestures, 0, new FrameLayout.LayoutParams(-1, -1));
+        mLocked = false;
+        showControls();
+        refresh();
+        mControls.announceForAccessibility(mActivity.getString(R.string.sandium_video_enabled));
+    }
+
+    private void disable() {
+        mControls.removeCallbacks(mAutoHide);
+        mControls.removeCallbacks(mProgressTick);
+        mLocked = false;
+        mControlsVisible = false;
+        mScrubbing = false;
+        mTimelinePointer = -1;
+        mTimeline.setPressed(false);
+        if (mTimeline.getParent() != null) {
+            mTimeline.getParent().requestDisallowInterceptTouchEvent(false);
+        }
+        mLockCurtain.setVisibility(View.GONE);
+        mUnlock.setVisibility(View.GONE);
+        mGesturePlayerToken = 0;
+        ++mGeneration;
+        if (mGestures != null) {
+            mGestures.cancelGesture();
+            mRoot.removeView(mGestures);
+            mGestures = null;
+        }
+        if (mAdapter != null) {
+            SandiumVideoSessionAdapter old = mAdapter;
+            mAdapter = null;
+            old.close();
+        }
+        clearFeedback();
+    }
+
+    private TextView timeLabel(String value) {
+        TextView label = new TextView(mActivity);
+        label.setText(value);
+        label.setTextColor(0xffeeeeee);
+        label.setTextSize(12);
+        label.setGravity(Gravity.CENTER_VERTICAL);
+        return label;
+    }
+
+    static String timeLabelText(long millis) {
+        if (millis < 0) return "--:--";
+        long total = millis / 1000;
+        long hours = total / 3600;
+        return hours > 0
+                ? String.format(Locale.ROOT, "%d:%02d:%02d", hours, total / 60 % 60, total % 60)
+                : String.format(Locale.ROOT, "%02d:%02d", total / 60, total % 60);
+    }
+
+    private void updateProgress() {
+        if (mAdapter == null || mScrubbing || mSwipePreviewActive) return;
+        boolean seek = mAdapter.canSeek();
+        long duration = seek ? mAdapter.durationMillis() : -1;
+        long current = seek ? mAdapter.positionMillis() : -1;
+        mPositionLabel.setText(timeLabelText(current));
+        mDurationLabel.setText(timeLabelText(duration));
+        if (seek && duration > 0) {
+            mTimeline.setProgress((int) Math.min(TIMELINE_STEPS, Math.max(0,
+                    (double) TIMELINE_STEPS * current / duration)));
+        } else {
+            mTimeline.setProgress(0);
+        }
+    }
+
+    private void showControls() {
+        if (mAdapter == null || !available() || mLocked) return;
+        mControlsVisible = true;
+        mSwipeTimeline.setVisibility(View.GONE);
+        Tab tab = mTabs.get();
+        mTitle.setText(tab == null ? "" : tab.getTitle());
+        mControls.setVisibility(View.VISIBLE);
+        mControls.removeCallbacks(mAutoHide);
+        mControls.removeCallbacks(mProgressTick);
+        mWasPaused = mAdapter.isPaused();
+        playbackChanged();
+        mControls.postDelayed(mProgressTick, 500);
+        armControlsHide();
+    }
+
+    private void lockControls() {
+        if (mAdapter == null || !mAdapter.isEligible()) return;
+        mLocked = true;
+        clearFeedback();
+        mControlsVisible = false;
+        mControls.removeCallbacks(mAutoHide);
+        mControls.removeCallbacks(mProgressTick);
+        mControls.setVisibility(View.GONE);
+        mLockCurtain.setVisibility(View.VISIBLE);
+        mUnlock.setVisibility(View.VISIBLE);
+        mFeedback.setText("Screen Locked");
+        mFeedback.setVisibility(View.VISIBLE);
+    }
+
+    private void unlockControls() {
+        if (!mLocked) return;
+        mLocked = false;
+        mLockCurtain.setVisibility(View.GONE);
+        mUnlock.setVisibility(View.GONE);
+        clearFeedback();
+        showControls();
+    }
+
+    private void returnToSiteControls() {
+        if (mAdapter == null || !available()) return;
+        mSiteControlsToken = mGesturePlayerToken;
+        disable();
+        refresh();
+    }
+
+    private void exitFullscreen() {
+        if (mAdapter == null || !available()) return;
+        mSiteControlsToken = mGesturePlayerToken;
+        disable();
+        // Do not re-enable while Chromium asynchronously unwinds fullscreen.
+        // Explicitly exit Chromium's renderer fullscreen without navigating history.
+        // RawS does not reload, replace media, seek, or scroll on fullscreen exit.
+        if (mContents != null && !mContents.isDestroyed()
+                && mContents.isFullscreenForCurrentTab()) {
+            mContents.exitFullscreen();
+        }
+        refresh();
+    }
+
+    private void adjust(boolean brightness, double delta) {
+        if (mAdapter == null || !mAdapter.isEligible()) return;
+        mAdapter.beginAdjustment();
+        if (brightness) mAdapter.adjustBrightness(delta); else mAdapter.adjustVolume(delta);
+    }
+    @Override public boolean eligible(WebContents contents, long token) {
+        return contents == mContents && token == mGesturePlayerToken && available();
+    }
+    @Override public void playbackChanged() {
+        if (mAdapter != null && !available()) {
+            disable();
+            refresh();
+            return;
+        }
+        boolean seekable = mAdapter != null && mAdapter.canSeek();
+        mTimeline.setEnabled(seekable && !mLocked);
+        boolean idle = mAdapter != null && mAdapter.isPaused();
+        mPlayPause.setText(idle ? "▶" : "Ⅱ");
+        updateProgress();
+        boolean paused = mAdapter != null && mAdapter.isPaused();
+        if (mWasPaused && !paused && mAdapter != null && mControlsVisible && !mLocked) {
+            armControlsHide();
+        }
+        mWasPaused = paused;
+    }
+    @Override public void controlsTapped() {
+        // A single tap wakes the overlay; only the visible center button toggles play.
+        showControls();
+    }
+    @Override public long generation() { return mGeneration; }
+    @Override public void feedback(SandiumVideoGestureState.Kind kind, double delta) {
+        if (kind == SandiumVideoGestureState.Kind.NONE) { clearFeedback(); return; }
+        if (kind == SandiumVideoGestureState.Kind.SEEK && !mScrubbing && !mLocked
+                && mAdapter != null && mAdapter.canSeek()) {
+            long position = mAdapter.positionMillis();
+            long duration = mAdapter.durationMillis();
+            if (position >= 0 && duration > 0) {
+                // GestureState bounds the offset before sending it here. Only
+                // the projection changes on MOVE; release still owns the seek.
+                long target = Math.max(0L, Math.min(duration, position + Math.round(delta)));
+                int progress = (int) Math.round((double) TIMELINE_STEPS * target / duration);
+                mSwipePreviewActive = true;
+                mPositionLabel.setText(timeLabelText(target));
+                mDurationLabel.setText(timeLabelText(duration));
+                mTimeline.setProgress(progress);
+                if (!mControlsVisible) {
+                    mSwipeTimeline.setProgress(progress);
+                    mSwipeTimeline.setVisibility(View.VISIBLE);
+                }
+            } else {
+                clearSwipeTimeline();
+            }
+        } else {
+            clearSwipeTimeline();
+        }
+        mFeedback.setText(kind == SandiumVideoGestureState.Kind.SEEK
+                ? mActivity.getString(R.string.sandium_video_seek_preview, delta / 1000)
+                : mActivity.getString(kind == SandiumVideoGestureState.Kind.VOLUME
+                        ? R.string.sandium_video_volume_preview : R.string.sandium_video_brightness_preview, delta * 100));
+        mFeedback.setVisibility(View.VISIBLE);
+        armControlsHide();
+    }
+    private void clearSwipeTimeline() {
+        if (!mSwipePreviewActive) return;
+        mSwipePreviewActive = false;
+        mSwipeTimeline.setVisibility(View.GONE);
+        updateProgress();
+        armControlsHide();
+    }
+
+    @Override public void clearFeedback() {
+        clearSwipeTimeline();
+        mFeedback.setText("");
+        mFeedback.setVisibility(View.GONE);
+    }
+
+    /** Pause clears interactive controls/brightness, retaining only the observed tab identity.
+     * This avoids guessing the active video on resume; WebContents observers do not replay it. */
+    public void setResumed(boolean resumed) {
+        if (mClosed) return;
+        mResumed = resumed;
+        if (!resumed) disable();
+        refresh();
+    }
+
+    public void onPictureInPictureChanged(boolean inPicture) {
+        if (mClosed) return;
+        mInPicture = inPicture;
+        if (inPicture) disable();
+        refresh();
+    }
+
+    /** Destroy releases all native/page/profile references. Nothing is persisted. */
+    public void close() {
+        if (mClosed) return;
+        mClosed = true;
+        disable();
+        if (mObserver != null) { mObserver.observe(null); mObserver = null; }
+        mTabObserver.destroy();
+        if (mRoot.getViewTreeObserver().isAlive()) {
+            mRoot.getViewTreeObserver().removeOnWindowFocusChangeListener(mFocusListener);
+        }
+        if (mRoot.getParent() instanceof ViewGroup) ((ViewGroup) mRoot.getParent()).removeView(mRoot);
+        mContents = null;
+    }
+}

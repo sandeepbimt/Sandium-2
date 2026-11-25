@@ -1,4 +1,4 @@
-"""Workflow-private transfer of the experiment's Siso output only."""
+"""Validated transfer of experiment Siso output, not source or credentials."""
 from decimal import Decimal
 import hashlib
 import json
@@ -53,7 +53,7 @@ def save(out, target, identity, status, source):
         raise ValueError('Build output is not below the checkout root')
     target.mkdir(parents=True,exist_ok=False)
     receipt={**identity,'status':status}
-    if status=='slice_expired':
+    if status in ('slice_expired','compiled_apk'):
         carry(out)
         links, ignored_logs=outside_links(out,source)
         archive=target/'output.tar.zst'
@@ -103,7 +103,7 @@ def receipt_at(target, identity):
     r=json.loads(f.read_text())
     if any(r.get(k)!=v for k,v in identity.items()):
         raise ValueError('Experiment slice receipt does not match workflow and build inputs')
-    if r.get('status') not in ('done','slice_expired'):
+    if r.get('status') not in ('done','slice_expired','compiled_apk'):
         raise ValueError('Previous slice is not resumable')
     return r
 

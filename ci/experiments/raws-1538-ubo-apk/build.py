@@ -22,11 +22,13 @@ import slice_state
 BASE = 'a274d3f2e250aad22c8ca4309ba75841f9db65dd'
 BRANCH = 'experiment/raws-1538-ubo-apk'
 JOB = 'raws-1538-ubo-apk'
-RECIPE = '4056f5936653bdc9a540e1c42fadd77e56680aaf519f3b38736ebcac9d617156'
-PATCH = 'a1f1ebc640782583b4d45780d2184969e57a68da82ff0fd113a7b055558b73bc'
+RECIPE = 'ba0755150c15aba8ed53278aef717dcace3239235e7f6ae352fd74b768d79774'
+PATCH = '98711eb0f37e3111af828ca27bd7779946b3794433c7dcca3325c966c6c3d9b8'
 WORK = ROOT/'work/source'
 ART = ROOT/'artifacts'
 HANDOFF = ROOT/'.ubo-slices'
+COMPLETED = ROOT/'.ubo-completed'
+APK_NAME = 'RawS-1538-uBO-MV2-test.apk'
 LAST = 4
 
 def slice_index():
@@ -55,10 +57,10 @@ def gate():
            for k in os.environ):
         raise ValueError('Experiment must not receive RawS signing credentials')
     head = git(ROOT,'rev-parse','HEAD')
-    first = '64413be8245ac9b7401c5cb45f49c2b1e95d8f39'
-    if (head != os.environ.get('CIRCLE_SHA1') or git(ROOT,'rev-parse','HEAD^') != first
-            or git(ROOT,'rev-parse','HEAD^^^^') != BASE):
-        raise ValueError('Expected #1542 runner-log fix on exact #1538')
+    parent = '56ac4f20c2dc806285c77568a552f46e5395a2fb'
+    if (head != os.environ.get('CIRCLE_SHA1') or git(ROOT,'rev-parse','HEAD^') != parent
+            or git(ROOT,'rev-parse','HEAD^^^^^') != BASE):
+        raise ValueError('Expected exact #1543 experiment as the candidate parent')
     if fingerprint() != ro.FINGERPRINT or ro.full.fresh():
         raise ValueError('Unexpected baseline fingerprint or fresh seed')
     if ro.active_feature().identity != RECIPE:
@@ -66,6 +68,67 @@ def gate():
     if file_sha(KIT/'pinned-ubo.patch') != PATCH:
         raise ValueError('Wrong reviewed package-admission patch')
     ro.full.D.gate()
+
+
+def completed_identity(checkout, args):
+    return dict(schema=1, checkout=checkout, base=BASE,
+                target='chrome_public_apk', output=OUTPUT.parent.name,
+                args_sha256=hashlib.sha256(args).hexdigest())
+
+
+def verify_completed_seed():
+    producer = os.environ.get('RAWS_UBO_COMPLETED_SEED','')
+    if (not re.fullmatch(r'[0-9a-f]{40}', producer)
+            or producer == os.environ['CIRCLE_SHA1']
+            or subprocess.run(['git','-C',str(ROOT),'merge-base','--is-ancestor',
+                               producer,os.environ['CIRCLE_SHA1']],check=False).returncode):
+        raise ValueError('Completed seed must be an exact ancestor commit')
+    return producer
+
+
+def save_completed():
+    n = slice_index()
+    proof = slice_state.receipt_at(HANDOFF/f'stage-{n}',slice_identity(n))
+    if proof['status'] == 'slice_expired':
+        # Its partial output has already been persisted to this workflow.
+        subprocess.run(['circleci-agent','step','halt'],check=True)
+        return
+    if proof['status'] != 'done':
+        raise ValueError('Refusing a completed archive without a finished compile')
+    apk = ART/APK_NAME
+    apk_receipt = ART/'apk-receipt.json'
+    if apk_receipt.is_symlink() or not apk_receipt.is_file():
+        raise ValueError('Missing verified APK receipt')
+    receipt = json.loads(apk_receipt.read_text())
+    if (apk.is_symlink() or not apk.is_file() or
+            receipt.get('apk_signature_verified') is not True or
+            receipt.get('official_release') is not False or
+            receipt.get('checkout') != os.environ['CIRCLE_SHA1'] or
+            receipt.get('base') != BASE or receipt.get('recipe_sha256') != RECIPE or
+            receipt.get('experimental_patch_sha256') != PATCH or
+            receipt.get('apk_sha256') != file_sha(apk)):
+        raise ValueError('Completed checkpoint APK provenance mismatch')
+    out = (WORK/'src'/OUTPUT).parent
+    # The verified slice wrote the effective GN-args digest and same output
+    # path as the APK. Required before publishing cross-workflow cache.
+    if out.as_posix() != proof.get('output_dir'):
+        raise ValueError('Completed checkpoint output path mismatch')
+    built = out/'apks/ChromePublic.apk'
+    if built.is_symlink() or not built.is_file() or file_sha(built) != receipt['apk_sha256']:
+        raise ValueError('Compile output diverged from published APK')
+    args = (out/'args.gn').read_bytes()
+    if hashlib.sha256(args).hexdigest() != proof.get('args_sha256'):
+        raise ValueError('Completed checkpoint arguments mismatch')
+    if COMPLETED.exists() or COMPLETED.is_symlink():
+        # Slice 1 may have restored a previous archive into this location.
+        if not os.environ.get('RAWS_UBO_COMPLETED_SEED') or n != 1 or COMPLETED.is_symlink():
+            raise ValueError('Unexpected existing completed archive')
+        import shutil
+        shutil.rmtree(COMPLETED)
+    identity = completed_identity(os.environ['CIRCLE_SHA1'], args)
+    identity.update(recipe=RECIPE, patch=PATCH, apk_sha256=receipt['apk_sha256'])
+    slice_state.save(out,COMPLETED,identity,'compiled_apk',WORK)
+    print('RAWS_COMPLETED_CHECKPOINT_ARCHIVED='+os.environ['CIRCLE_SHA1'],flush=True)
 
 
 def already_done():
@@ -150,6 +213,17 @@ def compile_apk():
         proof=slice_state.receipt_at(previous,slice_identity(n-1))
         slice_state.restore(out,previous,proof,args,WORK)
         print(f'RESTORED_EXPERIMENT_SLICE={n-1}',flush=True)
+    elif os.environ.get('RAWS_UBO_COMPLETED_SEED'):
+        producer = verify_completed_seed()
+        proof = slice_state.receipt_at(COMPLETED,completed_identity(producer,args))
+        if proof['status'] != 'compiled_apk':
+            raise ValueError('Requested seed is not a completed compile')
+        slice_state.restore(out,COMPLETED,proof,args,WORK)
+        # Clear the input archive once restored; it should never be re-saved
+        # as an output of the current commit.
+        import shutil
+        shutil.rmtree(COMPLETED)
+        print(f'RESTORED_COMPLETED_EXPERIMENT={producer}',flush=True)
     run_logged(['timeout','--kill-after=30s','5m',str(depot/'gn'),'gen',str(out),
                 '--fail-on-unused-args'],ART/'gn.log',phase='ubo-gn',cwd=src,env=env,check=True)
     budget=min(1380,int(3300-(time.time()-d.c.read(d.STATE/'job-start.json')['epoch'])-850))
@@ -182,14 +256,16 @@ def compile_apk():
     if not re.search(r"^package: name='io.github.sandeepbimt.raws'",badging,re.M):
         raise ValueError('Wrong package identity')
     import shutil
-    shutil.copyfile(apk,ART/'RawS-1538-uBO-MV2-test.apk')
+    shutil.copyfile(apk,ART/APK_NAME)
     (ART/'apk-receipt.json').write_text(json.dumps({
         'checkout':git(ROOT,'rev-parse','HEAD'),'base':BASE,'recipe_sha256':RECIPE,
         'experimental_patch_sha256':PATCH,'apk_sha256':file_sha(apk),
         'apk_signature_verified':True,'android_runtime_verified':False,
         'official_release':False,'regular_update':False,
     }, indent=2)+'\n')
-    slice_state.save(out,target,slice_identity(n),'done',WORK)
+    proof = slice_identity(n)
+    proof.update(output_dir=out.as_posix(), args_sha256=hashlib.sha256(args).hexdigest())
+    slice_state.save(out,target,proof,'done',WORK)
 
 
 if __name__ == '__main__':
@@ -201,5 +277,6 @@ if __name__ == '__main__':
             subprocess.run(['circleci-agent','step','halt'],check=True)
         raise SystemExit(0)
     actions={'select':select,'restore':ro.full.f.restore_base,
+             'save-completed':save_completed,'verify-completed-seed':verify_completed_seed,
              'finish':ro.full.f.restore_finish,'compile':compile_apk}
     actions[sys.argv[1]]()

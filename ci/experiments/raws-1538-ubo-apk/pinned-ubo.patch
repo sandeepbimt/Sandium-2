@@ -231,7 +231,7 @@ diff --git a/chrome/browser/download/chrome_download_manager_delegate.cc b/chrom
  #include "extensions/browser/extension_util.h"
  #include "extensions/browser/webstore_installer.h"
  #include "extensions/common/constants.h"
-@@ -1204,13 +1205,24 @@
+@@ -1204,13 +1205,30 @@
      DownloadItem* item,
      content::DownloadOpenDelayedCallback callback) {
  #if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
@@ -240,10 +240,16 @@ diff --git a/chrome/browser/download/chrome_download_manager_delegate.cc b/chrom
 +#if BUILDFLAG(IS_ANDROID)
 +  // This is only an install entry point. Do not mark this download safe,
 +  // skip file warnings, silently install it, or change Web Store behavior.
++  const base::FilePath& target = item->GetTargetFilePath();
++  // Android's scoped Downloads storage can publish an opaque content URI.
++  // The display name is used only as the file-type hint. The exact URL, user
++  // gesture, publisher, version, and package digest stay required.
++  const base::FilePath filename =
++      target.IsContentUri() ? item->GetFileNameToReportUser() : target;
 +  is_raws_pinned_ubo_download =
 +      item->HasUserGesture() &&
 +      item->GetOriginalUrl() == GURL(extensions::raws_pinned_ubo::kDownloadUrl) &&
-+      item->GetTargetFilePath().MatchesExtension(extensions::kExtensionFileExtension);
++      filename.MatchesExtension(extensions::kExtensionFileExtension);
 +#endif
 +  if ((is_raws_pinned_ubo_download || extensions::util::IsExtensionDownload(*item)) &&
        !extensions::WebstoreInstaller::GetAssociatedApproval(*item) &&
