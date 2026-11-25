@@ -36,7 +36,7 @@ def slice_index():
     return n
 
 def slice_identity(n):
-    return dict(schema=1, stage=n, workflow=os.environ['CIRCLE_WORKFLOW_ID'],
+    return dict(schema=2, stage=n, workflow=os.environ['CIRCLE_WORKFLOW_ID'],
                 checkout=os.environ['CIRCLE_SHA1'], base=BASE, recipe=RECIPE, patch=PATCH,
                 args_fragment=file_sha(KIT/'args.gn.fragment'))
 
@@ -55,10 +55,10 @@ def gate():
            for k in os.environ):
         raise ValueError('Experiment must not receive RawS signing credentials')
     head = git(ROOT,'rev-parse','HEAD')
-    first = 'af9b1600b4be4eaa9740f4c0c93ad2fd633e0091'
+    first = 'a52b76720e2177e569cd3b9cbd6f1ce490421f56'
     if (head != os.environ.get('CIRCLE_SHA1') or git(ROOT,'rev-parse','HEAD^') != first
-            or git(ROOT,'rev-parse','HEAD^^') != BASE):
-        raise ValueError('Expected #1539 continuation fix on exact #1538')
+            or git(ROOT,'rev-parse','HEAD^^^') != BASE):
+        raise ValueError('Expected #1541 checkpoint fix on exact #1538')
     if fingerprint() != ro.FINGERPRINT or ro.full.fresh():
         raise ValueError('Unexpected baseline fingerprint or fresh seed')
     if ro.active_feature().identity != RECIPE:
@@ -148,7 +148,7 @@ def compile_apk():
     if n>1:
         previous=HANDOFF/f'stage-{n-1}'
         proof=slice_state.receipt_at(previous,slice_identity(n-1))
-        slice_state.restore(out,previous,proof,args)
+        slice_state.restore(out,previous,proof,args,WORK)
         print(f'RESTORED_EXPERIMENT_SLICE={n-1}',flush=True)
     run_logged(['timeout','--kill-after=30s','5m',str(depot/'gn'),'gen',str(out),
                 '--fail-on-unused-args'],ART/'gn.log',phase='ubo-gn',cwd=src,env=env,check=True)
@@ -164,7 +164,7 @@ def compile_apk():
         text=(ART/'compile.log').read_text()
         if not re.search(r'\d+ done, 0 failed, [1-9]\d* remaining',text):
             raise ValueError('Cannot prove a clean time limit interruption')
-        slice_state.save(out,target,slice_identity(n),'slice_expired')
+        slice_state.save(out,target,slice_identity(n),'slice_expired',WORK)
         print(f'SAVED_EXPERIMENT_SLICE={n}',flush=True)
         return
     result.check_returncode()
@@ -189,7 +189,7 @@ def compile_apk():
         'apk_signature_verified':True,'android_runtime_verified':False,
         'official_release':False,'regular_update':False,
     }, indent=2)+'\n')
-    slice_state.save(out,target,slice_identity(n),'done')
+    slice_state.save(out,target,slice_identity(n),'done',WORK)
 
 
 if __name__ == '__main__':

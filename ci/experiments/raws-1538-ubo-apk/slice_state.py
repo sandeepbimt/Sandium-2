@@ -12,29 +12,73 @@ def digest(p):
     with p.open('rb') as f:
         return hashlib.file_digest(f,'sha256').hexdigest()
 
+def outside_links(out, source):
+    # Chromium can generate links to checkout files from its output tree.
+    # Transfer those links as validated metadata, never as tar entries.
+    links = []
+    for p in sorted(out.rglob('*')):
+        if not p.is_symlink():
+            continue
+        target = p.resolve()
+        if target.is_relative_to(out) and not Path(os.readlink(p)).is_absolute():
+            continue
+        if not target.is_relative_to(source) or not target.exists():
+            raise ValueError(f'Unsupported output symlink: {p.relative_to(out)} -> {os.readlink(p)}')
+        links.append(dict(path=p.relative_to(out).as_posix(), link=os.readlink(p),
+                          target=target.relative_to(source).as_posix(),
+                          mtime_ns=p.lstat().st_mtime_ns))
+    return links
+
 def carry(out):
-    # Preserve all Siso and Ninja state in this dedicated out directory. The
-    # exact filenames evolve; reject a tree with no substantial output at all.
     if not (out/'obj').is_dir() or not any(out.glob('.siso*')):
         raise ValueError('No reusable built objects or Siso state')
-    if any(p.is_symlink() and not p.resolve().is_relative_to(out.resolve())
-           for p in out.rglob('*')):
-        # Avoid carrying external symlinks. GN/rebuild can regenerate them but
-        # silently dropping them here would make the snapshot incomplete.
-        raise ValueError('Compile output references an out-of-tree symlink')
 
-def save(out, target, identity, status):
+def save(out, target, identity, status, source):
+    out, source = out.resolve(), source.resolve()
+    if not out.is_relative_to(source):
+        raise ValueError('Build output is not below the checkout root')
     target.mkdir(parents=True,exist_ok=False)
     receipt={**identity,'status':status}
     if status=='slice_expired':
         carry(out)
+        links=outside_links(out,source)
         archive=target/'output.tar.zst'
         if shutil.disk_usage(target).free < 8*1024**3:
             raise ValueError('Under 8 GiB free for experiment checkpoint')
+        exclude=['--exclude='+out.name+'/'+link['path'] for link in links]
+        print(f'EXPERIMENT_CHECKPOINT_CHECKOUT_LINKS={len(links)}',flush=True)
         subprocess.run(['timeout','--kill-after=30s','7m','tar','--format=pax','--use-compress-program=zstd -1 -T4',
-                        '-cf',str(archive),'-C',str(out.parent),out.name],check=True)
-        receipt.update(sha256=digest(archive),bytes=archive.stat().st_size)
+                        '-cf',str(archive),'--no-wildcards',*exclude,'-C',str(out.parent),out.name],check=True)
+        receipt.update(sha256=digest(archive),bytes=archive.stat().st_size,checkout_links=links)
     (target/'receipt.json').write_text(json.dumps(receipt,sort_keys=True)+'\n')
+
+def relative_path(value):
+    p=Path(value)
+    if p.is_absolute() or '..' in p.parts or not p.parts:
+        raise ValueError('Invalid checkout symlink metadata path')
+    return p
+
+def restore_checkout_links(out, source, links):
+    # Check all metadata against the freshly restored checkout before making
+    # any symlinks, and only inside the dedicated output directory.
+    entries={}
+    for spec in links:
+        rel=relative_path(spec['path'])
+        path=out/rel
+        target=source/relative_path(spec['target'])
+        original=spec['link']
+        if (path in entries or path.exists() or path.is_symlink()
+                or not path.parent.is_dir() or path.parent.resolve()!=path.parent
+                or not target.exists() or target.resolve()!=target
+                or (path.parent/original).resolve()!=target):
+            raise ValueError(f'Unsafe or changed restored checkout link: {rel}')
+        entries[path]=spec
+    parents={p.parent:p.parent.stat() for p in entries}
+    for path,spec in entries.items():
+        path.symlink_to(spec['link'])
+        os.utime(path,ns=(path.lstat().st_atime_ns,spec['mtime_ns']),follow_symlinks=False)
+    for path,st in parents.items():
+        os.utime(path,ns=(st.st_atime_ns,st.st_mtime_ns))
 
 def receipt_at(target, identity):
     f=target/'receipt.json'
@@ -47,7 +91,10 @@ def receipt_at(target, identity):
         raise ValueError('Previous slice is not resumable')
     return r
 
-def restore(out, target, r, args):
+def restore(out, target, r, args, source):
+    out, source=out.resolve(),source.resolve()
+    if not out.is_relative_to(source):
+        raise ValueError('Build output is not below the checkout root')
     archive=target/'output.tar.zst'
     if (archive.is_symlink() or not archive.is_file() or
         archive.stat().st_size!=r['bytes'] or digest(archive)!=r['sha256']):
@@ -63,6 +110,15 @@ def restore(out, target, r, args):
             raise ValueError('Unsafe experiment archive entry: '+info.name)
         if not (info.isfile() or info.isdir() or info.issym() or info.islnk()):
             raise ValueError('Unsupported experiment archive entry')
+        if ((p==Path(out.name) and not info.isdir()) or
+                not (out.parent/p).parent.resolve().is_relative_to(out)
+                and p!=Path(out.name)):
+            raise ValueError('Checkpoint attempts to write outside its output tree')
+        if info.issym():
+            if Path(info.linkname).is_absolute() or not ((out.parent/p).parent/info.linkname).resolve().is_relative_to(out):
+                raise ValueError('Unexpected external symlink in archive')
+        if info.islnk() and not (out.parent/relative_path(info.linkname)).resolve().is_relative_to(out):
+            raise ValueError('Unexpected external hardlink in archive')
         accepted=tarfile.data_filter(info,path)
         if accepted is not None:
             stamp=info.pax_headers.get('mtime',str(info.mtime))
@@ -89,3 +145,4 @@ def restore(out, target, r, args):
     if (out/'args.gn').read_bytes()!=args:
         raise ValueError('Restored output build args changed')
     carry(out)
+    restore_checkout_links(out,source,r['checkout_links'])
