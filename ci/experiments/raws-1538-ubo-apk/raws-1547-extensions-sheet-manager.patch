@@ -179,7 +179,7 @@ diff --git a/chrome/browser/resources/extensions/item.html.ts b/chrome/browser/r
 +    ` : ''}
 +  </div>
 +  <div slot="button-container">
-+    <cr-button @click="${this.onCompactControlsClose_}">$i18n{close}</cr-button>
++    <cr-button @click="${this.onCompactControlsCloseClick_}">$i18n{close}</cr-button>
 +  </div>
 +</cr-dialog>
 +</if>
@@ -235,7 +235,7 @@ diff --git a/chrome/browser/resources/extensions/item.ts b/chrome/browser/resour
 +    }
 +  }
 +
-+  protected onCompactControlsClose_() {
++  protected onCompactControlsCloseClick_() {
 +    const dialog =
 +        this.shadowRoot.querySelector<CrDialogElement>('#compact-controls');
 +    if (dialog?.open) {
@@ -244,12 +244,12 @@ diff --git a/chrome/browser/resources/extensions/item.ts b/chrome/browser/resour
 +  }
 +
 +  protected onCompactDetailsClick_() {
-+    this.onCompactControlsClose_();
++    this.onCompactControlsCloseClick_();
 +    this.onDetailsClick_();
 +  }
 +
 +  protected onCompactRemoveClick_() {
-+    this.onCompactControlsClose_();
++    this.onCompactControlsCloseClick_();
 +    this.onRemoveClick_();
 +  }
 +
@@ -257,7 +257,7 @@ diff --git a/chrome/browser/resources/extensions/item.ts b/chrome/browser/resour
 +    if (!this.data.optionsPage || !this.isEnabled_()) {
 +      return;
 +    }
-+    this.onCompactControlsClose_();
++    this.onCompactControlsCloseClick_();
 +    this.delegate?.showItemOptionsPage(this.data);
 +  }
 +

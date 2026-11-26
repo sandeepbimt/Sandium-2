@@ -26,7 +26,7 @@
     },
     {
       "name": "raws-1547-extensions-sheet-manager.patch",
-      "sha256": "ea41687aae703ab30640cee471178c53f3c941fe300a95de7ecb96f713efd5bc"
+      "sha256": "5bb45f7a1362380043d9990fa517624ace22fdeca20fcb770fc243109a001d55"
     },
     {
       "name": "raws-1547-shortcut-favicon-ticket.patch",
@@ -83,11 +83,11 @@
       "before": "f88208c43909910d9a1f5b606d8dead177a8882a79fd886431694796d78e1b6b"
     },
     "chrome/browser/resources/extensions/item.html.ts": {
-      "after": "e17eff177ce98fa9a04252ae7771d7fe6091863056bfc733bf96bfdb3aade2af",
+      "after": "caaf03722cdd3effb7be7b7595d80aca12951f407730e17e9576f31e2a672468",
       "before": "e760255acd523231241cdb0a95180a0c19232be9cd2c237eb2ff651fdf198860"
     },
     "chrome/browser/resources/extensions/item.ts": {
-      "after": "fb8c0436712d74b8cca6aac91fd549ad8790b810f7a9d089814976d0931f2ccd",
+      "after": "159ed49f9bc642bd292d87fd8e02435aedffecc639f419b9c495bb8df6a5c606",
       "before": "e31891ea01e423bdae8572aea26d8e6da5dd69a1a9bde692884e9caf1e3ecf28"
     },
     "chrome/browser/resources/extensions/item_list.css": {
