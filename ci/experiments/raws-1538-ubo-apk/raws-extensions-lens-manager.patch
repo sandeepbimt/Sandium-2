@@ -36,7 +36,7 @@ diff --git a/chrome/browser/resources/extensions/item.css b/chrome/browser/resou
  
    #compact-controls {
 -    --cr-dialog-width: calc(100vw - 16px);
-+    --compact-surface: light-dark(#fcfcfc, #000000);
++    --compact-surface: light-dark(#fcfcfc, #000);
 +    --compact-row: light-dark(#f3f3f3, #1a1a1a);
 +    --compact-accent: light-dark(#365d86, #77baff);
 +    --cr-dialog-background-color: var(--compact-surface);
@@ -326,7 +326,7 @@ diff --git a/chrome/browser/resources/extensions/item_list.css b/chrome/browser/
 -    padding: 12px 14px 32px;
 -    --cr-card-border-radius: 18px;
 +  .android-compact {
-+    background: light-dark(#fcfcfc, #000000);
++    background: light-dark(#fcfcfc, #000);
 +    color-scheme: light dark;
    }
  

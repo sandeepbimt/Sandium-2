@@ -38,7 +38,7 @@
     },
     {
       "name": "raws-extensions-lens-manager.patch",
-      "sha256": "7c65135d75e447d021aa60d68b5d09f194b83b413225aaa473565349aff429a3"
+      "sha256": "8d1220fd8498f1dc2071c4697fe829bdb521335e84a085ecb326988b8af488ed"
     },
     {
       "name": "raws-blur-relaunch-prompt.patch",
@@ -99,7 +99,7 @@
       "before": "a730445eaa54c66a94a66d3241ef936eb346c65fdf19a5d396404798f5e1d729"
     },
     "chrome/browser/resources/extensions/item.css": {
-      "after": "acba22d60cbb33042c7c700fd905337cdddd5f2d2a406ec58fa97eb5632aaa3a",
+      "after": "ed098ac46df129dc587cf2b3dc632a0cc5ccc40e30a04d79c1ee7945e5f6e800",
       "before": "f88208c43909910d9a1f5b606d8dead177a8882a79fd886431694796d78e1b6b"
     },
     "chrome/browser/resources/extensions/item.html.ts": {
@@ -111,7 +111,7 @@
       "before": "e31891ea01e423bdae8572aea26d8e6da5dd69a1a9bde692884e9caf1e3ecf28"
     },
     "chrome/browser/resources/extensions/item_list.css": {
-      "after": "57e99afd98c2ffc7606c35fae880331be753e17bf82224766095286c3e8c5f1f",
+      "after": "09b44aed312aef07d18fe02890d41fc5ce11a788f01df8756f324556f89ed2b5",
       "before": "a02f7be73bc20f0061b21511c8f579e8714d574c2942090074b67f090f7cb21f"
     },
     "chrome/browser/resources/extensions/item_list.html.ts": {
