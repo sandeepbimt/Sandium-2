@@ -1,0 +1,599 @@
+diff --git a/chrome/browser/android/content/java/src/org/chromium/chrome/browser/content/WebContentsFactory.java b/chrome/browser/android/content/java/src/org/chromium/chrome/browser/content/WebContentsFactory.java
+--- a/chrome/browser/android/content/java/src/org/chromium/chrome/browser/content/WebContentsFactory.java
++++ b/chrome/browser/android/content/java/src/org/chromium/chrome/browser/content/WebContentsFactory.java
+@@ -136,8 +136,15 @@
+                 profile, initiallyHidden, true, usesPlatformAutofill, targetNetwork);
+     }
+ 
++    /** Creates a uniquely restricted WebContents for the browser-owned RawS manager. */
++    public static WebContents createRawSExtensionsManager(Profile profile) {
++        return WebContentsFactoryJni.get().createRawSExtensionsManager(profile);
++    }
++
+     @NativeMethods
+     public interface Natives {
++        WebContents createRawSExtensionsManager(@JniType("Profile*") Profile profile);
++
+         WebContents createWebContents(
+                 @JniType("Profile*") Profile profile,
+                 boolean initiallyHidden,
+diff --git a/chrome/browser/android/content/raws_extensions_manager_contents.h b/chrome/browser/android/content/raws_extensions_manager_contents.h
+new file mode 100644
+--- /dev/null
++++ b/chrome/browser/android/content/raws_extensions_manager_contents.h
+@@ -0,0 +1,13 @@
++// Copyright 2026 The Chromium Authors
++// Use of this source code is governed by a BSD-style license that can be
++// found in the LICENSE file.
++
++#ifndef CHROME_BROWSER_ANDROID_CONTENT_RAWS_EXTENSIONS_MANAGER_CONTENTS_H_
++#define CHROME_BROWSER_ANDROID_CONTENT_RAWS_EXTENSIONS_MANAGER_CONTENTS_H_
++
++namespace raws {
++// Browser-owned flag. No URL, renderer action, or user preference can set it.
++inline constexpr int kExtensionsManagerContentsKey = 0;
++}  // namespace raws
++
++#endif  // CHROME_BROWSER_ANDROID_CONTENT_RAWS_EXTENSIONS_MANAGER_CONTENTS_H_
+diff --git a/chrome/browser/android/content/web_contents_factory.cc b/chrome/browser/android/content/web_contents_factory.cc
+--- a/chrome/browser/android/content/web_contents_factory.cc
++++ b/chrome/browser/android/content/web_contents_factory.cc
+@@ -3,6 +3,8 @@
+ // found in the LICENSE file.
+ 
+ #include "base/android/jni_android.h"
++#include "base/supports_user_data.h"
++#include "chrome/browser/android/content/raws_extensions_manager_contents.h"
+ #include "chrome/browser/android/content/web_contents_factory_data_deleter.h"
+ #include "chrome/browser/browser_process.h"
+ #include "chrome/browser/profiles/profile.h"
+@@ -81,4 +83,15 @@
+   return web_contents.release()->GetJavaWebContents();
+ }
+ 
++static ScopedJavaLocalRef<jobject> JNI_WebContentsFactory_CreateRawSExtensionsManager(
++    JNIEnv* env,
++    Profile* profile) {
++  content::WebContents::CreateParams params(profile);
++  params.initially_hidden = true;
++  auto contents = content::WebContents::Create(params);
++  contents->SetUserData(&raws::kExtensionsManagerContentsKey,
++                        std::make_unique<base::SupportsUserData::Data>());
++  return contents.release()->GetJavaWebContents();
++}
++
+ DEFINE_JNI(WebContentsFactory)
+diff --git a/chrome/browser/chrome_content_browser_client_navigation_throttles.cc b/chrome/browser/chrome_content_browser_client_navigation_throttles.cc
+--- a/chrome/browser/chrome_content_browser_client_navigation_throttles.cc
++++ b/chrome/browser/chrome_content_browser_client_navigation_throttles.cc
+@@ -76,6 +76,7 @@
+ #include "components/user_prefs/user_prefs.h"
+ #include "components/webapps/browser/web_contents/web_app_url_loader.h"
+ #include "content/public/browser/navigation_handle.h"
++#include "content/public/browser/navigation_throttle.h"
+ #include "content/public/browser/navigation_throttle_registry.h"
+ #include "content/public/browser/web_contents.h"
+ #include "content/public/common/content_switches.h"
+@@ -90,6 +91,7 @@
+ 
+ #if BUILDFLAG(IS_ANDROID)
+ #include "chrome/android/features/dev_ui/buildflags.h"
++#include "chrome/browser/android/content/raws_extensions_manager_contents.h"
+ #include "chrome/browser/signin/android/cross_device_signin_flow_navigation_throttle.h"
+ #include "components/navigation_interception/intercept_navigation_delegate.h"
+ 
+@@ -195,6 +197,44 @@
+ #endif
+ 
+ namespace {
++#if BUILDFLAG(IS_ANDROID)
++// An address-bar-free manager must never let unrelated content masquerade as
++// Chrome settings. Do not share this rule with ordinary tabs.
++class RawSExtensionsManagerThrottle final : public content::NavigationThrottle {
++ public:
++  explicit RawSExtensionsManagerThrottle(
++      content::NavigationThrottleRegistry& registry)
++      : content::NavigationThrottle(registry) {}
++
++  static void MaybeAdd(content::NavigationThrottleRegistry& registry) {
++    auto& handle = registry.GetNavigationHandle();
++    if (handle.GetWebContents()->GetUserData(&raws::kExtensionsManagerContentsKey)) {
++      registry.AddThrottle(
++          std::make_unique<RawSExtensionsManagerThrottle>(registry));
++    }
++  }
++
++  ThrottleCheckResult WillStartRequest() override { return CheckDestination(); }
++  ThrottleCheckResult WillRedirectRequest() override {
++    return CheckDestination();
++  }
++  ThrottleCheckResult WillCommitWithoutUrlLoader() override {
++    return CheckDestination();
++  }
++
++  const char* GetNameForLogging() override {
++    return "RawSExtensionsManagerThrottle";
++  }
++
++ private:
++  ThrottleCheckResult CheckDestination() {
++    const auto& url = navigation_handle()->GetURL();
++    return url.is_valid() && url.GetWithEmptyPath() == GURL("chrome://extensions/")
++               ? PROCEED
++               : CANCEL_AND_IGNORE;
++  }
++};
++#endif  // BUILDFLAG(IS_ANDROID)
+ 
+ // Wrapper for SSLErrorHandler::HandleSSLError() that supplies //chrome-level
+ // parameters.
+@@ -288,6 +328,9 @@
+ 
+ void CreateAndAddChromeThrottlesForNavigation(
+     content::NavigationThrottleRegistry& registry) {
++#if BUILDFLAG(IS_ANDROID)
++  RawSExtensionsManagerThrottle::MaybeAdd(registry);
++#endif
+   content::NavigationHandle& handle = registry.GetNavigationHandle();
+   if (handle.IsInMainFrame()) {
+     // MetricsNavigationThrottle requires that it runs before
+@@ -640,6 +683,9 @@
+ 
+ void CreateAndAddChromeThrottlesForCommitWithoutUrlLoader(
+     content::NavigationThrottleRegistry& registry) {
++#if BUILDFLAG(IS_ANDROID)
++  RawSExtensionsManagerThrottle::MaybeAdd(registry);
++#endif
+   if (contextual_tasks::GuestOpenerUserData::IsGuestOpener(
+           registry.GetNavigationHandle().GetWebContents())) {
+     contextual_tasks::ContextualTasksNavigationThrottle::MaybeCreateAndAdd(
+diff --git a/chrome/browser/resources/extensions/item.css b/chrome/browser/resources/extensions/item.css
+--- a/chrome/browser/resources/extensions/item.css
++++ b/chrome/browser/resources/extensions/item.css
+@@ -186,8 +186,9 @@
+ @media (max-width: 600px) and (prefers-reduced-motion: no-preference) {
+   #compact-controls::part(dialog) {
+     opacity: 0;
+-    transform: translateY(20px);
+-    transition: opacity 250ms ease, transform 250ms ease,
++    transform: translateY(100%);
++    transition: opacity 250ms ease,
++        transform 250ms cubic-bezier(.2, 0, 0, 1),
+         display 250ms allow-discrete, overlay 250ms allow-discrete;
+   }
+ 
+@@ -202,7 +203,7 @@
+   @starting-style {
+     #compact-controls[open]::part(dialog) {
+       opacity: 0;
+-      transform: translateY(20px);
++      transform: translateY(100%);
+     }
+   }
+ 
+diff --git a/chrome/browser/resources/extensions/manager.css b/chrome/browser/resources/extensions/manager.css
+--- a/chrome/browser/resources/extensions/manager.css
++++ b/chrome/browser/resources/extensions/manager.css
+@@ -95,3 +95,21 @@
+     min-width: 0;
+   }
+ }
++
++.sandium-manager-header {
++  align-items: center;
++  background: light-dark(#fcfcfc, #000);
++  color: light-dark(#1a1a1a, #fafafa);
++  color-scheme: light dark;
++  display: flex;
++  justify-content: center;
++  min-height: 52px;
++  padding-inline: 12px;
++}
++
++.sandium-manager-header h1 {
++  font-size: 19px;
++  font-weight: 600;
++  margin: 0;
++  text-align: center;
++}
+diff --git a/chrome/browser/resources/extensions/manager.html.ts b/chrome/browser/resources/extensions/manager.html.ts
+--- a/chrome/browser/resources/extensions/manager.html.ts
++++ b/chrome/browser/resources/extensions/manager.html.ts
+@@ -11,7 +11,15 @@
+   return html`<!--_html_template_start_-->
+ <extensions-drop-overlay ?drag-enabled="${this.inDevMode}">
+ </extensions-drop-overlay>
+-<extensions-toolbar id="toolbar" ?in-dev-mode="${this.inDevMode}"
++<if expr="is_android">
++${this.sandiumManage_ ? html`
++  <header class="sandium-manager-header">
++    <h1>Manage Extensions</h1>
++  </header>
++` : ''}
++</if>
++<extensions-toolbar id="toolbar" class="${this.sandiumManage_ ? 'sandium-tool-host' : ''}"
++    ?in-dev-mode="${this.inDevMode}"
+     ?can-load-unpacked="${this.canLoadUnpacked}"
+     ?is-child-account="${this.isChildAccount_}"
+     ?dev-mode-controlled-by-policy="${this.devModeControlledByPolicy}"
+@@ -49,7 +57,7 @@
+   <cr-view-manager id="viewManager" role="main">
+     <extensions-item-list id="itemsList" .delegate="${this.delegate}"
+         .incognitoAvailable="${this.incognitoAvailable_}"
+-        ?in-dev-mode="${this.inDevMode}"
++        ?in-dev-mode="${this.inDevMode && !this.sandiumManage_}"
+         ?is-mv2-deprecation-notice-dismissed="${
+             this.isMv2DeprecationNoticeDismissed}"
+         .filter="${this.filter}" ?hidden="${!this.didInitPage_}" slot="view"
+diff --git a/chrome/browser/resources/extensions/manager.ts b/chrome/browser/resources/extensions/manager.ts
+--- a/chrome/browser/resources/extensions/manager.ts
++++ b/chrome/browser/resources/extensions/manager.ts
+@@ -164,6 +164,10 @@
+   accessor canLoadUnpacked: boolean = false;
+   accessor delegate: ServiceInterface = Service.getInstance();
+   accessor inDevMode: boolean = loadTimeData.getBoolean('inDevMode');
++
++  protected readonly sandiumManage_ =
++      new URLSearchParams(location.search).get('sandium') === 'manage';
++
+   accessor isMv2DeprecationNoticeDismissed: boolean =
+       loadTimeData.getBoolean('MV2DeprecationNoticeDismissed');
+   accessor extensionsPinnedByDefault: boolean = true;
+diff --git a/chrome/browser/resources/extensions/navigation_helper.ts b/chrome/browser/resources/extensions/navigation_helper.ts
+--- a/chrome/browser/resources/extensions/navigation_helper.ts
++++ b/chrome/browser/resources/extensions/navigation_helper.ts
+@@ -213,6 +213,12 @@
+         assertNotReachedCase(entry.page);
+     }
+     assert(path);
++    // Keep the Sandium presentation on Details, Options and Back. This only
++    // selects a layout; it never sets or overrides developer mode.
++    const sandium = new URLSearchParams(location.search).get('sandium');
++    if (sandium === 'manage' || sandium === 'developer') {
++      path += (path.includes('?') ? '&' : '?') + 'sandium=' + sandium;
++    }
+     const state = {url: path};
+     const currentPage = this.getCurrentPage();
+     const isDialogNavigation = currentPage.page === entry.page &&
+diff --git a/chrome/browser/resources/extensions/toolbar.css b/chrome/browser/resources/extensions/toolbar.css
+--- a/chrome/browser/resources/extensions/toolbar.css
++++ b/chrome/browser/resources/extensions/toolbar.css
+@@ -117,3 +117,18 @@
+   min-height: 44px;
+   padding-inline: 14px;
+ }
++
++/* The ordinary Sandium flow does not show the Chromium developer controls.
++ * This is presentation only; the developer route retains the existing gates. */
++:host(.sandium-tool-host) cr-toolbar,
++:host(.sandium-tool-host) #devDrawer {
++  display: none;
++}
++
++.sandium-install-link,
++.sandium-developer-link {
++  color: var(--cr-link-color);
++  font-weight: 500;
++  padding: 8px 12px;
++  text-decoration: none;
++}
+diff --git a/chrome/browser/resources/extensions/toolbar.html.ts b/chrome/browser/resources/extensions/toolbar.html.ts
+--- a/chrome/browser/resources/extensions/toolbar.html.ts
++++ b/chrome/browser/resources/extensions/toolbar.html.ts
+@@ -39,11 +39,15 @@
+     <cr-button id="loadCrx" @click="${this.onLoadCrxClick_}">
+       $i18n{rawsToolbarInstallCrx}
+     </cr-button>
++    ${!new URLSearchParams(location.search).has('sandium') ? html`
+     <a class="raws-ubo-install-link"
+         href="https://github.com/gorhill/uBlock/releases/download/1.75.0/uBlock0_1.75.0.chromium.crx"
+         aria-description="Pinned older version for testing only">
+       Install uBlock Origin (test)
+-    </a>
++    </a>` : ''}
++    ${new URLSearchParams(location.search).get('sandium') === 'manage' ? html`
++      <a href="/?sandium=developer" class="sandium-developer-link">Developer options</a>
++    ` : ''}
+   </div>
+ </if>
+ ${this.showPackDialog_ ? html`
+diff --git a/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/extensions/BUILD.gn b/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/extensions/BUILD.gn
+--- a/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/extensions/BUILD.gn
++++ b/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/extensions/BUILD.gn
+@@ -41,6 +41,7 @@
+     "ExtensionsToolbarCoordinatorImpl.java",
+     "ExtensionsToolbarDragTouchHandler.java",
+     "ExtensionsToolbarProperties.java",
++    "RawSExtensionsManagerDialog.java",
+     "SitePermissionsPageProperties.java",
+     "SitePermissionsPageViewBinder.java",
+   ]
+@@ -49,6 +50,7 @@
+     "//base/version_info/android:version_constants_java",
+     "//build/android:build_java",
+     "//chrome/android:chrome_app_java_resources",
++    "//chrome/browser/android/content:java",
+     "//chrome/browser/feature_engagement:java",
+     "//chrome/browser/preferences:java",
+     "//chrome/browser/preferences:pref_service_java",
+diff --git a/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/extensions/ExtensionsMenuCoordinator.java b/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/extensions/ExtensionsMenuCoordinator.java
+--- a/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/extensions/ExtensionsMenuCoordinator.java
++++ b/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/extensions/ExtensionsMenuCoordinator.java
+@@ -126,6 +126,7 @@
+     private @Nullable QuickExtensionsSheet mQuickSheet;
+     private @Nullable BottomSheetController mQuickSheetController;
+     private boolean mQuickClosing;
++    private @Nullable RawSExtensionsManagerDialog mRawSManager;
+     private boolean mDestroyed;
+     private final BottomSheetObserver mQuickSheetObserver =
+             new BottomSheetObserver() {
+@@ -385,6 +386,24 @@
+         });
+     }
+ 
++    private void showRawSManager(Tab tab) {
++        if (mDestroyed || mRawSManager != null || tab.isIncognito()
++                || mCurrentTabSupplier.get() != tab) {
++            return;
++        }
++        var activity = mWindowAndroid.getActivity().get();
++        var tracker = mWindowAndroid.getIntentRequestTracker();
++        if (activity == null || tracker == null || activity.isFinishing() || activity.isDestroyed()) {
++            return;
++        }
++        var manager = new RawSExtensionsManagerDialog(activity, mWindowAndroid, tracker, tab, mTabCreator);
++        manager.setOnDismissListener(ignored -> {
++            if (mRawSManager == manager) mRawSManager = null;
++        });
++        mRawSManager = manager;
++        manager.show();
++    }
++
+     private int quickDp(int dp) {
+         return Math.round(dp * mContext.getResources().getDisplayMetrics().density);
+     }
+@@ -460,9 +479,9 @@
+             manageParams.topMargin = quickDp(8);
+             mRoot.addView(manage, manageParams);
+             manage.setOnClickListener(view -> {
+-                if (!mQuickClosing && mQuickSheet == this && mMediator != null) {
+-                    mMediator.onManageExtensionsClicked();
+-                }
++                if (mQuickClosing || !canRunAction()) return;
++                mSelectedAction = () -> showRawSManager(mOwnerTab);
++                closeQuickSheet(/* animate= */ true);
+             });
+         }
+ 
+@@ -851,6 +870,10 @@
+     @Override
+     public void destroy() {
+         mDestroyed = true;
++        if (mRawSManager != null) {
++            mRawSManager.dismiss();
++            mRawSManager = null;
++        }
+         closeQuickSheet(/* animate= */ false);
+         mIsMenuOpen = false;
+         mCurrentTabSupplier.removeObserver(mTabSupplierObserver);
+diff --git a/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/extensions/RawSExtensionsManagerDialog.java b/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/extensions/RawSExtensionsManagerDialog.java
+new file mode 100644
+--- /dev/null
++++ b/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/extensions/RawSExtensionsManagerDialog.java
+@@ -0,0 +1,216 @@
++// Copyright 2026 The Chromium Authors
++// Use of this source code is governed by a BSD-style license that can be
++// found in the LICENSE file.
++
++package org.chromium.chrome.browser.toolbar.extensions;
++
++import android.animation.ValueAnimator;
++import android.app.Activity;
++import android.app.Dialog;
++import android.content.res.Configuration;
++import android.graphics.drawable.ColorDrawable;
++import android.view.ViewGroup;
++import android.view.Window;
++import android.view.WindowManager;
++import android.widget.Button;
++import android.widget.LinearLayout;
++
++import org.chromium.base.version_info.VersionInfo;
++import org.chromium.build.annotations.NullMarked;
++import org.chromium.build.annotations.Nullable;
++import org.chromium.chrome.browser.content.WebContentsFactory;
++import org.chromium.chrome.browser.tab.Tab;
++import org.chromium.chrome.browser.tabmodel.TabCreator;
++import org.chromium.chrome.browser.tab.TabLaunchType;
++import org.chromium.components.embedder_support.delegate.WebContentsDelegateAndroid;
++import org.chromium.components.embedder_support.view.ContentView;
++import org.chromium.components.thinwebview.ThinWebView;
++import org.chromium.components.thinwebview.ThinWebViewAttachParams;
++import org.chromium.components.thinwebview.ThinWebViewConstraints;
++import org.chromium.components.thinwebview.ThinWebViewFactory;
++import org.chromium.content_public.browser.LoadUrlParams;
++import org.chromium.content_public.browser.WebContents;
++import org.chromium.ui.base.ActivityWindowAndroid;
++import org.chromium.ui.base.IntentRequestTracker;
++import org.chromium.ui.base.PageTransition;
++import org.chromium.ui.base.ViewAndroidDelegate;
++import org.chromium.ui.base.WindowAndroid;
++import org.chromium.ui.interpolators.Interpolators;
++import org.chromium.ui.modaldialog.ModalDialogManager;
++import org.chromium.url.GURL;
++
++/** A native full-screen host for the browser's extension settings, never a visible browser tab. */
++@NullMarked
++final class RawSExtensionsManagerDialog extends Dialog {
++    private static final String MANAGE_URL = "chrome://extensions/?sandium=manage";
++    private static final String STORE_URL = "https://chromewebstore.google.com/category/extensions";
++    private static final String TEST_UBO_URL =
++            "https://github.com/gorhill/uBlock/releases/download/1.75.0/uBlock0_1.75.0.chromium.crx";
++    private static final int ENTER_MS = 350;
++    private static final int EXIT_MS = 250;
++
++    private final ActivityWindowAndroid mIsolatedWindow;
++    private final ThinWebView mView;
++    private final WebContents mContents;
++    private final LinearLayout mRoot;
++    private final Tab mSourceTab;
++    private final TabCreator mTabCreator;
++    private @Nullable Runnable mAfterClose;
++    private boolean mClosing;
++    private boolean mDestroyed;
++
++    RawSExtensionsManagerDialog(
++            Activity activity,
++            WindowAndroid hostWindow,
++            IntentRequestTracker tracker,
++            Tab sourceTab,
++            TabCreator tabCreator) {
++        super(activity, android.R.style.Theme_Material_NoActionBar);
++        mSourceTab = sourceTab;
++        mTabCreator = tabCreator;
++        requestWindowFeature(Window.FEATURE_NO_TITLE);
++        boolean dark = (activity.getResources().getConfiguration().uiMode
++                        & Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES;
++        int surface = dark ? 0xFF000000 : 0xFFFCFCFC;
++        int ink = dark ? 0xFFFAFAFA : 0xFF1A1A1A;
++
++        mContents = WebContentsFactory.createRawSExtensionsManager(sourceTab.getProfile());
++        ContentView contentView = ContentView.createContentView(activity, mContents);
++        mIsolatedWindow =
++                new ActivityWindowAndroid(activity, /* listenToActivityState= */ true, tracker,
++                        /* insetObserver= */ null, /* occlusionTrackingAllowed= */ true) {
++                    @Override
++                    public @Nullable ModalDialogManager getModalDialogManager() {
++                        return hostWindow.getModalDialogManager();
++                    }
++                };
++        mContents.setDelegates(VersionInfo.getProductVersion(),
++                ViewAndroidDelegate.createBasicDelegate(contentView), contentView,
++                mIsolatedWindow, WebContents.createDefaultInternalsHolder());
++
++        // Own an isolated compositor; never attach over the tab's compositor.
++        var constraints = new ThinWebViewConstraints();
++        constraints.supportsOpacity = true;
++        mView = ThinWebViewFactory.create(activity, constraints, mIsolatedWindow);
++        mView.attachWebContents(mContents, contentView,
++                new ThinWebViewAttachParams.Builder()
++                        .setSupportTheming(true)
++                        .setEnableBrowserAutofill(false)
++                        .setWebContentsDelegate(new WebContentsDelegateAndroid() {
++                            @Override
++                            public boolean shouldCreateWebContents(GURL targetUrl) {
++                                return false;
++                            }
++                        })
++                        .build());
++
++        mRoot = new LinearLayout(activity);
++        mRoot.setOrientation(LinearLayout.VERTICAL);
++        mRoot.setBackgroundColor(surface);
++        LinearLayout header = new LinearLayout(activity);
++        header.setOrientation(LinearLayout.HORIZONTAL);
++        Button back = navButton("Back", ink);
++        back.setOnClickListener(v -> onBackPressed());
++        header.addView(back);
++        android.view.View spacer = new android.view.View(activity);
++        header.addView(spacer, new LinearLayout.LayoutParams(0, 1, 1));
++        Button testUbo = navButton("uBlock Origin (test)", ink);
++        testUbo.setOnClickListener(v -> openInBrowser(TEST_UBO_URL));
++        header.addView(testUbo);
++        Button store = navButton("Web Store", ink);
++        store.setOnClickListener(v -> openInBrowser(STORE_URL));
++        header.addView(store);
++        mRoot.addView(header);
++        mRoot.addView(mView.getView(), new LinearLayout.LayoutParams(
++                ViewGroup.LayoutParams.MATCH_PARENT, 0, 1));
++        setContentView(mRoot);
++        Window window = getWindow();
++        if (window != null) {
++            window.setBackgroundDrawable(new ColorDrawable(surface));
++            window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
++            window.setWindowAnimations(0);
++        }
++    }
++
++    private Button navButton(String title, int color) {
++        Button button = new Button(getContext(), null, android.R.attr.borderlessButtonStyle);
++        button.setText(title);
++        button.setTextColor(color);
++        button.setAllCaps(false);
++        return button;
++    }
++
++    private void openInBrowser(String exactUrl) {
++        if (mClosing) return;
++        mAfterClose = () -> {
++            if (!mSourceTab.isDestroyed()) {
++                mTabCreator.createNewTab(new LoadUrlParams(exactUrl, PageTransition.AUTO_TOPLEVEL),
++                        TabLaunchType.FROM_CHROME_UI, mSourceTab);
++            }
++        };
++        closeAnimated();
++    }
++
++    @Override
++    public void show() {
++        super.show();
++        Window window = getWindow();
++        if (window != null) {
++            window.setLayout(ViewGroup.LayoutParams.MATCH_PARENT,
++                    ViewGroup.LayoutParams.MATCH_PARENT);
++        }
++        if (ValueAnimator.areAnimatorsEnabled()) {
++            mRoot.setTranslationY(dp(64));
++            mRoot.animate().translationY(0).setDuration(ENTER_MS)
++                    .setInterpolator(Interpolators.EMPHASIZED).start();
++        }
++        mContents.getNavigationController().loadUrl(
++                new LoadUrlParams(MANAGE_URL, PageTransition.AUTO_TOPLEVEL));
++    }
++
++    @Override
++    public void onBackPressed() {
++        if (mClosing) return;
++        var frame = mContents.getFocusedFrame();
++        if (frame != null && frame.signalCloseWatcherIfActive()) return;
++        var navigation = mContents.getNavigationController();
++        if (navigation.canGoBack()) {
++            navigation.goBack();
++        } else {
++            closeAnimated();
++        }
++    }
++
++    private float dp(int value) {
++        return value * getContext().getResources().getDisplayMetrics().density;
++    }
++
++    private void closeAnimated() {
++        mClosing = true;
++        if (ValueAnimator.areAnimatorsEnabled() && mRoot.isAttachedToWindow()) {
++            mRoot.animate().translationY(mRoot.getHeight()).setDuration(EXIT_MS)
++                    .setInterpolator(Interpolators.EMPHASIZED).withEndAction(this::finish).start();
++        } else {
++            finish();
++        }
++    }
++
++    private void finish() {
++        Runnable afterClose = mAfterClose;
++        mAfterClose = null;
++        dismiss();
++        if (afterClose != null) afterClose.run();
++    }
++
++    @Override
++    public void dismiss() {
++        if (mDestroyed) return;
++        mDestroyed = true;
++        mRoot.animate().cancel();
++        mAfterClose = null;
++        super.dismiss();
++        mView.destroy();
++        mContents.destroy();
++        mIsolatedWindow.destroy();
++    }
++}

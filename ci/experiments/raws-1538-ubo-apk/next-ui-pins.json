@@ -55,6 +55,10 @@
     {
       "name": "raws1554-phone-extension-entrypoints.patch",
       "sha256": "4c14871ed4f20a363b46191fa1aa61afe48133e04d8ade18cae786f1a9cb58e4"
+    },
+    {
+      "name": "raws1555-extension-manager-flow.patch",
+      "sha256": "444f1b3ed0f88487b861f7bfc42ee621e96fa76a963f63ebb92f2db742ed8108"
     }
   ],
   "paths": {
@@ -110,6 +114,22 @@
       "before": "5224b5dc0302d62c92d5244b8e6ecac2030303bbcc8552e5fd87bc2b46d3c56e",
       "after": "f3963e225b36d23f2e13ac9bd46d9b020a129f90c9d68bdad496606ec25e9c59"
     },
+    "chrome/browser/android/content/java/src/org/chromium/chrome/browser/content/WebContentsFactory.java": {
+      "before": "6c78ec52798ced8c9c2cdd97c97ac237636cf4f7da6d0b0eb9d0eec38b2598e8",
+      "after": "6072603aa7eae9a6d6bacc7aa33c14b713900f3dc742e7f5108748fe7231d92a"
+    },
+    "chrome/browser/android/content/raws_extensions_manager_contents.h": {
+      "before": null,
+      "after": "bfd2f8e87795998e1d6f58375b5b3e45b15e855a6119d48f229640bea6bec5d2"
+    },
+    "chrome/browser/android/content/web_contents_factory.cc": {
+      "before": "8194fe44ffb9b63773c30e5fd19847149bfab3710243517f647b8ff5b52e5586",
+      "after": "6720afcb2e77b232d15a34283a4c590ed4b0dbd3a1fb95a9afb05474d5cced9c"
+    },
+    "chrome/browser/chrome_content_browser_client_navigation_throttles.cc": {
+      "before": "7e71ba2da1d92f4c5b2a261056497682b9d2ab20287e4e60d1054fc1a1fd72f7",
+      "after": "de741956764f6f706256ce91dd3fe8796f3417195cef277399e2bf8fa42a8ac8"
+    },
     "chrome/browser/extensions/api/developer_private/developer_private_functions.cc": {
       "after": "4821e14c7974a996d2797b931714e848280ff99c3acfddfe376a616c5c7f9e50",
       "before": "a15138f672f73903b49e0798c15177525311cc09b7e5d1b98545c65cacab48af"
@@ -119,7 +139,7 @@
       "before": "a730445eaa54c66a94a66d3241ef936eb346c65fdf19a5d396404798f5e1d729"
     },
     "chrome/browser/resources/extensions/item.css": {
-      "after": "ed098ac46df129dc587cf2b3dc632a0cc5ccc40e30a04d79c1ee7945e5f6e800",
+      "after": "5d943a77554ffdee412b0e1a7a3f5b81fe01c7b1c4b869d327182bb84a9a7106",
       "before": "f88208c43909910d9a1f5b606d8dead177a8882a79fd886431694796d78e1b6b"
     },
     "chrome/browser/resources/extensions/item.html.ts": {
@@ -143,19 +163,27 @@
       "before": "f9c88d7b6b8b573126bf7f68081ac084cde8d5e666dda1dd245b4b304b812f30"
     },
     "chrome/browser/resources/extensions/manager.css": {
-      "after": "302d6f2181bf34495873b260c88a85530f1400c5cf50cd912c6a3217837a0aa0",
+      "after": "10369e1e2979ad837887ec904bf18b879ccfcd72a1d8fc4560696241d928aefc",
       "before": "5afeaa5500aa4fcbc611177d094fd0f3da6421bdf1101aaee696cc12e62efa6c"
     },
     "chrome/browser/resources/extensions/manager.html.ts": {
-      "after": "c414cf7251bce52fd2fc458a19ec6cadf87de9f7691ada0a0a5e0991ddcc98d4",
+      "after": "83bf817a0f55b5b3bc94e9e7781170468755a88052008e30fee7c6ab3ace567a",
       "before": "af8d21b2a7876713eb6666bcf2f3a978e38d56194df2134922dd6d7393025034"
     },
+    "chrome/browser/resources/extensions/manager.ts": {
+      "before": "8adde223fe6611665a311fb7d4fa69cfdbaa61bd581515ad7046579438d33c92",
+      "after": "fa775caa60446e8d69d147ed0168a25785bb8a04a016472689f157c2c8d8c577"
+    },
+    "chrome/browser/resources/extensions/navigation_helper.ts": {
+      "before": "93ac2782590c194c584cfa23db2cd6df521b3ea3849b2ab3a6e281319c586120",
+      "after": "bb3d6b70caf36c2479daf002e084c5f72b8e9ff9a664adc72f60cd4c29916c3d"
+    },
     "chrome/browser/resources/extensions/toolbar.css": {
-      "after": "d8b2e434c69c890ff840882752b49ee991a00892064d6b12a8934f913c84d1f0",
+      "after": "e26b0ca636a54461dc06364e66f1fad4ae609b7300fcc32ed67305dd661bd4b7",
       "before": "f517ac11689fe06ad60dc532a8633c0f8e35547b0b0436a926342e253be66487"
     },
     "chrome/browser/resources/extensions/toolbar.html.ts": {
-      "after": "e6828c0b1ae9a96557676048c8d2f1a9665e452cbb2a434583affbf7e2f81a1a",
+      "after": "9337c862df4e10887fd05a959c39a09dcb5253941102fa0e4723b4801ff09bdb",
       "before": "d1607653965b8e3cf1ddcfeffb112a08653fc3269f7f1338fa9764db9d4bf7a8"
     },
     "chrome/browser/resources/extensions/toolbar.ts": {
@@ -175,7 +203,7 @@
       "after": "3ccee3cdcb5502a11260e367beaba3a59a3c3959736e506910e1cbbaaa491953"
     },
     "chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/extensions/BUILD.gn": {
-      "after": "d7ed6a29de0a4cf19743e96dac7c48331317ac75e9c1c52560f49b5137f43468",
+      "after": "3ee79f4635d415a5ad979f6046a4e11902baeddc17350c5b20c3cf05363f4e5f",
       "before": "d1b5a81ad5029e0437e15aea2c048e9ad73f29537c4cfc64d0fd20dfa4c0a141"
     },
     "chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/extensions/ExtensionActionListCoordinator.java": {
@@ -187,7 +215,7 @@
       "after": "a3b4480139807f9373a0d8620849973e2910edc6a07a7531d6593375b3e320e8"
     },
     "chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/extensions/ExtensionsMenuCoordinator.java": {
-      "after": "359ee89a787f00b1a8e302ba7ed0a9a79bea0147cecdac5b454ae9cfeec3c693",
+      "after": "52537a8c86baf0845e43295e57d35ab40a7b0ccb384bcbaf6274eeef86a86f7c",
       "before": "aef200c17a9cff4232ca157fa8bac5a33c8b97602ea9beaf19ad9d8b07662f2c"
     },
     "chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/extensions/ExtensionsToolbarCoordinator.java": {
@@ -197,6 +225,10 @@
     "chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/extensions/ExtensionsToolbarCoordinatorImpl.java": {
       "after": "ff5723ef005eca488ee31d08ae42755d9df4dee14e0d3b7c63b7b02e8d652e43",
       "before": "602707e97cf9d36e243fe3d655f54edb992b78580a3556ba49e576bf0d3672dc"
+    },
+    "chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/extensions/RawSExtensionsManagerDialog.java": {
+      "before": null,
+      "after": "01caaa18bc93cea2561f39ea525ac04959baf50814b3ce40c6669cada360698e"
     },
     "chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/ToolbarPhone.java": {
       "before": "e4953634a3e54169b419bc84f5517fc62a0af4023bcec057343f2312abc317b5",
