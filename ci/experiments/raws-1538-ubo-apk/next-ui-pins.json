@@ -59,6 +59,10 @@
     {
       "name": "raws1555-extension-manager-flow.patch",
       "sha256": "444f1b3ed0f88487b861f7bfc42ee621e96fa76a963f63ebb92f2db742ed8108"
+    },
+    {
+      "name": "raws1556-lens-manager-and-flat-home.patch",
+      "sha256": "dcceae1815fc9cfa0e77426f94a2357ad8119e535bef2e133543f310accd6bb5"
     }
   ],
   "paths": {
@@ -138,6 +142,10 @@
       "after": "4c2c5508ed402c6f1897b782feed15402e21cb4aa3838c85bbded0d0413bbeb5",
       "before": "a730445eaa54c66a94a66d3241ef936eb346c65fdf19a5d396404798f5e1d729"
     },
+    "chrome/browser/resources/extensions/extensions.html": {
+      "before": "356a86c1be21cb265d65021df2563048af7722ee1a7446fd7932f58980a42d5b",
+      "after": "6fb2f0eb3267a60fc7c98fcd86aba0d95a40b485443b534b9da9c2c83dc571f7"
+    },
     "chrome/browser/resources/extensions/item.css": {
       "after": "5d943a77554ffdee412b0e1a7a3f5b81fe01c7b1c4b869d327182bb84a9a7106",
       "before": "f88208c43909910d9a1f5b606d8dead177a8882a79fd886431694796d78e1b6b"
@@ -151,23 +159,23 @@
       "before": "e31891ea01e423bdae8572aea26d8e6da5dd69a1a9bde692884e9caf1e3ecf28"
     },
     "chrome/browser/resources/extensions/item_list.css": {
-      "after": "09b44aed312aef07d18fe02890d41fc5ce11a788f01df8756f324556f89ed2b5",
+      "after": "16a67782e16944e4bbc1e088f43a11771ffbd2bba6bfbd9f88e407a1b6854163",
       "before": "a02f7be73bc20f0061b21511c8f579e8714d574c2942090074b67f090f7cb21f"
     },
     "chrome/browser/resources/extensions/item_list.html.ts": {
-      "after": "8a39f4c13e1974883573cd2985be6b9fe9ee72ec36f8029fde1d5809a6903030",
+      "after": "5e2be2272fe92fbf161f47943ed16708959f3aefe0ebbb9cc370324a9d47d1d6",
       "before": "811662b4438887015065fd750925ea2757c968e315a27975479777f6d29bd8dd"
     },
     "chrome/browser/resources/extensions/item_list.ts": {
-      "after": "0671d60f38dc31147fabe2b8c68dd116ee17638ca5e9c899895059b9f14ac380",
+      "after": "776fdffe0c01905d953d63f6561ab1b709a409616f720f9bb106e124a65816ea",
       "before": "f9c88d7b6b8b573126bf7f68081ac084cde8d5e666dda1dd245b4b304b812f30"
     },
     "chrome/browser/resources/extensions/manager.css": {
-      "after": "10369e1e2979ad837887ec904bf18b879ccfcd72a1d8fc4560696241d928aefc",
+      "after": "4e51c34165f46b2b5c00e6b71fa7444946058eb59409444235f01c667e045d26",
       "before": "5afeaa5500aa4fcbc611177d094fd0f3da6421bdf1101aaee696cc12e62efa6c"
     },
     "chrome/browser/resources/extensions/manager.html.ts": {
-      "after": "83bf817a0f55b5b3bc94e9e7781170468755a88052008e30fee7c6ab3ace567a",
+      "after": "d35cfba0b2e88235f35706da1ebc384803bc8eedc254317a4fb370249e2fcafd",
       "before": "af8d21b2a7876713eb6666bcf2f3a978e38d56194df2134922dd6d7393025034"
     },
     "chrome/browser/resources/extensions/manager.ts": {
@@ -179,7 +187,7 @@
       "after": "bb3d6b70caf36c2479daf002e084c5f72b8e9ff9a664adc72f60cd4c29916c3d"
     },
     "chrome/browser/resources/extensions/toolbar.css": {
-      "after": "e26b0ca636a54461dc06364e66f1fad4ae609b7300fcc32ed67305dd661bd4b7",
+      "after": "3336cd05a7279c8a57326833865904c60c628cf7cc2e57b048cc49cc14ba7068",
       "before": "f517ac11689fe06ad60dc532a8633c0f8e35547b0b0436a926342e253be66487"
     },
     "chrome/browser/resources/extensions/toolbar.html.ts": {
@@ -228,11 +236,11 @@
     },
     "chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/extensions/RawSExtensionsManagerDialog.java": {
       "before": null,
-      "after": "01caaa18bc93cea2561f39ea525ac04959baf50814b3ce40c6669cada360698e"
+      "after": "53a4c19fa26f9e12aaa3714d3e10132f682074223fff343e10d3a68aaf18abf1"
     },
     "chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/ToolbarPhone.java": {
       "before": "e4953634a3e54169b419bc84f5517fc62a0af4023bcec057343f2312abc317b5",
-      "after": "71e15c250e3d0de79e2d0a654d7625044fc8e43f305dde5311581a374c00a3e9"
+      "after": "fe910bf639c72834206a62bd7617416f4f1482db9d75fdc8e0cacca0a46ccc24"
     },
     "chrome/browser/ui/webui/extensions/extensions_ui.cc": {
       "after": "8e0450e1dd924a9fedb597f20fa475e8534258e60b45596aaeb8f2b4815982cb",

@@ -1,0 +1,567 @@
+diff --git a/chrome/browser/resources/extensions/extensions.html b/chrome/browser/resources/extensions/extensions.html
+--- a/chrome/browser/resources/extensions/extensions.html
++++ b/chrome/browser/resources/extensions/extensions.html
+@@ -4,6 +4,9 @@
+ <head>
+   <meta charset="utf8">
+   <meta name="color-scheme" content="light dark">
++  <if expr="is_android">
++  <meta name="viewport" content="width=device-width, initial-scale=1">
++  </if>
+   <title>$i18n{title}</title>
+   <base href="chrome://extensions">
+   <link rel="stylesheet" href="chrome://resources/css/md_colors.css">
+diff --git a/chrome/browser/resources/extensions/item_list.css b/chrome/browser/resources/extensions/item_list.css
+--- a/chrome/browser/resources/extensions/item_list.css
++++ b/chrome/browser/resources/extensions/item_list.css
+@@ -184,3 +184,39 @@
+     text-transform: uppercase;
+   }
+ }
++
++.android-compact[data-lens-manager] #content-wrapper {
++  inline-size: min(100%, 560px);
++  box-sizing: border-box;
++  margin-inline: auto;
++}
++
++.android-compact[data-lens-manager] .compact-search input {
++  color: light-dark(#171717, #f5f5f5);
++  font-size: 16px;
++}
++
++.android-compact[data-lens-manager] .compact-search input:focus-visible {
++  outline: 2px solid light-dark(#365d86, #77baff);
++  outline-offset: 2px;
++}
++
++.android-compact[data-lens-manager] .lens-empty {
++  background: light-dark(#f3f3f3, #1a1a1a);
++  border-radius: 20px;
++  color: light-dark(#202020, #eaeaea);
++  display: grid;
++  font-size: 15px;
++  gap: 8px;
++  line-height: 1.35;
++  padding: 24px 18px;
++}
++
++.android-compact[data-lens-manager] .lens-empty span {
++  color: light-dark(#505050, #b8b8b8);
++  font-size: 14px;
++}
++
++.android-compact[data-lens-manager] .empty-list-message {
++  margin-block-start: 18px;
++}
+diff --git a/chrome/browser/resources/extensions/item_list.html.ts b/chrome/browser/resources/extensions/item_list.html.ts
+--- a/chrome/browser/resources/extensions/item_list.html.ts
++++ b/chrome/browser/resources/extensions/item_list.html.ts
+@@ -13,7 +13,7 @@
+   return html`<!--_html_template_start_-->
+ <div id="container"
+ <if expr="is_android">
+-    class="android-compact"
++    class="android-compact" ?data-lens-manager="${this.lensManager}"
+ </if>
+     ?data-developer-mode="${this.inDevMode}">
+   <managed-footnote ?hidden="${!!this.filter}"></managed-footnote>
+@@ -45,9 +45,16 @@
+ 
+     <div id="no-items" class="empty-list-message"
+         ?hidden="${!this.shouldShowEmptyItemsMessage_()}">
+-      <span @click="${this.onNoExtensionsClick_}">
+-        $i18nRaw{noExtensionsOrApps}
+-      </span>
++      ${this.lensManager ? html`
++        <div class="lens-empty">
++          <strong>No extensions installed</strong>
++          <span>Use Install from CRX or open the Chrome Web Store.</span>
++        </div>
++      ` : html`
++        <span @click="${this.onNoExtensionsClick_}">
++          $i18nRaw{noExtensionsOrApps}
++        </span>
++      `}
+     </div>
+     <div id="no-search-results" class="empty-list-message"
+         ?hidden="${!this.shouldShowEmptySearchMessage_()}">
+@@ -89,7 +96,7 @@
+     </div>
+ 
+ <if expr="is_android">
+-    <p class="items-container">
++    <p class="items-container" ?hidden="${this.lensManager}">
+       <a href="https://chromewebstore.google.com/"
+           target="_blank" rel="noopener noreferrer">
+         $i18n{itemSourceWebstore}
+diff --git a/chrome/browser/resources/extensions/item_list.ts b/chrome/browser/resources/extensions/item_list.ts
+--- a/chrome/browser/resources/extensions/item_list.ts
++++ b/chrome/browser/resources/extensions/item_list.ts
+@@ -42,6 +42,7 @@
+       extensions: {type: Array},
+       delegate: {type: Object},
+ 
++      lensManager: {type: Boolean, attribute: 'lens-manager'},
+       incognitoAvailable: {type: Boolean},
+ 
+       inDevMode: {
+@@ -109,6 +110,7 @@
+   accessor extensions: chrome.developerPrivate.ExtensionInfo[] = [];
+   accessor delegate: ItemDelegate = new DummyItemDelegate();
+   accessor inDevMode: boolean = false;
++  accessor lensManager: boolean = false;
+   accessor incognitoAvailable: boolean = false;
+   accessor isMv2DeprecationNoticeDismissed: boolean = false;
+   accessor extensionsPinnedByDefault: boolean = false;
+diff --git a/chrome/browser/resources/extensions/manager.css b/chrome/browser/resources/extensions/manager.css
+--- a/chrome/browser/resources/extensions/manager.css
++++ b/chrome/browser/resources/extensions/manager.css
+@@ -96,20 +96,16 @@
+   }
+ }
+ 
+-.sandium-manager-header {
+-  align-items: center;
++#container[data-lens-manager] {
+   background: light-dark(#fcfcfc, #000);
+-  color: light-dark(#1a1a1a, #fafafa);
+   color-scheme: light dark;
+-  display: flex;
+-  justify-content: center;
+-  min-height: 52px;
+-  padding-inline: 12px;
+ }
+ 
+-.sandium-manager-header h1 {
+-  font-size: 19px;
+-  font-weight: 600;
+-  margin: 0;
+-  text-align: center;
++#container[data-lens-manager] :is(#left, #right) {
++  display: none;
+ }
++
++#container[data-lens-manager] #viewManager {
++  flex: 1 1 0;
++  min-width: 0;
++}
+diff --git a/chrome/browser/resources/extensions/manager.html.ts b/chrome/browser/resources/extensions/manager.html.ts
+--- a/chrome/browser/resources/extensions/manager.html.ts
++++ b/chrome/browser/resources/extensions/manager.html.ts
+@@ -11,13 +11,6 @@
+   return html`<!--_html_template_start_-->
+ <extensions-drop-overlay ?drag-enabled="${this.inDevMode}">
+ </extensions-drop-overlay>
+-<if expr="is_android">
+-${this.sandiumManage_ ? html`
+-  <header class="sandium-manager-header">
+-    <h1>Manage Extensions</h1>
+-  </header>
+-` : ''}
+-</if>
+ <extensions-toolbar id="toolbar" class="${this.sandiumManage_ ? 'sandium-tool-host' : ''}"
+     ?in-dev-mode="${this.inDevMode}"
+     ?can-load-unpacked="${this.canLoadUnpacked}"
+@@ -28,7 +21,7 @@
+     @search-changed="${this.onSearchChanged_}" .extensions="${this.extensions_}"
+     ?narrow="${this.narrow_}" @narrow-changed="${this.onNarrowChanged_}">
+ </extensions-toolbar>
+-${this.showDrawer_ ? html`
++${this.showDrawer_ && !this.sandiumManage_ ? html`
+   <cr-drawer id="drawer" heading="$i18n{toolbarTitle}"
+       align="$i18n{textdirection}" @close="${this.onDrawerClose_}">
+     <div slot="body">
+@@ -46,7 +39,7 @@
+ </if>
+   </cr-drawer>
+ ` : ''}
+-<div id="container" class="cr-scrollable">
++<div id="container" class="cr-scrollable" ?data-lens-manager="${this.sandiumManage_}">
+   <div id="scrollableShadow" class="cr-scrollable-top-shadow"></div>
+   <div id="left" ?hidden="${this.narrow_}">
+     <extensions-sidebar @close-drawer="${this.onCloseDrawer_}"
+@@ -58,6 +51,7 @@
+     <extensions-item-list id="itemsList" .delegate="${this.delegate}"
+         .incognitoAvailable="${this.incognitoAvailable_}"
+         ?in-dev-mode="${this.inDevMode && !this.sandiumManage_}"
++        ?lens-manager="${this.sandiumManage_}"
+         ?is-mv2-deprecation-notice-dismissed="${
+             this.isMv2DeprecationNoticeDismissed}"
+         .filter="${this.filter}" ?hidden="${!this.didInitPage_}" slot="view"
+diff --git a/chrome/browser/resources/extensions/toolbar.css b/chrome/browser/resources/extensions/toolbar.css
+--- a/chrome/browser/resources/extensions/toolbar.css
++++ b/chrome/browser/resources/extensions/toolbar.css
+@@ -132,3 +132,33 @@
+   padding: 8px 12px;
+   text-decoration: none;
+ }
++
++:host(.sandium-tool-host) {
++  background: light-dark(#fcfcfc, #000);
++  color-scheme: light dark;
++}
++
++:host(.sandium-tool-host) .raws-extension-install-actions {
++  box-sizing: border-box;
++  gap: 6px;
++  inline-size: min(100%, 560px);
++  margin-inline: auto;
++  padding: 4px 16px 0;
++}
++
++:host(.sandium-tool-host) #loadCrx,
++:host(.sandium-tool-host) .sandium-developer-link {
++  background: light-dark(#f3f3f3, #1a1a1a);
++  border: 0;
++  border-radius: 100px;
++  box-sizing: border-box;
++  color: light-dark(#263644, #d3e8ff);
++  font-size: 14px;
++  min-height: 44px;
++  justify-content: center;
++}
++
++:host(.sandium-tool-host) .sandium-developer-link {
++  align-items: center;
++  display: inline-flex;
++}
+diff --git a/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/extensions/RawSExtensionsManagerDialog.java b/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/extensions/RawSExtensionsManagerDialog.java
+--- a/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/extensions/RawSExtensionsManagerDialog.java
++++ b/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/extensions/RawSExtensionsManagerDialog.java
+@@ -8,11 +8,20 @@
+ import android.app.Activity;
+ import android.app.Dialog;
+ import android.content.res.Configuration;
++import android.graphics.Color;
+ import android.graphics.drawable.ColorDrawable;
++import android.os.Build;
++import android.view.Gravity;
++import android.view.View;
++import android.view.WindowInsets;
++import android.view.WindowInsetsController;
+ import android.view.ViewGroup;
+ import android.view.Window;
+ import android.view.WindowManager;
+ import android.widget.Button;
++import android.widget.FrameLayout;
++import android.widget.PopupMenu;
++import android.widget.TextView;
+ import android.widget.LinearLayout;
+ 
+ import org.chromium.base.version_info.VersionInfo;
+@@ -30,6 +39,7 @@
+ import org.chromium.components.thinwebview.ThinWebViewFactory;
+ import org.chromium.content_public.browser.LoadUrlParams;
+ import org.chromium.content_public.browser.WebContents;
++import org.chromium.content_public.browser.WebContentsObserver;
+ import org.chromium.ui.base.ActivityWindowAndroid;
+ import org.chromium.ui.base.IntentRequestTracker;
+ import org.chromium.ui.base.PageTransition;
+@@ -53,6 +63,9 @@
+     private final ThinWebView mView;
+     private final WebContents mContents;
+     private final LinearLayout mRoot;
++    private final LinearLayout mPanel;
++    private final TextView mLoadingCover;
++    private final WebContentsObserver mPaintObserver;
+     private final Tab mSourceTab;
+     private final TabCreator mTabCreator;
+     private @Nullable Runnable mAfterClose;
+@@ -107,26 +120,109 @@
+         mRoot = new LinearLayout(activity);
+         mRoot.setOrientation(LinearLayout.VERTICAL);
+         mRoot.setBackgroundColor(surface);
+-        LinearLayout header = new LinearLayout(activity);
+-        header.setOrientation(LinearLayout.HORIZONTAL);
+-        Button back = navButton("Back", ink);
++        mPanel = new LinearLayout(activity);
++        mPanel.setOrientation(LinearLayout.VERTICAL);
++        mPanel.setBackgroundColor(surface);
++        mRoot.addView(mPanel, new LinearLayout.LayoutParams(
++                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
++        FrameLayout header = new FrameLayout(activity);
++        mPanel.addView(header, new LinearLayout.LayoutParams(
++                ViewGroup.LayoutParams.MATCH_PARENT, dpPx(56)));
++
++        TextView title = new TextView(activity);
++        title.setText("Manage Extensions");
++        title.setTextColor(ink);
++        title.setTextSize(20);
++        title.setGravity(Gravity.CENTER);
++        title.setSingleLine(true);
++        title.setEllipsize(android.text.TextUtils.TruncateAt.END);
++        FrameLayout.LayoutParams titleLayout = new FrameLayout.LayoutParams(
++                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
++        titleLayout.setMarginStart(dpPx(56));
++        titleLayout.setMarginEnd(dpPx(56));
++        header.addView(title, titleLayout);
++        title.setAccessibilityHeading(true);
++
++        Button back = navButton("‹", ink);
++        back.setContentDescription("Back");
+         back.setOnClickListener(v -> onBackPressed());
+-        header.addView(back);
+-        android.view.View spacer = new android.view.View(activity);
+-        header.addView(spacer, new LinearLayout.LayoutParams(0, 1, 1));
+-        Button testUbo = navButton("uBlock Origin (test)", ink);
+-        testUbo.setOnClickListener(v -> openInBrowser(TEST_UBO_URL));
+-        header.addView(testUbo);
+-        Button store = navButton("Web Store", ink);
+-        store.setOnClickListener(v -> openInBrowser(STORE_URL));
+-        header.addView(store);
+-        mRoot.addView(header);
+-        mRoot.addView(mView.getView(), new LinearLayout.LayoutParams(
++        header.addView(back, new FrameLayout.LayoutParams(
++                dpPx(56), ViewGroup.LayoutParams.MATCH_PARENT, Gravity.START));
++        Button menu = navButton("⋮", ink);
++        menu.setContentDescription("Extension store options");
++        header.addView(menu, new FrameLayout.LayoutParams(
++                dpPx(56), ViewGroup.LayoutParams.MATCH_PARENT, Gravity.END));
++        menu.setOnClickListener(v -> {
++            PopupMenu popup = new PopupMenu(getContext(), v);
++            popup.getMenu().add("Chrome Web Store").setOnMenuItemClickListener(item -> {
++                openInBrowser(STORE_URL);
++                return true;
++            });
++            popup.getMenu().add("uBlock Origin (test)").setOnMenuItemClickListener(item -> {
++                openInBrowser(TEST_UBO_URL);
++                return true;
++            });
++            popup.show();
++        });
++
++        FrameLayout body = new FrameLayout(activity);
++        body.setBackgroundColor(surface);
++        mPanel.addView(body, new LinearLayout.LayoutParams(
+                 ViewGroup.LayoutParams.MATCH_PARENT, 0, 1));
++        View extensionContents = mView.getView();
++        body.addView(extensionContents, new FrameLayout.LayoutParams(
++                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
++        extensionContents.setImportantForAccessibility(
++                View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS);
++        mLoadingCover = new TextView(activity);
++        mLoadingCover.setGravity(Gravity.CENTER);
++        mLoadingCover.setBackgroundColor(surface);
++        mLoadingCover.setTextColor(ink);
++        mLoadingCover.setText("Loading extensions…");
++        mLoadingCover.setClickable(true);
++        body.addView(mLoadingCover, new FrameLayout.LayoutParams(
++                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
++        mPaintObserver = new WebContentsObserver(mContents) {
++            @Override
++            public void didFirstVisuallyNonEmptyPaint() {
++                mLoadingCover.postOnAnimation(() -> {
++                    if (mDestroyed || mClosing || mLoadingCover.getVisibility() != View.VISIBLE) {
++                        return;
++                    }
++                    extensionContents.setImportantForAccessibility(
++                            View.IMPORTANT_FOR_ACCESSIBILITY_AUTO);
++                    mLoadingCover.setVisibility(View.GONE);
++                });
++            }
++        };
+         setContentView(mRoot);
+         Window window = getWindow();
+         if (window != null) {
+             window.setBackgroundDrawable(new ColorDrawable(surface));
++            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
++                window.setDecorFitsSystemWindows(false);
++                window.setStatusBarColor(Color.TRANSPARENT);
++                window.setNavigationBarColor(Color.TRANSPARENT);
++                WindowInsetsController controller = window.getInsetsController();
++                if (controller != null) {
++                    int mask = WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS
++                            | WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS;
++                    controller.setSystemBarsAppearance(dark ? 0 : mask, mask);
++                }
++                mRoot.setOnApplyWindowInsetsListener((view, insets) -> {
++                    var safe = insets.getInsets(WindowInsets.Type.systemBars()
++                            | WindowInsets.Type.displayCutout());
++                    view.setPadding(safe.left, safe.top, safe.right, safe.bottom);
++                    return insets;
++                });
++            } else {
++                mRoot.setFitsSystemWindows(true);
++                window.setStatusBarColor(surface);
++                window.setNavigationBarColor(surface);
++                window.getDecorView().setSystemUiVisibility(dark ? 0
++                        : View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
++                                | View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR);
++            }
+             window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
+             window.setWindowAnimations(0);
+         }
+@@ -137,6 +233,10 @@
+         button.setText(title);
+         button.setTextColor(color);
+         button.setAllCaps(false);
++        button.setTextSize(25);
++        button.setPadding(0, 0, 0, 0);
++        button.setMinimumWidth(0);
++        button.setMinWidth(0);
+         return button;
+     }
+ 
+@@ -159,13 +259,19 @@
+             window.setLayout(ViewGroup.LayoutParams.MATCH_PARENT,
+                     ViewGroup.LayoutParams.MATCH_PARENT);
+         }
++        mRoot.requestApplyInsets();
+         if (ValueAnimator.areAnimatorsEnabled()) {
+-            mRoot.setTranslationY(dp(64));
+-            mRoot.animate().translationY(0).setDuration(ENTER_MS)
++            mPanel.setTranslationY(dpPx(48));
++            mPanel.animate().translationY(0).setDuration(ENTER_MS)
+                     .setInterpolator(Interpolators.EMPHASIZED).start();
+         }
+         mContents.getNavigationController().loadUrl(
+                 new LoadUrlParams(MANAGE_URL, PageTransition.AUTO_TOPLEVEL));
++        mLoadingCover.postDelayed(() -> {
++            if (!mDestroyed && !mClosing && mLoadingCover.getVisibility() == View.VISIBLE) {
++                mLoadingCover.setText("Extensions are taking longer to load.");
++            }
++        }, 8000);
+     }
+ 
+     @Override
+@@ -181,14 +287,14 @@
+         }
+     }
+ 
+-    private float dp(int value) {
+-        return value * getContext().getResources().getDisplayMetrics().density;
++    private int dpPx(int value) {
++        return Math.round(value * getContext().getResources().getDisplayMetrics().density);
+     }
+ 
+     private void closeAnimated() {
+         mClosing = true;
+         if (ValueAnimator.areAnimatorsEnabled() && mRoot.isAttachedToWindow()) {
+-            mRoot.animate().translationY(mRoot.getHeight()).setDuration(EXIT_MS)
++            mPanel.animate().translationY(mPanel.getHeight()).setDuration(EXIT_MS)
+                     .setInterpolator(Interpolators.EMPHASIZED).withEndAction(this::finish).start();
+         } else {
+             finish();
+@@ -206,7 +312,8 @@
+     public void dismiss() {
+         if (mDestroyed) return;
+         mDestroyed = true;
+-        mRoot.animate().cancel();
++        mPanel.animate().cancel();
++        mPaintObserver.observe(null);
+         mAfterClose = null;
+         super.dismiss();
+         mView.destroy();
+diff --git a/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/ToolbarPhone.java b/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/ToolbarPhone.java
+--- a/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/ToolbarPhone.java
++++ b/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/ToolbarPhone.java
+@@ -1509,6 +1509,27 @@
+         }
+     }
+ 
++    /** Flat paint only for the visible, unfocused regular dark Home toolbar. */
++    private boolean useRawSFlatDarkHome() {
++        if (!mRawSLegacyCapsuleTrial || mIsToolbarUiRefactorEnabled
++                || ChromeFeatureList.sToolbarPhoneAnimationRefactor.isEnabled()
++                || mBrowserControlsStateProvider == null
++                || mBrowserControlsStateProvider.getControlsPosition() != ControlsPosition.BOTTOM
++                || urlHasFocus() || mUrlFocusChangeInProgress || mUrlFocusChangeFraction != 0f
++                || mTabSwitcherState != STATIC_TAB || isIncognitoBranded()
++                || (getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK)
++                        != Configuration.UI_MODE_NIGHT_YES) {
++            return false;
++        }
++        var tab = getToolbarDataProvider().getTab();
++        return tab != null && !tab.isDestroyed() && !tab.isShowingErrorPage()
++                && isRawSUnifiedNativeHome(tab) && UrlUtilities.isNtpUrl(tab.getUrl());
++    }
++
++    private @ColorInt int getRawSHomeAwareBackingColor() {
++        return useRawSFlatDarkHome() ? Color.BLACK : getRawSSoftBackingColor();
++    }
++
+     /** Returns an opaque band color, or transparent when native paint must remain untouched. */
+     private @ColorInt int getRawSSoftBackingColor() {
+         if (!mRawSPageActionsActive || !canUseRawSPageActions()
+@@ -1547,6 +1568,9 @@
+     }
+ 
+     private @ColorInt int getRawSSlimPillColor(int backing) {
++        // Viz still needs a tint for the normal (non-anonymized) toolbar snapshot.
++        // Black on the black band makes its nine-patch indistinguishable from the band.
++        if (useRawSFlatDarkHome()) return Color.BLACK;
+         return backing != Color.TRANSPARENT && usesRawSSlimDarkPalette()
+                 ? RAWS_SLIM_PILL : Color.TRANSPARENT;
+     }
+@@ -1564,7 +1588,7 @@
+     }
+ 
+     private @ColorInt int getRawSSlimEdgeColor(int pill, int backing) {
+-        if (pill == Color.TRANSPARENT) return Color.TRANSPARENT;
++        if (pill == Color.TRANSPARENT || useRawSFlatDarkHome()) return Color.TRANSPARENT;
+         // Keep the existing slim shade, using the borrowed opaque paint as its base.
+         return Color.rgb((15 * Color.red(backing) + Color.red(RAWS_SLIM_BACKING)) / 16,
+                 (15 * Color.green(backing) + Color.green(RAWS_SLIM_BACKING)) / 16,
+@@ -1603,7 +1627,8 @@
+ 
+     @Override
+     protected void dispatchDraw(Canvas canvas) {
+-        int rawSBackingColor = mTextureCaptureMode ? Color.TRANSPARENT : getRawSSoftBackingColor();
++        int rawSBackingColor =
++                mTextureCaptureMode ? Color.TRANSPARENT : getRawSHomeAwareBackingColor();
+         int slimPillColor = getRawSSlimPillColor(rawSBackingColor);
+         // Home and web use the same opaque band; only the native compositor
+         // paints that band when it owns the separately captured toolbar.
+@@ -1667,7 +1692,7 @@
+      * The original toolbar still owns its child clip, touch regions, compact layout and focus.
+      */
+     private boolean drawRawSLegacyCapsuleBehindControls(Canvas canvas, int slimPillColor) {
+-        if (!mRawSLegacyCapsuleTrial
++        if (useRawSFlatDarkHome() || !mRawSLegacyCapsuleTrial
+                 || !getRawSUnifiedPaintBounds(
+                         mLocationBarBackgroundBounds, mRawSUnifiedLivePaintBounds)) {
+             return false;
+@@ -1680,7 +1705,7 @@
+     }
+ 
+     private @ColorInt int getRawSPillOutlineFill(@ColorInt int overrideFill) {
+-        if (!mRawSLegacyCapsuleTrial || mLocationBarBackground == null
++        if (useRawSFlatDarkHome() || !mRawSLegacyCapsuleTrial || mLocationBarBackground == null
+                 || mBrowserControlsStateProvider == null
+                 || mBrowserControlsStateProvider.getControlsPosition() != ControlsPosition.BOTTOM
+                 || ChromeFeatureList.sToolbarPhoneAnimationRefactor.isEnabled()
+@@ -2661,7 +2686,8 @@
+             canvas.save();
+             // If the animation refactor is enabled, the background will instead be drawn by an
+             // Android view hosting the background drawable.
+-            if (!mRawSLegacyCapsuleDrawn && shouldDrawLocationBarBackground()) {
++            if (!useRawSFlatDarkHome()
++                    && !mRawSLegacyCapsuleDrawn && shouldDrawLocationBarBackground()) {
+                 mLocationBarBackground.setBounds(
+                         mLocationBarBackgroundBounds.left + mLocationBarBackgroundNtpOffset.left,
+                         mLocationBarBackgroundBounds.top + mLocationBarBackgroundNtpOffset.top,
+@@ -2839,7 +2865,7 @@
+             if (snapshotDifference == ToolbarSnapshotDifference.NONE && mRawSLegacyCapsuleTrial
+                     && !ChromeFeatureList.sToolbarPhoneAnimationRefactor.isEnabled()) {
+                 getLocationBarContentRect(mRawSUnifiedPendingCaptureBounds);
+-                int backing = getRawSSoftBackingColor();
++                int backing = getRawSHomeAwareBackingColor();
+                 int pill = getRawSSlimPillColor(backing);
+                 if (mRawSCapturedSoftBackingColor != backing
+                         || mRawSCapturedSlimPillColor != pill
+@@ -3010,12 +3036,12 @@
+             if (ChromeFeatureList.sToolbarPhoneAnimationRefactor.isEnabled()) {
+                 updateLocationBarBackgroundBounds(mLocationBarBackgroundBounds, mVisualState);
+             }
+-            mRawSCapturedSoftBackingColor = getRawSSoftBackingColor();
++            mRawSCapturedSoftBackingColor = getRawSHomeAwareBackingColor();
+             mRawSCapturedSlimPillColor = getRawSSlimPillColor(mRawSCapturedSoftBackingColor);
+             mRawSCapturedPillOutlineFill = getRawSPillOutlineFill(mRawSCapturedSlimPillColor);
+             mRawSCapturedSlimEdgeColor = getRawSSlimEdgeColor(
+                     mRawSCapturedSlimPillColor, mRawSCapturedSoftBackingColor);
+-            if (mRawSCapturedSoftBackingColor != Color.TRANSPARENT) {
++            if (getRawSSoftBackingColor() != Color.TRANSPARENT) {
+                 getToolbarHairline().setVisibility(INVISIBLE);
+             } else if (!hideHairlineForIncognitoNtp()
+                     && !hideHairlineForInterstitial()
