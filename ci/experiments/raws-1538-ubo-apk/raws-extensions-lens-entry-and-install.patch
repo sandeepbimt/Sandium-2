@@ -1,0 +1,484 @@
+diff --git a/chrome/browser/resources/extensions/toolbar.css b/chrome/browser/resources/extensions/toolbar.css
+--- a/chrome/browser/resources/extensions/toolbar.css
++++ b/chrome/browser/resources/extensions/toolbar.css
+@@ -100,9 +100,20 @@
+ 
+ .raws-extension-install-actions {
+   display: flex;
++  flex-wrap: wrap;
++  gap: 8px;
+   padding: 8px 14px;
+ }
+ 
+ .raws-extension-install-actions cr-button {
+   min-height: 44px;
+ }
++
++.raws-ubo-install-link {
++  align-items: center;
++  border-radius: 20px;
++  color: var(--cr-link-color);
++  display: inline-flex;
++  min-height: 44px;
++  padding-inline: 14px;
++}
+diff --git a/chrome/browser/resources/extensions/toolbar.html.ts b/chrome/browser/resources/extensions/toolbar.html.ts
+--- a/chrome/browser/resources/extensions/toolbar.html.ts
++++ b/chrome/browser/resources/extensions/toolbar.html.ts
+@@ -39,6 +39,11 @@
+     <cr-button id="loadCrx" @click="${this.onLoadCrxClick_}">
+       $i18n{rawsToolbarInstallCrx}
+     </cr-button>
++    <a class="raws-ubo-install-link"
++        href="https://github.com/gorhill/uBlock/releases/download/1.75.0/uBlock0_1.75.0.chromium.crx"
++        aria-description="Pinned older version for testing only">
++      Install uBlock Origin (test)
++    </a>
+   </div>
+ </if>
+ ${this.showPackDialog_ ? html`
+diff --git a/chrome/browser/ui/android/appmenu/internal/java/src/org/chromium/chrome/browser/ui/appmenu/SandiumPagedMenu.java b/chrome/browser/ui/android/appmenu/internal/java/src/org/chromium/chrome/browser/ui/appmenu/SandiumPagedMenu.java
+--- a/chrome/browser/ui/android/appmenu/internal/java/src/org/chromium/chrome/browser/ui/appmenu/SandiumPagedMenu.java
++++ b/chrome/browser/ui/android/appmenu/internal/java/src/org/chromium/chrome/browser/ui/appmenu/SandiumPagedMenu.java
+@@ -59,6 +59,7 @@
+     private static final int HEADER_HEIGHT_DP = 48;
+     private static final String ALL_MENU = "sandium:all-menu";
+     private static final String EXIT = "exit_id";
++    private static final String EXTENSIONS = "extensions_menu_menu_id";
+     private static final String EMPTY_SLOT = "sandium:empty-slot";
+     private boolean mAllMenu;
+     private final int mGroupColor, mPanelColor, mTextColor, mSecondaryTextColor, mDividerColor, mAccentColor;
+@@ -318,6 +319,7 @@
+         Set<String> keys = new java.util.LinkedHashSet<>(mCatalog.keySet());
+         for (String key : LIBRARY) keys.remove(key);
+         if (hasFixedExit()) keys.remove(EXIT);
++        if (headerExtension() != null) keys.remove(EXTENSIONS);
+         return keys;
+     }
+ 
+@@ -820,43 +822,36 @@
+             done.setTextColor(mHeaderActionColor);
+             weighted(heading, done);
+         } else {
+-            {
+-                int backWidth = dp(64);
+-                if (mAllMenu) {
+-                    heading.addView(button(s(R.string.sandium_menu_back_all),
+-                            s(R.string.sandium_menu_back_description),
+-                            () -> { mAllMenu = false; render(); }),
+-                            new LinearLayout.LayoutParams(backWidth, headerHeight));
+-                } else if (!mReadOnlyPrivateMenu) {
+-                    heading.addView(new View(getContext()), new LinearLayout.LayoutParams(dp(64), 1));
+-                }
+-                TextView title = text(s(mAllMenu ? R.string.sandium_menu_all : R.string.sandium_menu_title),
+-                        HEADER_TITLE_SP, mTextColor);
+-                title.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
+-                title.setGravity(Gravity.CENTER);
+-                title.setIncludeFontPadding(false);
+-                title.setSingleLine(true);
+-                title.setEllipsize(android.text.TextUtils.TruncateAt.END);
+-                title.setAccessibilityHeading(true);
+-                LinearLayout.LayoutParams titleParams =
+-                        new LinearLayout.LayoutParams(0, headerHeight, 1);
+-                if (mReadOnlyPrivateMenu && mAllMenu) {
+-                    // Match the Back button inset so the title centers in the whole panel.
+-                    titleParams.setMarginEnd(backWidth);
+-                }
+-                heading.addView(title, titleParams);
+-                if (!mReadOnlyPrivateMenu) {
+-                    TextView editAction = button(s(R.string.sandium_menu_edit),
+-                            s(R.string.sandium_menu_edit_description),
+-                            () -> { mDraft = mSaved.copy(); render(); });
+-                    editAction.setTextColor(mHeaderActionColor);
+-                    editAction.setMinWidth(dp(64));
+-                    LinearLayout.LayoutParams editParams =
+-                            new LinearLayout.LayoutParams(dp(64), headerHeight);
+-                    heading.addView(editAction, editParams);
+-                }
+-            }
+-
++            int sideWidth = dp(64);
++            Entry extensions = headerExtension();
++            if (mAllMenu) {
++                heading.addView(
++                        button(s(R.string.sandium_menu_back_all),
++                                s(R.string.sandium_menu_back_description),
++                                () -> { mAllMenu = false; render(); }),
++                        new LinearLayout.LayoutParams(sideWidth, headerHeight));
++            } else if (!mReadOnlyPrivateMenu) {
++                TextView edit = button(s(R.string.sandium_menu_edit),
++                        s(R.string.sandium_menu_edit_description),
++                        () -> { mDraft = mSaved.copy(); render(); });
++                edit.setTextColor(mHeaderActionColor);
++                heading.addView(edit, new LinearLayout.LayoutParams(sideWidth, headerHeight));
++            } else {
++                heading.addView(new View(getContext()), new LinearLayout.LayoutParams(sideWidth, 1));
++            }
++
++            TextView title = text(s(mAllMenu ? R.string.sandium_menu_all : R.string.sandium_menu_title),
++                    HEADER_TITLE_SP, mTextColor);
++            title.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
++            title.setGravity(Gravity.CENTER);
++            title.setIncludeFontPadding(false);
++            title.setSingleLine(true);
++            title.setEllipsize(android.text.TextUtils.TruncateAt.END);
++            title.setAccessibilityHeading(true);
++            heading.addView(title, new LinearLayout.LayoutParams(0, headerHeight, 1));
++            View endAction = extensions == null
++                    ? new View(getContext()) : extensionsHeaderButton(extensions);
++            heading.addView(endAction, new LinearLayout.LayoutParams(sideWidth, headerHeight));
+         }
+         // Center the visible glyphs, not font-leading or horizontal baseline alignment.
+         for (int i = 0; i < heading.getChildCount(); i++) {
+@@ -1190,6 +1185,69 @@
+         if (line != null) for (int i = keys.size() % columns; i != 0 && i < columns; i++) line.addView(new View(getContext()), new LinearLayout.LayoutParams(0, 1, 1));
+     }
+ 
++    private Entry headerExtension() {
++        Entry entry = mCatalog.get(EXTENSIONS);
++        // The header is only a presentation of the existing eligible native command.
++        return entry != null && !entry.nativeRow && enabled(entry.model)
++                && entry.model.containsKey(AppMenuItemProperties.CLICK_HANDLER)
++                && entry.model.get(AppMenuItemProperties.CLICK_HANDLER) != null ? entry : null;
++    }
++
++    private View extensionsHeaderButton(Entry entry) {
++        ImageView icon = new ImageView(getContext());
++        icon.setScaleType(ImageView.ScaleType.CENTER_INSIDE);
++        Drawable drawable = entry.model.containsKey(AppMenuItemProperties.ICON)
++                ? entry.model.get(AppMenuItemProperties.ICON) : null;
++        if (drawable == null) {
++            drawable = puzzleIcon();
++        } else if (drawable.getConstantState() != null) {
++            drawable = drawable.getConstantState().newDrawable(getResources()).mutate();
++        }
++        icon.setImageDrawable(drawable);
++        icon.setImageTintList(android.content.res.ColorStateList.valueOf(mHeaderActionColor));
++        icon.setContentDescription(title(entry));
++        icon.setTooltipText(title(entry));
++        icon.setTag("action:" + EXTENSIONS);
++        icon.setFocusable(true);
++        bindPressFeedback(icon);
++        icon.setOnClickListener(v -> activate(EXTENSIONS, entry.model));
++        return icon;
++    }
++
++    private Drawable puzzleIcon() {
++        return new Drawable() {
++            private final android.graphics.Paint mPaint =
++                    new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
++            @Override public int getIntrinsicWidth() { return dp(24); }
++            @Override public int getIntrinsicHeight() { return dp(24); }
++            @Override public void draw(Canvas canvas) {
++                canvas.save();
++                canvas.translate(getBounds().left, getBounds().top);
++                canvas.scale(getBounds().width() / 24f, getBounds().height() / 24f);
++                android.graphics.Path path = new android.graphics.Path();
++                path.moveTo(4, 7);
++                path.lineTo(9.5f, 7);
++                path.cubicTo(9.5f, 2.5f, 15f, 2.5f, 15f, 7);
++                path.lineTo(20, 7);
++                path.lineTo(20, 12);
++                path.cubicTo(24, 12, 24, 17, 20, 17);
++                path.lineTo(20, 21);
++                path.lineTo(14.5f, 21);
++                path.cubicTo(14.5f, 17.3f, 9.5f, 17.3f, 9.5f, 21);
++                path.lineTo(4, 21);
++                path.close();
++                mPaint.setColor(mHeaderActionColor);
++                canvas.drawPath(path, mPaint);
++                canvas.restore();
++            }
++            @Override public void setAlpha(int alpha) { mPaint.setAlpha(alpha); invalidateSelf(); }
++            @Override public void setColorFilter(android.graphics.ColorFilter filter) {
++                mPaint.setColorFilter(filter); invalidateSelf();
++            }
++            @Override public int getOpacity() { return android.graphics.PixelFormat.TRANSLUCENT; }
++        };
++    }
++
+     private void disableTree(View view) {
+         view.setEnabled(false); view.setFocusable(false); view.setClickable(false); view.setLongClickable(false);
+         if (view instanceof ViewGroup) {
+diff --git a/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/extensions/ExtensionsMenuCoordinator.java b/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/extensions/ExtensionsMenuCoordinator.java
+--- a/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/extensions/ExtensionsMenuCoordinator.java
++++ b/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/extensions/ExtensionsMenuCoordinator.java
+@@ -10,6 +10,7 @@
+ import android.graphics.Rect;
+ import android.graphics.Typeface;
+ import android.graphics.drawable.GradientDrawable;
++import android.graphics.drawable.RippleDrawable;
+ import android.os.Handler;
+ import android.os.Looper;
+ import android.text.TextUtils;
+@@ -23,7 +24,6 @@
+ 
+ import androidx.annotation.VisibleForTesting;
+ import androidx.core.widget.ImageViewCompat;
+-import androidx.recyclerview.widget.GridLayoutManager;
+ import androidx.recyclerview.widget.LinearLayoutManager;
+ import androidx.recyclerview.widget.RecyclerView;
+ 
+@@ -367,11 +367,16 @@
+         BottomSheetController controller = mQuickSheetController;
+         if (controller != null) controller.removeObserver(mQuickSheetObserver);
+         mQuickClosing = true;
++        // Open the extension only once this sheet is gone; the popup must not
++        // be covered by the old sheet or be dispatched for a different tab.
+         sheet.release();
+         // onReady can arrive during the mediator constructor, or native code may be
+         // executing an extension action. Tear down after that call unwinds.
+         new Handler(Looper.getMainLooper()).post(() -> {
+             if (mQuickSheet != sheet) return;
++            if (controller != null && controller.getCurrentSheetContent() == null) {
++                sheet.dispatchSelectedExtension();
++            }
+             mQuickSheet = null;
+             mQuickSheetController = null;
+             mQuickClosing = false;
+@@ -389,7 +394,12 @@
+         private final WebContents mOwnerContents;
+         private final String mOwnerUrl;
+         private final LinearLayout mRoot;
+-        private final RecyclerView mGrid;
++        private final RecyclerView mList;
++        private final boolean mDark;
++        private final int mPanelColor;
++        private final int mCardColor;
++        private final int mTextColor;
++        private @Nullable Runnable mSelectedAction;
+         private final BottomSheetType mType =
+                 new BottomSheetType.Builder().setUserInitiated(true).build();
+ 
+@@ -397,29 +407,28 @@
+             mOwnerTab = tab;
+             mOwnerContents = webContents;
+             mOwnerUrl = tab.getUrl().getSpec();
++            mDark = tab.isIncognito()
++                    || (mContext.getResources().getConfiguration().uiMode
++                                    & android.content.res.Configuration.UI_MODE_NIGHT_MASK)
++                            == android.content.res.Configuration.UI_MODE_NIGHT_YES;
++            // Match Lens surfaces in light, dark, and private modes.
++            mPanelColor = mDark ? 0xFF000000 : 0xFFFCFCFC;
++            mCardColor = mDark ? 0xFF1A1A1A : 0xFFF3F3F3;
++            mTextColor = mDark ? 0xFFFAFAFA : 0xFF1A1A1A;
+             mRoot = new LinearLayout(mContext);
+             mRoot.setOrientation(LinearLayout.VERTICAL);
+-            mRoot.setPadding(quickDp(18), quickDp(4), quickDp(18), quickDp(16));
+-            TextView title = label(R.string.extensions_menu_title, 20);
++            mRoot.setPadding(quickDp(14), quickDp(2), quickDp(14), quickDp(12));
++            TextView title = label("Sandium " + mContext.getString(R.string.extensions_menu_title), 20);
++            title.setGravity(Gravity.CENTER);
++            title.setMinHeight(quickDp(48));
+             title.setAccessibilityHeading(true);
+-            title.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+-            title.setPadding(0, 0, 0, quickDp(10));
+-            mRoot.addView(title);
+-            String host = tab.getUrl().getHost();
+-            if (!host.isEmpty()) {
+-                TextView site = new TextView(mContext);
+-                site.setText(host);
+-                site.setTextSize(13);
+-                site.setTextColor(SemanticColorUtils.getDefaultTextColorSecondary(mContext));
+-                site.setMaxLines(1);
+-                site.setEllipsize(TextUtils.TruncateAt.END);
+-                site.setPadding(0, 0, 0, quickDp(10));
+-                mRoot.addView(site);
+-            }
+-            mGrid = new RecyclerView(mContext) {
++            title.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
++            mRoot.addView(title, new LinearLayout.LayoutParams(
++                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
++            mList = new RecyclerView(mContext) {
+                 @Override
+                 protected void onMeasure(int widthSpec, int heightSpec) {
+-                    int heightCap = mContext.getResources().getDisplayMetrics().heightPixels / 3;
++                    int heightCap = mContext.getResources().getDisplayMetrics().heightPixels * 2 / 5;
+                     if (View.MeasureSpec.getMode(heightSpec) != View.MeasureSpec.UNSPECIFIED) {
+                         heightCap = Math.min(heightCap, View.MeasureSpec.getSize(heightSpec));
+                     }
+@@ -428,25 +437,27 @@
+                 }
+             };
+             SimpleRecyclerViewAdapter adapter = new SimpleRecyclerViewAdapter(mExtensionModels);
+-            adapter.registerType(0, parent -> new QuickExtensionTile(),
+-                    (PropertyModel model, QuickExtensionTile view, PropertyKey key) ->
++            adapter.registerType(0, parent -> new QuickExtensionRow(),
++                    (PropertyModel model, QuickExtensionRow view, PropertyKey key) ->
+                             view.bind(model, key));
+-            mGrid.setLayoutManager(new GridLayoutManager(mContext, 4));
+-            mGrid.setItemAnimator(null);
+-            mGrid.setOverScrollMode(View.OVER_SCROLL_IF_CONTENT_SCROLLS);
+-            mGrid.setAdapter(adapter);
+-            mGrid.setBackground(quickCard());
+-            mRoot.addView(mGrid, new LinearLayout.LayoutParams(
++            mList.setLayoutManager(new LinearLayoutManager(mContext));
++            mList.setItemAnimator(null);
++            mList.setOverScrollMode(View.OVER_SCROLL_IF_CONTENT_SCROLLS);
++            mList.setAdapter(adapter);
++            mList.setBackground(quickCard(mCardColor, 20));
++            mList.setClipToOutline(true);
++            mRoot.addView(mList, new LinearLayout.LayoutParams(
+                     ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+-            TextView manage = label(R.string.manage_extensions, 16);
++            TextView manage = label(mContext.getString(R.string.manage_extensions), 16);
+             manage.setGravity(Gravity.CENTER_VERTICAL);
+             manage.setMinHeight(quickDp(52));
+             manage.setFocusable(true);
+-            manage.setBackground(quickCard());
++            manage.setBackground(quickCard(mCardColor, 20));
++            manage.setForeground(quickRipple(20));
+             manage.setPadding(quickDp(14), 0, quickDp(14), 0);
+             LinearLayout.LayoutParams manageParams = new LinearLayout.LayoutParams(
+                     ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+-            manageParams.topMargin = quickDp(12);
++            manageParams.topMargin = quickDp(8);
+             mRoot.addView(manage, manageParams);
+             manage.setOnClickListener(view -> {
+                 if (!mQuickClosing && mQuickSheet == this && mMediator != null) {
+@@ -455,38 +466,52 @@
+             });
+         }
+ 
+-        private TextView label(int stringId, int size) {
++        private TextView label(CharSequence text, int size) {
+             TextView view = new TextView(mContext);
+-            view.setText(stringId);
++            view.setText(text);
+             view.setTextSize(size);
+-            view.setTextColor(SemanticColorUtils.getDefaultTextColor(mContext));
++            view.setTextColor(mTextColor);
+             return view;
+         }
+ 
+-        private GradientDrawable quickCard() {
++        private GradientDrawable quickCard(int color, int radius) {
+             GradientDrawable background = new GradientDrawable();
+-            background.setColor(SemanticColorUtils.getDefaultBgColor(mContext));
+-            background.setCornerRadius(quickDp(18));
+-            background.setStroke(
+-                    quickDp(1),
+-                    (SemanticColorUtils.getDefaultIconColor(mContext) & 0x00ffffff) | 0x33000000);
++            background.setColor(color);
++            background.setCornerRadius(quickDp(radius));
+             return background;
++        }
++
++        private RippleDrawable quickRipple(int radius) {
++            return new RippleDrawable(
++                    ColorStateList.valueOf(mDark ? 0x24FFFFFF : 0x1A000000),
++                    null, quickCard(0xFFFFFFFF, radius));
++        }
++
++        @Override
++        public int getSheetBackgroundColorOverride() {
++            return mPanelColor;
+         }
+ 
+         private boolean canRunAction() {
+             Tab active = mCurrentTabSupplier.get();
+-            return mQuickSheet == this && !mQuickClosing && !mDestroyed
++            return mQuickSheet == this && !mDestroyed
+                     && active == mOwnerTab && active.getWebContents() == mOwnerContents
+                     && mOwnerUrl.equals(active.getUrl().getSpec());
+         }
+ 
++        void dispatchSelectedExtension() {
++            Runnable action = mSelectedAction;
++            mSelectedAction = null;
++            if (action != null && canRunAction()) action.run();
++        }
++
+         void release() {
+-            mGrid.setAdapter(null);
++            mList.setAdapter(null);
+         }
+ 
+         @Override public View getContentView() { return mRoot; }
+         @Override public @Nullable View getToolbarView() { return null; }
+-        @Override public int getVerticalScrollOffset() { return mGrid.computeVerticalScrollOffset(); }
++        @Override public int getVerticalScrollOffset() { return mList.computeVerticalScrollOffset(); }
+         @Override public void destroy() {}
+         @Override public BottomSheetType getSheetType() { return mType; }
+         @Override public int getPriority() { return ContentPriority.HIGH; }
+@@ -496,7 +521,7 @@
+         @Override public float getHalfHeightRatio() { return HeightMode.DISABLED; }
+         @Override public float getFullHeightRatio() { return HeightMode.WRAP_CONTENT; }
+         @Override public @Nullable String getSheetContentDescription(Context context) {
+-            return context.getString(R.string.extensions_menu_title);
++            return "Sandium " + context.getString(R.string.extensions_menu_title);
+         }
+         @Override public int getSheetHalfHeightAccessibilityStringId() {
+             return R.string.extensions_menu_title;
+@@ -508,30 +533,31 @@
+             return R.string.extensions_menu_title;
+         }
+ 
+-        private final class QuickExtensionTile extends LinearLayout {
++        private final class QuickExtensionRow extends LinearLayout {
+             private final ImageView mIcon;
+             private final TextView mTitle;
+ 
+-            QuickExtensionTile() {
++            QuickExtensionRow() {
+                 super(mContext);
+-                setOrientation(VERTICAL);
+-                setGravity(Gravity.TOP | Gravity.CENTER_HORIZONTAL);
+-                setPadding(quickDp(4), quickDp(9), quickDp(4), quickDp(9));
++                setOrientation(HORIZONTAL);
++                setGravity(Gravity.CENTER_VERTICAL);
++                setPaddingRelative(quickDp(14), quickDp(6), quickDp(14), quickDp(6));
+                 setFocusable(true);
+-                setMinimumHeight(quickDp(84));
++                setMinimumHeight(quickDp(48));
++                setForeground(quickRipple(12));
+                 mIcon = new ImageView(mContext);
+                 mIcon.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+-                addView(mIcon, new LinearLayout.LayoutParams(quickDp(32), quickDp(32)));
++                addView(mIcon, new LinearLayout.LayoutParams(quickDp(24), quickDp(24)));
+                 mTitle = new TextView(mContext);
+                 mTitle.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+-                mTitle.setTextSize(12);
+-                mTitle.setTextColor(SemanticColorUtils.getDefaultTextColor(mContext));
+-                mTitle.setMaxLines(2);
++                mTitle.setTextSize(15);
++                mTitle.setTextColor(mTextColor);
++                mTitle.setMaxLines(1);
+                 mTitle.setEllipsize(TextUtils.TruncateAt.END);
+-                mTitle.setGravity(Gravity.CENTER_HORIZONTAL);
++                mTitle.setGravity(Gravity.START | Gravity.CENTER_VERTICAL);
+                 LinearLayout.LayoutParams titleParams = new LinearLayout.LayoutParams(
+-                        ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+-                titleParams.topMargin = quickDp(5);
++                        0, ViewGroup.LayoutParams.WRAP_CONTENT, 1);
++                titleParams.setMarginStart(quickDp(12));
+                 addView(mTitle, titleParams);
+             }
+ 
+@@ -549,14 +575,19 @@
+                     setContentDescription(title);
+                 } else if (key == ExtensionsMenuItemProperties.PRIMARY_ACTION_ON_CLICK) {
+                     setOnClickListener(view -> {
+-                        if (!canRunAction()) {
+-                            closeQuickSheet(/* animate= */ false);
+-                            return;
++                        if (mQuickClosing) return;
++                        if (canRunAction()) {
++                            mSelectedAction = () -> {
++                                for (int i = 0; i < mExtensionModels.size(); i++) {
++                                    if (mExtensionModels.get(i).model != model) continue;
++                                    View.OnClickListener action = model.get(
++                                            ExtensionsMenuItemProperties.PRIMARY_ACTION_ON_CLICK);
++                                    if (action != null) action.onClick(view);
++                                    return;
++                                }
++                            };
+                         }
+-                        View.OnClickListener action =
+-                                model.get(ExtensionsMenuItemProperties.PRIMARY_ACTION_ON_CLICK);
+-                        if (action != null) action.onClick(view);
+-                        closeQuickSheet(/* animate= */ false);
++                        closeQuickSheet(/* animate= */ true);
+                     });
+                 }
+             }

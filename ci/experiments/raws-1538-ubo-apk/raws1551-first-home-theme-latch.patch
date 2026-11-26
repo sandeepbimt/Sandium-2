@@ -1,0 +1,14 @@
+--- a/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/ToolbarPhone.java
++++ b/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/ToolbarPhone.java
+@@ -3927,8 +3927,10 @@
+                     }
+                 });
+         mRawSHomeDepartureColorAnimation = rawSHomeDeparture;
++        // Publish before start: a completed animation must not leave the unified
++        // pill and backing blocked by resurrecting the flag after onEnd().
++        mBrandColorTransitionActive = true;
+         mBrandColorTransitionAnimation.start();
+-        mBrandColorTransitionActive = true;
+         if (mLayoutUpdater != null) mLayoutUpdater.run();
+     }
+ 

@@ -1,0 +1,450 @@
+diff --git a/chrome/browser/resources/extensions/item.css b/chrome/browser/resources/extensions/item.css
+--- a/chrome/browser/resources/extensions/item.css
++++ b/chrome/browser/resources/extensions/item.css
+@@ -20,14 +20,16 @@
+ 
+ @media (max-width: 600px) {
+   #card:not(.dev-mode):has(.compact-entry) {
+-    border-radius: 18px;
++    background: transparent;
++    border-radius: 0;
++    box-shadow: none;
+     height: auto;
+-    min-height: 58px;
++    min-height: 52px;
+   }
+ 
+   #card:not(.dev-mode):has(.compact-entry) #main {
+     align-items: center;
+-    padding: 7px 13px;
++    padding: 4px 14px;
+   }
+ 
+   #card:not(.dev-mode):has(.compact-entry) #content {
+@@ -51,8 +53,7 @@
+       :has(#errors-button, #account-upload-button, #dev-reload-button,
+            #repair-button, #terminated-reload-button,
+            #parentDisabledPermissionsToolTip:not([hidden]))) {
+-    /* Keep original Details in the accessibility/focus return path. */
+-    min-height: 0;
++    display: none;
+   }
+ 
+   #card:not(.dev-mode) .compact-entry {
+@@ -86,42 +87,125 @@
+   }
+ 
+   #compact-controls {
+-    --cr-dialog-width: calc(100vw - 16px);
++    --compact-surface: light-dark(#fcfcfc, #000000);
++    --compact-row: light-dark(#f3f3f3, #1a1a1a);
++    --compact-accent: light-dark(#365d86, #77baff);
++    --cr-dialog-background-color: var(--compact-surface);
++    --cr-dialog-width: min(100vw, 600px);
+     --cr-dialog-border-radius: 24px 24px 0 0;
++    color-scheme: light dark;
+   }
+ 
+   #compact-controls::part(dialog) {
+     inset-block: auto 0;
+     margin: 0 auto;
+-    max-height: 83dvh;
++    max-height: 88dvh;
++    padding-block-end: env(safe-area-inset-bottom);
+     position: fixed;
++  }
++
++  .compact-title {
++    font-size: 15px;
++    font-weight: 600;
++    overflow-wrap: anywhere;
++  }
++
++  .compact-title::before {
++    background: var(--cr-secondary-text-color);
++    border-radius: 10px;
++    content: '';
++    display: block;
++    height: 4px;
++    margin: -7px auto 15px;
++    opacity: .5;
++    width: 34px;
+   }
+ 
+   .compact-action-list {
+     display: grid;
+-    gap: 8px;
++    gap: 12px;
++  }
++
++  .compact-group {
++    background: var(--compact-row);
++    border-radius: 18px;
++    overflow: hidden;
++  }
++
++  .compact-group:not(:has(.compact-action, cr-button)) {
++    display: none;
+   }
+ 
+   .compact-action,
+-  .compact-action-list > cr-button {
++  .compact-group > cr-button {
+     align-items: center;
+-    background: var(--cr-card-background-color);
+-    border-radius: 12px;
++    border: 0;
++    border-radius: 0;
++    box-sizing: border-box;
+     display: flex;
+-    gap: 12px;
++    font: inherit;
++    gap: 10px;
++    min-height: 48px;
++    padding: 6px 14px;
++    text-align: start;
++  }
++
++  .compact-group > cr-button {
+     justify-content: space-between;
+-    min-height: 48px;
+-    padding: 4px 12px;
+-    text-align: start;
++    width: 100%;
++  }
++
++  .compact-action > :first-child:not(.compact-app-icon) {
++    flex: 1;
++    min-width: 0;
+   }
+ 
+   .compact-action > cr-toggle {
++    --cr-toggle-checked-bar-color: var(--compact-accent);
++    --cr-toggle-checked-button-color: var(--compact-surface);
+     flex: none;
++    margin-inline-start: auto;
++  }
++
++  .compact-app-icon {
++    height: 24px;
++    width: 24px;
++  }
++
++  .compact-warning {
++    font-size: 11px;
++    line-height: 1.3;
++    margin-block: 2px;
+   }
+ 
+   .compact-remove {
+     color: var(--error-color);
+   }
++}
++
++@media (max-width: 600px) and (prefers-reduced-motion: no-preference) {
++  #compact-controls::part(dialog) {
++    opacity: 0;
++    transform: translateY(20px);
++    transition: opacity 250ms ease, transform 250ms ease,
++        display 250ms allow-discrete, overlay 250ms allow-discrete;
++  }
++
++  #compact-controls[open]::part(dialog) {
++    opacity: 1;
++    transform: translateY(0);
++    transition: opacity 350ms cubic-bezier(.2, 0, 0, 1),
++        transform 350ms cubic-bezier(.2, 0, 0, 1),
++        display 350ms allow-discrete, overlay 350ms allow-discrete;
++  }
++
++  @starting-style {
++    #compact-controls[open]::part(dialog) {
++      opacity: 0;
++      transform: translateY(20px);
++    }
++  }
++
+ }
+ 
+ .layout-horizontal-center {
+diff --git a/chrome/browser/resources/extensions/item.html.ts b/chrome/browser/resources/extensions/item.html.ts
+--- a/chrome/browser/resources/extensions/item.html.ts
++++ b/chrome/browser/resources/extensions/item.html.ts
+@@ -45,7 +45,7 @@
+       <div>
+         <div id="name-and-version" class="layout-horizontal-center">
+ <if expr="is_android">
+-          <button type="button" class="compact-entry"
++          <button type="button" class="compact-entry" aria-haspopup="dialog"
+               @click="${this.onCompactControlsClick_}">
+             <span>${this.data.name}</span>
+             <span class="compact-state">
+@@ -231,38 +231,63 @@
+ </div>
+ <if expr="is_android">
+ <cr-dialog id="compact-controls">
+-  <div slot="title">${this.data.name}</div>
++  <div slot="title" class="compact-title">${this.data.name}</div>
+   <div slot="body" class="compact-action-list">
+-    ${this.showEnableToggle_() ? html`
+-      <div class="compact-action">
+-        <span>${this.isEnabled_() ? '$i18n{itemOn}' : '$i18n{itemOff}'}</span>
+-        <cr-toggle aria-label="${this.getEnableToggleAriaLabel_()}"
+-            ?checked="${this.isEnabled_()}"
+-            ?disabled="${!this.isEnableToggleEnabled_()}"
+-            @change="${this.onCompactEnableChange_}">
+-        </cr-toggle>
++    <div class="compact-group">
++      ${this.showEnableToggle_() ? html`
++        <div class="compact-action">
++          <img class="compact-app-icon" src="${this.data.iconUrl}" alt="">
++          <span>${this.isEnabled_() ? '$i18n{itemOn}' : '$i18n{itemOff}'}</span>
++          <cr-toggle aria-label="${this.getEnableToggleAriaLabel_()}"
++              ?checked="${this.isEnabled_()}"
++              ?disabled="${!this.isEnableToggleEnabled_()}"
++              @change="${this.onCompactEnableChange_}">
++          </cr-toggle>
++        </div>
++      ` : ''}
++      ${this.canChangeCompactPrivateAccess_() ? html`
++        <div class="compact-action">
++          <div>
++            <div>$i18n{itemAllowIncognito}</div>
++            <div class="cr-secondary-text compact-warning">$i18n{incognitoInfoWarning}</div>
++          </div>
++          <cr-toggle aria-label="$i18n{itemAllowIncognito}"
++              ?checked="${this.data.incognitoAccess.isActive}"
++              @change="${this.onCompactPrivateAccessChange_}">
++          </cr-toggle>
++        </div>
++      ` : ''}
++      ${this.canChangeCompactUserScripts_() ? html`
++        <div class="compact-action">
++          <span>$i18n{itemAllowUserScripts}</span>
++          <cr-toggle aria-label="$i18n{itemAllowUserScripts}"
++              ?checked="${this.data.userScriptsAccess.isActive}"
++              @change="${this.onCompactUserScriptsChange_}">
++          </cr-toggle>
++        </div>
++      ` : ''}
++    </div>
++    <div class="compact-group">
++      <cr-button @click="${this.onCompactDetailsClick_}">
++        $i18n{itemDetails}
++        <cr-icon icon="cr:chevron-right" aria-hidden="true"></cr-icon>
++      </cr-button>
++    </div>
++    ${this.data.optionsPage || !this.data.mustRemainInstalled ? html`
++      <div class="compact-group">
++        ${this.data.optionsPage ? html`
++          <cr-button ?disabled="${!this.isEnabled_()}"
++              @click="${this.onCompactOptionsClick_}">
++            $i18n{itemOptions}
++          </cr-button>
++        ` : ''}
++        ${!this.data.mustRemainInstalled ? html`
++          <cr-button class="compact-remove"
++              @click="${this.onCompactRemoveClick_}">
++            $i18n{itemRemoveExtension}
++          </cr-button>
++        ` : ''}
+       </div>
+-    ` : ''}
+-    ${this.canChangeCompactPrivateAccess_() ? html`
+-      <div class="compact-action">
+-        <div>
+-          <div>$i18n{itemAllowIncognito}</div>
+-          <div class="cr-secondary-text">$i18n{incognitoInfoWarning}</div>
+-        </div>
+-        <cr-toggle aria-label="$i18n{itemAllowIncognito}"
+-            ?checked="${this.data.incognitoAccess.isActive}"
+-            @change="${this.onCompactPrivateAccessChange_}">
+-        </cr-toggle>
+-      </div>
+-    ` : ''}
+-    <cr-button @click="${this.onCompactDetailsClick_}">$i18n{itemDetails}</cr-button>
+-    ${this.data.optionsPage ? html`
+-      <cr-button ?disabled="${!this.isEnabled_()}"
+-          @click="${this.onCompactOptionsClick_}">$i18n{itemOptions}</cr-button>
+-    ` : ''}
+-    ${!this.data.mustRemainInstalled ? html`
+-      <cr-button class="compact-remove"
+-          @click="${this.onCompactRemoveClick_}">$i18n{itemRemoveExtension}</cr-button>
+     ` : ''}
+   </div>
+   <div slot="button-container">
+diff --git a/chrome/browser/resources/extensions/item.ts b/chrome/browser/resources/extensions/item.ts
+--- a/chrome/browser/resources/extensions/item.ts
++++ b/chrome/browser/resources/extensions/item.ts
+@@ -202,7 +202,10 @@
+ 
+   /** @return The "Details" button. */
+   getDetailsButton(): HTMLElement {
+-    return this.$.detailsButton;
++    const compactEntry =
++        this.shadowRoot.querySelector<HTMLElement>('.compact-entry');
++    return compactEntry?.checkVisibility() ? compactEntry :
++                                            this.$.detailsButton;
+   }
+ 
+   /** @return The "Remove" button, if it exists. */
+@@ -325,6 +328,19 @@
+       this.delegate?.setItemAllowedIncognito(this.data.id, toggle.checked);
+     }
+     toggle.checked = this.data.incognitoAccess.isActive;
++  }
++
++  protected canChangeCompactUserScripts_(): boolean {
++    // Mirror the capability gate in the full Chromium Details view.
++    return this.data.userScriptsAccess.isEnabled;
++  }
++
++  protected onCompactUserScriptsChange_(event: Event) {
++    const toggle = event.currentTarget as CrToggleElement;
++    if (this.canChangeCompactUserScripts_()) {
++      this.delegate?.setItemAllowedUserScripts(this.data.id, toggle.checked);
++    }
++    toggle.checked = this.data.userScriptsAccess.isActive;
+   }
+ 
+   protected onDetailsClick_() {
+diff --git a/chrome/browser/resources/extensions/item_list.css b/chrome/browser/resources/extensions/item_list.css
+--- a/chrome/browser/resources/extensions/item_list.css
++++ b/chrome/browser/resources/extensions/item_list.css
+@@ -121,26 +121,66 @@
+   z-index: 1;
+ }
+ 
+-/* Match RawS phone surfaces without changing Chromium's card actions. */
++.compact-search {
++  display: none;
++}
++
+ @media (max-width: 600px) {
+-  #content-wrapper {
+-    min-width: 0;
+-    padding: 12px 14px 32px;
+-    --cr-card-border-radius: 18px;
++  .android-compact {
++    background: light-dark(#fcfcfc, #000000);
++    color-scheme: light dark;
+   }
+ 
+-  .items-container {
++  .compact-search {
++    display: block;
++  }
++
++  .compact-search > input {
++    background: light-dark(#f3f3f3, #262626);
++    border: 1px solid transparent;
++    border-radius: 28px;
++    box-sizing: border-box;
++    color: var(--cr-primary-text-color);
++    font: inherit;
++    min-height: 46px;
++    padding-inline: 18px;
++    width: 100%;
++  }
++
++  .android-compact .items-container {
+     grid-template-columns: minmax(0, 1fr);
+     max-width: none;
+   }
+ 
+-  extensions-item {
++  .android-compact #content-wrapper {
++    min-width: 0;
++    padding: 12px 16px 42px;
++    --cr-card-border-radius: 18px;
++  }
++
++  .android-compact extensions-item {
+     display: block;
+     min-width: 0;
+   }
+ 
+-  .section-header-contents {
++  .android-compact .section-header-contents {
+     flex-wrap: wrap;
+     gap: 8px;
+   }
++
++  .android-compact:not([data-developer-mode]) .compact-installed {
++    background: light-dark(#f3f3f3, #1a1a1a);
++    border-radius: 22px;
++    gap: 0;
++    padding-block: 4px;
++  }
++
++  .android-compact:not([data-developer-mode]) .section-header {
++    color: var(--cr-secondary-text-color);
++    font-size: 13px;
++    font-weight: 500;
++    letter-spacing: .04em;
++    margin-inline: 14px;
++    text-transform: uppercase;
++  }
+ }
+diff --git a/chrome/browser/resources/extensions/item_list.html.ts b/chrome/browser/resources/extensions/item_list.html.ts
+--- a/chrome/browser/resources/extensions/item_list.html.ts
++++ b/chrome/browser/resources/extensions/item_list.html.ts
+@@ -11,9 +11,20 @@
+ export function getHtml(this: ExtensionsItemListElement) {
+   // clang-format off
+   return html`<!--_html_template_start_-->
+-<div id="container">
++<div id="container"
++<if expr="is_android">
++    class="android-compact"
++</if>
++    ?data-developer-mode="${this.inDevMode}">
+   <managed-footnote ?hidden="${!!this.filter}"></managed-footnote>
+   <div id="content-wrapper" .style="--max-columns: ${this.maxColumns_};">
++<if expr="is_android">
++    <label class="compact-search">
++      <input type="search" aria-label="$i18n{search}"
++          placeholder="$i18n{search}" .value="${this.filter || ''}"
++          @input="${this.onCompactSearchInput_}">
++    </label>
++</if>
+     ${this.showSafetyCheckReviewPanel_ ? html`
+       <div class="items-container panel">
+         <extensions-review-panel .extensions="${this.unsafeExtensions_}"
+@@ -60,7 +71,7 @@
+           </span>
+         </span>
+       </h2>
+-      <div class="items-container">
++      <div class="items-container compact-installed">
+         <!-- Render only a few items first, to improve initial render time,
+              then render the remaining items on a different frame. Value of 6
+              was chosen by experimentation, and it is a good trade-off between
+diff --git a/chrome/browser/resources/extensions/item_list.ts b/chrome/browser/resources/extensions/item_list.ts
+--- a/chrome/browser/resources/extensions/item_list.ts
++++ b/chrome/browser/resources/extensions/item_list.ts
+@@ -295,6 +295,11 @@
+         this.shownExtensionsCount_ === 0;
+   }
+ 
++  protected onCompactSearchInput_(event: Event) {
++    const input = event.currentTarget as HTMLInputElement;
++    this.dispatchEvent(new CustomEvent('search-changed', {detail: input.value}));
++  }
++
+   protected onNoExtensionsClick_(e: Event) {
+     if ((e.target as HTMLElement).tagName === 'A') {
+       chrome.metricsPrivate.recordUserAction('Options_GetMoreExtensions');
+diff --git a/chrome/browser/resources/extensions/manager.html.ts b/chrome/browser/resources/extensions/manager.html.ts
+--- a/chrome/browser/resources/extensions/manager.html.ts
++++ b/chrome/browser/resources/extensions/manager.html.ts
+@@ -55,7 +55,8 @@
+         .filter="${this.filter}" ?hidden="${!this.didInitPage_}" slot="view"
+         .apps="${this.apps_}" .extensions="${this.extensions_}"
+         ?extensions-pinned-by-default="${this.extensionsPinnedByDefault}"
+-        @show-install-warnings="${this.onShowInstallWarnings_}">
++        @show-install-warnings="${this.onShowInstallWarnings_}"
++        @search-changed="${this.onSearchChanged_}">
+     </extensions-item-list>
+     <cr-lazy-render-lit id="details-view"
+         .template="${() => html`

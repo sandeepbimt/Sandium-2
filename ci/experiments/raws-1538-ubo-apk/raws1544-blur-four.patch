@@ -1,6 +1,6 @@
 --- a/chrome/android/java/res/values/raws_main_settings_strings.xml
 +++ b/chrome/android/java/res/values/raws_main_settings_strings.xml
-@@ -34,8 +34,8 @@
+@@ -34,13 +34,15 @@
      <string name="raws_settings_open_group">Only open links in current tab group</string>
      <string name="raws_settings_undo_tabs">Show undo button when tabs are closed</string>
      <string name="raws_settings_native_options">Other appearance settings</string>
@@ -11,6 +11,13 @@
      <item name="sandium_add_home_shortcut" type="id"/>
      <string name="raws_add_current_page_to_sandium_home">Add to Sandium home</string>
      <string name="raws_add_current_page_to_sandium_home_ok">Added to Sandium home</string>
+     <string name="raws_add_current_page_to_sandium_home_unavailable">Could not add this shortcut. It may already be saved or Home may be full.</string>
+     <string name="raws_dark_pages_next_load">Applies when a page loads. Sites can override this in Sandium Lens.</string>
++    <string name="raws_blur_relaunch_message">Your changes will take effect the next time you relaunch Sandium</string>
++    <string name="raws_blur_relaunch_now">RELAUNCH NOW</string>
+     <string name="raws_transition_restart">Applies after restarting Sandium.</string>
+     <string name="raws_transition_blur_restart_value">%1$s · Applies after restarting Sandium.</string>
+     <string name="raws_page_text_title">Webpage text</string>
 --- a/chrome/android/java/res/values/raws_welcome_palette.xml
 +++ b/chrome/android/java/res/values/raws_welcome_palette.xml
 @@ -25,7 +25,9 @@

@@ -1,0 +1,25 @@
+--- a/chrome/android/java/src/org/chromium/chrome/browser/appearance/settings/AppearanceSettingsFragment.java
++++ b/chrome/android/java/src/org/chromium/chrome/browser/appearance/settings/AppearanceSettingsFragment.java
+@@ -289,8 +289,20 @@
+                     ? getString(R.string.raws_transition_blur_restart_value, value)
+                     : getString(R.string.raws_transition_restart);
+         });
+-        blur.setOnPreferenceChangeListener(
+-                (preference, value) -> RawSNavigationAppearance.setBlurLevel((String) value));
++        blur.setOnPreferenceChangeListener((preference, value) -> {
++            if (!(value instanceof String level)) return false;
++            if (level.equals(RawSNavigationAppearance.getBlurLevel())) return true;
++            // Persist the new level before giving the user an immediate restart action.
++            if (!RawSNavigationAppearance.commitBlurLevel(level)) return false;
++            new AlertDialog.Builder(requireContext())
++                    .setMessage(R.string.raws_blur_relaunch_message)
++                    .setNegativeButton(R.string.raws_dynamic_colors_later, null)
++                    .setPositiveButton(
++                            R.string.raws_blur_relaunch_now,
++                            (dialog, which) -> ApplicationLifetime.terminate(true))
++                    .show();
++            return true;
++        });
+     }
+ 
+     private void updateRawSDarkPages() {
