@@ -51,6 +51,10 @@
     {
       "name": "raws1553-lens-ublock-site-controls.patch",
       "sha256": "42d1f35789776e119dcf8a345ef1381ebbd95a7f25364e4e612dc0998d72964b"
+    },
+    {
+      "name": "raws1554-phone-extension-entrypoints.patch",
+      "sha256": "4c14871ed4f20a363b46191fa1aa61afe48133e04d8ade18cae786f1a9cb58e4"
     }
   ],
   "paths": {
@@ -101,6 +105,10 @@
     "chrome/android/java/src/org/chromium/chrome/browser/tabbed_mode/TabbedAppMenuPropertiesDelegate.java": {
       "after": "4886f0cb61b71ea197e5454ae0433c7d6c42a6d6db258d0bc85efeab221ab323",
       "before": "1dd1bbf9f26014b7e03127acb94f1e874d7d75361ac3df0c3e6ea724c88d5599"
+    },
+    "chrome/android/java/src/org/chromium/chrome/browser/toolbar/ToolbarManager.java": {
+      "before": "5224b5dc0302d62c92d5244b8e6ecac2030303bbcc8552e5fd87bc2b46d3c56e",
+      "after": "f3963e225b36d23f2e13ac9bd46d9b020a129f90c9d68bdad496606ec25e9c59"
     },
     "chrome/browser/extensions/api/developer_private/developer_private_functions.cc": {
       "after": "4821e14c7974a996d2797b931714e848280ff99c3acfddfe376a616c5c7f9e50",
@@ -170,16 +178,24 @@
       "after": "d7ed6a29de0a4cf19743e96dac7c48331317ac75e9c1c52560f49b5137f43468",
       "before": "d1b5a81ad5029e0437e15aea2c048e9ad73f29537c4cfc64d0fd20dfa4c0a141"
     },
+    "chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/extensions/ExtensionActionListCoordinator.java": {
+      "before": "78035f5272cff087c68c9f6e899bb941ba516fd93188cd56dbfaa4b6fd5973b5",
+      "after": "e50529b92bb76141a32fc3354263834abcad1ce0a6c8a86d729fd89fe270fd9a"
+    },
+    "chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/extensions/ExtensionActionListMediator.java": {
+      "before": "86ec64b5ee006bca102baa513c7d80100998ef82691768a0579bda5de656d402",
+      "after": "a3b4480139807f9373a0d8620849973e2910edc6a07a7531d6593375b3e320e8"
+    },
     "chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/extensions/ExtensionsMenuCoordinator.java": {
       "after": "359ee89a787f00b1a8e302ba7ed0a9a79bea0147cecdac5b454ae9cfeec3c693",
       "before": "aef200c17a9cff4232ca157fa8bac5a33c8b97602ea9beaf19ad9d8b07662f2c"
     },
     "chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/extensions/ExtensionsToolbarCoordinator.java": {
       "before": "b527d157405f1732fdf2e95527923b05fad0f42cb9653ae657250aee0d047283",
-      "after": "75e9f787654ef4b75ffd9bbdfc5a416c70e2f03f4ceb07f894dff7d7ef6ee8b9"
+      "after": "1ef92709c298f52081f90621aa3d0240dbf084b6dcb0184f45f4d5b243cde8a5"
     },
     "chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/extensions/ExtensionsToolbarCoordinatorImpl.java": {
-      "after": "c1bb5711cb482b1f902974e3378af612116550d3cedb7c1c72f3d3149346fe2f",
+      "after": "ff5723ef005eca488ee31d08ae42755d9df4dee14e0d3b7c63b7b02e8d652e43",
       "before": "602707e97cf9d36e243fe3d655f54edb992b78580a3556ba49e576bf0d3672dc"
     },
     "chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/ToolbarPhone.java": {
