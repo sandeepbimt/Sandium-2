@@ -1,0 +1,182 @@
+diff --git a/chrome/android/java/res/layout/raws_global_shield_sheet.xml b/chrome/android/java/res/layout/raws_global_shield_sheet.xml
+--- a/chrome/android/java/res/layout/raws_global_shield_sheet.xml
++++ b/chrome/android/java/res/layout/raws_global_shield_sheet.xml
+@@ -14,6 +14,17 @@
+             <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/raws_shields_block_element" android:textSize="16sp" android:textColor="@color/raws_shields_disabled" android:enabled="false" android:clickable="false" android:focusable="false" android:minHeight="48dp" android:paddingHorizontal="16dp" android:paddingVertical="4dp" android:gravity="center_vertical" android:id="@+id/raws_shields_block_element" />
+             <View android:layout_width="match_parent" android:layout_height="1dp" android:layout_marginStart="16dp" android:layout_marginEnd="16dp" android:background="@color/raws_shields_divider" android:importantForAccessibility="no" />
+             <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/raws_shields_clear_elements" android:textSize="16sp" android:textColor="@color/raws_shields_disabled" android:enabled="false" android:clickable="false" android:focusable="false" android:minHeight="48dp" android:paddingHorizontal="16dp" android:paddingVertical="4dp" android:gravity="center_vertical" android:id="@+id/raws_shields_clear_elements" />
++            <View android:id="@+id/raws_shields_ublock_divider"
++                android:layout_width="match_parent" android:layout_height="1dp"
++                android:layout_marginHorizontal="16dp" android:background="@color/raws_shields_divider"
++                android:importantForAccessibility="no" android:visibility="gone" />
++            <TextView android:id="@+id/raws_shields_ublock_site_controls"
++                android:layout_width="match_parent" android:layout_height="wrap_content"
++                android:text="@string/raws_shields_ublock_site_controls" android:textSize="16sp"
++                android:textColor="@color/raws_shields_text" android:minHeight="48dp"
++                android:paddingHorizontal="16dp" android:paddingVertical="4dp"
++                android:gravity="center_vertical" android:focusable="true"
++                android:background="?android:attr/selectableItemBackground" android:visibility="gone" />
+         </LinearLayout>
+         <LinearLayout android:id="@+id/raws_group_dark" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:orientation="vertical" android:background="@drawable/raws_frozen_shields_card" android:clipToOutline="true">
+             <FrameLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="48dp" android:importantForAccessibility="no">
+diff --git a/chrome/android/java/res/values/raws_main_settings_strings.xml b/chrome/android/java/res/values/raws_main_settings_strings.xml
+--- a/chrome/android/java/res/values/raws_main_settings_strings.xml
++++ b/chrome/android/java/res/values/raws_main_settings_strings.xml
+@@ -75,4 +75,5 @@
+     <string name="raws_autofill_payments_row">Payment methods</string>
+     <string name="raws_autofill_addresses_row">Addresses</string>
+     <string name="raws_setup_terms_consent">To continue, read and agree to the Google &lt;TOS_LINK&gt;Terms of Service&lt;/TOS_LINK&gt;.</string>
++    <string name="raws_shields_ublock_site_controls">uBlock Origin site controls</string>
+ </resources>
+diff --git a/chrome/android/java/src/org/chromium/chrome/browser/settings/RawsGlobalShieldSheet.java b/chrome/android/java/src/org/chromium/chrome/browser/settings/RawsGlobalShieldSheet.java
+--- a/chrome/android/java/src/org/chromium/chrome/browser/settings/RawsGlobalShieldSheet.java
++++ b/chrome/android/java/src/org/chromium/chrome/browser/settings/RawsGlobalShieldSheet.java
+@@ -40,6 +40,7 @@
+ import org.chromium.build.annotations.NullMarked;
+ import org.chromium.build.annotations.Nullable;
+ import org.chromium.chrome.R;
++import org.chromium.chrome.browser.app.ChromeActivity;
+ import org.chromium.chrome.browser.night_mode.RawSDarkPages;
+ import org.chromium.chrome.browser.privacy.secure_dns.SecureDnsSettings;
+ import org.chromium.chrome.browser.profiles.Profile;
+@@ -156,6 +157,7 @@
+         mClearSiteData = mContent.findViewById(R.id.raws_shields_shred);
+         configureClearSiteData();
+         configureElementActions();
++        configureUblockSiteControls();
+         configureColorCorrection();
+         if (mOpeningTab != null) mOpeningTab.addObserver(mOpeningTabLifetime);
+ 
+@@ -873,6 +875,62 @@
+         }
+     }
+ 
++    private void configureUblockSiteControls() {
++        var tab = mSiteTab;
++        var contents = mSiteWebContents;
++        var url = mCommittedSiteUrl;
++        if (tab == null || contents == null || url == null
++                || !(ContextUtils.activityFromContext(mContent.getContext())
++                        instanceof ChromeActivity activity)) {
++            return;
++        }
++        var toolbar = activity.getToolbarManager();
++        var extensions = toolbar == null ? null : toolbar.getExtensionsToolbarCoordinator();
++        if (extensions == null || !extensions.canOpenRawSUblockSiteControls(tab)) return;
++        TextView row = mContent.findViewById(R.id.raws_shields_ublock_site_controls);
++        row.setVisibility(View.VISIBLE);
++        mContent.findViewById(R.id.raws_shields_ublock_divider).setVisibility(View.VISIBLE);
++        row.setOnClickListener(view -> {
++            if (!isCurrent() || !stillOwnsSite() || !ElementAction.isResumed(activity)
++                    || !extensions.canOpenRawSUblockSiteControls(tab)) {
++                return;
++            }
++            String document = RawsProtectionCopy.elementDocumentToken(contents);
++            if (document.isEmpty()) return;
++            close(true);
++            var controller = mController;
++            long deadline = SystemClock.uptimeMillis() + 650;
++            ElementAction.sHandler.post(() ->
++                    openUblockAfterClose(activity, controller, this, tab, contents, url,
++                            document, deadline));
++        });
++    }
++
++    private static void openUblockAfterClose(
++            ChromeActivity activity, BottomSheetController controller,
++            BottomSheetContent closingSheet, Tab tab, WebContents contents,
++            GURL url, String document, long deadline) {
++        if (!ElementAction.isResumed(activity) || !activity.hasWindowFocus()
++                || activity.getActivityTab() != tab || tab.isDestroyed() || tab.isHidden()
++                || contents.isDestroyed() || tab.getWebContents() != contents
++                || !url.equals(contents.getLastCommittedUrl())
++                || !document.equals(RawsProtectionCopy.elementDocumentToken(contents))) {
++            return;
++        }
++        var shown = controller.getCurrentSheetContent();
++        if (shown != null && shown != closingSheet) return;
++        if (SystemClock.uptimeMillis() >= deadline) return;
++        if (shown != null || controller.getSheetState() != BottomSheetController.SheetState.HIDDEN) {
++            ElementAction.sHandler.postDelayed(() ->
++                    openUblockAfterClose(activity, controller, closingSheet, tab, contents,
++                            url, document, deadline), 16);
++            return;
++        }
++        var toolbar = activity.getToolbarManager();
++        var extensions = toolbar == null ? null : toolbar.getExtensionsToolbarCoordinator();
++        if (extensions != null) extensions.openRawSUblockSiteControls(tab);
++    }
++
+     private void configureElementActions() {
+         var tab = mSiteTab;
+         var contents = mSiteWebContents;
+diff --git a/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/extensions/ExtensionsToolbarCoordinator.java b/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/extensions/ExtensionsToolbarCoordinator.java
+--- a/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/extensions/ExtensionsToolbarCoordinator.java
++++ b/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/extensions/ExtensionsToolbarCoordinator.java
+@@ -135,6 +135,16 @@
+     /** Shows the extensions menu programmatically. */
+     void showExtensionsMenu();
+ 
++    /** True only for a live regular RawS tab with the admitted uBlock action. */
++    default boolean canOpenRawSUblockSiteControls(Tab tab) {
++        return false;
++    }
++
++    /** Opens the admitted extension's own native action from a Lens tap. */
++    default boolean openRawSUblockSiteControls(Tab tab) {
++        return false;
++    }
++
+     /** Returns the {@link ToolbarWidthConsumer} for the popped out action. */
+     ToolbarWidthConsumer getPoppedOutActionWidthConsumer();
+ 
+diff --git a/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/extensions/ExtensionsToolbarCoordinatorImpl.java b/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/extensions/ExtensionsToolbarCoordinatorImpl.java
+--- a/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/extensions/ExtensionsToolbarCoordinatorImpl.java
++++ b/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/extensions/ExtensionsToolbarCoordinatorImpl.java
+@@ -39,6 +39,7 @@
+ import org.chromium.chrome.browser.ui.extensions.ExtensionsToolbarBridge;
+ import org.chromium.chrome.browser.user_education.IphCommandBuilder;
+ import org.chromium.chrome.browser.user_education.UserEducationHelper;
++import org.chromium.chrome.browser.ui.toolbar.InvocationSource;
+ import org.chromium.components.embedder_support.contextmenu.ContextMenuPopulatorFactory;
+ import org.chromium.components.feature_engagement.FeatureConstants;
+ import org.chromium.components.prefs.PrefChangeRegistrar;
+@@ -109,6 +110,8 @@
+     private int mLastIconWidthPx;
+     private @Nullable Runnable mOnFeatureRemoved;
+     private boolean mIsWebApp;
++    // Match the separately verified publisher package pinned by RawS.
++    private static final String RAWS_UBLOCK_ID = "fkgkibajhfbepljeaefdnfnegdcjomkh";
+ 
+     @Override
+     public void initializeWithNative(
+@@ -328,6 +331,29 @@
+                 () -> {
+                     extensionsMenuButton.performClick();
+                 });
++    }
++
++    @Override
++    public boolean canOpenRawSUblockSiteControls(Tab tab) {
++        var supplier = mCurrentTabSupplier;
++        if (mIsDestroyed || mIsWebApp || supplier == null || supplier.get() != tab
++                || tab.isDestroyed() || tab.isHidden() || tab.isIncognito()
++                || !"io.github.sandeepbimt.raws".equals(mContainer.getContext().getPackageName())) {
++            return false;
++        }
++        var contents = tab.getWebContents();
++        if (contents == null || contents.isDestroyed()) return false;
++        for (String id : mExtensionsToolbarBridge.getAllActionIds()) {
++            if (RAWS_UBLOCK_ID.equals(id)) return true;
++        }
++        return false;
++    }
++
++    @Override
++    public boolean openRawSUblockSiteControls(Tab tab) {
++        if (!canOpenRawSUblockSiteControls(tab)) return false;
++        mExtensionsToolbarBridge.executeUserAction(RAWS_UBLOCK_ID, InvocationSource.MENU_ENTRY);
++        return true;
+     }
+ 
+     private void showIphInternal() {

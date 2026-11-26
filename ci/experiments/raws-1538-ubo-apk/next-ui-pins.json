@@ -47,11 +47,19 @@
     {
       "name": "raws1551-first-home-theme-latch.patch",
       "sha256": "3e8583681a9ab9685499f0872d8deae53dcbdc1a51196653b1f0501dad91f405"
+    },
+    {
+      "name": "raws1553-lens-ublock-site-controls.patch",
+      "sha256": "42d1f35789776e119dcf8a345ef1381ebbd95a7f25364e4e612dc0998d72964b"
     }
   ],
   "paths": {
+    "chrome/android/java/res/layout/raws_global_shield_sheet.xml": {
+      "before": "e474c3b2eb10268cb9a9465c452e976f6a18eb72e29f16dce61a5b6fd13b3b80",
+      "after": "00511555b11dbd3a69abf1036db2585030ff3384a7f799ec63677904c62c1e1b"
+    },
     "chrome/android/java/res/values/raws_main_settings_strings.xml": {
-      "after": "bd5d7658ae07ff5a7fa18331d7bdd1d5406428adc5b106adf8816a9ab980fce6",
+      "after": "e663d660aa65c062205935360e138ca828c40084e8ccfed7438ec465b08b5908",
       "before": "79ba6e9bb5d5ec4dfb6b1c19c1acf56b89386850917423ff7abea3e17dbbfc6d"
     },
     "chrome/android/java/res/values/raws_welcome_palette.xml": {
@@ -85,6 +93,10 @@
     "chrome/android/java/src/org/chromium/chrome/browser/sandium/video/SandiumVideoSessionAdapter.java": {
       "after": "66fa74a0575ceb59e617a59f2db97505074224077ac4cfed7d3bc33ae6d1597d",
       "before": "3ca7b7a0e6ef349bb6f9c3513c7bbaca8e2dad644b322dc1614b1cb0b45cd097"
+    },
+    "chrome/android/java/src/org/chromium/chrome/browser/settings/RawsGlobalShieldSheet.java": {
+      "before": "4ccc91f4a9703a314075774ceca4f148624fe7101e649ffbc543a493a955257b",
+      "after": "2ae47d872794d7996e5f5f2fc4032b557d3445505e25d6bb264b0d2c94771dce"
     },
     "chrome/android/java/src/org/chromium/chrome/browser/tabbed_mode/TabbedAppMenuPropertiesDelegate.java": {
       "after": "4886f0cb61b71ea197e5454ae0433c7d6c42a6d6db258d0bc85efeab221ab323",
@@ -162,8 +174,12 @@
       "after": "359ee89a787f00b1a8e302ba7ed0a9a79bea0147cecdac5b454ae9cfeec3c693",
       "before": "aef200c17a9cff4232ca157fa8bac5a33c8b97602ea9beaf19ad9d8b07662f2c"
     },
+    "chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/extensions/ExtensionsToolbarCoordinator.java": {
+      "before": "b527d157405f1732fdf2e95527923b05fad0f42cb9653ae657250aee0d047283",
+      "after": "75e9f787654ef4b75ffd9bbdfc5a416c70e2f03f4ceb07f894dff7d7ef6ee8b9"
+    },
     "chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/extensions/ExtensionsToolbarCoordinatorImpl.java": {
-      "after": "ffc534d76b00bf7622f336b6b12fec6620b4fb3ea434142af0b1dee257b5ca40",
+      "after": "c1bb5711cb482b1f902974e3378af612116550d3cedb7c1c72f3d3149346fe2f",
       "before": "602707e97cf9d36e243fe3d655f54edb992b78580a3556ba49e576bf0d3672dc"
     },
     "chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/ToolbarPhone.java": {
