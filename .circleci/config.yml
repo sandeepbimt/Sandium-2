@@ -2,7 +2,7 @@ version: 2.1
 parameters:
   raws_ubo_completed_seed:
     type: string
-    default: "d98f0dda5f43ea7cb6cf8ab2d8e76c58bc75c9e3"
+    default: "539b1efff6a31e4ec17061c0eaa858136ebfe097"
 jobs:
   raws-1538-ubo-apk:
     parameters:
@@ -26,7 +26,7 @@ jobs:
             set -eu
             test "$CIRCLE_BRANCH" = "experiment/raws-1538-ubo-apk"
             test "$(git rev-parse HEAD)" = "$CIRCLE_SHA1"
-            test "$RAWS_UBO_COMPLETED_SEED" = "d98f0dda5f43ea7cb6cf8ab2d8e76c58bc75c9e3" || { echo "Required #1544 completed seed was not selected"; exit 1; }
+            test "$RAWS_UBO_COMPLETED_SEED" = "539b1efff6a31e4ec17061c0eaa858136ebfe097" || { echo "Required #1547 completed seed was not selected"; exit 1; }
             if ! command -v zstd || ! python3 -c 'import yaml'; then
               sudo apt-get update -qq
               sudo apt-get install -y zstd python3-yaml

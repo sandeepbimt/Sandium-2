@@ -1,0 +1,720 @@
+diff --git a/chrome/browser/resources/extensions/item.css b/chrome/browser/resources/extensions/item.css
+--- a/chrome/browser/resources/extensions/item.css
++++ b/chrome/browser/resources/extensions/item.css
+@@ -14,6 +14,116 @@
+  * #include=cr-icons-lit cr-hidden-style-lit cr-shared-style-lit action-link-lit shared-style
+  * #css_wrapper_metadata_end */
+ 
++.compact-entry {
++  display: none;
++}
++
++@media (max-width: 600px) {
++  #card:not(.dev-mode):has(.compact-entry) {
++    border-radius: 18px;
++    height: auto;
++    min-height: 58px;
++  }
++
++  #card:not(.dev-mode):has(.compact-entry) #main {
++    align-items: center;
++    padding: 7px 13px;
++  }
++
++  #card:not(.dev-mode):has(.compact-entry) #content {
++    margin-inline-start: 8px;
++  }
++
++  #card:not(.dev-mode):has(.compact-entry) #icon {
++    height: 28px;
++    width: 28px;
++  }
++
++  #card:not(.dev-mode):has(.compact-entry) #name,
++  #card:not(.dev-mode):has(.compact-entry) #description,
++  #card:not(.dev-mode):has(.compact-entry) #rate-link-container,
++  #card:not(.dev-mode):has(.compact-entry) #removeButton,
++  #card:not(.dev-mode):has(.compact-entry) #enableToggle {
++    display: none;
++  }
++
++  #card:not(.dev-mode):has(.compact-entry) #button-strip:not(
++      :has(#errors-button, #account-upload-button, #dev-reload-button,
++           #repair-button, #terminated-reload-button,
++           #parentDisabledPermissionsToolTip:not([hidden]))) {
++    /* Keep original Details in the accessibility/focus return path. */
++    min-height: 0;
++  }
++
++  #card:not(.dev-mode) .compact-entry {
++    align-items: center;
++    background: transparent;
++    border: 0;
++    color: var(--cr-primary-text-color);
++    display: flex;
++    flex: 1;
++    font: inherit;
++    gap: 8px;
++    justify-content: space-between;
++    min-height: 42px;
++    min-width: 0;
++    padding: 0;
++    text-align: start;
++  }
++
++  .compact-entry > span:first-child {
++    overflow: hidden;
++    text-overflow: ellipsis;
++    white-space: nowrap;
++  }
++
++  .compact-state {
++    align-items: center;
++    color: var(--cr-secondary-text-color);
++    display: flex;
++    gap: 4px;
++    white-space: nowrap;
++  }
++
++  #compact-controls {
++    --cr-dialog-width: calc(100vw - 16px);
++    --cr-dialog-border-radius: 24px 24px 0 0;
++  }
++
++  #compact-controls::part(dialog) {
++    inset-block: auto 0;
++    margin: 0 auto;
++    max-height: 83dvh;
++    position: fixed;
++  }
++
++  .compact-action-list {
++    display: grid;
++    gap: 8px;
++  }
++
++  .compact-action,
++  .compact-action-list > cr-button {
++    align-items: center;
++    background: var(--cr-card-background-color);
++    border-radius: 12px;
++    display: flex;
++    gap: 12px;
++    justify-content: space-between;
++    min-height: 48px;
++    padding: 4px 12px;
++    text-align: start;
++  }
++
++  .compact-action > cr-toggle {
++    flex: none;
++  }
++
++  .compact-remove {
++    color: var(--error-color);
++  }
++}
++
+ .layout-horizontal-center {
+   display: flex;
+   flex-direction: row;
+diff --git a/chrome/browser/resources/extensions/item.html.ts b/chrome/browser/resources/extensions/item.html.ts
+--- a/chrome/browser/resources/extensions/item.html.ts
++++ b/chrome/browser/resources/extensions/item.html.ts
+@@ -44,6 +44,16 @@
+           doesn't shrink (because it's not display: flex).-->
+       <div>
+         <div id="name-and-version" class="layout-horizontal-center">
++<if expr="is_android">
++          <button type="button" class="compact-entry"
++              @click="${this.onCompactControlsClick_}">
++            <span>${this.data.name}</span>
++            <span class="compact-state">
++              ${this.isEnabled_() ? '$i18n{itemOn}' : '$i18n{itemOff}'}
++              <cr-icon icon="cr:chevron-right" aria-hidden="true"></cr-icon>
++            </span>
++          </button>
++</if>
+           <div id="name" role="heading" aria-level="3"
+               class="clippable-flex-text">
+             ${this.data.name}
+@@ -219,6 +229,47 @@
+     </cr-toggle>
+   </div>
+ </div>
++<if expr="is_android">
++<cr-dialog id="compact-controls">
++  <div slot="title">${this.data.name}</div>
++  <div slot="body" class="compact-action-list">
++    ${this.showEnableToggle_() ? html`
++      <div class="compact-action">
++        <span>${this.isEnabled_() ? '$i18n{itemOn}' : '$i18n{itemOff}'}</span>
++        <cr-toggle aria-label="${this.getEnableToggleAriaLabel_()}"
++            ?checked="${this.isEnabled_()}"
++            ?disabled="${!this.isEnableToggleEnabled_()}"
++            @change="${this.onCompactEnableChange_}">
++        </cr-toggle>
++      </div>
++    ` : ''}
++    ${this.canChangeCompactPrivateAccess_() ? html`
++      <div class="compact-action">
++        <div>
++          <div>$i18n{itemAllowIncognito}</div>
++          <div class="cr-secondary-text">$i18n{incognitoInfoWarning}</div>
++        </div>
++        <cr-toggle aria-label="$i18n{itemAllowIncognito}"
++            ?checked="${this.data.incognitoAccess.isActive}"
++            @change="${this.onCompactPrivateAccessChange_}">
++        </cr-toggle>
++      </div>
++    ` : ''}
++    <cr-button @click="${this.onCompactDetailsClick_}">$i18n{itemDetails}</cr-button>
++    ${this.data.optionsPage ? html`
++      <cr-button ?disabled="${!this.isEnabled_()}"
++          @click="${this.onCompactOptionsClick_}">$i18n{itemOptions}</cr-button>
++    ` : ''}
++    ${!this.data.mustRemainInstalled ? html`
++      <cr-button class="compact-remove"
++          @click="${this.onCompactRemoveClick_}">$i18n{itemRemoveExtension}</cr-button>
++    ` : ''}
++  </div>
++  <div slot="button-container">
++    <cr-button @click="${this.onCompactControlsClose_}">$i18n{close}</cr-button>
++  </div>
++</cr-dialog>
++</if>
+ <!--_html_template_end_-->`;
+   // clang-format on
+ }
+diff --git a/chrome/browser/resources/extensions/item.ts b/chrome/browser/resources/extensions/item.ts
+--- a/chrome/browser/resources/extensions/item.ts
++++ b/chrome/browser/resources/extensions/item.ts
+@@ -3,6 +3,7 @@
+ // found in the LICENSE file.
+ 
+ import 'chrome://resources/cr_elements/cr_button/cr_button.js';
++import 'chrome://resources/cr_elements/cr_dialog/cr_dialog.js';
+ import 'chrome://resources/cr_elements/cr_icon_button/cr_icon_button.js';
+ import 'chrome://resources/cr_elements/cr_toggle/cr_toggle.js';
+ import 'chrome://resources/cr_elements/cr_tooltip/cr_tooltip.js';
+@@ -14,6 +15,7 @@
+ import 'chrome://resources/cr_elements/cr_icon/cr_icon.js';
+ 
+ import type {ChromeEvent} from '/tools/typescript/definitions/chrome_event.js';
++import type {CrDialogElement} from 'chrome://resources/cr_elements/cr_dialog/cr_dialog.js';
+ import type {CrToggleElement} from 'chrome://resources/cr_elements/cr_toggle/cr_toggle.js';
+ import {TooltipPosition} from 'chrome://resources/cr_elements/cr_tooltip/cr_tooltip.js';
+ import {I18nMixinLit} from 'chrome://resources/cr_elements/i18n_mixin_lit.js';
+@@ -158,6 +160,7 @@
+ 
+       // Whether or not dev mode is enabled.
+       inDevMode: {type: Boolean},
++      incognitoAvailable: {type: Boolean},
+       safetyCheckShowing: {type: Boolean},
+ 
+       // The underlying ExtensionInfo itself. Public for use in declarative
+@@ -174,6 +177,7 @@
+ 
+   accessor delegate: ItemDelegate|null = null;
+   accessor inDevMode: boolean = false;
++  accessor incognitoAvailable: boolean = false;
+   accessor safetyCheckShowing: boolean = false;
+   accessor data: chrome.developerPrivate.ExtensionInfo =
+       createDummyExtensionInfo();
+@@ -264,6 +268,63 @@
+     }
+ 
+     navigation.navigateTo({page: Page.ERRORS, extensionId: this.data.id});
++  }
++
++  protected onCompactControlsClick_() {
++    const dialog =
++        this.shadowRoot.querySelector<CrDialogElement>('#compact-controls');
++    if (dialog && !dialog.open) {
++      void dialog.showModal();
++    }
++  }
++
++  protected onCompactControlsClose_() {
++    const dialog =
++        this.shadowRoot.querySelector<CrDialogElement>('#compact-controls');
++    if (dialog?.open) {
++      dialog.close();
++    }
++  }
++
++  protected onCompactDetailsClick_() {
++    this.onCompactControlsClose_();
++    this.onDetailsClick_();
++  }
++
++  protected onCompactRemoveClick_() {
++    this.onCompactControlsClose_();
++    this.onRemoveClick_();
++  }
++
++  protected onCompactOptionsClick_() {
++    if (!this.data.optionsPage || !this.isEnabled_()) {
++      return;
++    }
++    this.onCompactControlsClose_();
++    this.delegate?.showItemOptionsPage(this.data);
++  }
++
++  protected onCompactEnableChange_(event: Event) {
++    const toggle = event.currentTarget as CrToggleElement;
++    if (this.showEnableToggle_() && this.isEnableToggleEnabled_()) {
++      void this.delegate?.setItemEnabled(this.data.id, toggle.checked);
++    }
++    toggle.checked = this.isEnabled_();
++  }
++
++  protected canChangeCompactPrivateAccess_(): boolean {
++    // Admin-controlled installs have a pending-restart UX in the standard
++    // Details view. Keep its policy-aware handling rather than duplicating it.
++    return this.incognitoAvailable && this.data.incognitoAccess.isEnabled &&
++        !this.data.controlledInfo;
++  }
++
++  protected onCompactPrivateAccessChange_(event: Event) {
++    const toggle = event.currentTarget as CrToggleElement;
++    if (this.canChangeCompactPrivateAccess_()) {
++      this.delegate?.setItemAllowedIncognito(this.data.id, toggle.checked);
++    }
++    toggle.checked = this.data.incognitoAccess.isActive;
+   }
+ 
+   protected onDetailsClick_() {
+diff --git a/chrome/browser/resources/extensions/item_list.html.ts b/chrome/browser/resources/extensions/item_list.html.ts
+--- a/chrome/browser/resources/extensions/item_list.html.ts
++++ b/chrome/browser/resources/extensions/item_list.html.ts
+@@ -67,6 +67,7 @@
+              initial render time and total render time. -->
+         ${asyncMap(this.filteredExtensions_, item => html`
+           <extensions-item id="${item.id}" .data="${item}"
++              .incognitoAvailable="${this.incognitoAvailable}"
+               ?safety-check-showing="${
+                   this.hasSafetyCheckTriggeringExtension_()}"
+               .delegate="${this.delegate as ServiceInterface}"
+@@ -75,6 +76,15 @@
+         `, 6)}
+       </div>
+     </div>
++
++<if expr="is_android">
++    <p class="items-container">
++      <a href="https://chromewebstore.google.com/"
++          target="_blank" rel="noopener noreferrer">
++        $i18n{itemSourceWebstore}
++      </a>
++    </p>
++</if>
+ 
+     <div id="chrome-apps-section" ?hidden="${!this.shownAppsCount_}">
+       <!-- section-header needs to left-align with the grid content below, and
+diff --git a/chrome/browser/resources/extensions/item_list.ts b/chrome/browser/resources/extensions/item_list.ts
+--- a/chrome/browser/resources/extensions/item_list.ts
++++ b/chrome/browser/resources/extensions/item_list.ts
+@@ -42,6 +42,8 @@
+       extensions: {type: Array},
+       delegate: {type: Object},
+ 
++      incognitoAvailable: {type: Boolean},
++
+       inDevMode: {
+         type: Boolean,
+         reflect: true,
+@@ -107,6 +109,7 @@
+   accessor extensions: chrome.developerPrivate.ExtensionInfo[] = [];
+   accessor delegate: ItemDelegate = new DummyItemDelegate();
+   accessor inDevMode: boolean = false;
++  accessor incognitoAvailable: boolean = false;
+   accessor isMv2DeprecationNoticeDismissed: boolean = false;
+   accessor extensionsPinnedByDefault: boolean = false;
+   accessor filter: string = '';
+diff --git a/chrome/browser/resources/extensions/manager.html.ts b/chrome/browser/resources/extensions/manager.html.ts
+--- a/chrome/browser/resources/extensions/manager.html.ts
++++ b/chrome/browser/resources/extensions/manager.html.ts
+@@ -48,6 +48,7 @@
+   </div>
+   <cr-view-manager id="viewManager" role="main">
+     <extensions-item-list id="itemsList" .delegate="${this.delegate}"
++        .incognitoAvailable="${this.incognitoAvailable_}"
+         ?in-dev-mode="${this.inDevMode}"
+         ?is-mv2-deprecation-notice-dismissed="${
+             this.isMv2DeprecationNoticeDismissed}"
+diff --git a/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/extensions/BUILD.gn b/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/extensions/BUILD.gn
+--- a/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/extensions/BUILD.gn
++++ b/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/extensions/BUILD.gn
+@@ -64,6 +64,7 @@
+     "//chrome/browser/ui/android/toolbar:optional_button_java",
+     "//chrome/browser/ui/browser_window/public/android:java",
+     "//chrome/browser/user_education:java",
++    "//components/browser_ui/bottomsheet/android:java",
+     "//components/browser_ui/styles/android:java",
+     "//components/browser_ui/widget/android:java",
+     "//components/embedder_support/android:content_view_java",
+diff --git a/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/extensions/ExtensionsMenuCoordinator.java b/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/extensions/ExtensionsMenuCoordinator.java
+--- a/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/extensions/ExtensionsMenuCoordinator.java
++++ b/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/extensions/ExtensionsMenuCoordinator.java
+@@ -8,13 +8,22 @@
+ import android.content.Context;
+ import android.content.res.ColorStateList;
+ import android.graphics.Rect;
++import android.graphics.Typeface;
++import android.graphics.drawable.GradientDrawable;
+ import android.os.Handler;
+ import android.os.Looper;
++import android.text.TextUtils;
++import android.view.Gravity;
+ import android.view.LayoutInflater;
+ import android.view.View;
++import android.view.ViewGroup;
++import android.widget.ImageView;
++import android.widget.LinearLayout;
++import android.widget.TextView;
+ 
+ import androidx.annotation.VisibleForTesting;
+ import androidx.core.widget.ImageViewCompat;
++import androidx.recyclerview.widget.GridLayoutManager;
+ import androidx.recyclerview.widget.LinearLayoutManager;
+ import androidx.recyclerview.widget.RecyclerView;
+ 
+@@ -37,6 +46,11 @@
+ import org.chromium.chrome.browser.ui.theme.BrandedColorScheme;
+ import org.chromium.chrome.browser.user_education.IphCommandBuilder;
+ import org.chromium.chrome.browser.user_education.UserEducationHelper;
++import org.chromium.components.browser_ui.bottomsheet.BottomSheetContent;
++import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
++import org.chromium.components.browser_ui.bottomsheet.BottomSheetControllerProvider;
++import org.chromium.components.browser_ui.bottomsheet.BottomSheetObserver;
++import org.chromium.components.browser_ui.bottomsheet.BottomSheetType;
+ import org.chromium.components.browser_ui.styles.SemanticColorUtils;
+ import org.chromium.components.feature_engagement.EventConstants;
+ import org.chromium.components.feature_engagement.FeatureConstants;
+@@ -51,6 +65,7 @@
+ import org.chromium.ui.modaldialog.ModalDialogManager.ModalDialogManagerObserver;
+ import org.chromium.ui.modelutil.LayoutViewBuilder;
+ import org.chromium.ui.modelutil.MVCListAdapter.ModelList;
++import org.chromium.ui.modelutil.PropertyKey;
+ import org.chromium.ui.modelutil.PropertyModel;
+ import org.chromium.ui.modelutil.PropertyModelChangeProcessor;
+ import org.chromium.ui.modelutil.SimpleRecyclerViewAdapter;
+@@ -98,7 +113,7 @@
+             new ModalDialogManagerObserver() {
+                 @Override
+                 public void onDialogAdded(PropertyModel model) {
+-                    mExtensionsMenuButton.dismiss();
++                    closeExtensionsMenuIfOpen();
+                 }
+             };
+     private final ModalDialogManager mModalDialogManager;
+@@ -108,6 +123,20 @@
+     @Nullable @VisibleForTesting ExtensionsMenuMediator mMediator;
+     private long mLastDismissalTimeMs;
+     private boolean mIsMenuOpen;
++    private @Nullable QuickExtensionsSheet mQuickSheet;
++    private @Nullable BottomSheetController mQuickSheetController;
++    private boolean mQuickClosing;
++    private boolean mDestroyed;
++    private final BottomSheetObserver mQuickSheetObserver =
++            new BottomSheetObserver() {
++                @Override
++                public void onSheetContentChanged(@Nullable BottomSheetContent newContent) {
++                    QuickExtensionsSheet sheet = mQuickSheet;
++                    if (sheet != null && sheet != newContent) {
++                        finishQuickSheet(sheet);
++                    }
++                }
++            };
+     private final boolean mIsWebApp;
+     private final Runnable mClearOmniboxFocus;
+ 
+@@ -284,10 +313,254 @@
+                         mExtensionModels,
+                         mMainPageModel,
+                         mSitePermissionsPageModel,
+-                        /* onDismissMenu= */ mExtensionsMenuButton::dismiss,
++                        /* onDismissMenu= */ this::closeExtensionsMenuIfOpen,
+                         /* onReady= */ () -> {
+-                            mExtensionsMenuButton.showMenu();
++                            if (mQuickSheet != null) {
++                                showQuickSheet();
++                            } else {
++                                mExtensionsMenuButton.showMenu();
++                            }
+                         });
++    }
++
++    /** Opens the RawS app-menu extension picker without making the address bar puzzle visible. */
++    boolean showQuickMenuFromAppMenu() {
++        if (mIsWebApp || !"io.github.sandeepbimt.raws".equals(mContext.getPackageName())) {
++            return false;
++        }
++        if (mDestroyed || mQuickSheet != null || mMediator != null) return true;
++        BottomSheetController controller = BottomSheetControllerProvider.from(mWindowAndroid);
++        Tab tab = mCurrentTabSupplier.get();
++        WebContents webContents = tab == null ? null : tab.getWebContents();
++        if (controller == null || tab == null || webContents == null) return false;
++        mQuickSheetController = controller;
++        mQuickSheet = new QuickExtensionsSheet(tab, webContents);
++        mQuickClosing = false;
++        mClearOmniboxFocus.run();
++        createMediator();
++        return true;
++    }
++
++    private void showQuickSheet() {
++        QuickExtensionsSheet sheet = mQuickSheet;
++        BottomSheetController controller = mQuickSheetController;
++        if (sheet == null || controller == null || mQuickClosing) return;
++        controller.addObserver(mQuickSheetObserver);
++        if (!controller.requestShowContent(sheet, /* animate= */ true)) {
++            finishQuickSheet(sheet);
++        }
++    }
++
++    private void closeQuickSheet(boolean animate) {
++        QuickExtensionsSheet sheet = mQuickSheet;
++        BottomSheetController controller = mQuickSheetController;
++        if (sheet == null || controller == null || mQuickClosing) return;
++        mQuickClosing = true;
++        controller.hideContent(sheet, animate);
++        if (!animate || controller.getCurrentSheetContent() != sheet) {
++            finishQuickSheet(sheet);
++        }
++    }
++
++    private void finishQuickSheet(QuickExtensionsSheet sheet) {
++        if (sheet != mQuickSheet) return;
++        BottomSheetController controller = mQuickSheetController;
++        if (controller != null) controller.removeObserver(mQuickSheetObserver);
++        mQuickClosing = true;
++        sheet.release();
++        // onReady can arrive during the mediator constructor, or native code may be
++        // executing an extension action. Tear down after that call unwinds.
++        new Handler(Looper.getMainLooper()).post(() -> {
++            if (mQuickSheet != sheet) return;
++            mQuickSheet = null;
++            mQuickSheetController = null;
++            mQuickClosing = false;
++            destroyMediator();
++            mExtensionModels.clear();
++        });
++    }
++
++    private int quickDp(int dp) {
++        return Math.round(dp * mContext.getResources().getDisplayMetrics().density);
++    }
++
++    private final class QuickExtensionsSheet implements BottomSheetContent {
++        private final Tab mOwnerTab;
++        private final WebContents mOwnerContents;
++        private final String mOwnerUrl;
++        private final LinearLayout mRoot;
++        private final RecyclerView mGrid;
++        private final BottomSheetType mType =
++                new BottomSheetType.Builder().setUserInitiated(true).build();
++
++        QuickExtensionsSheet(Tab tab, WebContents webContents) {
++            mOwnerTab = tab;
++            mOwnerContents = webContents;
++            mOwnerUrl = tab.getUrl().getSpec();
++            mRoot = new LinearLayout(mContext);
++            mRoot.setOrientation(LinearLayout.VERTICAL);
++            mRoot.setPadding(quickDp(18), quickDp(4), quickDp(18), quickDp(16));
++            TextView title = label(R.string.extensions_menu_title, 20);
++            title.setAccessibilityHeading(true);
++            title.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
++            title.setPadding(0, 0, 0, quickDp(10));
++            mRoot.addView(title);
++            String host = tab.getUrl().getHost();
++            if (!host.isEmpty()) {
++                TextView site = new TextView(mContext);
++                site.setText(host);
++                site.setTextSize(13);
++                site.setTextColor(SemanticColorUtils.getDefaultTextColorSecondary(mContext));
++                site.setMaxLines(1);
++                site.setEllipsize(TextUtils.TruncateAt.END);
++                site.setPadding(0, 0, 0, quickDp(10));
++                mRoot.addView(site);
++            }
++            mGrid = new RecyclerView(mContext) {
++                @Override
++                protected void onMeasure(int widthSpec, int heightSpec) {
++                    int heightCap = mContext.getResources().getDisplayMetrics().heightPixels / 3;
++                    if (View.MeasureSpec.getMode(heightSpec) != View.MeasureSpec.UNSPECIFIED) {
++                        heightCap = Math.min(heightCap, View.MeasureSpec.getSize(heightSpec));
++                    }
++                    super.onMeasure(widthSpec,
++                            View.MeasureSpec.makeMeasureSpec(heightCap, View.MeasureSpec.AT_MOST));
++                }
++            };
++            SimpleRecyclerViewAdapter adapter = new SimpleRecyclerViewAdapter(mExtensionModels);
++            adapter.registerType(0, parent -> new QuickExtensionTile(),
++                    (PropertyModel model, QuickExtensionTile view, PropertyKey key) ->
++                            view.bind(model, key));
++            mGrid.setLayoutManager(new GridLayoutManager(mContext, 4));
++            mGrid.setItemAnimator(null);
++            mGrid.setOverScrollMode(View.OVER_SCROLL_IF_CONTENT_SCROLLS);
++            mGrid.setAdapter(adapter);
++            mGrid.setBackground(quickCard());
++            mRoot.addView(mGrid, new LinearLayout.LayoutParams(
++                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
++            TextView manage = label(R.string.manage_extensions, 16);
++            manage.setGravity(Gravity.CENTER_VERTICAL);
++            manage.setMinHeight(quickDp(52));
++            manage.setFocusable(true);
++            manage.setBackground(quickCard());
++            manage.setPadding(quickDp(14), 0, quickDp(14), 0);
++            LinearLayout.LayoutParams manageParams = new LinearLayout.LayoutParams(
++                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
++            manageParams.topMargin = quickDp(12);
++            mRoot.addView(manage, manageParams);
++            manage.setOnClickListener(view -> {
++                if (!mQuickClosing && mQuickSheet == this && mMediator != null) {
++                    mMediator.onManageExtensionsClicked();
++                }
++            });
++        }
++
++        private TextView label(int stringId, int size) {
++            TextView view = new TextView(mContext);
++            view.setText(stringId);
++            view.setTextSize(size);
++            view.setTextColor(SemanticColorUtils.getDefaultTextColor(mContext));
++            return view;
++        }
++
++        private GradientDrawable quickCard() {
++            GradientDrawable background = new GradientDrawable();
++            background.setColor(SemanticColorUtils.getDefaultBgColor(mContext));
++            background.setCornerRadius(quickDp(18));
++            background.setStroke(
++                    quickDp(1),
++                    (SemanticColorUtils.getDefaultIconColor(mContext) & 0x00ffffff) | 0x33000000);
++            return background;
++        }
++
++        private boolean canRunAction() {
++            Tab active = mCurrentTabSupplier.get();
++            return mQuickSheet == this && !mQuickClosing && !mDestroyed
++                    && active == mOwnerTab && active.getWebContents() == mOwnerContents
++                    && mOwnerUrl.equals(active.getUrl().getSpec());
++        }
++
++        void release() {
++            mGrid.setAdapter(null);
++        }
++
++        @Override public View getContentView() { return mRoot; }
++        @Override public @Nullable View getToolbarView() { return null; }
++        @Override public int getVerticalScrollOffset() { return mGrid.computeVerticalScrollOffset(); }
++        @Override public void destroy() {}
++        @Override public BottomSheetType getSheetType() { return mType; }
++        @Override public int getPriority() { return ContentPriority.HIGH; }
++        @Override public boolean swipeToDismissEnabled() { return true; }
++        @Override public boolean showHandlebar() { return true; }
++        @Override public int getPeekHeight() { return HeightMode.DISABLED; }
++        @Override public float getHalfHeightRatio() { return HeightMode.DISABLED; }
++        @Override public float getFullHeightRatio() { return HeightMode.WRAP_CONTENT; }
++        @Override public @Nullable String getSheetContentDescription(Context context) {
++            return context.getString(R.string.extensions_menu_title);
++        }
++        @Override public int getSheetHalfHeightAccessibilityStringId() {
++            return R.string.extensions_menu_title;
++        }
++        @Override public int getSheetFullHeightAccessibilityStringId() {
++            return R.string.extensions_menu_title;
++        }
++        @Override public int getSheetClosedAccessibilityStringId() {
++            return R.string.extensions_menu_title;
++        }
++
++        private final class QuickExtensionTile extends LinearLayout {
++            private final ImageView mIcon;
++            private final TextView mTitle;
++
++            QuickExtensionTile() {
++                super(mContext);
++                setOrientation(VERTICAL);
++                setGravity(Gravity.TOP | Gravity.CENTER_HORIZONTAL);
++                setPadding(quickDp(4), quickDp(9), quickDp(4), quickDp(9));
++                setFocusable(true);
++                setMinimumHeight(quickDp(84));
++                mIcon = new ImageView(mContext);
++                mIcon.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
++                addView(mIcon, new LinearLayout.LayoutParams(quickDp(32), quickDp(32)));
++                mTitle = new TextView(mContext);
++                mTitle.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
++                mTitle.setTextSize(12);
++                mTitle.setTextColor(SemanticColorUtils.getDefaultTextColor(mContext));
++                mTitle.setMaxLines(2);
++                mTitle.setEllipsize(TextUtils.TruncateAt.END);
++                mTitle.setGravity(Gravity.CENTER_HORIZONTAL);
++                LinearLayout.LayoutParams titleParams = new LinearLayout.LayoutParams(
++                        ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
++                titleParams.topMargin = quickDp(5);
++                addView(mTitle, titleParams);
++            }
++
++            void bind(PropertyModel model, PropertyKey key) {
++                if (key == ExtensionsMenuItemProperties.ICON) {
++                    android.graphics.Bitmap icon = model.get(ExtensionsMenuItemProperties.ICON);
++                    if (icon == null) {
++                        mIcon.setImageResource(R.drawable.chrome_extension);
++                    } else {
++                        mIcon.setImageBitmap(icon);
++                    }
++                } else if (key == ExtensionsMenuItemProperties.TITLE) {
++                    String title = model.get(ExtensionsMenuItemProperties.TITLE);
++                    mTitle.setText(title);
++                    setContentDescription(title);
++                } else if (key == ExtensionsMenuItemProperties.PRIMARY_ACTION_ON_CLICK) {
++                    setOnClickListener(view -> {
++                        if (!canRunAction()) {
++                            closeQuickSheet(/* animate= */ false);
++                            return;
++                        }
++                        View.OnClickListener action =
++                                model.get(ExtensionsMenuItemProperties.PRIMARY_ACTION_ON_CLICK);
++                        if (action != null) action.onClick(view);
++                        closeQuickSheet(/* animate= */ false);
++                    });
++                }
++            }
++        }
+     }
+ 
+     /**
+@@ -535,11 +808,19 @@
+ 
+     @Override
+     public void closeExtensionsMenuIfOpen() {
++        QuickExtensionsSheet sheet = mQuickSheet;
++        BottomSheetController controller = mQuickSheetController;
++        if (sheet != null && controller != null) {
++            closeQuickSheet(/* animate= */ true);
++            return;
++        }
+         mExtensionsMenuButton.dismiss();
+     }
+ 
+     @Override
+     public void destroy() {
++        mDestroyed = true;
++        closeQuickSheet(/* animate= */ false);
+         mIsMenuOpen = false;
+         mCurrentTabSupplier.removeObserver(mTabSupplierObserver);
+         destroyMediator();
+diff --git a/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/extensions/ExtensionsToolbarCoordinatorImpl.java b/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/extensions/ExtensionsToolbarCoordinatorImpl.java
+--- a/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/extensions/ExtensionsToolbarCoordinatorImpl.java
++++ b/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/extensions/ExtensionsToolbarCoordinatorImpl.java
+@@ -316,6 +316,7 @@
+ 
+     @Override
+     public void showExtensionsMenu() {
++        if (mExtensionsMenuCoordinator.showQuickMenuFromAppMenu()) return;
+         mShowExtensionsMenuPending = true;
+         updateMenuIconVisibility();
+ 

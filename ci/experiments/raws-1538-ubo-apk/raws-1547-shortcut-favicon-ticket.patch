@@ -1,0 +1,51 @@
+--- a/components/ntp_tiles/custom_links_store.cc
++++ b/components/ntp_tiles/custom_links_store.cc
+@@ -68,13 +68,15 @@
+ // Updating or clearing link identity revokes queued favicon responses. Never
+ // retain an image orphaned by delete/edit, even if Undo later recreates the URL.
+ void ReconcileRawSFavicons(PrefService* prefs,
+-                           const std::vector<CustomLinksManager::Link>& links) {
++                           const std::vector<CustomLinksManager::Link>& links,
++                           bool revoke_pending_requests) {
+   const auto& old = prefs->GetDict(kRawSManualFavicons);
+   if (old.empty()) {
+     return;
+   }
+   base::DictValue retained;
+-  if (const auto* images = old.FindDict(kRawSFaviconImages)) {
++  const auto* images = old.FindDict(kRawSFaviconImages);
++  if (images) {
+     for (const auto& link : links) {
+       if (retained.size() >= kMaxRawSFaviconCount) {
+         break;
+@@ -88,6 +90,12 @@
+       }
+     }
+   }
++  // Enumeration can happen while an asynchronous favicon lookup is pending.
++  // Do not invalidate its ticket when no shortcut or stored icon was changed.
++  if (!revoke_pending_requests &&
++      (images ? *images == retained : retained.empty())) {
++    return;
++  }
+   base::DictValue current;
+   current.Set(kRawSFaviconTicket, base::UnguessableToken::Create().ToString());
+   current.Set(kRawSFaviconImages, std::move(retained));
+@@ -136,7 +144,7 @@
+   }
+ 
+   if (custom_links_list_pref_ == prefs::kCustomLinksListMobile) {
+-    ReconcileRawSFavicons(prefs_, links);
++    ReconcileRawSFavicons(prefs_, links, /*revoke_pending_requests=*/false);
+   }
+ 
+   if (!has_recorded_first_load_stats) {
+@@ -160,7 +168,7 @@
+   }
+   // Revoke in-flight icon writes before notifying any shortcut-list observers.
+   if (custom_links_list_pref_ == prefs::kCustomLinksListMobile) {
+-    ReconcileRawSFavicons(prefs_, links);
++    ReconcileRawSFavicons(prefs_, links, /*revoke_pending_requests=*/true);
+   }
+   prefs_->SetList(custom_links_list_pref_, std::move(new_link_list));
+ }

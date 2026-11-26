@@ -19,6 +19,18 @@
     {
       "name": "preview-stability.patch",
       "sha256": "0a51df7d78a812df9aac82eabc7eaf642256a009191273234e3c36032a2b5eb0"
+    },
+    {
+      "name": "raws-1547-menu-persistence.patch",
+      "sha256": "7ccfd2550e0d6de8759af8b48932c4fd149153d70bae5c3d57953fc871a6ad2b"
+    },
+    {
+      "name": "raws-1547-extensions-sheet-manager.patch",
+      "sha256": "ea41687aae703ab30640cee471178c53f3c941fe300a95de7ecb96f713efd5bc"
+    },
+    {
+      "name": "raws-1547-shortcut-favicon-ticket.patch",
+      "sha256": "45832e9bf999d92e2574c39556d2b7dbcdf9e5a883e6676d8f3b0e30dcd66a97"
     }
   ],
   "paths": {
@@ -66,13 +78,37 @@
       "after": "4c2c5508ed402c6f1897b782feed15402e21cb4aa3838c85bbded0d0413bbeb5",
       "before": "a730445eaa54c66a94a66d3241ef936eb346c65fdf19a5d396404798f5e1d729"
     },
+    "chrome/browser/resources/extensions/item.css": {
+      "after": "f737b423334758c74ca1da99471dde2434a2be103cc91f235e38cf1aeaba03d7",
+      "before": "f88208c43909910d9a1f5b606d8dead177a8882a79fd886431694796d78e1b6b"
+    },
+    "chrome/browser/resources/extensions/item.html.ts": {
+      "after": "e17eff177ce98fa9a04252ae7771d7fe6091863056bfc733bf96bfdb3aade2af",
+      "before": "e760255acd523231241cdb0a95180a0c19232be9cd2c237eb2ff651fdf198860"
+    },
+    "chrome/browser/resources/extensions/item.ts": {
+      "after": "fb8c0436712d74b8cca6aac91fd549ad8790b810f7a9d089814976d0931f2ccd",
+      "before": "e31891ea01e423bdae8572aea26d8e6da5dd69a1a9bde692884e9caf1e3ecf28"
+    },
     "chrome/browser/resources/extensions/item_list.css": {
       "after": "0c6a4e23e425d8ac8a7e405260d33463e67bec61261be3e056d6d6dc3bedc1cb",
       "before": "a02f7be73bc20f0061b21511c8f579e8714d574c2942090074b67f090f7cb21f"
     },
+    "chrome/browser/resources/extensions/item_list.html.ts": {
+      "after": "0aed10db44357571ec372b564b43f66c68327dd6683b2571a6713440443ba95b",
+      "before": "811662b4438887015065fd750925ea2757c968e315a27975479777f6d29bd8dd"
+    },
+    "chrome/browser/resources/extensions/item_list.ts": {
+      "after": "8a3557637ed773a93ba9342ce488e013b8d1c1c7f547dec05bf47466ef1e1e4b",
+      "before": "f9c88d7b6b8b573126bf7f68081ac084cde8d5e666dda1dd245b4b304b812f30"
+    },
     "chrome/browser/resources/extensions/manager.css": {
       "after": "302d6f2181bf34495873b260c88a85530f1400c5cf50cd912c6a3217837a0aa0",
       "before": "5afeaa5500aa4fcbc611177d094fd0f3da6421bdf1101aaee696cc12e62efa6c"
+    },
+    "chrome/browser/resources/extensions/manager.html.ts": {
+      "after": "394cacdaf2d285dc8752466758f6982fa2d3b49a31ce68a00a07470e49aad9e9",
+      "before": "af8d21b2a7876713eb6666bcf2f3a978e38d56194df2134922dd6d7393025034"
     },
     "chrome/browser/resources/extensions/toolbar.css": {
       "after": "58b1bf556c7ad3c7334b5f647471e8cc900ea42ee175df1864077ba0dcca6c27",
@@ -86,6 +122,26 @@
       "after": "ea369b3c5aff6b9cfec4a36aac7d60df3f6ef3371b35e0107de5f996f9d61c4f",
       "before": "10ab3e3c5ffbb855e4f8054ebd39a0538164518a2de6f91b6ff56b604a1e0dbe"
     },
+    "chrome/browser/ui/android/appmenu/internal/java/src/org/chromium/chrome/browser/ui/appmenu/RawSMenuModel.java": {
+      "after": "0e284080e6e3e53dfbce153f8a3b45515c8edf7a939b4252710788fcdf69c3f3",
+      "before": "6e0f7002f646e53a88856ac205754205ce697964f6d669679fcaa201ddaef7ae"
+    },
+    "chrome/browser/ui/android/appmenu/internal/java/src/org/chromium/chrome/browser/ui/appmenu/RawSParityMenuPreferences.java": {
+      "after": "96917cf65ea2f61b1270188d885f275c3ef3fbaa61edfc2a83ff847e973d8d3e",
+      "before": "00b9364e1db4e72a22abe20f9d3aaece565b80c03329ddff813ca721a8b77aba"
+    },
+    "chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/extensions/BUILD.gn": {
+      "after": "d7ed6a29de0a4cf19743e96dac7c48331317ac75e9c1c52560f49b5137f43468",
+      "before": "d1b5a81ad5029e0437e15aea2c048e9ad73f29537c4cfc64d0fd20dfa4c0a141"
+    },
+    "chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/extensions/ExtensionsMenuCoordinator.java": {
+      "after": "ad1df9986f3e39fbfe7ba56cb20ffde6ac8a562648ec920b3de082938219f978",
+      "before": "aef200c17a9cff4232ca157fa8bac5a33c8b97602ea9beaf19ad9d8b07662f2c"
+    },
+    "chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/extensions/ExtensionsToolbarCoordinatorImpl.java": {
+      "after": "ffc534d76b00bf7622f336b6b12fec6620b4fb3ea434142af0b1dee257b5ca40",
+      "before": "602707e97cf9d36e243fe3d655f54edb992b78580a3556ba49e576bf0d3672dc"
+    },
     "chrome/browser/ui/webui/extensions/extensions_ui.cc": {
       "after": "8e0450e1dd924a9fedb597f20fa475e8534258e60b45596aaeb8f2b4815982cb",
       "before": "c658afbaf78d6344616e416f94c8e961e5654022bc7cd56b4d099cadb1c7a6eb"
@@ -97,6 +153,10 @@
     "chrome/renderer/chrome_render_frame_observer.cc": {
       "after": "2b4e78e9757863f92bc309a85e8e2035ccc56f1bc8a62ac3cbf95e50c684d0ca",
       "before": "791fd989d1fc93cba298822e530b0b698dddabebc8a1cfd2946f8d343ede2dca"
+    },
+    "components/ntp_tiles/custom_links_store.cc": {
+      "after": "10fdce87f02fe24727d4e6366ab55e9e17182801f3b692e9408bbd7e81fc31e5",
+      "before": "0fa35eb5f77f1a331569844f2c134c0c12b8b90973f9b0235327c581eb6b1d2f"
     },
     "extensions/browser/extension_function_histogram_value.h": {
       "after": "353ef6b706445261a3f691dbca89c6e1320be8e153ac911f9da2f955ab8866e3",

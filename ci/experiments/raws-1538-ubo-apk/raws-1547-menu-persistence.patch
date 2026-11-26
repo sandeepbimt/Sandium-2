@@ -1,0 +1,57 @@
+--- a/chrome/browser/ui/android/appmenu/internal/java/src/org/chromium/chrome/browser/ui/appmenu/RawSMenuModel.java
++++ b/chrome/browser/ui/android/appmenu/internal/java/src/org/chromium/chrome/browser/ui/appmenu/RawSMenuModel.java
+@@ -14,7 +14,7 @@
+  * The native host supplies policy-filtered actions for each popup lifetime.
+  */
+ public final class RawSMenuModel<T> {
+-    private static final String HEADER = "raws-menu-v1\n";
++    private static final String HEADER = "raws-menu-v1";
+     private static final int MAX_ITEMS = 256;
+     private final LinkedHashMap<String, Boolean> layout = new LinkedHashMap<>();
+     private final LinkedHashMap<String, T> available = new LinkedHashMap<>();
+@@ -54,13 +54,16 @@
+     public RawSMenuModel(String saved) {
+         persistedSnapshot = saved == null ? "" : saved;
+         if (saved == null || saved.isEmpty()) return;
+-        if (!saved.startsWith(HEADER) || saved.length() > 65536) {
++        if (saved.equals(HEADER)) return;
++        if (!saved.startsWith(HEADER + "\n") || saved.length() > 65536) {
+             writable = false; return;
+         }
+-        String[] rows = saved.substring(HEADER.length()).split("\n", -1);
++        String[] rows = saved.substring(HEADER.length() + 1).split("\n", -1);
+         for (int i = 0; i < rows.length; i++) {
+             String row = rows[i];
+-            if (i == rows.length - 1 && row.isEmpty()) continue;
++            // Legacy writers ended with a newline. SharedPreferences XML can
++            // contribute closing-tag indentation to that final line.
++            if (i == rows.length - 1 && row.matches("[ \t]*")) continue;
+             String[] fields = row.split("\t", -1);
+             if (fields.length != 2 || !validKey(fields[0])
+                     || !(fields[1].equals("0") || fields[1].equals("1"))
+@@ -154,7 +157,7 @@
+     private static String serialize(Map<String, Boolean> value) {
+         StringBuilder out = new StringBuilder(HEADER);
+         for (Map.Entry<String, Boolean> item : value.entrySet())
+-            out.append(item.getKey()).append('\t').append(item.getValue() ? '1' : '0').append('\n');
++            out.append('\n').append(item.getKey()).append('\t').append(item.getValue() ? '1' : '0');
+         return out.toString();
+     }
+     public final class Editor {
+--- a/chrome/browser/ui/android/appmenu/internal/java/src/org/chromium/chrome/browser/ui/appmenu/RawSParityMenuPreferences.java
++++ b/chrome/browser/ui/android/appmenu/internal/java/src/org/chromium/chrome/browser/ui/appmenu/RawSParityMenuPreferences.java
+@@ -45,12 +45,12 @@
+ 
+     static String encode(SandiumMenuState state) {
+         if (state.knownKeys().size() > 256) return "";
+-        StringBuilder out = new StringBuilder("raws-menu-v1\n");
++        StringBuilder out = new StringBuilder("raws-menu-v1");
+         for (String key : state.knownKeys()) {
+             if (!key.matches("[a-z][a-z0-9_]{0,127}")) return "";
+             // Retain Chromium's old key for existing Settings editing and downgrade.
+             String oldKey = "home_menu_id".equals(key) ? "homepage_menu_id" : key;
+-            out.append(oldKey).append('\t').append(state.isHidden(key) ? '0' : '1').append('\n');
++            out.append('\n').append(oldKey).append('\t').append(state.isHidden(key) ? '0' : '1');
+         }
+         String encoded = out.toString();
+         return new RawSMenuModel<>(encoded).writable() ? encoded : "";
