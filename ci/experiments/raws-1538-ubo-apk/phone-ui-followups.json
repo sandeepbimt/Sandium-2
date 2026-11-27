@@ -26,7 +26,7 @@
     },
     {
       "name": "reconcile-pending-ublock-install.patch",
-      "sha256": "f579201fb0297674c7e5157c15fc768327e8b1d28662c5d068068ab1c6d98fc1"
+      "sha256": "c8ee16c366a3d6bb3ee73bcd4befe4ac6f853bc0ff0dbc97581de038aa923c8c"
     },
     {
       "name": "native-omnibox-paste.patch",
@@ -40,7 +40,7 @@
   "paths": {
     "chrome/browser/resources/extensions/item_list.ts": {
       "after": [
-        "3f57c41370b985e5142e0c344e43e857a2d2eee10cef39cfcc3e3a1e5163d34e"
+        "ae0578cbd62fd909ed59b05420ba2485392acbb2e1190304316db04cb8d8998e"
       ],
       "before": [
         "e16eec93a060a69e48232c8e8787282b80c601d1604b6e03f1f64c745e2ea49c"

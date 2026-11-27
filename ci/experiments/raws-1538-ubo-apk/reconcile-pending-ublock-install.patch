@@ -1,16 +1,11 @@
 --- a/chrome/browser/resources/extensions/item_list.ts
 +++ b/chrome/browser/resources/extensions/item_list.ts
-@@ -338,17 +338,27 @@
+@@ -338,17 +338,22 @@
        return;
      }
      this.ublockInstallState_ = 'installing';
 +    const watcher = new AbortController();
-+    this.dispatchEvent(new CustomEvent<AbortSignal>(
-+        'raws-verified-ublock-install-started', {
-+          bubbles: true,
-+          composed: true,
-+          detail: watcher.signal,
-+        }));
++    this.fire('raws-verified-ublock-install-started', watcher.signal);
      try {
        const result = await chrome.developerPrivate.loadCrx(true);
        if (result === 'cancelled') {
