@@ -1,0 +1,68 @@
+diff --git a/chrome/browser/ui/android/appmenu/internal/java/src/org/chromium/chrome/browser/ui/appmenu/SandiumPagedMenu.java b/chrome/browser/ui/android/appmenu/internal/java/src/org/chromium/chrome/browser/ui/appmenu/SandiumPagedMenu.java
+--- a/chrome/browser/ui/android/appmenu/internal/java/src/org/chromium/chrome/browser/ui/appmenu/SandiumPagedMenu.java
++++ b/chrome/browser/ui/android/appmenu/internal/java/src/org/chromium/chrome/browser/ui/appmenu/SandiumPagedMenu.java
+@@ -320,6 +320,11 @@
+         for (String key : LIBRARY) keys.remove(key);
+         if (hasFixedExit()) keys.remove(EXIT);
+         if (headerExtension() != null) keys.remove(EXTENSIONS);
++        // These native commands are already reached elsewhere in Sandium.
++        // Do not offer Chromium duplicates in the editable action grid.
++        keys.remove("quick_delete_menu_id");
++        keys.remove("manage_extensions_menu_id");
++        keys.remove("extensions_webstore_menu_id");
+         return keys;
+     }
+ 
+@@ -822,36 +827,31 @@
+             done.setTextColor(mHeaderActionColor);
+             weighted(heading, done);
+         } else {
+-            int sideWidth = dp(64);
++            int actionWidth = dp(48);
+             Entry extensions = headerExtension();
+-            if (mAllMenu) {
+-                heading.addView(
+-                        button(s(R.string.sandium_menu_back_all),
+-                                s(R.string.sandium_menu_back_description),
+-                                () -> { mAllMenu = false; render(); }),
+-                        new LinearLayout.LayoutParams(sideWidth, headerHeight));
+-            } else if (!mReadOnlyPrivateMenu) {
+-                View edit = headerIconButton(
+-                        pencilIcon(), s(R.string.sandium_menu_edit_description),
+-                        "control:" + s(R.string.sandium_menu_edit_description),
+-                        () -> { mDraft = mSaved.copy(); render(); });
+-                heading.addView(edit, new LinearLayout.LayoutParams(sideWidth, headerHeight));
+-            } else {
+-                heading.addView(new View(getContext()), new LinearLayout.LayoutParams(sideWidth, 1));
+-            }
+-
+             TextView title = text(s(mAllMenu ? R.string.sandium_menu_all : R.string.sandium_menu_title),
+                     HEADER_TITLE_SP, mTextColor);
+             title.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
+-            title.setGravity(Gravity.CENTER);
++            title.setGravity(Gravity.START | Gravity.CENTER_VERTICAL);
++            title.setPaddingRelative(dp(18), 0, 0, 0);
+             title.setIncludeFontPadding(false);
+             title.setSingleLine(true);
+             title.setEllipsize(android.text.TextUtils.TruncateAt.END);
+             title.setAccessibilityHeading(true);
+             heading.addView(title, new LinearLayout.LayoutParams(0, headerHeight, 1));
+-            View endAction = extensions == null
+-                    ? new View(getContext()) : extensionsHeaderButton(extensions);
+-            heading.addView(endAction, new LinearLayout.LayoutParams(sideWidth, headerHeight));
++
++            if (!mAllMenu && !mReadOnlyPrivateMenu) {
++                View edit = headerIconButton(
++                        pencilIcon(), s(R.string.sandium_menu_edit_description),
++                        "control:" + s(R.string.sandium_menu_edit_description),
++                        () -> { mDraft = mSaved.copy(); render(); });
++                heading.addView(edit, new LinearLayout.LayoutParams(actionWidth, headerHeight));
++            }
++            if (extensions != null) {
++                heading.addView(extensionsHeaderButton(extensions),
++                        new LinearLayout.LayoutParams(actionWidth, headerHeight));
++            }
++            heading.addView(new View(getContext()), new LinearLayout.LayoutParams(dp(8), 1));
+         }
+         // Center the visible glyphs, not font-leading or horizontal baseline alignment.
+         for (int i = 0; i < heading.getChildCount(); i++) {

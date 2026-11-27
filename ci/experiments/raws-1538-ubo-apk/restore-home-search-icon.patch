@@ -1,0 +1,79 @@
+diff --git a/chrome/android/java/src/org/chromium/chrome/browser/toolbar/ToolbarManager.java b/chrome/android/java/src/org/chromium/chrome/browser/toolbar/ToolbarManager.java
+--- a/chrome/android/java/src/org/chromium/chrome/browser/toolbar/ToolbarManager.java
++++ b/chrome/android/java/src/org/chromium/chrome/browser/toolbar/ToolbarManager.java
+@@ -156,6 +156,7 @@
+ import org.chromium.chrome.browser.preferences.ChromeSharedPreferences;
+ import org.chromium.chrome.browser.profiles.Profile;
+ import org.chromium.chrome.browser.readaloud.ReadAloudController;
++import org.chromium.chrome.browser.omnibox.status.StatusCoordinator;
+ import org.chromium.chrome.browser.search_engines.TemplateUrlServiceFactory;
+ import org.chromium.chrome.browser.share.ShareDelegate;
+ import org.chromium.chrome.browser.share.send_tab_to_self.SendTabToSelfAndroidBridge;
+@@ -339,6 +340,7 @@
+     private final SettableThemeColorProvider mCustomTabThemeColorProvider;
+     private final TopToolbarCoordinator mToolbar;
+     private final ToolbarLayout mToolbarLayout;
++    private @Nullable StatusCoordinator mRawSHomeIconStatus;
+     private @Nullable SandiumBalancedTracer mRawSAddressShieldTracer;
+     private final ToolbarControlContainer mControlContainer;
+     private final View mToolbarHairline;
+@@ -2914,6 +2916,11 @@
+                         view -> RawsGlobalShieldSheet.show(
+                                 mActivity, mBottomSheetController, mLocationBarModel.getTab()));
+                 tracer.setEnabled(true);
++                if (mLocationBar instanceof LocationBarCoordinator coordinator) {
++                    var status = coordinator.getStatusCoordinator();
++                    mRawSHomeIconStatus = status;
++                    status.setRawSHomeSearchIconConsumer(phone::setRawSHomeSearchEngineIcon);
++                }
+             }
+         }
+         if (useRawSPhoneControls && mToolbarLayout instanceof ToolbarPhone phone) {
+@@ -3152,6 +3159,10 @@
+     public void destroy() {
+         if (mIsDestroyed) return;
+         mIsDestroyed = true;
++        if (mRawSHomeIconStatus != null) {
++            mRawSHomeIconStatus.setRawSHomeSearchIconConsumer(null);
++            mRawSHomeIconStatus = null;
++        }
+         if (mRawSAddressShieldTracer != null) {
+             mRawSAddressShieldTracer.close();
+             mRawSAddressShieldTracer = null;
+diff --git a/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/ToolbarPhone.java b/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/ToolbarPhone.java
+--- a/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/ToolbarPhone.java
++++ b/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/ToolbarPhone.java
+@@ -188,2 +188,4 @@
+     private @Nullable Drawable mRawSWebMark;
++    private @Nullable Drawable mRawSHomeMark;
++    private @Nullable Drawable mRawSCapturedHomeSearchIcon;
+     private int mRawSPageCapturedShield;
+@@ -629,2 +631,13 @@
+ 
++    /** Update only the decorative search-provider icon on the regular Home surface. */
++    public void setRawSHomeSearchEngineIcon(@Nullable Drawable icon) {
++        if (mDestroyChecker.isDestroyed() || mRawSHomeMark == icon) return;
++        mRawSHomeMark = icon;
++        updateRawSAddressShield();
++    }
++
++    private @Nullable Drawable getRawSVisibleHomeSearchIcon() {
++        return getRawSShieldCaptureState() == 1 ? mRawSHomeMark : null;
++    }
++
+     private boolean canShowRawSAddressShield() {
+@@ -664,3 +677,3 @@
+         int visibility = show ? (urlHasFocus() ? INVISIBLE : VISIBLE) : GONE;
+-        Drawable mark = mRawSWebMark;
++        Drawable mark = home ? mRawSHomeMark : mRawSWebMark;
+         if (shield.getDrawable() != mark) shield.setImageDrawable(mark);
+@@ -3109,3 +3122,4 @@
+                 } else if (mRawSQuickActionsCaptured != getRawSQuickActionsCaptureState()
+-                        || mRawSPageCapturedShield != getRawSShieldCaptureState()) {
++                        || mRawSPageCapturedShield != getRawSShieldCaptureState()
++                        || mRawSCapturedHomeSearchIcon != getRawSVisibleHomeSearchIcon()) {
+                     snapshotDifference = ToolbarSnapshotDifference.HOME_BUTTON;
+@@ -3304,2 +3318,3 @@
+                 mRawSPageCapturedShield = getRawSShieldCaptureState();
++                mRawSCapturedHomeSearchIcon = getRawSVisibleHomeSearchIcon();
+                 mRawSCapturedProgressFraction = mRawSProgressFraction;

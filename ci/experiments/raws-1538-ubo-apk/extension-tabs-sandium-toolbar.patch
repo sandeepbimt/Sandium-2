@@ -1,0 +1,28 @@
+diff --git a/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/ToolbarPhone.java b/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/ToolbarPhone.java
+--- a/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/ToolbarPhone.java
++++ b/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/ToolbarPhone.java
+@@ -321,3 +321,9 @@
+         if (tab.isNativePage()) return isRawSUnifiedNativeHome(tab);
+-        return UrlUtilities.isHttpOrHttps(tab.getUrl());
++        return UrlUtilities.isHttpOrHttps(tab.getUrl()) || isRawSExtensionPage(tab);
++    }
++
++    private static boolean isRawSExtensionPage(Tab tab) {
++        // Presentation only. The renderer, omnibox identity and extension
++        // navigation still follow the real chrome-extension URL and policies.
++        return "chrome-extension".equals(tab.getUrl().getScheme());
+     }
+@@ -675,3 +681,5 @@
+         }
+-        boolean show = home || isWebShield; // Retain the same native slot on cache miss.
++        boolean show = home || isWebShield
++                || (mRawSPageActionsActive && tab != null && !tab.isDestroyed()
++                        && !isInTabSwitcherMode() && isRawSExtensionPage(tab));
+         int visibility = show ? (urlHasFocus() ? INVISIBLE : VISIBLE) : GONE;
+@@ -697,3 +705,5 @@
+         if (shield == null || shield.getVisibility() != VISIBLE) return 0;
+-        return shield.isEnabled() ? 2 : 1;
++        if (shield.isEnabled()) return 2;
++        // Decorative extension branding must not alias the Home provider snapshot.
++        return shield.getDrawable() == mRawSWebMark ? 3 : 1;
+     }

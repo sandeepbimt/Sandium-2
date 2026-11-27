@@ -1,0 +1,124 @@
+diff --git a/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/extensions/RawSExtensionsManagerDialog.java b/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/extensions/RawSExtensionsManagerDialog.java
+--- a/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/extensions/RawSExtensionsManagerDialog.java
++++ b/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/extensions/RawSExtensionsManagerDialog.java
+@@ -48,6 +48,7 @@
+ import org.chromium.ui.base.WindowAndroid;
+ import org.chromium.ui.interpolators.Interpolators;
+ import org.chromium.ui.modaldialog.ModalDialogManager;
++import org.chromium.ui.modelutil.PropertyModel;
+ import org.chromium.url.GURL;
+ 
+ /** A native full-screen host for the browser's extension settings, never a visible browser tab. */
+@@ -59,6 +60,22 @@
+     private static final int EXIT_MS = 250;
+ 
+     private final ActivityWindowAndroid mIsolatedWindow;
++    private final IntentRequestTracker mIntentTracker;
++    private final @Nullable ModalDialogManager mHostDialogs;
++    private @Nullable ActivityWindowAndroid mOptionsWindow;
++    private boolean mYieldingToHostModal;
++    private final ModalDialogManager.ModalDialogManagerObserver mHostDialogObserver =
++            new ModalDialogManager.ModalDialogManagerObserver() {
++                @Override
++                public void onDialogAdded(PropertyModel model) {
++                    mRoot.post(RawSExtensionsManagerDialog.this::syncHostModalVisibility);
++                }
++
++                @Override
++                public void onLastDialogDismissed() {
++                    mRoot.post(RawSExtensionsManagerDialog.this::syncHostModalVisibility);
++                }
++            };
+     private final ThinWebView mView;
+     private final WebContents mContents;
+     private final LinearLayout mRoot;
+@@ -102,6 +119,8 @@
+             TabCreator tabCreator) {
+         super(activity, android.R.style.Theme_Material_NoActionBar);
+         mSourceTab = sourceTab;
++        mIntentTracker = tracker;
++        mHostDialogs = hostWindow.getModalDialogManager();
+         mTabCreator = tabCreator;
+         requestWindowFeature(Window.FEATURE_NO_TITLE);
+         boolean dark = (activity.getResources().getConfiguration().uiMode
+@@ -278,15 +297,26 @@
+                 || activity.isDestroyed() || mOptionsContents != null) {
+             return false;
+         }
++        // Each live ThinWebView owns a different WindowAndroid compositor root.
++        // The manager stays alive under its child, preserving its WebUI state.
++        var optionsWindow = new ActivityWindowAndroid(activity,
++                /* listenToActivityState= */ true, mIntentTracker,
++                /* insetObserver= */ null, /* occlusionTrackingAllowed= */ true) {
++            @Override
++            public @Nullable ModalDialogManager getModalDialogManager() {
++                return mHostDialogs;
++            }
++        };
++        mOptionsWindow = optionsWindow;
+         mOptionsContents = contents;
+         ContentView content = ContentView.createContentView(activity, contents);
+         contents.setDelegates(VersionInfo.getProductVersion(),
+                 ViewAndroidDelegate.createBasicDelegate(content), content,
+-                mIsolatedWindow, WebContents.createDefaultInternalsHolder());
++                optionsWindow, WebContents.createDefaultInternalsHolder());
+ 
+         var constraints = new ThinWebViewConstraints();
+         constraints.supportsOpacity = true;
+-        var view = ThinWebViewFactory.create(activity, constraints, mIsolatedWindow);
++        var view = ThinWebViewFactory.create(activity, constraints, optionsWindow);
+         mOptionsView = view;
+         view.attachWebContents(contents, content,
+                 new ThinWebViewAttachParams.Builder()
+@@ -370,6 +400,9 @@
+         }
+         if (view != null) view.destroy();
+         contents.destroy();
++        var optionsWindow = mOptionsWindow;
++        mOptionsWindow = null;
++        if (optionsWindow != null) optionsWindow.destroy();
+         if (!mDestroyed) {
+             mTitle.setText("Manage Extensions");
+             mStoreButton.setVisibility(View.VISIBLE);
+@@ -394,6 +427,24 @@
+         mRoot.post(() -> {
+             if (!mDestroyed && !mClosing && isShowing()) closeAnimated();
+         });
++    }
++
++    private void syncHostModalVisibility() {
++        if (mDestroyed || mClosing || mSourceTab.isDestroyed()) return;
++        var dialogs = mHostDialogs;
++        if (dialogs == null) return;
++        if (dialogs.isShowing()) {
++            if (!mYieldingToHostModal && isShowing()) {
++                // Allow Chromium's real confirmation or completion modal to take
++                // focus. Do not dismiss or reload the manager or its JS install state.
++                mYieldingToHostModal = true;
++                hide();
++            }
++        } else if (mYieldingToHostModal) {
++            mYieldingToHostModal = false;
++            // Bypass the initial show() path, which navigates back to chrome://extensions.
++            super.show();
++        }
+     }
+ 
+     @Override
+@@ -406,6 +457,8 @@
+                     ViewGroup.LayoutParams.MATCH_PARENT);
+         }
+         mRoot.requestApplyInsets();
++        if (mHostDialogs != null) mHostDialogs.addObserver(mHostDialogObserver);
++        syncHostModalVisibility();
+         if (ValueAnimator.areAnimatorsEnabled()) {
+             mPanel.setTranslationY(dpPx(48));
+             mPanel.animate().translationY(0).setDuration(ENTER_MS)
+@@ -463,6 +516,7 @@
+         if (mDestroyed) return;
+         mDestroyed = true;
+         mSourceTab.removeObserver(mSourceTabObserver);
++        if (mHostDialogs != null) mHostDialogs.removeObserver(mHostDialogObserver);
+         mPanel.animate().cancel();
+         mPaintObserver.observe(null);
+         closeExtensionOptions();

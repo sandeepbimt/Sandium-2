@@ -35,6 +35,22 @@
     {
       "name": "native-navigation-handoff.patch",
       "sha256": "71631e150f050d1636aaf469af53d464ec7d4c78f267631b2f34702e1b4fe557"
+    },
+    {
+      "name": "restore-home-search-icon.patch",
+      "sha256": "995e954f041c5723b5e2123762632e48ff5a2b10082c062fa39330c4e2d2e8d0"
+    },
+    {
+      "name": "manager-compositor-and-install-modals.patch",
+      "sha256": "7c16249473d376118a88488f6fc9b5412e93d3d81ddb2614032c34eaf272f371"
+    },
+    {
+      "name": "extension-tabs-sandium-toolbar.patch",
+      "sha256": "3974513ceecccb1322c49fe285f897906ae5a3288016494f425f1c57bba933b6"
+    },
+    {
+      "name": "align-sandium-menu-headers.patch",
+      "sha256": "120612ce463969b6144458087249263ea3befb75c96aeddfdc6ae247c8e336ff"
     }
   ],
   "paths": {
@@ -195,6 +211,24 @@
       ],
       "before": [
         "8c83ca4588f46685ea61628d49d3aca993be53299bc67143ea4bebbdb92173c0"
+      ]
+    },
+    "chrome/android/java/src/org/chromium/chrome/browser/toolbar/ToolbarManager.java": {
+      "before": [
+        "b63cd7861103587e6942f20e49dc27fb77cb4324a8e7732df89eddfcf16cda94"
+      ]
+    },
+    "chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/extensions/RawSExtensionsManagerDialog.java": {
+      "before": [
+        "731a8159d0b4e55025cce5ce541d625bcd216921128bfe468551daa21b5ea05d"
+      ],
+      "after": [
+        "975ab221b297bc5718f9d00f25208f16ef58b3361e147df518ad9969ea1ec518"
+      ]
+    },
+    "chrome/browser/ui/android/appmenu/internal/java/src/org/chromium/chrome/browser/ui/appmenu/SandiumPagedMenu.java": {
+      "before": [
+        "86fbefc821a75613a68c593af1109e74a038c08f54b8f8f64c58620b06fa2d46"
       ]
     }
   }
