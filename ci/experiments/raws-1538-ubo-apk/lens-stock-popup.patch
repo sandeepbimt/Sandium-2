@@ -1,0 +1,285 @@
+diff --git a/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/extensions/ExtensionActionListMediator.java b/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/extensions/ExtensionActionListMediator.java
+--- a/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/extensions/ExtensionActionListMediator.java
++++ b/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/extensions/ExtensionActionListMediator.java
+@@ -752,10 +752,13 @@
+                         mContextMenuPopulatorFactory,
+                         mSelectionDropdownMenuDelegate,
+                         mTabModelSelector,
+-                        inspectWithDevTools);
+-        popup.loadInitialPage();
++                        inspectWithDevTools,
++                        !inspectWithDevTools
++                                        && "fkgkibajhfbepljeaefdnfnegdcjomkh".equals(actionId)
++                                ? phoneTab : null);
+         popup.addOnDismissListener(this::closePopup);
+         mActionState = new ActionState.PopupActive(popup, actionId);
++        popup.loadInitialPage();
+     }
+ 
+     private void closePopup() {
+diff --git a/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/extensions/ExtensionActionPopup.java b/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/extensions/ExtensionActionPopup.java
+--- a/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/extensions/ExtensionActionPopup.java
++++ b/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/extensions/ExtensionActionPopup.java
+@@ -5,13 +5,21 @@
+ package org.chromium.chrome.browser.toolbar.extensions;
+ 
+ import android.app.Activity;
++import android.app.Dialog;
++import android.content.res.Configuration;
+ import android.content.res.Resources;
+ import android.graphics.Color;
++import android.graphics.Rect;
+ import android.graphics.drawable.ColorDrawable;
++import android.graphics.drawable.GradientDrawable;
+ import android.os.Build;
++import android.view.Gravity;
+ import android.view.KeyEvent;
+ import android.view.View;
++import android.view.Window;
+ import android.view.WindowManager;
++import android.view.animation.DecelerateInterpolator;
++import android.widget.FrameLayout;
+ import android.widget.PopupWindow.OnDismissListener;
+ 
+ import org.chromium.base.Callback;
+@@ -40,6 +48,7 @@
+ import org.chromium.ui.modaldialog.ModalDialogManager;
+ import org.chromium.ui.widget.AnchoredPopupWindow;
+ import org.chromium.ui.widget.ViewRectProvider;
++import org.chromium.url.GURL;
+ 
+ /**
+  * Manages the display of an extension action's popup UI.
+@@ -68,7 +77,15 @@
+     private final ThinWebView mThinWebView;
+ 
+     /** The PopupWindow that is displayed on the screen, anchored to a view. */
+-    private final AnchoredPopupWindow mPopupWindow;
++    private final @Nullable AnchoredPopupWindow mPopupWindow;
++    private final @Nullable Dialog mPhoneSheet;
++    private final @Nullable View mPhoneCover;
++    private final @Nullable Tab mOpeningPhoneTab;
++    private final @Nullable WebContents mOpeningSiteContents;
++    private final @Nullable GURL mOpeningSiteUrl;
++    private @Nullable OnDismissListener mPhoneDismissListener;
++    private int mPhoneContentHeight;
++    private boolean mDestroyed;
+ 
+     /** The window of the popup. */
+     private final ActivityWindowAndroid mPopupWindowAndroid;
+@@ -104,6 +121,25 @@
+             @Nullable SelectionDropdownMenuDelegate selectionDropdownMenuDelegate,
+             TabModelSelector tabModelSelector,
+             boolean inspectWithDevTools) {
++        this(activity, windowAndroid, anchorView, actionId, contents, contextMenuPopulatorFactory,
++                selectionDropdownMenuDelegate, tabModelSelector, inspectWithDevTools, null);
++    }
++
++    public ExtensionActionPopup(
++            Activity activity,
++            WindowAndroid windowAndroid,
++            View anchorView,
++            String actionId,
++            ExtensionActionPopupContents contents,
++            @Nullable ContextMenuPopulatorFactory contextMenuPopulatorFactory,
++            @Nullable SelectionDropdownMenuDelegate selectionDropdownMenuDelegate,
++            TabModelSelector tabModelSelector,
++            boolean inspectWithDevTools,
++            @Nullable Tab openingPhoneTab) {
++        mOpeningPhoneTab = openingPhoneTab;
++        mOpeningSiteContents = openingPhoneTab == null ? null : openingPhoneTab.getWebContents();
++        mOpeningSiteUrl = mOpeningSiteContents == null
++                ? null : mOpeningSiteContents.getLastCommittedUrl();
+         mActivity = activity;
+         mActionId = actionId;
+         mContents = contents;
+@@ -151,8 +187,46 @@
+                         .build());
+ 
+         Resources resources = mActivity.getResources();
+-        mPopupWindow =
+-                new AnchoredPopupWindow.Builder(
++        if (openingPhoneTab != null) {
++            mPopupWindow = null;
++            mPhoneContentHeight = ViewUtils.dpToPx(activity, 260);
++            int mask = Configuration.UI_MODE_NIGHT_MASK;
++            boolean dark = (resources.getConfiguration().uiMode & mask)
++                    == Configuration.UI_MODE_NIGHT_YES;
++            int surface = dark ? Color.rgb(20, 20, 21) : Color.rgb(249, 249, 250);
++            mPhoneSheet = new Dialog(activity);
++            mPhoneSheet.requestWindowFeature(Window.FEATURE_NO_TITLE);
++            mPhoneSheet.setCanceledOnTouchOutside(true);
++            FrameLayout frame = new FrameLayout(activity);
++            GradientDrawable panel = new GradientDrawable();
++            panel.setColor(surface);
++            panel.setCornerRadius(ViewUtils.dpToPx(activity, 24));
++            frame.setBackground(panel);
++            frame.setClipToOutline(true);
++            frame.addView(mThinWebView.getView(), new FrameLayout.LayoutParams(
++                    FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
++            View cover = new View(activity);
++            cover.setBackgroundColor(surface);
++            cover.setClickable(true);
++            frame.addView(cover, new FrameLayout.LayoutParams(
++                    FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
++            mPhoneCover = cover;
++            mPhoneSheet.setContentView(frame);
++            mPhoneSheet.setOnDismissListener(dialog -> notifyPhoneDismissed());
++            Window window = NullUtil.assumeNonNull(mPhoneSheet.getWindow());
++            window.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
++            window.addFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND);
++            window.setDimAmount(0.42f);
++            window.setGravity(Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL);
++            window.setWindowAnimations(0);
++            WindowManager.LayoutParams params = window.getAttributes();
++            params.y = ViewUtils.dpToPx(activity, 12);
++            window.setAttributes(params);
++        } else {
++            mPhoneSheet = null;
++            mPhoneCover = null;
++            mPopupWindow =
++                    new AnchoredPopupWindow.Builder(
+                                 activity,
+                                 activity.getWindow().getDecorView(),
+                                 new ColorDrawable(Color.WHITE),
+@@ -176,11 +250,15 @@
+                                         R.dimen.extension_action_popup_min_height))
+                         .setFocusable(!inspectWithDevTools)
+                         .build();
++        }
+ 
+         mTabModelSelector = tabModelSelector;
+         mCurrentTabObserver =
+                 tab -> {
+-                    if (mPopupWindow.isShowing()) {
++                    if (mPhoneSheet != null && tab != mOpeningPhoneTab) {
++                        closePhoneSheet();
++                    }
++                    if (mPopupWindow != null && mPopupWindow.isShowing()) {
+                         // Due to inherent differences between platforms on focus handling, we
+                         // explicitly observe tab changes and dismiss, matching Desktop's
+                         // OnTabStripModelChanged behavior.
+@@ -195,8 +273,12 @@
+     /** Cleans up resources used by this popup. */
+     @Override
+     public void destroy() {
++        if (mDestroyed) return;
++        mDestroyed = true;
+         mTabModelSelector.getCurrentTabSupplier().removeObserver(mCurrentTabObserver);
+-        mPopupWindow.dismiss();
++        mPhoneDismissListener = null;
++        if (mPhoneSheet != null) mPhoneSheet.dismiss();
++        if (mPopupWindow != null) mPopupWindow.dismiss();
+         mThinWebView.destroy();
+         mPopupWindowAndroid.destroy();
+         mContents.destroy();
+@@ -214,12 +296,48 @@
+ 
+     /** Adds a listener that will be notified when the popup window is dismissed. */
+     public void addOnDismissListener(OnDismissListener listener) {
+-        mPopupWindow.addOnDismissListener(listener);
++        if (mPhoneSheet != null) {
++            mPhoneDismissListener = listener;
++        } else {
++            NullUtil.assumeNonNull(mPopupWindow).addOnDismissListener(listener);
++        }
++    }
++
++    private void notifyPhoneDismissed() {
++        OnDismissListener listener = mPhoneDismissListener;
++        mPhoneDismissListener = null;
++        if (listener != null) listener.onDismiss();
++    }
++
++    private void closePhoneSheet() {
++        Dialog dialog = NullUtil.assumeNonNull(mPhoneSheet);
++        if (dialog.isShowing()) dialog.dismiss();
++        else notifyPhoneDismissed();
++    }
++
++    private void sizePhoneSheet() {
++        Window window = NullUtil.assumeNonNull(
++                NullUtil.assumeNonNull(mPhoneSheet).getWindow());
++        Rect safe = new Rect();
++        mActivity.getWindow().getDecorView().getWindowVisibleDisplayFrame(safe);
++        int sideMargins = ViewUtils.dpToPx(mActivity, 24);
++        int availableWidth = Math.max(1, safe.width() - sideMargins);
++        int availableHeight = Math.max(1, safe.height() - sideMargins);
++        int width = Math.min(availableWidth, ViewUtils.dpToPx(mActivity, 440));
++        int height = Math.min(mPhoneContentHeight, availableHeight * 4 / 5);
++        window.setLayout(width, Math.max(1, height));
+     }
+ 
+     private class ContentsDelegate implements ExtensionActionPopupContents.Delegate {
+         @Override
+         public void resizeDueToAutoResize(int width, int height) {
++            if (mDestroyed) return;
++            if (mPhoneSheet != null) {
++                mPhoneContentHeight = Math.max(
++                        ViewUtils.dpToPx(mActivity, 160), ViewUtils.dpToPx(mActivity, height));
++                if (mPhoneSheet.isShowing()) sizePhoneSheet();
++                return;
++            }
+             if (Build.VERSION.SDK_INT >= 34) {
+                 // Disable transition animations for the popup window. On Android, {@link
+                 // onLoaded()} is called first, and then {@link resizeDueToAutoResize()} is called.
+@@ -244,7 +362,7 @@
+                 targetHeightPx = Math.min(targetHeightPx, maxAvailableHeightPx);
+             }
+ 
+-            mPopupWindow.setDesiredContentSize(targetWidthPx, targetHeightPx);
++            NullUtil.assumeNonNull(mPopupWindow).setDesiredContentSize(targetWidthPx, targetHeightPx);
+         }
+ 
+         @Override
+@@ -254,13 +372,48 @@
+ 
+         @Override
+         public void onLoaded() {
+-            mPopupWindow.show();
++            if (mDestroyed) return;
++            Dialog phoneSheet = mPhoneSheet;
++            if (phoneSheet != null) {
++                if (mActivity.isFinishing() || mActivity.isDestroyed()
++                        || mTabModelSelector.getCurrentTabSupplier().get() != mOpeningPhoneTab
++                        || mOpeningPhoneTab == null || mOpeningPhoneTab.isDestroyed()
++                        || mOpeningPhoneTab.isHidden() || mOpeningSiteContents == null
++                        || mOpeningSiteContents.isDestroyed()
++                        || mOpeningPhoneTab.getWebContents() != mOpeningSiteContents
++                        || mOpeningSiteUrl == null
++                        || !mOpeningSiteUrl.equals(mOpeningSiteContents.getLastCommittedUrl())) {
++                    closePhoneSheet();
++                    return;
++                }
++                sizePhoneSheet();
++                phoneSheet.show();
++                sizePhoneSheet();
++                View sheetView = NullUtil.assumeNonNull(phoneSheet.getWindow()).getDecorView();
++                sheetView.setTranslationY(ViewUtils.dpToPx(mActivity, 20));
++                sheetView.animate().translationY(0).setDuration(180)
++                        .setInterpolator(new DecelerateInterpolator()).start();
++                View cover = NullUtil.assumeNonNull(mPhoneCover);
++                mThinWebView.runOnNextFrame(() -> {
++                    if (!mDestroyed && phoneSheet.isShowing()) cover.setVisibility(View.GONE);
++                });
++                // Do not leave the user in an empty sheet if the compositor never presents.
++                cover.postDelayed(() -> {
++                    if (!mDestroyed && phoneSheet.isShowing()
++                            && cover.getVisibility() == View.VISIBLE) {
++                        closePhoneSheet();
++                    }
++                }, 2500);
++            } else {
++                NullUtil.assumeNonNull(mPopupWindow).show();
++            }
+             mContentView.requestFocus();
+         }
+ 
+         @Override
+         public void onClose() {
+-            mPopupWindow.dismiss();
++            if (mPhoneSheet != null) closePhoneSheet();
++            else NullUtil.assumeNonNull(mPopupWindow).dismiss();
+         }
+     }
+ 

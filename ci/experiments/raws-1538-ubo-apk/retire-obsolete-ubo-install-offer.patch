@@ -1,0 +1,39 @@
+diff --git a/chrome/browser/resources/extensions/toolbar.html.ts b/chrome/browser/resources/extensions/toolbar.html.ts
+--- a/chrome/browser/resources/extensions/toolbar.html.ts
++++ b/chrome/browser/resources/extensions/toolbar.html.ts
+@@ -42,12 +42,6 @@
+       $i18n{rawsToolbarInstallCrx}
+     </cr-button>
+     ` : ''}
+-    ${!new URLSearchParams(location.search).has('sandium') ? html`
+-    <a class="raws-ubo-install-link"
+-        href="https://github.com/gorhill/uBlock/releases/download/1.75.0/uBlock0_1.75.0.chromium.crx"
+-        aria-description="Pinned older version for testing only">
+-      Install uBlock Origin (test)
+-    </a>` : ''}
+     ${new URLSearchParams(location.search).get('sandium') === 'manage' ? html`
+       <a href="/?sandium=developer" class="sandium-developer-link">Developer options</a>
+     ` : ''}
+diff --git a/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/extensions/RawSExtensionsManagerDialog.java b/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/extensions/RawSExtensionsManagerDialog.java
+--- a/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/extensions/RawSExtensionsManagerDialog.java
++++ b/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/extensions/RawSExtensionsManagerDialog.java
+@@ -55,8 +55,6 @@
+ final class RawSExtensionsManagerDialog extends Dialog {
+     private static final String MANAGE_URL = "chrome://extensions/?sandium=manage";
+     private static final String STORE_URL = "https://chromewebstore.google.com/category/extensions";
+-    private static final String TEST_UBO_URL =
+-            "https://github.com/gorhill/uBlock/releases/download/1.75.0/uBlock0_1.75.0.chromium.crx";
+     private static final int ENTER_MS = 350;
+     private static final int EXIT_MS = 250;
+ 
+@@ -175,10 +173,6 @@
+             PopupMenu popup = new PopupMenu(getContext(), v);
+             popup.getMenu().add("Chrome Web Store").setOnMenuItemClickListener(item -> {
+                 openInBrowser(STORE_URL);
+-                return true;
+-            });
+-            popup.getMenu().add("uBlock Origin (test)").setOnMenuItemClickListener(item -> {
+-                openInBrowser(TEST_UBO_URL);
+                 return true;
+             });
+             popup.show();

@@ -1,0 +1,199 @@
+diff --git a/chrome/browser/android/content/java/src/org/chromium/chrome/browser/content/WebContentsFactory.java b/chrome/browser/android/content/java/src/org/chromium/chrome/browser/content/WebContentsFactory.java
+--- a/chrome/browser/android/content/java/src/org/chromium/chrome/browser/content/WebContentsFactory.java
++++ b/chrome/browser/android/content/java/src/org/chromium/chrome/browser/content/WebContentsFactory.java
+@@ -137,13 +137,15 @@
+     }
+ 
+     /** Creates a uniquely restricted WebContents for the browser-owned RawS manager. */
+-    public static WebContents createRawSExtensionsManager(Profile profile) {
+-        return WebContentsFactoryJni.get().createRawSExtensionsManager(profile);
++    public static WebContents createRawSExtensionsManager(
++            Profile profile, @Nullable WebContents source) {
++        return WebContentsFactoryJni.get().createRawSExtensionsManager(profile, source);
+     }
+ 
+     @NativeMethods
+     public interface Natives {
+-        WebContents createRawSExtensionsManager(@JniType("Profile*") Profile profile);
++        WebContents createRawSExtensionsManager(
++                @JniType("Profile*") Profile profile, @Nullable WebContents source);
+ 
+         WebContents createWebContents(
+                 @JniType("Profile*") Profile profile,
+diff --git a/chrome/browser/android/content/raws_extensions_manager_contents.h b/chrome/browser/android/content/raws_extensions_manager_contents.h
+--- a/chrome/browser/android/content/raws_extensions_manager_contents.h
++++ b/chrome/browser/android/content/raws_extensions_manager_contents.h
+@@ -5,9 +5,26 @@
+ #ifndef CHROME_BROWSER_ANDROID_CONTENT_RAWS_EXTENSIONS_MANAGER_CONTENTS_H_
+ #define CHROME_BROWSER_ANDROID_CONTENT_RAWS_EXTENSIONS_MANAGER_CONTENTS_H_
+ 
++#include <utility>
++
++#include "base/memory/weak_ptr.h"
++#include "base/supports_user_data.h"
++
++namespace content {
++class WebContents;
++}
++
+ namespace raws {
+ // Browser-owned flag. No URL, renderer action, or user preference can set it.
+ inline constexpr int kExtensionsManagerContentsKey = 0;
++
++class ExtensionsManagerContentsData final : public base::SupportsUserData::Data {
++ public:
++  explicit ExtensionsManagerContentsData(
++      base::WeakPtr<content::WebContents> source_contents)
++      : source(std::move(source_contents)) {}
++  const base::WeakPtr<content::WebContents> source;
++};
+ }  // namespace raws
+ 
+ #endif  // CHROME_BROWSER_ANDROID_CONTENT_RAWS_EXTENSIONS_MANAGER_CONTENTS_H_
+diff --git a/chrome/browser/android/content/web_contents_factory.cc b/chrome/browser/android/content/web_contents_factory.cc
+--- a/chrome/browser/android/content/web_contents_factory.cc
++++ b/chrome/browser/android/content/web_contents_factory.cc
+@@ -85,12 +85,20 @@
+ 
+ static ScopedJavaLocalRef<jobject> JNI_WebContentsFactory_CreateRawSExtensionsManager(
+     JNIEnv* env,
+-    Profile* profile) {
++    Profile* profile,
++    const JavaRef<jobject>& j_source) {
++  auto* source = content::WebContents::FromJavaWebContents(j_source);
++  base::WeakPtr<content::WebContents> owner;
++  if (source && source->GetBrowserContext() == profile &&
++      !profile->IsOffTheRecord()) {
++    owner = source->GetWeakPtr();
++  }
+   content::WebContents::CreateParams params(profile);
+   params.initially_hidden = true;
+   auto contents = content::WebContents::Create(params);
+   contents->SetUserData(&raws::kExtensionsManagerContentsKey,
+-                        std::make_unique<base::SupportsUserData::Data>());
++                        std::make_unique<raws::ExtensionsManagerContentsData>(
++                            std::move(owner)));
+   return contents.release()->GetJavaWebContents();
+ }
+ 
+diff --git a/chrome/browser/extensions/api/developer_private/developer_private_functions.cc b/chrome/browser/extensions/api/developer_private/developer_private_functions.cc
+--- a/chrome/browser/extensions/api/developer_private/developer_private_functions.cc
++++ b/chrome/browser/extensions/api/developer_private/developer_private_functions.cc
+@@ -87,6 +87,8 @@
+ #include "ui/base/window_open_disposition.h"
+ 
+ #if BUILDFLAG(IS_ANDROID)
++#include "chrome/browser/android/content/raws_extensions_manager_contents.h"
++#include "components/tabs/public/tab_interface.h"
+ #include "base/files/file.h"
+ #include "base/task/sequenced_task_runner.h"
+ #include "chrome/browser/platform_util.h"
+@@ -1170,8 +1172,8 @@
+       &checked.crx_id, /*compressed_verified_contents=*/nullptr);
+   if (result != crx_file::VerifierResult::OK_FULL) {
+     checked.error =
+-        "That file is not a packed extension, or it is damaged. RawS installs "
+-        "signed .crx files only.";
++        "RawS could not verify this CRX. Use a valid signed CRX, or use "
++        "Developer options > Load unpacked for your own development build.";
+     checked.crx_id.clear();
+   }
+   return checked;
+@@ -1382,6 +1384,27 @@
+     return RespondNow(Error(kCouldNotFindWebContentsError));
+   }
+ 
++#if BUILDFLAG(IS_ANDROID)
++  if (auto* data = static_cast<raws::ExtensionsManagerContentsData*>(
++          web_contents->GetUserData(&raws::kExtensionsManagerContentsKey))) {
++    auto* owner = data->source.get();
++    auto* owner_tab = owner ? tabs::TabInterface::MaybeGetFromContents(owner)
++                            : nullptr;
++    if (render_frame_host() != web_contents->GetPrimaryMainFrame() ||
++        web_contents->GetLastCommittedURL().GetWithEmptyPath() !=
++            GURL("chrome://extensions/") ||
++        !owner || owner->GetBrowserContext() != browser_context() ||
++        browser_context()->IsOffTheRecord() || !owner_tab ||
++        !owner_tab->IsActivated()) {
++      return RespondNow(Error(kCouldNotFindWebContentsError));
++    }
++    web_contents = owner;
++    if (!ExtensionTabUtil::OpenOptionsPageFromWebContents(extension, web_contents)) {
++      return RespondNow(Error(kCouldNotFindWebContentsError));
++    }
++    return RespondNow(NoArguments());
++  }
++#endif
+   ExtensionTabUtil::OpenOptionsPageFromWebContents(extension, web_contents);
+   return RespondNow(NoArguments());
+ }
+diff --git a/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/extensions/RawSExtensionsManagerDialog.java b/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/extensions/RawSExtensionsManagerDialog.java
+--- a/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/extensions/RawSExtensionsManagerDialog.java
++++ b/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/extensions/RawSExtensionsManagerDialog.java
+@@ -28,6 +28,7 @@
+ import org.chromium.build.annotations.NullMarked;
+ import org.chromium.build.annotations.Nullable;
+ import org.chromium.chrome.browser.content.WebContentsFactory;
++import org.chromium.chrome.browser.tab.EmptyTabObserver;
+ import org.chromium.chrome.browser.tab.Tab;
+ import org.chromium.chrome.browser.tabmodel.TabCreator;
+ import org.chromium.chrome.browser.tab.TabLaunchType;
+@@ -67,6 +68,23 @@
+     private final TextView mLoadingCover;
+     private final WebContentsObserver mPaintObserver;
+     private final Tab mSourceTab;
++    private final EmptyTabObserver mSourceTabObserver = new EmptyTabObserver() {
++        @Override
++        public void onHidden(Tab tab, int type) {
++            onSourceTabChanged();
++        }
++
++        @Override
++        public void onPageLoadStarted(Tab tab, GURL url) {
++            // Options can also target the current tab.
++            if ("chrome-extension".equals(url.getScheme())) onSourceTabChanged();
++        }
++
++        @Override
++        public void onDestroyed(Tab tab) {
++            onSourceTabChanged();
++        }
++    };
+     private final TabCreator mTabCreator;
+     private @Nullable Runnable mAfterClose;
+     private boolean mClosing;
+@@ -87,7 +105,8 @@
+         int surface = dark ? 0xFF000000 : 0xFFFCFCFC;
+         int ink = dark ? 0xFFFAFAFA : 0xFF1A1A1A;
+ 
+-        mContents = WebContentsFactory.createRawSExtensionsManager(sourceTab.getProfile());
++        mContents = WebContentsFactory.createRawSExtensionsManager(
++                sourceTab.getProfile(), sourceTab.getWebContents());
+         ContentView contentView = ContentView.createContentView(activity, mContents);
+         mIsolatedWindow =
+                 new ActivityWindowAndroid(activity, /* listenToActivityState= */ true, tracker,
+@@ -251,8 +270,16 @@
+         closeAnimated();
+     }
+ 
++    private void onSourceTabChanged() {
++        // Opening a tab can run synchronously inside developerPrivate.showOptions.
++        mRoot.post(() -> {
++            if (!mDestroyed && !mClosing && isShowing()) closeAnimated();
++        });
++    }
++
+     @Override
+     public void show() {
++        mSourceTab.addObserver(mSourceTabObserver);
+         super.show();
+         Window window = getWindow();
+         if (window != null) {
+@@ -312,6 +339,7 @@
+     public void dismiss() {
+         if (mDestroyed) return;
+         mDestroyed = true;
++        mSourceTab.removeObserver(mSourceTabObserver);
+         mPanel.animate().cancel();
+         mPaintObserver.observe(null);
+         mAfterClose = null;

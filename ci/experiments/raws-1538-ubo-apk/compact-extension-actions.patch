@@ -1,0 +1,84 @@
+diff --git a/chrome/browser/resources/extensions/toolbar.css b/chrome/browser/resources/extensions/toolbar.css
+--- a/chrome/browser/resources/extensions/toolbar.css
++++ b/chrome/browser/resources/extensions/toolbar.css
+@@ -162,3 +162,45 @@
+   align-items: center;
+   display: inline-flex;
+ }
++
++
++/* The phone manager and its dedicated developer page share aligned touch rows.
++ * No changes to permissions, validation, Safety Check, or the click handlers. */
++:host(.sandium-tool-host) .raws-extension-install-actions {
++  display: grid;
++  grid-template-columns: repeat(2, minmax(0, 1fr));
++}
++
++:host(.sandium-tool-host) #loadCrx,
++:host(.sandium-tool-host) .sandium-developer-link,
++#buttonStrip[data-raws-developer-layout] cr-button {
++  font-size: 13px;
++  min-height: 44px;
++  min-width: 0;
++  padding-inline: 8px;
++  text-align: center;
++  white-space: normal;
++}
++
++#devDrawer:has(#buttonStrip[data-raws-developer-layout])[expanded] {
++  height: auto;
++}
++
++#buttonStrip[data-raws-developer-layout] {
++  box-sizing: border-box;
++  display: grid;
++  gap: 6px;
++  grid-template-columns: repeat(2, minmax(0, 1fr));
++  inline-size: min(100%, 560px);
++  margin-inline: auto;
++  padding: 4px 16px 8px;
++  position: static;
++}
++
++#buttonStrip[data-raws-developer-layout] cr-button {
++  background: light-dark(#f3f3f3, #1a1a1a);
++  border: 0;
++  border-radius: 100px;
++  color: light-dark(#263644, #d3e8ff);
++  margin: 0;
++}
+diff --git a/chrome/browser/resources/extensions/toolbar.html.ts b/chrome/browser/resources/extensions/toolbar.html.ts
+--- a/chrome/browser/resources/extensions/toolbar.html.ts
++++ b/chrome/browser/resources/extensions/toolbar.html.ts
+@@ -36,9 +36,12 @@
+ </cr-toolbar>
+ <if expr="is_android">
+   <div class="raws-extension-install-actions">
++    ${new URLSearchParams(location.search).get('sandium') !== 'developer' ||
++        !this.expanded_ ? html`
+     <cr-button id="loadCrx" @click="${this.onLoadCrxClick_}">
+       $i18n{rawsToolbarInstallCrx}
+     </cr-button>
++    ` : ''}
+     ${!new URLSearchParams(location.search).has('sandium') ? html`
+     <a class="raws-ubo-install-link"
+         href="https://github.com/gorhill/uBlock/releases/download/1.75.0/uBlock0_1.75.0.chromium.crx"
+@@ -56,7 +59,17 @@
+   </extensions-pack-dialog>
+ ` : ''}
+ <div id="devDrawer" ?expanded="${this.expanded_}">
+-  <div id="buttonStrip">
++  <div id="buttonStrip"
++      ?data-raws-developer-layout="${new URLSearchParams(location.search)
++          .get('sandium') === 'developer'}">
++<if expr="is_android">
++    ${new URLSearchParams(location.search).get('sandium') === 'developer' &&
++        this.expanded_ ? html`
++    <cr-button id="loadCrx" @click="${this.onLoadCrxClick_}">
++      $i18n{rawsToolbarInstallCrx}
++    </cr-button>
++    ` : ''}
++</if>
+     <cr-button ?hidden="${!this.canLoadUnpacked_()}" id="loadUnpacked"
+         @click="${this.onLoadUnpackedClick_}">
+       $i18n{toolbarLoadUnpacked}

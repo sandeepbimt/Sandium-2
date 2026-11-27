@@ -1,0 +1,104 @@
+diff --git a/chrome/browser/resources/extensions/detail_view.css b/chrome/browser/resources/extensions/detail_view.css
+--- a/chrome/browser/resources/extensions/detail_view.css
++++ b/chrome/browser/resources/extensions/detail_view.css
+@@ -222,3 +222,42 @@
+   display: flex;
+   flex-direction: row;
+ }
++
++
++.raws-detail-fold > summary {
++  display: none;
++}
++
++[data-raws-compact] .page-content {
++  --cr-section-padding: 14px;
++  --cr-section-vertical-padding: 8px;
++  --cr-section-min-height: 44px;
++  box-sizing: border-box;
++  inline-size: min(100%, 560px);
++  min-inline-size: 0;
++  padding-inline: 14px;
++}
++
++[data-raws-compact] .message-container {
++  align-items: start;
++  border-radius: 14px;
++  box-sizing: border-box;
++  flex-wrap: wrap;
++  padding: 10px 12px;
++}
++
++[data-raws-compact] .message-text {
++  margin-inline-start: 8px;
++  min-inline-size: 0;
++  overflow-wrap: anywhere;
++}
++
++[data-raws-compact] .raws-detail-fold > summary {
++  display: list-item;
++  min-block-size: 44px;
++  padding: 12px 14px;
++}
++
++[data-raws-compact] .section-content {
++  overflow-wrap: anywhere;
++}
+diff --git a/chrome/browser/resources/extensions/detail_view.html.ts b/chrome/browser/resources/extensions/detail_view.html.ts
+--- a/chrome/browser/resources/extensions/detail_view.html.ts
++++ b/chrome/browser/resources/extensions/detail_view.html.ts
+@@ -9,6 +9,7 @@
+ 
+ export function getHtml(this: ExtensionsDetailViewElement) {
+   // clang-format off
++  const compact = new URLSearchParams(location.search).get('sandium') === 'manage';
+   return html`<!--_html_template_start_-->
+ <!-- Invisible instead of hidden because VoiceOver refuses to read text of
+ element that's hidden when referenced by an aria label. Unfortunately,
+@@ -16,7 +17,7 @@
+ <div id="a11yAssociation" aria-hidden="true">
+   ${this.a11yAssociation(this.data.name)}
+ </div>
+-<div class="page-container" id="container">
++<div class="page-container" id="container" ?data-raws-compact="${compact}">
+   <div class="page-content">
+     <div class="page-header">
+       <cr-icon-button class="icon-arrow-back no-overlap" id="closeButton"
+@@ -210,6 +211,15 @@
+         </span>
+       </div>
+     ` : ''}
++    ${compact ? html`
++    <cr-link-row class="hr" id="extensionsOptions"
++        ?disabled="${!this.isEnabled_()}"
++        ?hidden="${!this.shouldShowOptionsLink_()}" label="$i18n{itemOptions}"
++        @click="${this.onExtensionOptionsClick_}" external>
++    </cr-link-row>
++    ` : ''}
++    <details class="raws-detail-fold" ?open="${!compact}">
++      <summary class="cr-row">$i18n{itemPermissions} &amp; info</summary>
+     <div class="section">
+       <div class="section-title" role="heading" aria-level="2">
+         $i18n{itemDescriptionLabel}
+@@ -357,6 +367,7 @@
+         </div>
+       </div>
+     ` : ''}
++    </details>
+     <cr-link-row class="hr" id="siteSettings" label="$i18n{siteSettings}"
+         @click="${this.onSiteSettingsClick_}" external>
+     </cr-link-row>
+@@ -405,11 +416,13 @@
+         ` : ''}
+       </div>
+     ` : ''}
++    ${!compact ? html`
+     <cr-link-row class="hr" id="extensionsOptions"
+         ?disabled="${!this.isEnabled_()}"
+         ?hidden="${!this.shouldShowOptionsLink_()}" label="$i18n{itemOptions}"
+         @click="${this.onExtensionOptionsClick_}" external>
+     </cr-link-row>
++    ` : ''}
+     <cr-link-row class="hr" id="extensionsActivityLogLink"
+         ?hidden="${!this.showActivityLog}" label="$i18n{viewActivityLog}"
+         @click="${this.onActivityLogClick_}"

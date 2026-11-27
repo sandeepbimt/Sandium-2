@@ -1,0 +1,245 @@
+diff --git a/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/ToolbarPhone.java b/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/ToolbarPhone.java
+--- a/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/ToolbarPhone.java
++++ b/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/ToolbarPhone.java
+@@ -1509,25 +1509,31 @@
+         }
+     }
+ 
+-    /** Flat paint only for the visible, unfocused regular dark Home toolbar. */
+-    private boolean useRawSFlatDarkHome() {
++    /** Paint the actual resting bottom toolbar consistently, independent of the page scheme. */
++    private boolean useRawSFlatRestingBar() {
+         if (!mRawSLegacyCapsuleTrial || mIsToolbarUiRefactorEnabled
+                 || ChromeFeatureList.sToolbarPhoneAnimationRefactor.isEnabled()
+                 || mBrowserControlsStateProvider == null
+                 || mBrowserControlsStateProvider.getControlsPosition() != ControlsPosition.BOTTOM
+                 || urlHasFocus() || mUrlFocusChangeInProgress || mUrlFocusChangeFraction != 0f
+-                || mTabSwitcherState != STATIC_TAB || isIncognitoBranded()
+-                || (getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK)
+-                        != Configuration.UI_MODE_NIGHT_YES) {
++                || mTabSwitcherState != STATIC_TAB || isLocationBarShownInNtp()) {
+             return false;
+         }
+         var tab = getToolbarDataProvider().getTab();
+-        return tab != null && !tab.isDestroyed() && !tab.isShowingErrorPage()
+-                && isRawSUnifiedNativeHome(tab) && UrlUtilities.isNtpUrl(tab.getUrl());
+-    }
+-
+-    private @ColorInt int getRawSHomeAwareBackingColor() {
+-        return useRawSFlatDarkHome() ? Color.BLACK : getRawSSoftBackingColor();
++        return tab != null && !tab.isDestroyed() && !tab.isShowingErrorPage();
++    }
++
++    private @ColorInt int getRawSRestingBackingColor() {
++        if (!useRawSFlatRestingBar()) return getRawSSoftBackingColor();
++        // Keep Chromium's foreground palette paired with a contrasting background.
++        int scheme = mThemeColorProvider.getBrandedColorScheme();
++        if (isIncognitoBranded() || scheme == BrandedColorScheme.DARK_BRANDED_THEME) {
++            return Color.BLACK;
++        }
++        if (scheme == BrandedColorScheme.LIGHT_BRANDED_THEME) return Color.WHITE;
++        return (getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK)
++                        == Configuration.UI_MODE_NIGHT_YES
++                ? Color.BLACK : Color.WHITE;
+     }
+ 
+     /** Returns an opaque band color, or transparent when native paint must remain untouched. */
+@@ -1569,8 +1575,8 @@
+ 
+     private @ColorInt int getRawSSlimPillColor(int backing) {
+         // Viz still needs a tint for the normal (non-anonymized) toolbar snapshot.
+-        // Black on the black band makes its nine-patch indistinguishable from the band.
+-        if (useRawSFlatDarkHome()) return Color.BLACK;
++        // Match the band exactly so the nine-patch is invisible in both themes.
++        if (useRawSFlatRestingBar()) return getRawSRestingBackingColor();
+         return backing != Color.TRANSPARENT && usesRawSSlimDarkPalette()
+                 ? RAWS_SLIM_PILL : Color.TRANSPARENT;
+     }
+@@ -1588,7 +1594,7 @@
+     }
+ 
+     private @ColorInt int getRawSSlimEdgeColor(int pill, int backing) {
+-        if (pill == Color.TRANSPARENT || useRawSFlatDarkHome()) return Color.TRANSPARENT;
++        if (pill == Color.TRANSPARENT || useRawSFlatRestingBar()) return Color.TRANSPARENT;
+         // Keep the existing slim shade, using the borrowed opaque paint as its base.
+         return Color.rgb((15 * Color.red(backing) + Color.red(RAWS_SLIM_BACKING)) / 16,
+                 (15 * Color.green(backing) + Color.green(RAWS_SLIM_BACKING)) / 16,
+@@ -1628,7 +1634,7 @@
+     @Override
+     protected void dispatchDraw(Canvas canvas) {
+         int rawSBackingColor =
+-                mTextureCaptureMode ? Color.TRANSPARENT : getRawSHomeAwareBackingColor();
++                mTextureCaptureMode ? Color.TRANSPARENT : getRawSRestingBackingColor();
+         int slimPillColor = getRawSSlimPillColor(rawSBackingColor);
+         // Home and web use the same opaque band; only the native compositor
+         // paints that band when it owns the separately captured toolbar.
+@@ -1692,7 +1698,7 @@
+      * The original toolbar still owns its child clip, touch regions, compact layout and focus.
+      */
+     private boolean drawRawSLegacyCapsuleBehindControls(Canvas canvas, int slimPillColor) {
+-        if (useRawSFlatDarkHome() || !mRawSLegacyCapsuleTrial
++        if (useRawSFlatRestingBar() || !mRawSLegacyCapsuleTrial
+                 || !getRawSUnifiedPaintBounds(
+                         mLocationBarBackgroundBounds, mRawSUnifiedLivePaintBounds)) {
+             return false;
+@@ -1705,7 +1711,7 @@
+     }
+ 
+     private @ColorInt int getRawSPillOutlineFill(@ColorInt int overrideFill) {
+-        if (useRawSFlatDarkHome() || !mRawSLegacyCapsuleTrial || mLocationBarBackground == null
++        if (useRawSFlatRestingBar() || !mRawSLegacyCapsuleTrial || mLocationBarBackground == null
+                 || mBrowserControlsStateProvider == null
+                 || mBrowserControlsStateProvider.getControlsPosition() != ControlsPosition.BOTTOM
+                 || ChromeFeatureList.sToolbarPhoneAnimationRefactor.isEnabled()
+@@ -2686,7 +2692,7 @@
+             canvas.save();
+             // If the animation refactor is enabled, the background will instead be drawn by an
+             // Android view hosting the background drawable.
+-            if (!useRawSFlatDarkHome()
++            if (!useRawSFlatRestingBar()
+                     && !mRawSLegacyCapsuleDrawn && shouldDrawLocationBarBackground()) {
+                 mLocationBarBackground.setBounds(
+                         mLocationBarBackgroundBounds.left + mLocationBarBackgroundNtpOffset.left,
+@@ -2767,7 +2773,16 @@
+                 }
+             }
+ 
+-            // Clip the location bar child to the URL viewport calculated in onDraw.
++            // For the flat row, the measured child already reserves room for the surrounding
++            // controls. Do not trim its text with offsets from the old decorative capsule.
++            if (useRawSFlatRestingBar() && mRawSPageActionsActive
++                    && !mOptionalButtonAnimationRunning && !mInLayoutTransition) {
++                View bar = mLocationBar.getPhoneCoordinator().getViewForDrawing();
++                if (bar.getWidth() > 0 && !bar.isLayoutRequested()) {
++                    locationBarClipLeft = Math.max(0, bar.getX());
++                    locationBarClipRight = Math.min(getWidth(), bar.getX() + bar.getWidth());
++                }
++            }
+             canvas.clipRect(
+                     locationBarClipLeft,
+                     locationBarClipTop,
+@@ -2865,7 +2880,7 @@
+             if (snapshotDifference == ToolbarSnapshotDifference.NONE && mRawSLegacyCapsuleTrial
+                     && !ChromeFeatureList.sToolbarPhoneAnimationRefactor.isEnabled()) {
+                 getLocationBarContentRect(mRawSUnifiedPendingCaptureBounds);
+-                int backing = getRawSHomeAwareBackingColor();
++                int backing = getRawSRestingBackingColor();
+                 int pill = getRawSSlimPillColor(backing);
+                 if (mRawSCapturedSoftBackingColor != backing
+                         || mRawSCapturedSlimPillColor != pill
+@@ -3036,12 +3051,12 @@
+             if (ChromeFeatureList.sToolbarPhoneAnimationRefactor.isEnabled()) {
+                 updateLocationBarBackgroundBounds(mLocationBarBackgroundBounds, mVisualState);
+             }
+-            mRawSCapturedSoftBackingColor = getRawSHomeAwareBackingColor();
++            mRawSCapturedSoftBackingColor = getRawSRestingBackingColor();
+             mRawSCapturedSlimPillColor = getRawSSlimPillColor(mRawSCapturedSoftBackingColor);
+             mRawSCapturedPillOutlineFill = getRawSPillOutlineFill(mRawSCapturedSlimPillColor);
+             mRawSCapturedSlimEdgeColor = getRawSSlimEdgeColor(
+                     mRawSCapturedSlimPillColor, mRawSCapturedSoftBackingColor);
+-            if (getRawSSoftBackingColor() != Color.TRANSPARENT) {
++            if (mRawSCapturedSoftBackingColor != Color.TRANSPARENT) {
+                 getToolbarHairline().setVisibility(INVISIBLE);
+             } else if (!hideHairlineForIncognitoNtp()
+                     && !hideHairlineForInterstitial()
+@@ -4033,7 +4048,7 @@
+     protected boolean shouldDrawHairline() {
+         // TODO(twellington): Move this hairline state information to ToolbarDataProvider and show
+         // hairline when incognito NTP is scrolled.
+-        return getRawSSoftBackingColor() == Color.TRANSPARENT
++        return getRawSRestingBackingColor() == Color.TRANSPARENT
+                 && super.shouldDrawHairline()
+                 && mTabSwitcherState == STATIC_TAB
+                 && !hideHairlineForIncognitoNtp()
+diff --git a/chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/LocationBarPhone.java b/chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/LocationBarPhone.java
+--- a/chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/LocationBarPhone.java
++++ b/chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/LocationBarPhone.java
+@@ -203,6 +203,15 @@
+     protected void onLayout(boolean changed, int left, int top, int right, int bottom) {
+         try (TraceEvent e = TraceEvent.scoped("LocationBarPhone.onLayout")) {
+             super.onLayout(changed, left, top, right, bottom);
++            if (mUrlBar != null) {
++                mUrlBar.setRawSTrailingPixelFade(mRawSUnifiedRow && !mRawSNativeHome);
++                if (mRawSUnifiedRow && mRawSNativeHome && mIsCenteringApplied
++                        && !mUrlBarLaidOutAtFocusedWidth && !mUrlBar.hasFocus()
++                        && mUrlBar.getLayoutDirection() == View.LAYOUT_DIRECTION_LTR
++                        && mUrlBar.length() == 0 && mUrlBar.getScrollX() != 0) {
++                    mUrlBar.scrollTo(0, 0);
++                }
++            }
+         }
+     }
+ 
+diff --git a/chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/UrlBar.java b/chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/UrlBar.java
+--- a/chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/UrlBar.java
++++ b/chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/UrlBar.java
+@@ -7,6 +7,7 @@
+ import static org.chromium.build.NullUtil.assumeNonNull;
+ 
+ import android.content.Context;
++import android.graphics.BlendMode;
+ import android.graphics.Canvas;
+ import android.graphics.Paint;
+ import android.graphics.Rect;
+@@ -135,6 +136,9 @@
+     private @Nullable UrlBarContextMenuHelper mContextMenuHelper;
+ 
+     private final Rect mClipBounds = new Rect();
++    private final Paint mRawSEdgeMask = new Paint();
++    private boolean mRawSTrailingPixelFade;
++
+ 
+     private boolean mFocused;
+     private boolean mDesiredCursorVisible = true;
+@@ -353,11 +357,50 @@
+         mClipBounds.bottom = getHeight() + getScrollY() - getPaddingBottom();
+         canvas.clipRect(mClipBounds);
+ 
+-        super.onDraw(canvas);
++        int edge = getRawSTrailingPixelEdge();
++        if (edge > 0) {
++            canvas.clipRect(mClipBounds.left, mClipBounds.top, edge, mClipBounds.bottom);
++            int layer = canvas.saveLayer(
++                    mClipBounds.left, mClipBounds.top, edge, mClipBounds.bottom, null);
++            super.onDraw(canvas);
++            mRawSEdgeMask.setBlendMode(BlendMode.DST_OUT);
++            mRawSEdgeMask.setAlpha(128);
++            canvas.drawRect(edge - 1, mClipBounds.top, edge, mClipBounds.bottom, mRawSEdgeMask);
++            canvas.restoreToCount(layer);
++        } else {
++            super.onDraw(canvas);
++        }
+         canvas.restore();
+ 
+         // Notify listeners if the URL's direction has changed.
+         updateUrlDirection();
++    }
++
++    void setRawSTrailingPixelFade(boolean enabled) {
++        if (mRawSTrailingPixelFade == enabled) return;
++        mRawSTrailingPixelFade = enabled;
++        invalidate();
++    }
++
++    /** Zero means retain native drawing, including native long-domain and bidi behavior. */
++    private int getRawSTrailingPixelEdge() {
++        if (!mRawSTrailingPixelFade || mFocused || hasFocus()
++                || getLayoutDirection() != LAYOUT_DIRECTION_LTR || getScrollX() != 0
++                || getEllipsize() != null || mCurrentScrollType != ScrollType.SCROLL_TO_TLD) {
++            return 0;
++        }
++        Layout layout = getLayout();
++        if (layout == null || layout.getLineCount() != 1 || layout.getParagraphDirection(0) != 1
++                || mOriginEndIndex <= 0 || mOriginEndIndex >= length()) {
++            return 0;
++        }
++        int viewport = getWidth() - getCompoundPaddingLeft() - getCompoundPaddingRight();
++        if (viewport <= 1 || layout.getEllipsisCount(0) != 0
++                || layout.getLineRight(0) <= viewport
++                || layout.getPrimaryHorizontal(mOriginEndIndex) >= viewport - 1) {
++            return 0;
++        }
++        return getWidth() - getCompoundPaddingRight();
+     }
+ 
+     public void destroy() {

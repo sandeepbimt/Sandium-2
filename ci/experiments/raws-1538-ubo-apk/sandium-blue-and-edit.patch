@@ -1,0 +1,170 @@
+diff --git a/chrome/browser/ui/android/appmenu/internal/java/res/values-night/sandium_menu_colors.xml b/chrome/browser/ui/android/appmenu/internal/java/res/values-night/sandium_menu_colors.xml
+--- a/chrome/browser/ui/android/appmenu/internal/java/res/values-night/sandium_menu_colors.xml
++++ b/chrome/browser/ui/android/appmenu/internal/java/res/values-night/sandium_menu_colors.xml
+@@ -5,6 +5,6 @@
+   <color name="sandium_menu_on_surface">#FAFAFA</color>
+   <color name="sandium_menu_on_surface_variant">#BDBDBD</color>
+   <color name="sandium_menu_outline_variant">#454545</color>
+-  <color name="sandium_menu_accent">#198CFF</color>
+-  <color name="sandium_menu_header_action">#A8C7FA</color>
++  <color name="sandium_menu_accent">@color/raws_sandium_blue</color>
++  <color name="sandium_menu_header_action">@color/raws_sandium_blue</color>
+ </resources>
+diff --git a/chrome/browser/ui/android/appmenu/internal/java/res/values/sandium_menu_colors.xml b/chrome/browser/ui/android/appmenu/internal/java/res/values/sandium_menu_colors.xml
+--- a/chrome/browser/ui/android/appmenu/internal/java/res/values/sandium_menu_colors.xml
++++ b/chrome/browser/ui/android/appmenu/internal/java/res/values/sandium_menu_colors.xml
+@@ -5,6 +5,6 @@
+   <color name="sandium_menu_on_surface">#1A1A1A</color>
+   <color name="sandium_menu_on_surface_variant">#474747</color>
+   <color name="sandium_menu_outline_variant">#BDBDBD</color>
+-  <color name="sandium_menu_accent">#365D86</color>
+-  <color name="sandium_menu_header_action">#0B57D0</color>
++  <color name="sandium_menu_accent">#343434</color>
++  <color name="sandium_menu_header_action">#252525</color>
+ </resources>
+diff --git a/chrome/browser/ui/android/appmenu/internal/java/src/org/chromium/chrome/browser/ui/appmenu/SandiumPagedMenu.java b/chrome/browser/ui/android/appmenu/internal/java/src/org/chromium/chrome/browser/ui/appmenu/SandiumPagedMenu.java
+--- a/chrome/browser/ui/android/appmenu/internal/java/src/org/chromium/chrome/browser/ui/appmenu/SandiumPagedMenu.java
++++ b/chrome/browser/ui/android/appmenu/internal/java/src/org/chromium/chrome/browser/ui/appmenu/SandiumPagedMenu.java
+@@ -831,10 +831,10 @@
+                                 () -> { mAllMenu = false; render(); }),
+                         new LinearLayout.LayoutParams(sideWidth, headerHeight));
+             } else if (!mReadOnlyPrivateMenu) {
+-                TextView edit = button(s(R.string.sandium_menu_edit),
+-                        s(R.string.sandium_menu_edit_description),
++                View edit = headerIconButton(
++                        pencilIcon(), s(R.string.sandium_menu_edit_description),
++                        "control:" + s(R.string.sandium_menu_edit_description),
+                         () -> { mDraft = mSaved.copy(); render(); });
+-                edit.setTextColor(mHeaderActionColor);
+                 heading.addView(edit, new LinearLayout.LayoutParams(sideWidth, headerHeight));
+             } else {
+                 heading.addView(new View(getContext()), new LinearLayout.LayoutParams(sideWidth, 1));
+@@ -1194,8 +1194,6 @@
+     }
+ 
+     private View extensionsHeaderButton(Entry entry) {
+-        ImageView icon = new ImageView(getContext());
+-        icon.setScaleType(ImageView.ScaleType.CENTER_INSIDE);
+         Drawable drawable = entry.model.containsKey(AppMenuItemProperties.ICON)
+                 ? entry.model.get(AppMenuItemProperties.ICON) : null;
+         if (drawable == null) {
+@@ -1203,15 +1201,66 @@
+         } else if (drawable.getConstantState() != null) {
+             drawable = drawable.getConstantState().newDrawable(getResources()).mutate();
+         }
+-        icon.setImageDrawable(drawable);
+-        icon.setImageTintList(android.content.res.ColorStateList.valueOf(mHeaderActionColor));
+-        icon.setContentDescription(title(entry));
+-        icon.setTooltipText(title(entry));
+-        icon.setTag("action:" + EXTENSIONS);
+-        icon.setFocusable(true);
+-        bindPressFeedback(icon);
+-        icon.setOnClickListener(v -> activate(EXTENSIONS, entry.model));
+-        return icon;
++        return headerIconButton(drawable, title(entry), "action:" + EXTENSIONS,
++                () -> activate(EXTENSIONS, entry.model));
++    }
++
++    private View headerIconButton(Drawable drawable, String label, String tag, Runnable action) {
++        android.widget.FrameLayout button = new android.widget.FrameLayout(getContext());
++        ImageView glyph = new ImageView(getContext());
++        glyph.setScaleType(ImageView.ScaleType.FIT_CENTER);
++        glyph.setImageDrawable(drawable);
++        glyph.setImageTintList(android.content.res.ColorStateList.valueOf(mHeaderActionColor));
++        glyph.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
++        button.addView(glyph, new android.widget.FrameLayout.LayoutParams(
++                dp(24), dp(24), Gravity.CENTER));
++        button.setContentDescription(label);
++        button.setTooltipText(label);
++        button.setTag(tag);
++        button.setFocusable(true);
++        bindPressFeedback(button);
++        button.setOnClickListener(view -> action.run());
++        return button;
++    }
++
++    private Drawable pencilIcon() {
++        return new Drawable() {
++            private final android.graphics.Paint mPaint =
++                    new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
++
++            @Override public int getIntrinsicWidth() { return dp(24); }
++            @Override public int getIntrinsicHeight() { return dp(24); }
++
++            @Override
++            public void draw(Canvas canvas) {
++                canvas.save();
++                canvas.translate(getBounds().left, getBounds().top);
++                canvas.scale(getBounds().width() / 24f, getBounds().height() / 24f);
++                mPaint.setColor(mHeaderActionColor);
++                mPaint.setStyle(android.graphics.Paint.Style.STROKE);
++                mPaint.setStrokeWidth(2.1f);
++                mPaint.setStrokeJoin(android.graphics.Paint.Join.ROUND);
++                mPaint.setStrokeCap(android.graphics.Paint.Cap.ROUND);
++                android.graphics.Path path = new android.graphics.Path();
++                path.moveTo(3.5f, 20.5f);
++                path.lineTo(4.4f, 15.8f);
++                path.lineTo(16.5f, 3.7f);
++                path.quadTo(17.3f, 2.9f, 18.1f, 3.7f);
++                path.lineTo(20.3f, 5.9f);
++                path.quadTo(21.1f, 6.7f, 20.3f, 7.5f);
++                path.lineTo(8.2f, 19.6f);
++                path.close();
++                canvas.drawPath(path, mPaint);
++                canvas.drawLine(14.5f, 5.7f, 18.3f, 9.5f, mPaint);
++                canvas.restore();
++            }
++
++            @Override public void setAlpha(int alpha) { mPaint.setAlpha(alpha); invalidateSelf(); }
++            @Override public void setColorFilter(android.graphics.ColorFilter filter) {
++                mPaint.setColorFilter(filter); invalidateSelf();
++            }
++            @Override public int getOpacity() { return android.graphics.PixelFormat.TRANSLUCENT; }
++        };
+     }
+ 
+     private Drawable puzzleIcon() {
+diff --git a/components/browser_ui/styles/android/BUILD.gn b/components/browser_ui/styles/android/BUILD.gn
+--- a/components/browser_ui/styles/android/BUILD.gn
++++ b/components/browser_ui/styles/android/BUILD.gn
+@@ -76,6 +76,7 @@
+     "java/res/color/bottom_sheet_bg_color.xml",
+     "java/res/color/raws_sandium_switch_thumb.xml",
+     "java/res/color/raws_sandium_switch_track.xml",
++    "java/res/values/raws_sandium_accent.xml",
+     "java/res/color/chip_text_color_secondary_list.xml",
+     "java/res/color/color_on_primary_with_alpha_12.xml",
+     "java/res/color/color_on_primary_with_alpha_8.xml",
+diff --git a/components/browser_ui/styles/android/java/res/color/raws_sandium_switch_thumb.xml b/components/browser_ui/styles/android/java/res/color/raws_sandium_switch_thumb.xml
+--- a/components/browser_ui/styles/android/java/res/color/raws_sandium_switch_thumb.xml
++++ b/components/browser_ui/styles/android/java/res/color/raws_sandium_switch_thumb.xml
+@@ -4,5 +4,6 @@
+     <item android:state_enabled="false" android:state_checked="true" android:color="@android:color/white" android:alpha="0.38" />
+     <item android:state_enabled="false" android:color="#E8E8E8" android:alpha="0.38" />
+     <item android:state_checked="true" android:color="@android:color/white" />
++    <item android:state_checked="true" android:color="#202124" />
+     <item android:color="#E8E8E8" />
+ </selector>
+diff --git a/components/browser_ui/styles/android/java/res/color/raws_sandium_switch_track.xml b/components/browser_ui/styles/android/java/res/color/raws_sandium_switch_track.xml
+--- a/components/browser_ui/styles/android/java/res/color/raws_sandium_switch_track.xml
++++ b/components/browser_ui/styles/android/java/res/color/raws_sandium_switch_track.xml
+@@ -1,8 +1,8 @@
+ <?xml version="1.0" encoding="utf-8"?>
+ <!-- Preserve native enabled and checked semantics. -->
+ <selector xmlns:android="http://schemas.android.com/apk/res/android">
+-    <item android:state_enabled="false" android:state_checked="true" android:color="#198CFF" android:alpha="0.38" />
++    <item android:state_enabled="false" android:state_checked="true" android:color="@color/raws_sandium_blue" android:alpha="0.38" />
+     <item android:state_enabled="false" android:color="#505050" android:alpha="0.38" />
+-    <item android:state_checked="true" android:color="#198CFF" />
++    <item android:state_checked="true" android:color="@color/raws_sandium_blue" />
+     <item android:color="#505050" />
+ </selector>
+diff --git a/components/browser_ui/styles/android/java/res/values/raws_sandium_accent.xml b/components/browser_ui/styles/android/java/res/values/raws_sandium_accent.xml
+new file mode 100644
+--- /dev/null
++++ b/components/browser_ui/styles/android/java/res/values/raws_sandium_accent.xml
+@@ -0,0 +1,4 @@
++<?xml version="1.0" encoding="utf-8"?>
++<resources>
++    <color name="raws_sandium_blue">#A8C7FA</color>
++</resources>
