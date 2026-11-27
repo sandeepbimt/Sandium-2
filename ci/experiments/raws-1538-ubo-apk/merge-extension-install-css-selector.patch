@@ -1,0 +1,24 @@
+diff --git a/chrome/browser/resources/extensions/toolbar.css b/chrome/browser/resources/extensions/toolbar.css
+--- a/chrome/browser/resources/extensions/toolbar.css
++++ b/chrome/browser/resources/extensions/toolbar.css
+@@ -140,7 +140,9 @@
+ 
+ :host(.sandium-tool-host) .raws-extension-install-actions {
+   box-sizing: border-box;
++  display: grid;
+   gap: 6px;
++  grid-template-columns: repeat(2, minmax(0, 1fr));
+   inline-size: min(100%, 560px);
+   margin-inline: auto;
+   padding: 4px 16px 0;
+@@ -166,10 +168,6 @@
+ 
+ /* The phone manager and its dedicated developer page share aligned touch rows.
+  * No changes to permissions, validation, Safety Check, or the click handlers. */
+-:host(.sandium-tool-host) .raws-extension-install-actions {
+-  display: grid;
+-  grid-template-columns: repeat(2, minmax(0, 1fr));
+-}
+ 
+ :host(.sandium-tool-host) #loadCrx,
+ :host(.sandium-tool-host) .sandium-developer-link,

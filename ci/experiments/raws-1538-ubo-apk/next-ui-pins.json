@@ -91,6 +91,14 @@
     {
       "name": "raws-flat-resting-address.patch",
       "sha256": "3d35de8a29022ddc805fe5f3c2ab764b02dd6a97ad601dfb13c5200afca7e316"
+    },
+    {
+      "name": "merge-extension-install-css-selector.patch",
+      "sha256": "507b133363d8d93b4b310b82eb660c214c7b86744ed48059ddf8ccc06f1c2fdd"
+    },
+    {
+      "name": "verified-ublock-install-card.patch",
+      "sha256": "a953748e76d2bfd2e53964afe42499c4891251cf1f3fb29d2f4ea1859a1c3f9d"
     }
   ],
   "paths": {
@@ -163,11 +171,11 @@
       "after": "de741956764f6f706256ce91dd3fe8796f3417195cef277399e2bf8fa42a8ac8"
     },
     "chrome/browser/extensions/api/developer_private/developer_private_functions.cc": {
-      "after": "ab6522f588a71adebb54978475f9eae7fb98bc8f09ef81e8718f8e75a9da0683",
+      "after": "e66594bb9907d40ef060dc7721bf6738c02b2125ee556b470f73f256629869e0",
       "before": "a15138f672f73903b49e0798c15177525311cc09b7e5d1b98545c65cacab48af"
     },
     "chrome/browser/extensions/api/developer_private/developer_private_functions.h": {
-      "after": "4c2c5508ed402c6f1897b782feed15402e21cb4aa3838c85bbded0d0413bbeb5",
+      "after": "de1b213a12e366fa4e0cdc589669f4311a0049c37e5679d2b9bd210409139d18",
       "before": "a730445eaa54c66a94a66d3241ef936eb346c65fdf19a5d396404798f5e1d729"
     },
     "chrome/browser/resources/extensions/extensions.html": {
@@ -187,15 +195,15 @@
       "before": "e31891ea01e423bdae8572aea26d8e6da5dd69a1a9bde692884e9caf1e3ecf28"
     },
     "chrome/browser/resources/extensions/item_list.css": {
-      "after": "16a67782e16944e4bbc1e088f43a11771ffbd2bba6bfbd9f88e407a1b6854163",
+      "after": "e305d5c7fa6958cfffc12885087441f7aa69c9077a772cc233418bffe7905ac9",
       "before": "a02f7be73bc20f0061b21511c8f579e8714d574c2942090074b67f090f7cb21f"
     },
     "chrome/browser/resources/extensions/item_list.html.ts": {
-      "after": "5e2be2272fe92fbf161f47943ed16708959f3aefe0ebbb9cc370324a9d47d1d6",
+      "after": "e91fb9d0f1c657c9ea0e79f52acbab107c17600ea1dfa554186eee67ba8d4d35",
       "before": "811662b4438887015065fd750925ea2757c968e315a27975479777f6d29bd8dd"
     },
     "chrome/browser/resources/extensions/item_list.ts": {
-      "after": "776fdffe0c01905d953d63f6561ab1b709a409616f720f9bb106e124a65816ea",
+      "after": "53d3342e02f752060ca5e06f95ff7a4c8905dbbb8d5403e6c0f62b9d800baa72",
       "before": "f9c88d7b6b8b573126bf7f68081ac084cde8d5e666dda1dd245b4b304b812f30"
     },
     "chrome/browser/resources/extensions/manager.css": {
@@ -215,7 +223,7 @@
       "after": "bb3d6b70caf36c2479daf002e084c5f72b8e9ff9a664adc72f60cd4c29916c3d"
     },
     "chrome/browser/resources/extensions/toolbar.css": {
-      "after": "ab3e93b91337c3737c71f5b4f57a7a25285e0857f406c05a3bb3eb888fc06823",
+      "after": "ec7bba8cc300d028c131f4177a5c7814e5002e8707a73bad2bf1baca673bd845",
       "before": "f517ac11689fe06ad60dc532a8633c0f8e35547b0b0436a926342e253be66487"
     },
     "chrome/browser/resources/extensions/toolbar.html.ts": {
@@ -271,11 +279,11 @@
       "after": "4c0e4f9d0e9f79cccd36d3aa1d9c1fbbabc3f5951e0e34bc8cac788f93495251"
     },
     "chrome/browser/ui/webui/extensions/extensions_ui.cc": {
-      "after": "8e0450e1dd924a9fedb597f20fa475e8534258e60b45596aaeb8f2b4815982cb",
+      "after": "069b4c9db40f1171df566c174578cb445753255f0d02770f8fe7aedf75d80f54",
       "before": "c658afbaf78d6344616e416f94c8e961e5654022bc7cd56b4d099cadb1c7a6eb"
     },
     "chrome/common/extensions/api/developer_private.webidl": {
-      "after": "bd79ba4d634a7a595a980be54cd3f7a5abb6c61ba250730b38afbab406f4b113",
+      "after": "1611b17134427361a95d807c5f1454cdfc243635056e8537f3514c2717e56de6",
       "before": "03379c897a3b5ccf68e1e19bf06fa81e207732e4d3e3b37bd50ea23f0b2311ea"
     },
     "chrome/renderer/chrome_render_frame_observer.cc": {
@@ -295,7 +303,7 @@
       "before": "a2e1bf9c85f053ad48df0096b8bcc3abee04948cd8e269e459a2d628fb744b9d"
     },
     "tools/typescript/definitions/developer_private.d.ts": {
-      "after": "261ebddd7667c39aca3c73f48a1a27256a4c096d8ca5b762556482c3f239182a",
+      "after": "36e662cac9a1dde0af6dbec44226a054d99bcd40b1c48ba4218199afd67b8f62",
       "before": "89939f220ef56bd98ed2cd5904140c19e0b3a74e76519dba309e33b9b4569c14"
     },
     "chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/extensions/ExtensionActionPopup.java": {
@@ -341,6 +349,10 @@
     "chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/UrlBar.java": {
       "before": "a3c720cd21ccce6735675176a59dd17573ad29e0cc7337c1d3843666c2081766",
       "after": "271eb7b13dae55630250b4d830ab285f09558557abbafbb453a1c24fcc899ee7"
+    },
+    "extensions/browser/raws_pinned_ubo.h": {
+      "before": "9c80a048457d4e4468542c93fbfad3f2272a5a3a40a38bddfa2637f0219c479e",
+      "after": "d086509a07320d77885a4ea21fa37d1bf0cfc67f2926c1df70c8e871064fba97"
     }
   },
   "producer": "d98f0dda5f43ea7cb6cf8ab2d8e76c58bc75c9e3"

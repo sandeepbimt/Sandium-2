@@ -1,0 +1,506 @@
+diff --git a/chrome/browser/extensions/api/developer_private/developer_private_functions.cc b/chrome/browser/extensions/api/developer_private/developer_private_functions.cc
+--- a/chrome/browser/extensions/api/developer_private/developer_private_functions.cc
++++ b/chrome/browser/extensions/api/developer_private/developer_private_functions.cc
+@@ -90,6 +90,17 @@
+ #include "chrome/browser/android/content/raws_extensions_manager_contents.h"
+ #include "components/tabs/public/tab_interface.h"
+ #include "base/files/file.h"
++#include "base/time/time.h"
++#include "base/containers/span.h"
++#include "base/strings/string_number_conversions.h"
++#include "crypto/sha2.h"
++#include "base/version.h"
++#include "content/public/browser/storage_partition.h"
++#include "extensions/browser/raws_pinned_ubo.h"
++#include "net/traffic_annotation/network_traffic_annotation.h"
++#include "services/network/public/cpp/resource_request.h"
++#include "services/network/public/cpp/shared_url_loader_factory.h"
++#include "services/network/public/cpp/simple_url_loader.h"
+ #include "base/task/sequenced_task_runner.h"
+ #include "chrome/browser/platform_util.h"
+ #include "chrome/browser/ui/android/extensions/extension_site_settings_android.h"
+@@ -107,6 +118,7 @@
+ #include "base/lazy_instance.h"
+ #include "base/memory/scoped_refptr.h"
+ #include "base/notreached.h"
++#include "base/containers/span.h"
+ #include "base/strings/string_number_conversions.h"
+ #include "base/types/expected.h"
+ #include "base/uuid.h"
+@@ -1097,6 +1109,10 @@
+     return RespondNow(Error("Extension installation is blocked by policy."));
+   }
+ 
++  if (!args().empty() && args()[0].is_bool() && args()[0].GetBool()) {
++    return StartVerifiedUblock();
++  }
++
+   select_file_dialog_ = ui::SelectFileDialog::Create(
+       this, std::make_unique<ChromeSelectFilePolicy>(web_contents));
+   // Android has no type for .crx and lists every file whatever is asked for,
+@@ -1117,6 +1133,136 @@
+   return did_respond() ? AlreadyResponded() : RespondLater();
+ }
+ 
++content::WebContents*
++DeveloperPrivateLoadCrxFunction::GetVerifiedUblockPromptContents() {
++  auto* contents = GetSenderWebContents();
++  if (!contents || browser_context()->IsOffTheRecord() ||
++      render_frame_host() != contents->GetPrimaryMainFrame() ||
++      contents->GetLastCommittedURL() != GURL("chrome://extensions/?sandium=manage")) {
++    return nullptr;
++  }
++  auto* data = static_cast<raws::ExtensionsManagerContentsData*>(
++      contents->GetUserData(&raws::kExtensionsManagerContentsKey));
++  auto* owner = data ? data->source.get() : nullptr;
++  auto* tab = owner ? tabs::TabInterface::MaybeGetFromContents(owner) : nullptr;
++  if (!owner || owner->GetBrowserContext() != browser_context() || !tab ||
++      !tab->IsActivated()) {
++    return nullptr;
++  }
++  return contents;
++}
++
++ExtensionFunction::ResponseAction
++DeveloperPrivateLoadCrxFunction::StartVerifiedUblock() {
++  if (!GetVerifiedUblockPromptContents()) {
++    return RespondNow(Error("Open the Sandium Extension Manager to install uBlock Origin."));
++  }
++  const auto* registered = ExtensionRegistry::Get(browser_context());
++  const base::Version installed = registered->GetStoredVersion(raws_pinned_ubo::kExtensionId);
++  if (installed.IsValid() &&
++      installed.CompareTo(base::Version(raws_pinned_ubo::kVersion)) >= 0) {
++    return RespondNow(WithArguments("installed"));
++  }
++  constexpr auto traffic_annotation = net::DefineNetworkTrafficAnnotation(
++      "raws_verified_ublock_install", R"(
++        semantics {
++          sender: "Sandium Extensions Manager"
++          description: "Download the verified uBlock Origin CRX from its official release."
++          trigger: "The user presses Install or Update on the uBlock Origin card."
++          data: "Only a fixed package URL. No cookies, referrer or page data."
++          destination: OTHER
++          destination_other: "GitHub releases and its download CDN."
++        }
++        policy {
++          cookies_allowed: NO
++          setting: "Nothing is downloaded unless the user presses Install or Update."
++          policy_exception_justification: "Uses the existing extension installation policy, and cannot install silently."
++        })");
++  auto request = std::make_unique<network::ResourceRequest>();
++  request->url = GURL(raws_pinned_ubo::kDownloadUrl);
++  request->credentials_mode = network::mojom::CredentialsMode::kOmit;
++  verified_ublock_ = true;
++  ublock_loader_ = network::SimpleURLLoader::Create(std::move(request), traffic_annotation);
++  ublock_loader_->SetTimeoutDuration(base::Minutes(2));
++  AddRef();  // Balanced by Finish(), as for the file-picker route.
++  ublock_loader_->DownloadToString(
++      browser_context()->GetDefaultStoragePartition()->GetURLLoaderFactoryForBrowserProcess().get(),
++      base::BindOnce(&DeveloperPrivateLoadCrxFunction::OnUblockDownloaded, this),
++      7 * 1024 * 1024);
++  return did_respond() ? AlreadyResponded() : RespondLater();
++}
++
++void DeveloperPrivateLoadCrxFunction::OnUblockDownloaded(
++    std::optional<std::string> bytes) {
++  const GURL final_url = bytes ? ublock_loader_->GetFinalURL() : GURL();
++  ublock_loader_.reset();
++  if (!bytes || !final_url.SchemeIs("https") ||
++      (final_url.host() != "github.com" &&
++       final_url.host() != "release-assets.githubusercontent.com") ||
++      !GetVerifiedUblockPromptContents()) {
++    Finish(WithArguments("failed"));
++    return;
++  }
++  base::ThreadPool::PostTaskAndReplyWithResult(
++      FROM_HERE, {base::MayBlock(), base::TaskPriority::USER_VISIBLE},
++      base::BindOnce(&DeveloperPrivateLoadCrxFunction::WriteVerifiedUblockFile,
++                     std::move(*bytes)),
++      base::BindOnce(&DeveloperPrivateLoadCrxFunction::OnVerifiedUblockFileReady,
++                     this));
++}
++
++base::FilePath DeveloperPrivateLoadCrxFunction::WriteVerifiedUblockFile(
++    std::string bytes) {
++  // Compare binary digest before writing anything. The CrxInstaller independently
++  // validates CRX3 proof, exact archive, expected extension ID, and version again.
++  if (bytes.size() != 6127282u) {
++    return {};
++  }
++  const std::string digest = crypto::SHA256HashString(bytes);
++  if (base::HexEncodeLower(base::as_byte_span(digest)) !=
++      raws_pinned_ubo::kCrxSha256) {
++    return {};
++  }
++  base::FilePath path;
++  if (!base::CreateTemporaryFile(&path)) {
++    return {};
++  }
++  if (!base::WriteFile(path, bytes)) {
++    base::DeleteFile(path);
++    return {};
++  }
++  return path;
++}
++
++void DeveloperPrivateLoadCrxFunction::OnVerifiedUblockFileReady(
++    base::FilePath path) {
++  auto* contents = GetVerifiedUblockPromptContents();
++  if (!contents || path.empty()) {
++    if (!path.empty()) {
++      base::ThreadPool::PostTask(
++          FROM_HERE, {base::MayBlock()},
++          base::BindOnce([](const base::FilePath& file) { base::DeleteFile(file); }, path));
++    }
++    Finish(WithArguments("failed"));
++    return;
++  }
++  auto prompt = std::make_unique<ExtensionInstallPrompt>(
++      contents, std::make_unique<extensions::InstallPromptData>(
++                    extensions::InstallPromptData::UNSET_PROMPT_TYPE));
++  installer_ = CrxInstaller::Create(browser_context(), std::move(prompt));
++  installer_->set_allow_silent_install(false);
++  installer_->set_expected_id(raws_pinned_ubo::kExtensionId);
++  installer_->set_expected_version(base::Version(raws_pinned_ubo::kVersion), true);
++  installer_->set_error_on_unsupported_requirements(true);
++  installer_->set_off_store_install_allow_reason(
++      CrxInstaller::OffStoreInstallAllowedFromSettingsPage);
++  installer_->set_install_immediately(true);
++  installer_->set_delete_source(true);
++  installer_->AddInstallerCallback(
++      base::BindOnce(&DeveloperPrivateLoadCrxFunction::OnInstalled, this));
++  installer_->InstallCrx(path);
++}
++
+ void DeveloperPrivateLoadCrxFunction::FileSelected(
+     const ui::SelectedFileInfo& file,
+     int index) {
+@@ -1222,6 +1368,18 @@
+ void DeveloperPrivateLoadCrxFunction::OnInstalled(
+     const std::optional<CrxInstallError>& error) {
+   scoped_refptr<CrxInstaller> installer = std::move(installer_);
++  if (verified_ublock_) {
++    if (!error) {
++      Finish(WithArguments("installed"));
++    } else if (error->type() == CrxInstallErrorType::OTHER &&
++               (error->detail() == CrxInstallErrorDetail::USER_CANCELED ||
++                error->detail() == CrxInstallErrorDetail::USER_ABORTED)) {
++      Finish(WithArguments("cancelled"));
++    } else {
++      Finish(WithArguments("failed"));
++    }
++    return;
++  }
+   if (!error || (error->type() == CrxInstallErrorType::OTHER &&
+                  (error->detail() == CrxInstallErrorDetail::USER_CANCELED ||
+                   error->detail() == CrxInstallErrorDetail::USER_ABORTED))) {
+diff --git a/chrome/browser/extensions/api/developer_private/developer_private_functions.h b/chrome/browser/extensions/api/developer_private/developer_private_functions.h
+--- a/chrome/browser/extensions/api/developer_private/developer_private_functions.h
++++ b/chrome/browser/extensions/api/developer_private/developer_private_functions.h
+@@ -7,8 +7,10 @@
+ 
+ #include <memory>
+ #include <optional>
++#include <string>
+ 
+ #include "base/memory/scoped_refptr.h"
++#include "build/build_config.h"
+ #include "chrome/browser/extensions/api/developer_private/developer_private_api.h"
+ #include "chrome/browser/extensions/api/developer_private/extension_info_generator.h"
+ #include "chrome/browser/extensions/pack_extension_job.h"
+@@ -41,6 +43,14 @@
+ #endif  // !BUILDFLAG(IS_ANDROID)
+ 
+ static_assert(BUILDFLAG(ENABLE_EXTENSIONS_CORE));
++
++namespace content {
++class WebContents;
++}  // namespace content
++
++namespace network {
++class SimpleURLLoader;
++}  // namespace network
+ 
+ namespace extensions {
+ class CrxInstaller;
+@@ -410,6 +420,15 @@
+   static Checked CheckFile(const base::FilePath& path);
+ 
+   void OnChecked(const base::FilePath& path, Checked checked);
++#if BUILDFLAG(IS_ANDROID)
++  ResponseAction StartVerifiedUblock();
++  content::WebContents* GetVerifiedUblockPromptContents();
++  void OnUblockDownloaded(std::optional<std::string> bytes);
++  void OnVerifiedUblockFileReady(base::FilePath path);
++  static base::FilePath WriteVerifiedUblockFile(std::string bytes);
++  std::unique_ptr<network::SimpleURLLoader> ublock_loader_;
++  bool verified_ublock_ = false;
++#endif
+   void OnInstalled(const std::optional<CrxInstallError>& error);
+ 
+   // Responds, and drops the reference taken in Run().
+diff --git a/chrome/browser/resources/extensions/item_list.css b/chrome/browser/resources/extensions/item_list.css
+--- a/chrome/browser/resources/extensions/item_list.css
++++ b/chrome/browser/resources/extensions/item_list.css
+@@ -220,3 +220,54 @@
+ .android-compact[data-lens-manager] .empty-list-message {
+   margin-block-start: 18px;
+ }
++
++
++.android-compact[data-lens-manager] .raws-verified-ubo-container {
++  display: block;
++  margin-block: 12px;
++}
++
++.raws-verified-ubo-card {
++  align-items: center;
++  background: light-dark(#f3f3f3, #1a1a1a);
++  border-radius: 20px;
++  box-sizing: border-box;
++  color: light-dark(#1a1a1a, #fafafa);
++  display: grid;
++  gap: 12px;
++  grid-template-columns: 32px minmax(0, 1fr) auto;
++  min-block-size: 62px;
++  padding: 8px 14px;
++}
++
++.raws-verified-ubo-icon {
++  color: #9e2030;
++  height: 32px;
++  width: 32px;
++}
++
++.raws-verified-ubo-text {
++  display: grid;
++  gap: 4px;
++  overflow-wrap: anywhere;
++}
++
++.raws-verified-ubo-text strong {
++  font-size: 14px;
++  font-weight: 500;
++}
++
++.raws-verified-ubo-text span {
++  color: light-dark(#555, #bdbdbd);
++  font-size: 12px;
++}
++
++.raws-verified-ubo-button {
++  background: #a8c7fa;
++  border: 0;
++  border-radius: 100px;
++  color: #202124;
++  font-size: 13px;
++  min-height: 44px;
++  padding-inline: 12px;
++}
+diff --git a/chrome/browser/resources/extensions/item_list.html.ts b/chrome/browser/resources/extensions/item_list.html.ts
+--- a/chrome/browser/resources/extensions/item_list.html.ts
++++ b/chrome/browser/resources/extensions/item_list.html.ts
+@@ -61,6 +61,39 @@
+       <span>$i18n{noSearchResults}</span>
+     </div>
+ 
++<if expr="is_android">
++    ${this.shouldShowVerifiedUblockCard_() ? html`
++      <div class="items-container raws-verified-ubo-container">
++        <div class="raws-verified-ubo-card" aria-label="uBlock Origin">
++          <svg class="raws-verified-ubo-icon" viewBox="0 0 24 24"
++              aria-hidden="true" focusable="false">
++            <path fill="currentColor"
++                d="M12 2 3 6v5c0 5.6 3.85 9.74 9 11 5.15-1.26 9-5.4 9-11V6l-9-4Z">
++            </path>
++            <path d="m8 12 2.6 2.6 5.4-5.4"
++                fill="none" stroke="#fff" stroke-width="1.7"
++                stroke-linecap="round" stroke-linejoin="round">
++            </path>
++          </svg>
++          <div class="raws-verified-ubo-text">
++            <strong>uBlock Origin</strong>
++            ${this.ublockInstallState_ === 'failed' ? html`
++              <span role="status">Couldn’t install uBlock Origin. Try again.</span>
++            ` : ''}
++          </div>
++          <cr-button class="raws-verified-ubo-button"
++              aria-label="${this.isVerifiedUblockUpgrade_() ?
++                  'Update uBlock Origin' : 'Install uBlock Origin'}"
++              ?disabled="${this.ublockInstallState_ === 'installing'}"
++              @click="${this.onInstallVerifiedUblockClick_}">
++            ${this.ublockInstallState_ === 'installing' ? 'Installing…' :
++                this.ublockInstallState_ === 'failed' ? 'Retry' :
++                this.isVerifiedUblockUpgrade_() ? 'Update' : 'Install'}
++          </cr-button>
++        </div>
++      </div>
++    ` : ''}
++</if>
+     <div id="extensions-section" ?hidden="${!this.shownExtensionsCount_}">
+       <!-- section-header needs to left-align with the grid content below, and
+            the easiest way to achieve this is to make it a grid as well. -->
+diff --git a/chrome/browser/resources/extensions/item_list.ts b/chrome/browser/resources/extensions/item_list.ts
+--- a/chrome/browser/resources/extensions/item_list.ts
++++ b/chrome/browser/resources/extensions/item_list.ts
+@@ -3,6 +3,7 @@
+ // found in the LICENSE file.
+ 
+ import 'chrome://resources/cr_components/managed_footnote/managed_footnote.js';
++import 'chrome://resources/cr_elements/cr_button/cr_button.js';
+ import 'chrome://resources/cr_elements/cr_toggle/cr_toggle.js';
+ import './item.js';
+ import './mv2_deprecation_panel.js';
+@@ -21,6 +22,9 @@
+ 
+ type Filter = (info: chrome.developerPrivate.ExtensionInfo) => boolean;
+ 
++const RAWS_UBLOCK_ID = 'fkgkibajhfbepljeaefdnfnegdcjomkh';
++const RAWS_PREVIOUS_UBLOCK_VERSION = '1.75.0';
++
+ const ExtensionsItemListElementBase = I18nMixinLit(CrLitElement);
+ 
+ export class ExtensionsItemListElement extends ExtensionsItemListElementBase {
+@@ -43,6 +47,7 @@
+       delegate: {type: Object},
+ 
+       lensManager: {type: Boolean, attribute: 'lens-manager'},
++      ublockInstallState_: {type: String, state: true},
+       incognitoAvailable: {type: Boolean},
+ 
+       inDevMode: {
+@@ -111,6 +116,7 @@
+   accessor delegate: ItemDelegate = new DummyItemDelegate();
+   accessor inDevMode: boolean = false;
+   accessor lensManager: boolean = false;
++  protected accessor ublockInstallState_: 'idle'|'installing'|'failed' = 'idle';
+   accessor incognitoAvailable: boolean = false;
+   accessor isMv2DeprecationNoticeDismissed: boolean = false;
+   accessor extensionsPinnedByDefault: boolean = false;
+@@ -156,6 +162,10 @@
+     }
+ 
+     if (changedProperties.has('extensions')) {
++      if (this.extensions.some(item => item.id === RAWS_UBLOCK_ID &&
++          item.version !== RAWS_PREVIOUS_UBLOCK_VERSION)) {
++        this.ublockInstallState_ = 'idle';
++      }
+       this.unsafeExtensions_ = this.computeUnsafeExtensions_();
+       this.showSafetyCheckReviewPanel_ =
+           this.computeShowSafetyCheckReviewPanel_();
+@@ -288,13 +298,56 @@
+         this.mv2DeprecatedExtensions_?.length > 0;
+   }
+ 
++  protected isVerifiedUblockUpgrade_(): boolean {
++    return this.extensions.some(item => item.id === RAWS_UBLOCK_ID &&
++        item.version === RAWS_PREVIOUS_UBLOCK_VERSION);
++  }
++
++  private hasVerifiedUblockOffer_(): boolean {
++    return this.lensManager &&
++        loadTimeData.valueExists('rawsVerifiedUblockInstallReady') &&
++        loadTimeData.getBoolean('rawsVerifiedUblockInstallReady') &&
++        typeof chrome.developerPrivate.loadCrx === 'function' &&
++        !this.extensions.some(item => item.id === RAWS_UBLOCK_ID &&
++          item.version !== RAWS_PREVIOUS_UBLOCK_VERSION);
++  }
++
++  protected shouldShowVerifiedUblockCard_(): boolean {
++    if (!this.hasVerifiedUblockOffer_()) {
++      return false;
++    }
++    const search = this.filter.trim().toLowerCase();
++    return !search || 'ublock origin'.includes(search);
++  }
++
++  protected async onInstallVerifiedUblockClick_(): Promise<void> {
++    if (!this.hasVerifiedUblockOffer_() ||
++        this.ublockInstallState_ === 'installing') {
++      return;
++    }
++    this.ublockInstallState_ = 'installing';
++    try {
++      const result = await chrome.developerPrivate.loadCrx(true);
++      if (result === 'cancelled') {
++        this.ublockInstallState_ = 'idle';
++      } else if (result !== 'installed') {
++        this.ublockInstallState_ = 'failed';
++      }
++      // A response never creates an installed row. The existing Extensions
++      // list observer removes this offer and renders the real installed item.
++    } catch {
++      this.ublockInstallState_ = 'failed';
++    }
++  }
++
+   protected shouldShowEmptyItemsMessage_(): boolean {
+-    return this.apps.length === 0 && this.extensions.length === 0;
++    return this.apps.length === 0 && this.extensions.length === 0 &&
++        !this.hasVerifiedUblockOffer_();
+   }
+ 
+   protected shouldShowEmptySearchMessage_(): boolean {
+     return !this.shouldShowEmptyItemsMessage_() && this.shownAppsCount_ === 0 &&
+-        this.shownExtensionsCount_ === 0;
++        this.shownExtensionsCount_ === 0 && !this.shouldShowVerifiedUblockCard_();
+   }
+ 
+   protected onCompactSearchInput_(event: Event) {
+diff --git a/chrome/browser/ui/webui/extensions/extensions_ui.cc b/chrome/browser/ui/webui/extensions/extensions_ui.cc
+--- a/chrome/browser/ui/webui/extensions/extensions_ui.cc
++++ b/chrome/browser/ui/webui/extensions/extensions_ui.cc
+@@ -523,6 +523,9 @@
+ 
+   // MV2 deprecation.
+   auto* mv2_handler = ManifestV2Handler::Get(profile);
++#if BUILDFLAG(IS_ANDROID)
++  source->AddBoolean("rawsVerifiedUblockInstallReady", !profile->IsOffTheRecord());
++#endif
+   source->AddBoolean("MV2DeprecationNoticeDismissed",
+                      mv2_handler->DidUserAcknowledgeNoticeGlobally());
+ 
+diff --git a/chrome/common/extensions/api/developer_private.webidl b/chrome/common/extensions/api/developer_private.webidl
+--- a/chrome/common/extensions/api/developer_private.webidl
++++ b/chrome/common/extensions/api/developer_private.webidl
+@@ -676,7 +676,7 @@
+ 
+   // Android Extensions UI: pick a signed CRX and request normal installation.
+   // |PromiseValue|: error
+-  static Promise<DOMString?> loadCrx();
++  static Promise<DOMString?> loadCrx(optional boolean verifiedUblock);
+ 
+   // Notifies the browser that a user began a drag in order to install an
+   // extension.
+diff --git a/extensions/browser/raws_pinned_ubo.h b/extensions/browser/raws_pinned_ubo.h
+--- a/extensions/browser/raws_pinned_ubo.h
++++ b/extensions/browser/raws_pinned_ubo.h
+@@ -10,12 +10,12 @@
+ 
+ // This is the self-distributed upstream CRX, not the store build.
+ inline constexpr char kExtensionId[] = "fkgkibajhfbepljeaefdnfnegdcjomkh";
+-inline constexpr char kVersion[] = "1.75.0";
++inline constexpr char kVersion[] = "1.77.2";
+ inline constexpr char kCrxSha256[] =
+-    "d688ed3f0262ec4f8bdcd4c8f65987c5444c560aeb387a9e02aca1facdfa7046";
++    "401d66e7570c91165884947e93de331415e4e72b6f16246bf2a40d9f35f70375";
+ inline constexpr char kDownloadUrl[] =
+-    "https://github.com/gorhill/uBlock/releases/download/1.75.0/"
+-    "uBlock0_1.75.0.chromium.crx";
++    "https://github.com/gorhill/uBlock/releases/download/1.77.2/"
++    "uBlock0_1.77.2.chromium.crx";
+ inline constexpr char kSigningPublicKey[] =
+     "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAsgdkJHEX8xHAytYy3Rihqn5FoU"
+     "/cbPKhoorkCCsgF8HR2y2OSWGM1Ojrmnr0ebgM9WA1pl1hr1CmOH7DjgQVKRhzBjK7/Zb6"
+diff --git a/tools/typescript/definitions/developer_private.d.ts b/tools/typescript/definitions/developer_private.d.ts
+--- a/tools/typescript/definitions/developer_private.d.ts
++++ b/tools/typescript/definitions/developer_private.d.ts
+@@ -455,7 +455,7 @@
+       export function getExtensionSize(id: string): Promise<string>;
+       export function getProfileConfiguration(): Promise<ProfileInfo>;
+       export function installDroppedFile(): Promise<void>;
+-      export function loadCrx(): Promise<string|null>;
++      export function loadCrx(verifiedUblock?: boolean): Promise<string|null>;
+       export function loadUnpacked(options: LoadUnpackedOptions):
+           Promise<LoadError|null>;
+       export function notifyDragInstallInProgress(): void;

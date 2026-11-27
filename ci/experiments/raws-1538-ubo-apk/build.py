@@ -21,10 +21,10 @@ import slice_state
 
 BASE = 'a274d3f2e250aad22c8ca4309ba75841f9db65dd'
 BRANCH = 'experiment/raws-1538-ubo-apk'
-PARENT = '15bd8d42fc2600217cec21403b1305851d5157c1'
+PARENT = 'd9761f7425f9e7d7df73dd0545a80bcbd154947a'
 COMPLETED_PRODUCER = '5f3587d65a1b7f25d191f9e6cbe7be708f41d1d0'
 SOURCE_OVERLAY_PRODUCER = 'd98f0dda5f43ea7cb6cf8ab2d8e76c58bc75c9e3'
-UI_MANIFEST = '8979c010a46c34e95c82ce35b1e925ee590a4eb207a5c11f2fe3c381a9627bf4'
+UI_MANIFEST = 'aee68f2b26051d65c4e1d1e93df75e9167b6afaf0b0e3c8e396bd33d6657e913'
 JOB = 'raws-1538-ubo-apk'
 RECIPE = 'ba0755150c15aba8ed53278aef717dcace3239235e7f6ae352fd74b768d79774'
 PATCH = '98711eb0f37e3111af828ca27bd7779946b3794433c7dcca3325c966c6c3d9b8'
@@ -62,7 +62,7 @@ def gate():
         raise ValueError('Experiment must not receive RawS signing credentials')
     head = git(ROOT,'rev-parse','HEAD')
     if (head != os.environ.get('CIRCLE_SHA1') or git(ROOT,'rev-parse','HEAD^') != PARENT
-            or git(ROOT,'rev-parse','HEAD^^^^^^^^^^^^^^^^^') != BASE):
+            or git(ROOT,'rev-parse','HEAD^^^^^^^^^^^^^^^^^^') != BASE):
         raise ValueError('Expected exact Extensions candidate as the immediate parent')
     if fingerprint() != ro.FINGERPRINT or ro.full.fresh():
         raise ValueError('Unexpected baseline fingerprint or fresh seed')
