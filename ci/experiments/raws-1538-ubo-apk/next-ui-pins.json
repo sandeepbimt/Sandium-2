@@ -111,6 +111,10 @@
     {
       "name": "fix-extension-manager-native-constructor.patch",
       "sha256": "f8ea697ba4ef7e2aa3254396ef043c72a3dc18b88622015e71e37e510ca89515"
+    },
+    {
+      "name": "qualify-android-extension-owner-tab-interface.patch",
+      "sha256": "d004c52e7ebf9e6bc771344d3d9cc5dd8bd153cd16eebf64bbc5ef40739823f2"
     }
   ],
   "paths": {
@@ -183,7 +187,7 @@
       "after": "de741956764f6f706256ce91dd3fe8796f3417195cef277399e2bf8fa42a8ac8"
     },
     "chrome/browser/extensions/api/developer_private/developer_private_functions.cc": {
-      "after": "e66594bb9907d40ef060dc7721bf6738c02b2125ee556b470f73f256629869e0",
+      "after": "660f8fd09383e4a90eaafd85700420c2eade3fce9f5f2d90aa453b9f786abf62",
       "before": "a15138f672f73903b49e0798c15177525311cc09b7e5d1b98545c65cacab48af"
     },
     "chrome/browser/extensions/api/developer_private/developer_private_functions.h": {

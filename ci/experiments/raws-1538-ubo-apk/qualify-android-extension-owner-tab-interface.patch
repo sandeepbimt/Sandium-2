@@ -1,0 +1,21 @@
+diff --git a/chrome/browser/extensions/api/developer_private/developer_private_functions.cc b/chrome/browser/extensions/api/developer_private/developer_private_functions.cc
+--- a/chrome/browser/extensions/api/developer_private/developer_private_functions.cc
++++ b/chrome/browser/extensions/api/developer_private/developer_private_functions.cc
+@@ -1144,7 +1144,7 @@
+   auto* data = static_cast<raws::ExtensionsManagerContentsData*>(
+       contents->GetUserData(&raws::kExtensionsManagerContentsKey));
+   auto* owner = data ? data->source.get() : nullptr;
+-  auto* tab = owner ? tabs::TabInterface::MaybeGetFromContents(owner) : nullptr;
++  auto* tab = owner ? ::tabs::TabInterface::MaybeGetFromContents(owner) : nullptr;
+   if (!owner || owner->GetBrowserContext() != browser_context() || !tab ||
+       !tab->IsActivated()) {
+     return nullptr;
+@@ -1546,7 +1546,7 @@
+   if (auto* data = static_cast<raws::ExtensionsManagerContentsData*>(
+           web_contents->GetUserData(&raws::kExtensionsManagerContentsKey))) {
+     auto* owner = data->source.get();
+-    auto* owner_tab = owner ? tabs::TabInterface::MaybeGetFromContents(owner)
++    auto* owner_tab = owner ? ::tabs::TabInterface::MaybeGetFromContents(owner)
+                             : nullptr;
+     if (render_frame_host() != web_contents->GetPrimaryMainFrame() ||
+         web_contents->GetLastCommittedURL().GetWithEmptyPath() !=
