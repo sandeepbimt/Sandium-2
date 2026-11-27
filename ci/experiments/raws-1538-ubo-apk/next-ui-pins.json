@@ -127,6 +127,18 @@
     {
       "name": "protect-resting-url-start.patch",
       "sha256": "435e088e4d0a2e3ee13c8ff9b5dd3cd2bcea5f7211c30507f165753712145ee4"
+    },
+    {
+      "name": "vertical-squircle-toolbar.patch",
+      "sha256": "04dfe640bf12bcf405e8a8456ce0c4fe8d1a60840c8dcef698c98168721206a7"
+    },
+    {
+      "name": "fit-popup-width.patch",
+      "sha256": "8685feee74244c2c4c42672c7b37fffe1ba936afc3f85e18b011eeda36dd9e64"
+    },
+    {
+      "name": "compact-safety-notice.patch",
+      "sha256": "2729d0160c99355ffc2bfa3fc8afcaf7a3ea290db3656674deab69fe244e34c4"
     }
   ],
   "paths": {
@@ -180,7 +192,7 @@
     },
     "chrome/android/java/src/org/chromium/chrome/browser/toolbar/ToolbarManager.java": {
       "before": "5224b5dc0302d62c92d5244b8e6ecac2030303bbcc8552e5fd87bc2b46d3c56e",
-      "after": "2774cd399530dc0290d85bfc5965425551ef8f36f8478cdcff21ed7d4e415c55"
+      "after": "b63cd7861103587e6942f20e49dc27fb77cb4324a8e7732df89eddfcf16cda94"
     },
     "chrome/browser/android/content/java/src/org/chromium/chrome/browser/content/WebContentsFactory.java": {
       "before": "6c78ec52798ced8c9c2cdd97c97ac237636cf4f7da6d0b0eb9d0eec38b2598e8",
@@ -223,15 +235,15 @@
       "before": "e31891ea01e423bdae8572aea26d8e6da5dd69a1a9bde692884e9caf1e3ecf28"
     },
     "chrome/browser/resources/extensions/item_list.css": {
-      "after": "e305d5c7fa6958cfffc12885087441f7aa69c9077a772cc233418bffe7905ac9",
+      "after": "fb16006b2c863c4db7441787a86466c8961287be8c5643cade59d8be7f7d2046",
       "before": "a02f7be73bc20f0061b21511c8f579e8714d574c2942090074b67f090f7cb21f"
     },
     "chrome/browser/resources/extensions/item_list.html.ts": {
-      "after": "e91fb9d0f1c657c9ea0e79f52acbab107c17600ea1dfa554186eee67ba8d4d35",
+      "after": "b064b726f0826dd5e82837bbf1ee918f4292c9dcd56731b16bb39da35196f474",
       "before": "811662b4438887015065fd750925ea2757c968e315a27975479777f6d29bd8dd"
     },
     "chrome/browser/resources/extensions/item_list.ts": {
-      "after": "53d3342e02f752060ca5e06f95ff7a4c8905dbbb8d5403e6c0f62b9d800baa72",
+      "after": "5d751da2eb2f3bdd06de4977ad0982b021f93015867fd9728ee73e32ea67d5eb",
       "before": "f9c88d7b6b8b573126bf7f68081ac084cde8d5e666dda1dd245b4b304b812f30"
     },
     "chrome/browser/resources/extensions/manager.css": {
@@ -304,7 +316,7 @@
     },
     "chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/ToolbarPhone.java": {
       "before": "e4953634a3e54169b419bc84f5517fc62a0af4023bcec057343f2312abc317b5",
-      "after": "02246e078737ced2868833b5960d5823cbeb771143c203e4f50fef04a2ea2d07"
+      "after": "140a9577c4a3512afc8be2804649614f3abf924be73c817d162e635d8906decc"
     },
     "chrome/browser/ui/webui/extensions/extensions_ui.cc": {
       "after": "069b4c9db40f1171df566c174578cb445753255f0d02770f8fe7aedf75d80f54",
@@ -336,7 +348,7 @@
     },
     "chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/extensions/ExtensionActionPopup.java": {
       "before": "5e0fff578f3ae1cbe4a8013aae3fefbb5c38f40242058baa98407bf91ababfeb",
-      "after": "403b7916edd80f60c9b52a94068ae24b810da2ab311b3c109e363a1e707f5566"
+      "after": "7b609c38ce78065d22cc566efdab0f6fd53ba36d04896f7c5d7dcbf2ffa6048f"
     },
     "chrome/browser/resources/extensions/detail_view.html.ts": {
       "before": "0aae408646d2262bd1e9bdccc1e52f52a185f72884cd1b77ae07e191419f9845",
@@ -372,11 +384,11 @@
     },
     "chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/LocationBarPhone.java": {
       "before": "e2fd12e2737d94a499481263d9e228fe0334aec46a8b42815aa1b9aae6271e7d",
-      "after": "d83701a2149872149f11fdcd9083294c0fbde6c1d3b0fd8e8d64f272c8840425"
+      "after": "fd1232353453eb062e560f5a6bc9b7950451942bffc52739de0001099bc451e5"
     },
     "chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/UrlBar.java": {
       "before": "a3c720cd21ccce6735675176a59dd17573ad29e0cc7337c1d3843666c2081766",
-      "after": "ff0e54a293576efac276d8b7f7d5d32bd78f05974251e69e45734c8dbaac3b6d"
+      "after": "07e776f19430375a7627af244b23ab605186efeef3ab0d9c4be29b2b978417c8"
     },
     "extensions/browser/raws_pinned_ubo.h": {
       "before": "9c80a048457d4e4468542c93fbfad3f2272a5a3a40a38bddfa2637f0219c479e",
@@ -396,7 +408,7 @@
     },
     "chrome/browser/ui/android/toolbar/java/res/values/raws_address_controls.xml": {
       "before": "9bf1786f4d63adb8f16f7433bf650be5cf4d2356d848f631cac230e01ae61b2c",
-      "after": "0b005290f1f0b0082a9602a936fafe9f540a654beeddd7a7d1a277497b2618d1"
+      "after": "e5538ee8a08d0b4e4653ee233b3771181a8203eca7737299a8dcb7f7b53c526e"
     }
   },
   "producer": "d98f0dda5f43ea7cb6cf8ab2d8e76c58bc75c9e3"

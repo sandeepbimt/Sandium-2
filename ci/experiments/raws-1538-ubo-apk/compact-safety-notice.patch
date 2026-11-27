@@ -1,0 +1,76 @@
+diff --git a/chrome/browser/resources/extensions/item_list.css b/chrome/browser/resources/extensions/item_list.css
+index 695e18a..0b92543 100644
+--- a/chrome/browser/resources/extensions/item_list.css
++++ b/chrome/browser/resources/extensions/item_list.css
+@@ -271,3 +271,12 @@ managed-footnote {
+   min-height: 44px;
+   padding-inline: 12px;
+ }
++
++
++.compact-extension-source > summary {
++  color: var(--cr-secondary-text-color);
++  cursor: pointer;
++  font-size: 13px;
++  line-height: 1.4;
++  padding: 12px 8px;
++}
+diff --git a/chrome/browser/resources/extensions/item_list.html.ts b/chrome/browser/resources/extensions/item_list.html.ts
+index 3672182..bb3d95d 100644
+--- a/chrome/browser/resources/extensions/item_list.html.ts
++++ b/chrome/browser/resources/extensions/item_list.html.ts
+@@ -10,6 +10,12 @@ import type {ServiceInterface} from './service.js';
+ 
+ export function getHtml(this: ExtensionsItemListElement) {
+   // clang-format off
++  const reviewPanel = html`
++    <div class="items-container panel">
++      <extensions-review-panel .extensions="${this.unsafeExtensions_}"
++          .delegate="${this.delegate as ServiceInterface}">
++      </extensions-review-panel>
++    </div>`;
+   return html`<!--_html_template_start_-->
+ <div id="container"
+ <if expr="is_android">
+@@ -25,13 +31,13 @@ export function getHtml(this: ExtensionsItemListElement) {
+           @input="${this.onCompactSearchInput_}">
+     </label>
+ </if>
+-    ${this.showSafetyCheckReviewPanel_ ? html`
+-      <div class="items-container panel">
+-        <extensions-review-panel .extensions="${this.unsafeExtensions_}"
+-            .delegate="${this.delegate as ServiceInterface}">
+-        </extensions-review-panel>
+-      </div>
+-    ` : ''}
++    ${this.showSafetyCheckReviewPanel_ ?
++        this.useCompactOffStoreNotice_() ? html`
++          <details class="compact-extension-source">
++            <summary>uBlock Origin · Installed outside Chrome Web Store</summary>
++            ${reviewPanel}
++          </details>
++        ` : reviewPanel : ''}
+ 
+     ${this.shouldShowMv2DeprecationPanel_() ? html`
+       <div class="items-container panel">
+diff --git a/chrome/browser/resources/extensions/item_list.ts b/chrome/browser/resources/extensions/item_list.ts
+index 3178e2c..ea710db 100644
+--- a/chrome/browser/resources/extensions/item_list.ts
++++ b/chrome/browser/resources/extensions/item_list.ts
+@@ -258,6 +258,16 @@ export class ExtensionsItemListElement extends ExtensionsItemListElementBase {
+                extension.safetyCheckText.panelString));
+   }
+ 
++  /** Compact only the source notice, not a safety finding or allowlist alert. */
++  protected useCompactOffStoreNotice_(): boolean {
++    const [item] = this.unsafeExtensions_;
++    return this.lensManager && this.unsafeExtensions_.length === 1 &&
++        !!item && item.id === RAWS_UBLOCK_ID && item.version === '1.77.2' &&
++        !item.blocklistText && !item.showSafeBrowsingAllowlistWarning &&
++        item.safetyCheckWarningReason ===
++            chrome.developerPrivate.SafetyCheckWarningReason.OFFSTORE;
++  }
++
+   /**
+    * Returns whether the review deprecation panel should be visible.
+    */

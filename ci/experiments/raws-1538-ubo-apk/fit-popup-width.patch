@@ -1,0 +1,41 @@
+diff --git a/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/extensions/ExtensionActionPopup.java b/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/extensions/ExtensionActionPopup.java
+--- a/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/extensions/ExtensionActionPopup.java
++++ b/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/extensions/ExtensionActionPopup.java
+@@ -84,6 +84,7 @@
+     private final @Nullable WebContents mOpeningSiteContents;
+     private final @Nullable GURL mOpeningSiteUrl;
+     private @Nullable OnDismissListener mPhoneDismissListener;
++    private int mPhoneContentWidth;
+     private int mPhoneContentHeight;
+     private boolean mDestroyed;
+ 
+@@ -189,6 +190,7 @@
+         Resources resources = mActivity.getResources();
+         if (openingPhoneTab != null) {
+             mPopupWindow = null;
++            mPhoneContentWidth = ViewUtils.dpToPx(activity, 340);
+             mPhoneContentHeight = ViewUtils.dpToPx(activity, 260);
+             int mask = Configuration.UI_MODE_NIGHT_MASK;
+             boolean dark = (resources.getConfiguration().uiMode & mask)
+@@ -323,7 +325,7 @@
+         int sideMargins = ViewUtils.dpToPx(mActivity, 24);
+         int availableWidth = Math.max(1, safe.width() - sideMargins);
+         int availableHeight = Math.max(1, safe.height() - sideMargins);
+-        int width = Math.min(availableWidth, ViewUtils.dpToPx(mActivity, 440));
++        int width = Math.min(availableWidth, Math.max(1, mPhoneContentWidth));
+         int height = Math.min(mPhoneContentHeight, availableHeight * 4 / 5);
+         window.setLayout(width, Math.max(1, height));
+     }
+@@ -333,6 +335,12 @@
+         public void resizeDueToAutoResize(int width, int height) {
+             if (mDestroyed) return;
+             if (mPhoneSheet != null) {
++                // Chromium reports the popup's preferred width in dp, just as it does for
++                // the stock anchored popup. Do not stretch a narrower extension document.
++                // Keep the initial width if a compositor briefly reports an empty viewport.
++                if (width > 0) {
++                    mPhoneContentWidth = ViewUtils.dpToPx(mActivity, width);
++                }
+                 mPhoneContentHeight = Math.max(
+                         ViewUtils.dpToPx(mActivity, 160), ViewUtils.dpToPx(mActivity, height));
+                 if (mPhoneSheet.isShowing()) sizePhoneSheet();

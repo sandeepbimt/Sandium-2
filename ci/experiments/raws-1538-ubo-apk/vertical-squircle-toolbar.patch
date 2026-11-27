@@ -1,0 +1,345 @@
+diff --git a/chrome/android/java/src/org/chromium/chrome/browser/toolbar/ToolbarManager.java b/chrome/android/java/src/org/chromium/chrome/browser/toolbar/ToolbarManager.java
+--- a/chrome/android/java/src/org/chromium/chrome/browser/toolbar/ToolbarManager.java
++++ b/chrome/android/java/src/org/chromium/chrome/browser/toolbar/ToolbarManager.java
+@@ -2917,10 +2917,11 @@
+             }
+         }
+         if (useRawSPhoneControls && mToolbarLayout instanceof ToolbarPhone phone) {
+-            phone.setRawSQuickNewTabAction(
++            phone.setRawSQuickTabActions(
+                     () -> TabCreatorUtil.launchNtp(
+                             mTabCreatorManager.getTabCreator(
+-                                    tabModelSelector.isIncognitoSelected())));
++                                    tabModelSelector.isIncognitoSelected())),
++                    openGridTabSwitcherHandler::run);
+         }
+         if (mTabSwitcherButtonCoordinator != null) {
+             OnLongClickListener tabSwitcherLongClickListener =
+diff --git a/chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/LocationBarPhone.java b/chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/LocationBarPhone.java
+--- a/chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/LocationBarPhone.java
++++ b/chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/LocationBarPhone.java
+@@ -163,6 +163,9 @@
+     @Override
+     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
+         try (TraceEvent e = TraceEvent.scoped("LocationBarPhone.onMeasure")) {
++            if (mUrlBar != null) {
++                mUrlBar.setRawSTrailingPixelFade(mRawSUnifiedRow && !mRawSNativeHome);
++            }
+             boolean wasCentering = mIsCenteringApplied;
+             boolean shouldCenter = shouldCenterUrlAndStatus();
+             if (shouldCenter != mIsCenteringApplied) {
+@@ -220,7 +223,6 @@
+         try (TraceEvent e = TraceEvent.scoped("LocationBarPhone.onLayout")) {
+             super.onLayout(changed, left, top, right, bottom);
+             if (mUrlBar != null) {
+-                mUrlBar.setRawSTrailingPixelFade(mRawSUnifiedRow && !mRawSNativeHome);
+                 if (mRawSUnifiedRow && mRawSNativeHome && mIsCenteringApplied
+                         && !mUrlBarLaidOutAtFocusedWidth && !mUrlBar.hasFocus()
+                         && mUrlBar.getLayoutDirection() == View.LAYOUT_DIRECTION_LTR
+diff --git a/chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/UrlBar.java b/chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/UrlBar.java
+--- a/chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/UrlBar.java
++++ b/chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/UrlBar.java
+@@ -1653,6 +1653,19 @@
+         }
+ 
+         float endPointX = textLayout.getPrimaryHorizontal(originEndIndex);
++        // RawS's resting LTR row prefers the literal start of a fully visible origin.
++        // Never use this shortcut if it could hide the true end of the hostname.
++        if (mRawSTrailingPixelFade && !hasFocus()
++                && getLayoutDirection() == LAYOUT_DIRECTION_LTR
++                && textLayout.getLineCount() == 1
++                && textLayout.getParagraphDirection(0) == 1
++                && originEndIndex > 0 && originEndIndex <= 320
++                && endPointX > 0f && endPointX <= measuredWidth - 1
++                && !containsRtl(url.subSequence(0, originEndIndex))) {
++            mVisibleTextPrefixHint = null;
++            scrollTo(0, 0);
++            return;
++        }
+         // Compare the position offset of the last character and the character prior to determine
+         // the LTR-ness of the final component of the URL.
+         float priorToEndPointX =
+diff --git a/chrome/browser/ui/android/toolbar/java/res/values/raws_address_controls.xml b/chrome/browser/ui/android/toolbar/java/res/values/raws_address_controls.xml
+--- a/chrome/browser/ui/android/toolbar/java/res/values/raws_address_controls.xml
++++ b/chrome/browser/ui/android/toolbar/java/res/values/raws_address_controls.xml
+@@ -6,4 +6,5 @@
+   <string name="raws_toolbar_quick_actions">Quick actions</string>
+   <string name="raws_toolbar_close_quick_actions">Close quick actions</string>
+   <string name="raws_toolbar_quick_new_tab">New tab</string>
++  <string name="raws_toolbar_quick_switch_tabs">Switch tabs</string>
+ </resources>
+diff --git a/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/ToolbarPhone.java b/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/ToolbarPhone.java
+--- a/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/ToolbarPhone.java
++++ b/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/ToolbarPhone.java
+@@ -20,6 +20,8 @@
+ import android.graphics.Canvas;
+ import android.graphics.Color;
+ import android.graphics.Outline;
++import android.graphics.Paint;
++import android.graphics.Path;
+ import android.graphics.Point;
+ import android.graphics.Rect;
+ import android.graphics.drawable.ColorDrawable;
+@@ -189,6 +191,7 @@
+     private @Nullable PopupWindow mRawSQuickActionsPopup;
+     private @Nullable Button mRawSQuickForward;
+     private @Nullable Runnable mRawSQuickNewTab;
++    private @Nullable Runnable mRawSQuickSwitchTabs;
+     private final ColorDrawable mRawSGraphiteTopEdge = new ColorDrawable(0xFF343943);
+     private static final int RAWS_TOOLBAR_GRAPHITE = 0xFF191C22;
+     private @Nullable Tab mRawSPageObservedTab;
+@@ -373,11 +376,15 @@
+         }
+         var endParams = (android.view.ViewGroup.MarginLayoutParams)
+                 mToolbarButtonsContainer.getLayoutParams();
+-        int endMargin = usePageRow ? Math.round(8 * getResources().getDisplayMetrics().density) : 0;
++        int endMargin = 0;
+         if (endParams.getMarginEnd() != endMargin) {
+             endParams.setMarginEnd(endMargin);
+             mToolbarButtonsContainer.setLayoutParams(endParams);
+         }
++        var tabs = getTabSwitcherButtonCoordinator();
++        if (switched && tabs != null) {
++            tabs.setHasSpaceToShow(!mIsToolbarUiRefactorEnabled && !usePageRow);
++        }
+         if (quick.getVisibility() != visibility) quick.setVisibility(visibility);
+         if (visibility != VISIBLE) dismissRawSQuickActions();
+         updateRawSQuickForward();
+@@ -402,8 +409,9 @@
+     }
+ 
+     /** Uses the tab model's existing New tab action, including in private browsing. */
+-    public void setRawSQuickNewTabAction(Runnable action) {
+-        mRawSQuickNewTab = action;
++    public void setRawSQuickTabActions(Runnable newTab, Runnable switchTabs) {
++        mRawSQuickNewTab = newTab;
++        mRawSQuickSwitchTabs = switchTabs;
+     }
+ 
+     private void dismissRawSQuickActions() {
+@@ -426,45 +434,107 @@
+         }
+         var tab = mRawSPageObservedTab;
+         var newTab = mRawSQuickNewTab;
+-        if (tab == null || newTab == null || !canUseRawSPageActions()
++        var switchTabs = mRawSQuickSwitchTabs;
++        if (tab == null || newTab == null || switchTabs == null || !canUseRawSPageActions()
+                 || !anchor.isShown() || !anchor.isAttachedToWindow() || urlHasFocus()
+                 || isInTabSwitcherMode()) {
+             return;
+         }
+ 
+-        boolean light = getRawSRestingBackingColor() == Color.WHITE;
+-        int fill = light ? 0xFFF1F3F7 : 0xFF292D36;
+-        int edge = light ? 0xFFD1D5DC : 0xFF505865;
++        int width = rawSDp(48);
++        int targetHeight = rawSDp(48);
++        int height = 3 * targetHeight;
++        int[] anchorOnScreen = new int[2];
++        int[] toolbarOnScreen = new int[2];
++        anchor.getLocationOnScreen(anchorOnScreen);
++        getLocationOnScreen(toolbarOnScreen);
++        Rect visible = new Rect();
++        getWindowVisibleDisplayFrame(visible);
++        int x = anchorOnScreen[0] + (anchor.getWidth() - width) / 2;
++        int y = toolbarOnScreen[1] - height - 1;
++        if (x < visible.left || x + width > visible.right || y < visible.top) return;
++
++        int fill = getRawSRestingBackingColor();
++        if (Color.alpha(fill) != 255 && mToolbarBackground != null) {
++            fill = mToolbarBackground.getColor() | 0xFF000000;
++        }
++        final int surfaceColor = fill;
++        boolean light = Color.luminance(surfaceColor) > 0.5f;
++        int edge = light ? 0xFFD1D5DC : mRawSGraphiteTopEdge.getColor();
+         int ink = light ? 0xFF20242D : 0xFFECEFF5;
+-        var row = new LinearLayout(getContext());
+-        row.setOrientation(LinearLayout.HORIZONTAL);
+-        row.setGravity(Gravity.CENTER_VERTICAL);
+-        var shape = new GradientDrawable();
+-        shape.setColor(fill);
+-        shape.setCornerRadius(rawSDp(28));
+-        shape.setStroke(1, edge);
+-        row.setBackground(shape);
+-        row.setClipToOutline(true);
+-        int height = rawSDp(52);
+-        var add = makeRawSQuickButton(R.string.raws_toolbar_quick_new_tab, "+", ink);
++
++        var row = new LinearLayout(getContext()) {
++            private final Paint mPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
++            private final Path mOutline = new Path();
++
++            @Override
++            protected void onSizeChanged(int w, int h, int oldW, int oldH) {
++                super.onSizeChanged(w, h, oldW, oldH);
++                float left = 0.5f;
++                float top = 0.5f;
++                float right = w - 0.5f;
++                float bottom = h - 0.5f;
++                float r = rawSDp(14);
++                float k = r * 0.74f;
++                mOutline.reset();
++                mOutline.moveTo(left + r, top);
++                mOutline.lineTo(right - r, top);
++                mOutline.cubicTo(right - r + k, top, right, top + r - k, right, top + r);
++                mOutline.lineTo(right, bottom - r);
++                mOutline.cubicTo(right, bottom - r + k, right - r + k, bottom, right - r, bottom);
++                mOutline.lineTo(left + r, bottom);
++                mOutline.cubicTo(left + r - k, bottom, left, bottom - r + k, left, bottom - r);
++                mOutline.lineTo(left, top + r);
++                mOutline.cubicTo(left, top + r - k, left + r - k, top, left + r, top);
++                mOutline.close();
++            }
++
++            @Override
++            protected void dispatchDraw(Canvas canvas) {
++                int save = canvas.save();
++                canvas.clipPath(mOutline);
++                mPaint.setStyle(Paint.Style.FILL);
++                mPaint.setColor(surfaceColor);
++                canvas.drawPath(mOutline, mPaint);
++                super.dispatchDraw(canvas);
++                mPaint.setColor(edge);
++                canvas.drawRect(rawSDp(14), targetHeight, width - rawSDp(14),
++                        targetHeight + 1, mPaint);
++                canvas.drawRect(rawSDp(14), 2 * targetHeight, width - rawSDp(14),
++                        2 * targetHeight + 1, mPaint);
++                canvas.restoreToCount(save);
++                mPaint.setStyle(Paint.Style.STROKE);
++                mPaint.setStrokeWidth(1f);
++                canvas.drawPath(mOutline, mPaint);
++            }
++        };
++        row.setOrientation(LinearLayout.VERTICAL);
++        row.setGravity(Gravity.CENTER_HORIZONTAL);
+         var forward = makeRawSQuickButton(R.string.raws_toolbar_forward, "→", ink);
+-        row.addView(add, new LinearLayout.LayoutParams(0, height, 1f));
+-        var separator = new View(getContext());
+-        separator.setBackgroundColor(edge);
+-        row.addView(separator, new LinearLayout.LayoutParams(1, rawSDp(24)));
+-        row.addView(forward, new LinearLayout.LayoutParams(0, height, 1f));
++        var add = makeRawSQuickButton(R.string.raws_toolbar_quick_new_tab, "+", ink);
++        Integer tabCount = mTabCountSupplier == null ? null : mTabCountSupplier.get();
++        int count = tabCount == null ? 0 : tabCount;
++        var tabs = makeRawSQuickButton(R.string.raws_toolbar_quick_switch_tabs,
++                count > 99 ? "∞" : Integer.toString(count), ink);
++        var tabOutline = new GradientDrawable();
++        tabOutline.setColor(Color.TRANSPARENT);
++        tabOutline.setCornerRadius(rawSDp(4));
++        tabOutline.setStroke(rawSDp(2), ink);
++        int tabInset = (width - rawSDp(19)) / 2;
++        int tabInsetY = (targetHeight - rawSDp(19)) / 2;
++        tabs.setForeground(new android.graphics.drawable.InsetDrawable(
++                tabOutline, tabInset, tabInsetY, tabInset, tabInsetY));
++        tabs.setTextSize(12);
++        row.addView(forward, new LinearLayout.LayoutParams(width, targetHeight));
++        row.addView(add, new LinearLayout.LayoutParams(width, targetHeight));
++        row.addView(tabs, new LinearLayout.LayoutParams(width, targetHeight));
+         mRawSQuickForward = forward;
+         updateRawSQuickForward();
+ 
+-        int width = Math.min(rawSDp(272), getWidth() - rawSDp(24));
+-        if (width <= 0) {
+-            mRawSQuickForward = null;
+-            return;
+-        }
+         var popup = new PopupWindow(row, width, height, /* focusable= */ true);
+         popup.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+         popup.setOutsideTouchable(true);
+-        popup.setElevation(rawSDp(9));
++        popup.setElevation(0f);
+         popup.setInputMethodMode(PopupWindow.INPUT_METHOD_NOT_NEEDED);
+         popup.setAnimationStyle(0);
+         popup.setOnDismissListener(() -> {
+@@ -490,16 +560,20 @@
+                     && !isInTabSwitcherMode() && canGoRawSForward()) controller.forward();
+         });
+ 
++        tabs.setOnClickListener(v -> {
++            popup.dismiss();
++            if (tab == mRawSPageObservedTab && canUseRawSPageActions() && !urlHasFocus()
++                    && !isInTabSwitcherMode()) switchTabs.run();
++        });
++
+         mRawSQuickActionsPopup = popup;
+         anchor.setRotation(180f);
+         anchor.setContentDescription(
+                 getResources().getString(R.string.raws_toolbar_close_quick_actions));
+         row.setTranslationY(rawSDp(12));
+         row.setAlpha(0f);
+-        int x = getLayoutDirection() == LAYOUT_DIRECTION_RTL
+-                ? -rawSDp(12) : anchor.getWidth() + rawSDp(12) - width;
+-        popup.showAsDropDown(
+-                anchor, x, -anchor.getHeight() - height - rawSDp(8), Gravity.LEFT);
++        popup.showAsDropDown(anchor, x - anchorOnScreen[0],
++                y - anchorOnScreen[1] - anchor.getHeight(), Gravity.LEFT);
+         row.animate().translationY(0f).alpha(1f).setDuration(190)
+                 .setInterpolator(new DecelerateInterpolator()).start();
+     }
+@@ -507,16 +581,19 @@
+     private Button makeRawSQuickButton(int label, String mark, @ColorInt int color) {
+         var button = new Button(getContext(), null, android.R.attr.borderlessButtonStyle);
+         String description = getResources().getString(label);
+-        button.setText(mark + "  " + description);
++        button.setText(mark);
++        button.setTooltipText(description);
++        button.setGravity(Gravity.CENTER);
+         button.setContentDescription(description);
+         button.setTextColor(color);
+-        button.setTextSize(14);
++        button.setTextSize(22);
+         button.setAllCaps(false);
+         button.setSingleLine(true);
+         button.setEllipsize(android.text.TextUtils.TruncateAt.END);
+         button.setMinWidth(0);
+         button.setMinimumWidth(0);
+-        button.setPaddingRelative(rawSDp(8), 0, rawSDp(8), 0);
++        button.setPadding(0, 0, 0, 0);
++        button.setIncludeFontPadding(false);
+         return button;
+     }
+ 
+@@ -1072,6 +1149,7 @@
+         if (quick != null) quick.setOnClickListener(null);
+         mRawSQuickActionsButton = null;
+         mRawSQuickNewTab = null;
++        mRawSQuickSwitchTabs = null;
+         cancelAnimations();
+         Handler handler = getHandler();
+         if (handler != null && mDefaultSearchEngineChangedRunnable != null) {
+@@ -1459,7 +1537,15 @@
+      * @return The left bounds of the location bar, accounting for any buttons on the left side of
+      *     the toolbar.
+      */
++    private int getRawSSymmetricUrlInset() {
++        return Math.max(getBoundsAfterAccountingForLeftButton(),
++                getBoundsAfterAccountingForRightButtons());
++    }
++
+     private int getViewBoundsLeftOfLocationBar(@VisualState int visualState) {
++        if (mRawSPageActionsActive && visualState != VisualState.NEW_TAB_NORMAL) {
++            return getRawSSymmetricUrlInset();
++        }
+         // Uses getMeasuredWidth()s instead of getLeft() because this is called in onMeasure
+         // and the layout values have not yet been set.
+         if (visualState == VisualState.NEW_TAB_NORMAL && mTabSwitcherState == STATIC_TAB) {
+@@ -1507,6 +1593,9 @@
+      *     the toolbar.
+      */
+     private int getViewBoundsRightOfLocationBar(@VisualState int visualState) {
++        if (mRawSPageActionsActive && visualState != VisualState.NEW_TAB_NORMAL) {
++            return getMeasuredWidth() - getRawSSymmetricUrlInset();
++        }
+         // Uses getMeasuredWidth()s instead of getRight() because this is called in onMeasure
+         // and the layout values have not yet been set.
+         if (visualState == VisualState.NEW_TAB_NORMAL && mTabSwitcherState == STATIC_TAB) {
+@@ -3128,7 +3217,8 @@
+ 
+         var tabSwitcherButtonCoordinator = getTabSwitcherButtonCoordinator();
+         if (tabSwitcherButtonCoordinator != null) {
+-            tabSwitcherButtonCoordinator.setHasSpaceToShow(!mIsToolbarUiRefactorEnabled);
++            tabSwitcherButtonCoordinator.setHasSpaceToShow(
++                    !mIsToolbarUiRefactorEnabled && !mRawSPageActionsActive);
+         }
+     }
+ 
