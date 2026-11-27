@@ -139,6 +139,14 @@
     {
       "name": "compact-safety-notice.patch",
       "sha256": "2729d0160c99355ffc2bfa3fc8afcaf7a3ea290db3656674deab69fe244e34c4"
+    },
+    {
+      "name": "refresh-installed-ublock-in-place.patch",
+      "sha256": "f1f2a4b874492bc3c698ce2845dc2481d5868ac5e127309ff55a0ad0c19e4760"
+    },
+    {
+      "name": "lint-compact-safety-template.patch",
+      "sha256": "01270273f2bda1ed449dd81c9ce52f700f02f6f156b800db98e4583e196c7bca"
     }
   ],
   "paths": {
@@ -239,11 +247,11 @@
       "before": "a02f7be73bc20f0061b21511c8f579e8714d574c2942090074b67f090f7cb21f"
     },
     "chrome/browser/resources/extensions/item_list.html.ts": {
-      "after": "b064b726f0826dd5e82837bbf1ee918f4292c9dcd56731b16bb39da35196f474",
+      "after": "6cbb8ea5bb4ec643984f17004b941011b3a7d675a86be8f98ad44fd8afcee271",
       "before": "811662b4438887015065fd750925ea2757c968e315a27975479777f6d29bd8dd"
     },
     "chrome/browser/resources/extensions/item_list.ts": {
-      "after": "5d751da2eb2f3bdd06de4977ad0982b021f93015867fd9728ee73e32ea67d5eb",
+      "after": "e16eec93a060a69e48232c8e8787282b80c601d1604b6e03f1f64c745e2ea49c",
       "before": "f9c88d7b6b8b573126bf7f68081ac084cde8d5e666dda1dd245b4b304b812f30"
     },
     "chrome/browser/resources/extensions/manager.css": {
@@ -256,7 +264,7 @@
     },
     "chrome/browser/resources/extensions/manager.ts": {
       "before": "8adde223fe6611665a311fb7d4fa69cfdbaa61bd581515ad7046579438d33c92",
-      "after": "fa775caa60446e8d69d147ed0168a25785bb8a04a016472689f157c2c8d8c577"
+      "after": "064a8b5acc35eb764d6787ef7925fdfa9ea41e60ee1ac49572e766f5bd184a37"
     },
     "chrome/browser/resources/extensions/navigation_helper.ts": {
       "before": "93ac2782590c194c584cfa23db2cd6df521b3ea3849b2ab3a6e281319c586120",

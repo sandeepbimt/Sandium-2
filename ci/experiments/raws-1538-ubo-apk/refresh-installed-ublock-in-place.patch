@@ -1,0 +1,113 @@
+diff --git a/chrome/browser/resources/extensions/item_list.html.ts b/chrome/browser/resources/extensions/item_list.html.ts
+--- a/chrome/browser/resources/extensions/item_list.html.ts
++++ b/chrome/browser/resources/extensions/item_list.html.ts
+@@ -90,9 +90,11 @@
+           <cr-button class="raws-verified-ubo-button"
+               aria-label="${this.isVerifiedUblockUpgrade_() ?
+                   'Update uBlock Origin' : 'Install uBlock Origin'}"
+-              ?disabled="${this.ublockInstallState_ === 'installing'}"
++              ?disabled="${this.ublockInstallState_ === 'installing' ||
++                  this.ublockInstallState_ === 'installed'}"
+               @click="${this.onInstallVerifiedUblockClick_}">
+             ${this.ublockInstallState_ === 'installing' ? 'Installing…' :
++                this.ublockInstallState_ === 'installed' ? 'Installed' :
+                 this.ublockInstallState_ === 'failed' ? 'Retry' :
+                 this.isVerifiedUblockUpgrade_() ? 'Update' : 'Install'}
+           </cr-button>
+diff --git a/chrome/browser/resources/extensions/item_list.ts b/chrome/browser/resources/extensions/item_list.ts
+--- a/chrome/browser/resources/extensions/item_list.ts
++++ b/chrome/browser/resources/extensions/item_list.ts
+@@ -116,7 +116,8 @@
+   accessor delegate: ItemDelegate = new DummyItemDelegate();
+   accessor inDevMode: boolean = false;
+   accessor lensManager: boolean = false;
+-  protected accessor ublockInstallState_: 'idle'|'installing'|'failed' = 'idle';
++  protected accessor ublockInstallState_:
++      'idle'|'installing'|'installed'|'failed' = 'idle';
+   accessor incognitoAvailable: boolean = false;
+   accessor isMv2DeprecationNoticeDismissed: boolean = false;
+   accessor extensionsPinnedByDefault: boolean = false;
+@@ -332,7 +333,8 @@
+ 
+   protected async onInstallVerifiedUblockClick_(): Promise<void> {
+     if (!this.hasVerifiedUblockOffer_() ||
+-        this.ublockInstallState_ === 'installing') {
++        (this.ublockInstallState_ === 'installing' ||
++         this.ublockInstallState_ === 'installed')) {
+       return;
+     }
+     this.ublockInstallState_ = 'installing';
+@@ -340,13 +342,25 @@
+       const result = await chrome.developerPrivate.loadCrx(true);
+       if (result === 'cancelled') {
+         this.ublockInstallState_ = 'idle';
+-      } else if (result !== 'installed') {
++        return;
++      }
++      if (result !== 'installed') {
+         this.ublockInstallState_ = 'failed';
++        return;
+       }
+-      // A response never creates an installed row. The existing Extensions
+-      // list observer removes this offer and renders the real installed item.
+     } catch {
+       this.ublockInstallState_ = 'failed';
++      return;
++    }
++
++    // The verified installer succeeded. Do not stay on "Installing" while
++    // waiting for the registry notification to refresh the parent list.
++    if (this.isConnected && this.hasVerifiedUblockOffer_()) {
++      this.ublockInstallState_ = 'installed';
++      this.dispatchEvent(new Event('raws-verified-ublock-installed', {
++        bubbles: true,
++        composed: true,
++      }));
+     }
+   }
+ 
+diff --git a/chrome/browser/resources/extensions/manager.ts b/chrome/browser/resources/extensions/manager.ts
+--- a/chrome/browser/resources/extensions/manager.ts
++++ b/chrome/browser/resources/extensions/manager.ts
+@@ -244,6 +244,11 @@
+     super.firstUpdated(changedProperties);
+ 
+     this.addEventListener('load-error', this.onLoadError_);
++    if (this.sandiumManage_) {
++      this.addEventListener('raws-verified-ublock-installed', () => {
++        void this.refreshVerifiedUblockAfterInstall_();
++      });
++    }
+     this.addEventListener('view-enter-start', this.onViewEnterStart_);
+     this.addEventListener('view-exit-start', this.onViewExitStart_);
+     this.addEventListener('view-exit-finish', this.onViewExitFinish_);
+@@ -314,6 +319,29 @@
+     this.narrow_ = e.detail.value;
+   }
+ 
++  private async refreshVerifiedUblockAfterInstall_(): Promise<void> {
++    const id = 'fkgkibajhfbepljeaefdnfnegdcjomkh';
++    // Merge only the verified item. Never reset the manager's active view,
++    // search, other extension rows or their concurrent registry updates.
++    try {
++      const installedInfo = (await this.delegate.getExtensionsInfo()).find(
++          item => item.id === id && item.version === '1.77.2');
++      if (!this.isConnected || !installedInfo) {
++        return;
++      }
++      const listId = 'extensions_';
++      const index = this.getIndexInList_(listId, id);
++      if (index === -1) {
++        this.addItem_(listId, installedInfo);
++      } else if (this.extensions_[index]!.version === '1.75.0') {
++        this.updateItem_(listId, index, installedInfo);
++      }
++    } catch {
++      // The installer succeeded. Keep the success label until the normal
++      // registry event delivers the row; never offer a duplicate install.
++    }
++  }
++
+   private onItemStateChanged_(eventData: chrome.developerPrivate.EventData) {
+     const EventType = chrome.developerPrivate.EventType;
+     switch (eventData.event_type) {
