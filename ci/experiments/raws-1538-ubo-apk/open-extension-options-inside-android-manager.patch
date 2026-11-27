@@ -1,0 +1,604 @@
+diff --git a/chrome/browser/android/content/java/src/org/chromium/chrome/browser/content/WebContentsFactory.java b/chrome/browser/android/content/java/src/org/chromium/chrome/browser/content/WebContentsFactory.java
+--- a/chrome/browser/android/content/java/src/org/chromium/chrome/browser/content/WebContentsFactory.java
++++ b/chrome/browser/android/content/java/src/org/chromium/chrome/browser/content/WebContentsFactory.java
+@@ -4,6 +4,7 @@
+ 
+ package org.chromium.chrome.browser.content;
+ 
++import org.jni_zero.CalledByNative;
+ import org.jni_zero.JniType;
+ import org.jni_zero.NativeMethods;
+ 
+@@ -137,15 +138,33 @@
+     }
+ 
+     /** Creates a uniquely restricted WebContents for the browser-owned RawS manager. */
++    public interface RawSOptionsHost {
++        boolean showOptions(WebContents contents, String url);
++        void openExternalLink(String url);
++    }
++
+     public static WebContents createRawSExtensionsManager(
+-            Profile profile, @Nullable WebContents source) {
+-        return WebContentsFactoryJni.get().createRawSExtensionsManager(profile, source);
++            Profile profile, @Nullable WebContents source, RawSOptionsHost optionsHost) {
++        return WebContentsFactoryJni.get().createRawSExtensionsManager(profile, source, optionsHost);
++    }
++
++    @CalledByNative
++    private static boolean showRawSOptions(
++            RawSOptionsHost host, WebContents contents, String url) {
++        return host.showOptions(contents, url);
++    }
++
++    @CalledByNative
++    private static void openRawSOptionsLink(RawSOptionsHost host, String url) {
++        host.openExternalLink(url);
+     }
+ 
+     @NativeMethods
+     public interface Natives {
+         WebContents createRawSExtensionsManager(
+-                @JniType("Profile*") Profile profile, @Nullable WebContents source);
++                @JniType("Profile*") Profile profile,
++                @Nullable WebContents source,
++                RawSOptionsHost optionsHost);
+ 
+         WebContents createWebContents(
+                 @JniType("Profile*") Profile profile,
+diff --git a/chrome/browser/android/content/raws_extensions_manager_contents.h b/chrome/browser/android/content/raws_extensions_manager_contents.h
+--- a/chrome/browser/android/content/raws_extensions_manager_contents.h
++++ b/chrome/browser/android/content/raws_extensions_manager_contents.h
+@@ -5,8 +5,12 @@
+ #ifndef CHROME_BROWSER_ANDROID_CONTENT_RAWS_EXTENSIONS_MANAGER_CONTENTS_H_
+ #define CHROME_BROWSER_ANDROID_CONTENT_RAWS_EXTENSIONS_MANAGER_CONTENTS_H_
+ 
++#include "base/functional/callback.h"
+ #include "base/memory/weak_ptr.h"
+ #include "base/supports_user_data.h"
++#include "url/origin.h"
++
++class GURL;
+ 
+ namespace content {
+ class WebContents;
+@@ -15,13 +19,31 @@
+ namespace raws {
+ // Browser-owned flag. No URL, renderer action, or user preference can set it.
+ inline constexpr int kExtensionsManagerContentsKey = 0;
++inline constexpr int kExtensionOptionsContentsKey = 0;
++
++using ShowExtensionOptions =
++    base::RepeatingCallback<bool(content::WebContents*, const GURL&)>;
++using OpenExtensionOptionsLink = base::RepeatingCallback<void(const GURL&)>;
+ 
+ class ExtensionsManagerContentsData final : public base::SupportsUserData::Data {
+  public:
+   explicit ExtensionsManagerContentsData(
+-      base::WeakPtr<content::WebContents> source_contents);
++      base::WeakPtr<content::WebContents> source_contents,
++      ShowExtensionOptions show,
++      OpenExtensionOptionsLink open_link);
+   ~ExtensionsManagerContentsData() override;
+   const base::WeakPtr<content::WebContents> source;
++  const ShowExtensionOptions show_options;
++  const OpenExtensionOptionsLink open_external_link;
++};
++// This identity is intentionally distinct from the privileged manager marker.
++class ExtensionOptionsContentsData final : public base::SupportsUserData::Data {
++ public:
++  ExtensionOptionsContentsData(url::Origin allowed_origin,
++                               OpenExtensionOptionsLink open_link);
++  ~ExtensionOptionsContentsData() override;
++  const url::Origin origin;
++  const OpenExtensionOptionsLink open_external_link;
+ };
+ }  // namespace raws
+ 
+diff --git a/chrome/browser/android/content/web_contents_factory.cc b/chrome/browser/android/content/web_contents_factory.cc
+--- a/chrome/browser/android/content/web_contents_factory.cc
++++ b/chrome/browser/android/content/web_contents_factory.cc
+@@ -5,6 +5,9 @@
+ #include <utility>
+ 
+ #include "base/android/jni_android.h"
++#include "base/android/jni_string.h"
++#include "base/android/scoped_java_ref.h"
++#include "base/functional/bind.h"
+ #include "base/supports_user_data.h"
+ #include "chrome/browser/android/content/raws_extensions_manager_contents.h"
+ #include "chrome/browser/android/content/web_contents_factory_data_deleter.h"
+@@ -14,6 +17,7 @@
+ #include "content/public/browser/site_instance.h"
+ #include "content/public/browser/storage_partition_config.h"
+ #include "content/public/browser/web_contents.h"
++#include "url/gurl.h"
+ 
+ // Must come after all headers that specialize FromJniType() / ToJniType().
+ #include "chrome/browser/android/content/jni_headers/WebContentsFactory_jni.h"
+@@ -21,10 +25,22 @@
+ namespace raws {
+ 
+ ExtensionsManagerContentsData::ExtensionsManagerContentsData(
+-    base::WeakPtr<content::WebContents> source_contents)
+-    : source(std::move(source_contents)) {}
++    base::WeakPtr<content::WebContents> source_contents,
++    ShowExtensionOptions show,
++    OpenExtensionOptionsLink open_link)
++    : source(std::move(source_contents)),
++      show_options(std::move(show)),
++      open_external_link(std::move(open_link)) {}
+ 
+ ExtensionsManagerContentsData::~ExtensionsManagerContentsData() = default;
++
++ExtensionOptionsContentsData::ExtensionOptionsContentsData(
++    url::Origin allowed_origin,
++    OpenExtensionOptionsLink open_link)
++    : origin(std::move(allowed_origin)),
++      open_external_link(std::move(open_link)) {}
++
++ExtensionOptionsContentsData::~ExtensionOptionsContentsData() = default;
+ 
+ }  // namespace raws
+ 
+@@ -98,7 +114,8 @@
+ static ScopedJavaLocalRef<jobject> JNI_WebContentsFactory_CreateRawSExtensionsManager(
+     JNIEnv* env,
+     Profile* profile,
+-    const JavaRef<jobject>& j_source) {
++    const JavaRef<jobject>& j_source,
++    const JavaRef<jobject>& j_options_host) {
+   auto* source = content::WebContents::FromJavaWebContents(j_source);
+   base::WeakPtr<content::WebContents> owner;
+   if (source && source->GetBrowserContext() == profile &&
+@@ -108,9 +125,29 @@
+   content::WebContents::CreateParams params(profile);
+   params.initially_hidden = true;
+   auto contents = content::WebContents::Create(params);
++  base::android::ScopedJavaGlobalRef<jobject> options_host(j_options_host);
++  auto show_options = base::BindRepeating(
++      [](const base::android::ScopedJavaGlobalRef<jobject>& host,
++         content::WebContents* options, const GURL& url) {
++        JNIEnv* env = base::android::AttachCurrentThread();
++        return static_cast<bool>(Java_WebContentsFactory_showRawSOptions(
++            env, host, options->GetJavaWebContents(),
++            base::android::ConvertUTF8ToJavaString(env, url.spec())));
++      },
++      options_host);
++  auto open_link = base::BindRepeating(
++      [](const base::android::ScopedJavaGlobalRef<jobject>& host,
++         const GURL& url) {
++        JNIEnv* env = base::android::AttachCurrentThread();
++        Java_WebContentsFactory_openRawSOptionsLink(
++            env, host,
++            base::android::ConvertUTF8ToJavaString(env, url.spec()));
++      },
++      std::move(options_host));
+   contents->SetUserData(&raws::kExtensionsManagerContentsKey,
+                         std::make_unique<raws::ExtensionsManagerContentsData>(
+-                            std::move(owner)));
++                            std::move(owner), std::move(show_options),
++                            std::move(open_link)));
+   return contents.release()->GetJavaWebContents();
+ }
+ 
+diff --git a/chrome/browser/chrome_content_browser_client_navigation_throttles.cc b/chrome/browser/chrome_content_browser_client_navigation_throttles.cc
+--- a/chrome/browser/chrome_content_browser_client_navigation_throttles.cc
++++ b/chrome/browser/chrome_content_browser_client_navigation_throttles.cc
+@@ -90,6 +90,8 @@
+ #include "url/gurl.h"
+ 
+ #if BUILDFLAG(IS_ANDROID)
++#include "base/functional/bind.h"
++#include "base/task/sequenced_task_runner.h"
+ #include "chrome/android/features/dev_ui/buildflags.h"
+ #include "chrome/browser/android/content/raws_extensions_manager_contents.h"
+ #include "chrome/browser/signin/android/cross_device_signin_flow_navigation_throttle.h"
+@@ -234,6 +236,71 @@
+                : CANCEL_AND_IGNORE;
+   }
+ };
++
++// The address-bar-free options host exposes no WebUI privileges and admits
++// only the selected extension's origin, even on redirects or local commits.
++class RawSExtensionOptionsThrottle final : public content::NavigationThrottle {
++ public:
++  explicit RawSExtensionOptionsThrottle(
++      content::NavigationThrottleRegistry& registry)
++      : content::NavigationThrottle(registry) {}
++
++  static void MaybeAdd(content::NavigationThrottleRegistry& registry) {
++    if (registry.GetNavigationHandle().GetWebContents()->GetUserData(
++            &raws::kExtensionOptionsContentsKey)) {
++      registry.AddThrottle(
++          std::make_unique<RawSExtensionOptionsThrottle>(registry));
++    }
++  }
++
++  ThrottleCheckResult WillStartRequest() override { return Check(true); }
++  ThrottleCheckResult WillRedirectRequest() override { return Check(false); }
++  ThrottleCheckResult WillFailRequest() override { return CANCEL_AND_IGNORE; }
++  ThrottleCheckResult WillCommitWithoutUrlLoader() override {
++    return Check(false);
++  }
++  const char* GetNameForLogging() override {
++    return "RawSExtensionOptionsThrottle";
++  }
++
++ private:
++  ThrottleCheckResult Check(bool allow_external_link) {
++    auto& handle = *navigation_handle();
++    auto* contents = handle.GetWebContents();
++    const auto* data = static_cast<const raws::ExtensionOptionsContentsData*>(
++        contents->GetUserData(&raws::kExtensionOptionsContentsKey));
++    if (!data) {
++      return CANCEL_AND_IGNORE;
++    }
++    const GURL& url = handle.GetURL();
++    if (data->origin.IsSameOriginWith(url)) {
++      return PROCEED;
++    }
++    if (!handle.IsInMainFrame() &&
++        (url.IsAboutBlank() || url.IsAboutSrcdoc()) &&
++        handle.GetInitiatorOrigin() == data->origin) {
++      return PROCEED;
++    }
++    // Do not turn an automatic redirect, POST, or iframe load into a browser
++    // tab. Explicit links from this page open in the ordinary browsing UI.
++    if (allow_external_link && handle.IsInPrimaryMainFrame() &&
++        handle.IsRendererInitiated() && handle.HasUserGesture() &&
++        !handle.IsPost() && url.SchemeIsHTTPOrHTTPS() &&
++        handle.GetInitiatorOrigin() == data->origin) {
++      base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
++          FROM_HERE,
++          base::BindOnce(
++              [](base::WeakPtr<content::WebContents> current,
++                 raws::OpenExtensionOptionsLink open_link, GURL target) {
++                if (current) {
++                  open_link.Run(target);
++                }
++              },
++              contents->GetWeakPtr(), data->open_external_link, url));
++    }
++    return CANCEL_AND_IGNORE;
++  }
++};
+ #endif  // BUILDFLAG(IS_ANDROID)
+ 
+ // Wrapper for SSLErrorHandler::HandleSSLError() that supplies //chrome-level
+@@ -330,6 +397,7 @@
+     content::NavigationThrottleRegistry& registry) {
+ #if BUILDFLAG(IS_ANDROID)
+   RawSExtensionsManagerThrottle::MaybeAdd(registry);
++  RawSExtensionOptionsThrottle::MaybeAdd(registry);
+ #endif
+   content::NavigationHandle& handle = registry.GetNavigationHandle();
+   if (handle.IsInMainFrame()) {
+@@ -685,6 +753,7 @@
+     content::NavigationThrottleRegistry& registry) {
+ #if BUILDFLAG(IS_ANDROID)
+   RawSExtensionsManagerThrottle::MaybeAdd(registry);
++  RawSExtensionOptionsThrottle::MaybeAdd(registry);
+ #endif
+   if (contextual_tasks::GuestOpenerUserData::IsGuestOpener(
+           registry.GetNavigationHandle().GetWebContents())) {
+diff --git a/chrome/browser/extensions/api/developer_private/developer_private_functions.cc b/chrome/browser/extensions/api/developer_private/developer_private_functions.cc
+--- a/chrome/browser/extensions/api/developer_private/developer_private_functions.cc
++++ b/chrome/browser/extensions/api/developer_private/developer_private_functions.cc
+@@ -76,6 +76,7 @@
+ #include "extensions/browser/unpacked_installer.h"
+ #include "extensions/browser/user_script_manager.h"
+ #include "extensions/buildflags/buildflags.h"
++#include "extensions/common/constants.h"
+ #include "extensions/common/manifest_constants.h"
+ #include "extensions/common/manifest_handlers/background_info.h"
+ #include "extensions/common/manifest_handlers/options_page_info.h"
+@@ -88,6 +89,8 @@
+ 
+ #if BUILDFLAG(IS_ANDROID)
+ #include "chrome/browser/android/content/raws_extensions_manager_contents.h"
++#include "chrome/browser/extensions/chrome_extension_web_contents_observer.h"
++#include "content/public/browser/site_instance.h"
+ #include "components/tabs/public/tab_interface.h"
+ #include "base/files/file.h"
+ #include "base/time/time.h"
+@@ -1533,7 +1536,8 @@
+     return RespondNow(NoSuchExtensionError());
+   }
+ 
+-  if (OptionsPageInfo::GetOptionsPage(extension).is_empty()) {
++  const GURL& options_url = OptionsPageInfo::GetOptionsPage(extension);
++  if (options_url.is_empty()) {
+     return RespondNow(Error(kNoOptionsPageForExtensionError));
+   }
+ 
+@@ -1556,8 +1560,31 @@
+         !owner_tab->IsActivated()) {
+       return RespondNow(Error(kCouldNotFindWebContentsError));
+     }
+-    web_contents = owner;
+-    if (!ExtensionTabUtil::OpenOptionsPageFromWebContents(extension, web_contents)) {
++    if (!user_gesture()) {
++      return RespondNow(Error("Select Extension options to open this page."));
++    }
++    if (options_url.SchemeIs(kExtensionScheme) &&
++        options_url.host() == extension->id()) {
++      content::WebContents::CreateParams options_params(
++          browser_context(), content::SiteInstance::CreateForURL(
++                                 browser_context(), options_url));
++      options_params.initially_hidden = true;
++      auto options = content::WebContents::Create(options_params);
++      ChromeExtensionWebContentsObserver::CreateForWebContents(options.get());
++      options->SetUserData(
++          &raws::kExtensionOptionsContentsKey,
++          std::make_unique<raws::ExtensionOptionsContentsData>(
++              url::Origin::Create(options_url), data->open_external_link));
++      if (!data->show_options.Run(options.get(), options_url)) {
++        return RespondNow(Error("The Extensions manager is no longer open."));
++      }
++      // The native manager's isolated Java host owns this WebContents now.
++      options.release();
++      return RespondNow(NoArguments());
++    }
++    // Hosted apps may declare an ordinary website. Keep browser chrome there.
++    if (!options_url.SchemeIsHTTPOrHTTPS() ||
++        !ExtensionTabUtil::OpenOptionsPageFromWebContents(extension, owner)) {
+       return RespondNow(Error(kCouldNotFindWebContentsError));
+     }
+     return RespondNow(NoArguments());
+diff --git a/chrome/browser/resources/extensions/item.ts b/chrome/browser/resources/extensions/item.ts
+--- a/chrome/browser/resources/extensions/item.ts
++++ b/chrome/browser/resources/extensions/item.ts
+@@ -303,7 +303,11 @@
+     if (!this.data.optionsPage || !this.isEnabled_()) {
+       return;
+     }
+-    this.onCompactControlsCloseClick_();
++    // A native manager keeps these controls behind the dedicated Options view.
++    // Preserve stock behavior for ordinary chrome://extensions tabs.
++    if (new URLSearchParams(window.location.search).get('sandium') !== 'manage') {
++      this.onCompactControlsCloseClick_();
++    }
+     this.delegate?.showItemOptionsPage(this.data);
+   }
+ 
+diff --git a/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/extensions/RawSExtensionsManagerDialog.java b/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/extensions/RawSExtensionsManagerDialog.java
+--- a/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/extensions/RawSExtensionsManagerDialog.java
++++ b/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/extensions/RawSExtensionsManagerDialog.java
+@@ -64,6 +64,12 @@
+     private final LinearLayout mRoot;
+     private final LinearLayout mPanel;
+     private final TextView mLoadingCover;
++    private final TextView mTitle;
++    private final Button mStoreButton;
++    private final FrameLayout mBody;
++    private @Nullable ThinWebView mOptionsView;
++    private @Nullable WebContents mOptionsContents;
++    private @Nullable WebContentsObserver mOptionsObserver;
+     private final WebContentsObserver mPaintObserver;
+     private final Tab mSourceTab;
+     private final TabObserver mSourceTabObserver = new TabObserver() {
+@@ -104,7 +110,20 @@
+         int ink = dark ? 0xFFFAFAFA : 0xFF1A1A1A;
+ 
+         mContents = WebContentsFactory.createRawSExtensionsManager(
+-                sourceTab.getProfile(), sourceTab.getWebContents());
++                sourceTab.getProfile(), sourceTab.getWebContents(),
++                new WebContentsFactory.RawSOptionsHost() {
++                    @Override
++                    public boolean showOptions(WebContents contents, String url) {
++                        return showExtensionOptions(activity, contents, url, surface, ink);
++                    }
++
++                    @Override
++                    public void openExternalLink(String url) {
++                        if (!mDestroyed && !mClosing && mOptionsContents != null) {
++                            openInBrowser(url);
++                        }
++                    }
++                });
+         ContentView contentView = ContentView.createContentView(activity, mContents);
+         mIsolatedWindow =
+                 new ActivityWindowAndroid(activity, /* listenToActivityState= */ true, tracker,
+@@ -146,30 +165,30 @@
+         mPanel.addView(header, new LinearLayout.LayoutParams(
+                 ViewGroup.LayoutParams.MATCH_PARENT, dpPx(56)));
+ 
+-        TextView title = new TextView(activity);
+-        title.setText("Manage Extensions");
+-        title.setTextColor(ink);
+-        title.setTextSize(20);
+-        title.setGravity(Gravity.CENTER);
+-        title.setSingleLine(true);
+-        title.setEllipsize(android.text.TextUtils.TruncateAt.END);
++        mTitle = new TextView(activity);
++        mTitle.setText("Manage Extensions");
++        mTitle.setTextColor(ink);
++        mTitle.setTextSize(20);
++        mTitle.setGravity(Gravity.CENTER);
++        mTitle.setSingleLine(true);
++        mTitle.setEllipsize(android.text.TextUtils.TruncateAt.END);
+         FrameLayout.LayoutParams titleLayout = new FrameLayout.LayoutParams(
+                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
+         titleLayout.setMarginStart(dpPx(56));
+         titleLayout.setMarginEnd(dpPx(56));
+-        header.addView(title, titleLayout);
+-        title.setAccessibilityHeading(true);
++        header.addView(mTitle, titleLayout);
++        mTitle.setAccessibilityHeading(true);
+ 
+         Button back = navButton("‹", ink);
+         back.setContentDescription("Back");
+         back.setOnClickListener(v -> onBackPressed());
+         header.addView(back, new FrameLayout.LayoutParams(
+                 dpPx(56), ViewGroup.LayoutParams.MATCH_PARENT, Gravity.START));
+-        Button menu = navButton("⋮", ink);
+-        menu.setContentDescription("Extension store options");
+-        header.addView(menu, new FrameLayout.LayoutParams(
++        mStoreButton = navButton("⋮", ink);
++        mStoreButton.setContentDescription("Extension store options");
++        header.addView(mStoreButton, new FrameLayout.LayoutParams(
+                 dpPx(56), ViewGroup.LayoutParams.MATCH_PARENT, Gravity.END));
+-        menu.setOnClickListener(v -> {
++        mStoreButton.setOnClickListener(v -> {
+             PopupMenu popup = new PopupMenu(getContext(), v);
+             popup.getMenu().add("Chrome Web Store").setOnMenuItemClickListener(item -> {
+                 openInBrowser(STORE_URL);
+@@ -178,12 +197,12 @@
+             popup.show();
+         });
+ 
+-        FrameLayout body = new FrameLayout(activity);
+-        body.setBackgroundColor(surface);
+-        mPanel.addView(body, new LinearLayout.LayoutParams(
++        mBody = new FrameLayout(activity);
++        mBody.setBackgroundColor(surface);
++        mPanel.addView(mBody, new LinearLayout.LayoutParams(
+                 ViewGroup.LayoutParams.MATCH_PARENT, 0, 1));
+         View extensionContents = mView.getView();
+-        body.addView(extensionContents, new FrameLayout.LayoutParams(
++        mBody.addView(extensionContents, new FrameLayout.LayoutParams(
+                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+         extensionContents.setImportantForAccessibility(
+                 View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS);
+@@ -193,7 +212,7 @@
+         mLoadingCover.setTextColor(ink);
+         mLoadingCover.setText("Loading extensions…");
+         mLoadingCover.setClickable(true);
+-        body.addView(mLoadingCover, new FrameLayout.LayoutParams(
++        mBody.addView(mLoadingCover, new FrameLayout.LayoutParams(
+                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+         mPaintObserver = new WebContentsObserver(mContents) {
+             @Override
+@@ -253,6 +272,112 @@
+         return button;
+     }
+ 
++    private boolean showExtensionOptions(
++            Activity activity, WebContents contents, String url, int surface, int ink) {
++        if (mDestroyed || mClosing || !isShowing() || activity.isFinishing()
++                || activity.isDestroyed() || mOptionsContents != null) {
++            return false;
++        }
++        mOptionsContents = contents;
++        ContentView content = ContentView.createContentView(activity, contents);
++        contents.setDelegates(VersionInfo.getProductVersion(),
++                ViewAndroidDelegate.createBasicDelegate(content), content,
++                mIsolatedWindow, WebContents.createDefaultInternalsHolder());
++
++        var constraints = new ThinWebViewConstraints();
++        constraints.supportsOpacity = true;
++        var view = ThinWebViewFactory.create(activity, constraints, mIsolatedWindow);
++        mOptionsView = view;
++        view.attachWebContents(contents, content,
++                new ThinWebViewAttachParams.Builder()
++                        .setSupportTheming(true)
++                        .setEnableBrowserAutofill(false)
++                        .setWebContentsDelegate(new WebContentsDelegateAndroid() {
++                            @Override
++                            public boolean shouldCreateWebContents(GURL targetUrl) {
++                                // The extension cannot spawn an address-bar-free window.
++                                return false;
++                            }
++                        })
++                        .build());
++        mTitle.setText("Extension options");
++        mStoreButton.setVisibility(View.INVISIBLE);
++        mView.getView().setVisibility(View.GONE);
++        View page = view.getView();
++        mBody.addView(page, new FrameLayout.LayoutParams(
++                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
++        page.setImportantForAccessibility(
++                View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS);
++
++        var cover = new TextView(activity);
++        cover.setGravity(Gravity.CENTER);
++        cover.setBackgroundColor(surface);
++        cover.setTextColor(ink);
++        cover.setText("Loading extension options…");
++        cover.setClickable(true);
++        mBody.addView(cover, new FrameLayout.LayoutParams(
++                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
++        mOptionsObserver = new WebContentsObserver(contents) {
++            @Override
++            public void didFirstVisuallyNonEmptyPaint() {
++                cover.postOnAnimation(() -> {
++                    if (mOptionsContents != contents || mClosing || mDestroyed) return;
++                    page.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_AUTO);
++                    if (ValueAnimator.areAnimatorsEnabled()) {
++                        page.setAlpha(0f);
++                        page.setTranslationY(dpPx(12));
++                        page.animate().alpha(1f).translationY(0f).setDuration(180)
++                                .setInterpolator(Interpolators.EMPHASIZED).start();
++                    }
++                    cover.setVisibility(View.GONE);
++                });
++            }
++
++            @Override
++            public void primaryMainFrameRenderProcessGone(int terminationStatus) {
++                mRoot.post(() -> {
++                    if (mOptionsContents == contents) closeExtensionOptions();
++                });
++            }
++        };
++        // Post the first navigation until the browser-side caller has handed over
++        // ownership. The original Chrome settings page is left intact underneath.
++        mRoot.post(() -> {
++            if (mOptionsContents != contents || mClosing || mDestroyed) return;
++            contents.getNavigationController().loadUrl(
++                    new LoadUrlParams(url, PageTransition.AUTO_TOPLEVEL));
++        });
++        cover.postDelayed(() -> {
++            if (mOptionsContents == contents && cover.getVisibility() == View.VISIBLE) {
++                cover.setText("Couldn’t load extension options. Press Back to return.");
++            }
++        }, 8000);
++        return true;
++    }
++
++    private void closeExtensionOptions() {
++        var contents = mOptionsContents;
++        if (contents == null) return;
++        mOptionsContents = null;
++        var observer = mOptionsObserver;
++        mOptionsObserver = null;
++        if (observer != null) observer.observe(null);
++        var view = mOptionsView;
++        mOptionsView = null;
++        // Only the existing manager view and loading cover are permanent children.
++        while (mBody.getChildCount() > 2) {
++            mBody.removeViewAt(mBody.getChildCount() - 1);
++        }
++        if (view != null) view.destroy();
++        contents.destroy();
++        if (!mDestroyed) {
++            mTitle.setText("Manage Extensions");
++            mStoreButton.setVisibility(View.VISIBLE);
++            mView.getView().setVisibility(View.VISIBLE);
++            mView.getView().requestFocus();
++        }
++    }
++
+     private void openInBrowser(String exactUrl) {
+         if (mClosing) return;
+         mAfterClose = () -> {
+@@ -298,6 +423,10 @@
+     @Override
+     public void onBackPressed() {
+         if (mClosing) return;
++        if (mOptionsContents != null) {
++            closeExtensionOptions();
++            return;
++        }
+         var frame = mContents.getFocusedFrame();
+         if (frame != null && frame.signalCloseWatcherIfActive()) return;
+         var navigation = mContents.getNavigationController();
+@@ -336,6 +465,7 @@
+         mSourceTab.removeObserver(mSourceTabObserver);
+         mPanel.animate().cancel();
+         mPaintObserver.observe(null);
++        closeExtensionOptions();
+         mAfterClose = null;
+         super.dismiss();
+         mView.destroy();

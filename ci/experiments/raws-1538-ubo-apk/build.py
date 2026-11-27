@@ -21,10 +21,10 @@ import slice_state
 
 BASE = 'a274d3f2e250aad22c8ca4309ba75841f9db65dd'
 BRANCH = 'experiment/raws-1538-ubo-apk'
-PARENT = '2de8074469daf3aa432faeacc62eb080af1fb3e9'
+PARENT = 'd11ee5ed955a5b324fab79aa640ed73c70733432'
 COMPLETED_PRODUCER = '5f3587d65a1b7f25d191f9e6cbe7be708f41d1d0'
 SOURCE_OVERLAY_PRODUCER = 'd98f0dda5f43ea7cb6cf8ab2d8e76c58bc75c9e3'
-UI_MANIFEST = 'f18a4251b98e92c8240f47eb406f127e6913527cca88e9ebaa85ef39e5dc731a'
+UI_MANIFEST = '0582e33a7e3760777e01c7917d2e00eaad6476da49bc12ce2c049309e348b2dd'
 JOB = 'raws-1538-ubo-apk'
 RECIPE = 'ba0755150c15aba8ed53278aef717dcace3239235e7f6ae352fd74b768d79774'
 PATCH = '98711eb0f37e3111af828ca27bd7779946b3794433c7dcca3325c966c6c3d9b8'
@@ -62,7 +62,7 @@ def gate():
         raise ValueError('Experiment must not receive RawS signing credentials')
     head = git(ROOT,'rev-parse','HEAD')
     if (head != os.environ.get('CIRCLE_SHA1') or git(ROOT,'rev-parse','HEAD^') != PARENT
-            or git(ROOT,'rev-parse','HEAD^^^^^^^^^^^^^^^^^^^^^^^') != BASE):
+            or git(ROOT,'rev-parse','HEAD^^^^^^^^^^^^^^^^^^^^^^^^') != BASE):
         raise ValueError('Expected exact Extensions candidate as the immediate parent')
     if fingerprint() != ro.FINGERPRINT or ro.full.fresh():
         raise ValueError('Unexpected baseline fingerprint or fresh seed')
@@ -263,9 +263,14 @@ def compile_apk():
         toolbar_targets = [
             'chrome/browser/ui/android/toolbar:core_java__compile_java',
             'chrome/android:chrome_java__compile_java',
+            'chrome/browser/resources/extensions:lint_ts',
+            'chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/extensions:java__compile_java',
+            'obj/chrome/browser/core/chrome_content_browser_client_navigation_throttles.o',
+            'obj/chrome/browser/android/android/web_contents_factory.o',
+            'obj/chrome/browser/extensions/extensions/developer_private_functions.o',
         ]
         cmd = remote_command(out, str(ART/'toolbar-preflight-metrics.json'),
-                             toolbar_targets[0], 390) + toolbar_targets[1:]
+                             toolbar_targets[0], 570) + toolbar_targets[1:]
         run_logged(cmd, ART/'toolbar-preflight.log', phase='raws-toolbar-preflight',
                    cwd=src, env=env, check=True)
     budget=min(1380,int(3300-(time.time()-d.c.read(d.STATE/'job-start.json')['epoch'])-850))

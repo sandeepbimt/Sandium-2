@@ -119,6 +119,10 @@
     {
       "name": "approved-graphite-toolbar-quick-actions.patch",
       "sha256": "50eab15e0a265583fa8637978c18a402e5129f3cba6e20f12c5e7dd38e602e79"
+    },
+    {
+      "name": "open-extension-options-inside-android-manager.patch",
+      "sha256": "032371588b3a8a64239c8d58359e52c9a3e0d1d7410b4a65a5444e653d667f4c"
     }
   ],
   "paths": {
@@ -176,22 +180,22 @@
     },
     "chrome/browser/android/content/java/src/org/chromium/chrome/browser/content/WebContentsFactory.java": {
       "before": "6c78ec52798ced8c9c2cdd97c97ac237636cf4f7da6d0b0eb9d0eec38b2598e8",
-      "after": "ff1a507701b2aef1e83863c0437bfb138623614d6a299336fa28f85dc302b319"
+      "after": "3d9875f9d2fffb02588c9f0c2976080684a846c4888426ddaf35659959397af7"
     },
     "chrome/browser/android/content/raws_extensions_manager_contents.h": {
       "before": null,
-      "after": "4bc5aad98df19386a7d75b6f1e918a2028454928ad1c2bf99372cad43f3cc06e"
+      "after": "1dc79b0c901580c5cc58827c8baa1ca8e59f91d98903674ddff2fc4c2471c800"
     },
     "chrome/browser/android/content/web_contents_factory.cc": {
       "before": "8194fe44ffb9b63773c30e5fd19847149bfab3710243517f647b8ff5b52e5586",
-      "after": "320b8644d767aaeab506c7719089b69b9eac710fde9d248f9772aa5bd7fa0c95"
+      "after": "836189c00cbd4c3361807e7dce0da2befa174a960f337b4f909113d1529b15a7"
     },
     "chrome/browser/chrome_content_browser_client_navigation_throttles.cc": {
       "before": "7e71ba2da1d92f4c5b2a261056497682b9d2ab20287e4e60d1054fc1a1fd72f7",
-      "after": "de741956764f6f706256ce91dd3fe8796f3417195cef277399e2bf8fa42a8ac8"
+      "after": "5e031dfe651134b6b602b5b4d9cfa0c37ee7c0c9f5480b03652c9fadb6231bba"
     },
     "chrome/browser/extensions/api/developer_private/developer_private_functions.cc": {
-      "after": "660f8fd09383e4a90eaafd85700420c2eade3fce9f5f2d90aa453b9f786abf62",
+      "after": "638ed1fab4a51a3e64ca7ed7910bfd345d7b0d55bec0b0439c0db028dda0ce64",
       "before": "a15138f672f73903b49e0798c15177525311cc09b7e5d1b98545c65cacab48af"
     },
     "chrome/browser/extensions/api/developer_private/developer_private_functions.h": {
@@ -211,7 +215,7 @@
       "before": "e760255acd523231241cdb0a95180a0c19232be9cd2c237eb2ff651fdf198860"
     },
     "chrome/browser/resources/extensions/item.ts": {
-      "after": "283b5677da3505ed3463846d9be56e601547aa6358f91bc5ac3934047b4baad5",
+      "after": "4d76bc743ddab0b86e1c281a2df450f38014222336d2571d97377f36b571948e",
       "before": "e31891ea01e423bdae8572aea26d8e6da5dd69a1a9bde692884e9caf1e3ecf28"
     },
     "chrome/browser/resources/extensions/item_list.css": {
@@ -292,7 +296,7 @@
     },
     "chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/extensions/RawSExtensionsManagerDialog.java": {
       "before": null,
-      "after": "60975365075adfe65d90424c488533eca7ed2167348a94f90f4803208f9536c0"
+      "after": "731a8159d0b4e55025cce5ce541d625bcd216921128bfe468551daa21b5ea05d"
     },
     "chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/ToolbarPhone.java": {
       "before": "e4953634a3e54169b419bc84f5517fc62a0af4023bcec057343f2312abc317b5",
