@@ -99,6 +99,10 @@
     {
       "name": "verified-ublock-install-card.patch",
       "sha256": "a953748e76d2bfd2e53964afe42499c4891251cf1f3fb29d2f4ea1859a1c3f9d"
+    },
+    {
+      "name": "use-chromium-tab-observer.patch",
+      "sha256": "de80d1feff78f4b6c30f55dce04beb7d79bee95ca7fb0a904d10f46d64010c0e"
     }
   ],
   "paths": {
@@ -272,7 +276,7 @@
     },
     "chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/extensions/RawSExtensionsManagerDialog.java": {
       "before": null,
-      "after": "547899f857bfbddc867b3e24cc3c5751254f650303194e6e3911c648ec392839"
+      "after": "60975365075adfe65d90424c488533eca7ed2167348a94f90f4803208f9536c0"
     },
     "chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/ToolbarPhone.java": {
       "before": "e4953634a3e54169b419bc84f5517fc62a0af4023bcec057343f2312abc317b5",

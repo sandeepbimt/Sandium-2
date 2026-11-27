@@ -1,0 +1,22 @@
+diff --git a/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/extensions/RawSExtensionsManagerDialog.java b/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/extensions/RawSExtensionsManagerDialog.java
+--- a/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/extensions/RawSExtensionsManagerDialog.java
++++ b/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/extensions/RawSExtensionsManagerDialog.java
+@@ -28,8 +28,8 @@
+ import org.chromium.build.annotations.NullMarked;
+ import org.chromium.build.annotations.Nullable;
+ import org.chromium.chrome.browser.content.WebContentsFactory;
+-import org.chromium.chrome.browser.tab.EmptyTabObserver;
+ import org.chromium.chrome.browser.tab.Tab;
++import org.chromium.chrome.browser.tab.TabObserver;
+ import org.chromium.chrome.browser.tabmodel.TabCreator;
+ import org.chromium.chrome.browser.tab.TabLaunchType;
+ import org.chromium.components.embedder_support.delegate.WebContentsDelegateAndroid;
+@@ -66,7 +66,7 @@
+     private final TextView mLoadingCover;
+     private final WebContentsObserver mPaintObserver;
+     private final Tab mSourceTab;
+-    private final EmptyTabObserver mSourceTabObserver = new EmptyTabObserver() {
++    private final TabObserver mSourceTabObserver = new TabObserver() {
+         @Override
+         public void onHidden(Tab tab, int type) {
+             onSourceTabChanged();
