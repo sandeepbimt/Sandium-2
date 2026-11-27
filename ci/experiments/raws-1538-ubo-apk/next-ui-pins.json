@@ -103,6 +103,10 @@
     {
       "name": "use-chromium-tab-observer.patch",
       "sha256": "de80d1feff78f4b6c30f55dce04beb7d79bee95ca7fb0a904d10f46d64010c0e"
+    },
+    {
+      "name": "fix-extension-detail-template-lint.patch",
+      "sha256": "2a52d258ccbe5164c44665bac7b196c6330e06f1de401a460c87e9acf3781377"
     }
   ],
   "paths": {
@@ -316,7 +320,7 @@
     },
     "chrome/browser/resources/extensions/detail_view.html.ts": {
       "before": "0aae408646d2262bd1e9bdccc1e52f52a185f72884cd1b77ae07e191419f9845",
-      "after": "fcc4777e316dd1228e40c5adb76191346613f48e676450bed72037e72a90a32c"
+      "after": "bb36eb99580fd0e8d387c350d522fa67c987032a41f8aba774c74ffbdfb4eff6"
     },
     "chrome/browser/resources/extensions/detail_view.css": {
       "before": "64d71cf7b4356ed9656843f7652f797b3b51ebe1334ab0140293ccfd2e3c5c21",
@@ -357,6 +361,10 @@
     "extensions/browser/raws_pinned_ubo.h": {
       "before": "9c80a048457d4e4468542c93fbfad3f2272a5a3a40a38bddfa2637f0219c479e",
       "after": "d086509a07320d77885a4ea21fa37d1bf0cfc67f2926c1df70c8e871064fba97"
+    },
+    "chrome/browser/resources/extensions/detail_view.ts": {
+      "before": "ad0dc400c8bc1ecccdf8d1047ae4c8139da34633dc5669abac7592ada79820ce",
+      "after": "3976c4cbecb254af12b7016584a892cdbac1088b3dd29c060bc968eed21d5495"
     }
   },
   "producer": "d98f0dda5f43ea7cb6cf8ab2d8e76c58bc75c9e3"

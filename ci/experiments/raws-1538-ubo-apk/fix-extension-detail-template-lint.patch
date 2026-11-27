@@ -1,0 +1,65 @@
+diff --git a/chrome/browser/resources/extensions/detail_view.html.ts b/chrome/browser/resources/extensions/detail_view.html.ts
+--- a/chrome/browser/resources/extensions/detail_view.html.ts
++++ b/chrome/browser/resources/extensions/detail_view.html.ts
+@@ -9,7 +9,6 @@
+ 
+ export function getHtml(this: ExtensionsDetailViewElement) {
+   // clang-format off
+-  const compact = new URLSearchParams(location.search).get('sandium') === 'manage';
+   return html`<!--_html_template_start_-->
+ <!-- Invisible instead of hidden because VoiceOver refuses to read text of
+ element that's hidden when referenced by an aria label. Unfortunately,
+@@ -17,7 +16,7 @@
+ <div id="a11yAssociation" aria-hidden="true">
+   ${this.a11yAssociation(this.data.name)}
+ </div>
+-<div class="page-container" id="container" ?data-raws-compact="${compact}">
++<div class="page-container" id="container" ?data-raws-compact="${this.useRawSCompactDetails_()}">
+   <div class="page-content">
+     <div class="page-header">
+       <cr-icon-button class="icon-arrow-back no-overlap" id="closeButton"
+@@ -211,14 +210,12 @@
+         </span>
+       </div>
+     ` : ''}
+-    ${compact ? html`
+     <cr-link-row class="hr" id="extensionsOptions"
+         ?disabled="${!this.isEnabled_()}"
+         ?hidden="${!this.shouldShowOptionsLink_()}" label="$i18n{itemOptions}"
+         @click="${this.onExtensionOptionsClick_}" external>
+     </cr-link-row>
+-    ` : ''}
+-    <details class="raws-detail-fold" ?open="${!compact}">
++    <details class="raws-detail-fold" ?open="${!this.useRawSCompactDetails_()}">
+       <summary class="cr-row">$i18n{itemPermissions} &amp; info</summary>
+     <div class="section">
+       <div class="section-title" role="heading" aria-level="2">
+@@ -416,13 +413,6 @@
+         ` : ''}
+       </div>
+     ` : ''}
+-    ${!compact ? html`
+-    <cr-link-row class="hr" id="extensionsOptions"
+-        ?disabled="${!this.isEnabled_()}"
+-        ?hidden="${!this.shouldShowOptionsLink_()}" label="$i18n{itemOptions}"
+-        @click="${this.onExtensionOptionsClick_}" external>
+-    </cr-link-row>
+-    ` : ''}
+     <cr-link-row class="hr" id="extensionsActivityLogLink"
+         ?hidden="${!this.showActivityLog}" label="$i18n{viewActivityLog}"
+         @click="${this.onActivityLogClick_}"
+diff --git a/chrome/browser/resources/extensions/detail_view.ts b/chrome/browser/resources/extensions/detail_view.ts
+--- a/chrome/browser/resources/extensions/detail_view.ts
++++ b/chrome/browser/resources/extensions/detail_view.ts
+@@ -70,6 +70,11 @@
+     return getCss();
+   }
+ 
++  protected useRawSCompactDetails_(): boolean {
++    return new URLSearchParams(window.location.search).get('sandium') ===
++        'manage';
++  }
++
+   override render() {
+     return getHtml.bind(this)();
+   }
