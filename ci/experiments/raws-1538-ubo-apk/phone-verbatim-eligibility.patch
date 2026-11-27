@@ -1,0 +1,14 @@
+--- a/components/omnibox/browser/zero_suggest_verbatim_match_provider.cc
++++ b/components/omnibox/browser/zero_suggest_verbatim_match_provider.cc
+@@ -44,7 +44,10 @@
+     return true;
+   }
+ 
+-  if (is_desktop_android) {
++  // RawS enables the desktop Android target for extensions on phones.
++  // Keep the phone current-page actions without changing desktop or tablet behavior.
++  if (is_desktop_android &&
++      ui::GetDeviceFormFactor() != ui::DEVICE_FORM_FACTOR_PHONE) {
+     return false;
+   }
+ 

@@ -21,10 +21,11 @@ import slice_state
 
 BASE = 'a274d3f2e250aad22c8ca4309ba75841f9db65dd'
 BRANCH = 'experiment/raws-1538-ubo-apk'
-PARENT = '959b5f4b58996fbbcdea3a8adf3ae4225dffb624'
+PARENT = 'bf4a71ecaa8cbafc4cfbc411a825c7ff28ecd99d'
 COMPLETED_PRODUCER = '5f3587d65a1b7f25d191f9e6cbe7be708f41d1d0'
 SOURCE_OVERLAY_PRODUCER = 'd98f0dda5f43ea7cb6cf8ab2d8e76c58bc75c9e3'
 UI_MANIFEST = '652083df3897d1cb948bbf0032599ea72379d9431d111da063451d4cf8d0147a'
+FOLLOWUPS = '3ed8d153853ed00197c998dd6aabc61ef0a9da6e6ff0d568856ad6c832900e4b'
 JOB = 'raws-1538-ubo-apk'
 RECIPE = 'ba0755150c15aba8ed53278aef717dcace3239235e7f6ae352fd74b768d79774'
 PATCH = '98711eb0f37e3111af828ca27bd7779946b3794433c7dcca3325c966c6c3d9b8'
@@ -62,7 +63,7 @@ def gate():
         raise ValueError('Experiment must not receive RawS signing credentials')
     head = git(ROOT,'rev-parse','HEAD')
     if (head != os.environ.get('CIRCLE_SHA1') or git(ROOT,'rev-parse','HEAD^') != PARENT
-            or git(ROOT,'rev-parse','HEAD^^^^^^^^^^^^^^^^^^^^^^^^^^^') != BASE):
+            or git(ROOT,'rev-parse','HEAD^^^^^^^^^^^^^^^^^^^^^^^^^^^^') != BASE):
         raise ValueError('Expected exact Extensions candidate as the immediate parent')
     if fingerprint() != ro.FINGERPRINT or ro.full.fresh():
         raise ValueError('Unexpected baseline fingerprint or fresh seed')
@@ -197,6 +198,29 @@ def apply_next_ui(src):
             raise ValueError('UI patch postimage mismatch: '+name)
 
 
+def apply_phone_ui_followups(src):
+    source = KIT/'phone-ui-followups.json'
+    if file_sha(source) != FOLLOWUPS:
+        raise ValueError('Wrong reviewed phone UI follow-up manifest')
+    manifest = json.loads(source.read_text())
+    for name, pins in manifest['paths'].items():
+        path = safe_path(src, name)
+        if path.is_symlink() or (path.exists() and not path.is_file()):
+            raise ValueError('Phone UI follow-up unexpected source kind: '+name)
+        actual = file_sha(path) if path.is_file() else None
+        if actual not in pins['before']:
+            raise ValueError('Phone UI follow-up source mismatch: '+name)
+    for entry in manifest['patches']:
+        patch = KIT/entry['name']
+        if file_sha(patch) != entry['sha256']:
+            raise ValueError('Phone UI follow-up patch mismatch: '+entry['name'])
+        git(src,'apply','--check','--whitespace=error',str(patch))
+        git(src,'apply','--whitespace=error',str(patch))
+    for name, pins in manifest['paths'].items():
+        if 'after' in pins and file_sha(safe_path(src, name)) not in pins['after']:
+            raise ValueError('Phone UI follow-up result mismatch: '+name)
+
+
 def compile_apk():
     d=ro.full.D
     from ci_restore_probe import validate_restore
@@ -229,6 +253,7 @@ def compile_apk():
         if file_sha(safe_path(src,name)) != pins['after']:
             raise ValueError('Wrong Afterbird postimage: '+name)
     apply_next_ui(src)
+    apply_phone_ui_followups(src)
     import shutil
     shutil.copyfile(KIT/'LICENSE-Bare-extensions',ART/'LICENSE-Bare-extensions.txt')
     if (src/OUTPUT).read_bytes() != args:
@@ -263,6 +288,7 @@ def compile_apk():
         toolbar_targets = [
             'chrome/browser/ui/android/toolbar:core_java__compile_java',
             'chrome/android:chrome_java__compile_java',
+            'chrome/browser/ui/android/extensions:extensions',
             'chrome/browser/resources/extensions:lint_ts',
             'chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/extensions:java__compile_java',
             'obj/chrome/browser/core/chrome_content_browser_client_navigation_throttles.o',

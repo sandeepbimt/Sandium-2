@@ -1,0 +1,60 @@
+--- a/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/ToolbarPhone.java
++++ b/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/ToolbarPhone.java
+@@ -502,7 +502,20 @@
+                         targetHeight + 1, mPaint);
+                 canvas.drawRect(rawSDp(14), 2 * targetHeight, width - rawSDp(14),
+                         2 * targetHeight + 1, mPaint);
++                // Use the same visible tab outline for New tab and the live tab count.
++                float iconHalf = rawSDp(10);
++                float cx = width / 2f;
++                float corner = rawSDp(4);
++                mPaint.setStyle(Paint.Style.STROKE);
++                mPaint.setStrokeWidth(rawSDp(1.5f));
++                mPaint.setColor(ink);
++                for (int slot = 1; slot <= 2; slot++) {
++                    float cy = (slot + 0.5f) * targetHeight;
++                    canvas.drawRoundRect(cx - iconHalf, cy - iconHalf, cx + iconHalf,
++                            cy + iconHalf, corner, corner, mPaint);
++                }
+                 canvas.restoreToCount(save);
++                mPaint.setColor(edge);
+                 mPaint.setStyle(Paint.Style.STROKE);
+                 mPaint.setStrokeWidth(1f);
+                 canvas.drawPath(mOutline, mPaint);
+@@ -516,14 +529,7 @@
+         int count = tabCount == null ? 0 : tabCount;
+         var tabs = makeRawSQuickButton(R.string.raws_toolbar_quick_switch_tabs,
+                 count > 99 ? "∞" : Integer.toString(count), ink);
+-        var tabOutline = new GradientDrawable();
+-        tabOutline.setColor(Color.TRANSPARENT);
+-        tabOutline.setCornerRadius(rawSDp(4));
+-        tabOutline.setStroke(rawSDp(2), ink);
+-        int tabInset = (width - rawSDp(19)) / 2;
+-        int tabInsetY = (targetHeight - rawSDp(19)) / 2;
+-        tabs.setForeground(new android.graphics.drawable.InsetDrawable(
+-                tabOutline, tabInset, tabInsetY, tabInset, tabInsetY));
++        add.setTextSize(14);
+         tabs.setTextSize(12);
+         row.addView(forward, new LinearLayout.LayoutParams(width, targetHeight));
+         row.addView(add, new LinearLayout.LayoutParams(width, targetHeight));
+@@ -572,8 +578,18 @@
+                 getResources().getString(R.string.raws_toolbar_close_quick_actions));
+         row.setTranslationY(rawSDp(12));
+         row.setAlpha(0f);
+-        popup.showAsDropDown(anchor, x - anchorOnScreen[0],
+-                y - anchorOnScreen[1] - anchor.getHeight(), Gravity.LEFT);
++        // The drop-down API can re-anchor this window to the bottom edge.
++        // Position the fixed panel above the toolbar in the same space as the chevron.
++        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
++            popup.setIsLaidOutInScreen(true);
++            popup.showAtLocation(anchor, Gravity.TOP | Gravity.LEFT, x, y);
++        } else {
++            int[] anchorInWindow = new int[2];
++            anchor.getLocationInWindow(anchorInWindow);
++            popup.showAtLocation(anchor, Gravity.TOP | Gravity.LEFT,
++                    x - anchorOnScreen[0] + anchorInWindow[0],
++                    y - anchorOnScreen[1] + anchorInWindow[1]);
++        }
+         row.animate().translationY(0f).alpha(1f).setDuration(190)
+                 .setInterpolator(new DecelerateInterpolator()).start();
+     }

@@ -1,0 +1,24 @@
+--- a/components/omnibox/browser/autocomplete_result.cc
++++ b/components/omnibox/browser/autocomplete_result.cc
+@@ -730,6 +730,21 @@
+             std::make_unique<IOSWebZpsSection>(suggestion_groups_map_));
+       }
+     }
++    // Desktop Android uses desktop grouping even on phones. Admit only the
++    // local current-page match; leave the other suggestion groups unchanged.
++    if (is_android_desktop &&
++        ui::GetDeviceFormFactor() == ui::DEVICE_FORM_FACTOR_PHONE &&
++        std::ranges::any_of(matches_, [](const auto& match) {
++          return match.suggestion_group_id ==
++                 omnibox::GROUP_MOBILE_SEARCH_READY_OMNIBOX;
++        })) {
++      sections.insert(sections.begin(),
++                      std::make_unique<Section>(
++                          1, std::vector<Group>{Group(
++                                 1, {{omnibox::GROUP_MOBILE_SEARCH_READY_OMNIBOX,
++                                      1}})},
++                          suggestion_groups_map_));
++    }
+     matches_ = Section::GroupMatches(std::move(sections), matches_);
+   } else if (use_grouping_for_non_zps) {
+     PSections sections;

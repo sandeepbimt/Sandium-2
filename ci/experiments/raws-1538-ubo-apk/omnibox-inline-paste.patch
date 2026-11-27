@@ -1,0 +1,73 @@
+--- a/chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/suggestions/editurl/EditUrlSuggestionProcessor.java
++++ b/chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/suggestions/editurl/EditUrlSuggestionProcessor.java
+@@ -157,6 +157,13 @@
+                                 () -> onCopyLink(suggestion)),
+                         new Action(
+                                 OmniboxDrawableState.forSmallIcon(
++                                        mUiContext.resourceProvider,
++                                        R.drawable.raws_ic_omnibox_paste,
++                                        true),
++                                mContext.getString(android.R.string.paste),
++                                mSuggestionHost::onPasteFromClipboard),
++                        new Action(
++                                OmniboxDrawableState.forSmallIcon(
+                                         mUiContext.resourceProvider, R.drawable.ic_edit_24dp, true),
+                                 mUiContext.resourceProvider.getString(
+                                         isSearch
+--- a/chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/suggestions/SuggestionHost.java
++++ b/chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/suggestions/SuggestionHost.java
+@@ -18,6 +18,9 @@
+      * @param suggestion Suggestion to use to refine Omnibox query.
+      */
+     void onRefineSuggestion(AutocompleteMatch suggestion);
++
++    /** Paste clipboard text into the focused editor without navigating. */
++    default void onPasteFromClipboard() {}
+ 
+     /**
+      * Triggered when the user selects one of the omnibox suggestions to navigate to.
+--- a/chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/suggestions/AutocompleteMediator.java
++++ b/chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/suggestions/AutocompleteMediator.java
+@@ -907,6 +907,18 @@
+         }
+     }
+ 
++    @Override
++    public void onPasteFromClipboard() {
++        if (!isInInputSession()) return;
++        var text = org.chromium.ui.base.Clipboard.getInstance().getCoercedText();
++        if (TextUtils.isEmpty(text)) return;
++        stopAutocomplete(AutocompleteStopReason.INTERACTION);
++        var input = assumeNonNull(mAutocompleteInput);
++        input.setUserText(text);
++        mDelegate.setOmniboxEditingText(text);
++        onInputChanged();
++    }
++
+     @VisibleForTesting
+     public void switchToTabGroup(AutocompleteMatch match) {
+         mBringTabGroupToFrontCallback.onResult(assumeNonNull(match.getTabGroupUuid()));
+--- a/chrome/browser/ui/android/omnibox/BUILD.gn
++++ b/chrome/browser/ui/android/omnibox/BUILD.gn
+@@ -415,6 +415,7 @@
+     "java/res/drawable/fusebox_popup_bg_tinted.xml",
+     "java/res/drawable/fusebox_popup_bg_tinted_on_dark_bg.xml",
+     "java/res/drawable/gs_drive_vd_theme_24.xml",
++    "java/res/drawable/raws_ic_omnibox_paste.xml",
+     "java/res/drawable/ic_add_round_20dp_with_inset.xml",
+     "java/res/drawable/ic_attach_file_24dp.xml",
+     "java/res/drawable/ic_attach_image_24dp.xml",
+diff --git a/chrome/browser/ui/android/omnibox/java/res/drawable/raws_ic_omnibox_paste.xml b/chrome/browser/ui/android/omnibox/java/res/drawable/raws_ic_omnibox_paste.xml
+new file mode 100644
+--- /dev/null
++++ b/chrome/browser/ui/android/omnibox/java/res/drawable/raws_ic_omnibox_paste.xml
+@@ -0,0 +1,9 @@
++<?xml version="1.0" encoding="utf-8"?>
++<vector xmlns:android="http://schemas.android.com/apk/res/android"
++    android:width="24dp"
++    android:height="24dp"
++    android:viewportWidth="24"
++    android:viewportHeight="24">
++    <path android:fillColor="#FF000000"
++        android:pathData="M19,3h-3.2a4,4 0,0 0,-7.6 0H5a2,2 0,0 0,-2 2v15a2,2 0,0 0,2 2h14a2,2 0,0 0,2 -2V5a2,2 0,0 0,-2 -2zM12,2a2,2 0,0 1,2 2H10a2,2 0,0 1,2 -2zM19,20H5V5h3v2h8V5h3zM7,16h10v2H7zM7,11h10v2H7z"/>
++</vector>

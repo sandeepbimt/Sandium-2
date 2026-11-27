@@ -1,0 +1,7 @@
+--- a/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/ToolbarPhone.java
++++ b/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/ToolbarPhone.java
+@@ -195,3 +195,3 @@
+     private final ColorDrawable mRawSGraphiteTopEdge = new ColorDrawable(0xFF343943);
+-    private static final int RAWS_TOOLBAR_GRAPHITE = 0xFF191C22;
++    private static final int RAWS_TOOLBAR_GRAPHITE = 0xFF15181E;
+     private @Nullable Tab mRawSPageObservedTab;

@@ -1,0 +1,90 @@
+--- a/chrome/browser/resources/extensions/item_list.ts
++++ b/chrome/browser/resources/extensions/item_list.ts
+@@ -338,17 +338,27 @@
+       return;
+     }
+     this.ublockInstallState_ = 'installing';
++    const watcher = new AbortController();
++    this.dispatchEvent(new CustomEvent<AbortSignal>(
++        'raws-verified-ublock-install-started', {
++          bubbles: true,
++          composed: true,
++          detail: watcher.signal,
++        }));
+     try {
+       const result = await chrome.developerPrivate.loadCrx(true);
+       if (result === 'cancelled') {
++        watcher.abort();
+         this.ublockInstallState_ = 'idle';
+         return;
+       }
+       if (result !== 'installed') {
++        watcher.abort();
+         this.ublockInstallState_ = 'failed';
+         return;
+       }
+     } catch {
++      watcher.abort();
+       this.ublockInstallState_ = 'failed';
+       return;
+     }
+--- a/chrome/browser/resources/extensions/manager.ts
++++ b/chrome/browser/resources/extensions/manager.ts
+@@ -245,6 +245,10 @@
+ 
+     this.addEventListener('load-error', this.onLoadError_);
+     if (this.sandiumManage_) {
++      this.addEventListener('raws-verified-ublock-install-started', event => {
++        const signal = (event as CustomEvent<AbortSignal>).detail;
++        void this.watchVerifiedUblockInstall_(signal);
++      });
+       this.addEventListener('raws-verified-ublock-installed', () => {
+         void this.refreshVerifiedUblockAfterInstall_();
+       });
+@@ -319,15 +323,30 @@
+     this.narrow_ = e.detail.value;
+   }
+ 
+-  private async refreshVerifiedUblockAfterInstall_(): Promise<void> {
++  private async watchVerifiedUblockInstall_(signal: AbortSignal): Promise<void> {
++    // The native promise and registry event can arrive independently. Reconcile
++    // the authoritative installed row while neither has reached this view.
++    for (const delayMs of [0, 1000, 2000, 4000, 8000, 10000, 15000]) {
++      if (delayMs > 0) {
++        await new Promise<void>(resolve => window.setTimeout(resolve, delayMs));
++      }
++      if (signal.aborted || !this.isConnected ||
++          await this.refreshVerifiedUblockAfterInstall_(signal)) {
++        return;
++      }
++    }
++  }
++
++  private async refreshVerifiedUblockAfterInstall_(
++      signal?: AbortSignal): Promise<boolean> {
+     const id = 'fkgkibajhfbepljeaefdnfnegdcjomkh';
+     // Merge only the verified item. Never reset the manager's active view,
+     // search, other extension rows or their concurrent registry updates.
+     try {
+       const installedInfo = (await this.delegate.getExtensionsInfo()).find(
+           item => item.id === id && item.version === '1.77.2');
+-      if (!this.isConnected || !installedInfo) {
+-        return;
++      if (signal?.aborted || !this.isConnected || !installedInfo) {
++        return false;
+       }
+       const listId = 'extensions_';
+       const index = this.getIndexInList_(listId, id);
+@@ -336,9 +355,10 @@
+       } else if (this.extensions_[index]!.version === '1.75.0') {
+         this.updateItem_(listId, index, installedInfo);
+       }
++      return true;
+     } catch {
+-      // The installer succeeded. Keep the success label until the normal
+-      // registry event delivers the row; never offer a duplicate install.
++      // A missing response is not success and must not offer a duplicate install.
++      return false;
+     }
+   }
+ 

@@ -1,0 +1,153 @@
+{
+  "patches": [
+    {
+      "name": "glide-position-and-tab-glyphs.patch",
+      "sha256": "98636ce6e45db0005eee9b6d817a295c842dc58daeedc565465e8c9104876722"
+    },
+    {
+      "name": "one-shade-darker-toolbar.patch",
+      "sha256": "62905f81e572e8accf3efdc4a9a9d6cc4369f0f4d8af0dda14e842bea28f0b30"
+    },
+    {
+      "name": "unify-phone-extension-popup.patch",
+      "sha256": "6f4d02fb4ae2c3a5b2dfde6cece3c69b22f474b825adad7479cbdab3ac2dd06f"
+    },
+    {
+      "name": "phone-verbatim-eligibility.patch",
+      "sha256": "fb7d30c4a47738c27132c591f3d0e2441634c61e58d137c9c7cdc1bbb8fbef84"
+    },
+    {
+      "name": "phone-verbatim-grouping.patch",
+      "sha256": "5a8a75fac246379d28e3423c1aca41ea1e3adf0e415eab7641669bc061ff35fe"
+    },
+    {
+      "name": "omnibox-inline-paste.patch",
+      "sha256": "2ec0522c5c982de57da6a3e624ea568177d7dd58051e34553afd5f9d2c30891e"
+    },
+    {
+      "name": "reconcile-pending-ublock-install.patch",
+      "sha256": "f579201fb0297674c7e5157c15fc768327e8b1d28662c5d068068ab1c6d98fc1"
+    }
+  ],
+  "paths": {
+    "chrome/browser/resources/extensions/item_list.ts": {
+      "after": [
+        "3f57c41370b985e5142e0c344e43e857a2d2eee10cef39cfcc3e3a1e5163d34e"
+      ],
+      "before": [
+        "e16eec93a060a69e48232c8e8787282b80c601d1604b6e03f1f64c745e2ea49c"
+      ]
+    },
+    "chrome/browser/resources/extensions/manager.ts": {
+      "after": [
+        "b69fb7ed5966cd44852cc75e5f35cce39f0a0065043842443f180bd9868bcb19"
+      ],
+      "before": [
+        "064a8b5acc35eb764d6787ef7925fdfa9ea41e60ee1ac49572e766f5bd184a37"
+      ]
+    },
+    "chrome/browser/ui/android/extensions/extension_action_popup_contents.cc": {
+      "after": [
+        "f49e7523b42a37024f52fb33edd4bcad74f642f979a2aa4b11d023e01a5d5309"
+      ],
+      "before": [
+        "f4a7c700e095795660a9cd0c8a6c9f6efdfbed28094b3c6dffe3ab7325947782"
+      ]
+    },
+    "chrome/browser/ui/android/extensions/extension_action_popup_contents.h": {
+      "after": [
+        "71e650938d7fed95126fe977b7cb5521cd04d85c999158e17222a76bf4b07a27"
+      ],
+      "before": [
+        "67657598ccc487719bcaff61ff026359d6aa5ecec77230e3a8667fbae8fe841a"
+      ]
+    },
+    "chrome/browser/ui/android/extensions/java/src/org/chromium/chrome/browser/ui/extensions/ExtensionActionPopupContents.java": {
+      "after": [
+        "89e6b10d21788570825823dedca72d8c58859b1d778919fa2c43953c15e2ed2b"
+      ],
+      "before": [
+        "d937376223fa142800978352dba199dbfc6f90d5e3d3c6a4957b686b854d9ff7"
+      ]
+    },
+    "chrome/browser/ui/android/omnibox/BUILD.gn": {
+      "after": [
+        "54068895da7dec9e754b9b8a93b5f42b326a7f9101caf99949022977dd7eb639"
+      ],
+      "before": [
+        "bc367a4c6fe420be108bcfa9b1b81994fe7694b6bf32d99945e4565cf63acd62"
+      ]
+    },
+    "chrome/browser/ui/android/omnibox/java/res/drawable/raws_ic_omnibox_paste.xml": {
+      "after": [
+        "e9b5edde42bba51d2353dbbfc0d5ba46f289619e012624e51be057e9a557e1ce"
+      ],
+      "before": [
+        null
+      ]
+    },
+    "chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/suggestions/AutocompleteMediator.java": {
+      "after": [
+        "edf729669c2dc53a15c0bf6199847260b32cc5fc84486b2137993f8de5efa721",
+        "6d112e7f760664fe887c09ac564fdce75225a3c5bb7d4db8fc99212d1cddeda3"
+      ],
+      "before": [
+        "c646beb896da415ec5b6f8bf992ec1c16f851f1b19ed1857f3db80f308b76e8b",
+        "32873eaa530bb0dff5e4c041af469c36a5cd2547c40e5e40f393411d7e88914b"
+      ]
+    },
+    "chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/suggestions/SuggestionHost.java": {
+      "after": [
+        "1824f3c48defbc9a5b3f5c592e793aadbacbea9fb8bcb25dc06fa20671b28397"
+      ],
+      "before": [
+        "96a37815131fd3c1510b8de5da2ab90ae8f3c6178c64f2e3151940f25b9ab40b"
+      ]
+    },
+    "chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/suggestions/editurl/EditUrlSuggestionProcessor.java": {
+      "after": [
+        "a33d2940f196176d7963d2b66b8b3960effa9c482c1525aaa02d97482d74b973"
+      ],
+      "before": [
+        "ada379859383af479464dda8f5d80c256b5858cb8d7fb059f5d526b2b2200cea"
+      ]
+    },
+    "chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/extensions/ExtensionActionListMediator.java": {
+      "after": [
+        "53e1fa19f106db7d3ab8285cfcc61c2c5a402cb962be025da8682368c4e8a28b"
+      ],
+      "before": [
+        "f6edb26c829207745eec936c865f292131f637a8b242879d23d4b11fb01501a6"
+      ]
+    },
+    "chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/extensions/ExtensionActionPopup.java": {
+      "after": [
+        "62f93b009749a2244205c822e98d4b393f3fec15fc68457a7da93c3d988346c1"
+      ],
+      "before": [
+        "7b609c38ce78065d22cc566efdab0f6fd53ba36d04896f7c5d7dcbf2ffa6048f"
+      ]
+    },
+    "chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/ToolbarPhone.java": {
+      "before": [
+        "140a9577c4a3512afc8be2804649614f3abf924be73c817d162e635d8906decc"
+      ]
+    },
+    "components/omnibox/browser/autocomplete_result.cc": {
+      "after": [
+        "1f5f0206157f5e9d2383cc38c15a888d11341af613a6863cfedb4ee186a0f9c6"
+      ],
+      "before": [
+        "1902dc7af0033890e0688aa97803231c1bb8028d59360b2bbcbb0cfd454b03b7"
+      ]
+    },
+    "components/omnibox/browser/zero_suggest_verbatim_match_provider.cc": {
+      "after": [
+        "e44134b46ad053899d8822d4c611d35cf3c31f75c8447f1017adbc5fd09f2d6b"
+      ],
+      "before": [
+        "d44cdfbf897f5adea64c9cff8e4ae07131a514ff12877eb1d25d27cbf914c030"
+      ]
+    }
+  }
+}
