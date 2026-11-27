@@ -1,0 +1,57 @@
+--- a/chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/LocationBarCoordinator.java
++++ b/chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/LocationBarCoordinator.java
+@@ -869,6 +869,11 @@
+     }
+
+     @Override
++    public void pasteIntoFocusedUrlBar() {
++        if (mUrlCoordinator != null) mUrlCoordinator.pasteIntoFocusedUrlBar();
++    }
++
++    @Override
+     public void setKeyboardVisibility(boolean shouldShow) {
+         mUrlCoordinator.setKeyboardVisibility(shouldShow);
+     }
+--- a/chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/UrlBarCoordinator.java
++++ b/chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/UrlBarCoordinator.java
+@@ -264,6 +264,10 @@
+     @Override
+     public boolean shouldAutocomplete() {
+         return mUrlBar.shouldAutocomplete();
++    }
++
++    void pasteIntoFocusedUrlBar() {
++        if (mUrlBar.isFocused()) mUrlBar.onTextContextMenuItem(android.R.id.paste);
+     }
+
+     @Override
+--- a/chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/suggestions/AutocompleteDelegate.java
++++ b/chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/suggestions/AutocompleteDelegate.java
+@@ -26,6 +26,9 @@
+      * @param hasSuggestions Whether 1 or more suggestions are being displayed.
+      */
+     void onSuggestionsChanged(@Nullable AutocompleteMatch defaultMatch, boolean hasSuggestions);
++
++    /** Runs the focused URL editor's regular Paste action, without navigating. */
++    default void pasteIntoFocusedUrlBar() {}
+
+     /**
+      * Requests the keyboard visibility update.
+--- a/chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/suggestions/AutocompleteMediator.java
++++ b/chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/suggestions/AutocompleteMediator.java
+@@ -909,14 +909,7 @@
+
+     @Override
+     public void onPasteFromClipboard() {
+-        if (!isInInputSession()) return;
+-        var text = org.chromium.ui.base.Clipboard.getInstance().getCoercedText();
+-        if (TextUtils.isEmpty(text)) return;
+-        stopAutocomplete(AutocompleteStopReason.INTERACTION);
+-        var input = assumeNonNull(mAutocompleteInput);
+-        input.setUserText(text);
+-        mDelegate.setOmniboxEditingText(text);
+-        onInputChanged();
++        if (isInInputSession()) mDelegate.pasteIntoFocusedUrlBar();
+     }
+
+     @VisibleForTesting

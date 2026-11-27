@@ -27,6 +27,14 @@
     {
       "name": "reconcile-pending-ublock-install.patch",
       "sha256": "f579201fb0297674c7e5157c15fc768327e8b1d28662c5d068068ab1c6d98fc1"
+    },
+    {
+      "name": "native-omnibox-paste.patch",
+      "sha256": "edc62b69ae2848e0bf6f40c057f184d6c34720082dde76643ae061f817530b72"
+    },
+    {
+      "name": "native-navigation-handoff.patch",
+      "sha256": "71631e150f050d1636aaf469af53d464ec7d4c78f267631b2f34702e1b4fe557"
     }
   ],
   "paths": {
@@ -86,10 +94,34 @@
         null
       ]
     },
+    "chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/LocationBarCoordinator.java": {
+      "after": [
+        "ee37d145dda55a13238ae1e5cf6fdb59eb4d1d3f6322cf90615f999ce9d3e976"
+      ],
+      "before": [
+        "89461dcde2d8191da7f5c1683940f8131b4bb9508cf415b785c4a495cac2d757"
+      ]
+    },
+    "chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/UrlBarCoordinator.java": {
+      "after": [
+        "d7b4dcdd835d615016c478f803fac3ca183a27f3cbd44a7a4f19362be55eaa44"
+      ],
+      "before": [
+        "7455538681d35238d28ad611a337fcb5919f06b2b294af2b83e158dddc554752"
+      ]
+    },
+    "chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/suggestions/AutocompleteDelegate.java": {
+      "after": [
+        "b039015e7320ad26ce3c170f7566906d10f04c7321eece0d3a64c771b0ec8dab"
+      ],
+      "before": [
+        "ee3c5438bd451be34d2585fc75e079b54e162c19f76ef3ac4a396b16607d4c9e"
+      ]
+    },
     "chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/suggestions/AutocompleteMediator.java": {
       "after": [
-        "edf729669c2dc53a15c0bf6199847260b32cc5fc84486b2137993f8de5efa721",
-        "6d112e7f760664fe887c09ac564fdce75225a3c5bb7d4db8fc99212d1cddeda3"
+        "cf4c348c57ea5c75f9ed32138b218fd8a50b2449ec7d3e2731db1cf5b2548868",
+        "3d0e9679667b93cd1099668817448be8c8863c36c9f71ec7224983a66aa9c2f5"
       ],
       "before": [
         "c646beb896da415ec5b6f8bf992ec1c16f851f1b19ed1857f3db80f308b76e8b",
@@ -147,6 +179,22 @@
       ],
       "before": [
         "be94204817c7b801f13b76fc397af959185c5e014678d517dff39011b320dc91"
+      ]
+    },
+    "content/browser/navigation_transitions/blur_transition_animation_manager.cc": {
+      "after": [
+        "4dfd625a2d96b7d191b65820f7925bbdbf5cf590801b832354f5e8c748884a51"
+      ],
+      "before": [
+        "d1e5a8d58735960f3bdbb7631e0900a50383b192ad3d49ee33bf54c8efb7bfa1"
+      ]
+    },
+    "content/browser/navigation_transitions/blur_transition_animation_manager_unittest.cc": {
+      "after": [
+        "bea9d22555e3dd844e5b682a75f5d2850217bd5f9a40f530e9f8e5c0af70f722"
+      ],
+      "before": [
+        "8c83ca4588f46685ea61628d49d3aca993be53299bc67143ea4bebbdb92173c0"
       ]
     }
   }

@@ -1,0 +1,102 @@
+--- a/content/browser/navigation_transitions/blur_transition_animation_manager.cc
++++ b/content/browser/navigation_transitions/blur_transition_animation_manager.cc
+@@ -174,9 +174,39 @@
+     return;
+   }
+
+-  // If there's an existing animation from a previous navigation, stop it
+-  // regardless of whether the new navigation will show one. This prevents
+-  // stale blur layers from persisting.
++  const GURL& prev_url = web_contents()->GetLastCommittedURL();
++  const GURL& next_url = navigation_handle->GetURL();
++  // An automatic same-origin follow-up can supersede an intermediate
++  // document before it has painted. Keep the existing layer until that
++  // navigation can reveal content, but never start a new hold timer.
++  if (animation_state_ == AnimationState::kBlurShown && blur_layer_ &&
++      blur_hold_timer_.IsRunning() &&
++      !navigation_handle->IsSameDocument() &&
++      !navigation_handle->IsServedFromBackForwardCache() &&
++      navigation_handle->GetReloadType() == ReloadType::NONE &&
++      !navigation_handle->IsErrorPage() &&
++      navigation_handle->IsRendererInitiated() &&
++      !navigation_handle->HasUserGesture() &&
++      prev_url.SchemeIsHTTPOrHTTPS() && next_url.SchemeIsHTTPOrHTTPS() &&
++      url::Origin::Create(prev_url).IsSameOriginWith(
++          url::Origin::Create(next_url))) {
++    auto* delegate = GetWebContentsViewAndroidDelegate();
++    auto* view = delegate ? delegate->GetNativeView() : nullptr;
++    auto* gesture = delegate
++                        ? delegate->GetBackForwardTransitionAnimationManager()
++                        : nullptr;
++    auto* target = navigation_handle->GetRenderFrameHost();
++    if (target && view && view_observation_.IsObservingSource(view) &&
++        (!gesture || gesture->GetCurrentAnimationStage() ==
++                         BackForwardTransitionAnimationManager::AnimationStage::
++                             kNone)) {
++      navigation_id_ = navigation_handle->GetNavigationId();
++      target_rfh_id_ = target->GetGlobalId();
++      return;
++    }
++  }
++
++  // An unrelated navigation must not inherit a previous transition.
+   SignalExit(TransitionExitReason::kNavigationInterrupted,
+              /*should_animate_out=*/false);
+
+@@ -192,7 +222,6 @@
+
+   // To avoid interfering with animations and custom routing logic implemented
+   // by websites, this transition is restricted to cross-site navigations.
+-  const GURL& prev_url = web_contents()->GetLastCommittedURL();
+   if (prev_url.is_valid() &&
+       navigation_handle->GetURL().host() == prev_url.host()) {
+     return;
+@@ -311,7 +340,8 @@
+     return;
+   }
+
+-  if (navigation_id_ == 0 || !blur_layer_ ||
++  if (animation_state_ == AnimationState::kBlurShown ||
++      navigation_id_ == 0 || !blur_layer_ ||
+       render_frame_host->GetGlobalId() != target_rfh_id_) {
+     return;
+   }
+--- a/content/browser/navigation_transitions/blur_transition_animation_manager_unittest.cc
++++ b/content/browser/navigation_transitions/blur_transition_animation_manager_unittest.cc
+@@ -340,6 +340,36 @@
+       TransitionExitReason::kRenderProcessGone, 1);
+ }
+
++TEST_F(BlurTransitionAnimationManagerTest,
++       KeepsExistingBlurDuringAutomaticSameOriginFollowup) {
++  NavigationSimulator::NavigateAndCommitFromBrowser(
++      web_contents(), GURL("https://source.test"));
++  auto first = NavigationSimulator::CreateBrowserInitiated(
++      GURL("https://example.com/intermediate"), web_contents());
++  first->Start();
++  EXPECT_CALL(*mock_delegate_, ShouldShowBlurTransitionAnimation(_))
++      .WillOnce(Return(true));
++  first->ReadyToCommit();
++  SimulateRFHActivation(first.get());
++  first->Commit();
++
++  ASSERT_EQ(GetAnimationState(), AnimationState::kBlurShown);
++  const auto layer = view_android_->GetLayer()->children().front();
++
++  MockNavigationHandle next(GURL("https://example.com/final"),
++                            web_contents()->GetPrimaryMainFrame());
++  next.set_is_in_primary_main_frame(true);
++  next.set_is_renderer_initiated(true);
++  EXPECT_CALL(next, HasUserGesture()).WillOnce(Return(false));
++  EXPECT_CALL(*mock_delegate_, GetCurrentSurfaceId()).Times(0);
++  manager_->ReadyToCommitNavigation(&next);
++
++  ASSERT_EQ(GetAnimationState(), AnimationState::kBlurShown);
++  EXPECT_EQ(view_android_->GetLayer()->children().front(), layer);
++  manager_->DidFirstVisuallyNonEmptyPaint();
++  EXPECT_EQ(GetAnimationState(), AnimationState::kFadeOut);
++}
++
+ TEST_F(BlurTransitionAnimationManagerTest, NoAnimationOnSameHostNavigation) {
+   // Initial page.
+   auto sim1 = NavigationSimulator::CreateBrowserInitiated(
