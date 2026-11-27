@@ -107,6 +107,10 @@
     {
       "name": "fix-extension-detail-template-lint.patch",
       "sha256": "2a52d258ccbe5164c44665bac7b196c6330e06f1de401a460c87e9acf3781377"
+    },
+    {
+      "name": "fix-extension-manager-native-constructor.patch",
+      "sha256": "f8ea697ba4ef7e2aa3254396ef043c72a3dc18b88622015e71e37e510ca89515"
     }
   ],
   "paths": {
@@ -168,11 +172,11 @@
     },
     "chrome/browser/android/content/raws_extensions_manager_contents.h": {
       "before": null,
-      "after": "f4b9dfd6ec845905500e352f452aae0ac375111a6df9d36b9515bdb7471972f1"
+      "after": "4bc5aad98df19386a7d75b6f1e918a2028454928ad1c2bf99372cad43f3cc06e"
     },
     "chrome/browser/android/content/web_contents_factory.cc": {
       "before": "8194fe44ffb9b63773c30e5fd19847149bfab3710243517f647b8ff5b52e5586",
-      "after": "b6f6b71476e24353323f44e700e3e4505d4db415759b4e86cb1d3c7e68a54f40"
+      "after": "320b8644d767aaeab506c7719089b69b9eac710fde9d248f9772aa5bd7fa0c95"
     },
     "chrome/browser/chrome_content_browser_client_navigation_throttles.cc": {
       "before": "7e71ba2da1d92f4c5b2a261056497682b9d2ab20287e4e60d1054fc1a1fd72f7",
