@@ -1,0 +1,160 @@
+diff --git a/chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/LocationBarPhone.java b/chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/LocationBarPhone.java
+--- a/chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/LocationBarPhone.java
++++ b/chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/LocationBarPhone.java
+@@ -45,6 +45,7 @@
+     private boolean mRawSUnifiedRow;
+     private boolean mRawSNativeHome;
+     private float mRawSNativeUrlTextSizePx;
++    private float mRawSNativeUrlTextScaleX = 1f;
+ 
+     /** Configured by the actual bottom ToolbarPhone, not by a global Omnibox experiment. */
+     @Override
+@@ -169,33 +170,48 @@
+                 setCenteringUrlAndStatusConstraints(mIsCenteringApplied);
+             }
+ 
+-            updateRawSUrlTextSize();
+             if (mIsCenteringApplied || isToolbarUiRefactorEnabled() || wasCentering) {
+                 updateUrlBarWidth(widthMeasureSpec, heightMeasureSpec);
++            } else {
++                updateRawSUrlTextSize(/* availableWidth= */ 0);
+             }
+ 
+             super.onMeasure(widthMeasureSpec, heightMeasureSpec);
+         }
+     }
+ 
+-    private void updateRawSUrlTextSize() {
++    private void updateRawSUrlTextSize(int availableWidth) {
+         if (mUrlBar == null) return;
+         boolean resting = mRawSUnifiedRow && !mUrlBarLaidOutAtFocusedWidth && !mUrlBar.hasFocus();
+         if (resting && mRawSNativeUrlTextSizePx == 0f) {
+             mRawSNativeUrlTextSizePx = mUrlBar.getTextSize();
++            mRawSNativeUrlTextScaleX = mUrlBar.getTextScaleX();
+         }
+         if (resting) {
+             float donorSize = android.util.TypedValue.applyDimension(
+                     android.util.TypedValue.COMPLEX_UNIT_SP, 14.4f,
+                     getResources().getDisplayMetrics());
+             float size = Math.min(donorSize, mRawSNativeUrlTextSizePx);
+-            if (mUrlBar.getTextSize() > size) {
++            float scale = mRawSNativeUrlTextScaleX;
++            if (!mRawSNativeHome && availableWidth > 0) {
++                float fit = mUrlBar.getRawSOriginFitRatio(size, scale, availableWidth);
++                // Keep glyphs tall enough to read. Condense wider origins only when that
++                // avoids losing the start while still showing the entire hostname.
++                float sizeRatio = Math.max(0.85f, fit);
++                size *= sizeRatio;
++                scale *= fit / sizeRatio;
++            }
++            if (mUrlBar.getTextSize() != size) {
+                 mUrlBar.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, size);
+             }
++            if (mUrlBar.getTextScaleX() != scale) mUrlBar.setTextScaleX(scale);
+         } else if (mRawSNativeUrlTextSizePx != 0f) {
+             float nativeSize = mRawSNativeUrlTextSizePx;
+             mRawSNativeUrlTextSizePx = 0f;
+             mUrlBar.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, nativeSize);
++            if (mUrlBar.getTextScaleX() != mRawSNativeUrlTextScaleX) {
++                mUrlBar.setTextScaleX(mRawSNativeUrlTextScaleX);
++            }
+         }
+     }
+ 
+@@ -334,6 +350,9 @@
+                     getMaxUrlWidth(mLocationBarStatusView, maxComponentWidth, heightMeasureSpec);
+             maxUrlWidth = Math.max(mRawSUnifiedRow ? 1 : mMinUrlWidthPx, maxUrlWidth);
+ 
++            int availableWidth = maxUrlWidth - mUrlBar.getCompoundPaddingLeft()
++                    - mUrlBar.getCompoundPaddingRight();
++            updateRawSUrlTextSize(availableWidth);
+             int desiredUrlWidth =
+                     getUrlBarTextWidth()
+                             + mUrlBar.getPaddingStart()
+@@ -352,6 +371,7 @@
+                     finalUrlWidth,
+                     urlBarLayoutParams);
+         } else {
++            updateRawSUrlTextSize(/* availableWidth= */ 0);
+             updateUrlBarCenteringProperties(
+                     /* centeringApplied= */ false,
+                     /* fitsInCenteringSpace= */ false,
+diff --git a/chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/UrlBar.java b/chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/UrlBar.java
+--- a/chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/UrlBar.java
++++ b/chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/UrlBar.java
+@@ -137,6 +137,7 @@
+ 
+     private final Rect mClipBounds = new Rect();
+     private final Paint mRawSEdgeMask = new Paint();
++    private final Paint mRawSOriginMeasurePaint = new Paint();
+     private boolean mRawSTrailingPixelFade;
+ 
+ 
+@@ -170,6 +171,7 @@
+     private int mPreviousScrollResultXPosition;
+     private int mPreviousScrollOriginEndIndex;
+     private float mPreviousScrollFontSize;
++    private float mPreviousScrollTextScaleX;
+     private boolean mPreviousScrollWasRtl;
+     private @Nullable CharSequence mVisibleTextPrefixHint;
+     private @Nullable String mLastMeasuredText;
+@@ -376,6 +378,31 @@
+         updateUrlDirection();
+     }
+ 
++    /** Fits the complete left-to-right origin without rewriting or masking any origin text. */
++    float getRawSOriginFitRatio(float normalSize, float normalScale, int viewportPx) {
++        if (mFocused || hasFocus() || getLayoutDirection() != LAYOUT_DIRECTION_LTR
++                || mCurrentScrollType != ScrollType.SCROLL_TO_TLD
++                || mOriginEndIndex <= 0 || mOriginEndIndex > length()
++                || mOriginEndIndex > 320 || viewportPx <= 3) {
++            return 1f;
++        }
++        CharSequence text = getText();
++        // Bidirectional and non-ASCII origins keep Chromium's native security display.
++        for (int i = 0; i < mOriginEndIndex; ++i) {
++            char c = text.charAt(i);
++            if (c < 0x21 || c > 0x7e) return 1f;
++        }
++        mRawSOriginMeasurePaint.set(getPaint());
++        mRawSOriginMeasurePaint.setTextSize(normalSize);
++        mRawSOriginMeasurePaint.setTextScaleX(normalScale);
++        float fullWidth = mRawSOriginMeasurePaint.measureText(text, 0, mOriginEndIndex);
++        if (fullWidth <= viewportPx - 3f) return 1f;
++        float fit = (viewportPx - 3f) / fullWidth;
++        // Keep the user's font scale and a readable lower bound. Extreme origins retain
++        // Chromium's end-of-domain visibility instead of hiding the registrable domain.
++        return fit >= 0.85f * 0.64f ? fit : 1f;
++    }
++
+     void setRawSTrailingPixelFade(boolean enabled) {
+         if (mRawSTrailingPixelFade == enabled) return;
+         mRawSTrailingPixelFade = enabled;
+@@ -1414,6 +1441,7 @@
+                 // Font size is float but it changes in discrete range (eg small font, big font),
+                 // therefore false negative using regular equality is unlikely.
+                 && currentTextSize == mPreviousScrollFontSize
++                && getTextScaleX() == mPreviousScrollTextScaleX
+                 && currentIsRtl == mPreviousScrollWasRtl
+                 // A previously computed scroll position is only valid for text whose origin ends
+                 // at the same index the position was computed for.
+@@ -1443,6 +1471,7 @@
+         mPreviousScrollText = text.toString();
+         mPreviousScrollViewWidth = measuredWidth;
+         mPreviousScrollFontSize = currentTextSize;
++        mPreviousScrollTextScaleX = getTextScaleX();
+         mPreviousScrollResultXPosition = getScrollX();
+         mPreviousScrollWasRtl = currentIsRtl;
+         mPreviousScrollOriginEndIndex = mOriginEndIndex;
+@@ -1722,7 +1751,10 @@
+         // Running this during onLayout guarantees that isLayoutRequested will remain true,
+         // and the text layout will remain unresolved, suppressing resolution of display text
+         // scroll position.
+-        if (mPendingScroll || mPreviousScrollViewWidth != getVisibleMeasuredViewportWidth()) {
++        if (mPendingScroll || mPreviousScrollViewWidth != getVisibleMeasuredViewportWidth()
++                || (!mFocused && mRawSTrailingPixelFade
++                        && (mPreviousScrollFontSize != getTextSize()
++                                || mPreviousScrollTextScaleX != getTextScaleX()))) {
+             boolean isLayoutRequestedBeforeScrollDisplayText = isLayoutRequested();
+             scrollDisplayText(mCurrentScrollType, /* originChanged= */ false);
+             // Confirmation check: be sure we don't re-request layout as a result of something that

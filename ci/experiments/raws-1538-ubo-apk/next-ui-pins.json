@@ -123,6 +123,10 @@
     {
       "name": "open-extension-options-inside-android-manager.patch",
       "sha256": "032371588b3a8a64239c8d58359e52c9a3e0d1d7410b4a65a5444e653d667f4c"
+    },
+    {
+      "name": "protect-resting-url-start.patch",
+      "sha256": "435e088e4d0a2e3ee13c8ff9b5dd3cd2bcea5f7211c30507f165753712145ee4"
     }
   ],
   "paths": {
@@ -368,11 +372,11 @@
     },
     "chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/LocationBarPhone.java": {
       "before": "e2fd12e2737d94a499481263d9e228fe0334aec46a8b42815aa1b9aae6271e7d",
-      "after": "1678510ff0568800e107ad78884b756e714f5967f798c1ee7bb8be527129353a"
+      "after": "d83701a2149872149f11fdcd9083294c0fbde6c1d3b0fd8e8d64f272c8840425"
     },
     "chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/UrlBar.java": {
       "before": "a3c720cd21ccce6735675176a59dd17573ad29e0cc7337c1d3843666c2081766",
-      "after": "271eb7b13dae55630250b4d830ab285f09558557abbafbb453a1c24fcc899ee7"
+      "after": "ff0e54a293576efac276d8b7f7d5d32bd78f05974251e69e45734c8dbaac3b6d"
     },
     "extensions/browser/raws_pinned_ubo.h": {
       "before": "9c80a048457d4e4468542c93fbfad3f2272a5a3a40a38bddfa2637f0219c479e",

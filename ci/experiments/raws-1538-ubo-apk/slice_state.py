@@ -13,13 +13,15 @@ def digest(p):
     with p.open('rb') as f:
         return hashlib.file_digest(f,'sha256').hexdigest()
 
-SISO_LOG_NAMES = {f'siso.{level}' for level in ('INFO', 'WARNING', 'ERROR', 'FATAL')}
+SISO_LOG_LEVELS = ('INFO', 'WARNING', 'ERROR', 'FATAL')
+SISO_LOG_ALIAS = re.compile(r'siso(?:\.[0-9]+)?\.(' + '|'.join(SISO_LOG_LEVELS) + r')')
 
 def transient_log(out, p):
-    if p.parent != out or p.name not in SISO_LOG_NAMES or not p.is_symlink():
+    alias = SISO_LOG_ALIAS.fullmatch(p.name)
+    if p.parent != out or alias is None or not p.is_symlink():
         return False
     raw = Path(os.readlink(p))
-    level = p.suffix[1:]
+    level = alias.group(1)
     return raw.parent == Path('/tmp') and re.fullmatch(
         rf'siso\.[^/]+\.log\.{level}\.\d{{8}}-\d{{6}}\.\d+', raw.name) is not None
 
