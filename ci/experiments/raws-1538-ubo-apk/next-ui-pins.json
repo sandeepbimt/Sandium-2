@@ -115,6 +115,10 @@
     {
       "name": "qualify-android-extension-owner-tab-interface.patch",
       "sha256": "d004c52e7ebf9e6bc771344d3d9cc5dd8bd153cd16eebf64bbc5ef40739823f2"
+    },
+    {
+      "name": "approved-graphite-toolbar-quick-actions.patch",
+      "sha256": "50eab15e0a265583fa8637978c18a402e5129f3cba6e20f12c5e7dd38e602e79"
     }
   ],
   "paths": {
@@ -168,7 +172,7 @@
     },
     "chrome/android/java/src/org/chromium/chrome/browser/toolbar/ToolbarManager.java": {
       "before": "5224b5dc0302d62c92d5244b8e6ecac2030303bbcc8552e5fd87bc2b46d3c56e",
-      "after": "f3963e225b36d23f2e13ac9bd46d9b020a129f90c9d68bdad496606ec25e9c59"
+      "after": "2774cd399530dc0290d85bfc5965425551ef8f36f8478cdcff21ed7d4e415c55"
     },
     "chrome/browser/android/content/java/src/org/chromium/chrome/browser/content/WebContentsFactory.java": {
       "before": "6c78ec52798ced8c9c2cdd97c97ac237636cf4f7da6d0b0eb9d0eec38b2598e8",
@@ -292,7 +296,7 @@
     },
     "chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/ToolbarPhone.java": {
       "before": "e4953634a3e54169b419bc84f5517fc62a0af4023bcec057343f2312abc317b5",
-      "after": "4c0e4f9d0e9f79cccd36d3aa1d9c1fbbabc3f5951e0e34bc8cac788f93495251"
+      "after": "02246e078737ced2868833b5960d5823cbeb771143c203e4f50fef04a2ea2d07"
     },
     "chrome/browser/ui/webui/extensions/extensions_ui.cc": {
       "after": "069b4c9db40f1171df566c174578cb445753255f0d02770f8fe7aedf75d80f54",
@@ -373,6 +377,18 @@
     "chrome/browser/resources/extensions/detail_view.ts": {
       "before": "ad0dc400c8bc1ecccdf8d1047ae4c8139da34633dc5669abac7592ada79820ce",
       "after": "3976c4cbecb254af12b7016584a892cdbac1088b3dd29c060bc968eed21d5495"
+    },
+    "chrome/browser/ui/android/toolbar/java/res/drawable/raws_page_toolbar_forward.xml": {
+      "before": "47a260489b9af0a66197e8f468260ffdefed030e47726667e585ad91135fd620",
+      "after": "edf4b4dbcccfbe5dfb3bba12310e3c63debf1c74e10eff9accc9658c9a8b9b98"
+    },
+    "chrome/browser/ui/android/toolbar/java/res/layout/toolbar_phone.xml": {
+      "before": "4706fbf7bfd4f0774bc028e523f15a9a70adc14f77e0b05286586fd163006f70",
+      "after": "08c8dbca8ffb3cb19215692fff35c8f569ae3b34743da54c1a6e50d746684b6c"
+    },
+    "chrome/browser/ui/android/toolbar/java/res/values/raws_address_controls.xml": {
+      "before": "9bf1786f4d63adb8f16f7433bf650be5cf4d2356d848f631cac230e01ae61b2c",
+      "after": "0b005290f1f0b0082a9602a936fafe9f540a654beeddd7a7d1a277497b2618d1"
     }
   },
   "producer": "d98f0dda5f43ea7cb6cf8ab2d8e76c58bc75c9e3"

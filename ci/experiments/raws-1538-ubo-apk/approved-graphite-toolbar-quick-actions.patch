@@ -1,0 +1,606 @@
+diff --git a/chrome/android/java/src/org/chromium/chrome/browser/toolbar/ToolbarManager.java b/chrome/android/java/src/org/chromium/chrome/browser/toolbar/ToolbarManager.java
+--- a/chrome/android/java/src/org/chromium/chrome/browser/toolbar/ToolbarManager.java
++++ b/chrome/android/java/src/org/chromium/chrome/browser/toolbar/ToolbarManager.java
+@@ -156,7 +156,6 @@
+ import org.chromium.chrome.browser.preferences.ChromeSharedPreferences;
+ import org.chromium.chrome.browser.profiles.Profile;
+ import org.chromium.chrome.browser.readaloud.ReadAloudController;
+-import org.chromium.chrome.browser.omnibox.status.StatusCoordinator;
+ import org.chromium.chrome.browser.search_engines.TemplateUrlServiceFactory;
+ import org.chromium.chrome.browser.share.ShareDelegate;
+ import org.chromium.chrome.browser.share.send_tab_to_self.SendTabToSelfAndroidBridge;
+@@ -340,7 +339,6 @@
+     private final SettableThemeColorProvider mCustomTabThemeColorProvider;
+     private final TopToolbarCoordinator mToolbar;
+     private final ToolbarLayout mToolbarLayout;
+-    private @Nullable StatusCoordinator mRawSHomeIconStatus;
+     private @Nullable SandiumBalancedTracer mRawSAddressShieldTracer;
+     private final ToolbarControlContainer mControlContainer;
+     private final View mToolbarHairline;
+@@ -2916,37 +2914,15 @@
+                         view -> RawsGlobalShieldSheet.show(
+                                 mActivity, mBottomSheetController, mLocationBarModel.getTab()));
+                 tracer.setEnabled(true);
+-                if (mLocationBar instanceof LocationBarCoordinator coordinator) {
+-                    var status = coordinator.getStatusCoordinator();
+-                    mRawSHomeIconStatus = status;
+-                    status.setRawSHomeSearchIconConsumer(
+-                            phone::setRawSHomeSearchEngineIcon);
+-                }
+             }
+         }
+-        if (mTabSwitcherButtonCoordinator != null && useRawSPhoneControls
+-                && mToolbarLayout instanceof ToolbarPhone phone) {
+-            mTabSwitcherButtonCoordinator.useRawSDualAction();
+-            mTabSwitcherButtonCoordinator.initializeWithNative(
+-                    v -> {
+-                        if (!isUrlBarFocused() && !phone.isInTabSwitcherMode()) {
+-                            // Existing native bottom-bar New Tab action and current model.
+-                            TabCreatorUtil.launchNtp(
+-                                    mTabCreatorManager.getTabCreator(
+-                                            tabModelSelector.isIncognitoSelected()));
+-                        }
+-                    },
+-                    v -> {
+-                        if (isUrlBarFocused() || phone.isInTabSwitcherMode()) return false;
+-                        openGridTabSwitcherHandler.run();
+-                        return true;
+-                    },
+-                    mOverridableTabCount.getObservable(),
+-                    archivedTabCountSupplier,
+-                    tabModelNotificationDotSupplier,
+-                    () -> TabArchiveSettings.setIphShownThisSession(true),
+-                    () -> TabArchiveSettings.setIphShownThisSession(false));
+-        } else if (mTabSwitcherButtonCoordinator != null) {
++        if (useRawSPhoneControls && mToolbarLayout instanceof ToolbarPhone phone) {
++            phone.setRawSQuickNewTabAction(
++                    () -> TabCreatorUtil.launchNtp(
++                            mTabCreatorManager.getTabCreator(
++                                    tabModelSelector.isIncognitoSelected())));
++        }
++        if (mTabSwitcherButtonCoordinator != null) {
+             OnLongClickListener tabSwitcherLongClickListener =
+                     createTabSwitcherLongClickListener(profile, openGridTabSwitcherHandler);
+             mTabSwitcherButtonCoordinator.initializeWithNative(
+@@ -3175,10 +3151,6 @@
+     public void destroy() {
+         if (mIsDestroyed) return;
+         mIsDestroyed = true;
+-        if (mRawSHomeIconStatus != null) {
+-            mRawSHomeIconStatus.setRawSHomeSearchIconConsumer(null);
+-            mRawSHomeIconStatus = null;
+-        }
+         if (mRawSAddressShieldTracer != null) {
+             mRawSAddressShieldTracer.close();
+             mRawSAddressShieldTracer = null;
+diff --git a/chrome/browser/ui/android/toolbar/java/res/drawable/raws_page_toolbar_forward.xml b/chrome/browser/ui/android/toolbar/java/res/drawable/raws_page_toolbar_forward.xml
+--- a/chrome/browser/ui/android/toolbar/java/res/drawable/raws_page_toolbar_forward.xml
++++ b/chrome/browser/ui/android/toolbar/java/res/drawable/raws_page_toolbar_forward.xml
+@@ -1,7 +1,7 @@
+ <?xml version="1.0" encoding="utf-8"?>
+ <vector xmlns:android="http://schemas.android.com/apk/res/android"
+     android:width="24dp" android:height="24dp" android:viewportWidth="24" android:viewportHeight="24"
+-    android:autoMirrored="true">
+-    <path android:pathData="M5,12 L19,12 M13,6 L19,12 L13,18" android:strokeColor="#FFFFFFFF" android:strokeWidth="1.8"
++    android:autoMirrored="false">
++    <path android:pathData="M6,14 L12,8 L18,14" android:strokeColor="#FFFFFFFF" android:strokeWidth="1.8"
+         android:strokeLineCap="round" android:strokeLineJoin="round" android:fillColor="#00000000" />
+ </vector>
+diff --git a/chrome/browser/ui/android/toolbar/java/res/layout/toolbar_phone.xml b/chrome/browser/ui/android/toolbar/java/res/layout/toolbar_phone.xml
+--- a/chrome/browser/ui/android/toolbar/java/res/layout/toolbar_phone.xml
++++ b/chrome/browser/ui/android/toolbar/java/res/layout/toolbar_phone.xml
+@@ -50,20 +50,6 @@
+         android:paddingEnd="@dimen/location_bar_end_padding"
+         tools:ignore="RtlHardcoded" />
+ 
+-    <!-- Shared native phone Forward slot; hidden for noneligible routes. -->
+-    <org.chromium.ui.widget.ChromeImageButton
+-        android:id="@+id/raws_page_toolbar_forward"
+-        style="@style/ToolbarHoverableButton"
+-        android:layout_width="48dp"
+-        android:layout_height="56dp"
+-        android:layout_gravity="center_vertical|start"
+-        android:src="@drawable/raws_page_toolbar_forward"
+-        android:visibility="gone"
+-        android:enabled="false"
+-        android:contentDescription="@string/raws_toolbar_forward"
+-        android:tooltipText="@string/raws_toolbar_forward"
+-        app:tint="@color/default_icon_color_tint_list" />
+-
+     <!-- Shared Sandium mark; static on Home, interactive on webpages only. -->
+     <org.chromium.ui.widget.ChromeImageButton
+         android:id="@+id/raws_address_shield"
+@@ -109,6 +95,18 @@
+             app:menuMaxWidth="@dimen/tab_switcher_menu_width"
+             app:menuVerticalOverlapAnchor="false"/>
+ 
++        <org.chromium.ui.widget.ChromeImageButton
++            android:id="@+id/raws_page_toolbar_quick_actions"
++            style="@style/ToolbarHoverableButton"
++            android:layout_width="48dp"
++            android:layout_height="match_parent"
++            android:scaleType="centerInside"
++            android:src="@drawable/raws_page_toolbar_forward"
++            android:visibility="gone"
++            android:contentDescription="@string/raws_toolbar_quick_actions"
++            android:tooltipText="@string/raws_toolbar_quick_actions"
++            app:tint="@color/default_icon_color_tint_list" />
++
+         <include layout="@layout/menu_button"/>
+ 
+     </LinearLayout>
+diff --git a/chrome/browser/ui/android/toolbar/java/res/values/raws_address_controls.xml b/chrome/browser/ui/android/toolbar/java/res/values/raws_address_controls.xml
+--- a/chrome/browser/ui/android/toolbar/java/res/values/raws_address_controls.xml
++++ b/chrome/browser/ui/android/toolbar/java/res/values/raws_address_controls.xml
+@@ -3,4 +3,7 @@
+   <string name="raws_toolbar_shields">Sandium Lens</string>
+   <string name="raws_toolbar_tab_dual_action">New tab. Touch and hold to switch tabs. %1$s</string>
+   <string name="raws_toolbar_forward">Forward</string>
++  <string name="raws_toolbar_quick_actions">Quick actions</string>
++  <string name="raws_toolbar_close_quick_actions">Close quick actions</string>
++  <string name="raws_toolbar_quick_new_tab">New tab</string>
+ </resources>
+diff --git a/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/ToolbarPhone.java b/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/ToolbarPhone.java
+--- a/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/ToolbarPhone.java
++++ b/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/ToolbarPhone.java
+@@ -46,7 +46,11 @@
+ import android.view.ViewGroup;
+ import android.view.ViewOutlineProvider;
+ import android.view.ViewStub;
++import android.view.animation.DecelerateInterpolator;
++import android.widget.Button;
+ import android.widget.ImageView;
++import android.widget.LinearLayout;
++import android.widget.PopupWindow;
+ 
+ import androidx.annotation.ColorInt;
+ import androidx.annotation.DimenRes;
+@@ -180,14 +184,17 @@
+     private ImageView mHomeButton;
+     private @Nullable ImageView mRawSAddressShield;
+     private @Nullable Drawable mRawSWebMark;
+-    private @Nullable Drawable mRawSHomeMark;
+-    private @Nullable Drawable mRawSCapturedHomeSearchIcon;
+     private int mRawSPageCapturedShield;
+-    private @Nullable ImageView mRawSPageForward;
++    private @Nullable ImageView mRawSQuickActionsButton;
++    private @Nullable PopupWindow mRawSQuickActionsPopup;
++    private @Nullable Button mRawSQuickForward;
++    private @Nullable Runnable mRawSQuickNewTab;
++    private final ColorDrawable mRawSGraphiteTopEdge = new ColorDrawable(0xFF343943);
++    private static final int RAWS_TOOLBAR_GRAPHITE = 0xFF191C22;
+     private @Nullable Tab mRawSPageObservedTab;
+     private int mRawSPageWidth;
+     private boolean mRawSPageActionsActive;
+-    private int mRawSPageCapturedForward;
++    private int mRawSQuickActionsCaptured;
+     private final TabObserver mRawSPageHistoryObserver =
+             new TabObserver() {
+                 @Override
+@@ -286,10 +293,11 @@
+     }
+ 
+     private void observeRawSPageHistoryTab() {
+-        if (mRawSPageForward == null) return;
++        if (mRawSQuickActionsButton == null) return;
+         var tab = getToolbarDataProvider().getTab();
+         if (tab != null && tab.isDestroyed()) tab = null;
+         if (mRawSPageObservedTab != tab) {
++            dismissRawSQuickActions();
+             clearRawSSoftWebColor();
+             if (mRawSPageObservedTab != null) {
+                 mRawSPageObservedTab.removeObserver(mRawSPageHistoryObserver);
+@@ -301,7 +309,7 @@
+     }
+ 
+     private boolean canUseRawSPageActions() {
+-        if (mRawSPageForward == null
++        if (mRawSQuickActionsButton == null
+                 || mRawSAddressShield == null
+                 || mIsToolbarUiRefactorEnabled
+                 || (isIncognitoBranded()
+@@ -347,8 +355,8 @@
+     }
+ 
+     private void updateRawSPageToolbarActions() {
+-        var forward = mRawSPageForward;
+-        if (forward == null) return;
++        var quick = mRawSQuickActionsButton;
++        if (quick == null) return;
+         boolean usePageRow = canUseRawSPageActions();
+         int visibility = !usePageRow ? GONE
+                 : urlHasFocus() || isInTabSwitcherMode() ? INVISIBLE : VISIBLE;
+@@ -370,18 +378,15 @@
+             endParams.setMarginEnd(endMargin);
+             mToolbarButtonsContainer.setLayoutParams(endParams);
+         }
+-        updateRawSAddressShield();
+-        if (forward.getVisibility() != visibility) forward.setVisibility(visibility);
+-        boolean enabled = usePageRow && canGoRawSForward();
+-        if (forward.isEnabled() != enabled) {
+-            forward.setEnabled(enabled);
+-            forward.setImageAlpha(enabled ? 255 : 97);
+-        }
++        if (quick.getVisibility() != visibility) quick.setVisibility(visibility);
++        if (visibility != VISIBLE) dismissRawSQuickActions();
++        updateRawSQuickForward();
+         if (usePageRow) {
+-            if (mHomeButton.getVisibility() != GONE) mHomeButton.setVisibility(GONE);
++            if (mHomeButton.getVisibility() != visibility) mHomeButton.setVisibility(visibility);
+         } else if (switched) {
+             updateButtonVisibility();
+         }
++        updateRawSAddressShield();
+         if (switched && mLocationBar != null) {
+             updateOptionalButton(mButtonData);
+         }
+@@ -391,10 +396,128 @@
+         }
+     }
+ 
+-    private int getRawSPageForwardCaptureState() {
+-        var forward = mRawSPageForward;
+-        if (forward == null || forward.getVisibility() != VISIBLE) return 0;
+-        return forward.isEnabled() ? 2 : 1;
++    private int getRawSQuickActionsCaptureState() {
++        var quick = mRawSQuickActionsButton;
++        return quick != null && quick.getVisibility() == VISIBLE ? 1 : 0;
++    }
++
++    /** Uses the tab model's existing New tab action, including in private browsing. */
++    public void setRawSQuickNewTabAction(Runnable action) {
++        mRawSQuickNewTab = action;
++    }
++
++    private void dismissRawSQuickActions() {
++        var popup = mRawSQuickActionsPopup;
++        if (popup != null) popup.dismiss();
++    }
++
++    private void updateRawSQuickForward() {
++        var button = mRawSQuickForward;
++        if (button == null) return;
++        boolean enabled = canGoRawSForward();
++        button.setEnabled(enabled);
++        button.setAlpha(enabled ? 1f : 0.48f);
++    }
++
++    private void toggleRawSQuickActions(ImageView anchor, ToolbarTabController controller) {
++        if (mRawSQuickActionsPopup != null) {
++            dismissRawSQuickActions();
++            return;
++        }
++        var tab = mRawSPageObservedTab;
++        var newTab = mRawSQuickNewTab;
++        if (tab == null || newTab == null || !canUseRawSPageActions()
++                || !anchor.isShown() || !anchor.isAttachedToWindow() || urlHasFocus()
++                || isInTabSwitcherMode()) {
++            return;
++        }
++
++        boolean light = getRawSRestingBackingColor() == Color.WHITE;
++        int fill = light ? 0xFFF1F3F7 : 0xFF292D36;
++        int edge = light ? 0xFFD1D5DC : 0xFF505865;
++        int ink = light ? 0xFF20242D : 0xFFECEFF5;
++        var row = new LinearLayout(getContext());
++        row.setOrientation(LinearLayout.HORIZONTAL);
++        row.setGravity(Gravity.CENTER_VERTICAL);
++        var shape = new GradientDrawable();
++        shape.setColor(fill);
++        shape.setCornerRadius(rawSDp(28));
++        shape.setStroke(1, edge);
++        row.setBackground(shape);
++        row.setClipToOutline(true);
++        int height = rawSDp(52);
++        var add = makeRawSQuickButton(R.string.raws_toolbar_quick_new_tab, "+", ink);
++        var forward = makeRawSQuickButton(R.string.raws_toolbar_forward, "→", ink);
++        row.addView(add, new LinearLayout.LayoutParams(0, height, 1f));
++        var separator = new View(getContext());
++        separator.setBackgroundColor(edge);
++        row.addView(separator, new LinearLayout.LayoutParams(1, rawSDp(24)));
++        row.addView(forward, new LinearLayout.LayoutParams(0, height, 1f));
++        mRawSQuickForward = forward;
++        updateRawSQuickForward();
++
++        int width = Math.min(rawSDp(272), getWidth() - rawSDp(24));
++        if (width <= 0) {
++            mRawSQuickForward = null;
++            return;
++        }
++        var popup = new PopupWindow(row, width, height, /* focusable= */ true);
++        popup.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
++        popup.setOutsideTouchable(true);
++        popup.setElevation(rawSDp(9));
++        popup.setInputMethodMode(PopupWindow.INPUT_METHOD_NOT_NEEDED);
++        popup.setAnimationStyle(0);
++        popup.setOnDismissListener(() -> {
++            if (mRawSQuickActionsPopup != popup) return;
++            mRawSQuickActionsPopup = null;
++            mRawSQuickForward = null;
++            anchor.setRotation(0f);
++            anchor.setContentDescription(
++                    getResources().getString(R.string.raws_toolbar_quick_actions));
++            if (anchor.isShown() && !urlHasFocus() && !isInTabSwitcherMode()) {
++                if (anchor.isInTouchMode()) return;
++                anchor.requestFocus();
++            }
++        });
++        add.setOnClickListener(v -> {
++            popup.dismiss();
++            if (tab == mRawSPageObservedTab && canUseRawSPageActions() && !urlHasFocus()
++                    && !isInTabSwitcherMode()) newTab.run();
++        });
++        forward.setOnClickListener(v -> {
++            popup.dismiss();
++            if (tab == mRawSPageObservedTab && canUseRawSPageActions() && !urlHasFocus()
++                    && !isInTabSwitcherMode() && canGoRawSForward()) controller.forward();
++        });
++
++        mRawSQuickActionsPopup = popup;
++        anchor.setRotation(180f);
++        anchor.setContentDescription(
++                getResources().getString(R.string.raws_toolbar_close_quick_actions));
++        row.setTranslationY(rawSDp(12));
++        row.setAlpha(0f);
++        int x = getLayoutDirection() == LAYOUT_DIRECTION_RTL
++                ? -rawSDp(12) : anchor.getWidth() + rawSDp(12) - width;
++        popup.showAsDropDown(
++                anchor, x, -anchor.getHeight() - height - rawSDp(8), Gravity.LEFT);
++        row.animate().translationY(0f).alpha(1f).setDuration(190)
++                .setInterpolator(new DecelerateInterpolator()).start();
++    }
++
++    private Button makeRawSQuickButton(int label, String mark, @ColorInt int color) {
++        var button = new Button(getContext(), null, android.R.attr.borderlessButtonStyle);
++        String description = getResources().getString(label);
++        button.setText(mark + "  " + description);
++        button.setContentDescription(description);
++        button.setTextColor(color);
++        button.setTextSize(14);
++        button.setAllCaps(false);
++        button.setSingleLine(true);
++        button.setEllipsize(android.text.TextUtils.TruncateAt.END);
++        button.setMinWidth(0);
++        button.setMinimumWidth(0);
++        button.setPaddingRelative(rawSDp(8), 0, rawSDp(8), 0);
++        return button;
+     }
+ 
+     /** Configured only after native startup by the selected activity's ToolbarManager. */
+@@ -409,17 +532,6 @@
+                 });
+         view.setAccessibilityTraversalBefore(R.id.location_bar);
+         updateRawSAddressShield();
+-    }
+-
+-    /** Paint only the existing decorative Home slot; website Shields owns its own drawable. */
+-    public void setRawSHomeSearchEngineIcon(@Nullable Drawable icon) {
+-        if (mDestroyChecker.isDestroyed() || mRawSHomeMark == icon) return;
+-        mRawSHomeMark = icon;
+-        updateRawSAddressShield();
+-    }
+-
+-    private @Nullable Drawable getRawSVisibleHomeSearchIcon() {
+-        return getRawSShieldCaptureState() == 1 ? mRawSHomeMark : null;
+     }
+ 
+     private boolean canShowRawSAddressShield() {
+@@ -457,7 +569,7 @@
+         }
+         boolean show = home || isWebShield; // Retain the same native slot on cache miss.
+         int visibility = show ? (urlHasFocus() ? INVISIBLE : VISIBLE) : GONE;
+-        Drawable mark = home ? mRawSHomeMark : mRawSWebMark;
++        Drawable mark = mRawSWebMark;
+         if (shield.getDrawable() != mark) shield.setImageDrawable(mark);
+         if (shield.isEnabled() != isWebShield) shield.setEnabled(isWebShield);
+         if (shield.isClickable() != isWebShield) shield.setClickable(isWebShield);
+@@ -477,7 +589,7 @@
+     private int getRawSShieldCaptureState() {
+         var shield = mRawSAddressShield;
+         if (shield == null || shield.getVisibility() != VISIBLE) return 0;
+-        return shield.getDrawable() == mRawSHomeMark ? 1 : 2;
++        return shield.isEnabled() ? 2 : 1;
+     }
+ 
+     @Override
+@@ -868,20 +980,12 @@
+             progressBar.setSandiumCapsuleProgressListener(this::updateRawSCapsuleProgress);
+         }
+         if (mRawSLegacyCapsuleTrial && !ChromeFeatureList.sToolbarPhoneAnimationRefactor.isEnabled()) {
+-            ImageView forward = findViewById(R.id.raws_page_toolbar_forward);
+-            if (forward == null) return;
+-            mRawSPageForward = forward;
+-            forward.setEnabled(false);
+-            forward.setImageAlpha(97);
++            ImageView quick = findViewById(R.id.raws_page_toolbar_quick_actions);
++            if (quick == null) return;
++            mRawSQuickActionsButton = quick;
+             MenuButton menuButton = findViewById(R.id.menu_button_wrapper);
+             if (menuButton != null) menuButton.setRawSSandiumMenuIcon();
+-            forward.setAccessibilityTraversalBefore(R.id.raws_address_shield);
+-            forward.setOnClickListener(v -> {
+-                if (v.isEnabled() && canUseRawSPageActions() && !urlHasFocus()
+-                        && !isInTabSwitcherMode() && canGoRawSForward()) {
+-                    tabController.forward();
+-                }
+-            });
++            quick.setOnClickListener(v -> toggleRawSQuickActions(quick, tabController));
+             observeRawSPageHistoryTab();
+         }
+     }
+@@ -963,9 +1067,11 @@
+             mRawSPageObservedTab.removeObserver(mRawSPageHistoryObserver);
+             mRawSPageObservedTab = null;
+         }
+-        var forward = mRawSPageForward;
+-        if (forward != null) forward.setOnClickListener(null);
+-        mRawSPageForward = null;
++        dismissRawSQuickActions();
++        var quick = mRawSQuickActionsButton;
++        if (quick != null) quick.setOnClickListener(null);
++        mRawSQuickActionsButton = null;
++        mRawSQuickNewTab = null;
+         cancelAnimations();
+         Handler handler = getHandler();
+         if (handler != null && mDefaultSearchEngineChangedRunnable != null) {
+@@ -1195,7 +1301,7 @@
+             super.onMeasure(widthMeasureSpec, heightMeasureSpec);
+             return;
+         }
+-        if (mRawSPageForward != null) {
++        if (mRawSQuickActionsButton != null) {
+             mRawSPageWidth = MeasureSpec.getSize(widthMeasureSpec);
+             updateRawSPageToolbarActions();
+         }
+@@ -1392,10 +1498,6 @@
+             padding = Math.max(padding, buttonWidth);
+         }
+ 
+-        var forward = mRawSPageForward;
+-        if (forward != null && forward.getVisibility() != GONE) {
+-            padding = Math.max(padding, forward.getMeasuredWidth());
+-        }
+         return padding;
+     }
+ 
+@@ -1527,13 +1629,12 @@
+         if (!useRawSFlatRestingBar()) return getRawSSoftBackingColor();
+         // Keep Chromium's foreground palette paired with a contrasting background.
+         int scheme = mThemeColorProvider.getBrandedColorScheme();
+-        if (isIncognitoBranded() || scheme == BrandedColorScheme.DARK_BRANDED_THEME) {
+-            return Color.BLACK;
+-        }
++        if (isIncognitoBranded()) return Color.BLACK;
++        if (scheme == BrandedColorScheme.DARK_BRANDED_THEME) return RAWS_TOOLBAR_GRAPHITE;
+         if (scheme == BrandedColorScheme.LIGHT_BRANDED_THEME) return Color.WHITE;
+         return (getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK)
+                         == Configuration.UI_MODE_NIGHT_YES
+-                ? Color.BLACK : Color.WHITE;
++                ? RAWS_TOOLBAR_GRAPHITE : Color.WHITE;
+     }
+ 
+     /** Returns an opaque band color, or transparent when native paint must remain untouched. */
+@@ -1680,6 +1781,12 @@
+             updateLocationBarBackgroundBounds(mLocationBarBackgroundBounds, mVisualState);
+         }
+ 
++        int bandColor = mTextureCaptureMode ? mRawSCapturedSoftBackingColor : rawSBackingColor;
++        if (bandColor == RAWS_TOOLBAR_GRAPHITE && useRawSFlatRestingBar()) {
++            mRawSGraphiteTopEdge.setBounds(0, 0, getWidth(), 1);
++            mRawSGraphiteTopEdge.draw(canvas);
++        }
++
+         if (mTextureCaptureMode) {
+             drawRawSPillOutlineForCapture(canvas);
+             drawWithoutBackground(canvas);
+@@ -2512,10 +2619,6 @@
+             drawLocationBar(canvas, SystemClock.uptimeMillis());
+         }
+ 
+-        var forward = mRawSPageForward;
+-        if (forward != null && forward.getVisibility() == VISIBLE) {
+-            drawChild(canvas, forward, SystemClock.uptimeMillis());
+-        }
+         var shield = mRawSAddressShield;
+         if (shield != null && shield.getVisibility() == VISIBLE) {
+             drawChild(canvas, shield, SystemClock.uptimeMillis());
+@@ -2561,6 +2664,14 @@
+             tabSwitcherButtonCoordinator.draw(mToolbarButtonsContainer, canvas);
+         }
+ 
++        var quick = mRawSQuickActionsButton;
++        if (quick != null && quick.getVisibility() == VISIBLE && mUrlExpansionFraction != 1f) {
++            canvas.save();
++            ViewUtils.translateCanvasToView(mToolbarButtonsContainer, quick, canvas);
++            quick.draw(canvas);
++            canvas.restore();
++        }
++
+         // Draw the menu button if necessary.
+         final MenuButtonCoordinator menuButtonCoordinator = getMenuButtonCoordinator();
+         if (menuButtonCoordinator != null && menuButtonCoordinator.isVisible()) {
+@@ -2625,7 +2736,7 @@
+     }
+ 
+     private boolean isChildLeft(View child) {
+-        return (child == mHomeButton || child == mRawSPageForward || child == mRawSAddressShield)
++        return (child == mHomeButton || child == mRawSAddressShield)
+                 ^ LocalizationUtils.isLayoutRtl();
+     }
+ 
+@@ -2815,6 +2926,7 @@
+ 
+     @Override
+     protected void onSizeChanged(int w, int h, int oldw, int oldh) {
++        if (w != oldw || h != oldh) dismissRawSQuickActions();
+         mBackgroundOverlayBounds.set(0, 0, w, h);
+         super.onSizeChanged(w, h, oldw, oldh);
+     }
+@@ -2889,9 +3001,8 @@
+                     snapshotDifference = ToolbarSnapshotDifference.THEME_COLOR;
+                 } else if (rawSCapsuleProgressChangesCapture()) {
+                     snapshotDifference = ToolbarSnapshotDifference.PROGRESS;
+-                } else if (mRawSPageCapturedForward != getRawSPageForwardCaptureState()
+-                        || mRawSPageCapturedShield != getRawSShieldCaptureState()
+-                        || mRawSCapturedHomeSearchIcon != getRawSVisibleHomeSearchIcon()) {
++                } else if (mRawSQuickActionsCaptured != getRawSQuickActionsCaptureState()
++                        || mRawSPageCapturedShield != getRawSShieldCaptureState()) {
+                     snapshotDifference = ToolbarSnapshotDifference.HOME_BUTTON;
+                 } else if (!mRawSUnifiedLastCaptureBounds.equals(mRawSUnifiedPendingCaptureBounds)) {
+                     snapshotDifference = ToolbarSnapshotDifference.LOCATION_BAR_WIDTH;
+@@ -2991,6 +3102,7 @@
+     @Override
+     public void onWindowVisibilityChanged(int visibility) {
+         super.onWindowVisibilityChanged(visibility);
++        if (visibility != VISIBLE) dismissRawSQuickActions();
+         updateButtonVisibility();
+     }
+ 
+@@ -3000,7 +3112,8 @@
+         // Under the toolbar UI refactor, the home button moves to the bottom bar and
+         // is never shown in the top toolbar.
+         boolean hideHomeButton =
+-                !mIsHomeButtonEnabled || mIsToolbarUiRefactorEnabled || mRawSPageActionsActive;
++                mIsToolbarUiRefactorEnabled
++                        || (!mIsHomeButtonEnabled && !mRawSPageActionsActive);
+         if (hideHomeButton) {
+             mHomeButton.setVisibility(View.GONE);
+         } else {
+@@ -3034,8 +3147,8 @@
+         if (mOptionalButtonCoordinator != null) {
+             mOptionalButtonCoordinator.setBrandedColorScheme(brandedColorScheme);
+         }
+-        var forward = mRawSPageForward;
+-        if (forward != null && tint != null) ImageViewCompat.setImageTintList(forward, tint);
++        var quick = mRawSQuickActionsButton;
++        if (quick != null && tint != null) ImageViewCompat.setImageTintList(quick, tint);
+ 
+         // TODO(amaralp): Have the LocationBar listen to tint changes.
+         if (mLocationBar != null) mLocationBar.updateVisualsForState();
+@@ -3081,9 +3194,8 @@
+             if (mRawSLegacyCapsuleTrial
+                     && !ChromeFeatureList.sToolbarPhoneAnimationRefactor.isEnabled()) {
+                 getLocationBarContentRect(mRawSUnifiedLastCaptureBounds);
+-                mRawSPageCapturedForward = getRawSPageForwardCaptureState();
++                mRawSQuickActionsCaptured = getRawSQuickActionsCaptureState();
+                 mRawSPageCapturedShield = getRawSShieldCaptureState();
+-                mRawSCapturedHomeSearchIcon = getRawSVisibleHomeSearchIcon();
+                 mRawSCapturedProgressFraction = mRawSProgressFraction;
+                 mRawSCapturedProgressAlpha = mRawSProgressAlpha;
+                 mRawSCapturedProgressRtl = mRawSProgressRtl;
+@@ -3115,6 +3227,7 @@
+ 
+     @Override
+     public void setTabSwitcherMode(boolean inTabSwitcherMode) {
++        if (inTabSwitcherMode) dismissRawSQuickActions();
+         // On entering the tab switcher, set the focusability of the url bar to be false. This will
+         // occur at the start of the enter event, and will later be reset to true upon finishing the
+         // exit event.
+@@ -3311,6 +3424,7 @@
+ 
+     @Override
+     public void onUrlFocusChange(final boolean hasFocus) {
++        if (hasFocus) dismissRawSQuickActions();
+         super.onUrlFocusChange(hasFocus);
+         updateHairlineVisibility();
+ 
