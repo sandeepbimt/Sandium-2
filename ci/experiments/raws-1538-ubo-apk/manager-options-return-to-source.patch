@@ -1,0 +1,31 @@
+diff --git a/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/extensions/RawSExtensionsManagerDialog.java b/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/extensions/RawSExtensionsManagerDialog.java
+--- a/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/extensions/RawSExtensionsManagerDialog.java
++++ b/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/extensions/RawSExtensionsManagerDialog.java
+@@ -146,7 +146,7 @@
+                             if (!mDestroyed && !mClosing && isShowing()
+                                     && !mSourceTab.isDestroyed()
+                                     && (manifestOptions || mOptionsContents != null)) {
+-                                openInBrowser(url);
++                                openInBrowser(url, manifestOptions);
+                             }
+                         });
+                     }
+@@ -420,11 +420,17 @@
+     }
+ 
+     private void openInBrowser(String exactUrl) {
++        openInBrowser(exactUrl, false);
++    }
++
++    private void openInBrowser(String exactUrl, boolean returnToSourceOnBack) {
+         if (mClosing) return;
+         mAfterClose = () -> {
+             if (!mSourceTab.isDestroyed()) {
+                 mTabCreator.createNewTab(new LoadUrlParams(exactUrl, PageTransition.AUTO_TOPLEVEL),
+-                        TabLaunchType.FROM_CHROME_UI, mSourceTab);
++                        returnToSourceOnBack ? TabLaunchType.FROM_LINK
++                                            : TabLaunchType.FROM_CHROME_UI,
++                        mSourceTab);
+             }
+         };
+         closeAnimated();

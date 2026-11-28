@@ -1,0 +1,60 @@
+diff --git a/chrome/browser/extensions/api/developer_private/developer_private_functions.cc b/chrome/browser/extensions/api/developer_private/developer_private_functions.cc
+--- a/chrome/browser/extensions/api/developer_private/developer_private_functions.cc
++++ b/chrome/browser/extensions/api/developer_private/developer_private_functions.cc
+@@ -89,7 +89,6 @@
+ 
+ #if BUILDFLAG(IS_ANDROID)
+ #include "chrome/browser/android/content/raws_extensions_manager_contents.h"
+-#include "chrome/browser/extensions/chrome_extension_web_contents_observer.h"
+ #include "content/public/browser/site_instance.h"
+ #include "components/tabs/public/tab_interface.h"
+ #include "base/files/file.h"
+@@ -1565,21 +1564,9 @@
+     }
+     if (options_url.SchemeIs(kExtensionScheme) &&
+         options_url.host() == extension->id()) {
+-      content::WebContents::CreateParams options_params(
+-          browser_context(), content::SiteInstance::CreateForURL(
+-                                 browser_context(), options_url));
+-      options_params.initially_hidden = true;
+-      auto options = content::WebContents::Create(options_params);
+-      ChromeExtensionWebContentsObserver::CreateForWebContents(options.get());
+-      options->SetUserData(
+-          &raws::kExtensionOptionsContentsKey,
+-          std::make_unique<raws::ExtensionOptionsContentsData>(
+-              url::Origin::Create(options_url), data->open_external_link));
+-      if (!data->show_options.Run(options.get(), options_url)) {
+-        return RespondNow(Error("The Extensions manager is no longer open."));
+-      }
+-      // The native manager's isolated Java host owns this WebContents now.
+-      options.release();
++      // The Android manager's embedded surface can paint blank. Open the
++      // manifest-owned page in a regular foreground Sandium tab instead.
++      data->open_external_link.Run(options_url);
+       return RespondNow(NoArguments());
+     }
+     // Hosted apps may declare an ordinary website. Keep browser chrome there.
+diff --git a/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/extensions/RawSExtensionsManagerDialog.java b/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/extensions/RawSExtensionsManagerDialog.java
+--- a/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/extensions/RawSExtensionsManagerDialog.java
++++ b/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/extensions/RawSExtensionsManagerDialog.java
+@@ -138,9 +138,17 @@
+ 
+                     @Override
+                     public void openExternalLink(String url) {
+-                        if (!mDestroyed && !mClosing && mOptionsContents != null) {
+-                            openInBrowser(url);
+-                        }
++                        // The browser-side options handler verifies the selected extension's
++                        // origin. The embedded-navigation handler only forwards HTTP(S).
++                        boolean manifestOptions =
++                                "chrome-extension".equals(new GURL(url).getScheme());
++                        mRoot.post(() -> {
++                            if (!mDestroyed && !mClosing && isShowing()
++                                    && !mSourceTab.isDestroyed()
++                                    && (manifestOptions || mOptionsContents != null)) {
++                                openInBrowser(url);
++                            }
++                        });
+                     }
+                 });
+         ContentView contentView = ContentView.createContentView(activity, mContents);

@@ -1,0 +1,132 @@
+diff --git a/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/ToolbarPhone.java b/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/ToolbarPhone.java
+--- a/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/ToolbarPhone.java
++++ b/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/ToolbarPhone.java
+@@ -62,6 +62,7 @@
+ import androidx.core.content.ContextCompat;
+ import androidx.core.widget.ImageViewCompat;
+ 
++import org.chromium.base.Callback;
+ import org.chromium.base.ContextUtils;
+ import org.chromium.base.MathUtils;
+ import org.chromium.base.TimeUtils;
+@@ -468,7 +469,7 @@
+         final int surfaceColor = fill;
+         boolean light = Color.luminance(surfaceColor) > 0.5f;
+         int edge = light ? 0xFFD1D5DC : mRawSGraphiteTopEdge.getColor();
+-        int ink = light ? 0xFF20242D : 0xFFECEFF5;
++        int ink = light ? 0xFF20242D : 0xFFDFE5F0;
+ 
+         var row = new LinearLayout(getContext()) {
+             private final Paint mPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+@@ -514,7 +515,7 @@
+                 float cx = width / 2f;
+                 float corner = rawSDp(4);
+                 mPaint.setStyle(Paint.Style.STROKE);
+-                mPaint.setStrokeWidth(rawSDp(1.5f));
++                mPaint.setStrokeWidth(1.65f * getResources().getDisplayMetrics().density);
+                 mPaint.setColor(ink);
+                 for (int slot = 1; slot <= 2; slot++) {
+                     float cy = (slot + 0.5f) * targetHeight;
+@@ -530,14 +531,14 @@
+         };
+         row.setOrientation(LinearLayout.VERTICAL);
+         row.setGravity(Gravity.CENTER_HORIZONTAL);
+-        var forward = makeRawSQuickButton(R.string.raws_toolbar_forward, "→", ink);
+-        var add = makeRawSQuickButton(R.string.raws_toolbar_quick_new_tab, "+", ink);
+-        Integer tabCount = mTabCountSupplier == null ? null : mTabCountSupplier.get();
+-        int count = tabCount == null ? 0 : tabCount;
+-        var tabs = makeRawSQuickButton(R.string.raws_toolbar_quick_switch_tabs,
+-                count > 99 ? "∞" : Integer.toString(count), ink);
+-        add.setTextSize(14);
+-        tabs.setTextSize(12);
++        var forward = makeRawSQuickButton(R.string.raws_toolbar_forward, ink);
++        var add = makeRawSQuickButton(R.string.raws_toolbar_quick_new_tab, ink);
++        var tabs = makeRawSQuickButton(R.string.raws_toolbar_quick_switch_tabs, ink);
++        var countSupplier = mTabCountSupplier;
++        Callback<Integer> countObserver = count ->
++                tabs.setText(count > 99 ? "∞" : Integer.toString(count));
++        Integer count = countSupplier == null ? null : countSupplier.get();
++        countObserver.onResult(count == null ? 0 : count);
+         row.addView(forward, new LinearLayout.LayoutParams(width, targetHeight));
+         row.addView(add, new LinearLayout.LayoutParams(width, targetHeight));
+         row.addView(tabs, new LinearLayout.LayoutParams(width, targetHeight));
+@@ -554,6 +555,7 @@
+             if (mRawSQuickActionsPopup != popup) return;
+             mRawSQuickActionsPopup = null;
+             mRawSQuickForward = null;
++            if (countSupplier != null) countSupplier.removeObserver(countObserver);
+             anchor.setRotation(0f);
+             anchor.setContentDescription(
+                     getResources().getString(R.string.raws_toolbar_quick_actions));
+@@ -597,19 +599,56 @@
+                     x - anchorOnScreen[0] + anchorInWindow[0],
+                     y - anchorOnScreen[1] + anchorInWindow[1]);
+         }
++        if (countSupplier != null && mRawSQuickActionsPopup == popup) {
++            countSupplier.addSyncObserverAndPostIfNonNull(countObserver);
++        }
+         row.animate().translationY(0f).alpha(1f).setDuration(190)
+                 .setInterpolator(new DecelerateInterpolator()).start();
+     }
+ 
+-    private Button makeRawSQuickButton(int label, String mark, @ColorInt int color) {
+-        var button = new Button(getContext(), null, android.R.attr.borderlessButtonStyle);
++    private Button makeRawSQuickButton(int label, @ColorInt int color) {
++        var button = new Button(getContext(), null, android.R.attr.borderlessButtonStyle) {
++            private final Paint mGlyphPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
++            private final Path mGlyph = new Path();
++
++            @Override
++            protected void onSizeChanged(int w, int h, int oldW, int oldH) {
++                super.onSizeChanged(w, h, oldW, oldH);
++                float density = getResources().getDisplayMetrics().density;
++                float cx = w / 2f;
++                float cy = h / 2f;
++                mGlyph.reset();
++                if (label == R.string.raws_toolbar_forward) {
++                    mGlyph.moveTo(cx - 8f * density, cy);
++                    mGlyph.lineTo(cx + 8f * density, cy);
++                    mGlyph.moveTo(cx + 2f * density, cy - 6f * density);
++                    mGlyph.lineTo(cx + 8f * density, cy);
++                    mGlyph.lineTo(cx + 2f * density, cy + 6f * density);
++                } else if (label == R.string.raws_toolbar_quick_new_tab) {
++                    mGlyph.moveTo(cx - 4f * density, cy);
++                    mGlyph.lineTo(cx + 4f * density, cy);
++                    mGlyph.moveTo(cx, cy - 4f * density);
++                    mGlyph.lineTo(cx, cy + 4f * density);
++                }
++                mGlyphPaint.setColor(color);
++                mGlyphPaint.setStyle(Paint.Style.STROKE);
++                mGlyphPaint.setStrokeWidth(1.65f * density);
++                mGlyphPaint.setStrokeCap(Paint.Cap.ROUND);
++                mGlyphPaint.setStrokeJoin(Paint.Join.ROUND);
++            }
++
++            @Override
++            protected void onDraw(Canvas canvas) {
++                super.onDraw(canvas);
++                if (!mGlyph.isEmpty()) canvas.drawPath(mGlyph, mGlyphPaint);
++            }
++        };
+         String description = getResources().getString(label);
+-        button.setText(mark);
+         button.setTooltipText(description);
+         button.setGravity(Gravity.CENTER);
+         button.setContentDescription(description);
+         button.setTextColor(color);
+-        button.setTextSize(22);
++        button.setTextSize(android.util.TypedValue.COMPLEX_UNIT_DIP, 11f);
+         button.setAllCaps(false);
+         button.setSingleLine(true);
+         button.setEllipsize(android.text.TextUtils.TruncateAt.END);
+diff --git a/chrome/browser/ui/android/toolbar/java/res/drawable/raws_page_toolbar_forward.xml b/chrome/browser/ui/android/toolbar/java/res/drawable/raws_page_toolbar_forward.xml
+--- a/chrome/browser/ui/android/toolbar/java/res/drawable/raws_page_toolbar_forward.xml
++++ b/chrome/browser/ui/android/toolbar/java/res/drawable/raws_page_toolbar_forward.xml
+@@ -2,6 +2,6 @@
+ <vector xmlns:android="http://schemas.android.com/apk/res/android"
+     android:width="24dp" android:height="24dp" android:viewportWidth="24" android:viewportHeight="24"
+     android:autoMirrored="false">
+-    <path android:pathData="M6,14 L12,8 L18,14" android:strokeColor="#FFFFFFFF" android:strokeWidth="1.8"
++    <path android:pathData="M6,11 L12,6.5 L18,11 M6,17.5 L12,13 L18,17.5" android:strokeColor="#FFFFFFFF" android:strokeWidth="1.65"
+         android:strokeLineCap="round" android:strokeLineJoin="round" android:fillColor="#00000000" />
+ </vector>

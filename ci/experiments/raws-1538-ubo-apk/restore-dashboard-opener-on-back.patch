@@ -1,0 +1,172 @@
+diff --git a/chrome/browser/extensions/open_tab_helper.cc b/chrome/browser/extensions/open_tab_helper.cc
+--- a/chrome/browser/extensions/open_tab_helper.cc
++++ b/chrome/browser/extensions/open_tab_helper.cc
+@@ -27,6 +27,7 @@
+ #include "content/public/browser/web_contents.h"
+ #include "extensions/browser/extension_function.h"
+ #include "extensions/common/constants.h"
++#include "extensions/common/extension.h"
+ #include "extensions/common/extension_features.h"
+ #include "extensions/common/manifest_handlers/incognito_info.h"
+ #include "ui/base/base_window.h"
+@@ -34,7 +35,9 @@
+ #include "ui/base/window_open_disposition.h"
+ #include "url/gurl.h"
+ 
+-#if !BUILDFLAG(IS_ANDROID)
++#if BUILDFLAG(IS_ANDROID)
++#include "extensions/common/manifest_handlers/options_page_info.h"
++#else
+ #include "chrome/browser/ui/unload_controller.h"
+ #endif
+ 
+@@ -150,6 +153,35 @@
+   return browser;
+ }
+ #endif  // !BUILDFLAG(IS_ANDROID)
++
++#if BUILDFLAG(IS_ANDROID)
++// static
++bool OpenTabHelper::IsOwnAndroidOptionsPage(const GURL& url,
++                                           const Extension& extension) {
++  return url.SchemeIs(kExtensionScheme) && url.host() == extension.id() &&
++         url.EqualsIgnoringRef(OptionsPageInfo::GetOptionsPage(&extension));
++}
++
++// static
++content::WebContents* OpenTabHelper::GetAndroidOptionsOpener(
++    BrowserWindowInterface& browser,
++    const ExtensionFunction& function) {
++  if (browser.GetType() != BrowserWindowInterface::TYPE_NORMAL ||
++      function.browser_context() != browser.GetProfile() ||
++      browser.GetProfile()->IsOffTheRecord()) {
++    return nullptr;
++  }
++  auto* tab_list = TabListInterface::From(&browser);
++  auto* tab = tab_list ? tab_list->GetActiveTab() : nullptr;
++  auto* opener = tab ? tab->GetContents() : nullptr;
++  // Never form an opener chain between extension dashboards.
++  if (!opener || opener->GetBrowserContext() != browser.GetProfile() ||
++      opener->GetLastCommittedURL().SchemeIs(kExtensionScheme)) {
++    return nullptr;
++  }
++  return opener;
++}
++#endif
+ 
+ // static
+ base::expected<content::WebContents*, std::string> OpenTabHelper::OpenTab(
+@@ -235,6 +267,24 @@
+   if (pinned) {
+     add_types |= AddTabTypes::ADD_PINNED;
+   }
++#if BUILDFLAG(IS_ANDROID)
++  if (params.inherit_android_options_opener && active && !pinned && extension &&
++      IsOwnAndroidOptionsPage(validated_url, *extension)) {
++    if (auto* opener = GetAndroidOptionsOpener(browser, function)) {
++      const int opener_index =
++          tab_list->GetIndexOfTab(tab_list->GetActiveTab()->GetHandle());
++      // An explicit Android index uses FROM_CHROME_UI, whose Back minimizes
++      // the app. For a default or next-to-opener position, use link adjacency
++      // instead. Preserve any other explicit position.
++      if (opener_index >= 0 && (index == -1 || index == opener_index + 1)) {
++        navigate_params.tabstrip_index = -1;
++        navigate_params.source_contents = opener;
++        add_types = (add_types & ~AddTabTypes::ADD_FORCE_INDEX) |
++                    AddTabTypes::ADD_INHERIT_OPENER;
++      }
++    }
++  }
++#endif
+   navigate_params.tabstrip_add_types = add_types;
+ 
+   // Ensure that this navigation will not get 'captured' into PWA windows, as
+diff --git a/chrome/browser/extensions/open_tab_helper.h b/chrome/browser/extensions/open_tab_helper.h
+--- a/chrome/browser/extensions/open_tab_helper.h
++++ b/chrome/browser/extensions/open_tab_helper.h
+@@ -22,6 +22,8 @@
+ 
+ namespace extensions {
+ 
++class Extension;
++
+ class OpenTabHelper {
+  public:
+   struct Params {
+@@ -33,6 +35,9 @@
+     std::optional<int> index;
+     std::optional<int> bookmark_id;
+     std::optional<int> split_with_tab_id;
++#if BUILDFLAG(IS_ANDROID)
++    bool inherit_android_options_opener = false;
++#endif
+   };
+ 
+ #if !BUILDFLAG(IS_ANDROID)
+@@ -44,6 +49,16 @@
+   FindOrCreateBrowser(const GURL& validated_url,
+                       ExtensionFunction& function,
+                       bool create_if_needed);
++#endif
++
++#if BUILDFLAG(IS_ANDROID)
++  // True only for an extension's manifest-declared, same-extension Options page.
++  static bool IsOwnAndroidOptionsPage(const GURL& url, const Extension& extension);
++
++  // Return to the current tab only within the same regular browser/profile.
++  static content::WebContents* GetAndroidOptionsOpener(
++      BrowserWindowInterface& browser,
++      const ExtensionFunction& function);
+ #endif
+ 
+   // Opens a new tab given an extension function `function` and creation
+diff --git a/chrome/browser/extensions/api/tabs/tabs_api.cc b/chrome/browser/extensions/api/tabs/tabs_api.cc
+--- a/chrome/browser/extensions/api/tabs/tabs_api.cc
++++ b/chrome/browser/extensions/api/tabs/tabs_api.cc
+@@ -1125,6 +1125,9 @@
+   options.pinned = pinned_;
+   options.index = index_;
+   options.split_with_tab_id = split_with_tab_id_;
++#if BUILDFLAG(IS_ANDROID)
++  options.inherit_android_options_opener = !opener_tab_id_.has_value();
++#endif
+ 
+   base::expected<content::WebContents*, std::string> result =
+       OpenTabHelper::OpenTab(validated_url_, browser, *this, options);
+@@ -1410,6 +1413,23 @@
+   TabListInterface* tab_list =
+       TabListInterface::From(window->GetBrowserWindowInterface());
+   CHECK(tab_list);
++#if BUILDFLAG(IS_ANDROID)
++  // Some extension dashboards reuse an existing tab rather than creating one.
++  // Capture its new opener before UpdateActiveTab selects the dashboard.
++  const auto& update = params->update_properties;
++  std::optional<::tabs::TabHandle> options_opener;
++  if (update.active.value_or(false) && !update.opener_tab_id && extension() &&
++      OpenTabHelper::IsOwnAndroidOptionsPage(contents->GetLastCommittedURL(),
++                                             *extension()) &&
++      (!update.url || OpenTabHelper::IsOwnAndroidOptionsPage(GURL(*update.url),
++                                                            *extension()))) {
++    auto* active = OpenTabHelper::GetAndroidOptionsOpener(
++        *window->GetBrowserWindowInterface(), *this);
++    if (active && active != contents) {
++      options_opener = tab_list->GetActiveTab()->GetHandle();
++    }
++  }
++#endif
+   if (!UpdateActiveTab(*params, *window->profile(),
+                        *window->GetBrowserWindowInterface(), *tab_list,
+                        tab_index, error)) {
+@@ -1516,6 +1536,12 @@
+ #endif
+   }
+ 
++#if BUILDFLAG(IS_ANDROID)
++  if (options_opener && tab_list->GetIndexOfTab(*options_opener) >= 0 &&
++      !target_tab->IsPinned()) {
++    tab_list->SetOpenerForTab(target_tab->GetHandle(), *options_opener);
++  }
++#endif
+   return RespondNow(GetResult(original_contents));
+ }
+ 
