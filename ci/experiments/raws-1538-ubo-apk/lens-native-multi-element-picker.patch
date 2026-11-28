@@ -1,0 +1,718 @@
+diff --git a/chrome/renderer/raws_element_picker_donor.h b/chrome/renderer/raws_element_picker_donor.h
+--- a/chrome/renderer/raws_element_picker_donor.h
++++ b/chrome/renderer/raws_element_picker_donor.h
+@@ -12,6 +12,7 @@
+   const cancelKey = '__rawsCancelElementPicker';
+   const watchKey = '__rawsWatchElementPicker';
+   const readKey = '__rawsReadElementPicker';
++  const editKey = '__rawsEditElementPicker';
+   if (typeof globalThis[cancelKey] === 'function') globalThis[cancelKey]();
+   if (!document.documentElement || document.contentType !== 'text/html') return false;
+ 
+@@ -24,7 +25,7 @@
+     return node;
+   };
+   const cover = document.createElement('div');
+-  cover.style.cssText = 'position:fixed!important;inset:0!important;z-index:2147483647!important;display:block!important;pointer-events:auto!important;touch-action:none!important;';
++  cover.style.cssText = 'position:fixed!important;inset:0!important;z-index:2147483647!important;display:block!important;pointer-events:auto!important;touch-action:pan-y!important;';
+   const shadow = cover.attachShadow({mode: 'closed'});
+   const style = document.createElement('style');
+   style.textContent = "\n  :host {\n    background: transparent;\n    color: black;\n    font: 14px 'Inter Variable', 'Inter', sans-serif;\n    height: 100%;\n    width: 100%;\n    margin: 0;\n    overflow: hidden;\n    --text-color: #1b1b1f;\n    --dynamic-bg-color: color-mix(in srgb, var(--dynamic-color-rgb), var(--text-color) 10%);\n    --dynamic-secondary-btn-bg-color: color-mix(in srgb, var(--dynamic-color-rgb), var(--text-color) 3%);\n\n    --primary: #3E37D4;\n    --title-bar: #f0f0f4;\n    --block-btn-bg-disabled: #46464a33;\n    --block-btn-color-disabled: #21272a80;\n    --button-text: white;\n    --text-area-bg-color: white;\n  }\n\n  @media (prefers-color-scheme: dark) {\n    :host {\n      --text-color: #e3e3e8;\n\n      --primary: #C1C4FF;\n      --title-bar: #303034;\n      --block-btn-bg-disabled: #ebeef033;\n      --block-btn-color-disabled: #ebeef080;\n      --button-text: #251491;\n      --text-area-bg-color: var(--dynamic-bg-color);\n    }\n  }\n\n  #rules-box {\n    height: 8em;\n    margin-bottom: 5px;\n    background-color: #fff;\n    border-radius: .1em;\n    display: none;\n  }\n\n  .desktop.minimized>#rules-box {\n    display: none !important;\n  }\n\n  #rules-box>textarea {\n    box-sizing: border-box;\n    height: 100%;\n    width: 100%;\n    resize: none;\n    border: none;\n    padding: 5px;\n    overflow: auto;\n    overflow-wrap: break-word;\n    background-color: var(--text-area-bg-color);\n    color: var(--text-color);\n  }\n\n  #main-section {\n    background-color: var(--theme-background-color);\n    border-radius: 16px;\n    color-scheme: light only;\n    bottom: 4px;\n    left: unset;\n    right: 4px;\n    width: min(360px, calc(100vw - 32px));\n    box-sizing: border-box;\n    padding-top: 56px;\n    padding-right: 16px;\n    padding-left: 16px;\n    position: fixed;\n    opacity: 1;\n    height: auto;\n  }\n\n  #main-section.minimized.desktop {\n    width: 56px;\n    padding: 0px;\n    height: 56px;\n    min-width: auto;\n    border-radius: 12px;\n    background-color: var(--primary);\n  }\n\n  #main-section.minimized:not(.desktop) {\n    width: 30px;\n    padding: 0px;\n    height: 30px;\n    margin-inline: auto;\n    margin-bottom: 24px;\n    margin-right: 24px;\n    border-radius: 28px;\n    background-color: var(--dynamic-color-rgb);\n  }\n\n  #main-section.minimized .card-header {\n    display: none;\n  }\n\n  #main-section.minimized .minimized-icon {\n    display: block;\n    height: 18px;\n    width: 18px;\n    cursor: pointer;\n    margin: 6px;\n  }\n\n  #main-section.minimized .minimized-icon path {\n    fill: var(--primary);\n  }\n\n  #main-section.minimized.desktop .minimized-icon {\n    height: 25px;\n    width: 25px;\n    margin: 15px;\n  }\n\n  #main-section.minimized.desktop .minimized-icon path {\n    fill: var(--dynamic-color-rgb);\n  }\n\n  #main-section.minimized.desktop #slider-container,\n  #main-section.minimized #buttons {\n    display: none;\n  }\n\n  @media (orientation: portrait) {\n    #main-section:not(.desktop) {\n      bottom: 0;\n      right: 0;\n      left: 0;\n      border-radius: 28px 28px 0 0;\n      padding-top: 41px;\n      border: none;\n      width: 100%;\n    }\n  }\n\n  @media (orientation: landscape) {\n    #main-section:not(.desktop) {\n      padding-top: 36px;\n    }\n  }\n\n\n  .card-header {\n    position: absolute;\n    top: 0;\n    left: 0;\n    width: 100%;\n    height: 28px;\n    display: flex;\n    justify-content: center;\n    align-items: center;\n    border-radius: 16px 16px 0 0;\n  }\n\n  .desktop .card-header {\n    height: 48px;\n    justify-content: right;\n    background-color: var(--dynamic-bg-color);\n    color: var(--text-color);\n  }\n\n  .collapse-button {\n    width: 30px;\n    height: 30px;\n    background-color: var(--dynamic-color-rgb);\n    border-radius: 15px;\n    margin-bottom: 28px;\n    border: 1px solid var(--primary);\n  }\n\n  .desktop .collapse-button {\n      display: none;\n  }\n\n  #title {\n    display: none;\n  }\n\n  .desktop #title {\n    display: block;\n    flex-grow: 1;\n    text-align: left;\n    padding-left: 16px;\n    padding-right: 16px;\n    font-size: 16px;\n    font-weight: 400;\n    color: var(--text-color);\n  }\n\n  .desktop #btn-quit,\n  .minimize-dlg-btn,\n  .close-dlg-btn {\n    display: none;\n  }\n\n  .desktop .minimize-dlg-btn,\n  .desktop .close-dlg-btn {\n    display: block;\n  }\n\n  .title-control-btn svg {\n    width: 25px;\n    height: 25px;\n    margin-right: 20px;\n    cursor: pointer;\n    position: unset;\n  }\n\n  .minimized-icon {\n    display: none;\n  }\n\n  #main-section input {\n    width: calc(100% - 4px);\n  }\n\n  #buttons {\n    display: flex;\n    justify-content: space-between;\n    flex-direction: column;\n  }\n\n  .buttons-line {\n    display: flex;\n    justify-content: space-between;\n    flex-direction: row;\n    padding-bottom: 16px;\n  }\n\n  .button {\n    min-height: 36px;\n    justify-content: center;\n    align-items: center;\n    border-radius: 16px;\n    font-size: 12px;\n    font-weight: 600;\n    flex-grow: 1;\n    border-width: 0px;\n    margin: 3px;\n  }\n\n  .block-button {\n    background-color: var(--primary);\n    color: var(--button-text);\n  }\n\n  .block-button.disabled {\n    background: var(--block-btn-bg-disabled);\n    color: var(--block-btn-color-disabled);\n  }\n\n  .secondary-button {\n    background-color: var(--dynamic-secondary-btn-bg-color);\n    cursor: pointer;\n    padding: 4px 6px;\n    flex-grow: 1;\n    border-width: 0px;\n    color: var(--primary);\n  }\n\n  .secondary-button-bordered {\n    border-width: 1px;\n    border-color: #4036d3;\n  }\n\n  svg {\n    cursor: crosshair;\n    box-sizing: border-box;\n    height: 100%;\n    width: 100%;\n    top: 0;\n    left: 0;\n    position: absolute;\n  }\n\n  .collapse-button svg {\n    position: static;\n  }\n  .collapse-button svg path{\n    fill: var(--primary);\n  }\n\n  #darken {\n    fill: rgba(0, 0, 0, 0.5);\n  }\n\n  #slider-container {\n    padding-bottom: 10px;\n    padding-top: 10px;\n    padding-left: 4px;\n    padding-right: 6px;\n  }\n\n  .target {\n    stroke: #3d39c8;\n    stroke-width: 2px;\n    fill: rgba(121, 116, 224, 0.25);\n  }\n\n  input[type=\"range\"] {\n    appearance: none;\n    width: 100%;\n    height: 10px;\n    background: transparent;\n    margin: 10px 0;\n    cursor: pointer;\n  }\n\n  input[type=\"range\"]::-webkit-slider-runnable-track {\n    width: 100%;\n    height: 10px;\n    border-radius: 5px;\n    transition: background-image 0.2s ease-in-out;\n    background-image:\n        linear-gradient(to right,\n            transparent calc(100%/3 - 1px), var(--theme-background-color) calc(100%/3 - 1px), var(--theme-background-color) calc(100%/3 + 1px), transparent calc(100%/3 + 1px),\n            transparent calc(200%/3 - 1px), var(--theme-background-color) calc(200%/3 - 1px), var(--theme-background-color) calc(200%/3 + 1px), transparent calc(200%/3 + 1px)\n        ),\n        linear-gradient(to right, var(--primary) 0%, var(--primary) var(--value, 0%), transparent var(--value, 0%), transparent 100%);\n    background-size: 100% 100%, 100% 100%;\n    background-position: center, center;\n    background-repeat: no-repeat, no-repeat;\n    background-color: var(--dynamic-bg-color);\n  }\n\n  input[type=\"range\"]::-webkit-slider-thumb {\n    -webkit-appearance: none;\n    border: 2px solid var(--primary);\n    height: 24px;\n    width: 24px;\n    border-radius: 50%;\n    background: var(--primary);\n    margin-top: -7px;\n    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);\n    transition: background 0.2s ease-in-out, border-color 0.2s ease-in-out;\n  }\n";
+@@ -33,8 +34,9 @@
+   const mask = svgNode('mask', {id: 'highlight-mask'});
+   mask.append(svgNode('rect', {x: 0, y: 0, width: '100%', height: '100%', fill: 'white'}));
+   defs.append(mask);
+-  svg.append(defs, svgNode('rect', {id: 'darken', x: 0, y: 0, width: '100%',
+-                                  height: '100vh', mask: 'url(#highlight-mask)'}));
++  const tint = svgNode('rect', {id: 'darken', x: 0, y: 0, width: '100%',
++                               height: '100vh', mask: 'url(#highlight-mask)'});
++  svg.append(defs, tint);
+   shadow.append(style, svg);
+ 
+   // Explicit manual picking is independent of automatic cosmetics.
+@@ -42,9 +44,13 @@
+   const safeTag = /^[a-z][a-z0-9-]{0,30}$/;
+   const maxSelectorBytes = 4096;
+   const maxRevision = 65535;
+-  let picked = null, lastHit = null, initialTap = null, waitForChange = null;
+-  let done = false, redraw = 0, watchdog, revision = 1;
+-  const state = () => [revision, picked?.selector ?? ''];
++  const maxPicks = 12;
++  let picked = [], undoStack = [], initialTap = null, waitForChange = null;
++  let done = false, preview = false, redraw = 0, watchdog, revision = 1;
++  let previewEffects = [];
++  const selection = () => picked.map(item => item.selector).join('\n');
++  const state = () => [revision, (preview ? '1' : '0') +
++      (undoStack.length ? '1\n' : '0\n') + selection()];
+   const stopEvent = event => { event.preventDefault(); event.stopImmediatePropagation(); };
+   const selectorOf = element => {
+     if (!element || !element.isConnected || element.getRootNode() !== document)
+@@ -77,21 +83,34 @@
+     return matches.length === 1 && matches[0] === node ? [node] : null;
+   };
+   const candidateAt = node => {
+-    // Preview and persist only the node hit by the user's tap. Choosing a
+-    // parent is a separate user action, not a silent selector fallback.
++    // Do not allow a tap to hide the complete page or the picker itself.
++    if (!node || node === root || node === document.body || node === cover) return null;
+     const selector = selectorOf(node);
+     const matches = previewMatches(node, selector);
+     return matches ? {node, selector, matches} : null;
+   };
+-  const freshMatches = () => {
+-    if (done || !picked || !cover.isConnected || cover.parentNode !== root) return null;
+-    const matches = previewMatches(picked.node, picked.selector);
+-    return matches && matches.length === picked.matches.length &&
+-      matches.every((node, index) => node === picked.matches[index]) ? matches : null;
++  const clearPreview = () => {
++    for (const effect of previewEffects) effect.cancel();
++    previewEffects = [];
++  };
++  const setPreview = enabled => {
++    clearPreview();
++    preview = enabled && picked.length > 0;
++    tint.style.display = preview ? 'none' : '';
++    if (!preview) return;
++    // Reversible visual preview; no inline-style mutation or layout shift.
++    for (const {node} of picked) {
++      if (typeof node.animate !== 'function') continue;
++      const effect = node.animate(
++          [{opacity: 0}, {opacity: 0}], {duration: 1, fill: 'both', composite: 'replace'});
++      effect.pause();
++      effect.currentTime = 0;
++      previewEffects.push(effect);
++    }
+   };
+   const paint = matches => {
+     svg.querySelectorAll('.mask').forEach(node => node.remove());
+-    if (!matches) return;
++    if (preview || !matches) return;
+     const holes = document.createDocumentFragment();
+     const highlights = document.createDocumentFragment();
+     for (const target of matches) {
+@@ -117,13 +136,18 @@
+     }
+   };
+   const refresh = () => {
+-    let matches = freshMatches();
+-    if (picked && !matches) { picked = null; changed(); }
+-    paint(matches);
+-    return matches;
++    if (done || !cover.isConnected || cover.parentNode !== root) return false;
++    const valid = picked.filter(item => previewMatches(item.node, item.selector));
++    if (valid.length !== picked.length) {
++      picked = valid;
++      setPreview(preview);
++      changed();
++    }
++    paint(picked.map(item => item.node));
++    return !done;
+   };
+   const scheduleRefresh = () => {
+-    if (!done && !redraw && picked)
++    if (!done && !redraw && picked.length)
+       redraw = requestAnimationFrame(() => { redraw = 0; refresh(); });
+   };
+   const watch = after => {
+@@ -132,14 +156,26 @@
+     if (after !== revision || waitForChange) return 0;
+     return new Promise(resolve => { waitForChange = resolve; });
+   };
+-  const read = () => refresh() && picked ? picked.selector : '';
++  const read = () => refresh() ? selection() : '';
++  const edit = undo => {
++    if (!refresh() || (!undo && !picked.length)) return;
++    if (undo) {
++      if (!undoStack.length) return;
++      picked = undoStack.pop().filter(item => previewMatches(item.node, item.selector));
++    }
++    setPreview(undo ? preview : !preview);
++    paint(picked.map(item => item.node));
++    changed();
++  };
+   const escape = event => {
+     if (event.isTrusted && event.key === 'Escape') { stopEvent(event); cancel(); }
+   };
+   const cancel = () => {
+     if (done) return;
+     done = true;
+-    picked = null;
++    picked = [];
++    undoStack = [];
++    clearPreview();
+     clearTimeout(watchdog);
+     if (redraw) cancelAnimationFrame(redraw);
+     overlayLifetime.disconnect();
+@@ -153,6 +189,7 @@
+     if (globalThis[cancelKey] === cancel) delete globalThis[cancelKey];
+     if (globalThis[watchKey] === watch) delete globalThis[watchKey];
+     if (globalThis[readKey] === read) delete globalThis[readKey];
++    if (globalThis[editKey] === edit) delete globalThis[editKey];
+   };
+   const overlayLifetime = new MutationObserver(() => {
+     if (!cover.isConnected || cover.parentNode !== root) cancel();
+@@ -173,13 +210,16 @@
+     cover.style.setProperty('pointer-events', 'none', 'important');
+     const selected = document.elementFromPoint(event.clientX, event.clientY);
+     cover.style.setProperty('pointer-events', 'auto', 'important');
+-    // First tap is exact. A second tap on the same hit deliberately moves
+-    // the preview to its parent; the separate Block button still confirms it.
+-    const target = selected && selected === lastHit && picked?.node?.parentElement
+-        ? picked.node.parentElement : selected;
+-    lastHit = selected;
+-    picked = candidateAt(target);
+-    paint(picked?.matches ?? null);
++    if (preview || !refresh()) return;
++    const next = candidateAt(selected);
++    if (!next) return;
++    const existing = picked.findIndex(item => item.node === selected);
++    if (existing < 0 && picked.length >= maxPicks) return;
++    if (undoStack.length === 24) undoStack.shift();
++    undoStack.push(picked.slice());
++    if (existing >= 0) picked.splice(existing, 1);
++    else picked.push(next);
++    paint(picked.map(item => item.node));
+     changed();
+   }, true);
+   for (const type of ['click', 'contextmenu']) svg.addEventListener(type, stopEvent, true);
+@@ -191,6 +231,7 @@
+   globalThis[cancelKey] = cancel;
+   globalThis[watchKey] = watch;
+   globalThis[readKey] = read;
++  globalThis[editKey] = edit;
+   watchdog = setTimeout(cancel, 60000);
+   root.append(cover);
+   return true;
+diff --git a/chrome/common/chrome_render_frame.mojom b/chrome/common/chrome_render_frame.mojom
+--- a/chrome/common/chrome_render_frame.mojom
++++ b/chrome/common/chrome_render_frame.mojom
+@@ -127,6 +127,7 @@
+   [EnableIf=is_android] BeginRawSElementPicker(mojo_base.mojom.UnguessableToken document) => (bool started);
+   [EnableIf=is_android] WatchRawSElementPicker(mojo_base.mojom.UnguessableToken document, uint32 after_revision) => (uint32 revision, string selector);
+   [EnableIf=is_android] ReadRawSElementPickerSelection(mojo_base.mojom.UnguessableToken document) => (string selector);
++  [EnableIf=is_android] EditRawSElementPicker(mojo_base.mojom.UnguessableToken document, bool undo);
+   [EnableIf=is_android] CancelRawSElementPicker(mojo_base.mojom.UnguessableToken document);
+   [EnableIf=is_android] ApplyRawSUserElementRules(mojo_base.mojom.UnguessableToken document, string css);
+   // Updates the window features of the main frame's render view.
+diff --git a/chrome/android/java/src/org/chromium/chrome/browser/settings/RawsProtectionCopy.java b/chrome/android/java/src/org/chromium/chrome/browser/settings/RawsProtectionCopy.java
+--- a/chrome/android/java/src/org/chromium/chrome/browser/settings/RawsProtectionCopy.java
++++ b/chrome/android/java/src/org/chromium/chrome/browser/settings/RawsProtectionCopy.java
+@@ -158,12 +158,19 @@
+                 && RawsProtectionCopyJni.get().beginElementPicker(contents, started);
+     }
+ 
+-    /** One event-driven watch: "0" no target, "1" selectable target, empty ended. */
++    /** Event-driven watch: decimal selection count, preview flag, then undo flag; empty means ended. */
+     public static boolean watchElementPicker(WebContents contents, String token,
+             Callback<String> state) {
+         ThreadUtils.assertOnUiThread();
+         return LibraryLoader.getInstance().isInitialized()
+                 && RawsProtectionCopyJni.get().watchElementPicker(contents, token, state);
++    }
++
++    /** Undo or toggle preview without authorizing a persistent write. */
++    public static boolean editElementPicker(WebContents contents, String token, boolean undo) {
++        ThreadUtils.assertOnUiThread();
++        return LibraryLoader.getInstance().isInitialized()
++                && RawsProtectionCopyJni.get().editElementPicker(contents, token, undo);
+     }
+ 
+     /** Called only by the trusted native Element Blocker button. */
+@@ -274,6 +281,9 @@
+                 @JniType("content::WebContents*") WebContents contents,
+                 @JniType("std::string") String token,
+                 @JniType("base::OnceCallback<void(std::string)>") Callback<String> state);
++        boolean editElementPicker(
++                @JniType("content::WebContents*") WebContents contents,
++                @JniType("std::string") String token, boolean undo);
+         boolean commitElementPicker(
+                 @JniType("content::WebContents*") WebContents contents,
+                 @JniType("std::string") String token,
+diff --git a/chrome/renderer/chrome_render_frame_observer.h b/chrome/renderer/chrome_render_frame_observer.h
+--- a/chrome/renderer/chrome_render_frame_observer.h
++++ b/chrome/renderer/chrome_render_frame_observer.h
+@@ -171,6 +171,7 @@
+   void ReadRawSElementPickerSelection(
+       const base::UnguessableToken&,
+       ReadRawSElementPickerSelectionCallback) override;
++  void EditRawSElementPicker(const base::UnguessableToken&, bool undo) override;
+   void CancelRawSElementPicker(const base::UnguessableToken&) override;
+   void ApplyRawSUserElementRules(const base::UnguessableToken&,
+                                  const std::string&) override;
+diff --git a/chrome/browser/raws/raw_element_picker_browser.h b/chrome/browser/raws/raw_element_picker_browser.h
+--- a/chrome/browser/raws/raw_element_picker_browser.h
++++ b/chrome/browser/raws/raw_element_picker_browser.h
+@@ -86,6 +86,12 @@
+     remote_->WatchRawSElementPicker(
+         *embedding_, revision_,
+         base::BindOnce(&RawSElementPicker::OnWatch, weak_.GetWeakPtr()));
++    return true;
++  }
++
++  bool Edit(const std::string& session, bool undo) {
++    if (!CurrentFrame() || started_ || commit_ || session != session_) return false;
++    remote_->EditRawSElementPicker(*embedding_, undo);
+     return true;
+   }
+ 
+@@ -170,14 +176,20 @@
+ 
+   void OnWatch(uint32_t revision, const std::string& selector) {
+     if (!watch_ || !CurrentFrame() || revision <= revision_ ||
+-        revision > 65535 ||
+-        (!selector.empty() && !IsSafePickedSelector(selector))) {
++        revision > 65535 || selector.size() < 3 || selector[2] != '\n' ||
++        (selector[0] != '0' && selector[0] != '1') ||
++        (selector[1] != '0' && selector[1] != '1')) {
++      Cancel();
++      return;
++    }
++    const auto batch = ParseElementPickerBatch(std::string_view(selector).substr(3));
++    if (!batch) {
+       Cancel();
+       return;
+     }
+     revision_ = revision;
+-    candidate_ = selector;
+-    std::move(watch_).Run(candidate_.empty() ? "0" : "1");
++    candidate_ = selector.substr(3);
++    std::move(watch_).Run(std::to_string(batch->size()) + selector[0] + selector[1]);
+   }
+ 
+   void OnCommit(const std::string& selector) {
+@@ -190,7 +202,8 @@
+       std::move(completed).Run(false);
+       return;
+     }
+-    if (selector != authorized || !IsSafePickedSelector(selector)) {
++    const auto batch = ParseElementPickerBatch(selector);
++    if (selector != authorized || !batch || batch->empty()) {
+       // A repick or DOM change can invalidate the displayed match. Nothing is
+       // persisted; the pending Watch can publish the new visible picker state.
+       std::move(completed).Run(false);
+@@ -200,7 +213,7 @@
+     Cancel();  // Consume the one-shot document session before persisting.
+     const bool changed =
+         profile && !profile->ShutdownStarted() &&
+-        AddElementRule(*profile, frame->GetLastCommittedOrigin(), selector) &&
++        AddElementRules(*profile, frame->GetLastCommittedOrigin(), *batch) &&
+         ApplyCurrentElementRules(frame, true);
+     std::move(completed).Run(changed);
+   }
+diff --git a/chrome/renderer/chrome_render_frame_observer.cc b/chrome/renderer/chrome_render_frame_observer.cc
+--- a/chrome/renderer/chrome_render_frame_observer.cc
++++ b/chrome/renderer/chrome_render_frame_observer.cc
+@@ -2515,7 +2515,7 @@
+             const int revision = (*status)[0].GetIfInt().value_or(0);
+             const std::string* selector = (*status)[1].GetIfString();
+             if (revision < 1 || revision > 65535 || !selector ||
+-                selector->size() > 4096 ||
++                selector->size() > 12 * (4096 + 1) + 3 ||
+                 static_cast<uint32_t>(revision) <= after_revision) {
+               std::move(done).Run(0, "");
+               return;
+@@ -2553,13 +2553,35 @@
+           [](ReadRawSElementPickerSelectionCallback done,
+              std::optional<base::Value> value, base::TimeTicks) {
+             const std::string* selector = value ? value->GetIfString() : nullptr;
+-            std::move(done).Run(selector && selector->size() <= 4096
++            std::move(done).Run(selector && selector->size() <= 12 * (4096 + 1)
+                                     ? *selector
+                                     : std::string());
+           },
+           std::move(callback)),
+       blink::BackForwardCacheAware::kAllow,
+       blink::mojom::WantResultOption::kWantResult,
++      blink::mojom::PromiseResultOption::kDoNotWait, blink::WebString());
++}
++
++void ChromeRenderFrameObserver::EditRawSElementPicker(
++    const base::UnguessableToken& token, bool undo) {
++  auto* frame = render_frame()->GetWebFrame();
++  if (!frame || frame->Parent() || frame->IsInFencedFrameTree() ||
++      frame->IsProvisional() || frame->GetEmbeddingToken() != token) {
++    return;
++  }
++  auto doc = frame->GetDocument();
++  if (doc.IsNull() || !doc.IsActive() || !doc.IsHTMLDocument()) return;
++  const blink::WebScriptSource sources[] = {blink::WebScriptSource(
++      blink::WebString::FromUtf8(undo ? "globalThis.__rawsEditElementPicker?.(true)"
++                                    : "globalThis.__rawsEditElementPicker?.(false)"))};
++  frame->RequestExecuteScript(
++      ISOLATED_WORLD_ID_CHROME_INTERNAL, sources,
++      blink::mojom::UserActivationOption::kDoNotActivate,
++      blink::mojom::EvaluationTiming::kAsynchronous,
++      blink::mojom::LoadEventBlockingOption::kDoNotBlock,
++      blink::WebScriptExecutionCallback(), blink::BackForwardCacheAware::kAllow,
++      blink::mojom::WantResultOption::kNoResult,
+       blink::mojom::PromiseResultOption::kDoNotWait, blink::WebString());
+ }
+ 
+diff --git a/chrome/browser/raws/raw_element_rules.h b/chrome/browser/raws/raw_element_rules.h
+--- a/chrome/browser/raws/raw_element_rules.h
++++ b/chrome/browser/raws/raw_element_rules.h
+@@ -158,10 +158,32 @@
+ 
+ // Call only after the trusted, document-bound picker session has been
+ // explicitly confirmed in browser-owned UI.
+-inline bool AddElementRule(Profile& profile, const url::Origin& origin,
+-                           const std::string& selector) {
++inline constexpr size_t kMaxElementPickerBatchCount = 12;
++
++inline std::optional<std::vector<std::string>> ParseElementPickerBatch(
++    std::string_view wire) {
++  std::vector<std::string> batch;
++  while (!wire.empty()) {
++    const size_t end = wire.find('\n');
++    const auto selector = wire.substr(0, end);
++    if (batch.size() >= kMaxElementPickerBatchCount ||
++        !IsSafePickedSelector(selector) ||
++        std::ranges::find(batch, selector) != batch.end()) {
++      return std::nullopt;
++    }
++    batch.emplace_back(selector);
++    if (end == std::string_view::npos) break;
++    wire.remove_prefix(end + 1);
++    if (wire.empty()) return std::nullopt;
++  }
++  return batch;
++}
++
++inline bool AddElementRules(Profile& profile, const url::Origin& origin,
++                            const std::vector<std::string>& selectors) {
+   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
+-  if (!IsSafePickedSelector(selector)) return false;
++  if (selectors.empty() || selectors.size() > kMaxElementPickerBatchCount)
++    return false;
+   auto key = ElementRulesOriginKey(origin);
+   if (!key) return false;
+   const auto* origins = internal::Origins(profile);
+@@ -171,11 +193,22 @@
+       return false;
+     items = internal::ParseOriginRules(*origins, *key);
+   }
+-  if (std::ranges::find(items, selector) != items.end()) return true;
+-  if (items.size() >= kMaxElementRulesPerOrigin) return false;
+-  items.push_back(selector);
+-  internal::WriteOriginRules(profile, *key, items);
++  const size_t original_size = items.size();
++  for (const auto& selector : selectors) {
++    if (!IsSafePickedSelector(selector)) return false;
++    if (std::ranges::find(items, selector) != items.end()) continue;
++    if (items.size() >= kMaxElementRulesPerOrigin) return false;
++    items.push_back(selector);
++  }
++  if (items.size() != original_size) {
++    internal::WriteOriginRules(profile, *key, items);
++  }
+   return true;
++}
++
++inline bool AddElementRule(Profile& profile, const url::Origin& origin,
++                           const std::string& selector) {
++  return AddElementRules(profile, origin, {selector});
+ }
+ 
+ inline bool ClearElementRules(Profile& profile, const url::Origin& origin) {
+diff --git a/chrome/browser/chrome_browser_main_android.cc b/chrome/browser/chrome_browser_main_android.cc
+--- a/chrome/browser/chrome_browser_main_android.cc
++++ b/chrome/browser/chrome_browser_main_android.cc
+@@ -348,6 +348,12 @@
+   return picker && picker->Watch(token, std::move(changed));
+ }
+ 
++static bool JNI_RawsProtectionCopy_EditElementPicker(
++    content::WebContents* contents, const std::string& token, bool undo) {
++  auto* picker = GetPicker(contents, false);
++  return picker && picker->Edit(token, undo);
++}
++
+ static bool JNI_RawsProtectionCopy_CommitElementPicker(
+     content::WebContents* contents, const std::string& token,
+     base::OnceCallback<void(bool)> completion) {
+diff --git a/chrome/android/java/res/values/raws_global_shield_strings.xml b/chrome/android/java/res/values/raws_global_shield_strings.xml
+--- a/chrome/android/java/res/values/raws_global_shield_strings.xml
++++ b/chrome/android/java/res/values/raws_global_shield_strings.xml
+@@ -211,4 +211,9 @@
+         <item quantity="one">%1$d second ago</item>
+         <item quantity="other">%1$d seconds ago</item>
+     </plurals>
++    <string name="raws_ad_picker_undo">Undo</string>
++    <string name="raws_ad_picker_preview">Preview</string>
++    <string name="raws_ad_picker_end_preview">Edit</string>
++    <string name="raws_ad_picker_save">Save</string>
++    <string name="raws_ad_picker_save_count">Save (%1$d)</string>
+ </resources>
+diff --git a/chrome/android/java/src/org/chromium/chrome/browser/settings/RawsGlobalShieldSheet.java b/chrome/android/java/src/org/chromium/chrome/browser/settings/RawsGlobalShieldSheet.java
+--- a/chrome/android/java/src/org/chromium/chrome/browser/settings/RawsGlobalShieldSheet.java
++++ b/chrome/android/java/src/org/chromium/chrome/browser/settings/RawsGlobalShieldSheet.java
+@@ -982,7 +982,6 @@
+         private boolean mDone;
+         private boolean mUiFinished;
+         private boolean mPickerActive;
+-        private boolean mPickerHasState;
+         private String mPickerSession = "";
+         private @Nullable PickerPanel mPickerPanel;
+         private @Nullable OnBackPressedCallback mPickerBackCallback;
+@@ -1094,8 +1093,8 @@
+             }
+             mPickerSession = session;
+             mPickerPanel = new PickerPanel(mActivity, host,
+-                    () -> finish(false, true, null), this::openBlockingRules, this::confirmBlock,
+-                    () -> finish(false));
++                    () -> finish(false, true, null), () -> editPicker(true),
++                    () -> editPicker(false), this::confirmBlock, () -> finish(false));
+             var back = new OnBackPressedCallback(true) {
+                 @Override public void handleOnBackPressed() { finish(false, true, null); }
+             };
+@@ -1115,23 +1114,21 @@
+         private void onPickerChanged(String ready) {
+             if (mDone) return;
+             var panel = mPickerPanel;
+-            if (panel == null || !ownsPickerUi() || (!ready.equals("0") && !ready.equals("1"))) {
++            if (panel == null || !ownsPickerUi() || !ready.matches("(?:[0-9]|1[0-2])[01][01]")) {
+                 finish(false);
+                 return;
+             }
+-            panel.setSelectionReady(ready.equals("1"));
+-            if (mPickerHasState) panel.setExpanded(true); // Donor: a new target expands the card.
+-            mPickerHasState = true;
++            int flag = ready.length() - 2;
++            panel.setSelectionState(Integer.parseInt(ready.substring(0, flag)),
++                    ready.charAt(flag) == '1', ready.charAt(flag + 1) == '1');
+             watchPicker();
+         }
+ 
+-        private void openBlockingRules() {
+-            if (!ownsPickerUi()) {
++        private void editPicker(boolean undo) {
++            if (!ownsPickerUi()
++                    || !RawsProtectionCopy.editElementPicker(mContents, mPickerSession, undo)) {
+                 finish(false);
+-                return;
+-            }
+-            finish(false, true, () -> SettingsNavigationFactory.createSettingsNavigation(mActivity)
+-                    .startSettings(mActivity, RawSAdRuleBackupSettings.class));
++            }
+         }
+ 
+         private void confirmBlock() {
+@@ -1300,12 +1297,7 @@
+                 fill, rippleMask));
+     }
+ 
+-    /**
+-     * Android projection of Brave 44a84b1 element_picker.html's mobile card.
+-     * Only the matching and highlight live in the closed isolated renderer shadow.
+-     * Browser-owned buttons preserve a single explicit Block action without giving the
+-     * WebContents a path to authorize a persistent user rule.
+-     */
++    /** A Lens-styled floating picker. Only browser-owned Save can persist the selection. */
+     private static final class PickerPanel {
+         // Match pinned BottomSheetMediator settle durations; reuse its exact interpolator below.
+         private static final int SHIELDS_EXPAND_MS = 350;
+@@ -1314,11 +1306,10 @@
+         private final @Nullable View mToolbar;
+         private final FrameLayout mViewport;
+         private final LinearLayout mCard;
+-        private final Button mChevron;
+-        private final LinearLayout mButtons;
+         private final Button mBlock;
+         private final Button mCancel;
+-        private final Button mManage;
++        private final Button mUndo;
++        private final Button mPreview;
+         private @Nullable ValueAnimator mSettleAnimator;
+         private boolean mClosed;
+         private boolean mClosing;
+@@ -1330,13 +1321,13 @@
+         private final int[] mToolbarLocation = new int[2];
+         private final View.OnLayoutChangeListener mRelayout =
+                 (v, l, t, r, b, oldL, oldT, oldR, oldB) -> updateBounds();
+-        private boolean mExpanded = true;
+-        private boolean mReady;
++        private int mSelectedCount;
++        private boolean mPreviewing;
++        private boolean mCanUndo;
+         private boolean mCommitting;
+-        private int mAppliedShape = -1;
+-
+-        PickerPanel(Activity activity, FrameLayout host, Runnable cancel, Runnable manage,
+-                Runnable block, Runnable onDetached) {
++
++        PickerPanel(Activity activity, FrameLayout host, Runnable cancel, Runnable undo,
++                Runnable preview, Runnable block, Runnable onDetached) {
+             mHost = host;
+             mToolbar = activity.findViewById(R.id.control_container);
+             mViewport = new FrameLayout(activity);
+@@ -1348,48 +1339,30 @@
+                 @Override public void onViewDetachedFromWindow(View view) { onDetached.run(); }
+             };
+             mCard = new LinearLayout(activity);
+-            mCard.setOrientation(LinearLayout.VERTICAL);
+-            mCard.setClickable(true); // Don't forward dead space in the card to the page.
++            mCard.setOrientation(LinearLayout.HORIZONTAL);
++            mCard.setGravity(Gravity.CENTER_VERTICAL);
++            mCard.setClickable(true);
+             mCard.setFilterTouchesWhenObscured(true);
+             mCard.setBackgroundResource(R.drawable.raws_frozen_shields_rim);
+-            mCard.setPaddingRelative(dp(12), 0, dp(12), dp(12));
+-            mChevron = button(activity, 0, false, true);
+-            mChevron.setText("⌄");
+-            mChevron.setContentDescription(activity.getString(R.string.raws_ad_picker_minimize));
+-            mChevron.setOnClickListener(ignored -> {
+-                if (!mClosing) setExpanded(!mExpanded);
+-            });
+-            var chevronParams = new LinearLayout.LayoutParams(dp(48), dp(41));
+-            chevronParams.gravity = Gravity.CENTER_HORIZONTAL;
+-            mCard.addView(mChevron, chevronParams);
+-            mButtons = new LinearLayout(activity);
+-            mButtons.setOrientation(LinearLayout.VERTICAL);
+-            mButtons.setPaddingRelative(dp(16), dp(4), dp(16), dp(8));
+-            mButtons.setBackgroundResource(R.drawable.raws_frozen_shields_card);
+-            mCard.addView(mButtons, new LinearLayout.LayoutParams(
+-                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+-
+-            mBlock = button(activity, R.string.raws_ad_picker_select, true, false);
+-            mBlock.setOnClickListener(ignored -> block.run());
+-            var primaryParams = new LinearLayout.LayoutParams(
+-                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+-            primaryParams.setMargins(dp(3), dp(3), dp(3), dp(8));
+-            mButtons.addView(mBlock, primaryParams);
+-            addPickerDivider(mButtons);
+-            var secondary = new LinearLayout(activity);
+-            secondary.setOrientation(LinearLayout.HORIZONTAL);
++            mCard.setPaddingRelative(dp(6), dp(4), dp(6), dp(4));
+             mCancel = button(activity, android.R.string.cancel, false, true);
+             mCancel.setOnClickListener(ignored -> cancel.run());
+-            mManage = button(activity, R.string.raws_ad_picker_manage, false, true);
+-            mManage.setOnClickListener(ignored -> manage.run());
+-            for (Button button : new Button[] {mCancel, mManage}) {
++            mUndo = button(activity, R.string.raws_ad_picker_undo, false, true);
++            mUndo.setOnClickListener(ignored -> undo.run());
++            mPreview = button(activity, R.string.raws_ad_picker_preview, false, true);
++            mPreview.setOnClickListener(ignored -> preview.run());
++            mBlock = button(activity, R.string.raws_ad_picker_save, true, false);
++            mBlock.setOnClickListener(ignored -> block.run());
++            for (Button action : new Button[] {mCancel, mUndo, mPreview, mBlock}) {
++                action.setTextSize(12);
++                // Permit a second line with large accessibility fonts instead of clipping labels.
++                action.setMaxLines(2);
++                action.setPaddingRelative(dp(3), 0, dp(3), 0);
+                 var params = new LinearLayout.LayoutParams(
+-                        0, ViewGroup.LayoutParams.WRAP_CONTENT, 1);
+-                params.setMargins(dp(3), 0, dp(3), dp(3));
+-                secondary.addView(button, params);
+-            }
+-            mButtons.addView(secondary, new LinearLayout.LayoutParams(
+-                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
++                        0, ViewGroup.LayoutParams.WRAP_CONTENT, action == mBlock ? 1.2f : 1f);
++                params.setMargins(dp(2), 0, dp(2), 0);
++                mCard.addView(action, params);
++            }
+             mViewport.addView(mCard, new FrameLayout.LayoutParams(
+                     ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+             mViewport.addOnLayoutChangeListener(mViewportLayout);
+@@ -1415,23 +1388,15 @@
+             return button;
+         }
+ 
+-        void setExpanded(boolean expanded) {
+-            if (mClosing || mExpanded == expanded) return;
+-            mExpanded = expanded;
+-            mButtons.setVisibility(expanded ? View.VISIBLE : View.GONE);
+-            mChevron.setText(expanded ? "⌄" : "⌃");
+-            mChevron.setContentDescription(mCard.getContext().getString(expanded
+-                    ? R.string.raws_ad_picker_minimize : R.string.raws_ad_picker_restore));
+-            updateBounds();
+-        }
+-
+-        void setSelectionReady(boolean ready) {
+-            mReady = ready;
++        void setSelectionState(int count, boolean preview, boolean canUndo) {
++            mSelectedCount = count;
++            mPreviewing = preview;
++            mCanUndo = canUndo;
+             updateBlockButton();
+         }
+ 
+         boolean beginCommit() {
+-            if (!mReady || mCommitting) return false;
++            if (mSelectedCount == 0 || mCommitting || mClosing) return false;
+             mCommitting = true;
+             updateBlockButton();
+             return true;
+@@ -1443,22 +1408,25 @@
+         }
+ 
+         private void updateBlockButton() {
+-            boolean enabled = !mClosing && mReady && !mCommitting;
++            boolean enabled = !mClosing && mSelectedCount > 0 && !mCommitting;
++            mUndo.setEnabled(!mClosing && mCanUndo && !mCommitting);
++            mPreview.setEnabled(enabled);
++            mPreview.setSelected(mPreviewing);
++            mPreview.setText(mPreviewing
++                    ? R.string.raws_ad_picker_end_preview : R.string.raws_ad_picker_preview);
+             mBlock.setEnabled(enabled);
+-            mBlock.setText(mReady ? R.string.raws_ad_picker_block : R.string.raws_ad_picker_select);
+-
++            if (mSelectedCount == 0) {
++                mBlock.setText(R.string.raws_ad_picker_save);
++            } else {
++                mBlock.setText(mCard.getContext().getString(
++                        R.string.raws_ad_picker_save_count, mSelectedCount));
++            }
+         }
+ 
+         private void updateBounds() {
+             if (mHost.getWidth() <= 0 || mHost.getHeight() <= 0) return;
+-            boolean portrait = mHost.getResources().getConfiguration().orientation
+-                    == Configuration.ORIENTATION_PORTRAIT;
+             var params = (FrameLayout.LayoutParams) mViewport.getLayoutParams();
+-            int width = mExpanded
+-                    ? portrait ? ViewGroup.LayoutParams.MATCH_PARENT
+-                            : Math.max(dp(48), Math.min(dp(360), mHost.getWidth() - dp(32)))
+-                    : dp(48);
+-            int end = mExpanded ? (portrait ? 0 : dp(4)) : dp(24);
++            int width = Math.max(dp(48), Math.min(dp(376), mHost.getWidth() - dp(24)));
+             int bottom = 0;
+             var insets = ViewCompat.getRootWindowInsets(mHost);
+             if (insets != null) {
+@@ -1473,24 +1441,14 @@
+                     bottom = Math.max(bottom, mHost.getHeight() - mHost.getPaddingBottom() - y);
+                 }
+             }
+-            bottom += mExpanded ? (portrait ? 0 : dp(4)) : dp(24);
+-            if (params.width != width || params.getMarginEnd() != end
+-                    || params.bottomMargin != bottom) {
++            bottom += dp(8);
++            if (params.width != width || params.bottomMargin != bottom
++                    || params.gravity != (Gravity.CENTER_HORIZONTAL | Gravity.BOTTOM)) {
+                 params.width = width;
+-                params.setMarginEnd(end);
++                params.gravity = Gravity.CENTER_HORIZONTAL | Gravity.BOTTOM;
+                 params.bottomMargin = bottom;
+                 mViewport.setLayoutParams(params);
+             }
+-            int shape = mExpanded ? (portrait ? 2 : 1) : 0;
+-            if (mAppliedShape == shape) return;
+-            mAppliedShape = shape;
+-            var chevronParams = mChevron.getLayoutParams();
+-            chevronParams.height = dp(mExpanded ? (portrait ? 41 : 36) : 48);
+-            mChevron.setLayoutParams(chevronParams);
+-            mCard.setBackgroundResource(mExpanded ? R.drawable.raws_frozen_shields_rim
+-                                                  : R.drawable.raws_frozen_shields_card);
+-            int outer = mExpanded ? dp(12) : 0;
+-            mCard.setPaddingRelative(outer, 0, outer, mExpanded ? dp(12) : 0);
+         }
+ 
+         private void updateViewportClip() {
+@@ -1508,8 +1466,6 @@
+             if (mClosed || mClosing) return;
+             mClosing = true;
+             mCancel.setEnabled(false);
+-            mManage.setEnabled(false);
+-            mChevron.setEnabled(false);
+             updateBlockButton();
+             mViewport.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS);
+             // Consume taps in the retiring card area; the existing page remains live elsewhere.

@@ -1,0 +1,36 @@
+diff --git a/chrome/android/java/res/layout/raws_global_shield_sheet.xml b/chrome/android/java/res/layout/raws_global_shield_sheet.xml
+--- a/chrome/android/java/res/layout/raws_global_shield_sheet.xml
++++ b/chrome/android/java/res/layout/raws_global_shield_sheet.xml
+@@ -10,6 +10,12 @@
+                 <TextView android:id="@+id/raws_shields_ads_label" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_gravity="center_vertical" android:text="@string/raws_shields_ads" android:textSize="16sp" android:textColor="@color/raws_shields_text" android:alpha="0.55" android:minHeight="48dp" android:paddingStart="16dp" android:paddingEnd="96dp" android:paddingVertical="4dp" android:gravity="center_vertical" android:clickable="false" android:focusable="false" android:importantForAccessibility="no" />
+                 <com.google.android.material.materialswitch.MaterialSwitch style="@style/Widget.Sandium.ShieldsSwitch" android:layout_width="match_parent" android:layout_height="match_parent" android:contentDescription="@string/raws_shields_ads" android:enabled="false" android:alpha="0.55" android:minHeight="48dp" android:paddingStart="16dp" android:paddingEnd="16dp" android:paddingVertical="4dp" android:gravity="start|center_vertical" android:textAlignment="viewStart" android:id="@+id/raws_shields_ads" />
+             </FrameLayout>
++            <TextView android:id="@+id/raws_shields_ublock_may_still_block"
++                android:layout_width="match_parent" android:layout_height="wrap_content"
++                android:paddingHorizontal="16dp" android:paddingBottom="8dp"
++                android:alpha="0.72" android:textColor="@color/raws_shields_text"
++                android:text="@string/raws_shields_ublock_may_still_block" android:textSize="11sp"
++                android:visibility="gone" />
+             <View android:layout_width="match_parent" android:layout_height="1dp" android:layout_marginStart="16dp" android:layout_marginEnd="16dp" android:background="@color/raws_shields_divider" android:importantForAccessibility="no" />
+             <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/raws_shields_block_element" android:textSize="16sp" android:textColor="@color/raws_shields_disabled" android:enabled="false" android:clickable="false" android:focusable="false" android:minHeight="48dp" android:paddingHorizontal="16dp" android:paddingVertical="4dp" android:gravity="center_vertical" android:id="@+id/raws_shields_block_element" />
+             <View android:layout_width="match_parent" android:layout_height="1dp" android:layout_marginStart="16dp" android:layout_marginEnd="16dp" android:background="@color/raws_shields_divider" android:importantForAccessibility="no" />
+diff --git a/chrome/android/java/res/values/raws_main_settings_strings.xml b/chrome/android/java/res/values/raws_main_settings_strings.xml
+--- a/chrome/android/java/res/values/raws_main_settings_strings.xml
++++ b/chrome/android/java/res/values/raws_main_settings_strings.xml
+@@ -76,4 +76,5 @@
+     <string name="raws_autofill_addresses_row">Addresses</string>
+     <string name="raws_setup_terms_consent">To continue, read and agree to the Google &lt;TOS_LINK&gt;Terms of Service&lt;/TOS_LINK&gt;.</string>
+     <string name="raws_shields_ublock_site_controls">uBlock Origin site controls</string>
++    <string name="raws_shields_ublock_may_still_block">uBlock may still block ads.</string>
+ </resources>
+diff --git a/chrome/android/java/src/org/chromium/chrome/browser/settings/RawsGlobalShieldSheet.java b/chrome/android/java/src/org/chromium/chrome/browser/settings/RawsGlobalShieldSheet.java
+--- a/chrome/android/java/src/org/chromium/chrome/browser/settings/RawsGlobalShieldSheet.java
++++ b/chrome/android/java/src/org/chromium/chrome/browser/settings/RawsGlobalShieldSheet.java
+@@ -887,6 +887,7 @@
+         var toolbar = activity.getToolbarManager();
+         var extensions = toolbar == null ? null : toolbar.getExtensionsToolbarCoordinator();
+         if (extensions == null || !extensions.canOpenRawSUblockSiteControls(tab)) return;
++        mContent.findViewById(R.id.raws_shields_ublock_may_still_block).setVisibility(View.VISIBLE);
+         TextView row = mContent.findViewById(R.id.raws_shields_ublock_site_controls);
+         row.setVisibility(View.VISIBLE);
+         mContent.findViewById(R.id.raws_shields_ublock_divider).setVisibility(View.VISIBLE);
