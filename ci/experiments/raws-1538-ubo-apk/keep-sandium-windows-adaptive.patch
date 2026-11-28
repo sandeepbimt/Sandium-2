@@ -1,0 +1,44 @@
+diff --git a/chrome/android/java/src/org/chromium/chrome/browser/ChromeTabbedActivity.java b/chrome/android/java/src/org/chromium/chrome/browser/ChromeTabbedActivity.java
+--- a/chrome/android/java/src/org/chromium/chrome/browser/ChromeTabbedActivity.java
++++ b/chrome/android/java/src/org/chromium/chrome/browser/ChromeTabbedActivity.java
+@@ -801,6 +801,11 @@
+         // feature early here.
+         supportRequestWindowFeature(Window.FEATURE_ACTION_MODE_OVERLAY);
+         super.onPreCreate();
++        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) {
++            // Request adaptive policy, not a specific display mode or refresh rate.
++            getWindow().setFrameRatePowerSavingsBalanced(true);
++            getWindow().setFrameRateBoostOnTouchEnabled(true);
++        }
+         mMultiInstanceManager =
+                 MultiInstanceManagerFactory.create(
+                         this,
+diff --git a/chrome/android/java/src/org/chromium/chrome/browser/settings/SettingsActivity.java b/chrome/android/java/src/org/chromium/chrome/browser/settings/SettingsActivity.java
+--- a/chrome/android/java/src/org/chromium/chrome/browser/settings/SettingsActivity.java
++++ b/chrome/android/java/src/org/chromium/chrome/browser/settings/SettingsActivity.java
+@@ -263,6 +263,11 @@
+         mContainmentHelper.registerCallbacks(fragmentManager);
+ 
+         super.onCreate(savedInstanceState);
++        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) {
++            // Request adaptive policy, not a specific display mode or refresh rate.
++            getWindow().setFrameRatePowerSavingsBalanced(true);
++            getWindow().setFrameRateBoostOnTouchEnabled(true);
++        }
+ 
+         if (android.os.Build.VERSION.SDK_INT >= 34) {
+             configureRawSSettingsWindowFade();
+diff --git a/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/extensions/RawSExtensionsManagerDialog.java b/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/extensions/RawSExtensionsManagerDialog.java
+--- a/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/extensions/RawSExtensionsManagerDialog.java
++++ b/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/extensions/RawSExtensionsManagerDialog.java
+@@ -257,6 +257,10 @@
+         setContentView(mRoot);
+         Window window = getWindow();
+         if (window != null) {
++            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) {
++                window.setFrameRatePowerSavingsBalanced(true);
++                window.setFrameRateBoostOnTouchEnabled(true);
++            }
+             window.setBackgroundDrawable(new ColorDrawable(surface));
+             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                 window.setDecorFitsSystemWindows(false);

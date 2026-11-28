@@ -1,0 +1,43 @@
+diff --git a/chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/LocationBarPhone.java b/chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/LocationBarPhone.java
+--- a/chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/LocationBarPhone.java
++++ b/chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/LocationBarPhone.java
+@@ -222,15 +222,22 @@
+     protected void onLayout(boolean changed, int left, int top, int right, int bottom) {
+         try (TraceEvent e = TraceEvent.scoped("LocationBarPhone.onLayout")) {
+             super.onLayout(changed, left, top, right, bottom);
+-            if (mUrlBar != null) {
+-                if (mRawSUnifiedRow && mRawSNativeHome && mIsCenteringApplied
+-                        && !mUrlBarLaidOutAtFocusedWidth && !mUrlBar.hasFocus()
+-                        && mUrlBar.getLayoutDirection() == View.LAYOUT_DIRECTION_LTR
+-                        && mUrlBar.length() == 0 && mUrlBar.getScrollX() != 0) {
+-                    mUrlBar.scrollTo(0, 0);
+-                }
+-            }
+-        }
++            resetRawSHomePlaceholderOffset();
++        }
++    }
++
++    private void resetRawSHomePlaceholderOffset() {
++        var urlBar = mUrlBar;
++        if (urlBar == null || !mRawSUnifiedRow || !mRawSNativeHome || !mIsCenteringApplied
++                || mUrlBarLaidOutAtFocusedWidth || urlBar.hasFocus()
++                || urlBar.getLayoutDirection() != View.LAYOUT_DIRECTION_LTR
++                || urlBar.length() != 0) {
++            return;
++        }
++        // The inherited focus animation skips translation updates once centering is applied.
++        // Clear its last horizontal offset only for the resting, empty Home placeholder.
++        if (urlBar.getTranslationX() != 0f) urlBar.setTranslationX(0f);
++        if (urlBar.getScrollX() != 0) urlBar.scrollTo(0, 0);
+     }
+ 
+     @Override
+@@ -265,6 +272,7 @@
+             mIsCenteringApplied = shouldCenter;
+             setCenteringUrlAndStatusConstraints(mIsCenteringApplied);
+         }
++        resetRawSHomePlaceholderOffset();
+     }
+ 
+     /** Applies constraints to center or fill space for StatusView and UrlBar. */

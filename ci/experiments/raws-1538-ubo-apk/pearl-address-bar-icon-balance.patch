@@ -1,0 +1,58 @@
+diff --git a/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/ToolbarPhone.java b/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/ToolbarPhone.java
+--- a/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/ToolbarPhone.java
++++ b/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/ToolbarPhone.java
+@@ -710,9 +710,10 @@
+             params.gravity = gravity;
+             shield.setLayoutParams(params);
+         }
+-        int padY = rawSDp(mRawSPageActionsActive ? 16 : 12);
+-        int padStart = rawSDp(mRawSPageActionsActive ? 11 : 12);
+-        int padEnd = rawSDp(mRawSPageActionsActive ? 14 : 12);
++        // Balance the visible provider/brand marks without changing the shared tap target.
++        int padY = rawSDp(mRawSPageActionsActive ? 17 : 12);
++        int padStart = rawSDp(12);
++        int padEnd = rawSDp(mRawSPageActionsActive ? 15 : 12);
+         if (shield.getPaddingTop() != padY || shield.getPaddingStart() != padStart
+                 || shield.getPaddingEnd() != padEnd) {
+             shield.setPaddingRelative(padStart, padY, padEnd, padY);
+@@ -1137,6 +1138,7 @@
+             ImageView quick = findViewById(R.id.raws_page_toolbar_quick_actions);
+             if (quick == null) return;
+             mRawSQuickActionsButton = quick;
++            mHomeButton.setImageResource(R.drawable.raws_page_toolbar_pearl_home);
+             MenuButton menuButton = findViewById(R.id.menu_button_wrapper);
+             if (menuButton != null) menuButton.setRawSSandiumMenuIcon();
+             quick.setOnClickListener(v -> toggleRawSQuickActions(quick, tabController));
+diff --git a/chrome/browser/ui/android/toolbar/BUILD.gn b/chrome/browser/ui/android/toolbar/BUILD.gn
+--- a/chrome/browser/ui/android/toolbar/BUILD.gn
++++ b/chrome/browser/ui/android/toolbar/BUILD.gn
+@@ -452,6 +452,7 @@
+     "java/res/layout/signin_button_view.xml",
+     "java/res/drawable/raws_page_toolbar_forward.xml",
+     "java/res/drawable/raws_page_toolbar_menu.xml",
++    "java/res/drawable/raws_page_toolbar_pearl_home.xml",
+     "java/res/layout/toolbar_phone.xml",
+     "java/res/layout/toolbar_progress_bar.xml",
+     "java/res/layout/toolbar_tablet.xml",
+diff --git a/chrome/browser/ui/android/toolbar/java/res/drawable/raws_page_toolbar_pearl_home.xml b/chrome/browser/ui/android/toolbar/java/res/drawable/raws_page_toolbar_pearl_home.xml
+new file mode 100644
+--- /dev/null
++++ b/chrome/browser/ui/android/toolbar/java/res/drawable/raws_page_toolbar_pearl_home.xml
+@@ -0,0 +1,7 @@
++<?xml version="1.0" encoding="utf-8"?>
++<vector xmlns:android="http://schemas.android.com/apk/res/android"
++    android:width="24dp" android:height="24dp" android:viewportWidth="24" android:viewportHeight="24">
++    <path android:fillColor="#00000000" android:strokeColor="#FFFFFFFF"
++        android:strokeWidth="1.65" android:strokeLineCap="round" android:strokeLineJoin="round"
++        android:pathData="M4.5,11 L12,5 L19.5,11 L19.5,19 L14.5,19 L14.5,14.5 L9.5,14.5 L9.5,19 L4.5,19 Z" />
++</vector>
+diff --git a/chrome/browser/ui/android/toolbar/java/res/drawable/raws_page_toolbar_menu.xml b/chrome/browser/ui/android/toolbar/java/res/drawable/raws_page_toolbar_menu.xml
+--- a/chrome/browser/ui/android/toolbar/java/res/drawable/raws_page_toolbar_menu.xml
++++ b/chrome/browser/ui/android/toolbar/java/res/drawable/raws_page_toolbar_menu.xml
+@@ -1,5 +1,5 @@
+ <?xml version="1.0" encoding="utf-8"?>
+ <vector xmlns:android="http://schemas.android.com/apk/res/android"
+     android:width="24dp" android:height="24dp" android:viewportWidth="24" android:viewportHeight="24">
+-    <path android:fillColor="#FFFFFFFF" android:pathData="M12,4 a2,2 0,1 0,0.01,0 Z M12,10 a2,2 0,1 0,0.01,0 Z M12,16 a2,2 0,1 0,0.01,0 Z" />
++    <path android:fillColor="#FFFFFFFF" android:pathData="M12,5.35 a1.65,1.65 0,1 0,0.01,0 Z M12,10.35 a1.65,1.65 0,1 0,0.01,0 Z M12,15.35 a1.65,1.65 0,1 0,0.01,0 Z" />
+ </vector>

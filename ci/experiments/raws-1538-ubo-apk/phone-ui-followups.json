@@ -75,6 +75,26 @@
     {
       "name": "pearl-glide-up-glyphs.patch",
       "sha256": "d50de46eb953cff2b7c4d2efb604ee9cee53967f7608566b24c84f4660e925ba"
+    },
+    {
+      "name": "raws-home-empty-back-recenter.patch",
+      "sha256": "ed89447495c61c3212e52059f2e3af9dbb639c3fc0b5facf643edade410165d3"
+    },
+    {
+      "name": "lens-ublock-site-control-note.patch",
+      "sha256": "df2f8b2315eb9751e6a914acf7937874449b4b75762e5c28c9ffdcbabfb65f26"
+    },
+    {
+      "name": "lens-native-multi-element-picker.patch",
+      "sha256": "49ada824635b168e604a84057762855d62d28592a27986f9bf4ed2cef6ad5e0f"
+    },
+    {
+      "name": "keep-sandium-windows-adaptive.patch",
+      "sha256": "a0a9acf44c574cf954ddd51a9c9adcc27eb7092b12a340757b18d0d858055e36"
+    },
+    {
+      "name": "pearl-address-bar-icon-balance.patch",
+      "sha256": "9dc8f6f3339f35c414a058a6245925a5e80450445eb436c1a00cb791f0f5dc2c"
     }
   ],
   "paths": {
@@ -205,7 +225,7 @@
         "140a9577c4a3512afc8be2804649614f3abf924be73c817d162e635d8906decc"
       ],
       "after": [
-        "7fbc9aff3fa78d0686104ef9e326f0422d9b1819eeb47b662f4f2dab2516e1df"
+        "8a641b00bf2ad9674d6167d44bf927e33b26b90f00dbdfe9bb220d6ca6e54419"
       ]
     },
     "components/omnibox/browser/autocomplete_result.cc": {
@@ -250,7 +270,7 @@
         "731a8159d0b4e55025cce5ce541d625bcd216921128bfe468551daa21b5ea05d"
       ],
       "after": [
-        "2e36cafc23ed17c0a28ef92382a850274465f3da000fb039f9c0f4af2bbdec89"
+        "1d00989ab35867a3304222a763f771c7c471e3576c18a034e4750fa5ce78efd2"
       ]
     },
     "chrome/browser/ui/android/appmenu/internal/java/src/org/chromium/chrome/browser/ui/appmenu/SandiumPagedMenu.java": {
@@ -307,6 +327,150 @@
       ],
       "after": [
         "23fc2ea2a66bf93ceac13450b2227ca3856025fb37f8ffa9871947325863a585"
+      ]
+    },
+    "chrome/browser/ui/android/omnibox/java/src/org/chromium/chrome/browser/omnibox/LocationBarPhone.java": {
+      "before": [
+        "fd1232353453eb062e560f5a6bc9b7950451942bffc52739de0001099bc451e5"
+      ],
+      "after": [
+        "74fe77dfd175ace0934a83f1dcdbfff6a920ff62454f07c60e9bfdb6925fde2a"
+      ]
+    },
+    "chrome/android/java/res/layout/raws_global_shield_sheet.xml": {
+      "before": [
+        "00511555b11dbd3a69abf1036db2585030ff3384a7f799ec63677904c62c1e1b"
+      ],
+      "after": [
+        "8b0e270e4949b1fc03dc7917469b85156647b956d8960df2bc1e06d6c454c98d"
+      ]
+    },
+    "chrome/android/java/res/values/raws_main_settings_strings.xml": {
+      "before": [
+        "e663d660aa65c062205935360e138ca828c40084e8ccfed7438ec465b08b5908"
+      ],
+      "after": [
+        "60e37737c1556e84106232381c68d229d268ccccdbe22908a8c1e463f9d574de"
+      ]
+    },
+    "chrome/android/java/src/org/chromium/chrome/browser/settings/RawsGlobalShieldSheet.java": {
+      "before": [
+        "2ae47d872794d7996e5f5f2fc4032b557d3445505e25d6bb264b0d2c94771dce"
+      ],
+      "after": [
+        "7cdf18fd89f3d60fe7beb784a7e4159e40f3bc3d6715d419bc4272b9fa3d6b1b"
+      ]
+    },
+    "chrome/renderer/raws_element_picker_donor.h": {
+      "before": [
+        "2f2cca87ebb8bdf2a7cd271db43a3f964f4fadad0936606b756b2e2c49f3a42e"
+      ],
+      "after": [
+        "3edd35e8735585ad46594dfeb85b0d23c50b3bbb2dd581d11b49e5fd40ba2e24"
+      ]
+    },
+    "chrome/common/chrome_render_frame.mojom": {
+      "before": [
+        "6fe3650329c058bba93df17a1b922a9164d5bd75aee090e936f67190342a3451"
+      ],
+      "after": [
+        "76e417334da92878672ae11c49013bafc0cb745e0d835eadd93cc659a9ee5499"
+      ]
+    },
+    "chrome/android/java/src/org/chromium/chrome/browser/settings/RawsProtectionCopy.java": {
+      "before": [
+        "27e7174da53d648fea49520203cbdb56adf502effaf4b7cfafdbbf9209e3bb0f"
+      ],
+      "after": [
+        "bfb70b924c97b727b77f72dc09652354cc45f4228be6a9334da7d715d21af889"
+      ]
+    },
+    "chrome/renderer/chrome_render_frame_observer.h": {
+      "before": [
+        "28b986df2c596db7e5e6a92d2731b75e4fb1818edcc1eb41b558dd815e25c791"
+      ],
+      "after": [
+        "13ead7780ce5e5b9cfad3408c50b3a16623533034b77abe4a1dc5b226fe8b9bb"
+      ]
+    },
+    "chrome/browser/raws/raw_element_picker_browser.h": {
+      "before": [
+        "ccc7836ad00f625c3af293359d709381d7947ebdf55a5e37fb9339aa639b4028"
+      ],
+      "after": [
+        "61024cc7cc9c639a3a84899bf0dc7078f7b1b54ffe8d0d663c874d2f773b0869"
+      ]
+    },
+    "chrome/renderer/chrome_render_frame_observer.cc": {
+      "before": [
+        "2b4e78e9757863f92bc309a85e8e2035ccc56f1bc8a62ac3cbf95e50c684d0ca"
+      ],
+      "after": [
+        "419237bfac0cecff55b77e329eca45487b630b4d8cf4d1c5292c40e6c027d718"
+      ]
+    },
+    "chrome/browser/raws/raw_element_rules.h": {
+      "before": [
+        "652e558154141aa89d9ad576eeca85aa0b38e3b8894145514f9fd7df6d09ffe5"
+      ],
+      "after": [
+        "8a435f9a30ec9bc56ba3b183eefd7532f27ab602ba8a6fcc90114ddad4065d9e"
+      ]
+    },
+    "chrome/browser/chrome_browser_main_android.cc": {
+      "before": [
+        "b7204afaaf883196f03732e5e5b8792989e4acefae1c058812346c226c2e9d37"
+      ],
+      "after": [
+        "b9881a69bb1453f581d0d22dc11c0430a15b09c21cde6d4f29695129491bb257"
+      ]
+    },
+    "chrome/android/java/res/values/raws_global_shield_strings.xml": {
+      "before": [
+        "b8d169f77bfc0b9eecedb7caadb98e28237e42b36ac0541b9622e42c16ca2194"
+      ],
+      "after": [
+        "71e3eb8739d4dbb77748306a0621191e009975ee40f84ce9de1e0f190396fac8"
+      ]
+    },
+    "chrome/android/java/src/org/chromium/chrome/browser/ChromeTabbedActivity.java": {
+      "before": [
+        "8b3b09807729bbedb75d7148d2f686ab04df77782c9fdaf0ce0b64be561ace4f"
+      ],
+      "after": [
+        "9d4a99927e901e753638df13b4c4a5aafc4285e9016a29aa817973971008917c"
+      ]
+    },
+    "chrome/android/java/src/org/chromium/chrome/browser/settings/SettingsActivity.java": {
+      "before": [
+        "bd8a1290ccddbd5d94ddf18d2c2294044bc23ce4c528282dd683bcdad1de2dbb"
+      ],
+      "after": [
+        "0165ef36c8874129eb442776b74194a734c1edd83f5aca9838175aef9c216813"
+      ]
+    },
+    "chrome/browser/ui/android/toolbar/BUILD.gn": {
+      "before": [
+        "400909a931b14a76e566e66fe3d6f064c6d45e4a5f6302b33e0d6800ce20d3b8"
+      ],
+      "after": [
+        "8279ddcf90f3c8a2305acae452e71b74b7ffeca4408722cb0e4dad65bc4c1039"
+      ]
+    },
+    "chrome/browser/ui/android/toolbar/java/res/drawable/raws_page_toolbar_pearl_home.xml": {
+      "before": [
+        null
+      ],
+      "after": [
+        "fc299ad2733893f554f2c8026c9e6d3a21539802fff3d707ac7a7bb9808241c6"
+      ]
+    },
+    "chrome/browser/ui/android/toolbar/java/res/drawable/raws_page_toolbar_menu.xml": {
+      "before": [
+        "0cbb91fc0910737c8c3f130ad98543ad5948fba038154d0c8a8254aa2015459c"
+      ],
+      "after": [
+        "49947eba9e109842f4290437088bde40561072b6f41407f6f4061bd219d77dfa"
       ]
     }
   }
