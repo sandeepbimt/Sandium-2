@@ -1,28 +1,39 @@
 diff --git a/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/ToolbarPhone.java b/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/ToolbarPhone.java
 --- a/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/ToolbarPhone.java
 +++ b/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/ToolbarPhone.java
-@@ -321,3 +321,9 @@
-         if (tab.isNativePage()) return isRawSUnifiedNativeHome(tab);
+@@ -336,7 +336,12 @@
+         if (tab.isNativePage()) {
+             return isRawSUnifiedNativeHome(tab) || isRawSUnifiedPrivateNtp(tab);
+         }
 -        return UrlUtilities.isHttpOrHttps(tab.getUrl());
 +        return UrlUtilities.isHttpOrHttps(tab.getUrl()) || isRawSExtensionPage(tab);
 +    }
 +
 +    private static boolean isRawSExtensionPage(Tab tab) {
-+        // Presentation only. The renderer, omnibox identity and extension
-+        // navigation still follow the real chrome-extension URL and policies.
++        // Presentation only. Keep the actual extension origin and navigation policies.
 +        return "chrome-extension".equals(tab.getUrl().getScheme());
      }
-@@ -675,3 +681,5 @@
+ 
+     // Use the current native page while Chromium is handing off to the web surface.
+@@ -673,7 +678,9 @@
+                 || shield.getPaddingEnd() != padEnd) {
+             shield.setPaddingRelative(padStart, padY, padEnd, padY);
          }
 -        boolean show = home || isWebShield; // Retain the same native slot on cache miss.
 +        boolean show = home || isWebShield
 +                || (mRawSPageActionsActive && tab != null && !tab.isDestroyed()
 +                        && !isInTabSwitcherMode() && isRawSExtensionPage(tab));
          int visibility = show ? (urlHasFocus() ? INVISIBLE : VISIBLE) : GONE;
-@@ -697,3 +705,5 @@
+         Drawable mark = home ? mRawSHomeMark : mRawSWebMark;
+         if (shield.getDrawable() != mark) shield.setImageDrawable(mark);
+@@ -695,7 +702,9 @@
+     private int getRawSShieldCaptureState() {
+         var shield = mRawSAddressShield;
          if (shield == null || shield.getVisibility() != VISIBLE) return 0;
 -        return shield.isEnabled() ? 2 : 1;
 +        if (shield.isEnabled()) return 2;
 +        // Decorative extension branding must not alias the Home provider snapshot.
 +        return shield.getDrawable() == mRawSWebMark ? 3 : 1;
      }
+ 
+     @Override

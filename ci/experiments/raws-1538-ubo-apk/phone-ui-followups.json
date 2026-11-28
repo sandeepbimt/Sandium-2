@@ -46,7 +46,7 @@
     },
     {
       "name": "extension-tabs-sandium-toolbar.patch",
-      "sha256": "3974513ceecccb1322c49fe285f897906ae5a3288016494f425f1c57bba933b6"
+      "sha256": "0cbc76e16a493ca4fb4ec5ada97b2e61392e37cdc065c8bd1033077540055903"
     },
     {
       "name": "align-sandium-menu-headers.patch",
@@ -183,6 +183,9 @@
     "chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/ToolbarPhone.java": {
       "before": [
         "140a9577c4a3512afc8be2804649614f3abf924be73c817d162e635d8906decc"
+      ],
+      "after": [
+        "cb6730a1a30830019080632894df55fc6da684d342522dda6969aba220ae85b2"
       ]
     },
     "components/omnibox/browser/autocomplete_result.cc": {
@@ -233,6 +236,9 @@
     "chrome/browser/ui/android/appmenu/internal/java/src/org/chromium/chrome/browser/ui/appmenu/SandiumPagedMenu.java": {
       "before": [
         "86fbefc821a75613a68c593af1109e74a038c08f54b8f8f64c58620b06fa2d46"
+      ],
+      "after": [
+        "1ad5e513132b7a8aae3735438a4d14591a88618b8d078fce58094f297b229899"
       ]
     },
     "chrome/android/java/src/org/chromium/chrome/browser/ntp/NewTabPage.java": {
