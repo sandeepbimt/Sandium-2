@@ -70,7 +70,7 @@
     },
     {
       "name": "align-menu-titles-to-left-guide.patch",
-      "sha256": "3b2160efaadd6271b1e1a217d6a35d29bb1f13c2eda37369597ca443c2cdc0f8"
+      "sha256": "5133e14ab2ee179c996b2a569f3eaf2a62264d1b305f28f64fa8403420f2ad1d"
     },
     {
       "name": "pearl-glide-up-glyphs.patch",
@@ -258,7 +258,7 @@
         "86fbefc821a75613a68c593af1109e74a038c08f54b8f8f64c58620b06fa2d46"
       ],
       "after": [
-        "e746cee6217b9d26544ab4d49412d0270f84f6721b8351af99feea54cace9304"
+        "f815426b1b3fa737ab790b340788a77f90e1eb0c24aa5f296960d148265d4dd9"
       ]
     },
     "chrome/android/java/src/org/chromium/chrome/browser/ntp/NewTabPage.java": {

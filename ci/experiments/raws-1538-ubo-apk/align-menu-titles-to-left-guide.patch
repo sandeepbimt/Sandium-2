@@ -5,7 +5,7 @@ diff --git a/chrome/browser/ui/android/appmenu/internal/java/src/org/chromium/ch
          heading.setMinimumHeight(headerHeight);
          heading.setGravity(Gravity.CENTER_VERTICAL);
          heading.setBaselineAligned(false);
-+        @Nullable TextView startTitle = null;
++        TextView startTitle = null;
          if (mDraft != null) {
              weighted(heading, button(s(R.string.sandium_menu_cancel), s(R.string.sandium_menu_cancel_edits), () -> {
                  if (!mWriteInFlight) { mDraft = null; render(); }
