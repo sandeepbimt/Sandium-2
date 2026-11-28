@@ -103,6 +103,10 @@
     {
       "name": "menu-titles-one-sp-smaller.patch",
       "sha256": "5487ce096882667d78756ddac10b2cc320009374f5ec93e47df5498f2bb42892"
+    },
+    {
+      "name": "defer-restored-background-tabs.patch",
+      "sha256": "efbcf1926be6af0eac0d173fc772a1b3046f2b02dfe5d95030fbd7e50c3eecc0"
     }
   ],
   "paths": {
@@ -479,6 +483,14 @@
       ],
       "after": [
         "49947eba9e109842f4290437088bde40561072b6f41407f6f4061bd219d77dfa"
+      ]
+    },
+    "chrome/browser/chrome_browser_field_trials.cc": {
+      "before": [
+        "70c47d2d0ef60ff2f778341b625e334ca2b4a184e389ab2dfd2d0904802a2813"
+      ],
+      "after": [
+        "d8b70f99cd82a8748d2fc17d975f77567219c4c3eae486438cd72565be753723"
       ]
     }
   }
