@@ -95,6 +95,14 @@
     {
       "name": "pearl-address-bar-icon-balance.patch",
       "sha256": "9dc8f6f3339f35c414a058a6245925a5e80450445eb436c1a00cb791f0f5dc2c"
+    },
+    {
+      "name": "paint-glide-up-line-icons.patch",
+      "sha256": "77f74547e48a4ba79a7c9c5ab5c7ead5c527163400d23d86a32bb3ff502f7c28"
+    },
+    {
+      "name": "menu-titles-one-sp-smaller.patch",
+      "sha256": "5487ce096882667d78756ddac10b2cc320009374f5ec93e47df5498f2bb42892"
     }
   ],
   "paths": {
@@ -225,7 +233,7 @@
         "140a9577c4a3512afc8be2804649614f3abf924be73c817d162e635d8906decc"
       ],
       "after": [
-        "8a641b00bf2ad9674d6167d44bf927e33b26b90f00dbdfe9bb220d6ca6e54419"
+        "b6cf20cfa3a927351c02fd1377745aa1a478b3b9483b02c453a8c9d8875c0d13"
       ]
     },
     "components/omnibox/browser/autocomplete_result.cc": {
@@ -278,7 +286,7 @@
         "86fbefc821a75613a68c593af1109e74a038c08f54b8f8f64c58620b06fa2d46"
       ],
       "after": [
-        "f815426b1b3fa737ab790b340788a77f90e1eb0c24aa5f296960d148265d4dd9"
+        "929d1a1daced9a274f062bdcbcfc20512443c9510e6dec9129ccfe0dcca080e1"
       ]
     },
     "chrome/android/java/src/org/chromium/chrome/browser/ntp/NewTabPage.java": {
@@ -435,10 +443,10 @@
     },
     "chrome/android/java/src/org/chromium/chrome/browser/ChromeTabbedActivity.java": {
       "before": [
-        "8b3b09807729bbedb75d7148d2f686ab04df77782c9fdaf0ce0b64be561ace4f"
+        "36f5295bd7bcb532b94a22e98e681a36b13a74857484b75b87f157730a386089"
       ],
       "after": [
-        "9d4a99927e901e753638df13b4c4a5aafc4285e9016a29aa817973971008917c"
+        "d55dc61146ea544494109d40f9e0f0889c0ca6019e224526738f3fae1adb54ff"
       ]
     },
     "chrome/android/java/src/org/chromium/chrome/browser/settings/SettingsActivity.java": {

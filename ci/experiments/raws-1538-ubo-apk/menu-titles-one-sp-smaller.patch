@@ -1,0 +1,12 @@
+diff --git a/chrome/browser/ui/android/appmenu/internal/java/src/org/chromium/chrome/browser/ui/appmenu/SandiumPagedMenu.java b/chrome/browser/ui/android/appmenu/internal/java/src/org/chromium/chrome/browser/ui/appmenu/SandiumPagedMenu.java
+--- a/chrome/browser/ui/android/appmenu/internal/java/src/org/chromium/chrome/browser/ui/appmenu/SandiumPagedMenu.java
++++ b/chrome/browser/ui/android/appmenu/internal/java/src/org/chromium/chrome/browser/ui/appmenu/SandiumPagedMenu.java
+@@ -831,7 +831,7 @@
+             int actionWidth = dp(48);
+             Entry extensions = headerExtension();
+             TextView title = text(s(mAllMenu ? R.string.sandium_menu_all : R.string.sandium_menu_title),
+-                    HEADER_TITLE_SP, mTextColor);
++                    HEADER_TITLE_SP - 1, mTextColor);
+             title.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
+             title.setGravity(Gravity.START | Gravity.CENTER_VERTICAL);
+             title.setPaddingRelative(dp(9), 0, 0, 0);

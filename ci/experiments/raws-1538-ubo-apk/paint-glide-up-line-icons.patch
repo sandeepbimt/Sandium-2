@@ -1,0 +1,90 @@
+diff --git a/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/ToolbarPhone.java b/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/ToolbarPhone.java
+--- a/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/ToolbarPhone.java
++++ b/chrome/browser/ui/android/toolbar/java/src/org/chromium/chrome/browser/toolbar/top/ToolbarPhone.java
+@@ -432,7 +432,8 @@
+         if (button == null) return;
+         boolean enabled = canGoRawSForward();
+         button.setEnabled(enabled);
+-        button.setAlpha(enabled ? 1f : 0.48f);
++        button.setAlpha(enabled ? 1f : 0.56f);
++        if (button.getParent() instanceof View glyphHost) glyphHost.invalidate();
+     }
+ 
+     private void toggleRawSQuickActions(ImageView anchor, ToolbarTabController controller) {
+@@ -510,7 +511,8 @@
+                         targetHeight + 1, mPaint);
+                 canvas.drawRect(rawSDp(14), 2 * targetHeight, width - rawSDp(14),
+                         2 * targetHeight + 1, mPaint);
+-                // Use the same visible tab outline for New tab and the live tab count.
++                // Paint all line glyphs on the same canvas as the visible tab outlines.
++                // The transparent child buttons only handle input, accessibility, and the count.
+                 float iconHalf = rawSDp(10);
+                 float cx = width / 2f;
+                 float corner = rawSDp(4);
+@@ -522,6 +524,22 @@
+                     canvas.drawRoundRect(cx - iconHalf, cy - iconHalf, cx + iconHalf,
+                             cy + iconHalf, corner, corner, mPaint);
+                 }
++                float density = getResources().getDisplayMetrics().density;
++                mPaint.setStrokeCap(Paint.Cap.ROUND);
++                float cy = targetHeight / 2f;
++                var forwardButton = mRawSQuickForward;
++                mPaint.setAlpha(forwardButton != null && forwardButton.isEnabled() ? 255 : 143);
++                canvas.drawLine(cx - 8f * density, cy, cx + 8f * density, cy, mPaint);
++                canvas.drawLine(cx + 2f * density, cy - 6f * density,
++                        cx + 8f * density, cy, mPaint);
++                canvas.drawLine(cx + 8f * density, cy,
++                        cx + 2f * density, cy + 6f * density, mPaint);
++
++                mPaint.setAlpha(255);
++                cy = 1.5f * targetHeight;
++                canvas.drawLine(cx - 4f * density, cy, cx + 4f * density, cy, mPaint);
++                canvas.drawLine(cx, cy - 4f * density, cx, cy + 4f * density, mPaint);
++                mPaint.setStrokeCap(Paint.Cap.BUTT);
+                 canvas.restoreToCount(save);
+                 mPaint.setColor(edge);
+                 mPaint.setStyle(Paint.Style.STROKE);
+@@ -607,42 +625,7 @@
+     }
+ 
+     private Button makeRawSQuickButton(int label, @ColorInt int color) {
+-        var button = new Button(getContext(), null, android.R.attr.borderlessButtonStyle) {
+-            private final Paint mGlyphPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+-            private final Path mGlyph = new Path();
+-
+-            @Override
+-            protected void onSizeChanged(int w, int h, int oldW, int oldH) {
+-                super.onSizeChanged(w, h, oldW, oldH);
+-                float density = getResources().getDisplayMetrics().density;
+-                float cx = w / 2f;
+-                float cy = h / 2f;
+-                mGlyph.reset();
+-                if (label == R.string.raws_toolbar_forward) {
+-                    mGlyph.moveTo(cx - 8f * density, cy);
+-                    mGlyph.lineTo(cx + 8f * density, cy);
+-                    mGlyph.moveTo(cx + 2f * density, cy - 6f * density);
+-                    mGlyph.lineTo(cx + 8f * density, cy);
+-                    mGlyph.lineTo(cx + 2f * density, cy + 6f * density);
+-                } else if (label == R.string.raws_toolbar_quick_new_tab) {
+-                    mGlyph.moveTo(cx - 4f * density, cy);
+-                    mGlyph.lineTo(cx + 4f * density, cy);
+-                    mGlyph.moveTo(cx, cy - 4f * density);
+-                    mGlyph.lineTo(cx, cy + 4f * density);
+-                }
+-                mGlyphPaint.setColor(color);
+-                mGlyphPaint.setStyle(Paint.Style.STROKE);
+-                mGlyphPaint.setStrokeWidth(1.65f * density);
+-                mGlyphPaint.setStrokeCap(Paint.Cap.ROUND);
+-                mGlyphPaint.setStrokeJoin(Paint.Join.ROUND);
+-            }
+-
+-            @Override
+-            protected void onDraw(Canvas canvas) {
+-                super.onDraw(canvas);
+-                if (!mGlyph.isEmpty()) canvas.drawPath(mGlyph, mGlyphPaint);
+-            }
+-        };
++        var button = new Button(getContext(), null, android.R.attr.borderlessButtonStyle);
+         String description = getResources().getString(label);
+         button.setTooltipText(description);
+         button.setGravity(Gravity.CENTER);
