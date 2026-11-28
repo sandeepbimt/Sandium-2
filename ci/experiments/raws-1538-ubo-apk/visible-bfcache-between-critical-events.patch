@@ -1,0 +1,40 @@
+diff --git a/content/browser/back_forward_cache/back_forward_cache_impl.cc b/content/browser/back_forward_cache/back_forward_cache_impl.cc
+--- a/content/browser/back_forward_cache/back_forward_cache_impl.cc
++++ b/content/browser/back_forward_cache/back_forward_cache_impl.cc
+@@ -2003,6 +2003,16 @@
+ }
+ 
+ size_t BackForwardCacheImpl::GetTargetCacheSize() {
++#if BUILDFLAG(IS_ANDROID)
++  // RawS test candidate: a critical notification still prunes to the stock
++  // limit. Between notifications, allow only the most recent eligible page
++  // in a visible tab instead of evicting it immediately upon insertion.
++  if (memory_pressure_level() == base::MEMORY_PRESSURE_LEVEL_CRITICAL &&
++      IsVisible() &&
++      GetConfiguredPressureLimit(memory_pressure_level()) == 0) {
++    return std::min(size_t{1}, baseline_max_cache_size_);
++  }
++#endif
+   if (memory_pressure_level() == base::MEMORY_PRESSURE_LEVEL_NONE) {
+     return baseline_max_cache_size_;
+   }
+@@ -2025,7 +2035,9 @@
+     return;
+   }
+ 
+-  bool bypass_ack_check = (max_cache_size_ < baseline_max_cache_size_);
++  const size_t notification_limit =
++      std::min(static_cast<size_t>(cache_size), baseline_max_cache_size_);
++  bool bypass_ack_check = (notification_limit < baseline_max_cache_size_);
+   auto reason = bypass_ack_check
+                     ? GetPressureReason(memory_pressure_level())
+                     : BackForwardCacheMetrics::NotRestoredReason::kCacheLimit;
+@@ -2038,7 +2050,7 @@
+   // TODO(431957711): `number_of_tabs` can only ever be 0 or 1. Consider
+   // fixing it or removing it the metric.
+   if (!GetNavigationController().GetPendingEntry()) {
+-    size_t count = EnforceCacheSizeLimitInternal(max_cache_size_, reason,
++    size_t count = EnforceCacheSizeLimitInternal(notification_limit, reason,
+                                                  bypass_ack_check);
+     if (count > 0) {
+       number_of_tabs++;

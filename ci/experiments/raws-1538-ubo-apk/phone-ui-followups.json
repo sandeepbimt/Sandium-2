@@ -107,6 +107,10 @@
     {
       "name": "defer-restored-background-tabs.patch",
       "sha256": "efbcf1926be6af0eac0d173fc772a1b3046f2b02dfe5d95030fbd7e50c3eecc0"
+    },
+    {
+      "name": "visible-bfcache-between-critical-events.patch",
+      "sha256": "004dc4d19091e9f53f8f1c29fedaaa47fdf6d0562a946f82cb9f42efd454ccdb"
     }
   ],
   "paths": {
@@ -491,6 +495,14 @@
       ],
       "after": [
         "d8b70f99cd82a8748d2fc17d975f77567219c4c3eae486438cd72565be753723"
+      ]
+    },
+    "content/browser/back_forward_cache/back_forward_cache_impl.cc": {
+      "before": [
+        "f17577bd85707ebe577d72018ee233cdd7fe6aa480fc603ee4049c2c0cfb2bd9"
+      ],
+      "after": [
+        "a8a2b06a8304bd546df5ba9a9ba6cca213440ca5cb9d865d6515e73249390d58"
       ]
     }
   }
