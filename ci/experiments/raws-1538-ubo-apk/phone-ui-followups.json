@@ -51,6 +51,10 @@
     {
       "name": "align-sandium-menu-headers.patch",
       "sha256": "120612ce463969b6144458087249263ea3befb75c96aeddfdc6ae247c8e336ff"
+    },
+    {
+      "name": "disable-home-wordmark-amber-glow.patch",
+      "sha256": "bf5605608d0e4c828350dffdfafa644ec1c0947c959af4752712ebf3f4e47176"
     }
   ],
   "paths": {
@@ -229,6 +233,14 @@
     "chrome/browser/ui/android/appmenu/internal/java/src/org/chromium/chrome/browser/ui/appmenu/SandiumPagedMenu.java": {
       "before": [
         "86fbefc821a75613a68c593af1109e74a038c08f54b8f8f64c58620b06fa2d46"
+      ]
+    },
+    "chrome/android/java/src/org/chromium/chrome/browser/ntp/NewTabPage.java": {
+      "before": [
+        "058817d5b0c42d1e71cdc7eaa8c4e8554b497849a92b8b8c9f7622749ae3bdab"
+      ],
+      "after": [
+        "9d6cacf20dd6dab4215c6d310732f6f388a0733be129cc542b12bb97b87e86de"
       ]
     }
   }

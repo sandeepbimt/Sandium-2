@@ -1,0 +1,11 @@
+diff --git a/chrome/android/java/src/org/chromium/chrome/browser/ntp/NewTabPage.java b/chrome/android/java/src/org/chromium/chrome/browser/ntp/NewTabPage.java
+--- a/chrome/android/java/src/org/chromium/chrome/browser/ntp/NewTabPage.java
++++ b/chrome/android/java/src/org/chromium/chrome/browser/ntp/NewTabPage.java
+@@ -708,7 +708,6 @@
+                     R.drawable.raws_home_brand,
+                     /* wallpaperIncludesBrand= */ false,
+                     this::updateRawSHomeStatusBarColor);
+-            if (useRawSHomeGrid) coordinator.useRawSHomeStardustBrandHalo();
+             coordinator.setRawSHomePaddingHooks(
+                     this::isRawSHomePaddingSampleReady, this::updateRawSHomePaddingColor);
+         }
